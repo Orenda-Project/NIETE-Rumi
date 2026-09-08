@@ -138,6 +138,53 @@ describe('mock-graph-api: Meta field caps, in code points', () => {
   });
 });
 
+describe('mock-graph-api: media (Phase 2)', () => {
+  const os = require('os'); const fs = require('fs'); const path = require('path');
+  const fixture = () => { const p = path.join(os.tmpdir(), 'e2e-fixture-' + Date.now() + '.txt'); fs.writeFileSync(p, 'these are not lesson-plan notes'); return p; };
+
+  test('the bot uploads bytes to /media, gets an id, and the send that references it is a doc reply with the bytes hashed', async () => {
+    const boundary = 'xxBOUNDARYxx';
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="report.pdf"\r\nContent-Type: application/pdf\r\n\r\n`),
+      Buffer.from('%PDF-1.4 fake'),
+      Buffer.from(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n--${boundary}--\r\n`),
+    ]);
+    const up = await fetch(`${base}/v21.0/${PH}/media`, { method: 'POST', headers: { 'Content-Type': 'multipart/form-data; boundary=' + boundary, Authorization: 'Bearer x' }, body });
+    expect(up.status).toBe(200);
+    const { id } = await up.json();
+    expect(id).toMatch(/^media\.mock\./);
+    const r = await post(`/v21.0/${PH}/messages`, { messaging_product: 'whatsapp', to: '923000000001', type: 'document', document: { id, filename: 'report.pdf', caption: 'Your coaching report' } });
+    expect(r.status).toBe(200);
+    const { items } = await get('/outbox');
+    expect(items[0]).toMatchObject({ type: 'document', txt: 'Your coaching report', doc: true, img: false, audio: false, pdf: true });
+    expect(items[0].media).toMatchObject({ id, filename: 'report.pdf', bytes: 13, mime: 'application/pdf' });
+    expect(items[0].media.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test('an image sent by link and an audio sent by id carry the flags the CDP reader would set', async () => {
+    await post(`/v21.0/${PH}/messages`, { messaging_product: 'whatsapp', to: '923000000001', type: 'image', image: { link: 'https://cdn.example/hero.png', caption: 'Hero' } });
+    await post(`/v21.0/${PH}/messages`, { messaging_product: 'whatsapp', to: '923000000001', type: 'audio', audio: { id: 'media.mock.none' } });
+    const { items } = await get('/outbox');
+    expect(items[0]).toMatchObject({ type: 'image', txt: 'Hero', img: true, media: { link: 'https://cdn.example/hero.png' } });
+    expect(items[1]).toMatchObject({ type: 'audio', txt: '', audio: true });
+  });
+
+  test('a registered file is served back the way Meta does: GET /<id> → metadata with a url, GET url → the bytes', async () => {
+    const p = fixture();
+    const reg = await fetch(`${base}/media/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: p, mime: 'text/plain' }) });
+    expect(reg.status).toBe(200);
+    const { id, bytes } = await reg.json();
+    expect(bytes).toBe(31);
+    const meta = await (await fetch(`${base}/v21.0/${id}`, { headers: { Authorization: 'Bearer x' } })).json();
+    expect(meta).toMatchObject({ id, mime_type: 'text/plain', file_size: 31 });
+    expect(meta.url).toBe(`${base}/media/${id}/bytes`);
+    const dl = await fetch(meta.url, { headers: { Authorization: 'Bearer x' } });
+    expect(dl.status).toBe(200);
+    expect(await dl.text()).toBe('these are not lesson-plan notes');
+    expect((await fetch(`${base}/v21.0/media.mock.nope`)).status).toBe(404);
+  });
+});
+
 describe('mock-graph-api: inbound injection', () => {
   let bot, received, botUrl;
   beforeAll(async () => {
@@ -167,6 +214,26 @@ describe('mock-graph-api: inbound injection', () => {
       expect(msg.metadata.phone_number_id).toBe(PH);
       expect(msg.messages[0].text.body).toBe('/menu');
       expect(msg.messages[0].from).toBe('923000000001');
+    } finally { await api2.close(); }
+  });
+
+  test('POST /inject kind=document reads a local file, registers it, and forwards a document message the handler can download', async () => {
+    received.length = 0;
+    const os = require('os'); const fs = require('fs'); const path = require('path');
+    const p = path.join(os.tmpdir(), 'notes-' + Date.now() + '.txt'); fs.writeFileSync(p, 'staff meeting notes');
+    const api2 = createMockGraphApi({ phoneNumberId: PH, botUrl });
+    const port = await api2.listen(0);
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/inject`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'document', from: '923000000001', path: p, mime: 'text/plain' }) });
+      const j = await r.json();
+      expect(j.ok).toBe(true);
+      expect(j.mediaId).toMatch(/^media\.mock\./);
+      const m = received[0].body.entry[0].changes[0].value.messages[0];
+      expect(m.type).toBe('document');
+      expect(m.document).toMatchObject({ id: j.mediaId, mime_type: 'text/plain', filename: path.basename(p), file_size: 19 });
+      const meta = await (await fetch(`http://127.0.0.1:${port}/v21.0/${j.mediaId}`)).json();
+      expect(meta.file_size).toBe(19);
     } finally { await api2.close(); }
   });
 

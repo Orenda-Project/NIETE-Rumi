@@ -56,6 +56,18 @@ describe('simulate.js builders pass the inbound guards', () => {
     expect(g.ours && !g.testWebhook && !g.testPhone).toBe(true);
   });
 
+  test('mediaMessage forges document / image / audio messages with the fields the handlers read', () => {
+    const { sim, v } = load();
+    const d = guards(v, sim.mediaMessage('document', 'media.mock.7', { mime: 'audio/mp4', filename: 'class.m4a', size: 4086396 }, { from: '923000000001' }));
+    expect(d.parsed.messageType).toBe('document');
+    expect(d.parsed.message.document).toEqual({ id: 'media.mock.7', mime_type: 'audio/mp4', filename: 'class.m4a', file_size: 4086396 });
+    const i = guards(v, sim.mediaMessage('image', 'media.mock.8', { mime: 'image/png', caption: 'page 12' }, { from: '923000000001' }));
+    expect(i.parsed.message.image).toMatchObject({ id: 'media.mock.8', mime_type: 'image/png', caption: 'page 12' });
+    const a = guards(v, sim.mediaMessage('audio', 'media.mock.9', { mime: 'audio/ogg; codecs=opus' }, { from: '923000000001' }));
+    expect(a.parsed.message.audio).toEqual({ id: 'media.mock.9', mime_type: 'audio/ogg; codecs=opus', voice: true });
+    expect(d.ours && !d.testWebhook && !d.testPhone).toBe(true);
+  });
+
   test('buttonReply forges an interactive button_reply', () => {
     const { sim, v } = load();
     const g = guards(v, sim.buttonReply('lang_en', 'English', { from: '923000000001' }));

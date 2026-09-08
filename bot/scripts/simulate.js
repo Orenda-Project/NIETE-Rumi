@@ -79,6 +79,25 @@ function listReply(id, title, options = {}) {
 }
 
 /**
+ * A media message the teacher sent — `kind` is document | image | audio | video, `mediaId` is the id
+ * the (mock) Graph API will serve the bytes under. Carries exactly the fields the handlers read:
+ * document → id, mime_type, filename, file_size · image → id, mime_type, caption · audio → id,
+ * mime_type, voice (a WhatsApp voice note).
+ */
+function mediaMessage(kind, mediaId, meta = {}, options = {}) {
+  const base = { id: mediaId, mime_type: meta.mime || 'application/octet-stream' };
+  let media;
+  switch (kind) {
+    case 'document': media = { ...base, filename: meta.filename || 'file', file_size: meta.size || 0 }; break;
+    case 'image': media = { ...base, ...(meta.caption ? { caption: meta.caption } : {}), sha256: meta.sha256 || 'mock' }; break;
+    case 'audio': media = { ...base, voice: meta.voice !== false }; break;
+    case 'video': media = { ...base, ...(meta.caption ? { caption: meta.caption } : {}) }; break;
+    default: throw new Error('mediaMessage: unknown kind ' + kind);
+  }
+  return wrapInWebhook({ type: kind, [kind]: media }, options);
+}
+
+/**
  * Check if a message is a quit command.
  */
 function isQuitCommand(text) {
@@ -180,6 +199,7 @@ module.exports = {
   simulateMessage,
   buttonReply,
   listReply,
+  mediaMessage,
   wrapInWebhook,
   isQuitCommand,
   postToWebhook,

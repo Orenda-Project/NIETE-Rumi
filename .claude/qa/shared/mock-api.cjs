@@ -88,13 +88,26 @@ function makeMockApi(opts) {
     if (!items.length) return { ok: false, waitedMs, freshIds: 0, txt: '', btns: [], mineOnly: true };
     const last = items[items.length - 1];
     cursor = last.seq; lastReply = last;
-    return { ok: true, waitedMs, freshIds: items.length, txt: last.txt || '', btns: last.btns || [] };
+    // `kind` mirrors upload()'s classification on the CDP side: what the reply row IS.
+    const kind = last.audio ? 'audio' : last.doc ? 'document' : last.img ? 'image' : (last.txt ? 'text' : 'unknown');
+    return { ok: true, waitedMs, freshIds: items.length, txt: last.txt || '', btns: last.btns || [], kind };
   }
+  // The fresh-inbound reader the pipeline walkers (coaching, lesson-plan) use: everything that
+  // arrived since the LAST call, with the media flags the CDP page-side reader computes.
+  let freshCursor = 0;
+  const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 600), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
+    pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media });
+  const MEDIA_KIND_BY_MENU = { 'document': 'document', 'photos & videos': 'image', 'photo': 'image', 'audio': 'audio', 'video': 'video' };
+  const MIME_BY_EXT = { '.m4a': 'audio/mp4', '.mp4': 'video/mp4', '.ogg': 'audio/ogg; codecs=opus', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.pdf': 'application/pdf', '.txt': 'text/plain' };
   const noFlow = () => ({ ok: false, err: 'MOCK_NO_FLOW_RENDER' });
 
   return {
-    caps: { method: 'mock', flows: false, upload: false, render: false },
-    ev() { throw new Error('HARNESS mock-api: ev() is a browser primitive; the mock driver has no page'); },
+    caps: { method: 'mock', flows: false, upload: true, render: false },
+    /** A page-side evaluate has no page here. Resolve to a JSON failure (the shape every caller
+     *  parses) rather than throw: the callers are Flow-gated scenarios that are BLOCKED anyway, and a
+     *  throw would abort the whole feature run instead of one scenario. */
+    async ev() { return JSON.stringify({ ok: false, err: 'MOCK_NO_PAGE' }); },
     async inject() { return true; },
 
     async sendWait(text, timeoutMs = 90000) {
@@ -163,8 +176,27 @@ function makeMockApi(opts) {
         return { ok: true, out, user };
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 200) }; }
     },
-    async upload(file, menuItem) {
-      throw new Error(`HARNESS mock-api: upload(${path.basename(String(file))}, ${menuItem}) is not supported by the mock driver in Phase 1 — media is a Phase 2 item`);
+    /** Attach a file the way the CDP driver does via Attach → <menu item>. The menu item picks the
+     *  WhatsApp kind (Document / Photos & videos / Audio); the mock registers the bytes so the bot's
+     *  downloadMedia() fetches them back through the Graph API, exactly as with Meta. */
+    async upload(file, menuItem, timeoutMs = 90000) {
+      const kind = MEDIA_KIND_BY_MENU[String(menuItem || '').toLowerCase()];
+      if (!kind) throw new Error(`HARNESS mock-api: upload menu item ${JSON.stringify(menuItem)} has no media kind (Document | Photos & videos | Audio)`);
+      if (!require('fs').existsSync(file)) throw new Error(`HARNESS mock-api: upload fixture missing: ${file}`);
+      trace('upload START ' + kind + ' ' + path.basename(String(file)));
+      const since = await quiesce();
+      const j = await inject(kind, { path: file, mime: MIME_BY_EXT[path.extname(String(file)).toLowerCase()] });
+      const r = await waitReply(since, timeoutMs, 'upload:' + path.basename(String(file)));
+      trace('upload ok    ' + kind + ' waited=' + r.waitedMs + ' media=' + j.mediaId);
+      return { ok: r.ok, waitedMs: r.waitedMs, newIds: r.freshIds, kind: r.ok ? r.kind : 'none', txt: r.txt, btns: r.btns, mediaId: j.mediaId };
+    },
+    /** Seed the fresh-inbound reader: everything in the outbox so far is "already seen". */
+    async freshReset() { freshCursor = (await outbox(0)).last; return 1; },
+    /** Items that arrived since the last fresh()/freshReset(), oldest first, with media flags. */
+    async fresh() {
+      const { items, last } = await outbox(freshCursor);
+      if (items.length) freshCursor = items[items.length - 1].seq; else freshCursor = Math.max(freshCursor, last);
+      return items.map(flagsOf);
     },
     async waitStats() {
       const ms = waits.map((w) => w.waitedMs).sort((a, b) => a - b);

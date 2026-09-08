@@ -12,11 +12,13 @@
 #   3. The bot's .env is composed from keys/niete-local.env (sandbox DB + placeholders, never a real
 #      WhatsApp token) plus the run's own values: WHATSAPP_API_BASE → the mock, E2E_COMMIT_SHA=<sha>,
 #      E2E_CASSETTE=replay-strict (a vendor miss FAILS, never goes live).
-#   4. Three processes: mock-graph-api, the bot. (The worker is Phase 2 — menu/language/status never
-#      enqueue.) Readiness is polled; then /health must report commit == <sha> or exit 13.
+#   4. Four processes: a private redis-server (no persistence), mock-graph-api, the bot, and the
+#      queue worker on QUEUE_DRIVER=bullmq — coaching and lesson-plan jobs run through it exactly as
+#      on Railway, minus AWS. Readiness is polled; then /health must report commit == <sha> or exit 13.
 #
 # Exit codes: 10 lockfile mismatch · 11 worktree failed · 12 bot not healthy in time · 13 /health sha
-# mismatch · 14 keys/niete-local.env missing · 15 mock not healthy.
+# mismatch · 14 keys/niete-local.env missing · 15 mock not healthy · 16 redis-server missing/unhealthy ·
+# 17 worker not healthy.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
@@ -74,6 +76,8 @@ up() {
   local keys="$KEYS_DIR/niete-local.env"
   [ -f "$keys" ] || { log "missing $keys (sandbox creds + placeholders — see docs/e2e-mock-lane.md)"; exit 14; }
   local mock_port="${MOCK_PORT:-4010}" bot_port="${E2E_BOT_PORT:-3100}" phone_id="${E2E_PHONE_NUMBER_ID:-e2e-local}"
+  local redis_port="${E2E_REDIS_PORT:-6390}" worker_port="${E2E_WORKER_HEALTH_PORT:-3201}"
+  command -v redis-server >/dev/null 2>&1 || { log "redis-server not found — the queue worker needs it (brew install redis)"; exit 16; }
   local cassette_dir="${E2E_CASSETTE_DIR:-$MAIN/bot/temp/e2e-cassettes}"
   {
     cat "$keys"
@@ -87,41 +91,54 @@ up() {
     echo "E2E_CASSETTE_DIR=$cassette_dir"
     echo "E2E_CASSETTE_MISS_LOG=$run_dir/cassette-misses.jsonl"
     echo "NODE_ENV=test"
+    echo "QUEUE_DRIVER=bullmq"
+    echo "REDIS_URL=redis://127.0.0.1:$redis_port"
+    echo "WORKER_QUEUES=main,quiz"
+    echo "SQS_WORKER_HEALTH_PORT=$worker_port"
   } > "$src/.env"
   rm -f "$run_dir/cassette-misses.jsonl"
 
   # 4. processes
   # `exec` so the recorded pid IS node's, not a wrapper subshell's — killing a wrapper left the
   # real process alive on the port (first live run, 2026-09-07).
+  # A PRIVATE redis: its own port, nothing persisted, dies with the run — never the developer's redis.
+  ( exec redis-server --port "$redis_port" --save "" --appendonly no --bind 127.0.0.1 --loglevel warning ) >"$run_dir/redis.log" 2>&1 &
+  echo $! >"$run_dir/redis.pid"
   ( cd "$src" && PHONE_NUMBER_ID="$phone_id" MOCK_PORT="$mock_port" MOCK_BOT_URL="http://127.0.0.1:$bot_port" \
       exec node bot/scripts/e2e/mock-graph-api.js ) >"$run_dir/mock.log" 2>&1 &
   echo $! >"$run_dir/mock.pid"
   ( cd "$src" && exec node bot/whatsapp-bot.js ) >"$run_dir/bot.log" 2>&1 &
   echo $! >"$run_dir/bot.pid"
-  echo "$mock_port $bot_port" >"$run_dir/ports"
+  ( cd "$src" && exec node bot/workers/sqs-worker.js ) >"$run_dir/worker.log" 2>&1 &
+  echo $! >"$run_dir/worker.pid"
+  echo "$mock_port $bot_port $redis_port $worker_port" >"$run_dir/ports"
+  for i in $(seq 1 30); do redis-cli -p "$redis_port" ping 2>/dev/null | grep -q PONG && break; sleep 0.3; done
+  redis-cli -p "$redis_port" ping 2>/dev/null | grep -q PONG || { log "redis not answering on $redis_port (see $run_dir/redis.log)"; down "$run_dir"; exit 16; }
 
   local i health
   for i in $(seq 1 30); do curl -sf -m 2 "http://127.0.0.1:$mock_port/health" >/dev/null 2>&1 && break; sleep 0.5; done
   curl -sf -m 2 "http://127.0.0.1:$mock_port/health" >/dev/null 2>&1 || { log "mock-graph-api not healthy on $mock_port (see $run_dir/mock.log)"; down "$run_dir"; exit 15; }
   for i in $(seq 1 120); do health=$(curl -sf -m 2 "http://127.0.0.1:$bot_port/health" 2>/dev/null) && break; sleep 0.5; done
   [ -n "${health:-}" ] || { log "bot not healthy on $bot_port after 60s (see $run_dir/bot.log)"; down "$run_dir"; exit 12; }
+  for i in $(seq 1 120); do curl -sf -m 2 "http://127.0.0.1:$worker_port/health" >/dev/null 2>&1 && break; sleep 0.5; done
+  curl -sf -m 2 "http://127.0.0.1:$worker_port/health" >/dev/null 2>&1 || { log "queue worker not healthy on $worker_port after 60s (see $run_dir/worker.log)"; down "$run_dir"; exit 17; }
   local running; running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")')
   if [ "$running" != "$full" ]; then log "/health reports commit '${running:-null}', wanted $full — refusing to drive"; down "$run_dir"; exit 13; fi
 
   python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$NM_BOT/bot/node_modules" "$cassette_dir" <<'PY'
 import json, sys, datetime
 p, sha, src, bot, mock, phone, lock, nm, cas = sys.argv[1:]
-json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock,
+json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
            "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": "replay-strict",
            "started_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}, open(p, "w"), indent=1)
 PY
-  log "up: bot $full on :$bot_port ← mock :$mock_port (worktree $src)"
+  log "up: bot $full on :$bot_port ← mock :$mock_port · worker :$worker_port · redis :$redis_port (worktree $src)"
   cat "$run_dir/stack.json"
 }
 
 down() {
   local run_dir="$1"
-  for f in bot mock; do
+  for f in worker bot mock redis; do
     if [ -f "$run_dir/$f.pid" ]; then kill "$(cat "$run_dir/$f.pid")" >/dev/null 2>&1 || true; rm -f "$run_dir/$f.pid"; fi
   done
   # Belt and braces: anything still listening on this run's ports goes too.

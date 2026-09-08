@@ -145,10 +145,13 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // Fresh-inbound reader: keeps its own seen-set in the page, so each call returns
   // only what arrived since the last one. Used by the pipeline walker below.
-  await api.ev(`(()=>{ window.__seen = new Set(
+  // Both drivers provide freshReset()/fresh() (feature-runner.cjs makeApi · mock-api.cjs); the
+  // page-side implementation that used to live inline here stays as the fallback for an api without it.
+  if (api.freshReset) await api.freshReset();
+  else await api.ev(`(()=>{ window.__seen = new Set(
     [...document.querySelectorAll('#main div[role="row"] [data-id]')].map(e=>e.getAttribute('data-id')));
     return 1; })()`);
-  const fresh = () => api.ev(`(()=>{
+  const fresh = () => api.fresh ? api.fresh() : api.ev(`(()=>{
     const out=[];
     for(const r of document.querySelectorAll('#main div[role="row"]')){
       const e=r.querySelector('[data-id]'); const id=e&&e.getAttribute('data-id');

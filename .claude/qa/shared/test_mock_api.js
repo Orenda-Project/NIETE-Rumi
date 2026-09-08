@@ -46,6 +46,10 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
           action: { button: 'View Features', sections: [{ title: 'Features', rows: ROWS.map((r, i) => ({ id: 'menu_' + i, title: r })) }] } } });
       } else if (m.type === 'interactive' && m.interactive.type === 'list_reply' && m.interactive.list_reply.id === 'menu_3') {
         await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'How can I help you today?' } });
+      } else if (m.type === 'interactive' && m.interactive.type === 'button_reply' && m.interactive.button_reply.id === 'yes_analyze') {
+        await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'Step 1/5: Analyzing your teaching…' } });
+        await new Promise((r) => setTimeout(r, 250));
+        await send({ messaging_product: 'whatsapp', to, type: 'document', document: { link: 'https://cdn.example/report.pdf', filename: 'report.pdf', caption: 'Step 5/5: your report' } });
       } else if (m.type === 'interactive' && m.interactive.type === 'button_reply') {
         await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'tapped ' + m.interactive.button_reply.id } });
       } else if (m.type === 'text' && m.text.body === 'react-first') {
@@ -64,6 +68,13 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
         await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'part two' } });
         await new Promise((r) => setTimeout(r, 250));
         await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'part three' } });
+      } else if (m.type === 'document') {
+        // like the coaching handler: download the bytes through the Graph API, then answer with a card
+        const meta = await (await fetch(`${mockBase}/v21.0/${m.document.id}`)).json();
+        const bytes = await (await fetch(meta.url)).arrayBuffer();
+        await send({ messaging_product: 'whatsapp', to, type: 'interactive', interactive: { type: 'button',
+          body: { text: `Detected a ${Math.round(bytes.byteLength / 1024)} KB recording named ${m.document.filename}. Analyze?` },
+          action: { buttons: [{ type: 'reply', reply: { id: 'yes_analyze', title: 'Yes, Analyze' } }, { type: 'reply', reply: { id: 'no', title: 'No' } }] } } });
       } else if (m.type === 'text' && m.text.body === 'silent') {
         /* never replies */
       } else if (m.type === 'text' && m.text.body === 'buttons') {
@@ -160,6 +171,13 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     const r = await api.sendWait('second', 5000);
     assert.strictEqual(r.txt, 'echo: second');
   });
+  await ita('ev() — a page-side read a CDP-only script still makes — resolves to a JSON failure, never throws', async () => {
+    // lesson-plan.cjs reads the transcript via api.ev inside its Flow scenarios; on the mock those
+    // scenarios are already BLOCKED (no Flow), and a throw here would abort the WHOLE feature run.
+    const v = await api.ev('(()=>1)()');
+    assert.strictEqual(typeof v, 'string');
+    assert.deepStrictEqual(JSON.parse(v), { ok: false, err: 'MOCK_NO_PAGE' });
+  });
   await ita('Flow primitives refuse honestly instead of pretending to render', async () => {
     assert.deepStrictEqual(await api.openFlow('Open status'), { ok: false, err: 'MOCK_NO_FLOW_RENDER' });
     assert.deepStrictEqual(await api.flowProbe(), { text: '', items: [] });
@@ -171,8 +189,41 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     assert.deepStrictEqual(await api.flowState('x'), { found: false });
     api.closeFlow();
   });
-  await ita('upload is out of Phase 1 scope and says so as a harness error', async () => {
-    await assert.rejects(() => api.upload('/tmp/x.m4a', 'Document'), /HARNESS.*mock.*upload/i);
+  await ita('upload registers the file with the mock, injects a document, and returns the reply with its kind', async () => {
+    const os = require('os'); const fs = require('fs');
+    const p = path.join(os.tmpdir(), 'hameeda_demo.m4a'); fs.writeFileSync(p, Buffer.alloc(2048, 1));
+    const r = await api.upload(p, 'Document', 5000);
+    assert.strictEqual(r.ok, true);
+    assert.match(r.txt, /Detected a 2 KB recording named hameeda_demo\.m4a/);
+    assert.ok(r.btns.includes('Yes, Analyze'), JSON.stringify(r.btns));
+    assert.strictEqual(inbound[inbound.length - 1].document.mime_type, 'audio/mp4');
+  });
+  await ita('fresh() returns only inbound items since the last call, with media flags', async () => {
+    await api.freshReset();
+    assert.deepStrictEqual(await api.fresh(), []);
+    const os = require('os'); const fs = require('fs');
+    const p = path.join(os.tmpdir(), 'clip.m4a'); fs.writeFileSync(p, Buffer.alloc(1024, 2));
+    const up = await api.upload(p, 'Document', 5000);
+    assert.strictEqual(up.kind, 'text', 'a button card reads as text, like the CDP side');
+    let items = await api.fresh();
+    assert.strictEqual(items.length, 1, JSON.stringify(items.map((i) => i.txt)));
+    assert.deepStrictEqual(items[0].btns, ['Yes, Analyze', 'No']);
+    await api.tapAndWait('Yes, Analyze', 5000);
+    items = await api.fresh();
+    assert.strictEqual(items.length, 2, JSON.stringify(items.map((i) => i.txt)));
+    assert.match(items[0].txt, /Step 1\/5/);
+    assert.strictEqual(items[1].doc, true); assert.strictEqual(items[1].pdf, true);
+    assert.match(items[1].txt, /Step 5\/5/);
+    assert.deepStrictEqual(await api.fresh(), []);
+  });
+  await ita('upload menu items map to the WhatsApp kinds: Photos & videos → image, Audio → audio', async () => {
+    const os = require('os'); const fs = require('fs');
+    const img = path.join(os.tmpdir(), 'page.png'); fs.writeFileSync(img, Buffer.alloc(64, 3));
+    await api.upload(img, 'Photos & videos', 3000).catch(() => {});
+    assert.strictEqual(inbound[inbound.length - 1].type, 'image');
+    const voice = path.join(os.tmpdir(), 'ask.ogg'); fs.writeFileSync(voice, Buffer.alloc(64, 4));
+    await api.upload(voice, 'Audio', 3000).catch(() => {});
+    assert.strictEqual(inbound[inbound.length - 1].type, 'audio');
   });
   await ita('waitStats / waitLog report the adapter\'s own waits', async () => {
     const s = await api.waitStats();
