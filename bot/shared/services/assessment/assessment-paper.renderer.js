@@ -324,19 +324,25 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
     ? "'PaperUrdu','PaperLatin',serif"
     : "'PaperLatin',Arial,sans-serif"}; font-size: ${rtl ? '13.5pt' : '12pt'};
     color: #000; line-height: ${rtl ? 2.0 : 1.5}; margin: 0; }
-  /* Digits, page numbers and marks stay left-to-right inside RTL text. Isolate
-     rather than force direction — an override reorders the surrounding Urdu. */
-  .marks, .num { unicode-bidi: isolate; }
+  /* Latin runs inside an RTL paper need BOTH halves: isolation stops the run
+     reordering its Urdu neighbours, and an explicit ltr direction stops the run
+     itself laying out right-to-left. Isolation alone was the 5 Sep defect:
+     "[1 mark]" printed as "[mark 1]" and every instruction lost its full stop
+     to the front of the line, while the Urdu around them was perfectly correct. */
+  .marks, .num { direction: ltr; unicode-bidi: isolate; }
   .school { text-align: center; font-weight: 700; font-size: 13pt; letter-spacing: .01em; }
   .class-line { text-align: center; font-size: 11.5pt; margin: 2px 0 10px; }
   .chapter { text-align: center; font-size: 10.5pt; color: #333; margin-bottom: 10px; }
-  table.marks-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11pt; }
-  table.marks-header td { border: 1px solid #333; padding: 5px 7px; height: 22px; }
+  table.marks-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11pt;
+    direction: ltr; unicode-bidi: isolate; text-align: left; }
+  table.marks-header td { border: 1px solid #333; padding: 5px 7px; height: 22px; text-align: left; }
   table.marks-header td.k { background: #f2f2f2; font-weight: 600; white-space: nowrap; width: 22%; }
-  .instructions { border: 1px solid #999; padding: 7px 10px; font-size: 10.5pt; margin-bottom: 14px; }
+  .instructions { border: 1px solid #999; padding: 7px 10px; font-size: 10.5pt; margin-bottom: 14px;
+    direction: ltr; unicode-bidi: isolate; text-align: left; }
   .instructions ol { margin: 4px 0 0; padding-${rtl ? 'right' : 'left'}: 18px; }
   h3.type { font-size: 11.5pt; text-transform: uppercase; letter-spacing: .04em;
-            border-bottom: 1.5px solid #000; padding-bottom: 3px; margin: 16px 0 9px; }
+            border-bottom: 1.5px solid #000; padding-bottom: 3px; margin: 16px 0 9px;
+            direction: ltr; unicode-bidi: isolate; text-align: left; }
   .lead { font-weight: 600; margin: 8px 0 6px; }
   .q { margin-bottom: 11px; page-break-inside: avoid; }
   .q p { margin: 0 0 4px; }
@@ -430,7 +436,8 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
     ? "'PaperUrdu','PaperLatin',serif"
     : "'PaperLatin',Arial,sans-serif"}; font-size: ${rtl ? '13pt' : '11.5pt'};
     color: #000; line-height: ${rtl ? 1.9 : 1.45}; margin: 0; }
-  .num, .marks { unicode-bidi: isolate; }
+  .num, .marks { direction: ltr; unicode-bidi: isolate; }
+  .title, .teacher { direction: ltr; unicode-bidi: isolate; }
   .school { text-align: center; font-weight: 700; font-size: 13pt; }
   .class-line { text-align: center; font-size: 11.5pt; margin: 2px 0 2px; }
   .title { text-align: center; font-size: 15pt; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; margin: 6px 0 2px; }

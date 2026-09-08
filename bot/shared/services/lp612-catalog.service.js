@@ -26,9 +26,18 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
+const { pagedRows } = require('../utils/postgrest-paged');
 const { clip, cps, TITLE_CAP, DESC_CAP, META_CAP, PAGE_SIZE, MORE_ROW_ID } =
   require('./lp-v8-catalog.service');
 const { isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE } = require('../config/lp612-flags');
+// The language REGISTRY, not a local map. `languageTitle` is each language's name
+// in its own script ('اردو', 'English') and is the same string the language picker
+// shows her, so a book tagged by language reads exactly like the language she
+// chose. Root CLAUDE.md Rule 20 / language-protocol: a surface that needs a
+// language's name reads it from here — a second copy is how a report once rendered
+// Urdu in the wrong script. A third language added to the registry gets a correct
+// tag with no edit to this file.
+const { getLanguage } = require('../config/languages');
 
 const TABLE = 'niete_lp612_segments';
 
@@ -38,6 +47,59 @@ const urD = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Num
 const RLM = '‏';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** The separator inside a chapter row's id. `chapter_key` is unique inside a
+ *  BOOK, not inside a (grade, subject) — see buildChapterItems. */
+const CHAPTER_ID_SEP = '::';
+const chapterId = (bookStem, chapterKey) => `${bookStem || ''}${CHAPTER_ID_SEP}${chapterKey}`;
+
+
+const stemTokens = (stem) => String(stem || '').split(/[_\-.]+/).filter(Boolean);
+const titleCase = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/**
+ * A short, readable name for each book inside ONE (grade, subject) — derived
+ * from the books themselves, never from a hardcoded list of book stems.
+ *
+ * A map of stem -> label was rejected deliberately. THIS MODULE EXISTS so that a
+ * new book appears without a deploy and without a Flow republish (see the file
+ * header): 6-12 segments arrive book by book as the fleet finishes them. A map
+ * would put a raw `grade_11_biology_practical` on a teacher's screen the day a
+ * book lands, and nobody would notice until she did.
+ *
+ * Two shapes, because the corpus has two:
+ *   - the books differ in LANGUAGE (Pakistan Studies ships an English and an Urdu
+ *     edition under one subject name) -> the tag is the language, in its own
+ *     script. Only when the languages are all distinct; two English books and one
+ *     Urdu one would make "English" ambiguous, so that falls through.
+ *   - otherwise -> whatever the stem does not share with its siblings, minus the
+ *     grade furniture. `grade_9_10_chemistry_experiment` against
+ *     `grade_9_chemistry` leaves {10, experiment} -> "Experiment"; the plain stem
+ *     is left with nothing and takes the subject's own name -> "Chemistry".
+ *
+ * @param {Map<string,{language:string,subject:string,lessons:number}>} books
+ * @returns {Map<string,string>} stem -> tag. EMPTY when the pair has ONE book —
+ *   49 of the corpus's 53 (grade, subject) pairs, which therefore show no tag.
+ */
+function bookTags(books) {
+  const stems = [...books.keys()];
+  if (stems.length < 2) return new Map();
+
+  const langs = stems.map((st) => books.get(st).language).filter(Boolean);
+  if (langs.length === stems.length && new Set(langs).size === stems.length) {
+    return new Map(stems.map((st) => {
+      const l = books.get(st).language;
+      return [st, (getLanguage(l) || {}).languageTitle || String(l).toUpperCase()];
+    }));
+  }
+
+  const sets = stems.map(stemTokens);
+  const common = sets.reduce((acc, t) => acc.filter((x) => t.includes(x)));
+  return new Map(stems.map((st, i) => {
+    const rest = sets[i].filter((t) => !common.includes(t) && !/^\d+$/.test(t) && t !== 'grade');
+    return [st, rest.length ? rest.map(titleCase).join(' ') : (books.get(st).subject || st)];
+  }));
+}
 
 /**
  * Every menu read goes through here, so the two filters that must never be
@@ -71,6 +133,25 @@ async function run(q, what) {
     return [];
   }
   return data || [];
+}
+
+/**
+ * The same, for a read whose answer is a WHOLE SET rather than one row or an
+ * existence bit — every menu below the grade picker.
+ *
+ * `run()` is only safe on a query that is already bounded (`.limit(1)` on the
+ * grade probes). An unbounded select is answered with at most the server's
+ * `db-max-rows` — 1000, measured on both refs 2026-09-07 — with NO error, and
+ * every builder in this file then reduces those rows in JS into a Map. So a
+ * truncated read does not fail; it renders a menu that is missing a subject, a
+ * chapter or a lesson and looks completely normal. Grade 10 pulls 863 of the
+ * 1000 today (bd-oak77.27); the four books still to land cross it.
+ *
+ * The argument is a THUNK, not a builder: a supabase-js builder is single-shot,
+ * and the pager needs a fresh one per window.
+ */
+async function runAll(buildQuery, what) {
+  return pagedRows(`LP 6-12 catalog: ${what}`, buildQuery);
 }
 
 // ── grade ───────────────────────────────────────────────────────────────────
@@ -122,18 +203,34 @@ async function buildGradeItems() {
 // ── subject ─────────────────────────────────────────────────────────────────
 
 async function buildSubjectItems(grade) {
-  const rows = await run(
-    byGrade(menuQuery('subject, chapter_key, language'), grade),
+  // PAGED, NOT UNBOUNDED. This read pulls every servable row of the grade in
+  // order to count each subject's chapters and lessons, so its result set grows
+  // with the corpus: 863 rows on grade 10 today against a server cap of 1000. An
+  // unbounded select would stop returning rows at the cap without an error, and
+  // a subject whose rows sat past it would simply not be in `bySubject` — the
+  // grade-picker bug (6, 7, 8, 10, 11) one screen further in. bd-oak77.27.
+  const rows = await runAll(
+    () => byGrade(menuQuery('subject, book_stem, chapter_key, language'), grade),
     'subjects',
   );
 
   const bySubject = new Map();
   for (const r of rows) {
     if (!r.subject) continue;
-    const e = bySubject.get(r.subject) || { chapters: new Set(), lessons: 0, rtl: false };
-    e.chapters.add(r.chapter_key);
+    const e = bySubject.get(r.subject) || { chapters: new Set(), lessons: 0, rtl: null };
+    // (book, chapter), not chapter_key — which is unique inside a BOOK and not
+    // inside a (grade, subject). Counting the bare key made G9 Chemistry
+    // advertise 23 chapters when the two books between them hold 42 (bd-oak77.5).
+    e.chapters.add(chapterId(r.book_stem, r.chapter_key));
     e.lessons += 1;
-    if (r.language === 'ur') e.rtl = true;
+    // RTL when EVERY row is Urdu, not when ANY row is. A subject that ships an
+    // English AND an Urdu edition is not an Urdu subject — its NAME is English —
+    // and the old `any` rule rendered `۲۳ chapters`, an Urdu digit beside an
+    // English noun. In Nastaliq the English word lands first, so that reads
+    // "chapters ۲۳" (bd-t8mbl, the hazard this module already documents for the
+    // chapter and segment rows). Exactly 2 of 53 pairs are mixed, both Pakistan
+    // Studies; the 10 fully-Urdu pairs keep their Urdu furniture unchanged.
+    e.rtl = e.rtl === null ? (r.language === 'ur') : (e.rtl && r.language === 'ur');
     bySubject.set(r.subject, e);
   }
 
@@ -146,8 +243,10 @@ async function buildSubjectItems(grade) {
         id: subject,
         'main-content': {
           title: clip(subject, TITLE_CAP),
-          description: clip(`${n(e.chapters.size)} chapters`, DESC_CAP),
-          metadata: clip(`Grade ${n(grade)} · ${n(e.lessons)} lessons`, META_CAP),
+          description: clip(e.rtl ? `${n(e.chapters.size)} chapters`
+            : plural(e.chapters.size, 'chapter'), DESC_CAP),
+          metadata: clip(e.rtl ? `Grade ${n(grade)} · ${n(e.lessons)} lessons`
+            : `Grade ${grade} · ${plural(e.lessons, 'lesson')}`, META_CAP),
         },
         'on-click-action': {
           name: 'data_exchange',
@@ -171,16 +270,44 @@ async function buildSubjectItems(grade) {
  * @returns {Promise<{items: object[], hasMore: boolean, total: number, page: number}>}
  */
 async function buildChapterItems(grade, subject, page = 1) {
-  const rows = await run(
-    byGrade(menuQuery('chapter_key, chapter_number, chapter_title, part, language, order_index'), grade)
+  // Paged for the same reason as the subject list: the chapter rows are counted
+  // and de-duplicated in JS, so a page-1 truncation loses whole chapters
+  // silently. 172 rows on the largest (grade, subject) pair today.
+  const rows = await runAll(
+    () => byGrade(menuQuery('book_stem, subject, chapter_key, chapter_number, chapter_title, part, ' +
+              'language, order_index'), grade)
       .eq('subject', subject),
     'chapters',
   );
 
+  // KEYED ON (book_stem, chapter_key) — NOT chapter_key alone.
+  //
+  // `chapter_key` ('c01', 'p3c01') is unique inside a BOOK. It is NOT unique
+  // inside a (grade, subject), and this Map used to key on it alone. Wherever two
+  // books share a (grade, subject) their chapters collapsed into ONE row: the
+  // first row met supplied the title and the number, and `lessons` became the SUM
+  // of both books. The teacher tapped one row and got a lesson list from two
+  // different books (bd-oak77.5 — 49 colliding chapters, 573 menu rows, measured
+  // identically on staging and prod).
+  //
+  // Two ways the corpus produces this, and a fix for one leaves the other:
+  //   - `grade_9_10_chemistry_experiment` is a practicals book listed into BOTH
+  //     years by `also_grades` (V1.3.1) under the same subject name as the main
+  //     Chemistry textbook — 19 collisions on G9, 13 on G10. G9 Chemistry ch.1
+  //     read "Separating the mixture of sand and water" with the textbook's
+  //     "Nature of Chemistry" gone and its 5 lessons pooled with the practicals' 2.
+  //   - Pakistan Studies ships an `_english` and an `_urdu` EDITION under one
+  //     subject name, both numbering from c01 — 6 collisions on G10, 11 on G12,
+  //     so a teacher saw one edition at random.
   const byChapter = new Map();
+  const books = new Map();
   for (const r of rows) {
     if (!r.chapter_key) continue;
-    const e = byChapter.get(r.chapter_key) || {
+    const stem = r.book_stem || '';
+    const id = chapterId(stem, r.chapter_key);
+    const e = byChapter.get(id) || {
+      book: stem,
+      chapterKey: r.chapter_key,
       number: r.chapter_number,
       title: r.chapter_title,
       part: r.part,
@@ -188,14 +315,35 @@ async function buildChapterItems(grade, subject, page = 1) {
       lessons: 0,
     };
     e.lessons += 1;
-    byChapter.set(r.chapter_key, e);
+    byChapter.set(id, e);
+
+    const b = books.get(stem) || { language: r.language, subject: r.subject, lessons: 0 };
+    b.lessons += 1;
+    books.set(stem, b);
   }
+
+  const tags = bookTags(books);
+
+  // BOOK FIRST, then the book's own chapter order. Interleaving by chapter number
+  // would put a practical between every textbook chapter, so a teacher scrolling
+  // her syllabus keeps falling out of it.
+  //
+  // Books rank by lesson count DESCENDING — the main textbook (102 / 98 lessons)
+  // above the supplementary practicals book (34). Alphabetical stem order would
+  // have done the reverse, opening G9 Chemistry on the practicals book. The stem
+  // is the tie-break, so the two editions of one book (86/86 lessons at G10) have
+  // a stable, reproducible order rather than whatever the database returned.
+  const bookRank = new Map([...books.entries()]
+    .sort((a, b) => b[1].lessons - a[1].lessons || a[0].localeCompare(b[0]))
+    .map(([stem], i) => [stem, i]));
 
   // The WHOLE book, in order — pagination slices AFTER the naming pass below,
   // so a chapter number that repeats on a later page still counts as repeated
   // and keeps its own words.
   const ordered = [...byChapter.entries()]
-    .sort((a, b) => (a[1].number ?? 999) - (b[1].number ?? 999) || a[0].localeCompare(b[0]));
+    .sort((a, b) => (bookRank.get(a[1].book) - bookRank.get(b[1].book))
+      || (a[1].number ?? 999) - (b[1].number ?? 999)
+      || a[1].chapterKey.localeCompare(b[1].chapterKey));
 
   // ── pass 1: one shape for every row ──────────────────────────────────────
   //
@@ -228,16 +376,36 @@ async function buildChapterItems(grade, subject, page = 1) {
   // always rendered — every row is told apart on the same line, rather than by
   // whichever field that particular row happened to use. Uniqueness moved to a
   // consistent place; it did not disappear.
-  const prepared = ordered.map(([chapterKey, e]) => {
+  const prepared = ordered.map(([id, e]) => {
     const n = (v) => (e.rtl ? urD(v) : String(v));
     const lead = e.rtl ? RLM : '';
-    const name = e.title || chapterKey;
+    const name = e.title || e.chapterKey;
     const num = e.number != null ? (e.rtl ? `باب ${n(e.number)}` : `Ch ${e.number}`) : '';
     // The part rides with the number so a part-split book still labels its
     // sections. Both sides of this dot are words, so it is clear of the
     // Nastaliq digit-adjacency hazard handled in buildSegmentItems (bd-t8mbl).
-    const token = [e.part, num].filter(Boolean).join(' · ');
-    return { chapterKey, e, n, lead, name, token };
+    const body = [e.part, num].filter(Boolean).join(' · ') || name;
+    // THE BOOK TAG, when — and only when — this (grade, subject) holds more than
+    // one book. Then EVERY row on the screen carries it, never just the intruder:
+    // one list must not look like two (bd-tnvpg). 49 of 53 pairs hold one book
+    // and show no tag at all; whether some other subject shows one is invisible
+    // from inside this list.
+    //
+    // It goes AHEAD of the number and is clipped to the room the number and part
+    // leave behind, so an unexpectedly long tag loses its own tail and never the
+    // `Ch N` a teacher navigates by. Longest real value today is
+    // `Experiment · Ch 23` = 18 code points against a 30 cap.
+    const tag = tags.get(e.book) || '';
+    const room = TITLE_CAP - cps(lead) - cps(body) - cps(' · ');
+    const token = tag && room > 0 ? `${clip(tag, room)} · ${body}` : body;
+    // The id only has to be unique ON THE SCREEN. Where the (grade, subject)
+    // holds ONE book — 49 of the corpus's 53 pairs — `c01` already is, and the
+    // row keeps the exact id it has always had, so a teacher's scrollback and
+    // this screen agree. The composite appears only where two books would
+    // otherwise both claim `c01`: the same condition that puts a tag on the row,
+    // not a second one. Nothing routes on the id (dispatch is `payload.step`);
+    // it is the payload that carries the path.
+    return { id: tags.size ? id : e.chapterKey, e, n, lead, name, token };
   });
 
   // ── pagination window (AFTER the naming pass — see above) ────────────────
@@ -249,26 +417,33 @@ async function buildChapterItems(grade, subject, page = 1) {
   const hasMore = start + perPage < total;
 
   // ── pass 2: the rows ─────────────────────────────────────────────────────
-  const items = pageSlice.map(({ chapterKey, e, n, lead, name, token }) => {
+  const items = pageSlice.map(({ id, e, n, lead, name, token }) => {
     // Every row, identically: number / count / name. A book with no chapter
     // number at all has nothing to put in the title, so it falls back to the
     // name there — the name still also appears on its own line, so the row
     // keeps the same shape as its siblings rather than gaining a field they
     // lack. (No book in the corpus is numberless today; this is the guard.)
     const mc = {
-      title: clip(`${lead}${token || name}`, TITLE_CAP),
+      title: clip(`${lead}${token}`, TITLE_CAP),
       // Urdu rows get Urdu furniture, matching the K-5 builder's `اسباق`. A
       // localised digit beside an English noun is worse than either alone: in a
       // right-to-left row the English word lands FIRST, so `۶ lessons` reads as
       // "lessons ۶" on the handset (bd-t8mbl).
-      description: clip(e.rtl ? `${lead}${n(e.lessons)} اسباق` : `${e.lessons} lessons`, DESC_CAP),
+      // `plural` and not `${n} lessons`: an un-split chapter can hold exactly one
+      // lesson, and 4 of G9 Chemistry's 42 rows read "1 lessons" today. Urdu
+      // `اسباق` is already correct for both counts.
+      description: clip(e.rtl ? `${lead}${n(e.lessons)} اسباق` : plural(e.lessons, 'lesson'), DESC_CAP),
       // ALWAYS. Not "when it did not fit above" — that conditional is the whole
       // bug this row shape exists to remove (bd-tnvpg).
       metadata: clip(`${lead}${name}`, META_CAP),
     };
 
     return {
-      id: chapterKey,
+      // The id must be unique ON THE SCREEN, and two books' `c01` are not. The
+      // longest composite in the corpus is 36 characters
+      // (`grade_9_10_chemistry_experiment::c01`); this lane already ships a
+      // 51-character `segment_id` as a row id, so there is room.
+      id,
       'main-content': mc,
       'on-click-action': {
         name: 'data_exchange',
@@ -276,7 +451,14 @@ async function buildChapterItems(grade, subject, page = 1) {
           step: 'lp612_chapter',
           grade: String(grade),
           subject,
-          chapter_key: chapterKey,
+          chapter_key: e.chapterKey,
+          // WHICH BOOK. Meta does not ride screen data along with a tap, so the
+          // next step can only know this if the row carries it. The Flow declares
+          // `payload` as a bare `{"type": "object"}` with no properties — every
+          // key this lane already relies on (`step`, `grade`, `subject`,
+          // `chapter_key`, `page`) is equally undeclared and round-trips today —
+          // so this needs NO Flow JSON change and no republish.
+          book_stem: e.book,
         },
       },
     };
@@ -314,15 +496,27 @@ async function buildChapterItems(grade, subject, page = 1) {
  * Page 1 carries PAGE_SIZE-1 real rows plus a More row, because Meta rejects a
  * row that routes back to its own screen — overflow has to be a second screen.
  */
-async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
-  const rows = await run(
-    byGrade(menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, printed_page_end, ' +
-              'order_index, lp_type, language, yt'), grade)
+async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem = null) {
+  const buildQuery = () => {
+    let q = byGrade(menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, ' +
+              'printed_page_end, order_index, lp_type, language, yt'), grade)
       .eq('subject', subject)
-      .eq('chapter_key', chapterKey)
-      .order('order_index', { ascending: true }),
-    'segments',
-  );
+      .eq('chapter_key', chapterKey);
+    // WITHOUT THIS the chapter row is fixed and the LESSON list is still pooled.
+    // `chapter_key` alone matches BOTH books that share a (grade, subject), which
+    // is why the collision was 573 menu rows and not 49 (bd-oak77.5).
+    //
+    // Optional on purpose. A teacher's scrollback outlives a deploy: a chapter row
+    // rendered before this shipped carries no `book_stem`, and must degrade to the
+    // pooled list it has always shown rather than erroring. Same reasoning as
+    // lp612Guard — an old row stays tappable.
+    if (bookStem) q = q.eq('book_stem', bookStem);
+    return q.order('order_index', { ascending: true });
+  };
+  // Paged: `total` and the page window are computed from these rows, so a
+  // truncated read would report a short total and make the tail of a long
+  // chapter unreachable with a correct-looking More row.
+  const rows = await runAll(buildQuery, 'segments');
 
   const total = rows.length;
   const p = Math.max(1, parseInt(String(page), 10) || 1);
@@ -400,6 +594,8 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
           grade: String(grade),
           subject,
           chapter_key: chapterKey,
+          // page 2 of a chapter must stay inside the SAME book as page 1
+          ...(bookStem ? { book_stem: bookStem } : {}),
           page: String(p + 1),
         },
       },
@@ -420,11 +616,16 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1) {
  * is enforced in lp612-serving.service.js, on the row this returns.
  */
 async function segmentById(segmentId) {
+  // `.limit(1)` because this function takes `rows[0]` and nothing else. Without
+  // it the read is unbounded, and while `segment_id` is one row today, "the query
+  // happens to match few rows" is exactly the assumption bd-oak77.27 is about:
+  // the bound belongs in the query, not in the shape of the data.
   const { data, error } = await supabase
     .from(TABLE)
     .select('*')
     .eq('segment_id', segmentId)
-    .eq('is_current', true);
+    .eq('is_current', true)
+    .limit(1);
   if (error) {
     logToFile('LP 6-12 catalog: segment lookup failed', { segmentId, error: error.message });
     return null;
@@ -434,6 +635,9 @@ async function segmentById(segmentId) {
 }
 
 module.exports = {
+  bookTags,
+  chapterId,
+  CHAPTER_ID_SEP,
   buildGradeItems,
   buildSubjectItems,
   buildChapterItems,

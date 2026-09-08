@@ -66,12 +66,17 @@ describe('LP 6-12 feature flags', () => {
 });
 
 describe('serving constants', () => {
-  test('template version defaults to v9.1 and is env-overridable', () => {
+  // bd-oak77.12, then bd-oak77.16: the code default moves AHEAD of the Railway variable,
+  // deliberately — both prod and staging SET LP_612_TEMPLATE_VERSION, so this line changes nothing
+  // until the variable moves, and the reuse path it unlocks is in place before the first miss can
+  // happen. v9.3 is the phone-first page: the same document laid out on a 520 x 2000 box, so every
+  // v9.2 and v9.1 render in the cache re-renders for zero model spend rather than re-authoring.
+  test('template version defaults to v9.3 and is env-overridable', () => {
     delete process.env.LP_612_TEMPLATE_VERSION;
-    expect(load().templateVersion()).toBe('v9.1');
+    expect(load().templateVersion()).toBe('v9.3');
     jest.resetModules();
-    process.env.LP_612_TEMPLATE_VERSION = 'v9.2';
-    expect(load().templateVersion()).toBe('v9.2');
+    process.env.LP_612_TEMPLATE_VERSION = 'v9.1';
+    expect(load().templateVersion()).toBe('v9.1');
   });
 
   test('the author model defaults to sonnet-5 and flips by env alone', () => {

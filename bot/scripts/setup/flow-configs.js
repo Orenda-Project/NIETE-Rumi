@@ -165,6 +165,22 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // Assessment REVIEW — the same endpoint, a separate Flow.
+    //
+    // It has to be separate: a Flow opens on screens[0], and these screens used
+    // to sit at index 6+ of the generator Flow, reachable only from a TERMINAL
+    // screen. Opening onto one asked the client to enter a screen with no
+    // reachable predecessor, which it refuses with "Something went wrong".
+    // The endpoint tells the two apart by the flow token's `:assessment-review:`
+    // marker, so one endpoint serves both.
+    name: 'Assessment Review',
+    jsonPath: path.join(FLOWS_DIR, 'assessment-review-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/assessment-gen',
+    envVar: 'ASSESSMENT_REVIEW_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // Pakistan LP picker. Grade → Subject → Chapter → Topic over
     // pre_generated_lps where curriculum='pakistan', populated by the
     // seed + chapter-load scripts in bot/scripts/. The `menu_lesson_plan`
@@ -199,6 +215,31 @@ const FLOW_CONFIGS = [
     type: 'endpoint',
     endpointPath: '/api/flows/pakistan-lp',
     envVar: 'PAKISTAN_LP_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // Multi-answer ("select all that apply") transcript-quiz questions. STATIC —
+    // no endpoint: the question, options and answer token are all supplied
+    // per-send as navigate-mode screen data. Leaving QUIZ_MULTI_FLOW_ID unset
+    // falls the question back to the single-select interactive-list picker,
+    // which is the rollback lever.
+    name: 'Quiz Multi-Select',
+    jsonPath: path.join(FLOWS_DIR, 'quiz-multi-select-flow.json'),
+    type: 'navigate',
+    envVar: 'QUIZ_MULTI_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // /quiz as ONE Flow: the lesson list with in-Flow paging, the lesson's own
+    // live results, and generate report / resend link / make the quiz, all
+    // inside the same session — no round-trips through the chat. Leaving
+    // TRANSCRIPT_QUIZ_FLOW_ID unset falls /quiz back to the interactive list
+    // message, which is the rollback lever.
+    name: 'Transcript Quiz',
+    jsonPath: path.join(FLOWS_DIR, 'transcript-quiz-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/transcript-quiz',
+    envVar: 'TRANSCRIPT_QUIZ_FLOW_ID',
     categories: ['OTHER'],
   },
 ];

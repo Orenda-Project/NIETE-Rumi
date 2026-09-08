@@ -31,7 +31,9 @@ function parseToken(flowToken) {
 async function loadClass(listId) {
   const { data } = await supabase
     .from('student_lists')
-    .select('id, class_name, section')
+    // class_id decides whether membership lives in class_enrollments or only here.
+    // Adding a child without it writes half the fact — see handleAdd (bd-dz6qb.2).
+    .select('id, class_name, section, class_id')
     .eq('id', listId)
     .maybeSingle();
   return data || null;
@@ -136,13 +138,43 @@ async function handleAdd(flowToken, screenData) {
   }
 
   const startRoll = existing.reduce((max, s) => Math.max(max, s.roll_number || 0), 0);
-  const { error } = await supabase.from('students').insert(
+  const { data: inserted, error } = await supabase.from('students').insert(
     fresh.map((student_name, i) => ({ list_id: listId, student_name, roll_number: startRoll + i + 1 })),
-  );
+  ).select('id, roll_number');
 
   if (error) {
     logToFile('❌ edit-class add failed', { listId, error: error.message });
     return { screen: 'SAVED', data: { heading: 'Could not add them', detail: 'Please try again.' } };
+  }
+
+  // A students row carrying list_id is HALF the fact. Where the list is class-backed,
+  // membership lives in class_enrollments — /class reads nothing else, and /attendance
+  // stops falling back to the legacy list the moment a class has any enrolment at all.
+  // Writing only the first half is how 415 children on production ended up on a list
+  // that neither screen would show (bd-dz6qb.2).
+  //
+  // Through ClassService, which owns that table (root rule 15 — one writer per fact),
+  // and specifically through enrollStudent rather than addStudents: addStudents refuses
+  // a caller who is not assigned to the class, and this Flow is reached by whoever holds
+  // the list, so routing through it would turn a half-written add into a silent no-op.
+  const cls = await loadClass(listId);
+  if (cls && cls.class_id) {
+    // eslint-disable-next-line global-require
+    const ClassService = require('../services/classes/class.service');
+    for (const row of inserted || []) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await ClassService.enrollStudent({
+        classId: cls.class_id, studentId: row.id, rollNumber: row.roll_number,
+        enrolledOn: new Date().toISOString().slice(0, 10),
+      });
+      // A failed enrolment must not discard the add — the child is already written and
+      // the teacher can see her in attendance's legacy fallback. Loud, not fatal.
+      if (res.error) {
+        logToFile('⚠️ edit-class: child added but not enrolled', {
+          listId, classId: cls.class_id, studentId: row.id, error: res.error,
+        }, 'error');
+      }
+    }
   }
 
   const roster = await syncCount(listId);

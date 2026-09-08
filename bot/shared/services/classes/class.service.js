@@ -123,7 +123,8 @@ async function createClass({
 
   const normalizedSection = normalizeSection(section);
 
-  // Sections are a CLOSED set (A-E as seeded). A teacher wanting another asks
+  // Sections are a CLOSED set (A–O as seeded; F–O added 7 Sep 2026 for the ten-section
+  // schools). A teacher wanting another asks
   // support, who adds a row — storing free text here would recreate exactly the
   // problem this model exists to remove.
   if (normalizedSection && !(await isSeeded('sections', normalizedSection))) {

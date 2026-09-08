@@ -24,7 +24,7 @@ jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }
 jest.mock('../../shared/services/quiz/video-quiz-render.service', () => ({ build: jest.fn(() => ({})) }));
 jest.mock('../../shared/services/quiz/video-quiz-sender.service', () => ({ sendPhase: jest.fn().mockResolvedValue(true) }));
 jest.mock('../../shared/services/quiz/video-quiz-report.service', () => ({
-  maybeSendEarly: jest.fn().mockResolvedValue(false),
+  maybeSendFollowUp: jest.fn().mockResolvedValue(false),
 }));
 jest.mock('../../shared/services/quiz/video-quiz-invite.service', () => ({
   notifyInviter: jest.fn().mockResolvedValue(true),
@@ -123,14 +123,14 @@ describe('bd-2474 — ordering: scorecard lands before the invite-a-friend offer
     expect(scorecardOrder).toBeLessThan(inviteOrder);
   });
 
-  test('the early-report check and inviter notification still run for a share_link finisher', async () => {
+  test('the follow-up check and inviter notification still run for a share_link finisher', async () => {
     stubSupabase({ session: { quiz_id: 'q1', invited_by_student_id: 'friend-1' } });
 
     await vq.sendNextQuestion('923001234567', finishingState({
       source: 'share_link', shareCodeId: 'sc-1', studentId: 'stu-1',
     }));
 
-    expect(Report.maybeSendEarly).toHaveBeenCalledWith('sc-1');
+    expect(Report.maybeSendFollowUp).toHaveBeenCalledWith('sc-1');
     expect(Invite.notifyInviter).toHaveBeenCalled();
   });
 });

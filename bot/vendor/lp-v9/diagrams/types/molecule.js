@@ -378,7 +378,15 @@ function render(spec) {
   }
 
   if (name) {
-    svg.text(bodyW / 2, y + nameSize * 1.05, name, {
+    // The BASELINE offset has to follow the same script rule the HEIGHT reservation
+    // above already does (nameH: 2.9x for Urdu vs 1.9x). A Nastaliq label rides in a
+    // foreignObject whose box grows UPWARD from this baseline, so a flat 1.05x pushed
+    // that box back into the formula's subscript — visually a near-miss, but
+    // checkOverlaps() saw the boxes touch and lint_lp.js's DIAGRAM_OVERLAP is a hard
+    // fail, so an Urdu molecule name made the whole lesson plan unshippable. The extra
+    // drop stays inside the room nameH already reserved, so nothing else moves, and a
+    // Latin name keeps its 1.05x exactly.
+    svg.text(bodyW / 2, y + nameSize * (hasUrdu(name) ? 1.95 : 1.05), name, {
       size: nameSize,
       anchor: "middle",
       weight: 600,

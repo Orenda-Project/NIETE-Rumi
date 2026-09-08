@@ -163,6 +163,7 @@ describe('handleInviteButton', () => {
     expect(await invite.handleInviteButton(invite.INVITE_NO, '923001234567')).toBe(true);
     expect(Binge.offerMore).toHaveBeenCalledWith({
       phone: '923001234567', studentId: 'stu-1', shareCodeId: 'sc-1', language: 'en',
+      sessionId: null, quizId: null,
     });
   });
 

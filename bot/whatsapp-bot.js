@@ -434,6 +434,19 @@ app.get('/webhook', (req, res) => {
  * Webhook endpoint to receive messages (POST)
  */
 app.post('/webhook', async (req, res) => {
+  // ACK. Measured on staging 2026-09-06: a child's join-Flow reply got no HTTP
+  // response at all — still open after 180 s — while her session had been
+  // created one second in and three messages had already gone to her phone.
+  // The cause was structural, not local: roughly twenty branches of this
+  // handler end in a bare `return`, and a `return` here leaves the route
+  // without answering Meta. Meta re-delivers what it was not acked for; the
+  // message-id dedupe above stops that becoming duplicate work, but a webhook
+  // endpoint that habitually fails to answer is one Meta will stop trusting.
+  //
+  // So the ack is sent ONCE, as soon as the message is accepted, and every
+  // later send goes through this helper — `headersSent` makes it idempotent,
+  // which is what lets the pre-existing acks stay exactly where they are.
+  const ack = () => { if (!res.headersSent) res.status(200).send('EVENT_RECEIVED'); };
   // Generate correlation ID for tracing this request across all logs
   const correlationId = generateCorrelationId();
 
@@ -481,7 +494,7 @@ app.post('/webhook', async (req, res) => {
           events: callEvents.calls.map((c) => `${c.event || '?'}:${c.id}`),
         });
         void forwardCallEvents(callEvents);
-        res.status(200).send('EVENT_RECEIVED');
+        ack();
         return;
       }
 
@@ -490,7 +503,7 @@ app.post('/webhook', async (req, res) => {
       const statusValidation = validators.validateWebhookStatus(req);
       if (statusValidation) {
         await handleBroadcastStatusWebhook(statusValidation.statuses);
-        res.status(200).send('EVENT_RECEIVED');
+        ack();
         return;
       }
 
@@ -498,7 +511,7 @@ app.post('/webhook', async (req, res) => {
       const validation = validators.validateWebhookMessage(req);
 
     if (!validation) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -506,13 +519,13 @@ app.post('/webhook', async (req, res) => {
 
     // Skip webhooks for other phone numbers (prevents cross-WABA processing)
     if (!validators.isOurPhoneNumber(phoneNumberId)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Skip test webhooks
     if (validators.isTestWebhook(entry)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -528,13 +541,13 @@ app.post('/webhook', async (req, res) => {
 
     // Skip test phone numbers
     if (validators.isTestPhoneNumber(from)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Check message timestamp (24-hour window)
     if (!validators.isWithin24Hours(messageTimestamp, from)) {
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -557,7 +570,7 @@ app.post('/webhook', async (req, res) => {
           logToFile('nudge send failed', { error: e.message });
         }
       }
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
@@ -569,18 +582,35 @@ app.post('/webhook', async (req, res) => {
         from,
         timestamp: messageTimestamp
       });
-      res.status(200).send('EVENT_RECEIVED');
+      ack();
       return;
     }
 
     // Mark as processed
     await SessionService.markAsProcessed(message.id);
 
+    // Answered here, before any handler runs: from this point on every branch
+    // is allowed to `return` without thinking about the response, and a slow
+    // handler (a quiz start is ~6 paced sends) can no longer hold the socket
+    // open past Meta's patience.
+    ack();
+
     logToFile('✅ Message accepted for processing', {
       messageId: message.id,
       from,
       type: messageType
     });
+
+    // bd-oak77.13 — Meta Conversational Components. With `enable_welcome_message`
+    // set on the number, a teacher OPENING a brand-new chat posts a message of
+    // `type: "request_welcome"` with no body, before she has typed anything.
+    // Nothing here had a branch for it, so it fell through to the terminal else
+    // and `unsupportedTypeReply()` — her first ever message from the bot was
+    // "I can only reply to text and voice messages" (the flag has been true on
+    // the staging number). Answered here, ahead of the reaction and the typing
+    // indicator, because there is no message of hers in the chat to react to.
+    const { maybeHandleRequestWelcome } = require('./shared/handlers/welcome.handler');
+    if (await maybeHandleRequestWelcome(messageType, { from })) return;
 
     // Send appropriate reaction based on whether this is user's first message
     const emoji = SessionService.getReactionEmoji(from);
@@ -595,8 +625,8 @@ app.post('/webhook', async (req, res) => {
       user = await getOrCreateUser(from);
       logToFile('User retrieved/created', { userId: user.id, phoneNumber: from });
     } catch (error) {
-      logToFile('⚠️ Error with database user operation', { error: error.message });
-      // Continue without database - bot will still work
+      // `error`, not `info` — an outage, not a routine miss. Downstream handlers must not read the null as "no account".
+      logError('❌ User lookup failed — database unreachable', { phoneNumber: from, error: error.message });
     }
 
     // Track chat start for funnel analysis (for all message types)
@@ -991,21 +1021,12 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
         }
       }
-      // bd-u35ex: "Add another" — keep collecting; the image handler (Phase 3) picks
-      // up the next photo. Session stays at awaiting_classroom_photo.
+      // bd-u35ex / bd-pzs9a: "Add another" — keep collecting. The whole tap lives in
+      // add-another.service so it can be executed by a test; this branch only dispatches.
       else if (buttonId.startsWith('photo_more_')) {
         const sessionId = buttonId.replace('photo_more_', '');
-        logToFile('📸 User wants to add another classroom photo', { sessionId, from });
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        const msg = lang === 'ur'
-          ? '📸 اگلی تصویر بھیجیں۔'
-          : '📸 Please send the next photo.';
-        await WhatsAppService.sendMessage(from, msg);
+        const { handleAddAnotherPhotoTap } = require('./shared/services/coaching/classroom-photo/add-another.service');
+        await handleAddAnotherPhotoTap({ sessionId, from, user });
       }
       // Stale session reminder buttons - Continue coaching
       else if (buttonId.startsWith('coaching_continue_')) {
@@ -1367,6 +1388,27 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
         }
       }
+      // Transcript quiz: which language the quiz should be written in
+      // (tq_lang_ur_/tq_lang_en_). Matched BEFORE the generic `tq_` branch —
+      // its own block so the two can be reviewed and merged independently.
+      else if (buttonId.startsWith('tq_lang_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        if (!(await TranscriptQuizOffer.handleLanguageButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted tq_lang_ button', { buttonId, from });
+        }
+      }
+      // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
+      // /quiz actions (tq_link_/tq_report_). Its own prefix on purpose —
+      // never `quiz_` (parent quiz) or `vq_` (video quiz).
+      else if (buttonId.startsWith('tq_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
+        const handled = await TranscriptQuizOffer.handleOfferButton(buttonId, from)
+          || await TranscriptQuizList.handleActionButton(buttonId, from);
+        if (!handled) {
+          logToFile('⚠️ unrouted tq_ button', { buttonId, from });
+        }
+      }
       // Edit-class multi-class picker: open the edit-class flow for the chosen class.
       else if (buttonId.startsWith('edit_class_')) {
         const listId = buttonId.replace('edit_class_', '');
@@ -1581,6 +1623,23 @@ app.post('/webhook', async (req, res) => {
           if (handled) return;
         } catch (joinErr) {
           logToFile('❌ student join Flow reply routing failed', { error: joinErr.message });
+        }
+      }
+
+      // PLAN_R5 D4 — a "select all that apply" answer comes back from its own
+      // Flow with the token `vqm:<sessionId>:<questionId>`. Routed FIRST and
+      // unconditionally: handleFlowReply() claims every `vqm:` reply, readable
+      // or not, because detectFlowType()'s attendance_marking rule matches ANY
+      // flow_token containing a colon — the misroute that has already eaten the
+      // exam-generator, observe and training-msq flows.
+      if (typeof vqToken === 'string' && vqToken.startsWith('vqm:')) {
+        try {
+          const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
+          const handled = await VideoQuizService.handleMultiFlowReply(from, vqToken, responseJson);
+          if (handled) return;
+        } catch (vqmErr) {
+          logToFile('❌ multi-select quiz Flow reply routing failed', { error: vqmErr.message }, 'error');
+          return;
         }
       }
 
@@ -1837,6 +1896,19 @@ app.post('/webhook', async (req, res) => {
         } catch (statusAckErr) {
           logToFile('❌ status completion handler failed', { from, error: statusAckErr.message }, 'error');
         }
+      } else if (flowType === 'assessment_gen') {
+        // The assessment Flow CLOSES on submit rather than ending on a screen,
+        // so the "making your paper" line she used to read there arrives here
+        // as a message. Without this branch the completion falls to the
+        // catch-all below and she is told "Type /menu" — the bd-1249 failure.
+        logToFile('📝 Detected assessment flow submission', {
+          from, action: responseJson.assessment_action,
+        });
+        try {
+          await FlowResponseHandler.handleAssessmentFlowCompletion(responseJson, from, user);
+        } catch (ackErr) {
+          logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
+        }
       } else {
         // Unknown flow type
         logToFile('⚠️ Received unknown flow submission', {
@@ -1863,6 +1935,14 @@ app.post('/webhook', async (req, res) => {
       if (listId.startsWith('att_class_') || listId.startsWith('att_method_')
           || listId.startsWith('att_voice_')) {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
+      }
+
+      // Transcript quiz: a row tapped in the /quiz lesson list.
+      if (listId.startsWith('tq_pick_') || listId.startsWith('tq_page_')) {
+        const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
+        await TranscriptQuizList.handleListPick(listId, from, user);
+        ack();
+        return;
       }
 
       if (listId.startsWith('vq_')) {
@@ -2237,13 +2317,13 @@ app.post('/webhook', async (req, res) => {
     }
 
     // Always respond with 200 OK to acknowledge receipt
-    res.status(200).send('EVENT_RECEIVED');
+    ack();
   } catch (error) {
     logToFile('❌ Error processing webhook', {
       error: error.message,
       stack: error.stack
     });
-    res.status(200).send('EVENT_RECEIVED'); // Still send 200 to avoid retries
+    ack(); // Still send 200 to avoid retries
   }
   }); // End of runWithCorrelation
 });

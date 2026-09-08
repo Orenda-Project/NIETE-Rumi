@@ -69,19 +69,57 @@ class FeatureIntroService {
   }
 
   /**
+   * How many times the intro video has been shown for a feature.
+   * @param {string} userId - User's UUID
+   * @param {string} feature - Feature name
+   * @returns {Promise<number>} 0 when there is no row, the column is null, or on any error — this sits on a send path and must not fail closed.
+   */
+  static async introShownCount(userId, feature) {
+    try {
+      const { data, error } = await supabase
+        .from('user_feature_first_use')
+        .select('intro_shown_count')
+        .eq('user_id', userId)
+        .eq('feature', feature)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 = not found, which is expected for first-time users
+        logToFile('Error checking intro shown count', { error: error.message, userId, feature });
+      }
+
+      return data?.intro_shown_count ?? 0;
+    } catch (error) {
+      logToFile('Error in introShownCount', { error: error.message, userId, feature });
+      return 0;
+    }
+  }
+
+  /**
    * Mark that user has seen the intro video for a feature
    * @param {string} userId - User's UUID
    * @param {string} feature - Feature name
+   * @param {{incrementIntroCount?: boolean}} [options] - Existing callers pass nothing and keep today's exact upsert.
    */
-  static async markVideoShown(userId, feature) {
+  static async markVideoShown(userId, feature, { incrementIntroCount = false } = {}) {
     try {
+      const fields = {
+        user_id: userId,
+        feature: feature,
+        video_shown_at: new Date().toISOString()
+      };
+      if (incrementIntroCount) {
+        // Read-then-write, not an atomic increment: one quiz-offer job runs per
+        // coaching session, claimed atomically by the `quizzes` unique index
+        // upstream, so two increments for one teacher cannot race inside a
+        // session. A lost update would only under-count a video showing, never
+        // over-count.
+        const current = await this.introShownCount(userId, feature);
+        fields.intro_shown_count = current + 1;
+      }
       const { error } = await supabase
         .from('user_feature_first_use')
-        .upsert({
-          user_id: userId,
-          feature: feature,
-          video_shown_at: new Date().toISOString()
-        }, {
+        .upsert(fields, {
           onConflict: 'user_id,feature'
         });
 

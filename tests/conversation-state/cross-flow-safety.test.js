@@ -32,7 +32,10 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendFeatureMenuCarousel: jest.fn().mockResolvedValue(true),
   sendInteractiveMessage: jest.fn().mockResolvedValue(true),
 }));
-jest.mock('../../bot/shared/services/llm-client', () => ({ getClient: () => ({}) }));
+jest.mock('../../bot/shared/services/llm-client', () => ({
+  getClient: () => ({}),
+  getClientForModel: (m) => ({ client: {}, model: String(m || '') }),
+}));
 jest.mock('../../bot/shared/database/bot-helpers', () => ({
   storeConversation: jest.fn(), getOrCreateSession: jest.fn().mockResolvedValue('s-1'),
 }));

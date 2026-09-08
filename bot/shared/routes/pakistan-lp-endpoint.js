@@ -39,6 +39,7 @@
  */
 
 const supabase = require('../config/supabase');
+const { pagedRows } = require('../utils/postgrest-paged');
 const { logToFile } = require('../utils/logger');
 // Additive semantic-event channel (feature.action.result) — see the tap event in serveLp612().
 const { logEvent } = require('../utils/structured-logger');
@@ -50,8 +51,12 @@ const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
 const Lp612Catalog = require('../services/lp612-catalog.service');
 const Lp612Serving = require('../services/lp612-serving.service');
-const { isLp612Enabled, isLp612Grade, isLp612LangMenuEnabled } = require('../config/lp612-flags');
+const {
+  isLp612Enabled, isLp612Grade, isLp612LangMenuEnabled,
+  isLp612RouteAll, lp612ServesGrade, // bd-oak77.4
+} = require('../config/lp612-flags');
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
+const FlowTelemetry = require('./pakistan-lp-telemetry');
 
 const CURRICULUM_TAG = 'pakistan';
 const STATIC_GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -69,38 +74,51 @@ const isOxbridgeGrade = (g) => {
 
 // ─── Pakistan pre-gen source helpers ────────────────────────────────────
 
+/**
+ * PAGED, NOT UNBOUNDED (bd-oak77.27).
+ *
+ * PostgREST answers a select with at most its `db-max-rows` — 1000, measured on
+ * both refs 2026-09-07 — and returns NO error when it truncates. The rows this
+ * returns are then reduced in JS: `distinct(rows, 'subject')` for the subject
+ * screen, `distinct(rows, 'chapter_title')` for the chapter screen, and the
+ * `generation_status === 'completed'` filter BELOW runs client-side, so a
+ * truncated read silently drops whole subjects and chapters from the K-5
+ * fallback menu with nothing in the logs. That failure has already shipped once
+ * on the sibling 6-12 grade picker.
+ *
+ * 304 rows today. The bound belongs in the query, not in the current row count.
+ */
 async function fetchPakistanRows(filter = {}) {
-  let q = supabase
-    .from('pre_generated_lps')
-    .select('id,grade,subject,chapter_number,chapter_title,pdf_r2_key_en,pdf_r2_key_ur,generation_status')
-    .eq('curriculum', CURRICULUM_TAG)
-    .eq('is_current', true);
-  for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
-  const { data, error } = await q;
-  if (error) {
-    logToFile('Pakistan LP: supabase error', { error: error.message, filter });
-    return [];
-  }
-  return (data || []).filter((r) => r.generation_status === 'completed' && (r.pdf_r2_key_en || r.pdf_r2_key_ur));
+  const build = () => {
+    let q = supabase
+      .from('pre_generated_lps')
+      .select('id,grade,subject,chapter_number,chapter_title,pdf_r2_key_en,pdf_r2_key_ur,generation_status')
+      .eq('curriculum', CURRICULUM_TAG)
+      .eq('is_current', true);
+    for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
+    return q;
+  };
+  const data = await pagedRows('Pakistan LP: pre_generated_lps', build);
+  return data.filter((r) => r.generation_status === 'completed' && (r.pdf_r2_key_en || r.pdf_r2_key_ur));
 }
 
 // ─── Oxbridge catalog source helpers ────────────────────────────────────
 
+/** Paged for the same reason as `fetchPakistanRows` — its rows are reduced with
+ *  `distinct()` into the subject and chapter screens. 70 rows today. */
 async function fetchOxbridgeRows(filter = {}) {
-  let q = supabase
-    .from('lesson_plan_catalog')
-    .select('id,grade,subject,chapter_title,description,content_html')
-    .eq('source', 'oxbridge')
-    .eq('is_active', true);
-  if (filter.grade) q = q.eq('grade', filter.grade);           // e.g. 'Grade Six'
-  if (filter.subject) q = q.eq('subject', filter.subject);
-  if (filter.chapter_title) q = q.eq('chapter_title', filter.chapter_title);
-  const { data, error } = await q;
-  if (error) {
-    logToFile('Oxbridge LP: catalog lookup failed', { error: error.message, filter });
-    return [];
-  }
-  return data || [];
+  const build = () => {
+    let q = supabase
+      .from('lesson_plan_catalog')
+      .select('id,grade,subject,chapter_title,description,content_html')
+      .eq('source', 'oxbridge')
+      .eq('is_active', true);
+    if (filter.grade) q = q.eq('grade', filter.grade);         // e.g. 'Grade Six'
+    if (filter.subject) q = q.eq('subject', filter.subject);
+    if (filter.chapter_title) q = q.eq('chapter_title', filter.chapter_title);
+    return q;
+  };
+  return pagedRows('Oxbridge LP: lesson_plan_catalog', build);
 }
 
 function distinct(rows, key) {
@@ -121,7 +139,7 @@ async function getPhoneForUser(userId) {
 
 async function handlePakistanLpInit(flowToken) {
   logToFile('Pakistan LP Flow INIT', { flowToken });
-  return openGradePicker();
+  return observed('INIT', flowToken, null, {}, () => openGradePicker());
 }
 
 const isV8Grade = (g) => {
@@ -131,10 +149,45 @@ const isV8Grade = (g) => {
 
 // ─── DATA EXCHANGE dispatcher ───────────────────────────────────────────
 
+/**
+ * The dispatcher, wrapped so that WHAT WE RETURNED is observable.
+ *
+ * Everything this endpoint hands Meta used to vanish: `Pakistan LP
+ * data_exchange` logged the request and nothing else, so a `{data:{error}}`
+ * refusal — the shape Meta renders as "Something went wrong. Try again
+ * later." — and a served screen were the same row (bd-oak77.26). `observed()`
+ * emits the response side; it is telemetry only and cannot alter the value.
+ */
 async function handlePakistanLpDataExchange(flowToken, screen, screenData) {
   const d = screenData || {};
+  logToFile('Pakistan LP data_exchange', { flowToken, screen, step: d.step });
+  return observed('data_exchange', flowToken, screen, d, () => dispatchPakistanLpDataExchange(flowToken, screen, d));
+}
+
+/**
+ * Run one Flow request and report its RESPONSE.
+ *
+ * A throw is observed and re-thrown unchanged: the route above turns it into a
+ * 500, which the teacher sees as the same red screen an error object produces,
+ * and that limb was the most invisible of all.
+ */
+async function observed(action, flowToken, screen, payload, fn) {
+  const startedAt = Date.now();
+  const userId = userIdFrom(flowToken) || null;
+  let response;
+  try {
+    response = await fn();
+  } catch (error) {
+    FlowTelemetry.observeFlowResponse({ action, screenIn: screen, payload, userId, startedAt, error });
+    throw error;
+  }
+  FlowTelemetry.observeFlowResponse({ action, screenIn: screen, payload, userId, startedAt, response });
+  return response;
+}
+
+async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
+  const d = screenData || {};
   const step = d.step;
-  logToFile('Pakistan LP data_exchange', { flowToken, screen, step });
 
   // v3 Flow: every NavigationList row carries its own step, so routing never
   // depends on which screen Meta says we are on.
@@ -218,7 +271,11 @@ async function selectGrade(screenData) {
   // run there are zero niete_lp_assets rows, so replacing this path outright
   // would take the LP menu away from every K-5 teacher on deploy. v8 wins where
   // it has content; where it does not, the legacy path answers exactly as before.
-  if (isV8Grade(grade)) {
+  // bd-oak77.4 — LP_612_ROUTE_K5 (ships FALSE) hands grades 1-5 to the 6-12
+  // catalogue instead. The 62 books it holds are grades 6-12, so a K-5 teacher
+  // will be told there are no lessons for her class: this is the operator's
+  // switch, not a recommendation, and the default keeps her on the K-5 v8 corpus.
+  if (isV8Grade(grade) && !lp612ServesGrade(grade)) {
     const available = await V8Delivery.availableLessonIds();
     const items = V8Catalog.buildSubjectItems(grade, available);
     if (items.length) {
@@ -236,13 +293,25 @@ async function selectGrade(screenData) {
   // them away from a grade whose books the segmentation fleet has not finished.
   // The 6-12 corpus wins where it has content; where it does not, Oxbridge
   // answers exactly as it does now.
-  if (isLp612Enabled() && isLp612Grade(grade)) {
+  // `lp612ServesGrade` is the ONE definition of which grades this corpus claims,
+  // shared with the free-text router in text-message.handler so the two cannot
+  // drift (bd-w36m5). It already folds in isLp612Enabled() and LP_612_ROUTE_K5.
+  if (lp612ServesGrade(grade)) {
     const items = await Lp612Catalog.buildSubjectItems(grade);
     if (items.length) {
       return {
         screen: 'SELECT_SUBJECT',
         data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },
       };
+    }
+    // bd-oak77.4 — LEAK 2. With LP_612_ROUTE_ALL on, the operator's instruction is that the
+    // menu IS the answer for 6-12, so an empty 6-12 catalogue must NOT quietly hand her the old
+    // Oxbridge picker instead — that is the picker being reachable by another name. She gets the
+    // honest "nothing for this class yet" that the tail of this function already sends, which
+    // names the actual state and points at what will work (rule 24(d)).
+    if (isLp612RouteAll()) {
+      logToFile('LP route-all: no segments for grade — Oxbridge fallback suppressed', { grade });
+      return { data: { error: { message: `No lesson plans available for ${gradeTitle(grade)} yet. Try another class or check back soon.` } } };
     }
     logToFile('LP 6-12: no segments for grade — falling back to Oxbridge', { grade });
   }
@@ -400,7 +469,7 @@ async function selectChapter(flowToken, screenData) {
  * Wrap a legacy {id,title} option list as NavigationList items.
  *
  * The v3 Flow binds ${data.items} on every selection screen, so the Oxbridge
- * (6-12) branches have to speak that shape too — otherwise FEAT-080's live
+ * (6-12) branches have to speak that shape too — otherwise the live 6-12
  * picker renders an EMPTY screen on the new Flow. The legacy key is kept
  * alongside so a still-published v2 Flow keeps working during the deploy window.
  */
@@ -541,7 +610,7 @@ async function selectTopicPakistan(flowToken, rowId) {
   };
 }
 
-// --- Oxbridge delivery path (new for FEAT-109 iter 3) ---
+// --- Oxbridge delivery path ---
 async function selectTopicOxbridge(flowToken, rowId) {
   const row = await OxbridgeLpService.getById(parseInt(rowId, 10));
   if (!row || !row.content_html) {
@@ -605,7 +674,7 @@ async function sendPreDeliveryAck(flowToken, row) {
   }
 }
 
-// Fire-and-forget deliver — Palestine pattern (bd-2054):
+// Fire-and-forget deliver — presigned-URL pattern:
 // presigned R2 URL + sendDocumentByLink, no tmpfile, no buffer-as-path bug.
 function deliverPakistanLpAsync(flowToken, row) {
   const userId = (flowToken || '').split(':')[0];
@@ -706,7 +775,12 @@ async function lp612SegmentScreen(d, page, screenId) {
   if (!Number.isFinite(grade) || !d.subject || !d.chapter_key) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
   }
-  const { items, total } = await Lp612Catalog.buildSegmentItems(grade, d.subject, d.chapter_key, page);
+  // `book_stem` rides in the tapped row's own payload. Two books can share a
+  // (grade, subject) and number their chapters from c01, so without it this lists
+  // both books' lessons under one chapter (bd-oak77.5). Absent on rows rendered
+  // before that shipped, which is why buildSegmentItems treats it as optional.
+  const { items, total } = await Lp612Catalog.buildSegmentItems(
+    grade, d.subject, d.chapter_key, page, d.book_stem || null);
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }
@@ -913,7 +987,7 @@ function serveLp612(segmentId, userId, who, lang) {
 }
 
 async function handlePakistanLpBack(flowToken, screen) {
-  return openGradePicker();
+  return observed('BACK', flowToken, screen, {}, () => openGradePicker());
 }
 
 module.exports = {

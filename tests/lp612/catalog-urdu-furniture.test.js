@@ -32,7 +32,7 @@ function mockBuilder(table) {
     or: (expr) => { state.or = expr; return b; },
     order: (c, o) => { state.order = [c, o]; return b; },
     limit: () => b,
-    then: (res, rej) => {
+    __rows: () => {
       mockDbCalls.push({ ...state });
       let rows = mockRows.filter((r) => state.filters.every(
         ([c, v]) => r[c] === undefined || r[c] === v,
@@ -45,8 +45,17 @@ function mockBuilder(table) {
             || r.grade === g || (r.also_grades || []).includes(g));
         }
       }
-      return Promise.resolve({ data: rows, error: null }).then(res, rej);
+      return rows;
     },
+    // `.range(from, to)` — the windowed read shape the catalogue now uses for
+    // every set-valued query (bd-oak77.27). The fake serves the window; the
+    // production pager stops on the first short page.
+    range: (from, to) => ({
+      then: (res, rej) => Promise.resolve(
+        { data: b.__rows().slice(from, to + 1), error: null },
+      ).then(res, rej),
+    }),
+    then: (res, rej) => Promise.resolve({ data: b.__rows(), error: null }).then(res, rej),
   };
   return b;
 }
@@ -109,7 +118,12 @@ describe('the chapter row counts lessons in Urdu', () => {
   test('an English book is untouched', async () => {
     mockRows = [en()];
     const mc = (await Catalog.buildChapterItems(9, 'Physics')).items[0]['main-content'];
-    expect(mc.description).toBe('1 lessons');
+    // "1 lesson", not "1 lessons" — this assertion is about the English book NOT
+    // getting Urdu furniture (the line below), and it was pinning a grammar bug
+    // in passing. Splitting the pooled chapter rows apart in bd-oak77.5 makes
+    // one-lesson chapters common (4 of G9 Chemistry's 42), so the module now
+    // uses the `plural` helper it already carried and never called.
+    expect(mc.description).toBe('1 lesson');
     expect(mc.description).not.toContain('اسباق');
   });
 });

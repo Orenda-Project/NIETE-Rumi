@@ -61,6 +61,35 @@ function clampLanguage(lang, offered = LANGUAGE_OFFER) {
  * `محفوظ ہو گئی` as in the attendance and observation confirmations) so the
  * teacher hears one consistent voice rather than a second translator's.
  */
+/**
+ * THE ONE PLACE THE LESSON-PLAN WAIT IS QUOTED — bd-oak77.10.
+ *
+ * Measured 2026-09-06 on the configuration production actually runs
+ * (`LP612_AUTHOR_ROUNDS=3`, `LP612_TARGETED_REVISION=true`):
+ *
+ *     p50  160 s  English
+ *     p50  207 s  Urdu
+ *     p90  ~308 s
+ *
+ * The band QUOTES THE TAIL, not the median, and that is deliberate. A teacher told the median is
+ * told a number she misses half the time, and the half she misses is the half that decides the
+ * feature is broken. Five minutes covers p90 with room; three is the floor a real first hit lands
+ * near. `tests/lp612/honest-eta.test.js` pins both ends against these numbers, so moving the copy
+ * without moving the measurement fails the suite.
+ *
+ * WHEN THE LANE MOVES, CHANGE IT HERE AND IN THAT TEST'S `MEASURED` — nowhere else. The strings
+ * interpolate this; none of them hand-types a number.
+ *
+ * The Urdu digits are U+06Fx (۳ ۵), the Urdu set — NOT the Arabic-Indic ٣ ٥, which render wrong in
+ * a Nastaliq face. The phrase is impersonal, so it carries no gendered verb stem.
+ */
+const LP612_ETA = Object.freeze({
+  minMinutes: 3,
+  maxMinutes: 5,
+  en: 'about 3–5 minutes',
+  ur: 'تقریباً ۳ سے ۵ منٹ',
+});
+
 const UX_STRINGS = {
   // ─── post-coaching survey ─────────────────────────────────────────────────
   // Sent once a coaching session has settled — report delivered, voice debrief
@@ -109,6 +138,27 @@ const UX_STRINGS = {
   coachingCardAckNo: {
     en: 'Thanks for telling us — we will suggest something different next time.',
     ur: 'بتانے کا شکریہ — اگلی بار ہم کچھ مختلف تجویز کریں گے۔',
+  },
+
+  // ─── classroom-photo "Add another" (bd-pzs9a) ───────────────────────
+  // The tap re-opens the photo step, so the copy must say what state the session
+  // is now in — one shared "something went wrong" line across three different
+  // states is what misdirects every field report (Rule 24d). All three are
+  // impersonal or imperative, so neither carries a gendered verb stem.
+  // Urdu prose digits are the U+06Fx set; the caller converts, and the
+  // placeholders are bidi-isolated (LRI…PDI) because a value's direction is not
+  // knowable at authoring time.
+  photoAddAnotherNext: {
+    en: '📸 Send the next classroom photo — photo {n} of {max}.',
+    ur: '📸 اگلی کلاس روم تصویر بھیجیں — تصویر ⁦{n}⁩ از ⁦{max}⁩۔',
+  },
+  photoAddAnotherAtMax: {
+    en: '📸 That is the maximum of {max} classroom photos. Moving on to the lesson plan.',
+    ur: '📸 زیادہ سے زیادہ ⁦{max}⁩ کلاس روم تصاویر بھیجی جا سکتی ہیں۔ اب سبق کے منصوبے کی طرف چلتے ہیں۔',
+  },
+  photoAddAnotherClosed: {
+    en: '📸 This coaching session has already moved past the photo step, so another photo cannot be added to it.',
+    ur: '📸 یہ کوچنگ سیشن تصویر والے مرحلے سے آگے بڑھ چکا ہے، اس لیے اس میں مزید تصویر شامل نہیں ہو سکتی۔',
   },
 
   // ─── feedback-uptake loop: the hero report's "last time we asked" line ────
@@ -215,7 +265,7 @@ const UX_STRINGS = {
   },
 
   /**
-   * LP v8 delivery (FEAT-059, staging feedback round 1). The ack
+   * LP v8 delivery (K-5 corpus, staging feedback round 1). The ack
    * exists because presign + Meta's document fetch take several seconds AFTER
    * the Flow has already closed — that silence read as a failed request on the
    * operator's device test. Urdu is gender-neutral by construction: passive
@@ -236,27 +286,26 @@ const UX_STRINGS = {
   // A 6-12 lesson is authored on the first request, not looked up: the wait is
   // real, and every one of these strings exists so that no part of it is silent.
   //
-  // HOW LONG, measured rather than guessed (bd-2ym0h): a first hit on the
-  // post-optimisation lane runs a median of 313 seconds, spread roughly four to
-  // eleven minutes. These strings used to say "about 2 minutes", which is the
-  // number the lane hit before the authoring ladder grew, and being told two
-  // while waiting five is how a working feature earns a bug report. They say
-  // five to six now. If the lane's timings move again, this comment and the two
-  // strings below move with them — a stale promise is a defect, not a detail.
+  // HOW LONG — ONE CONSTANT, measured rather than guessed. See LP612_ETA above.
   //
-  // A SECOND request for the same lesson is served from R2 in about a second and
-  // sends no interstitial at all (lp612-serving.service.js answers a cache hit
-  // by delivering the file directly). Nobody reads these strings on a fast path,
-  // so they can quote the slow number plainly — and saying "brand-new" is what
-  // stops five minutes reading as the price of every lesson.
+  // The estimate was removed for a while because the number in the copy (five to six minutes) had
+  // been measured against a slower lane and was wrong for Urdu by about three minutes; a number
+  // that is wrong is worse than no number. Targeted revision then landed, the lane got fast enough
+  // that an honest band exists, and the operator asked for the estimate back (2026-09-06). It is a
+  // constant now, not four hand-typed phrases, so the next move of the lane is a one-line change.
+  //
+  // A SECOND request for the same lesson is served from R2 in about a second and sends no
+  // interstitial at all (lp612-serving.service.js answers a cache hit by delivering the file
+  // directly). Nobody reads these strings on a fast path, so they can quote the slow band plainly —
+  // and saying "brand-new" is what stops it reading as the price of every lesson.
   //
   // The Urdu is deliberately gender-agnostic in the second person — imperatives
   // and impersonal constructions, never `رہی ہوں گی` / `رہے ہوں گے` — because
   // the cohort is mixed and the bot cannot know.
 
   lp612Preparing: {
-    en: '📄 Writing your lesson plan now — a brand-new lesson usually takes about 5–6 minutes. I will send it here as soon as it is ready.',
-    ur: '📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں عام طور پر پانچ سے چھ منٹ لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔',
+    en: `📄 Writing your lesson plan now — a brand-new lesson takes ${LP612_ETA.en}. I will send it here as soon as it is ready.`,
+    ur: `📄 آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — نئے سبق میں ${LP612_ETA.ur} لگتے ہیں۔ تیار ہوتے ہی یہیں بھیج دیا جائے گا۔`,
   },
 
   lp612StillWorking: {
@@ -275,8 +324,8 @@ const UX_STRINGS = {
   // staging, and it is what rule 24(d) is about. She does not need to know what a worker is;
   // she needs to know it stopped, it has restarted, and she does not have to do anything.
   lp612Restarted: {
-    en: '📄 That lesson stopped partway through, so I have started it again. It usually takes about 5–6 minutes and will arrive here.',
-    ur: '📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ عام طور پر پانچ سے چھ منٹ لگتے ہیں اور یہیں موصول ہو جائے گا۔',
+    en: `📄 That lesson stopped partway through, so I have started it again. It takes ${LP612_ETA.en} and will arrive here.`,
+    ur: `📄 وہ سبق درمیان میں رک گیا تھا، اس لیے دوبارہ شروع کر دیا گیا ہے۔ اس میں ${LP612_ETA.ur} لگتے ہیں اور یہیں موصول ہو جائے گا۔`,
   },
 
   // A lesson whose page range is over the cap will fail identically on every retry, so it must
@@ -286,6 +335,56 @@ const UX_STRINGS = {
   lp612TooLong: {
     en: 'That lesson covers too many pages for me to plan in one go. Open the chapter and pick one of the shorter lessons — those I can write for you now.',
     ur: 'یہ سبق اتنے زیادہ صفحات پر پھیلا ہوا ہے کہ ایک ساتھ منصوبہ نہیں بن سکتا۔ باب کھول کر کوئی چھوٹا سبق منتخب کریں — وہ ابھی تیار کر دیا جائے گا۔',
+  },
+
+  // ── bd-oak77.14: a lesson that ARRIVES imperfect, and one that cannot be drawn ──
+  //
+  // Rule 24(d), the same lesson `lp612TooLong` and `lp612OverlayDropped` were each written for:
+  // one shared sentence across distinct states misdirects the teacher and every field report
+  // after her. On 2026-09-06 the first Urdu tap on production died on `FIGURE TOO SMALL` — a
+  // diagram label 0.25px under a legibility floor — and she was sent `lp612Failed`, the same
+  // sentence an author timeout, a stranded worker and a missing page-truth all produce. The
+  // lesson had in fact been finished: 17 complete pages were on disk. She re-typed "Lesson plan"
+  // 43 seconds later.
+  //
+  // APPENDED to `lp612Caption` on a document send, exactly like `lp612OverlayDropped`, so it is
+  // charged against body.text (1024) and not the 60-code-point footer. Measured in CODE POINTS.
+  //
+  // Three things it does and one it must not:
+  //   * name the state at the level she can act on — something on the page looks tight;
+  //   * say plainly that NOTHING IS MISSING, because nothing is: the never-fail policy delivers
+  //     only documents that are WHOLE (a truncated PDF still fails), and copy that hinted at loss
+  //     would send her hunting for content that is on the page;
+  //   * give her the one action worth taking — a glance before she prints;
+  //   * and it must NOT apologise or promise a retry. There is nothing for her to redo; the
+  //     lesson is in her hand.
+  //
+  // ONE sentence for every degraded class rather than one per class, deliberately. The classes
+  // (`figure`, `page`) differ in what an ENGINEER should look at — which is why they ride on
+  // `lp612.deliver.degraded` — but they do not differ in anything she would do differently, and a
+  // second column on the row would be needed to tell them apart on a cache hit.
+  //
+  // Urdu voice: every verb agrees with a NOUN (حصہ, خاکہ, صفحہ) or is an imperative, never with
+  // the teacher, so a mixed-gender cohort is addressed correctly.
+  lp612RenderDegraded: {
+    en: 'One part of this lesson did not lay out perfectly — a diagram or a page may look tight. '
+      + 'Nothing is missing; give it a quick look before you print.',
+    ur: '\u0627\u0633 \u0633\u0628\u0642 \u06A9\u0627 \u0627\u06CC\u06A9 \u062D\u0635\u06C1 \u062A\u0631\u062A\u06CC\u0628 \u0645\u06CC\u06BA \u067E\u0648\u0631\u06CC \u0637\u0631\u062D \u0646\u06C1\u06CC\u06BA \u0628\u06CC\u0679\u06BE\u0627 \u2014 \u06A9\u0648\u0626\u06CC \u062E\u0627\u06A9\u06C1 \u06CC\u0627 \u0635\u0641\u062D\u06C1 \u0630\u0631\u0627 \u0628\u06BE\u0631\u0627 \u06C1\u0648\u0627 \u0644\u06AF \u0633\u06A9\u062A\u0627 \u06C1\u06D2\u06D4 \u06A9\u0686\u06BE \u06A9\u0645 \u0646\u06C1\u06CC\u06BA \u06C1\u0648\u0627\u061B \u0686\u06BE\u0627\u067E\u0646\u06D2 \u0633\u06D2 \u067E\u06C1\u0644\u06D2 \u0627\u06CC\u06A9 \u0646\u0638\u0631 \u062F\u06CC\u06A9\u06BE \u0644\u06CC\u06BA\u06D4',
+  },
+
+  // The failures the never-fail policy does NOT absorb: the pages could not be laid out at all —
+  // a renderer that would not start, a document the schema refused, or a PDF that came out with
+  // pages of the lesson MISSING from the file. That last one is the reason this string exists
+  // rather than a wider policy: sending her a plan that just ends is worse than sending nothing.
+  //
+  // It is NOT `lp612Failed`. "I could not finish" is true of a timeout and false here — the
+  // lesson was written, and saying so is what stops a field report reading as "the model failed"
+  // when the renderer did. It promises a FRESH attempt rather than "I will try once more",
+  // because that is what a re-tap does: this row is `failed`, so the next tap re-authors.
+  lp612Unrenderable: {
+    en: 'That lesson was written, but its pages did not come out right — I will not send you a '
+      + 'broken copy. Tap it again and I will lay it out fresh.',
+    ur: '\u06CC\u06C1 \u0633\u0628\u0642 \u0644\u06A9\u06BE\u0627 \u062A\u0648 \u06AF\u06CC\u0627\u060C \u0645\u06AF\u0631 \u0627\u0633 \u06A9\u06D2 \u0635\u0641\u062D\u0627\u062A \u062F\u0631\u0633\u062A \u0646\u06C1\u06CC\u06BA \u0628\u0646 \u0633\u06A9\u06D2 \u2014 \u0627\u062F\u06BE\u0648\u0631\u0627 \u0646\u0633\u062E\u06C1 \u0628\u06BE\u06CC\u062C\u0646\u0627 \u0645\u0646\u0627\u0633\u0628 \u0646\u06C1\u06CC\u06BA\u06D4 \u062F\u0648\u0628\u0627\u0631\u06C1 \u0627\u0633\u06CC \u0633\u0628\u0642 \u067E\u0631 \u0679\u06CC\u067E \u06A9\u0631\u06CC\u06BA\u060C \u0646\u06CC\u0627 \u0646\u0633\u062E\u06C1 \u062A\u06CC\u0627\u0631 \u06A9\u06CC\u0627 \u062C\u0627\u0626\u06D2 \u06AF\u0627\u06D4',
   },
 
   // Never a silent failure. She is told it failed, and told exactly what to do.
@@ -369,14 +468,52 @@ const UX_STRINGS = {
   },
 
   // Appended to the Urdu caption when the document is an English-medium book
-  // whose ur_overlay did not survive sanitizeOverlay: what she receives is an
+  // whose ur_overlay did not survive: what she receives is an
   // essentially-English document in RTL chrome, and saying so beats a silent
   // fallback (rule 24(c)/(d)). English variant exists so the catalog is never
   // a partial map (language-protocol §6.3); the line itself is only ever
   // APPENDED on Urdu deliveries.
+  //
+  // REWRITTEN 2026-09-05 (bd-vnyuw). It used to read "instructions partly in
+  // Urdu" — which was never true of a single delivery. Every one of the six
+  // overlay-dropped lessons on staging was English END TO END; the only Urdu on
+  // the page was the template's own headings. "Partly" told a teacher the
+  // translation was thin when it was absent, so the field reports that came back
+  // read as a quality complaint rather than as a broken toggle, and rule 24(d)
+  // is exactly that: failure copy that does not name the actual state misdirects
+  // every report and every engineer who reads them.
+  //
+  // Three things it must do and one it must not:
+  //   • name the state — the Urdu version is MISSING, not thin;
+  //   • say the lesson is still whole, because it is: the overlay swaps strings
+  //     on a complete document and nothing is lost when it is absent;
+  //   • carry no blame and no jargon — "overlay" is our word, not hers.
+  //   • promise NO retry SHE MUST PERFORM. The render is cached on (segment,
+  //     lang, template_version) and every cache hit re-serves this same file, so
+  //     "ask again" is a lie until that row is re-authored. Saying the Urdu is
+  //     being prepared is not the same promise: it is a statement about the
+  //     lesson, not an instruction she can follow and be let down by.
+  //
+  // REWRITTEN AGAIN 2026-09-05 (bd-zle0u), because the STATE changed. The first
+  // rewrite described a translation that had been attempted and lost — "did not
+  // come through". That was accurate for bd-vnyuw. It is not accurate now: the
+  // overlay is DEFERRED to a pass that runs after the lesson is accepted, so
+  // nothing was attempted and nothing was lost, and "did not come through" would
+  // read as a fault where there is none. Rule 24(d) cuts both ways — copy that
+  // over-states a failure misdirects a field report exactly as copy that
+  // under-states one does. What she needs is the present tense: this copy is
+  // English, the Urdu is being prepared.
+  //
+  // Urdu voice: every verb agrees with a NOUN (ترجمہ, نسخہ) or with US (ہم),
+  // never with the teacher, so a mixed-gender cohort is addressed correctly.
+  //
+  // Caps (language-protocol §3): this line is APPENDED to `lp612Caption` on a
+  // document send, so it is charged against body.text (1024), not the 60-code-point
+  // footer. Measured in CODE POINTS — en 104, ur 91.
   lp612OverlayDropped: {
-    en: 'This lesson is from the English textbook — instructions partly in Urdu.',
-    ur: 'یہ سبق انگریزی کتاب سے ہے — ہدایات جزوی اردو میں',
+    en: 'This copy is in English. The Urdu version of this lesson is still being prepared '
+      + '— we are working on it.',
+    ur: 'یہ نسخہ انگریزی میں ہے۔ اس سبق کا اردو ترجمہ ابھی تیار ہو رہا ہے — ہم اس پر کام کر رہے ہیں۔',
   },
 
   // ── the 6-12 post-delivery survey (bd-86ivw) ─────────────────────────────
@@ -456,6 +593,65 @@ const UX_STRINGS = {
    * Header 60 / button 20 in CODE POINTS — this is where the copy is capped,
    * once, rather than in each caller's inline map (the bd-72dth drift).
    */
+  /**
+   * bd-oak77.4 — she typed a TOPIC, and under LP_612_ROUTE_ALL the answer is the menu.
+   *
+   * One short line, and only on the topic-bearing doors: the bare "lp" command and the /menu tap
+   * open the Flow with no preamble, because nothing needs explaining there. This line exists for
+   * the teacher who asked for "a lesson plan on photosynthesis" and would otherwise watch a grade
+   * picker appear with no idea why — rule 24(d), the copy names the actual state.
+   *
+   * It says where lessons come from now, not what was turned off. She never knew the word Gamma
+   * and an apology for a retired feature is not information she can use.
+   *
+   * Urdu is gender-agnostic in the second person — the imperative `منتخب کریں`, never
+   * `رہی ہوں گی` / `رہے ہوں گے` — because the cohort is mixed and the bot cannot know.
+   * Body field, so the 1024 cap applies, measured in CODE POINTS.
+   */
+  lp612RouteRedirect: {
+    en: 'Lesson plans now come straight from your own textbook. Pick the class, subject and chapter below and I will write that lesson for you.',
+    ur: 'اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔ نیچے جماعت، مضمون اور باب منتخب کریں — وہ سبق تیار کر دیا جائے گا۔',
+  },
+
+  /**
+   * bd-oak77.13 — the very first thing a teacher ever hears from this number.
+   *
+   * Sent on Meta's `request_welcome` event (a brand-new chat opened, nothing typed
+   * yet). Bilingual in ONE body because at this instant she has no stored language
+   * and no text to detect from — see welcome.handler.js. Urdu first, matching the
+   * other bilingual first-contact strings (unsupported-message.js).
+   *
+   * Body field: the cap is 1024 CODE POINTS. It names the two doors the ice-breaker
+   * chips below it lead to, and nothing else — a longer greeting on a cold open is
+   * a wall of text, and the chips are the actual interface.
+   *
+   * Urdu is gender-agnostic in the second person: imperatives only
+   * («منتخب کریں», «لکھ بھیجیں»), never `رہی ہوں گی` / `رہے ہوں گے`. The cohort is
+   * mixed and the bot cannot know.
+   */
+  welcomeFirstOpen: {
+    en:
+      'السلام علیکم! میں NIETE ٹیچنگ اسسٹنٹ ہوں۔\n' +
+      'آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور آپ کی کلاس کی ریکارڈنگ پر اے آئی کوچنگ — دونوں یہیں دستیاب ہیں۔\n' +
+      'نیچے دیے گئے اختیارات میں سے کوئی ایک منتخب کریں، یا مجھے اپنی بات لکھ بھیجیں۔\n\n' +
+      "Assalam-o-Alaikum! I'm the NIETE Teaching Assistant.\n" +
+      'Lesson plans straight from your own textbook, and AI coaching on a recording of your class — both live right here.\n' +
+      'Tap one of the options below, or just write to me.',
+    // Deliberately IDENTICAL to `en`. This is the one string in the catalog
+    // where the two variants must not differ: it is sent before any language is
+    // known, so the same bilingual body has to satisfy whichever clamp the
+    // resolver happens to land on. The catalog-completeness test requires every
+    // offered language to be present, and a lazy `variants[FLOOR]` fallback here
+    // would be a silent partial translation.
+    ur:
+      'السلام علیکم! میں NIETE ٹیچنگ اسسٹنٹ ہوں۔\n' +
+      'آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور آپ کی کلاس کی ریکارڈنگ پر اے آئی کوچنگ — دونوں یہیں دستیاب ہیں۔\n' +
+      'نیچے دیے گئے اختیارات میں سے کوئی ایک منتخب کریں، یا مجھے اپنی بات لکھ بھیجیں۔\n\n' +
+      "Assalam-o-Alaikum! I'm the NIETE Teaching Assistant.\n" +
+      'Lesson plans straight from your own textbook, and AI coaching on a recording of your class — both live right here.\n' +
+      'Tap one of the options below, or just write to me.',
+  },
+
   lpBrowseHeader: {
     en: '📘 Lesson Plans',
     ur: '📘 سبق کے منصوبے',
@@ -469,6 +665,51 @@ const UX_STRINGS = {
   lpBrowseButton: {
     en: 'Pick Class',
     ur: 'جماعت چنیں',
+  },
+
+  /**
+   * bd-twhcj — the honest refusal when reading assessment cannot run here.
+   *
+   * NIETE has the reading CODE and the reading TABLES, but no reading Flow was
+   * ever published to its WhatsApp account and READING_ASSESSMENT_FLOW_ID is
+   * unset, so `/reading test` was calling sendFlow with `flowId: undefined`.
+   * 43 teachers, 57 attempts, 57 failures, zero rows, twenty days — and every
+   * one of them was told "something went wrong, please try again later", which
+   * is an invitation to try again at a door that does not exist.
+   *
+   * Rule 24(d): the copy names the ACTUAL state. Not available here, not a
+   * transient fault, and no "try again" — because trying again cannot work.
+   * It ends by naming the two doors that ARE open, so the message closes a
+   * dead end and hands something back in its place.
+   *
+   * Sent as a plain text body, so the cap is 1024 CODE POINTS (pinned in
+   * tests/config/ux-strings-whatsapp-limits.test.js).
+   *
+   * Urdu is gender-agnostic in the second person — no `چاہتے ہیں` /
+   * `چاہتی ہیں` verb agreement with the reader at all; the sentences are
+   * impersonal statements about what is and is not available. The cohort is
+   * mixed and the bot cannot know. Rumi's own first person stays as it is
+   * everywhere else in this catalog.
+   *
+   * `/menu` inside the Urdu sentence is wrapped in U+2066 LRI … U+2069 PDI.
+   * It is a machine-Latin atom in RTL prose, and its leading slash is a
+   * bidi-neutral character between an Arabic-class letter and a Latin one —
+   * exactly the case UAX#9 resolves to the paragraph direction, which puts
+   * the slash on the far side of the word for a reader scanning the line.
+   * The isolate makes it paint as one contiguous `/menu` token. The English
+   * variant needs nothing: its paragraph is already LTR.
+   */
+  readingNotAvailable: {
+    en:
+      'Reading assessment is not switched on here yet, so I cannot open it for you — '
+      + 'trying again will not help, and that is on us, not on you.\n'
+      + 'What is ready right now: lesson plans straight from your own textbook, '
+      + 'and coaching on a recording of your class. Type /menu to see both.',
+    ur:
+      'قرائت کا جائزہ ابھی یہاں دستیاب نہیں ہے، اس لیے میں اسے کھول نہیں سکتی۔ '
+      + 'دوبارہ کوشش کرنے کا فائدہ نہیں — یہ کمی ہماری طرف سے ہے۔\n'
+      + 'ابھی جو موجود ہے: آپ کی اپنی درسی کتاب سے سبق کے منصوبے، اور کلاس کی '
+      + 'ریکارڈنگ پر کوچنگ۔ دونوں دیکھنے کے لیے \u2066/menu\u2069 لکھیں۔',
   },
 
   readingPickerHeader: {
@@ -652,6 +893,30 @@ const UX_STRINGS = {
     ur: 'رائے',
   },
 
+  // ─── the account we could not reach ──────────────────────────────────────
+  //
+  // Sent when the USER LOOKUP ITSELF FAILED — the database was unreachable, so
+  // nothing is known about her account and nothing may be asserted about it.
+  //
+  // This is not the "you have no account" line and must never read like one. A
+  // coach reported the old behaviour: during a Cloudflare 522 a registered
+  // teacher typing /video was told she was not registered. She was, she was
+  // mid-session, and the message blamed her for an outage on our side. There
+  // are two states here and they get two different sentences.
+  //
+  // Deliberately sent in BOTH languages at once. Her stored preference lives in
+  // the row we just failed to read, so at this exact moment we cannot know
+  // which language she reads — and guessing English at the one moment she is
+  // already confused is the wrong trade.
+  //
+  // Urdu is gender-neutral by construction: the verbs agree with the account
+  // and with "کچھ", never with the person being addressed, and the closing
+  // instruction is a plain imperative.
+  accountLookupUnavailable: {
+    en: 'Something is wrong on our side — I cannot reach your account right now. Nothing is lost. Please try again in a few minutes.',
+    ur: '\u06c1\u0645\u0627\u0631\u06d2 \u0633\u0633\u0679\u0645 \u0645\u06cc\u06ba \u06a9\u0686\u06be \u062e\u0631\u0627\u0628\u06cc \u06c1\u06d2 \u2014 \u0627\u0633 \u0648\u0642\u062a \u0622\u067e \u06a9\u0627 \u0627\u06a9\u0627\u0624\u0646\u0679 \u06a9\u06be\u0644 \u0646\u06c1\u06cc\u06ba \u067e\u0627 \u0631\u06c1\u0627\u06d4 \u06a9\u0686\u06be \u0636\u0627\u0626\u0639 \u0646\u06c1\u06cc\u06ba \u06c1\u0648\u0627\u06d4 \u0686\u0646\u062f \u0645\u0646\u0679 \u0628\u0639\u062f \u062f\u0648\u0628\u0627\u0631\u06c1 \u06a9\u0648\u0634\u0634 \u06a9\u0631\u06cc\u06ba\u06d4',
+  },
+
   remarkSubmit: {
     en: 'Submit',
     ur: 'جمع کریں',
@@ -661,12 +926,12 @@ const UX_STRINGS = {
   // the principal keeps the numbers, the teacher gets a narrative with none, and
   // this screen is the handover point between the two.
   remarkFlowSuccess: {
-    en: 'Saved. {teacher} will get her coaching note shortly.',
+    en: 'Saved. {teacher} will get their coaching note shortly.',
     ur: '{teacher} کو ان کا کوچنگ نوٹ جلد مل جائے گا۔ محفوظ ہو گیا۔',
   },
 
   // The chat message after the Flow closes (whatsapp-flows rule 11 — never bounce
-  // her to "Type /menu"). {left} is the remaining-teachers nudge.
+  // the coach to "Type /menu"). {left} is the remaining-teachers nudge.
   remarkAckSubmitted: {
     en: 'Saved — {teacher} is done. {left}',
     ur: 'محفوظ ہو گیا — {teacher} مکمل۔ {left}',
@@ -707,6 +972,437 @@ const UX_STRINGS = {
   remarkFlowButton: {
     en: 'Start',
     ur: 'شروع کریں',
+  },
+
+  // A \u200F (RIGHT-TO-LEFT MARK) opens any Urdu string whose first strong
+  // character could be Latin — an English topic placeholder, a name, an
+  // emoji-then-English opener. WhatsApp lays a message out from its first
+  // strong character, so without the mark such a message renders left-to-
+  // right and reads scrambled. Enforced by tests/quiz/transcript-quiz-strings.
+  // ─── transcript quiz (teacher side) ──────────────────────────────────────
+  // The post-coaching quiz offer, the hand-off, /quiz. Every string here is
+  // gender-neutral in Urdu by construction (imperatives, impersonal
+  // constructions, passives) because the teacher's gender is unknown and the
+  // cohort is mixed. English technical terms (quiz, link, PDF, WhatsApp,
+  // forward, group) stay in English inside Urdu, as teachers write them.
+  // {lesson} is built by transcript-quiz-language.lessonLabel(): the subject in
+  // the TEACHER's language, the topic as the class actually heard it (the quiz
+  // language), and a teacher-language gloss in brackets when the two differ.
+  tqOffer: {
+    en: 'Your {lesson}, {date}. I can make a short 8-question quiz your students take on WhatsApp — it checks what they learnt, and you get a report on what to reteach.\n\nWant it?\n\nYou can make one for any lesson anytime by sending /quiz.',
+    ur: 'آپ کا {lesson}، {date}۔ طلبہ کے لیے 8 سوالوں کا مختصر quiz تیار ہو سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا سمجھ آیا اور کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟\n\nکسی بھی سبق کا quiz کبھی بھی ⁦/quiz⁩ بھیج کر بنایا جا سکتا ہے۔',
+  },
+  tqOfferYes: { en: 'Yes, make it', ur: 'جی، بنائیں' },
+  tqOfferNo: { en: 'Not now', ur: 'ابھی نہیں' },
+  tqDeclined: {
+    en: 'No problem. You can make a quiz for any of your lessons anytime — just send /quiz.',
+    ur: 'کوئی بات نہیں۔ کسی بھی سبق کا quiz کبھی بھی بنایا جا سکتا ہے — بس ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqOfferExpired: {
+    en: 'That offer is no longer available — send /quiz to make a quiz for any lesson.',
+    ur: 'وہ پیشکش اب دستیاب نہیں — کسی بھی سبق کا quiz بنانے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqMaking: {
+    en: 'Making it now — about a minute. The quiz will arrive here with the message to forward.',
+    ur: 'آپ کا quiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور آگے بھیجنے والا پیغام آئے گا۔',
+  },
+  tqAlreadyMaking: {
+    en: 'Already on it — the quiz is coming.',
+    ur: 'پہلے ہی تیار ہو رہا ہے — بس آ رہا ہے۔',
+  },
+  tqAlreadySent: {
+    en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
+    ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqStillMaking: {
+    en: 'That quiz is still being made — it will arrive here shortly.',
+    ur: 'وہ quiz ابھی تیار ہو رہا ہے — تھوڑی دیر میں یہیں آئے گا۔',
+  },
+  tqCouldNotMake: {
+    en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
+    ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد ⁦/quiz⁩ آزمائیں۔',
+  },
+  tqCouldNotSend: {
+    en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
+    ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد ⁦/quiz⁩ بھیج کر حاصل کریں۔',
+  },
+  tqHandoffIntro: {
+    en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you taught, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ نے کیا پڑھایا، کوئز کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+  },
+  tqForwardThis: {
+    en: 'Forward THIS message to your students:',
+    ur: 'یہ پیغام طلبہ کو forward کریں:',
+  },
+  // Read by CHILDREN, in the quiz language. Names the teacher, the topic and
+  // the date of the lesson, and carries the link. Never a phone number.
+  tqStudentMessage: {
+    en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
+    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+  },
+  tqReportPromise: {
+    en: 'You will get a report on how the class did about 12 hours after the first student starts — or sooner if everyone finishes. Send /quiz anytime to see your quizzes or fetch a report.',
+    ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqListBody: {
+    en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
+    ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
+  },
+  tqListButton: { en: 'Choose lesson', ur: 'سبق چنیں' },
+  tqListSection: { en: 'Recent lessons', ur: 'حالیہ اسباق' },
+  tqListHeader: { en: 'Lessons {from}–{to}', ur: 'اسباق {from}–{to}' },
+  tqListEmpty: {
+    en: 'No lessons yet. Record a lesson for coaching first — then /quiz can turn it into a quiz for your students.',
+    ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر ⁦/quiz⁩ اسے طلبہ کے لیے quiz بنا دے گا۔',
+  },
+  tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  tqRowOffered: { en: 'Offered — tap to make', ur: 'پیشکش — بنانے کو tap' },
+  tqRowMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
+  tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
+  tqRowReportSent: { en: 'Report sent · {finished} done', ur: 'رپورٹ بھیجی، {finished} مکمل' },
+  tqRowFailed: { en: 'Failed — tap to retry', ur: 'نہیں بنا — دوبارہ tap' },
+  tqRowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
+  tqRowOlderDesc: { en: 'The next 9, going back', ur: 'اگلے 9، اور پیچھے' },
+  // The date is here because she is choosing between lessons, and two lessons
+  // can carry the same topic in one term.
+  tqQuizStatus: {
+    en: '*{topic}*\n{date} · {started} started · {finished} finished.\n\nResend the link, or regenerate the report?',
+    ur: '\u200F*{topic}*\n{date}، {started} نے شروع کیا، {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا رپورٹ دوبارہ بنائیں؟',
+  },
+  tqLinkButton: { en: 'Resend link', ur: 'دوبارہ link بھیجیں' },
+  // Both ≤ 20 code points in both languages — a WhatsApp button title cap.
+  tqReportButton: { en: 'Regenerate report', ur: 'رپورٹ دوبارہ بنائیں' },
+  tqBackButton: { en: 'Back to lessons', ur: 'اسباق پر واپس' },
+  tqNoReportYet: {
+    en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
+    ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
+  },
+  // Names the refetch: the whole point of the button is that a child who
+  // finished since the last report is counted this time.
+  tqReportComing: {
+    en: 'Recounting now — every student who has finished since the last report is included. One moment…',
+    ur: 'ابھی دوبارہ گنا جا رہا ہے — پچھلی رپورٹ کے بعد جس نے بھی مکمل کیا وہ بھی شامل ہے۔ ایک لمحہ…',
+  },
+  tqNotYours: {
+    en: 'I couldn’t find that lesson. Send /quiz to see your lessons.',
+    ur: 'وہ سبق نہیں ملا۔ اپنے اسباق دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqYourTeacher: { en: 'Your teacher', ur: 'آپ کے استاد' },
+  tqTeacherNamed: { en: 'Teacher {name}', ur: 'استاد {name}' },
+  tqTodaysLesson: { en: 'today’s lesson', ur: 'آج کا سبق' },
+  tqLessonWord: { en: 'Lesson', ur: 'سبق' },
+  tqNudge: {
+    en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',
+    ur: '\u200F*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
+  },
+  tqNudgeMany: {
+    en: '{count} of your quizzes have had almost nobody start yet: *{topics}*. Worth forwarding the links to the class group again?',
+    ur: '\u200Fآپ کے {count} quiz ابھی تک تقریباً کسی نے شروع نہیں کیے: *{topics}*۔ link دوبارہ class group میں forward کر دیں؟',
+  },
+
+  // ─── /quiz as ONE WhatsApp Flow (docs/flows/transcript-quiz-flow.json) ───
+  //
+  // Every string here is rendered INSIDE a Flow screen, so the caps are Meta's
+  // Flow JSON caps, not WhatsApp's message caps, and they are tighter than they
+  // look. Measured in CODE POINTS, verified in tests/quiz/transcript-quiz-flow-strings.test.js:
+  //
+  //   NavigationList item  main-content.title 30 · description 20 · metadata 80
+  //   TextHeading 80 · TextBody 4096 · Footer label 35
+  //   RadioButtonsGroup option title 30 · description 300
+  //   screen title 30
+  //   the chat bubble that OPENS the Flow: header 60 · body 1024 · CTA 20
+  //
+  // The item description is 20 — a quarter of a WhatsApp list row's 72 — which
+  // is why the status strings below are their own short keys instead of reusing
+  // tqRow*, and why the full topic lives in the 80-code-point metadata.
+  // The teacher is "you"; no gendered pronoun in either language.
+
+  // The chat bubble that carries the Flow.
+  tqFlowChatHeader: { en: '📝 Your quizzes', ur: '📝 آپ کے quizzes' },
+  tqFlowChatBody: {
+    en: 'Your lessons, newest first. Open one to see how the class did, get its report, or resend its link — all in here, without leaving this screen.',
+    ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک کھولیں — کلاس کا نتیجہ دیکھیں، رپورٹ لیں یا link دوبارہ بھیجیں، سب اسی سکرین میں۔',
+  },
+  tqFlowChatCta: { en: 'Open', ur: 'کھولیں' },
+
+  // Screen titles (≤ 30).
+  tqFlowLessonsTitle: { en: 'Your lessons', ur: 'آپ کے اسباق' },
+  tqFlowLessonTitle: { en: 'This lesson', ur: 'یہ سبق' },
+  tqFlowDoneTitle: { en: 'On its way', ur: 'بھیجا جا رہا ہے' },
+
+  // The lesson row's status, in the 20-code-point description slot.
+  tqFlowStatusNone: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  tqFlowStatusOffered: { en: 'Not made yet', ur: 'ابھی نہیں بنا' },
+  tqFlowStatusMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
+  tqFlowStatusSent: { en: '{started} started', ur: '\u200F{started} نے شروع' },
+  tqFlowStatusReport: { en: 'Report sent · {finished}', ur: 'رپورٹ بھیجی · {finished}' },
+  tqFlowStatusFailed: { en: 'Didn’t work', ur: 'نہیں بن سکا' },
+
+  // The paging rows. Tapping one asks the endpoint for the next slice and the
+  // endpoint answers with THIS SAME screen — the teacher never leaves the Flow.
+  tqFlowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
+  tqFlowNewer: { en: 'Newer lessons…', ur: 'نئے اسباق…' },
+  tqFlowPageNum: { en: 'Page {page}', ur: 'صفحہ {page}' },
+  tqFlowOlderMeta: { en: 'The next {n}, going further back', ur: 'اگلے {n}، اس سے بھی پیچھے' },
+
+  // The one row a NavigationList must still carry when there is nothing to
+  // list: Meta needs at least one item, and an empty screen is a dead end.
+  // `/quiz` normally never opens the Flow on an empty list — the dispatch sends
+  // the plain "no lessons yet" message instead — so this is the race, not the
+  // usual path.
+  tqFlowEmptyTitle: { en: 'No lessons yet', ur: 'ابھی کوئی سبق نہیں' },
+  tqFlowEmptyDesc: { en: 'Record one first', ur: 'پہلے ریکارڈ کریں' },
+  tqFlowEmptyMeta: {
+    en: 'Record a lesson for coaching, then /quiz turns it into a quiz.',
+    ur: 'پہلے coaching کے لیے سبق ریکارڈ کریں، پھر ⁦/quiz⁩ اس کا quiz بنا دے گا۔',
+  },
+  tqFlowNewerMeta: { en: 'Back to the {n} more recent lessons', ur: 'پچھلے {n} حالیہ اسباق پر واپس' },
+
+  // The lesson screen: heading, sub-line, and the live results.
+  tqFlowLessonSub: { en: '{date} · {subject} · {status}', ur: '\u200F{date} · {subject} · {status}' },
+  tqFlowLessonSubNoSubject: { en: '{date} · {status}', ur: '\u200F{date} · {status}' },
+  tqFlowResultsHead: {
+    en: '{started} started · {finished} finished · average {avg}%',
+    ur: '\u200F{started} نے شروع کیا، {finished} نے مکمل، اوسط \u2066{avg}%\u2069',
+  },
+  tqFlowResultsStartedOnly: {
+    en: '{started} started · nobody has finished yet',
+    ur: '\u200F{started} نے شروع کیا، ابھی کسی نے مکمل نہیں کیا',
+  },
+  tqFlowResultsNobody: {
+    en: 'Nobody has opened this quiz yet. Resend the link and it will show up here as students take it.',
+    ur: 'ابھی کسی نے یہ quiz نہیں کھولا۔ link دوبارہ بھیجیں — طلبہ کے حل کرتے ہی نتیجہ یہیں نظر آئے گا۔',
+  },
+  tqFlowResultsNoQuiz: {
+    en: 'No quiz has been made from this lesson yet. Making one takes about a minute.',
+    ur: 'اس سبق سے ابھی کوئی quiz نہیں بنا۔ بنانے میں تقریباً ایک منٹ لگتا ہے۔',
+  },
+  tqFlowResultsMaking: {
+    en: 'The quiz is being made — about a minute. It will arrive in your chat with the message to forward.',
+    ur: '\u200Fquiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
+  },
+  tqFlowResultsFailed: {
+    en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',
+    ur: 'پچھلی کوشش میں اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا۔ دوبارہ کوشش کی جا سکتی ہے۔',
+  },
+  tqFlowEachStudent: { en: 'How each student did', ur: 'ہر طالب علم کا نتیجہ' },
+  // The score is ONE left-to-right atom (digits, slash, brackets, per-cent), so
+  // it arrives already wrapped in LRI…PDI from the endpoint — in an Urdu line
+  // an un-isolated `8/8 (100%)` after an Urdu name renders as `(%100) 8/8`.
+  tqFlowStudentLine: { en: '• {name}{klass} — {score}', ur: '• {name}{klass} — {score}' },
+  tqFlowStillGoing: { en: 'Still going: {names}', ur: 'ابھی حل کر رہے ہیں: {names}' },
+  tqFlowMoreStudents: { en: '…and {n} more', ur: '…اور {n} مزید' },
+  tqFlowUnnamed: { en: 'Unnamed', ur: 'بےنام' },
+
+  // The actions, as the options of a single radio group under the results.
+  tqFlowActionsLabel: { en: 'What next?', ur: 'اب کیا کریں؟' },
+  tqFlowActionReport: { en: 'Generate report', ur: 'رپورٹ بنائیں' },
+  tqFlowActionReportDesc: {
+    en: 'Counted again right now — everyone who has finished since the last report is in it.',
+    ur: 'ابھی دوبارہ گنا جائے گا — پچھلی رپورٹ کے بعد جس نے بھی مکمل کیا وہ بھی شامل ہو گا۔',
+  },
+  tqFlowActionLink: { en: 'Resend link', ur: '\u200Flink دوبارہ بھیجیں' },
+  tqFlowActionLinkDesc: {
+    en: 'The PDF, then the message to forward — the same link as before, never a new one.',
+    ur: '‏PDF، پھر آگے بھیجنے والا پیغام — وہی پرانا link، نیا نہیں۔',
+  },
+  tqFlowActionMake: { en: 'Make the quiz', ur: '\u200Fquiz بنائیں' },
+  tqFlowActionMakeIn: { en: 'Make it in {language}', ur: '\u200F{language} میں بنائیں' },
+  tqFlowActionMakeDesc: {
+    en: '8 questions from what you taught in this lesson. About a minute.',
+    ur: 'اس سبق میں آپ نے جو پڑھایا، اس پر 8 سوالات۔ تقریباً ایک منٹ۔',
+  },
+  tqFlowContinue: { en: 'Continue', ur: 'آگے بڑھیں' },
+  tqFlowClose: { en: 'Close', ur: 'بند کریں' },
+
+  // The terminal screen, one per action.
+  tqFlowDoneReportHead: { en: 'Your report is on its way', ur: 'آپ کی رپورٹ آ رہی ہے' },
+  tqFlowDoneReportBody: {
+    en: 'Recounting now. The report will arrive in your chat in a minute or two — the class summary, how each student did, and what is worth reteaching.',
+    ur: 'ابھی دوبارہ گنا جا رہا ہے۔ ایک دو منٹ میں رپورٹ آپ کی chat میں آ جائے گی — کلاس کا خلاصہ، ہر طالب علم کا نتیجہ، اور کیا دوبارہ پڑھانا ہے۔',
+  },
+  tqFlowDoneLinkHead: { en: 'The link is on its way', ur: '\u200Flink بھیجا جا رہا ہے' },
+  tqFlowDoneLinkBody: {
+    en: 'The PDF first, then the message to forward to your class group. It carries the same link as before.',
+    ur: 'پہلے PDF، پھر وہ پیغام جو class group میں forward کرنا ہے۔ اس میں وہی پرانا link ہے۔',
+  },
+  tqFlowDoneMakeHead: { en: 'Making the quiz', ur: '\u200Fquiz بن رہا ہے' },
+  tqFlowDoneMakeBody: {
+    en: 'About a minute. The quiz and the message to forward will arrive in your chat.',
+    ur: 'تقریباً ایک منٹ۔ quiz اور آگے بھیجنے والا پیغام آپ کی chat میں آ جائے گا۔',
+  },
+  tqFlowDoneWaitHead: { en: 'Still being made', ur: 'ابھی تیار ہو رہا ہے' },
+  tqFlowDoneWaitBody: {
+    en: 'About a minute. The quiz will arrive in your chat with the message to forward.',
+    ur: 'تقریباً ایک منٹ۔ quiz آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
+  },
+
+  // Snackbar errors — the endpoint returns the CURRENT screen with these, so a
+  // fault is never a dead end.
+  tqFlowErrPickAction: { en: 'Pick one of the options first.', ur: 'پہلے کوئی ایک آپشن منتخب کریں۔' },
+  tqFlowErrNotYours: { en: 'That lesson could not be found.', ur: 'وہ سبق نہیں مل سکا۔' },
+  tqFlowErrGeneric: { en: 'Something went wrong — try again.', ur: 'کچھ غلط ہو گیا — دوبارہ کوشش کریں۔' },
+  // The lookup itself failed (not an unknown teacher): retry copy, both ≤ 60 code points.
+  tqFlowErrLookup: { en: 'Could not load your lessons just now. Please tap again.', ur: 'ابھی آپ کے اسباق نہیں کھل سکے۔ دوبارہ tap کریں۔' },
+
+  // ─── quiz chrome read by CHILDREN, in the quiz language ─────────────────
+  // The share-link chain was English-only; a child taking an Urdu quiz now
+  // reads Urdu around the questions too. A child is "آپ" with respectful
+  // plural verbs — never a gendered guess.
+  vqGreeting: {
+    en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.',
+    ur: '\u200F👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔',
+  },
+  // PLAN_R5 §1 D8 — a teacher opening her own class link (a self-test),
+  // not a child. Chat body, no code-point cap. "test run" stays in Latin
+  // letters in the Urdu line (an English technical term, no established
+  // Urdu equivalent in this catalog).
+  vqSelfTestStart: {
+    en: 'This is your own test run — it won’t show up in your class report. Here goes!',
+    ur: '\u200Fیہ آپ کا اپنا test run ہے — یہ آپ کی کلاس رپورٹ میں شامل نہیں ہوگا۔ چلیں شروع کریں!',
+  },
+  vqWelcomeBack: {
+    en: 'Good to see you again, {name} — let’s begin!',
+    ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
+  },
+  vqWhoIsTaking: {
+    en: 'Who is taking it today?\n\n{names}\n{n}. Someone else\n\nReply with the number.',
+    ur: 'آج کون quiz دے رہا ہے؟\n\n{names}\n{n}. کوئی اور\n\nنمبر لکھ کر جواب دیں۔',
+  },
+  vqReplyNumber: {
+    en: 'Please reply with just the number — 1 to {n}.',
+    ur: 'براہِ کرم صرف نمبر لکھیں — 1 سے {n} تک۔',
+  },
+  vqAskName: { en: 'First — what is your name?', ur: 'پہلے — آپ کا نام کیا ہے؟' },
+  vqAskNameAgain: { en: 'No problem — what is your name?', ur: 'کوئی بات نہیں — آپ کا نام کیا ہے؟' },
+  vqAskNameMissed: {
+    en: 'I didn’t catch your name — what should I call you?',
+    ur: 'نام سمجھ نہیں آیا — آپ کو کیا کہہ کر پکاریں؟',
+  },
+  vqAskClass: {
+    en: 'Thanks {name}! And which class are you in? (for example: Grade 4)',
+    ur: 'شکریہ {name}! آپ کس جماعت میں ہیں؟ (مثلاً: جماعت 4)',
+  },
+  vqLetsBegin: { en: 'Great — {who}. Let’s begin!', ur: 'بہت خوب — {who}۔ چلیں شروع کریں!' },
+  vqLetsBeginName: { en: 'Let’s begin, {name}!', ur: '\u200F{name}، چلیں شروع کریں!' },
+  vqExpired: {
+    en: 'That quiz link has expired. Ask your teacher for a new one!',
+    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
+  },
+  vqHereWeGo: { en: 'Here we go — {n} questions. Take your time!', ur: 'چلیں — {n} سوال ہیں۔ آرام سے کریں!' },
+  vqQuestionOf: { en: '*Question {i} of {n}*', ur: '*سوال {i} از {n}*' },
+  vqChooseAnswer: { en: 'Choose answer', ur: 'جواب چنیں' },
+  vqOptions: { en: 'Options', ur: 'جوابات' },
+  vqDoneFallback: {
+    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%).\n\n{tier}',
+    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔\n\n{tier}',
+  },
+  vqScoreCaption: {
+    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%). You’ve earned {stars} {starWord}!\n\n{tier}',
+    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔ آپ کو {stars} {starWord} ملے!\n\n{tier}',
+  },
+  vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },
+  vqTierDeveloping: {
+    en: 'Nicely done — a little more practice and you’ll have it.',
+    ur: 'بہت اچھا — تھوڑی اور مشق سے یہ پکا ہو جائے گا۔',
+  },
+  vqTierNeedsPractice: {
+    en: 'Good effort — this one is worth another go.',
+    ur: 'اچھی کوشش — یہ دوبارہ کرنے کے قابل ہے۔',
+  },
+  vqTrouble: {
+    en: 'We’re having trouble sending more questions right now — here’s how you did on the ones you got!',
+    ur: 'ابھی مزید سوال بھیجنے میں مسئلہ ہو رہا ہے — جو سوال ملے، ان کا نتیجہ یہ رہا!',
+  },
+  vqNoQuestions: {
+    en: 'Sorry — I couldn’t load that quiz just now. Please try again later.',
+    ur: 'معذرت — ابھی یہ quiz لوڈ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  vqInviteAsk: {
+    en: 'Want to send this quiz to a friend?\n\nI’ll tell you how they did once they finish.',
+    ur: 'یہ quiz کسی دوست کو بھیجیں؟\n\nجب وہ مکمل کر لیں تو آپ کو بتایا جائے گا کہ انہوں نے کیسا کیا۔',
+  },
+  vqInviteYes: { en: 'Invite a friend', ur: 'دوست کو بھیجیں' },
+  vqInviteNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+
+  // ─── the child's scorecard image ────────────────────────────────────────
+  // These are painted INTO a 540x400 card, not sent as a message, so they are
+  // held to a badge's width rather than a message's. The vqTier* lines above
+  // stay the caption's full sentence; these are the two or three words that
+  // fit on the card itself. Both sets say the same thing, so a child hears one
+  // voice whether she reads the picture or the text under it.
+  vqScorecardEyebrow: { en: 'QUIZ COMPLETE', ur: 'کوئز مکمل' },
+  vqBadgeMastered: { en: 'Brilliant!', ur: 'زبردست!' },
+  vqBadgeDeveloping: { en: 'Nicely done', ur: 'بہت اچھا' },
+  vqBadgeNeedsPractice: { en: 'Good effort', ur: 'اچھی کوشش' },
+
+  // The report's one "nothing to report" branch: the link was never opened.
+  // Sent instead of the PDF, in the teacher's own language.
+  // Under a QUESTION CARD (the whole question drawn as one picture because of
+  // notation or long options), the buttons are letters; this is the body line.
+  vqCardAsk: {
+    en: 'The question is in the picture above. Tap {letters}.',
+    ur: '\u200Fسوال اوپر تصویر میں ہے۔ {letters} دبائیں۔',
+  },
+  // The letters a QUESTION CARD offers are never fixed at three — a card can
+  // carry 2 or 4 options, and the copy has to name exactly the buttons sent
+  // (round 5). letterListLabel() builds "A, B or C" from these two pieces;
+  // both are language data, not layout — Urdu's list comma is `،`, not `,`,
+  // and its "or" is `یا`.
+  vqLetterSep: { en: ', ', ur: '، ' },
+  vqLetterOr: { en: 'or', ur: 'یا' },
+  // The question card's OWN footer, painted into the image itself.
+  vqCardTapBelow: { en: 'Tap {letters} below', ur: 'نیچے {letters} دبائیں' },
+  // ─── "select all that apply" questions (PLAN_R5 D4) ─────────────────────
+  // A question with two or three correct options is delivered as a Flow with a
+  // CheckboxGroup. Every string a child reads on that path lives here, in both
+  // languages, because the Flow ASSET is one per WABA and cannot be re-rendered
+  // per language — the only way an Urdu quiz reads as Urdu is if the sender
+  // supplies the copy as screen data (whatsapp-flows skill, rule 12).
+  //
+  // Caps that bind these: the Flow CTA button is 20 code points, a Flow Footer
+  // label 35, a CheckboxGroup label ~30, and the interactive message footer 60.
+  // Measured in CODE POINTS, which is what Meta counts and what an Urdu string
+  // makes differ from `.length`.
+  vqMultiSelectAll: { en: 'Select all that apply.', ur: 'سب درست جواب چنیں۔' },
+  vqMultiCardFoot: {
+    en: 'Open the form below and tick every right answer.',
+    ur: 'نیچے فارم کھولیں اور ہر درست جواب پر نشان لگائیں۔',
+  },
+  // The Flow's CTA button (20 code points) and its submit Footer (35).
+  vqMultiCta: { en: 'Answer', ur: 'جواب دیں' },
+  vqMultiSubmit: { en: 'Send answer', ur: 'جواب بھیجیں' },
+  // Says that the set has more than one member WITHOUT saying how many — the
+  // count is the answer key. Same reason the Flow's max-selected-items is the
+  // option count and not the size of the key.
+  vqMultiFooter: { en: 'More than one answer is right.', ur: 'ایک سے زیادہ جواب درست ہیں۔' },
+  // The verdict's opening sentence — WITHOUT a marker. D2's ✅/❌ is applied by
+  // video-quiz-render.withVerdictMark(), which is also the only thing that knows
+  // when the marker needs a right-to-left mark after it. Two places prepending
+  // an emoji is how a child ends up reading "✅ ✅".
+  // These are the fallbacks for a question whose author wrote no correct-answer
+  // feedback; when she did, her sentence is used and marked instead.
+  vqMultiRight: { en: 'Correct! The full answer is {right}.', ur: 'درست! پورا جواب یہ ہے: {right}۔' },
+  vqMultiWrong: { en: 'Not quite — the full answer is {right}.', ur: 'بالکل نہیں — پورا جواب یہ ہے: {right}۔' },
+  // Urdu deliberately uses the listing form ("these are right too") rather than
+  // a literal translation of "you missed": every natural Urdu verb for missing
+  // agrees in gender/number with the thing missed, which is unknown here and is
+  // sometimes one option and sometimes two.
+  vqMultiMissed: { en: 'You missed {missed}.', ur: 'یہ بھی درست ہیں: {missed}۔' },
+  vqMultiExtra: { en: '{extra} does not belong here.', ur: '\u200F{extra} اس میں شامل نہیں۔' },
+  // Joins the members of an answer set for a child to read.
+  vqMultiJoin: { en: ' and ', ur: ' اور ' },
+  // The degraded path: no Flow is configured on this WABA, so the question is
+  // asked as an ordinary single-select picker. It says plainly that more than
+  // one answer is right rather than pretending the question changed.
+  vqMultiFallbackAsk: {
+    en: 'More than one answer is right — tap the one you are most sure of.',
+    ur: 'ایک سے زیادہ جواب درست ہیں — جس پر آپ کو سب سے زیادہ یقین ہے وہ دبائیں۔',
+  },
+
+  vqReportNoOne: {
+    en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
+    ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',
   },
 };
 
@@ -761,7 +1457,7 @@ const CLASS_FLOW_STRINGS = {
     en: 'Shift',
     ur: 'شفٹ',
   },
-  // Sections are a closed set (A-E). The helper text is where a teacher learns
+  // Sections are a closed set (A–O, seeded in the sections table). The helper text is where a teacher learns
   // what to do when hers is not listed, so it names the route rather than leaving
   // her to guess.
   classSectionHelperClosed: {
@@ -933,6 +1629,58 @@ const CLASS_FLOW_STRINGS = {
 Object.assign(UX_STRINGS, CLASS_FLOW_STRINGS);
 
 /**
+ * Transcript quiz, round 2 — the lesson label the offer and the hand-off are
+ * built from. Kept as one block at the end of the catalog so the three
+ * round-2 workstreams can each append without colliding.
+ *
+ * These four are FRAGMENTS, not messages: lessonLabel() composes one of them
+ * and the result is substituted into {lesson}. The topic arrives already
+ * wrapped in a first-strong isolate, so an Urdu topic inside an English
+ * sentence (or the reverse) cannot drag the punctuation around it.
+ */
+const TRANSCRIPT_QUIZ_R2_STRINGS = {
+  // The quiz language is hers to choose. The two button titles come from the
+  // language registry (اردو / English), not from here — a language names itself
+  // the same way in both catalogs, and the registry is what the /language and
+  // /settings pickers already render.
+  tqAskLanguage: {
+    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters (fraction, numerator).\nEnglish — the whole quiz in English.\n\nTap one.',
+    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں (fraction، numerator)۔\nEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
+  },
+  tqLessonOnSubject: { en: '{subject} lesson on {topic}', ur: '\u200F{subject} کا سبق — {topic}' },
+  tqLessonNoTopic:   { en: '{subject} lesson',            ur: '\u200F{subject} کا سبق' },
+  tqLessonOnTopic:   { en: 'lesson on {topic}',           ur: 'سبق — {topic}' },
+  tqLessonPlain:     { en: 'lesson',                      ur: 'سبق' },
+};
+
+Object.assign(UX_STRINGS, TRANSCRIPT_QUIZ_R2_STRINGS);
+
+/**
+ * bd-mg9c7.64 — the student tutor persona (a child who reaches the bot outside
+ * a quiz session, e.g. via a forwarded share link). Two strings, both with a
+ * real call site in `_getStudentTutorPrompt` (openai.service.js): the redirect
+ * line is copy the child can actually read, so it lives in the catalog like
+ * any other teacher/child-facing string rather than being typed inline.
+ */
+const STUDENT_TUTOR_STRINGS = {
+  // The model-failure apology, child-shaped. Not a button/header, so no
+  // code-point cap applies, but kept short on purpose.
+  studentChatError: {
+    en: 'Oops, something went wrong on my end. Please try asking again!',
+    ur: 'معذرت، کچھ گڑبڑ ہو گئی۔ براہِ کرم دوبارہ پوچھیں!',
+  },
+  // The exact sentence the student prompt tells the model to use when a
+  // message drifts off schoolwork — deliberately "a grown-up", not an
+  // enumerated list, so it never has to name a teacher.
+  studentOffTopicHint: {
+    en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
+    ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
+  },
+};
+
+Object.assign(UX_STRINGS, STUDENT_TUTOR_STRINGS);
+
+/**
  * Grade and subject display labels, keyed by the canonical codes in the
  * `grade_levels` and `subjects` reference tables.
  *
@@ -1069,6 +1817,7 @@ function languageLabelFor(code) {
 
 module.exports = {
   UX_STRINGS,
+  LP612_ETA,
   resolveUx,
   clampLanguage,
   languageLabelFor,

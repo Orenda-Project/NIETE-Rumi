@@ -15,11 +15,14 @@ const { chooseTarget, nextTarget, tooSimilar, applicableToday, deriveUptakeStatu
 
 const ok = (id, score) => ({ id, name: id, score, applicable: true });
 const na = (id) => ({ id, name: id, score: null, applicable: false });
-function analysis({ c1 = 1, c3 = 1, d2 = 1, f4 = 'na', b4 = 0, focus = 'C3' } = {}) {
+function analysis({ c1 = 1, c3 = 1, d2 = 1, f4 = 'na', b4 = 0, focus = 'C3', derived = true } = {}) {
+  // bd-nl4vi.15: Section B is coachable ONLY in proxy mode, so these fixtures
+  // default to DERIVED (a plan resolved to graded moves) — which is what the
+  // original "B is never a target" expectations were really describing.
   return {
     framework: 'fico',
     domains: {
-      lesson_plan_fidelity: { indicators: [ok('B1', 2), ok('B4', b4)] },
+      lesson_plan_fidelity: { ...(derived ? { fidelity_derived: true, fidelity_pct: 39 } : {}), indicators: [ok('B1', 2), ok('B4', b4)] },
       high_leverage_practices: { indicators: [ok('C1', c1), ok('C2', 2), ok('C3', c3), ok('C4', 2)] },
       student_engagement: { indicators: [ok('D1', 2), ok('D2', d2)] },
       teacher_subject_knowledge: { indicators: [ok('F1', 2), f4 === 'na' ? na('F4') : ok('F4', f4)] },
@@ -43,13 +46,16 @@ describe('constants', () => {
     expect(MAX_ATTEMPTS).toBe(4);
     expect(CLOSE_AFTER).toBe(2);
   });
-  test('every C/D/F indicator has a COUNT bar; B has none', () => {
-    for (const id of ['C1', 'C2', 'C3', 'C4', 'D1', 'D2', 'D3', 'D4', 'D5', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10']) {
+  test('every C/D/F indicator has a COUNT bar, and so do the six proxy-coachable B rows', () => {
+    for (const id of ['C1', 'C2', 'C3', 'C4', 'D1', 'D2', 'D3', 'D4', 'D5', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10',
+                      'B1', 'B2', 'B4', 'B5', 'B6', 'B7']) {
       const bar = countBarFor(id);
       expect(bar && Object.keys(bar).length).toBeGreaterThan(0);
       for (const v of Object.values(bar)) expect(v).toBeGreaterThan(0);
     }
-    expect(countBarFor('B4')).toBeNull();
+    // B3's rung-2 bar is "EVERY activity serves the objective" — a universal, not
+    // a count, so a >= comparison would pass vacuously. Deliberately no bar.
+    expect(countBarFor('B3')).toBeNull();
   });
 });
 
@@ -66,18 +72,28 @@ describe('chooseTarget', () => {
   test('the scorer\'s focus_area wins when it is a C/D/F indicator with room to grow', () => {
     expect(chooseTarget(analysis({ c1: 0, c3: 1, focus: 'C3' }), null).indicator).toBe('C3');
   });
-  test('a Section B focus_area is never a loop target — falls to the lowest applicable C/D/F rung', () => {
+  test('DERIVED: a Section B focus_area is never a loop target — falls to the lowest applicable C/D/F rung', () => {
     const t = chooseTarget(analysis({ c1: 0, c3: 1, b4: 0, focus: 'B4' }), null);
     expect(t.indicator).toBe('C1');
     expect(t.indicator[0]).not.toBe('B');
   });
+  test('PROXY: the same Section B focus_area IS honoured when it is STRICTLY her lowest', () => {
+    const t = chooseTarget(analysis({ c1: 1, c3: 1, b4: 0, focus: 'B4', derived: false }), null);
+    expect(t.indicator).toBe('B4');
+  });
+  test('PROXY: a Section B focus_area that only TIES the lowest C/D/F yields to it', () => {
+    const t = chooseTarget(analysis({ c1: 0, c3: 1, b4: 0, focus: 'B4', derived: false }), null);
+    expect(t.indicator).toBe('C1');
+  });
   test('never a non-applicable indicator, never one already at the top rung', () => {
-    const a = analysis({ c1: 2, c3: 2, d2: 2, f4: 'na' });
+    // b4:2 puts every B row at the top too, so "nothing left" holds in both modes
+    const a = analysis({ c1: 2, c3: 2, d2: 2, f4: 'na', b4: 2 });
     expect(chooseTarget(a, null)).toBeNull();
+    expect(chooseTarget(analysis({ c1: 2, c3: 2, d2: 2, f4: 'na', b4: 2, derived: false }), null)).toBeNull();
     const b = analysis({ c1: 2, c3: 2, d2: 1, f4: 'na', focus: 'F4' });
     expect(chooseTarget(b, null).indicator).toBe('D2');
   });
-  test('table-driven over the real staging v4 sessions: never B, never non-applicable, never rung 2', () => {
+  test('table-driven over the real staging v4 sessions: never B when derived, never non-applicable, never rung 2', () => {
     const p = path.join(__dirname, '..', 'fixtures', 'fico-v4-staging-sessions.json');
     const fx = JSON.parse(fs.readFileSync(p, 'utf8')).sessions;
     expect(fx.length).toBeGreaterThan(10);
@@ -85,10 +101,16 @@ describe('chooseTarget', () => {
     for (const s of fx) {
       const a = { framework: 'fico', domains: {}, focus_area: s.focus_area ? { ...s.focus_area, try_this_tomorrow: 'x' } : undefined };
       for (const [k, inds] of Object.entries(s.domains)) a.domains[k] = { indicators: inds.map((i) => ({ ...i, name: i.id })) };
+      // the fixture carries no fidelity_derived flag, so each session is PROXY —
+      // assert the derived guarantee explicitly by flagging a copy.
+      const derivedCopy = JSON.parse(JSON.stringify(a));
+      if (derivedCopy.domains.lesson_plan_fidelity) derivedCopy.domains.lesson_plan_fidelity.fidelity_derived = true;
+      const td = chooseTarget(derivedCopy, null);
+      if (td) expect(td.indicator[0]).not.toBe('B');
+
       const t = chooseTarget(a, null);
       if (!t) continue;
       chosen += 1;
-      expect(t.indicator[0]).not.toBe('B');
       expect(applicableToday(a, t.indicator)).toBe(true);
       const row = Object.values(a.domains).flatMap((d) => d.indicators).find((i) => i.id === t.indicator);
       expect(row.score).toBeLessThan(2);

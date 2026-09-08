@@ -49,6 +49,7 @@ jest.mock('../../shared/services/quiz/video-quiz.service', () => ({
 }));
 
 const supabase = require('../../shared/config/supabase');
+const { logEvent } = require('../../shared/utils/structured-logger');
 const flush = () => new Promise((r) => setImmediate(r));
 
 const ROW = {
@@ -100,6 +101,12 @@ describe('SELECT_TOPIC → deliver, child token', () => {
     expect(VideoQuizService.offerAfterVideo).not.toHaveBeenCalled();
     const deliveryInsertCalls = supabase.from.mock.calls.filter(([t]) => t === 'video_quiz_deliveries');
     expect(deliveryInsertCalls).toHaveLength(0);
+
+    // The reachable point for the "child picked a video from
+    // the binge round's Student Videos Flow" telemetry.
+    const picked = logEvent.mock.calls.find((c) => c[0] === 'video_quiz.binge_video_picked');
+    expect(picked).toBeDefined();
+    expect(picked[1]).toMatchObject({ shareCodeId: 'sc-1', studentId: 'stu-1' });
   });
 
   test('no quiz for the video: falls back to a plain send, no session started', async () => {
@@ -116,6 +123,12 @@ describe('SELECT_TOPIC → deliver, child token', () => {
       expect.stringContaining('Identifying Even and Odd Numbers'));
     expect(VideoQuizService.startSession).not.toHaveBeenCalled();
     expect(VideoQuizService.offerAfterVideo).not.toHaveBeenCalled();
+
+    // The picked event fires regardless of whether the video has a quiz —
+    // it marks the Flow reply landing, not the quiz outcome.
+    const picked = logEvent.mock.calls.find((c) => c[0] === 'video_quiz.binge_video_picked');
+    expect(picked).toBeDefined();
+    expect(picked[1]).toMatchObject({ shareCodeId: 'sc-1', studentId: 'stu-1' });
   });
 });
 

@@ -19,13 +19,19 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const { buildHtml } = require("./lib/template");
+const { buildHtml, scaledPx, PAGE } = require("./lib/template");
 const { applyOverlay } = require("./lib/overlay");
 const { validateDoc } = require("./lib/validate");
 const { REPO_ROOT } = require("./lib/fonts");
 const { setInfo } = require("./lib/pdfmeta");
 
-const A4 = { w: 794, h: 1123 };
+// THE PAGE BOX LIVES IN lib/template.js AND IS IMPORTED, NEVER RE-DECLARED (v9.3, bd-oak77.16).
+// v9.2 carried `const A4 = { w: 794, h: 1123 }` here AND `--page-w:794px` there — two homes for
+// one number, which is exactly how a document gets laid out at one size and printed at another.
+// v9.3's page is 520 x 2000: phone-first, because an A4 page fit to a 390-px screen delivers its
+// 21px body at 67% of the arm's-length reading floor and the type has nowhere left to go. The
+// measurement, the two-corpus page count and the printing trade-off are in
+// prod_golive_2026-09-06/15_phone_page/DESIGN.md.
 // Operator decision 2026-08-30 (floor raised to 18px on 2026-09-01): the body floor is the
 // hard constraint, so the page
 // cap gives instead. Each part starts on a fresh page.
@@ -45,8 +51,37 @@ const A4 = { w: 794, h: 1123 };
 // and keep enough spacing that it doesn't get airtight". A deliberate font increase is NOT
 // bloat, so the CAP gives, not the content — see the measured numbers in lint_lp.js. Over the
 // cap is still a loud FAIL; the cap's job is to catch padding, and it still does.
-const MAX_PAGES = { teach: 5, support: 4 };     // above this: FAIL
-const WARN_PAGES = { teach: 4, support: 3 };    // above this: WARN, and keep going
+//
+// Revised again 2026-09-04 (bd-vjk68, operator: "we will stop cancelling or delaying lesson
+// plans now because of the length issue"). TEACH 5 -> 6; SUPPORT unchanged at 4.
+//
+// MEASURED, not chosen. Every other lever against the page-overflow failure class was priced
+// and eliminated first: card-count ceilings (best separating cut anywhere catches 2 over-cap
+// parts and blocks 33 good ones), an exact-DP page packer (582 -> 582 pages over 62 documents,
+// 0 repaginated), the word budget (r = 0.18 against printed pages), the model (sonnet is the
+// faster one), the furniture trim (0 pages on its own), and rounds 5 -> 3 (loses 15% of
+// deliveries). What was left was the cap itself. On the 9 live page-cap failures of 2026-09-04,
+// EN teach 5->6 rescues 4 and EN teach 6 + UR support 6 rescues 7 — one sheet per language.
+//
+// AND THE OVER-CAP PARTS ARE NOT PADDED. Each carries 89-96% of its own cap's paper AS CONTENT
+// (page_cap_decision_2026-09-04/card_ceilings/FINDING.md §4), so this is not room for bloat; it
+// is the sheet the content already needed. The "cap as target" worry (23 of 27 EN lessons print
+// at exactly the cap) is the LADDER trimming down to fit, not the author padding up — the author
+// never sees a page count on round 0. Whether the distribution refills to the new cap is the
+// open question, and it is now measurable: `over_cap` on niete_lp612_renders and the
+// `lp612.deliver.over_cap` event carry the pages and the caps they were measured against.
+//
+// Revised again 2026-09-06 (07_font, operator: "increase the font ... it's very small, and
+// it's very hard to read"). The body went 18px -> 21px and every other size with it — 21 being
+// the number `bot/shared/templates/niete-brand.js` already declares as THE type floor for every
+// teacher-facing artefact — which costs about a third more paper over the 62-document corpus. The caps
+// move WITH the type for the reason the 2026-09-01 note already gives — a deliberate font
+// increase is not bloat — and by how much is measured, not chosen: at the new type the OLD caps
+// flag 53 of 62 documents, which is not a gate, it is noise. EN teach 6->7 / support 4->6 and
+// UR teach 7->9 / support 6->7 is the TIGHTEST candidate that holds the flag rate at 2/62,
+// against 1/62 at the old type. Numbers and the arm-by-arm table: 07_font/OPTIONS.md.
+const MAX_PAGES = { teach: 7, support: 6 };     // above this: FAIL
+const WARN_PAGES = { teach: 6, support: 5 };    // above this: WARN, and keep going
 
 // PAGE CAPS ARE LANGUAGE-AWARE; WORD BUDGETS ARE NOT (operator, 2026-09-03).
 //
@@ -64,8 +99,16 @@ const WARN_PAGES = { teach: 4, support: 3 };    // above this: WARN, and keep go
 // more than an English one — and Urdu pays its measured paper cost here, in
 // pages: teach 7 / support 5 (5/4 × 4/3 line density, rounded up), warns one
 // page under each cap exactly as English warns.
-const MAX_PAGES_UR = { teach: 7, support: 5 };
-const WARN_PAGES_UR = { teach: 6, support: 4 };
+//
+// SUPPORT 5 -> 6 on 2026-09-04 (bd-vjk68), and TEACH stays at 7. All three live Urdu page
+// failures that day were "support needs 6; the cap is 5" — never teach — so the sheet goes
+// where the failures are. Note this leaves the Urdu ratio uneven against English (teach
+// 7/6 = 1.17, support 6/4 = 1.50) rather than the clean 4/3 the original derivation used:
+// the derivation was a prediction, these are the measured overflows, and the measurement wins.
+// The n=4 "raise-and-refill" datum for Urdu is too thin to settle whether 7 is still short —
+// that is what the post-40-lesson re-measure is for.
+const MAX_PAGES_UR = { teach: 9, support: 7 };
+const WARN_PAGES_UR = { teach: 8, support: 6 };
 
 /** The caps for one render, by the language actually being laid out. */
 function pageCapsFor(lang) {
@@ -74,12 +117,124 @@ function pageCapsFor(lang) {
     : { max: MAX_PAGES, warn: WARN_PAGES };
 }
 
+// ── overflow absorption (bd-c3le6) ──────────────────────────────────────────
+//
+// A LESSON IS NOT DISCARDED FOR A HANDFUL OF PIXELS OF PAGE FURNITURE.
+//
+// Three lessons in the 2026-09-05 batch were authored, rendered, written to disk and then
+// thrown away — d15 on 3px, d10 on 9px, d03 on 11px — after up to five revision rounds and
+// several minutes of compute each. On all three, `overflowingSections` was EMPTY: no element
+// carrying `data-sec`, i.e. no lesson content, was past the page's inner bottom edge. The only
+// thing over the line was the FOOTER, the strip that prints "page 6 of 14". Nothing was
+// clipped, and nothing was going to be.
+//
+// Operator, 2026-09-04: *"we will stop cancelling or delaying lesson plans now because of the
+// length issue."* `OVERFLOW` was deliberately kept blocking when the page caps went soft,
+// because overflow is CLIPPING rather than length. That reasoning is right and is kept below —
+// it just does not describe a footer sitting in the page's own bottom margin.
+//
+// WHERE 12 COMES FROM. Not a tolerance chosen to cover the failures: it is the whitespace that
+// exists between the last content pixel and the paper edge, and it is the same in both
+// languages —
+//
+//     .pad { padding: 10px 21px 4px }    ->  4px below the footer
+//     .foot{ padding-top: var(--sp-2) }  ->  8px above the footer
+//                                         = 12px, reclaimable without moving one pixel of
+//                                           content and without shrinking any type.
+//
+// `.foot`'s own padding-bottom (1px LTR, 7px RTL) is deliberately NOT reclaimed — Nastaliq
+// descenders need it. The largest overflow ever measured in this programme is 11px, so the
+// furniture-derived ceiling also clears every case on record; a 13px overflow still fails,
+// because absorbing it would mean eating content.
+//
+// AND CLIPPING STILL FAILS AT ANY SIZE. If any of the lesson is past the line, no number of
+// pixels makes it absorbable — that is what keeps this from quietly becoming "OVERFLOW is a
+// warning now". See `absorbPlan` for WHICH measurement decides that, and why the obvious one
+// is not enough on its own.
+const OVERFLOW_ABSORB_MAX_PX = 12;
+
+/**
+ * Which pages may have their bottom furniture eaten, and by how much.
+ *
+ * Pure, and separate from the in-page mutation, because THIS is where the policy lives: the
+ * two questions "is it small enough" and "is it furniture rather than content" are the whole
+ * decision, and they belong somewhere a test can enumerate them without a browser.
+ *
+ * @param pages  the probe's per-page records
+ * @param maxPx  the ceiling; defaults to the reclaimable furniture above
+ */
+function absorbPlan(pages, maxPx = OVERFLOW_ABSORB_MAX_PX) {
+  const out = [];
+  for (const p of pages || []) {
+    if (!p) continue;
+    const px = p.overflowPx;
+    if (!(px > 1)) continue;                                    // 1px is already tolerated below
+    if (px > maxPx) continue;                                   // past the furniture: real length
+
+    // A SECTION BAR OVER THE LINE IS THE LOUD CASE, AND IT IS NOT THE ONE THAT MATTERS.
+    //
+    // This check was written first, on the reasoning "no `data-sec` element is past the line,
+    // therefore no content is". That did not survive being checked. `data-sec` is emitted on
+    // exactly four elements in lib/template.js and every one of them is a section BAR — no
+    // block, card, list item, figure or table carries it. So `overflowingSections` is empty on
+    // nearly every page, including pages where real content IS past the edge, and a guard that
+    // is almost never false is not a guard. Kept because it is free and catches the loudest
+    // case; the next check is the load-bearing one.
+    if ((p.overflowingSections || []).length) continue;
+
+    // THE ONE THAT DECIDES IT. `contentBottomPx` is the last painted pixel EXCLUDING `.foot` —
+    // the probe skips anything inside the footer explicitly, so that a page whose footer is
+    // pinned to the floor does not read as 100% full. If the content ends at or inside
+    // `innerBottomPx`, every pixel of the LESSON is on the paper and the only thing over the
+    // line is furniture, which is precisely what this absorbs. If it ends past it, that is the
+    // lesson being cut off and it must keep failing at any size.
+    //
+    // `undefined` is not "past": a probe shape without these fields predates them, and absent
+    // evidence must not silently deny a lesson the absorption it qualifies for.
+    if (typeof p.contentBottomPx === 'number' && typeof p.innerBottomPx === 'number'
+        && p.contentBottomPx > p.innerBottomPx) continue;
+
+    out.push({ id: p.id, px });
+  }
+  return out;
+}
+
+// Take `px` out of a page's own bottom whitespace, bottom-most first. Returns what it actually
+// took, per page, so the caller reports a measurement rather than an intention — `unabsorbed`
+// is non-zero only if a page somehow had less furniture than the plan assumed, and the re-probe
+// that follows is what decides the outcome either way.
+const ABSORB = `(plan) => {
+  const done = [];
+  for (const item of plan) {
+    const pg = document.getElementById(item.id);
+    const pad = pg && pg.querySelector('.pad');
+    if (!pad) continue;
+    const foot = pad.querySelector('.foot');
+    const padPb = parseFloat(getComputedStyle(pad).paddingBottom) || 0;
+    const footPt = foot ? (parseFloat(getComputedStyle(foot).paddingTop) || 0) : 0;
+    let need = item.px;
+    const takePad = Math.min(need, padPb); need -= takePad;
+    const takeFoot = Math.min(need, footPt); need -= takeFoot;
+    if (takePad) pad.style.paddingBottom = (padPb - takePad) + 'px';
+    if (takeFoot && foot) foot.style.paddingTop = (footPt - takeFoot) + 'px';
+    done.push({ id: item.id, px: item.px, padPx: takePad, footPx: takeFoot, unabsorbed: need });
+  }
+  void document.body.offsetHeight;
+  return done;
+}`;
+
 // THE TYPE FLOORS, in one place. D4 was 16.5/13; the operator moved it to 18/14 on 2026-09-01
-// because 16.5 still did not read on a phone. The DIAGRAM label floor is NOT here — it is
-// 13.5px and it belongs to the diagram engine (diagrams/lib/svg.js), which sizes labels
-// against the figure's own column, not against the page's body scale.
-const BODY_FLOOR_PX = 18;
-const CHIP_FLOOR_PX = 14;
+// because 16.5 still did not read on a phone, and to 15.5pt (20.667px) on 2026-09-06 because it
+// still did not — see prod_golive_2026-09-06/07_font/READABILITY.md for the measurement. The
+// DIAGRAM label floor is NOT here — it belongs to the diagram engine (diagrams/lib/svg.js),
+// which sizes labels against the figure's own column, not against the page's body scale.
+//
+// DERIVED, never a literal. A floor written as a number stops meaning anything the moment the
+// scale moves — it passes trivially and stops catching the regression it exists for. And it is
+// computed with the template's OWN `scaledPx`, because a floor of 20.67 against a computed
+// 20.667 fails every render on a rounding artefact.
+const BODY_FLOOR_PX = scaledPx(18);
+const CHIP_FLOOR_PX = scaledPx(14);
 // VENDOR DIVERGENCE (see SYNC.md, "chromium channel"): upstream hardcoded the macOS Chrome
 // bundle path for the no-playwright fallback. On Railway that path does not exist, so the
 // binary is now overridable and defaults per-platform. This fallback has no overflow probe
@@ -172,6 +327,11 @@ const MEASURE = `() => {
 /**
  * Greedy first-fit over ATOMS, with the two constraints v8 did not have.
  *
+ * SUPERSEDED as the shipping packer by `packAtoms` below (VENDOR DIVERGENCE §3.7). Kept,
+ * exported and still tested because it is the baseline every claim about the new packer is
+ * measured against, and because it is the honest description of what produced every lesson
+ * delivered before 2026-09-04.
+ *
  * 1. GLUE — a break may not fall immediately after an atom marked `glue`. That is what keeps
  *    a section bar with its first block and a practice tag with its first item. When the
  *    natural break lands on a glued boundary the packer walks BACKWARDS to the last legal
@@ -187,7 +347,7 @@ const MEASURE = `() => {
  * @param furn  { strip, contBar: {sectionKey: px} } — heights measured in the probe page
  * @returns { breaks:[atom index that starts each page after the first], pages:[{start, contBarSec}] }
  */
-function packAtoms(atoms, capacity, furn = {}) {
+function packAtomsGreedy(atoms, capacity, furn = {}) {
   const strip = furn.strip || 0;
   const contBar = furn.contBar || {};
   const breaks = [];
@@ -223,6 +383,151 @@ function packAtoms(atoms, capacity, furn = {}) {
     for (let k = j + 1; k <= i; k++) used += atoms[k].h + (atoms[k].mt || 0);
   }
   return { breaks, pages };
+}
+
+/**
+ * VENDOR DIVERGENCE (SYNC.md §3.7) — THE EXACT PACKER. Replaces greedy first-fit as the
+ * shipping packer; `packAtomsGreedy` above is retained as the measurement baseline.
+ *
+ * WHY a search at all — the part that is easy to get wrong in both directions.
+ *
+ * With a UNIFORM page box, greedy first-fit is ALREADY optimal for ordered items: taking the
+ * latest feasible break is a straight exchange argument, and greedy's backwards walk over
+ * `glue` lands on the latest LEGAL break, which is still optimal. A "cleverer search" over a
+ * uniform box would buy exactly nothing, and saying otherwise would be the kind of claim
+ * this pipeline has been burned by.
+ *
+ * The box is not uniform. A continuation page pays the "…continued" strip, and a page that
+ * opens in the MIDDLE of a section also pays that section's repeated bar — so the box of the
+ * NEXT page is a function of WHICH atom opens it. Greedy chooses that opener blindly, as a
+ * side effect of stuffing the current page. Stopping one atom earlier, so the next page opens
+ * on a section's own bar, can buy back the entire repeated bar. Measured over 62 real lesson
+ * documents (2026-09-04): 582 pages printed where 555 suffice, and 5 parts over cap where an
+ * exact pack leaves 0 — every one of those five already carrying 89-96% of the paper its cap
+ * allows.
+ *
+ * THE MODEL. `best[i]` is the optimal packing of atoms[i..] given that a page STARTS at atom
+ * i. Page 1 is exactly the page that starts at atom 0 and no other page can, so "starts at
+ * atom i" already fixes the furniture and the DP needs no page index in its state — which is
+ * what makes it exact rather than merely thorough. O(n²) over tens of atoms per part.
+ *
+ * THE OBJECTIVE, in order:
+ *   1. PAGES — the failure class this exists to kill.
+ *   2. ORPHANS — a break immediately after a `glue` atom, legal only on a page holding that
+ *      one atom (greedy's own escape hatch for a glued atom taller than its page). Because
+ *      greedy's packing is always in this DP's feasible set, the page count can never come
+ *      out worse than greedy's, and minimising orphans after it means the packer can never
+ *      buy a page by orphaning a heading — the one change that would make this a regression
+ *      rather than a fix.
+ *   3. FRONT-LOADING — with both of the above equal, the fullest possible page here. That is
+ *      greedy's own rule, and choosing it is deliberate: it means that on any part where
+ *      greedy was ALREADY page-optimal, this packer reproduces greedy's breaks exactly, so
+ *      no break ever lands anywhere the shipped packer would not have put one. The change is
+ *      then strictly "the same pagination, except where greedy was leaving a page on the
+ *      table". On the 62-document corpus that is every part: pagination is unchanged.
+ *
+ * THE TIE-BREAK WAS SUPPOSED TO BE "fill pages evenly / avoid a near-empty final page", and
+ * it is NOT, because the measurement argued against it. Two even-fill variants were built and
+ * run over all 62 documents first:
+ *
+ *   • Σ slack² over every page. It levels the whole document. It pulled teach page 1 of
+ *     grade_11_physics from 1064px (full) down to 741px, pushing the first teaching section
+ *     off the opening page and leaving its bottom third white — for ZERO pages saved. That is
+ *     the exact defect the atom packer was built to remove ("this should be fixed and dynamic,
+ *     there's way too much open space", operator 2026-08-30).
+ *   • The COUNT of pages under 70% full, then front-loading. Better — it leaves a full page
+ *     alone — but on c11 it removed the stranded page at the END of the support part by
+ *     opening a 314px hole in the MIDDLE of it, which reads worse, and it still re-broke 33
+ *     of 62 documents.
+ *
+ * Neither buys a single page. Re-paginating every teacher's lesson plan for a contested
+ * aesthetic, with no page saved and a measured way to make some documents worse, is not a
+ * trade worth making inside a packer change. The even-fill question is real — the corpus has
+ * 43 final pages under half full — but it is a product decision with its own evidence, and it
+ * should be taken on its own rather than smuggled in here.
+ *
+ * Same signature and same return shape as the greedy packer it replaces, so nothing
+ * downstream changes.
+ */
+/**
+ * @param opts.slack  px a page may be overfilled by, RANKED BELOW page count and orphans and
+ *   ABOVE front-loading — so it can only ever remove a page, never buy a fuller one. Zero by
+ *   default: every existing caller and the 300-seed regression corpus describe the exact
+ *   packer, and this is an allowance the RENDERER grants because it knows it can pay for it
+ *   (bd-c3le6 — the same `OVERFLOW_ABSORB_MAX_PX` the in-page absorber reclaims afterwards).
+ *
+ *   Why it exists: fixing the `.mats` measurement bug alone pushed d10's teach part from 6
+ *   pages to 7, and page 7 carried the 52px Materials strip and nothing else — a blank page in
+ *   a teacher's printout, because the packer was ELEVEN pixels short while twelve pixels of
+ *   reclaimable furniture sat unused at the bottom of that page. Correct arithmetic that
+ *   produces a blank page is not a fix.
+ */
+function packAtoms(atoms, capacity, furn = {}, opts = {}) {
+  const n = atoms.length;
+  if (!n) return { breaks: [], pages: [] };
+  const strip = furn.strip || 0;
+  const contBar = furn.contBar || {};
+  const slack = Math.max(0, opts.slack || 0);
+
+  // Which section's bar a page opening at atom i has to repeat — null when it opens on that
+  // section's OWN bar, or when it is page 1.
+  const contBarSecOf = (i) => {
+    const a = atoms[i] || {};
+    return i > 0 && a.sec && !a.first ? a.sec : null;
+  };
+  const boxOf = (i) => {
+    if (i === 0) return capacity;
+    const sec = contBarSecOf(i);
+    return capacity - strip - (sec ? (contBar[sec] || 0) : 0);
+  };
+  // The first atom of page 1 has its top margin suppressed by CSS (`.pad > :first-child`);
+  // a continuation page's first atom follows the strip and keeps it. Atom 0 is the only atom
+  // that can ever open page 1, so the suppression is a property of the ATOM and not of where
+  // the breaks fall — which is why a page's content total does not depend on the packing.
+  const costOf = (j) => atoms[j].h + (j === 0 ? 0 : atoms[j].mt || 0);
+
+  // `over` — pages that spent the slack — sits between orphans and front-loading on purpose.
+  // Above `used`, so at an equal page count the packing that pays nothing always wins and a
+  // part that already fitted is paginated exactly as it was. Below `pages`, so the allowance
+  // is spent whenever it removes a page. With slack = 0 the term is identically zero and the
+  // comparison is the one the exact packer has always used.
+  const better = (a, b) =>
+    a.pages !== b.pages ? a.pages < b.pages
+      : a.orphans !== b.orphans ? a.orphans < b.orphans
+        : a.over !== b.over ? a.over < b.over
+          : a.used > b.used;
+
+  const best = new Array(n + 1).fill(null);
+  best[n] = { pages: 0, orphans: 0, over: 0, used: 0, next: n };
+
+  for (let i = n - 1; i >= 0; i--) {
+    const box = boxOf(i);
+    let used = 0;
+    let pick = null;
+    for (let j = i; j < n; j++) {
+      used += costOf(j);
+      // A page carrying more than one atom may not exceed its box — plus, at most, the slack
+      // the renderer has said it can reclaim from that page's own bottom furniture. A single
+      // atom taller than its own page still gets that page: losing content is never an option.
+      if (used > box + slack && j > i) break;
+      const orphan = j + 1 < n && atoms[j].glue ? 1 : 0;
+      if (orphan && j !== i) continue;      // glue may only be broken to stand alone on a page
+      const rest = best[j + 1];
+      const cand = {
+        pages: rest.pages + 1,
+        orphans: rest.orphans + orphan,
+        over: rest.over + (used > box ? 1 : 0),
+        used,
+        next: j + 1,
+      };
+      if (!pick || better(cand, pick)) pick = cand;
+    }
+    best[i] = pick;
+  }
+
+  const pages = [];
+  for (let i = 0; i < n; i = best[i].next) pages.push({ start: i, contBarSec: contBarSecOf(i) });
+  return { breaks: pages.slice(1).map((p) => p.start), pages };
 }
 
 /**
@@ -326,7 +631,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
     channel ? { channel, args: LAUNCH_ARGS } : { args: LAUNCH_ARGS },
   );
   try {
-    const page = await browser.newPage({ viewport: { width: A4.w, height: A4.h }, deviceScaleFactor: 2 });
+    const page = await browser.newPage({ viewport: { width: PAGE.w, height: PAGE.h }, deviceScaleFactor: 2 });
     const load = async (p) => {
       await page.goto("file://" + p + "?t=" + Date.now(), { waitUntil: "load" });
       await page.evaluate("document.fonts.ready.then(function(){return true;})");
@@ -349,14 +654,20 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       const furn = { strip, contBar };
       const withMeta = (part) =>
         (m.parts[part] || []).map((b, i) => Object.assign({}, b, repaginate.atoms[part][i] || {}));
-      const teach = packAtoms(withMeta("teach"), capacity, furn);
-      const support = packAtoms(withMeta("support"), capacity, furn);
+      // The packer is allowed to spend the same page-bottom furniture the absorber below
+      // reclaims — and only to remove a page (bd-c3le6). The two numbers are ONE constant on
+      // purpose: a packer allowed more slack than the absorber can pay for would manufacture
+      // the very OVERFLOW this all exists to stop.
+      const packOpts = { slack: OVERFLOW_ABSORB_MAX_PX };
+      const teach = packAtoms(withMeta("teach"), capacity, furn, packOpts);
+      const support = packAtoms(withMeta("support"), capacity, furn, packOpts);
       const breaks = { teach: teach.breaks, support: support.breaks };
       const rebuilt = repaginate.rebuild(breaks);
       fs.writeFileSync(htmlPath, rebuilt.html);
       await load(htmlPath);
       repaginate.warnings = rebuilt.warnings;
       repaginate.figureProblems = rebuilt.figureProblems;
+      repaginate.figureRepairs = rebuilt.figureRepairs;
       repaginate.breaks = breaks;
       repaginate.furniture = { footer_px: footH, cont_strip_px: strip, cont_bar_px: contBar, capacity_px: capacity };
       // the fill each page is packed to — the number the operator asked us to MEASURE, not
@@ -365,7 +676,20 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
     }
     // evaluate() treats a string as an EXPRESSION — a bare arrow function would come
     // back as an unserializable function object (silently undefined). Call it.
-    const probe = await page.evaluate(`(${PROBE})()`);
+    let probe = await page.evaluate(`(${PROBE})()`);
+
+    // bd-c3le6: a furniture-sized overflow is absorbed into the page's own bottom whitespace
+    // and the lesson ships. Done HERE, before the PDF is printed, so the file the teacher
+    // opens is the one that was re-probed — and the re-probe, not the plan, is what decides:
+    // if absorbing did not clear it, `overflowPx` is still non-zero and the OVERFLOW defect
+    // below fires exactly as it did before.
+    let absorbed = [];
+    const plan = absorbPlan(probe.pages);
+    if (plan.length) {
+      absorbed = (await page.evaluate(`(${ABSORB})(${JSON.stringify(plan)})`)) || [];
+      probe = await page.evaluate(`(${PROBE})()`);
+    }
+
     let pdfPages = null;
     if (outPdf) {
       // NO PAGE RANGE. A range — frozen OR cap-derived — is silent data loss: Chrome drops
@@ -374,7 +698,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       // plan and both G10 Urdu support pages in the 2026-08-30 sample run.
       // The renderer emits EVERY page the packer laid out; going over the cap is reported
       // below as a loud PAGE COUNT failure. Cutting a long plan is an authoring decision.
-      const buf = await page.pdf({ width: `${A4.w}px`, height: `${A4.h}px`, printBackground: true });
+      const buf = await page.pdf({ width: `${PAGE.w}px`, height: `${PAGE.h}px`, printBackground: true });
       // The internal identifiers the footer no longer prints live HERE instead — visible to
       // the pipeline (and in File > Properties), invisible to the teacher.
       fs.writeFileSync(outPdf, pdfMeta ? setInfo(buf, pdfMeta) : buf);
@@ -386,7 +710,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
         await els[i].screenshot({ path: `${outPngStem}-p${i + 1}.png` });
       }
     }
-    return { probe, pdfPages, breaks: repaginate ? repaginate.breaks : null,
+    return { probe, pdfPages, absorbed, breaks: repaginate ? repaginate.breaks : null,
              furniture: repaginate ? repaginate.furniture : null };
   } finally {
     await browser.close();
@@ -461,6 +785,9 @@ async function renderDoc(a) {
   let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw });
   const { warnings, fontReport, pageContentHeight, hasRasterFigure } = built;
   let figureProblems = built.figureProblems || [];
+  // bd-oak77.14 — the figures the layout had to WIDEN to keep legible. Reported, never inferred:
+  // a repair nobody can count is a fallback that masks itself (rule 24(b)).
+  let figureRepairs = built.figureRepairs || [];
   const htmlPath = path.join(outDir, `${stem}.html`);
   fs.writeFileSync(htmlPath, built.html);
 
@@ -475,6 +802,7 @@ async function renderDoc(a) {
     result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta);
     if (repaginate.warnings) { warnings.length = 0; warnings.push(...repaginate.warnings); }
     if (repaginate.figureProblems) figureProblems = repaginate.figureProblems;
+    if (repaginate.figureRepairs) figureRepairs = repaginate.figureRepairs;
   } else {
     console.error("! playwright-core unavailable — falling back to Chrome CLI (no overflow probe, no PNGs)");
     result = pdfPath ? renderWithChromeCli(htmlPath, pdfPath) : { probe: null, pdfPages: null };
@@ -528,6 +856,14 @@ async function renderDoc(a) {
     lesson_id: doc.lesson_id,
     lang,
     overlay_applied: applied,
+    // bd-c3le6. WHAT WAS ABSORBED IS RECORDED, always, as a list. A silent fallback is a
+    // regression mask (rule 24(b)): if this ever starts firing on half the corpus, the packer
+    // has drifted again and the number has to be the thing that says so, not a clean-looking
+    // render. `[]` on a clean document, never absent.
+    overflow_absorbed: result.absorbed || [],
+    // bd-oak77.14. `[]` on a document whose figures all fitted — never absent.
+    figure_repairs: figureRepairs,
+    overflow_absorb_max_px: OVERFLOW_ABSORB_MAX_PX,
     html: path.relative(REPO_ROOT, htmlPath),
     pdf: pdfPath ? path.relative(REPO_ROOT, pdfPath) : null,
     pdf_pages: result.pdfPages,
@@ -555,7 +891,7 @@ async function renderDoc(a) {
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
   return { report, reportPath, problems, warnings, htmlPath, pdfPath,
-           pagesByPart: byPart, probe, pdfPages: result.pdfPages };
+           pagesByPart: byPart, probe, pdfPages: result.pdfPages, figureRepairs };
 }
 
 async function main() {
@@ -604,6 +940,8 @@ if (require.main === module) {
 
 // Exported for test/run_tests.js — the packer is the new core logic and needs its own cover.
 // `renderDoc` and `chromeChannel` are vendor additions (see SYNC.md).
-module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms,
+module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtomsGreedy,
+  PAGE,
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor,
+  absorbPlan, OVERFLOW_ABSORB_MAX_PX,
   BODY_FLOOR_PX, CHIP_FLOOR_PX };

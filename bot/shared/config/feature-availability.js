@@ -77,9 +77,63 @@ function isFeatureAvailable(feature, env = process.env) {
   return keys.every((k) => isSet(env[k]));
 }
 
+/**
+ * INTERNAL FEATURE IDS → the env key(s) a teacher-facing entry point needs
+ * before it may be OPENED or ADVERTISED here.
+ *
+ * `FEATURES` above answers "which capability did this deployment buy" and is
+ * keyed on a human display name, which is why nothing at runtime could ask it a
+ * question. This map is the same presence rule keyed on the id the product code
+ * already passes around — 'reading', 'lesson_plan', 'coaching' — so the feature
+ * linker, the menu and the slash commands can all ask ONE question instead of
+ * each hand-rolling its own env-presence check inline.
+ *
+ * bd-twhcj: `/reading test` on NIETE ran 57 times in 20 days and failed 57
+ * times, because READING_ASSESSMENT_FLOW_ID is unset here (there is no reading
+ * Flow on this WhatsApp account at all) and `sendFlow({ flowId: undefined })`
+ * cannot succeed. The feature linker was meanwhile inviting teachers into it at
+ * p=0.50 after every coaching session, with no availability check anywhere.
+ *
+ * A feature id that is ABSENT from this map is deliberately treated as
+ * runnable: this gate exists to stop us advertising a dead end, not to become a
+ * second registry every new feature must remember to join.
+ */
+const FEATURE_GATES = {
+  reading: ['READING_ASSESSMENT_FLOW_ID'],
+};
+
+/**
+ * Can this deployment actually RUN the feature behind `featureId`?
+ *
+ * Presence-only, read at call time (never cached at module scope) so a var set
+ * in Railway takes effect on the next message rather than the next restart.
+ *
+ * @param {string} featureId e.g. 'reading'
+ * @param {object} [env]
+ * @returns {boolean}
+ */
+function isFeatureRunnable(featureId, env = process.env) {
+  const keys = FEATURE_GATES[featureId];
+  if (!keys) return true;
+  // `{ keys }`, never the bare array. isFeatureAvailable's legacy bare-array
+  // shape reads `feature.keys` first — and on an Array that resolves to
+  // Array.prototype.keys, a truthy FUNCTION, so the AND-check then blew up on
+  // `keys.every is not a function`. Caught by this change's own red run.
+  return isFeatureAvailable({ keys }, env);
+}
+
 /** Names of every feature whose keys are present. */
 function availableFeatures(env = process.env) {
   return FEATURES.filter((f) => isFeatureAvailable(f, env)).map((f) => f.name);
 }
 
-module.exports = { REQUIRED_VARS, FEATURES, isSet, missingRequired, isFeatureAvailable, availableFeatures };
+module.exports = {
+  REQUIRED_VARS,
+  FEATURES,
+  FEATURE_GATES,
+  isSet,
+  missingRequired,
+  isFeatureAvailable,
+  isFeatureRunnable,
+  availableFeatures,
+};

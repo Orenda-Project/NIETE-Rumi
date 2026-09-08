@@ -1,0 +1,293 @@
+<title>NIETE E2E Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600;700&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap">
+
+<style>
+/* ── tokens: complete light palette on bare :root ─────────────────────── */
+:root{
+  --ground:#F4F5F9; --surface:#FFFFFF; --surface-2:#ECEDF4; --surface-3:#E3E4EE;
+  --ink:#14151C; --ink-2:#474A5C; --ink-3:#787C90;
+  --rule:#DCDDE8; --rule-2:#C9CBDA;
+  --accent:#3B3A8F; --accent-2:#5654C4; --accent-soft:#E8E8F6;
+  --pass:#1F6F4F;  --pass-bg:#E2F0E9;  --pass-line:#3E9B74;
+  --fail:#A82F26;  --fail-bg:#FAE6E3;  --fail-line:#C9463B;
+  --held:#8A5B12;  --held-bg:#F8EEDA;  --held-line:#BC8A2E;
+  --watch:#4A4E96; --watch-bg:#E6E7F5; --watch-line:#7C7FC8;
+  --shadow:0 1px 2px rgba(20,21,28,.05), 0 8px 24px -16px rgba(20,21,28,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D0E14; --surface:#15171F; --surface-2:#1C1F2A; --surface-3:#242836;
+    --ink:#ECEDF5; --ink-2:#AFB3C6; --ink-3:#7C8095;
+    --rule:#272B39; --rule-2:#343949;
+    --accent:#9C9BF2; --accent-2:#B4B3FA; --accent-soft:#20213E;
+    --pass:#63D3A2;  --pass-bg:#10261D;  --pass-line:#2E7C5B;
+    --fail:#FF9083;  --fail-bg:#2C1411;  --fail-line:#93382F;
+    --held:#E8B963;  --held-bg:#291F0F;  --held-line:#8A6725;
+    --watch:#A9ABF0; --watch-bg:#1D1E38; --watch-line:#565A9E;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D0E14; --surface:#15171F; --surface-2:#1C1F2A; --surface-3:#242836;
+  --ink:#ECEDF5; --ink-2:#AFB3C6; --ink-3:#7C8095;
+  --rule:#272B39; --rule-2:#343949;
+  --accent:#9C9BF2; --accent-2:#B4B3FA; --accent-soft:#20213E;
+  --pass:#63D3A2;  --pass-bg:#10261D;  --pass-line:#2E7C5B;
+  --fail:#FF9083;  --fail-bg:#2C1411;  --fail-line:#93382F;
+  --held:#E8B963;  --held-bg:#291F0F;  --held-line:#8A6725;
+  --watch:#A9ABF0; --watch-bg:#1D1E38; --watch-line:#565A9E;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 24px 96px}
+code{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:.88em;
+  background:var(--surface-2); padding:.1em .34em; border-radius:3px; color:var(--ink-2)}
+.ur{font-family:"Noto Nastaliq Urdu","IBM Plex Sans",serif; font-size:1.02em; line-height:2.1}
+:focus-visible{outline:2px solid var(--accent-2); outline-offset:2px; border-radius:3px}
+
+/* ── masthead ─────────────────────────────────────────────────────────── */
+.mast{padding:44px 0 30px; border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap; align-items:center}
+.eyebrow b{color:var(--accent); font-weight:600}
+.vline{display:flex; align-items:baseline; gap:18px; flex-wrap:wrap; margin:14px 0 6px}
+.verdict{font-family:"IBM Plex Serif",Georgia,serif; font-weight:700; letter-spacing:-.015em;
+  font-size:clamp(46px,8.5vw,78px); line-height:.95; text-wrap:balance; margin:0}
+.verdict.critical{color:var(--fail)} .verdict.degraded{color:var(--held)} .verdict.healthy{color:var(--pass)}
+.vsub{font-size:15.5px; color:var(--ink-2); max-width:56ch}
+.meta{display:flex; gap:26px; flex-wrap:wrap; margin-top:18px;
+  font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink-3)}
+.meta span b{color:var(--ink-2); font-weight:500}
+
+/* ── stat strip ───────────────────────────────────────────────────────── */
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:26px 0 10px}
+.stat{background:var(--surface); padding:15px 16px; display:flex; flex-direction:column; gap:2px}
+.stat .n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+  font-size:28px; font-weight:600; line-height:1.1; letter-spacing:-.02em}
+.stat .l{font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3)}
+.stat.ok .n{color:var(--pass)} .stat.bad .n{color:var(--fail)}
+.stat.held .n{color:var(--held)} .stat.watch .n{color:var(--watch)}
+
+.bar{display:flex; height:6px; border-radius:99px; overflow:hidden; background:var(--surface-3); gap:1px}
+.bar i{display:block; min-width:2px}
+.bar .v-pass,.bar .v-promoted{background:var(--pass-line)}
+.bar .v-fail{background:var(--fail-line)}
+.bar .v-blocked,.bar .v-skip,.bar .v-notdriven,.bar .v-deferred{background:var(--held-line)}
+.bar .v-changed,.bar .v-partial{background:var(--watch-line)}
+.mast .bar{height:8px; margin-top:12px}
+
+/* ── controls ─────────────────────────────────────────────────────────── */
+.controls{position:sticky; top:0; z-index:20; background:var(--ground);
+  padding:14px 0 12px; border-bottom:1px solid var(--rule); margin-bottom:6px;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.chip{font:500 13px/1 "IBM Plex Sans",sans-serif; padding:8px 13px; border-radius:99px; cursor:pointer;
+  background:var(--surface); color:var(--ink-2); border:1px solid var(--rule-2)}
+.chip:hover{border-color:var(--accent); color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+:root[data-theme="dark"] .chip[aria-pressed="true"]{color:#12131c}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"]{color:#12131c}}
+.chip .c{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; opacity:.75; margin-left:6px}
+.search{flex:1; min-width:190px; padding:8px 12px; border-radius:99px; font:400 13.5px "IBM Plex Sans",sans-serif;
+  background:var(--surface); color:var(--ink); border:1px solid var(--rule-2)}
+.search::placeholder{color:var(--ink-3)}
+.count{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3); white-space:nowrap}
+
+/* ── feature ledgers ──────────────────────────────────────────────────── */
+h2.sec{font-family:"IBM Plex Serif",Georgia,serif; font-size:26px; font-weight:600;
+  letter-spacing:-.01em; margin:46px 0 4px}
+.sec-note{color:var(--ink-3); font-size:13.5px; margin:0 0 18px}
+.feat{background:var(--surface); border:1px solid var(--rule); border-radius:10px;
+  margin-bottom:14px; overflow:hidden; box-shadow:var(--shadow)}
+.feat-h{display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap;
+  padding:13px 16px; background:var(--surface-2); border-bottom:1px solid var(--rule)}
+.feat-t{display:flex; align-items:baseline; gap:11px}
+.fnum{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3);
+  border:1px solid var(--rule-2); border-radius:4px; padding:1px 6px}
+.feat-t h3{margin:0; font-size:16.5px; font-weight:600; letter-spacing:-.005em}
+.feat-n{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+.feat-m{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.feat-m .bar{width:130px}
+.mini{font-family:"IBM Plex Mono",monospace; font-size:11.5px; padding:2px 7px; border-radius:4px}
+.mini.ok{color:var(--pass); background:var(--pass-bg)}
+.mini.bad{color:var(--fail); background:var(--fail-bg)}
+.mini.held{color:var(--held); background:var(--held-bg)}
+
+.tw{overflow-x:auto}
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+tr.row{border-top:1px solid var(--rule)}
+tr.row:first-child{border-top:none}
+td{padding:11px 14px; vertical-align:top}
+.c-id{width:60px; padding-left:16px; border-left:3px solid transparent}
+.v-row-pass .c-id,.v-row-promoted .c-id{border-left-color:var(--pass-line)}
+.v-row-fail .c-id{border-left-color:var(--fail-line)}
+.v-row-blocked .c-id,.v-row-skip .c-id,.v-row-notdriven .c-id,.v-row-deferred .c-id{border-left-color:var(--held-line)}
+.v-row-changed .c-id,.v-row-partial .c-id{border-left-color:var(--watch-line)}
+.sid{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12.5px; color:var(--ink-2)}
+.c-name{min-width:210px; max-width:330px}
+.nm{font-weight:500; color:var(--ink); line-height:1.4}
+.tags{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); margin-top:3px}
+.c-verdict{width:150px}
+.pill{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
+  padding:3px 8px; border-radius:99px; white-space:nowrap}
+.p-pass,.p-promoted{color:var(--pass); background:var(--pass-bg)}
+.p-fail{color:var(--fail); background:var(--fail-bg)}
+.p-blocked,.p-skip,.p-notdriven,.p-deferred{color:var(--held); background:var(--held-bg)}
+.p-changed,.p-partial,.p-other{color:var(--watch); background:var(--watch-bg)}
+.c-wait{width:82px}
+.ms{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; font-size:12px; color:var(--ink-2)}
+.ms.dim{color:var(--ink-3)}
+.c-ev{color:var(--ink-2); line-height:1.55; min-width:280px}
+
+/* ── finding cards ────────────────────────────────────────────────────── */
+.cards{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(310px,1fr))}
+.cards.one{grid-template-columns:1fr}
+.card{background:var(--surface); border:1px solid var(--rule); border-radius:10px; padding:17px 18px;
+  border-top:3px solid var(--rule-2); box-shadow:var(--shadow)}
+.card.crit{border-top-color:var(--fail-line)}
+.card.newf{border-top-color:var(--held-line)}
+.card.fix{border-top-color:var(--pass-line)}
+.card.unv{border-top-color:var(--watch-line)}
+.bead{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--accent);
+  background:var(--accent-soft); padding:2px 7px; border-radius:4px}
+.card h4{margin:9px 0 7px; font-size:15.5px; font-weight:600; line-height:1.35; text-wrap:balance}
+.card p{margin:0 0 9px; font-size:13.5px; color:var(--ink-2)}
+.card p:last-child{margin-bottom:0}
+.card .sub{font-size:12.5px; padding-left:11px; border-left:2px solid var(--rule-2)}
+.lbl{display:block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:2px}
+
+ul.notes{margin:0; padding-left:18px; color:var(--ink-2); font-size:13.5px}
+ul.notes li{margin-bottom:7px}
+.foot{margin-top:44px; padding-top:20px; border-top:1px solid var(--rule);
+  font-size:12.5px; color:var(--ink-3)}
+.foot code{font-size:11.5px}
+.hide{display:none!important}
+.empty{padding:26px 16px; text-align:center; color:var(--ink-3); font-size:13.5px; display:none}
+body.no-results .empty{display:block}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+@media (max-width:720px){
+  .c-wait{display:none}
+  .c-name{max-width:none}
+  .controls{position:static}
+}
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow"><b>NIETE · ICT</b><span>WhatsApp E2E</span><span>all-mode · 99 scenarios</span></div>
+    <div class="vline">
+      <h1 class="verdict {{VCLASS}}">{{VERDICT}}</h1>
+      <p class="vsub">Every <code>@e2e</code> scenario across the seven all-mode features, driven live against the staging bot in <code>feature-order.py</code> order.</p>
+    </div>
+    <div class="meta">
+      <span>run <b>{{RUN}}</b></span>
+      <span>target <b>{{TARGET}}</b></span>
+      <span>driver <b>{{DRIVER}}</b></span>
+      <span>env <b>{{ENV}}</b></span>
+      <span>db <b>{{DBREF}}</b></span>
+    </div>
+    <div class="stats">{{STATS}}</div>
+    {{OVERALLBAR}}
+  </header>
+
+  <h2 class="sec">What needs attention</h2>
+  <p class="sec-note">{{NCRIT}} critical, root-caused to a specific line rather than a symptom.</p>
+  <div class="cards one">{{CRITICAL}}</div>
+
+  <h2 class="sec">Also found</h2>
+  <p class="sec-note">{{NNEW}} further defects, each with a filed bead.</p>
+  <div class="cards">{{NEWF}}</div>
+
+  <h2 class="sec">Fixed since the last run</h2>
+  <p class="sec-note">{{NFIX}} confirmed resolved by driving them again, not by assumption.</p>
+  <div class="cards">{{FIXED}}</div>
+
+  <h2 class="sec">Not verified, and why</h2>
+  <p class="sec-note">{{NUNV}} items this run could not settle. Recorded rather than glossed.</p>
+  <div class="cards">{{UNVER}}</div>
+
+  <h2 class="sec">Every scenario</h2>
+  <p class="sec-note">All 99, in execution order. Filter or search to narrow.</p>
+
+  <div class="controls">
+    <button class="chip" data-f="all" aria-pressed="true">All<span class="c">99</span></button>
+    <button class="chip" data-f="bad" aria-pressed="false">Failed<span class="c" id="c-bad"></span></button>
+    <button class="chip" data-f="held" aria-pressed="false">Held<span class="c" id="c-held"></span></button>
+    <button class="chip" data-f="watch" aria-pressed="false">Known issues<span class="c" id="c-watch"></span></button>
+    <button class="chip" data-f="ok" aria-pressed="false">Passed<span class="c" id="c-ok"></span></button>
+    <input class="search" id="q" type="search" placeholder="Search id, scenario, tag or evidence…" aria-label="Search scenarios">
+    <span class="count" id="shown"></span>
+  </div>
+
+  {{SECTIONS}}
+  <div class="empty">No scenario matches that filter.</div>
+
+  <h2 class="sec">How this run was driven</h2>
+  <ul class="notes">{{HARNESS}}</ul>
+
+  <p class="foot">
+    Regenerate after any run:
+    <code>python3 .claude/qa/shared/parse-per-scenario.py &lt;run_dir&gt;</code> →
+    <code>python3 .claude/qa/shared/build-run-artifact.py &lt;run_dir&gt;</code> → publish with the Artifact tool
+    passing the <strong>same url</strong> so this page updates in place. Evidence, root-cause write-ups and raw
+    snapshots stay in the run directory.
+  </p>
+</div>
+
+<script>
+(function(){
+  var rows = Array.prototype.slice.call(document.querySelectorAll("tr.row"));
+  var chips = Array.prototype.slice.call(document.querySelectorAll(".chip"));
+  var q = document.getElementById("q");
+  var shown = document.getElementById("shown");
+  var filter = "all";
+
+  var tally = {ok:0, bad:0, held:0, watch:0};
+  rows.forEach(function(r){ var g = r.getAttribute("data-g"); if (g in tally) tally[g]++; });
+  ["ok","bad","held","watch"].forEach(function(k){
+    var el = document.getElementById("c-" + k); if (el) el.textContent = tally[k];
+  });
+
+  try { var saved = localStorage.getItem("niete-e2e-filter"); if (saved) filter = saved; } catch(e){}
+
+  function apply(){
+    var term = (q.value || "").trim().toLowerCase();
+    var n = 0;
+    rows.forEach(function(r){
+      var okF = (filter === "all") || (r.getAttribute("data-g") === filter);
+      var okQ = !term || r.getAttribute("data-t").indexOf(term) !== -1;
+      var vis = okF && okQ;
+      r.classList.toggle("hide", !vis);
+      if (vis) n++;
+    });
+    // hide a feature only when every one of its rows is filtered out
+    Array.prototype.forEach.call(document.querySelectorAll(".feat"), function(f){
+      var any = f.querySelector("tr.row:not(.hide)");
+      f.classList.toggle("hide", !any);
+    });
+    shown.textContent = n === rows.length ? (rows.length + " shown") : (n + " of " + rows.length);
+    document.body.classList.toggle("no-results", n === 0);
+    chips.forEach(function(c){ c.setAttribute("aria-pressed", String(c.getAttribute("data-f") === filter)); });
+  }
+
+  chips.forEach(function(c){
+    c.addEventListener("click", function(){
+      filter = c.getAttribute("data-f");
+      try { localStorage.setItem("niete-e2e-filter", filter); } catch(e){}
+      apply();
+    });
+  });
+  q.addEventListener("input", apply);
+  apply();
+})();
+</script>

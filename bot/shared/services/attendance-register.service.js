@@ -13,9 +13,18 @@
  * teacher_attendance_records, and collapsing L into A would report approved leave as
  * absence — a misreport against a colleague, in the document the school files.
  *
- * The attendance RATE therefore divides by the days actually worked (present +
+ * The STAFF attendance rate therefore divides by the days actually worked (present +
  * absent) and not by every marked day: approved leave is neither attendance nor a
- * black mark against it.
+ * black mark against a colleague.
+ *
+ * THE STUDENT REGISTER IS THE OTHER WAY ROUND, AND THIS BUILDER SERVES BOTH. When the
+ * class register was added it inherited the staff rule, and on 7 Sep 2026 a coach
+ * caught it: a child present one day and on leave the next read 100%. A class register
+ * is a record of physical presence — the school's own paper register computes present
+ * ÷ days marked, and a child on leave was not in the room. So `monthlyStats` takes the
+ * register's subject and, for students, counts a leave day in the denominator. The
+ * subject is the same metadata that already picks the sheet title, the roll-number
+ * column and the file name (bd-gajpo).
  */
 
 const ExcelJS = require('exceljs');
@@ -114,22 +123,35 @@ function buildMatrix(people, records) {
 /**
  * One person's month.
  *
- * The rate is present / (present + absent). Leave is excluded from BOTH sides — it is
- * a day the school agreed they would not be there, so counting it as absence
- * penalises approved leave and counting it as attendance inflates the figure.
+ * Two rates, because the two registers record different things:
+ *
+ *   staff    present / (present + absent)          approved leave is excused — it is a
+ *                                                   day the school agreed they would not
+ *                                                   be there, so it is neither attendance
+ *                                                   nor a black mark.
+ *   student  present / (present + absent + leave)  a class register is physical presence;
+ *                                                   a child on leave was not in the room,
+ *                                                   and the school's paper register says so.
+ *
+ * Defaults to the staff rule so every existing caller keeps its numbers; the student
+ * sheet passes its subject explicitly (bd-gajpo — a child read 100% with P 1, L 1).
+ *
+ * @param {object} days       day-of-month -> 'P' | 'A' | 'L'
+ * @param {object} [opts]
+ * @param {'student'|'teacher'} [opts.subject='teacher']
  */
-function monthlyStats(days) {
+function monthlyStats(days, { subject = 'teacher' } = {}) {
   const values = Object.values(days || {});
   const present = values.filter((v) => v === 'P').length;
   const absent = values.filter((v) => v === 'A').length;
   const leave = values.filter((v) => v === 'L').length;
-  const worked = present + absent;
+  const denominator = subject === 'student' ? present + absent + leave : present + absent;
 
   return {
     present,
     absent,
     leave,
-    percentage: worked ? Math.round((present / worked) * 100) : 0,
+    percentage: denominator ? Math.round((present / denominator) * 100) : 0,
   };
 }
 
@@ -217,7 +239,7 @@ async function createMonthlyRegisterBuffer(metadata, month, year, people, record
   // ── Rows ──────────────────────────────────────────────────────────────────
   for (const person of people || []) {
     const days = matrix[person.id]?.days || {};
-    const stats = monthlyStats(days);
+    const stats = monthlyStats(days, { subject: isStudent ? 'student' : 'teacher' });
 
     const values = isStudent ? [person.roll_number ?? '', personName(person)] : [personName(person)];
     for (let day = 1; day <= total; day += 1) values.push(days[day] || '-');

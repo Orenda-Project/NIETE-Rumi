@@ -1,0 +1,39 @@
+#!/bin/bash
+# pre-push — before code reaches a DEPLOYING branch, say what it will need.
+#
+# For every ref being pushed to develop/main/staging this runs the impact
+# analysis (scripts/qa/impact.py) over exactly the commits the push sends, and prints: the affected features, whether their Gherkin specs were
+# synced in that range, and the commands. Feature-branch pushes are silent —
+# nothing deploys from them.
+#
+# ADVISORY by default: exit 0 whatever it finds, so a stale spec is a warning at
+# push time, never a locked terminal. QA_HOOKS_STRICT=1
+# makes a stale spec block the push locally, for teams that want it.
+#
+# Off: QA_HOOKS_OFF=1     Strict: QA_HOOKS_STRICT=1
+[ "${QA_HOOKS_OFF:-}" = "1" ] && exit 0
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+command -v python3 >/dev/null 2>&1 || exit 0
+IMPACT="$ROOT/scripts/qa/impact.py"
+[ -f "$IMPACT" ] || exit 0
+ZERO=0000000000000000000000000000000000000000
+MODE=warn; [ "${QA_HOOKS_STRICT:-}" = "1" ] && MODE=block
+RC=0
+while read -r _lref lsha rref rsha; do
+  [ -n "${rref:-}" ] || continue
+  case "$rref" in refs/heads/develop|refs/heads/main|refs/heads/staging) ;; *) continue ;; esac
+  [ "$lsha" = "$ZERO" ] && continue                       # a branch deletion
+  base="$rsha"
+  if [ "$rsha" = "$ZERO" ]; then                          # first push of this branch
+    base=$(git merge-base "$lsha" origin/develop 2>/dev/null \
+        || git merge-base "$lsha" origin/main 2>/dev/null) || continue
+    [ -n "$base" ] || continue
+  fi
+  out=$(python3 "$IMPACT" --repo "$ROOT" --base "$base" --head "$lsha" \
+          --target-branch "${rref#refs/heads/}" --format text --freshness "$MODE" --proof off 2>/dev/null)
+  rc=$?
+  [ -n "$out" ] && printf '%s\n' "$out" >&2
+  [ "$rc" -ne 0 ] && RC=1
+done
+[ "$MODE" = "block" ] && exit $RC
+exit 0

@@ -22,7 +22,17 @@
 
 const { sanitizeOverlay } = require('../../bot/shared/services/lp612-author.service');
 
-const doc = (over) => ({ lesson_id: 'x', sections: [], ...over });
+// The stub carries the fields its overlays address. It did not need to while `sanitizeOverlay`
+// only inspected the KEY's shape; since bd-vnyuw it also asks whether the pointer RESOLVES, and
+// a pointer into an empty stub resolves to nothing. Sharpening the fixture, not the rule: the
+// assertions below are unchanged and still say what they always said.
+const doc = (over) => ({
+  lesson_id: 'x',
+  one_screen: 'Today the class multiplies two matrices.',
+  objectives: ['State the order of a product'],
+  sections: [],
+  ...over,
+});
 
 describe('ur_overlay is repaired before it reaches the schema wall', () => {
   test('an ARRAY overlay is dropped — this is the shape that failed on staging', () => {

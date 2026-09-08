@@ -276,17 +276,43 @@ marking errors named; differentiation.
 ## 4b · THE VISUAL CONTRACT — **MANDATORY, MACHINE-CHECKED, PER SUBJECT**
 
 This section is the reason v2 exists. It is not a suggestion and it is not "add a picture if one
-helps." `visual_check.py` runs on the emitted document, counts the blocks below, and **FAILS** any
-lesson that misses its subject's minimum. A failed visual check is a revision round, exactly like a
-schema error.
+helps." The visual check (`visual_check.js` in the serving lane, `visual_check.py` in the authoring
+lane — the same rules, asserted equal) runs on the emitted document, counts the blocks below, and
+**FAILS** any lesson that misses its subject's minimum. A failed visual check is a revision round,
+exactly like a schema error, and its defects are listed FIRST in that round.
+
+> This paragraph was true of the authoring lane and **false of the serving lane from 2026-09-02 to
+> 2026-09-04**: the checker was never vendored beside the lint, so the only visual rule that ran on
+> a served lesson was "does the page carry at least one diagram, figure OR formula" — which a
+> single `latex` block satisfies. 62 lessons went to teachers under that permission, and 48 of them
+> fail this section. It runs now.
 
 ### 4b.1 · The floor every lesson must clear
 
-1. **≥2 `diagram` blocks** (the typed engine — `textbook_figure` does NOT count toward this two;
-   `latex`/`chem` do not either). One of them lives **inside `development` or `activity`, at the
-   point of use** — beside the sentence it explains, never parked at the end. The other may be the
+1. **≥2 FIGURES — a `diagram` block or a `textbook_figure` block; `latex`/`chem` are not
+   figures.** One of them lives **inside `development` or `activity`, at the point of use** —
+   beside the sentence it explains, never parked at the end. The other may be the
    `page2.board_final.diagram`, which is the **final state of the board** and is the single most
    requested artefact a teacher asked for.
+
+   > **A BOOK FIGURE COUNTS. This changed on 2026-09-04, and it changed because of a real
+   > lesson.** The rule used to read *"`textbook_figure` does NOT count toward this two"*. On a
+   > Grade 11 Biology lesson on the cell membrane, the book's own Figure 1.10 — the fluid mosaic
+   > model — was cropped, staged, and named in that segment's notes. The lesson emitted two
+   > `panels` text boxes and a `flow` instead, and then wrote an Activity telling the teacher to
+   > *"label the two ends of a phospholipid molecule"* **with no picture on the page to label**.
+   > Nothing was broken; the rule was telling the model that the real figure bought it nothing.
+   >
+   > So: where the book has the picture and this engine cannot draw it — a photograph, an
+   > anatomical illustration, a map, a micrograph — **the book's figure is the better answer, not
+   > the fallback.** It is the exact image the pupil is looking at in her own copy. It counts
+   > toward these two, it satisfies the point-of-use requirement, and in §4b.2 it satisfies any
+   > requirement that lists `labelled_figure`.
+   >
+   > What has not changed: **use it where it is genuinely better.** If the idea is one of the
+   > twenty types this engine draws — a circuit, a graph, a punnett square, a free-body diagram —
+   > draw it. A clean drawn circuit teaches the circuit; a photograph of one tells the pupil what
+   > to expect on the bench. Ours leads where ours is good.
 2. **`page2.board_final.diagram` is required**, not optional. `draw_order` alone is prose about a
    picture; the picture itself is the deliverable.
 3. **At point of use** means: the block sits immediately after the `key_points` / `paragraph` /
@@ -306,17 +332,36 @@ schema error.
 
 ### 4b.2 · The per-subject minimum (on top of §4b.1)
 
-| Subject | What the lesson MUST carry |
-|---|---|
-| **Mathematics** | `latex` on **every** expression, equation, matrix and result — inline `$…$` in prose, a `latex` block for anything displayed. **≥1** of `graph` · `numberline` · `geometry` · `grid` · `fraction_bar`. **A marked incorrect example**: one worked or faded example that shows the wrong step with the error **explicitly marked and named** (R5 — never make pupils hunt for it), plus the correct line beside it. |
-| **Chemistry** | **≥1 `chem_equation` diagram** AND **≥1 `molecule` or `atom` diagram**. A **mole-ratio worked example in LaTeX** — the ratio written as `$\frac{n(\text{X})}{n(\text{Y})}$` or an equivalent display, with the arithmetic shown, not described. Every formula in `\ce{}`. |
-| **Physics** | **≥1** of `circuit` · `ray_diagram` · `free_body` · `graph`, chosen to match the topic (a motion lesson gets `free_body` or a `graph`; an optics lesson gets `ray_diagram`; an electricity lesson gets `circuit`). **The governing formula as a `latex` block**, with its symbols defined, and the substitution shown in LaTeX. |
-| **Biology / General Science** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` — a real labelled structure. **Plus** a `mindmap` (classification / concept relations) or a `flow` (a process: photosynthesis, digestion, the biological method) where the lesson is about a process, and a `punnett` wherever inheritance is in scope. |
-| **English / Urdu (LL-\*)** | **≥1 `mindmap`** for the devices, themes or characters at stake, **and ≥1 `flow`** running the **notice → name → explain-effect** sequence as three labelled steps. A narrative or a set text with a sequence gets a **`timeline`**. Poetry: the mindmap carries the devices actually taught, nothing else. |
-| **Pakistan Studies / History / Geography** | **≥1 `timeline`** (dated spine, 4–6 events, never more) **and ≥1 `panels`** set as **evidence vs claim** — one panel holds what the source says, the other what someone concluded from it. Geography data lessons may substitute a `graph` for the timeline. |
-| **Islamiat** | **≥1** of `flow` · `mindmap` · `panels` for the concept structure (the آداب of an act, the فوائد, the two sides of a معاملہ). Plus §4c. |
+**How to read this table.** Where a row names TWO requirements, they are an **AND** — one diagram
+cannot pay for both, and the gate reports each unmet requirement as its own defect. Where a
+requirement lists several types it is an **OR** — any one of them satisfies it.
 
-Subject is read from `provenance.subject`. General Science 6–8 follows the Biology row.
+**And read this before you argue with a row.** Across 62 real lessons served to teachers,
+**83.5% of every diagram emitted was a `flow`, a `mindmap` or a `panels`**, and **nine of the
+twenty types never appeared once** — no `circuit` in any Physics lesson, no `molecule` or `atom`
+in any Chemistry lesson, not one labelled structure in thirteen Biology diagrams. Those three
+types win by default because they are the only ones constructible from *any* prose, with no
+structured data. That is precisely why several rows below name a subject-specific type AND a
+process map: the second requirement is where `flow` and `mindmap` belong, and the first is the
+one the corpus proves does not happen on its own.
+
+| Subject | What the lesson MUST carry | Why this row is this |
+|---|---|---|
+| **Mathematics** | `latex` on **every** expression, equation, matrix and result — inline `$…$` in prose, a `latex` block for anything displayed. **≥1** of `graph` · `numberline` · `geometry` · `grid` · `fraction_bar`. **A marked incorrect example**: one worked or faded example that shows the wrong step with the error **explicitly marked and named** (R5 — never make pupils hunt for it), plus the correct line beside it. | Every listed type is one this engine DRAWS. A maths idea — a region, an interval, a construction, a relationship — is exactly what diagram-as-code is good at, and a drawn figure can be built to the objective in a way a scanned one cannot. |
+| **Chemistry** | **≥1 `chem_equation` diagram** AND **≥1 `molecule` or `atom` diagram**. A **mole-ratio worked example in LaTeX** — the ratio written as `$\frac{n(\text{X})}{n(\text{Y})}$` or an equivalent display, with the arithmetic shown, not described. Every formula in `\ce{}`. | A reaction and the species in it are two different pictures; a lesson that shows only the equation never shows the pupil what a molecule *is*. |
+| **Physics** | **≥1** of `circuit` · `ray_diagram` · `free_body` · `graph`, chosen to match the topic (a motion lesson gets `free_body` or a `graph`; an optics lesson gets `ray_diagram`; an electricity lesson gets `circuit`). **The governing formula as a `latex` block**, with its symbols defined, and the substitution shown in LaTeX. | Each of the four is the standard figure of its own topic — a physicist would draw that one and no other — and each is built from quantities the lesson already states (f, u, h for a ray diagram; forces and angles for a free body), so the figure is derived from the physics rather than decorated onto it. |
+| **Biology** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `graph` — **a real biological figure**, drawn by this engine **or** the book's own crop as a `textbook_figure` (§4b.1.1). **AND ≥1** of `flow` (a process: photosynthesis, digestion, the biological method) or `mindmap` (classification, concept relations). Use a `punnett` wherever inheritance is in scope. | Two requirements because one was satisfiable by the other. The old row was a single list containing `flow`, so a flow chart alone passed it — which is how thirteen delivered Biology diagrams contained **zero** labelled structures while the gate reported nothing. |
+| **General Science** | **≥1** of `cell` · `leaf_cross_section` · `heart_loop` · `labelled_figure` · `dna_helix` · `punnett` · `atom` · `molecule` · `chem_equation` · `circuit` · `free_body` · `ray_diagram` · `graph` — a `textbook_figure` counts here too (§4b.1.1). **AND ≥1** of `flow` or `mindmap`. | General Science 6–8 is biology AND chemistry AND physics in one cover — "push and pull", "signs of a chemical reaction" and "the plant cell" are all in it — so the first requirement is the science-specific set across all three, not the biology one. What it excludes is the point: `flow`, `mindmap` and `panels`. |
+| **Computer Science / IT** | **≥1** of `flow` (an algorithm, a process) or `mindmap` (a classification: hardware/software, input/output/storage). **AND ≥1** of `panels` · `grid` · `graph` · `timeline` · `labelled_figure` — the contrast, the place-value table, the data chart or the labelled device the page actually shows. | Read off the CS pages themselves: of their printed figures, 702 are screenshots or interfaces, 414 tables and grids, 400 charts, 364 labelled devices, 88 side-by-side comparisons — and only **54** are flowcharts. `flow` is right for an algorithm chapter and stays first-class; it is not what this book is mostly made of. |
+| **English / Urdu (LL-\*)** | **≥1 `mindmap`** for the devices, themes or characters at stake, **and ≥1 `flow`** running the **notice → name → explain-effect** sequence as three labelled steps. A narrative or a set text with a sequence gets a **`timeline`**. Poetry: the mindmap carries the devices actually taught, nothing else. | A literature lesson has no physical object to draw, so both requirements are relation maps — but they are two DIFFERENT maps: what the text contains, and what the reader does with it. |
+| **Pakistan Studies / History / Geography** | **≥1 `timeline`** (dated spine, 4–6 events, never more) **and ≥1 `panels`** set as **evidence vs claim** — one panel holds what the source says, the other what someone concluded from it. Geography data lessons may substitute a `graph` for the timeline. | Chronology and interpretation are the two things this subject assesses, and neither shows up in the other's picture. |
+| **Agricultural Education (زرعی تعلیم)** | **≥1** of `panels` · `grid` · `graph` · `timeline` · `labelled_figure` · `cell` · `leaf_cross_section`. **AND ≥1** of `flow` or `mindmap`. | `panels` leads the first requirement here and in no other row, because this book teaches by paired comparison — two pots, one watered and one not — and its printed figures are dominated by those pairs and by tables. |
+| **Islamiat** | **≥1** of `flow` · `mindmap` · `panels` for the concept structure (the آداب of an act, the فوائد, the two sides of a معاملہ). Plus §4c. | The one row that is deliberately all-generic: §4c forbids figurative imagery, so a concept diagram is not the lazy choice here — it is the only permitted one. |
+
+Subject is read from `provenance.subject`, matched case-insensitively as a substring, longest row
+first. **A subject that matches no row above fails the gate outright** (V0) — and when it does,
+nothing else in §4b.2 is checked either, so the lesson gets no visual feedback at all. If you are
+authoring a subject that is not in this table, say so in `notes.gaps`; do not guess a row.
 
 ### 4b.3 · Choosing the right type — the two-second test
 
@@ -328,7 +373,7 @@ Ask what the *shape of the idea* is, and pick the type that has that shape:
 | a whole broken into named parts / a classification | `mindmap` |
 | two things set against each other | `panels` |
 | something that happened over time | `timeline` |
-| a relationship between two quantities | `graph` |
+| a relationship between two quantities | `graph` — **and a graph is (x-quantity with unit) → (y-quantity with unit). Name both axes, and state every point in that same order.** |
 | a physical structure with named parts | `cell` / `leaf_cross_section` / `heart_loop` / `labelled_figure` |
 | forces on a body | `free_body` |
 | a reaction | `chem_equation`, then `molecule` / `atom` for the species |
@@ -362,9 +407,13 @@ Every spec may also carry `title`, `caption`, `source`, `note`, and `lang: "ur"`
 **Colour is a token, with NO fallback hex: `"var(--navy)"`, `"var(--amber)"`, `"var(--leaf)"`,
 `"var(--warn)"`, `"var(--ink)"`, `"var(--mut)"`, `"var(--line)"`.** Three ways of writing a colour
 are all wrong here and each was shipped once:
-- `"var(--cool, #1B6CA8)"` — the form the diagram engine's own gallery examples use, because the
-  fallback keeps a figure coloured when it is rendered STANDALONE. Inside an lp_doc the raw hex
-  makes `lint_lp.js` **FAIL the document as a PLACEHOLDER**.
+- **`"var(--cool, #1B6CA8)"` — a token with a HEX FALLBACK.** It is the form the diagram engine's
+  own gallery examples use, because the fallback keeps a figure coloured when it is rendered
+  STANDALONE. Inside an lp_doc the raw hex makes `lint_lp.js` **FAIL the whole document as a
+  PLACEHOLDER** (`/#[0-9A-Fa-f]{6}/`). Every example below was written in that form until
+  2026-09-04 — ten copyable specs handing you the one shape this paragraph forbids, and they were
+  concentrated on the dense types (`graph`, `geometry`, `numberline`, `fraction_bar`). They have
+  been rewritten. If you have seen that form somewhere, it is stale.
 - `"cool"` — a bare short name. The engine passes a colour value through verbatim, so this emits
   `stroke="cool"`, which is not a colour and paints nothing.
 - `"var(--cool)"` — a real token, but **the lesson-plan page does not define `--cool`, `--plum` or
@@ -377,8 +426,8 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
 // flow — a process or a chain of reasoning
 {"type":"flow","direction":"lr","title":"WHY BOTH BLOCKS LAND TOGETHER",
  "steps":[{"title":"v = u + gt","lines":["no mass anywhere in this equation"]},
-          {"title":"2 kg BLOCK","lines":["u = 0, g = 9.8","t = 8 s"],"color":"var(--cool, #1B6CA8)"},
-          {"title":"SAME TIME","lines":["mass never appears"],"color":"var(--leaf, #1F7A4D)"}],
+          {"title":"2 kg BLOCK","lines":["u = 0, g = 9.8","t = 8 s"],"color":"var(--navy)"},
+          {"title":"SAME TIME","lines":["mass never appears"],"color":"var(--leaf)"}],
  "caption":"…"}
 
 // mindmap — a centre and its named branches
@@ -391,7 +440,7 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
   {"title":"OXYGEN ATOMS","sub":"one O atom at a time","glyph":"O",
    "lines":["atomic mass = 16"],"foot":"1 mole of O atoms = 16 g"},
   {"title":"OXYGEN MOLECULES","sub":"paired as O2","glyph":"O—O",
-   "lines":["molecular mass = 32"],"foot":"1 mole of O2 = 32 g","color":"var(--plum, #6B3FA0)"}]}
+   "lines":["molecular mass = 32"],"foot":"1 mole of O2 = 32 g","color":"var(--amber)"}]}
 
 // timeline — a dated spine; 4-6 events, never more
 {"type":"timeline","orientation":"horizontal",
@@ -399,21 +448,48 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
            {"date":"1940","label":"Lahore Resolution"}]}
 
 // graph — a Cartesian plot; expr is a safe expression in x
+// A GRAPH IS (x-quantity with unit) → (y-quantity with unit). "xLabel" and "yLabel" are
+// REQUIRED — name the quantity AND its unit ("Altitude (km)", "Pressure (kPa)"); on a pure-maths
+// curve they are literally "x" and "y". A graph with an unnamed axis is a BLOCKING defect
+// (GRAPH_AXES): a teacher cannot tell which reading is meant, and neither can the gate.
 {"type":"graph","xMin":-3,"xMax":5,"yMin":-6,"yMax":8,"xStep":1,"yStep":2,
- "functions":[{"expr":"x*x - 2*x - 3","label":"y = x² − 2x − 3","color":"var(--navy, #0B2545)"}],
- "points":[{"x":3,"y":0,"label":"(3, 0)","color":"var(--warn, #9B2C2C)","dx":13,"dy":17}]}
+ "xLabel":"x","yLabel":"y",
+ "functions":[{"expr":"x*x - 2*x - 3","label":"y = x² − 2x − 3","color":"var(--navy)"}],
+ "points":[{"x":3,"y":0,"label":"(3, 0)","color":"var(--warn)"}]}
+// EVERY POINT IS WRITTEN IN THE SAME ORDER IT IS PLOTTED IN — (x, y), matching the axes.
+// This shipped on a real Physics board (2026-09-04) and is the defect to avoid:
+//   xLabel absent, curve drawn against altitude, and the points written the other way round —
+//   {"x":33,"y":8.8,"label":"Mount Everest (8.8 km, 33 kPa)"}   ← WRONG: 8.8 km is the X value
+// With "xLabel":"Altitude (km)" and "yLabel":"Pressure (kPa)" the same point is
+//   {"x":8.8,"y":33,"label":"Mount Everest (8.8 km, 33 kPa)"}   ← right
+// GRAPH_POINT_ORDER blocks a label whose two numbers are the plotted pair reversed, or whose
+// number carries the other axis's unit. GRAPH_ORIENTATION blocks a point that sits far off the
+// curve's own drawn extent while its swap (y, x) lands inside it.
+// `dx`/`dy` on a point are MANUAL label offsets and they are a trap: they can push a label onto
+// an axis-tick plate and fail DIAGRAM_OVERLAP. Omit them unless you have looked at the render.
+// AN INEQUALITY is a graph too: a function may set "shade":"above" or "shade":"below" to fill
+// the half-plane on one side of itself. Dash the line when the inequality is STRICT — points on
+// it do not count. Two shaded functions overlap into a visibly darker region, which is exactly
+// how a system of inequalities should read, and it needs no extra field.
+{"type":"graph","xMin":-3,"xMax":5,"yMin":-8,"yMax":10,"xStep":1,"yStep":2,"title":"y > 2x − 1",
+ "xLabel":"x","yLabel":"y",
+ "functions":[{"expr":"2*x - 1","label":"y = 2x − 1","color":"var(--navy)","dash":"6 4",
+               "shade":"above"}],
+ "caption":"The line is dashed because the inequality is strict — points ON it don't count."}
+// optional on a shaded function: "shadeColor" (defaults to the line's colour) and
+// "shadeOpacity" (defaults to 0.16).
 
 // numberline — integers, fractions, jumps, inequality rays
 {"type":"numberline","from":-5,"to":5,"step":1,"labelFormat":"integer",
- "points":[{"at":-3,"style":"dot","color":"var(--warn, #9B2C2C)"}],
+ "points":[{"at":-3,"style":"dot","color":"var(--warn)"}],
  "arcs":[{"from":-3,"to":1,"label":"+ 4","above":true}]}
 
 // geometry — auto-fitted; triangle/polygon/circle/line/point + rightangle marker
 {"type":"geometry","height":340,"shapes":[
   {"kind":"triangle","points":[[0,0],[4,0],[0,3]],"labels":["A","B","C"],
    "sides":["4 cm","5 cm","3 cm"],
-   "angles":[{"at":1,"label":"θ","arcR":34,"color":"var(--plum, #6B3FA0)"}],
-   "fill":"var(--cool, #1B6CA8)"},
+   "angles":[{"at":1,"label":"θ","arcR":34,"color":"var(--amber)"}],
+   "fill":"var(--navy)"},
   {"kind":"rightangle","vertex":[0,0],"a":[4,0],"b":[0,3]}]}
 
 // grid — N x M with shaded cells (percent, area model, hundred square)
@@ -421,8 +497,8 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
 
 // fraction_bar — part-whole bars on a shared whole
 {"type":"fraction_bar","barHeight":40,"bars":[
-  {"parts":3,"shaded":2,"label":"2/3","color":"var(--cool, #1B6CA8)"},
-  {"parts":4,"shaded":3,"label":"3/4","color":"var(--leaf, #1F7A4D)"}]}
+  {"parts":3,"shaded":2,"label":"2/3","color":"var(--navy)"},
+  {"parts":4,"shaded":3,"label":"3/4","color":"var(--leaf)"}]}
 
 // chem_equation — PLAIN TEXT, not \ce{}; spaces around the + operator
 {"type":"chem_equation","equation":"2H2 + O2 -> 2H2O"}
@@ -462,6 +538,15 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
 {"type":"leaf_cross_section","gasArrows":true}
 {"type":"heart_loop"}
 
+// dna_helix — a double helix; give a real sequence and every rung is a real base pair
+{"type":"dna_helix","sequence":"ATCGGA","title":"DNA — the base pairs hold the two strands together",
+ "caption":"A pairs with T, G pairs with C. Every rung is one pair."}
+// With no `sequence` it is the twisting-ribbon SHAPE only — honest for "what does DNA look like",
+// useless for "how does it pair". Give the sequence whenever pairing is what is being taught.
+// Aliases: rna_helix / nucleic_acid_helix / helix. Use `rna_helix` for RNA and it renders U for T
+// and A-U rungs — the alias wins even if the sequence you pass still contains a T.
+{"type":"rna_helix","sequence":"AUCGGA","title":"RNA — a single kind of base changes"}
+
 // punnett — the square is COMPUTED from the genotypes; do not pre-fill it
 {"type":"punnett","p1":"Rr","p2":"Rr",
  "trait":{"dominant":"R","recessive":"r","dominantName":"tall","recessiveName":"short"}}
@@ -482,6 +567,131 @@ long one. Six branches on a mindmap read; twelve do not.
 
 ---
 ---
+
+
+<!-- 4b.5:begin (generated by build_field_appendix.py — do not hand-edit) -->
+
+### 4b.5 · Every field each type reads — the complete list
+
+Generated from the engine's own `diagrams/types_manifest.json`, so it cannot drift from
+what the modules actually read. §4b.4 above gives you the copyable shape for the common
+case; this is the rest of what each type can do. **Required** fields are the ones without
+which the type will not draw. A field not listed here is not read by anything — writing
+one is silently dropped and you will get a confident wrong picture.
+
+| type | required | also reads |
+|---|---|---|
+| `atom` | `element` | `mode` · `symbol` · `name` · `Z` · `neutrons` · `shells` · `partner` · `bond` · `transfer` · `pairs` · `chargeLabel` · `showNucleus` |
+| `cell` | `kind` | `labels` · `labelText` · `parts` · `figure` · `gasArrows` |
+| `chem_equation` | `equation` | `conditions` · `state` · `wordEquation` · `balanced` · `balanceNote` · `highlight` |
+| `circuit` | `layout` · `cells` | `branches` · `showCurrent` · `currentLabel` · `engine` |
+| `dna_helix` | — | `sequence` · `kind` · `turns` · `rungCount` |
+| `flow` | `steps` | `direction` · `branches` · `arrowLabels` · `arrowColor` |
+| `fraction_bar` | `bars` | `barHeight` · `gap` · `model` · `totalLabel` · `unitLabel` · `showLabels` · `urduDigits` · `labelWidth` · `valueWidth` · `braceWidth` |
+| `free_body` | `body` · `forces` | `incline` · `showComponents` · `showMagnitudes` · `showResultant` · `resultantLabel` · `axes` · `ground` · `unit` |
+| `geometry` | `shapes` | `height` · `width` · `pad` · `showGrid` · `gridStep` |
+| `graph` | `xMin` · `xMax` · `yMin` · `yMax` · `xLabel` · `yLabel` | `xStep` · `yStep` · `xTicks` · `yTicks` · `functions` · `points` · `segments` · `grid` · `legend` · `samples` · `aspect` |
+| `grid` | `rows` · `cols` | `shaded` · `shaded2` · `shadeColor` · `shade2Color` · `shadeOpacity` · `majorEvery` · `cellSize` · `cellText` · `rowLabel` · `colLabel` · `split` · `legend` |
+| `illustrative` | `brief` | `kind` · `key` · `alt` · `subject` · `reason` · `width` · `height` |
+| `labelled_figure` | `image` · `labels` | `imageWidth` · `maxWidth` · `labelSize` · `maxGutter` · `aspect` · `baseDir` · `src` |
+| `mindmap` | `centre` · `branches` | — |
+| `molecule` | `formula` | `smiles` · `name` · `ionic` · `ions` |
+| `numberline` | `from` · `to` | `step` · `minorStep` · `labelFormat` · `labelEvery` · `denominator` · `points` · `arcs` · `intervals` · `ticks` · `urduDigits` |
+| `panels` | `panels` | `columns` |
+| `punnett` | `p1` · `p2` | `trait` · `traits` · `labels` · `showParents` · `showRatio` · `colorByPhenotype` · `cellSize` |
+| `ray_diagram` | `element` · `f` · `u` · `hObject` | `showRays` · `labels` · `unit` |
+| `timeline` | `events` | `orientation` · `eras` |
+
+**What each type will not do, and the shapes that bite.** These are the engine's own
+recorded limits — a field written in the wrong shape is silently dropped and you get a
+confident wrong picture, so read the row for any type you are about to emit.
+
+- **`atom`**
+  - mode is "bohr" (default) or "dot_cross" / "dot_and_cross"; using the dot_and_cross ALIAS as the type also selects that mode.
+  - There is NO `compound` field. A bonding picture is element + partner + bond + transfer.
+  - The built-in element table is H-Ca plus Fe/Cu/Zn/Br/I; anything else needs explicit Z/shells.
+- **`cell`**
+  - kind is "plant" | "animal" and applies to type "cell" only; the leaf_cross_section and heart_loop aliases take no kind.
+  - The structures are PARAMETRIC, not free-form -- you choose which parts are labelled, not what the drawing is. Anything else biological is a labelled_figure.
+- **`chem_equation`**
+  - The equation is PLAIN TEXT, never \ce{}. Put spaces around any + that is an operator.
+  - Arrows: -> <- <=> <-> = . A condition rides INSIDE the string as ->[Δ], and an equilibrium takes both: <=>[Fe][450 C]. There is NO top-level `above`/`below` field -- one written there is SILENTLY DROPPED and the arrow prints bare. The object form is conditions:{above,below}.
+  - It does not check that the equation balances -- `balanced:false` only changes how it is drawn.
+- **`circuit`**
+  - cells[].kind is battery | resistor | lamp | switch | ammeter | voltmeter. A voltmeter takes `across`.
+  - Component VALUES stay LTR even on an Urdu page ("6 V", "10 O") -- that is how Pakistani textbooks set them. An Urdu value is now laid out correctly, but it is not the house style.
+  - engine:"schemdraw" shells out to a Python venv that is NOT vendored into the serving repo; there it returns null and the built-in drawing is used, so a circuit looks different in NIETE than in an authoring run.
+- **`dna_helix`**
+  - kind resolves from spec.kind, else the alias used, else sniffed from the sequence (a U and no T reads as RNA), else "dna".
+  - It is the HEAVIEST type on the page: ~30-45 kB of SVG against ~2-8 kB for everything else.
+  - Two deliberate simplifications: no A-T(2) vs G-C(3) hydrogen-bond distinction, and the antiparallel 5'/3' property is named in the caption, not drawn.
+  - NOT documented in the author brief SS4b.4 as of 2026-09-04, so a model working from the brief alone cannot choose it.
+- **`flow`**
+  - direction "lr" is the default and WRAPS into rows. "tb" stacks one column at ~150px a step: six tb steps measured 935px, 86% of an A4 page. visual_check V14 fails a tb flow of four or more steps.
+  - Two short `lines` per step read; a paragraph in a step does not.
+- **`fraction_bar`**
+  - Every bar is drawn to the SAME total width -- that is what makes a comparison honest, and it is why two bars with different `parts` are the right way to show equivalence.
+  - Set urduDigits:true (or lang:"ur") for Urdu numerals in the labels.
+- **`free_body`**
+  - angle is in DEGREES with 90 = up.
+  - forces[].color is a SHORT NAME (ink|accent|leaf|warn|cool|clay), not a colour string -- the one place in the engine where that is true.
+  - body.shape "block_on_incline" plus incline.angle switches to the incline layout; decompose:true on a force splits it into components.
+- **`geometry`**
+  - The canvas AUTO-FITS the shapes; `height` is a hint, not a frame.
+  - checkDegenerate() rejects a near-flat polygon, so give a triangle real area -- a 1-unit-tall 'triangle' fails the build even though it draws.
+- **`graph`**
+  - xLabel and yLabel are REQUIRED (bd-gel97). Name the QUANTITY and its UNIT -- "Altitude (km)", "Pressure (kPa)"; for a pure-maths curve they are literally "x" and "y". lint_lp.js GRAPH_AXES is a blocking defect: an unlabelled graph cannot be read by a teacher and cannot be checked against its own points.
+  - A graph is (x-quantity with unit) -> (y-quantity with unit), and a point label states its coordinates in that SAME order. "Mount Everest (8.8 km, 33 kPa)" belongs at x = 8.8, y = 33 when x is the altitude axis. lint_lp.js GRAPH_POINT_ORDER blocks a point whose label states the plotted pair REVERSED, or whose number carries the OTHER axis's unit; GRAPH_ORIENTATION blocks a point sitting far off the curve's drawn extent when its swap (y, x) lands inside it.
+  - functions[].expr is a SAFE expression string in x -- not JavaScript, not a lambda.
+  - functions[].shade:"above"|"below" fills the half-plane on one side of the curve (PR #56). Two shaded functions overlap into a visibly darker region -- the right convention for a system of inequalities. Pair a strict inequality with dash:"6 4".
+  - Shading covers only the curve's own VISIBLE x-range: if the curve leaves the window on the side opposite the shading, the region past that point is left blank.
+  - points[].dx/dy are MANUAL label offsets. They can push a label onto an axis-tick plate and fail DIAGRAM_OVERLAP -- omit them unless you have looked at the render.
+- **`grid`**
+  - `cellText` is a list of [row, col, text] TRIPLES with 0-based row/col -- NOT a 2-D array of rows. A row-shaped entry destructures to a NaN position with undefined text and prints NOTHING, silently.
+  - `shaded` is a COUNT of cells, filled in reading order -- not a list of coordinates.
+  - majorEvery draws the heavier rule every N cells; 5 is what makes a hundred square countable.
+  - A grid much past 10x10 stops being countable at a 750px column.
+  - It GENERATES its own readout ("1/4 = 25% = 0.25") from rows/cols/shaded unless you pass `legend`. On a grid smaller than about 5x5 that line is wider than the grid, so the canvas is sized to the READOUT and the grid is centred in it -- a 2x2 is 132 units wide for a 60-unit grid. Expect a small grid to arrive with generous side margins; that is the type doing the right thing, not a layout bug.
+  - The generated readout keeps Latin numerals even under lang:"ur", while the title and caption use U+06F0-06F9. Pass `legend` yourself for an all-Urdu figure.
+- **`illustrative`**
+  - NEVER emit this inside a lesson plan. The author brief SS4b.1 rule 7 forbids it and it counts as ZERO toward the two-diagram floor -- it is a slot for a later art pass, not a visual.
+  - Listed here only so the roster matches the registry.
+- **`labelled_figure`**
+  - labels[].at is [0-1, 0-1] in the IMAGE's own coordinates, origin top-left.
+  - `image` is a data: URI or a filesystem path. It is the ONLY type that touches the filesystem; a path that does not resolve renders an error card that then fails DIAGRAM_OVERLAP.
+  - The image is base64-embedded, so it dominates the SVG's weight (~120 kB for a 400px crop).
+- **`mindmap`**
+  - Six branches read; twelve do not -- the canvas widens and every label shrinks toward the 13.5px floor.
+  - Leaves are plain strings, not nested branches: this is one level deep by design.
+  - Count the parts your objective names, then count the leaves. An objective saying THREE with a two-leaf branch is blocking defect B11.
+- **`molecule`**
+  - A SMILES that will not parse degrades to the formula card; it never throws.
+  - ionic:true (or a known ionic formula) draws the lattice instead of a structure -- NaCl is not a molecule and the drawing says so.
+  - Give `formula` and `name` as well as `smiles`: the formula is what the pupil is examined on.
+- **`numberline`**
+  - labelFormat is "integer" | "fraction" | "decimal"; a fraction line also wants `denominator`.
+  - points[].style "dot" (closed, included) vs "open" (excluded) is the whole grammar of an inequality -- get it the right way round.
+  - Too many ticks between `from` and `to` drives the labels under the 13.5px floor; raise `step` or `labelEvery`.
+- **`panels`**
+  - TWO or THREE panels. A fourth squeezes every column under the legibility floor.
+  - The panels are EQUAL width by design -- the point is that neither side is privileged.
+  - `glyph` is one short symbol, not a sentence.
+- **`punnett`**
+  - DO NOT PRE-FILL THE SQUARE. The offspring cells and both ratios are derived; anything you type would be a second, disagreeing source of truth.
+  - A dihybrid ("RrYy") gives a 4x4 grid -- readable, but it is the practical ceiling at a 750px column.
+  - trait.dominantName / recessiveName may be Urdu; the allele letters stay Latin.
+- **`ray_diagram`**
+  - element is convex_lens | concave_lens | concave_mirror | convex_mirror.
+  - The image position, size and nature are COMPUTED -- you give the object, not the answer. u inside f gives the virtual case, and it draws that correctly.
+  - It is the type that runs closest to the 13.5px floor (13.6px measured at full width): do not shrink its column.
+- **`timeline`**
+  - FOUR TO SIX events, never more -- the brief's own rule, and past six the horizontal spine crowds its labels.
+  - orientation "vertical" is the one to use when the labels are long; horizontal wants short ones.
+  - The spine is EVENLY spaced, not scaled to the real intervals -- it shows order, not duration.
+
+Aliases you may use as `type` instead: `bohr` · `electron_shells` · `dot_and_cross` · `leaf_cross_section` · `heart_loop` · `bio_schematic` · `equation` · `reaction` · `circuit_diagram` · `rna_helix` · `nucleic_acid_helix` · `helix` · `process` · `chain` · `bar_model` · `tape_diagram` · `fbd` · `force_diagram` · `vector` · `construction` · `plot` · `function_plot` · `area_model` · `hundred_square` · `ai_art` · `placeholder` · `textbook_figure` · `photo_labels` · `concept_map` · `smiles` · `structure` · `number_line` · `comparison` · `compare` · `genetics` · `cross` · `optics` · `lens` · `mirror` · `chronology`.
+
+<!-- 4b.5:end -->
 
 ## 4c · ISLAMIAT AND RELIGIOUS CONTENT — the additional rules
 
@@ -740,12 +950,36 @@ Two genuinely different figures are always fine — vary the data, the window or
 the caption.
 
 ```json
-{"type": "textbook_figure", "id": "fig-1-11", "ref": "…/p011/fig_1_11_leaf",
- "src": "…/fig_1_11_leaf.jpg", "page": "11", "caption": "…", "legend": [{"label": "…", "means": "…"}]}
+{"type": "textbook_figure", "id": "fig-1-1", "ref": "grade_10_biology/pg_008_f0",
+ "figure_label": "Fig. 1.1", "page": "8",
+ "caption": "as in your book, Figure 1.1, p.8",
+ "legend": "Mouth → oesophagus → stomach → small intestine → large intestine. The liver and pancreas sit beside the canal and pour into it."}
 ```
-A textbook_figure is FLAT — ref/src/page/caption/legend/figure_label sit directly on the block,
-no nested `spec` (no nested anything). A real crop must carry `legend`: its printed labels are
-baked pixels and vanish at phone scale.
+
+A textbook_figure is FLAT — `ref`/`page`/`caption`/`legend`/`figure_label` sit directly on the
+block, no nested `spec` (no nested anything). Four rules, and each of them was a live defect:
+
+1. **`ref` is copied VERBATIM from the FIGURES list in your segment notes.** Its shape is
+   `{book_stem}/{page}_f{k}` — `"grade_10_biology/pg_008_f0"`. Do not construct one, do not guess
+   a page number into one, and **never emit a `textbook_figure` whose ref is not on that list**:
+   the ref is what fetches a real crop of a real page, so an invented one can only produce an
+   empty box where the pupil's picture should be.
+2. **Never write `src`.** The path to the crop is resolved mechanically from `ref` after you
+   answer, exactly as the video link is. Anything you put there is discarded.
+3. **`legend` is a STRING, and it is required whenever there is a real crop.** The figure's own
+   printed labels are baked pixels: at phone scale they are unreadable, so the legend is how the
+   figure's content reaches the teacher as text she can actually read. Write it **in the lesson's
+   own language** from the description in your notes — do not paste that description in, it is an
+   English note written for a machine, and an English legend on an Urdu page is a defect (§7).
+   A crop with no legend fails the lint and costs the lesson a revision round.
+4. **`textbook_figure` COUNTS toward §4b.1's two figures.** This restates the box in §4b.1.1; it
+   does not contradict it. A book figure is a visual and it is PLACED, so it also satisfies the
+   point-of-use requirement, and it satisfies the "real figure" requirement in the §4b.2 rows that
+   list `labelled_figure`. When the book has the picture and this engine cannot draw it — a
+   photograph, an anatomical illustration, a map, a micrograph — the book's own figure is the
+   *better* answer, not the fallback: it is the exact image the pupil is looking at in front of
+   her. When the idea IS one of the twenty types this engine draws — a circuit, a graph, a punnett
+   square, a free-body diagram — draw it. Ours leads where ours is good.
 
 **The exit ticket holds at most TWO items.** A third graded recall question belongs in the
 activity's you-do (`P` refs), not the exit ticket — the schema hard-rejects a third `X` item.
@@ -890,9 +1124,9 @@ owns direction and isolation.
 ## 8 · WORD BUDGETS — the page is finite
 
 `lint_lp.js` budgets each section and the whole document; the renderer then proves the fit by
-measuring the real layout. **TEACH ≤ 5 A4 pages, SUPPORT ≤ 4** (the measured capacity at the 18px
+measuring the real layout. **TEACH ≤ 7 A4 pages, SUPPORT ≤ 6** (the measured capacity at the 18px
 body floor). Over the cap is a loud failure, not a quiet trim. **An Urdu render is allowed
-TEACH ≤ 7, SUPPORT ≤ 5** — the same words measured ~+33% more paper under Nastaliq's spacing —
+TEACH ≤ 9, SUPPORT ≤ 7** — the same words measured ~+33% more paper under Nastaliq's spacing —
 but the WORD budgets below are one set of numbers for both languages: an Urdu plan says no more
 than an English one; it only breathes more.
 

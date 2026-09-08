@@ -10,6 +10,43 @@ const { resolveUx } = require('../config/ux-strings');
 // Prefer ASSET_BASE_URL; fall back to legacy ASSETS_BASE_URL. Empty when
 // neither is set — the carousel template builder below guards against that.
 const ASSETS_BASE_URL = (process.env.ASSET_BASE_URL || process.env.ASSETS_BASE_URL || '').replace(/\/$/, '');
+
+// ─── WhatsApp media-id cache ────────────────────────────────────────────────
+// An R2 object cannot be handed to Meta as a link, so every send downloads it
+// and re-uploads it to the Media API for an id. The same picture sent to a
+// class of forty children was forty downloads and forty uploads of identical
+// bytes. Meta keeps an uploaded media id usable for 30 days, so the id is
+// remembered for 25, keyed on the R2 key.
+//
+// Redis is a CONVENIENCE here, never a dependency: every helper swallows its
+// own failure and returns the value that makes the caller do what it did
+// before the cache existed.
+const MEDIA_ID_TTL_SECONDS = 25 * 24 * 60 * 60;
+
+function mediaCacheKey(r2Key) {
+  return `wa:media:${require('crypto').createHash('sha1').update(String(r2Key)).digest('hex')}`;
+}
+
+async function getCachedMediaId(r2Key) {
+  try {
+    const redis = require('./cache/railway-redis.service');
+    const id = await redis.get(mediaCacheKey(r2Key));
+    return typeof id === 'string' && id ? id : null;
+  } catch (error) {
+    logToFile('⚠️ media-id cache read failed (continuing without it)', { error: error.message });
+    return null;
+  }
+}
+
+async function cacheMediaId(r2Key, mediaId) {
+  if (!mediaId) return;
+  try {
+    const redis = require('./cache/railway-redis.service');
+    await redis.set(mediaCacheKey(r2Key), mediaId, MEDIA_ID_TTL_SECONDS);
+  } catch (error) {
+    logToFile('⚠️ media-id cache write failed (continuing)', { error: error.message });
+  }
+}
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v21.0';
 const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
@@ -68,6 +105,117 @@ class WhatsAppService {
     } catch (error) {
       logToFile('❌ Exception sending WhatsApp message', { error: error.message });
       return false;
+    }
+  }
+
+  /**
+   * Send a text message and return its WhatsApp message id, so the NEXT
+   * message can quote it.
+   *
+   * `sendMessage` answers a boolean, which is all most callers want. The quiz
+   * sender wants more: a P6a/P6b sound question is a column of near-identical
+   * voice notes, and the label that names each one is only attached to it by
+   * being a quoted reply. That needs the clip's id, which needs a send that
+   * returns one. Same request shape as sendMessage otherwise, plus the
+   * optional `context` Meta uses for a reply.
+   *
+   * @param {string} to
+   * @param {string} message
+   * @param {{contextMessageId?: string}} [opts] quote this message id
+   * @returns {Promise<string|null>} the message id, or null on any failure
+   */
+  static async sendTextReturningId(to, message, opts = {}) {
+    try {
+      const cleanMessage = this._removeEmotionTags(message);
+      const payload = {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { body: cleanMessage },
+      };
+      if (opts && opts.contextMessageId) {
+        payload.context = { message_id: opts.contextMessageId };
+      }
+      const response = await fetch(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        logToFile('❌ Error sending WhatsApp text (returning id)', { responseData: data }, 'error');
+        return null;
+      }
+      const id = data?.messages?.[0]?.id || null;
+      logToFile('✅ WhatsApp text sent (returning id)', { messageId: id, quoted: Boolean(opts?.contextMessageId) });
+      return id;
+    } catch (error) {
+      // NULL, never a throw: the caller records one failed message and carries
+      // on with the rest of the question rather than losing the whole send.
+      logToFile('❌ Exception sending WhatsApp text (returning id)', { error: error.message }, 'error');
+      return null;
+    }
+  }
+
+  /**
+   * Send an audio clip from an R2 key/URL and return its WhatsApp message id.
+   *
+   * The id is what the option label sent straight after can quote, which is
+   * the only thing tying a label to the clip it names. Mirrors
+   * sendAudioFromUrl + sendAudio, but answers the id instead of a boolean.
+   *
+   * @param {string} to
+   * @param {string} audioUrl R2 key or R2 URL
+   * @returns {Promise<string|null>} the message id, or null on any failure
+   */
+  static async sendAudioFromUrlReturningId(to, audioUrl) {
+    const path = require('path');
+    const tempDir = path.join(__dirname, '../../temp');
+    let audioPath = null;
+    try {
+      const key = extractKeyFromUrl(audioUrl);
+      const audioBuffer = await downloadFromR2(key);
+
+      // Sniff the container rather than assume MP3: audio/ogg is what makes
+      // WhatsApp render a real voice message instead of a music-player bubble.
+      const isOgg = audioBuffer.slice(0, 4).toString('latin1') === 'OggS';
+      const ext = isOgg ? 'ogg' : 'mp3';
+      const contentType = isOgg ? 'audio/ogg' : 'audio/mpeg';
+
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      audioPath = path.join(tempDir, `qaudio_${Date.now()}.${ext}`);
+      fs.writeFileSync(audioPath, audioBuffer);
+
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(audioPath), { contentType, filename: `audio.${ext}` });
+      formData.append('messaging_product', 'whatsapp');
+      const uploadResponse = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`, formData,
+        { headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() } },
+      );
+
+      const sendResponse = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        { messaging_product: 'whatsapp', to, type: 'audio', audio: { id: uploadResponse.data.id } },
+        { headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } },
+      );
+
+      const id = sendResponse?.data?.messages?.[0]?.id || null;
+      logToFile('✅ WhatsApp audio sent (returning id)', { messageId: id });
+      return id;
+    } catch (error) {
+      logToFile('❌ Error sending audio from URL (returning id)', {
+        error: error.message, errorDetails: error.response?.data, audioUrl,
+      }, 'error');
+      return null;
+    } finally {
+      try { if (audioPath && fs.existsSync(audioPath)) fs.unlinkSync(audioPath); } catch { /* best effort */ }
     }
   }
 
@@ -1122,50 +1270,61 @@ class WhatsAppService {
       let imageHeader;
 
       if (isR2Url) {
-        logToFile('📥 Downloading image from R2 (private URL)', { imageUrl });
-
         // Extract R2 key and download using credentials
         const key = extractKeyFromUrl(imageUrl);
-        const imageBuffer = await downloadFromR2(key);
 
-        // Save to temp file
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        const tempFilePath = path.join(tempDir, `vocab_${Date.now()}.png`);
-        fs.writeFileSync(tempFilePath, imageBuffer);
+        // Meta keeps an uploaded media id for 30 days, so the same picture sent
+        // to a whole class does not need a download and an upload per child.
+        // Cached for 25 days, keyed on the R2 key. Redis is a convenience, not
+        // a dependency: any failure here falls through to the original path.
+        const cachedId = await getCachedMediaId(key);
+        if (cachedId) {
+          logToFile('♻️ Reusing cached WhatsApp media id', { key, mediaId: cachedId });
+          imageHeader = { id: cachedId };
+        } else {
+          logToFile('📥 Downloading image from R2 (private URL)', { imageUrl });
+          const imageBuffer = await downloadFromR2(key);
 
-        logToFile('📤 Uploading image to WhatsApp Media API', { size: imageBuffer.length });
-
-        // Upload to WhatsApp Media API
-        const formData = new FormData();
-        formData.append('file', fs.createReadStream(tempFilePath), {
-          contentType: 'image/png',
-          filename: 'vocabulary.png',
-        });
-        formData.append('messaging_product', 'whatsapp');
-
-        const uploadResponse = await axios.post(
-          `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
-          formData,
-          {
-            headers: {
-              'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-              ...formData.getHeaders(),
-            },
+          // Save to temp file
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
           }
-        );
+          const tempFilePath = path.join(tempDir, `vocab_${Date.now()}.png`);
+          fs.writeFileSync(tempFilePath, imageBuffer);
 
-        const mediaId = uploadResponse.data.id;
-        logToFile('✅ Image uploaded to WhatsApp', { mediaId });
+          logToFile('📤 Uploading image to WhatsApp Media API', { size: imageBuffer.length });
 
-        // Clean up temp file
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
+          // Upload to WhatsApp Media API
+          const formData = new FormData();
+          formData.append('file', fs.createReadStream(tempFilePath), {
+            contentType: 'image/png',
+            filename: 'vocabulary.png',
+          });
+          formData.append('messaging_product', 'whatsapp');
+
+          const uploadResponse = await axios.post(
+            `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
+            formData,
+            {
+              headers: {
+                'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                ...formData.getHeaders(),
+              },
+            }
+          );
+
+          const mediaId = uploadResponse.data.id;
+          logToFile('✅ Image uploaded to WhatsApp', { mediaId });
+
+          // Clean up temp file
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+
+          // Use media ID instead of link
+          imageHeader = { id: mediaId };
+          await cacheMediaId(key, mediaId);
         }
-
-        // Use media ID instead of link
-        imageHeader = { id: mediaId };
       } else {
         // Public URL - WhatsApp can download directly
         imageHeader = { link: imageUrl };
@@ -1213,6 +1372,80 @@ class WhatsAppService {
         errorDetails: error.response?.data,
         imageUrl
       });
+      return false;
+    }
+  }
+
+  /**
+   * Interactive reply buttons with a VIDEO header (Meta: header.type='video').
+   * Mirrors sendImageWithButtons: an R2 key/private URL is downloaded and
+   * uploaded to the Media API for an id; a public URL is passed as a link.
+   * Used for the once-per-teacher transcript-quiz offer that rides the intro
+   * video. Returns false on any failure so the caller can fall back to plain
+   * buttons — a teacher must never miss the offer because a video did not load.
+   *
+   * @param {string} to
+   * @param {string} videoUrl   R2 key, R2 URL, or public https URL (mp4, ≤16 MB)
+   * @param {string} bodyText
+   * @param {Array<{id:string,title:string}>} buttons  max 3
+   * @returns {Promise<boolean>}
+   */
+  static async sendVideoWithButtons(to, videoUrl, bodyText, buttons) {
+    const path = require('path');
+    const tempDir = path.join(__dirname, '../../temp');
+    try {
+      if (!videoUrl || !Array.isArray(buttons) || !buttons.length || buttons.length > 3) {
+        logToFile('⚠️ sendVideoWithButtons: bad arguments', { hasVideo: Boolean(videoUrl), count: buttons?.length });
+        return false;
+      }
+      const formattedButtons = buttons.map((btn) => ({
+        type: 'reply',
+        reply: { id: btn.id, title: [...String(btn.title)].slice(0, 20).join('') },
+      }));
+
+      const isPublic = /^https?:\/\//i.test(videoUrl) && !videoUrl.includes('r2.cloudflarestorage.com');
+      let videoHeader;
+      if (isPublic) {
+        videoHeader = { link: videoUrl };
+      } else {
+        const key = extractKeyFromUrl(videoUrl);
+        const buffer = await downloadFromR2(key);
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+        const tempFilePath = path.join(tempDir, `hdr_${Date.now()}.mp4`);
+        fs.writeFileSync(tempFilePath, buffer);
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(tempFilePath), { contentType: 'video/mp4', filename: 'intro.mp4' });
+        formData.append('messaging_product', 'whatsapp');
+        const uploadResponse = await axios.post(
+          `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`, formData,
+          { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() } },
+        );
+        try { fs.unlinkSync(tempFilePath); } catch { /* best effort */ }
+        videoHeader = { id: uploadResponse.data.id };
+      }
+
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          header: { type: 'video', video: videoHeader },
+          body: { text: bodyText },
+          action: { buttons: formattedButtons },
+        },
+      };
+      const response = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`, payload,
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } },
+      );
+      logToFile('✅ Video with buttons sent', { response: response.data, buttonCount: buttons.length, usedMediaId: !isPublic });
+      return true;
+    } catch (error) {
+      logToFile('❌ Error sending video with buttons', {
+        error: error.message, errorDetails: error.response?.data, videoUrl,
+      }, 'error');
       return false;
     }
   }
@@ -1316,7 +1549,13 @@ class WhatsAppService {
    */
   static async sendFlow(to, flowData) {
     try {
-      const { flowId, header, body, footer, buttonText = 'Start', screen, flowToken, screenData } = flowData;
+      const { flowId, header, headerImage, body, footer, buttonText = 'Start', screen, flowToken, screenData, navigateData } = flowData;
+      // Two live callers (video-quiz-share, video-quiz-sender) shipped on the
+      // older `navigateData` name; `screenData` stays the primary name so a
+      // caller reading this signature has one obvious choice, but the alias
+      // keeps those two working without a call-site rename that would leave
+      // the next caller free to make the same mistake.
+      const resolvedScreenData = screenData ?? navigateData;
 
       if (!flowId) {
         logToFile('❌ Flow ID is required', { flowData });
@@ -1344,8 +1583,8 @@ class WhatsAppService {
         };
         // A screen that DECLARES data needs it supplied when we open straight
         // onto it — navigate mode has no endpoint round-trip to fill it in.
-        if (screenData && Object.keys(screenData).length) {
-          parameters.flow_action_payload.data = screenData;
+        if (resolvedScreenData && Object.keys(resolvedScreenData).length) {
+          parameters.flow_action_payload.data = resolvedScreenData;
         }
       }
 
@@ -1356,7 +1595,13 @@ class WhatsAppService {
         type: 'interactive',
         interactive: {
           type: 'flow',
-          header: header ? { type: 'text', text: header } : undefined,
+          // An interactive Flow message may carry an IMAGE header. A quiz
+          // question drawn as a picture (a card or a figure) rides here, so the
+          // picture and the checkboxes arrive as one message instead of two.
+          // Text still wins when both are given — no caller passes both today.
+          header: header
+            ? { type: 'text', text: header }
+            : (headerImage ? { type: 'image', image: { link: headerImage } } : undefined),
           body: { text: body },
           footer: footer ? { text: footer } : undefined,
           action: {

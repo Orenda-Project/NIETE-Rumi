@@ -61,6 +61,15 @@ function mockBuilder(table) {
   const state = { table, op: null, payload: null, filters: [] };
   const settle = () => {
     mockDbCalls.push({ ...state });
+    // A WRITE MUST NOT CONSUME A QUEUED READ (bd-dr216). This is a strict FIFO shared by both, and
+    // the worker gained one extra UPDATE — the pickup stamp that starts the authoring clock — ahead
+    // of the segment read. That shifted every fixture in this file by one and turned the whole
+    // suite red for a reason none of its assertions are about. Writes now settle to "the CAS
+    // matched a row"; reads take the next fixture, exactly as each test intends.
+    if (state.op === 'update') {
+      const idFilter = state.filters.find((f) => f[0] === 'id');
+      return Promise.resolve({ data: { id: idFilter ? idFilter[1] : 'row' }, error: null });
+    }
     return Promise.resolve(mockDbResults.length ? mockDbResults.shift() : { data: null, error: null });
   };
   const b = {

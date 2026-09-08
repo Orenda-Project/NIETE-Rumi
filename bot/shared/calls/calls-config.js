@@ -32,6 +32,35 @@ const DEFAULTS = {
   // window with CALLS_VAD_SILENCE_MS (see realtime-client.js — we ship 500 ms,
   // NOT the 5 ms the Noor tuning uses).
   vad: 'server_vad',
+
+  // Voice engine (bd-oxu2q). 'openai' = the native realtime voice, which is what
+  // every call has run on to date. 'uplift' = OpenAI reasons and emits TEXT and
+  // Uplift speaks it, which is markedly more natural in Urdu.
+  //
+  // The DEFAULT IS DELIBERATELY 'openai'. Uplift is opt-in per environment via
+  // VOICE_PROVIDER, so turning it on is a decision someone makes for one
+  // deployment at a time rather than something a deploy does to every call at
+  // once. (The upstream implementation defaulted to 'uplift'; we do not.)
+  // Selection is also not final: if Uplift is selected but cannot connect, that
+  // CALL falls back to the OpenAI voice — see call-session.
+  voiceProvider: 'openai',
+  // The conversational Urdu voice, chosen by ear for phone calls (operator,
+  // 2026-09-04).
+  //
+  // Do NOT "align" this with UPLIFT_VOICE_ID_UR / v_8eelc901. That is the RETIRED
+  // Urdu Uplift voice: bd-2375 moved Urdu voice notes off Uplift onto ElevenLabs
+  // (Sara, eleven_v3), so v_8eelc901 is what the product stopped using. Uplift
+  // still serves Sindhi and Balochi voice notes, and in NIETE — whose offer is
+  // exactly ['ur','en'] — it serves nothing but calls. So this value IS the NIETE
+  // Uplift voice, and there is no second surface to stay consistent with.
+  upliftVoiceId: 'v_meklc281',
+  upliftWsUrl: 'wss://api.upliftai.org/text-to-speech/multi-stream',
+  // Which call languages the external voice may speak. Urdu only by default —
+  // Uplift models Urdu/Sindhi/Balochi. This is a LIST rather than an `if`
+  // because it is data: a deployment widens it with UPLIFT_LANGUAGES=ur,en to
+  // hear English through the Urdu voice and judge it, with no code change.
+  upliftLanguages: ['ur'],
+
   maxConcurrent: 5,
   maxSeconds: 300,
   wrapUpSeconds: 270,
@@ -40,6 +69,21 @@ const DEFAULTS = {
   drainGraceMs: 60000,
   silenceTimeoutMs: 60000,
 };
+
+/**
+ * Parse a comma-separated language list, normalised to lowercase.
+ *
+ * An empty or whitespace-only value falls back to the default rather than
+ * yielding an empty list — "UPLIFT_LANGUAGES=" should not silently mean "no
+ * language qualifies", which would disable the voice while looking configured.
+ */
+function parseLanguages(raw, fallback) {
+  const parts = String(raw || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return parts.length ? parts : fallback;
+}
 
 /** Parse a positive number from the env, falling back on anything unusable. */
 function num(name, fallback) {
@@ -76,6 +120,20 @@ function getCallsConfig() {
 
     forwardSecret: process.env.CALLS_FORWARD_SECRET || '',
     serviceUrl: process.env.CALLS_SERVICE_URL || '',
+
+    // Voice engine (see DEFAULTS). Uplift is used only when selected AND a key
+    // is present; the session then decides per-call and falls back to the OpenAI
+    // voice if the TTS socket is not ready in time.
+    voiceProvider: String(process.env.VOICE_PROVIDER || DEFAULTS.voiceProvider).toLowerCase(),
+    uplift: {
+      apiKey: process.env.UPLIFT_API_KEY || '',
+      // UPLIFT_VOICE_ID only. Deliberately does NOT fall back to
+      // UPLIFT_VOICE_ID_UR — that variable belongs to the retired Urdu voice-note
+      // path, so honouring it here would hand calls a voice nobody chose.
+      voiceId: process.env.UPLIFT_VOICE_ID || DEFAULTS.upliftVoiceId,
+      wsUrl: process.env.UPLIFT_WS_URL || DEFAULTS.upliftWsUrl,
+      languages: parseLanguages(process.env.UPLIFT_LANGUAGES, DEFAULTS.upliftLanguages),
+    },
   };
 }
 

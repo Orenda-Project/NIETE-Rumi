@@ -47,7 +47,7 @@ async function logCallStart({
 
 /** Close the row: duration, status, final transcript, cost. */
 async function logCallEnd({
-  waCallId, durationSeconds, status, transcript, model, endedAt,
+  waCallId, durationSeconds, status, transcript, model, endedAt, voice,
 }) {
   try {
     const patch = {
@@ -57,6 +57,10 @@ async function logCallEnd({
       cost_estimate: estimateCallCost({ durationSeconds, model }),
     };
     if (transcript) patch.transcript = transcript;
+    // Only when known. The row already carries the configured voice from
+    // logCallStart; overwriting it with undefined would trade a stale value for
+    // no value, which is worse.
+    if (voice) patch.voice = voice;
 
     const { error } = await supabase.from('calls').update(patch).eq('wa_call_id', waCallId);
     if (error) throw new Error(error.message);
@@ -116,6 +120,15 @@ async function recordTrace({
 
 /**
  * Total spend since the week boundary.
+ *
+ * ⚠ PRIMARY ONLY — this and `callsToday` are the ONLY reads in the calls stack
+ * that stay off the production read replica along with `call_memory`
+ * (bd-vrbk4.2). Both COUNT rows that `logCallStart` inserted moments earlier, so
+ * on a replica they read a stale total: a caller redialling inside the
+ * replication window walks straight through the per-caller daily limit, and this
+ * function lets the weekly cap overshoot in dollars. The rest of the stack reads
+ * the replica — see shared/config/supabase-replica.js.
+ *
  * @returns {Promise<number|null>} null on ANY failure — the governor treats null
  *          as "unknown" and declines, which is the fail-closed behaviour we want.
  */

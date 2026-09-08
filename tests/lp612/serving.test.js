@@ -16,7 +16,10 @@
  */
 
 const mockSendMessage = jest.fn();
-const mockSendDocumentByLink = jest.fn();
+// bd-m1xyt: deliverRender now checks this return value and retries/throws on a falsy one, so
+// every test that does not specifically care about a failed send needs a truthy default —
+// `undefined` used to pass silently because the return was ignored.
+const mockSendDocumentByLink = jest.fn().mockResolvedValue(true);
 const mockQueueJob = jest.fn();
 const mockGetPresignedUrl = jest.fn();
 const mockBuildR2PublicUrl = jest.fn((k) => `https://r2.example/${k}`);
@@ -147,10 +150,12 @@ describe('a cached render is served immediately', () => {
   });
 });
 
+const { resolveUx, LP612_ETA } = require('../../bot/shared/config/ux-strings');
+
 // ── cache miss ──────────────────────────────────────────────────────────────
 
 describe('a miss authors the lesson at request time', () => {
-  test('acks the teacher BEFORE enqueuing — the ack is what buys the five minutes', async () => {
+  test('acks the teacher BEFORE enqueuing — the ack is what buys the wait', async () => {
     mockDbResults.push({ data: null, error: null });
     mockDbResults.push({ data: { id: 'r2' }, error: null });
 
@@ -158,9 +163,12 @@ describe('a miss authors the lesson at request time', () => {
 
     expect(out.outcome).toBe('queued');
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    // The measured first-hit median is 313s, not the 2 minutes this once
-    // promised — see the ux-strings note above lp612Preparing (bd-2ym0h).
-    expect(mockSendMessage.mock.calls[0][1]).toMatch(/5–6 minutes/);
+    // The literal band lives in ONE place (LP612_ETA in ux-strings.js) and honest-eta.test.js pins
+    // it against the measured numbers. Here we assert only that she is acked with the real
+    // interstitial from that one catalog — carrying the estimate — before anything is enqueued.
+    // Pinning the phrase again in this file is how the two copies drift apart.
+    expect(mockSendMessage.mock.calls[0][1]).toBe(resolveUx('lp612Preparing', { language: REQ.language }));
+    expect(mockSendMessage.mock.calls[0][1]).toContain(LP612_ETA[REQ.language] || LP612_ETA.en);
     const ackOrder = mockSendMessage.mock.invocationCallOrder[0];
     const queueOrder = mockQueueJob.mock.invocationCallOrder[0];
     expect(ackOrder).toBeLessThan(queueOrder);
@@ -327,7 +335,9 @@ describe('nothing fails silently', () => {
 
     expect(out.outcome).toBe('deliver_failed');
     expect(out.error).toMatch(/Meta 400/);
-  });
+    // bd-m1xyt: this now retries with the PRODUCTION backoff (no override is threaded through
+    // requestLesson) before giving up — real seconds, not the jest default 5s timeout.
+  }, 15000);
 });
 
 // ── language ────────────────────────────────────────────────────────────────
@@ -383,7 +393,7 @@ describe('the lesson body that goes out with the PDF', () => {
   // send. Without this the whole block inherits a WhatsApp that always 400s.
   beforeEach(() => {
     mockSendMessage.mockReset();
-    mockSendDocumentByLink.mockReset();
+    mockSendDocumentByLink.mockReset().mockResolvedValue(true);
   });
 
   it('sends the one_screen body before the document', async () => {

@@ -1,0 +1,161 @@
+# WhatsApp E2E targets — resolved by each per-feature agent (agents/niete-<feature>-agent.md)
+# from the feature's @profile:<tenant> tag. NEVER hardcode a number in a .feature; put it here.
+# `method` picks the driver: chrome (desktop, drives native Flows) or baileys
+# (headless/EC2, read-assertions + dispatch only — can't drive native Flows).
+#
+# `number` is the BOT under test (what the agent messages), digits only, no +.
+# `test_driver` is the account whose linked WhatsApp Web session drives the bot. It is
+#   `prompt` — resolved AT RUNTIME from whoever is running the suite: ask the runner for
+#   THEIR OWN linked WhatsApp number (digits, no +). NEVER hardcode one person's number here
+#   (it used to be pinned to the operator's 923028931858 — bd-2748). The resolved number
+#   drives EVERY in-scope scenario; the number itself NEVER restricts which tests run
+#   (operator, bd-2748). `all` mode mutates the driver account's real state, so runners
+#   should use a test/throwaway number they're fine resetting — that's advice, not a gate.
+
+default_profile: niete
+
+profiles:
+  # DEFAULT E2E TARGET = STAGING (923222482222 / "Rumi Staging Niete").
+  # Re-verified live 2026-08-07: staging code is now CURRENT — menu (Teacher Training present,
+  # no Reading Assessment), /training native Flow, and the templated /certificate handler all
+  # MATCH prod. The 2026-08-05 "older code" drift (AI cert fallback, 62-vs-20 exam caption,
+  # "Managed by Rumi niete." footer) is RESOLVED. So the read / copy / entry / negative
+  # scenarios are faithful here — run the whole suite on staging by default.
+  # ✅ SEPARATE DB (corrected 2026-08-16 — the earlier "SHARED DB" claim was WRONG):
+  #   staging has its OWN Supabase, project ref `rpqkekcfvumypldbejhp` (NOT prod's `ihzciabopbttygxxgrkm`).
+  #   PROVEN: the same driver 923028931858 returns role=coach on staging vs role=teacher on prod — it
+  #   cannot be one DB. The near-identical training progress seen 2026-08-05 was a point-in-time SEED
+  #   copy, not a live shared DB. So seed/revert/destructive writes on staging do NOT touch prod data.
+  #   Still drive stateful writes only via the throwaway driver + revert (cleanliness, not isolation).
+  #   Staging logs to Axiom `digital-coach-logs` under `env=staging` (service=bot). DB creds: a staging
+  #   service_role key (rotate if leaked) — NEVER inline here. It lives in `keys/niete-staging.env` at THIS repo's root
+  #   (gitignored, project credential home per root CLAUDE.md); re-fetch with
+  #   `railway link -p 'NIETE-Rumi Staging' && railway variables --service bot`.
+  #   ⚠️ bd-2759: `niete_training_db.py` used to read the repo's prod `.env` unconditionally, i.e. PROD, so
+  #   seeding during a staging run wrote to the WRONG DB and did nothing to the bot under test. It now
+  #   resolves creds per `--env` (default = the env of `default_profile` below) and ABORTS if the
+  #   resolved Supabase project ref does not match the env.
+  niete:
+    tenant: NIETE (ICT / Islamabad)
+    env: staging
+    number: "923222482222"
+    method: chrome        # native Training Flow needs the desktop Chrome-MCP route
+    test_driver: prompt   # RUNTIME: ask the runner for THEIR OWN linked WhatsApp number (digits, no +). Not hardcoded (bd-2748). Drives every in-scope scenario; the number never restricts the run.
+    notes: "staging — DEFAULT e2e target; code verified current 2026-08-07; OWN DB rpqkekcfvumypldbejhp (isolated from prod); logs to Axiom env=staging"
+
+  # PROD — explicit target only; stateful scenarios mutate real training progress.
+  niete-prod:
+    tenant: NIETE (ICT / Islamabad) — PRODUCTION
+    env: prod
+    number: "923206281951"
+    waba_id: "1551576156552661"
+    method: chrome
+    test_driver: prompt   # RUNTIME: ask the runner for THEIR OWN linked WhatsApp number (digits, no +). Not hardcoded (bd-2748). Drives every in-scope scenario; the number never restricts the run.
+    notes: "prod — run only with explicit go; mutates real state. Drive from a test/throwaway number you're fine resetting, never a real teacher's account."
+    # STANDING AUTHORIZATION (operator, 2026-08-06): the reversible training DB seeds are
+    # PRE-APPROVED on the run's resolved driver (the runner's own linked number) — the agent
+    # runs them automatically, no per-action prompt. Operator: "next time I don't want to say
+    # the seed thing." Scope:
+    #   • ALLOWED without asking: niete_training_db.py seed-level-complete / revert-level /
+    #     activate-program (is_active flip) / role flip / preferred_language toggle — i.e. the
+    #     additive+reversible training-state writes on the run's resolved driver, via --yes-write.
+    #   • STILL GATED (per-action go): any OTHER account (not the run's driver), prod-user data,
+    #     outward sends, schema changes, or anything not reversible. This authorization is scoped
+    #     to reversible training-state seeds on the driver being tested — nothing else.
+    #   • Always print what was written + how to revert; leave the account reversible.
+    standing_authorization:
+      scope: "reversible training-state DB seeds on the run's resolved driver (the runner's own linked number)"
+      auto_ops: ["seed-level-complete", "revert-level", "activate-program", "role-flip", "language-toggle"]
+      still_gated: ["real/other accounts", "prod-user data", "outward sends", "schema changes", "irreversible writes"]
+      granted: "2026-08-06 (operator: don't re-ask for the seed step)"
+
+  # PALESTINE (RISE / British Council) — PROD, no staging surface (like NIETE).
+  # Served by the MAIN Rumi bot, region-gated detectRegion()==='PS'. Number confirmed
+  # live 2026-08-12 via WhatsApp contact info (business acct, rumi@hellorumi.ai, +970...).
+  # Menu (exploratory 2026-08-12): Lesson Plans (native Flow, Grade→Subject→Unit→Lesson;
+  # live sample = Grades 2 & 9 ONLY vs the G1–4 build) · Classroom Coaching · Scope &
+  # Sequence · Help (User Guide PDF). Arabic input → English reply (English floor).
+  # ⚠️ PROD teachers are real (RISE Ramallah) — run only with an explicit per-run go,
+  # and drive from a THROWAWAY account, never a real teacher's / personal phone.
+  rumi-palestine:
+    tenant: Palestine (RISE / British Council) — PRODUCTION
+    env: prod
+    number: "970592185147"
+    method: chrome        # native Lesson-Plan Flow needs the desktop Chrome-MCP route
+    test_driver: "TBD"    # no throwaway provisioned yet; do NOT use a real teacher/personal account
+    notes: "prod, no staging; main-bot region PS. Number confirmed 2026-08-12 (+970 592 185 147). Needs a dedicated throwaway driver before stateful runs."
+
+  # Template for future tenants (uncomment + fill):
+  # shams:
+  #   tenant: Main Rumi (staging)
+  #   env: staging
+  #   number: "923268338870"
+  #   method: baileys
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PERSONA / ROLE MODEL  (added 2026-08-04)
+#
+# NIETE features are role-gated on `users.role` (source of truth: the LEADER_ROLES
+# allowlist in NIETE-Rumi bot/shared/services/observe/observe-gate.js). Rather than
+# maintain one phone per role, we use ONE throwaway `test_driver` per profile and
+# FLIP its `users.role` at run start to match the scenario's @persona tag.
+#
+# Scenario persona is resolved as:  scenario-level @persona:<role>  >  feature-level
+# @persona:<role>  >  default `teacher`. The runner SETS the role (idempotent UPDATE),
+# READS IT BACK to confirm, then drives. A read-back mismatch → BLOCKED (never a false PASS).
+personas:
+  teacher:   { role_value: "teacher",       unlocks: "menu · training · lesson-plan · coaching · registration · status · attendance (student-marking)" }
+  leader:    { role_value: "school_leader", unlocks: "/observe (any LEADER_ROLE works: school_leader|supervisor|coach|principal|aeo)" }
+  coach:     { role_value: "coach",         unlocks: "/observe (LEADER_ROLE) — matches observe.feature @persona:coach" }
+  principal: { role_value: "principal",     unlocks: "attendance (teacher-marking channel) AND /observe (principal ∈ LEADER_ROLES)" }
+
+# The role flip is a DB write → prefer STAGING (Rule 7: prod-DB writes need a per-action go).
+role_switch:
+  enabled: false                      # flip to true once test_driver + creds + seed are in place
+  db: "NIETE Supabase — per env"      # staging: keys/niete-staging.env · prod: keys/niete-prod.env or ./.env (SUPABASE_* / service_role), repo-root relative — NEVER inline here
+  table: "users"
+  key_column: "phone_number"          # match the test_driver (normalize to E.164, digits only)
+  role_column: "role"                 # VARCHAR(32); values per `personas.*.role_value` above
+  set_recipe: "UPDATE users SET role = :role_value WHERE phone_number = :test_driver;"
+  read_back: "SELECT role FROM users WHERE phone_number = :test_driver;"   # must equal role_value or BLOCK
+  # 'never downgrade an existing leader' (flow-response.handler.js:770): a teacher run MUST set
+  # role='teacher' explicitly — do not rely on re-registration to reset it.
+
+  # ONE-TIME SEED (data the gate flag does NOT provide; do once, then only the role flips):
+  seed:
+    leader/coach: "users.school_id set (FK → schools) + teachers on that school's roster, so the /observe visit-picker (school→teacher) has data. Optional: users.preferences.observe_onboarding_arm='functional'."
+    principal:    "users.school_id set + teachers in that school, so the principal teacher-marking channel has teachers to mark."
+    config_gates: "runtime env must have OBSERVE_MEWAKA_FLOW_ID (observe) — CONFIRMED SET on niete-prod 2026-08-04; attendance Flows: ATTENDANCE_MARKING_FLOW_ID / ATTENDANCE_SETUP_FLOW_ID / EDIT_CLASS_FLOW_ID (else text fallback)."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LESSON-PLAN SEED OPTION  (added 2026-08-06)
+#
+# Makes the currently-non-Chrome-MCP-runnable lesson-plan scenarios drivable live.
+# The plain safe run drives 8 scenarios with NO seed; the rows below unlock the rest.
+# Each recipe says: what to set · where · whether it's covered by the test_driver
+# standing_authorization (reversible, runs on the resolved driver) or STILL GATED (needs an
+# explicit per-action go — shared-catalog writes, env-var/deploy changes, Rule 7).
+# The @seeded tag on a scenario in lesson-plan.feature = "runnable via Chrome MCP once
+# the matching recipe here is applied". DB: NIETE Supabase, resolved PER ENV by
+# `niete_training_db.py --env` (staging -> keys/niete-staging.env, prod -> keys/niete-prod.env or ./.env, repo-root relative;
+# service_role) — NEVER inline here. Prefer STAGING for any shared write.
+lp_seed:
+  enabled: false                       # flip true per-run once the target row's recipe is applied + read back
+  # ── No seed needed — just pick a qualifying value live (READ-ONLY discovery) ──
+  discovery_only:
+    empty_grade:   "pick a grade with ZERO rows in pre_generated_lps(curriculum='pakistan'); confirm via SELECT before driving (do NOT delete a real grade's corpus)."
+    empty_subject: "pick a grade+subject with no rows; same SELECT-first discovery."
+    oxbridge_flow: "grades 6–10 already carry lesson_plan_catalog(source='oxbridge') rows (see tests/pregen/feat-059-080). Verify one exists, then drive that grade."
+    oxbridge_nl_picker: "phrase the NL request to match an existing oxbridge catalog topic (grade 6–12) so the 2-button picker fires."
+  # ── Test-driver-scoped, REVERSIBLE → within standing_authorization (runs on the resolved driver) ──
+  test_driver_scoped:
+    first_use_reset: "clear the LP first-use marker for the test_driver so the 'Show me!/Just tell me' consent fires again — confirm the exact column/flag in feature-keyword-detector.service.js before writing; reversible."
+    language_toggle: "for the @i18n case set preferred_language='ur' (auto_op language-toggle), drive, then restore 'en'."
+  # ── STILL GATED — shared-catalog write / env change → explicit per-action go, prefer staging ──
+  gated:
+    r2_missing:   "insert (or point) ONE pre_generated_lps / lesson_plan_catalog row at a non-existent R2 key, drive the 'not available right now' path, then DELETE the row. Shared table → explicit go; reversible."
+    curriculum:   "region_features.curriculum_lp_enabled=true + one curriculum_lp_ast row with a known topic (cache-hit) and one without a cached PDF (cache-miss/2-min-ack). Region/shared → explicit go."
+    pic_to_lp:    "set env PIC_LP_FLOW_ID (+ the published Pic-LP Flow) — an ENV/DEPLOY change, not a DB seed. Staging only."
+  # The config-gated fallback (PAKISTAN_LP_FLOW_ID unset) and a forced generation failure are NOT in
+  # lesson-plan.feature — the first needs a non-prod env, the second a forced Gamma throw → both live in
+  # the jest/mock layer (tests/ in this repo), not Chrome-MCP.

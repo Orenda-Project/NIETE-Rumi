@@ -109,21 +109,34 @@ describe('the LLM path with the loop', () => {
   });
 });
 
-describe('the fallback path with the loop', () => {
-  test('no reflective answer: the scorer\'s move when it is about the target, shaped into action_spec', async () => {
+// bd-nl4vi.14 changed WHEN this ladder is reached, not what it produces. A
+// missing reflection no longer routes here while a loop target is open — that
+// early return made every unreflected attempt emit the same angle-blind rubric
+// sentence (attempts 2 and 3 shipped byte-identical on staging). The ladder is
+// now the LAST RESORT, reached when the model call fails, and these tests pin
+// that it still degrades in the same order.
+describe('the fallback ladder, now reached when the model call fails', () => {
+  test('the scorer\'s move when it is about the target, shaped into action_spec', async () => {
+    mockOpenAI.chat.completions.create.mockRejectedValue(new Error('model down'));
     const out = await generateCommitmentCard(analysis('C3'), { questions: [] }, 'en', { teacherName: 'Sana', loop: loop() });
     expect(out._source).toBe('focus_area');
     expect(out.action).toContain('next step');
     expect(out.action_spec.count_target).toEqual(countBarFor('C3'));
-    expect(mockOpenAI.chat.completions.create).not.toHaveBeenCalled();
   });
-  test('the scorer\'s move is about ANOTHER indicator: the rubric\'s own rung-2 ask for the target, localised for Urdu once', async () => {
-    mockOpenAI.chat.completions.create.mockResolvedValue(reply({ commitment: 'موثر feedback', action: 'تین specific feedback moves اور ایک اگلا قدم' }));
+  test('the scorer\'s move is about ANOTHER indicator: the rubric\'s own rung-2 ask for the target, localised for Urdu', async () => {
+    // first call = the card attempt (fails), second = the localisation pass
+    mockOpenAI.chat.completions.create
+      .mockRejectedValueOnce(new Error('model down'))
+      .mockResolvedValueOnce(reply({ commitment: 'موثر feedback', action: 'تین specific feedback moves اور ایک اگلا قدم' }));
     const out = await generateCommitmentCard(analysis('D2'), { questions: [] }, 'ur', { teacherName: 'Sana', loop: loop() });
     expect(out._source).toBe('rubric');
     expect(out.indicator).toBe('C3');
-    expect(mockOpenAI.chat.completions.create).toHaveBeenCalledTimes(1);
     expect(/[؀-ۿ]/.test(out.action)).toBe(true);
     expect(out.action_spec.count_target).toEqual(countBarFor('C3'));
+  });
+  test('with NO loop, a missing reflection still goes straight to the scorer\'s move — no model call', async () => {
+    const out = await generateCommitmentCard(analysis('C3'), { questions: [] }, 'en', { teacherName: 'Sana' });
+    expect(out._source).toBe('focus_area');
+    expect(mockOpenAI.chat.completions.create).not.toHaveBeenCalled();
   });
 });

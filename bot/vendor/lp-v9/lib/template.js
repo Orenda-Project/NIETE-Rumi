@@ -123,18 +123,148 @@ const SECTION_META = {
   homework: { letter: "H", cls: "s-h" },
 };
 
+/* ── THE TYPE SCALE (v9.2, 2026-09-06) ────────────────────────────────────────
+   Operator: *"could we please increase the font on the lesson plan even further to
+   ensure its readability? Currently, it's very small, and it's very hard to read.
+   Please increase the size by 1 or 2 pt, or figure out what makes it readable if one
+   is holding a phone at an arm's length distance."*
+
+   Every font-size below is still written at its v9.1 value and multiplied by ONE
+   number on the way out, so the ladder stays proportional and the next move is one
+   constant rather than sixty edits. The operator asked in POINTS; 1 CSS pt = 4/3 px,
+   so the v9.1 18px body was 13.5pt and the v9.2 21px body is 15.75pt — his "1 or 2 pt",
+   rounded UP to the number the rest of the bot already uses (see the note below the
+   constants).
+
+   WHAT DOES NOT SCALE, and why:
+     · padding, radii, borders and the --sp-N spacing ladder. v9.1's rule stands —
+       no narrower gutters and no horizontal-density tricks to pay for the type.
+       Leading is UNITLESS, so it grows with the type for free.
+     · the KaTeX stylesheet. It is concatenated AFTER the scale is applied; its own
+       px rules are internal typesetting geometry and multiplying them corrupts the
+       maths. This is why the scale is applied to our block alone and not to the
+       whole returned sheet.
+     · the diagram engine's label floor. It lives in diagrams/lib/svg.js and sizes
+       labels against the FIGURE's column, not the page's body scale. It moves in
+       its own change, gated by the overlap sweep.
+
+   READABILITY.md (prod_golive_2026-09-06/07_font) carries the measurement this
+   number is chosen against, including the honest statement that NO step of one or two
+   points reaches the arm's-length floor: at 21px the body still arrives at 66% of the
+   critical print size for fluent reading, and closing the rest needs a phone-first page,
+   which is priced there and is the operator's call, not this file's. */
+const BODY_PX_V91 = 18;    // the v9.1 body — 13.5pt
+const BODY_PX     = 21;    // v9.2 — 15.75pt, i.e. +2.25pt
+const TYPE_SCALE  = BODY_PX / BODY_PX_V91;     // 1.1666…
+
+/* WHY 21 AND NOT 20.67 (= a flat +2pt). Because 21 is not this file's number to pick.
+   `bot/shared/templates/niete-brand.js` in NIETE-Rumi already declares
+   `TYPE_FLOOR = { body: 21, small: 16.5, label: 15.5 }` as THE type floor for every
+   teacher-facing rendered artefact, shipped for the quiz PDFs on the same evidence and the
+   same arithmetic used here (an A4 page opened on a phone is scaled by 390/794 = 0.4912
+   before anyone reads it). Two PDFs that arrive from the same bot on the same day must not
+   disagree about what "readable" means — that is exactly how one artefact came to run at
+   11px while another ran at 9.5px and both believed they were fine.
+
+   The vendored engine deliberately does NOT `require` that token: `bot/vendor/lp-v9` is a
+   vendored copy with a documented divergence list, and reaching into the host app's brand
+   module would be a divergence upstream can never carry. So the NUMBER is shared and the
+   CODE is not, and this comment is the join. If the token moves, this constant moves with
+   it — `tests/lp612/type-scale.test.js` asserts the two agree, so they cannot drift silently. */
+
+/** THE ONE ROUNDING, AND IT IS TWO DECIMAL PLACES ON PURPOSE.
+ *
+ *  Chrome's `getComputedStyle().fontSize` — which is what render_lp.js's probe reads and
+ *  compares against BODY_FLOOR_PX — serialises to 2 dp. A stylesheet written at 3 dp is
+ *  therefore read back SHORTER than it was written (`19.333px` in, `19.33px` out), and the
+ *  floor check then fails EVERY render on nothing but a rounding artefact. Measured, not
+ *  reasoned: the first +1pt corpus render died with
+ *  "TYPE FLOOR: smallest body text is 19.33px (<19.333px)".
+ *
+ *  So there is exactly one place a scaled px is computed, it rounds the way the browser
+ *  rounds, and both the stylesheet and the floors go through it. */
+const scaledPx = (px) => +(px * TYPE_SCALE).toFixed(2);
+
+/* ── THE PAGE (v9.3, 2026-09-07, bd-oak77.16) ─────────────────────────────────
+   v9.2 took the type as far as A4 will carry it and 07_font measured, honestly, where
+   that lands: an A4 page box opened in WhatsApp is fit to a ~390 CSS-px screen, so every
+   size on it is multiplied by 390/794 = 0.4912 before a teacher reads it, and the 21px
+   body arrives at 0.930 mm of x-height — 7.99 arcmin at 40 cm, 67% of the 12-arcmin
+   critical print size for fluent reading (Legge & Bigelow 2011).
+
+     apparent x-height (mm) = font_px x 0.5411 x (390 / PAGE.w) x 0.16667
+
+   There are exactly two terms and the type is spent. THIS one is the page. At the shipped
+   21px body the floor needs a page 528px wide or narrower; 520 measures 1.431 mm =
+   12.30 arcmin on a real production lesson re-rendered from its stored document
+   (prod_golive_2026-09-06/15_phone_page/DESIGN.md section 3).
+
+   WHY 2000 TALL, and why that is not a typo. Page count is set by page AREA, so a narrow
+   page that keeps A4's proportions is simply A4 with 31.5px type — the arm 07_font priced
+   at 2,261 pages, a 36-page lesson. Height is the term that buys the area back. Measured
+   over 62 documents AND all 116 lessons production has delivered, 520x2000 costs FEWER
+   pages than today (1,136 against 1,577 on production traffic, median 14 -> 10), flags 1
+   document over cap where the live geometry flags 72, and produces zero layout defects.
+   Every candidate height from 1040 to 2380 is in DESIGN.md section 4 with its numbers.
+
+   Total scroll length is NOT set by this: it is set by the type and the column, and it
+   roughly doubles because the type is 1.5x bigger in the hand. That is the honest cost of
+   the change and no page size avoids it. A taller page reduces it (fewer page bottoms left
+   ragged), which is the other reason 2000 wins over 1470.
+
+   WHAT THIS COSTS ON PAPER. Printed fit-to-page on A4 this page scales 0.561 and lands as
+   a 77 x 297 mm column using 37% of the sheet, its type at 14.5 arcmin — legible, wasteful.
+   The answer to that is a SECOND render of the same stored document at `a4`, which is why
+   this is a shaped object with a named format and not five loose numbers: the printable
+   variant is a parameter, not a rewrite. Priced in DESIGN.md section 7 (bd-oak77.19).
+
+   The rollback is one variable and no deploy: LP_612_TEMPLATE_VERSION=v9.2. */
+const PAGE_FORMATS = Object.freeze({
+  /** v9.2 and before. Kept, named, and unused by the delivery path — it is the printable
+   *  variant's geometry and the reference the phone page's derivations are stated against. */
+  a4: Object.freeze({
+    name: "a4", w: 794, h: 1123, padX: 21, padT: 10, padB: 4, oneColumn: false,
+  }),
+  /** v9.3 — what a teacher receives. */
+  phone: Object.freeze({
+    name: "phone", w: 520, h: 2000, padX: 21, padT: 10, padB: 4, oneColumn: true,
+  }),
+});
+
+/** The page this build lays out on. A CONSTANT, deliberately, and not an env switch: the page
+ *  format IS the template version, and a service that could flip it would put two geometries in
+ *  the render cache under one key. A printable render changes this by passing a format, once the
+ *  parameter exists — never by changing what v9.3 means. */
+const PAGE = PAGE_FORMATS.phone;
+
+/** The A4 reference for anything whose apparent size on the phone must be stated against the
+ *  page it was chosen for. */
+const PAGE_A4 = PAGE_FORMATS.a4;
+
+/** Scale a length that was chosen against the A4 measure so its APPARENT size on the phone is
+ *  unchanged by the page. Used for the diagram engine's label floor, which sizes labels against
+ *  the figure's own column and would otherwise refuse 99 of 116 real lessons a figure. */
+const pageScaled = (pxAtA4) => +(pxAtA4 * (PAGE.w / PAGE_A4.w)).toFixed(2);
+
+/** Multiply every `font-size: <n>px` in a stylesheet by the type scale, and nothing else.
+ *  `em`/unitless values scale with their parent for free and are left alone. */
+function scaleTypeCss(sheet, k) {
+  if (!(k > 0) || k === 1) return sheet;
+  const f = k === TYPE_SCALE ? scaledPx : (px) => +(px * k).toFixed(2);
+  return sheet.replace(/font-size:(\s*)([\d.]+)px/g,
+    (_m, sp, n) => `font-size:${sp}${f(Number(n))}px`);
+}
+
 function css(rtl, fonts, katex) {
   const start = rtl ? "right" : "left";
   const end = rtl ? "left" : "right";
-  return `
-${fonts}
-${katex}
-@page { size: A4; margin: 0; }
+  const sheet = `
+@page { size: ${PAGE.w}px ${PAGE.h}px; margin: 0; }
 :root{
   --navy:#0B2545; --navy2:#13315C; --amber:#F2A20C; --amber-soft:#FDEBC8;
   --ink:#1a2233; --mut:#5b6472; --line:#e5e9f0; --leaf:#1F7A4D; --leaf-soft:#E3F3E9;
   --warn:#B4531F; --warn-soft:#FCEDE6; --warn-line:#F2C4AD;
-  --page-w:794px; --page-h:1123px;
+  --page-w:${PAGE.w}px; --page-h:${PAGE.h}px;
   /* THE SPACING SCALE (v8.1). One ladder, five rungs, used for every vertical gap on the
      page. Before this the gaps were ad-hoc 1-5px values chosen per block and the operator's
      verdict was that "the sections and boxes are on top of each other". Vertical rhythm is
@@ -154,7 +284,7 @@ body{ background:#fff; }
 .page{ width:var(--page-w); height:var(--page-h); position:relative; background:#fff;
        page-break-after:always; overflow:hidden; }
 .page:last-child{ page-break-after:auto; }
-.pad{ padding:10px 21px 4px; height:100%; display:flex; flex-direction:column; }
+.pad{ padding:${PAGE.padT}px ${PAGE.padX}px ${PAGE.padB}px; height:100%; display:flex; flex-direction:column; }
 /* Every direct child of .pad is an ATOM the packer measured. Rhythm is margin-top ONLY —
    margin-bottom would double up between neighbours and margins never collapse between flex
    items, so one-sided margins are the only shape whose sum equals the stack height. The
@@ -170,8 +300,16 @@ body{ background:#fff; }
 /* Urdu needs more top padding than Latin: Nastaliq's honorific ligatures (ﷺ) and its tall
    marks reach far above the x-height, and at 7px the ﷺ in a chapter title sat on the hero's
    own top edge. Measured on the G10 Urdu sample, not guessed. */
+/* ── EVERY REMAINING SIDE-BY-SIDE PAIR, COLLAPSED ON THE PHONE PAGE (v9.3, bd-oak77.16) ──
+   Found by rendering the whole type sweep at 390px and READING it, not by grepping for display:flex.
+   At the phone page's 478px measure each of these gives its halves ~230px, and the masthead
+   pair is worse than that: .hero .h-meta is flex:0 1 auto, so it shrank to ~110px and
+   printed "Ch. 1 · Matrices and Determinants p.24-25 · 40 min" down five lines while stealing
+   the width from the title — the exact pathology the h-meta comment above records at 794px,
+   reappearing one page size down. .p2head was worse again: eight lines of wrapped meta.
+   Stacking is the fix and it costs nothing measurable: the corpus page count is unchanged. */
 .hero{ background:var(--navy); color:#fff; border-radius:11px; padding:${rtl ? "12px" : "8px"} 14px ${rtl ? "9px" : "8px"};
-       display:flex; justify-content:space-between; align-items:flex-start; gap:18px; }
+       ${PAGE.oneColumn ? "display:block;" : "display:flex; justify-content:space-between; align-items:flex-start; gap:18px;"} }
 .hero .kicker{ color:var(--amber); font-weight:800; letter-spacing:.13em; font-size:14px;
        text-transform:uppercase; line-height:1.3; }
 /* The TITLE COLUMN. flex:1 1 auto with min-width:0 is load-bearing: without the min-width a
@@ -189,10 +327,10 @@ body{ background:#fff; }
    lines; 49 -> 29%/7; 63 -> 23%/9 AND 50px of the badge hanging off the hero; 82 -> 119px off,
    past the page edge and over the chapter line. Hence: the meta column may shrink, and may
    never take more than 46% of the hero. */
-.hero .h-meta{ text-align:${end}; font-size:14.5px; color:#c9d4e6; line-height:${rtl ? "1.9" : "1.55"};
-       flex:0 1 auto; min-width:0; max-width:46%; }
+.hero .h-meta{ text-align:${PAGE.oneColumn ? start : end}; font-size:14.5px; color:#c9d4e6; line-height:${rtl ? "1.9" : "1.55"};
+       flex:0 1 auto; min-width:0; max-width:${PAGE.oneColumn ? "100%" : "46%"};${PAGE.oneColumn ? " margin-top:6px;" : ""} }
 .hero .h-meta b{ color:#fff; }
-.hero .chips{ display:flex; gap:5px; justify-content:flex-${rtl ? "start" : "end"}; margin-top:5px; flex-wrap:wrap; }
+.hero .chips{ display:flex; gap:5px; justify-content:flex-${PAGE.oneColumn || rtl ? "start" : "end"}; margin-top:5px; flex-wrap:wrap; }
 /* A chip whose text cannot wrap cannot shrink, so a capped column would have overflowed
    instead. The badge wraps INSIDE its pill; overflow-wrap covers the pathological single long
    token that would otherwise still push out. */
@@ -239,13 +377,21 @@ body{ background:#fff; }
    live [132,182,100,255,449] vs block-mode [132,182,97,250,444] on the G10 maths page. */
 body.measuring .page{ height:auto; overflow:visible; }
 body.measuring .pad{ height:auto; }
-/* margin-top:auto on .mats/.foot is SLACK, not height: in the live layout it absorbs whatever
-   the page has left over. So the packer must charge zero for it, not a guessed 8px. */
-body.measuring .mats, body.measuring .foot{ margin-top:0; }
+/* margin-top:auto on .foot is SLACK, not height: in the live layout it absorbs whatever the
+   page has left over. So the packer must charge zero for it, not a guessed 8px.
+   .mats WAS IN THIS RULE AND HAD NO BUSINESS BEING HERE (bd-c3le6). It carries no auto margin
+   — grep it: its only margin-top is the sp-4 spacing class, 16px, applied like every other
+   atom's. Releasing it did not cancel slack; it cancelled a real 16px the live layout charges,
+   so the packer believed the materials strip was 16px shorter than it prints and any page that
+   ended on it overflowed by up to one spacing step. That is d15's 3px, d10's 9px and d03's
+   11px — three whole lessons discarded after five revision rounds each. Measured on d10's t6:
+   +16 on this one atom, 0 on the other fifteen. */
+body.measuring .foot{ margin-top:0; }
 .sec{ break-inside:avoid; display:flex; flex-direction:column; gap:var(--sp-2); }
-.split{ display:flex; gap:var(--sp-3); align-items:flex-start; }
+.split{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3); align-items:flex-start;"} }
 .split > div{ display:flex; flex-direction:column; gap:var(--sp-2); }
-.secrow{ display:flex; gap:var(--sp-3); align-items:flex-start; }
+${PAGE.oneColumn ? ".split > div + div{ margin-top:var(--sp-2); }" : ""}
+.secrow{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3); align-items:flex-start;"} }
 .secrow > .sec{ flex:1 1 0; min-width:0; }
 .blk{ margin:0; }
 p{ font-size:18px; }
@@ -321,7 +467,8 @@ p{ font-size:18px; }
 .pr .a{ color:var(--leaf); font-weight:700; }
 .pr .tier{ flex:0 0 auto; margin-${start}:auto; font-size:14px; font-weight:800; letter-spacing:.05em;
       text-transform:uppercase; color:#9aa3b0; }
-.se{ display:flex; gap:var(--sp-3); }
+.se{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3);"} }
+${PAGE.oneColumn ? ".se > div + div{ margin-top:var(--sp-2); }" : ""}
 .se > div{ flex:1 1 0; border-radius:9px; padding:7px 13px; border:1.5px solid; }
 .se .sup{ background:#F5F8FC; border-color:#CBD8E8; }
 .se .sup .lbl{ color:var(--navy2); }
@@ -330,7 +477,21 @@ p{ font-size:18px; }
 .se p{ font-size:18px; margin-top:var(--sp-1); }
 
 /* ── figures ────────────────────────────────────────────────────────────── */
-figure.dg{ border:1.5px solid var(--line); border-radius:10px; padding:9px 11px; break-inside:avoid; }
+/* --fig-wide is the FIGURE-WIDENING REPAIR (bd-oak77.14). A full-width diagram whose smallest
+   label misses the 13.5px floor by a hair used to LOSE THE WHOLE LESSON — on 2026-09-06 the first
+   Urdu tap on production died on 13.25px against 13.5px, on a figure that was already in a
+   full-width row so the renderer's own advice ("give it a full-width row") had nothing left to
+   give. The 14px it wanted was sitting in this rule: the figure's own padding and border, and
+   then the page's 21px side margin.
+
+   So the figure grows symmetrically by the SMALLEST amount that clears the floor, and never past
+   the paper. It is a negative inline margin rather than zeroing the padding and border, because
+   the frame is part of the figure's identity and dropping it is a visible change, where widening
+   the border box is not. The property is absent on every figure that fits, so this rule is a no-op for them.
+
+   NOTE FOR ANYONE EDITING THIS STYLESHEET: it lives inside a JS template literal. No backticks. */
+figure.dg{ border:1.5px solid var(--line); border-radius:10px; padding:9px 11px; break-inside:avoid;
+      margin-left:calc(-1 * var(--fig-wide, 0px)); margin-right:calc(-1 * var(--fig-wide, 0px)); }
 figure.dg.book{ border-color:#CBD8E8; }
 figure.dg .ftop{ display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-1); gap:8px; }
 /* NOT uppercase. The badge carries a human label now ("Equation", "Force diagram"), and
@@ -345,9 +506,18 @@ figure.dg .fsrc{ color:var(--leaf); font-weight:800; font-size:14px; }
    to whatever fraction 118px was of its natural height. That is what put mindmap, punnett and
    grid labels at ~3px on a phone: the clamp, not the diagram types' own font sizes. Each
    figure now carries its OWN computed max-height (the slot in which its smallest label still
-   renders >= 13.5px). A raster book crop has no vector type to crush, so it keeps a clamp. */
+   renders >= 13.5px).
+
+   A raster book crop cannot be measured that way -- its labels are baked pixels, not text nodes
+   the sizer can find -- so it keeps a flat clamp. But the clamp was 200px on the reasoning that
+   "a raster has no vector type to crush", and that reasoning was wrong: downscaling crushes a
+   crop's printed labels exactly as it crushed the vector ones. Measured on the 2026-09-05
+   representative batch (bd-8lifl), six crops across five lessons were unreadable at their own
+   labels -- the Grade 6 Geography world map printed at under half the column with ~2.5pt
+   labels, on a figure whose content was otherwise correct. CROP_MAX_H is the lever; raising it
+   costs paper, not lessons (an over-cap document still delivers, bd-vjk68). */
 figure.dg svg{ display:block; width:100%; height:auto; max-height:var(--fig-h, none); margin:0 auto; }
-figure.dg img{ display:block; width:100%; height:auto; max-height:200px;
+figure.dg img{ display:block; width:100%; height:auto; max-height:${CROP_MAX_H}px;
       object-fit:contain; margin:0 auto; }
 figure.dg figcaption{ text-align:center; font-size:15.5px; color:var(--mut); font-weight:600; margin-top:var(--sp-1);
       line-height:${rtl ? "1.9" : "1.5"}; }
@@ -444,12 +614,12 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
       border-top:1px solid var(--line); padding-top:var(--sp-2); line-height:${rtl ? "1.9" : "1.55"}; }
 
 /* ── page 2 ─────────────────────────────────────────────────────────────── */
-.p2head{ display:flex; justify-content:space-between; align-items:center;
-      border-bottom:3px solid var(--navy); padding-bottom:var(--sp-2); gap:12px; }
+.p2head{ ${PAGE.oneColumn ? "display:block;" : "display:flex; justify-content:space-between; align-items:center; gap:12px;"}
+      border-bottom:3px solid var(--navy); padding-bottom:var(--sp-2); }
 .p2head .pill{ background:var(--navy); color:#fff; font-size:14px; font-weight:800; letter-spacing:.11em;
-      text-transform:uppercase; padding:5px 14px; border-radius:16px; flex:0 0 auto; }
+      text-transform:uppercase; padding:5px 14px; border-radius:16px; flex:0 0 auto;${PAGE.oneColumn ? " display:inline-block;" : ""} }
 .p2head .t{ font-size:20.5px; font-weight:800; color:var(--navy); line-height:${rtl ? "1.8" : "1.3"}; }
-.p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${end}; line-height:${rtl ? "1.85" : "1.45"}; }
+.p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${PAGE.oneColumn ? start : end}; line-height:${rtl ? "1.85" : "1.45"};${PAGE.oneColumn ? " margin-top:var(--sp-1);" : ""} }
 .p2sec{ break-inside:avoid; }
 .p2bar{ display:flex; align-items:center; gap:7px; margin:0; }
 .p2bar .badge{ flex:0 0 auto; width:21px; height:21px; border-radius:6px; background:var(--navy); color:#fff;
@@ -457,8 +627,13 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .p2bar .nm{ font-size:17px; font-weight:800; color:var(--navy); letter-spacing:.03em;
       text-transform:uppercase; line-height:${rtl ? "1.8" : "1.35"}; }
 .p2bar .rule{ flex:1 1 auto; height:2px; background:var(--line); }
-.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-2); }
-.grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--sp-2); }
+/* ONE COLUMN on the phone page (v9.3). A .grid3 cell at the 478px measure is 154px — about
+   seven characters a line — and .grid2's is 231px. This is a LAYOUT change, not a scale one:
+   no size rescues a seven-character column. Measured over the 62 documents it SAVES 27 pages
+   rather than costing them, because a three-column grid at a phone measure wraps its cells so
+   hard that the row is taller than the same cards stacked. DESIGN.md section 5(b). */
+.grid2{ display:grid; grid-template-columns:${PAGE.oneColumn ? "1fr" : "1fr 1fr"}; gap:var(--sp-2); }
+.grid3{ display:grid; grid-template-columns:${PAGE.oneColumn ? "1fr" : "1fr 1fr 1fr"}; gap:var(--sp-2); }
 .card{ border:1px solid var(--line); border-radius:6px; padding:3px 10px; background:#fff; }
 .card .lbl{ color:var(--navy2); display:block; margin-bottom:var(--sp-1); }
 .card p{ font-size:18px; }
@@ -492,7 +667,8 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .how{ font-size:15.5px; color:var(--mut); display:block; margin-top:var(--sp-1); }
 .ord{ margin:0; padding-${start}:21px; }
 .ord li{ font-size:18px; margin:0; line-height:1.55; }
-.nxt{ display:flex; gap:var(--sp-2); }
+.nxt{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-2);"} }
+${PAGE.oneColumn ? ".nxt > div + div{ margin-top:var(--sp-2); }" : ""}
 .nxt > div{ flex:1 1 0; border-radius:7px; padding:5px 11px; border:1px solid; }
 .nxt .a{ background:#F5F8FC; border-color:#CBD8E8; } .nxt .a .lbl{ color:var(--navy2); display:block; }
 .nxt .b{ background:var(--warn-soft); border-color:var(--warn-line); } .nxt .b .lbl{ color:var(--warn); display:block; }
@@ -511,13 +687,21 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    line box and the wordmark ran 4px past the page's inner bottom on every single Urdu page.
    A bottom padding lifts the text off the floor and — because the packer measures the
    footer's real box in the probe — is charged for exactly. */
+/* STACKED, not a two-column row (v9.3, bd-oak77.16). The row was built for a 752px measure:
+   at the phone page's 478px its left half wraps to three or four lines and the strip goes
+   74px -> 188px ON EVERY PAGE — measured on cell_c06 — which is more than a whole page of
+   furniture over a 16-page lesson and is what pushed 29 of 62 documents into OVERFLOW with
+   overflowingSections EMPTY: nothing of the lesson clipped, only the strip that prints
+   "page 6 of 14" over the line, and 16-78px of it, past bd-c3le6's 12px absorber. Stacked,
+   each half gets the full column and the strip measures 74px again. Same words, same order,
+   no string touched. */
 .foot{ margin-top:auto; padding-top:var(--sp-2); padding-bottom:${rtl ? "7px" : "1px"};
       border-top:1px solid var(--line);
-      display:flex; justify-content:space-between; align-items:baseline; color:var(--mut);
-      font-size:14px; gap:14px; line-height:${rtl ? "1.75" : "1.4"}; }
+      display:block; color:var(--mut);
+      font-size:14px; line-height:${rtl ? "1.75" : "1.4"}; }
 .foot b{ color:var(--navy); font-weight:700; }
 .foot .fl{ min-width:0; }
-.foot .fr{ text-align:${end}; flex:0 0 auto; white-space:nowrap; }
+.foot .fr{ text-align:${start}; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
 ${rtl ? `
 /* ── mixed-script prose under RTL (the 2026-09 audit, class D3) ──────────────
@@ -535,16 +719,65 @@ p, li, figcaption,
 .wu .q, .pr .q, .hw .q, .mcq .q, .exq h4, .exq .prompt,
 .exit .it > span, .vres a, .tnote, .crit, .bythe, .how, .refq{ unicode-bidi:plaintext; }
 ` : ""}`;
+  return `${fonts}\n${katex}\n${scaleTypeCss(sheet, TYPE_SCALE)}`;
 }
 
 // ── geometry the figure sizer needs ─────────────────────────────────────────
-// .pad is padded 22px each side inside a 794px page; figure.dg adds 10px padding either
-// side plus a 1.5px border. So a full-width diagram's own drawing box is 727px.
-const PAGE_INNER_W = 794 - 21 * 2;      // 752
+// .pad is padded PAGE.padX each side inside a PAGE.w page; figure.dg adds 10px padding either
+// side plus a 1.5px border. On A4 that made a full-width diagram's drawing box 729px; on the
+// v9.3 phone page it is 455px. ONE definition, derived from ONE page object — the two legibility
+// gates were 2px apart for as long as this number was written down twice (bd-oak77.14).
+const PAGE_INNER_W = PAGE.w - PAGE.padX * 2;
+/* The flat height clamp on a raster book crop. See the note above `figure.dg img`. */
+const CROP_MAX_H = 320;
+
 const FIG_CHROME = 10 * 2 + 3;          // figure.dg padding + border
 const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 727
 const SPLIT_GAP = 9;
-const DIAGRAM_MIN_PX = 13.5;            // the legibility floor inside a figure
+/** The legibility floor inside a figure, AT THE A4 MEASURE it was chosen against, and the drawing
+ *  box it was chosen for. A figure's labels scale with ITS COLUMN, not with the page. */
+const DIAGRAM_MIN_PX_A4 = 13.5;
+const FULL_COL_A4 = PAGE_A4.w - PAGE_A4.padX * 2 - FIG_CHROME;   // 729
+/* And the same floor on this page. IT MUST SCALE, AND IT MUST SCALE BY THE COLUMN.
+
+   That it must scale at all is not a preference: `requiredBox()` sizes a figure so its smallest
+   label clears this floor in the FIGURE's own column, so holding 13.5 on a 455px drawing box means
+   the drawing can no longer shrink to fit. Measured over the 116 lessons production has actually
+   delivered, that is 159 BLOCKING lint failures across 101 of them — `FIGURE` is not on
+   `ADVISORY_CODES`, so each one is a revision round the ladder spends and a lesson it can lose.
+
+   That it must scale by FULL_COL and not by PAGE.w is the part that is easy to get wrong, and it
+   cost this lane a measurement to find. The two ratios are NOT the same, because `padX` and
+   `FIG_CHROME` are absolute pixels that did not shrink with the page: 520/794 = 0.6549 but
+   455/729 = 0.6242. Scaling by the page gives 8.84, which is apparent-size-neutral on the screen
+   but 5% STRICTER than A4 relative to the column a figure actually gets — and it rejects figures
+   A4 accepts: 26 blocking failures across 25 documents against today's 8 across 8. Scaling by the
+   column gives 8.43 and reproduces today's set EXACTLY — 8 across 8, the same documents.
+
+   WHAT THAT COSTS, SAID PLAINLY: a diagram's smallest label arrives on the phone about 5% smaller
+   than it does today (6.32 phone px against 6.63). That is the price of keeping the 21px gutters,
+   which this lane deliberately did not narrow, and it is a 5% change to a mark already sitting at
+   43% of the reading floor. ACCEPTANCE-neutrality is what protects a teacher's lesson; the 5% is
+   bd-oak77.15's to win back, and DESIGN.md section 5(c) says why that needs simpler diagrams
+   rather than a bigger floor. */
+const DIAGRAM_MIN_PX = +(DIAGRAM_MIN_PX_A4 * (FULL_COL / FULL_COL_A4)).toFixed(2);
+/**
+ * How far a FULL-WIDTH figure may grow, per side, to rescue its own labels — bd-oak77.14.
+ *
+ * The page is 794px with 21px of padding a side, so 21 is the hard ceiling: one pixel more and
+ * the drawing runs off the paper, which is a worse defect than the one being fixed. The first
+ * 11.5 of it is the figure's own chrome (`FIG_CHROME / 2`); the rest is margin the page can
+ * spare. 18 leaves 3px of true paper margin on each side at full stretch and buys a full-width
+ * figure 765px of drawing box against FULL_COL's 729 — enough for every FIGURE TOO SMALL either
+ * production or staging has ever emitted (worst recorded: 743px needed, 2026-09-06).
+ *
+ * ONLY FULL-WIDTH FIGURES. Inside a `split` the 9px SPLIT_GAP is not ours to spend and anything
+ * past it lands on the neighbouring column, so a narrow-column figure is left as a defect — which
+ * the never-fail delivery policy then ships with a flag rather than losing (see
+ * lp612-render-policy.service.js). That is the same advice the defect string has always given
+ * ("give it a full-width row"), enforced instead of suggested.
+ */
+const FIG_GROW_MAX = PAGE.padX - 3;
 
 let _requiredBox = null;
 function requiredBoxFn() {
@@ -586,6 +819,47 @@ function figureSlot(svg, colPx) {
     minWidthPx: box.minWidthPx,
     legible: box.renderedPx == null || box.renderedPx >= DIAGRAM_MIN_PX,
     tooTall: maxHeightPx > PAGE_CONTENT_H,
+  };
+}
+
+/**
+ * THE SLOT, AFTER TRYING TO RESCUE IT — bd-oak77.14.
+ *
+ * `figureSlot` answers "does this figure fit legibly in this column". This answers the question
+ * that actually decides whether a teacher gets her lesson: "and if not, can we simply give it
+ * more room?" A full-width figure that misses the floor by a few pixels is a LAYOUT problem with
+ * a layout answer; treating it as a document defect is what threw away a finished 12-page lesson
+ * on 2026-09-06 for a label 0.25px under the line.
+ *
+ * The growth is the SMALLEST that clears the floor, never the maximum available, and it is
+ * re-MEASURED with the same `requiredBox` rather than assumed — "it should fit now" is a
+ * hypothesis (rule 16), and the widened slot is the thing the browser will actually lay out.
+ *
+ * @param {string} svg
+ * @param {number} colPx        the drawing box this figure has today
+ * @param {number} maxGrowPx    how much it may take PER SIDE (0 = not allowed to grow)
+ * @returns the `figureSlot` shape for the box it ends up with, plus:
+ *   `growPx`            what it took per side (0 when it needed nothing, or could not be saved)
+ *   `renderedPxBefore`  the size its smallest label rendered at BEFORE (null when it fitted)
+ *   `neededPx`          the width it asked for
+ *   `triedGrowPx`       set when a rescue was attempted and failed — the message says so
+ */
+function figureFit(svg, colPx, maxGrowPx) {
+  const base = figureSlot(svg, colPx);
+  if (base.legible || !base.minWidthPx || !(maxGrowPx > 0)) return { ...base, growPx: 0 };
+  // Per side, and at least 1px — a sub-pixel deficit still needs a whole pixel of margin.
+  const need = Math.max(1, Math.ceil((base.minWidthPx - colPx) / 2));
+  if (need > maxGrowPx) return { ...base, growPx: 0, triedGrowPx: maxGrowPx };
+  const widened = figureSlot(svg, colPx + 2 * need);
+  // Measured, not assumed. If the widened box still does not clear the floor (it can happen when
+  // `minWidthPx` was rounded down against a viewBox this figure does not honour), report the
+  // ORIGINAL defect rather than shipping a widening that bought nothing.
+  if (!widened.legible) return { ...base, growPx: 0, triedGrowPx: maxGrowPx };
+  return {
+    ...widened,
+    growPx: need,
+    renderedPxBefore: base.renderedPx,
+    neededPx: base.minWidthPx,
   };
 }
 
@@ -699,13 +973,38 @@ function makeBlockRenderer(ctx) {
         svg = ctx.placeholder(b.spec || { type: "?" });
       }
       ctx.vectorFigure = true;   // the phone gate's pixel proxy scores SVG hairlines as type
-      // The slot is COMPUTED, never a magic number. See figureSlot().
-      const slot = figureSlot(svg, colPx || FULL_COL);
+      // The slot is COMPUTED, never a magic number. See figureSlot()/figureFit().
+      const col = colPx == null ? FULL_COL : colPx;
+      // bd-oak77.14: a FULL-WIDTH figure may take up to FIG_GROW_MAX px a side to rescue its own
+      // labels. A figure in a narrower column may not — the space beside it belongs to the other
+      // column (see FIG_GROW_MAX). `col >= FULL_COL` rather than `=== ` so a future wider page
+      // does not silently switch the repair off.
+      const slot = figureFit(svg, col, col >= FULL_COL ? FIG_GROW_MAX : 0);
       const label = `"${(b.spec && b.spec.type) || "?"}"${b.spec && b.spec.caption ? ` (${String(b.spec.caption).slice(0, 40)})` : ""}`;
+      if (slot.growPx) {
+        // RECORDED, always. A repair that leaves no trace is a regression mask (rule 24(b)): if
+        // this starts firing on half the corpus, the diagram engine has drifted and this number
+        // is the thing that says so, not a clean-looking render.
+        ctx.figureRepair({
+          code: "FIGURE_WIDENED",
+          specType: (b.spec && b.spec.type) || null,
+          caption: b.spec && b.spec.caption ? String(b.spec.caption).slice(0, 60) : null,
+          colPx: Math.round(col),
+          growPx: slot.growPx,
+          neededPx: slot.neededPx,
+          renderedPxBefore: slot.renderedPxBefore,
+          renderedPxAfter: slot.renderedPx,
+          floorPx: DIAGRAM_MIN_PX,
+        });
+      }
       if (!slot.legible) {
         ctx.figureProblem(`FIGURE TOO SMALL: diagram ${label} renders its smallest label at ` +
-          `${slot.renderedPx}px in a ${Math.round(colPx || FULL_COL)}px column (floor ${DIAGRAM_MIN_PX}px). ` +
-          `It needs ${slot.minWidthPx}px of width — give it a full-width row, or simplify it.`);
+          `${slot.renderedPx}px in a ${Math.round(col)}px column (floor ${DIAGRAM_MIN_PX}px). ` +
+          `It needs ${slot.minWidthPx}px of width — ` +
+          (slot.triedGrowPx
+            ? `the most the page can give it is +${slot.triedGrowPx}px a side, which is still `
+              + `short. Simplify it, or split it into two smaller figures.`
+            : `give it a full-width row, or simplify it.`));
       } else if (slot.tooTall) {
         ctx.figureProblem(`FIGURE TOO TALL: diagram ${label} needs ${slot.maxHeightPx}px of height to stay ` +
           `readable, which is more than one page (${PAGE_CONTENT_H}px). Split it or simplify it — ` +
@@ -713,7 +1012,10 @@ function makeBlockRenderer(ctx) {
       }
       // The clamp rides a custom property so it lands on the SVG itself — a max-height on the
       // <figure> would clip the drawing instead of scaling it.
-      const cap = slot.maxHeightPx ? ` style="--fig-h:${slot.maxHeightPx}px"` : "";
+      const styleBits = [];
+      if (slot.maxHeightPx) styleBits.push(`--fig-h:${slot.maxHeightPx}px`);
+      if (slot.growPx) styleBits.push(`--fig-wide:${slot.growPx}px`);
+      const cap = styleBits.length ? ` style="${styleBits.join(";")}"` : "";
       // NO outer <figcaption>. The diagram engine's builder owns the caption strip
       // (diagrams/lib/svg.js draws spec.caption inside the SVG, and the L1 placeholder
       // prints it too), so wrapping it again printed every caption TWICE — plain from the
@@ -733,6 +1035,16 @@ function makeBlockRenderer(ctx) {
       // src may be absent while the figure-locator pass has not yet cropped `ref` (L3 ask 6).
       // Fall back to the words, and SAY the crop is missing — never a silently blank box.
       let img = b.src ? dataUri(b.src, ctx.docDir) : null;
+      // bd-17mht: the diagram plan names a crop by `ref` and the worker stages
+      // it into the render dir as `<ref>.jpg`. Without this, `src` is never
+      // populated by anything in the codebase and EVERY book figure silently
+      // degraded to the text-only reference below.
+      // `ref` reaches us from LLM output, and dataUri() resolves against
+      // REPO_ROOT as well as docDir, so a `..` would escape the render dir —
+      // refuse anything that is not a plain book/page ref.
+      if (!img && typeof b.ref === "string" && /^[A-Za-z0-9_][A-Za-z0-9_\-./]*$/.test(b.ref) && !b.ref.includes("..")) {
+        img = dataUri(`${b.ref}.jpg`, ctx.docDir);
+      }
       if (img && /\.(jpe?g|png)$/i.test(img.path)) {
         const cleaned = cleanedFigure(img.path, ctx.warn);
         if (cleaned !== img.path) img = dataUri(cleaned, ctx.docDir);
@@ -768,7 +1080,10 @@ function makeBlockRenderer(ctx) {
     const r = b.ratio || 0.5;
     const outer = (colPx || FULL_COL) + FIG_CHROME;     // the split divides the TEXT column
     const wide = outer - SPLIT_GAP;
-    const colW = (grow) => Math.floor(wide * grow) - FIG_CHROME;
+    // v9.3: stacked, both columns are the full measure, so a figure inside a split is sized
+    // for the width it will actually be drawn at. Sizing for a half it no longer occupies is how
+    // a legible figure gets clamped to half its height.
+    const colW = (grow) => (PAGE.oneColumn ? outer - FIG_CHROME : Math.floor(wide * grow) - FIG_CHROME);
 
     // A diagram that cannot stay legible in its half is HOISTED to a full-width row under
     // the split rather than silently crushed. Legibility beats the two-column layout — the
@@ -1149,12 +1464,19 @@ function page1(doc, ctx, secIndex) {
     for (const b of s.blocks) {
       for (const a of blockAtoms(b, colPx)) out.push(atom(a.html, { sec: id, glue: a.glue, sp: a.sp }));
     }
-    for (const x of after(s)) out.push(atom(x.html, { sec: id, sp: x.sp }));
+    // `glue` is forwarded here exactly as it is for before(s) above. No atom from after()
+    // sets it today, so this changes nothing — but the asymmetry was a trap: an atom that
+    // declared glue would have had it dropped on the floor, silently, and now that the
+    // packer chooses its breaks freely a dropped glue is a split a reader sees.
+    for (const x of after(s)) out.push(atom(x.html, { sec: id, glue: x.glue, sp: x.sp }));
     return out;
   };
 
-  const A = [atom(hero, { sp: 0 })];
-  if (seq) A.push(atom(seq, { sp: 2 }));
+  // The hero and the sequence strip are the page's masthead: a break under either of them
+  // would print a sheet carrying a title and nothing else. Greedy could never do that — it
+  // fills first — so neither was ever marked. An exact packer has to be told.
+  const A = [atom(hero, { sp: 0, glue: true })];
+  if (seq) A.push(atom(seq, { sp: 2, glue: true }));
   A.push(atom(sloBox, { sp: 2 }));
   // Directly under the outcome box: the first thing after "what the pupil can do".
   if (resourcesLine) A.push(atom(resourcesLine, { sp: 2 }));
@@ -1165,7 +1487,7 @@ function page1(doc, ctx, secIndex) {
   for (let i = 0; i < doc.sections.length; i++) {
     const s = doc.sections[i];
     const n = doc.sections[i + 1];
-    if (s.layout === "half" && n && n.layout === "half") {
+    if (!PAGE.oneColumn && s.layout === "half" && n && n.layout === "half") {
       A.push(atom(`<div class="secrow">${whole(s, HALF_COL)}${whole(n, HALF_COL)}</div>`, { sp: 4 }));
       i++;
     } else {
@@ -1209,7 +1531,16 @@ function page2(doc, ctx, secIndex) {
     A.push(atom(p2bar(letter, name), { sec: key, first: true, glue: true, sp: 2 }));
     bodies.filter(Boolean).forEach((b) => {
       const html = typeof b === "string" ? b : b.html;
-      A.push(atom(html, { sec: key, sp: typeof b === "string" ? 1 : b.sp == null ? 1 : b.sp }));
+      // A body may now declare its own `glue`. It could not before, and it did not need to
+      // while the packer was greedy: greedy breaks as LATE as it can, so it only ever
+      // separated two adjacent body atoms when the second genuinely did not fit. An exact
+      // packer chooses its breaks freely, so every adjacency a reader depends on has to be
+      // stated rather than left to that accident. See section A below.
+      A.push(atom(html, {
+        sec: key,
+        sp: typeof b === "string" ? 1 : b.sp == null ? 1 : b.sp,
+        glue: typeof b === "string" ? false : !!b.glue,
+      }));
     });
   };
 
@@ -1242,7 +1573,10 @@ function page2(doc, ctx, secIndex) {
    * @param firstSp the rung the FIRST row sits at (it follows the section bar, not a gap)
    */
   const gridRows = (cls, cards, firstSp = 1) => {
-    const perRow = cls === "grid3" ? 3 : 2;
+    // v9.3: on a one-column page a "row" is a card. Keeping 3-per-row would emit three
+    // stacked cards inside ONE atom, and a break may never fall inside a row — the packer
+    // would have to push all three to a fresh page.
+    const perRow = PAGE.oneColumn ? 1 : (cls === "grid3" ? 3 : 2);
     const out = [];
     for (let i = 0; i < cards.length; i += perRow) {
       out.push({ html: `<div class="${cls}">${cards.slice(i, i + perRow).join("")}</div>`,
@@ -1261,8 +1595,27 @@ function page2(doc, ctx, secIndex) {
       svg = ctx.placeholder(P.board_final.diagram);
     }
     ctx.vectorFigure = true;
-    const slot = figureSlot(svg, FULL_COL);
-    const style = slot.maxHeightPx ? ` style="--fig-h:${slot.maxHeightPx}px"` : "";
+    // Same repair as R.diagram (bd-oak77.14) — this figure is always full-width, so it always
+    // qualifies. A second copy of the sizing rule that silently omitted the widening would fail
+    // support pages for a defect the teach page recovers from.
+    const slot = figureFit(svg, FULL_COL, FIG_GROW_MAX);
+    if (slot.growPx) {
+      ctx.figureRepair({
+        code: "FIGURE_WIDENED",
+        specType: (P.board_final.diagram && P.board_final.diagram.type) || null,
+        caption: null,
+        colPx: FULL_COL,
+        growPx: slot.growPx,
+        neededPx: slot.neededPx,
+        renderedPxBefore: slot.renderedPxBefore,
+        renderedPxAfter: slot.renderedPx,
+        floorPx: DIAGRAM_MIN_PX,
+      });
+    }
+    const styleBits2 = [];
+    if (slot.maxHeightPx) styleBits2.push(`--fig-h:${slot.maxHeightPx}px`);
+    if (slot.growPx) styleBits2.push(`--fig-wide:${slot.growPx}px`);
+    const style = styleBits2.length ? ` style="${styleBits2.join(";")}"` : "";
     // board_final.caption is a SEPARATE authored string from the diagram spec's own caption
     // (which the SVG already prints). Print it only when it says something different.
     const specCap = P.board_final.diagram.caption;
@@ -1275,10 +1628,16 @@ function page2(doc, ctx, secIndex) {
       <div class="t">${rich(p.topic)}</div>
       <div class="r">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.notReadAloud)}<br>${rich(p.chapter)} &middot; ${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)}</div>
     </div>`;
-  A.push(atom(p2head, { sp: 0 }));
+  // The support page's masthead, glued for the same reason as the teach page's hero.
+  A.push(atom(p2head, { sp: 0, glue: true }));
 
+  // The board diagram and the draw-order card that tells the teacher how to build it are ONE
+  // instruction in two atoms. Splitting them across a page leaves the teacher looking at a
+  // finished board on one sheet and the order to draw it on another — which is the whole use
+  // of section A. It was never marked `glue` because the greedy packer separated them only
+  // when the card genuinely did not fit; an exact packer would find that break and take it.
   S("A", L.p2Board, [
-    boardDia ? { html: boardDia, sp: 2 } : null,
+    boardDia ? { html: boardDia, sp: 2, glue: true } : null,
     `<div class="card"><span class="lbl">${esc(L.drawOrder)}</span>
       <ol class="ord">${P.board_final.draw_order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
   ]);
@@ -1397,7 +1756,7 @@ function page2(doc, ctx, secIndex) {
 }
 
 // The page box, in CSS px: A4 at 96dpi, less .pad's own padding.
-const PAGE_CONTENT_H = 1123 - 10 - 4;
+const PAGE_CONTENT_H = PAGE.h - PAGE.padT - PAGE.padB;
 
 /** The spacing scale, exported so a test can assert there is exactly ONE ladder. */
 const SPACING = { sp1: 4, sp2: 8, sp3: 12, sp4: 16, sp5: 24 };
@@ -1446,6 +1805,10 @@ function buildHtml(input, opts = {}) {
   const L = LABELS[rtl ? "ur" : "en"];
   const warnings = [];
   const figureProblems = [];
+  /** bd-oak77.14 — every figure the layout had to WIDEN to keep legible. `[]` on a clean
+   *  document, never absent: "we looked and there was nothing" is a different fact from "we did
+   *  not look" (rule 24(b)). */
+  const figureRepairs = [];
 
   let renderDiagram, stubDiagrams = false;
   try {
@@ -1480,6 +1843,7 @@ function buildHtml(input, opts = {}) {
     stubDiagrams,
     warn: (m) => warnings.push(m),
     figureProblem: (m) => figureProblems.push(m),
+    figureRepair: (r) => figureRepairs.push(r),
     rasterFigure: false,
     vectorFigure: false,
   };
@@ -1524,7 +1888,7 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
 </html>`;
 
   return {
-    html, warnings, figureProblems, fontReport: fonts,
+    html, warnings, figureProblems, figureRepairs, fontReport: fonts,
     atoms: {
       teach: teach.atoms.map((a) => ({ sec: a.sec, first: a.first, glue: a.glue })),
       support: support.atoms.map((a) => ({ sec: a.sec, first: a.first, glue: a.glue })),
@@ -1537,4 +1901,7 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
   };
 }
 
-module.exports = { buildHtml, SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel };
+module.exports = { buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META,
+  PAGE, PAGE_A4, PAGE_FORMATS, pageScaled, PAGE_INNER_W, PAGE_CONTENT_H, DIAGRAM_MIN_PX, DIAGRAM_MIN_PX_A4,
+  FIG_CHROME, FULL_COL, FULL_COL_A4, FIG_GROW_MAX,
+  SPACING, DIAGRAM_LABELS, diagramLabel };

@@ -80,7 +80,9 @@ let Serving;
 beforeEach(() => {
   jest.resetModules();
   mockSendMessage.mockReset().mockResolvedValue(undefined);
-  mockSendDocumentByLink.mockReset().mockResolvedValue(undefined);
+  // bd-m1xyt: deliverRender now checks this return and retries/throws on a falsy one, so the
+  // "success" double must actually be truthy — `undefined` used to pass silently.
+  mockSendDocumentByLink.mockReset().mockResolvedValue(true);
   mockPushToShelf.mockReset().mockResolvedValue(undefined);
   Serving = require('../../bot/shared/services/lp612-serving.service');
 });

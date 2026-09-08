@@ -32,6 +32,10 @@ const STATUS_FLOW_ID = process.env.STATUS_FLOW_ID || '';
 // WhatsApp Flow ID for the Student Video Library picker. When set, /video
 // opens the library; when empty, /video uses the runtime video generator.
 const STUDENT_VIDEOS_FLOW_ID = process.env.STUDENT_VIDEOS_FLOW_ID || '';
+// WhatsApp Flow ID for /quiz as one Flow (lesson list with in-Flow paging,
+// live results, generate report / resend link / make the quiz). Empty →
+// /quiz falls back to the interactive list message.
+const TRANSCRIPT_QUIZ_FLOW_ID = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
 // WhatsApp Flow ID for the homework request flow (empty → /homework replies
 // that the feature is not configured).
 const HOMEWORK_FLOW_ID = process.env.HOMEWORK_FLOW_ID || '';
@@ -66,6 +70,11 @@ const TRAINING_MSQ_FLOW_ID = process.env.TRAINING_MSQ_FLOW_ID || '';
 // WhatsApp Flow ID for the Pakistan LP picker (FEAT-059). Empty → the `lp`
 // keyword falls through to the text-intercept path (topic → grade+subject).
 const ASSESSMENT_GEN_FLOW_ID = process.env.ASSESSMENT_GEN_FLOW_ID || '';
+// The REVIEW Flow is a SEPARATE Flow id. A WhatsApp Flow opens on screens[0],
+// and the review screens cannot sit inside the generator Flow: KEEP would be
+// reachable only from CONFIRM, which is terminal, so the client refuses to open
+// onto it. Empty falls back to ASSESSMENT_GEN_FLOW_ID (pre-split behaviour).
+const ASSESSMENT_REVIEW_FLOW_ID = process.env.ASSESSMENT_REVIEW_FLOW_ID || '';
 const PAKISTAN_LP_FLOW_ID = process.env.PAKISTAN_LP_FLOW_ID || '';
 // Teacher-facing WhatsApp number shown in the lesson-plan Coaching Corner
 // (empty → the contact line is omitted from the rendered LP).
@@ -181,6 +190,7 @@ module.exports = {
   REMARK_FLOW_ID,
   STATUS_FLOW_ID,
   STUDENT_VIDEOS_FLOW_ID,
+  TRANSCRIPT_QUIZ_FLOW_ID,
   HOMEWORK_FLOW_ID,
   EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID,
@@ -192,6 +202,7 @@ module.exports = {
   TEACHER_TRAINING_FLOW_ID,
   TRAINING_MSQ_FLOW_ID,
   ASSESSMENT_GEN_FLOW_ID,
+  ASSESSMENT_REVIEW_FLOW_ID,
   PAKISTAN_LP_FLOW_ID,
   COACHING_WHATSAPP_NUMBER,
 

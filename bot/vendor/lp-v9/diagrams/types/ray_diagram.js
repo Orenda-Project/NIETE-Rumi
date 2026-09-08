@@ -111,18 +111,40 @@ function solve(element, f, u) {
   return { v, m, real: v > 0, imageX: mirror ? -v : v, fs, mirror };
 }
 
-function autoCaption(el, s, u, f, unit) {
-  if (el === "plane_mirror")
-    return `Virtual, upright, same-size image ${fmt(u)} ${unit} behind the mirror (laterally inverted).`;
-  if (!Number.isFinite(s.v)) return `The object sits at the focus — the emerging rays are parallel and no image is formed.`;
-  const size = Math.abs(s.m) > 1.02 ? "magnified" : Math.abs(s.m) < 0.98 ? "diminished" : "same-size";
+// The AUTO caption follows the figure's own language (the round-5 figure review): the engine
+// wrote this sentence, and the `Object` / `Image` labels, in English whatever
+// `lang` said, so an Urdu physics quiz carried an English sentence under an
+// otherwise Urdu picture. Distances, magnification and the F / 2F handles stay
+// Latin and LTR in both languages — they are notation.
+function autoCaption(el, s, u, f, unit, lang) {
+  const ur = lang === "ur";
+  if (el === "plane_mirror") {
+    return ur
+      ? `عکس: مجازی، سیدھا، اُسی جسامت کا — آئینے کے پیچھے ${fmt(u)} ${unit} (پہلو بدل جاتا ہے)۔`
+      : `Virtual, upright, same-size image ${fmt(u)} ${unit} behind the mirror (laterally inverted).`;
+  }
+  if (!Number.isFinite(s.v)) {
+    return ur
+      ? `شے عین فوکس پر ہے — نکلنے والی شعاعیں متوازی ہیں اور کوئی عکس نہیں بنتا۔`
+      : `The object sits at the focus — the emerging rays are parallel and no image is formed.`;
+  }
+  const big = Math.abs(s.m) > 1.02;
+  const small = Math.abs(s.m) < 0.98;
+  const size = ur
+    ? (big ? "بڑا" : small ? "چھوٹا" : "اُسی جسامت کا")
+    : (big ? "magnified" : small ? "diminished" : "same-size");
   const where = s.mirror
     ? s.real
-      ? "in front of the mirror"
-      : "behind the mirror"
+      ? (ur ? "آئینے کے سامنے" : "in front of the mirror")
+      : (ur ? "آئینے کے پیچھے" : "behind the mirror")
     : s.real
-      ? "on the far side of the lens"
-      : "on the same side as the object";
+      ? (ur ? "لینس کی دوسری طرف" : "on the far side of the lens")
+      : (ur ? "شے ہی کی طرف" : "on the same side as the object");
+  if (ur) {
+    return `عکس: ${s.real ? "حقیقی" : "مجازی"}، ${s.m < 0 ? "اُلٹا" : "سیدھا"}، ${size} — v = ${fmt(
+      Math.abs(s.v)
+    )} ${unit} ${where} (m = ${s.m.toFixed(2)})`;
+  }
   return `${s.real ? "Real" : "Virtual"}, ${s.m < 0 ? "inverted" : "upright"}, ${size} image — v = ${fmt(
     Math.abs(s.v)
   )} ${unit} ${where} (m = ${s.m.toFixed(2)}).`;
@@ -245,7 +267,7 @@ function render(spec) {
   const X = (x) => MARGIN_L + (x - xmin) * sx;
   const Y = (y) => yAxis - y * sy;
 
-  const caption = sp.caption !== undefined ? sp.caption : autoCaption(element, S, u, f, unit);
+  const caption = sp.caption !== undefined ? sp.caption : autoCaption(element, S, u, f, unit, sp.lang);
   const svg = new Svg(BODY_W, bodyH, {
     title: sp.title,
     caption,
@@ -372,20 +394,25 @@ function render(spec) {
   // Labels sit BESIDE the shaft, never at the tip: the tip is exactly where the
   // construction rays converge, so a label there always lands on a ray.
   /** Text on an opaque backing box, so it survives whatever it lands on. */
+  // The plate comes from svg.plateText, which sizes it with the SAME estimator
+  // the label's own box uses. This function used to compute `tw`/`th2` itself —
+  // and its Urdu arithmetic (measure * 1.3 + 10) is not the arithmetic
+  // _urduText uses (max(measure * 1.25 + size, size * 3)), so an Urdu label was
+  // WIDER than the plate under it: the plate stopped hiding the ray, and every
+  // Urdu ray diagram reported six collisions the moment the labels stopped
+  // being English (the round-5 figure review). The engine's own rule, from lib/svg.js: no
+  // type module may compute a label extent of its own.
   const halo = (px, py, txt, fill, anchor) => {
-    const s = String(txt);
-    const ur = lang === "ur" || hasUrdu(s);
-    const tw = measure(s, SIZE.small, { weight: 700, lang: ur ? "ur" : "en" }) * (ur ? 1.3 : 1) + 10;
-    const th2 = ur ? SIZE.small * 2.6 : SIZE.small * 1.5;
-    const bx = anchor === "end" ? px - tw : anchor === "middle" ? px - tw / 2 : px;
-    svg.rect(bx, py - th2 / 2, tw, th2, { fill: C.paper, opacity: 0.9 });
-    svg.text(anchor === "end" ? px - 5 : anchor === "middle" ? px : px + 5, py, txt, {
+    svg.plateText(px, py, String(txt), {
       size: SIZE.small,
       weight: 700,
       anchor,
       baseline: "middle",
       fill,
-      lang: lang === "ur" ? "ur" : "en",
+      plate: C.paper,
+      plateOpacity: 0.9,
+      padX: 5,
+      padY: 2,
     });
   };
   const sideLabel = (px, py, txt, fill) => {
@@ -395,7 +422,7 @@ function render(spec) {
 
   const objTip = Y(h);
   svg.arrow(X(-u), yAxis, X(-u), objTip, { stroke: C.leaf, sw: 3, size: 11, width: 9 });
-  sideLabel(X(-u), (yAxis + objTip) / 2, L.object || "Object", C.leaf);
+  sideLabel(X(-u), (yAxis + objTip) / 2, L.object || (sp.lang === "ur" ? "شے" : "Object"), C.leaf);
 
   if (hasImage && Math.abs(hp) > 1e-6) {
     const ix = X(S.imageX);
@@ -412,7 +439,7 @@ function render(spec) {
     // The clamp keeps a short image arrow's label out of that tick-label band.
     const up = hp > 0;
     const ly = up ? Math.min(iy - 15, yAxis - 34) : Math.max(iy + 15, yAxis + 44);
-    halo(ix, ly, L.image || "Image", C.warn, "middle");
+    halo(ix, ly, L.image || (sp.lang === "ur" ? "عکس" : "Image"), C.warn, "middle");
   }
 
   /* ---- u / v / f dimension lines ------------------------------------ */

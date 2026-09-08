@@ -22,8 +22,15 @@
  *   leader_teachers    idx_leader_teachers_leader_school (leader_user_id, …)     0.04 ms
  */
 
-const supabase = require('../config/supabase');
+const { readWithFallback } = require('../config/supabase-replica');
 const { FINISHED_COACHING_STATUSES } = require('./call-context.repo');
+
+/**
+ * Every query in this file is a READ of a table the calls stack does not write,
+ * so all of it rides the production read replica (bd-vrbk4.2). There is
+ * deliberately no primary client in scope here — the routing rule and the two
+ * exceptions to it live in shared/config/supabase-replica.js.
+ */
 
 /** The one place an unscoped query is caught. */
 function requireCaller(userId, what) {
@@ -39,18 +46,22 @@ async function findCoaching({ userId, about }) {
   requireCaller(userId, 'findCoaching');
   const COLS = 'id, user_id, observer_user_id, analysis_data, status, completed_at, created_at';
 
-  const [mine, observed] = await Promise.all([
-    supabase.from('coaching_sessions').select(COLS)
-      .eq('user_id', userId).in('status', FINISHED_COACHING_STATUSES)
-      .not('analysis_data', 'is', null)
-      .order('completed_at', { ascending: false, nullsFirst: false }).limit(5),
-    supabase.from('coaching_sessions').select(COLS)
-      .eq('observer_user_id', userId).in('status', FINISHED_COACHING_STATUSES)
-      .not('analysis_data', 'is', null)
-      .order('completed_at', { ascending: false, nullsFirst: false }).limit(5),
-  ]);
-  if (mine.error) throw new Error(mine.error.message);
-  if (observed.error) throw new Error(observed.error.message);
+  const [mine, observed] = await readWithFallback(async (db) => {
+    const pair = await Promise.all([
+      db.from('coaching_sessions').select(COLS)
+        .eq('user_id', userId).in('status', FINISHED_COACHING_STATUSES)
+        .not('analysis_data', 'is', null)
+        .order('completed_at', { ascending: false, nullsFirst: false }).limit(5),
+      db.from('coaching_sessions').select(COLS)
+        .eq('observer_user_id', userId).in('status', FINISHED_COACHING_STATUSES)
+        .not('analysis_data', 'is', null)
+        .order('completed_at', { ascending: false, nullsFirst: false }).limit(5),
+    ]);
+    // Throw inside the wrapper so a replica-side error retries on the primary.
+    if (pair[0].error) throw new Error(pair[0].error.message);
+    if (pair[1].error) throw new Error(pair[1].error.message);
+    return pair;
+  });
 
   let rows = [...(mine.data || []), ...(observed.data || [])];
 
@@ -75,23 +86,25 @@ async function findCoaching({ userId, about }) {
 /** Her past WhatsApp conversation with Rumi. */
 async function searchChats({ userId, query, onDate }) {
   requireCaller(userId, 'searchChats');
-  let q = supabase.from('conversations')
-    .select('role, content, created_at')
-    .eq('user_id', userId);
+  return readWithFallback(async (db) => {
+    let q = db.from('conversations')
+      .select('role, content, created_at')
+      .eq('user_id', userId);
 
-  if (onDate) {
-    q = q.gte('created_at', `${onDate}T00:00:00Z`).lte('created_at', `${onDate}T23:59:59Z`);
-  }
-  if (query && String(query).trim()) {
-    // Escape the PostgREST pattern metacharacters; the caller-scope filter above
-    // is what actually contains this, but a clean pattern avoids surprises.
-    const safe = String(query).replace(/[%_,()]/g, ' ').trim();
-    if (safe) q = q.ilike('content', `%${safe}%`);
-  }
+    if (onDate) {
+      q = q.gte('created_at', `${onDate}T00:00:00Z`).lte('created_at', `${onDate}T23:59:59Z`);
+    }
+    if (query && String(query).trim()) {
+      // Escape the PostgREST pattern metacharacters; the caller-scope filter above
+      // is what actually contains this, but a clean pattern avoids surprises.
+      const safe = String(query).replace(/[%_,()]/g, ' ').trim();
+      if (safe) q = q.ilike('content', `%${safe}%`);
+    }
 
-  const { data, error } = await q.order('created_at', { ascending: false }).limit(20);
-  if (error) throw new Error(error.message);
-  return data || [];
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(20);
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
 }
 
 /**
@@ -105,14 +118,17 @@ async function searchChats({ userId, query, onDate }) {
  */
 async function findLessons({ userId }) {
   requireCaller(userId, 'findLessons');
-  const { data, error } = await supabase
-    .from('niete_lp_downloads')
-    .select('lesson_id, content_hash, version_stamp, grade, subject, chapter_number, created_at')
-    .eq('user_id', userId)
-    .eq('status', 'sent')
-    .order('created_at', { ascending: false })
-    .limit(10);
-  if (error) throw new Error(error.message);
+  const data = await readWithFallback(async (db) => {
+    const res = await db
+      .from('niete_lp_downloads')
+      .select('lesson_id, content_hash, version_stamp, grade, subject, chapter_number, created_at')
+      .eq('user_id', userId)
+      .eq('status', 'sent')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (res.error) throw new Error(res.error.message);
+    return res.data;
+  });
 
   const V8Catalog = require('../services/lp-v8-catalog.service');
   const seen = new Set();
@@ -153,13 +169,16 @@ async function readLessonScript({ lessonId, contentHash }) {
   // The r2_key of the exact version she received.
   let r2Key = null;
   if (contentHash) {
-    const { data: asset } = await supabase
-      .from('niete_lp_assets')
-      .select('r2_key')
-      .eq('lesson_id', lessonId)
-      .eq('asset_kind', 'lesson')
-      .eq('content_hash', contentHash)
-      .maybeSingle();
+    const asset = await readWithFallback(async (db) => {
+      const { data } = await db
+        .from('niete_lp_assets')
+        .select('r2_key')
+        .eq('lesson_id', lessonId)
+        .eq('asset_kind', 'lesson')
+        .eq('content_hash', contentHash)
+        .maybeSingle();
+      return data;
+    });
     r2Key = (asset && asset.r2_key) || null;
   }
 
@@ -183,7 +202,8 @@ async function findRoster({ userId, school }) {
   // Derived from her schools, not the old stored roster. Still never selects a
   // phone: this feeds a voice call, and reading a number aloud is a leak.
   const { listPatchViaSupabase } = require('../services/observe/patch-resolver.service');
-  const people = await listPatchViaSupabase(supabase, userId);
+  // Takes the client as an argument, so it inherits the replica routing too.
+  const people = await readWithFallback((db) => listPatchViaSupabase(db, userId));
   const term = school ? String(school).trim().toLowerCase() : '';
   return people
     .filter((p) => !term
@@ -200,23 +220,28 @@ async function findRoster({ userId, school }) {
 /** Her upcoming observation visits, as the leader conducting them. */
 async function findSchedules({ userId }) {
   requireCaller(userId, 'findSchedules');
-  const { data, error } = await supabase
-    .from('observation_schedules')
-    .select('teacher_name, school_name, scheduled_for, status')
-    .eq('leader_user_id', userId)
-    .gte('scheduled_for', new Date().toISOString().slice(0, 10))
-    .not('status', 'in', '("cancelled")')
-    .order('scheduled_for', { ascending: true })
-    .limit(10);
-  if (error) throw new Error(error.message);
-  return data || [];
+  return readWithFallback(async (db) => {
+    const { data, error } = await db
+      .from('observation_schedules')
+      .select('teacher_name, school_name, scheduled_for, status')
+      .eq('leader_user_id', userId)
+      .gte('scheduled_for', new Date().toISOString().slice(0, 10))
+      .not('status', 'in', '("cancelled")')
+      .order('scheduled_for', { ascending: true })
+      .limit(10);
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
 }
 
 /** Resolve one observed teacher's display name. */
 async function resolveTeacherName(userId) {
   if (!userId) return null;
-  const { data } = await supabase
-    .from('users').select('first_name, last_name').eq('id', userId).maybeSingle();
+  const data = await readWithFallback(async (db) => {
+    const res = await db
+      .from('users').select('first_name, last_name').eq('id', userId).maybeSingle();
+    return res.data;
+  });
   if (!data) return null;
   return [data.first_name, data.last_name].filter(Boolean).join(' ') || null;
 }
@@ -227,7 +252,10 @@ async function teacherNames(ids) {
   const unique = [...new Set((ids || []).filter(Boolean))];
   const map = new Map();
   if (!unique.length) return map;
-  const { data } = await supabase.from('users').select('id, first_name, last_name').in('id', unique);
+  const data = await readWithFallback(async (db) => {
+    const res = await db.from('users').select('id, first_name, last_name').in('id', unique);
+    return res.data;
+  });
   (data || []).forEach((u) => {
     map.set(u.id, [u.first_name, u.last_name].filter(Boolean).join(' '));
   });
@@ -236,8 +264,11 @@ async function teacherNames(ids) {
 
 async function schoolNames(leaderUserId) {
   const map = new Map();
-  const { data } = await supabase
-    .from('leader_schools').select('school_ext_id, school_name').eq('leader_user_id', leaderUserId);
+  const data = await readWithFallback(async (db) => {
+    const res = await db
+      .from('leader_schools').select('school_ext_id, school_name').eq('leader_user_id', leaderUserId);
+    return res.data;
+  });
   (data || []).forEach((s) => map.set(s.school_ext_id, s.school_name));
   return map;
 }

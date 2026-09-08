@@ -146,10 +146,18 @@ function renderBohr(sp) {
 
   // Captions are drawn as ONE line by the builder, so they must stay short
   // enough for the body width or the ends are cut off.
+  // An AUTO caption follows the figure's own language. The engine used to write
+  // this one sentence in English whatever `lang` said, so an Urdu quiz got an
+  // Urdu stem, Urdu options and an English sentence under the picture
+  // (the round-5 figure review). The element SYMBOL, Z and the shell counts stay Latin and
+  // LTR in both languages — they are notation, not prose, and a Pakistani
+  // Urdu-medium textbook prints them exactly that way.
   const caption =
     sp.caption !== undefined
       ? sp.caption
-      : `${A.name || A.symbol} (${A.symbol}) — Z = ${A.Z}, ${A.n} neutrons, electrons ${A.shells.join(", ")}.`;
+      : sp.lang === "ur"
+        ? `ایٹم: ${A.symbol} · Z = ${A.Z} · نیوٹرون: ${A.n} · الیکٹران: ${A.shells.join("، ")}`
+        : `${A.name || A.symbol} (${A.symbol}) — Z = ${A.Z}, ${A.n} neutrons, electrons ${A.shells.join(", ")}.`;
 
   const svg = new Svg(bodyW, bodyH, {
     title: sp.title,
@@ -306,9 +314,11 @@ function renderDotCross(sp) {
     const transfer = Math.max(1, Math.round(Number(sp.transfer) || Math.min(vA, 8 - vB)));
     const cx1 = 158;
     const cx2 = 458;
-    const caption = `${A.symbol} gives ${transfer} outer electron${transfer === 1 ? "" : "s"} to ${
-      B.symbol
-    } — dots are ${A.symbol} electrons, crosses are ${B.symbol}.`;
+    const caption = lang === "ur"
+      ? `آئنی بانڈ: ${A.symbol} نے ${transfer} بیرونی الیکٹران ${B.symbol} کو دیے — نقطے ${A.symbol} کے الیکٹران ہیں، کراس ${B.symbol} کے۔`
+      : `${A.symbol} gives ${transfer} outer electron${transfer === 1 ? "" : "s"} to ${
+        B.symbol
+      } — dots are ${A.symbol} electrons, crosses are ${B.symbol}.`;
     const svg = svg0(caption);
 
     // donor: what is left of its outer shell after the transfer
@@ -371,9 +381,11 @@ function renderDotCross(sp) {
   const pairs = Math.max(1, Math.round(Number(sp.pairs) || 1));
   const cx1 = bodyW / 2 - 54;
   const cx2 = bodyW / 2 + 54;
-  const caption = `${A.symbol} and ${B.symbol} share ${pairs} pair${pairs === 1 ? "" : "s"} — dots are ${
-    A.symbol
-  } electrons, crosses are ${B.symbol}.`;
+  const caption = lang === "ur"
+    ? `کوویلنٹ بانڈ: ${A.symbol} اور ${B.symbol} ${pairs} جوڑا/جوڑے مشترک کرتے ہیں — نقطے ${A.symbol} کے الیکٹران ہیں، کراس ${B.symbol} کے۔`
+    : `${A.symbol} and ${B.symbol} share ${pairs} pair${pairs === 1 ? "" : "s"} — dots are ${
+      A.symbol
+    } electrons, crosses are ${B.symbol}.`;
   const svg = svg0(caption);
   svg.circle(cx1, cy, r, { fill: "none", stroke: C.rule, sw: 1.6 });
   svg.circle(cx2, cy, r, { fill: "none", stroke: C.rule, sw: 1.6 });
@@ -407,10 +419,28 @@ function renderDotCross(sp) {
 }
 
 /* ------------------------------------------------------------------ */
+// Mode resolution, in the same order dna_helix resolves its kind: an explicit
+// spec.mode wins, else the ALIAS the caller reached this module through, else the
+// default. Before this, only `mode:"dot_cross"` selected the bonding picture — so
+// `{"type":"dot_and_cross", …}` resolved to this module through its own alias and
+// then silently drew a BOHR diagram of the first element, and `mode:"dot_and_cross"`
+// (the spelling the type alias uses, and the one an author naturally writes) did the
+// same. A registered alias that renders the other mode is worse than no alias.
+const DOT_CROSS_MODES = new Set(["dot_cross", "dot_and_cross", "dotcross"]);
+const BOHR_MODES = new Set(["bohr", "electron_shells", "shells"]);
+
+function resolveMode(sp) {
+  const m = String(sp.mode ?? "").trim().toLowerCase();
+  if (DOT_CROSS_MODES.has(m)) return "dot_cross";
+  if (BOHR_MODES.has(m)) return "bohr";
+  const t = String(sp.type ?? "").trim().toLowerCase();
+  if (DOT_CROSS_MODES.has(t)) return "dot_cross";
+  return "bohr";
+}
+
 function render(spec) {
   const sp = spec && typeof spec === "object" ? spec : {};
-  const mode = sp.mode === "dot_cross" ? "dot_cross" : "bohr";
-  return mode === "dot_cross" ? renderDotCross(sp) : renderBohr(sp);
+  return resolveMode(sp) === "dot_cross" ? renderDotCross(sp) : renderBohr(sp);
 }
 
 module.exports = {

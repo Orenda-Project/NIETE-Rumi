@@ -129,4 +129,42 @@ function defaultMix(subject, grade, total) {
   return withCounts(ids, total, subject, grade);
 }
 
-module.exports = { forSubject, categoryOf, withCounts, defaultMix, CATALOGUE };
+
+/**
+ * How many questions a paper may hold.
+ *
+ * 25 is where the generator stops writing well: past it the model starts
+ * padding and the seen half repeats itself. It is a product ceiling, not a
+ * technical one.
+ */
+const MAX_QUESTIONS = 25;
+const DEFAULT_QUESTIONS = 15;
+
+/**
+ * Read the number she typed.
+ *
+ * A Flow TextInput has no min or max — `input-type: number` only picks the
+ * keypad — so every bound is enforced here, on a value that can be anything
+ * she can type: empty, "0", "-5", "999", "7.5", "abc".
+ *
+ * Out of range is REFUSED rather than clamped. Quietly turning 40 into 25 hands
+ * her a paper she did not ask for and never mentions it; refusing puts the
+ * number back in front of her while she can still change it.
+ */
+function parseQuestionCount(raw) {
+  const text = String(raw ?? '').trim();
+  const range = `Type a number between 1 and ${MAX_QUESTIONS}.`;
+
+  if (!text) return { ok: false, message: range };
+  if (!/^\d+$/.test(text)) return { ok: false, message: range };
+
+  const n = Number(text);
+  if (!Number.isInteger(n) || n < 1) return { ok: false, message: range };
+  if (n > MAX_QUESTIONS) {
+    return { ok: false, message: `A paper can hold up to ${MAX_QUESTIONS} questions. ${range}` };
+  }
+  return { ok: true, count: n };
+}
+
+module.exports = {
+  parseQuestionCount, MAX_QUESTIONS, DEFAULT_QUESTIONS, forSubject, categoryOf, withCounts, defaultMix, CATALOGUE };

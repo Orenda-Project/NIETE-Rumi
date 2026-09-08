@@ -150,8 +150,8 @@ describe('bd-2334 — a report with nothing in it must not be sent', () => {
   });
 });
 
-describe('bd-2334 — one report, once', () => {
-  test('a share code already reported on does not send again', async () => {
+describe('bd-2334 / bd-mg9c7.145 — no duplicate, but one follow-up when the class grows', () => {
+  test('a share code already reported on does not send again when nothing has changed', async () => {
     stubSupabase({
       shareCode: {
         id: SHARE_CODE_ID, code: 'K7RM2', quiz_id: 'q1', teacher_user_id: 'u1',
@@ -168,6 +168,37 @@ describe('bd-2334 — one report, once', () => {
 
     expect(sent).toBe(false);
     expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('three more children finishing afterwards DOES earn one follow-up', async () => {
+    const sentAt = '2026-07-28T02:00:00.000Z';
+    const after = (min) => new Date(Date.parse(sentAt) + min * 60000).toISOString();
+    stubSupabase({
+      shareCode: {
+        id: SHARE_CODE_ID, code: 'K7RM2', quiz_id: 'q1', teacher_user_id: 'u1',
+        teacher_name: 'Miss Ayesha', topic: 'Who Is Outside', language: 'en',
+        report_sent_at: sentAt,
+      },
+      teacher: { phone_number: '923001234567' },
+      sessions: [
+        { id: 's1', student_name: 'Mahrah', status: 'completed', completed_at: '2026-07-28T01:00:00.000Z',
+          total_questions_answered: 8, correct_answers: 6, mastery_percentage: 75 },
+        { id: 's2', student_name: 'Bilal', status: 'completed', completed_at: after(30),
+          total_questions_answered: 8, correct_answers: 7, mastery_percentage: 88 },
+        { id: 's3', student_name: 'Ayaan', status: 'completed', completed_at: after(45),
+          total_questions_answered: 8, correct_answers: 5, mastery_percentage: 63 },
+        { id: 's4', student_name: 'Zara', status: 'completed', completed_at: after(70),
+          total_questions_answered: 8, correct_answers: 8, mastery_percentage: 100 },
+      ],
+    });
+    const sent = await report.generate(SHARE_CODE_ID, { reason: 'follow_up' });
+    expect(sent).toBe(true);
+    // A class of four renders the PDF path rather than the plain-text one, so
+    // the send channel is not the assertion — the rule is: it counted one child
+    // as already reported on and three as new, and let the follow-up through.
+    const { logEvent } = require('../../shared/utils/structured-logger');
+    expect(logEvent).toHaveBeenCalledWith('video_quiz.report_followup',
+      expect.objectContaining({ reportedOn: 1, finishedSince: 3 }));
   });
 
   test('sending stamps report_sent_at so the next call is a no-op', async () => {

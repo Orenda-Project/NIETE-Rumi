@@ -1,0 +1,239 @@
+<title>When the E2E Hook Fires</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F7F6F2; --surface:#FFFFFF; --sunk:#EFEEE8;
+    --ink:#16211C; --muted:#5C6B63; --faint:#8A968F;
+    --rule:#DDDCD4; --rule-strong:#C6C5BB;
+    --accent:#0B6E4F; --accent-soft:#E4EFE9;
+    --amber:#96620A; --amber-soft:#F6EEDC;
+    --rust:#8F2D2D; --rust-soft:#F6E5E3;
+    --code-bg:#EDECE5;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#101613; --surface:#182019; --sunk:#141B17;
+      --ink:#E8EDE9; --muted:#9DAAA2; --faint:#718078;
+      --rule:#2A342E; --rule-strong:#3A463F;
+      --accent:#5FBF95; --accent-soft:#172A22;
+      --amber:#D9A441; --amber-soft:#2A2317;
+      --rust:#E08A84; --rust-soft:#2C1B1A;
+      --code-bg:#1E2721;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#101613; --surface:#182019; --sunk:#141B17;
+    --ink:#E8EDE9; --muted:#9DAAA2; --faint:#718078;
+    --rule:#2A342E; --rule-strong:#3A463F;
+    --accent:#5FBF95; --accent-soft:#172A22;
+    --amber:#D9A441; --amber-soft:#2A2317;
+    --rust:#E08A84; --rust-soft:#2C1B1A;
+    --code-bg:#1E2721;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    font-size:16px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:74rem; margin:0 auto; padding:3.5rem 1.5rem 6rem; display:flex; flex-direction:column; gap:3rem}
+  code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+  code{background:var(--code-bg); padding:.1em .38em; border-radius:3px; font-size:.87em}
+  h1,h2,h3{font-family:Archivo,ui-sans-serif,system-ui,sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(2rem,5vw,3rem); font-weight:700; letter-spacing:-.02em; line-height:1.05}
+  h2{font-size:1.32rem; font-weight:600; letter-spacing:-.01em}
+  h3{font-size:1rem; font-weight:600}
+  p{margin:0; max-width:68ch}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:.72rem; font-weight:500;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+  }
+  header{display:flex; flex-direction:column; gap:1rem; border-bottom:2px solid var(--ink); padding-bottom:1.75rem}
+  .lede{font-size:1.1rem; color:var(--muted); max-width:64ch}
+  .rule-card{
+    background:var(--accent-soft); border-left:3px solid var(--accent);
+    padding:1.1rem 1.25rem; display:flex; flex-direction:column; gap:.4rem;
+  }
+  .rule-card .k{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent)}
+  section{display:flex; flex-direction:column; gap:1.1rem}
+  .sec-head{display:flex; flex-direction:column; gap:.3rem; border-bottom:1px solid var(--rule-strong); padding-bottom:.6rem}
+  .scroll{overflow-x:auto; border:1px solid var(--rule); background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:.9rem; min-width:38rem}
+  th,td{text-align:left; padding:.62rem .85rem; border-bottom:1px solid var(--rule); vertical-align:top}
+  thead th{
+    background:var(--sunk); font-family:"IBM Plex Mono",monospace; font-weight:600;
+    font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.num{font-variant-numeric:tabular-nums; font-family:"IBM Plex Mono",monospace; white-space:nowrap}
+  .pill{
+    display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:.68rem; font-weight:600;
+    letter-spacing:.07em; text-transform:uppercase; padding:.16rem .5rem; border-radius:2px; white-space:nowrap;
+  }
+  .p-fire{background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent)}
+  .p-quiet{background:var(--sunk); color:var(--muted); border:1px solid var(--rule-strong)}
+  .p-all{background:var(--amber-soft); color:var(--amber); border:1px solid var(--amber)}
+  .p-bad{background:var(--rust-soft); color:var(--rust); border:1px solid var(--rust)}
+  ol.steps{list-style:none; counter-reset:s; margin:0; padding:0; display:flex; flex-direction:column; gap:0}
+  ol.steps li{
+    counter-increment:s; display:grid; grid-template-columns:2.6rem 1fr; gap:1rem;
+    padding:1rem 0; border-bottom:1px solid var(--rule);
+  }
+  ol.steps li:last-child{border-bottom:none}
+  ol.steps li::before{
+    content:counter(s,decimal-leading-zero);
+    font-family:"IBM Plex Mono",monospace; font-size:.82rem; font-weight:600;
+    color:var(--accent); padding-top:.15rem;
+  }
+  .step-body{display:flex; flex-direction:column; gap:.35rem}
+  .step-body .t{font-weight:600}
+  .step-body .d{color:var(--muted); font-size:.92rem; max-width:64ch}
+  pre{
+    margin:0; background:var(--code-bg); border:1px solid var(--rule); padding:.9rem 1rem;
+    overflow-x:auto; font-family:"IBM Plex Mono",monospace; font-size:.84rem; line-height:1.55;
+  }
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(19rem,1fr)); gap:1rem}
+  .card{background:var(--surface); border:1px solid var(--rule); padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.5rem}
+  .card.warn{border-left:3px solid var(--rust)}
+  .card .lbl{font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+  .card p{font-size:.92rem; color:var(--muted)}
+  .card p strong{color:var(--ink); font-weight:600}
+  .kv{display:grid; grid-template-columns:auto 1fr; gap:.3rem 1rem; font-size:.9rem}
+  .kv dt{font-family:"IBM Plex Mono",monospace; color:var(--muted); white-space:nowrap}
+  .kv dd{margin:0}
+  footer{border-top:1px solid var(--rule-strong); padding-top:1.25rem; color:var(--faint); font-size:.82rem; display:flex; flex-direction:column; gap:.3rem}
+  @media (max-width:34rem){ ol.steps li{grid-template-columns:1.9rem 1fr; gap:.7rem} }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">e2e-autorun · PostToolUse + Stop</div>
+    <h1>When the E2E Hook Fires</h1>
+    <p class="lede">Every condition that arms a WhatsApp E2E run, what it selects, which number it drives, and how to turn it off.</p>
+  </header>
+
+  <div class="rule-card">
+    <span class="k">The one-line rule</span>
+    <p><strong>A <code>git commit</code> or <code>git merge</code> on any branch, or a <code>git push</code> to <code>develop</code>/<code>main</code>/<code>staging</code>, arms an E2E run for whichever features the changed files map to — and the Stop hook then blocks the turn once to make you run it.</strong></p>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Does it fire?</h2>
+      <p class="lede" style="font-size:.95rem">Both halves are off entirely if <code>jq</code> is missing or <code>E2E_AUTORUN_OFF=1</code> is exported.</p>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr><th>What you run</th><th>Result</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">git commit — any branch, in-scope files</td><td><span class="pill p-fire">Arms targeted</span></td><td>Primary trigger. A commit deploys nothing regardless of branch, so a branch filter would only make it fire less than asked.</td></tr>
+        <tr><td class="mono">git commit — docs-only / out-of-scope paths</td><td><span class="pill p-quiet">Silent</span></td><td>Zero features selected. The hook exits without writing a marker and says nothing.</td></tr>
+        <tr><td class="mono">git merge → NIETE-Rumi <em>main</em></td><td><span class="pill p-all">Arms /niete-e2e all</span></td><td>The <code>develop → main</code> promotion is the one moment the full 99-scenario suite is worth its hours.</td></tr>
+        <tr><td class="mono">git merge — anywhere else</td><td><span class="pill p-quiet">Silent</span></td><td>A merge introduces no files of its own, so the selector sees an empty diff.</td></tr>
+        <tr><td class="mono">git push — develop / main / staging</td><td><span class="pill p-fire">Arms targeted</span></td><td>The code is now reachable — the one moment a run actually tests the change.</td></tr>
+        <tr><td class="mono">git push — a feature branch</td><td><span class="pill p-quiet">Silent</span></td><td>Deploys nothing; a run would spend ~10 min driving the build that was already live.</td></tr>
+        <tr><td class="mono">git pull / git fetch</td><td><span class="pill p-quiet">Silent</span></td><td>A pull writes the same reflog as a push. The matcher reads what the entry <em>says</em>, not just its timestamp.</td></tr>
+        <tr><td class="mono">commit outside the <code>bot/**</code> scope</td><td><span class="pill p-quiet">Silent</span></td><td>Out of scope. Only <code>bot/**</code> (NIETE-Rumi) and <code>tests/features/whatsapp/niete/**</code> count.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What happens, in order</h2>
+      <p class="lede" style="font-size:.95rem">Numbers are execution order, not a checklist.</p>
+    </div>
+    <ol class="steps">
+      <li><div class="step-body"><span class="t">The command is matched</span><span class="d"><code>PostToolUse</code> on every Bash call. Heredocs are stripped first, so a commit message that merely mentions <em>push</em> can't trigger it.</span></div></li>
+      <li><div class="step-body"><span class="t">The repo is resolved</span><span class="d">Every <code>cd</code> in the command (later ones first, relative paths resolved cumulatively), then <code>git -C &lt;dir&gt;</code>, then the payload cwd. <strong>An explicit <code>cd</code> or <code>-C</code> wins outright.</strong> Only if none exists does the tie-break below apply.</span></div></li>
+      <li><div class="step-body"><span class="t">Tie-break: whichever repo was pushed in the last 120 seconds</span><span class="d">The reflog entry must literally read <code>update by push</code>. This is an observation, never an override of an explicit instruction.</span></div></li>
+      <li><div class="step-body"><span class="t">Changed files are read</span><span class="d">Commit → <code>git show --name-only --format= HEAD</code>. Push → the tracking ref's reflog range, because after a push <code>@{upstream}...HEAD</code> is empty.</span></div></li>
+      <li><div class="step-body"><span class="t">Files are mapped to features</span><span class="d">Hand-maintained <code>feature-map.yaml</code>. One file can select several — <code>exam-checker.handler.js</code> selects <strong>training and coaching</strong>. An in-scope file matching nothing is reported <em>unmapped</em> and the SAFE subset runs as a fallback; under-selection is never silent.</span></div></li>
+      <li><div class="step-body"><span class="t">The Gherkin is synced to the diff — <em>before</em> anything is driven</span><span class="d"><code>spec_sync.py</code> turns that same selection into a brief (changed files, a <strong>bounded</strong> diff, the scenarios the spec has today, and <code>create</code>/<code>update</code>/<code>validate-only</code>). The agent authors against it via <code>/sync-specs</code>, using <code>gherkin-test-cases</code> — the same skill <code>/testcases</code> runs. It <strong>never deletes</strong> a scenario: behaviour that has gone away is tagged <code>@obsolete</code> with a reason and raised as an ask. Then <code>validate_specs.py</code> gates the run — exit 1 and phase 2 does not happen. Without this the suite drove whatever scenarios happened to be on disk, so a commit that changed a flow tested the spec written for the <em>old</em> flow, and passed.</span></div></li>
+      <li><div class="step-body"><span class="t">A marker is written</span><span class="d"><code>.claude/.e2e-pending/&lt;session_id&gt;.json</code> — keyed by session, so one agent's pending run never blocks another's turn. Carries repo, branch, trigger, mode, commands, features, fallback, unmapped.</span></div></li>
+      <li><div class="step-body"><span class="t">The Stop hook blocks the turn — exactly once</span><span class="d"><code>nudged</code> flips to <code>true</code> <em>before</em> the block is emitted, so a crash can only lose a nudge, never wedge the session in a loop nobody can escape.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Which number gets driven</h2>
+      <p class="lede" style="font-size:.95rem">Two different numbers are involved, and confusing them is the usual mistake.</p>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr><th>Profile</th><th>Bot number (the target)</th><th>Env</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">niete <span class="pill p-fire" style="margin-left:.4rem">default</span></td><td class="num">923222482222</td><td>staging</td><td>“Rumi Staging Niete”. Own Supabase <code>rpqkekcfvumypldbejhp</code> — writes do not touch prod.</td></tr>
+        <tr><td class="mono">niete-prod</td><td class="num">923206281951</td><td>prod</td><td>Explicit per-run “go” required. Mutates real teacher state.</td></tr>
+        <tr><td class="mono">rumi-palestine</td><td class="num">970592185147</td><td>prod</td><td>Driver still <code>TBD</code>.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="grid2">
+      <div class="card">
+        <span class="lbl">The driver — who sends</span>
+        <p><code>test_driver: prompt</code>. The suite drives <strong>whichever WhatsApp account is linked in the runner's own Chrome session</strong>, never a hardcoded person. Read it straight out of the browser rather than asking:</p>
+        <pre>localStorage['last-wid-md']
+→ "923028931858:40@c.us"</pre>
+      </div>
+      <div class="card">
+        <span class="lbl">So a typical arming means</span>
+        <dl class="kv">
+          <dt>armed</dt><dd><code>/niete-e2e training</code></dd>
+          <dt>from</dt><dd>the linked session's number</dd>
+          <dt>to</dt><dd><code>923222482222</code> (staging)</dd>
+          <dt>proves</dt><dd>nothing about a commit that isn't deployed yet</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>The nine features it can select</h2></div>
+    <p><code>attendance</code> · <code>coaching</code> · <code>language</code> · <code>lesson-plan</code> · <code>menu</code> · <code>observe</code> · <code>registration</code> · <code>status</code> · <code>training</code></p>
+    <p class="lede" style="font-size:.95rem">Ignored everywhere: tests, docs, scripts, dashboard, assets, fonts, <code>*.md</code>, <code>package-lock.json</code>, mocks and snapshots. Changing only those selects nothing.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Switches</h2></div>
+    <pre>export E2E_AUTORUN_OFF=1     # disarms everything
+export E2E_SPEC_SYNC_OFF=1   # drops phase 1 only — the E2E half is untouched
+export E2E_AUTORUN_ALL=1     # arm /niete-e2e all instead of a targeted run
+                             #   100 scenarios; coaching alone is ~2.5h
+
+# clear a pending marker
+bash .claude/hooks/e2e-autorun.sh --clear --session &lt;session_id&gt;</pre>
+    <p class="lede" style="font-size:.95rem">All three must be <strong>exported</strong>. An inline <code>VAR=1 cmd</code> is invisible to hooks. <code>E2E_SPEC_SYNC_OFF</code> is deliberately separate from <code>E2E_AUTORUN_OFF</code>: if spec authoring turns noisy, it must not take the E2E half down with it.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>What it cannot do</h2></div>
+    <div class="grid2">
+      <div class="card"><span class="lbl">Drive WhatsApp itself</span><p>The Chrome DevTools MCP tools belong to the agent, not to a hook subprocess. The hook can only put the order in front of you.</p></div>
+      <div class="card"><span class="lbl">Know the deploy finished</span><p>A push-armed run fires the instant the push returns, while the build is still going. Confirm it's live first or you test the old build and pass.</p></div>
+      <div class="card"><span class="lbl">Test what you just committed</span><p>A commit deploys nothing. A commit-armed run is a regression check on what was already live — the marker says so, and so should your report.</p></div>
+      <div class="card"><span class="lbl">Guarantee a testable target</span><p>A linked WhatsApp Web session is a physical precondition. Navigate to <code>web.whatsapp.com</code> and look — <code>list_pages</code> alone cannot tell you a session is missing.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Two traps, both measured</h2></div>
+    <div class="grid2">
+      <div class="card warn">
+        <span class="lbl">The 120-second window breaks the hook's own tests</span>
+        <p>Pushing from the root checkout makes <code>$PWD</code> “freshly pushed”, so temp-repo test cases resolve to the worktree. <strong>11 of 123 assertions failed</strong> immediately after a push and all passed again 127 s later. Don't run the suite within two minutes of a push.</p>
+      </div>
+      <div class="card warn">
+        <span class="lbl">wa-drive reports false timeouts</span>
+        <p>The message list is virtualized — measured <strong>n=36 before and after</strong> a send plus reply — so <code>rows.length &gt; base.n</code> never fires. Detection falls to text equality, and row text carries only <strong>minute-resolution</strong> timestamps. An identical reply inside one clock minute is invisible and the wait runs to timeout.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Sources: <code>.claude/hooks/e2e-autorun.sh</code> · <code>e2e-autorun-stop.sh</code> · <code>lib/git-push-match.sh</code> · <code>.claude/qa/config/feature-map.yaml</code> · <code>whatsapp-targets.yaml</code></div>
+    <div>Verified live against staging 923222482222 on 2026-08-28.</div>
+  </footer>
+
+</div>

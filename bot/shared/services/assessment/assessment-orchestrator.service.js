@@ -18,9 +18,20 @@ const { logToFile } = require('../../utils/logger');
 const BookContent = require('./book-content.service');
 const Generation = require('./assessment-generation.service');
 const Renderer = require('./assessment-paper.renderer');
-const { htmlToPdf } = require('../../utils/html-to-pdf');
+// The renderer is chosen by the requested format, in one place, so the bytes
+// and the filename can never disagree. Requiring htmlToPdf directly here is
+// what let a Word request produce a PDF named .docx.
+const { rendererFor } = require('./assessment-format');
 const r2 = require('../../storage/r2');
 const WhatsAppService = require('../whatsapp.service');
+
+// The module's job entry point is `async function process`, and a function
+// declaration shadows the global of the same name across the WHOLE module — so
+// `process.env` anywhere in this file resolves to that function's `.env`, which
+// is undefined. The environment is therefore captured here, through globalThis,
+// which the declaration cannot shadow. Read live (not destructured) so a test
+// can set the variable after this module loads.
+const ENV = globalThis.process.env;
 
 const SUBJECT_LABEL = {
   english: 'English', urdu: 'Urdu', maths: 'Maths', islamiat: 'Islamiat',
@@ -61,6 +72,34 @@ function fileName({ grade, subject, chapterTitle, format, suffix = '' }) {
   const chapter = chapterTitle
     ? `_${String(chapterTitle).replace(/[^A-Za-z0-9]+/g, '').slice(0, 24)}` : '';
   return `Grade${grade}_${label}${chapter}${suffix}.${format}`;
+}
+
+/**
+ * The Flow to offer her for trimming the paper.
+ *
+ * Read here rather than through `utils/constants`, which loads dotenv — a bot/
+ * dependency that throws in any root test suite. And read in its OWN function
+ * because the exported job entry point below is called `process`, which shadows
+ * the global of that name inside its body: `process.env` there is the job
+ * argument's `.env`, which is undefined. That shadowing turned the whole offer
+ * into a silent no-op, caught only because a test asserted the send.
+ */
+function reviewFlowId() {
+  // The review layer is its OWN Flow, and it has to be.
+  //
+  // A WhatsApp Flow opens on screens[0]. The review screens used to live in the
+  // generator Flow, where KEEP sat at index 6 and was reachable only from
+  // CONFIRM — which is terminal, so it never routes onward. Opening straight
+  // onto KEEP therefore asked the client to enter a screen with no reachable
+  // predecessor: it painted for an instant and died with "Something went
+  // wrong", while our endpoint logged a clean INIT and a valid 1068-byte
+  // response. Proven by publishing KEEP alone as a one-screen Flow with the
+  // exact same payload — it rendered perfectly.
+  //
+  // Falls back to the generator id so a deployment that has not been given the
+  // new variable yet keeps its previous behaviour rather than silently sending
+  // nothing at all.
+  return (ENV && (ENV.ASSESSMENT_REVIEW_FLOW_ID || ENV.ASSESSMENT_GEN_FLOW_ID)) || '';
 }
 
 async function _patchPaper(paperId, patch) {
@@ -140,14 +179,16 @@ async function process(job) {
       answerLines,
     });
 
+    const renderer = rendererFor(outputFormat);
     let buffer;
     try {
-      buffer = await htmlToPdf(html, { timeout: 60000 });
+      buffer = await renderer.render(html);
     } catch (err) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
 
-    const name = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: outputFormat });
+    // The extension comes off the SAME object as the renderer.
+    const name = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: renderer.ext });
     let key;
     try {
       key = await r2.uploadExamBuffer({
@@ -201,8 +242,8 @@ async function process(job) {
           schoolName: user.school_name || null,
           pageReference: source.pageReference, chapterTitle: source.chapterTitle || null,
         });
-        const keyBuffer = await htmlToPdf(keyHtml, { timeout: 60000 });
-        const keyName = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: outputFormat, suffix: '_AnswerKey' });
+        const keyBuffer = await renderer.render(keyHtml);
+        const keyName = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: renderer.ext, suffix: '_AnswerKey' });
         const keyKey = await r2.uploadExamBuffer({
           buffer: keyBuffer, userId, examId: paperId || requestId, filename: keyName,
         });
@@ -213,6 +254,31 @@ async function process(job) {
           { userId, requestId, paperId, key: keyKey });
       } catch (err) {
         logToFile('[assessment] answer key failed', { userId, requestId, paperId, error: err.message });
+      }
+    }
+
+    // The paper is rarely exactly right first time, and without this the only
+    // way to change it is to build another one from scratch. The offer comes
+    // AFTER the document — a prompt sent before the send is a promise made by a
+    // step that has not run yet — and it can only ever be an addition: a paper
+    // that arrived is delivered whether or not she is offered the trim.
+    if (paperId) {
+      try {
+        const flowId = reviewFlowId();
+        if (flowId) {
+          await WhatsAppService.sendFlow(phone, {
+            flowId,
+            header: '✏️ Change this paper',
+            body: 'Want a shorter paper? Open this to untick any questions you '
+              + 'do not want, and I will make it again.',
+            buttonText: 'Choose questions',
+            // The token names the PAPER; INIT reads it and opens REVIEW rather
+            // than starting a new request. No `screen`, so this is data_exchange.
+            flowToken: `${userId}:assessment-review:${paperId}`,
+          });
+        }
+      } catch (err) {
+        logToFile('[assessment] could not offer the review', { userId, paperId, error: err.message });
       }
     }
 

@@ -1,20 +1,20 @@
 'use strict';
 /**
- * Video-quiz class report — bd-2335, redesigned bd-2473, i18n foundation
- * ported from the main bot (bd-2664/bd-2679) — NIETE's copy was still the
- * English-only v1 layout: no Nastaliq font, no RTL, no per-language chrome.
+ * Video-quiz class report — redesigned, with the i18n foundation ported
+ * from the main bot. NIETE's copy was still the English-only v1 layout:
+ * no Nastaliq font, no RTL, no per-language chrome.
  *
  * The teacher's copy of "how did my class do, and what do I do about it".
- * v2 (bd-2473) adopts the coaching hero-report visual system (navy hero,
+ * v2 adopts the coaching hero-report visual system (NIETE slate hero — retokened from the earlier navy by the transcript-quiz work,
  * Fraunces/Lexend, jewel-tone cards, gold accents — see the main bot's
  * shared/services/coaching/report-v2/hero-report.template.js) instead of the
  * v1 flat white layout, so the report family reads as one product.
  *
  * The ordering is still the argument, unchanged from v1: what to reteach
  * comes FIRST, above the roster. A report that opens with a ranked list of
- * children invites her to read it as a league table; one that opens with
- * "these three questions, this wrong answer, here is why" invites her to
- * change tomorrow's lesson. Scores are underneath, because she does still
+ * children invites the teacher to read it as a league table; one that opens
+ * with "these three questions, this wrong answer, here is why" invites them
+ * to change tomorrow's lesson. Scores are underneath, because they do still
  * need them.
  *
  * language ('en' default; 'ur' fully localised chrome + RTL — NIETE is flat
@@ -28,7 +28,24 @@
 
 const fs = require('fs');
 const path = require('path');
-const { stripEmphasis, classLabel } = require('../utils/text-format');
+const { stripEmphasis, classLabel, classHeading } = require('../utils/text-format');
+const {
+  PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
+  headFamily, bodyFamily, latticeSvg, dirOf,
+} = require('./niete-brand');
+
+// PLAN_R6 D4 — this template used to carry its own literal 14/15/18/19/20/21/22px
+// ladder with its own Urdu bump (19/18 = +5.5%, against the pre-send PDF's
+// +15%). It now reads the same shared floor the teacher PDF reads, so raising
+// the floor moves both documents together instead of drifting apart again.
+const round1 = (n) => Math.round(n * 10) / 10;
+// The two steps above body ARE niete-brand's TYPE_STEP/TYPE_STEP_UR; only the
+// two sizes this template alone needs (the hero title, the stat-chip number)
+// are derived here, and derived rather than hard-coded so they move with the
+// tokens instead of freezing today's arithmetic.
+const HERO_H1 = round1(30 * HEAD_SCALE);        // 33.6px
+const HERO_H1_UR = round1(27 * HEAD_SCALE);     // 30.2px
+const STCHIP_N = round1(22 * (21 / 18));        // 25.7px — Latin digits, one value for both scripts
 
 let _assets = null;
 
@@ -51,9 +68,11 @@ function assets() {
       // to and Chromium renders empty tofu boxes.
       nastaliq: readBase64('fonts/NotoNastaliqUrdu-Regular.ttf'),
       nastaliqBold: readBase64('fonts/NotoNastaliqUrdu-Bold.ttf'),
-      // NIETE branding (2026-08-04): black-on-transparent N/ن monogram from
-      // the niete-brand skill, for the light-background footer lockup.
+      // NIETE branding: black-on-transparent N/ن monogram for the light
+      // footer lockup, and the on-dark form (green N, white nuqta) for the
+      // navy-slate hero — the brand book's background table decides which.
       nieteMark: readBase64('assets/niete-mark-black-transparent.png'),
+      markOnDark: readBase64('assets/niete-mark-ondark-padded.png'),
     };
   }
   return _assets;
@@ -64,7 +83,7 @@ function assets() {
  * this file interpolates into element TEXT CONTENT, never an HTML attribute
  * value (checked every call site) — a literal `'`/`"` is markup-safe there.
  * Escaping them to &#39;/&quot; used to actively cause a bug on the main bot
- * (bd-2679): wrapLatin()'s tag/entity pre-split pulls any HTML entity out as
+ * wrapLatin()'s tag/entity pre-split pulls any HTML entity out as
  * its own opaque, unwrappable segment, so an escaped apostrophe tore an
  * English contraction/possessive ("cat's", "don't") into two separate
  * isolated .ltr spans with a bare entity between them, mid-word. Building
@@ -85,34 +104,80 @@ const RTL_LANGS = new Set(['ur']);
 const CHROME = {
   en: {
     eyebrow: 'Class quiz results',
-    forTeacher: (n) => `For <b>${esc(n)}</b>`,
     classResults: 'Class results',
     gradeLine: (g) => ` &middot; Grade ${esc(g)}`,
+    // PLAN_R5 item 6 — built by classHeading() from what the CHILDREN typed,
+    // so the template only has to place it. `gradeLine` stays for the callers
+    // that still pass a single `grade` and know it (the video-quiz lane).
+    classesLine: (c) => ` &middot; ${c}`,
     classAverage: 'Class average',
     started: 'Started', finished: 'Finished', worthReteaching: 'Worth reteaching',
     worthReteachingHeading: 'Worth reteaching &mdash; most missed',
     gotWrong: (n, t) => `${n} of ${t} got this wrong`,
     mostChose: 'Most chose', correctAnswer: 'correct answer',
     explanation: 'Explanation:',
+    // The distractor's own authored feedback, shown as a SECOND line only
+    // when the question's own `explanation` is also present — two distinct
+    // labels so neither ever reads as a duplicate "Explanation".
+    whyPicked: 'Why they picked it:',
     howEachStudentDid: 'How each student did',
     notFinishedYet: 'Not finished yet:',
     forTomorrow: 'For tomorrow',
+    // Each label names WHAT THE TEACHER DOES with the sentence under it. The
+    // old set named the FIELD ("On the board", "Check question", "Secure"),
+    // and "One to stretch them" read as a noun phrase with no verb in it at
+    // all — the operator called it awkwardly named, and it was: the box's
+    // whole job is to tell the teacher what tomorrow's ten minutes look like.
+    guidanceMuddled: 'Where they got muddled',
+    guidanceBoard: 'How to reteach it tomorrow',
+    guidanceCheck: 'Ask this at the end',
+    guidanceSecure: 'What they have secure',
+    guidanceStretch: 'How to stretch them tomorrow',
   },
   ur: {
-    eyebrow: 'کلاس کوئز کے نتائج',
-    forTeacher: (n) => `${esc(n)} <b>کے لیے</b>`,
+    // quiz stays in LATIN. `کوئز` is a transliteration of an English word, not
+    // a translation of it — and the register the rest of this deployment writes
+    // in (bot/shared/config/ux-strings.js) already carries quiz/link/forward/
+    // group/PDF in Latin letters inside Urdu sentences. These two chrome tables
+    // were the only place in the repo that had drifted off it.
+    eyebrow: 'کلاس کے quiz کے نتائج',
     classResults: 'کلاس کے نتائج',
     gradeLine: (g) => ` &middot; جماعت ${esc(g)}`,
-    classAverage: 'کلاس اوسط',
-    started: 'شروع کیا', finished: 'مکمل کیا', worthReteaching: 'دوبارہ پڑھانا',
+    classesLine: (c) => ` &middot; ${c}`,
+    // "کلاس اوسط" was a word-for-word calque: Urdu does not stack two nouns
+    // the way English does, so it needs the linker to mean anything at all.
+    classAverage: 'کلاس کا اوسط',
+    started: 'شروع کیا', finished: 'مکمل کیا', worthReteaching: 'دوبارہ پڑھانے کے قابل',
     worthReteachingHeading: 'دوبارہ پڑھانے کے قابل &mdash; سب سے زیادہ غلط',
     gotWrong: (n, t) => `${t} میں سے ${n} نے غلط جواب دیا`,
     mostChose: 'زیادہ تر نے چنا', correctAnswer: 'درست جواب',
     explanation: 'وضاحت:',
-    howEachStudentDid: 'ہر طالب علم کی کارکردگی',
+    whyPicked: 'بچوں نے یہ کیوں چنا:',
+    // "طالب علم" is masculine-marked; "بچے" is what a teacher says and is
+    // gender-neutral, which the broadcast rule requires of every string here.
+    howEachStudentDid: 'ہر بچے کی کارکردگی',
     notFinishedYet: 'ابھی مکمل نہیں کیا:',
     forTomorrow: 'کل کے لیے',
+    guidanceMuddled: 'بچے کہاں الجھے',
+    guidanceBoard: 'کل اسے دوبارہ کیسے پڑھائیں',
+    guidanceCheck: 'آخر میں یہ پوچھیں',
+    guidanceSecure: 'بچوں کو یہ پکا آ گیا',
+    guidanceStretch: 'کل انہیں ایک قدم آگے کیسے لے جائیں',
   },
+};
+
+/**
+ * PLAN_R4 D6 — the guidance object's shape decides which three chrome
+ * labels apply. "Something missed" carries muddled/board/check; "nothing
+ * missed" carries secure/stretch. Checked by KEY PRESENCE (not truthiness of
+ * every key) so a shape with one blank part still renders the right label
+ * set rather than falling through to the other one.
+ */
+const GUIDANCE_MISSED_KEYS = ['muddled', 'board', 'check'];
+const GUIDANCE_ZERO_KEYS = ['secure', 'stretch'];
+const GUIDANCE_LABEL_KEYS = {
+  muddled: 'guidanceMuddled', board: 'guidanceBoard', check: 'guidanceCheck',
+  secure: 'guidanceSecure', stretch: 'guidanceStretch',
 };
 
 /**
@@ -128,7 +193,7 @@ const CHROME = {
  * built already in this shape rather than the main bot's original narrower
  * class, which excluded them and fragmented English clauses inside RTL text
  * into several separate isolated spans with bare, un-isolated characters
- * between them (bd-2679 on the main bot: isolation only preserves order
+ * between them (seen on the main bot: isolation only preserves order
  * WITHIN a span — the browser's bidi algorithm still reorders adjacent
  * isolated islands per the surrounding dir="rtl" paragraph, scrambling
  * clause order even though no individual span's own text was corrupted).
@@ -155,42 +220,82 @@ function band(pct) {
 function renderVideoQuizReportHtml(d) {
   const a = assets();
   const {
-    topic = 'Video quiz', teacherName = '', grade = '',
+    topic = 'Video quiz', teacherName = '', grade = '', classes = [],
     started = 0, finished = 0, average = 0,
     students = [], hardest = [], guidance = null, unfinished = [],
     generatedAt = '', language = 'en',
   } = d || {};
+  // The reader's language and the quiz's language are two independent facts.
+  // Defaults to the chrome language so a single-language caller is unchanged.
+  const contentLanguage = (d && d.contentLanguage) || language;
 
-  const RTL = RTL_LANGS.has(language);
+  const RTL = RTL_LANGS.has(language);           // chrome: what THE TEACHER reads
+  const CRTL = RTL_LANGS.has(contentLanguage);   // content: what the class read
   const C = CHROME[language] || (RTL ? CHROME.ur : CHROME.en);
-  // T() = untrusted content (escape THEN isolate Latin runs). L() = trusted,
-  // developer-authored chrome HTML that may already contain real tags/entities
-  // (&mdash;, <b>) — those must NOT be re-escaped, only Latin-isolated.
+  // T() = untrusted chrome-language content (escape THEN isolate Latin runs).
+  // L() = trusted, developer-authored chrome HTML that may already contain real
+  // tags/entities (&mdash;, <b>) — those must NOT be re-escaped, only isolated.
+  // K() = quiz content: isolation follows the CONTENT's direction, not the
+  // teacher's.
   const T = (s) => wrapLatin(esc(s), RTL);
   const L = (s) => wrapLatin(s, RTL);
+  const K = (s) => wrapLatin(esc(s), CRTL);
+  const cdir = CRTL ? 'rtl' : 'ltr';
+  const cls = (extra) => `class="${extra} content" dir="${cdir}"`;
+
+  // PLAN_R5 item 6 — the class comes from what the CHILDREN typed into the
+  // join form, and it is written in the DOCUMENT's language. A `grade` a
+  // caller still passes is the fallback, never the winner: the one the PDF
+  // used to print came from a digest band and read "Grade 6-8".
+  const classText = classHeading(classes, contentLanguage);
+  const classTail = classText ? L(C.classesLine(classText))
+    : (grade ? L(C.gradeLine(grade)) : '');
 
   const missedCards = hardest.map((h, i) => {
     const chose = h.top_wrong_text ? `
-      <div class="chose"><span class="lbl">${L(C.mostChose)}</span>
-        <span class="wrongpill">${T(h.top_wrong_text)}</span>
+      <div class="chose"><span class="cpair"><span class="lbl">${L(C.mostChose)}</span>
+        <span ${cls('wrongpill')}>${K(h.top_wrong_text)}</span></span>
         <span class="arrow">${RTL ? '&larr;' : '&rarr;'}</span>
-        <span class="lbl">${L(C.correctAnswer)}</span>
-        <span class="rightpill">${T(h.correct_text || '')}</span></div>` : '';
-    const why = h.misconception ? `
-      <div class="why"><b>${L(C.explanation)}</b> ${T(h.misconception)}</div>` : '';
+        <span class="cpair"><span class="lbl">${L(C.correctAnswer)}</span>
+        <span ${cls('rightpill')}>${K(h.correct_text || '')}</span></span></div>` : '';
+    // The question's own "why the correct answer is correct" (`explanation`)
+    // and the distractor's own authored feedback (`misconception`) are two
+    // independent facts. Both present -> two distinctly labelled lines,
+    // never both saying "Explanation". Only one present -> that one line,
+    // under the same "Explanation:" label the legacy misconception-only
+    // shape has always used.
+    const why = (h.explanation && h.misconception) ? `
+      <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.explanation)}</span></div>
+      <div class="why"><b>${L(C.whyPicked)}</b> <span ${cls('whytext')}>${K(h.misconception)}</span></div>`
+      : (h.explanation || h.misconception) ? `
+      <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.explanation || h.misconception)}</span></div>` : '';
+    // Transcript quizzes tag each question with the learning goal it checks;
+    // naming it here tells the teacher WHAT to reteach, not just which question.
+    const slo = h.slo ? `<div ${cls('slo')}>${K(h.slo)}</div>` : '';
     return `
       <div class="moment">
-        <div class="mhead"><div class="num">${i + 1}</div><div class="m-q">${T(h.question_text)}</div></div>
-        <div class="mstat">${L(C.gotWrong(h.wrong, h.total))}</div>
+        <div class="mhead"><div class="num"><span>${i + 1}</span></div><div ${cls('m-q')}>${K(h.question_text)}</div></div>
+        <div class="mrow">${slo}<div class="mstat">${L(C.gotWrong(h.wrong, h.total))}</div></div>
         ${chose}${why}
       </div>`;
   }).join('');
+
+  // A roster is a list of names people wrote themselves, so the quiz's
+  // language decides none of their scripts: in an Urdu class "Ali" is still
+  // Latin, and in an English one "عائشہ" is still Perso-Arabic. Each name is
+  // therefore isolated and faced by ITS OWN script, not by contentLanguage —
+  // keyed off the quiz, half of a real roster is set in the wrong face.
+  const nameCell = (raw) => {
+    const name = raw || 'Unnamed';
+    const nrtl = dirOf(name) === 'rtl';
+    return `<span class="nm content" dir="${nrtl ? 'rtl' : 'ltr'}">${wrapLatin(esc(name), nrtl)}</span>`;
+  };
 
   const rosterRows = students.map((s) => {
     const pct = s.mastery_percentage || 0;
     return `
       <div class="r-row">
-        <div class="r-name">${T(s.student_name || 'Unnamed')}<div class="cls">${T(classLabel(s.student_class))}</div></div>
+        <div class="r-name">${nameCell(s.student_name)}<div class="cls">${T(classLabel(s.student_class, language))}</div></div>
         <div class="pbar"><div class="pfill ${band(pct)}" style="width:${pct}%"></div></div>
         <div class="r-score">${s.correct_answers || 0}/${s.total_questions_answered || 0} &middot; ${pct}%</div>
       </div>`;
@@ -198,18 +303,43 @@ function renderVideoQuizReportHtml(d) {
 
   const brandMarkImg = a.nieteMark
     ? `<img class="mark" src="data:image/png;base64,${a.nieteMark}" alt="NIETE">` : '';
+  const heroMark = a.markOnDark
+    ? `<img class="hero-mark" src="data:image/png;base64,${a.markOnDark}" alt="NIETE">` : '';
 
+  // Each unfinished child is a name someone typed themselves, exactly like a
+  // roster row — rendered as its own nameCell()-style span so a mixed roster
+  // doesn't force half its names into the wrong script. The separator sits
+  // OUTSIDE the spans, in plain (unescaped, chrome-neutral) punctuation.
   const notFinished = unfinished.length ? `
-    <div class="unfin"><b>${L(C.notFinishedYet)}</b> ${T(unfinished.join(RTL ? '، ' : ', '))}</div>` : '';
+    <div class="unfin"><b>${L(C.notFinishedYet)}</b> ${unfinished.map(nameCell).join(CRTL ? '، ' : ', ')}</div>` : '';
+
+  // guidance is one of: a legacy plain string (one unlabelled paragraph), an
+  // object shaped either {muddled,board,check} or {secure,stretch} (three/two
+  // labelled parts), or null/falsy (card omitted entirely).
+  let guidanceInner = '';
+  if (typeof guidance === 'string') {
+    guidanceInner = `<div class="try-text">${T(stripEmphasis(guidance))}</div>`;
+  } else if (guidance && typeof guidance === 'object') {
+    const keys = GUIDANCE_MISSED_KEYS.some((k) => k in guidance) ? GUIDANCE_MISSED_KEYS : GUIDANCE_ZERO_KEYS;
+    guidanceInner = keys.filter((k) => guidance[k]).map((k) => `
+      <div class="try-part">
+        <div class="try-label">${L(C[GUIDANCE_LABEL_KEYS[k]])}</div>
+        <div class="try-text">${T(stripEmphasis(guidance[k]))}</div>
+      </div>`).join('');
+  }
 
   const guidanceBlock = guidance ? `
     <div class="try">
+      ${latticeSvg({ id: 'niete-lattice-try', line: PALETTE.green, opacity: 0.13 })}
       <div class="label">${L(C.forTomorrow)}</div>
-      <div class="try-text">${T(stripEmphasis(guidance))}</div>
+      ${guidanceInner}
     </div>` : '';
 
-  const headFam = RTL ? `'NastaliqUrdu',serif` : `'Fraunces',serif`;
-  const bodyFam = RTL ? `'NastaliqUrdu',serif` : `'Lexend',sans-serif`;
+  // Both stacks always name both families — see niete-brand.js.
+  const headFam = headFamily(RTL);
+  const bodyFam = bodyFamily(RTL);
+  const cHeadFam = headFamily(CRTL);
+  const cBodyFam = bodyFamily(CRTL);
   const dir = RTL ? 'rtl' : 'ltr';
 
   return `<!doctype html><html dir="${dir}" lang="${language}"><head><meta charset="utf-8"><style>
@@ -220,7 +350,7 @@ function renderVideoQuizReportHtml(d) {
 @font-face{font-family:'Fraunces';font-weight:600;src:url(data:font/ttf;base64,${a.frauncesSemi}) format('truetype')}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq}) format('truetype')}
 @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold}) format('truetype')}
-body{background:#eef1f7;font-family:${bodyFam}}
+body{background:#eef1f0;font-family:${bodyFam}}
 .report{width:794px;margin:0 auto;background:#fff;color:#1c2438}
 /* Latin runs isolated inside RTL text (proper nouns, stray English words)
    render in their own script + direction, matching hero-report. */
@@ -231,70 +361,138 @@ body{background:#eef1f7;font-family:${bodyFam}}
    bidi runs) then visually reorders (observed on the main bot: "Aug 2026
    13"). direction:ltr forces the isolate's own base direction, independent
    of the RTL ancestor. */
-.ltr{font-family:'Lexend',sans-serif;font-weight:600;unicode-bidi:isolate;direction:ltr}
+.ltr{font-family:${FONTS.bodyLatin};font-weight:600;unicode-bidi:isolate;direction:ltr}
+/* Every block of QUIZ content follows the quiz's language, not the reader's. */
+.content{font-family:${cBodyFam}}
+/* leadingAt() — larger type needs proportionally less leading, so the round-5
+   ratios shrink by exactly the factor the floor grew by. Holding them fixed is
+   what turned a +17% type raise into +2 pages on the Urdu pre-send PDF. */
+.content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:${leadingAt(1.9)}}
+.content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.45}
+/* A chip, a pill and a roster name are UI, not prose. Nastaliq's prose leading
+   over a one-line label costs a third of a page across a full roster and puts
+   air inside a chip that then looks broken; the READING blocks — the question,
+   the explanation, the guidance — keep it. Same argument the teacher PDF
+   already makes for its option rows. */
+.r-name .content[dir="rtl"],.slo.content[dir="rtl"],.wrongpill.content[dir="rtl"],.rightpill.content[dir="rtl"]{line-height:${leadingAt(1.5)}}
 
-.hero{position:relative;min-height:230px;overflow:hidden;background:#0c1a4e;padding:30px 42px 26px}
-.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,26,78,.5),rgba(12,26,78,.45) 45%,rgba(12,26,78,.92))}
-.hero>*{position:relative;z-index:1}
-.eyebrow{font-size:12px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:#9db0ff;font-weight:700}
-.herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px}
-.hero h1{font-family:${headFam};font-size:${RTL ? '24px' : '26px'};line-height:${RTL ? '1.9' : '1.2'};font-weight:600;color:#fff;max-width:490px}
+.hero{position:relative;min-height:230px;overflow:hidden;background:${PALETTE.slate};padding:30px 42px 26px}
+.hero .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.hero>*:not(.lattice){position:relative;z-index:1}
+.eyebrow{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
+.hero-mark{width:46px;height:46px;object-fit:contain;flex-shrink:0;display:block}
+.eyerow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:16px}
+.hero h1{font-family:${cHeadFam};font-size:${CRTL ? HERO_H1_UR : HERO_H1}px;line-height:${CRTL ? `${leadingAt(1.85)}` : '1.2'};font-weight:600;color:#fff;max-width:470px;text-align:${RTL ? 'right' : 'left'}}
 .hscore{text-align:${RTL ? 'left' : 'right'};flex-shrink:0;margin-${RTL ? 'right' : 'left'}:20px}
-.hscore .p{font-family:'Lexend';font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
-.hscore .s{font-family:${RTL ? bodyFam : `'Lexend'`};font-size:11.5px;color:#bcc8ff;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
-.who{margin-top:16px;font-size:14px;color:#dfe5ff;${RTL ? 'line-height:2;' : ''}}
+.hscore .p{font-family:${FONTS.bodyLatin};font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
+.hscore .s{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
+.who{font-family:${bodyFam};margin-top:16px;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#e2e5ea;${RTL ? `line-height:${leadingAt(2)};` : ''}}
+/* D6 — the who-line is the name followed by the class, with no possessive
+   preposition in front of it, so the NAME carries the emphasis the removed
+   bold used to carry. */
+.who .nm{color:#fff;font-weight:700;font-size:${RTL ? TYPE_STEP_UR.name : TYPE_STEP.name}px}
 .who b{color:#fff}
 .statrow{display:flex;gap:10px;margin-top:18px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:9px 14px}
-.stchip .n{font-family:'Lexend';font-weight:700;font-size:19px;color:#fff;direction:ltr}
-.stchip .l{font-family:${RTL ? bodyFam : `'Lexend'`};font-size:${RTL ? '11.5px' : '10.5px'};color:#9db0ff;${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
+.stchip .n{font-family:${FONTS.bodyLatin};font-weight:700;font-size:${STCHIP_N}px;color:#fff;direction:ltr}
+.stchip .l{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
 
 .body{padding:26px 42px 6px}
-.label{font-size:${RTL ? '12.5px' : '11px'};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:#0c1a4e;opacity:.55;font-weight:700;margin-bottom:14px}
+.label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
 
-.moment{background:#f7f9ff;border-radius:14px;padding:16px 18px;margin-bottom:12px}
+.moment{background:#f7f9ff;border-radius:14px;padding:18px 20px;margin-bottom:14px}
 .mhead{display:flex;gap:10px;align-items:flex-start}
-.num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:#0c1a4e;color:#fff;font-size:12px;font-weight:700;
-     display:flex;align-items:center;justify-content:center;font-family:'Lexend'}
-.m-q{font-family:${headFam};font-size:16px;line-height:${RTL ? '1.9' : '1.4'};color:#26304d;font-weight:600}
-.mstat{font-size:12px;color:#6a748f;margin:8px 34px 10px}
-.chose{margin:0 34px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
-.lbl{color:#6a748f}
-.wrongpill{background:#fff4d6;color:#9a6b00;font-weight:700;padding:3px 10px;border-radius:12px}
-.rightpill{background:#e2f6ea;color:#0f7a3d;font-weight:700;padding:3px 10px;border-radius:12px}
+.num{flex-shrink:0;width:33px;height:33px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:${TYPE_FLOOR.small}px;font-weight:700;
+     display:flex;align-items:center;justify-content:center;font-family:${FONTS.bodyLatin}}
+.num span{display:block;transform:rotate(-45deg)}
+.m-q{font-family:${cHeadFam};font-size:${CRTL ? TYPE_STEP_UR.headline : TYPE_STEP.headline}px;line-height:${CRTL ? `${leadingAt(1.9)}` : '1.4'};color:#26304d;font-weight:600}
+.mrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 40px 12px}
+.mstat{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#6a748f}
+.slo{font-size:${CRTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#1a6b42;background:${PALETTE.greenWash};border-radius:10px;display:inline-block;padding:5px 13px}
+.chose{margin:0 40px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:${CRTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px}
+.cpair{display:inline-flex;align-items:center;gap:9px}
+.lbl{font-family:${bodyFam};color:#6a748f}
+.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:4px 12px;border-radius:12px}
+.rightpill{background:${PALETTE.greenWash};color:#0f7a3d;font-weight:700;padding:4px 12px;border-radius:12px}
 .arrow{color:#b7bfd6}
-.why{margin:8px 34px 0;font-size:12px;line-height:${RTL ? '1.9' : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:8px 10px}
+.why{font-family:${bodyFam};margin:10px 40px 0;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;line-height:${RTL ? `${leadingAt(1.9)}` : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:11px 14px}
 
 .roster{margin-top:22px}
-.r-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef0f6}
+.r-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid #eef0f6}
 .r-row:last-child{border-bottom:none}
-.r-name{width:190px;font-size:13.5px;font-weight:600;color:#26304d}
-.r-name .cls{font-weight:400;color:#8a93ad;font-size:11.5px}
-.pbar{flex:1;height:8px;border-radius:5px;background:#e7ebf3;overflow:hidden}
+.r-name{width:246px;font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;font-weight:600;color:#26304d}
+.r-name .cls{font-family:${bodyFam};font-weight:400;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
+.pbar{flex:1;height:10px;border-radius:5px;background:#e7ebf3;overflow:hidden}
 .pfill{height:100%;border-radius:5px}
-.r-score{width:110px;text-align:${RTL ? 'left' : 'right'};font-family:'Lexend';font-weight:700;font-size:13px;color:#0c1a4e;direction:ltr}
-.band-strong{background:#3aa775}.band-mid{background:#e0a52e}.band-low{background:#dd7a5c}
+.r-score{width:142px;text-align:${RTL ? 'left' : 'right'};font-family:${FONTS.bodyLatin};font-weight:700;font-size:${TYPE_FLOOR.body}px;color:${PALETTE.slate};direction:ltr;unicode-bidi:isolate}
+/* Bands read as descending emphasis inside the brand's own two colours —
+   the previous amber/coral pair was another product's accent family. */
+.band-strong{background:${PALETTE.green}}.band-mid{background:${PALETTE.slateLight}}.band-low{background:#9AA2B1}
 
-.unfin{margin-top:16px;background:#faf9f7;border:1px dashed #e2e0d8;border-radius:10px;padding:12px 16px;font-size:12.5px;color:#7a7360;line-height:${RTL ? '1.9' : 'normal'}}
-.unfin b{color:#4a4636}
+.unfin{font-family:${bodyFam};margin-top:16px;background:#f5f6f8;border:1px dashed #d9dde4;border-radius:10px;padding:14px 18px;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:${PALETTE.muted};line-height:${RTL ? `${leadingAt(1.9)}` : 'normal'}}
+.unfin b{color:${PALETTE.slate}}
 
-.try{margin:24px 42px 0;background:linear-gradient(135deg,#0c1a4e,#1b2f7a);color:#fff;border-radius:16px;padding:20px 24px}
-.try .label{color:#9db0ff;opacity:1;margin-bottom:7px}
-.try-text{font-family:${headFam};font-size:16.5px;line-height:${RTL ? '1.9' : '1.5'}}
+/* The gap above the guidance box is PADDING on a wrapper, not a margin on
+   the box: a top margin is dropped at a page break, so when the box moves
+   to its own page it lands flush against the paper edge. */
+.trywrap{padding:24px 42px 0}
+/* THE BOX THE TEACHER ACTS ON, so legibility outranks decoration.
+   It used to be white text on a slate-to-green diagonal gradient: the type
+   crossed three different backgrounds on its way across the card and the
+   operator could not read the reteach section at all. It is now dark ink on
+   the brand's pale green wash, with the accent doing its work as a rule down
+   the leading edge instead of underneath the words, and each part on its own
+   white block. The lattice stays — behind the wash, in green, at a whisper —
+   so the card is still recognisably NIETE rather than a plain callout. */
+.try{position:relative;overflow:hidden;background:${PALETTE.greenWash};color:${PALETTE.ink};border:1px solid #BFE3D0;border-${RTL ? 'right' : 'left'}:5px solid ${PALETTE.green};border-radius:16px;padding:20px 24px}
+.try .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.try>*:not(.lattice){position:relative;z-index:1}
+.try .label{color:#12603C;opacity:1;margin-bottom:11px}
+/* The guidance is written FOR THE TEACHER, so it is set in their language's face. */
+.try-text{font-family:${headFam};font-size:${RTL ? TYPE_STEP_UR.name : TYPE_STEP.name}px;line-height:${RTL ? `${leadingAt(1.9)}` : '1.5'};color:#232735}
+/* Three-part guidance (D6): each part's own label is visually subordinate to
+   the section header above it (.try .label) — smaller, the same green-pale
+   tone, letterspaced in en only (Urdu has no case and letterspacing breaks
+   its joining, matching what .label already does elsewhere in this file). */
+.try-part{margin-top:12px;background:#fff;border-radius:12px;padding:13px 16px}
+.try-part:first-child{margin-top:0}
+.try-label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.1em'};${RTL ? '' : 'text-transform:uppercase;'}color:#12603C;opacity:1;font-weight:700;margin-bottom:6px}
 
-.foot{display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#8a93ad;font-size:12px}
-.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#0c1a4e;font-size:14px;font-family:'Lexend'}
-.brand .mark{width:20px;height:20px;object-fit:contain;display:block}
+/* Print pagination. A4 is 1123px tall and this document is 2-3 pages: without
+   these, a missed-question card, a roster row or the whole guidance box
+   splits across the break (observed: the guidance header landing alone at the
+   foot of page 2 with its first sentence sliced in half at the top of page 3),
+   and the roster's own section label is orphaned under nothing. break-* is the
+   standard property; page-break-* is kept beside it because Chromium print
+   path still honours the legacy alias on some element types. */
+.moment,.try,.try-part,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
+/* THE FOOTER MAY NOT STRAND ITSELF. When the guidance box fills a page to
+   within less than the footer's own height, the footer spilled onto a blank
+   sheet carrying a date and a monogram and nothing else, which reads as a
+   broken document rather than a finished one. break-before:avoid on the
+   footer does not work (Chromium's paged path ignores "avoid" there), so the
+   box and the footer are one indivisible tail instead: they move to the next
+   page together, and the last page is a page with content on it. If the two
+   together ever exceed a whole page Chromium breaks them anyway, which is the
+   correct degradation. */
+.tail{break-inside:avoid;page-break-inside:avoid}
+
+.foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${TYPE_FLOOR.small}px;font-family:${FONTS.bodyLatin}}
+.brand .mark{width:23px;height:23px;object-fit:contain;display:block}
+.stamp[dir="ltr"]{font-family:${FONTS.bodyLatin};font-weight:600}
 </style></head><body>
 <div class="report">
 
   <div class="hero">
-    <div class="eyebrow">${L(C.eyebrow)}</div>
+    ${latticeSvg({ id: 'niete-lattice-hero', line: PALETTE.green, opacity: 0.16 })}
+    <div class="eyerow"><div class="eyebrow">${L(C.eyebrow)}</div>${heroMark}</div>
     <div class="herotop">
-      <h1>${T(topic)}</h1>
+      <h1 class="content" dir="${cdir}">${K(topic)}</h1>
       <div class="hscore"><div class="p">${average}%</div><div class="s">${L(C.classAverage)}</div></div>
     </div>
-    <div class="who">${teacherName ? L(C.forTeacher(teacherName)) : L(C.classResults)}${grade ? L(C.gradeLine(grade)) : ''}</div>
+    <div class="who">${teacherName ? nameCell(teacherName) : L(C.classResults)}${classTail}</div>
     <div class="statrow">
       <div class="stchip"><div class="n">${started}</div><div class="l">${L(C.started)}</div></div>
       <div class="stchip"><div class="n">${finished}</div><div class="l">${L(C.finished)}</div></div>
@@ -313,11 +511,12 @@ body{background:#eef1f7;font-family:${bodyFam}}
     ${notFinished}
   </div>
 
-  ${guidanceBlock}
-
-  <div class="foot">
-    <div class="brand">${brandMarkImg}NIETE</div>
-    <div class="ltr" style="font-family:'Lexend',sans-serif">${esc(generatedAt)}</div>
+  <div class="tail">
+    ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
+    <div class="foot">
+      <div class="brand">${brandMarkImg}NIETE</div>
+      <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
+    </div>
   </div>
 
 </div>

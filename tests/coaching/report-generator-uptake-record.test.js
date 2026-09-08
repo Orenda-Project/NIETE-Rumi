@@ -17,7 +17,7 @@ const mockCard = jest.fn(async () => ({ _source: 'llm', commitment: 'c', action:
 jest.mock('../../bot/shared/services/coaching/coaching-card/commitment-card.service', () => ({ generateCommitmentCard: (...a) => mockCard(...a) }));
 jest.mock('../../bot/shared/config/coaching-card.config', () => ({ getCoachingCardCopy: jest.fn(() => ({ commitPrompt: 'Will you try this?', commitButtons: { yes: 'Yes', later: 'Later', no: 'No' }, cardFooter: 'Human Coach' })) }));
 const mockLoadPrior = jest.fn(async () => null);
-jest.mock('../../bot/shared/services/coaching/coaching-trend.service', () => ({ loadPriorAction: (...a) => mockLoadPrior(...a), loadTrendData: jest.fn(async () => []) }));
+jest.mock('../../bot/shared/services/coaching/coaching-trend.service', () => ({ loadPriorAction: (...a) => mockLoadPrior(...a), loadTrendData: jest.fn(async () => []), loadRecentSectionBModes: jest.fn(async () => []) }));
 
 const updates = [];
 const ok = (id, score) => ({ id, name: id, score, applicable: true });
@@ -108,6 +108,18 @@ describe('the carry step at report time', () => {
     expect(rec.target).toBeUndefined();
     expect(mockCard.mock.calls[0][3].loop).toBeUndefined();
   });
+  test('the Section B mode history is a PREFERENCE — its failure must not disable the loop', async () => {
+    process.env.UPTAKE_LOOP_ENABLED = 'true';
+    mockLoadPrior.mockResolvedValue(PRIOR);
+    const trend = require('../../bot/shared/services/coaching/coaching-trend.service');
+    trend.loadRecentSectionBModes.mockRejectedValueOnce(new Error('history query down'));
+    await RG.generateReport('sess-1', { from: '10000000000' });
+    const rec = recordWrite();
+    expect(rec.target).toBeDefined();          // the loop still ran
+    expect(rec.target.indicator).toBe('C3');
+    expect(rec.uptake.status).toBe('partial');
+  });
+
   test('a lookup failure never sinks the report — the card still ships and the record has no target', async () => {
     process.env.UPTAKE_LOOP_ENABLED = 'true';
     mockLoadPrior.mockRejectedValue(new Error('db down'));

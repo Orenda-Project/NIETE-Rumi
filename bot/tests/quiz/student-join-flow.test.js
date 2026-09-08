@@ -95,6 +95,10 @@ describe('bd-2338 — a child we have never met gets the Flow', () => {
     // Routed on our own token, not guessed from the payload shape.
     expect(opts.flowToken).toBe('vqjoin:sc-1');
     // The child sees whose quiz this is before typing anything.
+    // These two assert the OPTIONS OBJECT this call site builds, not what
+    // reaches Meta — sendFlow is mocked here. bd-mg9c7.79:
+    // send-flow-screen-data.test.js asserts the resolved
+    // flow_action_payload.data against a real sendFlow with only axios mocked.
     expect(opts.navigateData.teacher).toBe('Miss Ayesha');
     expect(opts.navigateData.topic).toBe('A Balanced Diet');
   });
