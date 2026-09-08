@@ -38,7 +38,7 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 | Installed deps match the commit's lockfiles | root and bot `package-lock.json` blobs at the sha must equal the installed trees' (exit 10) |
 | No live vendor call | `E2E_CASSETTE=replay-strict`: a hit replays, a miss **throws** `E2E_CASSETTE_MISS`, is logged to `cassette-misses.jsonl`, and makes the ledger row `CRITICAL` naming the scenarios it hit |
 | No production or staging data | the bot runs on the **sandbox** Supabase (`keys/niete-local.env`); the cassette and the DB tooling both refuse any other project ref |
-| Flows are never faked | every `flow*` primitive answers `MOCK_NO_FLOW_RENDER`; Flow scenarios record `BLOCKED`/`SKIP` through their own branches |
+| Flows are emulated, never rendered | the `flow*` primitives play Meta's client from the stored FLOW_JSON (phase 4); every result carries `via: flow-emulator`, `caps.render` stays `false`, and a component the emulator does not model (PhotoPicker) is refused, not faked |
 | Meta's field caps are enforced | the mock rejects header/footer > 60, button > 20, row title > 24, > 3 buttons, > 10 rows — counted in **code points**, like Meta |
 
 ## Setup (once per machine)
@@ -121,15 +121,47 @@ CalendarPicker 2, PhotoPicker 1. No routing-model problems. One drift: the repo'
 published copy is the truth, and this is exactly the class of gap the fixtures exist to catch.
 
 `node bot/scripts/e2e/flow-inventory.js report --out .claude/qa/fixtures/flows` prints the census offline.
-These files are the input to the Flow emulator (step 1, not built yet), which will interpret screens,
-routing and data bindings, encrypt the data-exchange round trips to `/api/flows/…` with a per-run
-keypair, and produce the completion reply — marked `via: flow-emulator`, never as a rendering pass.
+These files are the input to the Flow emulator (step 1, below).
+
+## Phase 4, step 1 — the Flow emulator
+
+`bot/scripts/e2e/flow-emulator.js` plays the WhatsApp client's side of a Flow from the stored JSON:
+screens and their visible components, `${data.x}` / `${form.x}` bindings, Form init-values, `visible`
+conditions, the routing model (a transition it forbids is `ROUTING_REFUSED`, as on a phone), and the
+Footer actions — `navigate`, `complete` (the `nfm_reply` payload, injected into the mock as the
+teacher's reply) and `data_exchange`. The data exchange is the real contract, not a stub: the emulator
+encrypts each submit exactly as the client does (RSA-OAEP SHA-256 wrapped AES-128-GCM, flipped-IV
+response) and posts it to the bot's own `/api/flows/<path>` — proven in tests against the bot's
+`flow-encryption.service.js`. The stack mints a keypair per run: the private half goes to the bot as
+`FLOW_PRIVATE_KEY_B64`, the public half to the emulator (`flow-public-key.b64` in the run directory).
+
+The mock adapter's `openFlow / flowProbe / flowClick / flowPick / flowType / flowState / flowComplete`
+are the same primitives the browser lane has, so the feature scripts are unchanged. Matching is what a
+teacher sees: a click finds its text anywhere on a list row (title, description, metadata — `Day 1`
+lives in the K-5 row description), `probe().text` is the whole screen as the dialog's innerText would
+be, and a miss names what was on screen (`NO_ITEM:x` + `seen: [...]`). The endpoint path per Flow comes
+from `bot/scripts/setup/flow-configs.js`.
+
+Proof at `c5f9a0eb` (this branch): **lesson-plan 7 pass · 1 fail · 2 blocked** — the Pick-Class Flow is
+walked Grade 1 → English → Ch 1 → Day 1 through four encrypted exchanges and the PDF lands in the outbox
+(L01), the secondary-grade path delivers the Oxbridge plan (L03), the Flow chrome reads English (L10); the
+one FAIL is L08, the known spec-vs-build finding. **status 3 pass · 1 fail · 1 blocked** — STA01 reads the
+in-flight listing through the Status Flow's endpoint; the FAIL is `STA-surface`, the script's deliberate
+record that the spec still documents the retired text template. The ledger row carries
+`flows: {via: "flow-emulator", opened, completed, refused, flows: [...]}`.
+
+Honest limits: no pixels, so layout, truncation and RTL rendering are still only tested on the WhatsApp
+Web lane; `completed` counts real `complete` actions (a script that closes the Flow after the endpoint
+has answered, as lesson-plan does, completes none); a scenario whose premise is the account's language
+(L10's Urdu teacher) runs against the sandbox driver, which is English.
 
 ## What this lane deliberately does not do (yet)
 
-Native Flow rendering, templates, delivery on a phone, and registration / observe / attendance
-(Flow-first features; training's Flow scenarios likewise stay on chrome) — those stay on the WhatsApp Web lane after the `develop` deploy,
-which is still the only run that tests what Meta does with the change.
+Native Flow rendering (pixels, truncation, RTL), templates, delivery on a phone, and the PhotoPicker
+Flow — those stay on the WhatsApp Web lane after the `develop` deploy, which is still the only run that
+tests what Meta does with the change. Registration / observe / attendance and training's Flow scenarios
+are now emulatable in principle (their Flows are stored and encrypted exchange works) but are not yet on
+the lane's feature list.
 
 ## Pieces
 
@@ -145,4 +177,5 @@ which is still the only run that tests what Meta does with the change.
 | Runner, profile, ledger | `.claude/qa/shared/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
 | Sandbox driver account | `.claude/qa/shared/niete_sandbox_driver.py` |
 | Flow definitions + census | `bot/scripts/e2e/flow-inventory.js` → `.claude/qa/fixtures/flows/` |
-| Tests | `tests/e2e-mock/*.test.js`, `.claude/qa/shared/test_mock_api.js`, `test_ledger_row.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/hooks/e2e-autorun.test.sh` |
+| Flow emulator (client side of a Flow, encrypted exchange) | `bot/scripts/e2e/flow-emulator.js`, used by `mock-api.cjs` (`E2E_FLOWS_DIR`, `E2E_FLOW_PUBLIC_KEY_B64`, `E2E_BOT_URL`) |
+| Tests | `tests/e2e-mock/*.test.js` (54), `.claude/qa/shared/test_mock_api.js` (23), `test_ledger_row.py`, `test_niete_sandbox_driver.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/hooks/e2e-autorun.test.sh` |
