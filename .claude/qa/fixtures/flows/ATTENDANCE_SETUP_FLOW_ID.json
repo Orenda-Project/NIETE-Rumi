@@ -1,0 +1,257 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "CLASS": [
+      "ROSTER"
+    ],
+    "ROSTER": [
+      "REVIEW"
+    ],
+    "REVIEW": [
+      "SUCCESS"
+    ],
+    "SUCCESS": []
+  },
+  "screens": [
+    {
+      "id": "CLASS",
+      "title": "Set up a class",
+      "data": {
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "grade_3",
+              "title": "Grade 3"
+            },
+            {
+              "id": "grade_5",
+              "title": "Grade 5"
+            }
+          ]
+        },
+        "grade_hint": {
+          "type": "string",
+          "__example__": "You told us you teach Grade 3 and Grade 5."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which class is this?"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.grade_hint}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "grade",
+                "label": "Class",
+                "required": true,
+                "data-source": "${data.grades}"
+              },
+              {
+                "type": "TextInput",
+                "name": "section",
+                "label": "Section",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "Only if your school splits this class into sections"
+              },
+              {
+                "type": "Footer",
+                "label": "Next — add students",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASS",
+                    "grade": "${form.grade}",
+                    "section": "${form.section}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ROSTER",
+      "title": "Add students",
+      "refresh_on_back": true,
+      "data": {
+        "class_display": {
+          "type": "string",
+          "__example__": "Grade 5 - A"
+        },
+        "existing_note": {
+          "type": "string",
+          "__example__": "Paste or type the whole list — one name per line."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "roster_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Add your students"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.class_display}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.existing_note}"
+              },
+              {
+                "type": "TextArea",
+                "name": "roster",
+                "label": "Student names",
+                "required": true,
+                "helper-text": "One name per line. Numbers and bullets are cleaned up for you."
+              },
+              {
+                "type": "Footer",
+                "label": "Check the list",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ROSTER",
+                    "roster": "${form.roster}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REVIEW",
+      "title": "Check the list",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "28 students in Grade 5 - A"
+        },
+        "preview": {
+          "type": "string",
+          "__example__": "1. Ayesha Bibi\n2. Ahmed Raza\n3. Fatima Noor"
+        },
+        "warning": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "review_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.preview}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.warning}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save this class",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "REVIEW",
+                    "confirm": "save"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Class saved",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 5 - A is ready"
+        },
+        "preview": {
+          "type": "string",
+          "__example__": "28 students saved. Say \"attendance\" whenever you want to mark them."
+        },
+        "warning": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "done_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.preview}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.warning}"
+              },
+              {
+                "type": "Footer",
+                "label": "Done",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
