@@ -41,8 +41,16 @@ Full procedure: [`gherkin-spec-sync`](../skills/gherkin-spec-sync/SKILL.md).
    python3 .claude/qa/shared/validate_specs.py --only <features>
    ```
    Exit 1 → do NOT run the suite. Fix, or say phase 2 is skipped and why.
-7. If a scenario count changed, update the counts in
+7. **RELEASE phase 2.** When the validator is green, stamp the release — the
+   runners (`commit-e2e.sh`, `run-suite.sh`) mechanically REFUSE to drive this
+   commit until you do, so an unsynced spec cannot reach the suite:
+   ```bash
+   python3 .claude/qa/shared/spec_sync.py --release <path/to/sync.json>
+   ```
+   It re-runs the validator itself and writes the per-commit stamp only on exit 0.
+   With `--brief`, that path is the same file you were handed.
+8. If a scenario count changed, update the counts in
    [`niete-e2e.md`](niete-e2e.md) and re-run `check-all-mode-counts.py`.
 
-Report what changed per feature, the validator result, and every `@obsolete` you
-added. Then run phase 2.
+Report what changed per feature, the validator result, every `@obsolete` you
+added, and that you released. Then run phase 2.

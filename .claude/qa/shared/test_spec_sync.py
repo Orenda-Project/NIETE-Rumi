@@ -268,6 +268,145 @@ def test_range_diff_uses_diff_with_the_range():
     assert cmd[-2:] == ["--", "a.js"]
 
 
+# ── the release gate: phase 2 is HELD until phase 1 releases it ─────────────
+#
+# Before this, commit-e2e.sh built the brief, printed "SYNC NEEDED" and drove the
+# suite anyway; nothing mechanical stood between an unsynced spec and a run. The
+# release is the joint: /sync-specs ends by calling `spec_sync.py --release`,
+# which re-runs the validator and, only on exit 0, writes a per-commit stamp the
+# runners consult before driving.
+
+import json
+
+
+def _pend():
+    return tempfile.mkdtemp(prefix="pend-")
+
+
+def _owned(feature, path):
+    return {feature: [{"path": path, "pattern": path, "shared": False, "kind": "map"}]}
+
+
+def _brief_on_disk(pend, name, features, sha, action_paths=None):
+    """Write a brief the way the hook does and return its path."""
+    reasons = {}
+    for f in features:
+        reasons.update(_owned(f, (action_paths or {}).get(f, "bot/shared/services/%s.service.js" % f)))
+    sel = _selection(features, reasons)
+    d = _specs({f: MENU_SPEC for f in features})
+    brief = ss.build_brief(sel, d, _differ({}), commit_sha=sha)
+    shutil.rmtree(d)
+    bp = os.path.join(pend, name + ".sync.json")
+    with open(bp, "w", encoding="utf-8") as fh:
+        json.dump(brief, fh)
+    return bp
+
+
+def test_brief_carries_the_commit_sha_and_starts_unreleased():
+    sel = _selection(["menu"], _owned("menu", "bot/shared/services/menu.service.js"))
+    d = _specs({"menu": MENU_SPEC})
+    brief = ss.build_brief(sel, d, _differ({}), commit_sha="abc123def4567890abcd")
+    assert brief["commit_sha"] == "abc123def4567890abcd"
+    assert brief["released"] is False
+    shutil.rmtree(d)
+
+
+def test_release_writes_the_stamp_only_when_the_validator_passed():
+    pend = _pend()
+    bp = _brief_on_disk(pend, "s1", ["menu"], "abc123def4567890abcd")
+    # a failing validator releases nothing — that is the whole point of the gate
+    assert ss.release(bp, validator_exit=1, pend_dir=pend) == 1
+    assert ss.release_stamp(pend, "abc123def4567890abcd") is None
+    assert json.load(open(bp))["released"] is False
+    # a passing one stamps the commit and marks the brief
+    assert ss.release(bp, validator_exit=0, pend_dir=pend) == 0
+    stamp = ss.release_stamp(pend, "abc123def4567890abcd")
+    assert stamp is not None
+    assert stamp["commit_sha"] == "abc123def4567890abcd"
+    assert stamp["features"] == ["menu"]
+    assert stamp["validator_exit"] == 0
+    assert stamp["released_at"]
+    assert json.load(open(bp))["released"] is True
+    shutil.rmtree(pend)
+
+
+def test_release_marks_every_brief_for_the_same_commit():
+    """The hook writes <session>.sync.json and commit-e2e.sh writes mock-<sha>.sync.json
+    for the SAME commit. Releasing one must release the other, or the runner still
+    sees a pending brief."""
+    pend = _pend()
+    a = _brief_on_disk(pend, "session-1", ["menu"], "abc123def4567890abcd")
+    b = _brief_on_disk(pend, "mock-abc123def456", ["menu"], "abc123def4567890abcd")
+    assert ss.release(a, validator_exit=0, pend_dir=pend) == 0
+    assert json.load(open(b))["released"] is True
+    shutil.rmtree(pend)
+
+
+def test_pending_release_blocks_an_unreleased_update_and_clears_after_release():
+    pend = _pend()
+    bp = _brief_on_disk(pend, "s1", ["menu"], "abc123def4567890abcd")
+    assert ss.pending_release(pend, ["menu"], commit_sha="abc123def4567890abcd") == [bp]
+    # another feature is not held hostage by menu's pending sync
+    assert ss.pending_release(pend, ["status"], commit_sha="abc123def4567890abcd") == []
+    ss.release(bp, validator_exit=0, pend_dir=pend)
+    assert ss.pending_release(pend, ["menu"], commit_sha="abc123def4567890abcd") == []
+    shutil.rmtree(pend)
+
+
+def test_a_stamp_alone_clears_the_gate_even_after_the_brief_is_rebuilt():
+    """commit-e2e.sh deletes and rebuilds its brief on every run; the rebuilt brief
+    is unreleased again. The stamp, keyed by commit, is what the gate trusts."""
+    pend = _pend()
+    bp = _brief_on_disk(pend, "mock-abc123def456", ["menu"], "abc123def4567890abcd")
+    ss.release(bp, validator_exit=0, pend_dir=pend)
+    os.remove(bp)
+    _brief_on_disk(pend, "mock-abc123def456", ["menu"], "abc123def4567890abcd")   # rebuilt, released=False
+    assert ss.pending_release(pend, ["menu"], commit_sha="abc123def4567890abcd") == []
+    shutil.rmtree(pend)
+
+
+def test_pending_release_ignores_validate_only_and_legacy_briefs():
+    pend = _pend()
+    # a spec-only edit: the .feature IS the change → validate-only → nothing to author → no hold
+    sel = _selection(["menu"], {"menu": [{"path": "tests/features/whatsapp/niete/menu.feature",
+                                          "pattern": "", "shared": False, "kind": "spec"}]})
+    d = _specs({"menu": MENU_SPEC})
+    brief = ss.build_brief(sel, d, _differ({}), commit_sha="abc123def4567890abcd")
+    assert brief["features"][0]["action"] == "validate-only"
+    with open(os.path.join(pend, "spec-only.sync.json"), "w") as fh:
+        json.dump(brief, fh)
+    # a brief written before the gate existed carries no commit_sha → not this gate's business
+    legacy = ss.build_brief(_selection(["menu"], _owned("menu", "bot/x.js")), d, _differ({}))
+    legacy.pop("commit_sha", None)
+    with open(os.path.join(pend, "legacy.sync.json"), "w") as fh:
+        json.dump(legacy, fh)
+    shutil.rmtree(d)
+    assert ss.pending_release(pend, ["menu"], commit_sha="abc123def4567890abcd") == []
+    assert ss.pending_release(pend, ["menu"]) == []
+    shutil.rmtree(pend)
+
+
+def test_pending_release_without_a_commit_scans_only_briefs_in_this_history():
+    """The chrome lane has no --commit. It must still refuse while a brief for a commit
+    in THIS tree's history is unreleased — and ignore briefs for commits that are not
+    (another branch's worktree shares nothing with this one)."""
+    pend = _pend()
+    a = _brief_on_disk(pend, "s-a", ["menu"], "aaaa111122223333aaaa")
+    _brief_on_disk(pend, "s-b", ["menu"], "bbbb111122223333bbbb")
+    relevant = lambda sha: sha.startswith("aaaa")
+    assert ss.pending_release(pend, ["menu"], is_relevant=relevant) == [a]
+    assert ss.pending_release(pend, ["status"], is_relevant=relevant) == []
+    ss.release(a, validator_exit=0, pend_dir=pend)
+    assert ss.pending_release(pend, ["menu"], is_relevant=relevant) == []
+    shutil.rmtree(pend)
+
+
+def test_commit_sha_is_resolved_from_the_range_end():
+    assert ss.range_end("abc~1...abc") == "abc"
+    assert ss.range_end("A...B") == "B"
+    assert ss.range_end("HEAD") == "HEAD"
+    assert ss.range_end("") == ""
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

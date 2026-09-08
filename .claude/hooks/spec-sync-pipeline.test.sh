@@ -253,6 +253,79 @@ has "2. the run order survives"             "$OUT" "/niete-e2e menu"  yes
 has "3. no phase 1 is claimed"              "$OUT" "PHASE 1"          no
 say "4. the marker records no sync"         "$(jqf "$MARKER" spec_sync)" False
 
+# ═════════════════════════════════════════════════════════════════════════════
+stage "H · phase 2 is mechanically HELD until phase 1 releases it (bd-zdpr8)"
+
+# Stage G clobbered spec_sync.py with a sys.exit(1) stub; restore the real module.
+cp "$REAL_ROOT/.claude/qa/shared/spec_sync.py" "$PROJ/.claude/qa/shared/spec_sync.py"
+
+# run-suite.sh resolves its repo from its own location, so PROJ must BE the repo:
+# its --repo relevance check asks "is this brief's commit in my history?" and the
+# fixture $REPO's commits are not. Give PROJ a history with the menu change.
+git -C "$PROJ" init -q . 2>/dev/null
+git -C "$PROJ" config user.email p@local; git -C "$PROJ" config user.name pipeline
+mkdir -p "$PROJ/bot/shared/services"
+cp "$TMP/menu.orig" "$SPECS/menu.feature"
+cat > "$PROJ/bot/shared/services/menu.service.js" <<'JS'
+const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Anything'];
+module.exports = { ROWS };
+JS
+git -C "$PROJ" add -A >/dev/null 2>&1; git -C "$PROJ" commit -qm baseline >/dev/null 2>&1
+printf "const OPENER = 'View Features';\nmodule.exports.OPENER = OPENER;\n" >> "$PROJ/bot/shared/services/menu.service.js"
+git -C "$PROJ" add -A >/dev/null 2>&1; git -C "$PROJ" commit -qm "menu: export the opener" >/dev/null 2>&1
+HSHA=$(git -C "$PROJ" rev-parse HEAD)
+
+rm -f "$PROJ/.claude/.e2e-pending/"*.json
+HOUT=$(python3 -c "
+import json
+print(json.dumps({'session_id':'$SESSION','cwd':'$PROJ','tool_name':'Bash',
+ 'tool_input':{'command':'git commit -m x'},'tool_response':{'stdout':'','stderr':'','interrupted':False}}))" \
+  | CLAUDE_PROJECT_DIR="$PROJ" bash "$PROJ/.claude/hooks/e2e-autorun.sh" 2>/dev/null)
+has "1. the arming order names the release step"        "$HOUT" "spec_sync.py --release" yes
+say "2. the brief carries the commit"                   "$(jqf "$BRIEF" commit_sha)" "$HSHA"
+say "3. ...and starts unreleased"                        "$(jqf "$BRIEF" released)"   False
+
+# run-suite (the ONLY runner on develop — chrome lane) refuses before the release.
+# --dry-run stops at the gate, so no Chrome/driver is needed to prove it.
+ROUT=$(bash "$PROJ/.claude/qa/shared/run-suite.sh" menu --driver 1 --target 1 --dry-run 2>&1); RRC=$?
+say "4. run-suite REFUSES before the release"           "$RRC" 4
+has "5. ...naming the release path"                     "$ROUT" "spec_sync.py --release" yes
+has "6. ...and it never reached Chrome preconditions"   "$ROUT" "Chrome DevTools" no
+
+# the agent syncs (spec already covers this change) and RELEASES
+python3 .claude/qa/shared/validate_specs.py --spec-dir "$SPECS" --agents-dir "$PROJ/.claude/qa/agents" --only menu >/dev/null 2>&1
+say "7. validate is green for menu"                     "$?" 0
+REL=$(python3 "$PROJ/.claude/qa/shared/spec_sync.py" --release "$BRIEF" 2>&1); RELRC=$?
+say "8. the release runs the validator and passes"      "$RELRC" 0
+STAMP=$(ls "$PROJ/.claude/.e2e-pending/"released-*.json 2>/dev/null | head -1)
+say "9. a per-commit stamp is written"                  "$([ -n "$STAMP" ] && echo yes || echo no)" yes
+say "10. ...naming the commit"                           "$(jqf "$STAMP" commit_sha)" "$HSHA"
+say "11. ...and the brief is marked released"            "$(jqf "$BRIEF" released)" True
+
+ROUT=$(bash "$PROJ/.claude/qa/shared/run-suite.sh" menu --driver 1 --target 1 --dry-run 2>&1); RRC=$?
+say "12. after the release run-suite passes the gate"   "$RRC" 0
+has "13. ...and says the gate passed"                   "$ROUT" "release gate passed" yes
+
+# a BROKEN sync must not release: inject a defect, drop the stamp, try again
+cp "$SPECS/menu.feature" "$TMP/menu.h"
+cat >> "$SPECS/menu.feature" <<'GK'
+
+  @e2ee @menu @P1
+  Scenario: mistyped tag, never run
+    When I send "/menu"
+    Then five rows are shown
+GK
+rm -f "$PROJ/.claude/.e2e-pending/"released-*.json
+python3 - "$BRIEF" <<'PY2'
+import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["released"]=False; json.dump(d, open(p,"w"))
+PY2
+REL=$(python3 "$PROJ/.claude/qa/shared/spec_sync.py" --release "$BRIEF" 2>&1); RELRC=$?
+say "14. a failing validator refuses to release"        "$RELRC" 1
+say "15. ...and writes no stamp"                         "$(ls "$PROJ/.claude/.e2e-pending/"released-*.json 2>/dev/null | wc -l | tr -d ' ')" 0
+ROUT=$(bash "$PROJ/.claude/qa/shared/run-suite.sh" menu --driver 1 --target 1 --dry-run 2>&1); RRC=$?
+say "16. so run-suite is still held"                    "$RRC" 4
+cp "$TMP/menu.h" "$SPECS/menu.feature"
+
 echo
 echo "  ────────────────────────────────────────────────────────────"
 if [ "$FAILED" = "0" ]; then

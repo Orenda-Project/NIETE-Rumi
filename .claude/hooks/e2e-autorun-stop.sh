@@ -128,7 +128,10 @@ written for the behaviour you just changed. Author through \`gherkin-test-cases\
   python3 .claude/qa/shared/validate_specs.py --only <features>
 
 Errors mean phase 2 does not run. Never delete a scenario — tag it \`@obsolete\`
-with a reason and report it.
+with a reason and report it. When it is GREEN, RELEASE phase 2 (the runner
+refuses to drive this commit until you do):
+
+  python3 .claude/qa/shared/spec_sync.py --release $SYNC_FILE
 
 ━━ PHASE 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

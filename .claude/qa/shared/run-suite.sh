@@ -24,10 +24,11 @@ MODE="${1:-safe}"; shift || true
 # REFLECT: default to the inherited env value (REFLECT=slash drives COA10 instead of COA06);
 # an empty local default here USED to shadow the inherited env, so named `coaching` mode could
 # never take the slash branch. The --reflect flag still overrides. FIRSTUSE passes through untouched.
-DRIVER="" ENV="staging" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFLECT="${REFLECT:-}"
+DRIVER="" ENV="staging" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFLECT="${REFLECT:-}" DRY_RUN=""
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
+  --dry-run) DRY_RUN=1; shift;;   # stop at the release gate, never drive (tests, CI)
   *) echo "unknown option $1"; exit 2;; esac; done
 [ -n "$DRIVER" ] || { echo "ERROR: --driver <digits> is required (the runner's OWN linked WhatsApp number — bd-2748)"; exit 2; }
 if [ -z "$TARGET" ]; then TARGET=$(python3 - "$ENV" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" <<'PY'
@@ -46,6 +47,24 @@ mkdir -p "$RUN_DIR"; LOG="$RUN_DIR/runner.log"
 say() { echo "$*" | tee -a "$LOG"; }
 T0=$(date +%s)
 say "=== /niete-e2e $MODE · $(date -u +%FT%TZ) · tenant NIETE env=$ENV target=$TARGET driver=$DRIVER run=$RUN_ID"
+
+# ── 0a. the RELEASE GATE — phase 2 is held until phase 1 released this change ──────────────────
+# A validated-but-stale spec is exactly as useless as an unvalidated one, so a run
+# refuses to start while a Gherkin sync brief for a commit in this tree's history
+# is unreleased. Phase 1 (/sync-specs → validate → spec_sync.py --release) writes
+# the per-commit stamp that clears it. This turns "sync the specs first" from a
+# request the order makes into a rule the runner enforces.
+case "$MODE" in
+  all|safe) GATE_FEATURES="registration,menu,training,lesson-plan,coaching,language,status";;
+  *)        GATE_FEATURES="$MODE";;
+esac
+HELD=$(python3 "$QA/spec_sync.py" --pending --pend-dir "$ROOT/.claude/.e2e-pending" --features "$GATE_FEATURES" --repo "$ROOT" 2>/dev/null); GEXIT=$?
+if [ "$GEXIT" = "4" ]; then
+  say "BLOCKED: release gate — phase 1 has not released this change. Sync + validate the specs, then"
+  say "  python3 .claude/qa/shared/spec_sync.py --release <brief>   (held: $(printf '%s ' $HELD))"
+  exit 4
+fi
+if [ -n "$DRY_RUN" ]; then say "dry-run: release gate passed for $GATE_FEATURES — not driving."; exit 0; fi
 
 # ── 0. preconditions ─────────────────────────────────────────────────────────────────────────
 curl -s -m 3 "http://127.0.0.1:$PORT/json/version" >/dev/null || { say "BLOCKED: no Chrome DevTools on port $PORT — run: bash $QA/start-chrome-cdp.sh"; exit 3; }

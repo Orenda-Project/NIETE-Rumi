@@ -23,6 +23,9 @@ developer changes bot code
 │ 3. SYNC THE GHERKIN   /sync-specs --brief …  (skill: gherkin-spec-sync,             │
 │    authors via gherkin-test-cases; adds / updates / tags @obsolete — never deletes) │
 │ 4. GATE               validate_specs.py  (+ check-all-mode-counts.py)              │
+│ 4b. RELEASE           spec_sync.py --release <brief> — stamps the commit ONLY on a  │
+│     green validator. run-suite REFUSES to drive until the stamp exists, so an       │
+│     unsynced spec cannot reach the suite (a mechanism, not advice).                 │
 │ 5. DRIVE              /niete-e2e <features>  against staging, linked WhatsApp Web  │
 │ 6. RECORD             .claude/qa/ledgers/runs.jsonl  (+ results/, gitignored)      │
 └────────────────────────────────────────────────────────────────────────────────────┘

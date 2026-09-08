@@ -172,8 +172,19 @@ State, briefly:
   honest (its own header says so).
 - **every `@obsolete` you added, as an explicit deletion ask**
 
-Then drive phase 2. If validation failed, say the suite is skipped and why — a
-skipped run reported honestly is fine; reported as a pass it is not.
+Then **release phase 2** — this is a mechanism, not a formality. The runners
+(`commit-e2e.sh`, `run-suite.sh`) refuse to drive this commit until a release
+stamp exists, so a validated sync that you forget to release leaves the suite
+blocked:
+
+```bash
+python3 .claude/qa/shared/spec_sync.py --release <the sync.json you were handed>
+```
+
+It re-runs `validate_specs` and writes the per-commit stamp ONLY on exit 0, so a
+release can never smuggle a red spec past the gate. Then drive phase 2. If
+validation failed, do not release — say the suite is skipped and why. A skipped
+run reported honestly is fine; reported as a pass it is not.
 
 ---
 

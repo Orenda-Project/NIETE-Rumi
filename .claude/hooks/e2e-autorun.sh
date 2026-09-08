@@ -252,6 +252,14 @@ skipped and why. Warnings are advisory. If you changed the scenario COUNT for a
 feature, update the per-feature counts in .claude/commands/niete-e2e.md too —
 \`check-all-mode-counts.py\` is what catches that drift.
 
+When the validator is GREEN, RELEASE phase 2. This is the mechanism, not a
+formality: the runner REFUSES to drive this commit until the release stamp
+exists, so an unsynced spec cannot reach the suite.
+
+  python3 .claude/qa/shared/spec_sync.py --release $SYNC_FILE
+
+(\`/sync-specs\` runs this for you at the end of its procedure.)
+
 ━━ PHASE 2 — THEN DRIVE THE SUITE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
 fi
