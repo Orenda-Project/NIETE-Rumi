@@ -233,15 +233,17 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # (whatsapp.service.js:1892 header, :1895 body, :1901 button, :1904-1932 rows). A localized
     # text-menu fallback exists (menu.service.js:185-195) but only fires if the list send FAILS.
 
-  @e2e @language @known-issue @P1
-  Scenario: /status renders English on an Urdu account
+  @e2e @language @P1
+  Scenario: /status answers in Urdu on an Urdu account
     Given the NIETE bot chat is open
     And my language is set to Urdu
     When I send "/status"
-    Then "Running for you…" / "Nothing's running right now." renders English (BUG)
-    # /status reads NO language at all (text-message.handler.js:1786-1821; status-flow-endpoint.js).
-    # Launch card + text fallback + every Flow-screen string hardcoded English. (Other Flow launches
-    # in the same file — /settings :1769, /homework :1838 — DO carry inline ur maps; status does not.)
+    Then the reply is in Urdu — with nothing running, "اس وقت کچھ نہیں چل رہا۔ کچھ شروع کرنے کے لیے /menu بھیجیں۔"
+    # WAS @known-issue "renders English": /status read no language at all. Fixed by the
+    # probe-before-send rework (2026-09-08): the idle answer comes from the bilingual string
+    # catalog and resolves per preferred_language. DRIVEN LIVE 2026-09-08 (staging, Urdu driver):
+    # the reply above, in Urdu — the leak is gone. The "something running" surface is per
+    # environment (Flow card on staging) and is asserted in status.feature.
 
   @e2e @language @known-issue @P2
   Scenario: Lesson Plans via the Pick-Class Flow renders English on an Urdu account
