@@ -31,7 +31,12 @@ const path = require('path');
 
 jest.mock('../../bot/shared/services/llm-client', () => {
   const create = jest.fn();
-  return { getClient: () => ({ chat: { completions: { create } } }), __create: create };
+  return { getClient: () => ({ chat: { completions: { create } } }),
+    // bd-oak77.29: the author service resolves its client PER MODEL now, so the mock has to
+    // state that half of llm-client's contract too. Same `create` spy either way — these
+    // suites assert on the payload, not on which provider it went to.
+    getClientForModel: (m) => ({ client: { chat: { completions: { create } } }, model: String(m || '') }),
+    __create: create };
 });
 
 const create = require('../../bot/shared/services/llm-client').__create;
@@ -377,7 +382,7 @@ describe('the revision ladder', () => {
     expect(out.fails).toEqual([]);
   });
 
-  it('builds a revision prompt carrying the defects, the previous doc, and the OVERSHOOT instruction', async () => {
+  it('builds a revision prompt carrying the blocking defects, the previous doc and the original task', async () => {
     create
       .mockResolvedValueOnce(reply(pacingBrokenDoc()))
       .mockResolvedValueOnce(reply(CLEAN_DOC));
@@ -386,11 +391,17 @@ describe('the revision ladder', () => {
 
     const revisionUser = create.mock.calls[1][0].messages[1].content;
     expect(revisionUser).toContain('Return the COMPLETE corrected lp_doc JSON');
-    expect(revisionUser).toContain('OVERSHOOT the cut by about 10%');
     expect(revisionUser).toContain('PREVIOUS lp_doc');
     expect(revisionUser).toContain('PACING_SUM');
     // the original task travels with it, so the model still has the page-truth
     expect(revisionUser).toContain('PRINTED PAGE 11');
+    // THIS LINE USED TO ASSERT `OVERSHOOT the cut by about 10%` AND IT ENCODED THE DEFECT
+    // (bd-owx8t). The preamble ordered a word cut, overshot by 10%, for `BUDGET` — a code that
+    // has not gated delivery since bd-wbvtb and that fires on 59 of 62 real documents, while the
+    // page-count block a few lines below says shortening sentences will not remove a page. The
+    // prompt held two contradictory orders and this test held the wrong one in place.
+    expect(revisionUser).not.toMatch(/OVERSHOOT/i);
+    expect(revisionUser).not.toMatch(/word-budget/i);
   });
 
   it('rejects a WORSE candidate but keeps climbing — a bad round costs the round, never the ladder', async () => {

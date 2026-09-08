@@ -50,6 +50,90 @@ function renderFailed(message, extra = {}) {
   return err;
 }
 
+// ── bd-htueq: cap concurrent Chromium renders IN THIS PROCESS ────────────────
+//
+// `render_lp.js` launches a fresh Chromium browser per call and closes it when done (SYNC.md
+// §3.2/§3.7) — there was never a limit on how many of those run at once. Three ladder rounds plus
+// a gate probe plus the final render is up to 5 renders per lesson; `SQS_WORKER_CONCURRENCY`
+// (default 3) runs that many lessons at once per worker process; none of it was serialised. Up to
+// ~15 concurrent Chromium instances fighting one container's CPU, RAM and the 64MB `/dev/shm`
+// SYNC.md §3.7 already documents as tight for a SINGLE render is the measured cause of the
+// load-test latency blowup (3 of 5 concurrent jobs over 936s vs 227-390s solo).
+//
+// This is a PER-PROCESS cap: fleet-wide concurrent renders = LP612_RENDER_CONCURRENCY x replica
+// count. It bounds what one Node process launches; it does not know about, or coordinate with,
+// any other replica.
+//
+// Default is 2, not "however many jobs run concurrently" (today up to 3 via
+// SQS_WORKER_CONCURRENCY x up to 5 renders each). Justification, from what SYNC.md §3.7 already
+// establishes rather than a fresh guess: a SINGLE render is already close to exhausting a
+// container's 64MB /dev/shm (the reason `--disable-dev-shm-usage` exists at all), so multiplying
+// that pressure by N concurrent Chromium processes — each also holding its own heap, its own
+// fonts, its own page tree — is the direct mechanism of the load-test blowup, not a side effect of
+// it. 2 keeps at least one render always progressing while still letting a second one overlap
+// (rather than fully serialising every render in a process that may be mid-3-jobs), and caps
+// worst-case concurrent Chromium memory at 2x a single render's footprint instead of up to 15x.
+// Configurable per deployment via LP612_RENDER_CONCURRENCY once real numbers exist.
+const DEFAULT_RENDER_CONCURRENCY = 2;
+
+function renderConcurrency() {
+  const n = parseInt(process.env.LP612_RENDER_CONCURRENCY, 10);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_RENDER_CONCURRENCY;
+}
+
+/**
+ * A minimal FIFO semaphore. `acquire()` resolves immediately while under the current
+ * `renderConcurrency()`; once at capacity it queues the caller and resolves callers in the order
+ * they arrived. `release()` MUST be called exactly once per successful `acquire()` — including on
+ * a failure path — or a slot is burned forever and every later caller queues behind it forever.
+ * `renderLessonPlan` below holds it in a try/finally for exactly that reason.
+ */
+class RenderSemaphore {
+  constructor() {
+    this.active = 0;
+    this.queue = [];
+  }
+
+  acquire() {
+    if (this.active < renderConcurrency()) {
+      this.active += 1;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => { this.queue.push(resolve); });
+  }
+
+  release() {
+    if (this.queue.length) {
+      // Hand the slot directly to the next waiter — `active` is unchanged, so this is not a
+      // release-then-reacquire race (JS has no concurrent threads to race here, but it also
+      // means a resize of LP612_RENDER_CONCURRENCY never needs a signal: the next acquire()
+      // reads it fresh).
+      const next = this.queue.shift();
+      next();
+      return;
+    }
+    this.active = Math.max(0, this.active - 1);
+  }
+}
+
+// One per process, by design (see the block comment above).
+const renderSemaphore = new RenderSemaphore();
+
+// ── bd-htueq: lp612.render.slow ───────────────────────────────────────────────
+//
+// No single-render latency histogram exists yet — this event is what will build one. The default
+// below is a starting point, not a measurement: a solo, uncontended render (embedded fonts, SVG
+// diagrams, a 2-9 page PDF, no queue wait) should be a single-digit-seconds operation, so flagging
+// anything past 2x that costs little in noise while surfacing real tail contention immediately
+// rather than waiting for a proper baseline to accumulate. Tune LP612_RENDER_EXPECTED_MS once this
+// event has produced one.
+const DEFAULT_EXPECTED_RENDER_MS = 10000;
+
+function expectedRenderMs() {
+  const n = parseInt(process.env.LP612_RENDER_EXPECTED_MS, 10);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_EXPECTED_RENDER_MS;
+}
+
 /**
  * @param {object} args
  * @param {object} args.lpDoc     an lp_doc (schema 3.0, or 2.0 — the renderer migrates 2.0 into
@@ -66,7 +150,17 @@ function renderFailed(message, extra = {}) {
  *   or one of the revision ladder's gate probes. Defaults to `final` so a caller that has not
  *   been updated is never silently counted as a gate run.
  * @returns {Promise<{pdfPath:string, htmlPath:string, pageCount:number, warnings:string[]}>}
- * @throws  Error with .code 'RENDER_FAILED' and .problems[]
+ * @throws  Error with .code 'RENDER_FAILED', .problems[], and .infra (bd-htueq) — `true` when the
+ *   renderer died for ITS OWN reasons (a crash, a launch failure — infrastructure, not the
+ *   document), `false` when `.problems` are real defects the document itself contains (a
+ *   schema/overlay error, or the renderer's own OVERFLOW / TYPE FLOOR / PAGE COUNT / TRUNCATION
+ *   findings). A caller that guards a revision ladder on this MUST NOT treat an `.infra` failure
+ *   as "no defects" — see bot/workers/lp612-author.worker.js's renderCheck for why.
+ *
+ * Renders are additionally capped at `LP612_RENDER_CONCURRENCY` PER PROCESS (default
+ * DEFAULT_RENDER_CONCURRENCY above) — the rest queue FIFO rather than each launching their own
+ * Chromium. A render whose total time (queue wait + the render itself) exceeds 2x
+ * `LP612_RENDER_EXPECTED_MS` emits `lp612.render.slow` with both numbers reported separately.
  */
 async function renderLessonPlan({
   lpDoc, lang, stem, outDir, correlationId, segmentId, renderId, phase,
@@ -84,11 +178,35 @@ async function renderLessonPlan({
     correlationId: correlationId || null,
   };
 
-  fs.mkdirSync(outDir, { recursive: true });
-  const docPath = path.join(outDir, `${stem}.lp.json`);
-  fs.writeFileSync(docPath, JSON.stringify(lpDoc, null, 1), 'utf8');
+  let docPath;
+  try {
+    fs.mkdirSync(outDir, { recursive: true });
+    docPath = path.join(outDir, `${stem}.lp.json`);
+    fs.writeFileSync(docPath, JSON.stringify(lpDoc, null, 1), 'utf8');
+  } catch (e) {
+    // A disk/permission failure preparing the temp files. Not the document's fault, and not the
+    // Chromium launch below — but it must still carry `.infra: true` (bd-htueq), because a caller
+    // that only checks `.problems` for content has nothing else to go on here.
+    logToFile('lp612 render could not prepare its temp files', {
+      correlationId, stem, error: e.message,
+    }, 'error');
+    logEvent('lp612.render.failed', {
+      ...trace, stem, outcome: 'failed', elapsedMs: Date.now() - startedAt,
+      code: null, error: e.message, problems: [e.message], infra: true,
+    });
+    throw renderFailed(`render of ${stem} could not prepare its temp files: ${e.message}`, {
+      problems: [e.message], infra: true, cause: e,
+    });
+  }
+
+  // ── bd-htueq: acquire the per-process render slot ──────────────────────────
+  const queueWaitStart = Date.now();
+  await renderSemaphore.acquire();
+  const queueWaitMs = Date.now() - queueWaitStart;
+  const renderStart = Date.now();
 
   let out;
+  let thrown = null;
   try {
     out = await renderDoc({
       doc: docPath,
@@ -100,17 +218,43 @@ async function renderLessonPlan({
       quiet: true,
     });
   } catch (e) {
-    // SCHEMA_INVALID / OVERLAY_INVALID arrive here as named errors from the vendored renderer;
-    // anything else is a genuine blow-up. Both become RENDER_FAILED, with the detail kept.
+    thrown = e;
+  } finally {
+    // MUST run on the throw path too — a slot leaked here queues every later render behind a
+    // failure that already finished, which wedges the process, not just this one lesson.
+    renderSemaphore.release();
+  }
+
+  const renderMs = Date.now() - renderStart;
+  const totalMs = queueWaitMs + renderMs;
+  if (totalMs > 2 * expectedRenderMs()) {
+    // Reported on EVERY outcome (success, content defect, or blow-up) — duration is orthogonal
+    // to what the render produced. queueWaitMs and renderMs are kept separate on purpose: a slow
+    // queue wait is a CAPACITY signal (raise LP612_RENDER_CONCURRENCY or add replicas), a slow
+    // render is a CONTENTION/perf signal (the container itself is struggling) — conflating them
+    // into one number tells whoever reads it to fix the wrong thing.
+    logEvent('lp612.render.slow', {
+      ...trace, stem, queueWaitMs, renderMs, totalMs, expectedMs: expectedRenderMs(),
+      outcome: thrown ? 'failed' : 'ready',
+    });
+  }
+
+  if (thrown) {
+    const e = thrown;
+    // SCHEMA_INVALID / OVERLAY_INVALID are the DOCUMENT's fault — the renderer refused to even
+    // try. Anything else here is the renderer blowing up for ITS OWN reasons (a launch that could
+    // not get going, a crash mid-render, a contention timeout) — infrastructure, not content.
+    const infra = e.code !== 'SCHEMA_INVALID' && e.code !== 'OVERLAY_INVALID';
     logToFile('lp612 render threw', {
-      correlationId, stem, code: e.code || null, error: e.message,
+      correlationId, stem, code: e.code || null, error: e.message, infra,
     }, 'error');
     logEvent('lp612.render.failed', {
       ...trace, stem, outcome: 'failed', elapsedMs: Date.now() - startedAt,
-      code: e.code || null, error: e.message, problems: e.errors || [e.message],
+      code: e.code || null, error: e.message, problems: e.errors || [e.message], infra,
     });
     throw renderFailed(`render of ${stem} failed: ${e.message}`, {
       problems: e.errors || [e.message],
+      infra,
       cause: e,
     });
   }
@@ -118,6 +262,56 @@ async function renderLessonPlan({
   const problems = out.problems || [];
   const warnings = out.warnings || [];
   const byPart = out.pagesByPart || {};
+  // bd-c3le6: which pages had a furniture-sized overflow taken out of their own bottom
+  // whitespace so the lesson could ship. ALWAYS a list — `[]` means "we looked and there was
+  // nothing", which is a different fact from "we did not look", and a fallback that leaves no
+  // trace is a regression mask (rule 24(b)). If this starts firing across the corpus rather
+  // than on the odd Urdu footer, the packer has drifted and this number is what says so.
+  const absorbed = (out.report && out.report.overflow_absorbed) || [];
+  // bd-oak77.14: the figures the LAYOUT had to widen to keep their labels above the legibility
+  // floor. `figureFit()` in template.js rescues a figure that misses by a few pixels rather than
+  // failing the lesson — and a rescue nobody can count is a regression mask (rule 24(b)). The
+  // render report holds this too, but that file is written into a temp dir the worker deletes in
+  // its `finally`, so the event is the only fleet-visible record. Emitted on EVERY outcome,
+  // because a denominator that exists only when something else went wrong is not a denominator.
+  const figureRepairs = (out.report && out.report.figure_repairs) || [];
+  if (figureRepairs.length) {
+    const shortfall = (r) => (r && r.floorPx != null && r.renderedPxBefore != null
+      ? Math.round((r.floorPx - r.renderedPxBefore) * 100) / 100 : null);
+    logEvent('lp612.render.figure_repaired', {
+      ...trace,
+      stem,
+      lang: lang || null,
+      count: figureRepairs.length,
+      repairs: figureRepairs,
+      // The WORST miss on the page, so a fleet query can rank without unpacking the array. If this
+      // number starts creeping toward the widening budget, the engine has drifted and the next
+      // figure will not be rescuable.
+      worstShortfallPx: figureRepairs.reduce((m, r) => {
+        const d = shortfall(r);
+        return d != null && d > m ? d : m;
+      }, 0),
+      maxGrowPx: figureRepairs.reduce((m, r) => Math.max(m, r.growPx || 0), 0),
+    });
+    logToFile('lp612 render: widened a figure to keep its labels legible rather than failing the lesson', {
+      correlationId, stem, lang: lang || null, repairs: figureRepairs,
+    }, 'warn');
+  }
+  if (absorbed.length) {
+    logEvent('lp612.render.overflow_absorbed', {
+      ...trace,
+      stem,
+      lang: lang || null,
+      maxPx: (out.report && out.report.overflow_absorb_max_px) != null
+        ? out.report.overflow_absorb_max_px
+        : null,
+      pages: absorbed,
+      worstPx: absorbed.reduce((m, a) => Math.max(m, a.px || 0), 0),
+    });
+    logToFile('lp612 render: absorbed a furniture-sized overflow rather than discarding the lesson', {
+      correlationId, stem, lang: lang || null, absorbed,
+    }, 'warn');
+  }
   // `pdfPages` counts the REAL file; `pagesByPart` counts what the packer laid out. They can
   // disagree, and when they do the renderer has already said so in `problems` — prefer the
   // file, because the file is what the teacher opens.
@@ -131,11 +325,36 @@ async function renderLessonPlan({
     }, 'error');
     logEvent('lp612.render.failed', {
       ...trace, stem, outcome: 'failed', elapsedMs: Date.now() - startedAt,
-      code: 'RENDER_DEFECTS', pageCount, problems, pagesByPart: byPart,
+      code: 'RENDER_DEFECTS', pageCount, problems, pagesByPart: byPart, infra: false,
     });
+    // THE ERROR CARRIES EVERYTHING THE SUCCESS RETURN DOES.
+    //
+    // bd-vjk68: a document refused ONLY for `PAGE COUNT` is now DELIVERED — the operator's call,
+    // "we will stop cancelling ... lesson plans because of the length issue" — and the PDF that
+    // makes that possible has already been written by the time this throws. The caller therefore
+    // needs the same three facts the happy path returns: which parts ran to how many pages (for
+    // the `over_cap` row and the `lp612.deliver.over_cap` event, whose whole purpose is to make
+    // the page distribution measurable after the caps moved), and which overlay pointers were
+    // applied (for `overlay_dropped`, whose absence would silently mark every over-cap Urdu
+    // render as overlay-dropped and staple an honesty caption onto a perfectly good document).
+    //
+    // Nothing here decides anything: the service's contract is unchanged — any defect is still a
+    // throw, and PAGE COUNT is still a defect. It only stops the throw from being lossier than
+    // the return.
     throw renderFailed(
       `render of ${stem} produced ${problems.length} defect(s): ${problems.join(' | ')}`,
-      { problems, warnings, htmlPath: out.htmlPath, pdfPath: out.pdfPath, pageCount }
+      {
+        problems,
+        infra: false,
+        warnings,
+        htmlPath: out.htmlPath,
+        pdfPath: out.pdfPath,
+        pageCount,
+        pagesByPart: byPart,
+        overlayApplied: (out.report && out.report.overlay_applied) || [],
+        overflowAbsorbed: absorbed,
+        figureRepairs,
+      }
     );
   }
 
@@ -152,6 +371,10 @@ async function renderLessonPlan({
     pdfPath: out.pdfPath,
     htmlPath: out.htmlPath,
     pageCount,
+    // Per-part pages, so the row can record `over_cap` HONESTLY on the happy path too — a
+    // delivered lesson that fits must say `over_cap: false`, not leave the column ambiguous.
+    // The same field is on the throw path above; the two must not disagree in shape.
+    pagesByPart: byPart,
     warnings,
     // The JSON pointers the ur_overlay actually replaced (renderDoc's
     // report.overlay_applied). The worker persists `overlay_dropped` from this
@@ -159,6 +382,10 @@ async function renderLessonPlan({
     // essentially-English document in RTL chrome, and the row must say so.
     // Always a list, never undefined: absence of a record is "nothing applied".
     overlayApplied: (out.report && out.report.overlay_applied) || [],
+    // Same contract for the absorber (bd-c3le6): `[]` on a clean render, never undefined.
+    overflowAbsorbed: absorbed,
+    // …and for the figure rescues (bd-oak77.14), for the same reason.
+    figureRepairs,
   };
 }
 

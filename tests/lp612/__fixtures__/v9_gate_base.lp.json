@@ -160,6 +160,38 @@
      "result": "$AB = \\begin{bmatrix} 8 & 11 \\\\ 12 & 3 \\end{bmatrix}$"
     },
     {
+     "type": "diagram",
+     "id": "dia-sweep",
+     "spec": {
+      "type": "geometry",
+      "height": 300,
+      "shapes": [
+       {
+        "kind": "polygon",
+        "points": [
+         [
+          0,
+          0
+         ],
+         [
+          4,
+          1
+         ],
+         [
+          5,
+          4
+         ],
+         [
+          1,
+          3
+         ]
+        ],
+        "fill": "var(--navy)"
+       }
+      ]
+     }
+    },
+    {
      "type": "watch_out",
      "misconception": true,
      "text": "Pupils write $8$ under the wrong entry because they sweep down the row of $B$ instead of down its column."
@@ -305,7 +337,14 @@
     "Ring the inner pair and write \"defined\".",
     "Sweep row 1 across column 1 and write the first entry.",
     "Fill the remaining three entries, saying each address out loud."
-   ]
+   ],
+   "diagram": {
+    "type": "grid",
+    "rows": 10,
+    "cols": 10,
+    "shaded": 25,
+    "majorEvery": 5
+   }
   },
   "model_answers": [
    {

@@ -41,6 +41,8 @@ const LessonPlanGenerationWorker = require('./lesson-plan-generation.worker');
 const VideoGenerationWorker = require('./video-generation.worker');
 const ExamGradingWorker = require('./exam-grading.worker');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
+const { startVisibilityHeartbeat } = require('../shared/utils/sqs-visibility-heartbeat');
+const { heartbeatCeilingMs, lp612DrainTimeoutMs } = require('../shared/config/lp612-flags');
 const os = require('os');
 
 // Configuration
@@ -141,6 +143,24 @@ class SQSCoachingWorker {
     if (!raw) return new Set(['main', 'video', 'quiz']);
     const parsed = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
     return parsed.length ? new Set(parsed) : new Set(['main', 'video', 'quiz']);
+  }
+
+  /**
+   * What WORKER_QUEUES resolved to on this boot, for the startup log.
+   *
+   * Two services run this same file — both poll `main` (lp612_author has no dedicated queue; it
+   * rides `main`, see queueJob() in lp612-serving.service.js) and can carry two different
+   * LP612_AUTHOR_TIMEOUT_MS / LP612_AUTHOR_ROUNDS values, silently, for as long as nobody
+   * happens to look. This does not decide correctness — several services legitimately CAN all
+   * poll `main` — it only makes the choice visible in the boot log instead of invisible.
+   */
+  static _workerQueuesBootStatus() {
+    const raw = (process.env.WORKER_QUEUES || '').trim();
+    return {
+      raw: raw || null,
+      enabled: [...SQSCoachingWorker._enabledQueues()],
+      isDefaulted: !raw,
+    };
   }
 
   /**
@@ -291,7 +311,12 @@ class SQSCoachingWorker {
     // Add to active jobs.
     // bd-yd2kb: store sourceQueue alongside the promise so graceful shutdown can
     // release the exact message (right queue) back to SQS on a deploy.
-    this.activeJobs.set(receiptHandle, { promise: jobPromise, sourceQueue });
+    // bd-oak77.11: and jobType, because the drain has to tell the classes APART. A 40-second
+    // transcription and a 7-minute lesson cannot share one deadline: 30s is right for the first and
+    // an order of magnitude short of the second, while a blanket 10-minute drain would make every
+    // coaching deploy ten minutes slower for nothing. Without this field the drain has no way to
+    // know which it is holding.
+    this.activeJobs.set(receiptHandle, { promise: jobPromise, sourceQueue, jobType });
     this.stats.jobsProcessed++;
   }
 
@@ -408,14 +433,50 @@ class SQSCoachingWorker {
         //
         // The longest job on this worker. The author call alone is 1-2.5 min and
         // the revision ladder can triple that; the measured worst case end to
-        // end is around 10 minutes, so the visibility extension is 15 and the
-        // job's own hard timeout (LP612_AUTHOR_TIMEOUT_MS, default 12 min) is
-        // what actually stops it. Those two numbers are deliberately ordered:
-        // the job must give up and apologise to the teacher BEFORE SQS decides
-        // it died and hands the same lesson to a second worker.
+        // end is around 10 minutes. The comment used to stop there and rely on
+        // ONE 900s extension to outlast the whole job — it didn't.
+        //
+        // bd-awqt3: LP612_AUTHOR_TIMEOUT_MS (lp612-author.worker.js's own hard
+        // stop) only bounds authoring + the final render inside that worker's
+        // withTimeout(). Everything after — the PDF read, both R2 uploads, the
+        // DB writes and the per-waiter WhatsApp delivery loop — runs AFTER that
+        // timeout resolves and is unbounded. Add staging running that timeout at
+        // up to 840s on one worker vs 720s on another and a single 900s
+        // extension can leave as little as 60s of margin for an unbounded tail.
+        // A load test measured jobs running past 936s — 36s past this window —
+        // at which point the message goes visible again, a second worker claims
+        // the same lesson, and duplicate authoring doubles the load exactly when
+        // contention is already why the first run was slow.
+        //
+        // The fix is structural rather than a bigger number: a heartbeat
+        // (shared/utils/sqs-visibility-heartbeat.js) re-extends visibility every
+        // ~60s for as long as this job is ACTUALLY running — however long that
+        // is — and stops the instant it settles, success or failure, via the
+        // finally below. It is bounded by an absolute ceiling (2x the job's own
+        // hard timeout) so a genuinely hung job still becomes visible again
+        // eventually instead of being kept alive forever.
         await SQSQueueService.extendJobTimeout(receiptHandle, 900);
-        const Lp612AuthorWorker = require('./lp612-author.worker');
-        await Lp612AuthorWorker.process(payload);
+        const heartbeat = startVisibilityHeartbeat({
+          extend: (seconds) => SQSQueueService.extendJobTimeout(receiptHandle, seconds),
+          intervalMs: 60 * 1000,
+          extendSeconds: 900,
+          ceilingMs: heartbeatCeilingMs(), // bd-w36m5: shared with the reaper, see lp612-flags.js
+          // No correlationId here: it's not a parameter of executeJob(), and logToFile already
+          // pulls the current one from AsyncLocalStorage (set by runWithCorrelation in
+          // processJob(), which wraps this whole call) — see shared/utils/logger.js.
+          onExtendError: (err) => logToFile('lp612_author heartbeat: extend failed, continuing', {
+            sessionId, error: err.message,
+          }),
+          onCeilingReached: () => logToFile('lp612_author heartbeat: ceiling reached, no longer extending', {
+            sessionId,
+          }),
+        });
+        try {
+          const Lp612AuthorWorker = require('./lp612-author.worker');
+          await Lp612AuthorWorker.process(payload);
+        } finally {
+          heartbeat.stop();
+        }
         break;
       }
 
@@ -473,6 +534,53 @@ class SQSCoachingWorker {
           break;
         }
         await VideoQuizReport.generate(shareCodeId, { reason: 'scheduled' });
+        break;
+      }
+
+      // Transcript quiz (the post-coaching quiz written from the lesson
+      // recording). Three job types on the quiz queue; each handler re-reads
+      // the quizzes row and is a no-op when its step already happened, so an
+      // at-least-once redelivery is harmless.
+      case 'quiz_offer': {
+        if (sourceQueue === 'quiz') {
+          await SQSQueueService.extendQuizJobTimeout(receiptHandle, 300);
+        } else {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 300);
+        }
+        const TranscriptQuizOffer = require('../shared/services/quiz/transcript-quiz-offer.service');
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        await TranscriptQuizOffer.processOffer(p.coachingSessionId || body.groupId, p);
+        break;
+      }
+      case 'quiz_generate': {
+        // Two model calls + a PDF render + three sends: give it room.
+        if (sourceQueue === 'quiz') {
+          await SQSQueueService.extendQuizJobTimeout(receiptHandle, 600);
+        } else {
+          await SQSQueueService.extendJobTimeout(receiptHandle, 600);
+        }
+        const TranscriptQuizGenerate = require('../shared/services/quiz/transcript-quiz-generate.service');
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        await TranscriptQuizGenerate.process(p.quizId || body.groupId, p);
+        break;
+      }
+      case 'quiz_nudge_teacher': {
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        const quizId = p.quizId || body.groupId;
+        const TranscriptQuizNudge = require('../shared/services/quiz/transcript-quiz-nudge.service');
+        // Two reasons to wait: the target has not arrived, or it has but the
+        // hour is one we do not message teachers in. The second also catches
+        // jobs queued before the quiet-hours rule existed.
+        const decision = TranscriptQuizNudge.nudgeDispatch({ targetAt: p.targetAt });
+        if (decision.action === 'requeue') {
+          await SQSQueueService.queueJob(quizId, 'quiz_nudge_teacher',
+            { quizId, targetAt: decision.targetAt }, {
+              delaySeconds: decision.delaySeconds,
+              deduplicationId: `${quizId}-quiz_nudge_teacher-${Date.now()}`,
+            });
+          break;
+        }
+        await TranscriptQuizNudge.process(quizId);
         break;
       }
 
@@ -567,57 +675,134 @@ class SQSCoachingWorker {
   }
 
   /**
-   * Initiate graceful shutdown
+   * The job types whose work must be FINISHED rather than handed back on a deploy.
+   *
+   * bd-oak77.11. Membership is a statement about cost, not about importance: releasing one of these
+   * mid-run buys nothing, because the render row is still `authoring`, so whichever replica claims
+   * the redelivered message authors the same lesson again from round 0 — another ~$0.30-0.60 and
+   * another 2.5-7 minutes on a teacher who is already waiting.
+   */
+  static LONG_JOB_TYPES = new Set(['lp612_author']);
+
+  _partitionInFlight() {
+    const long = [];
+    const short = [];
+    for (const [receiptHandle, meta] of this.activeJobs.entries()) {
+      const bucket = SQSCoachingWorker.LONG_JOB_TYPES.has(meta && meta.jobType) ? long : short;
+      bucket.push([receiptHandle, meta]);
+    }
+    return { long, short };
+  }
+
+  /**
+   * Release a set of in-flight messages back to their own queues (VisibilityTimeout: 0).
+   *
+   * bd-yd2kb (ports main-bot bd-1541): without this a message stays invisible for the full
+   * per-queue visibility timeout (up to 20 min on coaching), so a deploy landing mid-analysis makes
+   * the teacher wait ~20 min for her report (the 2026-05-11 main-bot incident). Per-call try/catch
+   * is mandatory: one ReceiptHandleIsInvalid — a job that finished but had not hit `.finally` when
+   * SIGTERM fired — must not abort the rest of the loop.
+   */
+  async _releaseInFlight(entries, reason) {
+    if (!entries.length) return 0;
+    logToFile(`⚠️ Releasing ${entries.length} in-flight message(s) back to SQS — ${reason}`, {
+      workerId: this.workerId,
+      inFlightCount: entries.length,
+      reason,
+      jobTypes: entries.map(([, m]) => (m && m.jobType) || 'unknown'),
+    });
+    const results = await Promise.allSettled(
+      entries.map(async ([receiptHandle, meta]) => {
+        try {
+          await SQSQueueService.releaseInFlightMessage(receiptHandle, meta && meta.sourceQueue);
+          logToFile('🔄 Released in-flight message on shutdown', {
+            workerId: this.workerId,
+            sourceQueue: meta && meta.sourceQueue,
+            jobType: meta && meta.jobType,
+          });
+        } catch (err) {
+          logToFile('⚠️ Failed to release in-flight message on shutdown (will fall back to visibility timeout)', {
+            workerId: this.workerId,
+            sourceQueue: meta && meta.sourceQueue,
+            jobType: meta && meta.jobType,
+            error: err.message,
+          });
+        }
+      })
+    );
+    const released = results.filter((r) => r.status === 'fulfilled').length;
+    logToFile(`✅ Shutdown release complete: ${released}/${entries.length} in-flight messages released back to SQS`, {
+      workerId: this.workerId,
+      reason,
+    });
+    return released;
+  }
+
+  /**
+   * Initiate graceful shutdown.
+   *
+   * TWO PHASES, because this worker runs two populations of job with wildly different durations
+   * (bd-oak77.11, from the operator's requirement that "deploy should never kill in progress
+   * authoring lesson plans").
+   *
+   *   Phase 1 — GRACEFUL_SHUTDOWN_TIMEOUT_MS (30s). Stop polling and wait for everything. Short
+   *             jobs finish here and the deploy is exactly as fast as it is today.
+   *   Phase 2 — whatever is left is split. Everything that is NOT a long job is released back to
+   *             SQS immediately, which is today's behaviour and right for it. The long jobs are
+   *             WAITED ON for a further lp612DrainTimeoutMs() (10 min default), during which the
+   *             per-job visibility heartbeat is still running inside the job promise and keeps the
+   *             message invisible, so nothing else can claim it while we finish it.
+   *   Phase 3 — a long job still in flight at that final deadline has its message released too, so
+   *             if we do run out of time the handover is at least immediate rather than waiting out
+   *             the remaining visibility window.
+   *
+   * NOTE: none of this runs at all unless the platform gives the process time. Railway's default is
+   * `RAILWAY_DEPLOYMENT_DRAINING_SECONDS = 0` — SIGTERM then SIGKILL — and Axiom shows 24 shutdowns
+   * over 30 days in which this method logged its first line and NOTHING it emits afterwards. The
+   * matching Railway setting (`drainingSeconds` >= Phase 1 + Phase 2 + margin) is part of this
+   * change and is documented in the lane's RECOMMENDED_RAILWAY.md.
    */
   async shutdown() {
     logToFile(`🛑 Graceful shutdown initiated for worker ${this.workerId}`, {
-      activeJobs: this.activeJobs.size
+      activeJobs: this.activeJobs.size,
+      drainTimeoutMs: lp612DrainTimeoutMs(),
     });
 
     this.isShuttingDown = true;
 
-    // Wait for active jobs to complete (with timeout)
-    const shutdownPromise = this.waitForActiveJobs();
-    const timeoutPromise = this.sleep(GRACEFUL_SHUTDOWN_TIMEOUT_MS);
+    // Phase 1 — the coaching deadline, unchanged.
+    await Promise.race([this.waitForActiveJobs(), this.sleep(GRACEFUL_SHUTDOWN_TIMEOUT_MS)]);
 
-    await Promise.race([shutdownPromise, timeoutPromise]);
+    if (this.activeJobs.size === 0) return;
 
-    if (this.activeJobs.size > 0) {
-      // bd-yd2kb (ports main-bot bd-1541): explicitly release each in-flight
-      // message back to its queue (VisibilityTimeout: 0) so a surviving/new worker
-      // claims it in seconds — instead of the message staying invisible for the
-      // full per-queue visibility timeout (up to 20 min on coaching). Without this,
-      // a deploy that lands mid-analysis makes the teacher wait ~20 min for her
-      // report (the 2026-05-11 main-bot incident). Per-call try/catch is mandatory:
-      // one ReceiptHandleIsInvalid (a job that finished but hadn't hit .finally when
-      // SIGTERM fired) must not abort the rest of the release loop.
-      logToFile(`⚠️ Shutdown timeout reached with ${this.activeJobs.size} jobs still active — releasing back to SQS`, {
+    // Phase 2 — hand back the short jobs, keep finishing the long ones.
+    const { long, short } = this._partitionInFlight();
+    await this._releaseInFlight(short, 'shutdown timeout reached (short job)');
+
+    if (!long.length) return;
+
+    const drainMs = lp612DrainTimeoutMs();
+    logToFile(`⏳ Draining ${long.length} long-running job(s) — the lesson is being finished, not abandoned`, {
+      workerId: this.workerId,
+      jobTypes: long.map(([, m]) => (m && m.jobType) || 'unknown'),
+      drainTimeoutMs: drainMs,
+    });
+
+    await Promise.race([
+      Promise.allSettled(long.map(([, m]) => m.promise)),
+      this.sleep(drainMs),
+    ]);
+
+    // Phase 3 — anything the drain could not finish is handed back immediately.
+    const stillHeld = long.filter(([rh]) => this.activeJobs.has(rh));
+    if (!stillHeld.length) {
+      logToFile('✅ Long-running jobs drained to completion before exit', {
         workerId: this.workerId,
-        inFlightCount: this.activeJobs.size,
+        count: long.length,
       });
-      const entries = Array.from(this.activeJobs.entries());
-      const results = await Promise.allSettled(
-        entries.map(async ([receiptHandle, meta]) => {
-          try {
-            await SQSQueueService.releaseInFlightMessage(receiptHandle, meta && meta.sourceQueue);
-            logToFile('🔄 Released in-flight message on shutdown', {
-              workerId: this.workerId,
-              sourceQueue: meta && meta.sourceQueue,
-            });
-          } catch (err) {
-            logToFile('⚠️ Failed to release in-flight message on shutdown (will fall back to visibility timeout)', {
-              workerId: this.workerId,
-              sourceQueue: meta && meta.sourceQueue,
-              error: err.message,
-            });
-          }
-        })
-      );
-      const released = results.filter((r) => r.status === 'fulfilled').length;
-      logToFile(`✅ Shutdown release complete: ${released}/${entries.length} in-flight messages released back to SQS`, {
-        workerId: this.workerId,
-      });
+      return;
     }
+    await this._releaseInFlight(stillHeld, 'long-job drain deadline reached');
   }
 
   /**
@@ -680,17 +865,61 @@ class SQSCoachingWorker {
 // Create worker instance
 const worker = new SQSCoachingWorker(WORKER_ID);
 
+/**
+ * Exit only once the log lines we just wrote have actually left the process — bd-oak77.11.
+ *
+ * MEASURED, on this lane's own first successful drain (staging, 2026-09-06). The worker took
+ * SIGTERM at 17:31:23, held on, and finished the lesson: `lp612 author finished` at 17:37:58, the
+ * render row `ready` at 17:38:00.4 with its PDF in R2, `waiters` emptied by the atomic claim that
+ * runs immediately before the delivery loop. Every one of those facts is in the database. NOT ONE
+ * log line after 17:37:58 exists — not the delivery confirmation, not the drain's own
+ * "drained to completion".
+ *
+ * `logToFile` is `console.log`, and `console.log` to a pipe is asynchronous. `process.exit()`
+ * discards whatever has not yet been handed to the OS, so the last second or two of a shutdown's
+ * output — precisely the part that says whether the shutdown worked — was being thrown away.
+ *
+ * That is rule 24(d) at the level of the drain itself: a mechanism whose success cannot be observed
+ * cannot be trusted, and "did that deploy keep the teacher's lesson?" should be a query, not an
+ * inference from a row. `stream.write('', cb)` calls back once the preceding writes have drained;
+ * the timer is the backstop so a stuck pipe can never turn a shutdown into a hang, and `done`
+ * guarantees exactly one exit however the race lands.
+ *
+ * Exported and parameterised so the contract is tested rather than asserted — a test cannot call
+ * the real `process.exit`.
+ */
+function exitAfterFlush(code, { exit = (c) => process.exit(c), stream = process.stdout, timeoutMs = 2000 } = {}) {
+  let exited = false;
+  const done = () => {
+    if (exited) return;
+    exited = true;
+    exit(code);
+  };
+  const backstop = setTimeout(done, timeoutMs);
+  if (backstop.unref) backstop.unref();
+  try {
+    stream.write('', () => {
+      clearTimeout(backstop);
+      done();
+    });
+  } catch (_) {
+    // A broken pipe on the way out is not a reason to stay alive.
+    clearTimeout(backstop);
+    done();
+  }
+}
+
 // Graceful shutdown handlers
 process.on('SIGTERM', async () => {
   logToFile('Received SIGTERM signal');
   await worker.shutdown();
-  process.exit(0);
+  exitAfterFlush(0);
 });
 
 process.on('SIGINT', async () => {
   logToFile('Received SIGINT signal');
   await worker.shutdown();
-  process.exit(0);
+  exitAfterFlush(0);
 });
 
 // Uncaught exception handler
@@ -699,8 +928,10 @@ process.on('uncaughtException', (error) => {
     error: error.message,
     stack: error.stack
   });
+  // bd-oak77.11: same flush as the signal handlers — a crash's own explanation is exactly the
+  // output most worth not losing.
   worker.shutdown().then(() => {
-    process.exit(1);
+    exitAfterFlush(1);
   });
 });
 
@@ -1033,6 +1264,8 @@ async function recoverStaleVideoRequests() {
  * per-row lock makes the extra run harmless.
  */
 const DEBRIEF_RETRY_INTERVAL_MS = 15 * 60 * 1000;
+/** The failure digest looks back over exactly the window it runs on. */
+const PROD_DIGEST_INTERVAL_MS = 60 * 60 * 1000;
 const DEBRIEF_RETRY_LOCK_TTL_S = 30 * 60;
 const DEBRIEF_RETRY_TICK_CAP = 20;
 
@@ -1106,6 +1339,30 @@ logToFile('🚀 Starting SQS Coaching Worker', {
   environment: process.env.NODE_ENV || 'development',
   sqsQueueUrl: process.env.SQS_QUEUE_URL
 });
+
+/** Exported so a test can assert the decision directly rather than scraping a log string. */
+function resolveWorkerQueuesBootStatus() {
+  return SQSCoachingWorker._workerQueuesBootStatus();
+}
+
+// make the WORKER_QUEUES decision visible on every boot, not just inferable after an
+// incident (see _workerQueuesBootStatus() above for why this matters for lp612_author).
+{
+  const queuesBootStatus = resolveWorkerQueuesBootStatus();
+  if (queuesBootStatus.isDefaulted) {
+    logToFile(
+      '⚠️  WORKER_QUEUES is unset on this service — defaulting to ALL queues (main, video, quiz). '
+      + 'If another service running this same file has a DIFFERENT value for a per-job-type '
+      + 'config env var (e.g. LP612_AUTHOR_TIMEOUT_MS, LP612_AUTHOR_ROUNDS) while also polling '
+      + 'one of these queues, a job of that type will silently get different behaviour depending '
+      + 'on which replica happens to claim it. Set WORKER_QUEUES explicitly per '
+      + 'service so each job type has ONE owning worker class.',
+      queuesBootStatus,
+    );
+  } else {
+    logToFile('WORKER_QUEUES resolved', queuesBootStatus);
+  }
+}
 
 // Recover stale requests before starting worker. Gated behind
 // require.main === module so the file can be required as a library without
@@ -1242,7 +1499,7 @@ function startWorker() {
         // outcome that produced no log line, so a sweeper that was lock-blocked or
         // cache-starved on EVERY interval looked exactly like a healthy idle one.
         // Every field the sweep can report must be able to speak.
-        if (res.offered || res.expired || res.failed || res.skippedLocked) {
+        if (res.offered || res.expired || res.failed || res.skippedLocked || res.skippedActive) {
           logToFile('🔄 Interrupted-task resume sweep', res);
         }
       } catch (error) {
@@ -1269,6 +1526,32 @@ function startWorker() {
     logToFile('Debrief retry sweep enabled (boot + every 15 minutes; OBSERVE_DEBRIEF_RETRY_OFF=1 disables)', {
       enabled: process.env.OBSERVE_DEBRIEF_RETRY_OFF !== '1',
     });
+
+    // bd-mg9c7.147: the hourly production failure digest. Lives here because
+    // this process already holds the Axiom credentials and runs on Railway, so
+    // it reports whether or not anyone's machine is on. Silent when every
+    // family is clean, and a complete no-op until PROD_DIGEST_* is set — so
+    // this block changes nothing anywhere by merging.
+    const runProdDigest = async () => {
+      if (worker.isShuttingDown) return;
+      try {
+        const digest = require('../shared/services/monitoring/prod-failure-digest.service');
+        const out = await digest.run();
+        if (out && out.reported) logToFile('Prod failure digest posted', out);
+      } catch (error) {
+        // A monitor must never be able to take down the thing it monitors.
+        logToFile('Error in prod failure digest (non-fatal)', { error: error.message }, 'error');
+      }
+    };
+    // Boot run as well as the interval: this service redeploys several times on
+    // a busy day and each restart resets the timer, so an hourly interval alone
+    // can be reset forever and never fire. The digest's own window is measured
+    // from when it last spoke, so an extra boot run costs nothing.
+    setTimeout(runProdDigest, 3 * 60 * 1000);
+    setInterval(runProdDigest, PROD_DIGEST_INTERVAL_MS);
+    logToFile('Prod failure digest enabled (hourly; set PROD_DIGEST_ENABLED=true to arm)', {
+      armed: String(process.env.PROD_DIGEST_ENABLED || '').toLowerCase() === 'true',
+    });
   });
 }
 
@@ -1277,4 +1560,7 @@ if (require.main === module) {
 }
 
 // Export for testing
-module.exports = { SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep };
+module.exports = {
+  SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
+  exitAfterFlush,
+};

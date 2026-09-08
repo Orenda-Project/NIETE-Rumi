@@ -29,6 +29,12 @@ function makeSupabase(datasets) {
         return { then: (res) => res({ data: row, error: null }) };
       },
       update() { return { eq() { return Promise.resolve({ data: null, error: null }); } }; },
+      // `.range(from, to)` — the windowed read shape both fallback fetches now use
+      // (bd-oak77.27). The pager stops on the first short page, so a fake that
+      // serves the window unchanged returns exactly what a bare read used to.
+      range(from, to) {
+        return { then: (resolve) => resolve({ data: rows.slice(from, to + 1), error: null }) };
+      },
       then(resolve) { return resolve({ data: rows, error: null }); },
     };
     return api;

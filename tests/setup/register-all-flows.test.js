@@ -97,9 +97,16 @@ describe('register-all-flows', () => {
     // update here. It had drifted to 13 against an actual 14 before the class
     // manager landed, and to 15 against 16 when Roster landed — which is the
     // failure mode of a tripwire nobody re-arms. Re-armed at 16 on 2026-08-30.
-    it('exports an array of all 16 registerable flow configurations', () => {
+    // Re-armed at 17 on 2026-09-06: the assessment REVIEW screens became their
+    // own Flow. A Flow opens on screens[0], and the review screens could only be
+    // reached from a TERMINAL confirm screen, so the client refused to open onto
+    // them at all.
+    // Re-armed at 19 on 2026-09-06: /quiz landed as ONE Flow (Transcript Quiz) —
+    // lesson list with in-Flow paging, the lesson's own live results, and
+    // generate report / resend link / make the quiz, all in one session.
+    it('exports an array of all 19 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(16);
+      expect(FLOW_CONFIGS).toHaveLength(19);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
@@ -107,10 +114,19 @@ describe('register-all-flows', () => {
       // reuses an envVar would silently overwrite another Flow's registered id.
       const names = FLOW_CONFIGS.map((f) => f.name);
       const envVars = FLOW_CONFIGS.map((f) => f.envVar);
-      const paths = FLOW_CONFIGS.filter((f) => f.endpointPath).map((f) => f.endpointPath);
       expect(new Set(names).size).toBe(names.length);
       expect(new Set(envVars).size).toBe(envVars.length);
-      expect(new Set(paths).size).toBe(paths.length);
+
+      // endpointPath is deliberately NOT unique: the assessment generator and
+      // its review layer are two Flows served by ONE endpoint, which tells them
+      // apart by the flow token's `:assessment-review:` marker. What must stay
+      // unique is the (endpointPath, envVar) pair — a copy-pasted entry reusing
+      // an envVar is the failure this guard exists for, and that is covered
+      // above.
+      const shared = FLOW_CONFIGS.filter((f) => f.endpointPath)
+        .reduce((m, f) => m.set(f.endpointPath, (m.get(f.endpointPath) || 0) + 1), new Map());
+      const overloaded = [...shared].filter(([, n]) => n > 1).map(([p]) => p);
+      expect(overloaded).toEqual(['/api/flows/assessment-gen']);
     });
 
     it('includes Reading Assessment as a navigate type with no endpointPath', () => {
@@ -461,10 +477,14 @@ describe('register-all-flows', () => {
 
       const result = await registerAllFlows(optsNoEndpoint);
 
-      // Reading Assessment should register, attendance flows should be skipped
-      expect(result.registered).toHaveLength(1);
-      expect(result.registered[0].name).toBe('Reading Assessment');
-      expect(result.skipped).toHaveLength(FLOW_CONFIGS.length - 1);
+      // The NAVIGATE flows (no endpoint of their own) still register; every
+      // endpoint flow is skipped. Asserted as a set rather than a count of one,
+      // because adding a static Flow is a normal thing to do and must not
+      // reread as a regression.
+      const navigate = FLOW_CONFIGS.filter((c) => c.type === 'navigate');
+      expect(result.registered.map((r) => r.name).sort()).toEqual(navigate.map((c) => c.name).sort());
+      expect(result.registered.map((r) => r.name)).toContain('Reading Assessment');
+      expect(result.skipped).toHaveLength(FLOW_CONFIGS.length - navigate.length);
       expect(result.skipped.map((s) => s.name)).toContain('Attendance Setup');
       expect(result.skipped.map((s) => s.name)).toContain('Attendance Marking');
     });

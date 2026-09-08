@@ -17,6 +17,7 @@ const mockUploadBuffer = jest.fn();
 const mockDeliverRender = jest.fn();
 const mockSendMessage = jest.fn();
 const mockReadFile = jest.fn();
+const mockLogEvent = jest.fn();
 
 jest.mock('../../bot/shared/services/lp612-author.service', () => ({
   authorLessonPlan: mockAuthorLessonPlan,
@@ -32,11 +33,17 @@ jest.mock('../../bot/shared/services/lp612-serving.service', () => {
   return {
     deliverRender: mockDeliverRender,
     r2KeyFor: (s, l, t) => `lp612/${t}/${l}/${s}.pdf`,
+    // The SIBLING-DOCUMENT key, real (bd-oak77.12). The worker stores the lp_doc beside the PDF
+    // and the reuse path reads it back on a later template version, so writer and reader share
+    // one definition — a double that invented its own shape here would let those two drift and
+    // the test would never notice.
+    docKeyFor: real.docKeyFor,
     assertKeyInPrefix: real.assertKeyInPrefix,
   };
 });
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: mockSendMessage }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: (...a) => mockLogEvent(...a) }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   promises: { ...jest.requireActual('fs').promises, readFile: (...a) => mockReadFile(...a) },
@@ -48,6 +55,15 @@ function mockBuilder(table) {
   const state = { table, op: null, payload: null, filters: [] };
   const settle = () => {
     mockDbCalls.push({ ...state });
+    // A WRITE MUST NOT CONSUME A QUEUED READ (bd-dr216). This is a strict FIFO shared by both, and
+    // the worker gained one extra UPDATE — the pickup stamp that starts the authoring clock — ahead
+    // of the segment read. That shifted every fixture in this file by one and turned the whole
+    // suite red for a reason none of its assertions are about. Writes now settle to "the CAS
+    // matched a row"; reads take the next fixture, exactly as each test intends.
+    if (state.op === 'update') {
+      const idFilter = state.filters.find((f) => f[0] === 'id');
+      return Promise.resolve({ data: { id: idFilter ? idFilter[1] : 'row' }, error: null });
+    }
     return Promise.resolve(mockDbResults.length ? mockDbResults.shift() : { data: null, error: null });
   };
   const b = {
@@ -516,12 +532,82 @@ describe('the worker gives the author a render gate', () => {
     await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual([]);
   });
 
-  test('a renderer that dies for its own reasons reports no defects rather than blaming the doc', async () => {
+  // ── bd-htueq: an infra death must never look like a clean render ──────────
+
+  /**
+   * The render gate used to swallow ANY thrown error into `[]` — "no defects". For a real
+   * document defect that is correct (see the two tests above: the renderer's own words go to
+   * the model). For a renderer that dies for ITS OWN reasons — OOM, a launch that could not get
+   * a slot under contention, a crash — `[]` is a false "the page-cap gate passed", and
+   * `blockingCost(gates) === 0` lets the ladder stop believing it verified something it never
+   * checked. Then the ladder spends fewer rounds fixing a real page-count problem, and the
+   * UNGATED final render (a separate call, later) is what actually finds out — as a job failure
+   * instead of a fixed lesson.
+   *
+   * Fix: one retry (the semaphore added alongside this makes a transient blip the common case),
+   * then an explicit, always-non-empty, always-blocking defect string if it still won't render —
+   * never a silent [].
+   */
+  test('a renderer that dies for infrastructure reasons is retried once, then reported as an explicit non-clean render', async () => {
     seed();
     await Worker.process(JOB);
     const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
-    mockRenderLessonPlan.mockRejectedValueOnce(new Error('browser would not launch'));
+    // Worker.process() already spent one call on the (unconditional) final render above — clear
+    // it so the count below reflects only what THIS renderCheck invocation does.
+    mockRenderLessonPlan.mockClear();
+
+    // Both attempts are bare infra crashes — no `.problems` array at all, exactly what a
+    // browser-would-not-launch error looks like coming out of renderLessonPlan.
+    mockRenderLessonPlan
+      .mockRejectedValueOnce(new Error('browser would not launch'))
+      .mockRejectedValueOnce(new Error('browser would not launch (retry)'));
+
+    const result = await renderCheck({ lesson_id: 'x' });
+
+    expect(mockRenderLessonPlan).toHaveBeenCalledTimes(2); // one retry — not zero, not unbounded
+    expect(result).not.toEqual([]); // NEVER silently clean
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.some((d) => /RENDER_INFRA/.test(d))).toBe(true);
+  });
+
+  test('an infra failure that clears on the retry reports a clean render — the retry absorbs a transient blip', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockRenderLessonPlan.mockClear();
+
+    mockRenderLessonPlan
+      .mockRejectedValueOnce(new Error('browser would not launch'))
+      .mockResolvedValueOnce({ pdfPath: '/tmp/a.pdf', pageCount: 7, warnings: [] });
+
     await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual([]);
+    expect(mockRenderLessonPlan).toHaveBeenCalledTimes(2);
+  });
+
+  test('a persistent infra failure is telemetered — it is a decision, not a silent fallback', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockLogEvent.mockClear();
+    mockRenderLessonPlan.mockRejectedValue(new Error('browser would not launch'));
+
+    await renderCheck({ lesson_id: 'x' });
+
+    expect(mockLogEvent.mock.calls.some((c) => c[0] === 'lp612.render.gate_infra_unresolved')).toBe(true);
+  });
+
+  test('a real content defect explicitly marked non-infra is NOT retried — no wasted attempt on an actual defect', async () => {
+    seed();
+    await Worker.process(JOB);
+    const { renderCheck } = mockAuthorLessonPlan.mock.calls[0][0];
+    mockRenderLessonPlan.mockClear();
+    const err = new Error('nope');
+    err.problems = ['OVERFLOW on teach-1: content is 42px taller than the page.'];
+    err.infra = false;
+    mockRenderLessonPlan.mockRejectedValueOnce(err);
+
+    await expect(renderCheck({ lesson_id: 'x' })).resolves.toEqual(err.problems);
+    expect(mockRenderLessonPlan).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -575,6 +661,85 @@ describe('the authored document is kept beside the PDF', () => {
   });
 });
 
+/**
+ * bd-owx8t — AND KEPT WHEN THE RENDERER REFUSES IT, WHICH IS THE ONE WE ACTUALLY NEED.
+ *
+ * The doc was stored only on the SUCCESS path, so the corpus holds every lesson that worked and
+ * not one that failed. Asked on 2026-09-04 to derive a content ceiling from the nine page-cap
+ * failures staging had just produced, the answer was that none of those nine documents exists
+ * anywhere: the worker writes the lp_doc into a temp dir, uploads the PDF, and `finally` deletes
+ * the directory. Thirty-nine delivered documents came back out of R2; the nine that matter came
+ * back as `NoSuchKey`. Every question about WHY a lesson is too long is therefore answerable only
+ * about lessons that were not.
+ *
+ * A few KB per failure, under the same guarded prefix, keyed so it can never be mistaken for a
+ * delivered document or picked up by the serving path (which looks for `.pdf` only).
+ */
+describe('the authored document is kept when the render REFUSES it', () => {
+  const refuse = () => {
+    const err = new Error('render of x produced 1 defect(s): PAGE COUNT: teach needs 6 pages; the cap is 5.');
+    err.code = 'RENDER_FAILED';
+    err.problems = ['PAGE COUNT: teach needs 6 pages; the cap is 5.'];
+    mockRenderLessonPlan.mockRejectedValue(err);
+  };
+
+  test('a page-cap failure stores the document that overflowed', async () => {
+    refuse();
+    mockAuthorLessonPlan.mockResolvedValue({
+      lpDoc: { lesson_id: 'TOO_LONG', one_screen: 's' },
+      lintClean: false, fails: [], rounds: 5, model: 'm',
+    });
+    seed();
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('failed');
+    const call = mockUploadBuffer.mock.calls.find((c) => c[1].endsWith('.lp.json'));
+    expect(call).toBeDefined();
+    expect(JSON.parse(call[0].toString()).lesson_id).toBe('TOO_LONG');
+    expect(call[2]).toBe('application/json');
+  });
+
+  test('it is keyed as a failure, so it can never be served or mistaken for the delivered doc', async () => {
+    refuse();
+    seed();
+    await Worker.process(JOB);
+
+    const key = mockUploadBuffer.mock.calls.find((c) => c[1].endsWith('.lp.json'))[1];
+    expect(key).toBe('lp612/v9.1/en/failed/grade_9_chemistry.c01.p007-008.lp.json');
+    // The guard is the real one — a shared bucket has no other isolation.
+    expect(() => require('../../bot/shared/services/lp612-serving.service').assertKeyInPrefix(key))
+      .not.toThrow();
+  });
+
+  test('no PDF is stored for a refused render — only the source', async () => {
+    refuse();
+    seed();
+    await Worker.process(JOB);
+    expect(mockUploadBuffer.mock.calls.filter((c) => c[1].endsWith('.pdf'))).toHaveLength(0);
+  });
+
+  test('a failure BEFORE authoring stores nothing — there is no document to keep', async () => {
+    mockAuthorLessonPlan.mockRejectedValue(new Error('page-truth missing'));
+    seed();
+    await Worker.process(JOB);
+    expect(mockUploadBuffer).not.toHaveBeenCalled();
+  });
+
+  test('an R2 refusal on the way out does not change the failure the teacher is told about', async () => {
+    refuse();
+    mockUploadBuffer.mockRejectedValue(new Error('R2 said no'));
+    seed();
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('failed');
+    expect(out.errorCode).toBe('RENDER_FAILED');
+    const done = mockDbCalls.filter((c) => c.op === 'update').pop();
+    expect(done.payload.error_code).toBe('RENDER_FAILED');
+  });
+});
+
 // ── the shared bucket ───────────────────────────────────────────────────────
 
 /**
@@ -584,7 +749,13 @@ describe('the authored document is kept beside the PDF', () => {
 describe('every write is guarded, not merely well-named', () => {
   test('a key outside lp612/ is refused rather than uploaded', async () => {
     const Serving = require('../../bot/shared/services/lp612-serving.service');
+    // TWO key builders since bd-oak77.12 — the PDF's and the sibling document's — and the guard
+    // has to cover BOTH. They are poisoned separately here precisely because in production
+    // `docKeyFor` derives from `r2KeyFor` inside the module: a spy on the export cannot reach it,
+    // so poisoning only the first would leave the second write unexercised and this test would
+    // certify a guard it never ran.
     const spy = jest.spyOn(Serving, 'r2KeyFor').mockReturnValue('pre_gen_lps/oops.pdf');
+    const docSpy = jest.spyOn(Serving, 'docKeyFor').mockReturnValue('pre_gen_lps/oops.lp.json');
     seed();
 
     const out = await Worker.process(JOB);
@@ -593,6 +764,7 @@ describe('every write is guarded, not merely well-named', () => {
     expect(out.status).toBe('failed');
     expect(mockUploadBuffer).not.toHaveBeenCalled();
     spy.mockRestore();
+    docSpy.mockRestore();
   });
 });
 

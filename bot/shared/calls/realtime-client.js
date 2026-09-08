@@ -29,13 +29,21 @@ class RealtimeClient {
    * @param {string}   opts.voice
    * @param {Array}    [opts.tools]       Function-tool definitions.
    * @param {string}   [opts.vad]         'semantic_vad' (default) | 'server_vad'
+   * @param {string}   [opts.outputMode]  'audio' (default) — the model speaks.
+   *                                      'text' — the model REASONS and emits text,
+   *                                      which an external TTS (Uplift) speaks. Only
+   *                                      the output modality changes: STT, VAD,
+   *                                      barge-in and every tool call still run here,
+   *                                      which is why the two voice paths cannot
+   *                                      diverge in what the assistant can DO.
    * @param {object}   opts.callbacks     onAudio, onTranscript, onBargeIn,
    *                                      onResponseLatency, onToolCall, onOpen,
-   *                                      onClose, onError
+   *                                      onClose, onError, and on the text path
+   *                                      onTextDelta, onTextDone, onSpeechStopped
    * @param {Function} [opts.wsFactory]   (url, opts) => WebSocket — injectable.
    */
   constructor({
-    instructions, apiKey, model, voice, tools, vad, callbacks = {}, wsFactory,
+    instructions, apiKey, model, voice, tools, vad, outputMode, callbacks = {}, wsFactory,
   }) {
     this.instructions = instructions || '';
     this.apiKey = apiKey;
@@ -43,6 +51,7 @@ class RealtimeClient {
     this.voice = voice;
     this.tools = tools;
     this.vad = vad || 'semantic_vad';
+    this.outputMode = outputMode === 'text' ? 'text' : 'audio';
     this.cb = callbacks;
     // Lazy-require `ws` so unit tests never load it and the module stays cheap.
     this.wsFactory = wsFactory || ((url, opts) => {
@@ -144,7 +153,11 @@ class RealtimeClient {
     const session = {
       type: 'realtime',
       instructions: this.instructions,
-      output_modalities: ['audio'],
+      // 'text' when an external TTS is the voice: the model reasons and emits
+      // text, Uplift speaks it. The input/audio config below stays exactly as it
+      // is — STT, VAD and barge-in are handled by the realtime session on BOTH
+      // paths, and so are tools. Only the mouth changes.
+      output_modalities: this.outputMode === 'text' ? ['text'] : ['audio'],
       audio: {
         input: {
           format: { type: 'audio/pcm', rate: pcm.OPENAI_RATE },
@@ -209,9 +222,12 @@ class RealtimeClient {
         break;
       case 'input_audio_buffer.speech_stopped':
         this._speechStoppedAt = Date.now();
+        // The text path measures its own response latency from here, because on
+        // that path the first audio comes back from Uplift, not from OpenAI.
+        if (this.cb.onSpeechStopped) this.cb.onSpeechStopped();
         break;
 
-      // --- audio out ---
+      // --- audio out (OpenAI voice path) ---
       case 'response.output_audio.delta':
       case 'response.audio.delta':
         if (this._speechStoppedAt != null) {
@@ -220,6 +236,18 @@ class RealtimeClient {
           if (this.cb.onResponseLatency) this.cb.onResponseLatency(ms);
         }
         if (evt.delta && this.cb.onAudio) this.cb.onAudio(pcm.base64ToInt16(evt.delta));
+        break;
+
+      // --- text out (external-TTS voice path) ---
+      // Deltas let us start speaking a sentence before the model has finished the
+      // whole reply; the `done` event carries the final text for the transcript.
+      case 'response.output_text.delta':
+      case 'response.text.delta':
+        if (evt.delta && this.cb.onTextDelta) this.cb.onTextDelta(evt.delta);
+        break;
+      case 'response.output_text.done':
+      case 'response.text.done':
+        if (evt.text && this.cb.onTextDone) this.cb.onTextDone(evt.text);
         break;
 
       // --- function calling: name arrives with the item, args arrive later ---

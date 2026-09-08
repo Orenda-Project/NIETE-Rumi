@@ -36,7 +36,26 @@ const BARE = new RegExp(
 );
 
 /**
- * @returns {{matched: boolean, tier: 'bare'|'none', token: string|null}}
+ * The K-5 lesson-plan BROADCAST button, matched exactly — bd-oak77.4.
+ *
+ * Meta template QUICK_REPLY buttons arrive with no routable id: `whatsapp-bot.js` falls the visible
+ * LABEL through to the text handler as an ordinary message (bd-kggts). The label is
+ * "Lesson Plans & Assessment", which the pre-bd-hgwfo tiered matcher caught at STRONG tier — and
+ * bd-hgwfo's narrowing to whole-message-is-the-artefact-name silently dropped it, leaving the button
+ * to the LLM classifier. `template-button-fallthrough.test.js` has been failing on `develop` ever
+ * since, saying so.
+ *
+ * This is an EXACT match on a label we ourselves publish, not a re-widening of BARE: the same shape
+ * as `isSelectVideoButton`, which exists for exactly this Meta behaviour. A teacher who
+ * types those three words as a sentence still goes to the classifier, because BARE is unchanged.
+ *
+ * If the template's button title changes at Meta, this constant changes with it — the test pins the
+ * label and Meta's 25-character cap together so they cannot drift apart.
+ */
+const BROADCAST_BUTTON_LABELS = Object.freeze(['lesson plans & assessment']);
+
+/**
+ * @returns {{matched: boolean, tier: 'bare'|'broadcast_button'|'none', token: string|null}}
  */
 function matchDetail(text) {
   if (typeof text !== 'string') return { matched: false, tier: 'none', token: null };
@@ -44,6 +63,9 @@ function matchDetail(text) {
   if (!t) return { matched: false, tier: 'none', token: null };
   const m = BARE.exec(t);
   if (m) return { matched: true, tier: 'bare', token: m[0].trim() };
+  if (BROADCAST_BUTTON_LABELS.includes(t.toLowerCase())) {
+    return { matched: true, tier: 'broadcast_button', token: t };
+  }
   return { matched: false, tier: 'none', token: null };
 }
 
@@ -52,4 +74,4 @@ function isLessonPlanRequest(text) {
   return matchDetail(text).matched;
 }
 
-module.exports = { isLessonPlanRequest, matchDetail, BARE };
+module.exports = { isLessonPlanRequest, matchDetail, BARE, BROADCAST_BUTTON_LABELS };

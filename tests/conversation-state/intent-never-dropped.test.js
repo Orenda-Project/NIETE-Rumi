@@ -29,7 +29,10 @@ jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
 jest.mock('../../bot/shared/services/lesson-planning.service', () => mockLessonPlanning);
 jest.mock('../../bot/shared/services/training/training-entry.service', () => mockTrainingEntry);
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
-jest.mock('../../bot/shared/services/llm-client', () => ({ getClient: () => ({}) }));
+jest.mock('../../bot/shared/services/llm-client', () => ({
+  getClient: () => ({}),
+  getClientForModel: (m) => ({ client: {}, model: String(m || '') }),
+}));
 jest.mock('../../bot/shared/database/bot-helpers', () => ({
   storeConversation: jest.fn(),
   getOrCreateSession: jest.fn().mockResolvedValue('session-recomputed'),

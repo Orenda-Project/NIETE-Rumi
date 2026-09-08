@@ -20,6 +20,7 @@ const WhatsAppService = require('./whatsapp.service');
 const FeatureIntroService = require('./feature-intro.service');
 const { FEATURE_VIDEO_URLS, FEATURE_CONSENT_MESSAGES, CONSENT_BUTTON_LABELS } = require('../constants/feature-videos');
 const redisService = require('./cache/railway-redis.service');
+const { isFeatureRunnable } = require('../config/feature-availability');
 
 /**
  * Feature linking matrix with probabilities and messages
@@ -140,6 +141,31 @@ class FeatureLinkerService {
 
       // Find a feature to suggest
       for (const link of links) {
+        // bd-twhcj — NEVER advertise a feature this deployment cannot run.
+        //
+        // This is the first gate in the loop on purpose: it comes before the
+        // recency check and before the dice roll, so an unavailable feature is
+        // not merely unlikely to be offered, it is impossible. The check is
+        // keyed on `link.feature` and delegates to feature-availability, the
+        // single source of truth for "is this on here" — deliberately NOT an
+        // `if (link.feature === 'reading')`, because the bug class is "a
+        // flag-gated feature is off and we invited the teacher anyway" and
+        // reading is only the instance we found.
+        //
+        // What it cost: on NIETE this service offered reading at p=0.50 after
+        // every coaching session and p=0.25 after every lesson plan, while
+        // READING_ASSESSMENT_FLOW_ID was unset and no reading Flow existed on
+        // the WhatsApp account. 43 teachers took us up on it; all 57 attempts
+        // failed and not one reading_assessments row was ever written.
+        if (!isFeatureRunnable(link.feature)) {
+          logToFile('🚫 Feature link suppressed — feature is not available on this deployment', {
+            feature: link.feature,
+            completedFeature,
+            userId,
+          }, 'warn');
+          continue;
+        }
+
         // Skip if user has used this feature recently (within 7 days)
         const historyKey = `last${this._capitalize(link.feature)}DaysAgo`;
         if (userHistory[historyKey] < 7) {

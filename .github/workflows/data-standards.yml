@@ -38,6 +38,13 @@ name: data-standards
 #
 # The `ownership` job is NOT advisory — it fails hard. It proves nobody edited the
 # vendored skill, which is the entire basis for calling it the Data Team's.
+#
+# SLACK NOTIFICATION (added — see the "Notify Slack on a confirmed violation"
+# step in the `report` job below). Mirrors the Data Team's own Claude-gate
+# behavior: a confirmed finding (exit 1) posts to Slack. Needs SLACK_BOT_TOKEN
+# and TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL as repository secrets to
+# actually deliver — see that step's own comment for exactly what happens if
+# either is missing (nothing breaks; it just doesn't send).
 
 on:
   push:
@@ -240,3 +247,37 @@ jobs:
                 issue_number: context.issue.number, body,
               });
             }
+
+      # Mirrors the Claude gate's own validation_failure Slack event, so a
+      # finding caught here (a plain terminal commit, or any PR the Claude gate
+      # in someone's local session never saw) reaches the Data Team the same
+      # way a Claude-session violation already does. Only fires on a CONFIRMED
+      # finding (exit 1) — not on exit 2 (validator error), which is a CI/infra
+      # problem for whoever's watching Actions, not a data-standards finding.
+      #
+      # This step deliberately does NOT gate the job (this workflow is
+      # advisory-only today, per the header above) and continue-on-error is
+      # set so even an outright failure here can never turn this into a
+      # blocking step later by accident.
+      #
+      # Needs two repository secrets to actually deliver — Settings → Secrets
+      # and variables → Actions:
+      #   SLACK_BOT_TOKEN                          (from TOKENS.md)
+      #   TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL  (the target channel ID)
+      # Without them, notify.py still runs and exits 0, reporting "not sent" —
+      # same never-block guarantee as every other call site for this script.
+      - name: Notify Slack on a confirmed violation
+        if: steps.validate.outputs.exit_code == '1'
+        continue-on-error: true
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL: ${{ secrets.TALEEMABAD_DATA_STANDARDS_SLACK_CHANNEL }}
+        run: |
+          python3 .claude/skills/data-standards/scripts/notify.py slack \
+            --event validation_failure \
+            --repo "${{ github.repository }}" \
+            --branch "${{ github.head_ref || github.ref_name }}" \
+            --commit "${{ steps.refs.outputs.head }}" \
+            --actor "${{ github.actor }}" \
+            --result "FAIL (CI, advisory)" \
+            --pr "${{ github.event.pull_request.html_url || '' }}"

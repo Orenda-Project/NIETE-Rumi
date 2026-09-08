@@ -19,7 +19,9 @@
  */
 
 const mockSendMessage = jest.fn();
-const mockSendDocumentByLink = jest.fn();
+// bd-m1xyt: deliverRender now checks this return and retries/throws on a falsy one, so the
+// default double must be a real success — `undefined` used to pass silently.
+const mockSendDocumentByLink = jest.fn().mockResolvedValue(true);
 const mockSendInteractiveButtons = jest.fn().mockResolvedValue(true);
 const mockRedisSet = jest.fn();
 const mockRedisGet = jest.fn();

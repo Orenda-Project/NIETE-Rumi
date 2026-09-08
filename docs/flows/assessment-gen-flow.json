@@ -1,6 +1,4 @@
 {
-  "_comment": "Assessment Generator. Endpoint flow: every screen is served by the server so what she sees is always valid for the book we actually hold. Screens: CLASS -> COVERAGE (-> PAGES) -> QUESTIONS (-> TYPES) -> CONFIRM -> SUBMITTED.",
-  "_instructions": "Publish via scripts/setup/register-all-flows.js. The endpoint is /api/flows/assessment-gen.",
   "version": "7.0",
   "data_api_version": "3.0",
   "routing_model": {
@@ -21,10 +19,7 @@
     "TYPES": [
       "CONFIRM"
     ],
-    "CONFIRM": [
-      "SUBMITTED"
-    ],
-    "SUBMITTED": []
+    "CONFIRM": []
   },
   "screens": [
     {
@@ -300,30 +295,6 @@
           "type": "string",
           "__example__": "Grade 1 · English · Chapter 1"
         },
-        "counts": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              }
-            }
-          },
-          "__example__": [
-            {
-              "id": "10",
-              "title": "10 questions"
-            },
-            {
-              "id": "20",
-              "title": "20 questions"
-            }
-          ]
-        },
         "error": {
           "type": "string",
           "__example__": ""
@@ -331,6 +302,10 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "count_hint": {
+          "type": "string",
+          "__example__": "Between 1 and 25."
         }
       },
       "layout": {
@@ -369,11 +344,12 @@
                 ]
               },
               {
-                "type": "Dropdown",
+                "type": "TextInput",
                 "name": "question_count",
                 "label": "How many questions",
                 "required": true,
-                "data-source": "${data.counts}"
+                "input-type": "number",
+                "helper-text": "${data.count_hint}"
               },
               {
                 "type": "OptIn",
@@ -495,6 +471,48 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "extension_message_response": {
+          "type": "object",
+          "properties": {
+            "params": {
+              "type": "object",
+              "properties": {
+                "assessment_action": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "__example__": {
+            "params": {
+              "assessment_action": "queued",
+              "summary": "Grade 4 Science · 20 questions"
+            }
+          }
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "pdf",
+              "title": "PDF — ready to print"
+            }
+          ]
         }
       },
       "layout": {
@@ -503,6 +521,9 @@
           {
             "type": "Form",
             "name": "confirm_form",
+            "init-values": {
+              "output_format": "pdf"
+            },
             "children": [
               {
                 "type": "TextHeading",
@@ -517,12 +538,7 @@
                 "name": "output_format",
                 "label": "File type",
                 "required": true,
-                "data-source": [
-                  {
-                    "id": "pdf",
-                    "title": "PDF — ready to print"
-                  }
-                ]
+                "data-source": "${data.formats}"
               },
               {
                 "type": "OptIn",
@@ -538,62 +554,21 @@
                 "type": "Footer",
                 "label": "Make my paper",
                 "on-click-action": {
-                  "name": "data_exchange",
+                  "name": "complete",
                   "payload": {
                     "output_format": "${form.output_format}",
                     "answer_lines": "${form.answer_lines}",
-                    "answer_key": "${form.answer_key}"
+                    "answer_key": "${form.answer_key}",
+                    "extension_message_response": "${data.extension_message_response}"
                   }
                 }
               }
             ]
           }
         ]
-      }
-    },
-    {
-      "id": "SUBMITTED",
-      "title": "New assessment",
-      "terminal": true,
-      "data": {
-        "heading": {
-          "type": "string",
-          "__example__": "Making your paper"
-        },
-        "message": {
-          "type": "string",
-          "__example__": "About a minute. It will arrive in this chat."
-        },
-        "caption": {
-          "type": "string",
-          "__example__": "You can close this."
-        }
       },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "TextHeading",
-            "text": "${data.heading}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.message}"
-          },
-          {
-            "type": "TextCaption",
-            "text": "${data.caption}"
-          },
-          {
-            "type": "Footer",
-            "label": "Close",
-            "on-click-action": {
-              "name": "complete",
-              "payload": {}
-            }
-          }
-        ]
-      }
+      "terminal": true,
+      "success": true
     }
   ]
 }

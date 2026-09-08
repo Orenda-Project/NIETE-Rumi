@@ -82,6 +82,15 @@ const SEGMENT = {
 };
 const REQ = { userId: 'u1', phone: '923001234567', lang: 'en', correlationId: 'c1' };
 
+/**
+ * A pickup old enough that the SQS envelope around it has demonstrably expired.
+ *
+ * Derived from the service rather than hardcoded: the reap window is heartbeat ceiling + one
+ * visibility window + grace (bd-w36m5), so a literal here would silently stop describing a corpse
+ * the moment any of those three moved.
+ */
+const strandedTimestamp = () => new Date(Date.now() - (Serving.reapAfterPickupMs() + 60 * 1000)).toISOString();
+
 const render = (over = {}) => ({
   id: 'r1', status: 'authoring', r2_key: null, waiters: [], error_code: null,
   started_at: new Date().toISOString(), one_screen: null, overlay_dropped: false, ...over,
@@ -98,7 +107,10 @@ const joinCalls = () => mockRpc.mock.calls.filter((c) => c[0] === 'lp612_join_wa
 beforeEach(() => {
   jest.clearAllMocks();
   mockDbResults.length = 0; mockDbCalls.length = 0;
-  mockSendMessage.mockReset(); mockSendDocumentByLink.mockReset(); mockQueueJob.mockReset();
+  mockSendMessage.mockReset();
+  // bd-m1xyt: deliverRender now checks this return and retries/throws on a falsy one.
+  mockSendDocumentByLink.mockReset().mockResolvedValue(true);
+  mockQueueJob.mockReset();
   mockRpc.mockReset().mockResolvedValue({ data: 'joined', error: null });
   mockSegmentById.mockResolvedValue(SEGMENT);
   mockGetPresignedUrl.mockResolvedValue('https://signed/x.pdf');
@@ -165,7 +177,7 @@ describe('losing the insert race: the append answer is READ, not discarded', () 
     const run = async () => {
       mockDbResults.length = 0; mockDbCalls.length = 0;
       mockRpc.mockReset().mockResolvedValue({ data: 'not_authoring', error: null });
-      mockSendDocumentByLink.mockReset();
+      mockSendDocumentByLink.mockReset().mockResolvedValue(true);
     };
 
     await run();
@@ -246,8 +258,14 @@ describe('restarting a failed or stranded render: exactly ONE tap may win', () =
   });
 
   test('a stranded row is swapped on started_at too — its status does not change across the reset', async () => {
-    const strandedAt = new Date(Date.now() - (720000 + 4 * 60 * 1000)).toISOString();
-    mockDbResults.push({ data: render({ status: 'authoring', started_at: strandedAt }), error: null });
+    // bd-dr216: strandedness is measured from PICKUP now, never from enqueue, so the fixture has to
+    // say a worker actually took this job. `started_at` alone describes a job still in the queue,
+    // and a queued job is joined rather than restarted — which is the whole point of the change.
+    const strandedAt = strandedTimestamp();
+    mockDbResults.push({
+      data: render({ status: 'authoring', started_at: strandedAt, picked_up_at: strandedAt }),
+      error: null,
+    });
     mockDbResults.push({ data: [{ id: 'r1' }], error: null });
 
     await Serving.requestLesson({ segmentId: SEGMENT.segment_id, ...REQ });
@@ -261,9 +279,12 @@ describe('restarting a failed or stranded render: exactly ONE tap may win', () =
   test('the reset PRESERVES anyone already waiting instead of overwriting the list', async () => {
     // A stranded run can have real teachers parked on it. `waiters: [me]` deleted them, and they
     // had already been told the lesson was on its way.
-    const strandedAt = new Date(Date.now() - (720000 + 4 * 60 * 1000)).toISOString();
+    const strandedAt = strandedTimestamp();
     mockDbResults.push({
-      data: render({ started_at: strandedAt, waiters: [{ phone: '923009999999' }] }), error: null,
+      data: render({
+        started_at: strandedAt, picked_up_at: strandedAt, waiters: [{ phone: '923009999999' }],
+      }),
+      error: null,
     });
     mockDbResults.push({ data: [{ id: 'r1' }], error: null });
 

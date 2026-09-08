@@ -20,6 +20,13 @@ without a teacher having to generate anything.
    offers the video's linked quiz (if one exists). A teacher can also attempt it herself (`source: video_solo`).
 3. **Taking it** — questions send via buttons/list/`VIDEO_QUIZ_FLOW_ID` (picture-answer, falls back to a
    numbered list if the Flow is unavailable). Answers route through the `vq_` id prefix in `whatsapp-bot.js`.
+   A question whose answer is a **set** ("select all that apply") is sent instead as a CheckboxGroup Flow
+   (`QUIZ_MULTI_FLOW_ID`), because buttons and list rows are single-select; its reply comes back as an
+   `nfm_reply` on the `vqm:` token and is scored by exact set equality
+   ([transcript-quiz-multi.js](../../bot/shared/services/quiz/transcript-quiz-multi.js) holds the shape,
+   scoring and Flow payload; `video-quiz.service.handleMultiFlowReply` grades it). With the Flow id unset the
+   question degrades to the ordinary picker carrying a line that says more than one answer is right — never
+   to a blank question.
 4. **Scorecard** — [video-quiz-scorecard.service.js](../../bot/shared/services/quiz/video-quiz-scorecard.service.js)
    renders an image (score-tier background, stars, the taker's name) via Playwright.
 5. **Forward to class** — [video-quiz-share.service.js](../../bot/shared/services/quiz/video-quiz-share.service.js)
@@ -43,7 +50,9 @@ so `r2_url` was copied verbatim.
 
 ## Enable it
 
-`VIDEO_QUIZ_FLOW_ID`, `STUDENT_JOIN_FLOW_ID`, `STUDENT_VIDEOS_FLOW_ID` (all registered PUBLISHED on NIETE's
+`VIDEO_QUIZ_FLOW_ID`, `QUIZ_MULTI_FLOW_ID` (optional — the select-all-that-apply Flow; publish it with
+`scripts/publish-quiz-multi-flow.py`, which is a per-WABA step), `STUDENT_JOIN_FLOW_ID`,
+`STUDENT_VIDEOS_FLOW_ID` (all registered PUBLISHED on NIETE's
 WABA as part of this port — `STUDENT_VIDEOS_FLOW_ID` had never been set before, so video browsing was
 unreachable dead code prior to 2026-08-04), `WHATSAPP_BOT_NUMBER` (so forwarded wa.me links open NIETE's own
 number, not another deployment's).

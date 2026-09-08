@@ -132,6 +132,24 @@ const cps = (s) => [...String(s == null ? '' : s)].length;
     }
   }
 
+  /**
+   * The source row behind a rendered chapter row.
+   *
+   * Matched on the row's PAYLOAD, never on its `id`. Since bd-oak77.5 the id is
+   * `book_stem::chapter_key` wherever two books share a (grade, subject) — the
+   * shared practicals book, and the English/Urdu editions of Pakistan Studies —
+   * so `r.chapter_key === it.id` silently matched NOTHING there and this script
+   * reported an empty name for every one of those rows. The payload carries both
+   * halves and is what the next screen routes on anyway.
+   */
+  const sourceFor = (it, g, subject) => {
+    const pl = (it['on-click-action'] || {}).payload || {};
+    return ROWS.find((r) => r.chapter_key === pl.chapter_key
+      && (!pl.book_stem || r.book_stem === pl.book_stem)
+      && r.subject === subject
+      && (r.grade === g || (r.also_grades || []).includes(g))) || {};
+  };
+
   /** Every chapter row of a book, across its pages. */
   async function allChapters(g, subject) {
     const out = [];
@@ -156,8 +174,7 @@ const cps = (s) => [...String(s == null ? '' : s)].length;
     for (const it of items) {
       const mc0 = it['main-content'];
       shapes.add(Object.keys(mc0).sort().join(','));
-      const src0 = ROWS.find((r) => r.chapter_key === it.id && r.subject === subject
-        && (r.grade === g || (r.also_grades || []).includes(g))) || {};
+      const src0 = sourceFor(it, g, subject);
       const nm = src0.chapter_title || '';
       // Which field is this row's NAME actually rendered in?
       for (const f of ['title', 'description', 'metadata']) {
@@ -178,9 +195,7 @@ const cps = (s) => [...String(s == null ? '' : s)].length;
       // The SOURCE fields ride along so a comparison render can rebuild the
       // pre-fix row from the same data instead of hand-transcribing it — the
       // two panels then cannot drift apart or show different chapters.
-      const src = ROWS.find((r) => r.chapter_key === it.id
-        && r.subject === subject
-        && (r.grade === g || (r.also_grades || []).includes(g))) || {};
+      const src = sourceFor(it, g, subject);
       const row = {
         grade: g,
         subject,

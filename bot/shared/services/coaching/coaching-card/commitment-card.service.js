@@ -70,9 +70,25 @@ function describeBar(bar) {
  * Without the loop, the scorer's validated focus_area.
  */
 function cardTarget(analysis, loop) {
-  if (loop && loop.state && loop.state.target && loop.state.target.indicator && !loop.state.bridge) {
-    const t = resolveIndicator(analysis, loop.state.target.indicator);
-    if (t) return t;
+  const st = loop && loop.state && loop.state.target;
+  if (st && !loop.state.bridge) {
+    // A PHASE target is coached as the plan step, not as a rubric indicator.
+    // `try` carries what THIS lesson's plan actually asked for, so the ask can
+    // show her the step she skipped before asking for it next time.
+    if (st.kind === 'phase') {
+      const moves = ((analysis && analysis.lp_fidelity && analysis.lp_fidelity.moves) || [])
+        .filter((m) => m && m.phase === st.phase);
+      const missed = moves.find((m) => m.verdict === 'not_done' || m.verdict === 'partial') || moves[0];
+      return {
+        kind: 'phase', phase: st.phase, name: st.name,
+        try: (missed && String(missed.text || '').trim()) || '',
+        rationale: '', title: st.name, count: null, levels: null,
+      };
+    }
+    if (st.indicator) {
+      const t = resolveIndicator(analysis, st.indicator);
+      if (t) return t;
+    }
   }
   return resolveTarget(analysis);
 }
@@ -82,7 +98,7 @@ function loopBlock(loop, target, langName) {
   const st = loop.state;
   const attempt = Number(st.attempt) || 1;
   const angle = ANGLE_INSTRUCTION[st.angle] ? st.angle : 'tell';
-  const bar = countBarFor(target.indicator) || {};
+  const bar = target.kind === 'phase' ? {} : (countBarFor(target.indicator) || {});
   const prior = loop.prior || null;
   const bridge = st.bridge && prior && prior.target
     ? `\nBRIDGE LESSON: the open target ${prior.target.indicator} "${prior.target.name || prior.target.indicator}" does not apply to this lesson's subject, so THE TARGET above is a one-lesson bridge. End "action" with one short clause that ${prior.target.name || prior.target.indicator} returns in the next lesson where it applies.`
@@ -92,8 +108,8 @@ function loopBlock(loop, target, langName) {
     : '';
   return `
 ATTEMPT ${attempt} · ANGLE "${angle}": ${ANGLE_INSTRUCTION[angle]}${bridge}
-THE BAR the rubric sets for ${target.indicator} at rung 2: ${describeBar(bar)}.${priorLine}
-Return ALSO "action_spec": {"cue": "<the if-then moment from this lesson, or empty>", "move": "<the ONE move, max 15 words>", "count_target": ${JSON.stringify(bar)}, "model_line": "<one sentence she can say, in ${langName}, or empty>"}.
+${target.kind === 'phase' ? `THE BAR: the "${target.name}" step of next class's plan actually happens.` : `THE BAR the rubric sets for ${target.indicator} at rung 2: ${describeBar(bar)}.`}${priorLine}
+Return ALSO "action_spec": {"cue": "<the if-then moment from this lesson, or empty>", "move": "<the ONE move, max 15 words>", "count_target": ${JSON.stringify(target.kind === 'phase' ? { phase_moves_executed: 1 } : bar)}, "model_line": "<one sentence she can say, in ${langName}, or empty>"}.
 `;
 }
 
@@ -156,6 +172,12 @@ function extractQ3(conversationState) {
  * itself. Null target → the prompt reads exactly as before.
  */
 function targetBlock(target) {
+  if (target && target.kind === 'phase') {
+    const asked = target.try
+      ? ` In the lesson just observed her plan asked for: "${String(target.try).replace(/\s+/g, ' ').trim().slice(0, 300)}" — and it did not happen.`
+      : '';
+    return `\nTHE TARGET (fixed — do NOT choose a different area): the "${target.name}" step of her own lesson plan.${asked} Your "action" asks her to do THAT step of whatever lesson plan she teaches NEXT class — one step, not the whole plan, and not this lesson's exact wording (next class has a different plan).\n`;
+  }
   if (!target || !target.indicator) return '';
   const move = target.try ? ` The scorer's suggested move: "${target.try}".` : '';
   const why = target.rationale ? ` Why it is the next step: ${target.rationale}` : '';
@@ -165,6 +187,10 @@ function targetBlock(target) {
 function buildPrompt(lang, analysis, q3, target = null, loop = null) {
   const langName = LANG_NAME[lang] || 'English';
   if (!target) target = cardTarget(analysis, loop);
+  // She may not have answered the reflective question (51% do not). That gates
+  // the COMMITMENT half only — never the action. Nothing below may quote or
+  // imply an answer that does not exist.
+  const reflected = !!(q3 && typeof q3.answer === 'string' && q3.answer.trim());
   const strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
   const growth = (analysis.growth_opportunities || []).map((g) => ({
     area: g.area || g.title,
@@ -184,16 +210,18 @@ ${CODESWITCH_RULE[lang] || CODESWITCH_RULE.en}
 PLAIN LANGUAGE — the teacher must understand every word. Do NOT use coach-jargon she wouldn't say herself: "scaffolding", "extension", "differentiation", "formative assessment", "higher-order thinking", "metacognition", "gradual release". Describe the concrete move in plain words instead (e.g. instead of "scaffolding", write "break it into small steps"; instead of "an extension", write "a harder task for the ones who finish early").
 
 The card has TWO parts:
-1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit, reflecting back what SHE values, drawn from her Q3 answer (her forward-looking reflection). Address her as "you"/"we". No honorifics, no name inside it.
-2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse her own value (from her Q3 answer + strengths) with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
+1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit. ${reflected
+  ? 'Reflect back what SHE values, drawn from her Q3 answer (her forward-looking reflection).'
+  : 'She did not answer the reflective question this time, so draw it from her strengths below and why THE TARGET matters in HER classroom — never invent, quote or imply a reflection she did not give.'} Address her as "you"/"we". No honorifics, no name inside it.
+2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse ${reflected ? 'her own value (from her Q3 answer + strengths)' : 'her strengths below'} with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
 
 Also return "highlights": an array of 2–4 short ${langName} keyword phrases that appear verbatim in "action" (concrete nouns) to visually emphasise. And "lesson_label": a 2–4 word ${langName} subject·topic label.
 
 Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):${targetBlock(target)}${loopBlock(loop, target, langName)}
 - Her strengths: ${strengths.join(' | ') || '(none captured)'}
 - Growth areas: ${growth.map((g) => `${g.area} — ${g.observation} Strategy: ${g.strategy}`).join(' || ') || '(none)'}
-- Q3 question we asked her: ${q3.question || '(n/a)'}
-- Her Q3 answer (in ${langName}): "${String(q3.answer).slice(0, 400)}"
+${reflected ? `- Q3 question we asked her: ${q3.question || '(n/a)'}
+- Her Q3 answer (in ${langName}): "${String(q3.answer).slice(0, 400)}"` : '- She did not answer the reflective question this time.'}
 
 Return STRICT JSON only: {"commitment":"...","action":"...","lesson_label":"...","highlights":["...","..."]}`;
 }
@@ -317,13 +345,26 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   if (!analysis) return null;
 
   const q3 = extractQ3(conversationState);
-  if (!q3) {
-    logToFile('Commitment card: no Q3 commitment → rule-based fallback', { framework: analysis.framework });
+  const target = cardTarget(analysis, loop);
+  // The reflection gates the COMMITMENT half of the card, never the ACTION half.
+  // When a loop target is open the ask must carry THIS attempt's angle and the
+  // prior-action do-not-reuse block, so it is phrased by the model whether or
+  // not she reflected. The early return this replaces sent every unreflected
+  // attempt to the angle-blind rubric sentence: on staging, attempts 2 and 3
+  // for one teacher shipped byte-identical asks (overlap 1.00) while the record
+  // claimed the angle had advanced from `cue` to `show`.
+  if (!q3 && !(loop && target)) {
+    logToFile('Commitment card: no Q3 commitment and no loop target → rule-based fallback', { framework: analysis.framework });
     return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop));
   }
-
-  const target = cardTarget(analysis, loop);
-  const bar = loop && target ? (countBarFor(target.indicator) || {}) : null;
+  if (!q3) {
+    logToFile('[uptake-loop] no reflection — the ask is still phrased with the angle', {
+      indicator: target.indicator, attempt: loop.state && loop.state.attempt, angle: loop.state && loop.state.angle,
+    });
+  }
+  const bar = loop && target
+    ? (target.kind === 'phase' ? { phase_moves_executed: 1 } : (countBarFor(target.indicator) || {}))
+    : null;
   const ask = async (prompt) => {
     const r = await GPT5MiniService.openai.chat.completions.create({
       model: MODEL,
@@ -364,7 +405,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
       action: String(parsed.action).trim(),
       highlights: Array.isArray(parsed.highlights) ? parsed.highlights.filter(Boolean) : [],
       lesson_label: parsed.lesson_label ? String(parsed.lesson_label).trim() : '',
-      indicator: target ? target.indicator : undefined,
+      indicator: target && target.kind !== 'phase' ? target.indicator : undefined,
       language: lang,
       ...(loop && target ? { action_spec: normaliseSpec(parsed.action_spec, bar, parsed.action) } : {}),
       ...(similarToPrior ? { _similar_to_prior: true } : {}),

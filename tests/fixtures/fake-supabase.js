@@ -168,14 +168,21 @@ function createFakeSupabase(seed = {}, opts = {}) {
 
     const named = [];
     const seenRolls = new Set();
-    const seenNames = new Set();
+    // How many times each name has been seen SO FAR in this payload. A roll is an
+    // identity, so a repeated roll is one child; a name is only a locator, so the
+    // second `Abdul Rehman` down a register with no roll column is a second child
+    // (bd-dz6qb.1). Its occurrence number is what gets matched against the class.
+    const nameSeq = new Map();
     for (const raw of p_students || []) {
       const name = String(raw.student_name || '').trim();
       if (!name) continue;
       const rollStr = raw.roll_number === null || raw.roll_number === undefined ? '' : String(raw.roll_number).trim();
       const roll = /^\d{1,3}$/.test(rollStr) ? Number(rollStr) : null;
-      const dupInPayload = roll !== null ? seenRolls.has(roll) : seenNames.has(name.toLowerCase());
-      if (roll !== null) seenRolls.add(roll); else seenNames.add(name.toLowerCase());
+      const key = name.toLowerCase();
+      const nth = (nameSeq.get(key) || 0) + 1;
+      nameSeq.set(key, nth);
+      const dupInPayload = roll !== null && seenRolls.has(roll);
+      if (roll !== null) seenRolls.add(roll);
       named.push(dupInPayload ? null : {
         student_name: name,
         father_name: (raw.father_name && String(raw.father_name).trim()) || null,
@@ -183,6 +190,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
         admission_no: (raw.admission_no && String(raw.admission_no).trim()) || null,
         date_of_birth: (raw.date_of_birth && String(raw.date_of_birth).trim()) || null,
         roll,
+        nth,
       });
     }
 
@@ -193,14 +201,22 @@ function createFakeSupabase(seed = {}, opts = {}) {
     const active = enrollments.filter((e) => e.class_id === p_class_id && e.is_active);
     const takenRolls = new Set(active.map((e) => e.roll_number).filter((r) => r !== null && r !== undefined));
     const activeIds = new Set(active.map((e) => e.student_id));
-    const takenNames = new Set(students
-      .filter((s) => activeIds.has(s.id))
-      .map((s) => String(s.student_name || '').trim().toLowerCase()));
+    // Not a Set — a COUNT per name, fixed at the start of the write exactly as the
+    // SQL's `existing` CTE is. The Nth incoming child of a name is new whenever the
+    // class holds fewer than N of that name already.
+    const nameCount = new Map();
+    for (const s of students) {
+      if (!activeIds.has(s.id)) continue;
+      const k = String(s.student_name || '').trim().toLowerCase();
+      nameCount.set(k, (nameCount.get(k) || 0) + 1);
+    }
 
     let added = 0;
     for (const v of named) {
       if (!v) continue;
-      const hit = v.roll !== null ? takenRolls.has(v.roll) : takenNames.has(v.student_name.toLowerCase());
+      const hit = v.roll !== null
+        ? takenRolls.has(v.roll)
+        : v.nth <= (nameCount.get(v.student_name.toLowerCase()) || 0);
       if (hit) continue;
 
       // RECOGNITION (mirrors the SQL): same school + same admission number is
@@ -221,7 +237,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
               id: nextId('class_enrollments'), class_id: p_class_id, student_id: known.id,
               roll_number: v.roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true,
             });
-            if (v.roll !== null) takenRolls.add(v.roll); else takenNames.add(v.student_name.toLowerCase());
+            if (v.roll !== null) takenRolls.add(v.roll);
             added += 1;
           }
           continue;
@@ -240,7 +256,10 @@ function createFakeSupabase(seed = {}, opts = {}) {
         id: nextId('class_enrollments'), class_id: p_class_id, student_id: id,
         roll_number: v.roll, enrolled_on: new Date().toISOString().slice(0, 10), is_active: true,
       });
-      if (v.roll !== null) takenRolls.add(v.roll); else takenNames.add(v.student_name.toLowerCase());
+      // Only the roll set grows as we insert. The name counts are a snapshot of the
+      // committed class, the way the SQL's `existing` CTE is — incrementing here would
+      // make the second same-name child of one payload match the first and vanish again.
+      if (v.roll !== null) takenRolls.add(v.roll);
       added += 1;
     }
 
@@ -248,6 +267,9 @@ function createFakeSupabase(seed = {}, opts = {}) {
       const list = table('student_lists').find((l) => l.id === p_list_id);
       if (list) list.student_count = students.filter((s) => s.list_id === p_list_id && s.is_active).length;
     }
+    // `skipped` counts rows this write did NOT create. The SAVED screen adds it to
+    // `added` to say how many are on the roster, so it must only ever cover children
+    // that are genuinely already there — never a child we dropped (bd-dz6qb.1).
     return { added, skipped: named.length - added, replay: false };
   }
 

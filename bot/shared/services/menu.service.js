@@ -8,6 +8,8 @@ const redisService = require('./cache/railway-redis.service');
 // CoachingService not used in this file - removed legacy import
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
 const LessonPlanningService = require('./lesson-planning.service');
+const { isFeatureRunnable } = require('../config/feature-availability');
+const { resolveUx } = require('../config/ux-strings');
 
 const openai = getClient();
 
@@ -128,7 +130,22 @@ class MenuService {
           await this._handleClassroomCoachingChoice(user.id, sessionId, from, language);
           break;
 
-        case 'menu_reading':
+        case 'menu_reading': {
+          // The Reading row was removed from the list, but a WhatsApp list lives
+          // in scrollback forever, so an old tap still lands here. Same gate as
+          // the /reading test command: if the feature cannot run on this
+          // deployment, say so honestly instead of opening a Flow that does not
+          // exist. Warn-level, because the boot validator's info-level notice is
+          // exactly what nobody saw for twenty days.
+          if (!isFeatureRunnable('reading')) {
+            logToFile('🚫 menu_reading refused — reading assessment is not available on this deployment', {
+              userId: user.id,
+              missingEnv: 'READING_ASSESSMENT_FLOW_ID',
+            }, 'warn');
+            await WhatsAppService.sendMessage(from, resolveUx('readingNotAvailable', { language }));
+            break;
+          }
+
           // /009 FIX: Use WhatsApp Flow (same as /reading test command)
           // Old ReadingAssessmentService.initiateAssessment() didn't ask for student name
           // WhatsApp Flow collects all info in proper multi-screen form
@@ -159,6 +176,7 @@ class MenuService {
             throw new Error('Failed to send WhatsApp Flow from menu');
           }
           break;
+        }
 
         case 'menu_video':
           // Trigger video generation flow
@@ -302,7 +320,7 @@ class MenuService {
    *
    * @private
    */
-  static async _handleLessonPlanningChoice(userId, sessionId, from, language) {
+  static async _handleLessonPlanningChoice(userId, sessionId, from, language, reason = 'menu') { // `reason`: which door — see lp-browse-entry.service
     // bd-njn7u: the explicit menu tap means "I'm starting fresh" — any
     // in-flight LP-Q&A context belongs to the past. Parent-bot parity
     // (bd-1565 L1b); quiz/coaching/video carry the same defensive flush.
@@ -319,7 +337,7 @@ class MenuService {
     // entry points cannot drift apart again (bd-72dth). Caps + bilingual copy
     // are pinned in tests/lp-v8/bd-hgwfo-gamma-door.test.js.
     const { openLpBrowseFlow } = require('./lp-browse-entry.service');
-    if (await openLpBrowseFlow({ from, userId, language, reason: 'menu' })) {
+    if (await openLpBrowseFlow({ from, userId, language, reason })) {
       logToFile('LP menu → Pakistan LP Flow sent (FEAT-109)', { userId, sessionId });
       return;
     }
@@ -521,3 +539,5 @@ class MenuService {
 }
 
 module.exports = MenuService;
+
+// QA pipeline demo probe (PR #771): a mapped file changed from a plain terminal commit.

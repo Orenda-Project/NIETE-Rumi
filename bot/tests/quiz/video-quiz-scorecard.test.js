@@ -21,16 +21,22 @@ const scorecard = require('../../shared/services/quiz/video-quiz-scorecard.servi
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('bd-2474 — starsAndBadge (score -> stars/badge mapping)', () => {
-  test('12/15 = 80% reproduces the approved mockup: 4 stars, SUPER!', () => {
-    expect(renderHtml.starsAndBadge(80)).toEqual({ stars: 4, badge: 'SUPER!' });
+describe('starsAndBadge (score -> stars/badge mapping)', () => {
+  test('12/15 = 80% reproduces the approved mockup: 4 stars', () => {
+    expect(renderHtml.starsAndBadge(80).stars).toBe(4);
   });
-  test('a mid score gets a mid badge, never a defeat framing', () => {
-    expect(renderHtml.starsAndBadge(65)).toEqual({ stars: 3, badge: 'NICE!' });
+  test('the badge word comes from the string catalog, in the quiz language', () => {
+    // bd-mg9c7.28 — an Urdu quiz used to end on an English card. The words
+    // come from the same catalog the caption underneath it is built from, so
+    // the two can never say different things in different languages.
+    const { UX_STRINGS } = require('../../shared/config/ux-strings');
+    expect(renderHtml.starsAndBadge(90, 'en').badge).toBe(UX_STRINGS.vqBadgeMastered.en);
+    expect(renderHtml.starsAndBadge(90, 'ur').badge).toBe(UX_STRINGS.vqBadgeMastered.ur);
+    expect(renderHtml.starsAndBadge(65, 'ur').badge).toBe(UX_STRINGS.vqBadgeDeveloping.ur);
+    expect(renderHtml.starsAndBadge(20, 'ur').badge).toBe(UX_STRINGS.vqBadgeNeedsPractice.ur);
   });
-  test('a low score still gets a positive badge, never "FAILED" or similar', () => {
-    const { badge } = renderHtml.starsAndBadge(20);
-    expect(badge).toBe('KEEP GOING!');
+  test('a low score still gets a positive badge, never a defeat framing', () => {
+    const { badge } = renderHtml.starsAndBadge(20, 'en');
     expect(badge).not.toMatch(/fail|wrong|bad/i);
   });
   test('stars is clamped to [0,5] even at the extremes', () => {
@@ -110,87 +116,77 @@ describe('bd-2477 #2 — stars must not depend on ANY font (system or embedded)'
 });
 
 /**
- * bd-2477 #4 — GIF feasibility. Full write-up: the animated star-reveal +
- * confetti GIF is NOT built (see bead notes — WhatsApp rejects GIF outright,
- * and finish() renders synchronously inside the shared webhook process, so a
- * 10-15 frame animation would add real backlog risk at peak hour). This is
- * the fallback the operator offered in the same message: "if [GIF] would be
- * too heavy... then we simply just change the background color based on how
- * you did" — same one-frame render cost as today, tier-differentiated look.
+ * The animated star-reveal is still not built, and for the same two reasons:
+ * WhatsApp rejects GIF outright, and finish() renders synchronously inside the
+ * shared webhook process, so a 10-15 frame animation would add real backlog
+ * risk at peak hour.
+ *
+ * The fallback taken instead — "then we simply just change the background
+ * colour based on how you did" — has since been REVERSED. Varying the ground
+ * by score turned the background into a second, silent score, and the low
+ * tier's ground read as switched off. One ground, for every score; the tier
+ * moved to the stars, the badge word and the ring fill. See
+ * video-quiz-scorecard-v4.test.js. What is left in this describe is the pair
+ * of invariants that were never about the tiers at all.
  */
-/** Relative luminance (0-1) of a #RRGGBB hex string — for measuring whether
- * two backgrounds are ACTUALLY visually distinct, not just different strings. */
-function luminance(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
-
-function bgOf(html) {
-  return html.match(/\.card \{[^}]*background:([^;]+);/)[1];
-}
-
-describe('bd-2477 #4 / bd-2480 — score-tier background as the lightweight GIF fallback', () => {
-  test('a mastered score (>=80%) gets the most vivid, most celebratory palette', () => {
-    const html = renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 });
-    expect(html).toMatch(/#F5B301/); // full-saturation brand gold
-  });
-
-  test('a developing score (60-79%) gets a visibly different, calmer accent than mastered', () => {
-    const masteredBg = bgOf(renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 }));
-    const developingBg = bgOf(renderHtml({ topic: 'x', correct: 6, total: 10, pct: 65 }));
-    expect(developingBg).not.toBe(masteredBg);
-  });
-
-  test('a needs_practice score (<60%) gets the calmest palette — still gold-family accent, never red/green', () => {
-    const needsPractice = renderHtml({ topic: 'x', correct: 2, total: 10, pct: 20 });
-    const masteredBg = bgOf(renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 }));
-    const needsPracticeBg = bgOf(needsPractice);
-    expect(needsPracticeBg).not.toBe(masteredBg);
-    // The accent (badge/stars) stays in the gold family even as the canvas
-    // itself moves toward neutral — never introduces a red/green hue.
-    expect(needsPractice).toMatch(/#B98B3D/);
-  });
-
-  // bd-2480: caught in review — the first pass put all three backgrounds
-  // within a ~15-value navy hue band, imperceptible at a glance ("I dont see
-  // any real background color change?"). A string-inequality check alone
-  // would never catch that regression, so this measures the ACTUAL visual
-  // gap: the first gradient stop's luminance must jump meaningfully tier to
-  // tier, not just differ by a rounding error.
-  test('each tier is a REAL visible jump in brightness, not an imperceptible shade', () => {
-    const masteredFrom = bgOf(renderHtml({ topic: 'x', correct: 9, total: 10, pct: 90 }))
-      .match(/#[0-9A-Fa-f]{6}/)[0];
-    const developingFrom = bgOf(renderHtml({ topic: 'x', correct: 6, total: 10, pct: 65 }))
-      .match(/#[0-9A-Fa-f]{6}/)[0];
-    const needsPracticeFrom = bgOf(renderHtml({ topic: 'x', correct: 2, total: 10, pct: 20 }))
-      .match(/#[0-9A-Fa-f]{6}/)[0];
-
-    const lumMastered = luminance(masteredFrom);
-    const lumDeveloping = luminance(developingFrom);
-    const lumNeedsPractice = luminance(needsPracticeFrom);
-
-    // A gap under ~0.03 reads as "the same card" on a phone screen — the
-    // exact bug bd-2480 fixes. Require each step to clear that bar.
-    const MIN_PERCEPTIBLE_GAP = 0.03;
-    expect(Math.abs(lumMastered - lumDeveloping)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP);
-    expect(Math.abs(lumDeveloping - lumNeedsPractice)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP);
-    expect(Math.abs(lumMastered - lumNeedsPractice)).toBeGreaterThan(MIN_PERCEPTIBLE_GAP * 2);
-  });
-
-  test('all three tiers still render as valid on-brand hex colors', () => {
+describe('bd-mg9c7.28 / v4 D2 — the card is NIETE, and one card for every score', () => {
+  test('no gold, no coral, no other product\'s navy anywhere on the card', () => {
     [90, 65, 20].forEach((pct) => {
       const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct });
-      const bg = bgOf(html);
-      const hexes = bg.match(/#[0-9A-Fa-f]{6}/g) || [];
-      expect(hexes.length).toBeGreaterThan(0);
+      expect(html).not.toMatch(/#F5B301|#D9A233|#B98B3D|#001F3F|#1D57A6/i);
+    });
+  });
+
+  test('white text at every score — the score must stay legible on the ground', () => {
+    [90, 65, 20].forEach((pct) => {
+      const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct });
+      expect(html).toMatch(/\.card \{[^}]*color:#fff/);
     });
   });
 });
 
-describe('bd-2477 #2 — the Rumi mark appears white-on-transparent, top right', () => {
+describe('bd-mg9c7.28 — the child\'s own language on her own card', () => {
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+
+  test('an Urdu name renders inside an RTL element led by the Nastaliq face', () => {
+    const html = renderHtml({ topic: 'کسریں', correct: 6, total: 8, pct: 75, takerName: 'علی', language: 'ur' });
+    expect(html).toMatch(/class='name content align' dir='rtl'>علی</);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    expect(css).toMatch(/\.content\[dir="rtl"\]\{[^}]*font-family:'NastaliqUrdu'/);
+  });
+
+  test('embeds Nastaliq as a non-empty base64 face alongside Lexend', () => {
+    const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100, language: 'ur' });
+    expect(html).toMatch(/@font-face\{font-family:'NastaliqUrdu';font-weight:400;src:url\(data:font\/ttf;base64,[A-Za-z0-9+/=]{100,}/);
+  });
+
+  test('every font-family declaration names both families', () => {
+    const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100, language: 'ur' });
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    const decls = css.match(/font-family:[^;}]+/g) || [];
+    expect(decls.length).toBeGreaterThan(1);
+    decls.forEach((d) => {
+      expect(d).toMatch(/NastaliqUrdu/);
+      expect(d).toMatch(/Lexend/);
+    });
+  });
+
+  test('the eyebrow and the badge are the catalog words for that language', () => {
+    const html = renderHtml({ topic: 'کسریں', correct: 8, total: 8, pct: 100, language: 'ur' });
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqScorecardEyebrow.ur));
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqBadgeMastered.ur));
+    expect(html).not.toMatch(/QUIZ COMPLETE/);
+  });
+
+  test('the foot names the subject only — never a grade, never another org', () => {
+    const html = renderHtml({ topic: 'Fractions', correct: 1, total: 1, pct: 100, grade: 'Grade 4', subject: 'Maths' });
+    expect(html).not.toMatch(/Taleemabad/);
+    expect(html).not.toMatch(/Grade 4/);
+    expect(html).toMatch(/Maths/);
+  });
+});
+
+describe('the NIETE mark appears white-on-transparent, top right', () => {
   test('embeds the canonical white-on-transparent mark as base64, never redrawn', () => {
     const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100 });
     expect(html).toMatch(/<img[^>]*class=["']logo["'][^>]*src=["']data:image\/png;base64,[A-Za-z0-9+/=]+["']/);
@@ -215,6 +211,14 @@ describe('bd-2474 — renderScorecardImage', () => {
     htmlToImage.mockRejectedValueOnce(new Error('playwright timeout'));
     const png = await scorecard.renderScorecardImage({ topic: 'x', correct: 1, total: 1, pct: 100 });
     expect(png).toBeNull();
+  });
+
+  test('bd-mg9c7.28: forwards the quiz language into the rendered HTML', async () => {
+    await scorecard.renderScorecardImage({
+      topic: 'کسریں', correct: 1, total: 1, pct: 100, takerName: 'علی', language: 'ur',
+    });
+    const [html] = htmlToImage.mock.calls[0];
+    expect(html).toMatch(/class='name content align' dir='rtl'>علی</);
   });
 
   test('bd-2481: forwards takerName into the rendered HTML', async () => {
@@ -252,5 +256,136 @@ describe('bd-2474 — sendScorecard', () => {
     const ok = await scorecard.sendScorecard('923001234567',
       { topic: 'x', correct: 1, total: 1, pct: 100 });
     expect(ok).toBe(false);
+  });
+});
+
+/**
+ * bd-mg9c7.44 — the card a child would screenshot, and a name in the script
+ * it was written in.
+ *
+ * Two separate asks in one pass:
+ *
+ *  1. The card was correct but flat: a fraction, five stars and a badge on a
+ *     flat gradient. It is the only artefact of the whole quiz a child keeps,
+ *     so the score gets a real treatment (a ring filled to the percentage),
+ *     the stars become the hero row, her name gets the size, and the single
+ *     large outline diamond gives way to the brand book's lattice.
+ *  2. A child who types "Ali" into an Urdu quiz is not writing Urdu, and a
+ *     child who types "عائشہ" into an English quiz is not writing English.
+ *     The card's language is the QUIZ's; the SCRIPT of a name or a topic is
+ *     the text's own. Keying the name's font off the quiz language put Latin
+ *     letters through Nastaliq metrics and Perso-Arabic through a Latin-first
+ *     stack — the same "no glyphs" trap the file's docstring already names,
+ *     just triggered by the wrong axis.
+ */
+describe('bd-mg9c7.44 — scriptOf: a text names its own script', () => {
+  const { scriptOf } = require('../../shared/templates/niete-brand');
+
+  test('Perso-Arabic letters make it Urdu, Latin letters make it English', () => {
+    expect(scriptOf('عائشہ')).toBe('ur');
+    expect(scriptOf('علی')).toBe('ur');
+    expect(scriptOf('Ali')).toBe('en');
+    expect(scriptOf('Ayesha Khan')).toBe('en');
+  });
+
+  test('a single Perso-Arabic letter anywhere wins — a mixed string is set in Nastaliq', () => {
+    expect(scriptOf('Ali علی')).toBe('ur');
+  });
+
+  test('digits and punctuation alone are not a script', () => {
+    expect(scriptOf('')).toBe('en');
+    expect(scriptOf(null)).toBe('en');
+    expect(scriptOf('12/15')).toBe('en');
+    // U+060C/U+061F/U+06F1 are Arabic-block punctuation and digits, not letters.
+    expect(scriptOf('، ؟ ۱۲')).toBe('en');
+  });
+});
+
+describe('bd-mg9c7.44 — the name renders in the script it was written in', () => {
+  test('an English name inside an Urdu quiz card is LTR and Latin-first', () => {
+    const html = renderHtml({
+      topic: 'کسریں', correct: 6, total: 8, pct: 75, takerName: 'Ali', language: 'ur',
+    });
+    expect(html).toMatch(/class='name content align' dir='ltr'>Ali</);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    expect(css).toMatch(/\.content\[dir="ltr"\]\{[^}]*font-family:'Lexend'/);
+  });
+
+  test('an Urdu name inside an English quiz card is RTL and Nastaliq-first', () => {
+    const html = renderHtml({
+      topic: 'Proper Fraction', correct: 6, total: 8, pct: 75, takerName: 'عائشہ', language: 'en',
+    });
+    expect(html).toMatch(/class='name content align' dir='rtl'>عائشہ</);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1].replace(/@font-face\{[^}]*\}/g, '');
+    expect(css).toMatch(/\.content\[dir="rtl"\]\{[^}]*font-family:'NastaliqUrdu'/);
+  });
+
+  test('the topic follows its own script too, independently of the quiz language', () => {
+    const urTopicEnQuiz = renderHtml({ topic: 'کسریں', correct: 1, total: 1, pct: 100, language: 'en' });
+    expect(urTopicEnQuiz).toMatch(/class='topic content align' dir='rtl'>کسریں</);
+
+    const enTopicUrQuiz = renderHtml({ topic: 'Proper Fraction', correct: 1, total: 1, pct: 100, language: 'ur' });
+    expect(enTopicUrQuiz).toMatch(/class='topic content align' dir='ltr'>Proper Fraction</);
+  });
+
+  test('the catalog words stay in the QUIZ language even when the name is the other script', () => {
+    const { UX_STRINGS } = require('../../shared/config/ux-strings');
+    const html = renderHtml({
+      topic: 'Proper Fraction', correct: 6, total: 8, pct: 75, takerName: 'Ali', language: 'ur',
+    });
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqBadgeDeveloping.ur));
+    expect(html).toMatch(new RegExp(UX_STRINGS.vqScorecardEyebrow.ur));
+    expect(html).not.toMatch(/Nicely done|QUIZ COMPLETE/);
+  });
+
+  // v4: the sentence itself is no longer printed ON the card — the chip carries
+  // the word, and vqScoreCaption carries the whole sentence in the message
+  // directly under the picture. The de-duplication rule is still the caption
+  // side's, so it is still exported and still tested.
+  test('tierMessage strips the clause the badge already says, in both languages', () => {
+    expect(renderHtml.tierMessage(75, 'en')).toBe('A little more practice and you\u2019ll have it.');
+    expect(renderHtml.tierMessage(100, 'en')).toBe('');
+    expect(renderHtml.tierMessage(100, 'ur')).toBe('');
+    expect(renderHtml.tierMessage(75, 'ur')).not.toMatch(/بہت اچھا/);
+  });
+});
+
+describe('bd-mg9c7.44 — the redesign: gauge, hero stars, lattice', () => {
+  function ring(html) {
+    const m = html.match(/class=['"]ring-fill['"][^>]*stroke-dasharray=['"]([\d.]+)['"][^>]*stroke-dashoffset=['"]([\d.]+)['"]/);
+    return m ? { dash: Number(m[1]), off: Number(m[2]) } : null;
+  }
+
+  test('the score is a ring gauge filled to the percentage, not a bare number', () => {
+    const r = ring(renderHtml({ topic: 'x', correct: 6, total: 8, pct: 75 }));
+    expect(r).not.toBeNull();
+    expect(1 - r.off / r.dash).toBeCloseTo(0.75, 2);
+  });
+
+  test('a full score closes the ring and a zero score leaves it empty', () => {
+    expect(1 - ring(renderHtml({ topic: 'x', correct: 8, total: 8, pct: 100 })).off
+      / ring(renderHtml({ topic: 'x', correct: 8, total: 8, pct: 100 })).dash).toBeCloseTo(1, 2);
+    const empty = ring(renderHtml({ topic: 'x', correct: 0, total: 8, pct: 0 }));
+    expect(empty.off / empty.dash).toBeCloseTo(1, 2);
+  });
+
+  test('the fraction still reads verbatim beside the ring', () => {
+    const html = renderHtml({ topic: 'x', correct: 12, total: 15, pct: 80 });
+    expect(html).toMatch(/class='score'>12<span>\/15<\/span>/);
+  });
+
+  test('the stars are the hero row — bigger, and lit with a glow', () => {
+    const html = renderHtml({ topic: 'x', correct: 4, total: 5, pct: 80 });
+    const size = Number(html.match(/class="star star--filled"[^>]*width="(\d+)"/)[1]);
+    expect(size).toBeGreaterThanOrEqual(34);
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+    expect(css).toMatch(/\.star--filled\s*\{[^}]*drop-shadow/);
+  });
+
+  test('the ground carries the brand lattice, not one large outline diamond', () => {
+    const html = renderHtml({ topic: 'x', correct: 1, total: 1, pct: 100 });
+    expect(html).toMatch(/<svg class="lattice"/);
+    expect(html).toMatch(/pattern id="niete-lattice/);
+    expect(html).not.toMatch(/class='ghost'/);
   });
 });

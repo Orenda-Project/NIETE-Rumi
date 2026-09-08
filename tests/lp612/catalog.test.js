@@ -33,7 +33,7 @@ function mockBuilder(table) {
     limit: () => b,
     order: (c, o) => { state.order = [c, o]; return b; },
     limit: () => b,
-    then: (res, rej) => {
+    __rows: () => {
       mockDbCalls.push({ ...state });
       // Apply the eq() filters the service actually sets, so the fake behaves
       // like a table rather than like a bag of rows. It filters ONLY on columns
@@ -56,8 +56,17 @@ function mockBuilder(table) {
             || r.grade === g || (r.also_grades || []).includes(g));
         }
       }
-      return Promise.resolve({ data: rows, error: null }).then(res, rej);
+      return rows;
     },
+    // `.range(from, to)` — the windowed read shape the catalogue now uses for
+    // every set-valued query (bd-oak77.27). The fake serves the window; the
+    // production pager stops on the first short page.
+    range: (from, to) => ({
+      then: (res, rej) => Promise.resolve(
+        { data: b.__rows().slice(from, to + 1), error: null },
+      ).then(res, rej),
+    }),
+    then: (res, rej) => Promise.resolve({ data: b.__rows(), error: null }).then(res, rej),
   };
   return b;
 }
@@ -143,8 +152,13 @@ describe('row payloads carry everything the next step needs', () => {
   test('a chapter row carries grade, subject and chapter_key', async () => {
     mockRows = [seg()];
     const { items } = await Catalog.buildChapterItems(9, 'Chemistry');
+    // `book_stem` joined the path in bd-oak77.5. `chapter_key` is unique inside a
+    // BOOK and not inside a (grade, subject), so without the book the next screen
+    // lists both books' lessons under one chapter. Meta does not ride screen data
+    // along with a tap, so the row itself has to carry it.
     expect(items[0]['on-click-action'].payload).toEqual({
       step: 'lp612_chapter', grade: '9', subject: 'Chemistry', chapter_key: 'c01',
+      book_stem: 'grade_9_chemistry',
     });
   });
 

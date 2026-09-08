@@ -29,7 +29,11 @@ const { resolveUx } = require('../config/ux-strings');
  * @param {string} args.from      WhatsApp number to send to
  * @param {string} args.userId    users.id — leads the flow token so the endpoint can resolve her
  * @param {string} [args.language] 'en' | 'ur' (anything else falls back to English)
- * @param {string} [args.reason]  which door — for the log line only
+ * @param {string} [args.reason]  which door — for the log line only. Callers pass
+ *   'menu', 'bare_command', 'voice_lesson_plan_intent' or 'ice_breaker' (a tapped
+ *   conversational-components chip on a first open). It changes nothing about what
+ *   is sent — one door, one copy — but it is the only way the funnel can tell a
+ *   cold first-open apart from a menu tap, and it is cheaper than a second method.
  * @returns {Promise<boolean>}
  */
 async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified' }) {

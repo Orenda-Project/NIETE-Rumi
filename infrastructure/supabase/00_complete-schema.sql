@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS user_feature_first_use (
     video_shown_at TIMESTAMPTZ DEFAULT now(),
     feature_used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
+    intro_shown_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 );
 
@@ -4993,12 +4994,28 @@ CREATE TABLE IF NOT EXISTS niete_lp612_renders (
   -- row appends the honest Urdu caption line instead of silently labelling it
   -- Urdu. Not a status value: the render IS ready; it is served honestly. (V1.3.3)
   overlay_dropped   BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- True when this lesson was DELIVERED while a part ran past its hard page cap.
+  -- Page-count overflow stopped being a delivery failure on 2026-09-04 (bd-vjk68) — a document
+  -- refused ONLY for length is sent at whatever length it is, because the PDF already exists by
+  -- the time the renderer reports the defect. Not a status value and never an error_code: the
+  -- row IS ready and the teacher HAS it (bd-7yxsu — status and error code may never disagree).
+  -- The per-part pages and the caps they were measured against ride the
+  -- `lp612.deliver.over_cap` event; this column is the filter that makes them findable. (V1.3.7)
+  over_cap          BOOLEAN NOT NULL DEFAULT FALSE,
   error_code        TEXT,
   error_detail      TEXT,
   waiters           JSONB NOT NULL DEFAULT '[]'::jsonb,
   requested_by      UUID REFERENCES users(id),
   correlation_id    TEXT,
   started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- When a WORKER actually took the job off the queue. THE SECOND CLOCK (V1.3.6).
+  -- `started_at` above is the INSERT's own DEFAULT NOW() — it records when the teacher asked, i.e.
+  -- when the job was ENQUEUED. The stranded-render reaper measured a run's age from it and so
+  -- condemned jobs still waiting in the queue, unattempted, at ~17 minutes. NULL means "queued, not
+  -- yet attempted", which is a state this table previously could not express. (V1.3.6)
+  picked_up_at      TIMESTAMPTZ,
   completed_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -5248,6 +5265,41 @@ COMMENT ON COLUMN lp_feedback.lp612_segment_id IS
 CREATE INDEX IF NOT EXISTS idx_lp_feedback_lp612_segment
   ON lp_feedback (lp612_segment_id, created_at DESC)
   WHERE lp612_segment_id IS NOT NULL;
+
+-- =============================================================================
+-- Transcript quiz (post-coaching quiz written from the lesson recording).
+-- Additive reconcile on `quizzes`: the coaching session a quiz was written
+-- from, the language its questions are in, and a jsonb bag for the lesson
+-- digest / model / cost / PDF key. Three new lifecycle statuses (offered,
+-- declined, skipped). One transcript quiz per coaching session, enforced by a
+-- unique partial index that is also the pipeline's idempotency anchor.
+-- Mirrors bot/database/migrations/transcript_quiz.sql (applied to staging
+-- 2026-09-05); lives here too so a fresh bootstrap sees the columns.
+-- =============================================================================
+
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS coaching_session_id UUID REFERENCES coaching_sessions(id) ON DELETE SET NULL;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS language TEXT;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+ALTER TABLE quizzes DROP CONSTRAINT IF EXISTS quizzes_status_check;
+ALTER TABLE quizzes ADD CONSTRAINT quizzes_status_check CHECK (
+  status = ANY (ARRAY['generating','ready','sent','report_sent','failed','cancelled',
+                      'offered','declined','skipped'])
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS quizzes_one_transcript_quiz_per_session
+  ON quizzes (coaching_session_id) WHERE quiz_source = 'transcript';
+
+CREATE INDEX IF NOT EXISTS quizzes_teacher_recent
+  ON quizzes (teacher_id, created_at DESC);
+
+COMMENT ON COLUMN quizzes.coaching_session_id IS
+  'The self-coaching session this quiz was written from (quiz_source = ''transcript''). NULL for lesson_plan and video quizzes.';
+COMMENT ON COLUMN quizzes.language IS
+  'Language of the QUESTIONS (''ur'' | ''en''), decided by the subject rule in code, never by the market default.';
+COMMENT ON COLUMN quizzes.meta IS
+  'Transcript-quiz state that is not a column: the lesson digest (SLOs, taught level, key terms), resolved grade + source, model + cost, share code, PDF R2 key, offer/decline/nudge timestamps.';
+
 
 -- And the cache reload LAST, per infrastructure/CLAUDE.md: the NOTIFY several hundred lines above
 -- predates this DDL, so without one here a fresh bootstrap would create the column and leave

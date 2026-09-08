@@ -28,7 +28,51 @@ const LP612_MAX_GRADE = 12;
 /** The template the renderer is on. Part of the R2 cache key, so bumping it
  *  misses every cached render rather than serving stale layouts — and rolling
  *  back re-serves the old ones instantly, because nothing was deleted. */
-const DEFAULT_TEMPLATE_VERSION = 'v9.1';
+const DEFAULT_TEMPLATE_VERSION = 'v9.3';
+
+/**
+ * THE VERSIONS WHOSE STORED DOCUMENTS TODAY'S RENDERER IS KNOWN TO ACCEPT — newest first.
+ *
+ * This is the ONLY such list. A version bump misses every cached render (the version leads the R2
+ * key), and a miss used to mean the LLM writes the lesson again — minutes and dollars for a
+ * document we already have, because the worker stores the exact `lp_doc` that made each PDF as
+ * `lp612/{tv}/{lang}/{segment}.lp.json` beside it. `previousTemplateVersions` walks this list so a
+ * bump becomes a RE-RENDER.
+ *
+ * SO: A SCHEMA-BREAKING TEMPLATE CHANGE MUST DROP THE OLDER ENTRIES IN THE SAME COMMIT.
+ * Leaving a version here whose stored documents this renderer can no longer read does not fall
+ * back to authoring — it re-renders a document that no longer validates into a BROKEN lesson, and
+ * delivers it. That is strictly worse than the spend this list exists to avoid.
+ *
+ * v9.3 (the phone-first page, bd-oak77.16) changes the PAGE, not the SCHEMA: it lays the same
+ * `lp_doc` out on a 520 x 2000 box instead of A4. So v9.2 and v9.1 documents are read unchanged
+ * and every cached lesson re-renders for zero model spend, exactly as the v9.2 bump did.
+ */
+const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.3', 'v9.2', 'v9.1']);
+
+/**
+ * Which older template versions' stored documents may be re-rendered for `tv`, newest first.
+ *
+ * `LP_612_TEMPLATE_FALLBACK` overrides the lineage EXACTLY — a comma list, trimmed, empties
+ * dropped, with `tv` itself removed so a typo cannot make a version its own ancestor. Setting it
+ * EMPTY (`LP_612_TEMPLATE_FALLBACK=`) is therefore the explicit OFF switch: reuse stops with one
+ * Railway variable and no deploy, which is what a template change that turns out to break older
+ * documents needs on a path a teacher is waiting on.
+ *
+ * An unknown `tv` with no override claims no ancestry rather than guessing one.
+ */
+function previousTemplateVersions(tv) {
+  const cur = String(tv == null ? '' : tv).trim();
+  const override = process.env.LP_612_TEMPLATE_FALLBACK;
+  if (override !== undefined) {
+    return String(override)
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s && s !== cur);
+  }
+  const i = TEMPLATE_VERSION_LINEAGE.indexOf(cur);
+  return i < 0 ? [] : TEMPLATE_VERSION_LINEAGE.slice(i + 1);
+}
 
 /** The operator has not locked the serving model. The flip must be an env
  *  change with no deploy, so nothing anywhere may hardcode a model id. */
@@ -89,6 +133,78 @@ function isReligiousEnabled() {
  */
 function isLp612EditEnabled() {
   return isTrue(process.env.LP_612_EDIT_ENABLED);
+}
+
+/**
+ * TARGETED REVISION — bd-ga7xz. Ask a revision round for only the changed sections instead of
+ * the whole ~7,900-token lp_doc every time (BREAKDOWN.md §4 lever 2: 65-104s/lesson).
+ *
+ * Default FALSE, same convention as the flags above. It only ever narrows the AUTHORING ladder
+ * (`authorLessonPlan`'s revision rounds) — the teacher-EDIT lane (`reviseLessonPlan`) stays on
+ * the full-rewrite path regardless of this flag; it is a different product surface with a
+ * different round budget and was deliberately left out of this lane's first cut.
+ *
+ * `authorLessonPlan({ targetedRevision })` can override this per call (for the A/B harness);
+ * the env var is the default source when that option is omitted.
+ */
+function isLp612TargetedRevisionEnabled() {
+  return isTrue(process.env.LP612_TARGETED_REVISION);
+}
+
+/**
+ * bd-w65g9 — Anthropic prompt caching on the author ladder.
+ *
+ * Caching is a PREFIX MATCH (tools -> system -> messages): the bytes ahead of a
+ * `cache_control` breakpoint must repeat exactly for the next call to read the entry.
+ * Measured on prod telemetry 2026-09-06 (12 lessons / 68 calls): 5.7 calls per lesson,
+ * ~48,668 prompt tokens each, `cached_tokens: 0` on every one — nothing was ever sent to
+ * make the prefix cacheable. The system brief alone is 37,536 tokens (77% of the average
+ * prompt) and is byte-identical on every call of a lesson.
+ *
+ * Two breakpoints ride this one flag, and they carry different risk:
+ *   BP1  the system message — transport wrapping only, the prompt bytes do not move.
+ *   BP2  `originalUser` hoisted to the FRONT of the revision turn so it can sit ahead of a
+ *        breakpoint — the only change that moves a prompt byte.
+ *
+ * Default FALSE, same convention as the flags above: OFF must be today, byte for byte.
+ */
+function isLp612PromptCacheEnabled() {
+  return isTrue(process.env.LP612_PROMPT_CACHE);
+}
+
+/**
+ * WIDE SEGMENTS — the last path in the system that still REFUSES a lesson (bd-oak77.30).
+ *
+ * Operator rule: *"the length cap must not also forcefully fail lessons."* Every other length
+ * limb already honours it — the printed-page cap only flags `over_cap`, an author timeout
+ * delivers best-so-far, a render defect degrades and delivers. The page RANGE cap did not:
+ * `fetchPages` threw `PAGE_RANGE_TOO_LARGE` over 25 printed pages and `compactPageTruth` threw
+ * `PAGE_TRUTH_TOO_LARGE` over 90,000 characters, both before a model token was spent, and both
+ * sit in the worker's `NO_RETRY_CODES` — so 109 of 4,938 servable production segments (2.21%,
+ * every one `lp_type='revision'`) failed on every tap, for ever.
+ *
+ * WHAT THE OLD CAP PROTECTED, MEASURED (`messages.count_tokens`, claude-sonnet-5, 1,000,000-token
+ * window): a normal segment's WHOLE prompt is 41,967-46,302 tokens; the 32-page segment that
+ * failed a real teacher is 68,572; the 63-page worst case 98,620; the densest 48-page maths
+ * revision 108,104 — the corpus maximum, and 10.8% of the window. The system brief alone is
+ * 37,540 of those tokens and is the cached prefix. `MAX_TOKENS` (24,000) does not move with input
+ * size. The cap guarded no technical limit; 25 was a number `brief_segment_v2.md` asserted.
+ *
+ * Condensing the page-truth instead was measured and rejected: prose is only 30.0% of the
+ * payload (figures 23.1%, lists 19.3%, worked examples 16.8%), and an aggressive deterministic
+ * condensation saves 4.7-34% — median 13.8% — while deleting the explanatory half a revision
+ * lesson needs. It does not reach any bound, and it costs the material.
+ *
+ * DEFAULT FALSE, and false is today byte for byte. With the flag off, neither length check moves:
+ * a range of 25 or fewer pages never entered the refusal branch and still does not. With it on,
+ * nothing in this corpus can be refused, and past the hard ceiling the range degrades by dropping
+ * WHOLE TRAILING PAGES with the loss stated on the row and in the lesson — never the silent
+ * mid-sentence byte-slice this code carried until 2026-09-04.
+ *
+ * ROLLBACK IS UNSETTING THIS VARIABLE. No deploy, no revert.
+ */
+function isLp612WideSegmentsEnabled() {
+  return isTrue(process.env.LP612_WIDE_SEGMENTS);
 }
 
 function templateVersion() {
@@ -159,8 +275,199 @@ function authorTimeoutMs() {
   return num(process.env.LP612_AUTHOR_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
 }
 
+/**
+ * THE URDU OVERLAY PASS'S OWN CLOCK — bd-zle0u.
+ *
+ * Deliberately NOT `authorTimeoutMs()`. The pass runs after the author timeout has already been
+ * raced and won, on a document that is finished and rendered; giving it the author's clock would
+ * hand it whatever seconds happened to be left, which is the exact failure this bead removes.
+ *
+ * Sized from the measured parts, not guessed: ONE ~7k-token call at the measured 142 tok/s is
+ * ~50s, `callWithRetry` may spend a second attempt, and the overlaid render is ~30-40s. So the
+ * expectation is ~100-150s and this is the HARD STOP well above it. Blowing it is not a lost
+ * lesson — the worker already holds the rendered English PDF and delivers that.
+ */
+const DEFAULT_OVERLAY_TIMEOUT_MS = 4 * 60 * 1000;
+
+/**
+ * THE OVERLAY PASS'S KILL SWITCH — bd-zle0u. Opt-OUT, never opt-in.
+ *
+ * `LP612_OVERLAY_PASS_OFF=true` skips the pass, and an Urdu request against an English-medium
+ * book falls back to exactly the behaviour of step 1: the English lesson, `overlay_dropped` on
+ * the row, the honest caption, and `lp612.overlay.deferred` rather than `.dropped` — because
+ * skipping deliberately is not the same event as trying and failing (rule 24(b)).
+ *
+ * It is OPT-OUT because the default has to be the fix. A presence-gated opt-in would leave the
+ * P0 unfixed on any service where nobody remembered to set the variable, which is the shape of
+ * half the "defined != live" failures in this programme.
+ *
+ * It exists because this lane has now shipped two fixes in one week that each replaced a
+ * wrong-language lesson with NO lesson. If the pass misbehaves on real traffic, this returns
+ * every teacher to a delivered English lesson with ONE Railway variable and no deploy — which is
+ * minutes instead of the ~15 a revert-and-redeploy costs, on a path a teacher is waiting on.
+ */
+function overlayPassOff() {
+  return isTrue(process.env.LP612_OVERLAY_PASS_OFF);
+}
+
+function overlayTimeoutMs() {
+  return num(process.env.LP612_OVERLAY_TIMEOUT_MS, DEFAULT_OVERLAY_TIMEOUT_MS);
+}
+
 function followupAfterMs() {
   return num(process.env.LP612_FOLLOWUP_MS, DEFAULT_FOLLOWUP_MS);
+}
+
+/**
+ * How long the SQS visibility heartbeat keeps a running job's message invisible.
+ *
+ * ONE DEFINITION, ON PURPOSE (bd-w36m5). `workers/sqs-worker.js` computed `authorTimeoutMs() * 2`
+ * inline for the heartbeat's `ceilingMs`, and `lp612-serving.service.js`'s reaper carried a
+ * completely unrelated number for "how long before we call this row a corpse". Those two describe
+ * the SAME envelope from opposite ends and they disagreed by a factor of four: the reaper condemned
+ * rows at ~17 minutes while the heartbeat was still actively re-extending visibility for a worker
+ * that was demonstrably alive, so the row went `failed` and then back to `ready` when the job
+ * finished. A corpse detector whose window is shorter than the window in which the owner is
+ * provably alive is not detecting corpses.
+ *
+ * Both callers now read this. Changing the multiplier changes both, which is the point.
+ */
+function heartbeatCeilingMs() {
+  return authorTimeoutMs() * 2;
+}
+
+/**
+ * HOW LONG A DRAINING WORKER WAITS FOR AN IN-FLIGHT AUTHORING RUN — bd-oak77.11.
+ *
+ * The operator's requirement is that a deploy never kills a lesson that is being written. The
+ * worker's general graceful-shutdown budget (`GRACEFUL_SHUTDOWN_TIMEOUT`, 30s) is sized for
+ * coaching, where a job either finished inside the window or is cheap to redo. An lp612 authoring
+ * run is neither: 2.5-7 minutes and ~$0.30-0.60 of tokens, and releasing its SQS message mid-run
+ * does not help anybody — the row is still `authoring`, so the next replica re-authors the whole
+ * lesson from round 0 at full price and the teacher's clock starts again.
+ *
+ * DERIVED, not chosen. `LP612_AUTHOR_TIMEOUT_MS` (420000 on prod) bounds authoring + the final
+ * render. Everything after it is unbounded by that clock: the Urdu overlay pass (its own
+ * `overlayTimeoutMs`, 240000 default), the PDF read, two R2 uploads, the terminal DB writes and the
+ * per-waiter WhatsApp send. 04_sub5 measured p90 315s and a max of 407s end to end. Ten minutes
+ * covers that with margin and still bounds a pathological job, which is why the drain releases the
+ * message when this expires rather than waiting forever.
+ *
+ * It is NOT `authorTimeoutMs()`-derived on purpose: the two answer different questions ("how long
+ * may one authoring attempt run" vs "how long will a dying process hold the door open"), and the
+ * Railway draining window has to be set from THIS one.
+ */
+const DEFAULT_DRAIN_TIMEOUT_MS = 10 * 60 * 1000;
+
+function lp612DrainTimeoutMs() {
+  return num(process.env.LP612_DRAIN_TIMEOUT_MS, DEFAULT_DRAIN_TIMEOUT_MS);
+}
+
+/**
+ * THE CHECKPOINT KILL SWITCH — bd-oak77.11. Opt-OUT, never opt-in, for the same reason
+ * `overlayPassOff` is: the default has to be the fix, or the P0 stays unfixed on whichever service
+ * nobody remembered to configure.
+ *
+ * `LP612_CHECKPOINT_OFF=true` stops the worker persisting the ladder's best-so-far document on the
+ * render row and stops it resuming from one. Behaviour returns EXACTLY to today's: a process that
+ * dies mid-run costs the whole lesson, and the next pickup starts at round 0. One Railway variable,
+ * no deploy.
+ */
+function checkpointOff() {
+  return isTrue(process.env.LP612_CHECKPOINT_OFF);
+}
+
+/**
+ * The visibility window one `extendJobTimeout` call buys.
+ *
+ * Matches `receiveJobs`'s `VisibilityTimeout: 900` and the `extendSeconds: 900` the lp612 heartbeat
+ * passes. It matters to the reaper because the heartbeat's LAST extension is still in force after
+ * the ceiling stops it: the earliest SQS itself could hand the job to another worker is
+ * ceiling + this.
+ */
+const SQS_VISIBILITY_WINDOW_MS = 900 * 1000;
+
+/**
+ * When a row that NO WORKER EVER PICKED UP is finally written off (bd-dr216).
+ *
+ * This is not the authoring clock and must never share its threshold. A row with no `picked_up_at`
+ * is waiting in the queue, and waiting is not failing — under the current one-replica capacity
+ * fault the measured p90 enqueue->done is 1023s, so a threshold anywhere near the authoring one
+ * condemns healthy lessons purely for being queued (2 of 16 coach taps on 2026-09-04).
+ *
+ * Six hours is deliberately far outside any plausible queue wait — ~21x the worst measured one —
+ * because this is a BACKSTOP, not a detector. The orphan it exists for (the row was inserted and
+ * the enqueue then threw, so no message exists and no worker is ever coming) is now caught at its
+ * source by the serving path, which writes ENQUEUE_FAILED on the row. What is left for this sweep
+ * is only the case where the process died between those two writes.
+ */
+const DEFAULT_QUEUE_ABANDON_MS = 6 * 60 * 60 * 1000;
+
+function queueAbandonMs() {
+  return num(process.env.LP612_QUEUE_ABANDON_MS, DEFAULT_QUEUE_ABANDON_MS);
+}
+
+/**
+ * THE CUTOVER SWITCH — bd-oak77.4.
+ *
+ * The operator, 2026-09-06: "turn off the free flow lesson plan generation via gamma on prod, and
+ * route all lesson plan requests to this menu."
+ *
+ * Most of that ask is already true on `develop`: the Gamma strip retired generation and the
+ * one-door change funnelled every entry — the bare "lp" command, the lesson_plan intent in text
+ * and voice, the /menu
+ * tap — into one `openLpBrowseFlow()`. What survived is the OLD 6-12 Oxbridge picker, which is
+ * reached UPSTREAM of that door by `tryCurriculumLessonPlanServe`, and the endpoint's own
+ * lp612 -> Oxbridge fallback. This flag closes both, for grades 6-12 only.
+ *
+ * A THIRD flag rather than folding into isLp612Enabled(), for the reason the religious hold is
+ * separate: turning the 6-12 corpus ON must not, in the same instant and with no way back, take the
+ * 70 curated Oxbridge lessons away from every teacher whose books the segmentation fleet finished
+ * last. Rollback is one Railway variable and no deploy.
+ *
+ * It only ever NARROWS isLp612Enabled(). With ENABLED off this is inert, and the caller must
+ * already have passed that gate.
+ */
+function isLp612RouteAll() {
+  return isTrue(process.env.LP_612_ROUTE_ALL);
+}
+
+/**
+ * WHETHER "ALL LESSON PLAN REQUESTS" INCLUDES K-5 — bd-oak77.4. Ships FALSE, deliberately.
+ *
+ * The 6-12 menu covers 62 books for grades 6-12 and CANNOT serve a K-5 teacher; grades 1-5 are the
+ * K-5 v8 corpus, reached through the same Flow and the same grade picker at
+ * `pakistan-lp-endpoint.selectGrade`. So a K-5 teacher who taps the menu is already ON the menu —
+ * nothing has to route her anywhere, and the default is to leave her exactly where she is.
+ *
+ * This exists so the operator's answer is a flag and not a rebuild. Flipping it true sends K-5
+ * requests to the 6-12 catalogue, where she will be told there are no lessons for her class. Do not
+ * flip it without the product owner's word.
+ */
+function isLp612RouteK5() {
+  return isTrue(process.env.LP_612_ROUTE_K5);
+}
+
+/**
+ * Which grades the 6-12 menu claims under the current flag set — the ONE definition, so the router
+ * and the Flow endpoint cannot drift apart (the bd-w36m5 lesson: two places describing the same
+ * envelope from opposite ends disagreed by a factor of four).
+ *
+ * An unknown/unparseable grade is NOT claimed here: it is the caller's job to send the menu, whose
+ * first screen is the grade picker. Claiming it would have this function assert a grade it does not
+ * know.
+ */
+function lp612ServesGrade(g) {
+  if (!isLp612Enabled()) return false;
+  if (isLp612Grade(g)) return true;
+  return isLp612RouteK5() && isV8ish(g);
+}
+
+/** Grades 1-5. Local, because `isV8Grade` lives in the endpoint and this module must not import it
+ *  (the endpoint imports this one — a cycle). Kept beside lp612ServesGrade so the two read together. */
+function isV8ish(g) {
+  const n = parseInt(String(g), 10);
+  return Number.isFinite(n) && n >= 1 && n <= 5;
 }
 
 function isLp612Grade(g) {
@@ -170,16 +477,33 @@ function isLp612Grade(g) {
 
 module.exports = {
   isLp612Enabled,
+  isLp612RouteAll,
+  isLp612RouteK5,
+  lp612ServesGrade,
   isLp612EditEnabled,
   isLp612LangMenuEnabled,
+  isLp612TargetedRevisionEnabled,
+  isLp612PromptCacheEnabled,
+  isLp612WideSegmentsEnabled,
   isReligiousEnabled,
   templateVersion,
+  previousTemplateVersions,
+  TEMPLATE_VERSION_LINEAGE,
   resolveAuthorModel,
   authorTierFor,
   AUTHOR_TIERS,
   authorRounds,
   authorTimeoutMs,
+  overlayTimeoutMs,
+  overlayPassOff,
   followupAfterMs,
+  heartbeatCeilingMs,
+  lp612DrainTimeoutMs,
+  checkpointOff,
+  DEFAULT_DRAIN_TIMEOUT_MS,
+  queueAbandonMs,
+  SQS_VISIBILITY_WINDOW_MS,
+  DEFAULT_QUEUE_ABANDON_MS,
   isLp612Grade,
   LP612_MIN_GRADE,
   LP612_MAX_GRADE,

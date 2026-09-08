@@ -147,10 +147,14 @@ INSERT INTO academic_sessions (code, kind, starts_on, ends_on) VALUES
     ('2027-2028', 'annual', DATE '2027-08-01', DATE '2028-07-31')
 ON CONFLICT (code) DO NOTHING;
 
--- Sections A-E and the two shifts (V1.1.4). Closed sets: support adds a row when a
+-- Sections A-O and the two shifts (V1.1.4; F-O added 2026-09-07 — an ICT school with
+-- ten sections could not register past E). Closed sets: support adds a row when a
 -- school needs another section, which is why these are tables rather than CHECKs.
+-- Existing databases get F-O from bot/database/migrations/sections_f_to_o.sql.
 INSERT INTO sections (code, sort_order) VALUES
-    ('A', 1), ('B', 2), ('C', 3), ('D', 4), ('E', 5)
+    ('A', 1), ('B', 2), ('C', 3), ('D', 4), ('E', 5),
+    ('F', 6), ('G', 7), ('H', 8), ('I', 9), ('J', 10),
+    ('K', 11), ('L', 12), ('M', 13), ('N', 14), ('O', 15)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO shifts (code, sort_order) VALUES

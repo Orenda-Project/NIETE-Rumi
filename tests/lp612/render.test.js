@@ -46,10 +46,14 @@ function makeProbe(over) {
   return {
     pageCount: 2,
     pagesByPart: { teach: 1, support: 1 },
-    minBodyFontPx: 18,
+    // AT the floor, read from the renderer, never a literal. This stub describes "a page that
+    // passed the type gate"; writing 18/14 here pinned it to the v9.1 scale, so raising the type
+    // (v9.2: 18 -> 21px) failed this suite and the four that render through it for a reason that
+    // has nothing to do with what any of them test.
+    minBodyFontPx: BODY_FLOOR_PX,
     minBodySample: '.pad p :: body',
-    minAnyFontPx: 18,
-    minChipFontPx: 14,
+    minAnyFontPx: BODY_FLOOR_PX,
+    minChipFontPx: CHIP_FLOOR_PX,
     minChipSample: '.kw :: chip',
     pages: [page('teach-1'), page('support-1')],
     ...over,
@@ -91,7 +95,7 @@ jest.mock('playwright-core', () => {
 }, { virtual: true });
 
 const { renderLessonPlan } = require('../../bot/shared/services/lp612-render.service');
-const { chromeChannel, MAX_PAGES, WARN_PAGES } = require('../../bot/vendor/lp-v9/render_lp.js');
+const { chromeChannel, MAX_PAGES, WARN_PAGES, BODY_FLOOR_PX, CHIP_FLOOR_PX } = require('../../bot/vendor/lp-v9/render_lp.js');
 
 const CLEAN_DOC = require('./__fixtures__/v9_gate_base.lp.json');
 
@@ -165,7 +169,9 @@ describe('renderLessonPlan — failures are ONE named error', () => {
   });
 
   it('throws RENDER_FAILED when body type falls under the phone floor', async () => {
-    mockProbe = makeProbe({ minBodyFontPx: 12.5 });
+    // Deliberately BELOW whatever the floor is, expressed as a fraction of it rather than as a
+    // number that has to be re-guessed every time the type moves.
+    mockProbe = makeProbe({ minBodyFontPx: BODY_FLOOR_PX - 1 });
     const err = await renderLessonPlan({ lpDoc: CLEAN_DOC, lang: 'en', stem: 's', outDir }).catch((e) => e);
     expect(err.code).toBe('RENDER_FAILED');
     expect(err.message).toMatch(/TYPE FLOOR/);

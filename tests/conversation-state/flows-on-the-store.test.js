@@ -43,7 +43,10 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendInteractiveButtons: jest.fn().mockResolvedValue(true),
   sendCarousel: jest.fn().mockResolvedValue(true),
 }));
-jest.mock('../../bot/shared/services/llm-client', () => ({ getClient: () => ({}) }));
+jest.mock('../../bot/shared/services/llm-client', () => ({
+  getClient: () => ({}),
+  getClientForModel: (m) => ({ client: {}, model: String(m || '') }),
+}));
 jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn(() => ({
   select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }),
   update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),

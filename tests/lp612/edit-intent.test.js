@@ -33,6 +33,7 @@ const PATH = '../../bot/shared/services/lp612-edit-intent.service';
 let mockCreate;
 jest.mock('../../bot/shared/services/llm-client', () => ({
   getClient: () => ({ chat: { completions: { create: (...a) => mockCreate(...a) } } }),
+  getClientForModel: (m) => ({ client: { chat: { completions: { create: (...a) => mockCreate(...a) } } }, model: String(m || '') }),
 }));
 
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: () => {} }));

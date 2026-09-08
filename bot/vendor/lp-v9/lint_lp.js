@@ -46,11 +46,12 @@
 const fs = require("fs");
 const path = require("path");
 const { validateDoc } = require("./lib/validate");
-const { frozenReason } = require("./lib/overlay");
+const { frozenReason, MACHINE_KEYS } = require("./lib/overlay");
 const { wordCount, chemPlusDefects, fixChemPlus } = require("./lib/rich");
 const { buildHtml } = require("./lib/template");
 const { textNodes } = require("./lib/domtext");
 const { allQuestions, questionIndex, duplicateRefs } = require("./lib/questions");
+const { check: visualContract } = require("./visual_check");
 
 // Brands that must never appear as CONTENT in a document that is not theirs (render-law 13,
 // carried by the judges as J-BRAND-LEAK, critical). The authoring house is not the deployment
@@ -432,7 +433,7 @@ function lint(doc, docPath, opts = {}) {
     }
   }
 
-  // 10d — a diagram that cannot render its own labels at 13.5px in the column it is given.
+  // 10d — a diagram that cannot render its own labels at the floor, in the column it is given.
   //       Checked here as well as in the renderer so an author finds out before a build.
   if (full) {
     let renderDiagram = null, requiredBox = null, checkOverlaps = null;
@@ -442,7 +443,20 @@ function lint(doc, docPath, opts = {}) {
       checkOverlaps = require("./diagrams").checkOverlaps;
     } catch (_) { /* engine absent — the renderer still checks */ }
     if (renderDiagram && requiredBox) {
-      const FULL_COL = 794 - 22 * 2 - (10 * 2 + 3);   // 727px, per lib/template.js
+      // READ FROM THE RENDERER, never recomputed — BOTH numbers. This line used to be
+      // `794 - 22 * 2 - (10 * 2 + 3)` = 727 with the comment "per lib/template.js", while
+      // lib/template.js computed 794 - 21 * 2 - 23 = 729 and ITS comment also said 727: two files
+      // wrong about the same number in opposite directions, and the two legibility gates measuring
+      // different columns. Production settled it ("13.25px in a 729px column", 2026-09-06).
+      //
+      // THE FLOOR IS THE OTHER HALF OF THAT, and v9.3 is why it matters (bd-oak77.16). The page is
+      // now 520px wide, so a full-width drawing box is 455px rather than 729, and the floor moves
+      // with it — 8.43px. Importing the column while hardcoding 13.5 is strictly worse than
+      // hardcoding both: measured over the 116 lessons production has delivered, a 455px column
+      // judged against a 13.5px floor is 159 BLOCKING `FIGURE` failures across 101 of them
+      // (`FIGURE` is not advisory — each is a revision round, and a lesson the ladder can lose)
+      // against today's 8 across 8. With both imported it is 8 across 8: the same documents.
+      const { FULL_COL, DIAGRAM_MIN_PX } = require("./lib/template.js");
       for (const s of doc.sections) {
         for (const b of allBlocks(s.blocks)) {
           if (b.type !== "diagram") continue;
@@ -453,9 +467,9 @@ function lint(doc, docPath, opts = {}) {
             const svg = renderDiagram(
               b.spec.lang || !opts.lang ? b.spec : { ...b.spec, lang: opts.lang }
             );
-            const box = requiredBox(svg, { minPx: 13.5, colPx: FULL_COL });
-            if (box.renderedPx != null && box.renderedPx < 13.5) {
-              fail("FIGURE", `${s.id}: diagram "${b.spec.type}" renders its smallest label at ${box.renderedPx}px even at full width (floor 13.5px). It needs ${box.minWidthPx}px — simplify it or split it in two.`);
+            const box = requiredBox(svg, { minPx: DIAGRAM_MIN_PX, colPx: FULL_COL });
+            if (box.renderedPx != null && box.renderedPx < DIAGRAM_MIN_PX) {
+              fail("FIGURE", `${s.id}: diagram "${b.spec.type}" renders its smallest label at ${box.renderedPx}px even at full width (floor ${DIAGRAM_MIN_PX}px). It needs ${box.minWidthPx}px — simplify it or split it in two.`);
             }
             // 10e — ZERO overlaps. A label under a box, two labels on each
             //       other, or a rule through a label is a build failure, not a
@@ -510,6 +524,15 @@ function lint(doc, docPath, opts = {}) {
     const why = frozenReason(doc, ptr);
     if (why) fail("OVERLAY", `${ptr} may not be overlaid — ${why}.`);
   }
+  // 13b — …and it must EXIST when the teacher asked for Urdu against an English book (bd-vnyuw).
+  //       `opts.lang` is the REQUESTED language; the doc alone cannot say what was asked for,
+  //       which is exactly why this went unnoticed for the whole life of the lane.
+  // bd-zle0u: `overlayExpected: false` says the caller is NOT authoring the overlay in this
+  //       call — the Urdu layer is built by its own pass over the ACCEPTED document. Chasing
+  //       OVERLAY_MISSING inside the revision ladder cost ~+7k completion tokens on every one of
+  //       five rounds and timed the lesson out entirely. The gate is not weakened; it moves to
+  //       the pass that can actually satisfy it.
+  for (const d of overlayDefects(doc, opts.lang, { expected: opts.overlayExpected !== false })) fail(d.code, d.msg);
 
   // 14 — visuals are mandatory (M5/R1); a bare-bones LP was named as a failure
   const visuals = doc.sections.reduce(
@@ -539,7 +562,28 @@ function lint(doc, docPath, opts = {}) {
       }
     }
   }
-  if (full && visuals === 0) fail("VISUALS", "page 1 carries no diagram, figure or formula. Visuals are mandatory (M5).");
+  // 14c — THE VISUAL CONTRACT (brief §4b), the per-subject minimum.
+  //
+  // `visuals === 0` below is the rule this REPLACES on a v9 document, and it is worth naming
+  // what it was: it counts a `latex` or a `chem` block as a visual, so ONE typeset formula and
+  // no picture at all satisfies it. `author_lp.py` calls that same rule its ImportError
+  // fallback and says of it, in the source, *"exactly how they shipped 'bereft' of diagrams."*
+  // Between 2026-09-02 and 2026-09-04 it was the ONLY visual rule the serving lane executed,
+  // because `visual_check.py` was never vendored beside it — while the brief told the model on
+  // every call that the real gate was running on its output. Replayed over the 62 documents
+  // teachers received, the real gate fails 48 of them and its per-subject minimum (V6) fires 45
+  // times; live output was 1.77 diagrams a lesson against a floor of 2, 83.5% of them
+  // flow/mindmap/panels, with nine of the twenty types never appearing once.
+  //
+  // Scoped to v3 for the same reason every other v9 gate is (see §18): the 2.0 corpus predates
+  // this contract and would turn red overnight without one of its lessons improving. A 2.0
+  // document keeps the old floor; a 3.0 document gets the contract INSTEAD, so exactly one
+  // authority speaks about visuals per document and the two never double-report the same miss.
+  if (full && v3) {
+    for (const e of visualContract(doc)) fail("VISUAL", e);
+  } else if (full && visuals === 0) {
+    fail("VISUALS", "page 1 carries no diagram, figure or formula. Visuals are mandatory (M5).");
+  }
 
   // 15 — the hook must be CLOSED. The most repeated v7 complaint was an opening question
   //      the lesson never answers (L3 ask 3).
@@ -1072,6 +1116,22 @@ function v9Gates(doc, ctx) {
     }
   }
 
+  // ── GRAPH_AXES / GRAPH_POINT_ORDER / GRAPH_ORIENTATION (bd-gel97) ────────
+  // Not gated on `full`: these read the spec only, cost nothing, and a graph
+  // is as wrong in a part-lint as in a whole-document one.
+  {
+    const gSpecs = [];
+    for (const s of doc.sections || []) {
+      for (const b of allBlocks(s.blocks)) if (b.type === "diagram" && b.spec) gSpecs.push({ where: b.id || s.id, spec: b.spec });
+    }
+    if (doc.page2 && doc.page2.board_final && doc.page2.board_final.diagram) {
+      gSpecs.push({ where: "reference A", spec: doc.page2.board_final.diagram });
+    }
+    for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
+    for (const { where, spec } of gSpecs) for (const d of atomDefects(spec, where)) fail(d.code, d.msg);
+    for (const { where, spec } of gSpecs) for (const d of specContractDefects(spec, where)) fail(d.code, d.msg);
+  }
+
   // ── the rest of the closed heading system ────────────────────────────────
   if (full) {
     if (!doc.sequence) fail("SEQUENCE", "no sequence strip. Spec §5 wants a strip near the masthead saying where this LP sits, what comes next, and the next checkpoint.");
@@ -1313,6 +1373,454 @@ if (require.main === module) {
   process.exit(bad ? 1 : 0);
 }
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates,
+/* ══════════════════════════════════════════════════════════════════════════
+   GRAPH AXES + POINT/CURVE ORIENTATION — bd-gel97
+   ═════════════════════════════════════════════════════════════════════════
+
+   The first gated Physics lesson shipped a board `graph` captioned
+   "pressure falls as altitude rises" whose two marked points were written
+   "(8.8 km, 33 kPa)" and PLOTTED at (33, 8.8) — the reverse — on axes that
+   carried no labels at all, so a teacher could not tell which reading was
+   meant. The visual gate asks "is there a graph", not "is the graph true".
+   These three checks are the deterministic part of "is it true". No LLM.
+
+   R1 · GRAPH_AXES — a graph names both of its axes.
+        `xLabel` and `yLabel` are REQUIRED on every `graph` spec, with the
+        unit in the label where the quantity has one ("Altitude (km)"). For a
+        pure-maths curve they are literally "x" and "y" — cheap, and it keeps
+        the rule with no exception to argue about.
+
+   R2 · GRAPH_POINT_ORDER — a point's own annotation agrees with where it sits.
+        Two sub-tests, both fire ONLY on an unambiguous contradiction:
+        (a) the label states a coordinate PAIR — "(8.8 km, 33 kPa)", "(3, 0)" —
+            and those two numbers match the plotted (x, y) SWAPPED but not
+            straight. Silent when they match straight, when either number
+            matches neither coordinate, or when the two numbers are equal.
+        (b) the axis labels carry DISTINCT units and the point's label carries
+            "<number> <unit>" for one of them; that number must be the
+            coordinate on THAT axis. Fires only when the number is instead
+            exactly the coordinate on the OTHER axis. A number matching
+            neither is left alone — it may be a third quantity.
+
+   R3 · GRAPH_ORIENTATION — a point agrees with the curve's orientation.
+        Measured against the extent the plot ACTUALLY draws (graph.js
+        `drawnExtent`, the same sampler the page uses), never the declared
+        window. A point is flagged only when it is FAR outside that extent
+        (> 35% of the extent's own span on some axis) AND its swap (y, x)
+        lands INSIDE it (within 5%). A legitimate outlier is out on one axis
+        and its swap is out too, because the two axes carry different scales;
+        when the extent happens to be square the two measurements are
+        identical by construction and nothing is ever flagged. Needs a curve
+        or segment — a points-only scatter has nothing to disagree with.
+   ══════════════════════════════════════════════════════════════════════════ */
+const GRAPH_TYPES = new Set(["graph", "plot", "function_plot"]);
+const GRAPH_OUT_TOL = 0.35;   // "far outside the locus", as a share of its own span
+const GRAPH_IN_TOL = 0.05;    // "inside the locus" for the swapped reading
+const GRAPH_NUM_TOL = 0.005;  // 0.5% — a label rounds, it does not re-derive
+
+const gNum = (v) => (typeof v === "number" && isFinite(v) ? v : null);
+const gClose = (a, b) => Math.abs(a - b) <= 1e-9 + GRAPH_NUM_TOL * Math.max(Math.abs(a), Math.abs(b), 1);
+/** U+2212 MINUS and U+2013 EN DASH are what a maths author actually types. */
+const gNormNums = (t) => String(t).replace(/[−–‒]/g, "-");
+/** every "<number><unit?>" in a string, in order. Latin digits only — an Urdu-digit label is left alone. */
+function gTokens(text) {
+  const out = [];
+  const re = /(-?\d+(?:\.\d+)?)\s*([A-Za-z°%][A-Za-z°%\/²³]*)?/g;
+  let m;
+  while ((m = re.exec(gNormNums(text)))) out.push({ n: Number(m[1]), unit: (m[2] || "").trim() });
+  return out;
+}
+/** the coordinate pair a label states, if it states one: prefer a parenthesised group. */
+function gPair(text) {
+  const src = gNormNums(text);
+  for (const grp of src.match(/\([^()]*\)/g) || []) {
+    const t = gTokens(grp);
+    if (t.length === 2) return t;
+  }
+  const t = gTokens(src);
+  return t.length === 2 ? t : null;
+}
+/** the unit an axis label declares: "Pressure (kPa)" -> kpa, "Time in hours" -> hours. */
+function gAxisUnit(label) {
+  const s = String(label || "");
+  const par = s.match(/\(([^()]{1,14})\)\s*$/);
+  const raw = par ? par[1] : (s.match(/\b(?:in|per)\s+([A-Za-z°%\/]{1,10})\s*$/i) || [])[1];
+  const u = String(raw || "").trim().toLowerCase();
+  return /^[a-z°%\/²³]{1,10}$/.test(u) ? u : "";
+}
+function gExcess(v, lo, hi) { return v < lo ? lo - v : v > hi ? v - hi : 0; }
+function gOutNorm(x, y, ext) {
+  const sx = ext.x[1] - ext.x[0];
+  const sy = ext.y[1] - ext.y[0];
+  return Math.max(gExcess(x, ext.x[0], ext.x[1]) / sx, gExcess(y, ext.y[0], ext.y[1]) / sy);
+}
+
+/**
+ * Every graph defect in one spec, as {code, msg} — pure, so it is testable
+ * without a document and so the same rules can be replayed over a corpus.
+ */
+
+/* ---------------------------------------------------------------------------
+   ATOM_UNKNOWN_ELEMENT — bd-8lifl
+
+   `atom.js` carries a built-in table of H-Ca plus Fe/Cu/Zn/Br/I. For anything
+   else, its resolver falls through to `givenSum || 1` and draws a ONE-ELECTRON
+   atom -- hydrogen -- under whatever label the author wrote.
+
+   Seen on a delivered Grade 10 Chemistry lesson (2026-09-05): a figure titled
+   "WHY THE CHROMIUM ION IS Cr3+" drawing 1p+ 1n0 and a single K-shell electron.
+   An atom with one electron cannot lose three, so the picture refuted its own
+   caption, and every structural gate passed it.
+
+   The engine is not wrong to have a small table; it is wrong to draw a
+   confident substitute in silence. `Z` and `shells` are the documented way out
+   (published in the brief's SS4b.5 since bd-8lifl), so the ladder can repair it.
+   The renderer is deliberately left alone -- a throw would turn a repairable
+   defect into a lost lesson.
+--------------------------------------------------------------------------- */
+
+/** Elements `atom.js` can draw unaided. Kept in step by atom-unknown-element.test.js. */
+const ATOM_TABLE = new Set([
+  "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
+  "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
+  "Fe", "Cu", "Zn", "Br", "I",
+]);
+const ATOM_TYPES = new Set(["atom", "bohr", "electron_shells", "dot_and_cross"]);
+
+/** `atom.js` normalises "cr"/"CR" to "Cr" before the lookup; mirror that exactly. */
+function atomKey(raw) {
+  const s = String(raw == null ? "" : raw).trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "Na";
+}
+
+
+/* ---------------------------------------------------------------------------
+   SPEC_CONTRACT / GRID_CELLTEXT_SHAPE — bd-8lifl round 2
+
+   Three defects in the 2026-09-05 batch were one root cause: a module handed a
+   spec it cannot use paints a confident DEFAULT rather than saying so.
+
+     atom -> hydrogen     (closed by ATOM_UNKNOWN_ELEMENT)
+     cell -> plant cell   `cell.js` reads `(spec.kind || "plant") === "plant"`, so a
+                          `bio_schematic` with no `kind` drew a labelled generic plant
+                          cell under the title "COMPLEMENT SYSTEM ATTACKS A BACTERIUM".
+     grid -> empty        `grid.js` reads `cellText` as [row, col, text] TRIPLES. Told
+                          only the field's NAME, the author wrote a 2-D array of rows;
+                          destructuring a row of strings gives a NaN position and
+                          undefined text, and FOUR grids printed as empty boxes.
+
+   The required-field list is read from `types_manifest.json`, resolved through
+   aliases, so this cannot drift from the engine.
+--------------------------------------------------------------------------- */
+
+let _REQUIRED_BY_TYPE = null;
+function requiredByType() {
+  if (_REQUIRED_BY_TYPE) return _REQUIRED_BY_TYPE;
+  const m = new Map();
+  try {
+    const man = require("./diagrams/types_manifest.json");
+    for (const t of man.types || []) {
+      const req = Array.isArray(t.required) ? t.required : [];
+      for (const name of [t.type, ...(t.aliases || [])]) m.set(String(name).toLowerCase(), req);
+    }
+  } catch (_) { /* no manifest: the rule simply does not fire */ }
+  _REQUIRED_BY_TYPE = m;
+  return m;
+}
+
+function specContractDefects(spec, where) {
+  const out = [];
+  if (!spec || typeof spec !== "object") return out;
+  const type = String(spec.type || "").trim().toLowerCase();
+  if (!type) return out;
+
+  const req = requiredByType().get(type);
+  if (req && req.length) {
+    const missing = req.filter((f) => {
+      const v = spec[f];
+      return v === undefined || v === null || v === ""
+        || (Array.isArray(v) && v.length === 0);
+    });
+    if (missing.length) {
+      out.push({
+        code: "SPEC_CONTRACT",
+        msg: `${where}: \`${type}\` is missing required field(s) `
+          + `${missing.map((f) => "`" + f + "`").join(", ")}. The module does not fail on this -- `
+          + `it falls back to a default and draws a confident wrong picture. Supply the field, or `
+          + `use a type that carries this idea.`,
+      });
+    }
+  }
+
+  // The one field whose SHAPE has silently eaten a figure.
+  if ((type === "grid" || type === "area_model" || type === "hundred_square")
+      && Array.isArray(spec.cellText) && spec.cellText.length) {
+    const bad = spec.cellText.filter((t) => !(Array.isArray(t) && t.length === 3
+      && Number.isFinite(Number(t[0])) && Number.isFinite(Number(t[1]))));
+    if (bad.length) {
+      out.push({
+        code: "GRID_CELLTEXT_SHAPE",
+        msg: `${where}: \`grid.cellText\` must be a list of [row, col, text] triples with `
+          + `0-based row/col -- not a 2-D array of rows. ${bad.length} of ${spec.cellText.length} `
+          + `entries are the wrong shape, and a wrong-shaped entry prints NOTHING, silently.`,
+      });
+    }
+  }
+  return out;
+}
+
+function atomDefects(spec, where) {
+  const out = [];
+  if (!spec || typeof spec !== "object") return out;
+  if (!ATOM_TYPES.has(String(spec.type || "").trim().toLowerCase())) return out;
+
+  // Each side of a bonding picture resolves through the same table.
+  const parties = [{ o: spec, what: "element" }];
+  if (spec.partner && typeof spec.partner === "object") {
+    parties.push({ o: spec.partner, what: "partner.element" });
+  }
+
+  for (const { o, what } of parties) {
+    const raw = o.element || o.symbol;
+    if (!raw) continue;
+    const key = atomKey(raw);
+    if (ATOM_TABLE.has(key)) continue;
+    const hasZ = Number.isFinite(Number(o.Z)) && Number(o.Z) >= 1;
+    const hasShells = Array.isArray(o.shells) && o.shells.some((v) => Number(v) > 0);
+    if (hasZ || hasShells) continue;
+    out.push({
+      code: "ATOM_UNKNOWN_ELEMENT",
+      msg: `${where}: \`atom\` ${what} ${JSON.stringify(String(raw))} is not one of the elements this `
+        + `engine draws unaided (H-Ca plus Fe, Cu, Zn, Br, I), and neither \`Z\` nor \`shells\` `
+        + `was given -- so it would draw a ONE-ELECTRON atom carrying that label. Give \`Z\` and `
+        + `\`shells\` (and \`neutrons\`), or use a type that can carry the idea.`,
+    });
+  }
+  return out;
+}
+
+function graphDefects(spec, where) {
+  const out = [];
+  if (!spec || typeof spec !== "object" || !GRAPH_TYPES.has(spec.type)) return out;
+  const at = where ? `${where}: ` : "";
+  const name = String(spec.title || spec.caption || "").trim().slice(0, 60) || "untitled";
+
+  // R1 ─ both axes named.
+  const missing = [];
+  if (!String(spec.xLabel || "").trim()) missing.push("xLabel");
+  if (!String(spec.yLabel || "").trim()) missing.push("yLabel");
+  if (missing.length) {
+    out.push({
+      code: "GRAPH_AXES",
+      msg: `${at}graph "${name}" has no ${missing.join("/")} — a teaching graph names both axes with units. ` +
+        `Add "xLabel" and "yLabel" to the spec, each naming the quantity and its unit ` +
+        `("Altitude (km)", "Pressure (kPa)"); for a pure-maths curve they are "x" and "y". ` +
+        `Without them the reader cannot tell which quantity is which, and the plot cannot be checked against its own points.`,
+    });
+  }
+
+  const pts = (Array.isArray(spec.points) ? spec.points : [])
+    .filter((p) => p && gNum(p.x) !== null && gNum(p.y) !== null);
+  const ux = gAxisUnit(spec.xLabel);
+  const uy = gAxisUnit(spec.yLabel);
+
+  for (const p of pts) {
+    const label = String(p.label || "").trim();
+    if (!label) continue;
+    const tag = `"${label.slice(0, 48)}" plotted at (${p.x}, ${p.y})`;
+
+    // R2a ─ the stated pair is the plotted pair, reversed.
+    const pair = gPair(label);
+    if (pair && !gClose(pair[0].n, pair[1].n)) {
+      const direct = gClose(pair[0].n, p.x) && gClose(pair[1].n, p.y);
+      const flipped = gClose(pair[0].n, p.y) && gClose(pair[1].n, p.x);
+      if (flipped && !direct) {
+        out.push({
+          code: "GRAPH_POINT_ORDER",
+          msg: `${at}graph "${name}": the point ${tag} is annotated (${pair[0].n}${pair[0].unit ? " " + pair[0].unit : ""}, ${pair[1].n}${pair[1].unit ? " " + pair[1].unit : ""}) — the same two numbers the OTHER way round. ` +
+            `A point is written in the axis order it is plotted in: (x-quantity, y-quantity). Either swap "x" and "y" on the point, or rewrite the label.`,
+        });
+        continue;
+      }
+    }
+
+    // R2b ─ a number carrying an axis's unit sits on the other axis.
+    if (ux && uy && ux !== uy) {
+      for (const t of gTokens(label)) {
+        if (!t.unit) continue;
+        const u = t.unit.toLowerCase();
+        if (u === ux && !gClose(t.n, p.x) && gClose(t.n, p.y)) {
+          out.push({
+            code: "GRAPH_POINT_ORDER",
+            msg: `${at}graph "${name}": the point ${tag} says "${t.n} ${t.unit}", and "${t.unit}" is the unit of the X axis ("${spec.xLabel}") — but ${t.n} is this point's Y value. It is plotted on the wrong axis.`,
+          });
+          break;
+        }
+        if (u === uy && !gClose(t.n, p.y) && gClose(t.n, p.x)) {
+          out.push({
+            code: "GRAPH_POINT_ORDER",
+            msg: `${at}graph "${name}": the point ${tag} says "${t.n} ${t.unit}", and "${t.unit}" is the unit of the Y axis ("${spec.yLabel}") — but ${t.n} is this point's X value. It is plotted on the wrong axis.`,
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // R3 ─ the points agree with the orientation of the curve they sit on.
+  if (pts.length) {
+    let ext = null;
+    try { ext = require("./diagrams/types/graph").drawnExtent(spec); } catch (_) { ext = null; }
+    if (ext && ext.x[1] > ext.x[0] && ext.y[1] > ext.y[0]) {
+      for (const p of pts) {
+        const outN = gOutNorm(p.x, p.y, ext);
+        const swapN = gOutNorm(p.y, p.x, ext);
+        if (outN >= GRAPH_OUT_TOL && swapN <= GRAPH_IN_TOL) {
+          out.push({
+            code: "GRAPH_ORIENTATION",
+            msg: `${at}graph "${name}": the point (${p.x}, ${p.y})${p.label ? ` "${String(p.label).slice(0, 40)}"` : ""} lies far off the curve's own extent ` +
+              `(x ${round2(ext.x[0])}…${round2(ext.x[1])}, y ${round2(ext.y[0])}…${round2(ext.y[1])}), while (${p.y}, ${p.x}) lands inside it. ` +
+              `The point is plotted in the opposite axis order to the curve. Pick ONE orientation — (x-quantity, y-quantity) — and write the curve, the points and the axis labels in it.`,
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+function round2(v) { return Math.round(v * 100) / 100; }
+
+// ── THE URDU TOGGLE MUST EXIST WHEN IT IS ASKED FOR (bd-vnyuw) ───────────────
+//
+// Measured on staging 2026-09-05: of the nine EN-medium books ever requested in Urdu, all six
+// that reached `ready` carried `overlay_dropped = true`. Every single one. A teacher who chose
+// «اردو» got an English lesson under Urdu headings, silently, with no error anywhere.
+//
+// The cause was two prompts in one call giving opposite orders — brief §7b said "add an
+// `ur_overlay`", the runtime language directive said "Do NOT emit ur_overlay yourself … a
+// separate pass builds it", and that separate pass has never existed. The directive is fixed at
+// source; THIS is the code assertion that keeps it fixed (rule 24(c): a prompt's input contract
+// is checked in code before the model's output is trusted, because the model complies most of
+// the time and freestyles the rest).
+//
+// It is DELIBERATELY a lint fail rather than a render refusal: a defect the revision ladder is
+// handed gets repaired in the next round, while a refusal throws away a finished lesson — which
+// is the failure this whole lane has been unpicking.
+
+/** Keys whose values are machine data, an identifier, or an atom — never instruction prose. */
+const OVERLAY_SKIP_KEYS = new Set([
+  "id", "type", "ref", "src", "kind", "tier", "direction", "mode", "shape", "element",
+  "lesson_id", "book_stem", "schema_version", "template_version", "lint_profile", "lp_type",
+  "slo_code", "code", "url", "channel", "checked_at", "duration", "medium", "language",
+  "version", "brand", "name", "color", "colour", "fill", "stroke", "font", "align", "anchor",
+  "at", "sec", "sequence_id", "segment_id",
+  // bd-oak77.23 — the fields the renderer PARSES rather than prints (tex, smiles, equation,
+  // formula), READ FROM lib/overlay.js rather than retyped. They belong here as well as in
+  // `frozenReason` because this set also short-circuits the object walk below, and because a
+  // second HAND-WRITTEN copy is exactly what let `spec.formula` through: `overlayTargets`
+  // consulted this list, `applyOverlay` consulted that one, and neither carried these keys.
+  ...MACHINE_KEYS,
+]);
+/** Subtrees that are citation metadata or a third party's own text, not our instructions. */
+const OVERLAY_SKIP_ROOTS = ["/provenance", "/video", "/revisions", "/ur_overlay"];
+
+/**
+ * At least HALF the instruction prose must carry an Urdu replacement.
+ *
+ * Half is the line at which the page stops being an English lesson with Urdu chrome and starts
+ * being an Urdu lesson — which is the whole defect. It is not a quality target: the brief asks
+ * for EVERY allowed string (§7c.7) and a good draft covers nearly all of them. This is the floor
+ * under which the document is not what the teacher asked for at all.
+ */
+const OVERLAY_MIN_COVERAGE = 0.5;
+
+/** Is this string teacher-facing instruction prose, rather than a code or an atom? */
+function isInstructionProse(s) {
+  if (typeof s !== "string" || s.length < 8) return false;
+  const words = s.match(/[A-Za-z]{2,}/g) || [];
+  return words.length >= 2;
+}
+
+/**
+ * Every JSON Pointer in `doc` that the Urdu toggle is ALLOWED to replace and OUGHT to.
+ * Exported through `overlayDefects.targets` so the count in the message and the count a test
+ * asserts are the same computation, not two that can drift.
+ */
+function overlayTargets(doc) {
+  const out = [];
+  const esc = (k) => String(k).replace(/~/g, "~0").replace(/\//g, "~1");
+  const walk = (node, ptr) => {
+    if (typeof node === "string") {
+      if (!isInstructionProse(node)) return;
+      if (OVERLAY_SKIP_ROOTS.some((r) => ptr === r || ptr.startsWith(r + "/"))) return;
+      const key = ptr.slice(ptr.lastIndexOf("/") + 1);
+      if (OVERLAY_SKIP_KEYS.has(key)) return;
+      if (frozenReason(doc, ptr)) return;
+      out.push(ptr);
+      return;
+    }
+    if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${ptr}/${i}`)); return; }
+    if (node && typeof node === "object") {
+      for (const [k, v] of Object.entries(node)) {
+        if (OVERLAY_SKIP_KEYS.has(k) && typeof v === "string") continue;
+        walk(v, `${ptr}/${esc(k)}`);
+      }
+    }
+  };
+  walk(doc, "");
+  return out;
+}
+
+/**
+ * The blocking defects for an Urdu render of an English-medium book.
+ * @param doc   the lp_doc
+ * @param lang  the language THE TEACHER ASKED FOR (not the book's medium)
+ * @param opts.expected  false when the CALLER is not the one writing the overlay (bd-zle0u).
+ *
+ * WHY THE SWITCH EXISTS, AND WHY IT IS NOT A WEAKENING. This defect used to be handed to the
+ * revision ladder, so every round re-emitted the whole document AND the whole overlay: measured
+ * 2026-09-05, 18-21k completion tokens against 9-14k without it, and all three Urdu cells then
+ * blew the 840s author timeout and delivered NOTHING. The overlay is now written ONCE, by its own
+ * pass over the document the ladder accepted, and that pass checks its own output with exactly
+ * this function at `expected: true`. The ladder passes false because it is not being asked for an
+ * overlay — asserting a contract on a caller that was never given it is how a gate turns into a
+ * timeout.
+ */
+function overlayDefects(doc, lang, opts = {}) {
+  const out = [];
+  if (opts.expected === false) return out;                         // not this caller's contract
+  if (lang !== "ur") return out;                                   // nothing to toggle
+  const medium = (doc.provenance || {}).medium;
+  if (medium === "ur") return out;                                 // authored in Urdu already
+  const targets = overlayTargets(doc);
+  if (!targets.length) return out;                                 // nothing overlayable: silent
+  const ov = doc.ur_overlay && typeof doc.ur_overlay === "object" ? doc.ur_overlay : {};
+  const covered = targets.filter(
+    (p) => typeof ov[p] === "string" && ov[p].trim().length > 0,
+  ).length;
+  const need = Math.ceil(targets.length * OVERLAY_MIN_COVERAGE);
+  if (covered >= need) return out;
+  const missing = targets.filter((p) => typeof ov[p] !== "string").slice(0, 6);
+  out.push({
+    code: "OVERLAY_MISSING",
+    msg:
+      `the teacher asked for URDU and this is an English-medium book, so the document must carry an `
+      + `\`ur_overlay\`: a flat map of JSON Pointer -> the Urdu string that replaces the English one at `
+      + `render time (brief §7b, §7c.7). It covers ${covered} of ${targets.length} overlayable `
+      + `instruction strings; at least ${need} are required. Without it she receives an ENGLISH lesson `
+      + `under Urdu headings. Add the missing pointers, e.g. ${missing.join(", ")}. `
+      + `Do NOT overlay /slo/text_verbatim, anything under /page2/exam_bank, or a \`board\` block's text.`,
+  });
+  return out;
+}
+overlayDefects.targets = overlayTargets;
+overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
+
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
+  overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
-  MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS };
+  MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,
+  // Exported so a test can assert the frozen set covers every enum/id field the SCHEMA declares
+  // — a hand-maintained list is what let `formula` and `closed_by` through (bd-oak77.23).
+  OVERLAY_SKIP_KEYS,
+};
