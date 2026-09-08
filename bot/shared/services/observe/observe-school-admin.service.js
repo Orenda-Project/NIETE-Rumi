@@ -63,7 +63,16 @@
 const { clampLanguage } = require('../../config/ux-strings');
 
 const ROW_SOURCE = 'niete_ict';        // the only value the CHECK constraint allows
-const RESULT_CAP = 20;                 // RadioButtonsGroup / readable-list ceiling
+// Two different ceilings, for two different jobs.
+// RESULT_CAP bounds SEARCH results (the universe is thousands of schools):
+// deliberately small, readable, and it keeps the data_exchange payload light.
+// LIST_CAP bounds a COMPLETE "mine" list (her schools, her patch at a school) —
+// those are already bounded by her own assignment, so truncating them HIDES her
+// own people. 200 is Meta's Dropdown option ceiling (100 only if options carry
+// images; ours are text-only, see _opt). Was RESULT_CAP for both, sized when
+// these screens were RadioButtonsGroups (cap 20) — they are Dropdowns now.
+const RESULT_CAP = 20;                 // search results
+const LIST_CAP = 200;                  // complete "mine" lists — Meta Dropdown ceiling
 
 // ── pure matchers ──────────────────────────────────────────────────────
 
@@ -494,5 +503,5 @@ module.exports = {
   matchSchool, matchTeacher, normalisePhoneTerm,
   addedSchoolAck, removedSchoolAck,
   searchUniverse, listMySchools, addSchoolForCoach, removeSchoolForCoach,
-  rosterNextTarget, ROSTER_NEXT, ROW_SOURCE, RESULT_CAP,
+  rosterNextTarget, ROSTER_NEXT, ROW_SOURCE, RESULT_CAP, LIST_CAP,
 };

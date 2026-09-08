@@ -1005,7 +1005,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const A = _admin();
       const mine = await A.listMySchools(userId).catch(() => []);
       const options = mine.length
-        ? mine.slice(0, A.RESULT_CAP).map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
+        ? mine.slice(0, A.LIST_CAP).map((x) => _opt(x.school_ext_id, x.school_name, `EMIS ${x.emis || ''}`, ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return { screen: 'TEACHER_SCHOOL', data: { options } };
     }
@@ -1153,7 +1153,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
       const options = people.length
-        ? people.slice(0, A.RESULT_CAP).map((p) => _opt(
+        ? people.slice(0, A.LIST_CAP).map((p) => _opt(
           p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
