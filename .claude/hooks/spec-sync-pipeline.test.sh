@@ -108,7 +108,10 @@ say "2. a brief is built"                 "$([ -f "$BRIEF" ] && echo yes || echo
 say "3. it selects exactly menu"          "$(jqf "$BRIEF" features.0.feature)"         menu
 say "4. as an update, not a create"       "$(jqf "$BRIEF" features.0.action)"          update
 say "5. owned change, not fan-out"        "$(jqf "$BRIEF" features.0.only_shared)"     False
-say "6. it knows the spec's current size" "$(jqf "$BRIEF" features.0.scenario_count)"  12
+# the expected size is READ from the spec, not pinned: a scenario added to menu.feature (M13, 2026-09-08) is
+# not a regression of the brief builder, which is what this line tests.
+MENU_COUNT=$(python3 "$PROJ/.claude/qa/shared/parse-gherkin.py" "$PROJ/tests/features/whatsapp/niete/menu.feature" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["count"])' 2>/dev/null || echo 13)
+say "6. it knows the spec's current size" "$(jqf "$BRIEF" features.0.scenario_count)"  "$MENU_COUNT"
 has "7. the real diff is in the brief"    "$(jqf "$BRIEF" features.0.diff)" "Reading Assessment" yes
 has "8. including the renamed opener"     "$(jqf "$BRIEF" features.0.diff)" "Explore Features"   yes
 has "9. phase 1 is ordered before phase 2" \

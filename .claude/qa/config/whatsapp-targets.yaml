@@ -47,7 +47,8 @@ profiles:
   # the SANDBOX Supabase (keys/niete-sandbox.env, project olvritwoqujtjvwfulbh — never staging or
   # prod), with WHATSAPP_API_BASE pointed at bot/scripts/e2e/mock-graph-api.js. `method: mock` makes
   # run-suite.sh skip every Chrome/CDP precondition and feature-runner.cjs load mock-api.cjs, which
-  # exposes the same primitives as the CDP api, so menu/language/status run unchanged. Flows are
+  # exposes the same primitives as the CDP api, so menu/language/status/lesson-plan/coaching run
+  # unchanged (media rides the mock; a private redis + the queue worker run the pipelines). Flows are
   # NOT rendered here — every Flow scenario records BLOCKED/SKIP through its own branch, never PASS.
   # Vendors are cassette replay-strict: a miss fails the run loudly instead of going live.
   # `number` is a placeholder (there is no WhatsApp number); the driver is a fixed synthetic
@@ -58,7 +59,7 @@ profiles:
     number: "local"
     method: mock
     test_driver: "923000000001"
-    notes: "commit-time lane; bot from a pinned commit; sandbox DB; mock Graph API; cassette replay-strict; no Flow rendering"
+    notes: "commit-time lane; bot from a pinned commit; sandbox DB; mock Graph API + media; private redis + queue worker; cassette replay-strict (staging R2 mirror); no Flow rendering"
 
   # PROD — explicit target only; stateful scenarios mutate real training progress.
   niete-prod:

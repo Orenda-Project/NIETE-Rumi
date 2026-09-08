@@ -113,7 +113,7 @@ def build_row(a):
                                        "E2E_CASSETTE=record, then rerun." % (", ".join(sorted(by_scenario)) or "an unattributed call"))
         try:
             st = json.load(open(os.path.join(a.run_dir, "stack.json"), encoding="utf-8"))
-            row["stack"] = {k: st.get(k) for k in ("bot_url", "mock_url", "worktree", "lock_blob")}
+            row["stack"] = {k: st.get(k) for k in ("bot_url", "mock_url", "worktree", "lock_blob", "queue", "worker")}
         except Exception:
             pass
     brief = a.spec_sync if a.spec_sync and a.spec_sync != "none" else None

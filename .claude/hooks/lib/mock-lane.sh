@@ -8,13 +8,14 @@
 #   mock lane   bash .claude/qa/shared/commit-e2e.sh <sha> --features <a,b>
 #               the bot starts from a detached worktree at <sha> behind the mock Graph API — this
 #               is the run that tests THE COMMIT. Features: E2E_MOCK_FEATURES (default below).
+#               Flow-only scenarios inside these features record BLOCKED there, never PASS.
 #   chrome lane /niete-e2e <feature> — WhatsApp Web against the deployed staging build. For a
 #               commit it can only regression-check the PREVIOUS build; it tests the change after
 #               the develop deploy. Everything not in the mock list stays here.
 #
 # A PUSH keeps the chrome lane for everything (the code is deployed; that is what chrome tests).
 
-E2E_MOCK_FEATURES_DEFAULT="menu,language,status"
+E2E_MOCK_FEATURES_DEFAULT="menu,language,status,lesson-plan,coaching"   # phase 2 added lesson-plan + coaching (media, worker)
 
 e2e_mock_features() { printf '%s' "${E2E_MOCK_FEATURES:-$E2E_MOCK_FEATURES_DEFAULT}"; }
 

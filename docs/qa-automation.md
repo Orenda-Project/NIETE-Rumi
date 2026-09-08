@@ -24,7 +24,8 @@ developer changes bot code
 │    authors via gherkin-test-cases; adds / updates / tags @obsolete — never deletes) │
 │ 4. GATE               validate_specs.py  (+ check-all-mode-counts.py)              │
 │ 5. DRIVE   mock lane: commit-e2e.sh <sha> — the bot FROM THIS COMMIT, no browser     │
-│            (menu · language · status)  ·  chrome lane: /niete-e2e <features> against  │
+│            (menu · language · status · lesson-plan · coaching)  ·  chrome lane:        │
+│            /niete-e2e <features> against                                              │
 │            staging over linked WhatsApp Web, for everything else                      │
 │ 6. RECORD             .claude/qa/ledgers/runs.jsonl  (+ results/, gitignored)      │
 └────────────────────────────────────────────────────────────────────────────────────┘
@@ -120,7 +121,7 @@ Nothing server-side enforces either verdict.
   and must be reported as one; only a run after the `develop` deploy tests the change on Meta.
   **The mock lane exists for exactly this gap**: `bash .claude/qa/shared/commit-e2e.sh <sha>`
   starts the bot from a detached worktree at that commit behind a local mock Graph API and drives
-  the same feature scripts (menu · language · status today) — see
+  the same feature scripts (menu · language · status · lesson-plan · coaching) — see
   [docs/e2e-mock-lane.md](e2e-mock-lane.md). Its ledger rows carry `method: mock`, the
   `commit_sha`, and the cassette misses that make a verdict untrustworthy.
 - **Never on production users.** `/niete-e2e` targets staging by default; prod is an
