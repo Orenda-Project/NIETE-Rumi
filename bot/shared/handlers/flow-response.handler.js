@@ -933,15 +933,40 @@ async function handleStatusFlowCompletion(responseJson, from, user) {
     resourceKind: (responseJson && responseJson.resource_kind) || null,
   });
 
-  if (action === 'cancelled') {
+  // Which actions get a line in the chat, and why. `done` and `resumed` are
+  // deliberately silent: the Flow screen has just said the same thing, and the
+  // remark branch's rule applies — ONE message, not two.
+  //
+  // `idle` is here because adding this branch for `cancelled` alone REMOVED a
+  // catch-all: before it existed, a status completion fell through
+  // whatsapp-bot.js to the generic "Thanks for your response!" arm, so the
+  // empty-store case went from a bland reply to no reply at all. An empty store
+  // is also the one case whose Flow screen the teacher never really sees,
+  // because buildMainScreen returns a TERMINAL success screen at INIT and the
+  // Flow flashes open and shut. The chat is the only place left to answer.
+  //
+  // The /status command now answers in chat without opening the Flow when the
+  // store is empty (services/status/status-command.js), which leaves this arm
+  // covering just the race: the store emptying between the CTA and the tap.
+  //
+  // Null prototype on purpose: `action` arrives from Meta's payload, and a plain
+  // object would resolve 'constructor' or 'toString' to an inherited member and
+  // hand a function to resolveUx.
+  const ACK = Object.assign(Object.create(null), {
+    cancelled: 'resumeDiscarded',
+    idle: 'statusNothingRunning',
+  });
+
+  const ackKey = ACK[action];
+  if (ackKey) {
     try {
       const { resolveUx } = require('../config/ux-strings');
-      await WhatsAppService.sendMessage(from, resolveUx('resumeDiscarded', { user }));
+      await WhatsAppService.sendMessage(from, resolveUx(ackKey, { user }));
     } catch (err) {
-      // The cancel itself already succeeded inside the Flow; a failed ack must not
-      // read as a failed cancel, so this is logged and swallowed.
-      logToFile('⚠️ status cancel ack failed (the stop itself already applied)', {
-        from, error: err.message,
+      // The action itself already succeeded inside the Flow; a failed ack must not
+      // read as a failed action, so this is logged and swallowed.
+      logToFile('⚠️ status ack failed (the action itself already applied)', {
+        from, action, error: err.message,
       });
     }
   }
