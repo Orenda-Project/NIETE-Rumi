@@ -32,6 +32,7 @@
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { isSchoolLeader, LEADER_ROLES } = require('../services/observe/observe-gate');
+const { SHIFT_LABELS } = require('../config/ux-strings');
 const { decryptMedia } = require('../services/roster/roster-media');
 const { extractPages } = require('../services/roster/roster-extraction.service');
 const { toChunks, parseChunk, reconcile, pairMoves, renderList, MAX_BOXES } = require('../services/roster/roster-lines');
@@ -81,6 +82,49 @@ function getCurrentAcademicYear() {
 /** Dropdown chrome must stay Latin and short — Meta truncates and its list
  *  secondary text fails outright on Urdu script. */
 const opt = (id, title) => ({ id: String(id), title: String(title || '').slice(0, 30) });
+
+/**
+ * A class's identity is (school, grade, SECTION, SHIFT, session) — ClassService is
+ * idempotent on exactly that tuple. This screen used to send three of the five: no
+ * shift at all, and an optional section. The two it did not send were filled by
+ * defaults the coach never saw, so a class whose teacher had registered it as
+ * evening (or with no section) became a SECOND row: the coach's row held the
+ * children, the teacher's row held nobody, and both were correct to every query we
+ * run. Measured before the fix: 11,647 children created by a scan, 11,356 active
+ * enrolments, 100% of them morning — not one scanned child in any of the 22 evening
+ * classes, because /roster could not produce one.
+ */
+const DEFAULT_SHIFT = 'morning';
+/** No section is a real answer — 69 active classes have none. It has to be sayable. */
+const NO_SECTION = 'none';
+
+/**
+ * bd-dz6qb.5 — the consequence, said where the choice is made.
+ *
+ * WhatsApp caps, in CODE POINTS: a Dropdown option title is 30, helper-text is 80.
+ * Gender-neutral by rule: a teacher is never "she" or "her" in any copy we ship.
+ */
+const TEACHER_SKIP_TITLE = 'Not listed \u2014 no attendance';
+const TEACHER_HELP = 'Without a class teacher, nobody can mark attendance for these children.';
+
+/** English, like every other label on this Flow, but keyed off the ONE label map. */
+const shiftTitle = (code) => (SHIFT_LABELS[code] && SHIFT_LABELS[code].en) || code;
+
+/**
+ * The codes in a small closed reference table, in seeded order. Read from the table
+ * rather than hardcoded so the picker cannot drift from what the foreign key will
+ * accept — and so /roster offers the coach exactly what /class offers the teacher.
+ * If those two lists ever differ, this bug comes straight back.
+ */
+async function listSeeded(table) {
+  const { data, error } = await supabase
+    .from(table).select('code, sort_order').eq('is_active', true);
+  if (error || !data) {
+    logToFile(`\u26a0\ufe0f roster: ${table} load failed`, { error: error && error.message });
+    return [];
+  }
+  return [...data].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((r) => r.code);
+}
 
 // ---------------------------------------------------------------------------
 // SCHOOL
@@ -164,9 +208,17 @@ async function teachersFor(user, schoolId) {
     .slice(0, OPTION_CAP - 1)
     .map(([id, name]) => opt(id, name));
 
-  // Always offer the way out. A coach who cannot find the teacher must still be
-  // able to save the register — the children matter more than the attribution.
-  return [...list, opt('none', 'Not listed / skip')];
+  // Always offer the way out, and NEVER make this field required: a real class
+  // teacher who has never registered cannot be offered at all, because
+  // class_teachers.teacher_user_id is a NOT NULL foreign key onto users. Requiring
+  // it would block a legitimate class.
+  //
+  // But skipping must stop being FREE and SILENT. Across 373 saved scans a teacher
+  // was named 311 times and written 311 times — the assignment has never once been
+  // refused. The 45 classes and 1,526 children sitting unreachable today are all
+  // classes where nobody touched an optional field, and two coaches are at 0% named
+  // across every run they have ever saved. So the option itself carries the cost.
+  return [...list, opt('none', TEACHER_SKIP_TITLE)];
 }
 
 function fullName(u) {
@@ -307,18 +359,24 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
       });
     });
 
-    const [{ data: grades }, { data: sections }, teachers] = await Promise.all([
+    const [{ data: grades }, sections, shifts, teachers] = await Promise.all([
       supabase.from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal'),
-      supabase.from('sections').select('code').eq('is_active', true).order('sort_order'),
-      teachersFor(state.user, state.schoolId).catch(() => [opt('none', 'Not listed / skip')]),
+      listSeeded('sections'),
+      listSeeded('shifts'),
+      teachersFor(state.user, state.schoolId).catch(() => [opt('none', TEACHER_SKIP_TITLE)]),
     ]);
 
     return {
       screen: 'CLASS',
       data: {
         grades: (grades || []).map((g) => opt(g.code, `Grade ${g.ordinal}`)),
-        sections: (sections || []).map((s) => opt(s.code, s.code)),
+        // Section is now REQUIRED, so "no section" has to be an option rather than an
+        // empty submit — otherwise a genuinely single-stream class cannot be saved at
+        // all, and we would have traded one bug for a coach who is simply stuck.
+        sections: [...sections.map((c) => opt(c, c)), opt(NO_SECTION, 'No section')],
+        shifts: shifts.map((c) => opt(c, shiftTitle(c))),
         teachers,
+        teacher_help: TEACHER_HELP,
         caption: 'Reading the register while you do this.',
       },
     };
@@ -326,7 +384,20 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
 
   if (screen === 'CLASS') {
     state.gradeCode = screenData.grade_code;
-    state.section = screenData.section || null;
+    const rawSection = screenData.section;
+    state.section = rawSection && rawSection !== NO_SECTION ? rawSection : null;
+
+    // BACK-COMPAT, decided deliberately. A payload with no shift_code is either a
+    // session opened before the new Flow was published, or the old published Flow
+    // still being served — and this is the ONLY code path a coach's scan can take.
+    // Refusing the save would break /roster for everyone in that window, and it
+    // would refuse AFTER the photos were taken. So the absent case keeps exactly
+    // today's behaviour — morning — and is stamped `shift_source: 'default'` on the
+    // state, in the log line and in the audit manifest, so the residual is countable
+    // instead of invisible. Null here means "nobody chose", not "morning".
+    const rawShift = screenData.shift_code;
+    state.shiftCode = typeof rawShift === 'string' && rawShift.trim() ? rawShift.trim() : null;
+
     const picked = screenData.teacher_user_id;
     state.classTeacherUserId = picked && picked !== 'none' ? picked : null;
     return waitThenReview(state);
@@ -348,7 +419,11 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
 // ---------------------------------------------------------------------------
 
 function classLabelOf(state) {
-  return `Grade ${String(state.gradeCode || '').replace('grade_', '')}${state.section ? `-${state.section}` : ''}`;
+  const base = `Grade ${String(state.gradeCode || '').replace('grade_', '')}${state.section ? `-${state.section}` : ''}`;
+  // Only a non-default shift is named, the same rule /class renders by — otherwise
+  // every label in the fleet grows a "(Morning)" that says nothing.
+  const shift = state.shiftCode;
+  return shift && shift !== DEFAULT_SHIFT ? `${base} (${shiftTitle(shift)})` : base;
 }
 
 function toPhotosResponse(state) {
@@ -773,11 +848,16 @@ async function saveRoster(state, screenData) {
 
   if (!finalList.length) return stop('The list came back empty, so nothing was saved.');
 
+  // state.shiftCode is null when the payload carried none — see the CLASS branch.
+  const shiftCode = state.shiftCode || DEFAULT_SHIFT;
+  const shiftSource = state.shiftCode ? 'coach' : 'default';
+
   const saved = await ClassService.importRoster({
     runId: state.runId,
     schoolId: state.schoolId,
     gradeCode: state.gradeCode,
     section: state.section,
+    shiftCode,
     sessionCode: getCurrentAcademicYear(),
     classTeacherUserId: state.classTeacherUserId,
     createdByUserId: state.user.id,
@@ -801,6 +881,8 @@ async function saveRoster(state, screenData) {
     removedByCoach: diff.removed.length,
     classTeacherAssigned: saved.classTeacherAssigned,
     mirrored: saved.mirrored,
+    shiftCode,
+    shiftSource,
   });
 
   // The audit record, beside the photos it describes. Everything an auditor needs
@@ -818,6 +900,11 @@ async function saveRoster(state, screenData) {
       class_label: classLabel,
       grade_code: state.gradeCode,
       section: state.section,
+      shift_code: shiftCode,
+      // 'coach' = chosen on the screen; 'default' = the payload carried no shift and
+      // we fell back. Every class written under 'default' is a candidate for the
+      // twin-merge repair, so it must be findable.
+      shift_source: shiftSource,
       session_code: getCurrentAcademicYear(),
       coach_user_id: state.user.id,
       class_teacher_user_id: state.classTeacherUserId,
@@ -840,9 +927,12 @@ async function saveRoster(state, screenData) {
     },
   });
 
+  // Saying nothing when no teacher was named is how 45 classes and 1,526 children
+  // came to sit unreachable. The positive was already said; the negative was not.
   const teacherLine = saved.classTeacherAssigned
-    ? ' The class teacher can see them in her attendance now.'
-    : '';
+    ? ' The class teacher can see them in their attendance now.'
+    : ' No class teacher was named, so nobody can mark attendance for these children.'
+      + ' Scan this class again and name one.';
   const skippedLine = saved.skipped ? ` ${saved.skipped} were already there.` : '';
   // The completion nudge: every save says how far this school is from all of 1-5.
   const coverage = await coverageLine(state.schoolId);
@@ -872,6 +962,7 @@ const IMPORT_FAILURES = {
   save_in_progress: 'This roster is already being saved — give it a minute, then check the class before scanning again.',
   unknown_grade: 'That grade is not one this school uses.',
   unknown_section: 'That section is not set up for this school.',
+  unknown_shift: 'That shift is not one this school uses.',
   unknown_session: 'The school year is not set up yet.',
   no_students: 'The list came back empty, so nothing was saved.',
   missing_school: 'No school was chosen.',
