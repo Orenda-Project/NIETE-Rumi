@@ -43,12 +43,14 @@ describe('detectFlowType: a /status completion is recognised (bd-43519)', () => 
 
 describe('the completion ack (bd-43519)', () => {
   let sendMessage;
+  let logToFile;
   let handler;
 
   function load() {
     jest.resetModules();
     sendMessage = jest.fn().mockResolvedValue(true);
-    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+    logToFile = jest.fn();
+    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile }));
     jest.doMock('../../bot/shared/services/whatsapp.service', () => ({
       sendMessage,
       sendInteractiveButtons: jest.fn().mockResolvedValue(true),
@@ -101,12 +103,68 @@ describe('the completion ack (bd-43519)', () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
+  it('an EMPTY store is answered in the chat, not left silent (bd-60059)', async () => {
+    // The regression this branch caused. `idle` is what buildMainScreen emits
+    // when listActiveResources came back empty, and it is a TERMINAL screen
+    // returned at INIT — so the Flow flashes open and shut and this is the only
+    // thing the teacher is left with. Before the status branch existed, the
+    // generic arm at least said something; adding a specific handler that
+    // covered only `cancelled` made it worse than the catch-all it replaced.
+    //
+    // The /status command now answers in the chat without opening the Flow at
+    // all when the store is empty (see status-command.test.js), which shrinks
+    // this window to "the store emptied between the CTA and the tap". It does
+    // not close it, so this arm still has to speak.
+    const handled = await handler.handleStatusFlowCompletion(
+      { status_action: 'idle' }, '923000000000', USER
+    );
+
+    expect(handled).toBe(true);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    const body = sendMessage.mock.calls[0][1];
+    expect(body.length).toBeGreaterThan(0);
+    expect(body).not.toMatch(/Thanks for your response/i);
+  });
+
+  it('the empty-store answer is in her language too (bd-60059)', async () => {
+    await handler.handleStatusFlowCompletion(
+      { status_action: 'idle' }, '923000000000', { id: 'u', preferred_language: 'ur' });
+    const urBody = sendMessage.mock.calls[0][1];
+    expect(urBody).toMatch(/[\u0600-\u06ff]/);
+  });
+
   it('an unrecognised status_action is handled without throwing and without a mystery message', async () => {
     const handled = await handler.handleStatusFlowCompletion(
       { status_action: 'something_new' }, '923000000000', USER
     );
     expect(handled).toBe(true);
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('an inherited Object member is not mistaken for an ack key', async () => {
+    // `status_action` arrives from Meta's payload. The ack table is keyed by it,
+    // so on a plain object 'constructor' / 'toString' would resolve up the
+    // prototype chain to a truthy function and get handed to resolveUx. That
+    // degrades to a swallowed warning rather than a wrong message, but it is
+    // still a lookup finding something that was never a key.
+    for (const action of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+      const handled = await handler.handleStatusFlowCompletion(
+        { status_action: action }, '923000000000', USER
+      );
+      expect(handled).toBe(true);
+    }
+
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    // The assertion that actually discriminates. Asserting only "no message
+    // sent" is VACUOUS here: on a plain object the lookup DOES find Object's
+    // inherited member, hands it to resolveUx, and resolveUx throws — which the
+    // catch swallows, so no message is sent either way and the test passes
+    // against the bug it exists to catch. The observable difference is that the
+    // un-hardened version reaches the catch and logs. Mutation-verified: swap
+    // Object.create(null) for a plain object and this line goes red.
+    const acked = logToFile.mock.calls.filter(c => String(c[0]).includes('status ack failed'));
+    expect(acked).toEqual([]);
   });
 
   it('respects the teacher\'s language', async () => {
