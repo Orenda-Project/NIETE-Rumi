@@ -124,11 +124,17 @@ function createEmulator(flowJson, opts) {
     const unmet = requiredUnmet().length > 0;
     for (const c of components()) {
       if (TEXT_TYPES.has(c.type)) { const t = resolve(c.text, ctx()); if (t != null && t !== '') texts.push(Array.isArray(t) ? t.join('\n') : String(t)); }
-      else if (OPTION_TYPES.has(c.type)) { const l = label(c); if (l) texts.push(String(l)); for (const op of optionsOf(c)) items.push({ text: op.title, disabled: !op.enabled, kind: 'option', name: c.name, id: op.id }); }
+      else if (OPTION_TYPES.has(c.type)) { const l = label(c); if (l) texts.push(String(l)); for (const op of optionsOf(c)) items.push({ text: op.title, hay: [op.title, op.description].filter(Boolean).join('\n'), disabled: !op.enabled, kind: 'option', name: c.name, id: op.id }); }
       else if (c.type === 'TextInput' || c.type === 'TextArea' || c.type === 'CalendarPicker' || c.type === 'DatePicker') items.push({ text: label(c) || c.name, disabled: false, kind: 'input', name: c.name, value: st.form[c.name] });
       else if (c.type === 'OptIn') items.push({ text: label(c) || c.name, disabled: false, kind: 'optin', name: c.name, value: !!st.form[c.name] });
       else if (c.type === 'EmbeddedLink') items.push({ text: resolve(c.text, ctx()), disabled: false, kind: 'link', action: c['on-click-action'] });
-      else if (c.type === 'NavigationList') for (const it of resolve(c['list-items'], ctx()) || []) items.push({ text: (it['main-content'] && it['main-content'].title) || it.title || it.id, disabled: it.enabled === false, kind: 'nav', id: it.id, action: it['on-click-action'] || c['on-click-action'] });
+      else if (c.type === 'NavigationList') for (const it of resolve(c['list-items'], ctx()) || []) {
+        // `text` is the row's title (what a probe reports); `hay` is EVERY string on the row — the
+        // browser helper clicks whatever text it finds, and scripts tap a description ("Day 1 · p.2").
+        const mc = it['main-content'] || {};
+        const title = mc.title || it.title || it.id;
+        items.push({ text: title, hay: [title, mc.description, mc.metadata, it.description].filter(Boolean).join('\n'), disabled: it.enabled === false, kind: 'nav', id: it.id, action: it['on-click-action'] || c['on-click-action'] });
+      }
       else if (c.type === 'Footer') items.push({ text: label(c), disabled: unmet || truthy(resolve(c.enabled === undefined ? false : !c.enabled, ctx())), kind: 'footer', action: c['on-click-action'] });
     }
     return { screen: st.screen, text: texts.join('\n'), items };
@@ -137,7 +143,7 @@ function createEmulator(flowJson, opts) {
   const norm = (s) => String(s || '').trim().toLowerCase();
   function findItem(text, { exact = false, kinds = null } = {}) {
     const want = norm(text);
-    return probe().items.find((i) => (!kinds || kinds.includes(i.kind)) && (exact ? norm(i.text) === want : norm(i.text).includes(want)));
+    return probe().items.find((i) => (!kinds || kinds.includes(i.kind)) && (exact ? norm(i.text) === want : (norm(i.text).includes(want) || norm(i.hay).includes(want))));
   }
 
   function enterScreen(id, data) {
@@ -205,9 +211,12 @@ function createEmulator(flowJson, opts) {
     /** Click a footer / link / nav item by (substring, case-insensitive) text — like flow-lib.clickText. */
     async click(text, opts = {}) {
       if (!st.open) return { ok: false, err: 'FLOW_CLOSED' };
-      const it = findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'] });
-      if (!it) return { ok: false, err: 'NO_ITEM:' + text };
+      // Footer/link/nav first (an action), then an option (a selection) — the browser helper clicks
+      // whichever element carries the text, so scripts drive lists with flowClick as well as flowPick.
+      const it = findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'] }) || findItem(text, { exact: !!opts.exact, kinds: ['option'] });
+      if (!it) return { ok: false, err: 'NO_ITEM:' + text, seen: probe().items.map((i) => i.text) };   // what WAS on screen
       if (it.disabled) return { ok: false, err: 'DISABLED:' + it.text };
+      if (it.kind === 'option') { const r = this.pick(it.text, { exact: true }); return r.ok ? { ok: true, clicked: it.text } : r; }
       if (it.kind === 'optin') { st.form[it.name] = !st.form[it.name]; return { ok: true, clicked: it.text }; }
       if (it.kind === 'nav' && !it.action) return { ok: false, err: 'NAV_NO_ACTION:' + it.text };
       if (it.kind === 'nav' && it.id) st.form.__nav = it.id;

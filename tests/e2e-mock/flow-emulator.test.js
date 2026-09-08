@@ -76,14 +76,38 @@ describe('flow-emulator: navigate Flow', () => {
     expect(em.isOpen()).toBe(false);
   });
 
+  test('click on an OPTION\'s text selects it — the browser helper clicks whatever carries the text (lesson-plan.cjs drives lists this way)', async () => {
+    const em = createEmulator(NAV, { flowId: 'f1', flowToken: 'tok', action: 'navigate', screen: 'PICK' });
+    await em.open();
+    expect(await em.click('Level 1')).toEqual({ ok: true, clicked: 'Level 1' });
+    expect(em.state('Next')).toEqual({ found: true, text: 'Next', disabled: false });
+    expect(await em.click('Level 2')).toEqual({ ok: false, err: 'DISABLED:Level 2' });
+  });
+
   test('refuses a transition the routing model does not allow, and an unknown item, as harness errors', async () => {
     const bad = JSON.parse(JSON.stringify(NAV)); bad.routing_model.PICK = [];
     const em = createEmulator(bad, { flowId: 'f1', flowToken: 'tok', action: 'navigate', screen: 'PICK' });
     await em.open(); em.pick('Level 1');
     const r = await em.click('Next');
     expect(r).toEqual({ ok: false, err: 'ROUTING_REFUSED:PICK→DONE' });
-    expect(await em.click('Nope')).toEqual({ ok: false, err: 'NO_ITEM:Nope' });
+    // a miss names what WAS on screen, so a failed run explains itself without a re-run
+    expect(await em.click('Nope')).toEqual({ ok: false, err: 'NO_ITEM:Nope', seen: ['Level 1', 'Level 2', 'Note', 'Next'] });
     expect(em.pick('Level 9')).toEqual({ ok: false, err: 'OPTION_ABSENT:Level 9' });
+  });
+
+  test('click matches the text a teacher sees ANYWHERE on a list row — description and metadata too, as the browser does', async () => {
+    // The K-5 lesson rows are titled "○ Memory Lane" and carry "Day 1 · p.2" in the description;
+    // lesson-plan.cjs taps "Day 1", which the browser finds because it clicks any text on the row.
+    const LIST = { version: '6.3', routing_model: { L: [] }, screens: [{ id: 'L', title: 'Lessons', terminal: true, layout: { type: 'SingleColumnLayout', children: [
+      { type: 'NavigationList', name: 'lessons', 'list-items': '${data.items}' } ] } }] };
+    const done = [];
+    const em = createEmulator(LIST, { flowId: 'f2', flowToken: 'tok', action: 'navigate', screen: 'L', onComplete: (r) => done.push(r), data: { items: [
+      { id: 'seg1', 'main-content': { title: '○ Memory Lane', description: 'Day 1 · p.2', metadata: 'All About Me' }, 'on-click-action': { name: 'complete', payload: { lesson: 'seg1' } } },
+      { id: 'seg2', 'main-content': { title: '○ Journey Through the Text', description: 'Day 2 · p.3-4' }, 'on-click-action': { name: 'complete', payload: { lesson: 'seg2' } } } ] } });
+    await em.open();
+    expect(em.probe().items.map((i) => i.text)).toEqual(['○ Memory Lane', '○ Journey Through the Text']);   // probe shows titles, as the screen does
+    expect(await em.click('Day 2')).toEqual({ ok: true, clicked: '○ Journey Through the Text' });
+    expect(done.map((d) => d.response_json)).toEqual([{ lesson: 'seg2' }]);
   });
 
   test('a component it does not model is refused honestly, never faked', async () => {
