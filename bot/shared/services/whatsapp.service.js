@@ -3,7 +3,7 @@ const FormData = require('form-data');
 const fs = require('fs');
 const { WHATSAPP_TOKEN, PHONE_NUMBER_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
-const { downloadFromR2, extractKeyFromUrl } = require('../storage/r2');
+const { downloadFromR2, downloadMedia, extractKeyFromUrl } = require('../storage/r2');
 const { getOfferedLanguages } = require('../config/languages');
 const { resolveUx } = require('../config/ux-strings');
 
@@ -142,8 +142,7 @@ class WhatsAppService {
     const tempDir = path.join(__dirname, '../../temp');
     let audioPath = null;
     try {
-      const key = extractKeyFromUrl(audioUrl);
-      const audioBuffer = await downloadFromR2(key);
+      const audioBuffer = await downloadMedia(audioUrl);
 
       // Sniff the container rather than assume MP3: audio/ogg is what makes
       // WhatsApp render a real voice message instead of a music-player bubble.
@@ -506,8 +505,7 @@ class WhatsAppService {
     try {
       // Extract R2 key from URL and download using R2 client
       logToFile('Downloading document from R2', { documentUrl });
-      const key = extractKeyFromUrl(documentUrl);
-      const documentBuffer = await downloadFromR2(key);
+      const documentBuffer = await downloadMedia(documentUrl);
 
       // Save to temp file
       if (!fs.existsSync(tempDir)) {
@@ -550,8 +548,7 @@ class WhatsAppService {
     try {
       // Extract R2 key from URL and download using R2 client
       logToFile('Downloading audio from R2', { audioUrl });
-      const key = extractKeyFromUrl(audioUrl);
-      const audioBuffer = await downloadFromR2(key);
+      const audioBuffer = await downloadMedia(audioUrl);
 
       logToFile('Audio downloaded from R2, sending to WhatsApp', { audioSize: audioBuffer.length });
 
@@ -585,8 +582,7 @@ class WhatsAppService {
     const tempDir = path.join(__dirname, '../../temp');
 
     try {
-      const key = extractKeyFromUrl(r2KeyOrUrl);
-      const oggBuffer = await downloadFromR2(key);
+      const oggBuffer = await downloadMedia(r2KeyOrUrl);
 
       if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
       const voicePath = path.join(tempDir, `voice_${Date.now()}.ogg`);
@@ -641,8 +637,7 @@ class WhatsAppService {
     try {
       // Extract R2 key from URL and download using R2 client
       logToFile('Downloading image from R2', { imageUrl });
-      const key = extractKeyFromUrl(imageUrl);
-      const imageBuffer = await downloadFromR2(key);
+      const imageBuffer = await downloadMedia(imageUrl);
 
       // Save to temp file
       if (!fs.existsSync(tempDir)) {
@@ -821,8 +816,7 @@ class WhatsAppService {
     try {
       // Extract R2 key from URL and download using R2 client
       logToFile('📹 Downloading video from R2', { videoUrl });
-      const key = extractKeyFromUrl(videoUrl);
-      const videoBuffer = await downloadFromR2(key);
+      const videoBuffer = await downloadMedia(videoUrl);
 
       logToFile('Video downloaded from R2, sending to WhatsApp', { videoSize: videoBuffer.length });
 
