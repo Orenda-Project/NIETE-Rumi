@@ -4571,7 +4571,7 @@ CREATE TABLE IF NOT EXISTS class_enrollments (
     enrolled_on  DATE,
     left_on      DATE,
     outcome      TEXT CHECK (outcome IN ('promoted', 'retained', 'transferred',
-                                         'left', 'completed')),
+                                         'left', 'completed', 'roster_correction')),
     is_active    BOOLEAN NOT NULL DEFAULT TRUE,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
