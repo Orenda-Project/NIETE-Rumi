@@ -30,13 +30,17 @@ while IFS= read -r f; do
   mockline=""
   if type e2e_split_lanes >/dev/null 2>&1; then
     e2e_split_lanes "$(printf '%s' "$feats" | tr -d ' ')"
-    [ -n "${E2E_LANE_MOCK:-}" ] && [ -n "$sha" ] && mockline="  mock lane (tests THIS commit):  bash .claude/qa/shared/commit-e2e.sh $sha --features $E2E_LANE_MOCK"
+    if [ -n "${E2E_LANE_MOCK:-}" ] && [ -n "$sha" ]; then
+      mockline="  mock lane (tests THIS commit):  bash .claude/qa/shared/commit-e2e.sh $sha --features $E2E_LANE_MOCK"
+      # the same split the Stop hook applies: those features leave the WhatsApp Web line
+      cmds=$(e2e_filter_chrome_cmds "$(jq -r '(.commands // [])[]' "$f" 2>/dev/null)" "$E2E_LANE_MOCK" | paste -sd '\t' - | tr '\t' ' ' | sed 's/  */   /g')
+    fi
   fi
   LINES="$LINES
 • $id — commit ${sha:-?} on \`$br\`, armed $at — touched: ${feats:-?}
 $sync
 $mockline
-  phase 2 (WhatsApp Web):  $cmds
+  phase 2 (WhatsApp Web):  ${cmds:-— none for this commit; /niete-e2e tests it after the develop deploy}
   clear instead:  bash .claude/hooks/e2e-autorun.sh --clear --session $id"
 done <<LS
 $(ls -t "$PEND"/git-*.json 2>/dev/null)

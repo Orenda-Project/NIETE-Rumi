@@ -44,7 +44,8 @@ out=$(banner); say "no markers → banner is silent" "$out" ""
 marker git-aaa111 false true
 out=$(banner)
 has "pending git marker is announced" "$out" "git-aaa111" yes
-has "…with the commands" "$out" "/niete-e2e menu" yes
+has "…with the mock lane for menu" "$out" "commit-e2e.sh git-aaa111 --features menu" yes
+has "…and menu off the WhatsApp Web line" "$out" "/niete-e2e menu" no
 has "…and the phase-1 brief" "$out" "git-aaa111.sync.json" yes
 has "…as additionalContext" "$out" "additionalContext" yes
 
