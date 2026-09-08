@@ -49,11 +49,14 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # @destructive: writes registration data + flips registration_completed — run
     # ONLY on a throwaway teacher.
 
-  @e2e @flow @negative @known-fail @P1
-  Scenario: The completion greeting drops the teacher's name (and PK language)
+  @e2e @flow @P1
+  Scenario: The completion greeting names the teacher, in Urdu for Pakistan
     Given the NIETE bot chat is open
     When I complete the registration Flow with name "Mahnoor" and country "Pakistan"
     Then the greeting should be "Thank you for registering, Mahnoor!" in Urdu (PK)
+    # @known-fail REMOVED 2026-09-08: driven live on staging (driver 923028931858) the greeting was
+    # "رجسٹریشن کا شکریہ، Mahnoor! …" — name present, Urdu. F-REG1 is fixed on this build. The
+    # history below is kept for the record.
     # F-REG1 — BUG reproduced live TWICE on PROD (2026-08-04), with both fill() and
     # type_text (real key events; the field showed value + a "Clear input" chip):
     # the greeting comes back "Thank you for registering, ! You're all set…" —
@@ -122,7 +125,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
   # are recorded in the comment under each.
 
   # ── POSITIVE / EDGE ──
-  @e2e @flow @destructive @known-fail @P1
+  @e2e @flow @destructive @P1
   Scenario: The registration Flow persists the selected role
     Given the NIETE bot chat is open
     And I am a fresh test teacher completing registration
@@ -132,6 +135,8 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # flow-response.handler.js:772-797 writes users.role. bd-2404. This role is what
     # unlocks /observe (observe-gate.js:25) and the principal attendance channel — so
     # it MUST persist. @destructive: creates/updates the account.
+    # @known-fail REMOVED 2026-09-08: driven live again on staging (923028931858), selected "Coach"
+    # → users.role = "coach" persisted. Fixed on this build; the 2026-08-19 record stays below.
     # DRIVEN LIVE 2026-08-19 (staging 923028931858): FAILS. Selected role "Teacher" on
     # PROFESSIONAL_INFO, completed the Flow — users.role stayed NULL. Not a missing
     # component (the dropdown is live: Teacher/Coach/Principal-Head Teacher/AEO-Cluster

@@ -6,6 +6,16 @@ exports.run = async ({ api, rec, sleep }) => {
   const t = Date.now();
   await api.resetFlow();
   const st = await api.sendWait('/status');
+  // Since PR #801 (2026-09-08) an EMPTY store is answered in the chat — "Nothing's running right
+  // now…" / "اس وقت کچھ نہیں چل رہا" — and no Flow card is sent. That is the state this routine
+  // exists to reach, so it is a pass, not a missing card. Only when something IS running does the
+  // Flow (the one surface that can stop it) appear.
+  const IDLE = /Nothing's running right now|کچھ نہیں چل رہا/i;
+  if (IDLE.test(st.txt || '')) {
+    rec('RESET', 'nothing left in flight on the driver', 'INFO',
+        { card: (st.txt || '').slice(0, 60), opened: false, nothingInFlight: true, stopped: [] }, Date.now() - t);
+    return;
+  }
   const op = await api.openFlow('Open status|کھولیں');
   const stopped = [];
   if (op.ok) {

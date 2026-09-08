@@ -490,53 +490,184 @@ async function processStuckInitiatedSessions() {
 }
 
 
+/** One replica sweeps at a time. Six of them multiply every message sent. */
+const UNTAPPED_SWEEP_LOCK = 'observe-untapped-sweep';
+const UNTAPPED_SWEEP_LOCK_TTL_SECONDS = 10 * 60;
+/** Rows per read. The candidate set is 61 today; the paging is the guarantee. */
+const UNTAPPED_PAGE_SIZE = 200;
+/** 5,000 candidates. Past this the sweep says so instead of silently stopping. */
+const UNTAPPED_MAX_PAGES = 25;
+
+/** Reports acted on in ONE tick. A backlog drains over ticks, never in one. */
+function untappedMaxPerTick() {
+  const n = Number(process.env.OBSERVE_UNTAPPED_MAX_PER_TICK);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 25;
+}
+
 /**
- * bd-2675 — reports still waiting on a teacher's tap.
+ * Read every report still waiting on a tap, oldest first.
+ *
+ * bd-n6fl1. The previous read was `.limit(500)` with NO `.order()`, over a pool
+ * of 1,518 rows growing ~500 a week. An unordered limit returns whichever rows
+ * the planner hands back, so once the pool crossed 500 the overdue reports fell
+ * outside the slice and stayed outside it: measured on prod 2026-09-08, 31 of 31
+ * overdue reports invisible, 0 visible, every one at heap rank >= 505.
+ *
+ * Ordering alone does not fix that — oldest-500-of-a-growing-pool re-reads the
+ * same settled rows for ever and still never reaches the new ones. What fixes it
+ * is asking for the ACTIONABLE rows: the three JSON-path predicates below narrow
+ * 1,518 to 61, and because every action we take writes `nudged_at` or
+ * `gave_up_at`, the set drains instead of cycling. The paging is then real
+ * progression rather than a fixed window, and the classifier still decides in JS
+ * so a drifting operator can only ever cost us rows, never send a wrong message.
+ *
+ * The narrow projection from bd-mwn4j is untouched: `analysis_data` is a ~62 KB
+ * JSONB per row and pulling it whole is what OOM-wedged prod on 24/25 Aug.
+ *
+ * Load math, measured against prod via PostgREST on 2026-09-08:
+ *   before — 500 rows x 1.3 KB = 616 KB, 0.78 s, x6 replicas x4/hr = 15 MB/hr
+ *   after  —  61 rows x 1.3 KB =  76 KB, 1.33 s, x1 replica  x4/hr = 0.3 MB/hr
+ * The query is slower per run (it evaluates the predicate over the whole
+ * `leader_observation` set rather than stopping at the first 500) and ~50x
+ * cheaper per hour, because single-flight removes the replica multiplier. That
+ * per-run cost grows with the pool; a partial index on the delivery status is
+ * what removes it, and is filed rather than smuggled in here.
+ */
+async function readUntappedCandidates(tally) {
+  const rows = [];
+  for (let page = 0; page < UNTAPPED_MAX_PAGES; page += 1) {
+    const from = page * UNTAPPED_PAGE_SIZE;
+    // eslint-disable-next-line no-await-in-loop
+    const { data, error } = await supabase
+      .from('coaching_sessions')
+      .select('id, teacher_delivery:analysis_data->teacher_delivery')
+      .eq('observation_type', 'leader_observation')
+      .not('analysis_data->teacher_delivery', 'is', null)
+      .eq('analysis_data->teacher_delivery->>status', 'awaiting_teacher_tap')
+      .is('analysis_data->teacher_delivery->>tapped_at', null)
+      .is('analysis_data->teacher_delivery->>gave_up_at', null)
+      .order('analysis_data->teacher_delivery->>template_sent_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + UNTAPPED_PAGE_SIZE - 1);
+    if (error) {
+      logToFile('⚠️ untapped sweep: query failed', { page, error: error.message });
+      tally.queryFailed = true;
+      return rows;
+    }
+    const batch = data || [];
+    rows.push(...batch);
+    tally.pages = page + 1;
+    if (batch.length < UNTAPPED_PAGE_SIZE) return rows;
+    if (page + 1 === UNTAPPED_MAX_PAGES) {
+      // Never stop silently. THIS is the line whose absence hid six blind days.
+      logToFile('⚠️ untapped sweep: page ceiling hit — more candidates than one tick can read', {
+        pages: UNTAPPED_MAX_PAGES, read: rows.length,
+      });
+      tally.ceilingHit = true;
+    }
+  }
+  return rows;
+}
+
+/**
+ * Reports still waiting on a teacher's tap.
  *
  * A cold teacher gets a template she must tap before the report itself can be
- * sent. Until now nothing ever revisited those, so a report could sit unopened
- * forever with the coach believing it was delivered. The planner
- * (observe-untapped.service) decides; observe-send executes. It is deliberately
- * bounded — one nudge, then we stop and tell the coach — per the operator's
- * instruction not to trap anyone in an endless chase.
+ * sent. The planner (observe-untapped.service) decides; observe-send executes.
+ * It is deliberately bounded — one nudge, then we stop and tell the coach — per
+ * the operator's instruction not to trap anyone in an endless chase.
  *
- * The row count here is tiny (tens), so filtering in JS beats a JSON-path
- * query that would silently return nothing if the operator syntax drifted.
+ * Periodic-job contract (database-engineering §2), which this job now meets:
+ *   J1 single-flight — one Redis lock, so six replicas send one set of messages
+ *   J2 per-tick cap, oldest first — a backlog drains over ticks
+ *   J3 narrow reads — the teacher_delivery slice only, never the whole JSONB
+ *   J4 kill switch — OBSERVE_UNTAPPED_SWEEP_OFF=1 (unset = ON)
+ *   J5 idempotent, notify-once — nudged_at / gave_up_at are written on the row
+ *   J6 age ceiling — anything unchased past the ceiling is closed SILENTLY
+ *   J7 a per-tick log line, every tick, including the ticks that found nothing
  */
 async function processUntappedReports() {
+  const tally = {
+    total: 0, found: 0, scanned: 0, nudged: 0, gaveUp: 0, expired: 0,
+    skipped: 0, failed: 0, remaining: 0, pages: 0,
+  };
+
+  // J4. Unset = ON: a sweep that fails open is the safer direction, because the
+  // failure mode we are fixing is the one where nobody is ever told anything.
+  if (process.env.OBSERVE_UNTAPPED_SWEEP_OFF === '1') {
+    logToFile('🔔 untapped sweep off', { ...tally, reason: 'OBSERVE_UNTAPPED_SWEEP_OFF=1' });
+    return { ...tally, disabled: true };
+  }
+
+  // J1. Required lazily so this worker keeps loading in tests and one-shot runs
+  // that never reach the sweep.
+  const RedisService = require('../shared/services/cache/railway-redis.service');
+  const lockId = `${process.pid}-${Date.now()}`;
+  const gotLock = await RedisService.acquireLock(
+    UNTAPPED_SWEEP_LOCK, lockId, UNTAPPED_SWEEP_LOCK_TTL_SECONDS,
+  );
+  if (!gotLock) {
+    // acquireLock fails CLOSED when the cache is unreachable: no lock, no sweep.
+    // The right direction — a nudge not sent this tick is sent next tick, a nudge
+    // sent six times cannot be unsent — but it must never be silent.
+    logToFile('🔔 untapped sweep skipped — lock held elsewhere or cache unreachable', tally);
+    return { ...tally, skippedLocked: true };
+  }
+
+  try {
+    return await runUntappedSweep(tally);
+  } finally {
+    await RedisService.releaseLock(UNTAPPED_SWEEP_LOCK, lockId).catch(() => {});
+  }
+}
+
+async function runUntappedSweep(tally) {
+  const startedAt = Date.now();
   const ObserveSend = require('../shared/services/observe/observe-send.service');
   const { classifyUntappedDelivery } = require('../shared/services/observe/observe-untapped.service');
-  let nudged = 0; let gaveUp = 0; let skipped = 0;
-  // bd-mwn4j: select ONLY the delivery slice and filter server-side. The full
-  // analysis_data pull (500 rows x 100KB+ JSONB, every 15 min, per replica) is
-  // what statement-timed-out and OOM-wedged the prod DB on 24/25 Aug — the
-  // sweep only ever needed teacher_delivery.
-  const { data: rows, error } = await supabase
-    .from('coaching_sessions')
-    .select('id, teacher_delivery:analysis_data->teacher_delivery')
-    .eq('observation_type', 'leader_observation')
-    .not('analysis_data->teacher_delivery', 'is', null)
-    .limit(500);
-  if (error) {
-    logToFile('⚠️ untapped sweep: query failed', { error: error.message });
-    return { total: 0, nudged, gaveUp, skipped };
+
+  const rows = await readUntappedCandidates(tally);
+  tally.scanned = rows.length;
+
+  // The server narrowed; the planner still decides. If the JSON operators ever
+  // drift and stop filtering, this catches it rather than acting on the wrong rows.
+  const offContract = rows.filter((r) => (r.teacher_delivery || {}).status !== 'awaiting_teacher_tap');
+  if (offContract.length) {
+    logToFile('⚠️ untapped sweep: rows came back that the query should have excluded', {
+      scanned: rows.length, offContract: offContract.length,
+    });
   }
-  const candidates = (rows || []).filter((r) => {
-    const d = r.teacher_delivery || {};
-    return classifyUntappedDelivery(d).action !== 'skip';
-  });
-  for (const row of candidates) {
+
+  const actionable = rows.filter((r) => classifyUntappedDelivery(r.teacher_delivery || {}).action !== 'skip');
+  tally.found = actionable.length;
+  tally.total = actionable.length;
+  tally.skipped = rows.length - actionable.length;
+
+  // J2. Oldest first, capped. The read is already ordered by template_sent_at, so
+  // the cap takes the reports that have been waiting longest.
+  const cap = untappedMaxPerTick();
+  const batch = actionable.slice(0, cap);
+  tally.remaining = actionable.length - batch.length;
+
+  for (const row of batch) {
     try {
+      // eslint-disable-next-line no-await-in-loop
       const decision = await ObserveSend.processUntappedDelivery(row.id);
-      if (decision.action === 'nudge') nudged += 1;
-      else if (decision.action === 'give_up') gaveUp += 1;
-      else skipped += 1;
+      if (decision.action === 'nudge') tally.nudged += 1;
+      else if (decision.action === 'give_up') tally.gaveUp += 1;
+      else if (decision.action === 'expire') tally.expired += 1;
+      else tally.skipped += 1;
     } catch (err) {
+      tally.failed += 1;
       logToFile('⚠️ untapped sweep: failed on one report', { sessionId: row.id, error: err.message });
     }
   }
-  if (candidates.length) logToFile('🔔 untapped sweep done', { candidates: candidates.length, nudged, gaveUp });
-  return { total: candidates.length, nudged, gaveUp, skipped };
+
+  // J7. EVERY tick, not only the ones with work. The old line fired only when
+  // candidates > 0, so six days of seeing nothing looked exactly like six days of
+  // there being nothing to see.
+  logToFile('🔔 untapped sweep done', { ...tally, ms: Date.now() - startedAt });
+  return tally;
 }
 
 /**
@@ -547,7 +678,7 @@ async function processUntappedReports() {
 async function runRecovery() {
   const coaching = await processStaleCoachingSessions();
   const stuckInitiated = await processStuckInitiatedSessions();
-  // bd-2675 — never let one sweep's failure hide the others.
+  // Never let one sweep's failure hide the others.
   let untapped = { total: 0 };
   try {
     untapped = await processUntappedReports();
@@ -832,7 +963,8 @@ module.exports = {
   processStuckPhotoGateSessions,
   processStuckMidFlightSessions,
   processUntappedReports,
-  // bd-2700: resolved thresholds, exported so tests can assert the env overrides
+  untappedMaxPerTick,
+  // Resolved thresholds, exported so tests can assert the env overrides
   // and so a deploy can log what it actually picked up (a staging value silently
   // shipping to prod is the failure mode worth catching loudly).
   __thresholds: {

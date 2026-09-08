@@ -138,12 +138,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/handlers/text-message.handler.js",
-    "line": 1898,
-    "snippet": "logToFile('❌ Error starting /status', { userId: user?.id, error: error.message });",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/handlers/voice-message.handler.js",
     "line": 413,
     "snippet": "logToFile('❌ CRITICAL: Failed to generate combined report after comprehension completion', {",

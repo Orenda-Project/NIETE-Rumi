@@ -32,11 +32,19 @@
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { isSchoolLeader, LEADER_ROLES } = require('../services/observe/observe-gate');
+const { SHIFT_LABELS } = require('../config/ux-strings');
 const { decryptMedia } = require('../services/roster/roster-media');
 const { extractPages } = require('../services/roster/roster-extraction.service');
 const { toChunks, parseChunk, reconcile, pairMoves, renderList, MAX_BOXES } = require('../services/roster/roster-lines');
 const rosterStorage = require('../services/roster/roster-storage');
 const ClassService = require('../services/classes/class.service');
+
+/** Classes counted for one school's coverage screen. Real max today is 24. */
+const CLASS_CAP = 300;
+/** Count requests in flight at once — the SCHOOL screen is a ~10s data_exchange. */
+const COUNT_CONCURRENCY = 8;
+/** A class register beyond this is not a register; the read is bounded either way. */
+const CLASS_ROSTER_CAP = 1000;
 
 // A register page is one class; a whole school is many /roster runs. Cap the paste
 // surface so one mis-upload cannot write hundreds of rows.
@@ -74,6 +82,49 @@ function getCurrentAcademicYear() {
 /** Dropdown chrome must stay Latin and short — Meta truncates and its list
  *  secondary text fails outright on Urdu script. */
 const opt = (id, title) => ({ id: String(id), title: String(title || '').slice(0, 30) });
+
+/**
+ * A class's identity is (school, grade, SECTION, SHIFT, session) — ClassService is
+ * idempotent on exactly that tuple. This screen used to send three of the five: no
+ * shift at all, and an optional section. The two it did not send were filled by
+ * defaults the coach never saw, so a class whose teacher had registered it as
+ * evening (or with no section) became a SECOND row: the coach's row held the
+ * children, the teacher's row held nobody, and both were correct to every query we
+ * run. Measured before the fix: 11,647 children created by a scan, 11,356 active
+ * enrolments, 100% of them morning — not one scanned child in any of the 22 evening
+ * classes, because /roster could not produce one.
+ */
+const DEFAULT_SHIFT = 'morning';
+/** No section is a real answer — 69 active classes have none. It has to be sayable. */
+const NO_SECTION = 'none';
+
+/**
+ * bd-dz6qb.5 — the consequence, said where the choice is made.
+ *
+ * WhatsApp caps, in CODE POINTS: a Dropdown option title is 30, helper-text is 80.
+ * Gender-neutral by rule: a teacher is never "she" or "her" in any copy we ship.
+ */
+const TEACHER_SKIP_TITLE = 'Not listed \u2014 no attendance';
+const TEACHER_HELP = 'Without a class teacher, nobody can mark attendance for these children.';
+
+/** English, like every other label on this Flow, but keyed off the ONE label map. */
+const shiftTitle = (code) => (SHIFT_LABELS[code] && SHIFT_LABELS[code].en) || code;
+
+/**
+ * The codes in a small closed reference table, in seeded order. Read from the table
+ * rather than hardcoded so the picker cannot drift from what the foreign key will
+ * accept — and so /roster offers the coach exactly what /class offers the teacher.
+ * If those two lists ever differ, this bug comes straight back.
+ */
+async function listSeeded(table) {
+  const { data, error } = await supabase
+    .from(table).select('code, sort_order').eq('is_active', true);
+  if (error || !data) {
+    logToFile(`\u26a0\ufe0f roster: ${table} load failed`, { error: error && error.message });
+    return [];
+  }
+  return [...data].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((r) => r.code);
+}
 
 // ---------------------------------------------------------------------------
 // SCHOOL
@@ -157,9 +208,17 @@ async function teachersFor(user, schoolId) {
     .slice(0, OPTION_CAP - 1)
     .map(([id, name]) => opt(id, name));
 
-  // Always offer the way out. A coach who cannot find the teacher must still be
-  // able to save the register — the children matter more than the attribution.
-  return [...list, opt('none', 'Not listed / skip')];
+  // Always offer the way out, and NEVER make this field required: a real class
+  // teacher who has never registered cannot be offered at all, because
+  // class_teachers.teacher_user_id is a NOT NULL foreign key onto users. Requiring
+  // it would block a legitimate class.
+  //
+  // But skipping must stop being FREE and SILENT. Across 373 saved scans a teacher
+  // was named 311 times and written 311 times — the assignment has never once been
+  // refused. The 45 classes and 1,526 children sitting unreachable today are all
+  // classes where nobody touched an optional field, and two coaches are at 0% named
+  // across every run they have ever saved. So the option itself carries the cost.
+  return [...list, opt('none', TEACHER_SKIP_TITLE)];
 }
 
 function fullName(u) {
@@ -300,18 +359,24 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
       });
     });
 
-    const [{ data: grades }, { data: sections }, teachers] = await Promise.all([
+    const [{ data: grades }, sections, shifts, teachers] = await Promise.all([
       supabase.from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal'),
-      supabase.from('sections').select('code').eq('is_active', true).order('sort_order'),
-      teachersFor(state.user, state.schoolId).catch(() => [opt('none', 'Not listed / skip')]),
+      listSeeded('sections'),
+      listSeeded('shifts'),
+      teachersFor(state.user, state.schoolId).catch(() => [opt('none', TEACHER_SKIP_TITLE)]),
     ]);
 
     return {
       screen: 'CLASS',
       data: {
         grades: (grades || []).map((g) => opt(g.code, `Grade ${g.ordinal}`)),
-        sections: (sections || []).map((s) => opt(s.code, s.code)),
+        // Section is now REQUIRED, so "no section" has to be an option rather than an
+        // empty submit — otherwise a genuinely single-stream class cannot be saved at
+        // all, and we would have traded one bug for a coach who is simply stuck.
+        sections: [...sections.map((c) => opt(c, c)), opt(NO_SECTION, 'No section')],
+        shifts: shifts.map((c) => opt(c, shiftTitle(c))),
         teachers,
+        teacher_help: TEACHER_HELP,
         caption: 'Reading the register while you do this.',
       },
     };
@@ -319,7 +384,20 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
 
   if (screen === 'CLASS') {
     state.gradeCode = screenData.grade_code;
-    state.section = screenData.section || null;
+    const rawSection = screenData.section;
+    state.section = rawSection && rawSection !== NO_SECTION ? rawSection : null;
+
+    // BACK-COMPAT, decided deliberately. A payload with no shift_code is either a
+    // session opened before the new Flow was published, or the old published Flow
+    // still being served — and this is the ONLY code path a coach's scan can take.
+    // Refusing the save would break /roster for everyone in that window, and it
+    // would refuse AFTER the photos were taken. So the absent case keeps exactly
+    // today's behaviour — morning — and is stamped `shift_source: 'default'` on the
+    // state, in the log line and in the audit manifest, so the residual is countable
+    // instead of invisible. Null here means "nobody chose", not "morning".
+    const rawShift = screenData.shift_code;
+    state.shiftCode = typeof rawShift === 'string' && rawShift.trim() ? rawShift.trim() : null;
+
     const picked = screenData.teacher_user_id;
     state.classTeacherUserId = picked && picked !== 'none' ? picked : null;
     return waitThenReview(state);
@@ -341,7 +419,11 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
 // ---------------------------------------------------------------------------
 
 function classLabelOf(state) {
-  return `Grade ${String(state.gradeCode || '').replace('grade_', '')}${state.section ? `-${state.section}` : ''}`;
+  const base = `Grade ${String(state.gradeCode || '').replace('grade_', '')}${state.section ? `-${state.section}` : ''}`;
+  // Only a non-default shift is named, the same rule /class renders by — otherwise
+  // every label in the fleet grows a "(Morning)" that says nothing.
+  const shift = state.shiftCode;
+  return shift && shift !== DEFAULT_SHIFT ? `${base} (${shiftTitle(shift)})` : base;
 }
 
 function toPhotosResponse(state) {
@@ -355,6 +437,58 @@ function toPhotosResponse(state) {
 }
 
 /**
+ * How many active children each of these classes has — asked as a COUNT, never
+ * read as a list.
+ *
+ * bd-p3bs1. This used to be one read of every active enrolment row for every
+ * class at the school, tallied in JS. PostgREST answers at most 1,000 rows and
+ * says nothing about the ones it dropped, so past 1,000 enrolments the tally
+ * came from an arbitrary truncated slice: a class whose rows fell in the
+ * discarded tail counted 0, was filtered out by the `> 0` test below, and
+ * vanished from both the status list and the open-roster actions. Measured on
+ * prod 2026-09-08: at ICG, F-6/2 (1,060 active enrolments, 24 classes) Grade 3-E
+ * lost all 41 of its children and Grade 2-D showed 23 of 42.
+ *
+ * A count is not a list, so ask for the count. `head: true` + `count: 'exact'`
+ * makes PostgREST answer in the Content-Range header and ship NO rows at all: it
+ * is exact by construction, has no interaction with the row cap, and needs
+ * neither ordering nor paging — there is no truncation to be silent about.
+ *
+ * Load math. Requests are bounded by CLASSES AT ONE SCHOOL (24 at the largest,
+ * hard-capped at CLASS_CAP), not by enrolments — which is the number that grows.
+ * Bytes drop from 1,060 rows x ~48 B = 51 KB and rising, to ~0. Each count is an
+ * index-only scan on (class_id, is_active). gradeCoverage runs on the SCHOOL
+ * screen and once per save, inside a data_exchange Meta kills at ~10s, so the
+ * counts go out COUNT_CONCURRENCY at a time rather than one after another.
+ */
+async function enrollmentCounts(classIds) {
+  const counts = new Map();
+  for (let i = 0; i < classIds.length; i += COUNT_CONCURRENCY) {
+    const batch = classIds.slice(i, i + COUNT_CONCURRENCY);
+    // eslint-disable-next-line no-await-in-loop
+    const settled = await Promise.all(batch.map(async (id) => {
+      const { count, error } = await supabase
+        .from('class_enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', id).eq('is_active', true);
+      return { id, count, error };
+    }));
+    for (const r of settled) {
+      // A failed count is NOT zero. Zero hides the class; leaving it unset means
+      // the same, so the one thing that must not happen silently is logged.
+      if (r.error) {
+        logToFile('\u26a0\ufe0f roster coverage: enrolment count failed', {
+          classId: r.id, error: r.error.message,
+        });
+        continue;
+      }
+      counts.set(r.id, r.count || 0);
+    }
+  }
+  return counts;
+}
+
+/**
  * Which grades of 1-5 does this school have rosters for? The unit is the GRADE
  * (any section with children counts), because nothing tells us how many sections
  * a school runs — the status list shows each scanned class, so a coach who knows
@@ -363,15 +497,16 @@ function toPhotosResponse(state) {
 async function gradeCoverage(schoolId) {
   const { data: classes } = await supabase
     .from('classes').select('id, grade_code, section, is_active')
-    .eq('school_id', schoolId).eq('is_active', true);
+    .eq('school_id', schoolId).eq('is_active', true)
+    .order('grade_code', { ascending: true }).order('section', { ascending: true })
+    .limit(CLASS_CAP);
   const ids = (classes || []).map((c) => c.id);
-  const counts = new Map();
-  if (ids.length) {
-    const { data: enr } = await supabase
-      .from('class_enrollments').select('class_id')
-      .in('class_id', ids).eq('is_active', true);
-    for (const e of enr || []) counts.set(e.class_id, (counts.get(e.class_id) || 0) + 1);
+  if (ids.length >= CLASS_CAP) {
+    logToFile('\u26a0\ufe0f roster coverage: class ceiling hit — some classes not counted', {
+      schoolId, cap: CLASS_CAP,
+    });
   }
+  const counts = await enrollmentCounts(ids);
   const { data: grades } = await supabase
     .from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal');
   const ordinalOf = new Map((grades || []).map((g) => [g.code, g.ordinal]));
@@ -444,8 +579,14 @@ async function classLabelFor(state, classId) {
 async function openRosterView(state, classId) {
   const { data: enr } = await supabase
     .from('class_enrollments').select('student_id, roll_number')
-    .eq('class_id', classId).eq('is_active', true);
+    .eq('class_id', classId).eq('is_active', true)
+    .order('roll_number', { ascending: true }).limit(CLASS_ROSTER_CAP);
   if (!enr || !enr.length) return stop('That roster is empty now. Close this and send /roster again.');
+  if (enr.length >= CLASS_ROSTER_CAP) {
+    logToFile('\u26a0\ufe0f roster view: class roster ceiling hit — the list shown is incomplete', {
+      classId, cap: CLASS_ROSTER_CAP,
+    });
+  }
 
   const { data: kids } = await supabase
     .from('students').select('id, student_name, father_name')
@@ -504,6 +645,14 @@ function openRosterEditor(state) {
   return { screen: 'ROSTER_EDIT', data };
 }
 
+/** Up to three names for a coach-facing sentence; more than that just says how many. */
+function namesOf(rows) {
+  const names = rows.map((r) => String(r.student_name || '').trim()).filter(Boolean);
+  if (names.length > 3) return `${names.length} children`;
+  if (names.length <= 1) return names[0] || 'one child';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 async function saveRosterEdits(state, screenData) {
   if (!state.viewRoster || !state.viewClass || !state.editRunId) {
     return stop('That session has expired. Close this and send /roster again.');
@@ -517,12 +666,21 @@ async function saveRosterEdits(state, screenData) {
   const total = diff.updated.length + diff.moved.length + diff.added.length + diff.removed.length;
   const coverage = await coverageLine(state.schoolId);
 
+  // A child reconcile() could not place. She is NOT removed and her row is not
+  // touched — guessing is what renamed a class and struck off the wrong child
+  // (bd-a05gc) — so the only correct thing left is to say her name out loud and
+  // let the coach fix it on a second pass.
+  const kept = diff.unresolved || [];
+  const keptLine = kept.length
+    ? ` I could not tell which line belonged to ${namesOf(kept)}, so ${kept.length === 1 ? 'she is' : 'they are'} still on the roster — open the class again to correct ${kept.length === 1 ? 'her' : 'them'}.`
+    : '';
+
   if (!total) {
     return {
       screen: 'SAVED',
       data: {
         heading: `${label} unchanged`,
-        body: `Nothing was changed — ${state.viewRoster.length} children on the roster, as before.${coverage}`,
+        body: `Nothing was changed — ${state.viewRoster.length} children on the roster, as before.${keptLine}${coverage}`,
         roster_action: 'unchanged',
         roster_class: label,
         roster_count: String(state.viewRoster.length),
@@ -551,6 +709,7 @@ async function saveRosterEdits(state, screenData) {
     moved: diff.moved.length,
     added: diff.added.length,
     removed: diff.removed.length,
+    unresolved: kept.length,
     replay: res.replay === true,
   });
   await rosterStorage.putManifest({
@@ -570,6 +729,9 @@ async function saveRosterEdits(state, screenData) {
         moved: diff.moved,
         added: diff.added,
         removed: diff.removed.map((r) => r.id),
+        // Kept on purpose. An auditor asking "why is this child still here?"
+        // needs the run that declined to guess about her.
+        unresolved: kept.map((r) => r.id),
       },
       result: res,
     },
@@ -586,7 +748,7 @@ async function saveRosterEdits(state, screenData) {
     screen: 'SAVED',
     data: {
       heading: `${label} updated`,
-      body: `${parts.join(', ')}. ${now} children on the roster.${coverage}`,
+      body: `${parts.join(', ')}. ${now} children on the roster.${keptLine}${coverage}`,
       roster_action: 'edited',
       roster_class: label,
       roster_count: String(now),
@@ -686,11 +848,16 @@ async function saveRoster(state, screenData) {
 
   if (!finalList.length) return stop('The list came back empty, so nothing was saved.');
 
+  // state.shiftCode is null when the payload carried none — see the CLASS branch.
+  const shiftCode = state.shiftCode || DEFAULT_SHIFT;
+  const shiftSource = state.shiftCode ? 'coach' : 'default';
+
   const saved = await ClassService.importRoster({
     runId: state.runId,
     schoolId: state.schoolId,
     gradeCode: state.gradeCode,
     section: state.section,
+    shiftCode,
     sessionCode: getCurrentAcademicYear(),
     classTeacherUserId: state.classTeacherUserId,
     createdByUserId: state.user.id,
@@ -714,6 +881,8 @@ async function saveRoster(state, screenData) {
     removedByCoach: diff.removed.length,
     classTeacherAssigned: saved.classTeacherAssigned,
     mirrored: saved.mirrored,
+    shiftCode,
+    shiftSource,
   });
 
   // The audit record, beside the photos it describes. Everything an auditor needs
@@ -731,6 +900,11 @@ async function saveRoster(state, screenData) {
       class_label: classLabel,
       grade_code: state.gradeCode,
       section: state.section,
+      shift_code: shiftCode,
+      // 'coach' = chosen on the screen; 'default' = the payload carried no shift and
+      // we fell back. Every class written under 'default' is a candidate for the
+      // twin-merge repair, so it must be findable.
+      shift_source: shiftSource,
       session_code: getCurrentAcademicYear(),
       coach_user_id: state.user.id,
       class_teacher_user_id: state.classTeacherUserId,
@@ -741,7 +915,10 @@ async function saveRoster(state, screenData) {
       shown_to_coach: state.rendered || [],
       saved_students: finalList,
       coach_edits: {
-        corrected: diff.updated, added: diff.added, removed: diff.removed.map((s) => s.student_name),
+        corrected: diff.updated,
+        added: diff.added,
+        removed: diff.removed.map((s) => s.student_name),
+        unresolved: (diff.unresolved || []).map((s) => s.student_name),
       },
       write_result: {
         added: saved.added, skipped: saved.skipped, mirrored: saved.mirrored,
@@ -750,9 +927,12 @@ async function saveRoster(state, screenData) {
     },
   });
 
+  // Saying nothing when no teacher was named is how 45 classes and 1,526 children
+  // came to sit unreachable. The positive was already said; the negative was not.
   const teacherLine = saved.classTeacherAssigned
-    ? ' The class teacher can see them in her attendance now.'
-    : '';
+    ? ' The class teacher can see them in their attendance now.'
+    : ' No class teacher was named, so nobody can mark attendance for these children.'
+      + ' Scan this class again and name one.';
   const skippedLine = saved.skipped ? ` ${saved.skipped} were already there.` : '';
   // The completion nudge: every save says how far this school is from all of 1-5.
   const coverage = await coverageLine(state.schoolId);
@@ -782,6 +962,7 @@ const IMPORT_FAILURES = {
   save_in_progress: 'This roster is already being saved — give it a minute, then check the class before scanning again.',
   unknown_grade: 'That grade is not one this school uses.',
   unknown_section: 'That section is not set up for this school.',
+  unknown_shift: 'That shift is not one this school uses.',
   unknown_session: 'The school year is not set up yet.',
   no_students: 'The list came back empty, so nothing was saved.',
   missing_school: 'No school was chosen.',
@@ -791,8 +972,10 @@ const IMPORT_FAILURES = {
 module.exports = {
   handleRosterInit,
   handleRosterDataExchange,
-  // Exported for tests — the save is where the idempotency contract lives.
+  // Exported for tests — the save is where the idempotency contract lives, and
+  // the edit save is where a coach's delete becomes a closed enrolment.
   saveRoster,
+  saveRosterEdits,
   teachersFor,
   MAX_STUDENTS,
   CLASS_WAIT_MS,

@@ -1,25 +1,23 @@
 /**
- * PortalCurriculum — 4-step cascading picker for the 2,415-LP corpus.
+ * PortalCurriculum — the same lesson-plan catalogue the WhatsApp bot serves.
  *
- *   Grade ▼   Subject ▼   Chapter ▼   Lesson Plan ▼    [ View PDF → ]
+ *   Grade ▼   Subject ▼   Chapter ▼   Lesson ▼    [ Open PDF → ]
  *
- * Each dropdown fetches its options from a dedicated backend endpoint,
- * populated based on the previous selection. When an LP is selected:
- *   - if the language's PDF is cached in R2, the "View PDF" button opens
- *     a presigned URL in a new tab
- *   - if not cached, a "Prepare this LP" button queues an async Gamma
- *     render (same pipeline the WhatsApp bot uses); the teacher gets a
- *     "Ready in ~2 min, refresh to check" note
+ * Every dropdown is populated by the BOT, over the portal's catalogue client.
+ * The portal holds no LP query logic: it used to read its own tables and so
+ * offered a different corpus from WhatsApp — grade 5 maths showed no chapters
+ * here while the bot had eight.
  *
- * Data axes:
- *   - Publisher badge shown on chapters (NBF vs Taleemabad — same
- *     chapter_number can exist under both)
- *   - Language badges [EN] [UR] on each LP, active only when cached;
- *     clicking opens that language variant
+ * A lesson is offered iff its PDF has been rendered and uploaded. There is no
+ * "prepare this one" button: these assets are pre-rendered, so availability is
+ * the only gate and there is nothing for a teacher to queue.
+ *
+ * `downloaded` mirrors the ✓ tick the WhatsApp picker shows — the same
+ * per-teacher record, so the two surfaces agree about what she already has.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, ExternalLink, Loader2, Sparkles } from 'lucide-react';
+import { BookOpen, ExternalLink, Loader2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import { Button } from '@/components/ui/button';
@@ -32,18 +30,23 @@ import api, { portal } from '../services/api';
 import AssessmentGeneratorPanel from '../components/AssessmentGeneratorPanel';
 import AssessmentGeneratorComingSoon from '../components/AssessmentGeneratorComingSoon';
 
-type Grade = { grade: number; label: string; count: number };
-type Subject = { subject: string; label: string; count: number };
-type Chapter = { publisher: string; chapter_number: number; chapter_title: string; lp_count: number };
-type LessonPlan = {
-  source_lp_uuid: string;
-  lp_index: number;
-  topic: string;
-  publisher: string;
+type Grade = { grade: number; subject_count: number };
+type Subject = { subject_key: string; subject: string; rtl: boolean; lesson_count: number };
+type Chapter = {
+  chapter_number: number;
   chapter_title: string;
-  available_en: boolean;
-  available_ur: boolean;
-  rendered_at: string | null;
+  pages_label: string | null;
+  lesson_count: number;
+};
+type LessonPlan = {
+  lesson_id: string;
+  segment_index: number;
+  lp_type: string;
+  day_label: string | null;
+  section: string | null;
+  topic: string | null;
+  pages_label: string | null;
+  downloaded: boolean;
 };
 
 const PortalCurriculum = () => {
@@ -59,8 +62,6 @@ const PortalCurriculum = () => {
 
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
-  // chapter value encodes both publisher + chapter_number so the same
-  // chapter_number under two publishers can coexist as distinct options.
   const [selectedChapter, setSelectedChapter] = useState<string>('');
   const [selectedLp, setSelectedLp] = useState<string>('');
 
@@ -70,7 +71,6 @@ const PortalCurriculum = () => {
   const [loadingLps, setLoadingLps] = useState(false);
 
   const [opening, setOpening] = useState(false);
-  const [rendering, setRendering] = useState(false);
 
   // ─── Fetch grades on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -135,63 +135,42 @@ const PortalCurriculum = () => {
     setLps([]);
     setSelectedLp('');
     if (!selectedGrade || !selectedSubject || !selectedChapter) return;
-    const [publisher, chapterNumberStr] = selectedChapter.split('::');
     (async () => {
       setLoadingLps(true);
       try {
         const { data } = await api.get('/curriculum/lps', {
           params: {
             grade: selectedGrade, subject: selectedSubject,
-            chapter_number: chapterNumberStr, publisher,
+            chapter_number: selectedChapter,
           },
         });
-        setLps(data.lps || []);
+        setLps(data.lessons || []);
       } catch {
         toast({ title: 'Could not load lesson plans', variant: 'destructive' });
       } finally { setLoadingLps(false); }
     })();
   }, [selectedGrade, selectedSubject, selectedChapter, toast]);
 
-  const chosenLp: LessonPlan | undefined = lps.find(lp => lp.source_lp_uuid === selectedLp);
+  const chosenLp: LessonPlan | undefined = lps.find(lp => lp.lesson_id === selectedLp);
 
-  // ─── Open the cached PDF in a new tab (presigned R2 URL) ───────────────
-  const openPdf = useCallback(async (lang: 'en' | 'ur') => {
+  // ─── Open the lesson's PDF in a new tab (presigned R2 URL) ─────────────
+  const openPdf = useCallback(async (kind: 'lesson' | 'answer_key' = 'lesson') => {
     if (!chosenLp) return;
     setOpening(true);
     try {
-      const { data } = await api.get(`/curriculum/lp/${chosenLp.source_lp_uuid}/pdf`, { params: { lang } });
+      const { data } = await api.get(`/curriculum/lp/${chosenLp.lesson_id}/pdf`, { params: { kind } });
       if (data.available && data.url) {
         window.open(data.url, '_blank', 'noopener');
       } else {
-        toast({ title: 'Not yet available', description: 'Tap "Prepare this LP" to render it.' });
-      }
-    } catch {
-      toast({ title: 'Could not open PDF', variant: 'destructive' });
-    } finally { setOpening(false); }
-  }, [chosenLp, toast]);
-
-  // ─── Queue an async render for a not-yet-cached LP ─────────────────────
-  const requestRender = useCallback(async (lang: 'en' | 'ur') => {
-    if (!chosenLp) return;
-    setRendering(true);
-    try {
-      const { data } = await api.post(`/curriculum/lp/${chosenLp.source_lp_uuid}/render`, { language: lang });
-      if (data.alreadyAvailable) {
-        toast({ title: 'Already ready', description: 'Opening the PDF now.' });
-        openPdf(lang);
-      } else if (data.queued) {
-        // bd-2461 — "about 2 minutes" was optimistic. Measured pickup latency on
-        // completed requests: median 6.8s, p90 17.9s, max 618s — and that is
-        // before the render itself. Promise the channel, not a clock.
         toast({
-          title: 'Preparing your lesson plan',
-          description: 'This can take a few minutes. We\'ll send it to you on WhatsApp as soon as it\'s ready — you don\'t need to keep this page open.',
+          title: 'Not ready yet',
+          description: 'This lesson has not been published. Please try another, or check back soon.',
         });
       }
     } catch {
-      toast({ title: 'Could not queue this lesson plan', variant: 'destructive' });
-    } finally { setRendering(false); }
-  }, [chosenLp, toast, openPdf]);
+      toast({ title: 'Could not open this lesson plan', variant: 'destructive' });
+    } finally { setOpening(false); }
+  }, [chosenLp, toast]);
 
   if (loadingGrades) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
@@ -213,7 +192,7 @@ const PortalCurriculum = () => {
 
         <Tabs defaultValue="library" className="w-full">
           <TabsList className="mb-6">
-            <TabsTrigger value="library">Lesson Plan Library</TabsTrigger>
+            <TabsTrigger value="library">Lesson Plans</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
           </TabsList>
 
@@ -228,7 +207,7 @@ const PortalCurriculum = () => {
               <SelectContent>
                 {grades.map(g => (
                   <SelectItem key={g.grade} value={String(g.grade)}>
-                    {g.label || `Grade ${g.grade}`} <span className="text-muted-foreground text-xs">({g.count} LPs)</span>
+                    Grade {g.grade}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -249,8 +228,8 @@ const PortalCurriculum = () => {
               </SelectTrigger>
               <SelectContent>
                 {subjects.map(s => (
-                  <SelectItem key={s.subject} value={s.subject}>
-                    {s.label} <span className="text-muted-foreground text-xs">({s.count} LPs)</span>
+                  <SelectItem key={s.subject_key} value={s.subject_key}>
+                    {s.subject} <span className="text-muted-foreground text-xs">({s.lesson_count} lessons)</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -270,17 +249,14 @@ const PortalCurriculum = () => {
                 } />
               </SelectTrigger>
               <SelectContent>
-                {chapters.map(c => {
-                  const val = `${c.publisher}::${c.chapter_number}`;
-                  return (
-                    <SelectItem key={val} value={val}>
-                      <span className="font-medium">Ch {c.chapter_number}: {c.chapter_title}</span>
-                      <span className="text-muted-foreground text-xs ml-2">
-                        · {c.publisher} · {c.lp_count} LPs
-                      </span>
-                    </SelectItem>
-                  );
-                })}
+                {chapters.map(c => (
+                  <SelectItem key={c.chapter_number} value={String(c.chapter_number)}>
+                    <span className="font-medium">Ch {c.chapter_number}: {c.chapter_title}</span>
+                    <span className="text-muted-foreground text-xs ml-2">
+                      {c.pages_label ? `· ${c.pages_label} ` : ''}· {c.lesson_count} lessons
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -299,14 +275,14 @@ const PortalCurriculum = () => {
               </SelectTrigger>
               <SelectContent>
                 {lps.map(lp => (
-                  <SelectItem key={lp.source_lp_uuid} value={lp.source_lp_uuid}>
-                    <span className="font-medium">Lesson {lp.lp_index}:</span>{' '}
-                    <span>{lp.topic}</span>
-                    <span className="text-xs ml-2">
-                      {lp.available_en && <span className="text-green-600 mr-1">[EN]</span>}
-                      {/* bd-2461 — no [UR] badge while Urdu is hidden, so the
-                          picker can't advertise a language with no button. */}
-                    </span>
+                  <SelectItem key={lp.lesson_id} value={lp.lesson_id}>
+                    {/* The same ✓/○ the WhatsApp picker shows, from the same record. */}
+                    <span className="mr-1">{lp.downloaded ? '✓' : '○'}</span>
+                    <span className="font-medium">{lp.day_label || `Lesson ${lp.segment_index}`}:</span>{' '}
+                    <span>{lp.topic || lp.section}</span>
+                    {lp.pages_label && (
+                      <span className="text-muted-foreground text-xs ml-2">· {lp.pages_label}</span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -314,50 +290,43 @@ const PortalCurriculum = () => {
           </div>
         </div>
 
-        {/* Action area — appears once an LP is selected */}
+        {/* Action area — appears once a lesson is selected */}
         {chosenLp && (
           <div className="rounded-lg border bg-card p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  {chosenLp.publisher} · {chosenLp.chapter_title}
+                  {[chosenLp.day_label, chosenLp.section, chosenLp.pages_label]
+                    .filter(Boolean).join(' · ')}
                 </div>
-                <h2 className="text-xl font-medium">{chosenLp.topic}</h2>
+                <h2 className="text-xl font-medium">{chosenLp.topic || chosenLp.section}</h2>
               </div>
+              {chosenLp.downloaded && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  ✓ already sent to you
+                </span>
+              )}
             </div>
 
-            {/* Available languages — cached PDFs */}
-            {chosenLp.available_en ? (
-              <div className="flex flex-wrap gap-3">
-                {chosenLp.available_en && (
-                  <Button onClick={() => openPdf('en')} disabled={opening} className="flex items-center gap-2">
-                    {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-                    View PDF (English)
-                  </Button>
-                )}
-                {/* bd-2461 — Urdu is HIDDEN, deliberately.
-                    Zero Urdu PDFs exist across all 1,269 lesson plans, and Urdu
-                    is a separate render rather than a translation of the cached
-                    English file. Worse, "Prepare Urdu version" was reachable on
-                    Rumi LPs (pre_generated_lps), which /render cannot see at all
-                    — so it 404s rather than queueing.
-                    We have not decided what Urdu coverage should be: all LPs,
-                    some, or on demand. Until that call is made, offering the
-                    button promises something nothing can deliver. Restore both
-                    blocks once the decision is taken. */}
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  This lesson plan hasn't been prepared yet. Tap below and we'll start preparing it —
-                  it can take a few minutes, and we'll send it to you on WhatsApp when it's ready.
-                </p>
-                <Button onClick={() => requestRender('en')} disabled={rendering} className="flex items-center gap-2">
-                  {rendering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  Prepare this lesson plan
-                </Button>
-              </div>
-            )}
+            {/* Every lesson the picker offers has a rendered PDF — that is what
+                being offered means. The answer key is a separate asset and is
+                not present for every lesson, so its button is only useful once
+                tapped; the endpoint answers "not ready" rather than failing. */}
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => openPdf('lesson')} disabled={opening} className="flex items-center gap-2">
+                {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                Open lesson plan
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => openPdf('answer_key')}
+                disabled={opening}
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Answer key
+              </Button>
+            </div>
           </div>
         )}
           </TabsContent>

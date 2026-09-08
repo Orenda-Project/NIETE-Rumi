@@ -27,6 +27,29 @@ const HOUR = 60 * 60 * 1000;
 const NUDGE_AFTER_MS = 24 * HOUR;
 /** …and a further two days before we stop and tell the coach. */
 const GIVE_UP_AFTER_MS = 48 * HOUR;
+/**
+ * bd-n6fl1 — past this, a delivery nobody has chased is CLOSED SILENTLY.
+ *
+ * The sweep that runs this planner was blind for two weeks (an unordered
+ * `.limit(500)` over a pool that had grown past 500), so the day it starts
+ * seeing again it sees a backlog: measured on prod 2026-09-08, 31 reports
+ * overdue for a first nudge, 21 of them between 7.3 and 12.4 days old. A nudge
+ * about a twelve-day-old observation is not the bounded chase the operator asked
+ * for; it is a spam wave. Anything past the ceiling is marked done without a
+ * message to anyone — database-engineering §2 J6, "rows too old to act on are
+ * closed silently, not messaged".
+ *
+ * This only ever catches deliveries NEVER chased. A report that HAS been nudged
+ * still ends in give_up and the coach is still told, because that is the closing
+ * event this planner exists to deliver, and it fires exactly once.
+ *
+ * Overridable so the ramp can be widened or narrowed without a deploy.
+ */
+const EXPIRE_AFTER_MS = (() => {
+  const days = Number(process.env.OBSERVE_UNTAPPED_EXPIRE_DAYS);
+  if (Number.isFinite(days) && days > 3) return days * 24 * HOUR;
+  return 7 * 24 * HOUR;
+})();
 
 const parsed = (iso) => {
   const t = Date.parse(iso || '');
@@ -36,7 +59,7 @@ const parsed = (iso) => {
 /**
  * @param {object} delivery analysis_data.teacher_delivery
  * @param {number} nowMs
- * @returns {{action:'skip'|'nudge'|'give_up', reason:string}}
+ * @returns {{action:'skip'|'nudge'|'give_up'|'expire', reason:string}}
  */
 function classifyUntappedDelivery(delivery, nowMs = Date.now()) {
   const d = delivery || {};
@@ -53,6 +76,8 @@ function classifyUntappedDelivery(delivery, nowMs = Date.now()) {
 
   if (!alreadyNudged) {
     if (nowMs - sentAt < NUDGE_AFTER_MS) return { action: 'skip', reason: 'within_grace_window' };
+    // Never chased, and now too stale to start. Close it, say nothing.
+    if (nowMs - sentAt >= EXPIRE_AFTER_MS) return { action: 'expire', reason: 'too_old_to_chase' };
     return { action: 'nudge', reason: 'no_tap_after_grace' };
   }
 
@@ -62,4 +87,6 @@ function classifyUntappedDelivery(delivery, nowMs = Date.now()) {
   return { action: 'give_up', reason: 'no_tap_after_nudge' };
 }
 
-module.exports = { classifyUntappedDelivery, NUDGE_AFTER_MS, GIVE_UP_AFTER_MS };
+module.exports = {
+  classifyUntappedDelivery, NUDGE_AFTER_MS, GIVE_UP_AFTER_MS, EXPIRE_AFTER_MS,
+};
