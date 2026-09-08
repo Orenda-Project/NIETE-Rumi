@@ -108,6 +108,14 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
           action: { buttons: [{ type: 'reply', reply: { id: 'yes_analyze', title: 'Yes, Analyze' } }, { type: 'reply', reply: { id: 'no', title: 'No' } }] } } });
       } else if (m.type === 'text' && m.text.body === 'silent') {
         /* never replies */
+      } else if (m.type === 'text' && m.text.body === 'listthentext') {
+        await send({ messaging_product: 'whatsapp', to, type: 'interactive', interactive: { type: 'list',
+          body: { text: 'Pick one' }, action: { button: 'Open', sections: [{ title: 'Rows', rows: [
+            { id: 'row_coaching', title: 'Classroom Coaching', description: 'send a recording' },
+            { id: 'row_lp', title: 'Lesson Plans' }] }] } } });
+        await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'and a trailing note' } });
+      } else if (m.type === 'interactive' && m.interactive.type === 'list_reply' && m.interactive.list_reply.id === 'row_coaching') {
+        await send({ messaging_product: 'whatsapp', to, type: 'text', text: { body: 'coaching row picked' } });
       } else if (m.type === 'text' && m.text.body === 'buttons') {
         await send({ messaging_product: 'whatsapp', to, type: 'interactive', interactive: { type: 'button',
           body: { text: 'Analyze this recording?' },
@@ -219,6 +227,15 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     const v = await api.ev('(()=>1)()');
     assert.strictEqual(typeof v, 'string');
     assert.deepStrictEqual(JSON.parse(v), { ok: false, err: 'MOCK_NO_PAGE' });
+  });
+  await ita('openList / pickRowAndWait find a list even when a TEXT reply lands after it (menu row still on screen)', async () => {
+    await api.sendWait('listthentext', 5000);   // reply = a list, then a trailing text (lastReply is the text)
+    const l = await api.openList('Open');
+    assert.strictEqual(l.ok, true, JSON.stringify(l));
+    assert.deepStrictEqual(l.rows, ['Classroom Coaching', 'Lesson Plans']);
+    const r = await api.pickRowAndWait('Classroom Coaching', 5000);
+    assert.strictEqual(r.ok, true, JSON.stringify(r));
+    assert.strictEqual(r.txt, 'coaching row picked');
   });
   await ita('openFlow with no Flow card on the last reply fails like the browser helper', async () => {
     await api.sendWait('hello', 5000);

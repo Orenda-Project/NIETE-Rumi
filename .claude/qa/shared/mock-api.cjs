@@ -44,11 +44,18 @@ function makeMockApi(opts) {
   const waits = [];
   let cursor = 0;        // last outbox seq we have consumed
   let lastReply = null;  // newest normalized item the driver saw
+  let lastBatch = [];    // ALL items from the last reply group (a list + a trailing text arrive together)
 
   async function outbox(after) {
     const r = await fetch(`${base}/outbox?after=${after}&to=${encodeURIComponent(driver)}`);
     if (!r.ok) throw new Error('HARNESS mock-api: outbox ' + r.status);
     return r.json();
+  }
+  /** The most recent interactive list still on screen. A text can land AFTER a list card, so relying
+   *  on lastReply alone loses it — scan the recent outbox newest-first, as a tap in WhatsApp would. */
+  function latestListItem() {
+    if (lastReply && lastReply.list) return lastReply;
+    return lastBatch.slice().reverse().find((it) => it.list) || null;   // within THIS reply group only
   }
   async function inject(kind, body) {
     const r = await fetch(`${base}/inject`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -98,7 +105,7 @@ function makeMockApi(opts) {
     waits.push({ label, waitedMs, timedOut: !items.length });
     if (!items.length) return { ok: false, waitedMs, freshIds: 0, txt: '', btns: [], mineOnly: true };
     const last = items[items.length - 1];
-    cursor = last.seq; lastReply = last;
+    cursor = last.seq; lastReply = last; lastBatch = items;
     // `kind` mirrors upload()'s classification on the CDP side: what the reply row IS.
     const kind = last.audio ? 'audio' : last.doc ? 'document' : last.img ? 'image' : (last.txt ? 'text' : 'unknown');
     return { ok: true, waitedMs, freshIds: items.length, txt: last.txt || '', btns: last.btns || [], kind };
@@ -176,15 +183,17 @@ function makeMockApi(opts) {
       return { ok: r.ok, waitedMs: r.waitedMs, tapped: label, newIds: r.freshIds, txt: r.txt, btns: r.btns };
     },
     async openList(opener) {
-      const l = lastReply && lastReply.list;
+      const item = latestListItem();
+      const l = item && item.list;
       if (!l) return { ok: false, err: 'NO_DIALOG', tap: { ok: false, opener } };
       const rows = l.rows.map((r) => r.title), descs = l.rows.map((r) => r.description || '');
-      return { ok: true, rows, descs, all: [lastReply.txt, ...l.rows.map((r) => [r.title, r.description].filter(Boolean).join('\n'))].join('\n') };
+      return { ok: true, rows, descs, all: [item.txt, ...l.rows.map((r) => [r.title, r.description].filter(Boolean).join('\n'))].join('\n') };
     },
     async pickRowAndWait(row, timeoutMs = 90000) {
-      const l = lastReply && lastReply.list;
+      const item = latestListItem();
+      const l = item && item.list;
       const hit = l && l.rows.find((r) => r.title === row);
-      if (!hit) throw new Error(`HARNESS mock-api: no list row titled ${JSON.stringify(row)} on the last reply (rows=${JSON.stringify(l && l.rows.map((r) => r.title))})`);
+      if (!hit) throw new Error(`HARNESS mock-api: no list row titled ${JSON.stringify(row)} on any recent reply (rows=${JSON.stringify(l && l.rows.map((r) => r.title))})`);
       const since = (await outbox(0)).last;
       await inject('list', { id: hit.id, title: hit.title });
       const r = await waitReply(since, timeoutMs, 'pick:' + row);
