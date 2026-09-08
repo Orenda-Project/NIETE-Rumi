@@ -109,7 +109,9 @@ is_git_commit() {
 # so there is no new code on staging to drive an E2E against — arming a run there
 # would burn ~10 minutes of WhatsApp drive to test the build that was already live.
 #
-# NIETE-Rumi's staging branch is `develop` (root CLAUDE.md Rule 7); `main` and
+# NIETE-Rumi's work branch is `sandbox` since 2026-09-08 (root CLAUDE.md Rule 7:
+# sandbox -> staging -> main); `develop` is frozen and deploys nowhere but stays in the
+# pattern so a push to it is surfaced rather than silently ignored. `main` and
 # `staging` are covered for the other repos worked from this workspace.
 push_targets_deploy_branch() {
   # `(\b|:)` is NOT portable. GNU and BSD grep accept it; ugrep rejects it as an
@@ -123,7 +125,7 @@ push_targets_deploy_branch() {
   # preceded by a space or the `:` of a `HEAD:develop` refspec, and followed by a
   # separator or end of string.
   printf '%s' "$1" \
-    | grep -qE 'git'"$_GIT_OPTS"'[[:space:]]+push[^|;&]*[[:space:]:](develop|main|staging)([[:space:]:]|$)'
+    | grep -qE 'git'"$_GIT_OPTS"'[[:space:]]+push[^|;&]*[[:space:]:](develop|main|staging|sandbox)([[:space:]:]|$)'
 }
 
 # ── the E2E selector, invoked identically by both hooks ──────────────────────
