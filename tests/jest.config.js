@@ -14,6 +14,11 @@ module.exports = {
   // even when bot/node_modules exists (dual-install scenario)
   moduleNameMapper: {
     '^openai$': '<rootDir>/node_modules/openai',
+    // bd-oak77.29 — SAME REASON AS `openai` ABOVE, and it is not cosmetic: `llm-client.js` lives
+    // under bot/, so an unmapped require resolves to bot/node_modules while a `jest.mock()` in
+    // tests/ resolves to the root copy. Two different module instances, so the mock silently does
+    // not apply and the test asserts against the REAL SDK while believing it holds a stub.
+    '^@anthropic-ai/sdk$': '<rootDir>/node_modules/@anthropic-ai/sdk',
     '^ioredis$': '<rootDir>/node_modules/ioredis',
     // axios + form-data live in bot/node_modules (not root), and the root test
     // job runs before bot deps install — so source that requires them can't

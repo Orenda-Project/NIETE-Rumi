@@ -27,6 +27,7 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn
 // The network boundary, and only the network boundary — never the service under test.
 jest.mock('../../bot/shared/services/llm-client', () => ({
   getClient: () => ({ chat: { completions: { create: jest.fn() } } }),
+  getClientForModel: (m) => ({ client: { chat: { completions: { create: jest.fn() } } }, model: String(m || '') }),
 }));
 
 const svc = require('../../bot/shared/services/lp612-author.service.js');

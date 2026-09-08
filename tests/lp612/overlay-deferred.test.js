@@ -115,7 +115,12 @@ describe('the ladder hands back a document with NO ur_overlay on it', () => {
   jest.resetModules();
   jest.mock('../../bot/shared/services/llm-client', () => {
     const create = jest.fn();
-    return { getClient: () => ({ chat: { completions: { create } } }), __create: create };
+    return { getClient: () => ({ chat: { completions: { create } } }),
+    // bd-oak77.29: the author service resolves its client PER MODEL now, so the mock has to
+    // state that half of llm-client's contract too. Same `create` spy either way — these
+    // suites assert on the payload, not on which provider it went to.
+    getClientForModel: (m) => ({ client: { chat: { completions: { create } } }, model: String(m || '') }),
+    __create: create };
   });
 
   const create = require('../../bot/shared/services/llm-client').__create;
