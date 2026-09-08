@@ -16,7 +16,8 @@
     "THE COMPLETION PAYLOAD IS FLAT. The discriminators go straight into the `complete` payload, which is the shape observe-visit-v2, remark, training-msq and exam-checker all use and all of whose acks work. The first version nested them under an `extension_message_response` whose `properties` were declared `{}`; nothing arrived, flow-type-detector answered 'unknown', and the coach got the catch-all reply after a successful save.",
     "Dropdown chrome is Latin-only (the Urdu-script list-chrome defect): Meta's list/dropdown secondary text fails on Urdu script. Student names live in TextArea and TextBody, which are not list chrome.",
     "A CLASS IS (school, grade, SECTION, SHIFT, session). This screen used to send three of the five. The other two came from server-side defaults the coach never saw, so an evening class — or a class the teacher had registered with no section — became a SECOND row: the coach's row held the children, the teacher's row held nobody. Measured before rev 2: of 11,647 children created by a scan, 100% of their active enrolments were in a morning class, and not one scanned child was in any of the 22 evening classes. The shift options and the section options are both read from their own reference tables, which is what keeps this picker identical to the one the teacher's own class screen offers; if the two lists ever diverge the bug returns.",
-    "The class-teacher field stays OPTIONAL on purpose: class_teachers.teacher_user_id is a NOT NULL foreign key onto users, so a real class teacher who has never registered cannot be offered at all, and requiring the field would block a legitimate class. What changed is that skipping is no longer silent — the option itself and the field's helper text both say that without a class teacher nobody can mark these children's attendance."
+    "The class-teacher field stays OPTIONAL on purpose: class_teachers.teacher_user_id is a NOT NULL foreign key onto users, so a real class teacher who has never registered cannot be offered at all, and requiring the field would block a legitimate class. What changed is that skipping is no longer silent — the option itself and the field's helper text both say that without a class teacher nobody can mark these children's attendance.",
+    "Meta refuses `helper-text` on a Dropdown (INVALID_PROPERTY_KEY on upload — verified against the validator, not assumed), so the class-teacher warning is a TextCaption directly beneath that field rather than the field's own helper text. Also: the underscore keys in this file (_comment, _instructions, _notes) are documentation and are NOT valid Flow JSON — bot/scripts/setup/meta-api.js strips METADATA_KEYS before upload. A hand-rolled curl upload of this file verbatim is rejected."
   ],
   "version": "7.0",
   "data_api_version": "3.0",
@@ -756,8 +757,11 @@
                 "name": "teacher_user_id",
                 "label": "Class teacher",
                 "required": false,
-                "helper-text": "${data.teacher_help}",
                 "data-source": "${data.teachers}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.teacher_help}"
               },
               {
                 "type": "Footer",
