@@ -33,7 +33,7 @@ while IFS= read -r f; do
     if [ -n "${E2E_LANE_MOCK:-}" ] && [ -n "$sha" ]; then
       mockline="  mock lane (tests THIS commit):  bash .claude/qa/shared/commit-e2e.sh $sha --features $E2E_LANE_MOCK"
       # the same split the Stop hook applies: those features leave the WhatsApp Web line
-      cmds=$(e2e_filter_chrome_cmds "$(jq -r '(.commands // [])[]' "$f" 2>/dev/null)" "$E2E_LANE_MOCK" | paste -sd '\t' - | tr '\t' ' ' | sed 's/  */   /g')
+      cmds=$(e2e_filter_chrome_cmds "$(jq -r '(.commands // [])[]' "$f" 2>/dev/null)" "$E2E_LANE_MOCK" | awk 'NF{a[++n]=$0} END{for(i=1;i<=n;i++) printf "%s%s", (i>1?"   ":""), a[i]}')
     fi
   fi
   LINES="$LINES
