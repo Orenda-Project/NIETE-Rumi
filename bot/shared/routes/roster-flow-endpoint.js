@@ -570,6 +570,14 @@ function openRosterEditor(state) {
   return { screen: 'ROSTER_EDIT', data };
 }
 
+/** Up to three names for a coach-facing sentence; more than that just says how many. */
+function namesOf(rows) {
+  const names = rows.map((r) => String(r.student_name || '').trim()).filter(Boolean);
+  if (names.length > 3) return `${names.length} children`;
+  if (names.length <= 1) return names[0] || 'one child';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 async function saveRosterEdits(state, screenData) {
   if (!state.viewRoster || !state.viewClass || !state.editRunId) {
     return stop('That session has expired. Close this and send /roster again.');
@@ -583,12 +591,21 @@ async function saveRosterEdits(state, screenData) {
   const total = diff.updated.length + diff.moved.length + diff.added.length + diff.removed.length;
   const coverage = await coverageLine(state.schoolId);
 
+  // A child reconcile() could not place. She is NOT removed and her row is not
+  // touched — guessing is what renamed a class and struck off the wrong child
+  // (bd-a05gc) — so the only correct thing left is to say her name out loud and
+  // let the coach fix it on a second pass.
+  const kept = diff.unresolved || [];
+  const keptLine = kept.length
+    ? ` I could not tell which line belonged to ${namesOf(kept)}, so ${kept.length === 1 ? 'she is' : 'they are'} still on the roster — open the class again to correct ${kept.length === 1 ? 'her' : 'them'}.`
+    : '';
+
   if (!total) {
     return {
       screen: 'SAVED',
       data: {
         heading: `${label} unchanged`,
-        body: `Nothing was changed — ${state.viewRoster.length} children on the roster, as before.${coverage}`,
+        body: `Nothing was changed — ${state.viewRoster.length} children on the roster, as before.${keptLine}${coverage}`,
         roster_action: 'unchanged',
         roster_class: label,
         roster_count: String(state.viewRoster.length),
@@ -617,6 +634,7 @@ async function saveRosterEdits(state, screenData) {
     moved: diff.moved.length,
     added: diff.added.length,
     removed: diff.removed.length,
+    unresolved: kept.length,
     replay: res.replay === true,
   });
   await rosterStorage.putManifest({
@@ -636,6 +654,9 @@ async function saveRosterEdits(state, screenData) {
         moved: diff.moved,
         added: diff.added,
         removed: diff.removed.map((r) => r.id),
+        // Kept on purpose. An auditor asking "why is this child still here?"
+        // needs the run that declined to guess about her.
+        unresolved: kept.map((r) => r.id),
       },
       result: res,
     },
@@ -652,7 +673,7 @@ async function saveRosterEdits(state, screenData) {
     screen: 'SAVED',
     data: {
       heading: `${label} updated`,
-      body: `${parts.join(', ')}. ${now} children on the roster.${coverage}`,
+      body: `${parts.join(', ')}. ${now} children on the roster.${keptLine}${coverage}`,
       roster_action: 'edited',
       roster_class: label,
       roster_count: String(now),
@@ -807,7 +828,10 @@ async function saveRoster(state, screenData) {
       shown_to_coach: state.rendered || [],
       saved_students: finalList,
       coach_edits: {
-        corrected: diff.updated, added: diff.added, removed: diff.removed.map((s) => s.student_name),
+        corrected: diff.updated,
+        added: diff.added,
+        removed: diff.removed.map((s) => s.student_name),
+        unresolved: (diff.unresolved || []).map((s) => s.student_name),
       },
       write_result: {
         added: saved.added, skipped: saved.skipped, mirrored: saved.mirrored,
@@ -857,8 +881,10 @@ const IMPORT_FAILURES = {
 module.exports = {
   handleRosterInit,
   handleRosterDataExchange,
-  // Exported for tests — the save is where the idempotency contract lives.
+  // Exported for tests — the save is where the idempotency contract lives, and
+  // the edit save is where a coach's delete becomes a closed enrolment.
   saveRoster,
+  saveRosterEdits,
   teachersFor,
   MAX_STUDENTS,
   CLASS_WAIT_MS,
