@@ -15,7 +15,7 @@
 #
 # A PUSH keeps the chrome lane for everything (the code is deployed; that is what chrome tests).
 
-E2E_MOCK_FEATURES_DEFAULT="menu,language,status,lesson-plan,coaching"   # phase 2 added lesson-plan + coaching (media, worker)
+E2E_MOCK_FEATURES_DEFAULT="menu,language,status,lesson-plan,coaching,training"   # phase 2 added lesson-plan + coaching (media, worker); training = its text + certificates surface
 
 e2e_mock_features() { printf '%s' "${E2E_MOCK_FEATURES:-$E2E_MOCK_FEATURES_DEFAULT}"; }
 

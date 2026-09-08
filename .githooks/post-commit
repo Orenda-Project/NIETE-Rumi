@@ -75,7 +75,7 @@ REL_SYNC=".claude/.e2e-pending/git-$SHA.sync.json"
   # The lane split (lib/mock-lane.sh): mock-capable features can be tested AS this commit, here, now.
   if ! . "$ROOT/.claude/hooks/lib/mock-lane.sh" 2>/dev/null; then
     # no lib in this checkout: same default list, inline, so the developer still gets the command
-    e2e_split_lanes() { local f m="" c=""; local IFS=','; for f in $1; do case ",${E2E_MOCK_FEATURES:-menu,language,status,lesson-plan,coaching}," in *",$f,"*) m="${m:+$m,}$f";; *) c="${c:+$c,}$f";; esac; done; E2E_LANE_MOCK="$m"; E2E_LANE_CHROME="$c"; }
+    e2e_split_lanes() { local f m="" c=""; local IFS=','; for f in $1; do case ",${E2E_MOCK_FEATURES:-menu,language,status,lesson-plan,coaching,training}," in *",$f,"*) m="${m:+$m,}$f";; *) c="${c:+$c,}$f";; esac; done; E2E_LANE_MOCK="$m"; E2E_LANE_CHROME="$c"; }
   fi
   e2e_split_lanes "$(printf '%s' "$FEATURES" | tr -d ' ')"
   if [ -n "${E2E_LANE_MOCK:-}" ]; then

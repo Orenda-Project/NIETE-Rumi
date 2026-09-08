@@ -6,7 +6,7 @@
 #
 #   bash .claude/qa/shared/commit-e2e.sh [<sha>|HEAD] [--features menu,language] [--all-mock]
 #
-# The mock lane drives menu · language · status · lesson-plan · coaching (phase 2 added the last two:
+# The mock lane drives menu · language · status · lesson-plan · coaching · training (phase 2 added the pipelines:
 # media through the mock, a private redis + the queue worker in the stack); anything else the
 # commit touched is reported as "chrome lane only" and left to the post-deploy WhatsApp Web run.
 # Exit 0 = ran (look at the ledger rows for the verdicts) · 1 = validate_specs errors, nothing driven ·
@@ -14,7 +14,7 @@
 set -uo pipefail
 QA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$QA/../../.." && pwd)"
-MOCK_FEATURES="${E2E_MOCK_FEATURES:-menu,language,status,lesson-plan,coaching}"
+MOCK_FEATURES="${E2E_MOCK_FEATURES:-menu,language,status,lesson-plan,coaching,training}"
 
 REF="HEAD"; FORCE=""
 while [ $# -gt 0 ]; do case "$1" in

@@ -47,7 +47,7 @@ profiles:
   # the SANDBOX Supabase (keys/niete-sandbox.env, project olvritwoqujtjvwfulbh — never staging or
   # prod), with WHATSAPP_API_BASE pointed at bot/scripts/e2e/mock-graph-api.js. `method: mock` makes
   # run-suite.sh skip every Chrome/CDP precondition and feature-runner.cjs load mock-api.cjs, which
-  # exposes the same primitives as the CDP api, so menu/language/status/lesson-plan/coaching run
+  # exposes the same primitives as the CDP api, so menu/language/status/lesson-plan/coaching/training run
   # unchanged (media rides the mock; a private redis + the queue worker run the pipelines). Flows are
   # NOT rendered here — every Flow scenario records BLOCKED/SKIP through its own branch, never PASS.
   # Vendors are cassette replay-strict: a miss fails the run loudly instead of going live.

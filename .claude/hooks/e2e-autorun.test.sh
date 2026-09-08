@@ -823,11 +823,11 @@ except Exception: print("NO-BLOCK")'
 cat > "$LPENDING" <<JSON
 {"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
  "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
- "commands":["/niete-e2e menu","/niete-e2e training"],"features":["menu","training"],"fallback":false,"unmapped":[]}
+ "commands":["/niete-e2e menu","/niete-e2e registration"],"features":["menu","registration"],"fallback":false,"unmapped":[]}
 JSON
 LR=$(stop_reason_full)
 has "mixed: orders the mock lane for menu"         "$LR" "commit-e2e.sh $LSHA --features menu" yes
-has "mixed: keeps chrome for training"             "$LR" "/niete-e2e training"                 yes
+has "mixed: keeps chrome for registration"         "$LR" "/niete-e2e registration"             yes
 has "mixed: does not send menu to chrome"          "$LR" "/niete-e2e menu"                     no
 has "mixed: says the mock lane tests THIS commit"  "$LR" "tests THIS commit"                    yes
 has "mixed: chrome half still carries the warning" "$LR" "CANNOT TEST WHAT WAS JUST COMMITTED"  yes

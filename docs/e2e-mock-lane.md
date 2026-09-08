@@ -1,6 +1,6 @@
 # The E2E mock lane — a commit, tested on this machine, with no browser and no WhatsApp number
 
-**Features on the lane:** menu · language · status (phase 1) · lesson-plan · coaching (phase 2). **Owner:** the repo.
+**Features on the lane:** menu · language · status (phase 1) · lesson-plan · coaching · training (phase 2). **Owner:** the repo.
 
 The WhatsApp Web lane (`/niete-e2e`, `method: chrome`) can only test whatever build is deployed on
 staging, so a run armed by a *commit* was always a regression check of the previous build. This lane
@@ -96,17 +96,18 @@ client instead of going through `llm-client` (coaching-helpers, quiz, audio, ele
 and fall back, which the logs show as "using fallback". A miss on a wrapped call is still a loud
 `E2E_CASSETTE_MISS` attributed to its scenario.
 
-**What a Phase 2 run proves today** (2026-09-08, commit 9b65e1f5): lesson-plan 4 pass · 1 fail ·
-5 blocked (the Flow scenarios, as designed); coaching 4 pass · 1 fail · 2 blocked · 9 skipped
-(`DEEP=1` scenarios). The coaching pipeline reaches Step 1, replays the transcription from the
+**What a Phase 2 run proves today** (2026-09-08): lesson-plan 4 pass · 1 fail · 5 blocked (the Flow
+scenarios, as designed); coaching 4 pass · 1 fail · 2 blocked · 9 skipped (`DEEP=1` scenarios);
+training 6 pass · 0 fail · 11 blocked (the native Training Flow and account-state-gated scenarios) in
+75 seconds — its entry points, the two-word negative, statelessness and the certificates surface. The coaching pipeline reaches Step 1, replays the transcription from the
 mirror, and asks for the classroom photo; the shallow script declines by ignoring, so COA04 records
 the stall it would also record on chrome without `DEEP=1`. Run `DEEP=1` to walk the whole pipeline;
 its LLM calls will miss until the library holds them.
 
 ## What this lane deliberately does not do (yet)
 
-Native Flow rendering, templates, delivery on a phone, and registration / training / observe /
-attendance (Flow-first features) — those stay on the WhatsApp Web lane after the `develop` deploy,
+Native Flow rendering, templates, delivery on a phone, and registration / observe / attendance
+(Flow-first features; training's Flow scenarios likewise stay on chrome) — those stay on the WhatsApp Web lane after the `develop` deploy,
 which is still the only run that tests what Meta does with the change.
 
 ## Pieces
