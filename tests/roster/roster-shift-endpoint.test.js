@@ -262,3 +262,53 @@ describe('the cost of skipping the class teacher is stated where the coach choos
     expect([...res.data.body].length).toBeLessThanOrEqual(1024);
   });
 });
+
+// ---------------------------------------------------------------------------
+// D. The Flow asset's half of the same contract.
+//
+// This is a SUPPLEMENT to the wiring tests above, never a substitute: a screen can
+// declare every field and still be wired to nothing, which is exactly the shape of
+// the bug this file exists for. What it does catch is the other direction — an edit
+// to the asset that drops shift_code from the submit, which would put the endpoint
+// straight back on the parameter default with nothing failing.
+// ---------------------------------------------------------------------------
+
+describe('the CLASS screen asset carries the whole class identity', () => {
+  // eslint-disable-next-line global-require
+  const flow = require('../../docs/flows/roster-flow-v1.json');
+  const screen = flow.screens.find((s) => s.id === 'CLASS');
+  const fields = screen.layout.children[0].children;
+  const byName = (n) => fields.find((c) => c.name === n);
+
+  it('asks for grade, section and shift, and every one of them is required', () => {
+    for (const name of ['grade_code', 'section', 'shift_code']) {
+      expect(byName(name)).toBeDefined();
+      expect(byName(name).required).toBe(true);
+    }
+  });
+
+  it('submits all three, so the endpoint never has to guess one', () => {
+    const payload = fields.find((c) => c.type === 'Footer').on_click_action
+      || fields.find((c) => c.type === 'Footer')['on-click-action'];
+    expect(Object.keys(payload.payload)).toEqual(
+      expect.arrayContaining(['grade_code', 'section', 'shift_code', 'teacher_user_id']),
+    );
+  });
+
+  it('the class teacher stays OPTIONAL, and the consequence is on the screen', () => {
+    expect(byName('teacher_user_id').required).toBe(false);
+    // Meta refuses `helper-text` on a Dropdown (INVALID_PROPERTY_KEY, from its own
+    // validator), so the warning is a caption immediately beneath the field.
+    expect(byName('teacher_user_id')['helper-text']).toBeUndefined();
+    const i = fields.indexOf(byName('teacher_user_id'));
+    expect(fields[i + 1]).toEqual({ type: 'TextCaption', text: '${data.teacher_help}' });
+  });
+
+  it('every ${data.x} the screen binds is declared in its data block', () => {
+    const bound = [...JSON.stringify(screen.layout).matchAll(/\$\{data\.(\w+)\}/g)].map((m) => m[1]);
+    expect([...new Set(bound)].sort()).toEqual(
+      expect.arrayContaining(['caption', 'grades', 'sections', 'shifts', 'teacher_help', 'teachers']),
+    );
+    for (const key of new Set(bound)) expect(screen.data[key]).toBeDefined();
+  });
+});
