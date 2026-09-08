@@ -36,7 +36,7 @@ MAIN="$(main_checkout)"
 # openai/@anthropic-ai/sdk/express/ioredis) and E2E_BOT_NODE_MODULES_ROOT (bot/node_modules).
 NM_ROOT="${E2E_NODE_MODULES_ROOT:-$MAIN}"
 NM_BOT="${E2E_BOT_NODE_MODULES_ROOT:-$MAIN}"
-KEYS_DIR="$MAIN/keys"; [ -d "$KEYS_DIR" ] || KEYS_DIR="$(dirname "$MAIN")/keys"   # workspace-level keys/ as a fallback
+KEYS_DIR="$MAIN/keys"; [ -f "$KEYS_DIR/niete-local.env" ] || KEYS_DIR="$(dirname "$MAIN")/keys"   # workspace-level keys/ fallback; check the FILE so a stray shadow keys/ dir cannot mask it
 
 log() { echo "[local-stack] $*" >&2; }
 

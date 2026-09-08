@@ -249,6 +249,13 @@ exports.run = async ({ api, rec, sleep }) => {
   let deferralTried = false;
   const t0 = Date.now();
   const budget = DEEP ? PIPELINE_BUDGET_MS : 4 * 60 * 1000;
+  // Early-bail plumbing: the deep pipeline stalls forever when the vendor answer it waits on (Soniox
+  // transcription, then the LLM analysis) is not in the cassette. Waiting the whole 20-min budget for a
+  // reply that will never come is pure cost, so watch for silence before the reflective step and stop.
+  const RUN_DIR = require('path').dirname(process.env.E2E_PROGRESS || '.');
+  const STALL_MS = Number(process.env.COACHING_STALL_MS || 150000);
+  let lastMsgAt = Date.now();
+  const asrLlmMisses = () => { try { const f = require('path').join(RUN_DIR, 'cassette-misses.jsonl'); if (!require('fs').existsSync(f)) return 0; return require('fs').readFileSync(f, 'utf8').trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch (_) { return {}; } }).filter(m => m.kind === 'asr' || m.kind === 'llm').length; } catch (_) { return 0; } };
 
   // The lesson-plan prompt is a LIST ("منتخب کریں" / "Select") with rows "نیا اپلوڈ کریں" (Upload new),
   // "نہیں" (No lesson plan) and recent LPs (lp-selection-list.service.js). Until a row is picked the
@@ -271,11 +278,13 @@ exports.run = async ({ api, rec, sleep }) => {
   };
 
   while (confirmed && Date.now() - t0 < budget) {
-    for (const r of await fresh()) {
+    const batch = await fresh();
+    if (batch.length) lastMsgAt = Date.now();
+    for (const r of batch) {
       const x = r.txt || '';
       if (x) seenTexts.push(x);
       const m = EXPECT.stepAny.exec(x);
-      if (m && !obs.steps.includes(m[1])) obs.steps.push(m[1]);
+      if (m && !obs.steps.includes(m[1])) { obs.steps.push(m[1]); lastMsgAt = Date.now(); }
       if (EXPECT.longLesson.test(x)) obs.longLesson = true;
       if (EXPECT.acknowledges.test(x)) obs.acknowledges = true;
 
@@ -357,20 +366,32 @@ exports.run = async ({ api, rec, sleep }) => {
 
     if (!DEEP && obs.steps.length && obs.photoPrompt) break;   // COA04 is decided
     if (obs.commitment) break;
+    // Stuck before the reflective step (3/5) with the bot silent for STALL_MS → the transcription/LLM
+    // answer is not cassetted; stop now rather than burning the rest of the 20-min budget.
+    if (DEEP && !obs.report && !obs.steps.includes('3') && Date.now() - lastMsgAt > STALL_MS) {
+      obs.stalled = { silentSec: Math.round((Date.now() - lastMsgAt) / 1000), atSteps: obs.steps.slice(), asrLlmMisses: asrLlmMisses() };
+      break;
+    }
     await sleep(5000);
   }
 
   const joined = seenTexts.join(' | ');
   const elapsed = Math.round((Date.now() - t0) / 1000);
+  const stallNote = obs.stalled
+    ? `the analysis went silent at step(s) [${obs.stalled.atSteps.join(',') || 'none'}] for ${obs.stalled.silentSec}s and was stopped early`
+      + (obs.stalled.asrLlmMisses ? ` — ${obs.stalled.asrLlmMisses} ASR/LLM cassette miss(es): the transcription/analysis answers are not recorded, so the pipeline cannot complete on this lane. Record the library once with E2E_CASSETTE=record, then re-run with DEEP=1.` : ' (no cassette miss logged — the pipeline is genuinely stuck).')
+    : null;
 
   rec('COA04', 'Confirming analysis walks a 5-step pipeline with optional-context prompts',
       ...(deferred
           ? ['BLOCKED', { reason: 'a prior coaching session was in flight — the recording was deferred, '
                                 + 'which is correct behaviour, not a pipeline failure', inFlight }]
           : confirmed
-          ? V(obs.steps.length > 0 && obs.photoPrompt,   // Step 1 often lands while the driver is inside the photo/LP gate replies
-              { stepsSeen: obs.steps, longLessonWarning: obs.longLesson, acknowledges: obs.acknowledges,
-                asksPhoto: obs.photoPrompt, asksLessonPlan: obs.lpPrompt, elapsedSec: elapsed })
+          ? (obs.stalled
+              ? ['BLOCKED', { reason: stallNote, stepsSeen: obs.steps, asksPhoto: obs.photoPrompt, asksLessonPlan: obs.lpPrompt, elapsedSec: elapsed }]
+              : V(obs.steps.length > 0 && obs.photoPrompt,   // Step 1 often lands while the driver is inside the photo/LP gate replies
+                  { stepsSeen: obs.steps, longLessonWarning: obs.longLesson, acknowledges: obs.acknowledges,
+                    asksPhoto: obs.photoPrompt, asksLessonPlan: obs.lpPrompt, elapsedSec: elapsed }))
           : ['BLOCKED', { reason: 'the second upload produced no Yes/No choice',
                           reply: (up2.txt || '').slice(0, 160) }]), t() - s);
 
@@ -388,10 +409,17 @@ exports.run = async ({ api, rec, sleep }) => {
           ? V(!!(obs.photoAccepted && obs.photoAccepted.ok), obs.photoAccepted || {})
           : ['BLOCKED', { reason: 'no classroom-photo prompt within ' + elapsed + 's' }]));
 
+  const coa13Good = !!(obs.lpRejected && EXPECT.notLessonPlan.test(obs.lpRejected.reply || ''));
   deepOnly('COA13', 'A non-lesson-plan document is rejected, not silently analysed',
       ...(obs.lpPrompt
-          ? V(!!(obs.lpRejected && EXPECT.notLessonPlan.test(obs.lpRejected.reply || '')), obs.lpRejected || {})
-          : ['BLOCKED', { reason: 'the pipeline never asked for a lesson plan within ' + elapsed + 's' }]));
+          ? (coa13Good
+              ? V(true, obs.lpRejected)
+              : (asrLlmMisses() > 0
+                  ? ['BLOCKED', { reason: 'the document classifier runs on an LLM extraction whose answer is not in the cassette ('
+                        + asrLlmMisses() + ' ASR/LLM miss) — the "is this a lesson plan?" verdict is not trustworthy. Record the library with E2E_CASSETTE=record, then re-run.',
+                        reply: (obs.lpRejected && obs.lpRejected.reply || '').slice(0, 160) }]
+                  : V(false, obs.lpRejected || {})))
+          : ['BLOCKED', { reason: stallNote || ('the pipeline never asked for a lesson plan within ' + elapsed + 's') }]));
 
   deepOnly('COA06', 'The reflective step asks exactly one question and closes after the answer',
       ...(REFLECT === 'slash'
@@ -400,7 +428,7 @@ exports.run = async ({ api, rec, sleep }) => {
           : obs.reflectiveQ
             ? V(!!obs.reflectiveAck, { question: obs.reflectiveQ, acknowledgement: obs.reflectiveAck,
                 note: 'NUM_REFLECTIVE_QUESTIONS=1 — one question asked, answer acknowledged' })
-            : ['BLOCKED', { reason: 'the reflective step (3/5) was not reached within ' + elapsed + 's',
+            : ['BLOCKED', { reason: stallNote || ('the reflective step (3/5) was not reached within ' + elapsed + 's'),
                             stepsSeen: obs.steps }]));
 
   deepOnly('COA10', 'A slash command during the reflective step ends the session',
@@ -408,20 +436,20 @@ exports.run = async ({ api, rec, sleep }) => {
           ? ['BLOCKED', { reason: 'mutually exclusive with COA06 — re-run with REFLECT=slash' }]
           : obs.slashEnded
             ? V(!EXPECT.reflectiveQ.test(obs.slashEnded.reply || ''), obs.slashEnded)
-            : ['BLOCKED', { reason: 'the reflective step was not reached within ' + elapsed + 's' }]));
+            : ['BLOCKED', { reason: stallNote || ('the reflective step was not reached within ' + elapsed + 's') }]));
 
   deepOnly('COA05', 'The pipeline delivers coaching feedback on the FICO/ICT rubric',
       ...(obs.report
           ? V(EXPECT.rubric.test(obs.report.caption + ' ' + joined),
               { caption: obs.report.caption, note: 'asserting rubric vocabulary in the delivered feedback' })
-          : ['BLOCKED', { reason: 'no report delivered within ' + elapsed + 's', stepsSeen: obs.steps }]));
+          : ['BLOCKED', { reason: stallNote || ('no report delivered within ' + elapsed + 's'), stepsSeen: obs.steps }]));
 
   deepOnly('COA07', 'Coaching feedback is delivered as a branded hero-report image',
       ...(obs.report
           ? V(obs.report.kind === 'image',
               Object.assign({}, obs.report, { note: obs.report.kind === 'pdf'
                 ? 'PDF is the FALLBACK — the hero render threw' : 'hero image as specified' }))
-          : ['BLOCKED', { reason: 'no report delivered within ' + elapsed + 's — a full analysis is 10+ min' }]));
+          : ['BLOCKED', { reason: stallNote || ('no report delivered within ' + elapsed + 's — a full analysis is 10+ min') }]));
 
   deepOnly('COA15', 'The commitment-card buttons on the report are handled (@known-fail)',
       ...(obs.commitment
@@ -429,7 +457,7 @@ exports.run = async ({ api, rec, sleep }) => {
               Object.assign({}, obs.commitment, { note: 'ORPHAN BUG expected: card_yes_ has no handler, '
                 + 'so the tap should go unacknowledged. A PASS means it has been wired.' }))
           : ['BLOCKED', { reason: obs.report ? 'the report carried no commitment card'
-                                             : 'no report within ' + elapsed + 's' }]));
+                                             : (stallNote || ('no report within ' + elapsed + 's')) }]));
 
   // ══ unreachable on this driver, whatever the runtime ═════════════════════
   // COA02 is driven at the top under FIRSTUSE=1 (paired with reset-first-use). Only
