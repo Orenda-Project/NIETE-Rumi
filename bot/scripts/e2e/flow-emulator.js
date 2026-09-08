@@ -137,6 +137,9 @@ function createEmulator(flowJson, opts) {
       }
       else if (c.type === 'Footer') items.push({ text: label(c), disabled: unmet || truthy(resolve(c.enabled === undefined ? false : !c.enabled, ctx())), kind: 'footer', action: c['on-click-action'] });
     }
+    // `text` mirrors the browser dialog's innerText: the rows and options are on screen too, so a
+    // script asserting on the screen text reads the same thing on both lanes.
+    for (const i of items) texts.push(i.hay || String(i.text || ''));
     return { screen: st.screen, text: texts.join('\n'), items };
   }
 

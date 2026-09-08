@@ -106,6 +106,10 @@ describe('flow-emulator: navigate Flow', () => {
       { id: 'seg2', 'main-content': { title: '○ Journey Through the Text', description: 'Day 2 · p.3-4' }, 'on-click-action': { name: 'complete', payload: { lesson: 'seg2' } } } ] } });
     await em.open();
     expect(em.probe().items.map((i) => i.text)).toEqual(['○ Memory Lane', '○ Journey Through the Text']);   // probe shows titles, as the screen does
+    // probe().text is what the browser's dialog innerText would be — the rows are part of it, so a
+    // script asserting /Grade 1/ on the grade screen reads the same thing on both lanes (lesson-plan L10)
+    expect(em.probe().text).toContain('○ Memory Lane');
+    expect(em.probe().text).toContain('Day 2 · p.3-4');
     expect(await em.click('Day 2')).toEqual({ ok: true, clicked: '○ Journey Through the Text' });
     expect(done.map((d) => d.response_json)).toEqual([{ lesson: 'seg2' }]);
   });
