@@ -104,6 +104,27 @@ mirror, and asks for the classroom photo; the shallow script declines by ignorin
 the stall it would also record on chrome without `DEEP=1`. Run `DEEP=1` to walk the whole pipeline;
 its LLM calls will miss until the library holds them.
 
+## Phase 4, step 0 — the published Flow definitions, stored
+
+`bot/scripts/e2e/flow-inventory.js fetch` reads every `*_FLOW_ID` from the environment, downloads each
+Flow's **published** `FLOW_JSON` asset from Meta by id, and stores it under
+`.claude/qa/fixtures/flows/<ENV_VAR>.json` with a `manifest.json` (id, name, status, version, sha256,
+fetched-at, component types, actions, and `repoCopy: same | differs | none` against
+`infrastructure/flows/`). It needs `WHATSAPP_TOKEN` for the calls and never writes it; take it from the
+staging Railway env for that one process.
+
+Census on 2026-09-08 (26 Flows, all PUBLISHED): 23 endpoint (data_exchange), 3 navigate. Sixteen
+component types in use — Footer/Form/TextHeading/TextBody everywhere; Dropdown 17, RadioButtonsGroup 14,
+CheckboxGroup 12, TextInput 11, TextArea 8, NavigationList 6, EmbeddedLink 5, TextSubheading 3, OptIn 2,
+CalendarPicker 2, PhotoPicker 1. No routing-model problems. One drift: the repo's
+`registration.json` lacks the `roles` data model the published Flow carries (48 differing leaves) — the
+published copy is the truth, and this is exactly the class of gap the fixtures exist to catch.
+
+`node bot/scripts/e2e/flow-inventory.js report --out .claude/qa/fixtures/flows` prints the census offline.
+These files are the input to the Flow emulator (step 1, not built yet), which will interpret screens,
+routing and data bindings, encrypt the data-exchange round trips to `/api/flows/…` with a per-run
+keypair, and produce the completion reply — marked `via: flow-emulator`, never as a rendering pass.
+
 ## What this lane deliberately does not do (yet)
 
 Native Flow rendering, templates, delivery on a phone, and registration / observe / attendance
@@ -123,4 +144,5 @@ which is still the only run that tests what Meta does with the change.
 | Mock driver | `.claude/qa/shared/mock-api.cjs` (selected by `E2E_METHOD=mock` in `feature-runner.cjs`) |
 | Runner, profile, ledger | `.claude/qa/shared/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
 | Sandbox driver account | `.claude/qa/shared/niete_sandbox_driver.py` |
+| Flow definitions + census | `bot/scripts/e2e/flow-inventory.js` → `.claude/qa/fixtures/flows/` |
 | Tests | `tests/e2e-mock/*.test.js`, `.claude/qa/shared/test_mock_api.js`, `test_ledger_row.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/hooks/e2e-autorun.test.sh` |
