@@ -83,6 +83,37 @@ describe('/status never leaks an internal flow id', () => {
     });
   }
 
+  it('both store questions read ONE glance list, not two that can drift', () => {
+    // Found in review. The first version of this fix declared a local
+    // `NOT_LISTED_FLOWS` in listActiveResources while probeTeacherBusy kept its own
+    // `NOT_BUSY_FLOWS` — two independent sets with the same single member, in one
+    // file, either of which could be updated without the other. That is the same
+    // shape as the defect being fixed: the two functions disagreeing about whether a
+    // glance is work is how "1 thing running" reached a teacher who had none.
+    //
+    // So this pins the single source. Splitting them is allowed, but it has to be a
+    // decision someone makes and states, not drift.
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(
+      path.join(__dirname, '../../bot/shared/services/teacher-state.service.js'), 'utf8',
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+
+    // Exactly one declaration, and both guards read it.
+    expect(src.match(/const GLANCE_FLOWS\s*=/g)).toHaveLength(1);
+    expect(src.match(/GLANCE_FLOWS\.has\(/g)).toHaveLength(2);
+
+    // And no reintroduced local twin. Named forms first, then the general shape.
+    expect(src).not.toMatch(/NOT_BUSY_FLOWS/);
+    expect(src).not.toMatch(/NOT_LISTED_FLOWS/);
+    // Excludes GLANCE_FLOWS itself, which IS this shape and is the one that should
+    // exist. The first version of this line did not, so it failed on the very
+    // declaration it exists to permit.
+    expect(src).not.toMatch(/const\s+(?!GLANCE_FLOWS)[A-Z_]+\s*=\s*new Set\(\['menu'\]\)/);
+  });
+
   it('does NOT list a menu glance as work in flight', async () => {
     // The busy probe in this same file already decided a menu glance is not work.
     // /status has to agree with it, or 197 production teachers are told the menu is

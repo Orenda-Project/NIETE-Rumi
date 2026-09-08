@@ -31,6 +31,25 @@ const COACHING_TERMINAL = ['completed', 'failed', 'cancelled', 'report_sent'];
 const LP_IN_FLIGHT = ['pending', 'processing', 'extracting'];
 
 /**
+ * Flows that are a GLANCE, not work in flight.
+ *
+ * ONE set on purpose. Both questions this file answers — "is she busy?"
+ * (probeTeacherBusy) and "what is running?" (listActiveResources) — read the
+ * conversation store and both have to agree on whether opening the menu counts.
+ * They were written as two independent local sets, and two lists nobody had to keep
+ * in step is precisely how the /status defect shipped: one of them counted a menu
+ * glance as work and told a teacher she had "1 thing running", offering to Stop it.
+ *
+ * `menu` qualifies because the menu wait lasts an hour. Counting a glance as busy
+ * would defer a teacher's report for an hour on the strength of her having looked at
+ * a list, and listing it offers to stop something she never started.
+ *
+ * If these two questions ever genuinely need different answers, SPLIT THIS
+ * DELIBERATELY and say why. Do not let them drift apart again.
+ */
+const GLANCE_FLOWS = new Set(['menu']);
+
+/**
  * @returns {Promise<{busy: boolean, feature: string|null, etaSeconds: number|null}>}
  *   busy=false       → the scheduler delivers the report immediately
  *   busy=true,
@@ -105,8 +124,7 @@ async function probeTeacherBusy(userId) {
     //
     // `offered_resume` is excluded for a different reason: she has been asked and has
     // not answered, so the wait is on us, not on her.
-    const NOT_BUSY_FLOWS = new Set(['menu']);
-    if (active && active.step !== ConversationResume.OFFERED && !NOT_BUSY_FLOWS.has(active.flow)) {
+    if (active && active.step !== ConversationResume.OFFERED && !GLANCE_FLOWS.has(active.flow)) {
       return { busy: true, feature: active.flow, etaSeconds: null };
     }
   } catch (err) {
@@ -221,7 +239,8 @@ async function listActiveResources(userId) {
 
   // Whatever the conversation store says she is mid-way through — and now she can
   // RESUME it rather than only cancel it, which is the point of listing it at all.
-  // The attendance entry that used to sit here was dead: rebuilt as Flows and kept no conversational state WHEN THIS WAS WRITTEN.
+  // The attendance entry that used to sit here was dead: rebuilt as Flows and kept
+  // no conversational state WHEN THIS WAS WRITTEN.
   // The attendance rebuild has since put method, voice and marking back on this
   // store, and production carries live attendance_marking rows.
   try {
@@ -231,9 +250,7 @@ async function listActiveResources(userId) {
     // the menu is a glance, not work. Listing it told a teacher she had "1 thing
     // running" and offered to Stop it — and the two functions in this file disagreeing
     // about whether a glance is work is how that shipped.
-    const NOT_LISTED_FLOWS = new Set(['menu']);
-
-    if (active && active.step !== ConversationResume.OFFERED && !NOT_LISTED_FLOWS.has(active.flow)) {
+    if (active && active.step !== ConversationResume.OFFERED && !GLANCE_FLOWS.has(active.flow)) {
       // TASK_LABEL is the OFFERABLE set (shouldOffer reads it), and it covers four
       // flows. Every other flow on the store used to render as its own internal id, so
       // a principal mid-register read "Continue: attendance_marking" — the exact thing
