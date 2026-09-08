@@ -428,6 +428,54 @@ describe('a prepaid balance that runs dry must not stop lesson generation', () =
   });
 });
 
+// ── 3b. the fallback cannot be silently disabled (operator: "Keep the fall back on") ──
+
+describe('the direct lane refuses to run without a usable fallback', () => {
+  test('no OPENROUTER_API_KEY: the lane refuses at RESOLUTION time, before a token is spent', () => {
+    const mod = freshLlmClient();
+    delete process.env.OPENROUTER_API_KEY;
+    // Not "throws on the first fallback" — throws BEFORE the first author call. A deployment that
+    // could author one credit-funded lesson and then strand the next when the balance ran out is
+    // exactly the failure this refusal exists to prevent.
+    expect(() => mod.getClientForModel('anthropic-direct/claude-sonnet-5'))
+      .toThrow(/MANDATORY credit-exhaustion fallback is not usable[\s\S]*OPENROUTER_API_KEY/);
+  });
+
+  test('LLM_PROVIDER=openai: the lane refuses, because the fallback would post an OpenRouter model id to OpenAI', () => {
+    const mod = freshLlmClient({ LLM_PROVIDER: 'openai', OPENAI_API_KEY: 'k' });
+    expect(() => mod.getClientForModel('anthropic-direct/claude-sonnet-5'))
+      .toThrow(/MANDATORY credit-exhaustion fallback is not usable[\s\S]*wrong vendor/);
+  });
+
+  test('a correctly wired environment resolves normally — the guard narrows nothing else', async () => {
+    const net = installFetch(() => [200, nativeReply('{"ok":true}')]);
+    restoreFetch = net.restore;
+    const mod = freshLlmClient();
+    const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+    const res = await client.chat.completions.create({
+      model, max_tokens: 16, messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(res.choices[0].message.content).toBe('{"ok":true}');
+  });
+
+  test('there is NO env var that switches the fallback off — only one that retargets it', () => {
+    const mod = freshLlmClient({ LLM_DIRECT_FALLBACK_MODEL: '   ' });
+    // A blank override falls through to the derived id rather than disabling anything: whitespace
+    // must not be a way to unwire the net by accident.
+    expect(mod.directFallbackModel('claude-sonnet-5')).toBe('anthropic/claude-sonnet-5');
+    const src = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../bot/shared/services/llm-client.js'), 'utf8');
+    // Guards the PROPERTY, not the spelling: any new env read in this module must be justified,
+    // and none of them may be a fallback kill switch.
+    const envVars = [...src.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
+    expect(new Set(envVars)).toEqual(new Set([
+      'ANTHROPIC_API_KEY', 'APP_URL', 'LLM_DIRECT_FALLBACK_MODEL', 'LLM_MAX_RETRIES',
+      'LLM_MODEL', 'LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS', 'OPENAI_API_KEY',
+      'OPENROUTER_API_KEY',
+    ]));
+  });
+});
+
 // ── 4. the whole ladder, on the direct lane, through the real author service ──
 
 describe('the real author ladder on the direct lane', () => {
