@@ -630,4 +630,106 @@ router.post('/classes/create', requireInternalKey, async (req, res) => {
   }
 });
 
+// ─── v8 lesson-plan catalogue ───────────────────────────────────────────────
+//
+// The portal used to answer "which lesson plans exist?" from its own Supabase
+// reads against curriculum_lp_ast + pre_generated_lps, while the K-5 Flow
+// answered it from data/lp_catalog.json ∩ niete_lp_assets. Unrelated corpora:
+// on prod, grade 5 maths was 0 chapters in the portal and 8 chapters / 87
+// lessons on WhatsApp. These four routes make the bot the single answer, the
+// way training rules and certificates already are.
+//
+// They return SURFACE-NEUTRAL data — full untruncated titles, no pagination,
+// no on-click payloads. The Flow keeps building its own capped NavigationList
+// rows from the same catalogue; the portal renders these. One source for what
+// exists, each surface responsible for how it looks.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors trainingRoute. */
+function lpBrowseRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Browse = require('../services/lp-v8-browse.service');
+      return await handler(Browse, req, res);
+    } catch (error) {
+      logToFile('❌ Internal LP catalogue API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Lesson-plan catalogue lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/lp/v8/grades
+ * Body {} → { success, grades: [{ grade, subject_count }] }
+ */
+router.post('/lp/v8/grades', requireInternalKey, lpBrowseRoute('grades', async (Browse, req, res) => {
+  const grades = await Browse.listGrades();
+  return res.json({ success: true, grades });
+}));
+
+/**
+ * POST /api/internal/lp/v8/subjects
+ * Body { grade } → { success, subjects: [{ subject_key, subject, rtl, lesson_count }] }
+ */
+router.post('/lp/v8/subjects', requireInternalKey, lpBrowseRoute('subjects', async (Browse, req, res) => {
+  const grade = num((req.body || {}).grade);
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+
+  const subjects = await Browse.listSubjects(grade);
+  return res.json({ success: true, subjects });
+}));
+
+/**
+ * POST /api/internal/lp/v8/chapters
+ * Body { grade, subjectKey } → { success, chapters: [...] }
+ */
+router.post('/lp/v8/chapters', requireInternalKey, lpBrowseRoute('chapters', async (Browse, req, res) => {
+  const grade = num((req.body || {}).grade);
+  const subjectKey = String((req.body || {}).subjectKey || '').trim();
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
+
+  const chapters = await Browse.listChapters(grade, subjectKey);
+  return res.json({ success: true, chapters });
+}));
+
+/**
+ * POST /api/internal/lp/v8/lessons
+ * Body { grade, subjectKey, chapterNumber, userId? } → { success, lessons: [...] }
+ *
+ * `userId` is optional and only drives the per-teacher `downloaded` tick. The
+ * caller reads it from its SESSION — never from a request body — the same rule
+ * the certificates client follows.
+ */
+router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subjectKey = String(body.subjectKey || '').trim();
+  const chapterNumber = num(body.chapterNumber);
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
+  if (chapterNumber === null) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
+
+  const lessons = await Browse.listLessons(grade, subjectKey, chapterNumber, body.userId || null);
+  return res.json({ success: true, lessons });
+}));
+
+/**
+ * POST /api/internal/lp/v8/pdf
+ * Body { lessonId, assetKind? } → { success, available, url?, version_stamp? }
+ *
+ * `available: false` (with HTTP 200) is a real answer — the lesson exists in
+ * the catalogue but has no current asset yet. Only a genuine failure is a 5xx,
+ * so the portal can tell "not rendered" apart from "we are broken".
+ */
+router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse, req, res) => {
+  const body = req.body || {};
+  const lessonId = String(body.lessonId || '').trim();
+  const assetKind = body.assetKind === 'answer_key' ? 'answer_key' : 'lesson';
+  if (!lessonId) return res.status(400).json({ success: false, error: 'lessonId is required' });
+
+  const hit = await Browse.lessonPdfUrl(lessonId, assetKind);
+  if (!hit) return res.json({ success: true, available: false });
+  return res.json({ success: true, available: true, ...hit });
+}));
+
 module.exports = router;
