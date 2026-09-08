@@ -329,7 +329,7 @@ exports.run = async ({ api, rec, sleep }) => {
       const l1 = run1.last || {};
       rec('T12', NAME.T12, ...(l1.verdict ? V(l1.verdict === 'not-quite' && /\d+\/\d+\*?\s*\(\d+%\)/.test(l1.txt) && /100%/.test(l1.txt) && (l1.btns || []).includes('🔄 Try again') && (l1.btns || []).includes('⏸ Pause'),
                                                 { verdict: l1.verdict, reply: l1.txt, btns: l1.btns, answered: run1.trail.length })
-                                            : ['BLOCKED', { harness: l1.err, detail: l1, started: started && (started.txt || '').slice(0, 120) }]), t() - s);
+                                            : ['BLOCKED', { harness: l1.err, detail: l1, cta: c2.cta, card: (c2.txt || '').slice(0, 120) }]), t() - s);
       // T20 — 🔄 Try again restarts the check at Q1; then re-answer ALL correct (drives T01 too)
       s = t();
       let run2 = { last: { err: 'NO_RETRY' }, trail: [], first: null };
