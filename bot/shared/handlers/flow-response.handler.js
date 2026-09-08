@@ -862,7 +862,7 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
       // navigate mode there is no endpoint round-trip to fill these in, so the
       // shape must match what the endpoint's own `manage` step would return.
       screenData = {
-        options: mine.slice(0, admin.RESULT_CAP).map((m) => ({
+        options: mine.slice(0, admin.LIST_CAP).map((m) => ({
           id: String(m.school_ext_id),
           title: String(m.school_name || m.school_ext_id).slice(0, 30),
           description: m.emis ? `EMIS ${m.emis}` : '',
