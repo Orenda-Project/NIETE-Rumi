@@ -23,7 +23,9 @@ developer changes bot code
 │ 3. SYNC THE GHERKIN   /sync-specs --brief …  (skill: gherkin-spec-sync,             │
 │    authors via gherkin-test-cases; adds / updates / tags @obsolete — never deletes) │
 │ 4. GATE               validate_specs.py  (+ check-all-mode-counts.py)              │
-│ 5. DRIVE              /niete-e2e <features>  against staging, linked WhatsApp Web  │
+│ 5. DRIVE   mock lane: commit-e2e.sh <sha> — the bot FROM THIS COMMIT, no browser     │
+│            (menu · language · status)  ·  chrome lane: /niete-e2e <features> against  │
+│            staging over linked WhatsApp Web, for everything else                      │
 │ 6. RECORD             .claude/qa/ledgers/runs.jsonl  (+ results/, gitignored)      │
 └────────────────────────────────────────────────────────────────────────────────────┘
         │  push to develop / main
@@ -67,7 +69,7 @@ you change any part of this.
 ```
 ┌ QA · commit 3f2a9c1d7e0b touched: menu
 │ Gherkin: sync needed first →  /sync-specs --brief .claude/.e2e-pending/git-3f2a9c1d7e0b.sync.json
-│ Then the targeted E2E →  /niete-e2e menu
+│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/shared/commit-e2e.sh 3f2a9c1d7e0b --features menu
 │ Open Claude Code in this clone: it announces this at start and holds the turn once until
 │ it is driven or cleared. Off: QA_HOOKS_OFF=1 · Quiet: QA_HOOKS_QUIET=1
 └ marker: .claude/.e2e-pending/git-3f2a9c1d7e0b.json

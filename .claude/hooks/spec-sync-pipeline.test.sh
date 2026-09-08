@@ -190,7 +190,7 @@ say "4. no other spec was disturbed"      "$(validate >/dev/null 2>&1; echo $?)"
 SOUT=$(stop_hook)
 has "5. Stop still compels the run"       "$SOUT" '"block"'        yes
 has "6. ...naming phase 1"                "$SOUT" "PHASE 1"        yes
-has "7. ...and phase 2"                   "$SOUT" "/niete-e2e menu" yes
+has "7. ...and phase 2"                   "$SOUT" "commit-e2e.sh"   yes   # menu → the mock lane (phase 3)
 say "8. and it nudges only once"          "$(stop_hook | head -c 1 | wc -c | tr -d ' ')" 0
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -249,7 +249,7 @@ printf 'const X = 2;\n' >> "$REPO/bot/shared/services/menu.service.js"
 echo 'import sys; sys.exit(1)' > "$PROJ/.claude/qa/shared/spec_sync.py"
 OUT=$(commit_and_arm "menu: another change, with a broken sync")
 say "1. the E2E is still armed"             "$([ -f "$MARKER" ] && echo yes || echo no)" yes
-has "2. the run order survives"             "$OUT" "/niete-e2e menu"  yes
+has "2. the run order survives"             "$OUT" "commit-e2e.sh"    yes
 has "3. no phase 1 is claimed"              "$OUT" "PHASE 1"          no
 say "4. the marker records no sync"         "$(jqf "$MARKER" spec_sync)" False
 

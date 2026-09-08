@@ -13,6 +13,7 @@ _HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-${_HOOK_DIR%/.claude/hooks}}"
 PEND="$PROJECT_ROOT/.claude/.e2e-pending"
 [ -d "$PEND" ] || exit 0
+. "$_HOOK_DIR/lib/mock-lane.sh" 2>/dev/null || true
 cat >/dev/null   # payload unused
 LINES=""; N=0
 while IFS= read -r f; do
@@ -26,10 +27,16 @@ while IFS= read -r f; do
   sync=""; [ "$(jq -r '.spec_sync // false' "$f" 2>/dev/null)" = "true" ] && [ -f "${f%.json}.sync.json" ] \
     && sync="  phase 1 first:  /sync-specs --brief .claude/.e2e-pending/$id.sync.json"
   N=$((N + 1))
+  mockline=""
+  if type e2e_split_lanes >/dev/null 2>&1; then
+    e2e_split_lanes "$(printf '%s' "$feats" | tr -d ' ')"
+    [ -n "${E2E_LANE_MOCK:-}" ] && [ -n "$sha" ] && mockline="  mock lane (tests THIS commit):  bash .claude/qa/shared/commit-e2e.sh $sha --features $E2E_LANE_MOCK"
+  fi
   LINES="$LINES
 • $id — commit ${sha:-?} on \`$br\`, armed $at — touched: ${feats:-?}
 $sync
-  phase 2:        $cmds
+$mockline
+  phase 2 (WhatsApp Web):  $cmds
   clear instead:  bash .claude/hooks/e2e-autorun.sh --clear --session $id"
 done <<LS
 $(ls -t "$PEND"/git-*.json 2>/dev/null)

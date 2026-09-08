@@ -29,6 +29,7 @@ COUNT=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(len(json.load(sy
 case "$COUNT" in ''|0) exit 0 ;; esac      # docs-only / out of scope: say nothing
 
 SHA=$(git rev-parse --short=12 HEAD 2>/dev/null) || exit 0
+FULL_SHA=$(git rev-parse HEAD 2>/dev/null) || exit 0
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 PEND="$ROOT/.claude/.e2e-pending"
 mkdir -p "$PEND" 2>/dev/null || exit 0
@@ -46,12 +47,12 @@ if [ "${E2E_SPEC_SYNC_OFF:-}" != "1" ]; then
 fi
 
 # The selection travels in an env var: stdin is taken by the heredoc script.
-QA_SEL_JSON="$SEL" python3 - "$MARKER" "$SHA" "$(basename "$ROOT")" "$BRANCH" "$SPEC_SYNC" <<'PY' 2>/dev/null || exit 0
+QA_SEL_JSON="$SEL" python3 - "$MARKER" "$SHA" "$(basename "$ROOT")" "$BRANCH" "$SPEC_SYNC" "$FULL_SHA" <<'PY' 2>/dev/null || exit 0
 import json, os, sys, datetime
 sel = json.loads(os.environ["QA_SEL_JSON"])
-marker, sha, repo, branch, spec_sync = sys.argv[1:6]
+marker, sha, repo, branch, spec_sync, full_sha = sys.argv[1:7]
 json.dump({
-    "session": "git", "repo": repo, "branch": branch, "sha": sha,
+    "session": "git", "repo": repo, "branch": branch, "sha": sha, "commit_sha": full_sha,
     "trigger": "git-commit", "mode": "execute",
     "armed_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
     "nudged": False, "spec_sync": spec_sync == "true",
@@ -71,7 +72,16 @@ REL_SYNC=".claude/.e2e-pending/git-$SHA.sync.json"
   else
     echo "│ Gherkin: nothing to author (validate only)"
   fi
-  echo "│ Then the targeted E2E →  $CMDS"
+  # The lane split (lib/mock-lane.sh): mock-capable features can be tested AS this commit, here, now.
+  if ! . "$ROOT/.claude/hooks/lib/mock-lane.sh" 2>/dev/null; then
+    # no lib in this checkout: same default list, inline, so the developer still gets the command
+    e2e_split_lanes() { local f m="" c=""; local IFS=','; for f in $1; do case ",${E2E_MOCK_FEATURES:-menu,language,status}," in *",$f,"*) m="${m:+$m,}$f";; *) c="${c:+$c,}$f";; esac; done; E2E_LANE_MOCK="$m"; E2E_LANE_CHROME="$c"; }
+  fi
+  e2e_split_lanes "$(printf '%s' "$FEATURES" | tr -d ' ')"
+  if [ -n "${E2E_LANE_MOCK:-}" ]; then
+    echo "│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/shared/commit-e2e.sh $SHA --features $E2E_LANE_MOCK"
+  fi
+  [ -n "${E2E_LANE_CHROME:-}" ] && echo "│ Then WhatsApp Web (deployed build) →  $CMDS"
   echo "│ Open Claude Code in this clone: it announces this at start and holds the turn once until"
   echo "│ it is driven or cleared. Off: QA_HOOKS_OFF=1 · Quiet: QA_HOOKS_QUIET=1"
   echo "└ marker: .claude/.e2e-pending/git-$SHA.json"

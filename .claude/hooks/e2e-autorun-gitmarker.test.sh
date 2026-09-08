@@ -52,7 +52,8 @@ echo "gitmarker — stop hook adopts a git-armed marker"
 out=$(stop)
 has "blocks the turn once for the git marker" "$out" '"decision": "block"' yes
 has "reason names the terminal commit" "$out" "git-aaa111" yes
-has "reason carries the run" "$out" "/niete-e2e menu" yes
+has "reason carries the run" "$out" "commit-e2e.sh" yes   # menu → the mock lane, pinned to the marker's sha
+has "reason pins the marker sha" "$out" "commit-e2e.sh git-aaa111 --features menu" yes
 has "reason carries phase 1" "$out" "/sync-specs --brief" yes
 say "git marker flipped to nudged" "$(field "$PEND/git-aaa111.json" nudged)" "True"
 out=$(stop); say "second stop is silent (nudged once)" "$out" ""
