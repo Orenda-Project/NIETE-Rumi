@@ -102,8 +102,8 @@ if [ "${1:-}" = "--clear" ] || [ "${1:-}" = "--declare" ]; then
       STALE=$(e2e_phase1_stale "$PROJECT_ROOT" "$M" "$PROJECT_ROOT")
       if [ -n "$STALE" ]; then
         ID=$(basename "${M%.json}")
-        echo "e2e-autorun: REFUSING to clear $ID — phase 1 is not done: the spec for [$STALE] is unchanged since the run was armed and nothing declares the change spec-neutral." >&2
-        echo "  author it:   /sync-specs --brief .claude/.e2e-pending/$ID.sync.json   then validate" >&2
+        echo "e2e-autorun: REFUSING to clear $ID — phase 1 is not done: the COMMITTED spec for [$STALE] is unchanged since the run was armed and nothing declares the change spec-neutral." >&2
+        echo "  author it:   /sync-specs --brief .claude/.e2e-pending/$ID.sync.json   then validate, then COMMIT the .feature" >&2
         echo "  or declare:  bash .claude/hooks/e2e-autorun.sh --declare --session $ID '$(printf '%s' "$STALE" | tr ' ' ',')=none-needed (<why>)'" >&2
         echo "  escape hatch: --force (the PR check will still flag it)" >&2
         exit 1
