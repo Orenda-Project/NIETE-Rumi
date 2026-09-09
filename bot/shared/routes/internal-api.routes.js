@@ -1179,4 +1179,52 @@ router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', 
   return res.json({ success: true, ...out });
 }));
 
+// ─── coaching ───────────────────────────────────────────────────────────────
+//
+// The portal's coaching screens built their own score breakdown from six
+// hardcoded OECD goal names reading scores.goal1_total…goal5_total. Every
+// NIETE region is configured for FICO and a FICO session contains none of
+// those keys, so five bars rendered zero under labels her framework has never
+// used — silently, because each read carried a `|| 0`.
+//
+// The bot already dispatches five frameworks through one adapter to render her
+// report image. This exposes the same thing, one level deeper (indicators and
+// their evidence quotes, which a browser has room for and a 1080px image does
+// not). The portal holds NO framework logic and never names a domain.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function coachingRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Breakdown = require('../services/coaching/coaching-breakdown.service');
+      return await handler(Breakdown, req, res);
+    } catch (error) {
+      logToFile('❌ Internal coaching API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Coaching breakdown failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/coaching/breakdown
+ * Body { analysisData, language? } → { success, breakdown }
+ *
+ * `breakdown: null` is a real answer with a 200 — the session exists but has
+ * not been scored yet. A caller must be able to tell that from "scored zero",
+ * which is exactly the distinction the portal's `|| 0` destroyed.
+ *
+ * The ANALYSIS is passed in rather than the session id being looked up here:
+ * the portal has already fetched the row (and checked that it is hers) before
+ * it calls, so a second read would be a second chance to get ownership wrong.
+ */
+router.post('/coaching/breakdown', requireInternalKey, coachingRoute('breakdown', async (Breakdown, req, res) => {
+  const body = req.body || {};
+  const analysisData = body.analysisData;
+  if (!analysisData || typeof analysisData !== 'object') {
+    return res.status(400).json({ success: false, error: 'analysisData is required' });
+  }
+  const language = typeof body.language === 'string' ? body.language : 'en';
+  return res.json({ success: true, breakdown: Breakdown.buildBreakdown(analysisData, language) });
+}));
+
 module.exports = router;
