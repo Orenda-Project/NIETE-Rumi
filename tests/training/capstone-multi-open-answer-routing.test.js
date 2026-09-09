@@ -67,14 +67,16 @@ function makeSupabase({ openAttempts }) {
   const writes = { answers: [], attemptUpdates: [] };
 
   const build = (table) => {
-    const state = { table, filters: {}, ordered: false, limited: null, payload: null, op: null };
+    const state = { table, filters: {}, orders: [], limited: null, payload: null, op: null };
     const chain = {
       select() { return chain; },
       insert(p) { state.op = 'insert'; state.payload = p; return chain; },
       upsert(p) { state.op = 'upsert'; state.payload = p; return chain; },
       update(p) { state.op = 'update'; state.payload = p; return chain; },
       eq(col, val) { state.filters[col] = val; return chain; },
-      order(col) { state.ordered = col; return chain; },
+      // Multiple .order() calls compose, as they do in PostgREST — a mock that
+      // kept only the last one would hide a missing tiebreaker.
+      order(col, opts) { state.orders.push({ col, asc: opts ? opts.ascending !== false : true }); return chain; },
       limit(n) { state.limited = n; return chain; },
       then(resolve) { return resolve(settle()); },
       maybeSingle: async () => settleSingle(),
@@ -94,8 +96,14 @@ function makeSupabase({ openAttempts }) {
           (state.filters.user_id === undefined || a.user_id === state.filters.user_id) &&
           (state.filters.status === undefined || a.status === state.filters.status) &&
           (state.filters.quiz_kind === undefined || state.filters.quiz_kind === 'capstone'));
-        if (state.ordered === 'last_activity_at') {
-          r = [...r].sort((a, b) => String(b.last_activity_at).localeCompare(String(a.last_activity_at)));
+        if (state.orders.length) {
+          r = [...r].sort((a, b) => {
+            for (const { col, asc } of state.orders) {
+              const cmp = String(a[col] ?? '').localeCompare(String(b[col] ?? ''));
+              if (cmp !== 0) return asc ? cmp : -cmp;
+            }
+            return 0;
+          });
         }
         if (state.limited) r = r.slice(0, state.limited);
         return r;
@@ -187,6 +195,28 @@ describe('bd-5tn5d — an answer must land even when several capstones are open'
   test('NONE open: the message flows on to ordinary handling (regression guard)', async () => {
     const { svc } = load({ openAttempts: [] });
     expect(await svc.routeTextAnswer(PHONE, 'hello')).toBe(false);
+  });
+
+  test('a last_activity_at TIE resolves deterministically, not by luck', async () => {
+    // Production has no tie today (closest spread 5m39s), but nothing prevents
+    // one — two rows touched in the same transaction, or a bulk update. Without
+    // a second sort key, WHICH paper receives her answer would depend on the
+    // query plan. Same defect as the 28 modules sharing one order_index.
+    const SAME = '2026-09-08T12:00:00Z';
+    const a = { ...OLDER, id: 'att-aaa', last_activity_at: SAME };
+    const b = { ...NEWER, id: 'att-zzz', last_activity_at: SAME };
+
+    const first = load({ openAttempts: [a, b] });
+    await first.svc.routeTextAnswer(PHONE, 'x'.repeat(450));
+    const pick1 = first.writes.answers.map(x => (Array.isArray(x) ? x[0] : x).attempt_id)[0];
+
+    // Same rows, opposite insertion order — a stable total order must not care.
+    const second = load({ openAttempts: [b, a] });
+    await second.svc.routeTextAnswer(PHONE, 'x'.repeat(450));
+    const pick2 = second.writes.answers.map(x => (Array.isArray(x) ? x[0] : x).attempt_id)[0];
+
+    expect(pick1).toBeDefined();
+    expect(pick1).toBe(pick2);
   });
 
   test('slash commands are never consumed, however many are open (regression guard)', async () => {
