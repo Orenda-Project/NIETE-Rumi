@@ -18,11 +18,12 @@ QA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$QA/../../.." && pwd)"
 MOCK_FEATURES="${E2E_MOCK_FEATURES:-menu,language,status,lesson-plan,coaching,training}"
 
-REF="HEAD"; FORCE=""; RECORD=""
+REF="HEAD"; FORCE=""; RECORD="" RECORD_MODE=""
 while [ $# -gt 0 ]; do case "$1" in
   --features) FORCE="$2"; shift 2;;
   --all-mock) FORCE="$MOCK_FEATURES"; shift;;
   --record) RECORD=1; shift;;   # un-seal for ONE run: live vendor calls → committed cassette fixture
+  --record-missing) RECORD=1; RECORD_MODE=replay; shift;;   # top up: replay hits, record only the misses
   -h|--help) sed -n 2,13p "$0"; exit 0;;
   *) REF="$1"; shift;; esac; done
 
@@ -40,7 +41,7 @@ if [ -n "$RECORD" ]; then
     echo "└ nothing ran. See docs/e2e-mock-lane.md § Recording the cassette."
     exit 2
   fi
-  export E2E_CASSETTE_MODE=record DEEP=1
+  export E2E_CASSETTE_MODE="${RECORD_MODE:-record}" DEEP=1
   echo "┌ RECORD MODE — live vendor calls; cassettes → .claude/qa/fixtures/cassettes/ (commit them after)"
 fi
 SHA=$(git -C "$ROOT" rev-parse --verify "${REF}^{commit}" 2>/dev/null) || { echo "ERROR: '$REF' is not a commit"; exit 2; }

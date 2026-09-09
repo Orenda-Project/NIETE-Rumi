@@ -85,7 +85,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   # WITH real vendor keys (never the default), so a normal run can never call a vendor by accident.
   local cassette_mode="${E2E_CASSETTE_MODE:-replay-strict}"
   case "$cassette_mode" in replay-strict|replay|record) ;; *) log "bad E2E_CASSETTE_MODE '$cassette_mode' (replay-strict|replay|record)"; exit 14;; esac
-  local keys_name="niete-local.env"; [ "$cassette_mode" = record ] && keys_name="niete-record.env"
+  # record ALWAYS needs the real-keys file; replay uses it too WHEN present, so a cassette MISS can go
+  # live and be recorded (top up the library) while every hit still replays — the ASR stays cached, only
+  # the un-recorded LLM calls cost anything. replay-strict never touches it (sealed: a miss FAILS).
+  local keys_name="niete-local.env"
+  if [ "$cassette_mode" = record ] || { [ "$cassette_mode" = replay ] && [ -f "$KEYS_DIR/niete-record.env" ]; }; then keys_name="niete-record.env"; fi
   local keys="$KEYS_DIR/$keys_name"
   if [ ! -f "$keys" ]; then
     if [ "$cassette_mode" = record ]; then
