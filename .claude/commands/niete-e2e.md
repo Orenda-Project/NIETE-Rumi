@@ -58,7 +58,7 @@ session, driven over the Chrome DevTools Protocol by `feature-runner.cjs` (one n
     un-registers, language toggles then restores, training seeds revert. Use a number you are fine
     resetting; the drivers revert what they change, and the run reports anything they could not.
 - **Target.** Resolve from [`.claude/qa/config/whatsapp-targets.yaml`](../qa/config/whatsapp-targets.yaml) (default profile `niete`).
-  - ✅ **Default = staging `923222482222`** ("Rumi Staging Niete"). Staging runs the `develop` build of
+  - ✅ **Default = sandbox `923025502255`** (WhatsApp display name "Digital Coach Updates"; a saved contact may read "rumi sandbox" — open it BY NUMBER, a search for "Rumi" will not find it). Since 2026-09-09 the flow is sandbox → staging → main: work lands on `sandbox` and deploys to the sandbox environment, own DB `olvritwoqujtjvwfulbh` (creds `keys/niete-sandbox.env`), Axiom `rumi-sandbox`. **Staging `923222482222` is cut from `main` and runs main-equivalent code** — use `--env staging` for a promotion regression check, never to look for new work (2026-09-09 12:15 run: the status scenarios failed there only because the build predates PR #801).
     `Orenda-Project/NIETE-Rumi` and has its **own** Supabase (`rpqkekcfvumypldbejhp`, creds in
     `keys/niete-staging.env`, resolved by the DB tools even from a worktree). Seed / revert /
     destructive writes here never touch prod. Staging logs to Axiom `digital-coach-logs` as

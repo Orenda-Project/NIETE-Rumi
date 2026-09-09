@@ -1,7 +1,7 @@
 # Running the NIETE E2E suite on a schedule
 
 **Installed:** `com.rumi.niete-e2e` — a macOS LaunchAgent firing at **00:00, 02:00 … 22:00 local**,
-scope `all` (99 scenarios), driver `923206281950`, staging.
+scope `all`, driver = the number linked in the driving Chrome (`NIETE_E2E_DRIVER`, required), target = the default profile in `whatsapp-targets.yaml` — **sandbox** since 2026-09-09.
 
 ```bash
 bash scripts/qa/niete-e2e-schedule.sh status      # loaded? last fires?
