@@ -81,6 +81,33 @@ describe('a five-domain session shows its five domains', () => {
   });
 });
 
+describe('the headline agrees with the domains actually shown', () => {
+  // The adapter derives `overall` from ITS OWN groups when the session carries
+  // no overall_percentage — and for a five-domain session those groups are the
+  // four canonical ones (13/58 here), not the five real ones (73/84). So the
+  // headline read 22% above bars averaging 87%.
+  //
+  // buildBreakdown replaces the groups, so it must recompute the headline from
+  // the groups it is actually returning.
+  const noPct = {
+    ...FIVE_DOMAIN,
+    scores: { overall_marks: 73, overall_max_marks: 84 },   // no percentage
+  };
+
+  test('overall is derived from the domains being rendered', () => {
+    const b = buildBreakdown(noPct, 'en');
+    const sum = b.groups.reduce((t, g) => t + g.score, 0);
+    const max = b.groups.reduce((t, g) => t + g.max, 0);
+    expect(b.overall).toBe(Math.round((sum / max) * 100));   // 87, not 22
+  });
+
+  test('a stored percentage still wins over any derivation', () => {
+    // The flat field is the bot's own recorded figure and stays the source of
+    // truth when it is present.
+    expect(buildBreakdown(FIVE_DOMAIN, 'en').overall).toBe(87);
+  });
+});
+
 describe('the canonical four are unchanged', () => {
   const b = buildBreakdown(FOUR_DOMAIN, 'en');
 

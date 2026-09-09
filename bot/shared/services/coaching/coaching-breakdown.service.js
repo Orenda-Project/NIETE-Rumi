@@ -130,12 +130,28 @@ function buildBreakdown(analysisData, language = 'en') {
     .map((k) => extraGroup(k, domains[k] || {}));
   const groups = [...adapted, ...extra];
 
+  // The adapter derives `overall` from ITS OWN groups when the session carries
+  // no overall_percentage. For a five-domain session those groups are the four
+  // canonical ones — one matched, three at 0/0 — so it computed 13/58 = 22%
+  // for a lesson actually scored 73/84 = 87%. Having just replaced the groups,
+  // we have to recompute the headline from the ones being rendered, or it
+  // contradicts the bars directly beneath it.
+  //
+  // A stored overall_percentage still wins: it is the bot's own recorded
+  // figure and the same value that went out on her WhatsApp report.
+  const storedPct = parseFloat(analysisData.scores?.overall_percentage);
+  const sumScore = groups.reduce((t, g) => t + (Number(g.score) || 0), 0);
+  const sumMax = groups.reduce((t, g) => t + (Number(g.max) || 0), 0);
+  const overall = Number.isFinite(storedPct)
+    ? Math.round(storedPct)
+    : (sumMax > 0 ? Math.round((sumScore / sumMax) * 100) : (vm.overall ?? null));
+
   return {
     framework: vm.framework || null,
     language: vm.language || language,
-    overall: vm.overall ?? null,
-    marks: vm.marks ?? null,
-    max: vm.max ?? null,
+    overall,
+    marks: vm.marks ?? (sumMax > 0 ? sumScore : null),
+    max: vm.max ?? (sumMax > 0 ? sumMax : null),
     // Strongest first. The caller opens the last one.
     groups: byStrength(groups).map((g) => ({
       ...g,
