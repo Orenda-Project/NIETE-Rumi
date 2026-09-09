@@ -18,9 +18,9 @@ name: CI
 # guards under `tests/setup/`. Re-record with `npm run test:baseline:update` if so.
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging, sandbox]
   pull_request:
-    branches: [main, develop]
+    branches: [main, staging, sandbox]
   workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
 jobs:

@@ -35,7 +35,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PAGE_SIZE = 200;
-/** NIETE prod project ref — a worktree seeded with the MAIN bot's .env points at a different prod DB (bd-2533/bd-2536). */
+/** NIETE prod project ref — a worktree seeded with the MAIN bot's .env points at a different prod DB. */
 const EXPECTED_PROJECT_REF = 'ihzciabopbttygxxgrkm';
 
 function parseArgs(argv) {

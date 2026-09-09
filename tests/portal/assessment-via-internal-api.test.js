@@ -65,11 +65,33 @@ describe('the portal owns no assessment logic', () => {
     expect(src).not.toMatch(/supabase/i);
   });
 
-  test('the route file makes no assessment-generator table reads', () => {
+  test('the assessment ROUTES make no assessment-generator table reads', () => {
+    // Scoped to the assessment handlers, not the whole file.
+    //
+    // The rule this protects is "the portal does not re-implement the
+    // generator" — no catalogue, no question rules, no paper lookups. It was
+    // written as a whole-file ban, which was too wide: bd-60079 added a plain
+    // scoped COUNT of assessment_requests to the dashboard's stat row, beside
+    // the counts of coaching_sessions and teacher_training_progress it already
+    // did. Counting a teacher's own rows is not owning the domain, and routing
+    // one integer through the internal API would be ceremony.
     const src = code(ROUTES);
-    expect(src).not.toMatch(/from\(['"]assessment_requests['"]\)/);
+    const block = src.slice(
+      src.indexOf('ASSESSMENT GENERATOR'),
+      src.indexOf('TEACHER TRAINING BROWSER'),
+    );
+    expect(block).not.toMatch(/from\(['"]assessment_requests['"]\)/);
+    expect(block).not.toMatch(/from\(['"]assessment_papers['"]\)/);
+    expect(block).not.toMatch(/from\(['"]textbook_toc['"]\)/);
+  });
+
+  test('nowhere in the portal reads assessment_papers or the textbook tables', () => {
+    // These two stay banned file-wide: a paper lookup or a chapter read IS the
+    // generator's job, and there is no counting use for either.
+    const src = code(ROUTES);
     expect(src).not.toMatch(/from\(['"]assessment_papers['"]\)/);
     expect(src).not.toMatch(/from\(['"]textbook_toc['"]\)/);
+    expect(src).not.toMatch(/from\(['"]textbooks['"]\)/);
   });
 
   test('the portal hardcodes no question cap — it comes from the bot', () => {

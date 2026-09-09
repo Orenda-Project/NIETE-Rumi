@@ -160,7 +160,22 @@ python3 .claude/qa/shared/check-all-mode-counts.py
 
 ---
 
-## 6. Report, then release phase 2
+## 6. Commit the spec — a working-tree edit is not done
+
+Everything downstream judges **commits**: the PR check (`.github/workflows/qa-impact.yml`)
+diffs the PR range, and the Stop-hook gate compares the spec *as committed at HEAD* with its
+fingerprint from arming. A `.feature` you edited and validated but left uncommitted passes
+nothing and the turn stays held. One commit, only the spec (and `niete-e2e.md` if counts moved):
+
+```bash
+git add tests/features/whatsapp/niete/<feature>.feature .claude/commands/niete-e2e.md
+git commit -m "test(gherkin): sync <feature>.feature to <sha-of-the-change>"
+```
+
+The post-commit hook sees a spec-only change, marks it `validate-only`, and authors nothing —
+it cannot loop.
+
+## 7. Report, then release phase 2
 
 State, briefly:
 

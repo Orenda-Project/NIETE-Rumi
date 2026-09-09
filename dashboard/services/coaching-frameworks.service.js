@@ -32,7 +32,19 @@ const pct = (score, max) => (max > 0 ? round1((score / max) * 100) : 0);
 function getOverall(analysisData) {
   const s = (analysisData && analysisData.scores) || {};
   const points = num(s.overall_marks != null ? s.overall_marks : s.grand_total);
-  const maxPoints = num(s.max_marks != null ? s.max_marks : s.overall_max_marks);
+  // overall_max_marks FIRST, and this order matters.
+  //
+  // Measured across 172 completed sessions: overall_max_marks equals the sum
+  // of the domain maxima on 172 of them, max_marks on ZERO. max_marks sits at
+  // a fixed 103 or 117 regardless of the lesson, while FICO's real denominator
+  // is computed per session from the subject and from which indicators
+  // applied — so preferring it read the headline out of a different scale than
+  // the domain bars underneath, and on 4 of 172 sessions overall_marks exceeds
+  // max_marks, which renders as a score above 100%.
+  //
+  // max_marks is kept as the fallback: it is the only max a legacy OECD-shaped
+  // row carries, and the leader dashboard reads this same function.
+  const maxPoints = num(s.overall_max_marks != null ? s.overall_max_marks : s.max_marks);
   let percentage = s.percentage != null ? s.percentage
     : (s.overall_percentage != null ? s.overall_percentage : null);
   if (percentage == null) percentage = pct(points, maxPoints);

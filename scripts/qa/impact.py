@@ -2,9 +2,11 @@
 """impact — the QA impact of a commit range, run locally by the pre-push hook.
 
 The git pre-push hook (.githooks/pre-push) runs this over exactly the commits a
-push to develop/main/staging is about to send, and prints the result in the
-terminal. It can also be run by hand: `npm run qa:impact`. There is deliberately
-NO CI counterpart (operator decision, 2026-09-07): this pipeline is hooks only.
+push is about to send — any branch — and prints the result in the terminal. The
+GitHub workflow .github/workflows/qa-impact.yml runs the SAME analysis on every PR
+into sandbox/staging/main and fails the PR on a stale spec (the "hooks only, no
+CI" decision of 2026-09-07 was reversed on 2026-09-09 after PRs #835/#836 reached
+sandbox unseen — see the workflow's header). By hand: `npm run qa:impact`.
 
 It answers three questions, deterministically, and stops:
 

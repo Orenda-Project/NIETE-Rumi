@@ -77,5 +77,29 @@ echo "gitmarker — clear"
 bash "$PROJ/.claude/hooks/e2e-autorun.sh" --clear --session git-bbb222 2>/dev/null
 [ -f "$PEND/git-bbb222.json" ] && bad "--clear --session removes a git marker" || ok "--clear --session removes a git marker"
 
+echo "gitmarker — session start installs the git hooks (the precondition PRs #835/#836 skipped)"
+# A real clone: git repo + .githooks + the installer, nothing pending. The banner must
+# leave it with core.hooksPath=.githooks and SAY it did — a developer who never ran
+# `npm install` had no hooks, and nothing told them.
+G="$TMP/clone with space"; mkdir -p "$G/.claude" "$G/scripts"
+cp -R "$ROOT/.claude/hooks" "$G/.claude/hooks"; cp -R "$ROOT/.githooks" "$G/.githooks"; cp -R "$ROOT/scripts/qa" "$G/scripts/qa"
+git -C "$G" init -q -b sandbox; git -C "$G" config user.email t@l; git -C "$G" config user.name t
+git -C "$G" add -A >/dev/null; git -C "$G" commit -qm baseline
+gbanner() { printf '{"session_id":"%s","cwd":"%s","hook_event_name":"SessionStart"}' "$S" "$G" | CLAUDE_PROJECT_DIR="$G" bash "$G/.claude/hooks/e2e-pending-banner.sh" 2>/dev/null; }
+say "fixture starts with no hooksPath" "$(git -C "$G" config --get core.hooksPath)" ""
+out=$(gbanner)
+say "SessionStart sets core.hooksPath=.githooks" "$(git -C "$G" config --get core.hooksPath)" ".githooks"
+has "…and tells the session it just installed them" "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)" "core.hooksPath" yes
+[ -x "$G/.githooks/post-commit" ] && ok "post-commit is executable afterwards" || bad "post-commit not executable"
+out=$(gbanner)
+say "second start: already installed, nothing pending → silent" "$out" ""
+git -C "$G" config core.hooksPath .husky
+out=$(gbanner)
+say "a foreign hooksPath is NOT clobbered" "$(git -C "$G" config --get core.hooksPath)" ".husky"
+has "…but the session is told how to take it over" "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null)" "install-hooks.sh --force" yes
+git -C "$G" config --unset core.hooksPath
+out=$(E2E_AUTORUN_OFF=1 gbanner)
+say "E2E_AUTORUN_OFF=1 installs nothing" "$(git -C "$G" config --get core.hooksPath)" ""
+
 echo "  ---"
 if [ "$FAILED" -eq 0 ]; then echo "  all cases pass"; else echo "  $FAILED case(s) failing"; exit 1; fi

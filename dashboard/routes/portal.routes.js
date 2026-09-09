@@ -817,46 +817,85 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
       throw err;  // User is critical, must fail
     });
 
-    // Get counts with graceful error handling (Promise.allSettled allows partial failures)
-    const [lessonPlansResult, coachingSessionsResult] = await Promise.allSettled([
-      supabase
-        .from('lesson_plans')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId),
+    // Counts, gathered with allSettled so one dead table cannot blank the page.
+    //
+    // bd-60079 — the lesson_plans count is gone. It counted her own
+    // Gamma-generated output, and custom generation is off, so the number was
+    // frozen at whatever she reached and could never move again. A headline
+    // metric that cannot change is not a metric.
+    //
+    // In its place: training and assessments, both read from tables the bot
+    // already writes. Nothing new is stored for this.
+    const [coachingSessionsResult, assessmentsResult, progressResult] = await Promise.allSettled([
       supabase
         .from('coaching_sessions')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('status', 'completed')
+        .eq('status', 'completed'),
+      supabase
+        .from('assessment_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      // Modules she has completed, with the course each belongs to so they can
+      // be attributed to a level. INSERT-only table: a row IS a completion,
+      // there is no status to filter on.
+      supabase
+        .from('teacher_training_progress')
+        .select('module_id, training_modules!inner(course_id, is_active)')
+        .eq('user_id', userId)
+        .eq('training_modules.is_active', true),
     ]);
 
-    // Get recent lesson plans with error handling
-    // NOTE: Database has 'topic', 'grade', 'type' - we transform to 'title', 'grade_level', 'content_type'
-    const recentLessonPlansRaw = await supabase
-      .from('lesson_plans')
-      .select('id, topic, grade, subject, type, gamma_url, pdf_url, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(3)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Failed to fetch recent lesson plans:', error);
-          return [];  // Return empty array instead of crashing
-        }
-        return data || [];
-      });
+    // The training breakdown: what she has DONE, and where she is up to.
+    //
+    // Deliberately NOT "X of Y". An earlier cut showed modules completed over
+    // every active module in the catalogue (384), which was wrong twice over:
+    // a teacher only sees the levels her programme scopes her to, and — the
+    // operator's correction — even within that scope she is not expected to
+    // finish everything. A fraction states a target that does not exist, and
+    // it makes steady progress look like permanent incompleteness.
+    //
+    // So: a count of what she has completed, and the level she is furthest
+    // into. Both are facts about her, neither implies a finish line.
+    const training = await (async () => {
+      const empty = { modulesCompleted: 0, currentLevel: null };
+      if (progressResult.status !== 'fulfilled') return empty;
 
-    // Transform to match portal expectations (with null-safe grade handling)
-    const recentLessonPlans = recentLessonPlansRaw.map(plan => ({
-      id: plan.id,
-      title: plan.topic,
-      subject: plan.subject || null,
-      grade_level: plan.grade || null,  // Null-safe: handles missing or NULL grade
-      content_type: plan.type,
-      gamma_url: plan.gamma_url,
-      pdf_url: plan.pdf_url,
-      created_at: plan.created_at
-    }));
+      const rows = progressResult.value.data || [];
+      if (!rows.length) return empty;
+
+      const doneCourseIds = [...new Set(rows
+        .map((r) => r.training_modules && r.training_modules.course_id)
+        .filter(Boolean))];
+      if (!doneCourseIds.length) return { modulesCompleted: rows.length, currentLevel: null };
+
+      const { data: courses } = await supabase
+        .from('training_courses')
+        .select('level_id')
+        .in('id', doneCourseIds);
+
+      const levelIds = [...new Set((courses || []).map((c) => c.level_id).filter(Boolean))];
+      if (!levelIds.length) return { modulesCompleted: rows.length, currentLevel: null };
+
+      // Furthest along = the highest order_index she has touched, which is the
+      // level she is working through rather than the one she started in.
+      const { data: levels } = await supabase
+        .from('training_levels')
+        .select('name, order_index')
+        .in('id', levelIds)
+        .order('order_index', { ascending: false })
+        .limit(1);
+
+      return {
+        modulesCompleted: rows.length,
+        currentLevel: (levels && levels[0] && levels[0].name) || null,
+      };
+    })().catch(() => ({ modulesCompleted: 0, currentLevel: null }));
+
+    // bd-60079 — the recent-lesson-plans fetch is gone with the card that
+    // rendered it. It read `lesson_plans` (her own Gamma output) and the
+    // dashboard no longer returns them, so keeping the query would be three
+    // rows fetched on every page load for nobody.
 
     // Get recent coaching session with error handling
     // FIXED: Removed .single() to prevent crash when no results
@@ -883,10 +922,10 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
       // bd-2434: includes `role` (+ contact fields) via the shared shaper.
       user: publicUserPayload(user, { includeContact: true }),
       stats: {
-        totalLessonPlans: lessonPlansResult.status === 'fulfilled' ? (lessonPlansResult.value.count || 0) : 0,
-        totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0
+        totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0,
+        totalAssessments: assessmentsResult.status === 'fulfilled' ? (assessmentsResult.value.count || 0) : 0,
+        training
       },
-      recentLessonPlans: recentLessonPlans,
       recentCoachingSession: recentCoachingSessionData ? {
         id: recentCoachingSessionData.id,
         date: recentCoachingSessionData.created_at,
@@ -1201,6 +1240,8 @@ router.get('/lesson-plans', requirePortalAuth, async (req, res) => {
 // stays here — the client returns full untruncated text, not the Flow's
 // 30-code-point NavigationList rows.
 const LpCatalogue = require('../services/lp-catalogue.service');
+// The bot owns "how was she scored?" — see coaching-breakdown.service.
+const CoachingBreakdown = require('../services/coaching-breakdown.service');
 
 /**
  * GET /api/portal/curriculum/grades
@@ -4148,9 +4189,21 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
       date: session.created_at,
       session_date: session.created_at, // Portal expects 'session_date'
       duration: session.audio_duration_seconds,
-      overallScore: session.analysis_data?.scores?.overall_marks || session.analysis_data?.scores?.grand_total || 0,
-      maxScore: session.analysis_data?.scores?.max_marks || 118,
-      percentage: session.analysis_data?.scores?.percentage || 0
+      // getOverall (coaching-frameworks.service) already normalises every
+      // framework's score shape and is what the leader dashboard uses — the
+      // coaching routes simply never called it. It reads overall_percentage,
+      // which is the key that exists: `scores.percentage` appears in 0 of 500
+      // sampled production sessions, so this card has always shown 0%.
+      // It also drops the `|| 118` max, which is wrong for every FICO session
+      // (the denominator is computed per subject: 42 / 44 / 38).
+      ...(({ points, maxPoints, percentage }) => ({
+        overallScore: points,
+        maxScore: maxPoints,
+        percentage,
+      }))(getOverall(session.analysis_data)),
+      // The framework she was actually scored on, so the card can say so
+      // instead of implying one.
+      framework: session.analysis_data?.framework || null
     }));
 
     res.json({
@@ -4201,226 +4254,29 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     }
 
     // Transform analysis_data structure to match frontend expectations
-    const scores = session.analysis_data?.scores || {};
-    const overallMarks = scores.overall_marks || scores.grand_total || 0;
-    const maxMarks = scores.max_marks || 118;
-    const percentage = scores.percentage || 0;
+    // Transform analysis_data structure to match frontend expectations
+    // getOverall normalises every framework's score shape (see
+    // coaching-frameworks.service) and is already what the leader dashboard
+    // uses. It reads overall_percentage — the key that exists — where this
+    // route read `scores.percentage`, absent from all 500 sampled production
+    // sessions, so every percentage printed here was the `|| 0`. It also drops
+    // the `|| 118` max, wrong for every FICO session.
+    const { points: overallMarks, maxPoints: maxMarks, percentage } =
+      getOverall(session.analysis_data);
 
-    // Map goal areas from Rumi Teaching Framework
-    const goalScores = [
-      {
-        goal: 'Formative Assessment',
-        points: scores.goal1_total || 0,
-        max_points: 22,
-        percentage: scores.goal1_total ? ((scores.goal1_total / 22) * 100) : 0
-      },
-      {
-        goal: 'Student Engagement',
-        points: scores.goal2_total || 0,
-        max_points: 22,
-        percentage: scores.goal2_total ? ((scores.goal2_total / 22) * 100) : 0
-      },
-      {
-        goal: 'Quality Content',
-        points: scores.goal3_total || 0,
-        max_points: 38,
-        percentage: scores.goal3_total ? ((scores.goal3_total / 38) * 100) : 0
-      },
-      {
-        goal: 'Effective Differentiation',
-        points: scores.goal4_total || 0,
-        max_points: 5,
-        percentage: scores.goal4_total ? ((scores.goal4_total / 5) * 100) : 0
-      },
-      {
-        goal: 'Classroom Management',
-        points: scores.goal5_total || 0,
-        max_points: 21,
-        percentage: scores.goal5_total ? ((scores.goal5_total / 21) * 100) : 0
-      },
-      {
-        goal: 'Reflective Debrief',
-        points: scores.debrief_total || 0,
-        max_points: 15,
-        percentage: scores.debrief_total ? ((scores.debrief_total / 15) * 100) : 0
-      }
-    ];
-
-    // Extract criterion-level scores from nested goal data
-    const criterionScores = [];
-
-    // Goal 1: Formative Assessment criteria
-    if (session.analysis_data?.goal1_formative_assessment) {
-      const g1 = session.analysis_data.goal1_formative_assessment;
-      if (g1.assessment) {
-        criterionScores.push({
-          criterion: 'Assessment Quality',
-          points: g1.assessment.computed_marks || 0,
-          max_points: g1.assessment.max_marks || 9,
-          percentage: g1.assessment.computed_marks && g1.assessment.max_marks ?
-            ((g1.assessment.computed_marks / g1.assessment.max_marks) * 100) : 0
-        });
-      }
-      if (g1.teachers_role) {
-        criterionScores.push({
-          criterion: "Teacher's Facilitation Role",
-          points: g1.teachers_role.computed_marks || 0,
-          max_points: g1.teachers_role.max_marks || 4,
-          percentage: g1.teachers_role.computed_marks && g1.teachers_role.max_marks ?
-            ((g1.teachers_role.computed_marks / g1.teachers_role.max_marks) * 100) : 0
-        });
-      }
-      if (g1.smart_objectives) {
-        criterionScores.push({
-          criterion: 'SMART Learning Objectives',
-          points: g1.smart_objectives.computed_marks || 0,
-          max_points: g1.smart_objectives.max_marks || 4,
-          percentage: g1.smart_objectives.computed_marks && g1.smart_objectives.max_marks ?
-            ((g1.smart_objectives.computed_marks / g1.smart_objectives.max_marks) * 100) : 0
-        });
-      }
-      if (g1.incorporation_of_feedback) {
-        criterionScores.push({
-          criterion: 'Incorporation of Feedback',
-          points: g1.incorporation_of_feedback.computed_marks || 0,
-          max_points: g1.incorporation_of_feedback.max_marks || 5,
-          percentage: g1.incorporation_of_feedback.computed_marks && g1.incorporation_of_feedback.max_marks ?
-            ((g1.incorporation_of_feedback.computed_marks / g1.incorporation_of_feedback.max_marks) * 100) : 0
-        });
-      }
-    }
-
-    // Goal 2: Student Engagement criteria
-    if (session.analysis_data?.goal2_student_engagement) {
-      const g2 = session.analysis_data.goal2_student_engagement;
-      if (g2.multimodality) {
-        criterionScores.push({
-          criterion: 'Multimodal Learning',
-          points: g2.multimodality.computed_marks || 0,
-          max_points: g2.multimodality.max_marks || 5,
-          percentage: g2.multimodality.computed_marks && g2.multimodality.max_marks ?
-            ((g2.multimodality.computed_marks / g2.multimodality.max_marks) * 100) : 0
-        });
-      }
-      if (g2.misconceptions) {
-        criterionScores.push({
-          criterion: 'Addressing Misconceptions',
-          points: g2.misconceptions.computed_marks || 0,
-          max_points: g2.misconceptions.max_marks || 4,
-          percentage: g2.misconceptions.computed_marks && g2.misconceptions.max_marks ?
-            ((g2.misconceptions.computed_marks / g2.misconceptions.max_marks) * 100) : 0
-        });
-      }
-      if (g2.cognitive_rigor) {
-        criterionScores.push({
-          criterion: 'Cognitive Rigor',
-          points: g2.cognitive_rigor.computed_marks || 0,
-          max_points: g2.cognitive_rigor.max_marks || 9,
-          percentage: g2.cognitive_rigor.computed_marks && g2.cognitive_rigor.max_marks ?
-            ((g2.cognitive_rigor.computed_marks / g2.cognitive_rigor.max_marks) * 100) : 0
-        });
-      }
-      if (g2.real_world_connections) {
-        criterionScores.push({
-          criterion: 'Real-World Connections',
-          points: g2.real_world_connections.computed_marks || 0,
-          max_points: g2.real_world_connections.max_marks || 4,
-          percentage: g2.real_world_connections.computed_marks && g2.real_world_connections.max_marks ?
-            ((g2.real_world_connections.computed_marks / g2.real_world_connections.max_marks) * 100) : 0
-        });
-      }
-    }
-
-    // Goal 3: Quality Content criteria
-    if (session.analysis_data?.goal3_quality_content) {
-      const g3 = session.analysis_data.goal3_quality_content;
-      if (g3.prior_knowledge) {
-        criterionScores.push({
-          criterion: 'Prior Knowledge Check',
-          points: g3.prior_knowledge.computed_marks || 0,
-          max_points: g3.prior_knowledge.max_marks || 4,
-          percentage: g3.prior_knowledge.computed_marks && g3.prior_knowledge.max_marks ?
-            ((g3.prior_knowledge.computed_marks / g3.prior_knowledge.max_marks) * 100) : 0
-        });
-      }
-      if (g3.verbal_questioning) {
-        criterionScores.push({
-          criterion: 'Effective Questioning',
-          points: g3.verbal_questioning.computed_marks || 0,
-          max_points: g3.verbal_questioning.max_marks || 4,
-          percentage: g3.verbal_questioning.computed_marks && g3.verbal_questioning.max_marks ?
-            ((g3.verbal_questioning.computed_marks / g3.verbal_questioning.max_marks) * 100) : 0
-        });
-      }
-      if (g3.content_organization) {
-        criterionScores.push({
-          criterion: 'Content Organization',
-          points: g3.content_organization.computed_marks || 0,
-          max_points: g3.content_organization.max_marks || 7,
-          percentage: g3.content_organization.computed_marks && g3.content_organization.max_marks ?
-            ((g3.content_organization.computed_marks / g3.content_organization.max_marks) * 100) : 0
-        });
-      }
-      if (g3.coherence_transitions) {
-        criterionScores.push({
-          criterion: 'Lesson Coherence & Transitions',
-          points: g3.coherence_transitions.computed_marks || 0,
-          max_points: g3.coherence_transitions.max_marks || 4,
-          percentage: g3.coherence_transitions.computed_marks && g3.coherence_transitions.max_marks ?
-            ((g3.coherence_transitions.computed_marks / g3.coherence_transitions.max_marks) * 100) : 0
-        });
-      }
-      if (g3.content_coverage_accuracy) {
-        criterionScores.push({
-          criterion: 'Content Coverage & Accuracy',
-          points: g3.content_coverage_accuracy.computed_marks || 0,
-          max_points: g3.content_coverage_accuracy.max_marks || 11,
-          percentage: g3.content_coverage_accuracy.computed_marks && g3.content_coverage_accuracy.max_marks ?
-            ((g3.content_coverage_accuracy.computed_marks / g3.content_coverage_accuracy.max_marks) * 100) : 0
-        });
-      }
-      if (g3.prior_knowledge_activation) {
-        criterionScores.push({
-          criterion: 'Prior Knowledge Activation',
-          points: g3.prior_knowledge_activation.computed_marks || 0,
-          max_points: g3.prior_knowledge_activation.max_marks || 4,
-          percentage: g3.prior_knowledge_activation.computed_marks && g3.prior_knowledge_activation.max_marks ?
-            ((g3.prior_knowledge_activation.computed_marks / g3.prior_knowledge_activation.max_marks) * 100) : 0
-        });
-      }
-    }
-
-    // Goal 5: Classroom Management criteria
-    if (session.analysis_data?.goal5_classroom_management) {
-      const g5 = session.analysis_data.goal5_classroom_management;
-      if (g5.classroom_culture) {
-        criterionScores.push({
-          criterion: 'Classroom Culture',
-          points: g5.classroom_culture.computed_marks || 0,
-          max_points: g5.classroom_culture.max_marks || 9,
-          percentage: g5.classroom_culture.computed_marks && g5.classroom_culture.max_marks ?
-            ((g5.classroom_culture.computed_marks / g5.classroom_culture.max_marks) * 100) : 0
-        });
-      }
-      if (g5.classroom_management) {
-        criterionScores.push({
-          criterion: 'Classroom Management',
-          points: g5.classroom_management.computed_marks || 0,
-          max_points: g5.classroom_management.max_marks || 9,
-          percentage: g5.classroom_management.computed_marks && g5.classroom_management.max_marks ?
-            ((g5.classroom_management.computed_marks / g5.classroom_management.max_marks) * 100) : 0
-        });
-      }
-      if (g5.pacing) {
-        criterionScores.push({
-          criterion: 'Lesson Pacing',
-          points: g5.pacing.computed_marks || 0,
-          max_points: g5.pacing.max_marks || 3,
-          percentage: g5.pacing.computed_marks && g5.pacing.max_marks ?
-            ((g5.pacing.computed_marks / g5.pacing.max_marks) * 100) : 0
-        });
-      }
-    }
+    // The score breakdown comes from the BOT, which dispatches five frameworks
+    // through the same adapter that renders her WhatsApp report image. This
+    // file used to assemble six OECD goal bars from scores.goal1_total…
+    // goal5_total; every NIETE region is FICO and a FICO session carries none
+    // of those keys, so five bars rendered zero under labels her framework has
+    // never used — silently, because each read carried a `|| 0`.
+    //
+    // A failure here is a 5xx, not an empty breakdown: drawing zeros is the
+    // exact failure this change removes.
+    const breakdown = await CoachingBreakdown.breakdown(
+      session.analysis_data,
+      session.voice_debrief_language || session.transcript_language || 'en',
+    );
 
     // Extract narrative arrays from analysis_data
     const strengthsArray = session.analysis_data?.strengths?.map(s =>
@@ -4433,7 +4289,41 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
 
     const recommendationsArray = session.analysis_data?.recommendations || [];
 
-    // NOTE: Actual score path is analysis_data.scores.overall_marks (not overall_score.points)
+    // Every artifact is presigned, through the same helper the training and
+    // video endpoints already use. Coaching is the one that never got it: the
+    // raw private-bucket URLs it returned answer HTTP 400, so the download
+    // button has been broken for every teacher.
+    //
+    // TWO recordings, named for what they are. The player titled "Session
+    // Recording" was being fed voice_debrief_url — the COACH talking. Her own
+    // lesson is in audio_url, present on 100% of sessions, and has never once
+    // been served to her.
+    const [lessonAudioUrl, debriefAudioUrl, reportUrl, lessonPlanUrl] = await Promise.all([
+      _resolveMediaUrl(session.audio_url),
+      _resolveMediaUrl(session.voice_debrief_url),
+      _resolveMediaUrl(session.report_pdf_url),
+      _resolveMediaUrl(session.lesson_plan_url),
+    ]);
+
+    // Her classroom photos, if she sent any (49% of sessions do).
+    const photoUrls = (await Promise.all(
+      (Array.isArray(session.classroom_photos) ? session.classroom_photos : [])
+        .map((ph) => _resolveMediaUrl(typeof ph === 'string' ? ph : (ph && (ph.url || ph.r2_url)))),
+    )).filter(Boolean);
+
+    // Her reflective Q&A — the questions Rumi asked and HER OWN answers, which
+    // she has never been able to re-read. Read-only here: answering stays on
+    // WhatsApp, and the UI says so rather than implying the page is inert.
+    const reflection = ((session.conversation_state || {}).questions || [])
+      .filter((q) => q && (q.question || q.answer))
+      .map((q) => ({
+        question: q.question || null,
+        answer: q.answer || null,
+        language: q.language || null,
+        asked_at: q.asked_at || null,
+        answered_at: q.answered_at || null,
+      }));
+
     res.json({
       success: true,
       session: {
@@ -4441,24 +4331,56 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         date: session.created_at,
         session_date: session.created_at, // Portal expects 'session_date'
         duration: session.audio_duration_seconds,
-        audioUrl: session.voice_debrief_url, // Voice debrief (.mp3) for portal playback
+        status: session.status,
+
+        // ── what she recorded ──────────────────────────────────────────────
+        lessonAudioUrl,                       // HER lesson
+        debriefAudioUrl,                      // the coach's spoken feedback
+        // Kept so an older bundle mid-deploy does not lose its player. It now
+        // points at HER lesson, which is what the label always claimed.
+        audioUrl: lessonAudioUrl,
         transcript: session.transcript_text,
-        reportPdfUrl: session.report_pdf_url,
+        transcriptLanguage: session.transcript_language || null,
+
+        // ── the artifacts ──────────────────────────────────────────────────
+        // `reportUrl` + `reportFormat`, because the column is named
+        // report_pdf_url and holds a .png on 897 of 914 stored reports. The
+        // button should say what the file is.
+        reportUrl,
+        reportFormat: /\.pdf(\?|$)/i.test(String(session.report_pdf_url || '')) ? 'pdf' : 'png',
+        reportPdfUrl: reportUrl,              // legacy key, same signed value
+        lessonPlanUrl,
+        hasLessonPlan: !!session.has_lesson_plan,
+        photoUrls,
+
+        // ── how she was scored ─────────────────────────────────────────────
         overallScore: overallMarks,
         maxScore: maxMarks,
-        percentage: percentage,
-        // Transform analysisData to match frontend expectations
+        percentage,
+        // The framework-correct breakdown, straight from the bot. Domains are
+        // strongest-first with their indicators and evidence quotes attached;
+        // null means not scored yet, never "scored zero".
+        breakdown,
+
+        // ── her own words ──────────────────────────────────────────────────
+        reflection,
+        prioritizedAction: session.prioritized_action || null,
+
         analysisData: {
           overall_score: {
             points: overallMarks,
             max_points: maxMarks,
-            percentage: percentage
+            percentage
           },
-          goal_scores: goalScores,
-          criterion_scores: criterionScores,
+          executive_summary: session.analysis_data?.executive_summary || null,
           strengths: strengthsArray,
           growth_opportunities: growthArray,
-          recommendations: recommendationsArray
+          recommendations: recommendationsArray,
+          notable_moments: session.analysis_data?.notable_moments || [],
+          // `{ status: 'lp_absent' }` when she attached no plan — an honest
+          // answer, not a gap. 'ok' on 56% of sessions.
+          lp_fidelity: session.analysis_data?.lp_fidelity || null,
+          photo_analysis: session.analysis_data?.photo_analysis || null
         }
       }
     });
@@ -4509,78 +4431,87 @@ router.get('/coaching-analytics', requirePortalAuth, async (req, res) => {
       });
     }
 
-    // Build overall score trend
-    // NOTE: Actual path is analysis_data.scores.overall_marks and scores.percentage
-    const overallScoreTrend = sessions.map(session => ({
-      date: session.created_at,
-      score: session.analysis_data?.scores?.overall_marks || session.analysis_data?.scores?.grand_total || 0,
-      percentage: session.analysis_data?.scores?.percentage || 0
-    }));
+    // Build overall score trend.
+    //
+    // getOverall normalises every framework's score shape; this route used to
+    // read `scores.percentage`, which appears in 0 of 500 sampled production
+    // sessions, so the trend line has been flat at zero.
+    const overallScoreTrend = sessions.map((session) => {
+      const o = getOverall(session.analysis_data);
+      return {
+        date: session.created_at,
+        score: o.points,
+        percentage: o.percentage,
+      };
+    });
 
-    // Get latest session for goal area breakdown
-    const latestSession = sessions[sessions.length - 1];
+    // Domain breakdown, AVERAGED ACROSS SESSIONS.
+    //
+    // This used to read six OECD goal totals off the LATEST session only —
+    // fields a FICO session does not have, so the chart was six zeros, and
+    // "best area" / "focus area" were chosen by sorting them. Two defects at
+    // once: the wrong framework, and one session presented as a trend.
+    //
+    // Now: ask the bot for each session's framework-correct breakdown and
+    // average each domain's percentage over every session that scored it. A
+    // teacher's focus area should be where she is consistently weakest, not
+    // where she happened to dip last lesson.
+    const perDomain = new Map();
+    const breakdowns = await Promise.all(
+      sessions.map((session) => CoachingBreakdown
+        .breakdown(session.analysis_data, 'en')
+        .catch(() => null)),
+    );
+    breakdowns.filter(Boolean).forEach((b) => {
+      (b.groups || []).forEach((g) => {
+        if (!g || typeof g.pct !== 'number') return;
+        const row = perDomain.get(g.domainKey) || { name: g.name, key: g.key, pcts: [], score: 0, max: 0 };
+        row.pcts.push(g.pct);
+        row.score += Number(g.score) || 0;
+        row.max += Number(g.max) || 0;
+        perDomain.set(g.domainKey, row);
+      });
+    });
 
-    // NOTE: Actual structure has goal1_total, goal2_total, etc. in scores object
-    // Map to goal names from Rumi Teaching Framework
-    const goalAreaBreakdown = [
-      {
-        name: 'Formative Assessment',
-        score: latestSession.analysis_data?.scores?.goal1_total || 0,
-        maxScore: 22, // Goal 1 max marks
-        percentage: latestSession.analysis_data?.scores?.goal1_total ?
-          ((latestSession.analysis_data.scores.goal1_total / 22) * 100) : 0
-      },
-      {
-        name: 'Student Engagement',
-        score: latestSession.analysis_data?.scores?.goal2_total || 0,
-        maxScore: 22, // Goal 2 max marks
-        percentage: latestSession.analysis_data?.scores?.goal2_total ?
-          ((latestSession.analysis_data.scores.goal2_total / 22) * 100) : 0
-      },
-      {
-        name: 'Quality Content',
-        score: latestSession.analysis_data?.scores?.goal3_total || 0,
-        maxScore: 38, // Goal 3 max marks
-        percentage: latestSession.analysis_data?.scores?.goal3_total ?
-          ((latestSession.analysis_data.scores.goal3_total / 38) * 100) : 0
-      },
-      {
-        name: 'Effective Differentiation',
-        score: latestSession.analysis_data?.scores?.goal4_total || 0,
-        maxScore: 5, // Goal 4 max marks
-        percentage: latestSession.analysis_data?.scores?.goal4_total ?
-          ((latestSession.analysis_data.scores.goal4_total / 5) * 100) : 0
-      },
-      {
-        name: 'Classroom Management',
-        score: latestSession.analysis_data?.scores?.goal5_total || 0,
-        maxScore: 21, // Goal 5 max marks
-        percentage: latestSession.analysis_data?.scores?.goal5_total ?
-          ((latestSession.analysis_data.scores.goal5_total / 21) * 100) : 0
-      },
-      {
-        name: 'Reflective Debrief',
-        score: latestSession.analysis_data?.scores?.debrief_total || 0,
-        maxScore: 15, // Debrief max marks
-        percentage: latestSession.analysis_data?.scores?.debrief_total ?
-          ((latestSession.analysis_data.scores.debrief_total / 15) * 100) : 0
-      }
-    ].map(goal => ({
-      ...goal,
-      percentage: Math.round(goal.percentage * 10) / 10 // Round to 1 decimal
-    }));
+    const goalAreaBreakdown = [...perDomain.values()].map((row) => ({
+      name: row.name,
+      score: row.score,
+      maxScore: row.max,
+      // The mean of the per-session percentages, so one long lesson does not
+      // outweigh three short ones.
+      percentage: Math.round((row.pcts.reduce((a, c) => a + c, 0) / row.pcts.length) * 10) / 10,
+      sessions: row.pcts.length,
+    })).sort((a, b) => b.percentage - a.percentage);
 
     // Calculate insights
     const totalSessions = sessions.length;
-    const averageScore = overallScoreTrend.reduce((sum, s) => sum + s.score, 0) / totalSessions;
-    const firstScore = overallScoreTrend[0]?.score || 0;
-    const lastScore = overallScoreTrend[totalSessions - 1]?.score || 0;
-    const improvement = lastScore - firstScore;
+    // Average the PERCENTAGE, not raw marks: FICO's denominator varies by
+    // subject (42 / 44 / 38), so averaging marks compares different scales.
+    const scored = overallScoreTrend.filter((s2) => typeof s2.percentage === 'number');
+    const averageScore = scored.length
+      ? Math.round((scored.reduce((sum, s2) => sum + s2.percentage, 0) / scored.length) * 10) / 10
+      : 0;
+    const firstScore = scored[0]?.percentage || 0;
+    const lastScore = scored[scored.length - 1]?.percentage || 0;
+    const improvement = Math.round((lastScore - firstScore) * 10) / 10;
 
-    // Find best and focus areas
-    const sortedGoals = [...goalAreaBreakdown].sort((a, b) => b.percentage - a.percentage);
-    const bestGoalArea = sortedGoals[0]?.name || null;
-    const focusArea = sortedGoals[sortedGoals.length - 1]?.name || null;
+    // Strongest and weakest, across her whole history.
+    //
+    // Ranked only over domains seen in a MAJORITY of her scored sessions. A
+    // teacher's sessions are not always scored on the same vocabulary — 17 of
+    // 172 on the corpus use a five-domain shape — so a domain that appears
+    // once can top the table on a single lesson and read as "your strongest
+    // area", which is a claim one data point cannot support. The chart below
+    // still shows every domain with its own n.
+    //
+    // Null rather than a guess when nothing qualifies.
+    const seenIn = (d) => d.sessions || 0;
+    const ranked = goalAreaBreakdown.filter((d) => seenIn(d) * 2 >= totalSessions);
+    const forRanking = ranked.length >= 2 ? ranked : goalAreaBreakdown;
+    const bestGoalArea = forRanking[0]?.name || null;
+    const focusArea = forRanking.length > 1
+      ? forRanking[forRanking.length - 1].name
+      : null;
 
     res.json({
       success: true,

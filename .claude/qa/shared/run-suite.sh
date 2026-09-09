@@ -5,7 +5,7 @@
 #   bash .claude/qa/shared/run-suite.sh all   --driver 923…            # EVERYTHING: safe + @slow + @destructive + @wip (DEEP coaching, training seeds)
 #   bash .claude/qa/shared/run-suite.sh safe  --driver 923…            # the default /niete-e2e subset
 #   bash .claude/qa/shared/run-suite.sh lesson-plan,status --driver 923…   # named features (every scenario in them)
-#   options: --env staging|prod  --target <digits>  --port 9223  --run-id <id>  --no-seed  --reflect slash
+#   options: --env sandbox|staging|prod  (default sandbox — the landing branch's env since 2026-09-09)  --target <digits>  --port 9223  --run-id <id>  --no-seed  --reflect slash
 #
 # Preconditions it CHECKS (and stops on): Chrome CDP on the port, a live web.whatsapp.com target, the
 # target chat open in #main, the driver lock free. It does NOT scan a QR code or open the chat for you.
@@ -24,7 +24,7 @@ MODE="${1:-safe}"; shift || true
 # REFLECT: default to the inherited env value (REFLECT=slash drives COA10 instead of COA06);
 # an empty local default here USED to shadow the inherited env, so named `coaching` mode could
 # never take the slash branch. The --reflect flag still overrides. FIRSTUSE passes through untouched.
-DRIVER="" ENV="staging" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFLECT="${REFLECT:-}"
+DRIVER="" ENV="sandbox" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFLECT="${REFLECT:-}"
 # --method chrome|mock. mock = the commit-time lane: the bot runs LOCALLY from a detached worktree at
 # --commit <sha> behind bot/scripts/e2e/mock-graph-api.js, on the sandbox DB, vendors replay-strict. No
 # Chrome, no WhatsApp number. Default chrome — every existing invocation is unchanged.

@@ -34,9 +34,9 @@ select the option whose TEXT matches `correct` (correct_option is 1-based).
 """
 import argparse, subprocess, json, os, re, sys, uuid, datetime, urllib.request, urllib.parse, urllib.error
 
-# sandbox = the local mock E2E lane's database (keys/niete-sandbox.env): the bot under test runs on
-# this machine from a pinned commit and must never write to staging or prod while doing it.
-ENV_REFS = {"staging": "rpqkekcfvumypldbejhp", "prod": "ihzciabopbttygxxgrkm", "sandbox": "olvritwoqujtjvwfulbh"}
+# sandbox = the landing branch's environment since 2026-09-09 (sandbox -> staging -> main);
+# staging is cut from main and is a regression check, not where new work lands (bd-yd11o).
+ENV_REFS = {"sandbox": "olvritwoqujtjvwfulbh", "staging": "rpqkekcfvumypldbejhp", "prod": "ihzciabopbttygxxgrkm"}
 
 def _repo_root():
     here = os.path.dirname(os.path.abspath(__file__))
@@ -100,9 +100,9 @@ def _default_env():
     return "staging"
 
 def _env_candidates(env):
-    """Per-env dotenv search path, most-canonical first. Staging creds live in a
-    SEPARATE file from prod so a staging run can never pick up the prod
-    service_role key by accident.
+    """Per-env dotenv search path, most-canonical first. Each env's creds live in
+    a SEPARATE file (keys/niete-<env>.env, then .env.<env>) so a sandbox or staging
+    run can never pick up another project's service_role key by accident.
 
     `keys/` at the repo root is the documented credential home and is gitignored
     (so is every `.env.*`), so it wins over the dotenvs. Everything is resolved
@@ -110,7 +110,7 @@ def _env_candidates(env):
     from any clone on any machine, so no path here may reach for a parent
     workspace. A git worktree additionally checks its main checkout, because
     gitignored files exist only there."""
-    name = ".env.staging" if env == "staging" else ".env"
+    name = ".env" if env == "prod" else ".env.%s" % env     # .env.sandbox / .env.staging; prod keeps .env
     roots, seen = [], set()
     for r in (_repo_root(), _main_checkout()):   # worktree first, then the main checkout
         if r and r not in seen:
@@ -161,8 +161,8 @@ def _creds(env=None):
     if not url or not key:
         sys.exit("no SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY for env=%s.\n  Looked in: %s\n"
                  "  ...and env vars %sURL / %sSERVICE_ROLE_KEY.\n"
-                 "  Staging creds: railway link -p 'NIETE-Rumi Staging' && railway variables --service bot"
-                 % (env, ", ".join(_env_candidates(env)), prefix, prefix))
+                 "  Creds: railway link -p 'NIETE-Rumi Staging' -e %s && railway variables --service bot"
+                 % (env, ", ".join(_env_candidates(env)), prefix, prefix, env))
     _assert_ref(env, url)
     sys.stderr.write("[niete_training_db] env=%s project=%s source=%s\n"
                      % (env, _project_ref(url), os.path.basename(str(source))))

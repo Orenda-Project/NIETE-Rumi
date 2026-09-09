@@ -109,7 +109,9 @@ is_git_commit() {
 # so there is no new code on staging to drive an E2E against — arming a run there
 # would burn ~10 minutes of WhatsApp drive to test the build that was already live.
 #
-# NIETE-Rumi's staging branch is `develop` (root CLAUDE.md Rule 7); `main` and
+# NIETE-Rumi's work branch is `sandbox` since 2026-09-08 (root CLAUDE.md Rule 7:
+# sandbox -> staging -> main); `develop` is frozen and deploys nowhere but stays in the
+# pattern so a push to it is surfaced rather than silently ignored. `main` and
 # `staging` are covered for the other repos worked from this workspace.
 push_targets_deploy_branch() {
   # `(\b|:)` is NOT portable. GNU and BSD grep accept it; ugrep rejects it as an
@@ -123,7 +125,7 @@ push_targets_deploy_branch() {
   # preceded by a space or the `:` of a `HEAD:develop` refspec, and followed by a
   # separator or end of string.
   printf '%s' "$1" \
-    | grep -qE 'git'"$_GIT_OPTS"'[[:space:]]+push[^|;&]*[[:space:]:](develop|main|staging)([[:space:]:]|$)'
+    | grep -qE 'git'"$_GIT_OPTS"'[[:space:]]+push[^|;&]*[[:space:]:](develop|main|staging|sandbox)([[:space:]:]|$)'
 }
 
 # ── the E2E selector, invoked identically by both hooks ──────────────────────
@@ -312,4 +314,141 @@ e2e_run_spec_sync() {
 
   printf '%s' "$selection" \
     | python3 "$bin" --selection - --repo "${repo:-.}" $flag --json 2>/dev/null
+}
+
+# ── PHASE 1 GATE helpers (bd-zqtgs) ──────────────────────────────────────────
+# The Stop hook used to ask "was this marker nudged?" and never "did the spec
+# change?". These make the second question answerable from the marker alone:
+# arming records a hash of each spec the brief says must be authored; Stop
+# compares. A feature is STALE when its hash is unchanged and nothing declared
+# the change spec-neutral (`--declare`, or a `Spec-Sync:` trailer on HEAD).
+
+e2e_spec_hash() {   # $1 file → sha256 hex, or "" when the file does not exist
+  [ -f "$1" ] || { printf ''; return 0; }
+  shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1
+}
+
+# e2e_spec_hashes_json PROJECT_ROOT BRIEF_JSON → {"feature":{"hash":…,"path":…}}
+# Only features the brief says to author (action create/update, not only_shared).
+e2e_spec_hashes_json() {
+  local root="$1" brief="$2" out="{" first=1 f p h
+  [ -n "$brief" ] || { printf '{}'; return 0; }
+  while IFS=$'\t' read -r f p; do
+    [ -n "$f" ] || continue
+    h=$(e2e_spec_hash "$root/$p")
+    [ "$first" = 1 ] || out="$out,"
+    out="$out$(jq -cn --arg f "$f" --arg h "$h" --arg p "$p" '{($f):{hash:$h,path:$p}}' | sed 's/^{//;s/}$//')"
+    first=0
+  done <<EOF2
+$(printf '%s' "$brief" | jq -r '.features[]? | select(.action != "validate-only" and (.only_shared // false) == false) | "\(.feature)\t\(.spec_path)"' 2>/dev/null)
+EOF2
+  printf '%s}' "$out"
+}
+
+# e2e_phase1_declared MARKER CWD → space-separated features declared none-needed
+# ('*' = all). Sources: the marker's spec_declared (written by --declare) and a
+# `Spec-Sync:` trailer on HEAD of the repo at CWD — the same trailer impact.py
+# and the PR check honour, so one declaration satisfies every layer.
+e2e_phase1_declared() {
+  local marker="$1" cwd="${2:-}" out="" line
+  out=$(jq -r '.spec_declared // {} | keys[]' "$marker" 2>/dev/null | tr '\n' ' ')
+  if [ -n "$cwd" ] && git -C "$cwd" rev-parse HEAD >/dev/null 2>&1; then
+    line=$(git -C "$cwd" log -1 --format=%B 2>/dev/null | grep -iE '^[[:space:]]*Spec-Sync:' | head -1 \
+           | sed -E 's/^[[:space:]]*[Ss][Pp][Ee][Cc]-[Ss][Yy][Nn][Cc]:[[:space:]]*//')
+    case "$line" in
+      "") ;;
+      *=*none-needed*) out="$out $(printf '%s' "$line" | sed -E 's/[[:space:]]*=.*$//' | tr ',' ' ')" ;;
+      *none-needed*)   out="$out *" ;;
+    esac
+  fi
+  printf '%s' "$out"
+}
+
+# e2e_spec_repo PROJECT_ROOT CWD → the git checkout the specs live in ("" if none).
+# Normally PROJECT_ROOT == the clone. Test fixtures sometimes keep specs outside any
+# repo; then the HEAD comparison below falls back to the working tree.
+e2e_spec_repo() {
+  local root="$1" cwd="${2:-}" d
+  for d in "$root" "$cwd"; do
+    [ -n "$d" ] || continue
+    [ -d "$d/tests/features/whatsapp/niete" ] || continue
+    git -C "$d" rev-parse --show-toplevel >/dev/null 2>&1 && { printf '%s' "$d"; return 0; }
+  done
+  printf ''
+}
+
+# e2e_spec_head_hash REPO PATH → sha256 of the spec AS COMMITTED at HEAD ("" if absent)
+e2e_spec_head_hash() {
+  git -C "$1" cat-file -e "HEAD:$2" 2>/dev/null || { printf ''; return 0; }
+  git -C "$1" show "HEAD:$2" 2>/dev/null | shasum -a 256 | cut -d' ' -f1
+}
+
+# e2e_spec_disk_hash PROJECT_ROOT CWD PATH → sha256 of the spec in the working tree
+e2e_spec_disk_hash() {
+  local root="$1" cwd="${2:-}" p="$3"
+  if [ -f "$root/$p" ]; then e2e_spec_hash "$root/$p"
+  elif [ -n "$cwd" ] && [ -f "$cwd/$p" ]; then e2e_spec_hash "$cwd/$p"
+  else printf ''; fi
+}
+
+# _e2e_phase1_scan PROJECT_ROOT MARKER CWD MODE → features per MODE:
+#   stale        the COMMITTED spec (HEAD) is byte-identical to arming — the PR check
+#                reads commits, so this is what "not done" means. Includes specs that
+#                were edited but never committed.
+#   uncommitted  HEAD unchanged but the working tree differs: authored, not committed.
+#   disk-same    working tree identical to arming (nothing to validate).
+# Declared features are skipped in every mode. Outside any git repo, HEAD == disk.
+_e2e_phase1_scan() {
+  local root="$1" marker="$2" cwd="${3:-}" mode="$4" declared repo f h p disk head out=""
+  [ -f "$marker" ] || return 0
+  [ "$(jq -r '.spec_sync // false' "$marker" 2>/dev/null)" = "true" ] || return 0
+  jq -e '.spec_hashes | type == "object" and length > 0' "$marker" >/dev/null 2>&1 || return 0
+  declared=" $(e2e_phase1_declared "$marker" "$cwd") "
+  repo=$(e2e_spec_repo "$root" "$cwd")
+  while IFS=$'\t' read -r f h p; do
+    [ -n "$f" ] || continue
+    case "$declared" in *" $f "*|*" * "*) continue ;; esac
+    [ -n "$p" ] || p="tests/features/whatsapp/niete/$f.feature"
+    disk=$(e2e_spec_disk_hash "$root" "$cwd" "$p")
+    if [ -n "$repo" ]; then head=$(e2e_spec_head_hash "$repo" "$p"); else head="$disk"; fi
+    case "$mode" in
+      stale)       [ "$head" = "$h" ] && out="$out $f" ;;
+      uncommitted) [ "$head" = "$h" ] && [ "$disk" != "$h" ] && out="$out $f" ;;
+      disk-same)   [ "$disk" = "$h" ] && out="$out $f" ;;
+    esac
+  done <<EOF2
+$(jq -r '.spec_hashes | to_entries[] | "\(.key)\t\(.value.hash // "")\t\(.value.path // "")"' "$marker" 2>/dev/null)
+EOF2
+  printf '%s' "${out# }"
+}
+
+# e2e_phase1_stale PROJECT_ROOT MARKER CWD → features whose COMMITTED spec is still
+# what it was at arming and which nobody declared. Empty = phase 1 satisfied (or the
+# marker predates the gate). "Committed" is the unit because the PR check
+# (qa-impact.yml) judges commits — an edit left in the working tree would pass
+# this gate and then fail the PR (bd-1p4m6).
+e2e_phase1_stale() { _e2e_phase1_scan "$1" "$2" "${3:-}" stale; }
+# e2e_phase1_uncommitted … → the subset that IS edited on disk but not committed.
+e2e_phase1_uncommitted() { _e2e_phase1_scan "$1" "$2" "${3:-}" uncommitted; }
+
+# e2e_phase1_invalid PROJECT_ROOT MARKER CWD → validator output for the specs that
+# DID change but do not pass validate_specs.py; empty when they all pass.
+e2e_phase1_invalid() {
+  local root="$1" marker="$2" cwd="${3:-}" declared stale feats="" f out rc
+  [ -f "$marker" ] || return 0
+  jq -e '.spec_hashes | type == "object" and length > 0' "$marker" >/dev/null 2>&1 || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  [ -f "$root/.claude/qa/shared/validate_specs.py" ] || return 0
+  declared=" $(e2e_phase1_declared "$marker" "$cwd") "
+  # validate what is on disk: anything that differs from arming (committed or not)
+  stale=" $(_e2e_phase1_scan "$root" "$marker" "$cwd" disk-same) "
+  for f in $(jq -r '.spec_hashes | keys[]' "$marker" 2>/dev/null); do
+    case "$declared" in *" $f "*|*" * "*) continue ;; esac
+    case "$stale" in *" $f "*) continue ;; esac
+    feats="$feats${feats:+,}$f"
+  done
+  [ -n "$feats" ] || return 0
+  out=$(cd "$root" && python3 .claude/qa/shared/validate_specs.py --only "$feats" 2>&1); rc=$?
+  [ "$rc" -eq 0 ] && return 0
+  printf '%s' "$out" | tail -15
 }

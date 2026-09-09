@@ -82,8 +82,18 @@ QA_HOOKS_OFF=1 git -C "$R" commit -qm "feat(menu): switched off" 2>/dev/null
 say "QA_HOOKS_OFF=1 silences the hook" "$(ls "$PEND" | wc -l | tr -d ' ')" "$before"
 
 printf '// nopython\n' >> "$R/bot/shared/services/menu.service.js"; git -C "$R" add -A >/dev/null
-rc=$(cd "$R" && PATH=/usr/bin:/bin git commit -qm "feat(menu): no python3 on PATH" >/dev/null 2>&1; echo $?)
+err=$(cd "$R" && PATH=/usr/bin:/bin git commit -qm "feat(menu): no python3 on PATH" 2>&1); rc=$?
 say "commit still succeeds with no python3 on PATH" "$rc" "0"
+if command -v /usr/bin/python3 >/dev/null 2>&1; then ok "(python3 lives in /usr/bin here; the no-python message case is covered by the broken-selector case below)"; else has "…but says the hook was skipped instead of staying silent" "$err" "python3" yes; fi
+
+cp "$R/.claude/qa/config/feature-map.yaml" "$TMP/feature-map.bak"
+printf 'this: [is: not yaml\n' > "$R/.claude/qa/config/feature-map.yaml"
+printf '// broken selector\n' >> "$R/bot/shared/services/menu.service.js"; git -C "$R" add -A >/dev/null
+err=$(git -C "$R" commit -qm "feat(menu): selector cannot read the map" 2>&1); rc=$?
+say "commit still succeeds when the selector fails" "$rc" "0"
+has "a selector failure is REPORTED, not swallowed" "$err" "last-error.log" yes
+[ -s "$PEND/last-error.log" ] && ok "selector stderr kept in .e2e-pending/last-error.log" || bad "last-error.log missing or empty"
+cp "$TMP/feature-map.bak" "$R/.claude/qa/config/feature-map.yaml"; git -C "$R" add -A >/dev/null; git -C "$R" commit -qm "restore map" >/dev/null 2>&1
 
 echo "githooks — pre-push"
 base=$(git -C "$R" rev-list --max-parents=0 HEAD); head=$(git -C "$R" rev-parse HEAD)
@@ -93,11 +103,19 @@ has "names the affected feature" "$out" "menu" yes
 has "flags the spec that was not touched" "$out" "menu.feature" yes
 rc=$(cd "$R" && printf 'refs/heads/develop %s refs/heads/develop %s\n' "$head" "$base" | QA_HOOKS_STRICT=1 bash .githooks/pre-push origin x >/dev/null 2>&1; echo $?)
 say "QA_HOOKS_STRICT=1 blocks a push whose specs are stale" "$rc" "1"
+out=$(cd "$R" && printf 'refs/heads/sandbox %s refs/heads/sandbox %s\n' "$head" "$base" | bash .githooks/pre-push origin x 2>&1); rc=$?
+say "push to sandbox (the landing branch since 2026-09-08) reports" "$rc" "0"
+has "…and names the affected feature" "$out" "menu" yes
 out=$(cd "$R" && printf 'refs/heads/feat %s refs/heads/feat-x %s\n' "$head" "$base" | bash .githooks/pre-push origin x 2>&1); rc=$?
-say "feature-branch push is silent" "$rc:$out" "0:"
+say "feature-branch push reports too (PRs are opened from them and merged in the UI)" "$rc" "0"
+has "…and names the affected feature" "$out" "menu" yes
 zero=0000000000000000000000000000000000000000
 out=$(cd "$R" && printf 'refs/heads/develop %s refs/heads/develop %s\n' "$head" "$zero" | bash .githooks/pre-push origin x 2>&1); rc=$?
 say "first push of a branch (zero remote sha) does not crash" "$rc" "0"
+git -C "$R" update-ref refs/remotes/origin/sandbox "$base"
+out=$(cd "$R" && printf 'refs/heads/feat %s refs/heads/feat %s\n' "$head" "$zero" | bash .githooks/pre-push origin x 2>&1); rc=$?
+say "first push of a feature branch measures against origin/sandbox" "$rc" "0"
+has "…and names the affected feature" "$out" "menu" yes
 
 echo "  ---"
 if [ "$FAILED" -eq 0 ]; then echo "  all cases pass"; else echo "  $FAILED case(s) failing"; exit 1; fi
