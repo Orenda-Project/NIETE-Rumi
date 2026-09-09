@@ -46,10 +46,9 @@ const WhatsAppService = require('../whatsapp.service');
 // can set the variable after this module loads.
 const ENV = globalThis.process.env;
 
-const SUBJECT_LABEL = {
-  english: 'English', urdu: 'Urdu', maths: 'Maths', islamiat: 'Islamiat',
-  science: 'Science', general_knowledge: 'General Knowledge', social_studies: 'Social Studies',
-};
+// One definition, shared with the Flow endpoint and the portal's browse
+// service. Was copied verbatim into three files until bd-60067.
+const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a

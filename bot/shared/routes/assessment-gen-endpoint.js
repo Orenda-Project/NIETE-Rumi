@@ -31,19 +31,12 @@ const QuestionTypes = require('../services/assessment/question-types');
 
 const SESSION_TTL_SECONDS = 15 * 60;
 
-const SUBJECT_TITLE = {
-  english: 'English', urdu: 'Urdu', maths: 'Maths', islamiat: 'Islamiat',
-  science: 'Science', general_knowledge: 'General Knowledge', social_studies: 'Social Studies',
-};
+// One definition, shared with the services and the portal's browse service.
+const { SUBJECT_LABEL: SUBJECT_TITLE } = require('../services/assessment/assessment-vocabulary');
 
-// Which subjects a grade is actually taught. Science and Social Studies start at
-// Grade 4; General Knowledge stops at Grade 3. Offering one outside its band
-// produces a book we do not have and a refusal she cannot act on.
-const GRADE_BANDS = {
-  science: [4, 5],
-  social_studies: [4, 5],
-  general_knowledge: [1, 2, 3],
-};
+// Which subjects a grade is actually taught. Shared, so the Flow and the
+// portal cannot answer this differently. See assessment-vocabulary.
+const { GRADE_BANDS } = require('../services/assessment/assessment-vocabulary');
 
 const COUNT_CHOICES = [10, 15, 20, 25, 30];
 

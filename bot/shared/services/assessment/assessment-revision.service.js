@@ -24,10 +24,9 @@ const { rendererFor } = require('./assessment-format');
 const r2 = require('../../storage/r2');
 const WhatsAppService = require('../whatsapp.service');
 
-const SUBJECT_LABEL = {
-  english: 'English', urdu: 'Urdu', maths: 'Maths', islamiat: 'Islamiat',
-  science: 'Science', general_knowledge: 'General Knowledge', social_studies: 'Social Studies',
-};
+// One definition, shared with the Flow endpoint and the portal's browse
+// service. Was copied verbatim into three files until bd-60067.
+const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 
 const TEACHER_MESSAGE = {
   EMPTY_SELECTION: 'Keep at least one question and I will make the paper again.',
