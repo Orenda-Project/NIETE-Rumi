@@ -1002,7 +1002,7 @@ async function submit(state) {
     ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
     : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount);
 
-  // The row and the job are built in ONE place now (bd-60067 S3), because they
+  // The row and the job are built in ONE place now, because they
   // have to agree with each other on eleven fields and the portal needs the
   // same envelope. This function keeps the Flow-shaped work — resolving the
   // book, turning a chapter into pages, spreading counts across types — and

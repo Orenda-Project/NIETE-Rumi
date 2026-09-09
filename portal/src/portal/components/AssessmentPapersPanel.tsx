@@ -1,5 +1,5 @@
 /**
- * My papers — everything she has made, browsable (bd-60067, D5).
+ * My papers — everything she has made, browsable.
  *
  * The plan's first draft was a "last 10" strip under the generator. The
  * operator's correction was right and is what this is: a teacher accumulates

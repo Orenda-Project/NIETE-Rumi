@@ -1315,7 +1315,7 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
 // ═══════════════════════════════════════════════════════════════════════════
 // ASSESSMENT GENERATOR — the bot's pipeline, reached over the internal API
 // ───────────────────────────────────────────────────────────────────────────
-// bd-60067. This tab has been rendering a real form against a route that does
+// This tab has been rendering a real form against a route that does
 // not exist. On production, both hosts:
 //
 //   GET  /api/portal/config              assessmentGenerator: true   ← tab ON

@@ -47,7 +47,7 @@ const WhatsAppService = require('../whatsapp.service');
 const ENV = globalThis.process.env;
 
 // One definition, shared with the Flow endpoint and the portal's browse
-// service. Was copied verbatim into three files until bd-60067.
+// service. Was copied verbatim into three files.
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 
 /**
@@ -375,7 +375,7 @@ async function process(job) {
         const keyKey = await r2.uploadExamBuffer({
           buffer: keyBuffer, userId, examId: paperId || requestId, filename: keyName,
         });
-        // Recorded BEFORE the send, and deliberately so (bd-60068).
+        // Recorded BEFORE the send, and deliberately so.
         //
         // The upload is what makes the key retrievable; the send is what makes
         // it delivered, and those are different facts. Writing the column only

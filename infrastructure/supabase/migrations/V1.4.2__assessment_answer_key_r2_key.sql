@@ -1,6 +1,6 @@
 -- V1.4.2 — where the answer key went.
 --
--- bd-60068. The bot has been generating answer keys, uploading them to R2,
+-- The bot has been generating answer keys, uploading them to R2,
 -- presigning them, sending them, and then writing the storage key into a LOG
 -- LINE and nowhere else. The paper's location is persisted
 -- (assessment_papers.file_r2_key); the answer key's was not, because there was

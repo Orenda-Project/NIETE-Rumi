@@ -200,7 +200,7 @@ export const portal = {
     }
   },
 
-  // ── Assessment Generator (bd-60067) ─────────────────────────────────────
+  // ── Assessment Generator ────────────────────────────────────────────────
   //
   // These call the BOT's pipeline over the portal's internal-API client. The
   // previous pair pointed at /assessment/generate and /assessment/status/:jobId
@@ -286,7 +286,7 @@ export type PortalConfig = {
   };
 };
 
-// ── Assessment Generator types (bd-60067) ─────────────────────────────────
+// ── Assessment Generator types ────────────────────────────────────────────
 //
 // These mirror what the BOT returns. Nothing here carries a default the bot
 // could disagree with — notably there is no MAX_COUNT: the cap lives in

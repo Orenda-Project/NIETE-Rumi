@@ -11,7 +11,7 @@
  *
  * A second surface could not call that, and copying it is worse than calling
  * it: a copy agrees on the day it is written and drifts every day after. The
- * same reasoning moved the lesson-plan enqueue here (bd-60063), and the same
+ * same reasoning moved the lesson-plan enqueue to a shared service, and the same
  * reasoning is why the portal will reach this over the internal API rather than
  * writing its own row.
  *

@@ -1,5 +1,5 @@
 /**
- * AssessmentGeneratorPanel — asking the bot for an exam paper (bd-60067).
+ * AssessmentGeneratorPanel — asking the bot for an exam paper.
  *
  * WHAT THIS REPLACES
  * ------------------

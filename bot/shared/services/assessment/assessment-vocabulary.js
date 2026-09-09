@@ -2,7 +2,7 @@
 /**
  * How a grade and a subject are NAMED, in one place.
  *
- * Two small maps that were, until bd-60067, copied verbatim into three files:
+ * Two small maps that were, until this module, copied verbatim into three files:
  * the Flow endpoint (as SUBJECT_TITLE), the orchestrator and the revision
  * service (both as SUBJECT_LABEL). Identical in all three, which is precisely
  * the state a fourth copy is added in — the portal was about to be that fourth

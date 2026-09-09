@@ -2,7 +2,7 @@
 /**
  * What a surface may OFFER, and what a teacher may DOWNLOAD.
  *
- * Surface-neutral by construction, the same way lp-v8-browse is (bd-60063):
+ * Surface-neutral by construction, the same way lp-v8-browse is:
  * full titles, no truncation, no `{id, title}` rows shaped for a WhatsApp
  * NavigationList, no 20-row pagination borrowed from a Flow. The Flow keeps
  * building its own capped rows from the same tables; this returns the facts and

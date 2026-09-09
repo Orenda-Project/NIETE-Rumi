@@ -25,7 +25,7 @@ const r2 = require('../../storage/r2');
 const WhatsAppService = require('../whatsapp.service');
 
 // One definition, shared with the Flow endpoint and the portal's browse
-// service. Was copied verbatim into three files until bd-60067.
+// service. Was copied verbatim into three files.
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 
 const TEACHER_MESSAGE = {
