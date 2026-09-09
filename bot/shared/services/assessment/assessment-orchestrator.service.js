@@ -1,16 +1,29 @@
 'use strict';
 /**
- * The job that turns a queued request into a paper in a teacher's chat.
+ * Turning a queued request into a paper, and then into a paper someone has.
  *
  * Every step it calls already works alone. What this adds is three things that
  * only exist at the seam: the sequence, a record of what happened, and what she
  * hears when a step fails.
  *
- * The failure paths carry most of the weight. A teacher has been told "about a
- * minute"; if a step throws and nothing reaches her, she is left watching a chat
- * that will never update, and the only thing she can do is ask again — which
- * runs the same failure. So every exit from here either sends her a document or
- * sends her a sentence, and both are recorded.
+ * The file is deliberately in two halves, because they answer to different
+ * masters:
+ *
+ *   buildPaper()  load → generate → render → upload → record. Knows nothing
+ *                 about who asked or how they get it. Returns a result.
+ *   process()     buildPaper plus the WhatsApp tail — document by link, answer
+ *                 key, the offer to trim, and a sentence when it goes wrong.
+ *
+ * The split is what lets a second surface exist without a second generator.
+ * Before it, the send was welded to the end of the pipeline and the row was
+ * written `ready` only AFTER a successful send — so a caller with nobody to
+ * message could build a perfectly good paper and be told it had failed.
+ *
+ * The failure paths carry most of the weight in the delivery half. A teacher
+ * has been told "about a minute"; if a step throws and nothing reaches her, she
+ * is left watching a chat that will never update, and the only thing she can do
+ * is ask again — which runs the same failure. So every exit from process()
+ * either sends her a document or sends her a sentence, and both are recorded.
  */
 
 const supabase = require('../../config/supabase');
@@ -114,26 +127,37 @@ async function _patchPaper(paperId, patch) {
   }
 }
 
-async function process(job) {
+/**
+ * Everything between a queued request and a finished document — and nothing
+ * about handing it over.
+ *
+ * This half has no idea who asked or how they will get it. It loads the
+ * content, runs the model, renders, uploads, and writes the row; the caller
+ * decides what happens next. That separation is the whole reason it exists:
+ * WhatsApp wants the paper pushed to a phone, the portal wants it sitting
+ * behind a download button, and neither should have to care about the other.
+ *
+ * Returns a RESULT rather than throwing, because both outcomes are ordinary.
+ * A model that returns nothing usable is a Tuesday, not an exception, and a
+ * caller that has to wrap this in try/catch to find out is a caller that will
+ * eventually forget to.
+ *
+ *   { status:'ready',  paperId, key, examJson, questionCount, marks, filename }
+ *   { status:'failed', code, paperId }
+ *
+ * `user` is passed in rather than looked up here. The lookup belongs to
+ * whoever needs to reach her: WhatsApp cannot deliver without a phone number,
+ * the portal never needs one, and making this function demand a phone would
+ * have re-coupled it to the surface it was split away from. It reads
+ * `school_name` off the object for the paper's header, so a caller with no
+ * user at all can pass `{}` and get an unheaded paper.
+ */
+async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount,
     outputFormat = 'pdf', includeAnswerKey = false, answerLines = true,
   } = job;
-
-  // Who to send it to. Done first, because everything after this is work on
-  // behalf of someone we must be able to reach.
-  const { data: user, error: userErr } = await supabase
-    .from('users')
-    .select('phone_number, preferred_language, school_name')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (userErr || !user || !user.phone_number) {
-    logToFile('[assessment] no teacher to deliver to — dropping', { userId, requestId });
-    return { status: 'failed', code: 'NO_RECIPIENT' };
-  }
-  const phone = user.phone_number;
 
   // Open the record before doing any work, so a job that dies mid-flight leaves
   // a row the watchdog can find rather than nothing at all.
@@ -169,7 +193,7 @@ async function process(job) {
     });
 
     // The paper never carries the answers; the key, if she asked for one, is a
-    // second document sent after it.
+    // second document built after it.
     const html = Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,
@@ -198,6 +222,87 @@ async function process(job) {
       throw Object.assign(err, { code: 'UPLOAD_FAILED' });
     }
 
+    const marks = Renderer.totalMarks(Renderer.collectQuestions
+      ? Renderer.collectQuestions(generated.examJson) : []);
+
+    // Ready the moment the bytes are safely in storage.
+    //
+    // This used to be written AFTER the WhatsApp send, which made a delivery
+    // problem look like a generation problem: a perfectly good paper whose
+    // send returned falsy was recorded `failed` with no file_r2_key, so it
+    // could not even be handed over a second time. Storage is what makes a
+    // paper real; delivery is a separate thing that can be retried.
+    await _patchPaper(paperId, {
+      status: 'ready',
+      file_r2_key: key,
+      total_marks: Number.isFinite(marks) ? marks : null,
+      ready_at: new Date().toISOString(),
+    });
+
+    return {
+      status: 'ready',
+      paperId,
+      key,
+      examJson: generated.examJson,
+      questionCount: generated.questionCount,
+      marks: Number.isFinite(marks) ? marks : null,
+      filename: name,
+      renderer,
+      chapterTitle: source.chapterTitle || null,
+      pageReference: source.pageReference,
+    };
+  } catch (err) {
+    const code = err.code || 'UNKNOWN';
+    logToFile('[assessment] build failed', { userId, requestId, paperId, code, error: err.message });
+
+    await _patchPaper(paperId, {
+      status: 'failed', error_code: code, error_detail: safeDetail(err),
+    });
+
+    return { status: 'failed', code, paperId };
+  }
+}
+
+/**
+ * The job that turns a queued request into a paper in a teacher's chat.
+ *
+ * `buildPaper` plus a WhatsApp tail — and the tail is the part that is
+ * genuinely WhatsApp-shaped: a document by link, an answer key after it, an
+ * offer to trim, and a sentence when any of it goes wrong.
+ */
+async function process(job) {
+  const { userId, requestId, grade, subject, includeAnswerKey = false } = job;
+
+  // Who to send it to. Done first, because everything after this is work on
+  // behalf of someone we must be able to reach.
+  const { data: user, error: userErr } = await supabase
+    .from('users')
+    .select('phone_number, preferred_language, school_name')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (userErr || !user || !user.phone_number) {
+    logToFile('[assessment] no teacher to deliver to — dropping', { userId, requestId });
+    return { status: 'failed', code: 'NO_RECIPIENT' };
+  }
+  const phone = user.phone_number;
+
+  const built = await buildPaper(job, user);
+
+  // A build that failed has already recorded itself. All that is left is to
+  // tell her, because she was promised a paper in about a minute and silence
+  // is the one outcome that is not allowed.
+  if (built.status !== 'ready') {
+    await _apologise(phone, built.code, { userId });
+    return { status: 'failed', code: built.code, paperId: built.paperId };
+  }
+
+  const {
+    paperId, key, examJson, questionCount, filename: name, renderer,
+    chapterTitle, pageReference,
+  } = built;
+
+  try {
     // Signed rather than public: a child's exam paper is not a link to leave open.
     // It goes out by LINK, so the signature is the point — WhatsApp fetches the
     // url itself and it stops working an hour later. (Handing a signed url to a
@@ -206,12 +311,10 @@ async function process(job) {
     // extraction looks for the bucket in the path.)
     const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(key), 3600);
 
-    const marks = Renderer.totalMarks(Renderer.collectQuestions
-      ? Renderer.collectQuestions(generated.examJson) : []);
     const caption = [
       `Grade ${grade} ${SUBJECT_LABEL[subject] || subject}`,
-      source.chapterTitle,
-      `${generated.questionCount} questions`,
+      chapterTitle,
+      `${questionCount} questions`,
     ].filter(Boolean).join(' · ');
 
     // The caption says what the document is, so there is no herald message. A
@@ -224,13 +327,6 @@ async function process(job) {
         { code: 'SEND_FAILED' });
     }
 
-    await _patchPaper(paperId, {
-      status: 'ready',
-      file_r2_key: key,
-      total_marks: Number.isFinite(marks) ? marks : null,
-      ready_at: new Date().toISOString(),
-    });
-
     // The paper is hers now. Whatever happens to the key from here is logged,
     // never allowed to turn a delivered paper into a "failed" message.
     let answerKeySent = null;
@@ -238,15 +334,28 @@ async function process(job) {
       answerKeySent = false;
       try {
         const keyHtml = Renderer.renderAnswerKey({
-          examJson: generated.examJson, grade, subject,
+          examJson, grade, subject,
           schoolName: user.school_name || null,
-          pageReference: source.pageReference, chapterTitle: source.chapterTitle || null,
+          pageReference, chapterTitle,
         });
         const keyBuffer = await renderer.render(keyHtml);
-        const keyName = fileName({ grade, subject, chapterTitle: source.chapterTitle, format: renderer.ext, suffix: '_AnswerKey' });
+        const keyName = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: '_AnswerKey' });
         const keyKey = await r2.uploadExamBuffer({
           buffer: keyBuffer, userId, examId: paperId || requestId, filename: keyName,
         });
+        // Recorded BEFORE the send, and deliberately so (bd-60068).
+        //
+        // The upload is what makes the key retrievable; the send is what makes
+        // it delivered, and those are different facts. Writing the column only
+        // after a successful send would lose exactly the case the column exists
+        // for — a key sitting in R2 that we can no longer point at.
+        //
+        // Until V1.4.2 this location went into the log line below and nowhere
+        // else, so a teacher who lost the message lost the key permanently:
+        // regenerating runs the model again and yields different questions, so
+        // the new key does not match the paper she printed.
+        await _patchPaper(paperId, { answer_key_r2_key: keyKey });
+
         const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(keyKey), 3600);
         answerKeySent = !!(await WhatsAppService.sendDocumentByLink(
           phone, keyUrl, keyName, `Answer key · ${caption}`));
@@ -283,26 +392,50 @@ async function process(job) {
     }
 
     logToFile('[assessment] delivered', {
-      userId, requestId, paperId, questions: generated.questionCount, key, answerKeySent,
+      userId, requestId, paperId, questions: questionCount, key, answerKeySent,
     });
-    return { status: 'ready', paperId, key, questionCount: generated.questionCount, answerKeySent };
+    return { status: 'ready', paperId, key, questionCount, answerKeySent };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
-    logToFile('[assessment] failed', { userId, requestId, paperId, code, error: err.message });
+    logToFile('[assessment] delivery failed', { userId, requestId, paperId, code, error: err.message });
 
+    // `failed`, deliberately, even though the bytes are safely in R2.
+    //
+    // It would be tidier to leave the row `ready` and record only the error —
+    // the paper does exist. But `status` is not a description of the file, it
+    // is the gate on everything downstream: assessment-revision's
+    // _loadOwnedPaper refuses any paper that is not `ready` with NOT_READY, and
+    // that is the correct answer here. She never received this paper, so
+    // offering her a Flow to trim it would be offering to edit something she
+    // has never seen. This is the invariant commit 1f44184f was written to
+    // establish — "the paper was made, marked delivered, and never sent" — and
+    // it stays.
+    //
+    // What has changed is that the patch MERGES rather than replaces, so
+    // file_r2_key (written by buildPaper before any send was attempted)
+    // survives. Previously the ready-patch never ran at all on this path, so a
+    // failed delivery lost the location of a paper that existed — it could not
+    // even be re-sent without regenerating it.
     await _patchPaper(paperId, {
       status: 'failed', error_code: code, error_detail: safeDetail(err),
     });
 
-    // She was promised a paper in about a minute. Silence is the one outcome
-    // that is not allowed.
-    try {
-      await WhatsAppService.sendMessage(phone, TEACHER_MESSAGE[code] || FALLBACK_MESSAGE);
-    } catch (sendErr) {
-      logToFile('[assessment] could not even send the apology', { userId, error: sendErr.message });
-    }
+    await _apologise(phone, code, { userId });
     return { status: 'failed', code, paperId };
   }
 }
 
-module.exports = { process, fileName, TEACHER_MESSAGE };
+/**
+ * Tell her what happened. Never throws: a failure to deliver the apology is
+ * worth a log line and nothing more, because there is no further fallback and
+ * the caller's own outcome does not change.
+ */
+async function _apologise(phone, code, { userId } = {}) {
+  try {
+    await WhatsAppService.sendMessage(phone, TEACHER_MESSAGE[code] || FALLBACK_MESSAGE);
+  } catch (sendErr) {
+    logToFile('[assessment] could not even send the apology', { userId, error: sendErr.message });
+  }
+}
+
+module.exports = { process, buildPaper, fileName, TEACHER_MESSAGE };

@@ -5197,6 +5197,10 @@ CREATE TABLE IF NOT EXISTS assessment_papers (
   question_count        INTEGER,
   total_marks           INTEGER,
   file_r2_key           TEXT,
+  -- V1.4.2 (bd-60068). NULL when she did not ask for a key, or when the paper
+  -- predates the column. Absence means "we cannot hand it over", never "it was
+  -- not generated".
+  answer_key_r2_key     TEXT,
 
   error_code            TEXT,     -- NO_CONTENT | BAD_JSON | TRUNCATED | RENDER_FAILED | …
   error_detail          TEXT,
