@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Download, TrendingUp, CheckCircle2, Target, Lightbulb, FileText } from 'lucide-react';
+import { ArrowLeft, Download, TrendingUp, CheckCircle2, Target, Lightbulb, FileText, MessageSquare } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import AudioPlayer from '../components/AudioPlayer';
+import ScoreBreakdown from '../components/ScoreBreakdown';
+import { UrduAware } from '../components/UrduAware';
 import ScoreIndicator from '../components/ScoreIndicator';
 import LoadingState from '../components/LoadingState';
 import { Button } from '@/components/ui/button';
@@ -117,16 +119,23 @@ const PortalCoachingDetail = () => {
 
           {/* Quick Actions */}
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="default" size="sm">
-              <a 
-                href={session.reportPdfUrl} 
-                download
-                className="flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Download PDF Report
-              </a>
-            </Button>
+            {/* The button used to say PDF and point at a raw private-bucket
+                URL that answers 400. It is now presigned, and named for what
+                the file actually is: 897 of 914 stored reports are PNG. Only
+                drawn when there is something to open. */}
+            {session.reportUrl && (
+              <Button asChild variant="default" size="sm">
+                <a
+                  href={session.reportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" aria-hidden="true" />
+                  {session.reportFormat === 'pdf' ? 'Download report (PDF)' : 'Open your report'}
+                </a>
+              </Button>
+            )}
             <Button asChild variant="outline" size="sm">
               <Link to="/portal/coaching/analytics" className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
@@ -136,12 +145,24 @@ const PortalCoachingDetail = () => {
           </div>
         </div>
 
-        {/* Audio Player */}
-        <div className="mb-8">
-          <AudioPlayer 
-            audioUrl={session.audioUrl} 
-            title="Session Recording"
-          />
+        {/* TWO recordings, named for what they are.
+            This player was titled "Session Recording" and fed
+            voice_debrief_url — the COACH talking. Her own lesson lives in
+            audio_url, is present on 100% of sessions, and had never once been
+            served to her. */}
+        <div className="mb-8 space-y-4">
+          {session.lessonAudioUrl && (
+            <AudioPlayer
+              audioUrl={session.lessonAudioUrl}
+              title="Your lesson"
+            />
+          )}
+          {session.debriefAudioUrl && (
+            <AudioPlayer
+              audioUrl={session.debriefAudioUrl}
+              title="Your coach's debrief"
+            />
+          )}
         </div>
 
         {/* Main Content Tabs */}
@@ -181,54 +202,36 @@ const PortalCoachingDetail = () => {
               </div>
             </div>
 
-            {/* Goal Scores */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
-              <div className="flex items-center gap-2 mb-4">
-                <Target className="w-5 h-5 text-accent" />
-                <h2 className="text-xl font-semibold">Goal Area Breakdown</h2>
+            {/* Her scores, from the framework she was actually assessed on.
+                This replaced six OECD goal bars reading scores.goalN_total —
+                keys a FICO session does not have, so five rendered zero under
+                labels her framework has never used. The portal now names no
+                framework and no domain; the bot supplies both. */}
+            {session.breakdown && session.breakdown.groups.length > 0 ? (
+              <ScoreBreakdown breakdown={session.breakdown} />
+            ) : (
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
+                <p className="text-sm text-muted-foreground">
+                  This session has not been scored yet.
+                </p>
               </div>
-              <div className="space-y-4">
-                {session.analysisData.goal_scores.map((goal, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-foreground">{goal.goal}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {goal.points}/{goal.max_points} ({goal.percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2.5">
-                      <div 
-                        className="bg-accent h-2.5 rounded-full transition-all"
-                        style={{ width: `${goal.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
-            {/* Criterion Scores */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
-              <div className="flex items-center gap-2 mb-4">
-                <CheckCircle2 className="w-5 h-5 text-accent" />
-                <h2 className="text-xl font-semibold">Detailed Criteria</h2>
+            {/* What the analysis said in prose. English on most sessions even
+                when the lesson was in Urdu, so it goes through UrduAware
+                rather than being assumed either way. */}
+            {session.analysisData.executive_summary && (
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="w-5 h-5 text-accent" aria-hidden="true" />
+                  <h2 className="text-xl font-semibold">In summary</h2>
+                </div>
+                <UrduAware
+                  text={session.analysisData.executive_summary}
+                  className="text-sm leading-relaxed text-muted-foreground"
+                />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {session.analysisData.criterion_scores.map((criterion, index) => (
-                  <div key={index} className="p-4 bg-secondary rounded-lg">
-                    <div className="font-medium text-foreground mb-2">{criterion.criterion}</div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {criterion.points}/{criterion.max_points} points
-                      </span>
-                      <span className="text-sm font-semibold text-accent">
-                        {criterion.percentage.toFixed(0)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Strengths */}
             <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
@@ -277,6 +280,71 @@ const PortalCoachingDetail = () => {
                 ))}
               </ul>
             </div>
+
+            {/* HER OWN WORDS — the reflective question Rumi asked and the
+                answer she gave, plus the action she was set. All of it has
+                been stored since the pipeline began and she has never been
+                able to re-read any of it.
+
+                READ-ONLY, and the copy says where to act rather than letting
+                the page look like an inert record. Answering and committing
+                stay on WhatsApp; the write side is a separate piece of work. */}
+            {((session.reflection && session.reflection.length > 0) || session.prioritizedAction) && (
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  <MessageSquare className="w-5 h-5 text-accent" aria-hidden="true" />
+                  <h2 className="text-xl font-semibold">Your reflection</h2>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  From your conversation with Rumi on WhatsApp.
+                </p>
+
+                <div className="space-y-5">
+                  {(session.reflection || []).map((entry, i) => (
+                    <div key={i} className="space-y-2">
+                      {entry.question && (
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                            Rumi asked
+                          </div>
+                          <UrduAware
+                            text={entry.question}
+                            className="text-sm text-foreground pl-3 border-l-2 border-border"
+                          />
+                        </div>
+                      )}
+                      {entry.answer ? (
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                            You answered
+                          </div>
+                          <UrduAware
+                            text={entry.answer}
+                            className="text-sm text-foreground pl-3 border-l-2 border-accent"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground pl-3">
+                          You have not answered this one yet — reply to Rumi on WhatsApp.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+
+                  {session.prioritizedAction?.action && (
+                    <div className="pt-4 border-t border-border">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                        One thing to try next class
+                      </div>
+                      <UrduAware
+                        text={session.prioritizedAction.action}
+                        className="text-sm text-foreground pl-3 border-l-2 border-accent"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Transcript Tab */}
@@ -286,10 +354,15 @@ const PortalCoachingDetail = () => {
                 <FileText className="w-5 h-5 text-accent" />
                 <h2 className="text-xl font-semibold">Session Transcript</h2>
               </div>
+              {/* Urdu on 97% of sessions, so this cannot render LTR in a
+                  Latin face. Detected by SCRIPT rather than by
+                  transcript_language, because that column describes the audio
+                  while the analysis on the same row is English. */}
               <div className="prose max-w-none">
-                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                  {session.transcript}
-                </p>
+                <UrduAware
+                  text={session.transcript}
+                  className="text-foreground whitespace-pre-wrap leading-relaxed"
+                />
               </div>
             </div>
           </TabsContent>
