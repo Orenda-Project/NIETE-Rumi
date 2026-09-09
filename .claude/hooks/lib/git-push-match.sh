@@ -315,3 +315,95 @@ e2e_run_spec_sync() {
   printf '%s' "$selection" \
     | python3 "$bin" --selection - --repo "${repo:-.}" $flag --json 2>/dev/null
 }
+
+# ── PHASE 1 GATE helpers (bd-zqtgs) ──────────────────────────────────────────
+# The Stop hook used to ask "was this marker nudged?" and never "did the spec
+# change?". These make the second question answerable from the marker alone:
+# arming records a hash of each spec the brief says must be authored; Stop
+# compares. A feature is STALE when its hash is unchanged and nothing declared
+# the change spec-neutral (`--declare`, or a `Spec-Sync:` trailer on HEAD).
+
+e2e_spec_hash() {   # $1 file → sha256 hex, or "" when the file does not exist
+  [ -f "$1" ] || { printf ''; return 0; }
+  shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1
+}
+
+# e2e_spec_hashes_json PROJECT_ROOT BRIEF_JSON → {"feature":{"hash":…,"path":…}}
+# Only features the brief says to author (action create/update, not only_shared).
+e2e_spec_hashes_json() {
+  local root="$1" brief="$2" out="{" first=1 f p h
+  [ -n "$brief" ] || { printf '{}'; return 0; }
+  while IFS=$'\t' read -r f p; do
+    [ -n "$f" ] || continue
+    h=$(e2e_spec_hash "$root/$p")
+    [ "$first" = 1 ] || out="$out,"
+    out="$out$(jq -cn --arg f "$f" --arg h "$h" --arg p "$p" '{($f):{hash:$h,path:$p}}' | sed 's/^{//;s/}$//')"
+    first=0
+  done <<EOF2
+$(printf '%s' "$brief" | jq -r '.features[]? | select(.action != "validate-only" and (.only_shared // false) == false) | "\(.feature)\t\(.spec_path)"' 2>/dev/null)
+EOF2
+  printf '%s}' "$out"
+}
+
+# e2e_phase1_declared MARKER CWD → space-separated features declared none-needed
+# ('*' = all). Sources: the marker's spec_declared (written by --declare) and a
+# `Spec-Sync:` trailer on HEAD of the repo at CWD — the same trailer impact.py
+# and the PR check honour, so one declaration satisfies every layer.
+e2e_phase1_declared() {
+  local marker="$1" cwd="${2:-}" out="" line
+  out=$(jq -r '.spec_declared // {} | keys[]' "$marker" 2>/dev/null | tr '\n' ' ')
+  if [ -n "$cwd" ] && git -C "$cwd" rev-parse HEAD >/dev/null 2>&1; then
+    line=$(git -C "$cwd" log -1 --format=%B 2>/dev/null | grep -iE '^[[:space:]]*Spec-Sync:' | head -1 \
+           | sed -E 's/^[[:space:]]*[Ss][Pp][Ee][Cc]-[Ss][Yy][Nn][Cc]:[[:space:]]*//')
+    case "$line" in
+      "") ;;
+      *=*none-needed*) out="$out $(printf '%s' "$line" | sed -E 's/[[:space:]]*=.*$//' | tr ',' ' ')" ;;
+      *none-needed*)   out="$out *" ;;
+    esac
+  fi
+  printf '%s' "$out"
+}
+
+# e2e_phase1_stale PROJECT_ROOT MARKER CWD → space-separated features whose spec
+# is byte-identical to when the run was armed and which nobody declared. Empty
+# output = phase 1 is satisfied (or the marker predates the gate: no spec_hashes).
+e2e_phase1_stale() {
+  local root="$1" marker="$2" cwd="${3:-}" declared f h p cur out=""
+  [ -f "$marker" ] || return 0
+  [ "$(jq -r '.spec_sync // false' "$marker" 2>/dev/null)" = "true" ] || return 0
+  jq -e '.spec_hashes | type == "object" and length > 0' "$marker" >/dev/null 2>&1 || return 0
+  declared=" $(e2e_phase1_declared "$marker" "$cwd") "
+  while IFS=$'\t' read -r f h p; do
+    [ -n "$f" ] || continue
+    case "$declared" in *" $f "*|*" * "*) continue ;; esac
+    [ -n "$p" ] || p="tests/features/whatsapp/niete/$f.feature"
+    if [ -f "$root/$p" ]; then cur=$(e2e_spec_hash "$root/$p")
+    elif [ -n "$cwd" ] && [ -f "$cwd/$p" ]; then cur=$(e2e_spec_hash "$cwd/$p")
+    else cur=""; fi
+    [ "$cur" = "$h" ] && out="$out $f"
+  done <<EOF2
+$(jq -r '.spec_hashes | to_entries[] | "\(.key)\t\(.value.hash // "")\t\(.value.path // "")"' "$marker" 2>/dev/null)
+EOF2
+  printf '%s' "${out# }"
+}
+
+# e2e_phase1_invalid PROJECT_ROOT MARKER CWD → validator output for the specs that
+# DID change but do not pass validate_specs.py; empty when they all pass.
+e2e_phase1_invalid() {
+  local root="$1" marker="$2" cwd="${3:-}" declared stale feats="" f out rc
+  [ -f "$marker" ] || return 0
+  jq -e '.spec_hashes | type == "object" and length > 0' "$marker" >/dev/null 2>&1 || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  [ -f "$root/.claude/qa/shared/validate_specs.py" ] || return 0
+  declared=" $(e2e_phase1_declared "$marker" "$cwd") "
+  stale=" $(e2e_phase1_stale "$root" "$marker" "$cwd") "
+  for f in $(jq -r '.spec_hashes | keys[]' "$marker" 2>/dev/null); do
+    case "$declared" in *" $f "*|*" * "*) continue ;; esac
+    case "$stale" in *" $f "*) continue ;; esac
+    feats="$feats${feats:+,}$f"
+  done
+  [ -n "$feats" ] || return 0
+  out=$(cd "$root" && python3 .claude/qa/shared/validate_specs.py --only "$feats" 2>&1); rc=$?
+  [ "$rc" -eq 0 ] && return 0
+  printf '%s' "$out" | tail -15
+}

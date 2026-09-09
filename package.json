@@ -8,7 +8,7 @@
     "prepare": "bash scripts/qa/install-hooks.sh --quiet || true",
     "qa:hooks": "bash scripts/qa/install-hooks.sh",
     "qa:impact": "python3 scripts/qa/impact.py --repo . --format text --base origin/sandbox --head HEAD",
-    "qa:test": "python3 .claude/qa/shared/test_select_e2e.py && python3 .claude/qa/shared/test_spec_sync.py && python3 .claude/qa/shared/test_validate_specs.py && python3 .claude/qa/shared/test_yaml_lite.py && python3 scripts/qa/test_impact.py && bash .claude/hooks/lib/git-push-match.test.sh && bash .githooks/githooks.test.sh && bash .claude/hooks/e2e-autorun-gitmarker.test.sh && bash .claude/hooks/e2e-autorun.test.sh && bash .claude/hooks/spec-sync-pipeline.test.sh",
+    "qa:test": "python3 .claude/qa/shared/test_select_e2e.py && python3 .claude/qa/shared/test_spec_sync.py && python3 .claude/qa/shared/test_validate_specs.py && python3 .claude/qa/shared/test_yaml_lite.py && python3 scripts/qa/test_impact.py && bash .claude/hooks/lib/git-push-match.test.sh && bash .githooks/githooks.test.sh && bash .claude/hooks/e2e-autorun-gitmarker.test.sh && bash .claude/hooks/e2e-autorun.test.sh && bash .claude/hooks/spec-sync-pipeline.test.sh && bash .claude/hooks/e2e-phase1-gate.test.sh",
     "test": "node tests/baseline-gate.js",
     "test:raw": "node tests/run.js",
     "test:baseline": "node tests/baseline-gate.js",

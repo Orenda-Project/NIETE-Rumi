@@ -55,15 +55,32 @@ if [ "${E2E_SPEC_SYNC_OFF:-}" != "1" ]; then
 fi
 
 # The selection travels in an env var: stdin is taken by the heredoc script.
-QA_SEL_JSON="$SEL" python3 - "$MARKER" "$SHA" "$(basename "$ROOT")" "$BRANCH" "$SPEC_SYNC" <<'PY' 2>/dev/null || exit 0
-import json, os, sys, datetime
+# spec_hashes: what each spec the brief says to author looked like at arming.
+# The Stop hook compares against it — a spec byte-identical to this is STALE and
+# holds the turn (bd-zqtgs). Empty when no sync was armed.
+QA_SEL_JSON="$SEL" QA_BRIEF_JSON="${BRIEF:-}" python3 - "$MARKER" "$SHA" "$(basename "$ROOT")" "$BRANCH" "$SPEC_SYNC" "$ROOT" <<'PY' 2>/dev/null || exit 0
+import json, os, sys, datetime, hashlib
 sel = json.loads(os.environ["QA_SEL_JSON"])
-marker, sha, repo, branch, spec_sync = sys.argv[1:6]
+marker, sha, repo, branch, spec_sync, root = sys.argv[1:7]
+hashes = {}
+if spec_sync == "true" and os.environ.get("QA_BRIEF_JSON"):
+    try:
+        brief = json.loads(os.environ["QA_BRIEF_JSON"])
+    except ValueError:
+        brief = {}
+    for f in brief.get("features") or []:
+        if f.get("action") == "validate-only" or f.get("only_shared"):
+            continue
+        path = f.get("spec_path") or os.path.join("tests/features/whatsapp/niete", f["feature"] + ".feature")
+        full = os.path.join(root, path)
+        h = hashlib.sha256(open(full, "rb").read()).hexdigest() if os.path.isfile(full) else ""
+        hashes[f["feature"]] = {"hash": h, "path": path}
 json.dump({
     "session": "git", "repo": repo, "branch": branch, "sha": sha,
     "trigger": "git-commit", "mode": "execute",
     "armed_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
     "nudged": False, "spec_sync": spec_sync == "true",
+    "spec_hashes": hashes, "spec_declared": {}, "phase1_blocks": 0,
     "commands": sel.get("commands") or [], "features": sel.get("features") or [],
     "fallback": bool(sel.get("fallback")), "unmapped": sel.get("unmapped") or [],
 }, open(marker, "w"), indent=1)

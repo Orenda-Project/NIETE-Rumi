@@ -46,14 +46,75 @@ _HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-${_HOOK_DIR%/.claude/hooks}}"
 PENDING_DIR="$PROJECT_ROOT/.claude/.e2e-pending"
 
-# --clear runs from a terminal with no stdin, so it must be handled before any
-# read. Without this the maintenance path hangs waiting for a payload.
-if [ "${1:-}" = "--clear" ]; then
+# --clear / --declare run from a terminal with no stdin, so they must be handled
+# before any read. Without this the maintenance path hangs waiting for a payload.
+#
+#   --clear [--session ID] [--force]
+#       Removes the marker(s) and their sync briefs. REFUSES (exit 1) while phase 1
+#       is stale for a marker — the spec the brief said to author is byte-identical
+#       to when the run was armed and nothing declared the change spec-neutral.
+#       "Clear it either way" is how PR #841 shipped a training change with an
+#       untouched training.feature (bd-zqtgs). --force is the escape hatch; the PR
+#       check (qa-impact.yml) still flags what it let through.
+#   --declare --session ID '<feature>[,<feature>]=none-needed (<why>)'
+#       Records that the change alters no teacher-visible behaviour for those
+#       features (or 'none-needed (<why>)' for all). Same grammar as the
+#       `Spec-Sync:` commit trailer impact.py and the PR check read, so one
+#       declaration satisfies every layer. Releases phase 1 for them.
+if [ "${1:-}" = "--clear" ] || [ "${1:-}" = "--declare" ]; then
+  # shellcheck source=lib/git-push-match.sh
+  . "$_HOOK_DIR/lib/git-push-match.sh" 2>/dev/null || true
+  ACTION="$1"; shift
+  SESSION_ID=""; FORCE=0; DECL=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --session) SESSION_ID="${2:-}"; shift 2 ;;
+      --force)   FORCE=1; shift ;;
+      *)         DECL="$1"; shift ;;
+    esac
+  done
+  if [ "$ACTION" = "--declare" ]; then
+    [ -n "$SESSION_ID" ] || { echo "e2e-autorun: --declare needs --session ID" >&2; exit 1; }
+    M="$PENDING_DIR/$SESSION_ID.json"
+    [ -f "$M" ] || { echo "e2e-autorun: no marker $M" >&2; exit 1; }
+    case "$DECL" in
+      *none-needed*) ;;
+      *) echo "e2e-autorun: --declare wants '<feature>[,<feature>]=none-needed (<why>)' or 'none-needed (<why>)'" >&2; exit 1 ;;
+    esac
+    REASON=$(printf '%s' "$DECL" | sed -nE 's/.*none-needed[[:space:]]*\((.*)\).*/\1/p'); [ -n "$REASON" ] || REASON="no reason given"
+    case "$DECL" in
+      *=*) FEATS=$(printf '%s' "$DECL" | sed -E 's/[[:space:]]*=.*$//' | tr ',' ' ') ;;
+      *)   FEATS='*' ;;
+    esac
+    TMPM="$M.tmp.$$"; cp "$M" "$TMPM"
+    for f in $FEATS; do
+      jq --arg f "$f" --arg r "$REASON" '.spec_declared = ((.spec_declared // {}) + {($f): $r})' "$TMPM" > "$TMPM.2" && mv "$TMPM.2" "$TMPM"
+    done
+    mv "$TMPM" "$M"
+    echo "e2e-autorun: declared none-needed for [$FEATS] on $SESSION_ID — phase 1 released for them. (The same line as a Spec-Sync: trailer on the commit satisfies the PR check too.)" >&2
+    exit 0
+  fi
+  # --clear
+  if [ -n "$SESSION_ID" ]; then TARGETS="$PENDING_DIR/$SESSION_ID.json"; else TARGETS=$(ls "$PENDING_DIR"/*.json 2>/dev/null | grep -v '\.sync\.json$'); fi
+  if [ "$FORCE" != 1 ] && command -v e2e_phase1_stale >/dev/null 2>&1; then
+    for M in $TARGETS; do
+      [ -f "$M" ] || continue
+      STALE=$(e2e_phase1_stale "$PROJECT_ROOT" "$M" "$PROJECT_ROOT")
+      if [ -n "$STALE" ]; then
+        ID=$(basename "${M%.json}")
+        echo "e2e-autorun: REFUSING to clear $ID — phase 1 is not done: the spec for [$STALE] is unchanged since the run was armed and nothing declares the change spec-neutral." >&2
+        echo "  author it:   /sync-specs --brief .claude/.e2e-pending/$ID.sync.json   then validate" >&2
+        echo "  or declare:  bash .claude/hooks/e2e-autorun.sh --declare --session $ID '$(printf '%s' "$STALE" | tr ' ' ',')=none-needed (<why>)'" >&2
+        echo "  escape hatch: --force (the PR check will still flag it)" >&2
+        exit 1
+      fi
+    done
+  fi
   # The sync brief goes with the marker. A brief left behind describes a diff
   # that is no longer HEAD, so an agent that picks it up authors scenarios for a
   # change already superseded — worse than having no brief at all.
-  if [ "${2:-}" = "--session" ] && [ -n "${3:-}" ]; then
-    rm -f "$PENDING_DIR/$3.json" "$PENDING_DIR/$3.sync.json"
+  if [ -n "$SESSION_ID" ]; then
+    rm -f "$PENDING_DIR/$SESSION_ID.json" "$PENDING_DIR/$SESSION_ID.sync.json"
   else
     rm -f "$PENDING_DIR"/*.json
   fi
@@ -176,6 +237,12 @@ REPO_NAME=$(basename "${REPO:-unknown}")
 # un-nudged execute marker, or the one run that was actually earned disappears
 # and it looks like the hook never fired.
 
+# spec_hashes: what each spec the brief says to author looked like at arming. The
+# Stop hook compares against it — a spec byte-identical to this is STALE and holds
+# the turn (bd-zqtgs). Empty when no sync was armed.
+SPEC_HASHES='{}'
+[ "$SPEC_SYNC" = "true" ] && SPEC_HASHES=$(e2e_spec_hashes_json "$PROJECT_ROOT" "$BRIEF")
+printf '%s' "$SPEC_HASHES" | jq -e . >/dev/null 2>&1 || SPEC_HASHES='{}'
 printf '%s' "$SEL" | jq \
   --arg session "$SESSION" \
   --arg repo "$REPO_NAME" \
@@ -184,8 +251,10 @@ printf '%s' "$SEL" | jq \
   --arg trigger "$TRIGGER" \
   --arg mode "$MODE" \
   --argjson spec_sync "$SPEC_SYNC" \
+  --argjson spec_hashes "$SPEC_HASHES" \
   '{session: $session, repo: $repo, branch: $branch, trigger: $trigger, mode: $mode,
     armed_at: $armed, nudged: false, spec_sync: $spec_sync,
+    spec_hashes: $spec_hashes, spec_declared: {}, phase1_blocks: 0,
     commands: .commands, features: .features,
     fallback: .fallback, unmapped: .unmapped}' \
   > "$PENDING_DIR/$SESSION.json" 2>/dev/null || exit 0

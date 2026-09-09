@@ -35,8 +35,29 @@ PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-${_HOOK_DIR%/.claude/hooks}}"
 
 INPUT=$(cat)
 SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "default"' 2>/dev/null)
+PAYLOAD_CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
 PEND="$PROJECT_ROOT/.claude/.e2e-pending"
 MARKER="$PEND/$SESSION.json"
+# shellcheck source=lib/git-push-match.sh
+. "$_HOOK_DIR/lib/git-push-match.sh" 2>/dev/null || exit 0
+
+# PHASE 1 IS A GATE, NOT A NUDGE (bd-zqtgs). PR #841 changed training code from a
+# session; the hook selected `training`, built the brief, nudged once — and the
+# turn ended with training.feature untouched, because this hook asked "was it
+# nudged?" and never "did the spec change?". Now a marker whose spec is still
+# byte-identical to arming (and undeclared) keeps holding the turn — bounded to
+# PHASE1_MAX_BLOCKS re-blocks so a session can never wedge; after that it lets go
+# LOUDLY and the PR check (qa-impact.yml) is what catches it. Phase 2 (the E2E)
+# still fires exactly once: a linked browser is a human precondition.
+PHASE1_MAX_BLOCKS="${E2E_PHASE1_MAX_BLOCKS:-3}"
+phase1_open() {   # $1 marker → prints "stale <feats>" or "invalid <validator text>", or nothing
+  local st inv
+  st=$(e2e_phase1_stale "$PROJECT_ROOT" "$1" "$PAYLOAD_CWD")
+  if [ -n "$st" ]; then printf 'stale %s' "$st"; return 0; fi
+  inv=$(e2e_phase1_invalid "$PROJECT_ROOT" "$1" "$PAYLOAD_CWD")
+  [ -n "$inv" ] && printf 'invalid %s' "$inv"
+  return 0
+}
 
 # Another session's pending run is not this session's problem. Keying on
 # session_id is what keeps parallel agents (5+ on this repo) from blocking each
@@ -50,13 +71,18 @@ MARKER="$PEND/$SESSION.json"
 # first — a git marker waits for the following turn rather than being folded in.
 # These markers are per-clone, per-machine (gitignored), so nothing here can be
 # another developer's.
+# A marker still "owes" this session a stop when it is un-nudged (phase 2 not yet
+# ordered) OR its phase 1 is still open (spec unchanged / invalid, undeclared).
+owes() { [ -f "$1" ] || return 1
+  [ "$(jq -r '.nudged // false' "$1" 2>/dev/null)" != "true" ] && return 0
+  [ -n "$(phase1_open "$1")" ]; }
 ADOPTED=""
-if [ ! -f "$MARKER" ] || [ "$(jq -r '.nudged // false' "$MARKER" 2>/dev/null)" = "true" ]; then
+if ! owes "$MARKER"; then
   MARKER=""
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     case "$f" in *.sync.json) continue ;; esac
-    [ "$(jq -r '.nudged // false' "$f" 2>/dev/null)" = "true" ] && continue
+    owes "$f" || continue
     MARKER="$f"; ADOPTED=1; break
   done <<EOF
 $(ls -t "$PEND"/git-*.json 2>/dev/null)
@@ -65,7 +91,6 @@ EOF
 fi
 
 NUDGED=$(jq -r '.nudged // false' "$MARKER" 2>/dev/null)
-[ "$NUDGED" = "true" ] && exit 0
 # What `--clear --session <id>` needs, for either kind of marker.
 CLEAR_ID=$(basename "${MARKER%.json}")
 
@@ -78,6 +103,50 @@ CLEAR_ID=$(basename "${MARKER%.json}")
 # always did — a missing mode must not silently disable the enforcement half.
 MODE=$(jq -r '.mode // "execute"' "$MARKER" 2>/dev/null)
 [ "$MODE" = "advisory" ] && exit 0
+
+# ── the phase 1 RE-BLOCK: phase 2 was already ordered once; the spec is still open
+if [ "$NUDGED" = "true" ]; then
+  OPEN=$(phase1_open "$MARKER")
+  [ -n "$OPEN" ] || exit 0
+  BLOCKS=$(jq -r '.phase1_blocks // 0' "$MARKER" 2>/dev/null); case "$BLOCKS" in ''|null) BLOCKS=0 ;; esac
+  KIND=${OPEN%% *}; DETAIL=${OPEN#* }
+  FEATS=$(jq -r '.spec_hashes | keys | join(",")' "$MARKER" 2>/dev/null)
+  SYNC_FILE="${MARKER%.json}.sync.json"
+  if [ "$BLOCKS" -ge "$PHASE1_MAX_BLOCKS" ]; then
+    echo "e2e-autorun-stop: phase 1 still $KIND for [$DETAIL] after $BLOCKS holds — letting the turn end. The Gherkin spec is NOT synced; qa-impact will fail the PR until it is synced or declared (Spec-Sync: trailer)." >&2
+    exit 0
+  fi
+  TMP="$MARKER.tmp.$$"
+  if jq '.phase1_blocks = ((.phase1_blocks // 0) + 1)' "$MARKER" > "$TMP" 2>/dev/null; then mv "$TMP" "$MARKER" 2>/dev/null || rm -f "$TMP"; else rm -f "$TMP"; fi
+  N=$((BLOCKS + 1))
+  if [ "$KIND" = "stale" ]; then
+    WHY="$(for f in $DETAIL; do printf '  %s.feature is byte-identical to when this run was armed\n' "$f"; done)"
+  else
+    WHY="  the spec changed but does not pass the validator:
+$(printf '%s' "$DETAIL" | sed 's/^/    /')"
+  fi
+  read -r -d '' REASON <<EOF
+PHASE 1 IS NOT DONE — this turn is held (hold $N of $PHASE1_MAX_BLOCKS).
+
+$WHY
+
+The E2E for this change was already ordered and is not repeated here. What is
+still owed is the Gherkin: driving a suite written for the OLD behaviour proves
+nothing. Do ONE of these, then end the turn:
+
+  /sync-specs --brief $SYNC_FILE
+  python3 .claude/qa/shared/validate_specs.py --only $FEATS
+
+  bash .claude/hooks/e2e-autorun.sh --declare --session $CLEAR_ID '$FEATS=none-needed (<why>)'
+    — ONLY if the change alters no teacher-visible behaviour. Put the same line as
+      a \`Spec-Sync:\` trailer on the commit so the PR check agrees.
+
+\`--clear\` refuses while phase 1 is open; \`--clear --force\` is the escape hatch and
+the PR check will still flag it. After $PHASE1_MAX_BLOCKS holds this stops asking.
+EOF
+  jq -n --arg reason "$REASON" '{decision: "block", reason: $reason}'
+  exit 0
+fi
 
 # Flip `nudged` BEFORE emitting the block. If anything below fails — a crash, a
 # malformed payload, a killed process — the worst case must be "we failed to
@@ -129,6 +198,11 @@ written for the behaviour you just changed. Author through \`gherkin-test-cases\
 
 Errors mean phase 2 does not run. Never delete a scenario — tag it \`@obsolete\`
 with a reason and report it.
+
+THIS PHASE IS A GATE: the turn will be held again (up to $PHASE1_MAX_BLOCKS times) while the
+.feature is unchanged and undeclared, and \`--clear\` refuses. If the change truly
+alters nothing a teacher sees, declare it instead of skipping it:
+  bash .claude/hooks/e2e-autorun.sh --declare --session $CLEAR_ID '<feature>=none-needed (<why>)'
 
 ━━ PHASE 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -218,7 +292,9 @@ honestly is fine; reported as a pass it is not.
 Clear it either way when you are done:
   bash .claude/hooks/e2e-autorun.sh --clear --session $CLEAR_ID
 
-(You will not be stopped again for this $TRIGGER — this nudge fires once.)
+(The E2E order above fires once for this $TRIGGER — you will not be stopped again for
+it. Phase 1 — the Gherkin — is different: it holds the turn until the spec is changed
+and valid, or declared none-needed.)
 EOF
 
 jq -n --arg reason "$REASON" '{decision: "block", reason: $reason}'
