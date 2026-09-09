@@ -108,7 +108,7 @@ describe('defect 1 — a bare Continue must not be a silent no-op', () => {
     // The teacher asked for the only thing this lesson offers; give it to them.
     expect(out.screen).toBe('DONE');
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action',
-      expect.objectContaining({ action: expect.stringMatching(/^make:/) }));
+      expect.objectContaining({ action: expect.stringMatching(/^make_/) }));
   });
 
   test('with several actions available, Continue refuses — and says so out loud', async () => {
@@ -128,7 +128,7 @@ describe('defect 1 — no early return may be silent', () => {
   test('a lesson that is not the teacher’s own is refused WITH a logged reason', async () => {
     stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
 
-    await exchange({ step: 'action', session_id: 'not-mine', action: 'make:ur' });
+    await exchange({ step: 'action', session_id: 'not-mine', action: 'make_ur' });
 
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
       expect.objectContaining({ reason: 'lesson_not_found' }));
@@ -142,5 +142,15 @@ describe('defect 1 — no early return may be silent', () => {
 
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
       expect.objectContaining({ reason: 'action_unavailable', action: 'report' }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('an action id has to survive the round trip', () => {
+  test('every id a lesson offers is plain [A-Za-z0-9_] — a colon does not come back', async () => {
+    stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizDataExchange(
+      TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    for (const a of out.data.actions) expect(a.id).toMatch(/^[A-Za-z0-9_]+$/);
   });
 });

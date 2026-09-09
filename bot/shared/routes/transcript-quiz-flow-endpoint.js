@@ -341,11 +341,11 @@ function actionsFor({ state, quiz, session, language }) {
   const rule = quiz?.language || quizLanguageFor(subject, session?.transcript_language);
   const description = resolveUx('tqFlowActionMakeDesc', { language });
   if (!needsLanguageAsk(subject)) {
-    return [{ id: `make:${rule}`, title: resolveUx('tqFlowActionMake', { language }), description }];
+    return [{ id: `make_${rule}`, title: resolveUx('tqFlowActionMake', { language }), description }];
   }
   const first = LANGUAGE_OFFER.includes(rule) ? rule : LANGUAGE_OFFER[0];
   return [first, ...LANGUAGE_OFFER.filter((c) => c !== first)].map((code) => ({
-    id: `make:${code}`,
+    id: `make_${code}`,
     title: resolveUx('tqFlowActionMakeIn', {
       language, params: { language: getLanguage(code).languageTitle },
     }),
@@ -536,8 +536,17 @@ async function stepAction(teacher, screenData) {
     return doneScreen('link', language, { userId: teacher.id, quizId });
   }
 
-  // make:<language>
-  const chosen = clampLanguage(action.slice('make:'.length));
+  // make_<language>.
+  //
+  // The separator is an underscore because a colon does not survive the trip.
+  // These ids are the `id` of a RadioButtonsGroup data-source item, and the one
+  // the teacher picks comes back as ${form.tq_action}. With `make:en` that value
+  // arrived EMPTY every time — 187 times in production, and once more on sandbox
+  // with the radio visibly selected, logged as flow_action_refused
+  // reason=no_action_picked. Every RadioButtonsGroup in this repo that works uses
+  // plain ids (`pdf`, `english`); the two flows shipping colon ids feed a
+  // Dropdown, not a radio.
+  const chosen = clampLanguage(action.slice('make_'.length));
   const teacherId = teacher.id;
   const sessionId = session.id;
   const phone = teacher.phone_number;
