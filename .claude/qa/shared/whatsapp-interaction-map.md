@@ -142,7 +142,7 @@ use it to move *between screens within one session* instead of cancelling out to
   you are back at the top, and `Back` up as needed.
 
 **Two Flow control styles.** Training uses a **radio listbox** (select the wrapping button → submit enables).
-The Lesson-Plans "Pick Class" Flow uses **dropdown pickers** (verified 2026-08-04): each screen has a
+The Lesson-Plans "Pick a class" Flow uses **dropdown pickers** (verified 2026-08-04): each screen has a
 `button "<Label>"` with `haspopup="menu"` → MCP-click it to open a `listbox` of options → MCP-click the option
 → the dropdown collapses back onto the screen and "Next" enables → MCP-click "Next". Screens:
 `Class/Grade (static Grade 1..10) → Subject → Chapter → Topic`; the last submit is **"Send Lesson Plan"**, after

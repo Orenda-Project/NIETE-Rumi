@@ -39,7 +39,7 @@ feature spec follows the rules below so a re-run passes on the same *behaviour*,
 | Feature | Deterministic (assert exact / `@copy`) | Non-deterministic (`@content-driven` / shape only) |
 |---|---|---|
 | **menu** | the 4 ICT rows, "Here's what I can do!", "View Features", `/portal` URL, `/language` picker options | **Ask Anything** answers · **gibberish** reply · AI reply **language** (per `preferred_language`) |
-| **lesson-plan** | menu CTA "Pick Class", picker labels, "Sending your lesson plan…", grade list 1–10 | the **PDF** itself (filename/content) · **NL/AI (Gamma)** generation text · which chapters/topics exist (catalog) |
+| **lesson-plan** | menu CTA "Pick a class", picker labels, "Sending your lesson plan…", grade list 1–10 | the **PDF** itself (filename/content) · **NL/AI (Gamma)** generation text · which chapters/topics exist (catalog) |
 | **coaching** | menu prompt, "Yes, Analyze", the 5 step **templates** ("Step n/5: …"), interstitial button copy | detected **duration** · **FICO/ICT feedback** text + scores · transcript · final report image (async) |
 | **registration** | screen titles, field labels, "You're all set", region/role option lists | the **portal setup token/URL** (random) · any AI echo · (F-REG1 greeting name — a known bug, not RNG) |
 | **status** | "Running for you:", "Nothing's running right now.", command copy | **which** in-flight items are listed (depends on what's running) · counts |

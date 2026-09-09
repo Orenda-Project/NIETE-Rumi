@@ -103,7 +103,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // LANG16 — Lesson Plans card + Pick-Class Flow on an Urdu account (@known-issue: Flow interior English)
   s = t();
   r = await api.sendWait('/lp');
-  const op = await api.openFlow('جماعت چنیں|Pick Class|شروع کریں|Browse');
+  const op = await api.openFlow('جماعت چنیں|Pick a class|شروع کریں|Browse');
   const fp = op.ok ? await api.flowProbe() : { text: '' };
   rec('LANG16', 'Lesson Plans via the Pick-Class Flow renders English on an Urdu account (@known-issue)',
       op.ok ? V(latinOnly(fp.text), { card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt), flowScreen: fp.text.slice(0, 120), flowEnglish: latinOnly(fp.text) })[0] : 'BLOCKED',

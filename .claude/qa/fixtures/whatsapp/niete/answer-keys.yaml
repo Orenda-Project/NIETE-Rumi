@@ -190,7 +190,7 @@ lesson_plan:
     ice_breaker: "Plan Lesson - Create PDF lesson plans instantly"        # register-commands-meta.js:55
   # Launch bubble differs by entry (both gated on PAKISTAN_LP_FLOW_ID — set on PROD):
   menu_header: "📘 Lesson Plans"
-  menu_cta: "Pick Class"                                                  # menu.service.js:296
+  menu_cta: "Pick a class"                                               # menu.service.js:296
   menu_body_contains: "Pick your class, subject, chapter and topic — the lesson plan lands in your chat."
   keyword_cta: "Browse"                                                   # text-message.handler.js:867 (ur: "شروع کریں")
   keyword_body_contains: "Pick your class, subject, and chapter — I will send the lesson plan to your chat."

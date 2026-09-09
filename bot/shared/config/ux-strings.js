@@ -663,7 +663,7 @@ const UX_STRINGS = {
   },
 
   lpBrowseButton: {
-    en: 'Pick Class',
+    en: 'Pick a class',
     ur: 'جماعت چنیں',
   },
 

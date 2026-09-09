@@ -10,7 +10,7 @@ const VF = (op, c, ev) => op.ok ? V(c, ev) : ['BLOCKED', { harness: op.err, clic
 // Staging renders the LP *chat card* in Urdu; only the Flow interior is English.
 // Captured live 2026-08-31: header "سبق کے منصوبے", CTA "جماعت چنیں".
 const CARD = /سبق کے منصوبے|Lesson Plans/;
-const CTA  = 'جماعت چنیں|Pick Class|شروع کریں|Start';
+const CTA  = 'جماعت چنیں|Pick a class|شروع کریں|Start';
 
 exports.run = async ({ api, rec, sleep }) => {
   const t = () => Date.now();
@@ -80,7 +80,7 @@ exports.run = async ({ api, rec, sleep }) => {
   const op = await openLP();
   const first = op.ok ? await api.flowProbe() : { text: '' };
   // L10 — the Flow chrome is an English floor even on an Urdu account
-  rec('L10', 'The Pick Class Flow renders in English for an Urdu-preference teacher',
+  rec('L10', 'The "Pick a class" Flow renders in English for an Urdu-preference teacher',
       ...VF(op, /Lesson Plans/i.test(first.text) && /Grade 1/i.test(first.text) && !/[؀-ۿ]/.test(first.text),
             { screen: first.text.slice(0, 120) }), t() - s);
 
@@ -109,7 +109,7 @@ exports.run = async ({ api, rec, sleep }) => {
       delivered = JSON.parse(w);
     }
   }
-  rec('L01', 'Completing the Pick Class Flow delivers the lesson-plan PDF',
+  rec('L01', 'Completing the "Pick a class" Flow delivers the lesson-plan PDF',
       ...VF(op, !!(delivered && delivered.ok), delivered || {}), t() - s);
 
   // L03 — a secondary grade delivers an Oxbridge plan instead of the Pakistan corpus

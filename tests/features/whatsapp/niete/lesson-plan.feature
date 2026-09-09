@@ -7,7 +7,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # Entry points: the "Lesson Plans" menu row, a keyword (lp | lesson plan | lesson-plan | /lp | لیسن پلان,
   #   exact match), the Meta ice-breaker, a natural-language request, or a voice note.
   # Delivery engines:
-  #   (A) the "Pick Class" native Flow (Grade → Subject → Chapter → Topic → PDF), gated on
+  #   (A) the "Pick a class" native Flow (Grade → Subject → Chapter → Topic → PDF), gated on
   #       PAKISTAN_LP_FLOW_ID. Grades 1–5 serve a pre-generated Pakistan PDF; grades 6–10 an Oxbridge PDF.
   #   (B) natural language / voice — since bd-2540 these NO LONGER generate a freeform plan; they return
   #       the curriculum fallback ("this isn't in our collection yet — type menu").
@@ -17,7 +17,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # ─────────────────────────── Positive / happy path ───────────────────────────
 
   @e2e @flow @P1
-  Scenario: Completing the Pick Class Flow delivers the lesson-plan PDF
+  Scenario: Completing the "Pick a class" Flow delivers the lesson-plan PDF
     Given the NIETE bot chat is open
     When I open the LP Flow and complete it for Grade 1 → English → "Ch 1: Hello World" → "Full Chapter Lesson Plan"
     Then the interim ack matches "📘 Sending your lesson plan: <grade> <subject> — <chapter>…"
@@ -99,7 +99,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # ─────────────────────────────── Known issue ───────────────────────────────
 
   @e2e @flow @i18n @known-issue @P3
-  Scenario: The Pick Class Flow renders in English for an Urdu-preference teacher
+  Scenario: The "Pick a class" Flow renders in English for an Urdu-preference teacher
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     When I open the LP Flow
     Then the Flow screens and the "Sending…" ack are shown in English

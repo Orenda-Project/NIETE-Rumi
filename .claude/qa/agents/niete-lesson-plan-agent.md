@@ -113,7 +113,7 @@ Per scenario:
 1. **Covered set.** Build the `covered` list `{kind,label}` from this feature's
    scenarios + `../fixtures/whatsapp/niete/answer-keys.yaml` (e.g. `lesson_plan.grades`
    → `{kind:"flow-screen", label:<grade>}`; `lesson_plan.menu_cta` → `{kind:"button",
-   label:"Pick Class"}`).
+   label:"Pick a class"}`).
 2. **Existing slugs.** Read `../ledgers/discoveries/whatsapp/niete/lesson-plan.md` (if any) and
    collect every `D-...` entry's slug (the `slug:` field, or derive from the heading).
 3. **Diff + append.** Run:
