@@ -300,3 +300,80 @@ describe('the answer key is its own document (bd-60015)', () => {
     expect(R.renderAnswerKey({ ...HEAD, subject: 'english', examJson: exam })).not.toMatch(/dir="rtl"/);
   });
 });
+
+describe("Bloom levels on the answer key (bd-60021)", () => {
+  // The generator has always tagged every question with its Bloom level; the
+  // renderer dropped it. The teacher needs it to see the paper's cognitive
+  // spread at a glance — and the child must NOT see it, because a level label
+  // primes the shape of the expected answer.
+  const exam = {
+    unseen: {
+      objective: {
+        MCQs: [{ question: "Which is a noun?", options: ["(a) run", "(b) cat"], marks: 1,
+                 answer: "(b) cat", blooms: "Understand" }],
+        "True/False": [{ question: "A verb is an action word.", marks: 1,
+                         answer: "True", blooms: "Remember" }],
+      },
+      subjective: {
+        "Short Questions": [{ question: "Why do we use capital letters?", marks: 2,
+                              answer: "For proper nouns and sentence starts.", blooms: "Analyze" }],
+      },
+    },
+  };
+
+  it("prints each question's Bloom level on the key", () => {
+    const key = R.renderAnswerKey({ ...HEAD, examJson: exam });
+    expect(key).toMatch(/Understand/);
+    expect(key).toMatch(/Remember/);
+    expect(key).toMatch(/Analyze/);
+  });
+
+  it("summarises the paper's cognitive spread for the teacher", () => {
+    const key = R.renderAnswerKey({ ...HEAD, examJson: exam });
+    expect(key).toMatch(/Cognitive spread/i);
+    // Assert the tallied DATA, not where the table happens to put it: the
+    // levels present, in taxonomy order, with their item and mark counts.
+    const spread = R.bloomSpread(R.collectQuestions(exam));
+    expect(spread.map((r) => r.level)).toEqual(["Remember", "Understand", "Analyze"]);
+    expect(spread.map((r) => r.items)).toEqual([1, 1, 1]);
+    expect(spread.map((r) => r.marks)).toEqual([1, 1, 2]);
+    for (const level of ["Remember", "Understand", "Analyze"]) expect(key).toContain(level);
+  });
+
+  it("never prints a Bloom level on the child's paper", () => {
+    const paper = R.renderPaper({ ...HEAD, examJson: exam, answerLines: true });
+    expect(paper).not.toMatch(/Understand/);
+    expect(paper).not.toMatch(/Remember/);
+    expect(paper).not.toMatch(/Analyze/);
+  });
+
+  it("survives a question with no Bloom tag", () => {
+    const untagged = { unseen: { objective: { MCQs: [
+      { question: "q", options: ["(a) x"], marks: 1, answer: "(a) x" }] } } };
+    const key = R.renderAnswerKey({ ...HEAD, examJson: untagged });
+    expect(key).toContain("Answer Key");
+    expect(key).not.toMatch(/undefined|null/);
+  });
+
+  it("normalises the spelling the model actually emits", () => {
+    const mixed = { unseen: { objective: { MCQs: [
+      { question: "a", marks: 1, answer: "x", blooms: "analyse" },
+      { question: "b", marks: 1, answer: "y", blooms: "ANALYZE" },
+      { question: "c", marks: 1, answer: "z", blooms: "Analyze" }] } } };
+    // "analyse" and "ANALYZE" are the same level; three spellings must tally as
+    // ONE row of three, not three rows of one.
+    const spread = R.bloomSpread(R.collectQuestions(mixed));
+    expect(spread).toHaveLength(1);
+    expect(spread[0]).toMatchObject({ level: "Analyze", items: 3, marks: 3 });
+    expect(R.renderAnswerKey({ ...HEAD, examJson: mixed })).toContain("Analyze");
+  });
+
+  it("keeps an unrecognised level visible instead of dropping it", () => {
+    const odd = { unseen: { objective: { MCQs: [
+      { question: "a", marks: 1, answer: "x", blooms: "Remember" },
+      { question: "b", marks: 1, answer: "y", blooms: "Metacognition" }] } } };
+    const spread = R.bloomSpread(R.collectQuestions(odd));
+    expect(spread.map((r) => r.level)).toEqual(["Remember", "Metacognition"]);
+    expect(R.renderAnswerKey({ ...HEAD, examJson: odd })).toContain("Metacognition");
+  });
+});
