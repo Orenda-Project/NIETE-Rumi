@@ -198,9 +198,6 @@ const PortalCurriculum = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="library">Lesson Plans</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
-            {/* Only when the feature is on — an empty tab for a feature she
-                cannot use is the same mistake as a form with no engine. */}
-            {assessmentEnabled && <TabsTrigger value="papers">My papers</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="library">
@@ -345,17 +342,30 @@ const PortalCurriculum = () => {
             {assessmentEnabled === null
               ? null
               : assessmentEnabled
-                ? <AssessmentGeneratorPanel
-                    onPaperReady={() => setPapersRefreshKey((k) => k + 1)}
-                  />
+                ? (
+                  <div className="space-y-10">
+                    <AssessmentGeneratorPanel
+                      onPaperReady={() => setPapersRefreshKey((k) => k + 1)}
+                    />
+
+                    {/* My papers lives INSIDE this tab, under the generator,
+                        rather than as a third tab beside it. Making a paper and
+                        fetching one you already made are the same job — the
+                        Curriculum page's tabs are for different KINDS of thing
+                        (lesson plans vs assessments), not for steps within one.
+                        A top-level tab also implied papers exist independently
+                        of the generator, which they do not. */}
+                    <section className="border-t pt-8">
+                      <h3 className="mb-1 text-lg font-medium">My papers</h3>
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        Everything you have made. Download it again any time.
+                      </p>
+                      <AssessmentPapersPanel refreshKey={papersRefreshKey} />
+                    </section>
+                  </div>
+                )
                 : <AssessmentGeneratorComingSoon message={assessmentMessage} />}
           </TabsContent>
-
-          {assessmentEnabled && (
-            <TabsContent value="papers">
-              <AssessmentPapersPanel refreshKey={papersRefreshKey} />
-            </TabsContent>
-          )}
         </Tabs>
       </div>
     </PortalLayout>
