@@ -60,7 +60,6 @@ const HEADING_MAX = 80;
 const NEWER_ID = '__newer__';
 const OLDER_ID = '__older__';
 const EMPTY_ID = '__empty__';
-const ERROR_ID = '__error__';
 
 // LEFT-TO-RIGHT ISOLATE / POP DIRECTIONAL ISOLATE — for an atom whose content
 // is unambiguously Latin-ordered (a score, a fraction, a per-cent) sitting
@@ -128,38 +127,6 @@ function lookupFailedScreen(error, extra = {}) {
 // LESSONS
 // ---------------------------------------------------------------------------
 
-/**
- * The Flow client DISCARDS any property a screen's data contract does not
- * declare. `error_message` was returned by every refusal and every lookup
- * failure but declared by neither screen, so for four days the endpoint refused
- * 187 action submits and the teacher's phone showed nothing at all — the same
- * screen, unchanged, which reads as "the button is broken". Both screens now
- * declare `error_message` + `error_visible`, and every screen we build fills
- * them in, present and empty when there is nothing wrong.
- */
-function errorItems(extra = {}) {
-  return extra && extra.error_message ? [errorItem(extra.error_message)] : [];
-}
-
-function withError(extra = {}) {
-  const message = extra.error_message || '';
-  return { ...extra, error_message: message, error_visible: Boolean(message) };
-}
-
-/**
- * A LESSONS error has to be an ITEM, not a line of text: Meta allows a
- * NavigationList only as the sole component on its screen, and two guards in
- * this repo enforce it. The item is tappable and simply re-asks for page 1, so
- * an error is never a dead end either.
- */
-function errorItem(message) {
-  return {
-    id: ERROR_ID,
-    'main-content': { title: '⚠️', description: '', metadata: truncateWords(message, META_MAX) },
-    'on-click-action': { name: 'data_exchange', payload: { step: 'page', page: 1 } },
-  };
-}
-
 function emptyItem(language) {
   return {
     id: EMPTY_ID,
@@ -182,11 +149,7 @@ async function lessonsScreen(teacher, page, extra = {}) {
   const language = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
   const base = {
     screen: 'LESSONS',
-    data: {
-      screen_title: resolveUx('tqFlowLessonsTitle', { language }),
-      items: [...errorItems(extra), emptyItem(language)],
-      ...withError(extra),
-    },
+    data: { screen_title: resolveUx('tqFlowLessonsTitle', { language }), items: [emptyItem(language)], ...extra },
   };
   if (!teacher?.id) return base;
 
@@ -254,11 +217,7 @@ async function lessonsScreen(teacher, page, extra = {}) {
 
   return {
     screen: 'LESSONS',
-    data: {
-      screen_title: resolveUx('tqFlowLessonsTitle', { language }),
-      items: [...errorItems(extra), ...items],
-      ...withError(extra),
-    },
+    data: { screen_title: resolveUx('tqFlowLessonsTitle', { language }), items, ...extra },
   };
 }
 
@@ -419,10 +378,14 @@ function lessonScreenFrom({ teacher, session, quiz, students, language, extra = 
       results: resultsText(state, students, language),
       actions_label: resolveUx('tqFlowActionsLabel', { language }),
       actions,
-      cta: resolveUx('tqFlowContinue', { language }),
+      actions_visible: actions.length > 0,
+      action_required: actions.length > 0,
+      cta: actions.length
+        ? resolveUx('tqFlowContinue', { language })
+        : resolveUx('tqFlowClose', { language }),
       session_id: session.id,
       quiz_id: quiz?.id || '',
-      ...withError(extra),
+      ...extra,
     },
   };
 }
@@ -493,10 +456,9 @@ async function stepLesson(teacher, screenData) {
     started: students.length,
     finished: students.filter((s) => s.status === 'completed').length,
   });
-  // A quiz still being written has nothing to tap. It used to get a LESSON
-  // screen with an empty, hidden chooser, which is what forced `visible` and
-  // `required` to be data bindings in the first place; say so on its own screen
-  // instead, and the chooser can go back to being plainly required.
+  // A quiz still being written has nothing to tap. Sending it to the terminal
+  // screen says so plainly instead of serving a lesson whose only control is an
+  // empty, hidden chooser.
   if (!actionsFor({ state, quiz, session, language }).length) {
     return doneScreen('wait', language, { userId: teacher.id, quizId: quiz?.id || null });
   }
@@ -528,10 +490,10 @@ async function stepAction(teacher, screenData) {
     return doneScreen('wait', language, { userId: teacher.id });
   }
 
-  // A submit that carries no choice is not a teacher changing their mind: in
-  // production it was every submit there has ever been. Where the lesson offers
-  // exactly one thing, do that thing — tapping Continue under a single option
-  // can mean nothing else. Where it offers several, refuse VISIBLY.
+  // A submit carrying no choice is not a teacher changing their mind — in
+  // production it was every submit there has ever been, 187 of them, 183 inside
+  // a retry burst. Where the lesson offers exactly one thing, do that thing: a
+  // tap on Continue under a single option cannot mean anything else.
   const action = submitted || (available.length === 1 ? available[0] : '');
   if (!action) {
     logEvent('transcript_quiz.flow_action_refused', {

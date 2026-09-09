@@ -2,12 +2,8 @@
   "version": "7.0",
   "data_api_version": "3.0",
   "routing_model": {
-    "LESSONS": [
-      "LESSON"
-    ],
-    "LESSON": [
-      "DONE"
-    ],
+    "LESSONS": ["LESSON"],
+    "LESSON": ["DONE"],
     "DONE": []
   },
   "screens": [
@@ -15,41 +11,26 @@
       "id": "LESSONS",
       "title": "${data.screen_title}",
       "data": {
-        "screen_title": {
-          "type": "string",
-          "__example__": "Your lessons"
-        },
+        "screen_title": { "type": "string", "__example__": "Your lessons" },
         "items": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id": {
-                "type": "string"
-              },
+              "id": { "type": "string" },
               "main-content": {
                 "type": "object",
                 "properties": {
-                  "title": {
-                    "type": "string"
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "metadata": {
-                    "type": "string"
-                  }
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "metadata": { "type": "string" }
                 }
               },
               "on-click-action": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "payload": {
-                    "type": "object"
-                  }
+                  "name": { "type": "string" },
+                  "payload": { "type": "object" }
                 }
               }
             }
@@ -64,10 +45,7 @@
               },
               "on-click-action": {
                 "name": "data_exchange",
-                "payload": {
-                  "step": "lesson",
-                  "session_id": "00000000-0000-0000-0000-000000000001"
-                }
+                "payload": { "step": "lesson", "session_id": "00000000-0000-0000-0000-000000000001" }
               }
             },
             {
@@ -79,31 +57,16 @@
               },
               "on-click-action": {
                 "name": "data_exchange",
-                "payload": {
-                  "step": "page",
-                  "page": "2"
-                }
+                "payload": { "step": "page", "page": "2" }
               }
             }
           ]
-        },
-        "error_message": {
-          "type": "string",
-          "__example__": "Pick one of the options above to continue."
-        },
-        "error_visible": {
-          "type": "boolean",
-          "__example__": false
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          {
-            "type": "NavigationList",
-            "name": "lesson_list",
-            "list-items": "${data.items}"
-          }
+          { "type": "NavigationList", "name": "lesson_list", "list-items": "${data.items}" }
         ]
       }
     },
@@ -111,40 +74,24 @@
       "id": "LESSON",
       "title": "${data.screen_title}",
       "data": {
-        "screen_title": {
-          "type": "string",
-          "__example__": "This lesson"
-        },
-        "heading": {
-          "type": "string",
-          "__example__": "Electric circuits and how a switch works"
-        },
-        "subline": {
-          "type": "string",
-          "__example__": "5 Sep · Science · 12 started"
-        },
+        "screen_title": { "type": "string", "__example__": "This lesson" },
+        "heading": { "type": "string", "__example__": "Electric circuits and how a switch works" },
+        "subline": { "type": "string", "__example__": "5 Sep · Science · 12 started" },
         "results": {
           "type": "string",
           "__example__": "12 started · 9 finished · average 71%\n\nHow each student did\n• Ayesha (5-A) — 7/8 (88%)\n• Bilal (5-A) — 5/8 (63%)\n\nStill going: Danish, Hira, Imran"
         },
-        "actions_label": {
-          "type": "string",
-          "__example__": "What next?"
-        },
+        "actions_label": { "type": "string", "__example__": "What next?" },
+        "actions_visible": { "type": "boolean", "__example__": true },
+        "action_required": { "type": "boolean", "__example__": true },
         "actions": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              }
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
             }
           },
           "__example__": [
@@ -160,26 +107,9 @@
             }
           ]
         },
-        "cta": {
-          "type": "string",
-          "__example__": "Continue"
-        },
-        "session_id": {
-          "type": "string",
-          "__example__": "00000000-0000-0000-0000-000000000001"
-        },
-        "quiz_id": {
-          "type": "string",
-          "__example__": "00000000-0000-0000-0000-000000000002"
-        },
-        "error_message": {
-          "type": "string",
-          "__example__": "Pick one of the options above to continue."
-        },
-        "error_visible": {
-          "type": "boolean",
-          "__example__": false
-        }
+        "cta": { "type": "string", "__example__": "Continue" },
+        "session_id": { "type": "string", "__example__": "00000000-0000-0000-0000-000000000001" },
+        "quiz_id": { "type": "string", "__example__": "00000000-0000-0000-0000-000000000002" }
       },
       "layout": {
         "type": "SingleColumnLayout",
@@ -188,29 +118,16 @@
             "type": "Form",
             "name": "lesson_form",
             "children": [
-              {
-                "type": "TextHeading",
-                "text": "${data.heading}"
-              },
-              {
-                "type": "TextCaption",
-                "text": "${data.subline}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.results}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.error_message}",
-                "visible": "${data.error_visible}"
-              },
+              { "type": "TextHeading", "text": "${data.heading}" },
+              { "type": "TextCaption", "text": "${data.subline}" },
+              { "type": "TextBody", "text": "${data.results}" },
               {
                 "type": "RadioButtonsGroup",
                 "name": "tq_action",
                 "label": "${data.actions_label}",
                 "data-source": "${data.actions}",
-                "required": true
+                "visible": "${data.actions_visible}",
+                "required": "${data.action_required}"
               },
               {
                 "type": "Footer",
@@ -236,41 +153,23 @@
       "terminal": true,
       "success": true,
       "data": {
-        "screen_title": {
-          "type": "string",
-          "__example__": "On its way"
-        },
-        "heading": {
-          "type": "string",
-          "__example__": "Your report is on its way"
-        },
+        "screen_title": { "type": "string", "__example__": "On its way" },
+        "heading": { "type": "string", "__example__": "Your report is on its way" },
         "body": {
           "type": "string",
           "__example__": "Recounting now. The report will arrive in your chat in a minute or two."
         },
-        "close": {
-          "type": "string",
-          "__example__": "Close"
-        }
+        "close": { "type": "string", "__example__": "Close" }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          {
-            "type": "TextHeading",
-            "text": "${data.heading}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.body}"
-          },
+          { "type": "TextHeading", "text": "${data.heading}" },
+          { "type": "TextBody", "text": "${data.body}" },
           {
             "type": "Footer",
             "label": "${data.close}",
-            "on-click-action": {
-              "name": "complete",
-              "payload": {}
-            }
+            "on-click-action": { "name": "complete", "payload": {} }
           }
         ]
       }
