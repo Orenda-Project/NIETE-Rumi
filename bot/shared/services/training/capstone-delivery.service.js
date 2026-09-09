@@ -330,6 +330,14 @@ async function routeTextAnswer(phoneNumber, text) {
     .eq('quiz_kind', KIND_CAPSTONE)
     .eq('status', 'in_progress')
     .order('last_activity_at', { ascending: false })
+    // Total order, not just a sort key. last_activity_at is NOT NULL DEFAULT
+    // now() and no two of a teacher's open attempts share a timestamp today
+    // (closest spread on production: 5m39s) — but "no ties in the data right
+    // now" is not a guarantee, and a tie here would make WHICH paper receives
+    // her answer non-deterministic. Same defect this codebase already carries
+    // in module sequencing, where 28 modules share one order_index and the
+    // "next" module is whatever the plan happens to return.
+    .order('id', { ascending: false })
     .limit(2);
   if (attemptErr) {
     logToFile('❌ Capstone attempt lookup failed — answer not routed', {
