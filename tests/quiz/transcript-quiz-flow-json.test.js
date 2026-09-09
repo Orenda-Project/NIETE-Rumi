@@ -173,4 +173,14 @@ describe('transcript-quiz-flow.json', () => {
       }
     }
   });
+
+  // `version` is the Flow JSON SCHEMA version, not a version of our content, and
+  // raising it raises the minimum WhatsApp build that can render the Flow. Bumping
+  // it to 7.1 for a content change published cleanly — Meta accepted it, zero
+  // validation errors — and then answered "Something went wrong" on a real handset,
+  // on a payload that matched the contract exactly. Nothing in this repo is above
+  // 7.0; do not lead the fleet on a schema version to ship a copy change.
+  test('the Flow JSON schema version stays at one this deployment has proven', () => {
+    expect(flow.version).toBe('7.0');
+  });
 });
