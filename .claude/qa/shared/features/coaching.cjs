@@ -253,6 +253,10 @@ exports.run = async ({ api, rec, sleep }) => {
   // transcription, then the LLM analysis) is not in the cassette. Waiting the whole 20-min budget for a
   // reply that will never come is pure cost, so watch for silence before the reflective step and stop.
   const RUN_DIR = require('path').dirname(process.env.E2E_PROGRESS || '.');
+  // The early-bail only makes sense under replay-strict: a missing cassette will NEVER arrive, so
+  // waiting the whole budget is pure waste. In record/replay the calls go LIVE and legitimately take
+  // time (Soniox on a 16-min file, then the LLM), so the pipeline WILL complete — never bail there.
+  const REPLAY_STRICT = String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
   const STALL_MS = Number(process.env.COACHING_STALL_MS || 150000);
   let lastMsgAt = Date.now();
   const asrLlmMisses = () => { try { const f = require('path').join(RUN_DIR, 'cassette-misses.jsonl'); if (!require('fs').existsSync(f)) return 0; return require('fs').readFileSync(f, 'utf8').trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch (_) { return {}; } }).filter(m => m.kind === 'asr' || m.kind === 'llm').length; } catch (_) { return 0; } };
@@ -368,7 +372,7 @@ exports.run = async ({ api, rec, sleep }) => {
     if (obs.commitment) break;
     // Stuck before the reflective step (3/5) with the bot silent for STALL_MS → the transcription/LLM
     // answer is not cassetted; stop now rather than burning the rest of the 20-min budget.
-    if (DEEP && !obs.report && !obs.steps.includes('3') && Date.now() - lastMsgAt > STALL_MS) {
+    if (DEEP && REPLAY_STRICT && !obs.report && !obs.steps.includes('3') && Date.now() - lastMsgAt > STALL_MS) {
       obs.stalled = { silentSec: Math.round((Date.now() - lastMsgAt) / 1000), atSteps: obs.steps.slice(), asrLlmMisses: asrLlmMisses() };
       break;
     }
