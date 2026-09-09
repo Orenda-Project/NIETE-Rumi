@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
@@ -27,7 +27,10 @@ const PortalNavigation = () => {
     { title: 'Curriculum', path: '/portal/curriculum', icon: Library },
     { title: 'Training', path: '/portal/training', icon: GraduationCap },
     { title: 'My Classes', path: '/portal/classes', icon: School },
-    { title: 'My Plans', path: '/portal/lesson-plans', icon: BookOpen },
+    // bd-60078 — "My Plans" removed. It listed a teacher's own Gamma-generated
+    // lesson plans and presentations, and custom generation is off, so the tab
+    // could only ever show her older work with no way to make more. The
+    // ready-made catalogue lives under Curriculum, which stays.
     { title: 'Coaching', path: '/portal/coaching', icon: MessageSquare },
     { title: 'Analytics', path: '/portal/coaching/analytics', icon: TrendingUp },
   ];
