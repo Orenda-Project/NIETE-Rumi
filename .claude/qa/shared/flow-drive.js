@@ -102,7 +102,9 @@ const PROBE_JS = `(() => {
       tag: e.tagName, role: e.getAttribute('role'),
       disabled: !!(e.disabled || e.getAttribute('aria-disabled') === 'true'),
       cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2),
-      text: (e.innerText || e.value || '').replace(/\\s+/g, ' ').trim().slice(0, 60) }; })
+      // 200, not 60: the training picker labels a row "<module> <course> · ▶ Next up", and a
+      // 60-char cap cut the marker to "▶ Nex" so nothing downstream could see it (bd-u0d0x).
+      text: (e.innerText || e.value || '').replace(/\\s+/g, ' ').trim().slice(0, 200) }; })
   });
 })()`;
 
