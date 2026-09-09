@@ -235,7 +235,7 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
     expect(out.data.actions.map((a) => a.id)).toEqual(['report', 'link']);
     expect(out.data.quiz_id).toBe('q-1');
-    expect(out.data.actions_visible).toBe(true);
+    expect(out.data.error_visible).toBe(false);
   });
 
   test('a REPORT_SENT quiz offers the same two, and the label never says "regenerate"', async () => {
@@ -265,15 +265,16 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     expect(out.data.actions.map((a) => a.id)).toEqual(['make:ur']);
   });
 
-  test('a quiz being made shows the status and offers nothing to tap', async () => {
+  test('a quiz being made goes straight to its own screen, not a lesson with nothing to tap', async () => {
     stub({
       users, coaching_sessions: [session(1)],
       quizzes: [{ ...SENT_QUIZ, status: 'generating', meta: {} }], quiz_sessions: [],
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-    expect(out.data.actions).toEqual([]);
-    expect(out.data.actions_visible).toBe(false);
-    expect(out.data.action_required).toBe(false);
+    // It used to serve a LESSON carrying an empty, hidden chooser, which is why
+    // `visible` and `required` had to be data bindings — the same bindings that
+    // left the chooser's value out of the submitted payload in production.
+    expect(out.screen).toBe('DONE');
   });
 
   test('a FAILED quiz offers making it again', async () => {
