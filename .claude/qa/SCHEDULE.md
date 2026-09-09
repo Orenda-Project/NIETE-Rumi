@@ -4,10 +4,10 @@
 scope `all` (99 scenarios), driver `923206281950`, staging.
 
 ```bash
-bash .claude/scripts/niete-e2e-schedule.sh status      # loaded? last fires?
-bash .claude/scripts/niete-e2e-scheduled.sh --check-only   # would a fire start right now?
-bash .claude/scripts/niete-e2e-schedule.sh run-now     # fire once, foreground
-bash .claude/scripts/niete-e2e-schedule.sh uninstall
+bash scripts/qa/niete-e2e-schedule.sh status      # loaded? last fires?
+bash scripts/qa/niete-e2e-scheduled.sh --check-only   # would a fire start right now?
+bash scripts/qa/niete-e2e-schedule.sh run-now     # fire once, foreground
+bash scripts/qa/niete-e2e-schedule.sh uninstall
 ```
 
 ## Why a LaunchAgent and not `/loop` or an in-session cron
