@@ -4456,11 +4456,22 @@ router.get('/coaching-analytics', requirePortalAuth, async (req, res) => {
     const lastScore = scored[scored.length - 1]?.percentage || 0;
     const improvement = Math.round((lastScore - firstScore) * 10) / 10;
 
-    // Strongest and weakest, across her whole history. Null rather than a
-    // guess when nothing has been scored yet.
-    const bestGoalArea = goalAreaBreakdown[0]?.name || null;
-    const focusArea = goalAreaBreakdown.length > 1
-      ? goalAreaBreakdown[goalAreaBreakdown.length - 1].name
+    // Strongest and weakest, across her whole history.
+    //
+    // Ranked only over domains seen in a MAJORITY of her scored sessions. A
+    // teacher's sessions are not always scored on the same vocabulary — 17 of
+    // 172 on the corpus use a five-domain shape — so a domain that appears
+    // once can top the table on a single lesson and read as "your strongest
+    // area", which is a claim one data point cannot support. The chart below
+    // still shows every domain with its own n.
+    //
+    // Null rather than a guess when nothing qualifies.
+    const seenIn = (d) => d.sessions || 0;
+    const ranked = goalAreaBreakdown.filter((d) => seenIn(d) * 2 >= totalSessions);
+    const forRanking = ranked.length >= 2 ? ranked : goalAreaBreakdown;
+    const bestGoalArea = forRanking[0]?.name || null;
+    const focusArea = forRanking.length > 1
+      ? forRanking[forRanking.length - 1].name
       : null;
 
     res.json({
