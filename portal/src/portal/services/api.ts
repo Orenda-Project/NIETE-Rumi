@@ -200,20 +200,79 @@ export const portal = {
     }
   },
 
-  // Assessment Generator (browser surface for the UG_EG-backed engine).
-  // generate → { jobId }; then poll getAssessmentStatus until completed/failed.
+  // ── Assessment Generator ────────────────────────────────────────────────
+  //
+  // These call the BOT's pipeline over the portal's internal-API client. The
+  // previous pair pointed at /assessment/generate and /assessment/status/:jobId
+  // on an engine that had been deleted — 404 on production, while the config
+  // flag kept the tab lit.
+  //
+  // Nothing here holds an assessment rule. The question cap, the subject list
+  // and the per-subject question types all arrive from getAssessmentOptions,
+  // so the form cannot offer something the generator will refuse.
+
+  /** Everything the form needs to draw itself. */
+  getAssessmentOptions: async (
+    grade?: number,
+    subject?: string
+  ): Promise<AssessmentOptions> => {
+    const response = await api.get('/assessment/options', {
+      params: { grade, subject },
+    });
+    return response.data;
+  },
+
+  /** The chapters of one book — full titles, and the pages each covers. */
+  getAssessmentChapters: async (
+    grade: number,
+    subject: string
+  ): Promise<{ success: boolean; chapters: AssessmentChapter[] }> => {
+    const response = await api.get('/assessment/chapters', { params: { grade, subject } });
+    return response.data;
+  },
+
+  /** Ask for a paper. 202 + a requestId to poll on; the paper does not exist yet. */
   generateAssessment: async (
     spec: AssessmentSpec
-  ): Promise<{ success: boolean; jobId?: string; error?: string }> => {
+  ): Promise<{ success: boolean; requestId?: string; error?: string }> => {
     const response = await api.post('/assessment/generate', spec);
     return response.data;
   },
 
-  getAssessmentStatus: async (
-    jobId: string,
-    format: 'pdf' | 'docx' = 'pdf'
-  ): Promise<AssessmentStatus> => {
-    const response = await api.get(`/assessment/status/${jobId}`, { params: { format } });
+  /**
+   * Where a request has got to.
+   *
+   * `queued` and `generating` are ordinary answers, not errors — the page draws
+   * a spinner for them and an apology only for `failed`, which carries the code
+   * saying which real thing went wrong.
+   */
+  getAssessmentStatus: async (requestId: string): Promise<AssessmentStatus> => {
+    const response = await api.get(`/assessment/status/${requestId}`);
+    return response.data;
+  },
+
+  /**
+   * A time-limited link, or `available: false`.
+   *
+   * Not-available covers four situations the page treats identically: not hers,
+   * gone, not finished, or an answer key whose location was never recorded
+   * (any paper made before we started storing it).
+   */
+  getAssessmentDownload: async (
+    paperId: string,
+    artifact: 'paper' | 'answer_key' = 'paper'
+  ): Promise<{ success: boolean; available: boolean; url?: string; filename?: string }> => {
+    const response = await api.get(`/assessment/paper/${paperId}/download`, {
+      params: { artifact },
+    });
+    return response.data;
+  },
+
+  /** Her finished papers, newest first, filterable by class and subject. */
+  getAssessmentPapers: async (
+    params: { page?: number; page_size?: number; grade?: number; subject?: string } = {}
+  ): Promise<AssessmentPaperList> => {
+    const response = await api.get('/assessment/papers', { params });
     return response.data;
   },
 };
@@ -228,28 +287,80 @@ export type PortalConfig = {
 };
 
 // ── Assessment Generator types ────────────────────────────────────────────
+//
+// These mirror what the BOT returns. Nothing here carries a default the bot
+// could disagree with — notably there is no MAX_COUNT: the cap lives in
+// AssessmentOptions.maxQuestions and arrives with the options.
+
+/** A question type the generator supports for a given subject and grade. */
 export type AssessmentQuestionType = {
   id: string;
-  count: number;
-  category?: 'objective' | 'subjective';
+  category: 'objective' | 'subjective';
+};
+
+export type AssessmentSubject = {
+  subject_key: string;
+  subject: string;
+};
+
+export type AssessmentChapter = {
+  chapter_number: number;
+  chapter_title: string;
+  page_start: number | null;
+  page_end: number | null;
+  page_count: number | null;
+};
+
+export type AssessmentOptions = {
+  success: boolean;
+  grades: number[];
+  subjects?: AssessmentSubject[];
+  types?: AssessmentQuestionType[];
+  /** The one cap. Never hardcoded here — the dead panel's 20 vs the bot's 25. */
+  maxQuestions: number;
+  defaultQuestions: number;
 };
 
 export type AssessmentSpec = {
-  generationType: 'exam' | 'class_assessment';
   grade: number;
   subject: string;
-  pageRanges: string;
-  contentSource: 'seen' | 'unseen';
-  questionTypes: AssessmentQuestionType[];
-  format?: 'pdf' | 'docx';
+  chapterNumber?: number | null;
+  pageRanges?: string | null;
+  contentSource?: 'seen' | 'unseen' | 'both';
+  questionCount: number;
+  /** Bare type ids; the bot spreads the count across them. */
+  questionTypes?: string[];
+  includeAnswerKey?: boolean;
+  answerLines?: boolean;
+  outputFormat?: 'pdf' | 'docx';
 };
 
 export type AssessmentStatus = {
   success: boolean;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  downloadUrl?: string;
-  filename?: string;
-  error?: string;
+  status: 'queued' | 'generating' | 'ready' | 'failed' | 'not_found';
+  paperId?: string | null;
+  errorCode?: string | null;
+};
+
+export type AssessmentPaper = {
+  paper_id: string;
+  grade: number | null;
+  subject_key: string;
+  subject: string;
+  chapter_number: number | null;
+  question_count: number | null;
+  total_marks: number | null;
+  ready_at: string | null;
+  /** Whether the answer-key button can be drawn at all. */
+  has_answer_key: boolean;
+};
+
+export type AssessmentPaperList = {
+  success: boolean;
+  papers: AssessmentPaper[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 // Leader Portal endpoints (bd-2434) — school-leader family only.

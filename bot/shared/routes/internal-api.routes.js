@@ -963,4 +963,220 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   return res.json({ success: true, available: true, ...hit });
 }));
 
+// ─── assessment generator ───────────────────────────────────────────────────
+//
+// The portal's Assessment Generator tab has been rendering a real form against
+// a route that does not exist: POST /api/portal/assessment/generate answered
+// 404 on production while GET /api/portal/config reported
+// assessmentGenerator: true. The routes were razed with the old UG_EG
+// generator and the September rebuild went WhatsApp-Flow-only, but the flag
+// that lights the tab is shared between both surfaces and stayed on.
+//
+// These six endpoints give the portal the BOT's pipeline. Nothing here
+// generates anything itself: the model call, the renderer, the storage and the
+// question rules are the same modules the WhatsApp Flow uses, reached the same
+// way training rules, certificates and the LP catalogue already are.
+//
+// The portal holds no assessment logic and reads no assessment table — asserted
+// by a test, the same way the LP catalogue is.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function assessmentRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Browse = require('../services/assessment/assessment-browse.service');
+      return await handler(Browse, req, res);
+    } catch (error) {
+      logToFile('❌ Internal assessment API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Assessment lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/assessment/options
+ * Body { grade?, subject? } → { success, grades, subjects?, types?, maxQuestions, ... }
+ *
+ * One call for everything the form needs to draw itself. `maxQuestions` ships
+ * from here on purpose (S6): the dead portal panel hardcoded MAX_COUNT = 20
+ * against the bot's MAX_QUESTIONS = 25, so a teacher on the portal was silently
+ * capped five questions lower than the same teacher on WhatsApp. A form that
+ * reads the cap cannot disagree with the validator that enforces it.
+ */
+router.post('/assessment/options', requireInternalKey, assessmentRoute('options', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+
+  const grades = await Browse.listGrades();
+  const out = { success: true, grades };
+
+  if (grade !== null) out.subjects = await Browse.listSubjects(grade);
+  if (grade !== null && subject) Object.assign(out, Browse.questionOptions(subject, grade));
+  else {
+    // The cap is not conditional on having picked a subject — the form needs it
+    // to validate the count field before anything else is chosen.
+    const QuestionTypes = require('../services/assessment/question-types');
+    out.maxQuestions = QuestionTypes.MAX_QUESTIONS;
+    out.defaultQuestions = QuestionTypes.DEFAULT_QUESTIONS;
+  }
+
+  return res.json(out);
+}));
+
+/**
+ * POST /api/internal/assessment/chapters
+ * Body { grade, subject } → { success, chapters: [...] }
+ */
+router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapters', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+
+  const chapters = await Browse.listChapters(grade, subject);
+  return res.json({ success: true, chapters });
+}));
+
+/**
+ * POST /api/internal/assessment/create
+ * Body { userId, grade, subject, chapterNumber|pageRanges, ... } → 202 { success, requestId }
+ *
+ * 202, not 200: the paper does not exist yet. Generation is a queued job that
+ * runs about a minute, and the caller polls /status.
+ *
+ * `userId` comes from the PORTAL'S SESSION, never from a browser. It is a body
+ * field here because this is a server-to-server call behind a shared secret —
+ * the same rule the certificates and LP clients follow.
+ */
+router.post('/assessment/create', requireInternalKey, assessmentRoute('create', async (Browse, req, res) => {
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapterNumber = num(body.chapterNumber);
+  const pageRanges = body.pageRanges ? String(body.pageRanges).trim() : null;
+  const questionCount = num(body.questionCount);
+
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (chapterNumber === null && !pageRanges) {
+    return res.status(400).json({ success: false, error: 'chapterNumber or pageRanges is required' });
+  }
+
+  // The cap is enforced HERE as well as offered by /options. A form that reads
+  // the cap is a convenience; a server that enforces it is the actual rule, and
+  // the request row's own CHECK allows up to 60.
+  const QuestionTypes = require('../services/assessment/question-types');
+  const parsed = QuestionTypes.parseQuestionCount(
+    questionCount === null ? QuestionTypes.DEFAULT_QUESTIONS : questionCount);
+  if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.message });
+
+  const book = await Browse.bookFor(grade, subject);
+  if (!book) {
+    return res.status(400).json({ success: false, error: 'We do not have that book yet.' });
+  }
+
+  const types = (Array.isArray(body.questionTypes) && body.questionTypes.length)
+    ? QuestionTypes.withCounts(body.questionTypes, parsed.count, subject, grade)
+    : QuestionTypes.defaultMix(subject, grade, parsed.count);
+
+  // She picked a chapter, not pages — but the row should still say which pages
+  // it covers, so a request is readable later without re-reading a contents
+  // page that a re-import can change underneath it.
+  let pages = pageRanges;
+  if (!pages && chapterNumber !== null) {
+    const chapters = await Browse.listChapters(grade, subject);
+    const c = chapters.find((x) => x.chapter_number === chapterNumber);
+    pages = (c && c.page_start != null && c.page_end != null)
+      ? `${c.page_start}-${c.page_end}` : null;
+  }
+
+  const AssessmentRequest = require('../services/assessment/assessment-request.service');
+  const { requestId } = await AssessmentRequest.createAndQueue({
+    userId,
+    surface: 'portal',
+    grade,
+    subject,
+    textbookId: book.id,
+    chapterNumber,
+    pageRanges: pages,
+    contentSource: body.contentSource || 'unseen',
+    questionCount: parsed.count,
+    questionTypes: types,
+    includeAnswerKey: !!body.includeAnswerKey,
+    answerLines: body.answerLines !== false,
+    outputFormat: body.outputFormat || 'pdf',
+  });
+
+  return res.status(202).json({ success: true, requestId });
+}));
+
+/**
+ * POST /api/internal/assessment/status
+ * Body { requestId, userId } → { success, status, paperId?, errorCode? }
+ *
+ * "Not ready" is a 200, not a 404 — the same rule the LP endpoints follow, so
+ * the page can tell STILL WORKING from WE ARE BROKEN. A failed paper returns
+ * its error code, so she can be told which real thing went wrong (no content on
+ * those pages, the model returned nothing usable, the render died) rather than
+ * a generic apology.
+ */
+router.post('/assessment/status', requireInternalKey, assessmentRoute('status', async (Browse, req, res) => {
+  const body = req.body || {};
+  const requestId = String(body.requestId || '').trim();
+  const userId = String(body.userId || '').trim();
+  if (!requestId) return res.status(400).json({ success: false, error: 'requestId is required' });
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const state = await Browse.requestStatus(requestId, userId);
+  return res.json({ success: true, ...state });
+}));
+
+/**
+ * POST /api/internal/assessment/download
+ * Body { paperId, userId, artifact? } → { success, available, url?, filename? }
+ *
+ * `available: false` with a 200 covers four situations a caller should treat
+ * identically: not hers, does not exist, not finished, or an answer key whose
+ * location was never recorded (every paper before V1.4.2). None of them says
+ * which — ownership is checked in the query, so someone else's paper is
+ * indistinguishable from a missing one.
+ */
+router.post('/assessment/download', requireInternalKey, assessmentRoute('download', async (Browse, req, res) => {
+  const body = req.body || {};
+  const paperId = String(body.paperId || '').trim();
+  const userId = String(body.userId || '').trim();
+  const artifact = body.artifact === 'answer_key' ? 'answer_key' : 'paper';
+  if (!paperId) return res.status(400).json({ success: false, error: 'paperId is required' });
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const hit = await Browse.paperDownloadUrl(paperId, userId, artifact);
+  return res.json({ success: true, ...hit });
+}));
+
+/**
+ * POST /api/internal/assessment/papers
+ * Body { userId, page?, pageSize?, grade?, subject? } → { success, papers, total, page }
+ *
+ * Her papers, newest first, filterable on the same two axes she chose when
+ * making one. A teacher accumulates papers across a term, so this is browsing
+ * rather than a recent-items strip.
+ */
+router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', async (Browse, req, res) => {
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const out = await Browse.listPapers(userId, {
+    page: num(body.page) || 1,
+    pageSize: num(body.pageSize) || 10,
+    grade: num(body.grade),
+    subject: body.subject ? String(body.subject).trim() : null,
+  });
+  return res.json({ success: true, ...out });
+}));
+
 module.exports = router;

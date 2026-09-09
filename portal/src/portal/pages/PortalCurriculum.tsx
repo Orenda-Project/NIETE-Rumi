@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import api, { portal } from '../services/api';
 import AssessmentGeneratorPanel from '../components/AssessmentGeneratorPanel';
 import AssessmentGeneratorComingSoon from '../components/AssessmentGeneratorComingSoon';
+import AssessmentPapersPanel from '../components/AssessmentPapersPanel';
 
 type Grade = { grade: number; subject_count: number };
 type Subject = { subject_key: string; subject: string; rtl: boolean; lesson_count: number };
@@ -55,6 +56,9 @@ const PortalCurriculum = () => {
   // bd-2460 — null while loading, so the tab never flashes a form that is off.
   const [assessmentEnabled, setAssessmentEnabled] = useState<boolean | null>(null);
   const [assessmentMessage, setAssessmentMessage] = useState<string | null>(null);
+  // Bumped when a paper finishes so My papers refetches — she should not have
+  // to reload the page to see the thing she just made.
+  const [papersRefreshKey, setPapersRefreshKey] = useState(0);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -338,7 +342,28 @@ const PortalCurriculum = () => {
             {assessmentEnabled === null
               ? null
               : assessmentEnabled
-                ? <AssessmentGeneratorPanel />
+                ? (
+                  <div className="space-y-10">
+                    <AssessmentGeneratorPanel
+                      onPaperReady={() => setPapersRefreshKey((k) => k + 1)}
+                    />
+
+                    {/* My papers lives INSIDE this tab, under the generator,
+                        rather than as a third tab beside it. Making a paper and
+                        fetching one you already made are the same job — the
+                        Curriculum page's tabs are for different KINDS of thing
+                        (lesson plans vs assessments), not for steps within one.
+                        A top-level tab also implied papers exist independently
+                        of the generator, which they do not. */}
+                    <section className="border-t pt-8">
+                      <h3 className="mb-1 text-lg font-medium">My papers</h3>
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        Everything you have made. Download it again any time.
+                      </p>
+                      <AssessmentPapersPanel refreshKey={papersRefreshKey} />
+                    </section>
+                  </div>
+                )
                 : <AssessmentGeneratorComingSoon message={assessmentMessage} />}
           </TabsContent>
         </Tabs>
