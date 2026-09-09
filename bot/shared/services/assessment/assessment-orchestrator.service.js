@@ -273,21 +273,54 @@ async function buildPaper(job, user = {}) {
 async function process(job) {
   const { userId, requestId, grade, subject, includeAnswerKey = false } = job;
 
-  // Who to send it to. Done first, because everything after this is work on
-  // behalf of someone we must be able to reach.
+  // Where this paper is going.
+  //
+  // Absent means WhatsApp, and that default is load-bearing rather than
+  // tidy: jobs written before this flag existed are still in the queue and
+  // carry no `deliver` at all. Reading it as 'none' would build their papers
+  // and silently never send them.
+  const deliver = job.deliver || 'whatsapp';
+  const toWhatsApp = deliver === 'whatsapp';
+
+  // Who to send it to. Looked up first when we intend to message her, because
+  // everything after that is work on behalf of someone we must be able to
+  // reach — a paper built for a teacher we cannot contact is a paper nobody
+  // ever sees.
+  //
+  // A portal request has nobody to reach: she is holding the page. The lookup
+  // is still made (the paper's header carries her school name) but a missing
+  // phone number is no longer fatal, because nothing here depends on it.
   const { data: user, error: userErr } = await supabase
     .from('users')
     .select('phone_number, preferred_language, school_name')
     .eq('id', userId)
     .maybeSingle();
 
-  if (userErr || !user || !user.phone_number) {
+  if (toWhatsApp && (userErr || !user || !user.phone_number)) {
     logToFile('[assessment] no teacher to deliver to — dropping', { userId, requestId });
     return { status: 'failed', code: 'NO_RECIPIENT' };
   }
-  const phone = user.phone_number;
+  const phone = user?.phone_number || null;
 
-  const built = await buildPaper(job, user);
+  const built = await buildPaper(job, user || {});
+
+  // Nothing to hand over and nobody to hand it to. The paper is built, the row
+  // says so, and whoever asked for it is polling — which is the entire contract
+  // for a surface that is not a chat.
+  if (!toWhatsApp) {
+    logToFile('[assessment] built without delivery', {
+      userId, requestId, paperId: built.paperId, status: built.status, deliver,
+    });
+    return built.status === 'ready'
+      ? {
+        status: 'ready',
+        paperId: built.paperId,
+        key: built.key,
+        questionCount: built.questionCount,
+        answerKeySent: null,
+      }
+      : { status: 'failed', code: built.code, paperId: built.paperId };
+  }
 
   // A build that failed has already recorded itself. All that is left is to
   // tell her, because she was promised a paper in about a minute and silence

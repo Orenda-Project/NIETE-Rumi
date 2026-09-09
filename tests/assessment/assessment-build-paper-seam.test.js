@@ -264,3 +264,85 @@ describe('process() is buildPaper plus a WhatsApp tail', () => {
     expect(mockGenerateExam).not.toHaveBeenCalled();
   });
 });
+
+describe('deliver — the flag that decides whether anyone is messaged (S2)', () => {
+  it("deliver:'none' builds the paper and messages nobody", async () => {
+    // process(), not buildPaper — so the user lookup still runs and still needs
+    // its row. The lookup is kept for deliver:'none' because the paper's header
+    // carries her school name; what changes is that a MISSING phone is no
+    // longer fatal.
+    happyPath();
+    const out = await Orchestrator.process({ ...JOB, deliver: 'none' });
+
+    expect(out.status).toBe('ready');
+    expect(mockGenerateExam).toHaveBeenCalled();
+    expect(mockUploadExamBuffer).toHaveBeenCalled();
+
+    expect(mockSendDocumentByLink).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(mockSendFlow).not.toHaveBeenCalled();
+  });
+
+  it("deliver:'none' does not require a phone number, or even a user row", async () => {
+    // The portal knows who she is from her session; the bot never needs to
+    // reach her. Before S2 the phone lookup ran first and returned
+    // NO_RECIPIENT, so a teacher with no phone on file could not generate at
+    // all — from any surface.
+    // The user row exists but has NO phone number — the case that returned
+    // NO_RECIPIENT before S2 and stopped generation dead on every surface.
+    mockDbResults.push({ data: { school_name: 'GGPS G-9' }, error: null });
+    mockDbResults.push({ data: { id: 'paper-1' }, error: null });
+    mockLoadChapterContent.mockResolvedValue({
+      content: 'text', pageReference: '4-14', chapterTitle: 'Hello World!', pageCount: 11,
+    });
+    mockGenerateExam.mockResolvedValue({
+      examJson: { unseen: {} }, questionCount: 4, tokenData: {},
+    });
+    mockRenderPaper.mockReturnValue('<html>paper</html>');
+    mockHtmlToPdf.mockResolvedValue(Buffer.from('%PDF-1.4 fake'));
+    mockUploadExamBuffer.mockResolvedValue('exams/user-1/paper-1/x.pdf');
+    mockBuildR2PublicUrl.mockReturnValue('https://r2/exams/x.pdf');
+    mockGetPresignedUrl.mockResolvedValue('https://r2/exams/x.pdf?signed');
+
+    const out = await Orchestrator.process({ ...JOB, deliver: 'none' });
+    expect(out.status).toBe('ready');
+    expect(out.paperId).toBe('paper-1');
+  });
+
+  it("deliver:'none' still records the paper, which is the whole point", async () => {
+    happyPath();
+    await Orchestrator.process({ ...JOB, deliver: 'none' });
+
+    const row = mockDbCalls
+      .filter((c) => c.table === 'assessment_papers' && c.op === 'update')
+      .reduce((acc, c) => Object.assign(acc, c.payload), {});
+    expect(row.status).toBe('ready');
+    expect(row.file_r2_key).toBe('exams/user-1/paper-1/x.pdf');
+  });
+
+  it("deliver:'none' reports a build failure without trying to apologise to anyone", async () => {
+    happyPath();
+    mockGenerateExam.mockRejectedValue(
+      Object.assign(new Error('502'), { code: 'MODEL_UNAVAILABLE' }));
+
+    const out = await Orchestrator.process({ ...JOB, deliver: 'none' });
+
+    expect(out.status).toBe('failed');
+    expect(out.code).toBe('MODEL_UNAVAILABLE');
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('a job with NO deliver field still goes to WhatsApp — old messages are already in the queue', async () => {
+    happyPath();
+    const out = await Orchestrator.process(JOB);   // JOB has no `deliver`
+    expect(out.status).toBe('ready');
+    expect(mockSendDocumentByLink).toHaveBeenCalled();
+  });
+
+  it("deliver:'whatsapp' is explicit and behaves identically to omitting it", async () => {
+    happyPath();
+    const out = await Orchestrator.process({ ...JOB, deliver: 'whatsapp' });
+    expect(out.status).toBe('ready');
+    expect(mockSendDocumentByLink).toHaveBeenCalled();
+  });
+});

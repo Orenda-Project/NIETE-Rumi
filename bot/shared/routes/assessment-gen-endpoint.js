@@ -24,7 +24,10 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const BookContent = require('../services/assessment/book-content.service');
 const QuestionTypes = require('../services/assessment/question-types');
-const SQSQueueService = require('../services/queue');
+// The queue is no longer reached from here: enqueueing moved to
+// assessment-request.service, which is required at its call site rather than
+// at module load so this file stays loadable in a test process with no AWS
+// configuration.
 
 const SESSION_TTL_SECONDS = 15 * 60;
 
@@ -1006,33 +1009,19 @@ async function submit(state) {
     ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
     : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount);
 
-  const { data: request, error } = await supabase
-    .from('assessment_requests')
-    .insert({
-      user_id: state.userId,
-      surface: 'whatsapp',
-      grade_code: `grade_${state.grade}`,
-      subject_code: state.subject,
-      textbook_id: book.id,
-      chapter_number: state.chapterNumber || null,
-      page_ranges: pageRanges,
-      content_source: state.contentSource || 'unseen',
-      question_count: state.questionCount || 20,
-      question_types: types,
-      has_answer_key: !!state.answerKey,
-      has_answer_lines: state.answerLines !== false,
-      output_format: state.outputFormat || 'pdf',
-    })
-    .select('id')
-    .single();
+  // The row and the job are built in ONE place now (bd-60067 S3), because they
+  // have to agree with each other on eleven fields and the portal needs the
+  // same envelope. This function keeps the Flow-shaped work — resolving the
+  // book, turning a chapter into pages, spreading counts across types — and
+  // hands the result over.
+  const AssessmentRequest = require('../services/assessment/assessment-request.service');
 
-  if (error || !request) throw new Error(`could not record the request: ${error?.message}`);
-
-  await SQSQueueService.queueJob(state.userId, 'assessment_generate', {
+  await AssessmentRequest.createAndQueue({
     userId: state.userId,
-    requestId: request.id,
+    surface: 'whatsapp',
     grade: state.grade,
     subject: state.subject,
+    textbookId: book.id,
     chapterNumber: state.chapterNumber || null,
     pageRanges,
     contentSource: state.contentSource || 'unseen',
@@ -1041,11 +1030,6 @@ async function submit(state) {
     includeAnswerKey: !!state.answerKey,
     answerLines: state.answerLines !== false,
     outputFormat: state.outputFormat || 'pdf',
-  });
-
-  logToFile('[assessment-flow] queued', {
-    userId: state.userId, requestId: request.id,
-    grade: state.grade, subject: state.subject, chapter: state.chapterNumber,
   });
 }
 

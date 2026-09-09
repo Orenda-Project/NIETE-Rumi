@@ -8,8 +8,8 @@ across the two branches (verified: git diff main..develop touches only portal ex
 
 ## Build order — 8 steps, 2 shipping gates
 
-- [ ] 1. S1 — split `buildPaper()` out of `process()`. WhatsApp path behaviourally identical.
-- [ ] 2. S5 + S6 — `answer_key_r2_key` column (bd-60068) + one shared question cap.
+- [x] 1. S1 — split `buildPaper()` out of `process()`. WhatsApp path behaviourally identical.
+- [~] 2. S5 done (`answer_key_r2_key`, commit af2f5d0d, bd-60068 closed). S6 (shared cap) pending — belongs with the API in step 4, since the cap reaches the portal via /assessment/options.
 - [ ] 3. S2 + S3 — `deliver` mode + shared `createAndQueue()`.
 - [ ] 4. S4 + six internal endpoints.
 - [ ] 5. Portal client, form, My papers.
@@ -56,3 +56,13 @@ pre-existing, three ways:
 Our own gate is `tests/assessment/`, which is green and growing (see per-step
 notes below). Flag this in the PR rather than updating the snapshot: refreshing
 it here would silently absorb 739 commits of other people's drift into our diff.
+
+## Progress
+
+| Step | State | Evidence |
+|---|---|---|
+| 1 · S1 buildPaper | done | `af2f5d0d`; 9 seam tests; WhatsApp path unchanged |
+| 2 · S5 answer key column | done | `af2f5d0d` + V1.4.2 migration; 4 tests; bd-60068 closed |
+| 2 · S6 shared cap | moved to step 4 | the portal reads the cap from `/assessment/options`, so it lands with the API rather than before it |
+
+tests/assessment: **29 suites / 399 tests, all green** (baseline 27/386).
