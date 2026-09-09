@@ -167,6 +167,11 @@ PY
 for f in $FEATURES; do
   case "$f" in
     coaching)
+      # STA04 (status, an earlier feature) SEEDS a coaching analysis to test "multiple things in flight",
+      # and the bot then defers coaching's own recording for as long as that session is live (30-min
+      # window). The once-at-start hygiene ran BEFORE status seeded it, so cancel any in-flight coaching
+      # session NOW — coaching must start clean or its whole pipeline is deferred, not tested. (2026-09-09)
+      python3 "$QA/niete_coaching_db.py" cancel-stuck --env "$ENV" --phone "$DRIVER" --yes-write >>"$LOG" 2>&1 || true
       # The mock lane is cheap and private: drive the @slow/@wip set (DEEP) and the first-use intro (FIRSTUSE)
       # by default — a scenario that needs a vendor answer the cassette lacks then FAILS with a named miss
       # instead of hiding behind SKIP. Env overrides still win (DEEP=0 to go shallow).
