@@ -213,6 +213,12 @@ function createMockGraphApi(opts = {}) {
       const u = new URL(req.url, 'http://mock');
       const parts = u.pathname.split('/').filter(Boolean);
       if (req.method === 'GET' && u.pathname === '/health') return json(res, 200, { ok: true, seq: state.seq, signals: state.signals, bot: botUrl, phoneNumberId });
+      // Live web console: open http://<mock>/console in a browser to chat with the local bot through the
+      // mock — the real interactive 'mock WhatsApp'. Served same-origin so it POSTs /inject and polls /outbox.
+      if (req.method === 'GET' && (u.pathname === '/console' || u.pathname === '/')) {
+        try { const htmlBody = fs.readFileSync(path.join(__dirname, 'mock-console.html')); res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(htmlBody); }
+        catch (e) { return json(res, 500, { error: 'console not found: ' + e.message }); }
+      }
       if (req.method === 'GET' && u.pathname === '/outbox') {
         const after = Number(u.searchParams.get('after') || 0);
         const to = u.searchParams.get('to');
