@@ -17,7 +17,9 @@ developer changes bot code
 │ 2. WHAT DO THE SPECS NEED?   spec_sync.py → brief: changed files, diff, scenarios  │
 │    → marker in .claude/.e2e-pending/  (per clone, gitignored)                       │
 └────────────────────────────────────────────────────────────────────────────────────┘
-        │  the next Claude Code session in that clone is told at start and held once at end of turn
+        │  the next Claude Code session in that clone is told at start; at end of turn it is HELD
+        │  until the spec is changed+valid or declared none-needed (phase 1 gate, ≤3 holds),
+        │  and ordered once to drive the E2E (phase 2)
         ▼
 ┌────────────────────────────────────────────────────────────────────────────────────┐
 │ 3. SYNC THE GHERKIN   /sync-specs --brief …  (skill: gherkin-spec-sync,             │
@@ -42,7 +44,7 @@ developer changes bot code
 | Mechanism | Fires for | Can do | Cannot do |
 |---|---|---|---|
 | **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/install-hooks.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
-| **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; hold the turn **once** per marker until the agent syncs, validates and drives — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
+| **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; **hold the turn until the Gherkin is synced and valid, or declared none-needed** (phase 1 — a gate, bounded to 3 holds, `--clear` refuses while open); order the E2E **once** (phase 2) — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
 | **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
 **History.** The pipeline was "hooks only, no CI" by decision on 2026-09-07. On
@@ -83,7 +85,7 @@ you change any part of this.
 ┌ QA · commit 3f2a9c1d7e0b touched: menu
 │ Gherkin: sync needed first →  /sync-specs --brief .claude/.e2e-pending/git-3f2a9c1d7e0b.sync.json
 │ Then the targeted E2E →  /niete-e2e menu
-│ Open Claude Code in this clone: it announces this at start and holds the turn once until
+│ Open Claude Code in this clone: it announces this at start and holds the turn until
 │ it is driven or cleared. Off: QA_HOOKS_OFF=1 · Quiet: QA_HOOKS_QUIET=1
 └ marker: .claude/.e2e-pending/git-3f2a9c1d7e0b.json
 ```
@@ -91,7 +93,7 @@ Docs-only, test-only and out-of-scope commits print nothing.
 
 **Next Claude Code session in that clone:** the SessionStart banner lists every pending
 `git-<sha>` marker with its brief and commands. At the end of the first turn the Stop
-hook holds the session once, with the same instructions, until the run is driven or the
+hook holds the session, with the same instructions, until the spec is synced (or declared) and the run is driven or the
 marker is cleared with a stated reason (`bash .claude/hooks/e2e-autorun.sh --clear
 --session git-<sha>`). A commit the session makes itself is armed the same way.
 
@@ -161,6 +163,29 @@ Tests for all of it: `npm run qa:test`.
 | `E2E_AUTORUN_OFF=1` (exported) | Claude Code hooks silent |
 | `E2E_SPEC_SYNC_OFF=1` (exported) | phase 1 (Gherkin sync) skipped, E2E half unchanged |
 | `E2E_AUTORUN_ALL=1` (exported) | arm `/niete-e2e all` instead of the targeted selection (hours) |
+
+## Phase 1 is a gate (2026-09-09, bd-zqtgs)
+
+PR #841 changed training code from a Claude session; the hook selected `training`, built
+the brief, nudged once at the end of the turn — and the turn ended with `training.feature`
+untouched. The Stop hook asked "was it nudged?", never "did the spec change?", and told the
+agent to "clear it either way". Now:
+
+- arming records a **hash of each spec the brief says to author** (`spec_hashes` on the marker,
+  both for session commits and terminal commits);
+- at end of turn the Stop hook compares: a spec byte-identical to arming, with no declaration,
+  **holds the turn again** — up to `E2E_PHASE1_MAX_BLOCKS` (default 3) times, then lets go with a
+  loud stderr line, and the PR check catches it. A changed spec is run through
+  `validate_specs.py`; an invalid one holds too, quoting the validator;
+- `bash .claude/hooks/e2e-autorun.sh --clear` **refuses** while phase 1 is open (`--force` is the
+  escape hatch, and `qa-impact` still flags it);
+- the two legitimate exits are a changed+valid `.feature`, or an explicit declaration:
+  `bash .claude/hooks/e2e-autorun.sh --declare --session <id> '<feature>=none-needed (<why>)'`,
+  or the same grammar as a `Spec-Sync:` trailer on HEAD — one declaration satisfies the hook,
+  the pre-push report and the PR check alike.
+
+Phase 2 (driving WhatsApp) is unchanged: ordered once, because a linked browser is a human
+precondition and blocking on it wedges sessions.
 
 ## Known limits, stated plainly
 
