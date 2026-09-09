@@ -902,7 +902,8 @@ describe('the class roster', () => {
     const row = mockDb._tables.class_enrollments[0];
     expect(row.is_active).toBe(false);
     expect(row.left_on).toBeTruthy();
-    expect(row.outcome).toBe('left');
+    // NOT 'left' — nobody asked her why. See enrollment-removal-outcome.test.js.
+    expect(row.outcome).toBe('roster_correction');
     // The child herself survives — she may be enrolled elsewhere, and history
     // points at her.
     expect(mockDb._tables.students).toHaveLength(1);
