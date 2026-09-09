@@ -175,6 +175,7 @@ features:
     - bot/shared/services/elevenlabs.service.js
 
   status:
+    - bot/shared/services/status/**
     - bot/shared/services/teacher-state.service.js
     - bot/shared/routes/status-flow-endpoint.js
     - bot/shared/services/conversation-state.service.js

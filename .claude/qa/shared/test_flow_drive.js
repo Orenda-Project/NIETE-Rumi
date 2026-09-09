@@ -129,5 +129,28 @@ await asyncIt('step() surfaces NO_FLOW_OPEN instead of exploding', async () => {
   assert.strictEqual(r.err, 'NO_FLOW_OPEN');
 });
 
+
+// ── PROBE_JS must not cut a control's text short of its marker (bd-u0d0x) ──────────────
+//
+// The training module picker labels each row "<module> <course> · ▶ Next up" / "· ✓ Passed" /
+// "· 🔒 Locked". A 60-char cap on item text turned "Establishing classroom routines Classroom
+// Management · ▶ Next up" into "…Management · ▶ Nex", so training.cjs's /▶\s*Next up/ never
+// matched and the whole module-check cluster reported BLOCKED "every module finished" — on an
+// account whose Level 0 progress had just been verified at 0/46 rows (2026-09-08). The probe
+// runs in the browser, so it is executed here against a minimal fake document: the real
+// PROBE_JS code path, not a grep of its source.
+it('PROBE_JS keeps a long picker row\'s trailing "▶ Next up" marker', () => {
+  const label = 'Establishing classroom routines Classroom Management · ▶ Next up';   // 66 chars
+  assert.ok(label.length > 60, 'fixture must exceed the old cap');
+  const el = { tagName: 'BUTTON', innerText: label, value: '', disabled: false,
+               getAttribute: () => null, getBoundingClientRect: () => ({ x: 10, y: 20, width: 300, height: 40 }) };
+  const fakeDocument = { body: { innerText: 'Pick a module to watch ' + label },
+                         querySelectorAll: () => [el] };
+  const out = JSON.parse(new Function('document', 'return ' + fd.PROBE_JS)(fakeDocument));
+  assert.strictEqual(out.items.length, 1);
+  assert.ok(/▶\s*Next up$/.test(out.items[0].text),
+    'item text lost its marker: ' + JSON.stringify(out.items[0].text));
+});
+
 console.log('\n' + passed + ' assertions passed');
 })();

@@ -417,7 +417,12 @@ class SQSCoachingWorker {
       }
 
       case 'assessment_generate': {
-        // Load the chapter, write the questions, render the paper, send it.
+        // Load the chapter, write the questions, render the paper, and — if the
+        // payload's `deliver` says so — send it. ONE job type for both
+        // surfaces: the WhatsApp Flow queues deliver:'whatsapp' and the portal
+        // queues deliver:'none', so there is no second queue, no second
+        // consumer, and nothing here to keep in step with them.
+        //
         // The model call alone runs ~25s and the print adds a few more, so five
         // minutes is headroom rather than an estimate: a job that times out
         // mid-flight sends the teacher nothing at all.

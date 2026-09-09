@@ -132,6 +132,47 @@ function directFallbackModel(directModel) {
   return OPENROUTER_ANTHROPIC_PREFIX + directModel;
 }
 
+/**
+ * THE FALLBACK IS NOT OPTIONAL, AND THIS IS WHAT MAKES THAT TRUE IN CODE.
+ *
+ * The operator's instruction on approving this lane for production was, verbatim, *"Keep the fall
+ * back on"*. There is deliberately no flag that turns it off — but "no off switch" is not the same
+ * as "cannot be disabled", and the two ways it could quietly stop working are both environmental:
+ *
+ *   1. `OPENROUTER_API_KEY` absent. `getClient()` would build a client with no key and the first
+ *      fallback call would die inside the OpenAI SDK with a message about `OPENAI_API_KEY` — a
+ *      confusing error, raised at the worst possible moment, on a lesson a teacher is waiting for.
+ *   2. `LLM_PROVIDER=openai`. `getClient()` is then a DIRECT OpenAI client, and the fallback would
+ *      post `anthropic/claude-sonnet-5` to api.openai.com and 404. The fallback would fire, fail,
+ *      and the lesson would die — the failure mode of a safety net that is present but not
+ *      attached to anything.
+ *
+ * So the lane refuses to start at all unless its net is wired. This runs at RESOLUTION time, before
+ * a single token is spent, and it fails CLOSED: a misconfigured deployment cannot author one
+ * credit-funded lesson and then strand the next when the balance runs out — it authors none, and
+ * says why. Since prod's rollback is `LP_AUTHOR_MODEL=anthropic/claude-sonnet-5`, the cost of this
+ * refusal is one variable, and the cost of not having it is a silent lesson failure at 3am.
+ */
+function assertFallbackUsable(directModel) {
+  const to = directFallbackModel(directModel);
+  const problems = [];
+  if (PROVIDER !== 'openrouter') {
+    problems.push(
+      `LLM_PROVIDER is "${PROVIDER}", so the OpenRouter client the fallback needs is not the one ` +
+      `getClient() builds — "${to}" would be sent to the wrong vendor and 404`);
+  }
+  if (!(process.env.OPENROUTER_API_KEY || '').trim()) {
+    problems.push('OPENROUTER_API_KEY is not set, so the fallback has nothing to fall back to');
+  }
+  if (problems.length) {
+    throw new Error(
+      'llm-client: refusing the direct-Anthropic lane because its MANDATORY credit-exhaustion ' +
+      `fallback is not usable — ${problems.join('; ')}. ` +
+      'Fix the environment, or set LP_AUTHOR_MODEL to an OpenRouter model id.'
+    );
+  }
+}
+
 let _client = null;
 let _anthropicDirectClient = null;
 
@@ -338,6 +379,9 @@ function getClientForModel(model, ctx) {
     // Fail fast on a missing key here, at resolution time, exactly as before — the error must not
     // wait until the first await inside `create`.
     getAnthropicDirectClient();
+    // ...and fail just as fast if the mandatory fallback could not run. See above: a net that is
+    // present but not attached is worse than no net, because it is invisible until it is needed.
+    assertFallbackUsable(directModel);
     return { client: buildDirectLaneClient(directModel, ctx), model: directModel };
   }
   return { client: getClient(), model: id };
@@ -371,6 +415,7 @@ module.exports = {
   getClientForModel,
   getAnthropicDirectClient,
   directFallbackModel,
+  assertFallbackUsable,
   getDefaultModel,
   getProviderInfo,
   ANTHROPIC_DIRECT_PREFIX,

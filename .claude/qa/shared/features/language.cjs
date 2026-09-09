@@ -86,11 +86,11 @@ exports.run = async ({ api, rec, sleep }) => {
       ...V(menuEnglish, { card: r.txt.slice(0, 80), opener: r.btns, rows: menuList.rows, allEnglish: menuEnglish }), t() - s);
   await api.closeDialog(); await sleep(800);
 
-  // LANG15 — /status on an Urdu account (@known-issue: renders English)
+  // LANG15 — /status on an Urdu account answers in Urdu (the English leak was fixed 2026-09-08)
   s = t();
   r = await api.sendWait('/status');
-  rec('LANG15', '/status renders English on an Urdu account (@known-issue — PASS here means the leak persists)',
-      ...V(r.ok && latinOnly(r.txt), { reply: r.txt.slice(0, 120), btns: r.btns, english: latinOnly(r.txt) }), t() - s);
+  rec('LANG15', '/status answers in Urdu on an Urdu account',
+      ...V(r.ok && UR.test(r.txt), { reply: r.txt.slice(0, 120), btns: r.btns, urdu: UR.test(r.txt) }), t() - s);
   await api.resetFlow();
 
   // LANG09 — /register launch bubble English regardless of language (@known-issue). Account may now be registered.

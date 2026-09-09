@@ -588,7 +588,10 @@ describe('the roster screens', () => {
 
     const closed = mockDb._tables.class_enrollments.find((e) => e.student_id === first);
     expect(closed.is_active).toBe(false);
-    expect(closed.outcome).toBe('left');
+    // She ticked a box on a screen that never asked why. Recording that as 'left'
+    // told attrition analysis a child left school. See
+    // tests/classes/enrollment-removal-outcome.test.js.
+    expect(closed.outcome).toBe('roster_correction');
   });
 
   it('accepts a checkbox payload sent as a JSON string', async () => {

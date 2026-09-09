@@ -119,7 +119,7 @@ describe('reconcile — matching edits back to student identities', () => {
     const { chunks } = toChunks(originals);
     const edits = chunks.flatMap(parseChunk);
     const out = reconcile(originals, edits);
-    expect(out).toEqual({ updated: [], added: [], removed: [] });
+    expect(out).toEqual({ updated: [], added: [], removed: [], unresolved: [] });
   });
 });
 
@@ -157,7 +157,7 @@ describe('an unreadable roll number renders as ?, not as an invented number', ()
     const originals = [unknown('Minahil', 'Asif'), unknown('Hooria', 'Kamran')];
     const { chunks } = toChunks(originals);
     const out = reconcile(originals, chunks.flatMap(parseChunk));
-    expect(out).toEqual({ updated: [], added: [], removed: [] });
+    expect(out).toEqual({ updated: [], added: [], removed: [], unresolved: [] });
   });
 
   it('attributes a correction on a ?-line to the child it was rendered for', () => {
