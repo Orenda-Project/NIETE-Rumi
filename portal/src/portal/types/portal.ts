@@ -14,9 +14,25 @@ export interface User {
   role?: string | null;
 }
 
+/**
+ * What she has completed, and where she is up to.
+ *
+ * Deliberately no total. A teacher is scoped to certain levels by her
+ * programme AND is not expected to finish everything inside that scope, so
+ * any denominator states a target that does not exist — and makes real
+ * progress read as permanent incompleteness.
+ */
+export interface TrainingProgressSummary {
+  modulesCompleted: number;
+  /** The level she is furthest into, or null before she has started. */
+  currentLevel: string | null;
+}
+
 export interface DashboardStats {
-  totalLessonPlans: number;
   totalCoachingSessions: number;
+  /** Exam papers she has asked the generator for. */
+  totalAssessments: number;
+  training: TrainingProgressSummary;
 }
 
 export interface LessonPlan {
