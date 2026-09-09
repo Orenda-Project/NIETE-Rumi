@@ -74,8 +74,22 @@ exports.run = async ({ api, rec, sleep }) => {
            { generatedFreeform: freeform, stateNudge: nudge, len: (r.txt || '').length,
              reply: (r.txt || '').slice(0, 140) }), t() - s);
 
+  // Wait on the fresh-inbound reader both drivers expose (freshReset/fresh) — the page-eval loops this
+  // replaces read the WhatsApp Web DOM, which the mock lane does not have (MOCK_NO_PAGE).
+  const waitFresh = async (pred, timeoutMs, stepMs = 1500) => {
+    const t0 = Date.now(); const seen = [];
+    while (Date.now() - t0 < timeoutMs) {
+      for (const r of await api.fresh()) seen.push(r);
+      const hit = seen.find(pred);
+      if (hit) return { ok: true, waitedMs: Date.now() - t0, hit, seen };
+      await new Promise((r) => setTimeout(r, stepMs));
+    }
+    return { ok: false, waitedMs: Date.now() - t0, last: (seen[seen.length - 1] || {}).txt || '' };
+  };
+
   // L01 + L10 — open the Pick-Class Flow and complete it for Grade 1 English Ch1 Day 1
   s = t();
+  await api.freshReset();
   await api.sendWait('/lp');
   const op = await openLP();
   const first = op.ok ? await api.flowProbe() : { text: '' };
@@ -94,19 +108,11 @@ exports.run = async ({ api, rec, sleep }) => {
     api.closeFlow();
     if (!delivered) {
       // the Flow hands back to chat; the PDF arrives as a document message
-      const w = await api.ev(`(async()=>{
-        const wa=window.__wa; wa.restore();
-        const t0=Date.now();
-        while(Date.now()-t0 < 120000){
-          const rows=wa.readLast(4);
-          const pdf = rows.find(x=>!x.mine && /\\.pdf/i.test(x.txt||''));
-          const ack = rows.find(x=>!x.mine && /(سبق کا منصوبہ|Sending your lesson plan)/i.test(x.txt||''));
-          if(pdf) return JSON.stringify({ok:true,waitedMs:Date.now()-t0,pdf:pdf.txt.slice(0,120),ack:!!ack});
-          await new Promise(r=>setTimeout(r,1500));
-        }
-        return JSON.stringify({ok:false,waitedMs:Date.now()-t0,last:(wa.readLast(1)[0]||{}).txt||''});
-      })()`);
-      delivered = JSON.parse(w);
+      const w = await waitFresh((x) => x.pdf || x.doc, 120000);
+      delivered = w.ok
+        ? { ok: true, waitedMs: w.waitedMs, pdf: (w.hit.txt || '').slice(0, 120),
+            ack: w.seen.some((x) => /(سبق کا منصوبہ|Sending your lesson plan)/i.test(x.txt || '')) }
+        : w;
     }
   }
   rec('L01', 'Completing the Pick Class Flow delivers the lesson-plan PDF',
@@ -115,6 +121,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // L03 — a secondary grade delivers an Oxbridge plan instead of the Pakistan corpus
   s = t();
   await api.resetFlow();
+  await api.freshReset();
   await api.sendWait('/lp');
   const op3 = await openLP();
   let ox = null;
@@ -124,17 +131,8 @@ exports.run = async ({ api, rec, sleep }) => {
       if (!c3.ok) break;
     }
     api.closeFlow();
-    const w3 = await api.ev(`(async()=>{
-      const wa=window.__wa; wa.restore();
-      const t0=Date.now();
-      while(Date.now()-t0 < 150000){
-        const hit = wa.readLast(5).find(x=>!x.mine && /oxbridge/i.test(x.txt||''));
-        if(hit) return JSON.stringify({ok:true,waitedMs:Date.now()-t0,txt:hit.txt.slice(0,130)});
-        await new Promise(r=>setTimeout(r,2000));
-      }
-      return JSON.stringify({ok:false,waitedMs:Date.now()-t0,last:(wa.readLast(1)[0]||{}).txt||''});
-    })()`);
-    ox = JSON.parse(w3);
+    const w3 = await waitFresh((x) => /oxbridge/i.test(x.txt || ''), 150000, 2000);
+    ox = w3.ok ? { ok: true, waitedMs: w3.waitedMs, txt: (w3.hit.txt || '').slice(0, 130) } : w3;
   }
   rec('L03', 'A secondary grade delivers an Oxbridge lesson plan, not a Pakistan one',
       ...VF(op3, !!(ox && ox.ok), ox || {}), t() - s);

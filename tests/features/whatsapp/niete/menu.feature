@@ -162,3 +162,21 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Then the bot describes what it can help with rather than starting a feature
     # helper-agent.service.js detectCapabilityInquiry (text-message.handler.js:2219) —
     # a capability question (NOT a "create/make/بنائیں" request) → capability guidance.
+
+  # ═══════════ ADDED 2026-09-08 · spec sync for the out-of-range menu number ═══════════
+  # The numeric-choice path had no scenario. FOUND BY THE MOCK LANE on the first drive: a "7"
+  # after /menu never reaches MenuService.handleMenuChoice — text-message.handler.js:2540 only
+  # forwards "1".."4" and answers anything else with the Helper Agent escape message
+  # (helper-agent.service.js:317). The `![1,2,3,4]` guard inside handleMenuChoice is dead from
+  # the text path, so its copy is NOT teacher-visible. The scenario pins what teachers see.
+
+  @e2e @menu @negative @copy @P3
+  Scenario: A menu number outside 1-4 gets the choose-an-option nudge and starts nothing
+    Given the NIETE bot chat is open
+    And I have just sent "/menu"
+    When I send "7"
+    Then the bot reply contains "choose an option (1-4)"
+    And the reply offers "/menu" to see the menu again
+    And no feature is started
+    # HelperAgentService.getEscapePathMessage('AWAITING_MENU_CHOICE') — "📋 Please choose an
+    # option (1-4) from the menu above.\n\nOr type /menu to see the menu again."

@@ -1,4 +1,4 @@
-/* menu.feature — all 12 @e2e scenarios, driven in one process.
+/* menu.feature — all 13 @e2e scenarios, driven in one process.
  * Assertions mirror tests/features/whatsapp/niete/menu.feature. */
 const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Anything'];
 const head = t => (t || '').split('\n')[0];
@@ -82,7 +82,16 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('M11', '/settings degrades gracefully when the Settings Flow is not configured',
       notAvail ? 'PASS' : 'SKIP',
       { reply: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs,
-        note: notAvail ? null : 'Settings Flow IS configured here — the scenario precondition does not hold' }, t() - s);
+        note: notAvail ? null : 'Settings Flow IS configured here — the scenario precondition (SETTINGS_FLOW_ID unset) is an environment shape this lane does not run; the degrade path is covered by unit tests' }, t() - s);
+
+  // M13 — a menu number outside 1-4 gets the Helper Agent escape nudge and starts nothing
+  // (spec sync 2026-09-08; the first mock drive showed "7" never reaches handleMenuChoice)
+  s = t();
+  await api.sendWait('/menu');
+  r = await api.sendWait('7');
+  rec('M13', 'A menu number outside 1-4 gets the choose-an-option nudge and starts nothing',
+      ...Object.values(V(/choose an option \(1-4\)/i.test(r.txt || '') && /\/menu/.test(r.txt || '') && !r.btns.includes('View Features'),
+      { reply: (r.txt || '').slice(0, 110), btns: r.btns, botWaitMs: r.waitedMs })), t() - s);
 
   // M03 — /menu as escape hatch from inside a feature flow
   s = t();

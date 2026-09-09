@@ -147,12 +147,37 @@ exports.run = async ({ api, rec }) => {
       'BLOCKED', { reason: '@draft — needs a principal account mid-attendance-marking (attendance.feature is @wip); '
                           + 'not drivable on the shared teacher driver', codeGrounded: 'teacher-state.service.js de-snakes unlabelled flow ids' }, t() - s);
 
-  // STA04 — more than one kind of work at once
+  // STA04 — more than one kind of work at once. The chrome lane relies on ordering (coaching leaves an
+  // analysis in flight). The mock lane can SET UP the precondition on its sandbox driver: start a coaching
+  // analysis (classroom recording → Yes, Analyze; it parks on the photo prompt, in flight) and open /menu
+  // (a resumable flow) — two different kinds — then read the Flow again.
   s = t();
+  let seeded = null;
+  if ((flowClaimedCount || items.length) <= 1 && api.caps && api.caps.method === 'mock' && api.caps.upload) {
+    const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
+    const fs = require('fs');
+    const rec16 = fs.readdirSync(MEDIA).find((f) => /classroom|16|hameeda_full|lesson/i.test(f) && !/short/i.test(f) && /\.(m4a|mp3|ogg|mp4)$/i.test(f));
+    if (rec16) {
+      await api.resetFlow();
+      const up = await api.upload(require('path').join(MEDIA, rec16), 'Document', 180000);
+      if ((up.btns || []).some((b) => /Yes, Analyze/i.test(b))) await api.tapAndWait('Yes, Analyze', 120000);
+      await api.sendWait('/menu');
+      await api.sendWait('/status');
+      const op2 = await api.openFlow(CTA);
+      if (op2.ok) {
+        const p2 = await api.flowProbe();
+        const claimed2 = /You have (\d+) things? running/i.exec(p2.text || '');
+        flowClaimedCount = claimed2 ? Number(claimed2[1]) : flowClaimedCount;
+        items = (p2.items || []).map(i => (i.text || '').trim()).filter(Boolean).filter(x => !/^(Open status|Back|Close|Powered by|Done)/i.test(x)).filter((v, k, a) => a.indexOf(v) === k);
+        seeded = { via: 'mock precondition: coaching analysis + /menu', upload: (up.txt || '').slice(0, 80), claimed: flowClaimedCount };
+      } else seeded = { err: op2.err };
+      api.closeFlow();
+    } else seeded = { err: 'no classroom recording fixture under ' + MEDIA };
+  }
   rec('STA04', '/status lists multiple concurrent items',
       ...((flowClaimedCount || items.length) > 1
-          ? V(true, { count: items.length, flowClaimedCount, items: items.slice(0, 8) })
-          : ['BLOCKED', { reason: items.length === 1
+          ? V(true, { count: items.length, flowClaimedCount, items: items.slice(0, 8), seeded })
+          : ['BLOCKED', { seeded, reason: items.length === 1
                 ? 'only one item was in flight; this needs two kinds at once (e.g. a coaching analysis AND a lesson plan)'
                 : 'nothing was in flight for this account', observed: items }]), t() - s);
 };

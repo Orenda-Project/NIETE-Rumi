@@ -357,13 +357,24 @@ try:
 except Exception: print("ERR")
 ' "$CPENDING" 2>/dev/null)
 say "exact commands + trigger"       "$CCMDS"  "/niete-e2e menu|commit"
+# The marker must name the EXACT commit it armed for, so the mock lane can start the bot from a
+# detached worktree at that sha and the ledger row can be tied to it (a run against "whatever
+# HEAD is now" is not proof about the commit).
+CSHA=$(git -C "$CTMP/w" rev-parse HEAD)
+CMSHA=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("commit_sha","MISSING"))' "$CPENDING" 2>/dev/null)
+say "marker records the commit sha"  "$CMSHA"  "$CSHA"
 # A COMMIT SPEAKS AGAIN (operator, 2026-08-25: "when we commit something then
 # auto run the e2e test"). It arms an execute order and names the commands, and
 # the reason it emits has to say which build the run will actually hit — see the
 # stale-build assertions in the mode matrix below.
 has "commit: emits context"          "$COUT" "additionalContext"     yes
-has "commit: names the command"      "$COUT" "/niete-e2e menu"       yes
-has "commit: names the build it hits" "$COUT" "not been deployed"    yes
+has "commit: names the command"      "$COUT" "commit-e2e.sh"         yes   # menu is mock-capable: its E2E is the mock lane, not /niete-e2e
+has "commit: no chrome order for menu" "$COUT" "/niete-e2e menu"      no
+# PHASE 3 (mock lane): a commit can now be tested AS the commit — the order must say so and
+# hand over the one command that does it, pinned to the sha it armed for.
+has "commit: orders the mock lane"   "$COUT" "commit-e2e.sh $CSHA"   yes
+has "commit: mock lane names menu"   "$COUT" "--features menu"       yes
+has "commit: names the build it hits" "$COUT" "after the develop deploy" yes
 
 # A docs-only commit must stay silent — the map, not the trigger, decides.
 rm -f "$CPENDING"
@@ -795,6 +806,71 @@ case "$ROLD" in *"session's  to"*) say "legacy marker has no empty gap" "empty g
 rm -rf "$WTMP"; rm -f "$WPENDING"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PHASE 3 — the Stop order splits the lanes. A commit-armed marker that touched a
+# mock-capable feature (menu/language/status) orders `commit-e2e.sh <sha>` for it —
+# the run that tests THIS commit — and keeps `/niete-e2e` for the rest, with the
+# "cannot test what was just committed" warning scoped to that chrome half.
+echo " stop order splits mock and chrome lanes"
+mkdir -p .claude/.e2e-pending
+LSESSION="lane-session"; LPENDING=".claude/.e2e-pending/$LSESSION.json"
+LSHA="0123456789abcdef0123456789abcdef01234567"
+stop_reason_full() {   # whole reason text
+  python3 -c '
+import json,sys
+print(json.dumps({"session_id": sys.argv[1], "hook_event_name": "Stop"}))
+' "$LSESSION" | CLAUDE_PROJECT_DIR="$PROJ" bash "$STOP" 2>/dev/null \
+    | python3 -c 'import json,sys
+try: print(json.load(sys.stdin)["reason"])
+except Exception: print("NO-BLOCK")'
+}
+cat > "$LPENDING" <<JSON
+{"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
+ "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
+ "commands":["/niete-e2e menu","/niete-e2e registration"],"features":["menu","registration"],"fallback":false,"unmapped":[]}
+JSON
+LR=$(stop_reason_full)
+has "mixed: orders the mock lane for menu"         "$LR" "commit-e2e.sh $LSHA --features menu" yes
+has "mixed: keeps chrome for registration"         "$LR" "/niete-e2e registration"             yes
+has "mixed: does not send menu to chrome"          "$LR" "/niete-e2e menu"                     no
+has "mixed: says the mock lane tests THIS commit"  "$LR" "tests THIS commit"                    yes
+has "mixed: chrome half still carries the warning" "$LR" "CANNOT TEST WHAT WAS JUST COMMITTED"  yes
+cat > "$LPENDING" <<JSON
+{"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
+ "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
+ "commands":["/niete-e2e menu","/niete-e2e status"],"features":["menu","status"],"fallback":false,"unmapped":[]}
+JSON
+LR=$(stop_reason_full)
+has "all-mock: orders both on the mock lane"       "$LR" "commit-e2e.sh $LSHA --features menu,status" yes
+has "all-mock: no chrome order for this commit"    "$LR" "/niete-e2e menu"                            no
+has "all-mock: no stale-build warning"             "$LR" "CANNOT TEST WHAT WAS JUST COMMITTED"        no
+has "all-mock: chrome deferred to the deploy"      "$LR" "after the develop deploy"                   yes
+has "all-mock: no WhatsApp Web preconditions"      "$LR" "linked web.whatsapp.com"                     no
+has "all-mock: no Chrome MCP install advice"       "$LR" "chrome-devtools-mcp"                         no
+# a git-armed marker carries the SHORT sha under `sha`; the order must still pin it
+rm -f "$LPENDING"; GL=".claude/.e2e-pending/git-abcdef123456.json"
+cat > "$GL" <<'JSON'
+{"session":"git","repo":"NIETE-Rumi","branch":"feat-x","sha":"abcdef123456","trigger":"git-commit","mode":"execute",
+ "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
+ "commands":["/niete-e2e language"],"features":["language"],"fallback":false,"unmapped":[]}
+JSON
+LR=$(python3 -c 'import json; print(json.dumps({"session_id": "some-other-session", "hook_event_name": "Stop"}))' \
+     | CLAUDE_PROJECT_DIR="$PROJ" bash "$STOP" 2>/dev/null | python3 -c 'import json,sys
+try: print(json.load(sys.stdin)["reason"])
+except Exception: print("NO-BLOCK")')
+has "git marker: mock lane pinned to its short sha" "$LR" "commit-e2e.sh abcdef123456 --features language" yes
+rm -f "$GL"
+# a PUSH-armed marker is unchanged: chrome only, no mock lane
+cat > "$LPENDING" <<JSON
+{"session":"$LSESSION","repo":"NIETE-Rumi","branch":"develop","commit_sha":"$LSHA","trigger":"push","mode":"execute",
+ "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
+ "commands":["/niete-e2e menu"],"features":["menu"],"fallback":false,"unmapped":[]}
+JSON
+LR=$(stop_reason_full)
+has "push: chrome order kept"                      "$LR" "/niete-e2e menu"  yes
+has "push: no mock lane"                           "$LR" "commit-e2e.sh"    no
+rm -f "$LPENDING"
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ADVISORY vs EXECUTE (operator, 2026-08-25).
 #
 # "just dont print it but we have to run it auto" + "deploy pushes only".
@@ -873,7 +949,7 @@ has  "...as an execute order"          "$MS" "EXECUTE NOW"             yes
 has  "...naming commit as the trigger" "$MS" "commit"                  yes
 # The staleness PR #37 was protecting against is now the agent's problem to
 # check, so the reason has to say it out loud on a commit-armed run.
-has  "...disclosing the stale-build risk" "$MS" "not been deployed"    yes
+has  "...disclosing the stale-build risk" "$MS" "develop deploy"       yes   # all-mock commit: chrome waits for the deploy
 # The sign-off used to say "for this push" unconditionally, so a commit-armed
 # reason closed by naming an event that never happened. Same class of bug as the
 # one bd-43513 fixed in the opening line.
@@ -961,6 +1037,10 @@ rm -f "$MPENDING"
 # asserted "CANNOT" against the stop reason, which already carried "THIS CANNOT
 # TEST WHAT WAS JUST COMMITTED" — green before the fix, green after, worth
 # nothing. Check a new needle against `git show HEAD:<hook>` before trusting it.
+# PHASE 3 NOTE: menu is mock-capable, so a menu commit no longer carries the WhatsApp Web
+# preconditions at all (asserted in the lane-split block above). To keep proving the CHROME
+# lane's text, take menu off the mock list for this section only.
+export E2E_MOCK_FEATURES=none
 NAV=$(mode_arm "$G $C -m 'fix menu'")
 has  "arm: sends you to navigate, not to guess" "$NAV" "navigate_page"     yes
 has  "arm: names the URL to open"    "$NAV" "https://web.whatsapp.com"     yes
@@ -987,6 +1067,7 @@ has  "arm: names the restart that follows" "$NAV" "RESTARTED"             yes
 has  "arm: driver read off the session"    "$NAV" "last-wid-md"           yes
 has  "stop: MCP is not terminal there"     "$NS"  "is NOT"                yes
 has  "stop: gives the install command"     "$NS"  "claude mcp add"        yes
+unset E2E_MOCK_FEATURES
 
 rm -f "$MPENDING"
 
@@ -1022,7 +1103,7 @@ has  "brief carries the current scenario inventory" \
 has  "arm: orders PHASE 1 before PHASE 2"        "$OUT" "PHASE 1"        yes
 has  "arm: names the sync command"               "$OUT" "/sync-specs"    yes
 has  "arm: names the validator"                  "$OUT" "validate_specs.py" yes
-has  "arm: still orders the E2E as phase 2"      "$OUT" "/niete-e2e menu"  yes
+has  "arm: still orders the E2E as phase 2"      "$OUT" "commit-e2e.sh"    yes
 has  "arm: says validation gates the run"        "$OUT" "do NOT run the suite" yes
 has  "arm: forbids silent deletion"              "$OUT" "@obsolete"      yes
 has  "arm: flags the shared-fan-out case"        "$OUT" "only_shared"    yes
@@ -1056,7 +1137,7 @@ SOUT=$(stop_hook)
 has  "stop: enforces phase 1 first"              "$SOUT" "PHASE 1"       yes
 has  "stop: names the sync command"              "$SOUT" "/sync-specs"   yes
 has  "stop: routes authoring to the same skill"  "$SOUT" "gherkin-test-cases" yes
-has  "stop: still enforces the E2E"              "$SOUT" "/niete-e2e menu" yes
+has  "stop: still enforces the E2E"              "$SOUT" "commit-e2e.sh"   yes
 
 # ── the independent off switch ───────────────────────────────────────────────
 # E2E_SPEC_SYNC_OFF must leave the pre-bd-59809 behaviour EXACTLY intact.
@@ -1065,7 +1146,7 @@ OUT=$(E2E_SPEC_SYNC_OFF=1 arm "$G commit -m 'change the menu'")
 say  "SPEC_SYNC_OFF: no brief written"           "$(sync_exists)"        no
 say  "SPEC_SYNC_OFF: still arms the E2E"         "$(marker_exists)"      yes
 has  "SPEC_SYNC_OFF: no phase 1 in the order"    "$OUT" "PHASE 1"        no
-has  "SPEC_SYNC_OFF: E2E order is unchanged"     "$OUT" "/niete-e2e menu"  yes
+has  "SPEC_SYNC_OFF: E2E order is unchanged"     "$OUT" "commit-e2e.sh"    yes
 has  "SPEC_SYNC_OFF: marker says no sync" \
      "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["spec_sync"])' "$PENDING" 2>/dev/null)" "False" yes
 SOUT=$(stop_hook)
@@ -1088,7 +1169,7 @@ echo 'import sys; sys.exit(1)' > "$BROKEN/.claude/qa/shared/spec_sync.py"
 OUT=$(CLAUDE_PROJECT_DIR="$BROKEN" arm "$G commit -m 'change the menu'")
 BPEND="$BROKEN/.claude/.e2e-pending/$SESSION.json"
 say  "a broken spec_sync still arms the E2E" "$([ -f "$BPEND" ] && echo yes || echo no)" yes
-has  "...and the E2E order survives"        "$OUT" "/niete-e2e menu"     yes
+has  "...and the E2E order survives"        "$OUT" "commit-e2e.sh"       yes
 has  "...with no phase 1 claimed"           "$OUT" "PHASE 1"             no
 say  "...and the hook still exits 0"        "$?"                         0
 rm -rf "$BROKEN"

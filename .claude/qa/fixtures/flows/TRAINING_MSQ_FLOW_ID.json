@@ -1,0 +1,152 @@
+{
+  "version": "6.2",
+  "data_api_version": "3.0",
+  "routing_model": {},
+  "screens": [
+    {
+      "id": "MSQ_QUESTION",
+      "title": "Question",
+      "terminal": true,
+      "refresh_on_back": true,
+      "data": {
+        "progress": {
+          "type": "string",
+          "__example__": "Question 2 of 5"
+        },
+        "question_text": {
+          "type": "string",
+          "__example__": "Which of these are formative assessment techniques?"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "3",
+              "title": "Exit tickets",
+              "description": ""
+            },
+            {
+              "id": "1",
+              "title": "Cold calling",
+              "description": ""
+            },
+            {
+              "id": "5",
+              "title": "Think-pair-share",
+              "description": ""
+            },
+            {
+              "id": "2",
+              "title": "End-of-term exam",
+              "description": ""
+            },
+            {
+              "id": "4",
+              "title": "Annual report card",
+              "description": ""
+            }
+          ]
+        },
+        "selected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": []
+        },
+        "attempt_ref": {
+          "type": "string",
+          "__example__": "00000000-0000-0000-0000-000000000000:1"
+        },
+        "training_msq_action": {
+          "type": "string",
+          "__example__": "submit"
+        },
+        "max_selected": {
+          "type": "number",
+          "__example__": 5
+        },
+        "is_multi": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "is_single": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "selected_one": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "msq_form",
+            "init-values": {
+              "selected_options": "${data.selected}",
+              "selected_option": "${data.selected_one}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.progress}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.question_text}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "selected_options",
+                "label": "Select all that apply",
+                "required": "${data.is_multi}",
+                "visible": "${data.is_multi}",
+                "data-source": "${data.options}",
+                "min-selected-items": 1,
+                "max-selected-items": "${data.max_selected}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "selected_option",
+                "label": "Your answer",
+                "required": "${data.is_single}",
+                "visible": "${data.is_single}",
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "Submit answer",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "selected_options": "${form.selected_options}",
+                    "selected_option": "${form.selected_option}",
+                    "attempt_ref": "${data.attempt_ref}",
+                    "training_msq_action": "${data.training_msq_action}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

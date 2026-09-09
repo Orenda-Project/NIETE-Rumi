@@ -37,10 +37,27 @@ function _log(msg, data) {
 
 function mode() {
   const m = String(process.env.E2E_CASSETTE || 'off').toLowerCase();
-  if (m !== 'record' && m !== 'replay') return 'off';
+  if (m !== 'record' && m !== 'replay' && m !== 'replay-strict') return 'off';
   const supa = String(process.env.SUPABASE_URL || '');
   if (PROD_PROJECT_REFS.some(ref => supa.includes(ref))) return 'off';
-  return m;
+  return m === 'replay-strict' ? 'replay' : m;
+}
+
+/** `replay-strict`: a hit replays exactly like `replay`; a MISS throws instead of going live.
+ *  The local mock E2E lane runs under it so a scenario can never quietly bill a vendor or
+ *  depend on a live answer. The miss is appended to E2E_CASSETTE_MISS_LOG (one JSON line) when
+ *  that is set, so the runner can name what is missing from the library. */
+function strict() {
+  return mode() === 'replay' && String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
+}
+function _miss(kind, key) {
+  const line = { ts: new Date().toISOString(), kind, key };
+  const log = process.env.E2E_CASSETTE_MISS_LOG;
+  if (log) { try { fs.mkdirSync(path.dirname(log), { recursive: true }); fs.appendFileSync(log, JSON.stringify(line) + '\n'); } catch (_) { /* best effort */ } }
+  _log('📼 e2e-cassette: replay-strict MISS — refusing to go live', line);
+  const err = new Error(`E2E_CASSETTE_MISS ${kind} ${key}: no recorded answer and E2E_CASSETTE=replay-strict forbids a live call. Record once with E2E_CASSETTE=record.`);
+  err.code = 'E2E_CASSETTE_MISS'; err.kind = kind; err.key = key;
+  return err;
 }
 
 /** Deterministic JSON: object keys sorted at every depth, so {a,b} and {b,a} hash the same. */
@@ -148,6 +165,7 @@ async function wrap(kind, keyParts, fn, opts = {}) {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
       return deser(rec.value);
     }
+    if (strict()) throw _miss(kind, key);
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
 
@@ -183,6 +201,7 @@ async function wrapBuffer(kind, keyParts, fn) {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
       return Buffer.from(rec.b64, 'base64');
     }
+    if (strict()) throw _miss(kind, key);
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
   const t0 = Date.now();
@@ -201,4 +220,4 @@ function audioKey(audioPath, extra) {
   return { fileSha, ...extra };
 }
 
-module.exports = { mode, keyFor, wrap, wrapBuffer, wrapChatCompletions, audioKey, normaliseForKey, requestForRecord, stable, sha256, dir, PROD_PROJECT_REFS };
+module.exports = { mode, strict, keyFor, wrap, wrapBuffer, wrapChatCompletions, audioKey, normaliseForKey, requestForRecord, stable, sha256, dir, PROD_PROJECT_REFS };

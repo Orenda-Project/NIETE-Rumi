@@ -473,6 +473,13 @@ not_covered:
 # beats waving a behaviour change through.
 ignore:
   - bot/tests/**
+  - bot/node_modules       # the committed dep-set symlink / lockfile-pinned tree — never source
+  - bot/node_modules/**    # installed dependencies, never source
+  # E2E-harness seams — inert in production, never change what a teacher sees:
+  #   e2e-cassette.js records/replays vendor calls only when E2E_CASSETTE is set (off by default);
+  #   build-info.js only feeds the running commit sha onto /health for the mock lane's sha check.
+  - bot/shared/services/e2e-cassette.js
+  - bot/shared/utils/build-info.js
   - bot/scripts/**         # one-off ops tools. A Flow republish DOES change what
                            # teachers see, but running it is a manual act, not an
                            # effect of a push — so a push that only edits one

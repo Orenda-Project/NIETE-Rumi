@@ -20,6 +20,7 @@
 command -v jq >/dev/null 2>&1 || exit 0
 _HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-${_HOOK_DIR%/.claude/hooks}}"
+. "$_HOOK_DIR/lib/mock-lane.sh" 2>/dev/null || true   # so e2e_split_lanes exists for the mock-lane line below
 cat >/dev/null   # payload unused
 
 INSTALL_CTX=""
@@ -59,10 +60,20 @@ while IFS= read -r f; do
   sync=""; [ "$(jq -r '.spec_sync // false' "$f" 2>/dev/null)" = "true" ] && [ -f "${f%.json}.sync.json" ] \
     && sync="  phase 1 first:  /sync-specs --brief .claude/.e2e-pending/$id.sync.json"
   N=$((N + 1))
+  mockline=""
+  if type e2e_split_lanes >/dev/null 2>&1; then
+    e2e_split_lanes "$(printf '%s' "$feats" | tr -d ' ')"
+    if [ -n "${E2E_LANE_MOCK:-}" ] && [ -n "$sha" ]; then
+      mockline="  mock lane (tests THIS commit):  bash .claude/qa/shared/commit-e2e.sh $sha --features $E2E_LANE_MOCK"
+      # the same split the Stop hook applies: those features leave the WhatsApp Web line
+      cmds=$(e2e_filter_chrome_cmds "$(jq -r '(.commands // [])[]' "$f" 2>/dev/null)" "$E2E_LANE_MOCK" | awk 'NF{a[++n]=$0} END{for(i=1;i<=n;i++) printf "%s%s", (i>1?"   ":""), a[i]}')
+    fi
+  fi
   LINES="$LINES
 • $id — commit ${sha:-?} on \`$br\`, armed $at — touched: ${feats:-?}
 $sync
-  phase 2:        $cmds
+$mockline
+  phase 2 (WhatsApp Web):  ${cmds:-— none for this commit; /niete-e2e tests it after the develop deploy}
   clear instead:  bash .claude/hooks/e2e-autorun.sh --clear --session $id"
 done <<LS
 $([ -n "$PEND" ] && ls -t "$PEND"/git-*.json 2>/dev/null)

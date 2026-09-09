@@ -48,7 +48,11 @@ async function cacheMediaId(r2Key, mediaId) {
   }
 }
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v21.0';
-const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+// WHATSAPP_API_BASE is the ONE seam between this service and Meta. Unset (every deployment) it
+// is graph.facebook.com; the local mock E2E lane points it at bot/scripts/e2e/mock-graph-api.js,
+// which serves the same /<version>/<phone_number_id>/messages paths. Nothing else may change here.
+const GRAPH_API_HOST = (process.env.WHATSAPP_API_BASE || 'https://graph.facebook.com').replace(/\/+$/, '');
+const GRAPH_API_BASE = `${GRAPH_API_HOST}/${GRAPH_API_VERSION}`;
 
 /**
  * WhatsApp Service

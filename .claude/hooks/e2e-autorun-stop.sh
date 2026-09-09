@@ -179,6 +179,22 @@ TRIGGER=$(jq -r '.trigger // "change"' "$MARKER" 2>/dev/null)
 [ "$TRIGGER" = "git-commit" ] && TRIGGER=commit     # same build note as any commit
 [ -z "$CMDS" ] && exit 0
 
+# PHASE 3 — the lane split. A COMMIT can now be tested AS the commit: the mock lane
+# (lib/mock-lane.sh) starts the bot from a worktree at the marker's sha. Features it
+# covers leave the chrome list; the rest stay on /niete-e2e against the deployed build.
+# The agent marker carries `commit_sha` (full), the git marker `sha` (short) — both pin.
+. "$_HOOK_DIR/lib/mock-lane.sh" 2>/dev/null || true
+SHA=$(jq -r '.commit_sha // .sha // ""' "$MARKER" 2>/dev/null); [ "$SHA" = "null" ] && SHA=""
+FEATS=$(jq -r '(.features // []) | join(",")' "$MARKER" 2>/dev/null)
+MOCK_BLOCK=""; E2E_LANE_MOCK=""; E2E_LANE_CHROME="$FEATS"
+if [ "$TRIGGER" = "commit" ] && [ -n "$SHA" ] && type e2e_split_lanes >/dev/null 2>&1; then
+  e2e_split_lanes "$FEATS"
+  if [ -n "$E2E_LANE_MOCK" ]; then
+    MOCK_BLOCK=$(e2e_mock_block "$SHA" "$E2E_LANE_MOCK")
+    CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
+  fi
+fi
+
 # PHASE 1 — the Gherkin sync (bd-59809).
 #
 # Read from the MARKER, never re-derived here. The arming hook already decided
@@ -230,11 +246,18 @@ fi
 # A commit deploys nothing, so the run hits the build that was already live. That
 # is a legitimate regression check; it is NOT evidence about the commit. Saying so
 # here is what keeps an honest pass from being reported as a false one.
-if [ "$TRIGGER" = "commit" ]; then
+if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
   read -r -d '' BUILD_NOTE <<EOF
-⚠ THIS CANNOT TEST WHAT WAS JUST COMMITTED. The commit has not been deployed — the
-target still runs the PREVIOUS build. Run it as a regression check and report it
-as one. Do not present a pass as evidence the committed change works.
+Every feature this commit touched runs on the mock lane above, so there is no
+WhatsApp Web run for this commit. The chrome lane (/niete-e2e) tests it
+after the develop deploy, when the build is actually live.
+EOF
+elif [ "$TRIGGER" = "commit" ]; then
+  read -r -d '' BUILD_NOTE <<EOF
+⚠ THE /niete-e2e PART CANNOT TEST WHAT WAS JUST COMMITTED. The commit has not been
+deployed — that target still runs the PREVIOUS build. Run it as a regression check
+and report it as one. Do not present a pass as evidence the committed change works.
+(The mock lane above is the run that does test this commit.)
 EOF
 else
   read -r -d '' BUILD_NOTE <<EOF
@@ -271,19 +294,25 @@ else
   WHOSE="this session's $TRIGGER to \`$BRANCH\` ($REPO)"
 fi
 
-read -r -d '' REASON <<EOF
-EXECUTE NOW — the E2E for $WHOSE has not
-been driven:
+CHROME_PART=""
+if [ -n "$CMDS" ]; then
+  read -r -d '' CHROME_PART <<EOF
+━━ CHROME LANE — WhatsApp Web against staging ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 $CMDS
 $EXTRA$ALL_NOTE
-$PHASE1
 Drive them via Chrome DevTools MCP before this turn ends. Running them IS the
 expected response — do not end the turn by repeating the list back and asking
 whether to proceed.
+EOF
+fi
 
-$BUILD_NOTE
-
+# The WhatsApp Web preconditions belong to the chrome lane only. An all-mock order
+# that still talked about QR screens and Chrome MCP sent the agent looking for a
+# browser it did not need (first demo run, 2026-09-08).
+CHROME_PRE=""
+if [ -n "$CMDS" ]; then
+  read -r -d '' CHROME_PRE <<EOF
 A linked web.whatsapp.com session is required — and \`list_pages\` ALONE CANNOT
 TELL YOU there isn't one. The session lives in the browser profile, so a blank
 tab proves nothing. \`navigate_page\` to https://web.whatsapp.com first, then
@@ -297,6 +326,27 @@ chrome-devtools-mcp@latest\`), say a restart is needed, and re-run after it.
 
 Name the one that failed, plainly, and clear the marker. A skipped run reported
 honestly is fine; reported as a pass it is not.
+EOF
+else
+  read -r -d '' CHROME_PRE <<EOF
+The mock lane needs no browser and no WhatsApp number: keys/niete-local.env and
+installed dependencies are its only preconditions (docs/e2e-mock-lane.md). If it
+cannot start, say which precondition failed, plainly, and clear the marker.
+EOF
+fi
+
+read -r -d '' REASON <<EOF
+EXECUTE NOW — the E2E for $WHOSE has not
+been driven:
+
+$PHASE1
+$MOCK_BLOCK
+
+$CHROME_PART
+
+$BUILD_NOTE
+
+$CHROME_PRE
 
 Clear it either way when you are done:
   bash .claude/hooks/e2e-autorun.sh --clear --session $CLEAR_ID

@@ -227,6 +227,9 @@ fi
 
 CMDS=$(printf '%s' "$SEL" | jq -r '.commands[]' 2>/dev/null)
 BRANCH=$(git -C "${REPO:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null)
+# The exact commit this arming is about. The mock lane starts the bot from a detached worktree
+# at THIS sha and the ledger row is tied to it; without it a run is only "whatever HEAD was".
+COMMIT_SHA=$(git -C "${REPO:-.}" rev-parse HEAD 2>/dev/null || echo "")
 [ -z "$BRANCH" ] && BRANCH=$(printf '%s' "$SCAN" | grep -oE '(develop|main|staging)' | head -1)
 REPO_NAME=$(basename "${REPO:-unknown}")
 
@@ -250,9 +253,10 @@ printf '%s' "$SEL" | jq \
   --arg armed "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg trigger "$TRIGGER" \
   --arg mode "$MODE" \
+  --arg commit_sha "$COMMIT_SHA" \
   --argjson spec_sync "$SPEC_SYNC" \
   --argjson spec_hashes "$SPEC_HASHES" \
-  '{session: $session, repo: $repo, branch: $branch, trigger: $trigger, mode: $mode,
+  '{session: $session, repo: $repo, branch: $branch, commit_sha: $commit_sha, trigger: $trigger, mode: $mode,
     armed_at: $armed, nudged: false, spec_sync: $spec_sync,
     spec_hashes: $spec_hashes, spec_declared: {}, phase1_blocks: 0,
     commands: .commands, features: .features,
@@ -269,12 +273,29 @@ printf '%s' "$SEL" | jq \
 # wait for. Naming the real situation is the whole point: a commit-triggered run
 # CANNOT test what was just committed, and an agent that does not know that will
 # report a pass as if it covered the change.
-if [ "$TRIGGER" = "commit" ]; then
+# PHASE 3 — the lane split (lib/mock-lane.sh): mock-capable features a COMMIT touched go to
+# `commit-e2e.sh <sha>`, which tests the commit itself; the rest stay on /niete-e2e.
+. "$_HOOK_DIR/lib/mock-lane.sh" 2>/dev/null || true
+MOCK_BLOCK=""; E2E_LANE_MOCK=""
+FEATS=$(printf '%s' "$SEL" | jq -r '(.features // []) | join(",")' 2>/dev/null)
+if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ] && type e2e_split_lanes >/dev/null 2>&1; then
+  e2e_split_lanes "$FEATS"
+  if [ -n "$E2E_LANE_MOCK" ]; then
+    MOCK_BLOCK=$(e2e_mock_block "$COMMIT_SHA" "$E2E_LANE_MOCK")
+    CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
+  fi
+fi
+if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
   read -r -d '' WHICH_BUILD <<EOF
-⚠ THIS RUN CANNOT TEST WHAT YOU JUST COMMITTED. The commit has not been deployed
-anywhere — the target is still running the PREVIOUS build. Treat the result as a
-regression check on what was already live, and say so when you report it. A pass
-here is NOT evidence the committed change works.
+Every feature this commit touched runs on the mock lane, so there is no
+WhatsApp Web run for this commit; /niete-e2e tests it after the develop deploy.
+EOF
+elif [ "$TRIGGER" = "commit" ]; then
+  read -r -d '' WHICH_BUILD <<EOF
+⚠ THE /niete-e2e PART CANNOT TEST WHAT YOU JUST COMMITTED. The commit has not been
+deployed anywhere — that target is still running the PREVIOUS build. Treat it as a
+regression check on what was already live, and say so when you report it. The mock
+lane is the run that tests the commit.
 EOF
 else
   read -r -d '' WHICH_BUILD <<EOF
@@ -325,19 +346,25 @@ feature, update the per-feature counts in .claude/commands/niete-e2e.md too —
 EOF
 fi
 
-read -r -d '' CONTEXT <<EOF
-EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by these:
+CHROME_PART=""
+if [ -n "$CMDS" ]; then
+  read -r -d '' CHROME_PART <<EOF
+━━ CHROME LANE — WhatsApp Web against staging ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 $(printf '%s\n' "$CMDS" | sed 's/^/  /')
 
-$PHASE1
-
 Drive them yourself, in that order, via Chrome DevTools MCP. Do NOT print this
 list back and wait to be told to proceed — running it IS the response.
+EOF
+fi
 
-$WHICH_BUILD
+# WhatsApp Web preconditions belong to the chrome lane only; an all-mock order says what the
+# mock lane needs instead (a demo run sent the agent hunting for a browser it did not need).
+CHROME_PRE=""
+if [ -n "$CMDS" ]; then
+  read -r -d '' CHROME_PRE <<EOF
 
-Preconditions — check, do not skip:
+Preconditions for the WhatsApp Web lane — check, do not skip:
   · A linked web.whatsapp.com session. \`list_pages\` DOES NOT TELL YOU THIS.
     The session lives in the browser profile, so an \`about:blank\` tab is not
     evidence of anything — NAVIGATE FIRST (\`navigate_page\` to
@@ -364,6 +391,25 @@ Preconditions — check, do not skip:
     \`localStorage['last-wid-md']\` returns e.g.
     "923028931858:40@c.us". Confirm it with the runner before the first send; do
     not make them type what the browser already knows.
+EOF
+else
+  read -r -d '' CHROME_PRE <<EOF
+The mock lane needs no browser and no WhatsApp number: keys/niete-local.env and installed
+dependencies are its only preconditions (docs/e2e-mock-lane.md). If it cannot start, say
+which precondition failed, plainly, and clear the marker.
+EOF
+fi
+
+read -r -d '' CONTEXT <<EOF
+EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by: ${FEATS:-the SAFE subset}
+
+$PHASE1
+$MOCK_BLOCK
+
+$CHROME_PART
+
+$WHICH_BUILD
+$CHROME_PRE
 
 A precondition that genuinely fails is the ONLY reason not to run: say which one,
 plainly, then clear the marker:

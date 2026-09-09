@@ -125,6 +125,44 @@ def test_creds_read_from_explicit_file():
         os.unlink(path)
 
 
+def test_sandbox_env_is_pinned_to_its_own_project_and_creds_file():
+    # The local mock E2E lane runs the bot against the SANDBOX Supabase (keys/niete-sandbox.env),
+    # never staging or prod. The ref guard must know it, and the creds search must find it.
+    assert t.ENV_REFS["sandbox"] == "olvritwoqujtjvwfulbh"
+    t._assert_ref("sandbox", "https://olvritwoqujtjvwfulbh.supabase.co")   # no raise
+    cands = t._env_candidates("sandbox")
+    assert any(c.endswith(os.path.join("keys", "niete-sandbox.env")) for c in cands), cands
+
+
+def test_module_answer_key_resolves_the_correct_option_text_per_question():
+    # The module-check driver (training.cjs) answers each served question from this key: it matches
+    # the question text, then taps the list row whose text is the correct option. Multi-answer keys
+    # ("1,3") come back as a list so the driver picks every option and then Done.
+    import io, contextlib, json as _json
+    calls = []
+    def fake_get(creds, table, q):
+        calls.append((table, q))
+        if table == "training_modules":
+            return [{"id": 12, "title": "Entry & Exit Routines"}]
+        if table == "training_questions":
+            return [{"id": 1, "question_text": "Which routine comes first?", "options": ["Planning", "Entry and exit procedures", "Grading"], "correct_option": "2"},
+                    {"id": 2, "question_text": "Pick every classroom rule.", "options": [{"text": "Be kind"}, {"text": "Shout"}, {"text": "Listen"}], "correct_option": "1,3"}]
+        raise AssertionError("unexpected table " + table)
+    orig = t._get; t._get = fake_get
+    try:
+        buf = io.StringIO()
+        class A: module = None; title = "Entry & Exit"
+        with contextlib.redirect_stdout(buf):
+            t.cmd_module_answer_key(("u", "k"), A())
+        out = _json.loads(buf.getvalue())
+    finally:
+        t._get = orig
+    assert out["module"] == {"id": 12, "title": "Entry & Exit Routines"}
+    assert out["questions"][0] == {"q": "Which routine comes first?", "correct": ["Entry and exit procedures"], "correct_index": [2], "multi": False}
+    assert out["questions"][1] == {"q": "Pick every classroom rule.", "correct": ["Be kind", "Listen"], "correct_index": [1, 3], "multi": True}
+    assert any("title=ilike" in q for tbl, q in calls if tbl == "training_modules")   # resolved by title prefix, as the picker shows it
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

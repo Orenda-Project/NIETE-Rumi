@@ -435,7 +435,7 @@ function makeApi(c) {
      *  really unregistered?) can be verified in the same run instead of deferred to a human. */
     db(action, extra) {
       trace('db ' + action);
-      const script = action === 'lookup'
+      const script = /^(lookup|answer-key|module-answer-key)$/.test(action)
         ? path.join(REPO, '.claude/qa/shared/niete_training_db.py')
         : path.join(REPO, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', ENV, '--phone', process.env.E2E_DRIVER || '923028931858'];
@@ -514,13 +514,60 @@ function makeApi(c) {
     },
     async waitStats() { return J(await c.ev(`JSON.stringify(window.__wa.stats())`)); },
     async waitLog() { return c.ev(`window.__wa.waitLog()`); },
+
+    /** What this driver can do — the mock driver reports flows:false so a feature script can
+     *  branch instead of driving a Flow that will never render there. */
+    caps: { method: 'chrome', flows: true, upload: true, render: true },
+
+    /** Fresh-inbound reader for the pipeline walkers (coaching, lesson-plan). freshReset() marks
+     *  everything currently in the transcript as seen; fresh() returns only rows that arrived since
+     *  the last call, with the media flags. Lifted from coaching.cjs so the mock driver can offer the
+     *  same two calls. A media row renders its timestamp FIRST and its player a beat later — a
+     *  time-only row is left unseen so the next pass re-reads it once the media has mounted. */
+    async freshReset() {
+      return c.ev(`(()=>{ window.__seen = new Set(
+        [...document.querySelectorAll('#main div[role="row"] [data-id]')].map(e=>e.getAttribute('data-id')));
+        return 1; })()`);
+    },
+    async fresh() {
+      return J(await c.ev(`(()=>{
+        if(!window.__seen) window.__seen = new Set();
+        const out=[];
+        for(const r of document.querySelectorAll('#main div[role="row"]')){
+          const e=r.querySelector('[data-id]'); const id=e&&e.getAttribute('data-id');
+          if(!id || window.__seen.has(id)) continue;
+          const txt0=(r.innerText||'').trim();
+          const hasMedia=!!r.querySelector('img[src^="blob:"],img[src^="data:image/j"],[data-icon="wds-ic-hd-filled"],[data-icon="audio-file"],[data-icon="ptt"],[aria-label*="Voice message"],[aria-label*="voice message"],audio,[data-icon^="document-"],[data-icon="ms-office-doc"]');
+          if(!hasMedia && /^\\d{1,2}:\\d{2}( ?[AP]M)?$/.test(txt0)) continue;
+          window.__seen.add(id);
+          if(r.querySelector('[data-icon^="msg-check"],[data-icon^="msg-dblcheck"],[data-icon^="msg-time"]')) continue;
+          out.push({ txt:txt0.slice(0,600),
+                     img:!!r.querySelector('img[src^="blob:"],img[src^="data:image/j"],[data-icon="wds-ic-hd-filled"]'),
+                     audio:!!r.querySelector('[data-icon="audio-file"],[data-icon="ptt"],[aria-label*="Voice message"],[aria-label*="voice message"],audio'),
+                     doc:!!r.querySelector('[data-icon^="document-"],[data-icon="ms-office-doc"]'),
+                     pdf:/\\.pdf/i.test(r.innerText||''),
+                     btns:[...r.querySelectorAll('button,div[role="button"]')]
+                            .map(b=>(b.getAttribute('aria-label')||b.innerText||'').trim())
+                            .filter(x=>x&&x.length<40&&!/reaction/i.test(x)) });
+        }
+        return JSON.stringify(out); })()`)) || [];
+    },
   };
 }
 
 (async () => {
   const started = Date.now();
-  const c = await connect();
-  const api = makeApi(c);
+  // E2E_METHOD=mock: no browser. The bot runs locally from a pinned commit behind
+  // bot/scripts/e2e/mock-graph-api.js, and mock-api.cjs exposes the SAME primitives this file's
+  // makeApi() does, so the feature scripts below run unchanged. Default (chrome) is untouched.
+  const MOCK = (process.env.E2E_METHOD || 'chrome') === 'mock';
+  const c = MOCK ? { close() {} } : await connect();
+  const flows = MOCK && process.env.E2E_FLOWS_DIR && process.env.E2E_FLOW_PUBLIC_KEY_B64
+    ? { dir: process.env.E2E_FLOWS_DIR, botUrl: process.env.E2E_BOT_URL, publicKeyPem: Buffer.from(process.env.E2E_FLOW_PUBLIC_KEY_B64, 'base64').toString('utf8') }
+    : null;
+  const api = MOCK
+    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace, flows })
+    : makeApi(c);
   const results = [];
   const rec = (id, name, verdict, evidence, ms) => { trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms }); };
   try {
@@ -543,6 +590,8 @@ function makeApi(c) {
       ]);
     } catch (_) {}
     try { c.close(); } catch (_) {}
+    let flowEmulator = null;
+    try { if (api.flowStats) flowEmulator = await api.flowStats(); } catch (_) {}
     const wallMs = Date.now() - started;
     const pass = results.filter(r => r.verdict === 'PASS').length;
     const payload = {
@@ -551,7 +600,7 @@ function makeApi(c) {
       fail: results.filter(r => r.verdict === 'FAIL').length,
       other: results.filter(r => !['PASS', 'FAIL'].includes(r.verdict)).length,
       perScenarioSec: results.length ? +(wallMs / 1000 / results.length).toFixed(1) : null,
-      botWaitStats: stats, results
+      botWaitStats: stats, ...(flowEmulator ? { flowEmulator } : {}), results
     };
     const outDir = process.env.RUN_DIR
       || path.join(__dirname, '..', 'results', 'whatsapp', 'niete', '2026-08-31-feature-runner');

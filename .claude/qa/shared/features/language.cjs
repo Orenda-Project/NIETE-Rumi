@@ -117,6 +117,43 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('LANG12', 'Lesson Plans via the natural-language path answers in the chosen language',
       ...V(r.ok && UR.test(r.txt) && !/\(1-4\)/.test(r.txt), { reply: r.txt.slice(0, 120), urdu: UR.test(r.txt), nudge: /\(1-4\)/.test(r.txt) }), t() - s);
 
+  // LANG13 — the account is Urdu here: the training launcher (entry only) renders Urdu body + CTA
+  s = t();
+  r = await api.sendWait('/training');
+  rec('LANG13', 'training entry launcher localized',
+      ...V(r.ok && UR.test(r.txt) && (r.btns || []).includes('کھولیں'), { body: (r.txt || '').slice(0, 120), btns: r.btns, bodyUrdu: UR.test(r.txt) }), t() - s);
+  await api.resetFlow();
+
+  // LANG05 — a stale client replaying an off-offer row: the WRITER refuses it. Only a raw list reply can
+  // reproduce this (no picker offers the row), so it runs where the driver can forge one — the mock lane.
+  s = t();
+  if (api.caps && api.caps.rawInject && typeof api.injectList === 'function') {
+    const pre = api.db('lookup');
+    const stale = await api.injectList('lang_pa-PK', 'پنجابی', 60000);
+    const post = api.db('lookup');
+    rec('LANG05', 'stale off-offer row rejected by the writer',
+        ...V(/error updating your language preference/i.test(stale.txt || '') && field(post.user, 'preferred_language') === field(pre.user, 'preferred_language') && field(post.user, 'preferred_language') !== 'pa-PK',
+             { reply: (stale.txt || '').slice(0, 120), before: field(pre.user, 'preferred_language'), after: field(post.user, 'preferred_language') }), t() - s);
+  } else rec('LANG05', 'stale off-offer row rejected by the writer', 'BLOCKED', { reason: '@defensive — needs a raw list-reply replay; only the mock driver can forge one (caps.rawInject)' }, 0);
+
+  // LANG07 — code-hygiene guard: no dead language-lock reader export (a source check, same on both lanes)
+  s = t();
+  {
+    const fs = require('fs'), path = require('path');
+    const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
+    const lc = fs.readFileSync(path.join(ROOT, 'bot/shared/utils/language-cache.js'), 'utf8');
+    const exported = /module\.exports\s*=\s*\{[\s\S]*?\bisUserLanguageLocked\b[\s\S]*?\}/.test(lc);
+    const callers = [];
+    const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+      if (f.name === 'node_modules' || f.name === '__mocks__' || f.name.startsWith('.')) continue;
+      const fp = path.join(d, f.name);
+      if (f.isDirectory()) walk(fp);
+      else if (/\.js$/.test(f.name) && !/\.test\.js$/.test(f.name) && !fp.endsWith('utils/language-cache.js')) { const src = fs.readFileSync(fp, 'utf8'); if (/\bisUserLanguageLocked\s*\(/.test(src)) callers.push(path.relative(ROOT, fp)); } } };
+    walk(path.join(ROOT, 'bot'));
+    rec('LANG07', 'no dead language-lock reader export',
+        ...V(!exported || callers.length >= 1, { exported, callers, note: exported && !callers.length ? 'isUserLanguageLocked is exported again with zero callers in bot/ — the dead reader the spec removed (bd-2485) is back' : null }), t() - s);
+  }
+
   // restore the pre-run language via the surface under test
   s = t();
   if (langBefore !== 'ur') { await api.sendWait('/language'); await api.openList('Languages'); await api.pickRowAndWait(langBefore === 'en' ? 'English' : 'اردو'); }
@@ -125,14 +162,11 @@ exports.run = async ({ api, rec, sleep }) => {
       { before: langBefore, after: field(after.user, 'preferred_language') }, t() - s);
 
   for (const [id, name, why] of [
-    ['LANG05', 'stale off-offer row rejected by the writer', '@defensive — needs a crafted client replay'],
-    ['LANG06', 'coaching transcription cannot re-language a locked account', '@wip @draft (and Soniox balance exhausted today)'],
-    ['LANG07', 'no dead language-lock reader export', '@coverage — source check, not a WhatsApp drive'],
-    ['LANG11', '/observe renders content in Urdu', '@config-gated @seeded @persona:coach'],
-    ['LANG13', 'training entry launcher localized', '@wip @draft'],
+    ['LANG06', 'coaching transcription cannot re-language a locked account', '@slow — needs the full coaching pipeline driven on a locked-Urdu account; the coaching feature drives that pipeline, this suite does not repeat it'],
+    ['LANG11', '/observe renders content in Urdu', '@config-gated @seeded @persona:coach — needs a leader-role driver with a seeded school + roster; the lane\'s driver is a teacher'],
     ['LANG17', 'Grade 1-5 Urdu PDF only if it exists', '@content-driven — covered by the lesson-plan runner delivering the English PDF (0/304 Urdu keys)'],
-    ['LANG18', 'coaching progress steps English on Urdu account', '@slow — coaching pipeline blocked on the Soniox balance'],
-    ['LANG20', 'LP keeps enqueue language across a mid-generation switch', '@wip @draft'],
-    ['LANG21', 'off-market language clamped and logged', '@wip @draft @defensive'],
+    ['LANG18', 'coaching progress steps English on Urdu account', '@slow — needs the coaching pipeline on an Urdu account; covered as a language check inside the coaching feature\'s DEEP run'],
+    ['LANG20', 'LP keeps enqueue language across a mid-generation switch', '@wip @draft — needs a generation job long enough to switch language mid-flight; not deterministic on any lane'],
+    ['LANG21', 'off-market language clamped and logged', '@defensive — the off-market code arrives from transcription language detection, which has no client-side path to forge'],
   ]) rec(id, name, 'BLOCKED', { reason: why }, 0);
 };

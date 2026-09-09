@@ -25,6 +25,7 @@ R="$TMP/clone with space"      # a path with spaces, like most real checkouts
 mkdir -p "$R/bot/shared/services" "$R/tests/features/whatsapp" "$R/.claude" "$R/scripts"
 cp -R "$ROOT/.claude/qa"   "$R/.claude/qa"
 cp -R "$ROOT/.githooks"    "$R/.githooks"
+mkdir -p "$R/.claude/hooks"; cp -R "$ROOT/.claude/hooks/lib" "$R/.claude/hooks/lib"
 cp -R "$ROOT/scripts/qa"   "$R/scripts/qa"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
 rm -rf "$R/.claude/qa/results" "$R/.claude/.e2e-pending"
@@ -64,6 +65,10 @@ say "marker is un-nudged" "$(python3 -c "import json;print(json.load(open('$PEND
 [ -f "$PEND/git-$sha.sync.json" ] && ok "spec-sync brief written beside it" || bad "brief missing"
 has "terminal output names the feature" "$err" "menu" yes
 has "terminal output names the next command" "$err" "/sync-specs" yes
+# PHASE 3: the marker pins the FULL sha (the mock lane starts the bot from it) and the terminal
+# tells the developer the one command that tests this commit without a browser.
+say "marker carries the full commit_sha" "$(python3 -c "import json;print(len(json.load(open('$PEND/git-$sha.json'))['commit_sha']))" 2>/dev/null)" "40"
+has "terminal output names the mock lane" "$err" "commit-e2e.sh" yes
 
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')
