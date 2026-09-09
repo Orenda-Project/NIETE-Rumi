@@ -50,6 +50,41 @@ function byStrength(groups) {
  * zero she lost; it is a question that was never asked, and the UI has to be
  * able to tell those apart.
  */
+/**
+ * A domain the framework does not list, shaped like one that is.
+ *
+ * The score adapter iterates the FRAMEWORK's canonical domains, which is right
+ * for the WhatsApp report image — a fixed four-row scorecard. But 17 of 172
+ * completed sessions were scored on a five-domain vocabulary
+ * (classroom_climate, lesson_structure, instructional_quality,
+ * assessment_feedback, student_engagement). For those the adapter matches one
+ * key, reports the other three canonical ones as 0/0, and the session's own
+ * three real domains never appear at all.
+ *
+ * That is the same defect this whole change exists to remove — a reader asking
+ * for keys the data does not have and rendering zeros instead of saying so —
+ * so the browser, which has no fixed row count to honour, shows what is there.
+ *
+ * `key` is empty rather than invented: the section letters (B/C/D/F) are the
+ * printed rubric's, and giving an unlisted domain a made-up letter would send
+ * a trainer looking for a row that does not exist.
+ */
+function extraGroup(domainKey, d) {
+  const score = d.domain_score ?? d.area_score ?? 0;
+  const max = d.domain_max ?? d.area_max ?? 0;
+  return {
+    key: '',
+    domainKey,
+    // snake_case -> Title Case. The framework owns display names for the
+    // domains it lists; for one it does not, the key itself is the only
+    // honest source.
+    name: domainKey.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+    score,
+    max,
+    pct: max > 0 ? Math.round((score / max) * 100) : 0,
+  };
+}
+
 function indicatorsFor(domain) {
   return (domain.indicators || []).map((i) => ({
     id: i.id || null,
@@ -84,6 +119,17 @@ function buildBreakdown(analysisData, language = 'en') {
 
   const domains = analysisData.domains || analysisData.areas || {};
 
+  // Everything the adapter produced, MINUS the canonical domains this session
+  // was not actually scored on — those come back as 0/0 and are noise, not
+  // information. Then plus the domains it WAS scored on that the framework
+  // does not list.
+  const adapted = (vm.groups || []).filter((g) => domains[g.domainKey]);
+  const known = new Set(adapted.map((g) => g.domainKey));
+  const extra = Object.keys(domains)
+    .filter((k) => !known.has(k))
+    .map((k) => extraGroup(k, domains[k] || {}));
+  const groups = [...adapted, ...extra];
+
   return {
     framework: vm.framework || null,
     language: vm.language || language,
@@ -91,7 +137,7 @@ function buildBreakdown(analysisData, language = 'en') {
     marks: vm.marks ?? null,
     max: vm.max ?? null,
     // Strongest first. The caller opens the last one.
-    groups: byStrength(vm.groups || []).map((g) => ({
+    groups: byStrength(groups).map((g) => ({
       ...g,
       indicators: indicatorsFor(domains[g.domainKey] || {}),
     })),
