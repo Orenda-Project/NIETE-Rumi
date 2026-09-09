@@ -17,7 +17,14 @@ vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("../services/api", () => ({
   portal: {
-    getDashboard: vi.fn().mockResolvedValue({ stats: { totalLessonPlans: 0, totalCoachingSessions: 0 }, recentLessonPlans: [], recentCoachingSession: null }),
+    getDashboard: vi.fn().mockResolvedValue({
+      stats: {
+        totalCoachingSessions: 0,
+        totalAssessments: 0,
+        training: { modulesCompleted: 0, modulesTotal: 0, currentLevel: null },
+      },
+      recentCoachingSession: null,
+    }),
     getCoachingAnalytics: vi.fn().mockResolvedValue({ analytics: { overallScoreTrend: [] } }),
   },
 }));

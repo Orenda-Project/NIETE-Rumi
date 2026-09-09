@@ -817,46 +817,81 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
       throw err;  // User is critical, must fail
     });
 
-    // Get counts with graceful error handling (Promise.allSettled allows partial failures)
-    const [lessonPlansResult, coachingSessionsResult] = await Promise.allSettled([
-      supabase
-        .from('lesson_plans')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId),
+    // Counts, gathered with allSettled so one dead table cannot blank the page.
+    //
+    // bd-60079 — the lesson_plans count is gone. It counted her own
+    // Gamma-generated output, and custom generation is off, so the number was
+    // frozen at whatever she reached and could never move again. A headline
+    // metric that cannot change is not a metric.
+    //
+    // In its place: training and assessments, both read from tables the bot
+    // already writes. Nothing new is stored for this.
+    const [coachingSessionsResult, assessmentsResult, progressResult] = await Promise.allSettled([
       supabase
         .from('coaching_sessions')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('status', 'completed')
+        .eq('status', 'completed'),
+      supabase
+        .from('assessment_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      // Modules she has completed, with the course each belongs to so they can
+      // be attributed to a level. INSERT-only table: a row IS a completion,
+      // there is no status to filter on.
+      supabase
+        .from('teacher_training_progress')
+        .select('module_id, training_modules!inner(course_id, is_active)')
+        .eq('user_id', userId)
+        .eq('training_modules.is_active', true),
     ]);
 
-    // Get recent lesson plans with error handling
-    // NOTE: Database has 'topic', 'grade', 'type' - we transform to 'title', 'grade_level', 'content_type'
-    const recentLessonPlansRaw = await supabase
-      .from('lesson_plans')
-      .select('id, topic, grade, subject, type, gamma_url, pdf_url, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(3)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Failed to fetch recent lesson plans:', error);
-          return [];  // Return empty array instead of crashing
-        }
-        return data || [];
-      });
+    // The training breakdown: how far through, and through WHAT.
+    //
+    // A bare "12 modules" says nothing — 12 of 40 and 12 of 12 are different
+    // facts. So this carries the total and the level she is furthest into,
+    // which is the level her next module is in.
+    const training = await (async () => {
+      const empty = { modulesCompleted: 0, modulesTotal: 0, currentLevel: null };
+      if (progressResult.status !== 'fulfilled') return empty;
 
-    // Transform to match portal expectations (with null-safe grade handling)
-    const recentLessonPlans = recentLessonPlansRaw.map(plan => ({
-      id: plan.id,
-      title: plan.topic,
-      subject: plan.subject || null,
-      grade_level: plan.grade || null,  // Null-safe: handles missing or NULL grade
-      content_type: plan.type,
-      gamma_url: plan.gamma_url,
-      pdf_url: plan.pdf_url,
-      created_at: plan.created_at
-    }));
+      const rows = progressResult.value.data || [];
+      const doneCourseIds = rows
+        .map((r) => r.training_modules && r.training_modules.course_id)
+        .filter(Boolean);
+
+      const [{ data: allModules }, { data: courses }] = await Promise.all([
+        supabase.from('training_modules').select('id', { count: 'exact' }).eq('is_active', true),
+        doneCourseIds.length
+          ? supabase.from('training_courses').select('id, level_id, order_index').in('id', doneCourseIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      let currentLevel = null;
+      const levelIds = [...new Set((courses || []).map((c) => c.level_id).filter(Boolean))];
+      if (levelIds.length) {
+        // Furthest along = the highest order_index she has touched, which is
+        // the level she is working through rather than the one she started in.
+        const { data: levels } = await supabase
+          .from('training_levels')
+          .select('id, name, order_index')
+          .in('id', levelIds)
+          .order('order_index', { ascending: false })
+          .limit(1);
+        currentLevel = (levels && levels[0] && levels[0].name) || null;
+      }
+
+      return {
+        modulesCompleted: rows.length,
+        modulesTotal: (allModules || []).length,
+        currentLevel,
+      };
+    })().catch(() => ({ modulesCompleted: 0, modulesTotal: 0, currentLevel: null }));
+
+    // bd-60079 — the recent-lesson-plans fetch is gone with the card that
+    // rendered it. It read `lesson_plans` (her own Gamma output) and the
+    // dashboard no longer returns them, so keeping the query would be three
+    // rows fetched on every page load for nobody.
 
     // Get recent coaching session with error handling
     // FIXED: Removed .single() to prevent crash when no results
@@ -883,10 +918,10 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
       // bd-2434: includes `role` (+ contact fields) via the shared shaper.
       user: publicUserPayload(user, { includeContact: true }),
       stats: {
-        totalLessonPlans: lessonPlansResult.status === 'fulfilled' ? (lessonPlansResult.value.count || 0) : 0,
-        totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0
+        totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0,
+        totalAssessments: assessmentsResult.status === 'fulfilled' ? (assessmentsResult.value.count || 0) : 0,
+        training
       },
-      recentLessonPlans: recentLessonPlans,
       recentCoachingSession: recentCoachingSessionData ? {
         id: recentCoachingSessionData.id,
         date: recentCoachingSessionData.created_at,

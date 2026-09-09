@@ -14,9 +14,20 @@ export interface User {
   role?: string | null;
 }
 
+/** How far through the training catalogue she is, and through what. */
+export interface TrainingProgressSummary {
+  modulesCompleted: number;
+  /** Every active module, so the count has a scale. */
+  modulesTotal: number;
+  /** The level she is furthest into, or null before she has started. */
+  currentLevel: string | null;
+}
+
 export interface DashboardStats {
-  totalLessonPlans: number;
   totalCoachingSessions: number;
+  /** Exam papers she has asked the generator for. */
+  totalAssessments: number;
+  training: TrainingProgressSummary;
 }
 
 export interface LessonPlan {
