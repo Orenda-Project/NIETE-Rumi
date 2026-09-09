@@ -342,7 +342,7 @@ async function routeTextAnswer(phoneNumber, text) {
   if (attemptErr) {
     logToFile('❌ Capstone attempt lookup failed — answer not routed', {
       userId: user.id, error: attemptErr.message,
-    });
+    }, 'error');
     return false;
   }
   const attempt = openAttempts?.[0];
@@ -352,7 +352,7 @@ async function routeTextAnswer(phoneNumber, text) {
     // nothing counted it.
     logToFile('⚠️ Teacher holds more than one open capstone — routing to the most recent', {
       userId: user.id, routedTo: attempt.id, levelId: attempt.level_id,
-    });
+    }, 'warn');
   }
 
   if (trimmed.toLowerCase() === 'cancel') {
