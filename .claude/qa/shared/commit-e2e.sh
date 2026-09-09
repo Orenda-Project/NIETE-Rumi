@@ -4,7 +4,9 @@
 #   commit → affected features (select_e2e) → Gherkin sync brief (spec_sync) → validate_specs gate
 #          → bot from a detached worktree at THAT sha → mock Graph API → mock driver → runs.jsonl
 #
-#   bash .claude/qa/shared/commit-e2e.sh [<sha>|HEAD] [--features menu,language] [--all-mock]
+#   bash .claude/qa/shared/commit-e2e.sh [<sha>|HEAD] [--features menu,language] [--all-mock] [--record]
+#   --record un-seals the lane ONCE to capture the vendor answers as a committed cassette fixture
+#   (needs keys/niete-record.env with real vendor keys). Normal runs stay sealed: replay-strict, no keys.
 #
 # The mock lane drives menu · language · status · lesson-plan · coaching · training (phase 2 added the pipelines:
 # media through the mock, a private redis + the queue worker in the stack); anything else the
@@ -16,12 +18,31 @@ QA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$QA/../../.." && pwd)"
 MOCK_FEATURES="${E2E_MOCK_FEATURES:-menu,language,status,lesson-plan,coaching,training}"
 
-REF="HEAD"; FORCE=""
+REF="HEAD"; FORCE=""; RECORD=""
 while [ $# -gt 0 ]; do case "$1" in
   --features) FORCE="$2"; shift 2;;
   --all-mock) FORCE="$MOCK_FEATURES"; shift;;
+  --record) RECORD=1; shift;;   # un-seal for ONE run: live vendor calls → committed cassette fixture
   -h|--help) sed -n 2,13p "$0"; exit 0;;
   *) REF="$1"; shift;; esac; done
+
+# --record un-seals the lane for a single run to CAPTURE the vendor answers (Soniox/LLM) as a committed
+# fixture under .claude/qa/fixtures/cassettes/. It makes LIVE, paid calls, so it demands a separate keys
+# file with real vendor keys — never the sealed default. Guard it before anything runs.
+if [ -n "$RECORD" ]; then
+  _main="$(git -C "$ROOT" rev-parse --git-common-dir 2>/dev/null)"; case "$_main" in /*) ;; *) _main="$ROOT/$_main";; esac
+  _main="$(dirname "$_main")"; _kd="$_main/keys"; [ -f "$_kd/niete-local.env" ] || _kd="$(dirname "$_main")/keys"
+  if [ ! -f "$_kd/niete-record.env" ]; then
+    echo "┌ commit-e2e --record"
+    echo "│ RECORD needs $_kd/niete-record.env with REAL vendor keys (Soniox / OpenRouter / ElevenLabs,"
+    echo "│ plus R2_* to mirror). Recording makes LIVE, paid calls — the sealed default lane never has them."
+    echo "│ Copy your staging vendor keys into that file (it is gitignored), then re-run with --record."
+    echo "└ nothing ran. See docs/e2e-mock-lane.md § Recording the cassette."
+    exit 2
+  fi
+  export E2E_CASSETTE_MODE=record DEEP=1
+  echo "┌ RECORD MODE — live vendor calls; cassettes → .claude/qa/fixtures/cassettes/ (commit them after)"
+fi
 SHA=$(git -C "$ROOT" rev-parse --verify "${REF}^{commit}" 2>/dev/null) || { echo "ERROR: '$REF' is not a commit"; exit 2; }
 SHORT=${SHA:0:12}
 PEND="$ROOT/.claude/.e2e-pending"; mkdir -p "$PEND"

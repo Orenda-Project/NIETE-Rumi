@@ -80,12 +80,25 @@ up() {
 const c=require("crypto"); const {publicKey,privateKey}=c.generateKeyPairSync("rsa",{modulusLength:2048,publicKeyEncoding:{type:"spki",format:"pem"},privateKeyEncoding:{type:"pkcs8",format:"pem"}});
 process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(publicKey).toString("base64"));')
   local flow_priv_b64="${flow_keys% *}" flow_pub_b64="${flow_keys#* }"
-  local keys="$KEYS_DIR/niete-local.env"
-  [ -f "$keys" ] || { log "missing $keys (sandbox creds + placeholders — see docs/e2e-mock-lane.md)"; exit 14; }
+  # Cassette mode: replay-strict is the SEALED default — a vendor miss FAILS, never goes live, and the
+  # keys file carries no vendor keys. `record` un-seals it for ONE run and needs a SEPARATE keys file
+  # WITH real vendor keys (never the default), so a normal run can never call a vendor by accident.
+  local cassette_mode="${E2E_CASSETTE_MODE:-replay-strict}"
+  case "$cassette_mode" in replay-strict|replay|record) ;; *) log "bad E2E_CASSETTE_MODE '$cassette_mode' (replay-strict|replay|record)"; exit 14;; esac
+  local keys_name="niete-local.env"; [ "$cassette_mode" = record ] && keys_name="niete-record.env"
+  local keys="$KEYS_DIR/$keys_name"
+  if [ ! -f "$keys" ]; then
+    if [ "$cassette_mode" = record ]; then
+      log "record mode needs $keys with REAL vendor keys (Soniox/OpenRouter/ElevenLabs, + R2_* to mirror). The default lane never has them — see docs/e2e-mock-lane.md"
+    else
+      log "missing $keys (sandbox creds + placeholders — see docs/e2e-mock-lane.md)"
+    fi
+    exit 14
+  fi
   local mock_port="${MOCK_PORT:-4010}" bot_port="${E2E_BOT_PORT:-3100}" phone_id="${E2E_PHONE_NUMBER_ID:-e2e-local}"
   local redis_port="${E2E_REDIS_PORT:-6390}" worker_port="${E2E_WORKER_HEALTH_PORT:-3201}"
   command -v redis-server >/dev/null 2>&1 || { log "redis-server not found — the queue worker needs it (brew install redis)"; exit 16; }
-  local cassette_dir="${E2E_CASSETTE_DIR:-$MAIN/bot/temp/e2e-cassettes}"
+  local cassette_dir="${E2E_CASSETTE_DIR:-$REPO/.claude/qa/fixtures/cassettes}"; mkdir -p "$cassette_dir"   # committed fixture: recorded once, replayed by every run/clone
   {
     cat "$keys"
     echo
@@ -94,7 +107,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "PHONE_NUMBER_ID=$phone_id"
     echo "WHATSAPP_API_BASE=http://127.0.0.1:$mock_port"
     echo "E2E_COMMIT_SHA=$full"
-    echo "E2E_CASSETTE=replay-strict"
+    echo "E2E_CASSETTE=$cassette_mode"
     echo "E2E_CASSETTE_DIR=$cassette_dir"
     echo "E2E_CASSETTE_MISS_LOG=$run_dir/cassette-misses.jsonl"
     echo "NODE_ENV=test"
@@ -135,12 +148,12 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local running; running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")')
   if [ "$running" != "$full" ]; then log "/health reports commit '${running:-null}', wanted $full — refusing to drive"; down "$run_dir"; exit 13; fi
 
-  python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$NM_BOT/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
-import json, sys, datetime
+  STACK_CASSETTE_MODE="$cassette_mode" python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$NM_BOT/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
+import json, sys, datetime, os
 p, sha, src, bot, mock, phone, lock, nm, cas, pubkey_file, flows_dir = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
            "flow_public_key_file": pubkey_file, "flows_dir": flows_dir, "flows": "emulated",
-           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": "replay-strict",
+           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"),
            "started_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}, open(p, "w"), indent=1)
 PY
   log "up: bot $full on :$bot_port ← mock :$mock_port · worker :$worker_port · redis :$redis_port (worktree $src)"

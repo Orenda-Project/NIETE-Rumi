@@ -155,6 +155,30 @@ Web lane; `completed` counts real `complete` actions (a script that closes the F
 has answered, as lesson-plan does, completes none); a scenario whose premise is the account's language
 (L10's Urdu teacher) runs against the sandbox driver, which is English.
 
+## Recording the cassette (record once, replayed forever)
+
+The lane cannot call Soniox, OpenRouter or ElevenLabs — the keys file has no vendor keys and the bot
+runs `E2E_CASSETTE=replay-strict`, so a vendor call with no recording FAILS the scenario and is logged,
+never sent live. The recorded answers live as committed fixtures under `.claude/qa/fixtures/cassettes/`
+(one JSON per call, keyed by a request hash), exactly like `fixtures/flows/` holds the Flow definitions.
+Recorded once, they are replayed by every run and every clone — no keys, no network.
+
+Populating them is a one-time, un-sealing step that makes LIVE, paid calls, so it is gated:
+
+```
+bash .claude/qa/shared/commit-e2e.sh HEAD --features coaching --record
+```
+
+`--record` uses a SEPARATE keys file, `keys/niete-record.env`, that carries real vendor keys (and `R2_*`
+to mirror) — never the sealed default's `niete-local.env`. It refuses to run if that file is absent, sets
+`E2E_CASSETTE=record`, drives the deep pipeline (`DEEP=1`) for real, and writes the answers into
+`fixtures/cassettes/`. Review the new files, then commit them. From then on the deep coaching and LLM
+scenarios that currently block on "cassette not recorded" run against the real recorded answers with
+`DEEP=1`, on every machine, with the lane sealed again.
+
+Never hand-write a cassette: a fabricated transcription or analysis would make the tests assert against
+invented data and hide real bugs. A cassette is only ever a real recorded answer.
+
 ## What this lane deliberately does not do (yet)
 
 Native Flow rendering (pixels, truncation, RTL), templates, delivery on a phone, and the PhotoPicker
@@ -173,6 +197,7 @@ the lane's feature list.
 | Inbound builders | `bot/scripts/simulate.js` (`simulateMessage`, `buttonReply`, `listReply`, `mediaMessage`) |
 | Stack launcher (redis · mock · bot · worker) | `bot/scripts/e2e/local-stack.sh` |
 | Strict cassette | `bot/shared/services/e2e-cassette.js` (`E2E_CASSETTE=replay-strict`, `E2E_CASSETTE_MISS_LOG`) |
+| Vendor cassette fixtures + record | `.claude/qa/fixtures/cassettes/` (committed); `commit-e2e.sh --record` + `keys/niete-record.env` to populate |
 | Mock driver | `.claude/qa/shared/mock-api.cjs` (selected by `E2E_METHOD=mock` in `feature-runner.cjs`) |
 | Runner, profile, ledger | `.claude/qa/shared/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
 | Sandbox driver account | `.claude/qa/shared/niete_sandbox_driver.py` |
