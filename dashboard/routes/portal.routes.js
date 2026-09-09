@@ -1272,7 +1272,7 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter_number required' });
     }
     const lessons = await LpCatalogue.listLessons(
-      grade, subjectKey, chapterNumber, req.portalUser && req.portalUser.id,
+      grade, subjectKey, chapterNumber, req.session.portalUserId,
     );
     res.json({ success: true, lessons });
   } catch (error) {
@@ -1333,7 +1333,10 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
 // replaces had already drifted — MAX_COUNT = 20 against the bot's 25, its own
 // subject lists, and UG_EG subject ids that no longer resolve.
 //
-// userId comes from the SESSION on every call. It is what makes a paper hers.
+// userId comes from req.session.portalUserId on every call — NOT req.portalUser,
+// which requirePortalAuth does not set. Only requireLeaderRole attaches that,
+// and it is a school-leader gate that 403s teachers. Reading the wrong one is
+// silent: it passes undefined, and the bot answers "userId is required".
 const Assessment = require('../services/assessment.service');
 
 /** A 400 from the bot carries a message she can act on; anything else is ours. */
@@ -1397,7 +1400,7 @@ router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
     const body = req.body || {};
     const { requestId } = await Assessment.create({
       // Never from the body. The session is the only thing that says who she is.
-      userId: req.portalUser && req.portalUser.id,
+      userId: req.session.portalUserId,
       grade: body.grade,
       subject: body.subject,
       chapterNumber: body.chapterNumber ?? null,
@@ -1427,7 +1430,7 @@ router.get('/assessment/status/:request_id', requirePortalAuth, async (req, res)
     if (!requestId) {
       return res.status(400).json({ success: false, error: 'request_id required' });
     }
-    const state = await Assessment.status(requestId, req.portalUser && req.portalUser.id);
+    const state = await Assessment.status(requestId, req.session.portalUserId);
     res.json({ success: true, ...state });
   } catch (error) {
     assessmentFailure(res, error, 'Could not check your paper');
@@ -1449,7 +1452,7 @@ router.get('/assessment/paper/:paper_id/download', requirePortalAuth, async (req
     if (!paperId) {
       return res.status(400).json({ success: false, error: 'paper_id required' });
     }
-    const hit = await Assessment.download(paperId, req.portalUser && req.portalUser.id, artifact);
+    const hit = await Assessment.download(paperId, req.session.portalUserId, artifact);
     if (!hit) return res.status(200).json({ success: true, available: false });
     res.json({ success: true, available: true, ...hit });
   } catch (error) {
@@ -1466,7 +1469,7 @@ router.get('/assessment/paper/:paper_id/download', requirePortalAuth, async (req
 router.get('/assessment/papers', requirePortalAuth, async (req, res) => {
   try {
     const grade = req.query.grade ? parseInt(req.query.grade, 10) : null;
-    const out = await Assessment.listPapers(req.portalUser && req.portalUser.id, {
+    const out = await Assessment.listPapers(req.session.portalUserId, {
       page: parseInt(req.query.page, 10) || 1,
       pageSize: parseInt(req.query.page_size, 10) || 10,
       grade: Number.isFinite(grade) ? grade : null,
