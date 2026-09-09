@@ -1313,6 +1313,172 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ASSESSMENT GENERATOR — the bot's pipeline, reached over the internal API
+// ───────────────────────────────────────────────────────────────────────────
+// This tab has been rendering a real form against a route that does
+// not exist. On production, both hosts:
+//
+//   GET  /api/portal/config              assessmentGenerator: true   ← tab ON
+//   POST /api/portal/assessment/generate 404                         ← no route
+//   GET  /api/portal/lesson-plans        401                         ← control
+//
+// 404 against 401 is the proof: absent, not merely unauthenticated. The routes
+// were razed with the old UG_EG generator and the September rebuild went
+// WhatsApp-Flow-only, while the flag lighting the tab is shared between both
+// surfaces and stayed on. A feature that is invisible is a gap; one that
+// advertises itself and then errors is the state that reads as broken.
+//
+// Same delegation as the LP catalogue above: no assessment logic here, no
+// assessment table read, and no question cap of our own. The dead panel this
+// replaces had already drifted — MAX_COUNT = 20 against the bot's 25, its own
+// subject lists, and UG_EG subject ids that no longer resolve.
+//
+// userId comes from the SESSION on every call. It is what makes a paper hers.
+const Assessment = require('../services/assessment.service');
+
+/** A 400 from the bot carries a message she can act on; anything else is ours. */
+function assessmentFailure(res, error, fallback) {
+  if (error && error.userFacing) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+  console.error('❌ Portal assessment failed', { error: error?.message });
+  return res.status(502).json({ success: false, error: fallback });
+}
+
+/**
+ * GET /api/portal/assessment/options?grade=4&subject=science
+ * → { success, grades, subjects?, types?, maxQuestions, defaultQuestions }
+ *
+ * One call for everything the form needs. maxQuestions arrives from the bot so
+ * the form cannot offer a number the validator refuses.
+ */
+router.get('/assessment/options', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = req.query.grade ? parseInt(req.query.grade, 10) : null;
+    const subject = String(req.query.subject || '').trim() || null;
+    const data = await Assessment.options({
+      grade: Number.isFinite(grade) ? grade : null,
+      subject,
+    });
+    res.json({ success: true, ...data });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not load assessment options');
+  }
+});
+
+/**
+ * GET /api/portal/assessment/chapters?grade=4&subject=science
+ * → { success, chapters: [{ chapter_number, chapter_title, page_start, page_end, page_count }] }
+ */
+router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    if (!Number.isFinite(grade) || !subject) {
+      return res.status(400).json({ success: false, error: 'grade + subject required' });
+    }
+    const chapters = await Assessment.listChapters(grade, subject);
+    res.json({ success: true, chapters });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not load chapters');
+  }
+});
+
+/**
+ * POST /api/portal/assessment/generate
+ * Body { grade, subject, chapterNumber|pageRanges, questionCount, ... }
+ * → 202 { success, requestId }
+ *
+ * 202 because the paper does not exist yet — generation is a queued job of
+ * about a minute and the page polls /status.
+ */
+router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const { requestId } = await Assessment.create({
+      // Never from the body. The session is the only thing that says who she is.
+      userId: req.portalUser && req.portalUser.id,
+      grade: body.grade,
+      subject: body.subject,
+      chapterNumber: body.chapterNumber ?? null,
+      pageRanges: body.pageRanges ?? null,
+      contentSource: body.contentSource,
+      questionCount: body.questionCount,
+      questionTypes: body.questionTypes,
+      includeAnswerKey: body.includeAnswerKey,
+      answerLines: body.answerLines,
+      outputFormat: body.outputFormat,
+    });
+    res.status(202).json({ success: true, requestId });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not start your paper');
+  }
+});
+
+/**
+ * GET /api/portal/assessment/status/:request_id
+ * → { success, status, paperId?, errorCode? }
+ *
+ * "Still working" is a 200, so the page can tell it apart from "we are broken".
+ */
+router.get('/assessment/status/:request_id', requirePortalAuth, async (req, res) => {
+  try {
+    const requestId = String(req.params.request_id || '').trim();
+    if (!requestId) {
+      return res.status(400).json({ success: false, error: 'request_id required' });
+    }
+    const state = await Assessment.status(requestId, req.portalUser && req.portalUser.id);
+    res.json({ success: true, ...state });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not check your paper');
+  }
+});
+
+/**
+ * GET /api/portal/assessment/paper/:paper_id/download?artifact=paper|answer_key
+ * → { success, available, url?, filename? }
+ *
+ * `available: false` with a 200 covers four situations the page treats
+ * identically: not hers, does not exist, not finished, or an answer key whose
+ * location was never recorded (any paper generated before V1.4.2).
+ */
+router.get('/assessment/paper/:paper_id/download', requirePortalAuth, async (req, res) => {
+  try {
+    const paperId = String(req.params.paper_id || '').trim();
+    const artifact = req.query.artifact === 'answer_key' ? 'answer_key' : 'paper';
+    if (!paperId) {
+      return res.status(400).json({ success: false, error: 'paper_id required' });
+    }
+    const hit = await Assessment.download(paperId, req.portalUser && req.portalUser.id, artifact);
+    if (!hit) return res.status(200).json({ success: true, available: false });
+    res.json({ success: true, available: true, ...hit });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not open this paper');
+  }
+});
+
+/**
+ * GET /api/portal/assessment/papers?page=1&grade=4&subject=science
+ * → { success, papers, total, page, pageSize }
+ *
+ * Her papers, newest first, on the same two axes she picked when making one.
+ */
+router.get('/assessment/papers', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = req.query.grade ? parseInt(req.query.grade, 10) : null;
+    const out = await Assessment.listPapers(req.portalUser && req.portalUser.id, {
+      page: parseInt(req.query.page, 10) || 1,
+      pageSize: parseInt(req.query.page_size, 10) || 10,
+      grade: Number.isFinite(grade) ? grade : null,
+      subject: String(req.query.subject || '').trim() || null,
+    });
+    res.json({ success: true, ...out });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not load your papers');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // TEACHER TRAINING BROWSER — 3-step cascading picker: Level → Course → Module
 // ───────────────────────────────────────────────────────────────────────────
 // Mirrors the curriculum browser architecture but over the training tables:

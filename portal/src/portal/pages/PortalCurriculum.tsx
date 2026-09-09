@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import api, { portal } from '../services/api';
 import AssessmentGeneratorPanel from '../components/AssessmentGeneratorPanel';
 import AssessmentGeneratorComingSoon from '../components/AssessmentGeneratorComingSoon';
+import AssessmentPapersPanel from '../components/AssessmentPapersPanel';
 
 type Grade = { grade: number; subject_count: number };
 type Subject = { subject_key: string; subject: string; rtl: boolean; lesson_count: number };
@@ -55,6 +56,9 @@ const PortalCurriculum = () => {
   // bd-2460 — null while loading, so the tab never flashes a form that is off.
   const [assessmentEnabled, setAssessmentEnabled] = useState<boolean | null>(null);
   const [assessmentMessage, setAssessmentMessage] = useState<string | null>(null);
+  // Bumped when a paper finishes so My papers refetches — she should not have
+  // to reload the page to see the thing she just made.
+  const [papersRefreshKey, setPapersRefreshKey] = useState(0);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -194,6 +198,9 @@ const PortalCurriculum = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="library">Lesson Plans</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
+            {/* Only when the feature is on — an empty tab for a feature she
+                cannot use is the same mistake as a form with no engine. */}
+            {assessmentEnabled && <TabsTrigger value="papers">My papers</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="library">
@@ -338,9 +345,17 @@ const PortalCurriculum = () => {
             {assessmentEnabled === null
               ? null
               : assessmentEnabled
-                ? <AssessmentGeneratorPanel />
+                ? <AssessmentGeneratorPanel
+                    onPaperReady={() => setPapersRefreshKey((k) => k + 1)}
+                  />
                 : <AssessmentGeneratorComingSoon message={assessmentMessage} />}
           </TabsContent>
+
+          {assessmentEnabled && (
+            <TabsContent value="papers">
+              <AssessmentPapersPanel refreshKey={papersRefreshKey} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </PortalLayout>
