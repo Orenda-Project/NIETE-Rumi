@@ -10,10 +10,13 @@
  *      screen never changed between retries) and the id could not be unknown
  *      (every id is minted server-side by actionsFor from the same inputs), so
  *      the only gate left is the empty-action check.
- *   2. Neither LESSON nor LESSONS declares `error_message` in its data
- *      contract, but both error paths return exactly that field. A WhatsApp
- *      Flow client discards an undeclared property, so the screen re-rendered
- *      unchanged: no error on the phone, and no event in the logs either.
+ *   2. Neither LESSON nor LESSONS declares `error_message`, but both error
+ *      paths return it, so the client discards it and the screen re-renders
+ *      unchanged. Declaring it is NOT fixed here — the first attempt to do so
+ *      broke rendering on a real handset for reasons that survived every check
+ *      available offline, so it was pulled back out (bd-on4t9). What IS fixed
+ *      is that a refusal now emits an event with its reason, which is what
+ *      makes the path diagnosable at all.
  *
  * These tests drive the real handler, so they fail for the real reason.
  */
@@ -36,8 +39,6 @@ jest.mock('../../shared/services/quiz/video-quiz-report.service', () => ({
   generate: jest.fn().mockResolvedValue(true),
 }));
 
-const fs = require('fs');
-const path = require('path');
 const supabase = require('../../shared/config/supabase');
 const { logEvent } = require('../../shared/utils/structured-logger');
 const endpoint = require('../../shared/routes/transcript-quiz-flow-endpoint');
@@ -45,11 +46,6 @@ const endpoint = require('../../shared/routes/transcript-quiz-flow-endpoint');
 const TEACHER = 'teacher-1';
 const TOKEN = `${TEACHER}:transcript-quiz:1757100000000`;
 const LONG_TRANSCRIPT = 'x'.repeat(4000);
-
-const FLOW = JSON.parse(fs.readFileSync(
-  path.join(__dirname, '../../../docs/flows/transcript-quiz-flow.json'), 'utf8'));
-const declared = (screenId) => Object.keys(
-  (FLOW.screens.find((s) => s.id === screenId) || {}).data || {});
 
 /** A chain that really filters, so a missing .eq fails here and not at runtime. */
 function makeChain(rows, writes) {
@@ -101,29 +97,6 @@ const exchange = (screenData) =>
   endpoint.handleTranscriptQuizDataExchange(TOKEN, screenData.step === 'action' ? 'LESSON' : 'LESSONS', screenData);
 
 beforeEach(() => jest.clearAllMocks());
-
-// ---------------------------------------------------------------------------
-describe('defect 2 — every field the endpoint returns must be declared on the screen', () => {
-  test('a refused action answers with only fields the LESSON screen declares', async () => {
-    stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
-
-    // A bare Continue: the Flow submitted with nothing selected, which is
-    // exactly what production has been sending 187 times.
-    const out = await exchange({ step: 'action', session_id: 's-1', action: '' });
-
-    const undeclaredFields = Object.keys(out.data).filter((k) => !declared(out.screen).includes(k));
-    expect({ screen: out.screen, undeclaredFields }).toEqual({ screen: out.screen, undeclaredFields: [] });
-  });
-
-  test('an unknown lesson answers with only fields its screen declares', async () => {
-    stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
-
-    const out = await exchange({ step: 'action', session_id: 'not-mine', action: 'make:ur' });
-
-    const undeclaredFields = Object.keys(out.data).filter((k) => !declared(out.screen).includes(k));
-    expect({ screen: out.screen, undeclaredFields }).toEqual({ screen: out.screen, undeclaredFields: [] });
-  });
-});
 
 // ---------------------------------------------------------------------------
 describe('defect 1 — a bare Continue must not be a silent no-op', () => {

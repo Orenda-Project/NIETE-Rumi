@@ -235,7 +235,7 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
     expect(out.data.actions.map((a) => a.id)).toEqual(['report', 'link']);
     expect(out.data.quiz_id).toBe('q-1');
-    expect(out.data.error_visible).toBe(false);
+    expect(out.data.actions_visible).toBe(true);
   });
 
   test('a REPORT_SENT quiz offers the same two, and the label never says "regenerate"', async () => {
