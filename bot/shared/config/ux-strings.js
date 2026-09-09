@@ -1555,6 +1555,20 @@ const CLASS_FLOW_STRINGS = {
     ur: 'نکالنے کے لیے پہلے {shown} دکھائے جا رہے ہیں، اور نئے نام نیچے لکھیں۔ '
       + 'نکالے گئے طالب علم اس جماعت کے تمام اساتذہ کو نظر آنا بند ہو جائیں گے؛ حاضری کا ریکارڈ محفوظ رہے گا۔',
   },
+  /**
+   * The roster TEXT ran out of room. A DIFFERENT truncation from
+   * `classEditHintCapped`, which is about the removal checkboxes — the two have
+   * to be tellable apart, or a coach cannot know which children are missing.
+   * A bare "… +4" was the field report from a coach on 2026-09-08: a number
+   * with no sentence around it reads as breakage.
+   * Urdu is gender-neutral: the verb agrees with بچے, never with the reader.
+   */
+  classRosterOverflow: {
+    en: '… {hidden} more children are on this roll but are not shown here: '
+      + 'the list is too long for one screen.',
+    ur: '… {hidden} مزید بچے اس فہرست میں شامل ہیں لیکن یہاں نہیں دکھائے جا سکتے: '
+      + 'فہرست ایک اسکرین کے لیے بہت لمبی ہے۔',
+  },
   classRemoveField: {
     en: 'Remove from this class',
     ur: 'اس جماعت سے نکالیں',
