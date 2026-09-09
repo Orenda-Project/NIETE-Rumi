@@ -45,8 +45,7 @@ developer changes bot code
 |---|---|---|---|
 | **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/install-hooks.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
 | **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; **hold the turn until the Gherkin is synced and valid, or declared none-needed** (phase 1 — a gate, bounded to 3 holds, `--clear` refuses while open); order the E2E **once** (phase 2) — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
-| **GitHub check** (`.github/workflows/qa-impact.yml`, job `impact`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | drive anything; see a run that was not committed to `runs.jsonl` |
-| **GitHub auto-sync** (same workflow, job `autosync` — bd-2a07j) | the same PRs, when `impact` found a stale spec **and** the repo has the `ANTHROPIC_API_KEY` + `QA_BOT_TOKEN` secrets | run Claude Code on the runner with the repo's own `gherkin-spec-sync` skill, author the `.feature` update, gate it on `validate_specs.py`, commit **only** `tests/features/**` (+ the counts in `niete-e2e.md`) as `qa(spec-sync): …`, push to the PR branch — which re-runs the check. Same-repo PRs only; never authors on top of its own commit; one run per PR at a time; 30-min cap | drive WhatsApp; push to a fork; run without the secrets (it says so in a notice and the PR stays red) |
+| **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
 **History.** The pipeline was "hooks only, no CI" by decision on 2026-09-07. On
 2026-09-09 PRs #835 and #836 changed `bot/shared/services/coaching/**` and reached
@@ -164,23 +163,6 @@ Tests for all of it: `npm run qa:test`.
 | `E2E_AUTORUN_OFF=1` (exported) | Claude Code hooks silent |
 | `E2E_SPEC_SYNC_OFF=1` (exported) | phase 1 (Gherkin sync) skipped, E2E half unchanged |
 | `E2E_AUTORUN_ALL=1` (exported) | arm `/niete-e2e all` instead of the targeted selection (hours) |
-
-## The spec authors itself on the PR (2026-09-09, bd-2a07j)
-
-When the `impact` job finds a stale spec, the `autosync` job in the same workflow does what
-the PR comment asks the developer to do — on the runner. `scripts/qa/spec-autosync.sh` is
-the deterministic half (brief for the PR range · loop guard · validate-then-commit; tests in
-`scripts/qa/test_spec_autosync.sh`), one headless `claude -p "/sync-specs --brief …"` is the
-judgement half. The commit is `qa(spec-sync): sync <feature>.feature to <sha> [auto]`, carries
-`Spec-Sync: <feature>=synced (auto, <sha>)`, and **must be reviewed like code** — it states
-what the change is claimed to do. Two repository secrets are required, added once by an admin:
-
-| Secret | Why |
-|---|---|
-| `ANTHROPIC_API_KEY` | Claude Code on the runner |
-| `QA_BOT_TOKEN` | a fine-grained PAT, `contents: write` on this repo. GitHub does not run workflows for commits pushed with the default `GITHUB_TOKEN`, so without it the authored commit lands but the check never re-runs on it |
-
-Without the secrets the job prints a notice and stops; nothing else changes.
 
 ## Phase 1 is a gate (2026-09-09, bd-zqtgs)
 
