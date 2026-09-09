@@ -42,7 +42,7 @@ developer changes bot code
 | Mechanism | Fires for | Can do | Cannot do |
 |---|---|---|---|
 | **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/install-hooks.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
-| **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | arm on the session's own commits; announce terminal-armed markers at SessionStart; hold the turn **once** per marker until the agent syncs, validates and drives — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
+| **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; hold the turn **once** per marker until the agent syncs, validates and drives — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
 | **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
 **History.** The pipeline was "hooks only, no CI" by decision on 2026-09-07. On
@@ -55,6 +55,14 @@ local setup can skip. The hooks remain the only place authoring and driving can
 happen — the check tells the author what to run, in the PR, where it cannot be missed.
 
 ## Developer setup (once per clone)
+
+**Open Claude Code in the clone — that is enough.** Since 2026-09-09 the SessionStart hook
+(`.claude/hooks/e2e-pending-banner.sh`) installs the git hooks itself when `core.hooksPath` is
+unset, tells the session it did, and warns (with the `--force` command) when a foreign hooksPath
+is in the way. Sessions launched from the parent workspace reach every NIETE checkout under it
+through the workspace's SessionStart shim, so worktrees are covered too.
+
+By hand, for a terminal-only developer:
 
 ```bash
 npm install                          # root — its `prepare` script installs the git hooks
