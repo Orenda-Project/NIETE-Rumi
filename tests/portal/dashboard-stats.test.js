@@ -55,12 +55,18 @@ describe('it returns what she is actually doing', () => {
     expect(block()).toMatch(/from\(['"]coaching_sessions['"]\)/);
   });
 
-  test('a training breakdown, not just a count', () => {
-    // modules completed AND the total available, so "12" can read "12 of 40"
-    // rather than a number with no scale.
+  test('modules completed', () => {
     expect(block()).toMatch(/training/i);
     expect(block()).toMatch(/modulesCompleted/);
-    expect(block()).toMatch(/modulesTotal/);
+  });
+
+  test('NO denominator — she is not expected to finish the catalogue', () => {
+    // A teacher is scoped to certain levels by her programme, and even inside
+    // that scope she is not meant to complete everything (operator,
+    // 2026-09-09). Any total states a target that does not exist and turns
+    // real progress into a visible shortfall. An earlier cut divided by all
+    // 384 active modules, which was wrong twice over.
+    expect(block()).not.toMatch(/modulesTotal/);
   });
 
   test('the training breakdown names the level she is working through', () => {
@@ -75,8 +81,10 @@ describe('it returns what she is actually doing', () => {
   test('every count is scoped to the teacher asking', () => {
     // The whole block: no count may be global. A dashboard that shows someone
     // else's totals is worse than showing none.
+    // Two exact counts now (coaching, assessments) — the training total went
+    // when the denominator did.
     const counts = block().match(/count:\s*['"]exact['"]/g) || [];
-    expect(counts.length).toBeGreaterThanOrEqual(3);
+    expect(counts.length).toBeGreaterThanOrEqual(2);
     // Each supabase chain in here filters on the session user.
     expect(block()).toMatch(/eq\(['"]user_id['"], userId\)/);
   });
@@ -98,7 +106,7 @@ describe('a partial failure still renders a dashboard', () => {
 
   test('a failed training lookup degrades to an empty breakdown, not a 500', () => {
     const block = dashboardBlock();
-    expect(block).toMatch(/modulesCompleted: 0, modulesTotal: 0, currentLevel: null/);
+    expect(block).toMatch(/modulesCompleted: 0, currentLevel: null/);
     expect(block).toMatch(/\.catch\(/);
   });
 });

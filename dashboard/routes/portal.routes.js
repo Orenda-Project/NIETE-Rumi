@@ -846,47 +846,51 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
         .eq('training_modules.is_active', true),
     ]);
 
-    // The training breakdown: how far through, and through WHAT.
+    // The training breakdown: what she has DONE, and where she is up to.
     //
-    // A bare "12 modules" says nothing — 12 of 40 and 12 of 12 are different
-    // facts. So this carries the total and the level she is furthest into,
-    // which is the level her next module is in.
+    // Deliberately NOT "X of Y". An earlier cut showed modules completed over
+    // every active module in the catalogue (384), which was wrong twice over:
+    // a teacher only sees the levels her programme scopes her to, and — the
+    // operator's correction — even within that scope she is not expected to
+    // finish everything. A fraction states a target that does not exist, and
+    // it makes steady progress look like permanent incompleteness.
+    //
+    // So: a count of what she has completed, and the level she is furthest
+    // into. Both are facts about her, neither implies a finish line.
     const training = await (async () => {
-      const empty = { modulesCompleted: 0, modulesTotal: 0, currentLevel: null };
+      const empty = { modulesCompleted: 0, currentLevel: null };
       if (progressResult.status !== 'fulfilled') return empty;
 
       const rows = progressResult.value.data || [];
-      const doneCourseIds = rows
+      if (!rows.length) return empty;
+
+      const doneCourseIds = [...new Set(rows
         .map((r) => r.training_modules && r.training_modules.course_id)
-        .filter(Boolean);
+        .filter(Boolean))];
+      if (!doneCourseIds.length) return { modulesCompleted: rows.length, currentLevel: null };
 
-      const [{ data: allModules }, { data: courses }] = await Promise.all([
-        supabase.from('training_modules').select('id', { count: 'exact' }).eq('is_active', true),
-        doneCourseIds.length
-          ? supabase.from('training_courses').select('id, level_id, order_index').in('id', doneCourseIds)
-          : Promise.resolve({ data: [] }),
-      ]);
+      const { data: courses } = await supabase
+        .from('training_courses')
+        .select('level_id')
+        .in('id', doneCourseIds);
 
-      let currentLevel = null;
       const levelIds = [...new Set((courses || []).map((c) => c.level_id).filter(Boolean))];
-      if (levelIds.length) {
-        // Furthest along = the highest order_index she has touched, which is
-        // the level she is working through rather than the one she started in.
-        const { data: levels } = await supabase
-          .from('training_levels')
-          .select('id, name, order_index')
-          .in('id', levelIds)
-          .order('order_index', { ascending: false })
-          .limit(1);
-        currentLevel = (levels && levels[0] && levels[0].name) || null;
-      }
+      if (!levelIds.length) return { modulesCompleted: rows.length, currentLevel: null };
+
+      // Furthest along = the highest order_index she has touched, which is the
+      // level she is working through rather than the one she started in.
+      const { data: levels } = await supabase
+        .from('training_levels')
+        .select('name, order_index')
+        .in('id', levelIds)
+        .order('order_index', { ascending: false })
+        .limit(1);
 
       return {
         modulesCompleted: rows.length,
-        modulesTotal: (allModules || []).length,
-        currentLevel,
+        currentLevel: (levels && levels[0] && levels[0].name) || null,
       };
-    })().catch(() => ({ modulesCompleted: 0, modulesTotal: 0, currentLevel: null }));
+    })().catch(() => ({ modulesCompleted: 0, currentLevel: null }));
 
     // bd-60079 — the recent-lesson-plans fetch is gone with the card that
     // rendered it. It read `lesson_plans` (her own Gamma output) and the

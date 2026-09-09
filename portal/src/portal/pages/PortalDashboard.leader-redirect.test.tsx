@@ -21,7 +21,7 @@ vi.mock("../services/api", () => ({
       stats: {
         totalCoachingSessions: 0,
         totalAssessments: 0,
-        training: { modulesCompleted: 0, modulesTotal: 0, currentLevel: null },
+        training: { modulesCompleted: 0, currentLevel: null },
       },
       recentCoachingSession: null,
     }),

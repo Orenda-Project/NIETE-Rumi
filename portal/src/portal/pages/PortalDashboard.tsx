@@ -32,7 +32,7 @@ const PortalDashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalCoachingSessions: 0,
     totalAssessments: 0,
-    training: { modulesCompleted: 0, modulesTotal: 0, currentLevel: null },
+    training: { modulesCompleted: 0, currentLevel: null },
   });
   const [recentSession, setRecentSession] = useState<CoachingSession | null>(null);
   const [scoreTrend, setScoreTrend] = useState<Array<{ date: string; score: number; percentage: number }>>([]);
@@ -188,10 +188,12 @@ const PortalDashboard = () => {
           />
           <StatCard
             compact
-            title="Training"
-            // "12" alone says nothing; 12 of 384 is a fact.
-            value={`${stats.training?.modulesCompleted ?? 0}/${stats.training?.modulesTotal ?? 0}`}
-            detail={stats.training?.currentLevel || 'modules completed'}
+            title="Modules completed"
+            // A count, not "X of Y". She is scoped to certain levels and is
+            // not expected to finish all of even those, so a denominator
+            // would invent a target and make progress look like a shortfall.
+            value={stats.training?.modulesCompleted ?? 0}
+            detail={stats.training?.currentLevel || 'training'}
             icon={GraduationCap}
           />
           <StatCard
