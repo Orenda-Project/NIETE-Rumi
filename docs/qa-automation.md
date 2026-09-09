@@ -26,26 +26,33 @@ developer changes bot code
 │ 5. DRIVE              /niete-e2e <features>  against staging, linked WhatsApp Web  │
 │ 6. RECORD             .claude/qa/ledgers/runs.jsonl  (+ results/, gitignored)      │
 └────────────────────────────────────────────────────────────────────────────────────┘
-        │  push to develop / main
+        │  push — any branch
         ▼
    pre-push hook (scripts/qa/impact.py): affected features · spec freshness · E2E proof,
    printed in the terminal — advisory unless QA_HOOKS_STRICT=1
+        │  pull request into sandbox / staging / main
+        ▼
+   .github/workflows/qa-impact.yml: the SAME impact.py, as a PR check + one comment edited
+   in place — a stale spec FAILS the PR unless `Spec-Sync: <feature>=none-needed (<why>)`
+   is declared in a commit or the PR body
 ```
 
-## Two mechanisms, and what each one can and cannot guarantee
+## Three mechanisms, and what each one can and cannot guarantee
 
 | Mechanism | Fires for | Can do | Cannot do |
 |---|---|---|---|
-| **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/install-hooks.sh`) | every commit on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, warn at push time | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
+| **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/install-hooks.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
 | **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | arm on the session's own commits; announce terminal-armed markers at SessionStart; hold the turn **once** per marker until the agent syncs, validates and drives — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
+| **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
-**This pipeline is hooks only, by decision (2026-09-07).** There is no CI counterpart:
-nothing on GitHub inspects a PR for spec freshness or E2E proof. What that means in
-practice is stated plainly under *Known limits* below — a commit made on a machine that
-never installed the hooks, or a PR merged in the GitHub UI, is not seen by anything.
-Authoring Gherkin needs a model following a skill and driving WhatsApp needs a
-human-linked browser, so both happen in the next Claude Code session in the clone; the
-hooks make sure that session is told, and held once, until it does.
+**History.** The pipeline was "hooks only, no CI" by decision on 2026-09-07. On
+2026-09-09 PRs #835 and #836 changed `bot/shared/services/coaching/**` and reached
+`sandbox` with no spec sync and no E2E: the author's clone either had no hooks or the
+hook exited silently, the pre-push report did not cover `sandbox` or feature branches,
+and the GitHub-UI merge touched no hook at all. Nothing anywhere noticed. The decision
+was reversed the same day (bd-c3jx8) and the GitHub check above is the piece that no
+local setup can skip. The hooks remain the only place authoring and driving can
+happen — the check tells the author what to run, in the PR, where it cannot be missed.
 
 ## Developer setup (once per clone)
 
@@ -150,15 +157,19 @@ Tests for all of it: `npm run qa:test`.
 ## Known limits, stated plainly
 
 - A developer who never runs `npm install` at the root and never runs the installer has
-  no git hooks, and nothing else notices their commits. There is no CI layer by decision.
-- A PR merged in the GitHub UI, or a commit made on a machine without the hooks, reaches
-  `develop` with no spec sync and no E2E armed anywhere. If that ever needs closing, the
-  pre-push report in `scripts/qa/impact.py` is already range-based and would run unchanged
-  in a workflow.
+  no git hooks locally. Their commits are still seen — by `qa-impact.yml` on the PR, which
+  fails on a stale spec and names the commands. The hooks now also say so out loud when
+  they cannot run (`python3` missing, selector error → `.claude/.e2e-pending/last-error.log`)
+  instead of exiting 0 in silence.
+- The GitHub check cannot make a run happen. `e2e_proof` is reported in `warn` mode
+  because a run cannot precede the merge it tests; a merged PR with `missing` proof is
+  covered by the scheduled full run (`.claude/qa/SCHEDULE.md`), which must be alive for
+  that to hold — check `bash scripts/qa/niete-e2e-schedule.sh status`.
 - The marker bridge is per clone. A commit made in clone A is announced to a Claude
   session opened in clone A, not in clone B.
-- `runs.jsonl` proof is "a row for this feature was added in the range". It does not yet
-  carry the commit sha the run drove against; a run against an older build still counts.
-  Adding `commit` to the ledger schema is the next tightening.
+- `runs.jsonl` proof is "a row for this feature was added in the range". Since 2026-09-09
+  `ledger.append_run` stamps `commit` (HEAD of the checkout holding the ledger) on every
+  row, so a row CAN be tied to the build it drove — `impact.py` does not yet require the
+  stamped commit to be inside the range; that is the next tightening.
 - The `main` promotion arms the full suite (`/niete-e2e all`, hours) in the session that
   makes it; nothing runs it unattended.
