@@ -18,20 +18,29 @@
 # Off:      QA_HOOKS_OFF=1 git commit …        Quiet: QA_HOOKS_QUIET=1
 [ "${QA_HOOKS_OFF:-}" = "1" ] && exit 0
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-command -v python3 >/dev/null 2>&1 || exit 0
+command -v python3 >/dev/null 2>&1 || { echo "qa: python3 not on PATH — E2E selection skipped for this commit" >&2; exit 0; }
 SEL_BIN="$ROOT/.claude/qa/shared/select_e2e.py"
 SYNC_BIN="$ROOT/.claude/qa/shared/spec_sync.py"
 [ -f "$SEL_BIN" ] && [ -f "$SYNC_BIN" ] || exit 0
 
-SEL=$(python3 "$SEL_BIN" --repo "$ROOT" --json --committed 2>/dev/null) || exit 0
+# A selector failure used to be `2>/dev/null || exit 0`: the commit went through
+# and nothing anywhere said the QA step had not happened. Keep the stderr and
+# say so — one line, never a blocked commit.
+PEND="$ROOT/.claude/.e2e-pending"
+mkdir -p "$PEND" 2>/dev/null
+ERRLOG="$PEND/last-error.log"
+if ! SEL=$(python3 "$SEL_BIN" --repo "$ROOT" --json --committed 2>"$ERRLOG"); then
+  echo "qa: E2E selector failed for this commit — see .claude/.e2e-pending/last-error.log (commit is fine; QA was NOT armed)" >&2
+  exit 0
+fi
+rm -f "$ERRLOG" 2>/dev/null
 [ -n "$SEL" ] || exit 0
 COUNT=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("commands") or []))' 2>/dev/null) || exit 0
 case "$COUNT" in ''|0) exit 0 ;; esac      # docs-only / out of scope: say nothing
 
 SHA=$(git rev-parse --short=12 HEAD 2>/dev/null) || exit 0
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-PEND="$ROOT/.claude/.e2e-pending"
-mkdir -p "$PEND" 2>/dev/null || exit 0
+[ -d "$PEND" ] || exit 0
 MARKER="$PEND/git-$SHA.json"
 SYNC="$PEND/git-$SHA.sync.json"
 rm -f "$SYNC" 2>/dev/null

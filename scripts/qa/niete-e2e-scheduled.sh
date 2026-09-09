@@ -47,6 +47,26 @@ blocked() {                       # write a VISIBLE report instead of an empty d
 
 say "scheduled fire — scope=$SCOPE driver=$DRIVER run=$RUN"
 
+# ── keep the specs current ──────────────────────────────────────────────────
+# The scheduler runs from its OWN clone (one outside ~/Desktop, ~/Documents and
+# ~/Downloads: launchd-spawned processes cannot read those — every fire on
+# 2026-09-09 died with "Operation not permitted" before the first line ran). A
+# dedicated clone nobody edits drifts, so fast-forward it to its upstream first.
+# Best effort: a dirty tree or an offline machine still runs, on what is there.
+# Off: NIETE_E2E_PULL=0
+if [ "${NIETE_E2E_PULL:-1}" != "0" ]; then
+  if [ -z "$(git status --porcelain 2>/dev/null)" ]; then
+    br="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    if git pull -q --ff-only origin "$br" 2>>"$LOG"; then
+      say "specs at $br @ $(git rev-parse --short=12 HEAD)"
+    else
+      say "pull --ff-only failed (offline, or diverged) — running on $br @ $(git rev-parse --short=12 HEAD)"
+    fi
+  else
+    say "working tree not clean — skipping pull, running on $(git rev-parse --short=12 HEAD)"
+  fi
+fi
+
 # ── precondition 1: is a run already in progress? ───────────────────────────
 LOCK_STATUS="$(python3 .claude/qa/shared/driver_lock.py status --driver "$DRIVER" 2>&1)"
 if ! grep -qi "no active driver lock" <<<"$LOCK_STATUS"; then

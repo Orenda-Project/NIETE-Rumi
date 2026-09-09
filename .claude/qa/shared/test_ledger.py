@@ -83,6 +83,48 @@ def test_append_run_rejects_invalid():
         assert not os.path.exists(path)  # nothing written on invalid
 
 
+def _git_repo(tmp):
+    import subprocess
+    subprocess.run(["git", "-C", tmp, "init", "-q"], check=True)
+    subprocess.run(["git", "-C", tmp, "-c", "user.email=t@l", "-c", "user.name=t",
+                    "commit", "-q", "--allow-empty", "-m", "x"], check=True)
+    return subprocess.run(["git", "-C", tmp, "rev-parse", "--short=12", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+
+
+def test_append_run_stamps_the_commit_it_ran_from():
+    """impact.py's proof is 'a row for this feature was added in the range'; without
+    the commit on the row a run against an OLDER build counted. Stamp HEAD of the
+    repo the ledger lives in unless the caller already said which commit."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sha = _git_repo(tmp)
+        path = os.path.join(tmp, ".claude", "qa", "ledgers", "runs.jsonl")
+        ledger.append_run(_valid_run(), path)
+        row = json.loads(open(path).read().splitlines()[0])
+        assert row["commit"] == sha, row
+
+
+def test_append_run_keeps_an_explicit_commit():
+    with tempfile.TemporaryDirectory() as tmp:
+        _git_repo(tmp)
+        path = os.path.join(tmp, "runs.jsonl")
+        r = _valid_run(); r["commit"] = "52f18e65abcd"
+        ledger.append_run(r, path)
+        assert json.loads(open(path).read())["commit"] == "52f18e65abcd"
+
+
+def test_append_run_outside_git_has_no_commit_key():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "runs.jsonl")
+        ledger.append_run(_valid_run(), path)
+        assert "commit" not in json.loads(open(path).read())
+
+
+def test_validate_run_rejects_a_non_string_commit():
+    r = _valid_run(); r["commit"] = 123
+    assert any("commit" in p for p in ledger.validate_run(r))
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
