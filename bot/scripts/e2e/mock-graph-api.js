@@ -153,6 +153,10 @@ function createMockGraphApi(opts = {}) {
     return state.media.get(id);
   };
   const say = (m) => { if (!opts.quiet) console.log(`[mock-graph-api] ${new Date().toISOString().slice(11, 23)} ${m}`); };
+  // A full, structured conversation record (both sides) when MOCK_TRANSCRIPT is set — the mock.log is
+  // truncated and one-sided; this is what a chat viewer renders. One JSON line per message.
+  const TRANSCRIPT = process.env.MOCK_TRANSCRIPT;
+  const tlog = (rec) => { if (!TRANSCRIPT) return; try { fs.appendFileSync(TRANSCRIPT, JSON.stringify({ ts: new Date().toISOString(), ...rec }) + '\n'); } catch (_) { /* never fail a send on a log write */ } };
   // Reactions, read receipts and typing indicators are API calls, not messages: WhatsApp Web shows no
   // row for them and the CDP reader never sees them. They are acknowledged and counted, never queued —
   // the first live run picked a reaction up as "the reply" and M01 read an empty header (2026-09-07).
@@ -167,6 +171,12 @@ function createMockGraphApi(opts = {}) {
   async function inject(body) {
     const from = body.from;
     let payload, mediaId;
+    tlog({ dir: 'in', kind: body.kind,
+      text: body.kind === 'text' ? body.text
+          : (body.kind === 'button' || body.kind === 'list') ? body.title
+          : body.kind === 'flow' ? ('↩ Flow completed' + (body.flowId ? ' (' + body.flowId + ')' : ''))
+          : (body.filename || (body.path ? path.basename(body.path) : body.kind)),
+      id: body.id, title: body.title });
     switch (body.kind) {
       case 'text': payload = sim.simulateMessage(String(body.text), { from }); break;
       case 'button': payload = sim.buttonReply(body.id, body.title, { from }); break;
@@ -268,6 +278,7 @@ function createMockGraphApi(opts = {}) {
           if (/\.pdf$/i.test(norm.media.filename || '') || rec.mime === 'application/pdf') norm.pdf = true;
         }
         state.outbox.push({ seq, id, ts: new Date().toISOString(), to: payload.to, ...norm, raw: payload });
+        tlog({ dir: 'out', seq, type: norm.type, txt: norm.txt, btns: norm.btns, list: norm.list, flow: norm.flow, media: norm.media, pdf: norm.pdf });
         say(`#${seq} ${norm.type} → ${payload.to}: ${JSON.stringify(norm.txt).slice(0, 70)}${norm.btns.length ? ' btns=' + JSON.stringify(norm.btns) : ''}`);
         return json(res, 200, { messaging_product: 'whatsapp', contacts: [{ input: payload.to, wa_id: payload.to }], messages: [{ id }] });
       }

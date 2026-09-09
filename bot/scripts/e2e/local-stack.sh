@@ -128,6 +128,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   ( exec redis-server --port "$redis_port" --save "" --appendonly no --bind 127.0.0.1 --loglevel warning ) >"$run_dir/redis.log" 2>&1 &
   echo $! >"$run_dir/redis.pid"
   ( cd "$src" && PHONE_NUMBER_ID="$phone_id" MOCK_PORT="$mock_port" MOCK_BOT_URL="http://127.0.0.1:$bot_port" \
+      MOCK_TRANSCRIPT="$run_dir/transcript.jsonl" \
       exec node bot/scripts/e2e/mock-graph-api.js ) >"$run_dir/mock.log" 2>&1 &
   echo $! >"$run_dir/mock.pid"
   ( cd "$src" && exec node bot/whatsapp-bot.js ) >"$run_dir/bot.log" 2>&1 &
