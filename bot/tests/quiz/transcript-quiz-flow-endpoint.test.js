@@ -252,7 +252,7 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     stub({ users, coaching_sessions: [session(1)], quizzes: [], quiz_sessions: [] });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
     expect(out.data.actions.length).toBe(2);
-    expect(out.data.actions.map((a) => a.id).sort()).toEqual(['make:en', 'make:ur']);
+    expect(out.data.actions.map((a) => a.id).sort()).toEqual(['make_en', 'make_ur']);
   });
 
   test('an Urdu-medium subject skips the language choice and offers one Make option', async () => {
@@ -262,7 +262,7 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
       quizzes: [], quiz_sessions: [],
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-    expect(out.data.actions.map((a) => a.id)).toEqual(['make:ur']);
+    expect(out.data.actions.map((a) => a.id)).toEqual(['make_ur']);
   });
 
   test('a quiz being made goes straight to its own screen, not a lesson with nothing to tap', async () => {
@@ -337,11 +337,11 @@ describe('the actions run AFTER the response (operator item 3)', () => {
     expect(Handoff.sendHandoff).toHaveBeenCalledWith('q-1', '923001112222', { firstSend: false });
   });
 
-  test('make: claims the lesson and enqueues generation in the language the teacher picked', async () => {
+  test('make_ claims the lesson and enqueues generation in the language the teacher picked', async () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [], quiz_sessions: [] });
 
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: 'make:en', session_id: 's-1', quiz_id: '',
+      step: 'action', action: 'make_en', session_id: 's-1', quiz_id: '',
     });
 
     expect(out.screen).toBe('DONE');
