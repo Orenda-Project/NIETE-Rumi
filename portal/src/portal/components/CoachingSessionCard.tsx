@@ -1,4 +1,4 @@
-import { Clock, TrendingUp, Download, ExternalLink } from 'lucide-react';
+import { Clock, TrendingUp, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { CoachingSession } from '../types/portal';
@@ -38,7 +38,11 @@ const CoachingSessionCard = ({ session }: CoachingSessionCardProps) => {
             </span>
           </div>
         </div>
-        <ScoreIndicator percentage={session.percentage} size="large" />
+        {/* null = not scored yet, which must not render as a zero ring —
+            that is the exact confusion the `|| 0` created. */}
+        {session.percentage != null && (
+          <ScoreIndicator percentage={session.percentage} size="large" />
+        )}
       </div>
 
       <div className="mb-4">
@@ -47,7 +51,16 @@ const CoachingSessionCard = ({ session }: CoachingSessionCardProps) => {
           <span className="text-sm font-medium text-foreground">Overall Score</span>
         </div>
         <div className="text-sm text-muted-foreground">
-          {session.overallScore} / {session.maxScore} points ({session.percentage.toFixed(1)}%)
+          {session.percentage == null || session.maxScore == null ? (
+            'Not scored yet'
+          ) : (
+            <>
+              {session.overallScore} / {session.maxScore} points ({session.percentage.toFixed(1)}%)
+              {session.framework && (
+                <span className="ml-1.5 uppercase text-xs tracking-wide">· {session.framework}</span>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -63,15 +76,11 @@ const CoachingSessionCard = ({ session }: CoachingSessionCardProps) => {
             <span>View Detail</span>
           </Link>
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex-1"
-          onClick={() => {/* TODO: Handle audio download */}}
-        >
-          <Download className="w-4 h-4 mr-2" />
-          <span>Audio</span>
-        </Button>
+        {/* The "Audio" button that used to sit here had an empty handler —
+            `onClick={() => {}}` with a TODO — so it had never done anything.
+            Both recordings are on the detail page now, presigned and named,
+            which is where a player belongs. A control that does nothing is
+            worse than no control. */}
       </div>
     </div>
   );
