@@ -50,12 +50,14 @@ MARKER="$PEND/$SESSION.json"
 # LOUDLY and the PR check (qa-impact.yml) is what catches it. Phase 2 (the E2E)
 # still fires exactly once: a linked browser is a human precondition.
 PHASE1_MAX_BLOCKS="${E2E_PHASE1_MAX_BLOCKS:-3}"
-phase1_open() {   # $1 marker → prints "stale <feats>" or "invalid <validator text>", or nothing
-  local st inv
-  st=$(e2e_phase1_stale "$PROJECT_ROOT" "$1" "$PAYLOAD_CWD")
-  if [ -n "$st" ]; then printf 'stale %s' "$st"; return 0; fi
-  inv=$(e2e_phase1_invalid "$PROJECT_ROOT" "$1" "$PAYLOAD_CWD")
-  [ -n "$inv" ] && printf 'invalid %s' "$inv"
+phase1_open() {   # $1 marker → "invalid <validator text>" | "uncommitted <feats>" | "stale <feats>" | nothing
+  local inv unc st
+  inv=$(e2e_phase1_invalid "$PROJECT_ROOT" "$1" "$PAYLOAD_CWD")        # fix the spec before anything else
+  if [ -n "$inv" ]; then printf 'invalid %s' "$inv"; return 0; fi
+  unc=$(e2e_phase1_uncommitted "$PROJECT_ROOT" "$1" "$PAYLOAD_CWD")    # authored, valid, not committed
+  if [ -n "$unc" ]; then printf 'uncommitted %s' "$unc"; return 0; fi
+  st=$(e2e_phase1_stale "$PROJECT_ROOT" "$1" "$PAYLOAD_CWD")            # untouched
+  [ -n "$st" ] && printf 'stale %s' "$st"
   return 0
 }
 
@@ -119,8 +121,12 @@ if [ "$NUDGED" = "true" ]; then
   TMP="$MARKER.tmp.$$"
   if jq '.phase1_blocks = ((.phase1_blocks // 0) + 1)' "$MARKER" > "$TMP" 2>/dev/null; then mv "$TMP" "$MARKER" 2>/dev/null || rm -f "$TMP"; else rm -f "$TMP"; fi
   N=$((BLOCKS + 1))
+  ARMED_SHA=$(jq -r '.sha // ""' "$MARKER" 2>/dev/null)
+  [ -n "$ARMED_SHA" ] || ARMED_SHA=$(git -C "${PAYLOAD_CWD:-$PROJECT_ROOT}" rev-parse --short=12 HEAD 2>/dev/null)
   if [ "$KIND" = "stale" ]; then
-    WHY="$(for f in $DETAIL; do printf '  %s.feature is byte-identical to when this run was armed\n' "$f"; done)"
+    WHY="$(for f in $DETAIL; do printf '  %s.feature is byte-identical (as committed) to when this run was armed\n' "$f"; done)"
+  elif [ "$KIND" = "uncommitted" ]; then
+    WHY="$(for f in $DETAIL; do printf '  %s.feature is edited and valid but NOT COMMITTED — the PR check reads commits, not your working tree.\n  Commit it now, in its own commit:\n    git add tests/features/whatsapp/niete/%s.feature .claude/commands/niete-e2e.md\n    git commit -m "test(gherkin): sync %s.feature to %s"\n' "$f" "$f" "$f" "${ARMED_SHA:-<sha>}"; done)"
   else
     WHY="  the spec changed but does not pass the validator:
 $(printf '%s' "$DETAIL" | sed 's/^/    /')"
@@ -197,10 +203,13 @@ written for the behaviour you just changed. Author through \`gherkin-test-cases\
   python3 .claude/qa/shared/validate_specs.py --only <features>
 
 Errors mean phase 2 does not run. Never delete a scenario — tag it \`@obsolete\`
-with a reason and report it.
+with a reason and report it. Then COMMIT the spec in its own commit — the PR check
+reads commits, an edit left in the working tree does not count:
+  git add tests/features/whatsapp/niete/<feature>.feature .claude/commands/niete-e2e.md
+  git commit -m "test(gherkin): sync <feature>.feature to <sha>"
 
 THIS PHASE IS A GATE: the turn will be held again (up to $PHASE1_MAX_BLOCKS times) while the
-.feature is unchanged and undeclared, and \`--clear\` refuses. If the change truly
+.feature is uncommitted-or-unchanged and undeclared, and \`--clear\` refuses. If the change truly
 alters nothing a teacher sees, declare it instead of skipping it:
   bash .claude/hooks/e2e-autorun.sh --declare --session $CLEAR_ID '<feature>=none-needed (<why>)'
 

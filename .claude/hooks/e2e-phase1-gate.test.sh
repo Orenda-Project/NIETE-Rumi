@@ -90,13 +90,20 @@ rc=$(bash "$HOOK" --clear --session "$S" --force </dev/null >/dev/null 2>&1; ech
 say "--clear --force is the escape hatch"                "$rc" "0"
 [ -f "$MARKER" ] && bad "--force left the marker" || ok "--force removed it"
 
-echo "phase-1 gate — a changed, VALID spec releases the turn"
+echo "phase-1 gate — a changed, VALID spec must also be COMMITTED before the turn is released"
 arm "feat(menu): second"; stop >/dev/null
 good_edit
-out=$(stop); say "stop after a good edit → silent"       "$out" ""
+out=$(stop); has "edited but uncommitted → still holds"   "$out" '"block"'  yes
+has "…saying it is not committed"                         "$out" "NOT COMMITTED" yes
+has "…with the exact commit to make"                      "$out" "git commit"  yes
+has "…naming the spec file"                               "$out" "menu.feature" yes
 rc=$(bash "$HOOK" --clear --session "$S" </dev/null >/dev/null 2>&1; echo $?)
-say "…and --clear now works"                             "$rc" "0"
-restore_spec
+say "…and --clear still refuses"                          "$rc" "1"
+git -C "$R" add -A >/dev/null; git -C "$R" -c core.hooksPath=/dev/null commit -qm "test(gherkin): sync menu.feature"
+out=$(stop); say "stop after the spec is COMMITTED → silent" "$out" ""
+rc=$(bash "$HOOK" --clear --session "$S" </dev/null >/dev/null 2>&1; echo $?)
+say "…and --clear now works"                              "$rc" "0"
+git -C "$R" reset -q --hard HEAD~1
 
 echo "phase-1 gate — a changed but INVALID spec still blocks, with the validator's words"
 arm "feat(menu): third"; stop >/dev/null

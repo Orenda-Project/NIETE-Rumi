@@ -173,7 +173,9 @@ agent to "clear it either way". Now:
 
 - arming records a **hash of each spec the brief says to author** (`spec_hashes` on the marker,
   both for session commits and terminal commits);
-- at end of turn the Stop hook compares: a spec byte-identical to arming, with no declaration,
+- at end of turn the Stop hook compares **the spec as committed at HEAD** (bd-1p4m6 — the PR
+  check reads commits, so an edit left in the working tree does not count and the hold names
+  the exact `git commit` to make): a spec byte-identical to arming, with no declaration,
   **holds the turn again** — up to `E2E_PHASE1_MAX_BLOCKS` (default 3) times, then lets go with a
   loud stderr line, and the PR check catches it. A changed spec is run through
   `validate_specs.py`; an invalid one holds too, quoting the validator;

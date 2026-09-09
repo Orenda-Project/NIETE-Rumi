@@ -364,28 +364,72 @@ e2e_phase1_declared() {
   printf '%s' "$out"
 }
 
-# e2e_phase1_stale PROJECT_ROOT MARKER CWD → space-separated features whose spec
-# is byte-identical to when the run was armed and which nobody declared. Empty
-# output = phase 1 is satisfied (or the marker predates the gate: no spec_hashes).
-e2e_phase1_stale() {
-  local root="$1" marker="$2" cwd="${3:-}" declared f h p cur out=""
+# e2e_spec_repo PROJECT_ROOT CWD → the git checkout the specs live in ("" if none).
+# Normally PROJECT_ROOT == the clone. Test fixtures sometimes keep specs outside any
+# repo; then the HEAD comparison below falls back to the working tree.
+e2e_spec_repo() {
+  local root="$1" cwd="${2:-}" d
+  for d in "$root" "$cwd"; do
+    [ -n "$d" ] || continue
+    [ -d "$d/tests/features/whatsapp/niete" ] || continue
+    git -C "$d" rev-parse --show-toplevel >/dev/null 2>&1 && { printf '%s' "$d"; return 0; }
+  done
+  printf ''
+}
+
+# e2e_spec_head_hash REPO PATH → sha256 of the spec AS COMMITTED at HEAD ("" if absent)
+e2e_spec_head_hash() {
+  git -C "$1" cat-file -e "HEAD:$2" 2>/dev/null || { printf ''; return 0; }
+  git -C "$1" show "HEAD:$2" 2>/dev/null | shasum -a 256 | cut -d' ' -f1
+}
+
+# e2e_spec_disk_hash PROJECT_ROOT CWD PATH → sha256 of the spec in the working tree
+e2e_spec_disk_hash() {
+  local root="$1" cwd="${2:-}" p="$3"
+  if [ -f "$root/$p" ]; then e2e_spec_hash "$root/$p"
+  elif [ -n "$cwd" ] && [ -f "$cwd/$p" ]; then e2e_spec_hash "$cwd/$p"
+  else printf ''; fi
+}
+
+# _e2e_phase1_scan PROJECT_ROOT MARKER CWD MODE → features per MODE:
+#   stale        the COMMITTED spec (HEAD) is byte-identical to arming — the PR check
+#                reads commits, so this is what "not done" means. Includes specs that
+#                were edited but never committed.
+#   uncommitted  HEAD unchanged but the working tree differs: authored, not committed.
+#   disk-same    working tree identical to arming (nothing to validate).
+# Declared features are skipped in every mode. Outside any git repo, HEAD == disk.
+_e2e_phase1_scan() {
+  local root="$1" marker="$2" cwd="${3:-}" mode="$4" declared repo f h p disk head out=""
   [ -f "$marker" ] || return 0
   [ "$(jq -r '.spec_sync // false' "$marker" 2>/dev/null)" = "true" ] || return 0
   jq -e '.spec_hashes | type == "object" and length > 0' "$marker" >/dev/null 2>&1 || return 0
   declared=" $(e2e_phase1_declared "$marker" "$cwd") "
+  repo=$(e2e_spec_repo "$root" "$cwd")
   while IFS=$'\t' read -r f h p; do
     [ -n "$f" ] || continue
     case "$declared" in *" $f "*|*" * "*) continue ;; esac
     [ -n "$p" ] || p="tests/features/whatsapp/niete/$f.feature"
-    if [ -f "$root/$p" ]; then cur=$(e2e_spec_hash "$root/$p")
-    elif [ -n "$cwd" ] && [ -f "$cwd/$p" ]; then cur=$(e2e_spec_hash "$cwd/$p")
-    else cur=""; fi
-    [ "$cur" = "$h" ] && out="$out $f"
+    disk=$(e2e_spec_disk_hash "$root" "$cwd" "$p")
+    if [ -n "$repo" ]; then head=$(e2e_spec_head_hash "$repo" "$p"); else head="$disk"; fi
+    case "$mode" in
+      stale)       [ "$head" = "$h" ] && out="$out $f" ;;
+      uncommitted) [ "$head" = "$h" ] && [ "$disk" != "$h" ] && out="$out $f" ;;
+      disk-same)   [ "$disk" = "$h" ] && out="$out $f" ;;
+    esac
   done <<EOF2
 $(jq -r '.spec_hashes | to_entries[] | "\(.key)\t\(.value.hash // "")\t\(.value.path // "")"' "$marker" 2>/dev/null)
 EOF2
   printf '%s' "${out# }"
 }
+
+# e2e_phase1_stale PROJECT_ROOT MARKER CWD → features whose COMMITTED spec is still
+# what it was at arming and which nobody declared. Empty = phase 1 satisfied (or the
+# marker predates the gate). "Committed" is the unit because the PR check
+# (qa-impact.yml) judges commits — an edit left in the working tree would pass
+# this gate and then fail the PR (bd-1p4m6).
+e2e_phase1_stale() { _e2e_phase1_scan "$1" "$2" "${3:-}" stale; }
+# e2e_phase1_uncommitted … → the subset that IS edited on disk but not committed.
+e2e_phase1_uncommitted() { _e2e_phase1_scan "$1" "$2" "${3:-}" uncommitted; }
 
 # e2e_phase1_invalid PROJECT_ROOT MARKER CWD → validator output for the specs that
 # DID change but do not pass validate_specs.py; empty when they all pass.
@@ -396,7 +440,8 @@ e2e_phase1_invalid() {
   command -v python3 >/dev/null 2>&1 || return 0
   [ -f "$root/.claude/qa/shared/validate_specs.py" ] || return 0
   declared=" $(e2e_phase1_declared "$marker" "$cwd") "
-  stale=" $(e2e_phase1_stale "$root" "$marker" "$cwd") "
+  # validate what is on disk: anything that differs from arming (committed or not)
+  stale=" $(_e2e_phase1_scan "$root" "$marker" "$cwd" disk-same) "
   for f in $(jq -r '.spec_hashes | keys[]' "$marker" 2>/dev/null); do
     case "$declared" in *" $f "*|*" * "*) continue ;; esac
     case "$stale" in *" $f "*) continue ;; esac

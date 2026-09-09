@@ -43,6 +43,14 @@ Full procedure: [`gherkin-spec-sync`](../skills/gherkin-spec-sync/SKILL.md).
    Exit 1 → do NOT run the suite. Fix, or say phase 2 is skipped and why.
 7. If a scenario count changed, update the counts in
    [`niete-e2e.md`](niete-e2e.md) and re-run `check-all-mode-counts.py`.
+8. **Commit the spec, in its own commit.** The PR check (`qa-impact.yml`) and the
+   Stop-hook gate both judge COMMITS — a `.feature` edited in the working tree does
+   not count, and the gate keeps holding until it is committed:
+   ```bash
+   git add tests/features/whatsapp/niete/<feature>.feature .claude/commands/niete-e2e.md
+   git commit -m "test(gherkin): sync <feature>.feature to <sha-of-the-change>"
+   ```
+   A spec-only commit re-arms nothing to author (`validate-only`), so this never loops.
 
-Report what changed per feature, the validator result, and every `@obsolete` you
-added. Then run phase 2.
+Report what changed per feature, the validator result, the commit, and every
+`@obsolete` you added. Then run phase 2.
