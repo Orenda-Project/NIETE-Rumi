@@ -1460,4 +1460,141 @@ router.post('/lp612/mine', requireInternalKey, lp612Route('mine', async (Browse,
   });
 }));
 
+// ─── training bands, language, capstone ─────────────────────────────────────
+//
+// THE BUG THESE CLOSE. Saving your grades in Teacher Training answered 500:
+//
+//   POST /training/bands
+//   Error: Cannot find module 'dotenv'
+//   Require stack:
+//     /app/bot/shared/config/supabase.js
+//     /app/bot/shared/services/training/band-selection.service.js
+//     /app/dashboard/routes/portal.routes.js
+//
+// Not a missing dependency — `dashboard/package.json` declares dotenv and
+// @supabase/supabase-js and both are installed. Node resolves from the
+// REQUIRING FILE'S directory, so a file under /app/bot/ searches
+// /app/bot/node_modules then /app/node_modules, and never
+// /app/dashboard/node_modules where they live. The portal service builds with
+// `npm install` at the repo ROOT, whose package.json declares four packages
+// and not these; bot/ is never installed on that service at all.
+//
+// This is the same trap `dashboard/services/certificates.service.js` documents
+// in its own docblock — "not a style choice; module resolution forces it" —
+// and the same one the lesson-plan enqueue fell into, where a swallowed
+// require degraded silently for two days.
+//
+// THREE routes were affected, not the one reported: the bands save, the
+// language change, and the capstone (staging-only today, so it would have
+// broken on promotion). All three do a DATABASE WRITE through the bot, which
+// is what drags the Supabase client — and dotenv — into the portal's process.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function bandsRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Bands = require('../services/training/band-selection.service');
+      return await handler(Bands, req, res);
+    } catch (error) {
+      logToFile('❌ Internal bands API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Band lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/training/bands/state
+ * Body { userId } → { success, options, selected, can_change, ... }
+ *
+ * The read half. Pure logic plus one users row — but it is served from here
+ * anyway, so the portal has ONE way to reach bands rather than a read it does
+ * itself and a write it delegates. Two paths to one feature is how they drift.
+ */
+router.post('/training/bands/state', requireInternalKey, bandsRoute('state', async (Bands, req, res) => {
+  const userId = String((req.body || {}).userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const supabase = require('../config/supabase');
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('training_bands, training_bands_updated_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+
+  const gate = Bands.canChangeBands(user || {});
+  return res.json({
+    success: true,
+    options: Bands.BANDS.map((b) => ({ id: b.key, title: b.label })),
+    selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
+    can_change: gate.allowed,
+    is_first_selection: gate.isFirstSelection,
+    hours_remaining: gate.hoursRemaining,
+    notice: gate.allowed
+      ? (gate.isFirstSelection ? null : Bands.changeWarning())
+      : gate.message,
+  });
+}));
+
+/**
+ * POST /api/internal/training/bands/apply
+ * Body { userId, bands } → { success, unchanged, programs } | { ok:false, reason }
+ *
+ * The write. `applyBandSelection` already returns a structured verdict rather
+ * than throwing, so the reason travels intact and the portal can keep mapping
+ * cooldown → 429 exactly as it did.
+ */
+router.post('/training/bands/apply', requireInternalKey, bandsRoute('apply', async (Bands, req, res) => {
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const raw = body.bands;
+  const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const result = await Bands.applyBandSelection(userId, selection);
+
+  // 200 with ok:false — the refusal is an ANSWER about her request (a cooldown,
+  // an empty selection), not a server fault. The portal turns it into the right
+  // status; a 4xx here would be indistinguishable from a broken internal call.
+  return res.json({ success: true, result });
+}));
+
+/**
+ * POST /api/internal/me/language
+ * Body { userId, language } → { success, applied }
+ *
+ * ONE WRITER, and it is `setUserLanguage`. A direct `users.preferred_language`
+ * update from the portal would be a SECOND writer: it sets no lock and
+ * invalidates neither Redis key, so the 24-hour cache keeps serving the old
+ * language and a later classroom recording overwrites her choice. The portal
+ * route says as much in its own comment; this endpoint is what lets it keep
+ * that promise without loading the bot's Supabase client into its process.
+ */
+router.post('/me/language', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const userId = String(body.userId || '').trim();
+    const language = String(body.language || '').trim();
+    if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+    const { isOffered, LANGUAGE_OFFER } = require('../config/languages');
+    // Rejected, not clamped. A clamp would silently store English when she
+    // asked for something else; on an explicit choice she deserves to be told.
+    if (!isOffered(language)) {
+      return res.status(400).json({
+        success: false,
+        error: 'not_offered',
+        offered: LANGUAGE_OFFER,
+      });
+    }
+
+    const { setUserLanguage } = require('../utils/language-cache');
+    const applied = await setUserLanguage(userId, language, true);
+    return res.json({ success: true, applied: applied === true });
+  } catch (error) {
+    logToFile('❌ Internal language API failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not save that language' });
+  }
+});
+
 module.exports = router;
