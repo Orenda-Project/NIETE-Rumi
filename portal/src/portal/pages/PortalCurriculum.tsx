@@ -30,6 +30,7 @@ import api, { portal } from '../services/api';
 import AssessmentGeneratorPanel from '../components/AssessmentGeneratorPanel';
 import AssessmentGeneratorComingSoon from '../components/AssessmentGeneratorComingSoon';
 import AssessmentPapersPanel from '../components/AssessmentPapersPanel';
+import Lp612Panel from '../components/Lp612Panel';
 
 type Grade = { grade: number; subject_count: number };
 type Subject = { subject_key: string; subject: string; rtl: boolean; lesson_count: number };
@@ -197,6 +198,13 @@ const PortalCurriculum = () => {
         <Tabs defaultValue="library" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="library">Lesson Plans</TabsTrigger>
+            {/* A SEPARATE TAB, not a filter on the one beside it. The two lanes are
+                different corpora with different interaction models: grades 1-5 are
+                pre-rendered PDFs you open, grades 6-12 are segments that may have to
+                be WRITTEN first, which takes about three minutes and costs real money.
+                Folding them into one picker would mean a grade dropdown where picking
+                5 versus 6 silently changes what the button does. */}
+            <TabsTrigger value="library612">Grades 6-12</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
           </TabsList>
 
@@ -333,6 +341,10 @@ const PortalCurriculum = () => {
             </div>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="library612">
+            <Lp612Panel />
           </TabsContent>
 
           <TabsContent value="assessment">
