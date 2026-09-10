@@ -103,7 +103,7 @@ describe('defect 1 — a bare Continue must not be a silent no-op', () => {
   test('with exactly one action available, Continue performs it', async () => {
     stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
 
-    const out = await exchange({ step: 'action', session_id: 's-1', action: '' });
+    const out = await exchange({ step: 'action', session_id: 's-1', tq_action: '' });
 
     // The teacher asked for the only thing this lesson offers; give it to them.
     expect(out.screen).toBe('DONE');
@@ -115,7 +115,7 @@ describe('defect 1 — a bare Continue must not be a silent no-op', () => {
     const many = { ...urduSession(), analysis_data: { topic: 'Photosynthesis', subject: 'science' } };
     stub({ users, coaching_sessions: [many], quizzes: [], quiz_sessions: [] });
 
-    const out = await exchange({ step: 'action', session_id: 's-1', action: '' });
+    const out = await exchange({ step: 'action', session_id: 's-1', tq_action: '' });
 
     expect(out.screen).toBe('LESSON');
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
@@ -128,7 +128,7 @@ describe('defect 1 — no early return may be silent', () => {
   test('a lesson that is not the teacher’s own is refused WITH a logged reason', async () => {
     stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
 
-    await exchange({ step: 'action', session_id: 'not-mine', action: 'make_ur' });
+    await exchange({ step: 'action', session_id: 'not-mine', tq_action: 'make_ur' });
 
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
       expect.objectContaining({ reason: 'lesson_not_found' }));
@@ -138,7 +138,7 @@ describe('defect 1 — no early return may be silent', () => {
     stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
 
     // 'report' needs a sent quiz with a share code; this lesson has no quiz.
-    await exchange({ step: 'action', session_id: 's-1', action: 'report' });
+    await exchange({ step: 'action', session_id: 's-1', tq_action: 'report' });
 
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
       expect.objectContaining({ reason: 'action_unavailable', action: 'report' }));
@@ -165,16 +165,16 @@ describe('the arriving payload is recorded, so the next refusal is diagnosable',
   test('a data exchange records the keys it arrived with and the action length', async () => {
     stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
 
-    await exchange({ step: 'action', session_id: 's-1', action: '' });
+    await exchange({ step: 'action', session_id: 's-1', tq_action: '' });
 
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_payload',
-      expect.objectContaining({ step: 'action', keys: 'action,session_id,step', actionLen: 0 }));
+      expect.objectContaining({ step: 'action', keys: 'session_id,step,tq_action', actionLen: 0 }));
   });
 
   test('an action that DID arrive is recorded with its value and length', async () => {
     stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
 
-    await exchange({ step: 'action', session_id: 's-1', action: 'make_ur' });
+    await exchange({ step: 'action', session_id: 's-1', tq_action: 'make_ur' });
 
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_payload',
       expect.objectContaining({ action: 'make_ur', actionLen: 7 }));
@@ -187,5 +187,21 @@ describe('the arriving payload is recorded, so the next refusal is diagnosable',
 
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_payload',
       expect.objectContaining({ keys: 'session_id,step', actionLen: 0 }));
+  });
+});
+
+// The client drops a payload key named `action` (it is the request's own
+// top-level field), so the chooser ships as `tq_action`. The endpoint reads
+// that key; the old name is not read, because it never arrived once.
+describe('the choice arrives as tq_action', () => {
+  test('a submit carrying tq_action performs it', async () => {
+    const many = { ...urduSession(), analysis_data: { topic: 'Photosynthesis', subject: 'science' } };
+    stub({ users, coaching_sessions: [many], quizzes: [], quiz_sessions: [] });
+
+    const out = await exchange({ step: 'action', session_id: 's-1', tq_action: 'make_en' });
+
+    expect(out.screen).toBe('DONE');
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action',
+      expect.objectContaining({ action: 'make_en' }));
   });
 });

@@ -206,7 +206,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "step": "action",
-                    "action": "${form.tq_action}",
+                    "tq_action": "${form.tq_action}",
                     "session_id": "${data.session_id}",
                     "quiz_id": "${data.quiz_id}"
                   }

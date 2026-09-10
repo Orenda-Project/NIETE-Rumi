@@ -476,7 +476,12 @@ async function stepLesson(teacher, screenData) {
 
 async function stepAction(teacher, screenData) {
   const language = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
-  const submitted = String((screenData && screenData.action) || '').trim();
+  // The choice ships as `tq_action`, never `action`: `action` is the request's
+  // own top-level field and the client drops a payload key that collides with
+  // it — on 10 Sep the submit arrived as {step, session_id, quiz_id} with the
+  // choice absent, not empty. quiz-flow and status-flow carry theirs as
+  // `_action` for the same reason.
+  const submitted = String((screenData && screenData.tq_action) || '').trim();
   const loaded = await loadLesson(teacher, screenData && screenData.session_id);
   if (!loaded) {
     logEvent('transcript_quiz.flow_action_refused', {
@@ -607,9 +612,9 @@ async function handleTranscriptQuizDataExchange(flowToken, screen, screenData) {
     step,
     screen: String(screen || ''),
     keys: Object.keys(screenData || {}).sort().join(','),
-    action: safeId(screenData && screenData.action),
-    actionLen: String((screenData && screenData.action) || '').length,
-    actionType: typeof (screenData && screenData.action),
+    action: safeId(screenData && screenData.tq_action),
+    actionLen: String((screenData && screenData.tq_action) || '').length,
+    actionType: typeof (screenData && screenData.tq_action),
   });
   try {
     if (step === 'page') {
