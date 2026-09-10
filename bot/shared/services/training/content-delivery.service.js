@@ -181,7 +181,9 @@ async function findNextModule(userId, courseId) {
     .select('id, course_id, title, video_url, audio_url, source_media_url, order_index')
     .eq('course_id', courseId)
     .eq('is_active', true)
-    .order('order_index', { ascending: true });
+    // bd-u2td8 — id breaks the tie; 28 modules share one order_index.
+    .order('order_index', { ascending: true })
+    .order('id', { ascending: true });
   if (mErr || !modules || modules.length === 0) return null;
 
   const { data: progress } = await supabase
@@ -244,6 +246,7 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
       .eq('course_id', courseIdNum)
       .eq('is_active', true)
       .order('order_index', { ascending: true })
+      .order('id', { ascending: true })   // bd-u2td8 — LIMIT 1 on an unstable sort
       .limit(1)
       .maybeSingle();
     if (!firstMod) {
