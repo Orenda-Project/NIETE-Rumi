@@ -1,91 +1,80 @@
--- bd-u2td8 — restore the module order the import dropped.
+-- bd-u2td8 — give the two courses that have NO module order one.
 --
--- WHAT IS WRONG
---   Six active courses carry duplicate module order_index values, and two carry
---   nothing else — all 14 modules of Beacon House "AI literacy" (course 48) and
---   all 14 of "AI Literacy" (course 53) sit at order_index = 1:
+-- SCOPE, AND WHY IT IS THIS NARROW
+--   Six active courses hold a duplicate module order_index. Only two of them
+--   have no order at all — every module on one value:
 --
---     course  title                                   modules  distinct order_index
---     ------  --------------------------------------  -------  --------------------
---         48  AI literacy                                  14                     1
---         53  AI Literacy                                  14                     1
---         54  CS Foundations                               10                     9
---          5  Literacy 1        (NIETE, Aspiring)           9                     8
---         13  Literacy 1        (NIETE, Emerging)           8                     7
---         50  Conceptual Understanding & Science Proc       7                     6
+--     course  title                    modules  distinct order_index
+--     ------  -----------------------  -------  --------------------
+--         48  AI literacy (BH)              14                     1
+--         53  AI Literacy (BH)              14                     1
 --
---   Every one is module_unlock_logic='chain', so order decides what unlocks.
---   4,158 distinct teachers have progress in one of them.
+--   The other four (5, 13, 50, 54) each carry a real sequence with a single
+--   duplicated pair. An earlier draft of this migration renumbered all six by
+--   source_module_id and would have MOVED 8 of course 13's 8 modules — throwing
+--   away a working order to fix one collision. They are deliberately left alone:
+--   the code change in this PR already makes them deterministic, and resolving
+--   one duplicated pair is a content decision, not a bulk rewrite.
 --
--- WHY A BACKFILL IS POSSIBLE AT ALL
---   The intended order was never lost, only never mapped. source_module_id is
---   NOT NULL and distinct on all 62 modules across the six courses, and it runs
---   in the legacy platform's own sequence (course 48: 1049..1062). So this is
---   mechanical, not a judgement call — which is the only reason it is written as
---   a migration rather than handed to someone to decide.
+-- HOW THE ORDER IS DERIVED, AND HOW FAR TO TRUST IT
+--   By source_module_id, the legacy platform's own key. Courses 48 and 53 run
+--   1049..1062 and 1063..1076, so it produces a clean, plausible progression:
+--   "AI Is a Teaching Assistant", "What is AI", "Model vs Agent", "AI Literacy
+--   Framework"... rather than today's effective id order, which opens on
+--   "AI for Lesson Planning".
 --
---   Note the two orders genuinely differ. By id, course 48 opens with "AI for
---   Lesson Planning" (id 293). By source_module_id it opens with "AI Is a
---   Teaching Assistant" (1049) then "What is AI" (1050), "Model vs Agent",
---   "AI Literacy Framework" — which reads as the authored progression.
+--   Be honest about the strength of that: measured against the 46 courses that
+--   ARE well ordered, source_module_id order agrees with their order_index for
+--   215 of 297 modules — 72%. So it is a good proxy, not the authored sequence.
+--   For these two courses the alternative is no order whatsoever, so 72% is a
+--   clear improvement; for a course that already has one it would not be, which
+--   is the whole reason for the narrow scope above.
 --
--- WHAT THIS DOES
---   Renumbers order_index 1..N per course, ordered by source_module_id, for
---   ACTIVE modules in courses that currently hold a tie. Nothing else is touched.
---
--- WHAT IT DOES NOT DO
---   It does not reorder a course that is already well-ordered, and it does not
---   invent an order for a module with no source_module_id (the guard aborts if
---   one exists rather than silently sorting NULLs).
+--   ⚠️ Worth a content person's eye on the resulting order for 48 and 53 before
+--   this is treated as final. It is defensible, not authoritative.
 --
 -- BLAST RADIUS
---   teacher_training_progress keys on module_id, never on order_index, so no
---   teacher loses completion. What changes is WHICH not-yet-done module the
---   picker marks `next` — for the affected courses that is the point, since
---   today it is whatever the query plan happened to return.
+--   teacher_training_progress keys on module_id, never order_index, so nobody
+--   loses completion. What changes is which not-yet-done module the picker calls
+--   `next` — which today is whatever the query plan returned.
 --
---   Pair it with the code fix in this PR. The code makes the order STABLE; this
---   makes it RIGHT. Either alone is half the repair.
---
--- IDEMPOTENT: re-running is a no-op — the guard aborts once no course has a tie.
+-- IDEMPOTENT: the guard aborts once neither course has a tie.
 
 BEGIN;
 
+-- Courses with a duplicate order_index AND no ordering information at all.
+CREATE TEMP TABLE _targets ON COMMIT DROP AS
+  SELECT course_id
+    FROM training_modules
+   WHERE is_active
+   GROUP BY course_id
+  HAVING count(*) > 1 AND count(DISTINCT order_index) = 1;
+
 -- ------------------------------------------------------------------ 1. guard
 DO $$
-DECLARE tied INT; orphan INT;
+DECLARE n INT; orphan INT;
 BEGIN
-  SELECT count(*) INTO tied FROM (
-    SELECT course_id FROM training_modules WHERE is_active
-    GROUP BY course_id, order_index HAVING count(*) > 1) z;
-  IF tied = 0 THEN
-    RAISE EXCEPTION 'No course has a duplicate module order_index. Nothing to do.';
+  SELECT count(*) INTO n FROM _targets;
+  IF n = 0 THEN
+    RAISE EXCEPTION 'No course has an entirely-unordered module set. Nothing to do.';
   END IF;
 
-  -- Refuse to guess. If any module in an affected course lacks the legacy key,
-  -- a human has to supply the order for that course.
+  -- Refuse to guess rather than silently sorting NULLs to one end.
   SELECT count(*) INTO orphan
-  FROM training_modules m WHERE m.is_active AND m.source_module_id IS NULL
-    AND m.course_id IN (
-      SELECT course_id FROM training_modules WHERE is_active
-      GROUP BY course_id, order_index HAVING count(*) > 1);
+    FROM training_modules m JOIN _targets t ON t.course_id = m.course_id
+   WHERE m.is_active AND m.source_module_id IS NULL;
   IF orphan > 0 THEN
-    RAISE EXCEPTION
-      '% module(s) in an affected course have no source_module_id — order cannot be derived; resolve by hand', orphan;
+    RAISE EXCEPTION '% module(s) have no source_module_id — order cannot be derived', orphan;
   END IF;
 END $$;
 
 -- -------------------------------------------------------------- 2. renumber
-WITH affected AS (
-  SELECT DISTINCT course_id FROM training_modules WHERE is_active
-  GROUP BY course_id, order_index HAVING count(*) > 1
-),
-seq AS (
+WITH seq AS (
   SELECT m.id,
          row_number() OVER (PARTITION BY m.course_id ORDER BY m.source_module_id) AS new_idx
-  FROM training_modules m
-  JOIN affected a ON a.course_id = m.course_id
-  WHERE m.is_active
+    FROM training_modules m
+    JOIN _targets t ON t.course_id = m.course_id
+   WHERE m.is_active
 )
 UPDATE training_modules m
    SET order_index = seq.new_idx
@@ -94,38 +83,35 @@ UPDATE training_modules m
    AND m.order_index IS DISTINCT FROM seq.new_idx;
 
 -- ---------------------------------------------------------- 3. prove it took
--- ADD CONSTRAINT would validate for us, but there is no constraint here yet —
--- so assert explicitly rather than trusting the UPDATE's reasoning.
+-- Scoped to the targets ON PURPOSE. Nine active courses are non-contiguous
+-- today (gaps, not ties) and six of those are none of this migration's business
+-- — an earlier draft asserted contiguity across EVERY active course and would
+-- have aborted itself on unrelated data every single time it ran.
 DO $$
-DECLARE tied INT; gaps INT;
+DECLARE bad INT;
 BEGIN
-  SELECT count(*) INTO tied FROM (
-    SELECT course_id FROM training_modules WHERE is_active
-    GROUP BY course_id, order_index HAVING count(*) > 1) z;
-  IF tied > 0 THEN
-    RAISE EXCEPTION '% course(s) still hold a duplicate order_index — aborting', tied;
-  END IF;
-
-  -- Every active course must now run 1..N with no gap.
-  SELECT count(*) INTO gaps FROM (
-    SELECT course_id FROM training_modules WHERE is_active
-    GROUP BY course_id
-    HAVING min(order_index) <> 1 OR max(order_index) <> count(*)) z;
-  IF gaps > 0 THEN
-    RAISE EXCEPTION '% course(s) are not a contiguous 1..N sequence — aborting', gaps;
+  SELECT count(*) INTO bad FROM (
+    SELECT m.course_id
+      FROM training_modules m JOIN _targets t ON t.course_id = m.course_id
+     WHERE m.is_active
+     GROUP BY m.course_id
+    HAVING count(*) <> count(DISTINCT m.order_index)
+        OR min(m.order_index) <> 1
+        OR max(m.order_index) <> count(*)) z;
+  IF bad > 0 THEN
+    RAISE EXCEPTION '% target course(s) are still not a clean 1..N — aborting', bad;
   END IF;
 END $$;
 
 COMMIT;
 
 -- ----------------------------------------------------------------------------
--- WORTH DOING NEXT, in its own change: the reason levels are clean and modules
--- are not is that training_levels carries UNIQUE (vendor_id, order_index) and
--- training_modules carries no equivalent. Adding
+-- AFTERWARDS, separately: training_levels carries UNIQUE (vendor_id,
+-- order_index) and training_modules carries no equivalent, which is exactly why
+-- levels are clean and modules are not.
 --
 --   CREATE UNIQUE INDEX CONCURRENTLY ux_training_modules_course_order
 --     ON training_modules (course_id, order_index) WHERE is_active;
 --
--- would stop this recurring. Not bundled here: it is a schema change, it needs
--- CONCURRENTLY outside a transaction, and it must not run until this backfill
--- has landed or it will simply fail on the existing ties.
+-- Not bundled: it needs CONCURRENTLY (so, outside a transaction) and it would
+-- fail today against the four courses this migration deliberately does not fix.
