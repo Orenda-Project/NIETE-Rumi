@@ -252,7 +252,7 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     stub({ users, coaching_sessions: [session(1)], quizzes: [], quiz_sessions: [] });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
     expect(out.data.actions.length).toBe(2);
-    expect(out.data.actions.map((a) => a.id).sort()).toEqual(['make:en', 'make:ur']);
+    expect(out.data.actions.map((a) => a.id).sort()).toEqual(['make_en', 'make_ur']);
   });
 
   test('an Urdu-medium subject skips the language choice and offers one Make option', async () => {
@@ -262,18 +262,19 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
       quizzes: [], quiz_sessions: [],
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-    expect(out.data.actions.map((a) => a.id)).toEqual(['make:ur']);
+    expect(out.data.actions.map((a) => a.id)).toEqual(['make_ur']);
   });
 
-  test('a quiz being made shows the status and offers nothing to tap', async () => {
+  test('a quiz being made goes straight to its own screen, not a lesson with nothing to tap', async () => {
     stub({
       users, coaching_sessions: [session(1)],
       quizzes: [{ ...SENT_QUIZ, status: 'generating', meta: {} }], quiz_sessions: [],
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-    expect(out.data.actions).toEqual([]);
-    expect(out.data.actions_visible).toBe(false);
-    expect(out.data.action_required).toBe(false);
+    // It used to serve a LESSON carrying an empty, hidden chooser, which is why
+    // `visible` and `required` had to be data bindings — the same bindings that
+    // left the chooser's value out of the submitted payload in production.
+    expect(out.screen).toBe('DONE');
   });
 
   test('a FAILED quiz offers making it again', async () => {
@@ -312,7 +313,7 @@ describe('the actions run AFTER the response (operator item 3)', () => {
     Report.generate.mockImplementation(() => new Promise((r) => { release = r; }));
 
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: 'report', session_id: 's-1', quiz_id: 'q-1',
+      step: 'action', tq_action: 'report', session_id: 's-1', quiz_id: 'q-1',
     });
 
     expect(out.screen).toBe('DONE');
@@ -328,7 +329,7 @@ describe('the actions run AFTER the response (operator item 3)', () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [] });
 
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: 'link', session_id: 's-1', quiz_id: 'q-1',
+      step: 'action', tq_action: 'link', session_id: 's-1', quiz_id: 'q-1',
     });
 
     expect(out.screen).toBe('DONE');
@@ -336,14 +337,19 @@ describe('the actions run AFTER the response (operator item 3)', () => {
     expect(Handoff.sendHandoff).toHaveBeenCalledWith('q-1', '923001112222', { firstSend: false });
   });
 
-  test('make: claims the lesson and enqueues generation in the language the teacher picked', async () => {
+  test('make_ claims the lesson and enqueues generation in the language the teacher picked', async () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [], quiz_sessions: [] });
 
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: 'make:en', session_id: 's-1', quiz_id: '',
+      step: 'action', tq_action: 'make_en', session_id: 's-1', quiz_id: '',
     });
 
-    expect(out.screen).toBe('DONE');
+    // The chat already says "making it now" (enqueueGenerate sends tqMaking), so
+    // the Flow closes from the endpoint instead of ending on a screen that says
+    // the same thing. SUCCESS is Meta's reserved endpoint-close, not a declared
+    // screen; its params are the flat discriminator the chat side routes on.
+    expect(out.screen).toBe('SUCCESS');
+    expect(out.data.extension_message_response.params).toEqual({ tq_action: 'make', language: 'en' });
     await new Promise((r) => setImmediate(r));
     const insert = writes.find((w) => w.op === 'insert');
     expect(insert).toBeDefined();
@@ -356,7 +362,7 @@ describe('the actions run AFTER the response (operator item 3)', () => {
   test('an action with nothing selected keeps the teacher on LESSON with a message', async () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [] });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: '', session_id: 's-1', quiz_id: 'q-1',
+      step: 'action', tq_action: '', session_id: 's-1', quiz_id: 'q-1',
     });
     expect(out.screen).toBe('LESSON');
     expect(out.data.error_message).toBeTruthy();
@@ -370,7 +376,7 @@ describe('the actions run AFTER the response (operator item 3)', () => {
       quizzes: [{ ...SENT_QUIZ, meta: {} }], quiz_sessions: [],
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: 'report', session_id: 's-1', quiz_id: 'q-1',
+      step: 'action', tq_action: 'report', session_id: 's-1', quiz_id: 'q-1',
     });
     expect(out.screen).toBe('LESSON');
     expect(out.data.error_message).toBeTruthy();
@@ -383,7 +389,7 @@ describe('the actions run AFTER the response (operator item 3)', () => {
       quizzes: [{ ...SENT_QUIZ, teacher_id: OTHER }], quiz_sessions: [],
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: 'link', session_id: 's-1', quiz_id: 'q-1',
+      step: 'action', tq_action: 'link', session_id: 's-1', quiz_id: 'q-1',
     });
     expect(out.data.error_message).toBeTruthy();
     await new Promise((r) => setImmediate(r));
@@ -393,7 +399,7 @@ describe('the actions run AFTER the response (operator item 3)', () => {
   test('the DONE screen is logged as the close of the Flow', async () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [] });
     await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-      step: 'action', action: 'link', session_id: 's-1', quiz_id: 'q-1',
+      step: 'action', tq_action: 'link', session_id: 's-1', quiz_id: 'q-1',
     });
     await new Promise((r) => setImmediate(r));
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action', expect.objectContaining({ action: 'link' }));
@@ -444,7 +450,7 @@ describe('the Flow JSON and the endpoint agree', () => {
       LESSONS: await endpoint.handleTranscriptQuizInit(TOKEN),
       LESSON: await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' }),
       DONE: await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
-        step: 'action', action: 'link', session_id: 's-1', quiz_id: 'q-1',
+        step: 'action', tq_action: 'link', session_id: 's-1', quiz_id: 'q-1',
       }),
     };
     await new Promise((r) => setImmediate(r));
@@ -512,7 +518,7 @@ describe('the Urdu teacher gets the same screens, inside the same caps', () => {
   test('the DONE screen is in Urdu and its footer fits', async () => {
     stub({ users: urUsers, coaching_sessions: [urSession], quizzes: [urQuiz], quiz_sessions: urChildren });
     const out = await endpoint.handleTranscriptQuizDataExchange(UR_TOKEN, 'LESSON', {
-      step: 'action', action: 'report', session_id: 's-1', quiz_id: 'q-ur',
+      step: 'action', tq_action: 'report', session_id: 's-1', quiz_id: 'q-ur',
     });
     expect(out.screen).toBe('DONE');
     expect(out.data.heading).toMatch(/[؀-ۿ]/);
