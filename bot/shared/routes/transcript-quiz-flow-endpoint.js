@@ -411,6 +411,9 @@ function doneScreen(kind, language, meta = {}) {
       heading: resolveUx(head, { language }),
       body: resolveUx(body, { language }),
       close: resolveUx('tqFlowClose', { language }),
+      // Shipped back as tq_action when the Footer completes: an empty completion
+      // is claimed by the attendance rule in flow-type-detector.
+      kind,
     },
   };
 }
@@ -575,7 +578,16 @@ async function stepAction(teacher, screenData) {
     });
     return true;
   });
-  return doneScreen('make', language, { userId: teacher.id, language: chosen });
+  // The chat already says "making it now" (enqueueGenerate sends tqMaking), so
+  // a screen saying it again is the same sentence twice. Close the Flow from
+  // the endpoint instead: SUCCESS is Meta's reserved endpoint-close, not a
+  // declared screen, and its params are the flat discriminator the chat side
+  // routes on (see handleTranscriptQuizFlowCompletion).
+  logEvent('transcript_quiz.flow_closed', { kind: 'make', userId: teacher.id, language: chosen });
+  return {
+    screen: 'SUCCESS',
+    data: { extension_message_response: { params: { tq_action: 'make', language: chosen } } },
+  };
 }
 
 // ---------------------------------------------------------------------------

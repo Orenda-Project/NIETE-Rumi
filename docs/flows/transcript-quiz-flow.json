@@ -238,6 +238,10 @@
         "close": {
           "type": "string",
           "__example__": "Close"
+        },
+        "kind": {
+          "type": "string",
+          "__example__": "report"
         }
       },
       "layout": {
@@ -256,7 +260,9 @@
             "label": "${data.close}",
             "on-click-action": {
               "name": "complete",
-              "payload": {}
+              "payload": {
+                "tq_action": "${data.kind}"
+              }
             }
           }
         ]
