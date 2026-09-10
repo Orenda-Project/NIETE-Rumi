@@ -16,7 +16,7 @@
  * per-teacher record, so the two surfaces agree about what she already has.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BookOpen, ExternalLink, Loader2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
@@ -30,25 +30,49 @@ import api, { portal } from '../services/api';
 import AssessmentGeneratorPanel from '../components/AssessmentGeneratorPanel';
 import AssessmentGeneratorComingSoon from '../components/AssessmentGeneratorComingSoon';
 import AssessmentPapersPanel from '../components/AssessmentPapersPanel';
-import Lp612Panel from '../components/Lp612Panel';
+import MyLesson612Panel from '../components/MyLesson612Panel';
 
-type Grade = { grade: number; subject_count: number };
-type Subject = { subject_key: string; subject: string; rtl: boolean; lesson_count: number };
+/**
+ * ONE GRADE LIST, TWO CORPORA BEHIND IT.
+ *
+ * Grades 1-5 are pre-rendered PDFs in the v8 catalogue; grades 6-12 are segments in the lp612
+ * corpus that may still have to be WRITTEN, which takes about three minutes. A teacher does not
+ * think of those as two products, so the picker does not present them as two — she picks a grade
+ * and the page asks the right service. `lane` is what carries that, resolved once when the grade
+ * list is built rather than re-derived from a number at each call site.
+ */
+type Lane = 'k5' | 'g612';
+type Grade = { grade: number; subject_count?: number; lane: Lane };
+/**
+ * NORMALISED ACROSS BOTH LANES, on the way in.
+ *
+ * The two services answer with different keys — K-5 identifies a subject by `subject_key`
+ * ('math') and a chapter by its NUMBER; 6-12 identifies a subject by its display name
+ * ('Mathematics') and a chapter by `chapter_key`, because one grade+subject can span two books
+ * and both can have a chapter 1. Neither is wrong for its own corpus.
+ *
+ * Rather than teach the picker both dialects — four `lane === ...` branches in the JSX, each a
+ * place to get it wrong — each loader maps its answer into the shape below. `key` is whatever
+ * that lane needs passed back to it, opaque to the UI.
+ */
+type Subject = { key: string; label: string; lesson_count: number };
 type Chapter = {
+  key: string;
   chapter_number: number;
   chapter_title: string;
   pages_label: string | null;
   lesson_count: number;
 };
 type LessonPlan = {
-  lesson_id: string;
-  segment_index: number;
-  lp_type: string;
-  day_label: string | null;
-  section: string | null;
-  topic: string | null;
+  /** K-5: the catalogue lesson_id. 6-12: the segment_id. Opaque to the picker. */
+  id: string;
+  title: string;
   pages_label: string | null;
-  downloaded: boolean;
+  /** K-5 only — the ✓/○ tick, from niete_lp_downloads. */
+  downloaded?: boolean;
+  /** 6-12 only — false means tapping this WRITES it, and that takes ~3 minutes. */
+  ready?: boolean;
+  subtitle: string | null;
 };
 
 const PortalCurriculum = () => {
@@ -77,6 +101,22 @@ const PortalCurriculum = () => {
 
   const [opening, setOpening] = useState(false);
 
+  // 6-12 only: the render she is waiting on, and when it started.
+  // `lessons612RefreshKey` is bumped whenever that list could have changed — she should not
+  // have to reload the page to see the lesson she just asked for.
+  const [lessons612RefreshKey, setLessons612RefreshKey] = useState(0);
+  const [waitingRender, setWaitingRender] = useState<string | null>(null);
+  const [waitingSince, setWaitingSince] = useState<number | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (pollTimer.current) clearTimeout(pollTimer.current); }, []);
+
+  /**
+   * WHICH CORPUS THIS GRADE BELONGS TO — read off the grade list, never inferred from the
+   * number. A `grade <= 5` test would be a second, silent copy of a boundary the two services
+   * already own, and it would answer confidently for a grade that neither of them offers.
+   */
+  const lane: Lane = grades.find((g) => String(g.grade) === selectedGrade)?.lane ?? 'k5';
+
   // ─── Fetch grades on mount ────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -91,8 +131,26 @@ const PortalCurriculum = () => {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await api.get('/curriculum/grades');
-        setGrades(data.grades || []);
+        // BOTH lanes, in one list, ordered 1..12.
+        //
+        // Settled independently: the 6-12 corpus failing to answer must not cost a teacher the
+        // K-5 lessons that are sitting right there (and the reverse). `allSettled` means one
+        // service being down degrades the list rather than emptying it.
+        const [k5, g612] = await Promise.allSettled([
+          api.get('/curriculum/grades'),
+          api.get('/lp612/grades'),
+        ]);
+
+        const merged: Grade[] = [];
+        if (k5.status === 'fulfilled') {
+          for (const g of k5.value.data.grades || []) merged.push({ ...g, lane: 'k5' });
+        }
+        if (g612.status === 'fulfilled') {
+          for (const g of g612.value.data.grades || []) merged.push({ ...g, lane: 'g612' });
+        }
+        if (!merged.length) throw new Error('no grades');
+
+        setGrades(merged.sort((a, b) => a.grade - b.grade));
       } catch {
         toast({ title: 'Could not load grades', variant: 'destructive' });
       } finally {
@@ -109,13 +167,20 @@ const PortalCurriculum = () => {
     (async () => {
       setLoadingSubjects(true);
       try {
-        const { data } = await api.get('/curriculum/subjects', { params: { grade: selectedGrade } });
-        setSubjects(data.subjects || []);
+        const { data } = lane === 'g612'
+          ? await api.get('/lp612/subjects', { params: { grade: selectedGrade } })
+          : await api.get('/curriculum/subjects', { params: { grade: selectedGrade } });
+        setSubjects((data.subjects || []).map((x: Record<string, unknown>) => ({
+          // 6-12 has no subject_key — the display name IS the key it wants back.
+          key: String(x.subject_key ?? x.subject),
+          label: String(x.subject),
+          lesson_count: Number(x.lesson_count ?? 0),
+        })));
       } catch {
         toast({ title: 'Could not load subjects', variant: 'destructive' });
       } finally { setLoadingSubjects(false); }
     })();
-  }, [selectedGrade, toast]);
+  }, [selectedGrade, lane, toast]);
 
   // ─── Subject change → fetch chapters; reset downstream ─────────────────
   useEffect(() => {
@@ -125,15 +190,23 @@ const PortalCurriculum = () => {
     (async () => {
       setLoadingChapters(true);
       try {
-        const { data } = await api.get('/curriculum/chapters', {
-          params: { grade: selectedGrade, subject: selectedSubject },
-        });
-        setChapters(data.chapters || []);
+        const { data } = lane === 'g612'
+          ? await api.get('/lp612/chapters', { params: { grade: selectedGrade, subject: selectedSubject } })
+          : await api.get('/curriculum/chapters', { params: { grade: selectedGrade, subject: selectedSubject } });
+        setChapters((data.chapters || []).map((c: Record<string, unknown>) => ({
+          // K-5 addresses a chapter by number; 6-12 by chapter_key, because one grade+subject
+          // can span two books and both can hold a chapter 1.
+          key: String(c.chapter_key ?? c.chapter_number),
+          chapter_number: Number(c.chapter_number ?? 0),
+          chapter_title: String(c.chapter_title ?? ''),
+          pages_label: (c.pages_label as string) ?? null,
+          lesson_count: Number(c.lesson_count ?? 0),
+        })));
       } catch {
         toast({ title: 'Could not load chapters', variant: 'destructive' });
       } finally { setLoadingChapters(false); }
     })();
-  }, [selectedGrade, selectedSubject, toast]);
+  }, [selectedGrade, selectedSubject, lane, toast]);
 
   // ─── Chapter change → fetch LPs; reset downstream ──────────────────────
   useEffect(() => {
@@ -143,27 +216,49 @@ const PortalCurriculum = () => {
     (async () => {
       setLoadingLps(true);
       try {
+        if (lane === 'g612') {
+          const { data } = await api.get('/lp612/lessons', {
+            params: {
+              grade: selectedGrade, subject: selectedSubject,
+              chapter_key: selectedChapter, lang: 'en',
+            },
+          });
+          setLps((data.lessons || []).map((l: Record<string, unknown>) => ({
+            id: String(l.segment_id),
+            title: String(l.title ?? ''),
+            pages_label: (l.pages_label as string) ?? null,
+            ready: l.ready === true,
+            subtitle: null,
+          })));
+          return;
+        }
         const { data } = await api.get('/curriculum/lps', {
           params: {
             grade: selectedGrade, subject: selectedSubject,
             chapter_number: selectedChapter,
           },
         });
-        setLps(data.lessons || []);
+        setLps((data.lessons || []).map((l: Record<string, unknown>) => ({
+          id: String(l.lesson_id),
+          title: String(l.topic || l.section || `Lesson ${l.segment_index}`),
+          pages_label: (l.pages_label as string) ?? null,
+          downloaded: l.downloaded === true,
+          subtitle: (l.day_label as string) || null,
+        })));
       } catch {
         toast({ title: 'Could not load lesson plans', variant: 'destructive' });
       } finally { setLoadingLps(false); }
     })();
-  }, [selectedGrade, selectedSubject, selectedChapter, toast]);
+  }, [selectedGrade, selectedSubject, selectedChapter, lane, toast]);
 
-  const chosenLp: LessonPlan | undefined = lps.find(lp => lp.lesson_id === selectedLp);
+  const chosenLp: LessonPlan | undefined = lps.find(lp => lp.id === selectedLp);
 
   // ─── Open the lesson's PDF in a new tab (presigned R2 URL) ─────────────
   const openPdf = useCallback(async (kind: 'lesson' | 'answer_key' = 'lesson') => {
     if (!chosenLp) return;
     setOpening(true);
     try {
-      const { data } = await api.get(`/curriculum/lp/${chosenLp.lesson_id}/pdf`, { params: { kind } });
+      const { data } = await api.get(`/curriculum/lp/${chosenLp.id}/pdf`, { params: { kind } });
       if (data.available && data.url) {
         window.open(data.url, '_blank', 'noopener');
       } else {
@@ -176,6 +271,81 @@ const PortalCurriculum = () => {
       toast({ title: 'Could not open this lesson plan', variant: 'destructive' });
     } finally { setOpening(false); }
   }, [chosenLp, toast]);
+
+  /** Open a finished 6-12 render. The link is minted per click — a presigned URL expires. */
+  const open612 = useCallback(async (renderId: string) => {
+    const { data } = await api.get(`/lp612/status/${renderId}`);
+    if (data.state === 'ready' && data.url) {
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+    return false;
+  }, []);
+
+  /**
+   * Poll one 6-12 render to completion, widening the interval as the wait lengthens.
+   *
+   * A three-minute job polled every two seconds is ninety requests for one answer that changes
+   * once. Start responsive so a fast render does not feel slow, then back off.
+   */
+  const poll612 = useCallback((renderId: string, startedAt: number) => {
+    const tick = async () => {
+      try {
+        const { data } = await api.get(`/lp612/status/${renderId}`);
+        if (data.state === 'ready') {
+          setWaitingRender(null); setWaitingSince(null); setOpening(false);
+          setLessons612RefreshKey((k) => k + 1);
+          toast({ title: 'Your lesson plan is ready' });
+          if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+          return;
+        }
+        if (data.state === 'failed') {
+          setWaitingRender(null); setWaitingSince(null); setOpening(false);
+          setLessons612RefreshKey((k) => k + 1);
+          toast({
+            title: 'That lesson could not be written',
+            description: 'Try again — it usually works on a second attempt.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      } catch {
+        // A dropped poll is not a failed render — the job runs on a worker whether or not this
+        // browser can reach us. Keep asking rather than declaring it lost.
+      }
+      const waited = Date.now() - startedAt;
+      pollTimer.current = setTimeout(tick, waited < 30_000 ? 3_000 : waited < 120_000 ? 6_000 : 12_000);
+    };
+    pollTimer.current = setTimeout(tick, 3_000);
+  }, [toast]);
+
+  /** The 6-12 action: open it if it exists, otherwise ask for it to be written. */
+  const request612 = useCallback(async () => {
+    if (!chosenLp) return;
+    setOpening(true);
+    try {
+      const { data } = await api.post('/lp612/request', { segment_id: chosenLp.id, lang: 'en' });
+      if (data.state === 'ready') {
+        await open612(data.renderId);
+        setOpening(false);
+        return;
+      }
+      setWaitingRender(data.renderId);
+      setWaitingSince(Date.now());
+      // Listed as "Writing…" straight away, so leaving the page now still leaves a trail back.
+      setLessons612RefreshKey((k) => k + 1);
+      poll612(data.renderId, Date.now());
+    } catch (err: unknown) {
+      setOpening(false);
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      toast({
+        title: status === 403 ? 'That lesson is not available yet'
+          : status === 404 ? 'That lesson is not in the catalogue'
+            : 'Could not start that lesson',
+        variant: 'destructive',
+      });
+    }
+  }, [chosenLp, open612, poll612, toast]);
 
   if (loadingGrades) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
@@ -198,13 +368,6 @@ const PortalCurriculum = () => {
         <Tabs defaultValue="library" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="library">Lesson Plans</TabsTrigger>
-            {/* A SEPARATE TAB, not a filter on the one beside it. The two lanes are
-                different corpora with different interaction models: grades 1-5 are
-                pre-rendered PDFs you open, grades 6-12 are segments that may have to
-                be WRITTEN first, which takes about three minutes and costs real money.
-                Folding them into one picker would mean a grade dropdown where picking
-                5 versus 6 silently changes what the button does. */}
-            <TabsTrigger value="library612">Grades 6-12</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
           </TabsList>
 
@@ -240,8 +403,8 @@ const PortalCurriculum = () => {
               </SelectTrigger>
               <SelectContent>
                 {subjects.map(s => (
-                  <SelectItem key={s.subject_key} value={s.subject_key}>
-                    {s.subject} <span className="text-muted-foreground text-xs">({s.lesson_count} lessons)</span>
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.label} <span className="text-muted-foreground text-xs">({s.lesson_count} lessons)</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -262,7 +425,7 @@ const PortalCurriculum = () => {
               </SelectTrigger>
               <SelectContent>
                 {chapters.map(c => (
-                  <SelectItem key={c.chapter_number} value={String(c.chapter_number)}>
+                  <SelectItem key={c.key} value={c.key}>
                     <span className="font-medium">Ch {c.chapter_number}: {c.chapter_title}</span>
                     <span className="text-muted-foreground text-xs ml-2">
                       {c.pages_label ? `· ${c.pages_label} ` : ''}· {c.lesson_count} lessons
@@ -287,14 +450,17 @@ const PortalCurriculum = () => {
               </SelectTrigger>
               <SelectContent>
                 {lps.map(lp => (
-                  <SelectItem key={lp.lesson_id} value={lp.lesson_id}>
-                    {/* The same ✓/○ the WhatsApp picker shows, from the same record. */}
-                    <span className="mr-1">{lp.downloaded ? '✓' : '○'}</span>
-                    <span className="font-medium">{lp.day_label || `Lesson ${lp.segment_index}`}:</span>{' '}
-                    <span>{lp.topic || lp.section}</span>
-                    {lp.pages_label && (
-                      <span className="text-muted-foreground text-xs ml-2">· {lp.pages_label}</span>
-                    )}
+                  <SelectItem key={lp.id} value={lp.id}>
+                    {/* K-5: the same ✓/○ the WhatsApp picker shows, from the same record.
+                        6-12: no tick — the useful fact is whether it has been WRITTEN, which
+                        is said on the right, because tapping an unwritten one costs 3 minutes. */}
+                    {lane === 'k5' && <span className="mr-1">{lp.downloaded ? '✓' : '○'}</span>}
+                    {lp.subtitle && <span className="font-medium">{lp.subtitle}: </span>}
+                    <span>{lp.title}</span>
+                    <span className="text-muted-foreground text-xs ml-2">
+                      {lp.pages_label ? `· ${lp.pages_label}` : ''}
+                      {lane === 'g612' ? (lp.ready ? ' · ready now' : ' · takes ~3 min') : ''}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -308,43 +474,79 @@ const PortalCurriculum = () => {
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  {[chosenLp.day_label, chosenLp.section, chosenLp.pages_label]
-                    .filter(Boolean).join(' · ')}
+                  {[chosenLp.subtitle, chosenLp.pages_label].filter(Boolean).join(' · ')}
                 </div>
-                <h2 className="text-xl font-medium">{chosenLp.topic || chosenLp.section}</h2>
+                <h2 className="text-xl font-medium">{chosenLp.title}</h2>
               </div>
-              {chosenLp.downloaded && (
+              {lane === 'k5' && chosenLp.downloaded && (
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
                   ✓ already sent to you
                 </span>
               )}
             </div>
 
-            {/* Every lesson the picker offers has a rendered PDF — that is what
-                being offered means. The answer key is a separate asset and is
-                not present for every lesson, so its button is only useful once
-                tapped; the endpoint answers "not ready" rather than failing. */}
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => openPdf('lesson')} disabled={opening} className="flex items-center gap-2">
-                {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-                Open lesson plan
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => openPdf('answer_key')}
-                disabled={opening}
-                className="flex items-center gap-2"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Answer key
-              </Button>
-            </div>
+            {/* K-5: every lesson the picker offers has a rendered PDF — that is what
+                being offered means. The answer key is a separate asset and is not
+                present for every lesson, so its button is only useful once tapped;
+                the endpoint answers "not ready" rather than failing. */}
+            {lane === 'k5' && (
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => openPdf('lesson')} disabled={opening} className="flex items-center gap-2">
+                  {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                  Open lesson plan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => openPdf('answer_key')}
+                  disabled={opening}
+                  className="flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Answer key
+                </Button>
+              </div>
+            )}
+
+            {/* 6-12: the same slot, a different promise. About 92% of this corpus has
+                not been written yet, so the button says which of the two things it is
+                about to do, and the three-minute cost is stated BEFORE she commits —
+                never discovered afterwards. */}
+            {lane === 'g612' && (
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button onClick={request612} disabled={opening || !!waitingRender} className="flex items-center gap-2">
+                    {(opening || waitingRender)
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <ExternalLink className="w-4 h-4" />}
+                    {chosenLp.ready ? 'Open lesson plan' : 'Write this lesson plan'}
+                  </Button>
+                  {!chosenLp.ready && !waitingRender && (
+                    <span className="text-sm text-muted-foreground">
+                      Not written yet — this takes about 3 minutes.
+                    </span>
+                  )}
+                </div>
+
+                {waitingSince && (
+                  <div className="rounded-lg border bg-muted/40 p-4 mt-4">
+                    <div className="flex items-center gap-2 font-medium">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Writing your lesson plan…
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      About three minutes. Keep this page open and it will open by itself
+                      when it is done.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
-          </TabsContent>
 
-          <TabsContent value="library612">
-            <Lp612Panel />
+        {/* The landing place for a three-minute wait. Hidden entirely until she has asked for
+            a 6-12 lesson, so a teacher who only ever uses grades 1-5 never sees it. */}
+        <MyLesson612Panel refreshKey={lessons612RefreshKey} />
           </TabsContent>
 
           <TabsContent value="assessment">
