@@ -16,11 +16,18 @@ name: CI
 # green: the snapshot in `tests/baseline.snapshot.json` was recorded on Node 22
 # locally, and a CI environment can surface small deltas in the repo-auditing
 # guards under `tests/setup/`. Re-record with `npm run test:baseline:update` if so.
+# BRANCH LIST — keep it in step with the branch model or the gate silently stops
+# guarding. For a `pull_request`, GitHub reads this file from the BASE branch and
+# matches the filter against the base branch NAME. `staging` was never added when
+# the model changed to sandbox -> staging -> main, so `lint` and `test` simply did
+# not run on a promotion PR — and `lint` is a REQUIRED check on staging, so those
+# PRs sat BLOCKED for ever on a check that could never report. A required check
+# that never fires is worse than no check: it reads as caution and delivers none.
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging, sandbox, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, staging, sandbox, develop]
   workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
 jobs:
