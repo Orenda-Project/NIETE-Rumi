@@ -439,6 +439,15 @@ function runAfterResponse(action, quizId, fn) {
 // steps
 // ---------------------------------------------------------------------------
 
+/** An id as it arrived, safe to log: server-minted ids are short and plain, so
+ *  anything else is reported by shape rather than echoed into the log. */
+function safeId(v) {
+  if (v === undefined) return '(absent)';
+  if (typeof v !== 'string') return `(${typeof v})`;
+  if (v === '') return '(empty)';
+  return /^[A-Za-z0-9_:.-]{1,40}$/.test(v) ? v : `(unexpected:${v.length}ch)`;
+}
+
 async function stepLesson(teacher, screenData) {
   const language = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
   const loaded = await loadLesson(teacher, screenData && screenData.session_id);
@@ -587,6 +596,21 @@ async function handleTranscriptQuizDataExchange(flowToken, screen, screenData) {
     return lessonsScreen(null, 1, { error_message: resolveUx('tqFlowErrNotYours', { language }) });
   }
   const step = String((screenData && screenData.step) || '');
+  // Three separate theories about the dead /quiz action have now been wrong,
+  // each argued from what the client OUGHT to send. Nothing here has ever
+  // recorded what it DID send, so the question that settles it — does `action`
+  // arrive absent, empty, or under another key? — was unanswerable from the
+  // logs. Keys and lengths only: every value in this payload is a server-minted
+  // id, and none of it is the teacher's own text.
+  logEvent('transcript_quiz.flow_payload', {
+    userId: teacher.id,
+    step,
+    screen: String(screen || ''),
+    keys: Object.keys(screenData || {}).sort().join(','),
+    action: safeId(screenData && screenData.action),
+    actionLen: String((screenData && screenData.action) || '').length,
+    actionType: typeof (screenData && screenData.action),
+  });
   try {
     if (step === 'page') {
       const page = Number(screenData.page) || 1;

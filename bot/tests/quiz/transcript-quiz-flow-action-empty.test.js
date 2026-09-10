@@ -154,3 +154,38 @@ describe('an action id has to survive the round trip', () => {
     for (const a of out.data.actions) expect(a.id).toMatch(/^[A-Za-z0-9_]+$/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Three theories about this bug have now been wrong, every one of them argued
+// from what the client OUGHT to send rather than from what it does. Nothing in
+// this endpoint has ever recorded the shape of an arriving payload, so the one
+// question that settles it — does `action` arrive absent, empty, or under some
+// other key? — has never been answerable from the logs. It is now.
+describe('the arriving payload is recorded, so the next refusal is diagnosable', () => {
+  test('a data exchange records the keys it arrived with and the action length', async () => {
+    stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
+
+    await exchange({ step: 'action', session_id: 's-1', action: '' });
+
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_payload',
+      expect.objectContaining({ step: 'action', keys: 'action,session_id,step', actionLen: 0 }));
+  });
+
+  test('an action that DID arrive is recorded with its value and length', async () => {
+    stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
+
+    await exchange({ step: 'action', session_id: 's-1', action: 'make_ur' });
+
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_payload',
+      expect.objectContaining({ action: 'make_ur', actionLen: 7 }));
+  });
+
+  test('a payload whose action key is missing entirely is distinguishable from an empty one', async () => {
+    stub({ users, coaching_sessions: [urduSession()], quizzes: [], quiz_sessions: [] });
+
+    await exchange({ step: 'action', session_id: 's-1' });
+
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_payload',
+      expect.objectContaining({ keys: 'session_id,step', actionLen: 0 }));
+  });
+});
