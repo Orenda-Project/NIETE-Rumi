@@ -1,7 +1,7 @@
 # Running the NIETE E2E suite on a schedule
 
 **Installed:** `com.rumi.niete-e2e` — a macOS LaunchAgent firing at **00:00, 02:00 … 22:00 local**,
-scope `all`, driver = the number linked in the driving Chrome (`NIETE_E2E_DRIVER`, required), target = the default profile in `whatsapp-targets.yaml` — **sandbox** since 2026-09-09.
+scope `auto`, driver = the number linked in the driving Chrome (`NIETE_E2E_DRIVER`, required), target = the default profile in `whatsapp-targets.yaml` — **sandbox** since 2026-09-09.
 
 ```bash
 bash scripts/qa/niete-e2e-schedule.sh status      # loaded? last fires?
@@ -65,6 +65,35 @@ If you move the linked session to a different Chrome, set `NIETE_E2E_CDP_PORTS` 
 probe (default `9223 9222 9229`). A committed copy of the config lives at
 `.claude/qa/config/mcp-scheduled.json` for reference; the runner generates its own per fire so the
 port is always the one it just verified.
+
+## What a fire decides to drive (`auto`, the default since 2026-09-10, bd-dzyl6)
+
+`all` drove 101 scenarios — about 3h15m — every two hours no matter what had changed. Most of
+that re-drove features nothing had touched, and one pass outlasts the cadence, so roughly every
+other fire stepped aside on the driver lock and the guard below was doing most of the work.
+
+`auto` asks the same question the commit hook asks — which features did the diff touch — over the
+window since the last run that was actually **recorded**:
+
+| Situation | What the fire does |
+|---|---|
+| Ledger has a `commit` anchor and features changed | drives just those features |
+| Nothing bot-facing changed since that anchor | declines, appends a line to `_scheduler/declined.log`, exits 0 |
+| No anchor yet, or the anchor is not a commit here | falls back to `all` — never guesses |
+| `NIETE_E2E_SCOPE=all` | the full suite, unchanged |
+| `NIETE_E2E_SCOPE="menu status"` | that list, ledger not consulted |
+
+The anchor is the `commit` field stamped on every runs.jsonl row since #838, so this needs no new
+state. Inspect what a fire would drive without starting one:
+
+```bash
+NIETE_E2E_DRIVER=<digits> bash scripts/qa/niete-e2e-scheduled.sh --resolve-scope
+```
+
+**The trade this makes.** A targeted fire never exercises a feature nobody touched, so
+cross-feature regressions are no longer caught by the two-hourly cadence. If that matters, run one
+`all` pass on a slower schedule (a second LaunchAgent at 00:00 with `NIETE_E2E_SCOPE=all`), rather
+than putting the whole suite back on every fire. Tests: `scripts/qa/test_niete_e2e_schedule.sh`.
 
 ## Changing cadence or scope
 
