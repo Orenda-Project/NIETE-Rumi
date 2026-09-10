@@ -9,15 +9,83 @@
 > | **WhatsApp (staging)** | `+92 322 2482222` (Meta App `4509630046027431`, added 2026-08-03) |
 > | **Env** | `NIETE-Rumi/.env` for prod; staging creds in project-root `01_Digital Coach Docs/03_ACCESS_CREDENTIALS.md` |
 > | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
-> | **Staging URLs** | portal `https://portal-production-24e6.up.railway.app` · bot `https://bot-production-67c2.up.railway.app` — Railway project **NIETE-Rumi Staging** (`0aef0655`), env `staging`, tracking `develop`. The `-production-` in those hostnames is Railway's default naming, NOT an environment: **prod** is `portal.niete.edu.pk` / `portal-production-6a508` / `bot-production-2cb6`. Read them with `railway status --json` (each service carries its deployed branch + commit) and `railway variables --service portal`. Not knowing this cost two rounds of "is it deployed yet?" against the wrong host. |
-> | **Branches (Gitflow)** | `main` → prod · `develop` → staging · feature branches → PR into `develop`. **No cherry-picking** — staging must promote to prod via `develop → main` PR only. |
-> | **Deploys** | Git push ONLY. Railway auto-deploys `develop`→staging and `main`→prod. Deploying by CLI upload is FORBIDDEN and blocked by `.claude/hooks/block-railway-up.sh` — it uploads the local working tree, so it can put unreviewed code on prod and records no commit, which makes "what is prod running?" unanswerable. |
+> | **Branches** | **`sandbox` → `staging` → `main`.** Three branches, one direction, no skipping. See the ladder below. `develop` is **RETIRED** — do not branch from it or merge to it. |
+> | **Deploys** | Git push ONLY, and **TWO Railway projects** (see the ladder). Deploying by CLI upload is FORBIDDEN and blocked by `.claude/hooks/block-railway-up.sh` — it uploads the local working tree, so it can put unreviewed code on prod and records no commit, which makes "what is prod running?" unanswerable. |
 > | **Status** | 🟢 LIVE — Feature #1 (LP via UGLP) proven E2E, other features being ported |
 >
 > **NOT the same as:**
 > - `rumi-platform/` — upstream open-source template, no WhatsApp number
 > - `02_Main Rumi Bot/` — production Rumi PK (+92 329 5012345), different codebase
 > - `taleemabad-core/` — Django source app (read-only migration source)
+
+---
+
+## 🪜 The release ladder — `sandbox` → `staging` → `main`
+
+**Three branches, one direction. Nothing skips a rung.** We cannot test this
+reliably on a laptop — it is a WhatsApp app, so a real Meta number and a real
+webhook are part of the system under test. The ladder is what replaces local
+testing.
+
+| Rung | Branch | Railway project | Env | What it is |
+|---|---|---|---|---|
+| 1 | **`sandbox`** | `NIETE-Rumi Staging` (`0aef0655`) | `sandbox` | **Where everyone pushes and tries things.** Explicitly NOT guaranteed stable — that is the point. Break it, fix it, move on. |
+| 2 | **`staging`** | `NIETE-Rumi Staging` (`0aef0655`) | `staging` | The rehearsal. You get here **by PR** once you are happy on sandbox, and you test it again here. |
+| 3 | **`main`** | `NIETE-Rumi` (`bcc5a6a9`) | `production` | **Production.** "main" and "production" are interchangeable words for this rung. Reached **by PR** from `staging`. |
+
+**Two Railway projects, and this is the trap.** Sandbox and staging live in
+`NIETE-Rumi Staging`; production is a **separate project**, `NIETE-Rumi`. The
+CLI links to one project at a time, so **before reading logs or variables you
+must link the right one** — otherwise you are confidently inspecting the wrong
+system:
+
+```bash
+railway link --project "NIETE-Rumi Staging" --environment sandbox   # rung 1
+railway link --project "NIETE-Rumi Staging" --environment staging   # rung 2
+railway link --project "NIETE-Rumi"                                 # rung 3 (production)
+
+railway status --json      # every service, with the BRANCH and COMMIT it deployed
+```
+
+`railway status --json` is the only honest answer to "is my change live?" — each
+service reports the branch and commit it actually deployed. Do not infer it from
+a merge, and do not infer it from a URL.
+
+### Hostnames lie — read them, never guess them
+
+Railway's default hostnames carry `-production-` regardless of environment:
+
+| | portal | bot |
+|---|---|---|
+| **sandbox** | `portal-sandbox.up.railway.app` | `bot-sandbox.up.railway.app` |
+| **staging** | `portal-production-24e6.up.railway.app` | `bot-production-67c2.up.railway.app` |
+| **production** | `portal.niete.edu.pk` | `bot-production-2cb6.up.railway.app` |
+
+Two of those staging hosts say "production" and are not. On 2026-09-09 that cost
+two rounds of "is it deployed yet?" against the wrong host, and a deploy was
+reported as verified when it had never happened. Get the host from
+`railway variables --service <svc> --environment <env> | grep RAILWAY_PUBLIC_DOMAIN`.
+
+### Promotion rules
+
+- **`sandbox` needs no ask.** It is the sandbox. Push, break, iterate.
+- **`sandbox` → `staging` is a PR**, opened once you are happy with it on sandbox.
+- **`staging` → `main` is a PR** and needs an **explicit per-action "go"** from
+  the operator, right before the merge. Approval of the plan is not approval of
+  the promotion.
+- **Run the tests on the destination branch after the merge**, not only on the
+  feature branch — the merge itself can break what the branch alone never showed.
+
+### `develop` is retired
+
+`develop` was the staging branch until 2026-09-09, when it was merged into
+`sandbox` ("the catch-up before develop is locked") and taken out of service.
+**Do not branch from it, merge to it, or read deploy state off it.** The Railway
+`staging` services track the branch literally named `staging`, which at the time
+of retirement was **1,152 commits behind `develop`** — so anything still assuming
+`develop → staging` will report a deploy that never happened.
+
+---
 >
 > **Sanity check**: `head -1 CLAUDE.md` in this dir should show "NIETE-Rumi". Any WhatsApp E2E from this project uses NIETE's `PHONE_NUMBER_ID`.
 
