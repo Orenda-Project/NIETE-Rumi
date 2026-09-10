@@ -65,6 +65,14 @@ function detectFlowType(responseJson) {
   //     bare user id today, so it would not match — but that is exactly what was
   //     true of the exam-generator and observe flows before their token formats
   //     changed and the fallback ate them.
+  // Transcript quiz (/quiz): the endpoint closes the Flow with tq_action=make,
+  // and DONE's Footer completes with tq_action=<kind>. Before the attendance
+  // fallback, which claims any payload that is only a flow_token — a Done tap
+  // was logged as attendance_marking on 10 Sep.
+  if (responseJson.tq_action !== undefined) {
+    return 'transcript_quiz';
+  }
+
   if (responseJson.status_action !== undefined) {
     return 'status';
   }

@@ -344,7 +344,12 @@ describe('the actions run AFTER the response (operator item 3)', () => {
       step: 'action', tq_action: 'make_en', session_id: 's-1', quiz_id: '',
     });
 
-    expect(out.screen).toBe('DONE');
+    // The chat already says "making it now" (enqueueGenerate sends tqMaking), so
+    // the Flow closes from the endpoint instead of ending on a screen that says
+    // the same thing. SUCCESS is Meta's reserved endpoint-close, not a declared
+    // screen; its params are the flat discriminator the chat side routes on.
+    expect(out.screen).toBe('SUCCESS');
+    expect(out.data.extension_message_response.params).toEqual({ tq_action: 'make', language: 'en' });
     await new Promise((r) => setImmediate(r));
     const insert = writes.find((w) => w.op === 'insert');
     expect(insert).toBeDefined();

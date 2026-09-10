@@ -106,7 +106,7 @@ describe('defect 1 — a bare Continue must not be a silent no-op', () => {
     const out = await exchange({ step: 'action', session_id: 's-1', tq_action: '' });
 
     // The teacher asked for the only thing this lesson offers; give it to them.
-    expect(out.screen).toBe('DONE');
+    expect(out.screen).toBe('SUCCESS'); // a make closes the Flow from the endpoint
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action',
       expect.objectContaining({ action: expect.stringMatching(/^make_/) }));
   });
@@ -200,8 +200,24 @@ describe('the choice arrives as tq_action', () => {
 
     const out = await exchange({ step: 'action', session_id: 's-1', tq_action: 'make_en' });
 
-    expect(out.screen).toBe('DONE');
+    expect(out.screen).toBe('SUCCESS'); // a make closes the Flow from the endpoint
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action',
       expect.objectContaining({ action: 'make_en' }));
+  });
+});
+
+// A terminal screen's Done tap completes with an EMPTY payload today, and the
+// detector's attendance rule swallows any payload that is only a flow_token: the
+// operator's Done tap on 10 Sep was logged as flowType=attendance_marking. The
+// DONE screen therefore carries its kind, and the Footer ships it as tq_action.
+describe('the DONE screen carries what it is closing', () => {
+  test('a lesson with nothing to tap closes on DONE with kind=wait', async () => {
+    const making = { id: 'q-1', teacher_id: TEACHER, coaching_session_id: 's-1', status: 'generating', quiz_source: 'transcript', meta: {} };
+    stub({ users, coaching_sessions: [urduSession()], quizzes: [making], quiz_sessions: [] });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+
+    expect(out.screen).toBe('DONE');
+    expect(out.data.kind).toBe('wait');
   });
 });
