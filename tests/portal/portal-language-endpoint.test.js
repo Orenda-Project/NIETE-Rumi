@@ -76,20 +76,47 @@ describe('PUT /me/language — the switcher becomes a real mutator', () => {
     expect(block).toMatch(/requirePortalAuth/);
   });
 
+  /**
+   * bd-60085 — THE WRITER IS UNCHANGED; THE TRANSPORT IS NOT.
+   *
+   * This route used to `require('bot/shared/utils/language-cache')` in-process. That module
+   * reaches bot/shared/config/supabase.js and its `require('dotenv')`, which the portal service
+   * cannot resolve from inside bot/: Node searches /app/bot/node_modules then /app/node_modules
+   * and never /app/dashboard/node_modules where dotenv is. The identical shape 500'd
+   * POST /training/bands the first time a teacher pressed save; this route had simply not been
+   * exercised yet.
+   *
+   * So the call goes over the internal API. `setUserLanguage` is STILL the only writer — that
+   * is in fact why it goes to the bot rather than doing the update locally — so the three
+   * assertions below now check the same invariant one hop away.
+   */
+  const INTERNAL = fs.readFileSync(
+    path.join(__dirname, '../../bot/shared/routes/internal-api.routes.js'), 'utf8');
+  const internalBlock = INTERNAL.slice(
+    INTERNAL.indexOf("router.post('/me/language'"),
+    INTERNAL.indexOf('module.exports = router'),
+  );
+
   it('writes through the ONE writer, not a direct column update', () => {
-    // The whole point. setUserLanguage validates against the offer, sets the lock
-    // and invalidates BOTH Redis keys. A direct .update({ preferred_language })
-    // here would recreate Phase 1's defect in a second service.
-    expect(block).toMatch(/setUserLanguage\s*\(/);
+    // The whole point, and it survives the move: setUserLanguage validates against the offer,
+    // sets the lock and invalidates BOTH Redis keys. A direct .update({ preferred_language })
+    // on either side would recreate Phase 1's defect in a second service.
+    expect(internalBlock).toMatch(/setUserLanguage\s*\(/);
+    expect(internalBlock).not.toMatch(/preferred_language\s*:/);
     expect(block).not.toMatch(/preferred_language\s*:/);
+    // The portal reaches it through the client, and holds no writer of its own.
+    expect(block).toMatch(/TrainingBands\.setLanguage/);
   });
 
   it('locks the choice, because a portal switch is an explicit choice', () => {
-    expect(block).toMatch(/setUserLanguage\s*\([^)]*true/);
+    expect(internalBlock).toMatch(/setUserLanguage\s*\([^)]*true/);
   });
 
   it('rejects a language outside the offer rather than storing it', () => {
-    expect(block).toMatch(/isOffered|clampLanguage/);
+    // Enforced at the endpoint, before the writer is reached — and the portal still surfaces
+    // the refusal rather than turning it into a 500.
+    expect(internalBlock).toMatch(/isOffered/);
+    expect(block).toMatch(/rejected/);
   });
 
   it('surfaces a writer rejection instead of reporting success', () => {
@@ -100,8 +127,15 @@ describe('PUT /me/language — the switcher becomes a real mutator', () => {
 });
 
 describe('the writer is imported from the bot, not reimplemented', () => {
-  it('requires language-cache from bot/shared', () => {
-    expect(CODE).toMatch(/require\([^)]*bot\/shared\/utils\/language-cache[^)]*\)/);
+  it('reaches language-cache through the bot, not through an in-process require', () => {
+    // bd-60085. The in-process require is what broke; the internal endpoint is what replaced
+    // it. Both halves asserted, so neither can quietly come back.
+    expect(CODE).not.toMatch(/require\([^)]*bot\/shared\/utils\/language-cache[^)]*\)/);
+    expect(CODE).toMatch(/require\('\.\.\/services\/training-bands\.service'\)/);
+
+    const INTERNAL_SRC = fs.readFileSync(
+      path.join(__dirname, '../../bot/shared/routes/internal-api.routes.js'), 'utf8');
+    expect(INTERNAL_SRC).toMatch(/require\('\.\.\/utils\/language-cache'\)/);
   });
 
   it('does not define its own language write helper', () => {

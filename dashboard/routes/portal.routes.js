@@ -29,12 +29,14 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const supabase = require('../config/supabase');
-const {
-  applyBandSelection,
-  canChangeBands,
-  changeWarning,
-  BANDS,
-} = require('../../bot/shared/services/training/band-selection.service');
+// bd-60085 — bands go over the internal API, NOT by requiring the bot in-process.
+//
+// This was `require('../../bot/shared/services/training/band-selection.service')`, and saving
+// grades answered 500: that module reaches bot/shared/config/supabase.js, whose `require('dotenv')`
+// resolves from /app/bot/node_modules then /app/node_modules and never /app/dashboard/node_modules
+// where dotenv actually is. The portal service installs only the ROOT package.json, which does
+// not carry it, and never installs bot/ at all. Same trap certificates.service.js documents.
+const TrainingBands = require('../services/training-bands.service');
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { generatePresignedUrl, generatePresignedUrls, isValidR2Url } = require('../services/r2.service');
 const axios = require('axios');
@@ -1866,26 +1868,10 @@ async function _computeLevelStates(userId, levels) {
  */
 router.get('/training/bands', requirePortalAuth, async (req, res) => {
   try {
-    const userId = req.session.portalUserId;
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('training_bands, training_bands_updated_at')
-      .eq('id', userId)
-      .single();
-    if (error) throw error;
-
-    const gate = canChangeBands(user || {});
-    return res.json({
-      success: true,
-      options: BANDS.map(b => ({ id: b.key, title: b.label })),
-      selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
-      can_change: gate.allowed,
-      is_first_selection: gate.isFirstSelection,
-      hours_remaining: gate.hoursRemaining,
-      // Shown before saving when there is something to lose; a first-ever
-      // choice carries no warning.
-      notice: gate.allowed ? (gate.isFirstSelection ? null : changeWarning()) : gate.message,
-    });
+    // Everything — the options, the selection, the cooldown gate and the warning copy — comes
+    // from the bot. The portal supplies only who is asking.
+    const state = await TrainingBands.getBands(req.session.portalUserId);
+    return res.json({ success: true, ...state });
   } catch (e) {
     console.error('Portal GET /training/bands error:', e);
     return res.status(500).json({ success: false, error: 'Could not load your grades.' });
@@ -1905,7 +1891,7 @@ router.post('/training/bands', requirePortalAuth, async (req, res) => {
     const raw = req.body && req.body.bands;
     const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
 
-    const result = await applyBandSelection(userId, selection);
+    const result = await TrainingBands.applyBands(userId, selection);
     if (!result.ok) {
       // 429 for the cooldown (a retry later succeeds), 400 for a bad selection.
       const status = result.reason === 'cooldown' ? 429
@@ -5368,23 +5354,27 @@ router.get('/me/language', requirePortalAuth, async (req, res) => {
  */
 router.put('/me/language', requirePortalAuth, async (req, res) => {
   try {
-    const { setUserLanguage } = require('../../bot/shared/utils/language-cache');
-    const { isOffered, LANGUAGE_OFFER } = require('../../bot/shared/config/languages');
-
+    // bd-60085 — over the internal API, not by requiring language-cache in-process. That module
+    // reaches bot/shared/config/supabase.js and its `require('dotenv')`, which the portal
+    // service cannot resolve from inside bot/ (see training-bands.service.js). The route looked
+    // fine and would have 500'd the first time a teacher changed her language.
+    //
+    // The "one writer" promise above is UNCHANGED and is in fact why this goes to the bot:
+    // setUserLanguage is still the only thing that writes the column, sets the lock and
+    // invalidates both Redis keys.
     const requested = (req.body && req.body.language) || '';
+    const out = await TrainingBands.setLanguage(req.session.portalUserId, requested);
 
-    // Rejected, not clamped. A clamp would silently store English when she asked
-    // for something else; on an explicit choice she deserves to be told.
-    if (!isOffered(requested)) {
+    // Rejected, not clamped. A clamp would silently store English when she asked for something
+    // else; on an explicit choice she deserves to be told — and told what IS on offer.
+    if (out.rejected) {
       return res.status(400).json({
         success: false,
         error: 'That language is not available.',
-        offered: LANGUAGE_OFFER,
+        offered: out.offered || [],
       });
     }
-
-    const ok = await setUserLanguage(req.session.portalUserId, requested, true);
-    if (!ok) {
+    if (!out.applied) {
       return res.status(500).json({ success: false, error: 'Could not save your language.' });
     }
 
