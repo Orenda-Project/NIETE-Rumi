@@ -28,10 +28,27 @@ const fs = require('fs');
 const VENDOR = path.join(__dirname, '..', '..', 'bot', 'vendor', 'lp-v9');
 
 describe('one column width, one definition', () => {
-  test('the renderer exports its full-width drawing box, and it is 729px', () => {
+  test('the renderer exports its full-width drawing box, DERIVED from the page', () => {
+    // This assertion used to read `expect(T.FULL_COL).toBe(729)`. 729 was never the invariant —
+    // it was A4's value for it, and v9.3 lays out on a 520px page where the same derivation gives
+    // 455 (bd-oak77.16). Pinning the NUMBER would have made this suite fail for the one reason it
+    // exists to allow: the column moving in ONE place and every gate following it.
     const T = require(path.join(VENDOR, 'lib', 'template.js'));
-    expect(T.FULL_COL).toBe(794 - 21 * 2 - (10 * 2 + 3));
-    expect(T.FULL_COL).toBe(729);
+    expect(T.FULL_COL).toBe(T.PAGE.w - T.PAGE.padX * 2 - T.FIG_CHROME);
+    expect(T.FULL_COL_A4).toBe(794 - 21 * 2 - (10 * 2 + 3));   // 729, still true of A4
+    expect(T.FULL_COL_A4).toBe(729);
+  });
+
+  test('the FLOOR is exported and derived too — the other half of the same trap', () => {
+    // bd-oak77.16: lint imported the COLUMN while hardcoding the 13.5px FLOOR. Under v9.3 that
+    // pairing is a 455px box judged against an A4 floor — 159 blocking FIGURE failures across 101
+    // of the 116 lessons production has delivered, against today's 8. A figure's labels scale with
+    // ITS COLUMN, so the floor is scaled by FULL_COL and not by the page width (padX and
+    // FIG_CHROME are absolute pixels and did not shrink), which reproduces today's set exactly.
+    const T = require(path.join(VENDOR, 'lib', 'template.js'));
+    expect(T.DIAGRAM_MIN_PX_A4).toBe(13.5);
+    expect(T.DIAGRAM_MIN_PX).toBeCloseTo(T.DIAGRAM_MIN_PX_A4 * (T.FULL_COL / T.FULL_COL_A4), 2);
+    expect(T.DIAGRAM_MIN_PX).not.toBe(T.pageScaled(T.DIAGRAM_MIN_PX_A4));
   });
 
   test('lint_lp.js does not recompute it', () => {
@@ -42,6 +59,10 @@ describe('one column width, one definition', () => {
       .replace(/\/\/[^\n]*/g, '');
     expect(src).not.toMatch(/794\s*-\s*2[12]\s*\*\s*2/);
     expect(src).toMatch(/FULL_COL/);
+    // and it does not restate the FLOOR either (bd-oak77.16)
+    expect(src).toMatch(/DIAGRAM_MIN_PX/);
+    expect(src).not.toMatch(/minPx:\s*13\.5/);
+    expect(src).not.toMatch(/renderedPx\s*<\s*13\.5/);
   });
 
   test('no stale 727 survives in the CODE of either file', () => {
