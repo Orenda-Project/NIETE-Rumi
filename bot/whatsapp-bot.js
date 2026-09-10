@@ -1909,6 +1909,15 @@ app.post('/webhook', async (req, res) => {
         } catch (ackErr) {
           logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
         }
+      } else if (flowType === 'transcript_quiz') {
+        // /quiz. Every ending already sent its own chat message (tqMaking, the
+        // report, the resent link), so this only logs. Without it a completion
+        // fell to the attendance rule or the generic "/menu" arm below.
+        try {
+          await FlowResponseHandler.handleTranscriptQuizFlowCompletion(responseJson, from);
+        } catch (tqAckErr) {
+          logToFile('❌ transcript quiz completion handler failed', { from, error: tqAckErr.message }, 'error');
+        }
       } else {
         // Unknown flow type
         logToFile('⚠️ Received unknown flow submission', {

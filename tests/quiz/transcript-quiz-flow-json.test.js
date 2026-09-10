@@ -220,3 +220,16 @@ describe('no data_exchange payload uses a request-level field name as a key', ()
     expect(lesson.keys).toContain('tq_action');
   });
 });
+
+// DONE's completion must carry a discriminator, or the chat side cannot tell it
+// from an attendance completion (see tests/quiz/transcript-quiz-completion.test.js).
+describe('DONE completes with its kind', () => {
+  const flow = JSON.parse(fs.readFileSync(FLOW_PATH, 'utf8'));
+  const done = flow.screens.find((s) => s.id === 'DONE');
+  test('declares kind and ships it as tq_action in the complete payload', () => {
+    expect(done.data.kind).toMatchObject({ type: 'string' });
+    const footer = done.layout.children.find((c) => c.type === 'Footer');
+    expect(footer['on-click-action'].name).toBe('complete');
+    expect(footer['on-click-action'].payload).toEqual({ tq_action: '${data.kind}' });
+  });
+});
