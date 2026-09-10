@@ -309,14 +309,51 @@ async function routeTextAnswer(phoneNumber, text) {
     .from('users').select('id, first_name').eq('phone_number', phoneNumber).maybeSingle();
   if (!user) return false;
 
-  const { data: attempt } = await supabase
+  // bd-5tn5d — NOT .maybeSingle(). A teacher can legitimately hold one open
+  // capstone PER SUBJECT: ux_taa_one_active_per_quiz is UNIQUE (user_id,
+  // grand_quiz_id) WHERE status='in_progress', and Beacon House has four. A
+  // single-row read over two rows is a PGRST116 ERROR, not a truncation — and
+  // the error was never destructured, so `attempt` came back null, this
+  // returned false, and the handler passed her answer on to ordinary chat.
+  // She got a lesson-plan reply instead of a score and the answer was lost;
+  // `cancel` below was equally unreachable. 11 teachers on production, 28
+  // attempts, growing by about one teacher every two days.
+  //
+  // Most-recently-active wins: that is the paper she is actually sitting.
+  // Whether a second capstone should be openable AT ALL is a separate
+  // question the 2026-08-02 migration deliberately deferred; this only makes
+  // sure that whatever is open, an answer lands and cancel works.
+  const { data: openAttempts, error: attemptErr } = await supabase
     .from('training_assessment_attempts')
     .select('id, user_id, level_id, grand_quiz_id, program_id, current_question_index, total_questions, total_score, status')
     .eq('user_id', user.id)
     .eq('quiz_kind', KIND_CAPSTONE)
     .eq('status', 'in_progress')
-    .maybeSingle();
+    .order('last_activity_at', { ascending: false })
+    // Total order, not just a sort key. last_activity_at is NOT NULL DEFAULT
+    // now() and no two of a teacher's open attempts share a timestamp today
+    // (closest spread on production: 5m39s) — but "no ties in the data right
+    // now" is not a guarantee, and a tie here would make WHICH paper receives
+    // her answer non-deterministic. Same defect this codebase already carries
+    // in module sequencing, where 28 modules share one order_index and the
+    // "next" module is whatever the plan happens to return.
+    .order('id', { ascending: false })
+    .limit(2);
+  if (attemptErr) {
+    logToFile('❌ Capstone attempt lookup failed — answer not routed', {
+      userId: user.id, error: attemptErr.message,
+    }, 'error');
+    return false;
+  }
+  const attempt = openAttempts?.[0];
   if (!attempt) return false;
+  if (openAttempts.length > 1) {
+    // Visible on purpose: this condition grew silently for nine days because
+    // nothing counted it.
+    logToFile('⚠️ Teacher holds more than one open capstone — routing to the most recent', {
+      userId: user.id, routedTo: attempt.id, levelId: attempt.level_id,
+    }, 'warn');
+  }
 
   if (trimmed.toLowerCase() === 'cancel') {
     await supabase.from('training_assessment_attempts')
