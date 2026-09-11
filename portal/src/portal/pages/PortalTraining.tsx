@@ -39,6 +39,7 @@ import { classifyTrainingLoadError, EMPTY_MODULES_MESSAGE } from '../lib/trainin
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
@@ -264,6 +265,8 @@ const PortalTraining = () => {
   // the fetch below: it separates "you have nothing assigned" (a real answer
   // worth explaining) from "we could not ask" (never claim the former).
   const [levelsLoaded, setLevelsLoaded] = useState(false);
+  // Collapsed by default — see the edit-bands block below.
+  const [editingBands, setEditingBands] = useState(false);
 
   const [loadingVendors, setLoadingVendors] = useState(true);
   const [loadingLevels, setLoadingLevels] = useState(true);
@@ -502,7 +505,8 @@ const PortalTraining = () => {
             <h1 className="text-3xl sm:text-4xl font-light">Teacher Training</h1>
           </div>
           <p className="text-muted-foreground">
-            Browse your training levels, courses, and modules. Levels unlock as you pass each grand quiz on WhatsApp.
+            Browse your training levels, courses, and modules. Take your quizzes and level exams here or on
+            WhatsApp — your progress is the same either way, and each level unlocks when you pass its exam.
           </p>
         </div>
 
@@ -510,6 +514,38 @@ const PortalTraining = () => {
             lazy — it fetches nothing until the button is pressed, so it costs
             the page nothing on load. */}
         <CertificatesPanel />
+
+        {/* Teachers who ALREADY have training need this too. The BandPicker below
+            only renders when levels.length === 0, so before this there was no way
+            to correct a wrong band on the portal — the bot had the entry point and
+            the portal did not. Collapsed by default: it is a correction, not a
+            thing to trip over on every visit. The 48-hour cooldown and the
+            disabled state are the SERVER's call; BandPicker renders whatever
+            GET /training/bands returns. */}
+        {levelsLoaded && !loadingLevels && levels.length > 0 && (
+          <div className="mb-6" data-testid="training-edit-bands">
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="training-edit-bands-toggle"
+              aria-expanded={editingBands}
+              onClick={() => setEditingBands(v => !v)}
+              className="text-primary"
+            >
+              <GraduationCap className="w-4 h-4 mr-2" />
+              Edit Teacher Level
+            </Button>
+            {editingBands && (
+              <div className="mt-2 rounded-lg border border-border bg-muted/40 p-4 sm:p-6">
+                <BandPicker
+                  heading="Edit Teacher Level"
+                  saveLabel="Save changes"
+                  onSaved={() => { setEditingBands(false); refreshLevels(); }}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* bd-43487 — nothing assigned. Say so, and offer the fix.
             Gated on levelsLoaded so a failed request never renders as a claim
@@ -654,7 +690,9 @@ const PortalTraining = () => {
           </div>
         </div>
 
-        {/* BH written capstone record (taken on WhatsApp) — bd-2233 */}
+        {/* Written-capstone record for a previous attempt — bd-2233. The exam
+            itself is now sat in LevelExamCard below (bd-2673); this card is the
+            read-only history of an attempt already marked, on either surface. */}
         {selectedLevelObj && (selectedLevelObj.unlock_logic || 'chain') !== 'chain' && (
           <CapstoneResultCard
             key={`cap-${selectedLevelObj.id}`}
