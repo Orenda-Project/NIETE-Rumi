@@ -283,6 +283,109 @@ router.post('/training/module-quiz-verdict', requireInternalKey, async (req, res
   }
 });
 
+/**
+ * POST /api/internal/training/exam-verdict
+ * Body { levelId, score, totalQuestions } -> { success, is_passed, status, pass_pct, achieved_pct }
+ *
+ * bd-2673 — the level-exam twin of module-quiz-verdict. The portal used to read
+ * training_vendors.passing_pct itself and do the percentage comparison inline,
+ * defaulting to a hardcoded 100. bd-2393 had already fixed that same line once.
+ */
+router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
+  const levelId = num((req.body || {}).levelId);
+  const score = num((req.body || {}).score);
+  const totalQuestions = num((req.body || {}).totalQuestions);
+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });
+  if (score === null) return res.status(400).json({ success: false, error: 'score is required' });
+  if (totalQuestions === null) return res.status(400).json({ success: false, error: 'totalQuestions is required' });
+
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const verdict = await QuizDelivery.decideExamPass(levelId, score, totalQuestions);
+    return res.json({ success: true, ...verdict });
+  } catch (error) {
+    // Fail CLOSED: never let a lookup failure read as a pass.
+    logToFile('❌ Internal training API failed', { route: 'exam-verdict', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Grading lookup failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/mark-paper
+ * Body { questions:[{id, correct_option, order_index}], answers:[{question_id, chosen_option}] }
+ *   → { success, graded, score, total_questions, has_unknown_question, has_duplicate_answer }
+ *
+ * bd-2673 — "which answer is correct" used to exist three times: inline in
+ * quiz-delivery.service.js and twice in the portal's route file (once for the
+ * module quiz, once for the level exam). All three agreed by coincidence, and
+ * the portal's comment claimed "identical comparator to the WhatsApp writer" —
+ * the same claim the four rules listed at the top of this section were making
+ * while they drifted.
+ *
+ * Pure arithmetic over the body: no DB read, no session, no identity. The PASS
+ * decision is deliberately NOT here — that needs the vendor's bar and lives in
+ * module-quiz-verdict / the exam gate. Marking is arithmetic, passing is policy.
+ */
+router.post('/training/mark-paper', requireInternalKey, async (req, res) => {
+  const { questions, answers } = req.body || {};
+  if (!Array.isArray(questions)) return res.status(400).json({ success: false, error: 'questions[] is required' });
+  if (!Array.isArray(answers)) return res.status(400).json({ success: false, error: 'answers[] is required' });
+
+  try {
+    const { markPaper } = require('../services/training/paper-marking.service');
+    return res.json({ success: true, ...markPaper({ questions, answers }) });
+  } catch (error) {
+    // Fail CLOSED: an unmarked paper must never read as a scored one.
+    logToFile('❌ Internal training API failed', { route: 'mark-paper', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Marking failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/serve-paper
+ * Body { questions:[...], attemptId, isModuleQuiz, vendor:{module_quiz_strategy,
+ *        exam_question_cap, shuffle_options} }
+ *   → { success, questions: [{ id, display_order }], total_served }
+ *
+ * Which questions this attempt gets, and in which option order. Both surfaces
+ * must serve the SAME paper: the caption has to quote the served count rather
+ * than the bank size, and a shuffled option order has to be stable for the
+ * attempt or a teacher's stored canonical index stops meaning what they tapped.
+ *
+ * Deterministic — seeded on attemptId — so asking twice for the same attempt
+ * returns the same paper. That is what makes it safe to call from a stateless
+ * portal request.
+ */
+router.post('/training/serve-paper', requireInternalKey, async (req, res) => {
+  const { questions, attemptId, isModuleQuiz, vendor } = req.body || {};
+  if (!Array.isArray(questions)) return res.status(400).json({ success: false, error: 'questions[] is required' });
+  if (!attemptId) return res.status(400).json({ success: false, error: 'attemptId is required' });
+
+  try {
+    const Serving = require('../services/training/quiz-serving.service');
+    const config = Serving.normalizeServingConfig(vendor || null);
+    const served = Serving.selectServedQuestions(questions, {
+      attemptId,
+      isModuleQuiz: isModuleQuiz === true,
+      config,
+    });
+    const out = served.map((q) => ({
+      id: q.id,
+      display_order: Serving.buildOptionDisplayOrder({
+        optionCount: Array.isArray(q.options) ? q.options.length : 0,
+        correctOption: q.correct_option,
+        attemptId,
+        questionId: q.id,
+        shuffle: config.shuffle_options,
+      }),
+    }));
+    return res.json({ success: true, questions: out, total_served: out.length });
+  } catch (error) {
+    logToFile('❌ Internal training API failed', { route: 'serve-paper', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Serving failed' });
+  }
+});
+
 /* ------------------------------------------------------------------------- *
  * Certificates — the bot owns them, the portal asks.
  *
@@ -340,13 +443,17 @@ router.post('/training/certificates', requireInternalKey, async (req, res) => {
 
 /**
  * POST /api/internal/training/certificate-pdf
- * Body { userId, certificateCode }
+ * Body { userId, certificateCode, disposition? }
  *   → 200 { success, certificate_code, level_name, teacher_name, issued_at,
  *           pdf_r2_key, download_url, minted }
- *   → 400 missing userId/certificateCode
+ *   → 400 missing userId/certificateCode, or an unknown disposition
  *   → 401 bad key
  *   → 404 no such certificate FOR THIS USER
  *   → 502 render/upload/presign failed
+ *
+ * `disposition` (bd-2676) is 'attachment' (default, saves the file) or 'inline'
+ * (renders it). The portal asks for inline behind its View button and attachment
+ * behind Download; omitting it preserves the original save-the-file behaviour.
  *
  * Fetch-or-mint. `minted` tells the caller whether this request paid for a
  * render, which is worth having in the logs while the legacy backlog drains.
@@ -358,13 +465,19 @@ router.post('/training/certificates', requireInternalKey, async (req, res) => {
  * the portal turns a failure here into a certificate that still lists.
  */
 router.post('/training/certificate-pdf', requireInternalKey, async (req, res) => {
-  const { userId, certificateCode } = req.body || {};
+  const { userId, certificateCode, disposition } = req.body || {};
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (!certificateCode) return res.status(400).json({ success: false, error: 'certificateCode is required' });
 
   try {
     const supabase = require('../config/supabase');
-    const result = await certificateService().fetchOrMintCertificatePdf(supabase, { userId, certificateCode });
+    const result = await certificateService().fetchOrMintCertificatePdf(supabase, {
+      userId,
+      certificateCode,
+      // Omitted → the service's 'attachment' default. Passing undefined through
+      // rather than defaulting here keeps ONE definition of the default.
+      ...(disposition ? { disposition } : {}),
+    });
     if (result.minted) {
       logToFile('🏆 Certificate PDF minted via internal API', { userId, certificateCode });
     }
@@ -730,6 +843,77 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   const hit = await Browse.lessonPdfUrl(lessonId, assetKind);
   if (!hit) return res.json({ success: true, available: false });
   return res.json({ success: true, available: true, ...hit });
+}));
+
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function bandsRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Bands = require('../services/training/band-selection.service');
+      return await handler(Bands, req, res);
+    } catch (error) {
+      logToFile('❌ Internal bands API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Band lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/training/bands/state
+ * Body { userId } → { success, options, selected, can_change, ... }
+ *
+ * The read half. Pure logic plus one users row — but it is served from here
+ * anyway, so the portal has ONE way to reach bands rather than a read it does
+ * itself and a write it delegates. Two paths to one feature is how they drift.
+ */
+router.post('/training/bands/state', requireInternalKey, bandsRoute('state', async (Bands, req, res) => {
+  const userId = String((req.body || {}).userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const supabase = require('../config/supabase');
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('training_bands, training_bands_updated_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+
+  const gate = Bands.canChangeBands(user || {});
+  return res.json({
+    success: true,
+    options: Bands.BANDS.map((b) => ({ id: b.key, title: b.label })),
+    selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
+    can_change: gate.allowed,
+    is_first_selection: gate.isFirstSelection,
+    hours_remaining: gate.hoursRemaining,
+    notice: gate.allowed
+      ? (gate.isFirstSelection ? null : Bands.changeWarning())
+      : gate.message,
+  });
+}));
+
+/**
+ * POST /api/internal/training/bands/apply
+ * Body { userId, bands } → { success, unchanged, programs } | { ok:false, reason }
+ *
+ * The write. `applyBandSelection` already returns a structured verdict rather
+ * than throwing, so the reason travels intact and the portal can keep mapping
+ * cooldown → 429 exactly as it did.
+ */
+router.post('/training/bands/apply', requireInternalKey, bandsRoute('apply', async (Bands, req, res) => {
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const raw = body.bands;
+  const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const result = await Bands.applyBandSelection(userId, selection);
+
+  // 200 with ok:false — the refusal is an ANSWER about her request (a cooldown,
+  // an empty selection), not a server fault. The portal turns it into the right
+  // status; a 4xx here would be indistinguishable from a broken internal call.
+  return res.json({ success: true, result });
 }));
 
 module.exports = router;
