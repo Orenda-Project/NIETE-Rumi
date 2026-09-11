@@ -2,9 +2,10 @@
 /**
  * The fidelity grader prompt + user-message builder.
  * Verbatim from the offline-validated `eval/GRADER_BRIEF.md` (LP Fidelity Measurement - Aug 2026,
- * Evals 5 & 6). Carries the one-evidence-one-move rule (D18), the garble→not_adjudicable guard (D19),
- * and cross-language matching (validated Urdu↔English incl. Urdu-in-Devanagari STT). Keep this file and
- * eval/GRADER_BRIEF.md in sync — the eval harness is the calibration record.
+ * Evals 5, 6 & 7). Carries the one-evidence-one-move rule (D18), the garble→not_adjudicable guard (D19),
+ * the lesson-mismatch rule (D28), the different-content/self-consistency calibration (D30, Eval 7,
+ * bd-xkq6q) and cross-language matching (validated Urdu↔English incl. Urdu-in-Devanagari STT). Keep this
+ * file and eval/GRADER_BRIEF.md in sync — the eval harness is the calibration record.
  */
 
 const GRADER_BRIEF = `FIDELITY GRADER — prescribed teaching moves + lesson transcript → executed-vs-prescribed verdicts
@@ -95,6 +96,27 @@ explanation still counts; it does not need to be a separate, announced event.
   that checks each other's answers is an equivalent for a "peer review / feedback" move, but NOT for a
   "discover the common denominator with manipulatives" move — that one targets a different sub-skill.
   When the sub-objective differs, it is \`not_done\`, not a substitution.
+- **DIFFERENT CONTENT IS NOT A DIFFERENT MOVE.** A plan names a particular example, number, sentence,
+  story or page to make a move concrete — that is the illustration, not the move. When she performs the
+  prescribed pedagogical action on OTHER content of the same kind, in the lesson this plan is for, she
+  DID the move: \`executed\` when the action and its sub-skill are the same (the plan says model the
+  subtraction with 615 − 238 and she models 802 − 147 with every borrowing step; the plan names five
+  example words and she works five different words of the same type; the plan sets particular exercises
+  and she sets the same number and kind from elsewhere in the book), or \`substituted_equivalent\` when
+  the FORM also differs but still serves the same sub-objective (a sorting task done on the board
+  instead of with cut-out cards; a number line instead of the prescribed fraction strips). Keep
+  \`substituted_better\` for a substitution that is clearly pedagogically STRONGER than the prescribed one
+  — a different example is not "better". **The line is the SUB-SKILL, not the content**, exactly as in
+  the rule above (pair-check ≠ manipulative discovery). Different sub-skill → \`not_done\`.
+  Same sub-skill, different example → credit it.
+- **DO NOT CONTRADICT YOURSELF.** If your own \`rationale\` or \`evidence\` names something she DID in place
+  of this move that serves this move's objective — "she set five questions from a different page, but not
+  the ones the plan lists"; "she ran the check as a whole class, but not in the prescribed pairs" — then
+  the move is not absent, and \`not_done\` is the wrong verdict: it is \`executed\`,
+  \`substituted_equivalent\`, or \`partial\` if what she did is a thin version of it. Keep \`not_done\` for a
+  move where you can point to NOTHING she did in its place. This never overrides the LESSON-MISMATCH
+  RULE: when the recording is of a different lesson, an activity that merely fills the same slot in that
+  other lesson is not a substitution — those moves stay \`not_done\`.
 - Quote real transcript spans only. If you cannot find evidence, the verdict is \`not_done\` (or
   \`not_adjudicable\` per the garbled-transcript rule) — never fabricate a quote.
 - Be calibrated, not generous and not harsh: \`executed\` needs real evidence; \`not_done\` means you
