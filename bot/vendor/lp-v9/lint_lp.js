@@ -842,6 +842,29 @@ const PROPHET_TOKENS = [
   "محمد", "حضور", "نبی",
 ].sort((a, b) => b.length - a.length);
 const PROPHET_RE = new RegExp(PROPHET_TOKENS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+
+// A bare `محمد` followed by another name-word (not a function word, not one of the Prophet's own
+// epithets) is a compound given name — a person, not the Prophet. Same shape as the K-5 lane's
+// niete-nbpro/src/honorifics.js `isCompoundGivenName`; kept in step by hand.
+const PROPHET_CONTINUATIONS = ["مصطفی", "مصطفیٰ", "رسول", "عربی", "خاتم", "النبیین", "مجتبی", "مجتبیٰ", "مدنی",
+  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک"];
+const NAME_FUNCTION_WORDS = ["نے", "کا", "کی", "کے", "کو", "سے", "پر", "میں", "تک", "اور", "یا", "ہے", "ہیں",
+  "تھا", "تھے", "تھی", "جو", "کہ", "بھی", "ہی", "نہیں", "والا", "والے", "والی", "صاحب", "نامی", "یعنی", "کہا", "کہتے"];
+function isCompoundGivenName(s, afterIdx) {
+  const rest = s.slice(afterIdx);
+  if (/^[،؛۔.,;:!?…'"’”»›)\]}]/.test(rest)) return false;              // `محمد۔` stands alone
+  const m = /^\s+([^\s،؛۔.,;:!?…'"’”«»‹›()\[\]{}]+)/.exec(rest);
+  if (!m) return false;
+  const w = m[1].replace(/[\u064B-\u0652\u0670\u06D6-\u06ED]/g, "");      // read through aeraab
+  if (!/[\u0620-\u064A\u066E-\u06D3]/.test(w)) return false;
+  if (PROPHET_CONTINUATIONS.includes(w) || NAME_FUNCTION_WORDS.includes(w)) return false;
+  if (PROPHET_TOKENS.some((t) => t.split(" ")[0] === w)) return false;         // حضور، نبی، رسول …
+  if (w === "بن") {                                                               // محمد بن عبداللہ = the Prophet
+    const m2 = /^\s+\S+\s+([^\s،؛۔]+)/.exec(rest);
+    return !(m2 && /^عبد\s*الل[ہه]$|^عبداللہ$|^عبدالله$/.test(m2[1].replace(/[\u064B-\u0652\u0670]/g, "")));
+  }
+  return true;
+}
 // The honorific may be the ligature or spelled out, and a comma or a quote may sit between.
 const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/;
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
@@ -1229,6 +1252,11 @@ function religiousMarks(doc, ctx) {
     let m;
     while ((m = PROPHET_RE.exec(s))) {
       if (HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      // VENDOR DIVERGENCE (bd-gyrg8, 2026-09-11; also upstream): `محمد` opening ANOTHER PERSON's
+      // compound name is not a mention of the Prophet — محمد علی جناح، محمد بن قاسم، علامہ محمد
+      // اقبال، محمد خان. An author under this gate wrote `محمد ﷺ خان` for Ashfaq Ahmed's father.
+      // The Prophet's own name-continuations (مصطفیٰ، رسول اللہ، بن عبداللہ …) still demand it.
+      if (m[0] === "محمد" && isCompoundGivenName(s, m.index + m[0].length)) continue;
       fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
     }
   }
