@@ -334,8 +334,8 @@
   "board_final": {
    "draw_order": [
     "Write the two matrices side by side with their orders underneath.",
-    "Ring the inner pair and write \"defined\".",
-    "Sweep row 1 across column 1 and write the first entry.",
+    "Circle the inner pair and write \"defined\".",
+    "Trace row 1 across column 1 and write the first entry.",
     "Fill the remaining three entries, saying each address out loud."
    ],
    "diagram": {
