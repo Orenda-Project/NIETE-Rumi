@@ -34,17 +34,18 @@ const path = require('path');
 describe('the page caps', () => {
   const R = require('../../bot/vendor/lp-v9/render_lp.js');
 
-  // Moved again on 2026-09-06 with the v9.2 type scale (body 18 -> 21px, lane 07_font). The caps
-  // travel with the type for the reason they always have — a deliberate font increase is not
-  // bloat — and the size of the move is measured over the same 62-document corpus this lane used:
-  // at the new type the old caps flag 53 of 62, which is not a gate, it is noise. 7/6 and 9/7 is
-  // the tightest pair that holds the flag rate where it was (1 -> 3 of 62). 07_font/OPTIONS.md §3.
-  test('English is teach 7 / support 6 at the v9.2 type scale', () => {
-    expect(R.pageCapsFor('en').max).toEqual({ teach: 7, support: 6 });
+  // Lowered on 2026-09-11 (bd-g6sww, closing bd-q29w9). Operator: LPs shipping at 11-16 pages are
+  // "unreadable" — the v9.2-type-scale ceiling (7/6 EN, 9/7 UR) still let a lesson reach that
+  // range. The ceiling is a universal, subject-agnostic hard cap (any subject-specific tightening
+  // is a word-budget lever in lint_lp.js, not this constant). UR keeps its premium over EN — Nastaliq
+  // leads by ~+33% page cost on the same document (see bidi-caps.test.js, type-scale.test.js) — so
+  // UR = round(EN x 1.33): teach 4x1.33=5.32->5, support 3x1.33=3.99->4.
+  test('English is teach 4 / support 3, the new unreadable-length ceiling', () => {
+    expect(R.pageCapsFor('en').max).toEqual({ teach: 4, support: 3 });
   });
 
-  test('Urdu is teach 9 / support 7', () => {
-    expect(R.pageCapsFor('ur').max).toEqual({ teach: 9, support: 7 });
+  test('Urdu is teach 5 / support 4, EN x ~1.33 for the Nastaliq premium', () => {
+    expect(R.pageCapsFor('ur').max).toEqual({ teach: 5, support: 4 });
   });
 
   test('each WARN still sits exactly one page under its own cap', () => {
