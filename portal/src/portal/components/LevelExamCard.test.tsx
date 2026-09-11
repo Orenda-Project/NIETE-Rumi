@@ -99,8 +99,13 @@ describe("bd-2489 — the ready card shows the vendor's pass mark", () => {
 });
 
 describe("bd-2475 — the cooldown clause only appears when a cooldown exists", () => {
-  it("a capstone (no cooldown) does not threaten one", async () => {
-    mockApi(gate({ exam_kind: "capstone", cooldown_hours: 0 }));
+  // bd-2673 — these cases used exam_kind 'capstone' as a convenient carrier for
+  // cooldown_hours: 0. A ready capstone now renders CapstoneExamForm instead of
+  // this card, so the vehicle changed; the RULE under test did not, and it is
+  // the rule that matters — a zero cooldown must never be described as one. A
+  // grand quiz configured without a cooldown exercises it directly.
+  it("a zero cooldown is not described as a cooldown", async () => {
+    mockApi(gate({ exam_kind: "grand_quiz", cooldown_hours: 0 }));
     renderCard();
     const card = await screen.findByTestId("level-exam-ready");
     expect(card.textContent).not.toContain("cooldown");
@@ -129,8 +134,8 @@ describe("bd-2489 — the exam form caption carries the same real numbers", () =
     expect(form.textContent).not.toContain("100% required to pass");
   });
 
-  it("drops the cooldown clause for a capstone", async () => {
-    mockApi(gate({ exam_kind: "capstone", cooldown_hours: 0, pass_mark_pct: 70 }), QUESTIONS);
+  it("drops the cooldown clause when there is no cooldown", async () => {
+    mockApi(gate({ exam_kind: "grand_quiz", cooldown_hours: 0, pass_mark_pct: 70 }), QUESTIONS);
     renderCard();
     await userEvent.click(await screen.findByTestId("exam-start"));
     const form = await screen.findByTestId("level-exam-form");
@@ -163,10 +168,10 @@ describe("bd-2489 — the result screens do not invent a bar either", () => {
     expect(card.textContent).not.toContain("requires 100%");
   });
 
-  it("a failed capstone is not told to wait out a cooldown that does not exist", async () => {
+  it("a failed exam with no cooldown is not told to wait one out", async () => {
     await submitWith(
       { id: "a1", score: 6, max_score: 10, is_passed: false, status: "failed", cooldown_until: null, completed_at: "" },
-      { exam_kind: "capstone", cooldown_hours: 0, pass_mark_pct: 70 },
+      { exam_kind: "grand_quiz", cooldown_hours: 0, pass_mark_pct: 70 },
     );
     const card = await screen.findByTestId("level-exam-result-fail");
     expect(card.textContent).not.toMatch(/Try again in about/);
@@ -192,12 +197,33 @@ describe("bd-2489 — the result screens do not invent a bar either", () => {
   });
 });
 
-describe("bd-2490 — the WhatsApp redirect card stays free of invented numbers", () => {
-  it("makes no pass-mark or cooldown claim", async () => {
-    mockApi(gate({ state: "whatsapp_only" }));
+describe("bd-2673 — a written exam gets the written form, never the MCQ one", () => {
+  // This replaces the bd-2490 'whatsapp_only' redirect-card case. That state is
+  // gone: the portal runs both exam kinds now. What has to be true instead is
+  // that a capstone does NOT reach the multiple-choice form — sending it there
+  // is the original bug (questions with no options, radios with nothing to
+  // pick, a Submit that can never enable).
+  it("renders the capstone form and not the multiple-choice card", async () => {
+    mockApi(gate({ exam_kind: "capstone" }));
     renderCard();
-    const card = await screen.findByTestId("level-exam-whatsapp-only");
-    expect(card.textContent).not.toContain("required to pass");
-    expect(card.textContent).not.toContain("cooldown");
+    await screen.findByTestId("capstone-entry");
+    expect(screen.queryByTestId("level-exam-ready")).toBeNull();
+    expect(screen.queryByTestId("exam-start")).toBeNull();
+  });
+
+  it("still renders the multiple-choice card for a grand quiz", async () => {
+    mockApi(gate({ exam_kind: "grand_quiz" }));
+    renderCard();
+    await screen.findByTestId("level-exam-ready");
+    expect(screen.queryByTestId("capstone-entry")).toBeNull();
+  });
+
+  it("does not offer a capstone that the gate has locked", async () => {
+    // Eligibility outranks exam kind: a locked level shows the locked card, not
+    // a written exam it is not yet allowed to sit.
+    mockApi(gate({ exam_kind: "capstone", state: "courses_incomplete" }));
+    renderCard();
+    await screen.findByTestId("level-exam-locked");
+    expect(screen.queryByTestId("capstone-entry")).toBeNull();
   });
 });

@@ -48,9 +48,19 @@ interface BandPickerProps {
    *  re-pull the catalogue. Without this the teacher saves and the page still
    *  looks empty. */
   onSaved: () => void;
+  /** Heading above the options. Defaults to the first-time question; the edit
+   *  entry point passes the operator's label instead. */
+  heading?: string;
+  /** Save-button label. The first-time flow promises the catalogue will appear;
+   *  an edit just saves. */
+  saveLabel?: string;
 }
 
-const BandPicker = ({ onSaved }: BandPickerProps) => {
+const BandPicker = ({
+  onSaved,
+  heading = 'Which grades do you teach?',
+  saveLabel = 'Save and show my training',
+}: BandPickerProps) => {
   const { toast } = useToast();
   const [options, setOptions] = useState<BandOption[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -118,7 +128,7 @@ const BandPicker = ({ onSaved }: BandPickerProps) => {
 
   return (
     <div data-testid="band-picker" className="mt-4">
-      <p className="text-sm font-semibold mb-3">Which grades do you teach?</p>
+      <p className="text-sm font-semibold mb-3">{heading}</p>
 
       <div className="flex flex-wrap gap-2 mb-4">
         {options.map(o => {
@@ -151,7 +161,7 @@ const BandPicker = ({ onSaved }: BandPickerProps) => {
         {saving ? (
           <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</>
         ) : (
-          <><GraduationCap className="w-4 h-4 mr-2" /> Save and show my training</>
+          <><GraduationCap className="w-4 h-4 mr-2" /> {saveLabel}</>
         )}
       </Button>
     </div>
