@@ -186,7 +186,10 @@ const WARMUP_ICEBREAKERS = [
 // read alone, out of context, mid-lesson.
 // VENDOR DIVERGENCE (SYNC.md §3.11): adopted verbatim from upstream lp_html's lint_lp.js (its
 // ~38-verb list drops this copy's prior "arrow"/"connect"/"plot" but adds ~20 verbs, e.g. "solve").
-const LABELACT_EN = /^(draw|label|write|circle|underline|point|number|box|show|add|mark|list|copy|balance|highlight|shade|colour|color|trace|outline|fill|complete|solve|count|check|compare|match|sort|arrange|record|note|state|name|identify|explain|describe|calculate|measure)\b/i;
+// "rule" (draw a straight line with a ruler) was missing from both the upstream and prior vendored
+// lists — found during false-positive validation against a real corpus (bd-i2udq); applied
+// identically in both trees to keep this list non-divergent.
+const LABELACT_EN = /^(draw|label|write|circle|underline|point|number|box|show|add|mark|list|copy|balance|highlight|shade|colour|color|trace|outline|fill|complete|solve|count|check|compare|match|sort|arrange|record|note|state|name|identify|explain|describe|calculate|measure|rule)\b/i;
 // Merge, not a straight swap: try upstream's exact conjugated forms first; anything that misses
 // (an informal or otherwise-inflected verb upstream's list doesn't spell out) falls back to this
 // copy's original loose stem match, so the wider net this copy already cast isn't lost.

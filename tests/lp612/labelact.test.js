@@ -86,4 +86,13 @@ describe('LABELACT — a draw_order line must open with an imperative, not just 
     const doc = docWithDrawOrderLine(0, 'میٹرکس کی ترتیب لکھو۔');
     expect(codes(doc)).not.toContain('LABELACT');
   });
+
+  // Found during false-positive validation (bd-i2udq) against a real production LP
+  // (PK_G10_PHYS_CH14_REFLECTION.agastya.lp.json): "rule" — draw a straight line with a ruler —
+  // is a genuine board-work imperative in this domain's English and is missing from the adopted
+  // verb list. Red-first: today's list has no "rule" entry, so this line wrongly fires.
+  it('stays silent for "rule" — a real board-work imperative missing from the adopted verb list', () => {
+    const doc = docWithDrawOrderLine(0, 'Rule the mirror line and hatch behind it.');
+    expect(codes(doc)).not.toContain('LABELACT');
+  });
 });

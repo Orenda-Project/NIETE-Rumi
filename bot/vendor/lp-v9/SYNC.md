@@ -691,13 +691,21 @@ restate it (render-law 23); a board `draw_order` line must open with an imperati
 what's already there (render-law 24, English + Urdu).
 
 **WARMTOPIC and LABELACT's English half — NOT a divergence, applied as identical hunks in both
-trees.** `WARMUP_ICEBREAKERS` (the 8-pattern icebreaker list) and `LABELACT_EN` (the ~38-verb
+trees.** `WARMUP_ICEBREAKERS` (the 8-pattern icebreaker list) and `LABELACT_EN` (the ~39-verb
 anchored regex) are byte-identical between this copy and upstream's
 `.claude/skills/curriculum-baked-lesson-plans/scripts/lp_html/lint_lp.js` — confirmed by direct
 diff, 2026-09-11. Both lists were adopted from upstream wholesale rather than maintaining a
 narrower vendored list in parallel (upstream's icebreaker list is a superset of this copy's prior
 3 patterns; its verb list drops this copy's prior "arrow"/"connect"/"plot" but adds ~20 verbs, e.g.
 "solve").
+
+**Post-adoption fix, same day: "rule" added to `LABELACT_EN`, applied identically in both trees.**
+False-positive validation against a real corpus (`PK_G10_PHYS_CH14_REFLECTION.agastya.lp.json`,
+schema-3.0) found a genuine board-work imperative — "Rule the mirror line and hatch behind it."
+("rule" = draw a straight line with a ruler) — that neither this copy's prior list nor upstream's
+adopted list recognised. Added `|rule` to both trees' `LABELACT_EN` alternation (still byte-identical
+between them) with red-first TDD: `tests/lp612/labelact.test.js` now carries 10 cases, the 10th
+encoding this exact false positive.
 
 **LABELACT's Urdu half — a genuine, permanent divergence, kept deliberately.** Upstream's Urdu
 check is a single regex of exact conjugated forms (`لکھیے`/`لکھیں`/… — 13 forms, no fallback). This
@@ -714,7 +722,7 @@ comparison itself (`norm()` collapsing punctuation/case/whitespace, then
 authored independently rather than as one hunk applied twice. Not worth reconciling byte-for-byte;
 the check's behaviour is the same either way.
 
-Tests: `tests/lp612/warmtopic.test.js` (8), `tests/lp612/labelact.test.js` (9),
+Tests: `tests/lp612/warmtopic.test.js` (8), `tests/lp612/labelact.test.js` (10),
 `tests/lp612/redundant.test.js` (7) — all red-first against this branch's unmodified `lint_lp.js`.
 
 ### 3.8 Nothing else
