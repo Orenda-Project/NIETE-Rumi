@@ -305,7 +305,7 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
     return res.json({ success: true, ...verdict });
   } catch (error) {
     // Fail CLOSED: never let a lookup failure read as a pass.
-    logToFile('❌ Internal training API failed', { route: 'exam-verdict', error: error?.message });
+    logToFile('❌ Internal training API failed', { route: 'exam-verdict', error: error?.message }, 'error');
     return res.status(500).json({ success: false, error: 'Grading lookup failed' });
   }
 });
@@ -336,7 +336,7 @@ router.post('/training/mark-paper', requireInternalKey, async (req, res) => {
     return res.json({ success: true, ...markPaper({ questions, answers }) });
   } catch (error) {
     // Fail CLOSED: an unmarked paper must never read as a scored one.
-    logToFile('❌ Internal training API failed', { route: 'mark-paper', error: error?.message });
+    logToFile('❌ Internal training API failed', { route: 'mark-paper', error: error?.message }, 'error');
     return res.status(500).json({ success: false, error: 'Marking failed' });
   }
 });
@@ -381,7 +381,7 @@ router.post('/training/serve-paper', requireInternalKey, async (req, res) => {
     }));
     return res.json({ success: true, questions: out, total_served: out.length });
   } catch (error) {
-    logToFile('❌ Internal training API failed', { route: 'serve-paper', error: error?.message });
+    logToFile('❌ Internal training API failed', { route: 'serve-paper', error: error?.message }, 'error');
     return res.status(500).json({ success: false, error: 'Serving failed' });
   }
 });

@@ -1728,18 +1728,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 544,
-    "snippet": "logToFile('❌ Module lookup failed', { moduleId: moduleIdNum, error: mErr?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 643,
-    "snippet": "logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.mes",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/services/whatsapp.service.js",
     "line": 63,
     "snippet": "logToFile('❌ Error sending WhatsApp message', { responseData: data });",
