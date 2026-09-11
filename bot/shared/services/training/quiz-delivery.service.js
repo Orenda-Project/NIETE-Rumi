@@ -579,6 +579,23 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     // Neither caller checks the return value, so nobody decided and the teacher
     // got silence. Reachable from the Retry button, which does not pre-count
     // questions the way handleModuleDone does.
+    //
+    // loadQuestionBank returns [] for BOTH "no questions" and "the query
+    // failed" — it logs the error and hands back an empty array. Telling a
+    // teacher to carry on because a lookup blipped would wave her past a check
+    // that gates her next module, so re-count before saying which it was.
+    // Lazy require, matching how markModuleComplete is pulled in below — these
+    // two modules reference each other and a top-level import would cycle.
+    const { countActiveQuestions } = require('./progress.service');
+    const actual = await countActiveQuestions(moduleIdNum);
+    if (actual > 0) {
+      logToFile('❌ Question bank came back empty but the module has questions', {
+        userId, moduleId: moduleIdNum, expected: actual,
+      }, 'error');
+      await WhatsAppService.sendMessage(phoneNumber,
+        'Could not load the questions for this module check — please try again in a moment.');
+      return false;
+    }
     logToFile('⚠️ Module check has no active questions', { userId, moduleId: moduleIdNum }, 'warn');
     await WhatsAppService.sendMessage(phoneNumber,
       'This module has no quick check yet — you can carry on to the next one.');

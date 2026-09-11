@@ -155,3 +155,31 @@ describe('bd-2wzpi — "Take quiz" must never answer with silence', () => {
     expect(said(sent)).not.toMatch(/could not|sorry|contact NIETE support/i);
   });
 });
+
+describe('bd-2wzpi — an empty bank is not always an empty module', () => {
+  test('a FAILED question lookup is not reported as "no quiz here"', async () => {
+    // loadQuestionBank returns [] for a query error as well as for a genuinely
+    // empty module. Telling her to carry on would wave her past a gate.
+    jest.resetModules();
+    const sent = [];
+    jest.doMock('../../bot/shared/config/supabase', () => {
+      const base = makeSupabase({ emptyBank: true });
+      return base;
+    });
+    jest.doMock('../../bot/shared/services/training/progress.service', () => ({
+      countActiveQuestions: jest.fn().mockResolvedValue(5),   // the module DOES have questions
+      markModuleComplete: jest.fn(),
+      moduleHasActiveQuiz: jest.fn(),
+    }));
+    jest.doMock('../../bot/shared/services/whatsapp.service', () => ({
+      sendMessage: jest.fn(async (_t, b) => { sent.push(String(b)); return true; }),
+      sendInteractiveButtons: jest.fn().mockResolvedValue(true),
+      sendInteractiveMessage: jest.fn().mockResolvedValue(true),
+    }));
+    const svc = require('../../bot/shared/services/training/quiz-delivery.service');
+    const ok = await svc.startTrainingQuiz(USER, MODULE, PHONE);
+    expect(sent.join(' ')).toMatch(/could not load/i);
+    expect(sent.join(' ')).not.toMatch(/carry on/i);
+    expect(ok).toBe(false);
+  });
+});
