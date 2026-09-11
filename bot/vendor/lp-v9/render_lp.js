@@ -74,8 +74,13 @@ const A4 = { w: 794, h: 1123 };
 // flag 53 of 62 documents, which is not a gate, it is noise. EN teach 6->7 / support 4->6 and
 // UR teach 7->9 / support 6->7 is the TIGHTEST candidate that holds the flag rate at 2/62,
 // against 1/62 at the old type. Numbers and the arm-by-arm table: 07_font/OPTIONS.md.
-const MAX_PAGES = { teach: 7, support: 6 };     // above this: FAIL
-const WARN_PAGES = { teach: 6, support: 5 };    // above this: WARN, and keep going
+//
+// LOWERED 2026-09-11 (bd-g6sww, closing bd-q29w9). Operator: LPs shipping at 11-16 pages are
+// "unreadable" — the v9.2-type-scale ceiling above (7/6) still let a lesson reach that range. This
+// is a universal, subject-agnostic hard ceiling; any subject-specific tightening belongs in the
+// word budgets in lint_lp.js, not here. EN teach 7->4 / support 6->3.
+const MAX_PAGES = { teach: 4, support: 3 };     // above this: FAIL
+const WARN_PAGES = { teach: 3, support: 2 };    // above this: WARN, and keep going
 
 // PAGE CAPS ARE LANGUAGE-AWARE; WORD BUDGETS ARE NOT (operator, 2026-09-03).
 //
@@ -101,8 +106,13 @@ const WARN_PAGES = { teach: 6, support: 5 };    // above this: WARN, and keep go
 // the derivation was a prediction, these are the measured overflows, and the measurement wins.
 // The n=4 "raise-and-refill" datum for Urdu is too thin to settle whether 7 is still short —
 // that is what the post-40-lesson re-measure is for.
-const MAX_PAGES_UR = { teach: 9, support: 7 };
-const WARN_PAGES_UR = { teach: 8, support: 6 };
+//
+// LOWERED 2026-09-11 (bd-g6sww, closing bd-q29w9), alongside the EN ceiling above. UR keeps its
+// measured Nastaliq premium over EN rather than the field-measured overflow ratio this comment
+// tracked through 2026-09-06 — at this size the corpus data thins out, so UR = round(EN x 1.33):
+// teach 4x1.33=5.32->5, support 3x1.33=3.99->4.
+const MAX_PAGES_UR = { teach: 5, support: 4 };
+const WARN_PAGES_UR = { teach: 4, support: 3 };
 
 /** The caps for one render, by the language actually being laid out. */
 function pageCapsFor(lang) {

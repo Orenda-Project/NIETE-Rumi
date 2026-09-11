@@ -11,8 +11,8 @@
  *
  * Page caps: word budgets are IDENTICAL across languages (an Urdu plan says no
  * more than an English one); Urdu pays its measured ~+33% paper (same document
- * rendered en=9pp / ur=12pp) in PAGES — teach 7 / support 5 against English's
- * 5 / 4. Under one shared cap, every Urdu render of a full-cap English plan
+ * rendered en=9pp / ur=12pp) in PAGES — teach 5 / support 4 against English's
+ * 4 / 3. Under one shared cap, every Urdu render of a full-cap English plan
  * failed PAGE COUNT while carrying identical content.
  *
  * The katex/ajv stubs apply (root suite runs before bot/ npm ci), so these are
@@ -39,25 +39,24 @@ afterEach(() => setRtlProse(false));
 // ── per-language page caps ──────────────────────────────────────────────────
 
 describe('page caps are language-aware; word budgets are not', () => {
-  // Both caps moved one sheet on 2026-09-04 (bd-vjk68), each toward the part that was actually
-  // overflowing on staging: 6 of the 9 live failures were EN *teach*, 3 were UR *support*.
+  // Both caps moved one sheet on 2026-09-04 (bd-vjk68), then again on 2026-09-06 with the v9.2
+  // type scale (EN 6/4 -> 7/6, UR 7/6 -> 9/7).
   //
-  // Both moved AGAIN on 2026-09-06 with the v9.2 type scale (body 18 -> 21px, lane 07_font):
-  // EN 6/4 -> 7/6, UR 7/6 -> 9/7. The caps travel with the type for the reason they always have —
-  // a deliberate font increase is not bloat, the same words need more paper — and the SIZE of the
-  // move is measured over the same 62-document corpus the packer lane used, not chosen: at the new
-  // type the old caps flag 53 of 62 documents, which is not a gate, it is noise. 7/6 and 9/7 is the
-  // tightest pair that holds the flag rate where it was (1 -> 3 of 62). Numbers: 07_font/OPTIONS.md.
+  // Lowered again 2026-09-11 (bd-g6sww, closing bd-q29w9): the operator flagged 11-16 page LPs as
+  // unreadable, a range the v9.2-type-scale ceiling alone still permitted. New universal ceiling
+  // (applies to every subject, not just core — subject-level tightening is a word-budget lever in
+  // lint_lp.js, not this cap): EN teach 4 / support 3. UR keeps its measured Nastaliq premium —
+  // UR = round(EN x 1.33) — giving teach 5 / support 4.
   //
   // The per-language SHAPE — which this suite exists to protect — is unchanged.
-  test('English: teach 7/support 6, warn 6/5', () => {
-    expect(pageCapsFor('en')).toEqual({ max: { teach: 7, support: 6 }, warn: { teach: 6, support: 5 } });
+  test('English: teach 4/support 3, warn 3/2', () => {
+    expect(pageCapsFor('en')).toEqual({ max: { teach: 4, support: 3 }, warn: { teach: 3, support: 2 } });
     expect(pageCapsFor('en').max).toBe(MAX_PAGES);
     expect(pageCapsFor('en').warn).toBe(WARN_PAGES);
   });
 
-  test('Urdu carries the measured +33% footprint: teach 9/support 7, warn 8/6', () => {
-    expect(pageCapsFor('ur')).toEqual({ max: { teach: 9, support: 7 }, warn: { teach: 8, support: 6 } });
+  test('Urdu carries the measured +33% footprint: teach 5/support 4, warn 4/3', () => {
+    expect(pageCapsFor('ur')).toEqual({ max: { teach: 5, support: 4 }, warn: { teach: 4, support: 3 } });
     expect(pageCapsFor('ur').max).toBe(MAX_PAGES_UR);
     expect(pageCapsFor('ur').warn).toBe(WARN_PAGES_UR);
   });
