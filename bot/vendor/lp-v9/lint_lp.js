@@ -166,6 +166,38 @@ const PLACEHOLDERS = [
   { re: /\bINSERT\b|\bPLACEHOLDER\b/i, name: "INSERT/PLACEHOLDER" },
 ];
 
+// render-law 22: a warm-up item that would read the same in any lesson on any subject is
+// content-free scaffolding, not a warm-up. Swap the subject and see if it still makes sense —
+// if it does, it fails here.
+// VENDOR DIVERGENCE (SYNC.md §3.11): adopted verbatim from upstream lp_html's lint_lp.js
+// (its 8-pattern list is a superset of this copy's prior 3 patterns).
+const WARMUP_ICEBREAKERS = [
+  { re: /tell me about a time/i, name: "generic 'tell me about a time...' icebreaker" },
+  { re: /what (was|is) (it|that) like/i, name: "generic 'what was it like' icebreaker" },
+  { re: /describe a time/i, name: "generic 'describe a time...' icebreaker" },
+  { re: /\byour favou?rite\b/i, name: "generic 'your favourite ___' icebreaker" },
+  { re: /\bicebreaker\b/i, name: "the literal word 'icebreaker'" },
+  { re: /how (was|is) your (day|weekend|morning)/i, name: "generic 'how was your day/weekend' icebreaker" },
+  { re: /اپنے بارے میں بتائیں/, name: "generic 'tell us about yourself' icebreaker" },
+  { re: /آپ کی پسندیدہ/, name: "generic 'your favourite ___' icebreaker" },
+];
+
+// render-law 24: a board draw_order line must open with an imperative — it must survive being
+// read alone, out of context, mid-lesson.
+// VENDOR DIVERGENCE (SYNC.md §3.11): adopted verbatim from upstream lp_html's lint_lp.js (its
+// ~38-verb list drops this copy's prior "arrow"/"connect"/"plot" but adds ~20 verbs, e.g. "solve").
+// "rule" (draw a straight line with a ruler) was missing from both the upstream and prior vendored
+// lists — found during false-positive validation against a real corpus (bd-i2udq); applied
+// identically in both trees to keep this list non-divergent.
+const LABELACT_EN = /^(draw|label|write|circle|underline|point|number|box|show|add|mark|list|copy|balance|highlight|shade|colour|color|trace|outline|fill|complete|solve|count|check|compare|match|sort|arrange|record|note|state|name|identify|explain|describe|calculate|measure|rule)\b/i;
+// Merge, not a straight swap: try upstream's exact conjugated forms first; anything that misses
+// (an informal or otherwise-inflected verb upstream's list doesn't spell out) falls back to this
+// copy's original loose stem match, so the wider net this copy already cast isn't lost.
+// VENDOR DIVERGENCE (SYNC.md §3.11).
+const LABELACT_UR_EXACT = /(لکھیے|لکھیں|بنائیے|بنائیں|دکھائیں|دکھایے|نشان\s*لگائیں|رنگ\s*بھریں|شمار\s*کریں|گنیں|مکمل\s*کریں|حل\s*کریں|موازنہ\s*کریں)/;
+const LABELACT_UR_STEMS = /(لکھ|بنائ|دائرہ|نشان|لگائ|رنگ|بھر)/;
+const LABELACT_UR = { test: (s) => LABELACT_UR_EXACT.test(s) || LABELACT_UR_STEMS.test(s) };
+
 // ── string harvesting ───────────────────────────────────────────────────────
 /** Every human-readable string in a value, with a JSON-Pointer-ish path. */
 function harvest(node, at = "", out = []) {
@@ -545,6 +577,25 @@ function lint(doc, docPath, opts = {}) {
     for (const b of allBlocks(s.blocks)) {
       if (b.type === "textbook_figure" && b.src && !b.legend) {
         fail("FIGURE", `${s.id}: a textbook_figure with a real crop must carry a \`legend\` — its labels are baked pixels and vanish at phone scale.`);
+      }
+    }
+  }
+
+  // 14a2 — render-law 23: a caption NAMES the figure; the legend must UNPACK what's inside it.
+  //        When the legend just repeats the caption, the teacher paid for a second label that
+  //        carries nothing new. This does not fire on a missing legend at all — FIGURE above
+  //        owns that gap.
+  // VENDOR DIVERGENCE (SYNC.md §3.11): the check logic (norm() + this comparison) is identical to
+  // upstream; only the fail() message text below and this comment's wording differ.
+  const norm = (s) => String(s || "").toLowerCase().replace(/[.,;:!?()"'"''·•\-–—]/g, "").replace(/\s+/g, " ").trim();
+  for (const s of doc.sections) {
+    for (const b of allBlocks(s.blocks)) {
+      if (b.type === "textbook_figure" && b.caption && b.legend) {
+        const nc = norm(b.caption);
+        const nl = norm(b.legend);
+        if (nc && nl && (nc === nl || nc.includes(nl) || nl.includes(nc))) {
+          fail("REDUNDANT", `${s.id}: a textbook_figure's legend just repeats its caption ("${b.caption}") instead of adding what the caption does not already say.`);
+        }
       }
     }
   }
@@ -1153,6 +1204,35 @@ function v9Gates(doc, ctx) {
     for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of atomDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of specContractDefects(spec, where)) fail(d.code, d.msg);
+  }
+
+  // ── LABELACT (render-law 24) ──────────────────────────────────────────────
+  // Not gated on `full`: a board draw_order line must open with an imperative — it must
+  // survive being read alone, out of context, mid-lesson — and that is as true in a
+  // part-lint as in a whole-document one.
+  {
+    const drawOrder = (doc.page2.board_final && doc.page2.board_final.draw_order) || [];
+    drawOrder.forEach((line, i) => {
+      const s = String(line ?? "").trim();
+      if (!LABELACT_EN.test(s) && !LABELACT_UR.test(s)) {
+        fail("LABELACT", `page2.board_final.draw_order[${i}] does not open with an imperative: "${s}". A board step tells the teacher what to DO, not just what is there.`);
+      }
+    });
+  }
+
+  // ── WARMTOPIC (render-law 22) ─────────────────────────────────────────────
+  // A warm-up item that would read the same in any lesson on any subject is content-free
+  // scaffolding, not a warm-up. Swap the subject and see if it still makes sense — if it
+  // does, it fails here.
+  {
+    const items = (intro && intro.warmup && intro.warmup.items) || [];
+    items.forEach((it, i) => {
+      const q = String((it && it.q) ?? "");
+      const hit = WARMUP_ICEBREAKERS.find((p) => p.re.test(q));
+      if (hit) {
+        fail("WARMTOPIC", `warm-up item ${i + 1} is a ${hit.name} — it would read the same in any lesson on any subject: "${q}". A warm-up must be about TODAY'S specific lesson.`);
+      }
+    });
   }
 
   // ── the rest of the closed heading system ────────────────────────────────
