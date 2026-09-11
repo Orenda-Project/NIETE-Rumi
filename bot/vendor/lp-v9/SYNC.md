@@ -821,3 +821,5 @@ belongs upstream.
 > `transcript-quiz-early-years-gating.test.js` (13) — all through the quiz lane's own
 > `renderFigureSvg`, so a red run proves the **vendored** copy is what changed. Red was confirmed for
 > each by restoring the pre-patch file and re-running.
+
+- **`lint_lp.js` — RELIGIOUS_MARKS no longer demands ﷺ after a `محمد` that opens another person's compound name** (bd-gyrg8, 2026-09-11). Added `isCompoundGivenName()` next to `PROPHET_RE`. Applied upstream in the same change, so a straight re-vendor keeps it.
