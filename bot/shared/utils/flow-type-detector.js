@@ -73,6 +73,15 @@ function detectFlowType(responseJson) {
     return 'transcript_quiz';
   }
 
+  // Attendance marking, by discriminator. A teacher's marking token is a bare
+  // "<userId>" — no colon — so the token rule below (4) missed every teacher
+  // completion and the teacher was answered "Thanks for your response! Type
+  // /menu…" straight after marking the class: ~300 a day, 4–11 Sep. SAVED's
+  // Footer now completes with attendance_action=saved.
+  if (responseJson.attendance_action !== undefined) {
+    return 'attendance_marking';
+  }
+
   if (responseJson.status_action !== undefined) {
     return 'status';
   }
