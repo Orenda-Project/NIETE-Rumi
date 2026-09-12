@@ -591,7 +591,12 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .vres{ display:flex; gap:8px; align-items:baseline; }
 .vres .ico{ flex:0 0 auto; }
 .vres .lbl{ color:var(--navy2); font-weight:700; flex:0 0 auto; }
-.vres a{ color:#8A5F04; text-decoration:underline; word-break:break-all; }
+/* The visible run is the video's TITLE (bd-a8veu.4), so this is a one-line clamp and no longer a
+   url rule: word-break:break-all would hyphenate a title mid-word, and a long YouTube title on a
+   478px column is three lines of furniture on a page that is already at its cap. min-width:0 is
+   what lets a flex item shrink below its content — without it the row simply overflows. */
+.vres a{ color:#8A5F04; text-decoration:underline;
+      min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .vid{ display:flex; gap:8px; align-items:baseline; background:#F5F8FC; border:1.5px solid #CBD8E8;
       border-radius:8px; padding:6px 12px; font-size:16.5px; }
 .vid .lbl{ color:var(--navy2); flex:0 0 auto; }
@@ -1369,9 +1374,19 @@ function page1(doc, ctx, secIndex) {
    * ONE place. A second copy of the same link on the same document is a defect that costs a page,
    * which is what the coaching-corner version was.
    *
-   * COMPACT on purpose: the url alone, not the title/channel/duration/why the old block printed.
-   * Page 1 is the busiest page in the document and this is furniture, so it may cost a LINE, not a
-   * paragraph — the page-count gate is real and the teach part is often at its cap.
+   * COMPACT on purpose: ONE line, not the title/channel/duration/why paragraph the old block
+   * printed. Page 1 is the busiest page in the document and this is furniture, so it may cost a
+   * LINE, not a paragraph — the page-count gate is real and the teach part is often at its cap.
+   *
+   * bd-a8veu.4: that line SAYS THE TITLE, and used to say the video id. The operator's own plan
+   * printed `youtu.be/7E3NQRBDNXY` — eleven characters of base64, out of which nobody can tell a
+   * demonstration from a read-aloud of the same passage. His item 4 is that the picks are
+   * re-reads; the pick itself is made upstream by the YouTube swarm and is not ours to change
+   * from here, but a teacher who can SEE what she is about to play can skip a bad one before she
+   * plays it to a class. It stays one line because the clamp is now CSS (`.vres a`), not a hope
+   * that the title is short: a 90-character title on a 478px column would otherwise be three
+   * lines of furniture. The url is not lost — it is the href, which is the only part of it she
+   * ever used.
    */
   const shortVideoUrl = (v) => {
     if (!v || !v.url) return null;
@@ -1389,9 +1404,15 @@ function page1(doc, ctx, secIndex) {
     // Only http(s) becomes a tap target. The picks come from our own ranker, but an anchor built
     // out of stored data is an anchor someone would eventually like to control.
     if (!/^https?:\/\//i.test(href)) return "";
-    // U+2066 … U+2069 around the VISIBLE run: an RTL paragraph reorders a bare latin url into
+    // An isolate around the VISIBLE run: an RTL paragraph reorders an embedded latin run into
     // something a teacher cannot read, which is the fix the phone number already carries.
-    const shown = ctx.rtl ? `\u2066${short}\u2069` : short;
+    // The title when there is one, the short url when there is not. `parseYt` requires a title on
+    // anything written today, but stored rows predate it, and a video line with no visible run is
+    // worse than an id.
+    const label = String(v.title || "").trim() || short;
+    // FIRST STRONG (U+2068), not the LRI (U+2066) this carried while the visible run was always a
+    // url: the run is now a title, and on an Urdu plan that title is Urdu, which an LRI reverses.
+    const shown = ctx.rtl ? `\u2068${label}\u2069` : label;
     return `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(L.video)}</span><a href="${esc(href)}">${esc(shown)}</a></div>`;
   })();
 

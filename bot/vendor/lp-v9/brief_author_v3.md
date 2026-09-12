@@ -795,6 +795,15 @@ another subject (a سیرت chapter in an Urdu book, for instance).
 This is the artefact of record; the PDF is a cache. `additionalProperties` is **false** everywhere —
 emit these keys and no others, and use exactly these `type` values inside `blocks`.
 
+**Emit NO `"video"` key, anywhere, ever (bd-a8veu.4).** The lesson's video is curated data on
+`segment.yt`, and it is written into Development mechanically after you answer — exactly as the
+figure `src` is. Whatever you put in a `video` key is discarded, so writing one only costs you
+words out of a budget you need. The slot may also be empty, and an empty slot is ordinary: better
+no video than a link nobody has watched. The standard the pick is held to, when there is one: the
+video must ADD something the lesson cannot do live — motion, scale, an experiment the lab has no
+kit for. Replaying the passage or re-solving the same exercise is the defect teachers reported,
+and a second viewing of the lesson you just taught is not enhancement.
+
 ```jsonc
 {
   "lesson_id": "PK_G9_MATH_CH1_MATRIX_MULTIPLY",   // stable, SHOUTY_SNAKE; also the render cache key
@@ -872,8 +881,7 @@ emit these keys and no others, and use exactly these `type` values inside `block
 
     { "id": "development", "minutes": 12,
       "textbook_page": "24",              // REQUIRED. Reviewer sign-off 7.
-      "video": {"url": "https://…", "title": "…", "channel": "…", "duration": "4:12",
-                "why": "Play once after the I-do, so the class sees the sweep a second time."},
+      // NO "video" key. It is filled mechanically from segment.yt — see §5's opening rule.
       "blocks": [
         // The FIRST block closes the hook, in its first sentence, and says so.
         {"type": "paragraph", "id": "close-hook", "closes_hook": true, "text": "Yes — …"},

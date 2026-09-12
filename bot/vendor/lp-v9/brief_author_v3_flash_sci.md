@@ -42,12 +42,13 @@ Everything else — title, caption, steps, panels, rows — lives INSIDE `spec`.
 **③ The exit ticket holds AT MOST TWO items.** A third graded recall question goes in the you-do
 with a `P` ref. The schema hard-rejects a third `X`.
 
-**④ `video` is DEVELOPMENT-ONLY, and it is an OBJECT or it is ABSENT.** Never `"video": null`.
-If you have no link, omit the key entirely.
-
-```json
-"video": {"url": "https://…", "title": "…", "channel": "…", "duration": "4:12", "why": "…"}
-```
+**④ Emit NO `"video"` key, anywhere, ever (bd-a8veu.4).** The lesson's video is curated data on
+`segment.yt` and is written into Development mechanically after you answer, exactly as the figure
+`src` is; whatever you write there is discarded. The slot is often empty, and an empty slot is
+ordinary — better no video than a link nobody has watched. The standard the pick is held to, when
+there is one: a video must ADD what the lesson cannot do live — motion, scale, an experiment the
+lab has no kit for. Replaying the passage or re-solving the same exercise is the defect teachers
+reported, and a second viewing of the lesson you just taught is not enhancement.
 
 **⑤+⑥ SUBJECT-SPECIFIC RULES ARE IN §F5 BELOW.** Your lesson's family — maths/physics,
 science, or language/prose — has its own short section there carrying only the rules that
@@ -645,8 +646,8 @@ documents. Check them literally, key by key, against the JSON you are about to r
 3. **Search for `"slo_code": null`.** In homework there must be none — use `"O1"`/`"O2"` (§F1⑧).
 4. Open every `diagram` block. Does it have **exactly** `type`, `id`, `spec` and nothing else?
 5. Count the exit-ticket items. Is it **≤ 2**?
-6. Search for `"video"`. Is every one an **object with `url` and `title`**, in Development?
-   Delete any that is `null`.
+6. Search for `"video"`. There must be **none** — the slot is filled from `segment.yt` after you
+   answer (§F1④). Delete every one you find.
 7. **Count the words in the outcome box** (outcome + by_the_end + every objective).
    **Aim ≤60. Hard ceiling 80.** This box is printed first and was the worst offender — if it is
    over 60, cut it before anything else.
@@ -1569,8 +1570,7 @@ emit these keys and no others, and use exactly these `type` values inside `block
 
     { "id": "development", "minutes": 12,
       "textbook_page": "24",              // REQUIRED. Reviewer sign-off 7.
-      "video": {"url": "https://…", "title": "…", "channel": "…", "duration": "4:12",
-                "why": "Play once after the I-do, so the class sees the sweep a second time."},
+      // NO "video" key. It is filled mechanically from segment.yt — see §F1④.
       "blocks": [
         // The FIRST block closes the hook, in its first sentence, and says so.
         {"type": "paragraph", "id": "close-hook", "closes_hook": true, "text": "Yes — …"},

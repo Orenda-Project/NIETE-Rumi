@@ -123,7 +123,7 @@
     "title": "Multiplying 2×2 matrices",
     "channel": "Khan Academy",
     "duration": "4:12",
-    "why": "Play once after the I-do, so the class sees the row-by-column sweep a second time."
+    "why": "It animates the row-by-column sweep — a moving path the board cannot draw."
    },
    "blocks": [
     {
