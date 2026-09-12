@@ -64,7 +64,7 @@ family actually fails in practice. It is short because it is targeted; read it i
 
 The ONLY legal block types are: `paragraph` · `ask` · `watch_out` · `board` · `keywords` ·
 `key_points` · `worked_example` · `faded_example` · `practice` · `support_extension` · `split` ·
-`diagram` · `textbook_figure` · `latex` · `chem`.
+`diagram` · `textbook_figure` · `latex` · `chem` · `table`.
 
 **⑧ `slo_code` in a HOMEWORK item is a NON-EMPTY STRING — never `null`.** The schema requires it.
 When the book prints no SLO codes at all, tag the item with the **objective ordinal** it tests —
@@ -1652,7 +1652,7 @@ emit these keys and no others, and use exactly these `type` values inside `block
 
 `paragraph` · `ask` · `watch_out` · `board` · `keywords` · `key_points` · `worked_example` ·
 `faded_example` · `practice` · `support_extension` · `split` · `diagram` · `textbook_figure` ·
-`latex` · `chem`.
+`latex` · `chem` · `table`.
 
 **`say` NO LONGER EXISTS.** Spec §8 bans scripted talk outright, and the schema now enforces it.
 Give the teacher the example and the board line instead. `NO_SAY_BOX` also catches the shape
@@ -1684,6 +1684,34 @@ so **re-wording the caption does not make it a different figure**. Decide which 
 
 Two genuinely different figures are always fine — vary the data, the window or the labels, not just
 the caption.
+
+```json
+{"type": "table", "columns": ["Type", "Climate", "Where"],
+ "rows": [["Tropical", "Hot, wet", "Amazon"], ["Boreal", "Cold winter", "Siberia"]]}
+```
+**`table` — for N cases that share the same attributes, and ONLY when every cell is a LABEL.**
+Reach for it when you are about to write the same attribute names into sentence after sentence
+("Coniferous forest grows in cold, high-rainfall mountains… Scrub forest grows at lower altitude
+with less rain…"). Set as a grid, the teacher scans it instead of reading it.
+
+Three conditions, all three required — if any one fails, write prose and that is the correct
+outcome, not a failure:
+
+1. **Two or three columns.** A fourth is rejected by the schema, and it was rejected because it
+   measured +13.1% TALLER than the prose it replaced.
+2. **Every cell short enough to sit on one line.** At the printed column width that is **about 14
+   characters per cell at three columns, about 24 at two**. A row is as tall as its tallest cell,
+   so one overrunning cell costs the whole row a line, and a few of those make the table the
+   taller shape. "Hot, wet" — yes. "Hot and wet throughout the year" — no, that is prose.
+3. **At most six rows.** A table cannot break across a page; an over-tall one is clipped, not
+   flowed.
+
+**A table is not a way to fit more on a page.** Matched fact-for-fact against the prose it
+replaces it is height-neutral; it wins only on one- and two-word cells. Use it because the
+comparison reads better as a grid, and keep the caps.
+
+Omit `title` (or pass `""`) when the column headers already say what each column is — which is
+the usual case, and saves the line.
 
 ```json
 {"type": "textbook_figure", "id": "fig-1-1", "ref": "grade_10_biology/pg_008_f0",

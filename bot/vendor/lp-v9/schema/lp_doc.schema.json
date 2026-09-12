@@ -582,6 +582,36 @@
           "additionalProperties": false
         },
         {
+          "description": "TABLE — N cases that share the same attributes, set as a SHAPE the eye can scan instead of the same attribute names repeated in sentence after sentence (bd-a8veu.21). This is a READABILITY block, not a way to buy pages, and the difference is measured: against prose carrying exactly the same facts, a 3-column table is height-NEUTRAL (-2.5% on a real grade-6 geography key-points list). It only saves height when every cell is SHORT — one or two words, -23% to -25% — and it LOSES when cells run to sentence length (+11.7%) or even to three or four words (+13.1%). The mechanism is one line per row: a row is as tall as its tallest cell, so ONE cell that wraps costs the WHOLE row a line. Measured at the 478px column: a 3-column row stays on one line while every cell is <=14 characters, a 2-column row while every cell is <=24. Past that the table is taller than the prose it replaced. So the trigger is CELL LENGTH, not the number of cases. The caps are load-bearing, not style. THREE columns, because a FOURTH is a measured REGRESSION: at 478px a 4-column table is 728.9px, +13.1% WORSE than the prose it replaces, because ~119px of column breaks body-size words across 4-5 lines per row. And a table is a single page ATOM — it cannot break across a page, and an over-tall one is clipped — hence the row cap.",
+          "properties": {
+            "type": { "const": "table" },
+            "id": { "type": "string" },
+            "title": { "type": "string", "description": "Optional heading above the table. Omit it — or pass \"\" — when the column headers already say what each column is, which is the usual case." },
+            "columns": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "description": "The attribute names, ONCE. Keep them short — one or two words; they print small and uppercase. THREE at most: a fourth column makes the table taller than the prose it replaced.",
+              "$comment": "column count also sets the cell budget: 3 columns => <=14 characters per cell, 2 columns => <=24, measured at the 478px column.",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "rows": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "description": "One array per case, in the same order as `columns`. A short row is padded, but write them full. Every cell must be a LABEL, not a sentence: at three columns keep each one under about 14 characters, at two columns under about 24. One cell that overruns wraps and costs its whole row an extra line, which is how a table ends up TALLER than the prose it replaced. If the facts will not compress that far, leave them as prose — that is the correct outcome, not a failure.",
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "required": ["type", "columns", "rows"],
+          "additionalProperties": false
+        },
+        {
           "description": "I DO — fully worked, numbered, in front of the class.",
           "properties": {
             "type": { "const": "worked_example" },

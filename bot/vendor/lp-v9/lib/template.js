@@ -87,7 +87,10 @@ const DIAGRAM_LABELS = {
   structure:          { en: "Structure",       ur: "ساخت" },
   numberline:         { en: "Number line",     ur: "عددی خط" },
   number_line:        { en: "Number line",     ur: "عددی خط" },
-  panels:             { en: "Panels",          ur: "موازنہ" },
+  // "Panels" was the SHAPE, not the point: it told the teacher how the SVG is laid out, which is
+  // the one thing she can already see. Its own Urdu has always said موازنہ — comparison — so the
+  // English was the outlier, not the translation. The badge names what the figure is FOR.
+  panels:             { en: "Comparison",      ur: "موازنہ" },
   comparison:         { en: "Comparison",      ur: "موازنہ" },
   compare:            { en: "Comparison",      ur: "موازنہ" },
   punnett:            { en: "Punnett square",  ur: "پنیٹ مربع" },
@@ -485,6 +488,31 @@ p{ font-size:18px; }
 .kp{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .kp li{ font-size:18px; margin:0; }
 .kp li::marker{ color:var(--navy2); }
+/* bd-a8veu.21 — N cases that share attributes, as a shape instead of as repeated sentences.
+   The sizes here are SOURCE sizes: every font-size in this sheet is multiplied by TYPE_SCALE
+   (1.1667) on the way out, so 18px emits at 21px = BODY_FLOOR_PX, and 14px emits at 16.33px =
+   CHIP_FLOOR_PX. Do NOT shrink them to buy height. The renderer's in-page type probe checks
+   BODY_SEL/CHIP_SEL, and neither list matches td or th, so a table can silently ship below the
+   floor — the first version of this block did exactly that, and its -42.5% "win" was small type
+   beating big type, not a table beating prose.
+   THIS BLOCK IS FOR SCANNABILITY, NOT FOR PAGE COUNT, and the numbers here are the ones that
+   survived content-matching both sides. -17.7% was the second artefact: that rig quietly dropped a
+   column of facts from the table while leaving them in the prose baseline. Matched fact-for-fact,
+   a 3-column table is height-NEUTRAL (-2.5% on a real grade-6 key-points list). It saves height
+   only when every cell is one or two words (-23% to -25%) and LOSES at three or four words
+   (+13.1%) or at sentence length (+11.7%). The mechanism is a row is as tall as its tallest cell,
+   so one wrapping cell costs the whole row a line: at this 478px column a 3-column row holds one
+   line to ~14 characters per cell, a 2-column row to ~24. Past that the table is the taller shape.
+   A 4th column is +13.1% WORSE than the prose even before that (schema caps columns at 3).
+   table-layout:auto, measured: the columns genuinely want different widths — a one-word TYPE
+   column beside a longer WHERE column — and auto beat fixed 728.9 to 785.6. */
+.tbl{ border-collapse:collapse; width:100%; margin-top:var(--sp-1); table-layout:auto; }
+.tbl th{ font-size:14px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  text-align:${start}; color:var(--mut); padding:3px 7px; border-bottom:1.5px solid #D8DEE8; }
+.tbl td{ font-size:18px; line-height:1.35; padding:5px 7px; vertical-align:top;
+  text-align:${start}; border-bottom:1px solid #EDF0F5; }
+.tbl tbody tr:nth-child(odd){ background:#FAFBFD; }
+.tbl td:first-child{ font-weight:700; color:var(--navy2); }
 /* The two worked examples are a pair with different jobs — I DO is modelled at the board, WE DO is
    solved with the class — and the we-do box already said so, tinted green to match its green tag.
    The i-do box carried an AMBER tag on a grey hairline, so the pair read as "one coloured box and
@@ -1055,6 +1083,18 @@ function makeBlockRenderer(ctx) {
       const label = b.title === undefined ? L.keyPoints : b.title;
       return `<div class="blk">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
       <ul class="kp"${label ? "" : ' style="margin-top:0"'}>${b.items.map((i) => `<li>${rich(i)}</li>`).join("")}</ul></div>`;
+    },
+
+    /* bd-a8veu.21 — the same facts, one attribute name instead of one per sentence. A ragged
+       row is PADDED, never dropped and never shifted left: the author is a model, and a short
+       row must cost one empty cell rather than a whole lost case. */
+    table: (b) => {
+      const label = b.title === undefined ? "" : b.title;
+      const cells = (r) =>
+        b.columns.map((_, i) => `<td>${rich(r[i] == null ? "" : r[i])}</td>`).join("");
+      return `<div class="blk">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
+      <table class="tbl"><thead><tr>${b.columns.map((c) => `<th>${rich(c)}</th>`).join("")}</tr></thead>
+      <tbody>${b.rows.map((r) => `<tr>${cells(r)}</tr>`).join("")}</tbody></table></div>`;
     },
 
     worked_example: (b) => `<div class="blk exq">
