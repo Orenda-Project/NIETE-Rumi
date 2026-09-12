@@ -551,11 +551,17 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* The sequence strip (spec §5): where this LP sits, what is next, and the next checkpoint.
    It rides directly under the hero because "where am I in the chapter" is the first thing a
    teacher asks of a plan she did not write. */
-.seq{ display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; background:#F6F8FC;
-      border:1.5px solid #E1E7F0; border-radius:9px; padding:5px 12px; font-size:16px; color:var(--mut); }
+   It flows as TEXT, not as a row of boxes: a flex container makes every child atomic, so a
+   phrase that does not fit jumps to the next line whole and leaves the rest of its line blank —
+   and an arrow, being a child of its own, gets stranded on a line by itself (bd-a8veu.2). In
+   ordinary inline flow the phrases wrap word by word and pack continuously. The arrow's gap is
+   PADDING rather than a space, so there is no break opportunity between a phrase's last word
+   and the arrow that terminates it. */
+.seq{ background:#F6F8FC; border:1.5px solid #E1E7F0; border-radius:9px; padding:5px 12px;
+      font-size:16px; line-height:1.5; color:var(--mut); }
 .seq b{ color:var(--navy2); font-weight:800; }
 .seq .now{ color:var(--navy); font-weight:800; }
-.seq .arrow{ color:var(--amber); font-weight:800; }
+.seq .arrow{ color:var(--amber); font-weight:800; padding:0 5px; }
 /* An objective's own SLO code — spec §3 O wants one PER OBJECTIVE, not one per plan. */
 .slocode{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.05em; color:#8A5F04;
       background:rgba(242,162,12,.20); border-radius:11px; padding:1px 8px; margin-${start}:6px; white-space:nowrap; }
@@ -1420,11 +1426,19 @@ function page1(doc, ctx, secIndex) {
 
   // The sequence strip (spec §5), directly under the masthead. Arrows point
   // WITH the reading direction — see arrowFor.
+  //
+  // Each arrow closes the phrase it leads AWAY from, inside that phrase's own span and with no
+  // whitespace before it: an arrow that is a sibling of the phrases is a box of its own, and a
+  // box of its own is what gets pushed onto an empty line (bd-a8veu.2). The only break
+  // opportunities in the strip are the single spaces BETWEEN phrases, which is where a break
+  // belongs. The arrow before `next` therefore rides at the end of `.now`, and only when there
+  // is a next period for it to point at.
   const AR = arrowFor(ctx);
+  const arrow = `<span class="arrow">${AR}</span>`;
   const seq = doc.sequence
-    ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}</span><span class="arrow">${AR}</span>` : ""}
-       <span class="now">${rich(doc.sequence.this)}</span>
-       ${doc.sequence.next ? `<span class="arrow">${AR}</span><span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
+    ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}${arrow}</span>` : ""}
+       <span class="now">${rich(doc.sequence.this)}${doc.sequence.next ? arrow : ""}</span>
+       ${doc.sequence.next ? `<span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
        ${doc.sequence.checkpoint ? `<span>&middot; <b>${esc(L.seqCheck)}:</b> ${rich(doc.sequence.checkpoint)}</span>` : ""}</div>`
     : "";
 

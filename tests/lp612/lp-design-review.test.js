@@ -318,3 +318,130 @@ describe('bd-a8veu.7 — the board plan is in the Introduction, not in Reference
     expect(body(html)).not.toContain(REF_BOARD_BAR);
   });
 });
+
+/**
+ * ── item 2 · "the section with the last current, next and checkpoint has blank space
+ *             after arrows, its design is off putting, and wasting lines and space" ──
+ *
+ * Measured on the operator's own PDF (`$SP/real.txt`, lines 9-16), the strip printed SIX
+ * line boxes for four phrases:
+ *
+ *   Last: Forests of the world — types and characteristics
+ *   →
+ *   Forests of Pakistan — the four forest types and where they grow (p.63–64)
+ *   →
+ *   Next: Why forests matter / conservation of forests
+ *   · Checkpoint: Ch. 4 chapter review
+ *
+ * Both arrows landed alone on a line with the rest of that line blank. That is exactly what
+ * the operator is describing, and it has ONE cause with TWO halves, both in `.seq`:
+ *
+ *   `display:flex; flex-wrap:wrap` makes every direct child an ATOMIC flex item. A phrase
+ *   that does not fit in what is left of the current line moves to the next line whole, and
+ *   the remainder of the line it left is blank — there is no text-level wrapping across the
+ *   boundary. At the 520px phone measure (PAGE_FORMATS.phone) every one of these phrases is
+ *   long enough to trigger it, so the strip wastes a fragment of a line per phrase.
+ *
+ *   The `<span class="arrow">` is one of those direct children. Being an atomic item of its
+ *   own, it can be pushed onto a line by itself — and because the phrase after it is also
+ *   too long to join it, it STAYS by itself. That is the visible "blank space after arrows".
+ *
+ * The fix is to stop laying the strip as a line of boxes and let it flow as text: `.seq`
+ * becomes ordinary block flow, and each arrow moves INSIDE the phrase it terminates, so it
+ * is glued to that phrase's last word and can never be stranded. Prose flow also packs the
+ * phrases continuously, which is where the wasted lines go.
+ *
+ * No browser here (see the header), so what is asserted is the MECHANISM — the container is
+ * not a flex context, and no arrow is an item in its own right. The line count itself is
+ * recorded on bd-a8veu.2 from a real 520x2000 Chrome render.
+ */
+describe('bd-a8veu.2 — the sequence strip flows as text and never strands an arrow', () => {
+  const AR = { en: '&rarr;', ur: '&larr;' };
+
+  /** the strip as it was emitted, `<div class="seq …">` through its closing tag */
+  function strip(html) {
+    const b = body(html);
+    const i = b.indexOf('class="seq');
+    if (i < 0) throw new Error('the emitted document has no sequence strip');
+    const open = b.lastIndexOf('<div', i);
+    return b.slice(open, b.indexOf('</div>', i) + 6);
+  }
+
+  test('the strip is not a flex context — a phrase may wrap, not jump', () => {
+    // The container is what makes each child atomic. Leave it flex and the arrows can be
+    // nested all day; every PHRASE is still a box that leaves the rest of its line blank.
+    const r = rule(built(), '.seq');
+    expect(r).not.toMatch(/display:\s*flex/);
+    expect(r).not.toMatch(/flex-wrap/);
+  });
+
+  /** the attributes of the strip's DIRECT child spans, in paint order */
+  function directChildren(s) {
+    const inner = s.slice(s.indexOf('>') + 1, s.lastIndexOf('</div>'));
+    const out = [];
+    let depth = 0;
+    for (const m of inner.matchAll(/<(\/?)span\b([^>]*)>/g)) {
+      if (m[1]) depth--;
+      else out.push(depth++ === 0 ? m[2] : null);
+    }
+    return out.filter((a) => a !== null);
+  }
+
+  test('no arrow is a direct child of the strip', () => {
+    // A direct child is a flex item under the old sheet and an independent inline box under
+    // the new one. Either way it is separable from the phrase it belongs to, which is the
+    // whole defect. Nesting depth is what decides it, so the spans are walked, not matched.
+    const s = strip(built());
+    expect(directChildren(s).some((a) => /class="arrow"/.test(a))).toBe(false);
+    expect(s).toContain('class="arrow"'); // …and the arrows were not simply deleted
+  });
+
+  test('each arrow is the LAST thing inside the phrase it terminates', () => {
+    // Glued to the end of that phrase's text: when the arrow happens to land at a line edge
+    // the next phrase continues on the following line, so no line is left part-empty.
+    const s = strip(built());
+    const arrows = [...s.matchAll(/<span class="arrow">([^<]*)<\/span>/g)];
+    expect(arrows).toHaveLength(2); // previous -> this, this -> next
+    for (const m of arrows) {
+      expect(m[1]).toBe(AR.en);
+      expect(s.slice(m.index + m[0].length, m.index + m[0].length + 7)).toBe('</span>');
+    }
+  });
+
+  test('the four phrases are still all there, in order, each one labelled', () => {
+    // A layout fix may not quietly drop a leg. This is the operator's "last, current, next
+    // and checkpoint" read straight off the fixture.
+    const s = strip(built());
+    const d = doc();
+    const order = [d.sequence.previous, d.sequence.this, d.sequence.next, d.sequence.checkpoint];
+    let cursor = -1;
+    for (const phrase of order) {
+      const i = s.indexOf(phrase.replace(/&/g, '&amp;'));
+      expect(i).toBeGreaterThan(cursor);
+      cursor = i;
+    }
+    // the labels as `overlay.js` writes them — `seqPrev` is "Last", not "Previous"
+    expect(s).toContain('Last:');
+    expect(s).toContain('Next:');
+    expect(s).toContain('Checkpoint:');
+  });
+
+  test('a lesson with no next period prints no trailing arrow', () => {
+    // The arrow after the current phrase exists to point AT the next one. With nothing to
+    // point at, an arrow hanging off the end of the strip is the stranding defect again.
+    const d = doc();
+    delete d.sequence.next;
+    const s = strip(buildFrom(d));
+    expect(s).toContain(d.sequence.this);
+    expect([...s.matchAll(/class="arrow"/g)]).toHaveLength(1);
+  });
+
+  test('the Urdu strip flows the same way, with the arrow pointing into the text', () => {
+    const s = strip(built('ur'));
+    const arrows = [...s.matchAll(/<span class="arrow">([^<]*)<\/span>/g)];
+    expect(arrows).toHaveLength(2);
+    for (const m of arrows) expect(m[1]).toBe(AR.ur);
+    expect(directChildren(s).some((a) => /class="arrow"/.test(a))).toBe(false);
+    expect(rule(built('ur'), '.seq')).not.toMatch(/display:\s*flex/);
+  });
+});
