@@ -1443,6 +1443,7 @@ function page1(doc, ctx, secIndex) {
   // the video (D), the checkpoint / exit ticket / re-teach rule (C), the tagged homework (H).
   // They render in a fixed position inside their section so a teacher finds them in the same
   // place in every plan — which is the whole point of a closed heading system.
+  const flowHost = flowHosts(doc);
   const before = (s) => {
     const out = [];
     if (s.id === "introduction" && s.warmup) out.push({ html: warmupBody(s.warmup), sp: 2 });
@@ -1461,6 +1462,15 @@ function page1(doc, ctx, secIndex) {
     // canonical section closes on its own `board` note, so the picture of the finished board
     // sits directly under the sentence that tells the teacher what to write. See boardPlanAtoms.
     if (s.id === "introduction") out.push(...boardPlanAtoms(doc, ctx));
+    // bd-a8veu.10: the two groups that used to stand alone in Reference land where they are
+    // used — mistakes at the close of the teaching, differentiation at the close of the
+    // practice, after the items it differentiates. `page2()` no longer paints either unless
+    // this document has no host for it. See flowHosts.
+    const P2 = doc.page2 || {};
+    if (s.id === flowHost.mistakes) out.push(...groupAtoms(L.p2Mistakes, (P2.mistakes || []).map((m) => misCard(m, L))));
+    if (s.id === flowHost.differentiation && P2.differentiation) {
+      out.push(...groupAtoms(L.p2Diff, diffCards(P2.differentiation, L)));
+    }
     if (s.id === "conclusion") {
       if (s.checkpoint) {
         const c = s.checkpoint;
@@ -1662,9 +1672,70 @@ function boardPlanAtoms(doc, ctx) {
   return out;
 }
 
+/**
+ * bd-a8veu.10 — WHERE the two in-flow reference groups are allowed to land.
+ *
+ * Operator: *"common mistakes should be in the part where its needed much like how its in
+ * opening, not stand alone as reference. Differentiation should also be part of practice where
+ * students are going to do work, not in reference"*.
+ *
+ * The host is LOOKED UP, never hardcoded at the emission site, for two reasons. Differentiation
+ * is addressed to "where students are going to do work", which is a property of the BLOCKS a
+ * section carries (`practice` / `faded_example`), not of its id — a plan that puts its practice
+ * in Development rather than Activity still gets it in the right place. And a null host is a
+ * real answer: it means "there is nowhere in the flow for this", and the group stays in
+ * Reference. Content may move; it may never vanish.
+ *
+ * @returns {{mistakes: string|null, differentiation: string|null}} section ids, or null
+ */
+function flowHosts(doc) {
+  const secs = doc.sections || [];
+  const practice = secs.find((s) => (s.blocks || []).some((b) => b.type === "practice" || b.type === "faded_example"));
+  return {
+    mistakes: secs.some((s) => s.id === "development") ? "development" : null,
+    differentiation: practice ? practice.id : null,
+  };
+}
+
+/** One authored misconception: what the pupil writes, and the question you ask back. */
+const misCard = (m, L) => `<div class="mis">
+      <div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>
+      <div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div></div>`;
+
+/** The three differentiation cards, in the order a teacher reaches for them mid-practice. */
+const diffCards = (D, L) => [
+  `<div class="card"><span class="lbl">${esc(L.stuck)}</span><p>${rich(D.stuck)}</p></div>`,
+  `<div class="card"><span class="lbl">${esc(L.barrier)}</span><p>${rich(D.barrier)}</p></div>`,
+  `<div class="card"><span class="lbl">${esc(L.early)}</span><p>${rich(D.early)}</p></div>`,
+];
+
+/**
+ * A labelled card group as FLOW atoms — the shape `gridRows` gives the support page, plus the
+ * label the section bar used to supply.
+ *
+ * ONE CARD PER ATOM, because `PAGE.oneColumn` makes a row a card and a break may never fall
+ * inside a row: three cards in one atom would force all three onto a fresh page. The LABEL rides
+ * in the same atom as card 1 — the YOU-DO precedent in `blockAtoms` — so a page can never open
+ * on a bare card with no statement of what it is a card of.
+ *
+ * A bare `.blk` wrapper, not a boxed one: `.blk` is `margin:0` with no box, so the label sits on
+ * the group exactly as a section's own `.lbl`s do.
+ */
+function groupAtoms(label, cards) {
+  if (!cards.length) return [];
+  return cards.map((c, i) => ({
+    html: i === 0
+      ? `<div class="blk"><div class="lbl">${esc(label)}</div><div class="grid3">${c}</div></div>`
+      : `<div class="grid3">${c}</div>`,
+    sp: i === 0 ? 3 : 2,
+  }));
+}
+
 function page2(doc, ctx, secIndex) {
   const L = ctx.L;
   const P = doc.page2;
+  // bd-a8veu.10: a group with a host in the flow is NOT painted here. See flowHosts.
+  const hosts = flowHosts(doc);
   const p = doc.provenance;
   const A = [];
   /**
@@ -1785,17 +1856,19 @@ function page2(doc, ctx, secIndex) {
       ${m.marking_note ? `<span class="how">${rich(m.marking_note)}</span>` : ""}</div>`;
     })));
 
-  S(L.p2Mistakes, gridRows("grid3", P.mistakes
-    .map(
-      (m) => `<div class="mis">
-      <div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>
-      <div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div></div>`
-    )));
+  // bd-a8veu.10: MISTAKES AND DIFFERENTIATION NORMALLY PRINT IN THE FLOW, not here — the
+  // pupil-says/you-ask pair at the end of Development where the misconception surfaces, the
+  // three differentiation cards at the end of the section that carries the practice. See
+  // flowHosts and the `after(s)` hook. What is left here is the FALLBACK: an LP with no
+  // Development section, or none carrying a practice block, still gets its group printed, in
+  // Reference, exactly as it was printed before. `S` paints nothing for an empty body list, so
+  // the support index closes up on its own (render-law 15) when the flow takes the group.
+  S(L.p2Mistakes, hosts.mistakes ? [] : gridRows("grid3", (P.mistakes || []).map((m) => misCard(m, L))));
 
-  S(L.p2Diff, [`<div class="grid3">
-    <div class="card"><span class="lbl">${esc(L.stuck)}</span><p>${rich(P.differentiation.stuck)}</p></div>
-    <div class="card"><span class="lbl">${esc(L.barrier)}</span><p>${rich(P.differentiation.barrier)}</p></div>
-    <div class="card"><span class="lbl">${esc(L.early)}</span><p>${rich(P.differentiation.early)}</p></div></div>`]);
+  S(L.p2Diff, hosts.differentiation || !P.differentiation
+    ? []
+    : [`<div class="grid3">
+    ${diffCards(P.differentiation, L).join("\n    ")}</div>`]);
 
   const eb = P.exam_bank || {};
   const letterOf = (i) => "ABCDE"[i];

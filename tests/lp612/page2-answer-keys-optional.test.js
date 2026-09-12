@@ -148,8 +148,12 @@ describe('page2.model_answers and page2.homework_key are optional', () => {
   });
 
   test('the remaining bars keep a contiguous A, B, C … index', () => {
+    // The floor only guards against the assertion going vacuous on a one-bar page; it is not a
+    // count of what Reference holds. That count keeps shrinking as sections move into the flow —
+    // bd-a8veu.7 took the board plan into the Introduction, bd-a8veu.10 took mistakes into
+    // Development and differentiation into the practice section. Contiguity is the invariant.
     const letters = barLetters(build(noKeys()));
-    expect(letters.length).toBeGreaterThan(3);
+    expect(letters.length).toBeGreaterThan(1);
     expect(letters).toEqual(letters.map((_, i) => String.fromCharCode(65 + i)));
   });
 

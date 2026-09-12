@@ -192,11 +192,12 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
     const body = html.slice(html.indexOf('</style>'));
     const rows = (cls) => (body.match(new RegExp(`class="${cls}[\\s"]`, 'g')) || []).length;
     expect(rows('grid2')).toBe(d.page2.model_answers.length + d.page2.homework_key.length);
-    // + 1 for section D (differentiation), which is a HAND-WRITTEN `<div class="grid3">` holding
-    // its three fixed cards rather than a gridRows() call. On the phone page its column rule
-    // stacks them, so it reads correctly — it is simply one atom the packer cannot break inside.
-    // Measured cost: zero. Neither corpus produced an OVERFLOW or an over-cap part from it.
-    expect(rows('grid3')).toBe(d.page2.mistakes.length + 1);
+    // Differentiation used to be the ONE exception: a hand-written `<div class="grid3">` holding
+    // all three fixed cards in a single unbreakable atom. bd-a8veu.10 moved it into the flow and
+    // split it the same way as everything else — one card, one row, one atom — so the exception
+    // is gone and the rule in this test's own title now holds without a footnote.
+    const DIFF_CARDS = 3; // stuck / barrier / early
+    expect(rows('grid3')).toBe(d.page2.mistakes.length + DIFF_CARDS);
   });
 
   test('two consecutive half sections are NOT paired into a side-by-side band', () => {
