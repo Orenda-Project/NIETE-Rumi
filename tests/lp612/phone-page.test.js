@@ -159,12 +159,16 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
     //            ~110px and printed the chapter line down five lines while stealing width from
     //            the title. The same pathology the h-meta comment records at 794px.
     //   .p2head  the support page's masthead — eight lines of wrapped meta beside the title.
-    //   .nxt     next period / not going, two ~230px cards. Worst in Urdu.
     //   .se      support / extend, the same shape.
     // A grep-only list is how three of these shipped past the first pass; the assertion is
-    // therefore "no rule in the emitted sheet lays two equal columns", not a list of four names.
+    // therefore "no rule in the emitted sheet lays two equal columns", not a list of names.
+    //
+    // `.nxt` was the fourth — next period / not going, two ~230px cards, worst in Urdu. It left
+    // this list in bd-a8veu.20 with the section it styled: the support page no longer paints
+    // Next period / Not going today, so there is no `.nxt` rule in the sheet to collapse. A name
+    // that no longer exists cannot be asserted on; the rule it named is gone, not widened.
     const html = built('en');
-    for (const sel of ['.hero', '.p2head', '.nxt', '.se']) {
+    for (const sel of ['.hero', '.p2head', '.se']) {
       const rule = html.match(new RegExp(`\\${sel}\\{[^}]*\\}`));
       expect(rule).toBeTruthy();
       expect(rule[0]).toMatch(/display:\s*block/);
@@ -176,7 +180,7 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
 
   test('the Urdu sheet collapses the same pairs — Urdu wraps harder, not less', () => {
     const html = built('ur');
-    for (const sel of ['.hero', '.p2head', '.nxt', '.se', '.split', '.secrow']) {
+    for (const sel of ['.hero', '.p2head', '.se', '.split', '.secrow']) { // `.nxt` — see above
       expect(html.match(new RegExp(`\\${sel}\\{[^}]*\\}`))[0]).toMatch(/display:\s*block/);
     }
     expect(html.match(/\.grid3\{[^}]*\}/)[0]).toMatch(/grid-template-columns:\s*1fr\s*;/);

@@ -773,12 +773,8 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .how{ font-size:15.5px; color:var(--mut); display:block; margin-top:var(--sp-1); }
 .ord{ margin:0; padding-${start}:21px; }
 .ord li{ font-size:18px; margin:0; line-height:1.55; }
-.nxt{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-2);"} }
-${PAGE.oneColumn ? ".nxt > div + div{ margin-top:var(--sp-2); }" : ""}
-.nxt > div{ flex:1 1 0; border-radius:7px; padding:5px 11px; border:1px solid; }
-.nxt .a{ background:#F5F8FC; border-color:#CBD8E8; } .nxt .a .lbl{ color:var(--navy2); display:block; }
-.nxt .b{ background:var(--warn-soft); border-color:var(--warn-line); } .nxt .b .lbl{ color:var(--warn); display:block; }
-.nxt p{ font-size:18px; }
+/* .nxt went with the Next period / Not going today section (bd-a8veu.20) — the last
+   selector that used it was deleted in the same commit. */
 .coach{ background:var(--navy); color:#fff; border-radius:8px; padding:6px 12px; }
 .coach .lbl{ color:var(--amber); display:block; }
 .coach p{ font-size:18px; }
@@ -2113,11 +2109,22 @@ function page2(doc, ctx, secIndex) {
       <p class="a">${rich(h.answer)}</p></div>`;
     })));
 
-  S(`${L.p2Next} / ${L.p2NotGoing}`, [`<div class="nxt">
-    <div class="a"><span class="lbl">${esc(L.p2Next)}</span><p>${rich(P.next_period)}</p></div>
-    <div class="b"><span class="lbl">&#9888; ${esc(L.p2NotGoing)}</span><p>${rich(P.not_going)}</p></div></div>`]);
+  // bd-a8veu.20 — NEXT PERIOD / NOT GOING TODAY IS NO LONGER PAINTED. Operator, on a grade-6
+  // English plan: "inside Reference, A is not at all needed since on Page 1 it is already
+  // present, so pls remove the whole thing." The page-1 twin is the sequence strip at :1694,
+  // which prints `Next: <doc.sequence.next>` directly under the hero — the same fact as
+  // `page2.next_period`, one page earlier, where a teacher meets it before she teaches rather
+  // than after. Reference was re-stating it at the far end of the plan.
+  //
+  // `S` assigns the letter in emission order (render-law 15), so the coaching corner takes the
+  // freed slot with no gap — which is the space the operator said it needed.
+  //
+  // THE DOCUMENT IS UNCHANGED. `next_period` and `not_going` stay required in both schemas,
+  // the briefs keep ordering them, and lint keeps its rules: this is only what we PAINT, so a
+  // stored lesson re-renders without the section at no model cost. `not_going` therefore still
+  // travels with every plan and is one `S(...)` away if it is ever wanted back on the page.
 
-  // H — the coaching corner, on the K-5 pattern (operator, 2026-09-02): something from THIS
+  // The coaching corner, on the K-5 pattern (operator, 2026-09-02): something from THIS
   // lesson, then a question she asks herself, then the offer of real coaching. The offer is
   // FURNITURE — the number lives in the label pack and nowhere else, so it cannot drift document
   // to document and costs nothing against the word budget. K-5 learned the last step the hard
