@@ -262,12 +262,17 @@ describe('v9.3 — the renderer prints what it laid out', () => {
     expect(src).not.toMatch(/const A4 = \{ w: \d+, h: \d+ \};/);
   });
 
-  test('the page caps are UNCHANGED by this lane', () => {
-    // A page-format change that also moved the caps would leave nobody able to say which did
-    // what. At 520x2000 the worst of the 62 documents is EN 6/6 against 7/6 — headroom, measured.
+  test('the page caps are the ones the operator asked for', () => {
+    // This guard was written for the phone-page lane, where the point was that a page-FORMAT
+    // change had not also moved the caps — otherwise nobody could say which did what. That lane
+    // is long shipped, and the caps have since moved deliberately: the operator's v9.3 PDF review
+    // opened on *"its 10 pages long"* (bd-a8veu.1), and 7/6 was the ceiling that let it be.
+    //
+    // So the assertion keeps its job — the caps are a decision, not a drift, and a change to them
+    // reddens this — but it now pins the DECIDED values instead of the superseded ones.
     const { MAX_PAGES, MAX_PAGES_UR } = require(path.join(VENDOR, 'render_lp'));
-    expect(MAX_PAGES).toEqual({ teach: 7, support: 6 });
-    expect(MAX_PAGES_UR).toEqual({ teach: 9, support: 7 });
+    expect(MAX_PAGES).toEqual({ teach: 4, support: 3 });
+    expect(MAX_PAGES_UR).toEqual({ teach: 5, support: 4 });
   });
 });
 
