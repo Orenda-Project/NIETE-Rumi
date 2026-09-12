@@ -295,9 +295,20 @@ function css(rtl, fonts, katex, urduScript) {
   --s-watch:#FCEDE6; --s-watch-line:#F2C4AD; --s-watch-ink:var(--warn);
   --s-note:#FFF8E8;  --s-note-line:#F0DFB4;  --s-note-ink:#8A5F04;
   --s-quiet:#F5F7FA; --s-quiet-line:#E1E6EE; --s-quiet-ink:#414A57;
-  /* The Conclusion band's plum is the one section fill with no role behind it — every other band
-     wears the solid form of a role ink (see .s-* below). */
+  /* THE THREE BAND FILLS WITH NO ROLE BEHIND THEM. Most bands wear the solid form of a role ink
+     (see .s-* below), but there are seven moves and only five role inks, so three moves have to
+     carry a colour of their own. Operator, on the seven-band strip: "what about the moves being
+     different coloured in the LP?" — they were not. Objectives and Warm-up were the SAME
+     --s-note-ink amber, byte for byte, and Introduction's --navy2 sat 8.8 dE from Development's
+     --navy, which at band size under a white badge is one navy, not two. Four of seven bands were
+     two browns and two navies. Warm-up takes the rose and Introduction the teal; DEVELOPMENT KEEPS
+     THE NAVY, because it is the spine of the lesson and #0B2545 is the darkest, strongest band on
+     the page — the one a teacher flipping seven pages aims at. Each of the three clears 4.5:1
+     against the white name and minutes the band prints (rose 6.56, teal 6.31, plum 7.46), and the
+     closest pair among all seven is now 21 dE apart. readability-blocks.test.js holds both. */
   --band-c:#584A93;
+  --band-w:#9E3B52;
+  --band-i:#0F6A73;
   /* THREE RADII, down from eleven. --r-1 rows and small chips, --r-2 blocks and boxes, --r-pill
      anything shaped as a pill. A circle is a SHAPE, not a radius choice, and keeps its 50%. */
   --r-1:6px; --r-2:9px; --r-pill:999px;
@@ -410,8 +421,8 @@ body{ background:#fff; }
    per section buys a fifth page. The badge stops being a second solid and becomes a translucent
    white chip, which reads on a dark navy fill and on a mid amber one alike. */
 .s-o{ background:var(--s-note-ink); }
-.s-w{ background:var(--s-note-ink); }
-.s-i{ background:var(--navy2); }
+.s-w{ background:var(--band-w); }
+.s-i{ background:var(--band-i); }
 .s-d{ background:var(--navy); }
 .s-a{ background:var(--leaf); }
 .s-c{ background:var(--band-c); }
@@ -931,8 +942,14 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
       display:block; color:var(--mut);
       font-size:14px; line-height:${rtl ? "1.75" : "1.4"}; }
 .foot b{ color:var(--navy); font-weight:700; }
-.foot .fl{ min-width:0; }
-.foot .fr{ text-align:${start}; }
+/* TWO LINE BOXES, STRUCTURALLY — operator: "footer to take no more than 2 lines pls". Stacked
+   halves are two lines only while each half FITS the 478px column, and the left half holds a
+   chapter title of unknown length, so no amount of shortening the string can guarantee it. A
+   nowrap block has exactly one line box whatever it holds; overflow+ellipsis is what keeps that
+   from running off the page edge instead. Clamping only ever SHRINKS the measured strip, so the
+   packer's page budget cannot lose a pixel to this. No padding, no line-height, no font-size. */
+.foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.foot .fr{ text-align:${start}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
 ${rtl ? `
 /* ── mixed-script prose under RTL (the 2026-09 audit, class D3) ──────────────
@@ -1490,21 +1507,40 @@ function contStripHtml(doc, ctx) {
  * <stem>.render.json; the page gets words instead:
  *
  *   left   Grade 11 Chemistry · Ch. 4 Stoichiometry · pp. 82-84
- *   right  NIETE Teaching Assistant · v2026-08-30 · page 3 of 5
+ *   right  NIETE Teaching Assistant · page 3 of 5
  *
  * The wordmark lives HERE and not in the hero kicker: "GRADE 9 · CHEMISTRY — NIETE TEACHING
  * ASSISTANT" wrapped onto two lines and pushed the lesson title down every single page.
  * Render-law 13 still holds — no brand in the document means no brand text at all.
+ *
+ * 2026-09-13 — THE LAST INTERNAL REF, AND THE DOUBLE-PRINTED CHAPTER. Operator: *"the footer
+ * contains v2026-09-01 pls remove that tag from the footer as well"*, and *"footer to take no
+ * more than 2 lines pls"*. Those are one defect in two halves.
+ *
+ * `provenance.version` is the date OUR author run stamped the document. It is the same class of
+ * key as `lesson_id` and `book_stem`, which is exactly what this function was written in v8.1 to
+ * clear off the page, and it has no business surviving the sweep that removed them. It is still
+ * carried — pdfmeta.js puts it in the Info dictionary and <stem>.render.json records it — it
+ * simply stops printing. "As well" is her word, and it is right: the tag is off the first page
+ * already, so this strip was the only place left that showed it.
+ *
+ * And the strip was over two lines before the date was counted at all. Every authored document
+ * has `provenance.chapter` ALREADY ending in `chapter_title` — "Ch. 1 · Matrices and
+ * Determinants" beside "Matrices and Determinants" — and this line appended the title anyway, so
+ * the left half read "Ch. 1 · Matrices and Determinants — Matrices and Determinants", ran past
+ * the 478px column and wrapped. Since v9.3 the halves are STACKED, so a wrap is a THIRD line.
+ * Say the chapter once; append the title only for the document whose chapter really is bare
+ * ("Ch. 1"), where dropping it would lose the only words naming the lesson's chapter.
+ * The nowrap clamp on `.foot .fl` / `.foot .fr` holds the other end — see the sheet.
  */
 function footerHtml(doc, ctx, n, total) {
   const p = doc.provenance;
   const L = ctx.L;
-  const chapter = p.chapter_title ? `${p.chapter} &mdash; ${rich(p.chapter_title)}` : rich(p.chapter);
+  const named = p.chapter_title && !String(p.chapter || "").includes(p.chapter_title);
+  const chapter = named ? `${rich(p.chapter)} &mdash; ${rich(p.chapter_title)}` : rich(p.chapter || p.chapter_title);
   const left = `${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter} &middot; ${esc(L.pp)}${isoAtom(esc(p.printed_pages), ctx)}`;
   const brand = p.brand && p.brand.name ? `<span class="wm">${esc(p.brand.name)}</span> &middot; ` : "";
-  // No invented dates: a doc with no provenance.version simply carries none.
-  const ver = p.version ? `v${esc(p.version)} &middot; ` : "";
-  return `<div class="foot"><div class="fl">${left}</div><div class="fr">${brand}${ver}${esc(L.pageOf(n, total))}</div></div>`;
+  return `<div class="foot"><div class="fl">${left}</div><div class="fr">${brand}${esc(L.pageOf(n, total))}</div></div>`;
 }
 
 function page1(doc, ctx, secIndex) {
@@ -1766,10 +1802,19 @@ function page1(doc, ctx, secIndex) {
       // separation is `gap:var(--sp-1)`, each `.hw .it` carries its own border and background,
       // and `.blk` is `margin:0` with no box of its own — so N one-item wrappers paint exactly
       // what one N-item wrapper painted, with the 4px gap returning as the atom's sp-1 margin.
+      //
+      // THE TAG IS THE BLOOM'S LEVEL ALONE. Operator, 2026-09-13: "HW has O1,O2 type marking
+      // with Blooms tag, the tag can remain, but the O1 type objective tagging should be gone".
+      // [K] / [U] / [A] tells a teacher what the question asks a student to DO, which is the
+      // reason the tag is on the page at all. `slo_code` is a curriculum key -- `M-09-A-07` on a
+      // maths plan, `O1` on hers -- and it is OURS, the same class of internal ref this document
+      // was cleared of in v8.1 and again in the footer today. The item still CARRIES `slo_code`:
+      // the objectives band reads it and lint_lp.js's coverage rules check against it. It simply
+      // stops printing beside the question.
       const hwItem = (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
           <span class="q">${rich(it.text)}${it.source && (it.source.page || it.source.questions || it.source.paper)
             ? ` <span class="src">(${[it.source.paper, it.source.questions, it.source.page ? `${L.page}${it.source.page}` : null].filter(Boolean).map((x) => rich(x)).join(", ")})</span>` : ""}</span>
-          <span class="tag">[${rich(it.slo_code)}, ${esc(it.level)}]${it.marks ? ` ${it.marks}${esc(L.markAbbr)}` : ""}</span></div>`;
+          <span class="tag">[${esc(it.level)}]${it.marks ? ` ${it.marks}${esc(L.markAbbr)}` : ""}</span></div>`;
       s.homework.items.forEach((it, i) => {
         out.push({ html: `<div class="blk hw">${hwItem(it, i)}</div>`, sp: i === 0 ? 2 : 1 });
       });

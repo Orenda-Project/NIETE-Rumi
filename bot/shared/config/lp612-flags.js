@@ -28,7 +28,7 @@ const LP612_MAX_GRADE = 12;
 /** The template the renderer is on. Part of the R2 cache key, so bumping it
  *  misses every cached render rather than serving stale layouts — and rolling
  *  back re-serves the old ones instantly, because nothing was deleted. */
-const DEFAULT_TEMPLATE_VERSION = 'v9.4';
+const DEFAULT_TEMPLATE_VERSION = 'v9.5';
 
 /**
  * THE VERSIONS WHOSE STORED DOCUMENTS TODAY'S RENDERER IS KNOWN TO ACCEPT — newest first.
@@ -54,13 +54,20 @@ const DEFAULT_TEMPLATE_VERSION = 'v9.4';
  * heading, and the FBISE section printed for SSC only. Every one of those is the renderer laying
  * out the SAME `lp_doc`; no schema key moved, so v9.3 and older documents stay readable.
  *
+ * v9.5 (2026-09-13) is the same kind of change a third time: seven move bands in seven colours
+ * instead of two browns and two navies, a number line that stacks its labels instead of smearing
+ * them, a footer with the author-run date and the double-printed chapter title gone and both
+ * halves clamped to one line box each, and the homework tag reduced to its Bloom's level. CSS
+ * fills, an SVG layout, and two strings the renderer composes — no schema key moved, so v9.4 and
+ * older documents stay readable and every cached lesson re-renders for zero model spend.
+ *
  * AND THE ENTRY HAS TO BE HERE, not only in Railway — bd-m1k16. The served version comes from
  * `LP_612_TEMPLATE_VERSION`, and a variable moved to a version this list does not contain makes
  * `previousTemplateVersions` return [] ("no ancestry rather than a guess"), which the worker reads
  * as "nothing to reuse" and answers with a full re-author. The bump then costs a model run per
  * lesson — the exact spend this list exists to avoid. Sandbox ran that way until this entry landed.
  */
-const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
+const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
 
 /**
  * Which older template versions' stored documents may be re-rendered for `tv`, newest first.

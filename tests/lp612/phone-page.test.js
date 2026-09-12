@@ -135,10 +135,21 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
     expect(foot).toBeTruthy();
     expect(foot[0]).not.toMatch(/justify-content:\s*space-between/);
     expect(foot[0]).toMatch(/display:\s*block/);
-    // and the right half may no longer refuse to wrap
+    // and the right half is a BLOCK in the stack, not a column beside the left one
     const fr = html.match(/\.foot \.fr\{[^}]*\}/);
     expect(fr).toBeTruthy();
-    expect(fr[0]).not.toMatch(/white-space:\s*nowrap/);
+    expect(fr[0]).not.toMatch(/float:/);
+    expect(fr[0]).not.toMatch(/display:\s*inline/);
+    // `nowrap` INVERTED here, and the inversion is the point of the v9.5 fix (2026-09-13,
+    // operator: "footer to take no more than 2 lines pls"). In the two-column row this test was
+    // written against, a nowrap half could not give way to its neighbour, so a long chapter title
+    // pushed the row to 188px — nowrap was the cause. On stacked blocks each half owns the full
+    // 478px column, and nowrap means it has exactly ONE line box whatever string it holds, which
+    // is the only structural way to promise two lines for content of unknown length. So the guard
+    // keeps its real subject — the footer must not grow vertically — and page-furniture-trim.test.js
+    // asserts the clamp itself, with the overflow+ellipsis that keeps it from running off the edge.
+    expect(fr[0]).toMatch(/white-space:\s*nowrap/);
+    expect(fr[0]).toMatch(/overflow:\s*hidden/);
   });
 
   test('multi-column card grids collapse to ONE column', () => {
@@ -281,17 +292,17 @@ describe('v9.3 — the renderer prints what it laid out', () => {
 });
 
 describe('a cached lesson re-renders, it does not re-author', () => {
-  // Was pinned to v9.3 as the head. The head moved to v9.4 on 2026-09-12 (bd-m1k16), and this
-  // guard's job is the SHAPE — the current version leads, every older one the renderer still
-  // accepts stays behind it — not one particular literal at the front. v9.3 keeps its own
-  // assertion because it is the version whose stored documents the corpus is actually made of.
+  // Was pinned to v9.3 as the head, then v9.4 (bd-m1k16), now v9.5 (2026-09-13). This guard's job
+  // is the SHAPE — the current version leads, every older one the renderer still accepts stays
+  // behind it — not one particular literal at the front. v9.3 keeps its own assertion because it
+  // is the version whose stored documents the corpus is actually made of.
   test('the current version leads the lineage and v9.3 re-renders behind it', () => {
     const flags = require('../../bot/shared/config/lp612-flags');
-    expect(flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.4');
-    expect(flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
-    // every v9.3, v9.2 and v9.1 PDF in the cache has its `.lp.json` beside it, so the bump costs
-    // 0 model calls — 07_font proved the path live on staging (PROOF.md there).
-    expect(flags.previousTemplateVersions('v9.4')).toEqual(['v9.3', 'v9.2', 'v9.1']);
+    expect(flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.5');
+    expect(flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
+    // every v9.4, v9.3, v9.2 and v9.1 PDF in the cache has its `.lp.json` beside it, so the bump
+    // costs 0 model calls — 07_font proved the path live on staging (PROOF.md there).
+    expect(flags.previousTemplateVersions('v9.5')).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
     expect(flags.previousTemplateVersions('v9.3')).toEqual(['v9.2', 'v9.1']);
   });
 });

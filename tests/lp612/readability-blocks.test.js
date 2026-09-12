@@ -81,8 +81,8 @@ const HTML = body(OUT);
  */
 const SECTIONS = [
   ['.s-o', 'var(--s-note-ink)'], // objectives — the amber the band's own text already used
-  ['.s-w', 'var(--s-note-ink)'], // warm-up
-  ['.s-i', 'var(--navy2)'],      // introduction
+  ['.s-w', 'var(--band-w)'],     // warm-up — was the same amber as objectives, byte for byte
+  ['.s-i', 'var(--band-i)'],     // introduction — was a navy 8.8 dE from development's
   ['.s-d', 'var(--navy)'],       // development
   ['.s-a', 'var(--leaf)'],       // activity
   ['.s-c', 'var(--band-c)'],     // conclusion — the one band fill with no pale role behind it
@@ -96,8 +96,52 @@ const BAND_VALUES = {
   '--navy': '#0B2545',
   '--leaf': '#1F7A4D',
   '--band-c': '#584A93',
+  '--band-w': '#9E3B52',
+  '--band-i': '#0F6A73',
   '--mut': '#5b6472',
 };
+
+/** The `background:` a band rule declares, token spelling and all. */
+function fillOf(css, cls) {
+  const m = (rule(css, cls) || '').match(/background:\s*([^;]+);/);
+  expect(m).not.toBeNull();
+  return m[1].trim();
+}
+
+/** A value chased through `:root` until it is a literal — `var(--s-note-ink)` -> `#8A5F04`. */
+function resolved(css, value) {
+  const root = css.match(/:root\{([\s\S]*?)\}/)[1];
+  let v = String(value).trim();
+  for (let i = 0; i < 8 && v.startsWith('var('); i += 1) {
+    const token = v.slice(4, v.indexOf(')')).trim();
+    const m = root.match(new RegExp(`${token}\\s*:\\s*([^;]+);`));
+    expect(m).not.toBeNull();
+    v = m[1].trim();
+  }
+  return v;
+}
+
+/** CIE L*a*b*, so two fills can be compared by how far apart they LOOK, not by how they are spelled. */
+function lab(hex) {
+  const f = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [1, 3, 5].map((i) => f(parseInt(hex.slice(i, i + 2), 16) / 255));
+  const xyz = [
+    (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
+    0.2126 * r + 0.7152 * g + 0.0722 * b,
+    (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
+  ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116));
+  return [116 * xyz[1] - 16, 500 * (xyz[0] - xyz[1]), 200 * (xyz[1] - xyz[2])];
+}
+
+const deltaE = (a, b) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
+
+/** WCAG 2.x contrast of a hex fill against the #fff the band's name and minutes are printed in. */
+function contrastWithWhite(hex) {
+  const ch = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [1, 3, 5].map((i) => ch(parseInt(hex.slice(i, i + 2), 16) / 255));
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 1.05 / (L + 0.05);
+}
 
 /** The pale tints the bands used to be filled with. None may survive as a band fill. */
 const OLD_TINTS = ['#E1EAF6', '#EAF0F8', '#FBF1DF', '#ECE8F6', '#EFF1F4', 'var(--amber-soft)', 'var(--leaf-soft)'];
@@ -153,6 +197,48 @@ describe('the section band is a block of colour, not a wash', () => {
       expect(inner).toBeGreaterThan(0);
       expect(band).toBeGreaterThan(inner);
     }
+  });
+
+  test('SEVEN MOVES, SEVEN COLOURS — no two bands read as one', () => {
+    /**
+     * Operator: *"what about the moves being different coloured in the LP?"*
+     *
+     * They were not. Seven moves carried six values, and two of the collisions were the two
+     * halves of the same page: Objectives and Warm-up were BOTH `--s-note-ink` `#8A5F04`, byte
+     * for byte, and Introduction `#13315C` sat one step off Development `#0B2545` — close enough
+     * that at band size, under a white badge, they read as one navy. So four of the seven bands
+     * were two browns and two navies, and the landmark a teacher flips pages for stopped being a
+     * landmark.
+     *
+     * The assertion is on the RESOLVED value, not on the token spelling — `--s-note-ink` twice is
+     * a duplicate however it is written — and it is a DISTANCE, not an inequality, because the
+     * second collision was never two equal strings. Two hexes that differ are still one colour to
+     * a teacher; CIE L*a*b* is the cheapest thing that says so. The floor is 15: the old navies
+     * measure 8.8 apart and the old ambers 0.0, while the tightest pair the seven now hold is 21.
+     */
+    const MIN_DELTA_E = 15;
+    const fills = SECTIONS.map(([cls]) => {
+      const hex = resolved(CSS, fillOf(CSS, cls));
+      expect(hex).toMatch(/^#[0-9a-f]{6}$/i);
+      return [cls, hex];
+    });
+    const tooClose = [];
+    for (let i = 0; i < fills.length; i += 1) {
+      for (let j = i + 1; j < fills.length; j += 1) {
+        const d = deltaE(fills[i][1], fills[j][1]);
+        if (d < MIN_DELTA_E) tooClose.push(`${fills[i][0]} ${fills[i][1]} vs ${fills[j][0]} ${fills[j][1]} = ${d.toFixed(1)}`);
+      }
+    }
+    expect(tooClose).toEqual([]);
+  });
+
+  test('every band still carries its white name and minutes at 4.5:1', () => {
+    // `.bar .nm,.bar .mins{color:#fff}` is one rule for all seven, so a fill that fails contrast
+    // does not look wrong — it prints the move name in white on a colour too pale to hold it.
+    const weak = SECTIONS.map(([cls]) => [cls, contrastWithWhite(resolved(CSS, fillOf(CSS, cls)))])
+      .filter(([, ratio]) => ratio < 4.5)
+      .map(([cls, ratio]) => `${cls} ${ratio.toFixed(2)}:1`);
+    expect(weak).toEqual([]);
   });
 
   test('THE BUDGET: the band costs not one vertical pixel more than it did', () => {

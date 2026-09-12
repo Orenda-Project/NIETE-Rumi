@@ -228,23 +228,24 @@ describe('previousTemplateVersions', () => {
    * The assertion is on the SERVED version, not on a literal, so the next bump-by-variable
    * reddens here rather than on a teacher's invoice.
    */
-  test('the version the env actually serves is one the lineage knows, with v9.3 behind it', () => {
-    process.env.LP_612_TEMPLATE_VERSION = 'v9.4';
+  test('the version the env actually serves is one the lineage knows, with the head behind it', () => {
+    process.env.LP_612_TEMPLATE_VERSION = 'v9.5';
     const tv = Flags.templateVersion();
 
     expect(Flags.TEMPLATE_VERSION_LINEAGE).toContain(tv);
-    expect(Flags.previousTemplateVersions(tv)[0]).toBe('v9.3');
+    expect(Flags.previousTemplateVersions(tv)[0]).toBe('v9.4');
   });
 
-  test('v9.4 leads the lineage — it changed the PAGE, so v9.3 documents re-render unchanged', () => {
-    // v9.4 is the operator's 2026-09-12 page review: the outcome box states the lesson once, the
-    // page-1 material/pacing/key-word blocks, the paragraphed current-next-checkpoint lines, the
-    // teacher-facing long-question label and the SSC-only FBISE section. All of it is layout over
-    // the SAME `lp_doc` — no schema key moved — which is the precondition this list encodes for
-    // keeping the older entries rather than dropping them.
-    expect(Flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.4');
-    expect(Flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
-    expect(Flags.previousTemplateVersions('v9.4')).toEqual(['v9.3', 'v9.2', 'v9.1']);
+  test('v9.5 leads the lineage — it changed the PAGE, so v9.4 documents re-render unchanged', () => {
+    // v9.5 is the operator's 2026-09-13 review: seven move bands in seven distinguishable colours
+    // (they were two browns and two navies), a number line that stacks sentence-length labels
+    // instead of smearing them, a footer with the author-run date and the double-printed chapter
+    // gone and each half clamped to one line box, and a homework tag reduced to its Bloom's
+    // level. CSS fills, an SVG layout and two composed strings — no schema key moved, which is
+    // the precondition this list encodes for keeping the older entries rather than dropping them.
+    expect(Flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.5');
+    expect(Flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
+    expect(Flags.previousTemplateVersions('v9.5')).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
   });
 });
 

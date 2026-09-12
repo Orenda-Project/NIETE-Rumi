@@ -76,9 +76,9 @@ describe('serving constants', () => {
   // is that the version must also be added to TEMPLATE_VERSION_LINEAGE in the same change, or
   // reuse returns [] and the bump re-authors instead of re-rendering. Pinned in
   // `tests/lp612/reuse-previous-version.test.js`.
-  test('template version defaults to v9.4 and is env-overridable', () => {
+  test('template version defaults to v9.5 and is env-overridable', () => {
     delete process.env.LP_612_TEMPLATE_VERSION;
-    expect(load().templateVersion()).toBe('v9.4');
+    expect(load().templateVersion()).toBe('v9.5');
     jest.resetModules();
     process.env.LP_612_TEMPLATE_VERSION = 'v9.1';
     expect(load().templateVersion()).toBe('v9.1');
