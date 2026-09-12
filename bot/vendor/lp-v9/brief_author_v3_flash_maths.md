@@ -484,6 +484,12 @@ section actually is when it fits the page, and what a finished `one_screen` look
   }
  ],
  "page2": {
+  "homework_key": [
+   {"ref": "H1", "answer": "(B). $g$ is the same for every mass, about $9.8\\,\\text{m/s}^2$ — the mass cancels between $F=mg$ and $a=F/m$."},
+   {"ref": "H2", "answer": "(C), together. With the air removed there is no drag, so the only force on each is weight and both accelerate at $g$."},
+   {"ref": "H3", "answer": "$\\Delta t=(v_f-v_i)/g=39.2/9.8=4$ s. Dropped from rest, so $v_i=0$."},
+   {"ref": "H4", "answer": "Air resistance, not $g$. Drag is large compared with the feather’s tiny weight, so it reaches terminal speed almost at once; the stone’s weight dwarfs its drag, so it keeps accelerating at nearly $g$."}
+  ],
   "board_final": {
    "draw_order": [
     "g = 9.8 m/s² — same for every mass",
@@ -780,14 +786,15 @@ square inch of the page**: the observable move from THIS lesson, then one questi
 about her own practice. (The record-and-send offer beside it is printed by the renderer; you do not
 write it.)
 
-**The two ANSWER KEYS are gone by default (bd-s19g8).** `page2.model_answers` and
-`page2.homework_key` are no longer required, and you do not author them: *"we didnt need model
-answers"*, *"homework key goes too"*. They were the two tallest structures on the support page and
-the plan reads as a teaching plan without them. The class-flow answers you still write inline — every
-practice, we-do, you-do and exit-ticket item keeps its own answer, because that is the answer the
-teacher reads while the pupils are working. If a future LP does ship one of these keys, it must be
-**complete**: a key that exists and answers only half the questions is worse than no key, and lint
-fails it (`REF_ABSENT`).
+**THE HOMEWORK KEY IS BACK; `model_answers` STAYS GONE (bd-yprue, 2026-09-13).** Operator, reading
+a rendered plan: *"hw answers come back"*. So `page2.homework_key` is authored again — one entry per
+homework item — and prints as Reference section F, on the page the pupils do not get. `model_answers`
+does NOT come back: bd-s19g8 removed both, only the homework key was asked for, and model_answers was
+the taller structure of the two. The class-flow answers you still write inline — every practice,
+we-do, you-do and exit-ticket item keeps its own answer, because that is the answer the teacher reads
+while the pupils are working. The homework key must be **complete**: one that answers half the
+questions is worse than none, and lint fails it (`REF_ABSENT`) in both directions — every homework
+`ref` needs an entry, and every entry needs a question.
 
 **The EXAM BANK STAYS, and its heading already says (Optional) (bd-x0pw1).** The section prints
 under the heading **"FBISE format Questions - (Optional)"** — *"we need an exam bank whose heading is
@@ -1649,9 +1656,9 @@ emit these keys and no others, and use exactly these `type` values inside `block
   // ── the REFERENCE BLOCK (key stays `page2`; it PRINTS as "Reference") ──────
   "page2": {
     "board_final": {"draw_order": ["…", "…"], "diagram": { /* optional */ }},
-    // NO "model_answers" and NO "homework_key" (bd-s19g8) — both keys are optional in the schema
-    // and you do not author them. Answers live on the items themselves. If one is ever supplied it
-    // must answer EVERY question of its kind, or lint fails it.
+    // NO "model_answers" (bd-s19g8) — that one stays gone; class-flow answers live on the items.
+    "homework_key": [{"ref": "H1", "answer": "…the worked answer, not just the final value…"}],
+    // ^ AUTHOR THIS (bd-yprue): one entry per homework item, every ref covered, no extras.
     "mistakes": [{"pupil_says": "…", "you_ask": "…"}],          // 3 pairs
     "differentiation": {"stuck": "…", "barrier": "…", "early": "…"},
     "exam_bank": {
@@ -1852,9 +1859,9 @@ The Physics reviewer named it: homework that is real board-shaped work, tagged, 
 - **Never repeats a class item.** `DUP_QUESTION` normalises the text and compares it against every
   warm-up, practice and exit-ticket item. Copying is not practice.
 - **No answers beside the questions.** `HW_ANSWER_INLINE` catches "Answer: …" and an item that has
-  absorbed its own key. A homework item asks; it does not answer itself. (It used to be answered in
-  `page2.homework_key`; bd-s19g8 removed that block, so the rule is simply that the item stays a
-  question.)
+  absorbed its own key. A homework item asks; it does not answer itself. The answer goes in
+  `page2.homework_key` (bd-yprue), which prints on the Reference page the pupils never see — that
+  separation is the whole point, so writing it in both places defeats it.
 - **`homework.minutes ≥ 1`.** A "0 min" badge tells the teacher the work costs nothing.
 
 ---
@@ -2050,7 +2057,8 @@ one edit; finding it in the build costs a round.
       checkpoint, homework, exam bank, and every `prompt`.
 - [ ] Every referenced question is **stated inline**, not just cited.
 - [ ] Every question has a `ref`; every class-flow item (practice, we-do, you-do, exit ticket)
-      carries its own answer. No `model_answers`, no `homework_key` (bd-s19g8).
+      carries its own answer. No `model_answers` (bd-s19g8). `page2.homework_key` IS authored
+      (bd-yprue) and solves EVERY homework item — no gaps, no extras.
 - [ ] Every MCQ has one distractor code per wrong option. (Author them; the renderer hides them.)
 - [ ] Homework: **3–5 items**, tagged `[SLO, K/U/A]`, ≥50% MCQ, today's content only, **no answers**,
       nothing copied from a class item.

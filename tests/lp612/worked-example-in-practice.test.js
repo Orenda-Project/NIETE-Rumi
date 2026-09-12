@@ -129,12 +129,15 @@ describe('the briefs ask for it everywhere, not only on a STEM-2 day', () => {
     expect(typesOf(doc).filter((t) => t === 'worked_example').length).toBeGreaterThanOrEqual(1);
   });
 
-  test.each(BRIEFS.slice(1))('%s: and its reference block still carries nothing worked-out', (f) => {
-    // The other half of the operator's sentence, and bd-s19g8's result restated as a standing
-    // assertion: the demonstration moved to page 1 and no answer key came back with it.
+  test.each(BRIEFS.slice(1))('%s: the worked-out demonstration stays on page 1, and only the HOMEWORK key is in reference', (f) => {
+    // The other half of the operator's sentence: the demonstration moved to page 1 and
+    // `model_answers` — the class-flow key, which duplicated answers the items already carry —
+    // did not come back with it. The HOMEWORK key DID, on her *"hw answers come back"*
+    // (bd-yprue): homework is the one set of questions whose answers a teacher cannot read off
+    // the plan's own class flow, and Reference is the page the pupils never see.
     const doc = workedExample(f);
     expect(doc.page2.model_answers).toBeUndefined();
-    expect(doc.page2.homework_key).toBeUndefined();
+    expect(Array.isArray(doc.page2.homework_key)).toBe(true);
     // …while the FBISE-style questions are exactly what the reference block is allowed to keep.
     expect(doc.page2.exam_bank).toBeTruthy();
   });
