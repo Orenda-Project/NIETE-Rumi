@@ -218,7 +218,7 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["url", "title"],
-            "description": "DEVELOPMENT ONLY. Sits next to the content it supports, never in materials. Operator override of format-doc §8 (2026-09-01): every LP, all subjects, best available link, validated live.",
+            "description": "DEVELOPMENT ONLY. Sits next to the content it supports, never in materials. THE ENHANCEMENT TEST (operator, 2026-09-12, superseding the 2026-09-01 'every LP, all subjects, best available link' override): a video ships only if it shows the teacher something the printed page cannot — a process animated, a real instance filmed, a method demonstrated, a scale or a timespan made visible. A read-through of the same passage, or a walk-through of the same exercises, fails the test. Every LP is still CONSIDERED; an EMPTY slot is the ordinary outcome for a descriptive topic and is not an error. See docs/lp612/video-enhancement-test.md.",
             "properties": {
               "url": { "type": "string", "pattern": "^https?://" },
               "title": { "type": "string", "minLength": 3 },
