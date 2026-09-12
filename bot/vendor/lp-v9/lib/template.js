@@ -575,15 +575,29 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* ── v9 furniture ───────────────────────────────────────────────────────── */
 /* The sequence strip (spec §5): where this LP sits, what is next, and the next checkpoint.
    It rides directly under the hero because "where am I in the chapter" is the first thing a
-   teacher asks of a plan she did not write. */
+   teacher asks of a plan she did not write.
    It flows as TEXT, not as a row of boxes: a flex container makes every child atomic, so a
    phrase that does not fit jumps to the next line whole and leaves the rest of its line blank —
    and an arrow, being a child of its own, gets stranded on a line by itself (bd-a8veu.2). In
    ordinary inline flow the phrases wrap word by word and pack continuously. The arrow's gap is
    PADDING rather than a space, so there is no break opportunity between a phrase's last word
-   and the arrow that terminates it. */
+   and the arrow that terminates it.
+
+   Each leg then takes a LINE OF ITS OWN (bd-a8veu.15). Operator: "the current and next and
+   checkpoint statements should be on new lines, like a new paragraph." They are four independent
+   facts — where she was, what she is teaching, what follows, when it is assessed — and a teacher
+   scanning for today's lesson should not have to read a sentence to find it.
+
+   The blocks are made with a DIRECT-CHILD combinator, and that is load-bearing: .arrow is nested
+   inside a leg, and a display:block reaching it would make it a box of its own again, which is
+   precisely the stranding bd-a8veu.2 removed. Within its own line a leg is still ordinary text
+   and still wraps word by word.
+   (No backticks anywhere in this sheet: the whole stylesheet is one JS template literal, and a
+   backtick in a comment ends it. See bd-a8veu.19 for the sibling trap.) */
 .seq{ background:#F6F8FC; border:1.5px solid #E1E7F0; border-radius:9px; padding:5px 12px;
       font-size:16px; line-height:1.5; color:var(--mut); }
+.seq > span{ display:block; }
+.seq > span + span{ margin-top:3px; }
 .seq b{ color:var(--navy2); font-weight:800; }
 .seq .now{ color:var(--navy); font-weight:800; }
 .seq .arrow{ color:var(--amber); font-weight:800; padding:0 5px; }
@@ -603,19 +617,46 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    and the key words mid-page inside the Introduction.
    ONE box, not three: each row was already its own bordered strip or labelled block, so
    collapsing them into one panel costs one border instead of three and reads as one answer to
-   one question. The panel supplies the box; .vres below is now a plain row inside it. */
-.rescard{ border:1.5px solid #E5E9F0; border-radius:9px; background:#FBFCFE; padding:7px 12px;
-      display:flex; flex-direction:column; gap:var(--sp-1); }
-.rescard .rrow{ font-size:16.5px; }
-.rescard .rrow b{ color:var(--navy2); }
-.rescard .blk .lbl{ margin-top:2px; }
-/* The video row. Amber link on the panel so it reads as an offer rather than as part of the
-   lesson body.
+   one question.
+
+   FOUR BLOCKS, NOT FOUR ROWS (bd-a8veu.16). Operator: "Materials, Pacing and Key words should be
+   spaced as their own blocks on page 1, with slightly different colours and formats to hold the
+   eye like Video does." Collapsing the three into one panel was the right call for PLACEMENT and
+   the wrong one for READING: four facts of four different kinds — what to bring, how long it
+   takes, what the words mean, what to play — arrived as four undifferentiated rows, and only the
+   video, which had kept its icon and its amber link, was findable at a glance. He is naming the
+   video as the standard the other three should meet.
+
+   So each of the four takes its own icon and its own pale tint, and the panel stops drawing a box
+   of its own: a box of boxes reads as clutter and spends a border to say nothing. The tints are
+   deliberately CLOSE to one another — "slightly different", his word — so page 1 reads as one
+   card of four parts rather than four unrelated widgets. Radius, padding and the icon gutter are
+   shared for the same reason; only fill and label colour vary.
+
+   The panel is still the ATOM, so nothing about pagination moves: the four travel together and
+   still land on page 1. */
+.rescard{ display:flex; flex-direction:column; gap:var(--sp-1); }
+.rescard > div{ font-size:16.5px; border-radius:8px; padding:6px 11px;
+      display:flex; gap:8px; align-items:baseline; }
+.rescard .ico{ flex:0 0 auto; }
+.rescard .lbl{ font-weight:700; flex:0 0 auto; }
+.rmat{ background:#EFF7F2; border:1.5px solid #CFE5DA; }
+.rmat .lbl{ color:#14603A; }
+.rpace{ background:#EEF3FB; border:1.5px solid #CFDCEF; }
+.rpace .lbl{ color:var(--navy2); }
+/* Key words keep their stacked label-over-row shape — the meanings need the width — so the icon
+   sits beside the whole block rather than on the label's line. min-width:0 is what lets the
+   flex item shrink below its content; without it the meanings overflow the 478px column. */
+.rkw{ background:#F4F0FA; border:1.5px solid #DCD2EC; }
+.rkw .blk{ min-width:0; flex:1 1 auto; }
+.rkw .lbl.g{ color:#4A3A75; margin-top:0; }
+/* The video block. Amber, matching its own link, so it reads as an offer rather than as part of
+   the lesson body.
    NAMED .vres, not .res or .vid: BOTH of those are already taken (.res is the KaTeX result block,
    .vid was the old inline video block). A colliding class silently inherits someone else's box. */
-.vres{ display:flex; gap:8px; align-items:baseline; }
+.vres{ display:flex; gap:8px; align-items:baseline; background:#FFF8E8; border:1.5px solid #F0DFB4; }
 .vres .ico{ flex:0 0 auto; }
-.vres .lbl{ color:var(--navy2); font-weight:700; flex:0 0 auto; }
+.vres .lbl{ color:#8A5F04; font-weight:700; flex:0 0 auto; }
 /* The visible run is the video's TITLE (bd-a8veu.4), so this is a one-line clamp and no longer a
    url rule: word-break:break-all would hyphenate a title mid-word, and a long YouTube title on a
    478px column is three lines of furniture on a page that is already at its cap. min-width:0 is
@@ -1368,22 +1409,34 @@ function page1(doc, ctx, secIndex) {
     </div>
   </div>`;
 
-  // ── O · LEARNING OUTCOME & OBJECTIVES — ONE BOX ──────────────────────────
+  // ── O · LEARNING OUTCOME — ONE BOX, ONE VOICE (bd-a8veu.14) ──────────────
   // Spec §2: "Outcome and objectives are one box — not two stacked blocks." v8 printed the
   // verbatim SLO as the box and the objectives as a list beneath it, which read as two.
-  // v9 leads with the OUTCOME (what the pupil can do), then the ✓ line naming the question
-  // type and its marks, then the objectives — each wearing its OWN SLO code (spec §3 O).
+  // v9 led with the OUTCOME, then the ✓ line, then the curriculum SLO, then the objectives —
+  // which is FOUR statements of one sentence, and on a real grade 6 render the first objective
+  // was a character-for-character copy of the outcome.
+  //
+  // Operator, three times, most recently 2026-09-12: *"The learning outcomess are still stated
+  // 3 ways, only the first ones are needed, the curriculum SLO isnt needed neither is the
+  // learning outcomes, its just repetition."*
+  //
+  // So the box paints the outcome and the ✓ line, and nothing else. The ✓ line stays because it
+  // is the only place the assessment task and its mark split appear — it says what the outcome
+  // is WORTH, it does not restate it.
+  //
+  // `doc.slo` and `doc.objectives.items` are untouched in the schema: the linter still gates on
+  // them, the author still writes them, `slo.code` still titles this box. They stop being PAINTED.
+  //
+  // WHY THIS LIVES HERE AND NOT IN A BRIEF: bd-a8veu.3 answered this same complaint by editing
+  // four author briefs and the linter — zero renderer lines (93e948cf). An author-side rule only
+  // fires on a genuine re-author; it cannot reach a stored document, and a template-version bump
+  // re-renders stored documents on purpose, for zero model spend. A defect you can see on the
+  // page is a renderer defect. Guarded by tests/lp612/outcome-one-voice-render.test.js.
   const O = doc.objectives;
-  const objLi = (o) =>
-    `<li>${rich(o.text)}${o.slo_code ? `<span class="slocode">${rich(o.slo_code)}</span>` : ""}` +
-    `${o.locally_added ? ` <i style="color:var(--mut)">(${esc(L.locallyAdded)})</i>` : ""}</li>`;
   const sloBox = `<div class="slo">
     <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}</div>
     <p>${rich(O.outcome)}</p>
     ${O.by_the_end ? `<div class="bythe"><b>&#10003;</b> ${rich(O.by_the_end)}</div>` : ""}
-    <div class="src">${esc(L.slo)}: ${isoQuote(`&ldquo;${rich(doc.slo.text_verbatim)}&rdquo;`, ctx)} &middot; ${esc(L.page)}${rich(doc.slo.source_page)}${doc.slo.assessment_status ? ` &middot; ${isoAtom(esc(doc.slo.assessment_status), ctx)}` : ""} &middot; ${isoAtom(esc(doc.slo.cognitive_level), ctx)}</div>
-    <div class="objhd"><span class="badge">O</span>${esc(L.objectives)}</div>
-    <ul class="objs">${O.items.map(objLi).join("")}</ul>
   </div>`;
 
   /**
@@ -1468,14 +1521,18 @@ function page1(doc, ctx, secIndex) {
     return intro.blocks.find((b) => b && b.type === "keywords") || null;
   })();
 
+  // Each of the four is its own BLOCK, with its own icon and its own tint (bd-a8veu.16) — see the
+  // .rescard comment in the stylesheet for why. The icon leads, the way the video's already did;
+  // the label's trailing colon goes with the row, because a block boundary already separates the
+  // label from what it labels and a colon on top of it is a mark doing nothing.
   const resourcesCard = (() => {
     const rows = [];
     if (resourcesLine) rows.push(resourcesLine);
     if (doc.materials && doc.materials.length) {
-      rows.push(`<div class="rrow"><b>${esc(L.materials)}:</b> ${doc.materials.map((m) => rich(m)).join(" &middot; ")}</div>`);
+      rows.push(`<div class="rmat"><span class="ico">&#129520;</span><span class="lbl">${esc(L.materials)}</span><span>${doc.materials.map((m) => rich(m)).join(" &middot; ")}</span></div>`);
     }
-    rows.push(`<div class="rrow"><b>${esc(L.pacing)}:</b> ${pacing.join(" + ")} = ${pacingSum} ${esc(L.min)}</div>`);
-    if (kwHoisted) rows.push(blk(kwHoisted, FULL_COL));
+    rows.push(`<div class="rpace"><span class="ico">&#9201;</span><span class="lbl">${esc(L.pacing)}</span><span>${pacing.join(" + ")} = ${pacingSum} ${esc(L.min)}</span></div>`);
+    if (kwHoisted) rows.push(`<div class="rkw"><span class="ico">&#128273;</span>${blk(kwHoisted, FULL_COL)}</div>`);
     return `<div class="rescard">${rows.join("")}</div>`;
   })();
 
@@ -1488,13 +1545,18 @@ function page1(doc, ctx, secIndex) {
   // opportunities in the strip are the single spaces BETWEEN phrases, which is where a break
   // belongs. The arrow before `next` therefore rides at the end of `.now`, and only when there
   // is a next period for it to point at.
+  //
+  // Each leg is a BLOCK (`.seq > span`, bd-a8veu.15) — four statements, four lines. The arrows
+  // stay because the stack is the only thing that says these four lines are one sequence and not
+  // four unrelated facts; the checkpoint's leading `&middot;` goes, because a separator between
+  // two things that no longer share a line is a stray mark.
   const AR = arrowFor(ctx);
   const arrow = `<span class="arrow">${AR}</span>`;
   const seq = doc.sequence
     ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}${arrow}</span>` : ""}
        <span class="now">${rich(doc.sequence.this)}${doc.sequence.next ? arrow : ""}</span>
        ${doc.sequence.next ? `<span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
-       ${doc.sequence.checkpoint ? `<span>&middot; <b>${esc(L.seqCheck)}:</b> ${rich(doc.sequence.checkpoint)}</span>` : ""}</div>`
+       ${doc.sequence.checkpoint ? `<span><b>${esc(L.seqCheck)}:</b> ${rich(doc.sequence.checkpoint)}</span>` : ""}</div>`
     : "";
 
   // The warm-up is ONE ROW inside the Introduction (spec §2) — not a section, not a band of
@@ -2016,7 +2078,21 @@ function page2(doc, ctx, secIndex) {
          .join("")}</div>`
     : null;
 
-  S(L.p2Exam, [
+  // bd-a8veu.18 — THE SECTION IS PRINTED FOR SSC ONLY. Operator: "Section B in the reference
+  // section is not needed." The heading names FBISE, and FBISE's examining remit starts at SSC, so
+  // on a grade 6-8 plan it names a board that does not examine her pupils — over questions the
+  // rule two screens up was careful not to call board practice. The document is unchanged: the
+  // bank stays in the schema, the briefs keep ordering one, and lint keeps its 6-8 warn. This is
+  // only what we PAINT, so a stored middle-school lesson re-renders without it at no model cost.
+  //
+  // Polarity differs from `srqLabel` on purpose. A missing grade there falls toward the label that
+  // claims LESS; here it falls toward printing, because withholding a whole section on an absent
+  // field would silently strip SSC lessons whose provenance never carried one.
+  //
+  // `S` assigns the support-page letter in emission order (render-law 15), so C becomes B by
+  // itself and the index closes up with no gap.
+  const fbiseGrade = p.grade == null || p.grade >= 9;
+  S(L.p2Exam, !fbiseGrade ? [] : [
     mcqAtoms.length ? { html: `<div class="lbl g">${esc(L.mcq)}</div>`, sp: 1 } : null,
     ...mcqAtoms,
     srqHtml ? { html: srqHtml, sp: 2 } : null,

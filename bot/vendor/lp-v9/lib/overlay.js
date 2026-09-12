@@ -195,7 +195,11 @@ const LABELS = {
     // The SRQ label follows the GRADE. FBISE's examining remit starts at SSC, so on a
     // grade 6-8 plan nothing may be framed as board practice (the author brief forbids it).
     srq: "Short response — board phrasing", srqEarly: "Short response — exam-style",
-    erq: "Extended response — skeleton", markScheme: "Mark scheme", howMarked: "How this is marked",
+    // bd-a8veu.17. "Extended response" is an assessment-designer's name for a question type and
+    // "skeleton" was ours for the shape printed under it; a teacher calls it the long question, and
+    // what the parts-and-marks structure is FOR is planning an answer that earns all of them. The
+    // schema key stays `erq_skeleton` — this is the display label and nothing else.
+    erq: "Long question — answer plan", markScheme: "Mark scheme", howMarked: "How this is marked",
     marks: "marks", drawOrder: "Draw it in this order", tier: { support: "support", core: "core", extension: "extension" },
     figureIn: "as in your book", page: "p.", reading: "Reading the diagram",
     // bd-s19g8. This line used to ENUMERATE what page 2 holds ("board plan, answers, mistakes,
@@ -252,7 +256,7 @@ const LABELS = {
     stuck: "اگر بچے اٹک جائیں", barrier: "اگر طریقہ رکاوٹ بنے", early: "اگر جلد فارغ ہو جائیں",
     mcq: "کثیر الانتخابی سوالات",
     srq: "مختصر جواب — بورڈ کے الفاظ میں", srqEarly: "مختصر جواب — امتحانی انداز",
-    erq: "تفصیلی جواب — خاکہ", markScheme: "نمبروں کی تقسیم", howMarked: "نمبر کیسے ملتے ہیں",
+    erq: "تفصیلی سوال — جواب کی ترتیب", markScheme: "نمبروں کی تقسیم", howMarked: "نمبر کیسے ملتے ہیں",
     marks: "نمبر", drawOrder: "اسی ترتیب سے بنائیں", tier: { support: "مدد", core: "بنیادی", extension: "اضافی" },
     figureIn: "آپ کی کتاب میں", page: "صفحہ ", reading: "تصویر کو کیسے پڑھیں",
     // bd-s19g8 — see the English note: no enumeration, because page 2's sections are optional.

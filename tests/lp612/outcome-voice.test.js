@@ -189,13 +189,32 @@ describe('bd-a8veu.3 — the citation stops calling itself the outcome', () => {
     expect(LABELS.ur.slo).toBe('متعینہ تدریسی مقصد');
   });
 
-  test('the rendered box carries the heading once and the citation under its own name', () => {
-    const html = buildHtml(load(), { lang: 'en', docDir: path.dirname(FIXTURE) }).html;
+  /**
+   * SUPERSEDED BY bd-a8veu.14. This used to prove the box printed the heading once and then the
+   * citation UNDER ITS OWN NAME — the fix for the label collision, which was to make the two
+   * labels differ so one box could carry both sentences.
+   *
+   * The operator's answer to that, on the third pass, was that neither sentence belongs there:
+   * *"the curriculum SLO isnt needed neither is the learning outcomes, its just repetition."* So
+   * the citation is no longer PAINTED at all, and the collision it was named after cannot recur
+   * on the page. The two label assertions above still stand — `L.slo` is still a distinct string,
+   * still used by the linter's complaint text — but the render side of bd-a8veu.3 is now the
+   * removal, and this asserts the removal rather than the old placement.
+   *
+   * The full new box contract lives in `tests/lp612/outcome-one-voice-render.test.js`.
+   */
+  test('the citation is no longer painted at all, so the collision cannot recur', () => {
+    const doc = load();
+    const html = buildHtml(doc, { lang: 'en', docDir: path.dirname(FIXTURE) }).html;
     const body = html.slice(html.indexOf('</style>'));
-    const box = body.slice(body.indexOf('class="slo'), body.indexOf('class="slo') + 3000);
-    expect(box).toContain(LABELS.en.slo);
-    // the quotation itself is untouched — it is the label that changed
-    expect(box).toContain(load().slo.text_verbatim);
+    const i = body.indexOf('class="slo'); // `atom()` rewrites the class — match the opening
+    const box = body.slice(i, i + 3000);
+
+    // the heading is there, once, and it is the OUTCOME's
+    expect(box).toContain(LABELS.en.outcome);
+    expect(body.split(LABELS.en.slo).length - 1).toBe(0);
+    // and the third wording of the lesson is off the page entirely
+    expect(body).not.toContain(doc.slo.text_verbatim);
   });
 });
 

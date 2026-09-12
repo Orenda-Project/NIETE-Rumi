@@ -126,11 +126,47 @@ describe('the built HTML, en vs ur, from the same document', () => {
     expect(en).not.toContain('unicode-bidi:plaintext');
   });
 
-  test('the outcome box citation atoms are isolated under RTL', () => {
+  /**
+   * SUPERSEDED BY bd-a8veu.14, and widened rather than deleted.
+   *
+   * This used to assert the outcome box's citation cluster — `Formative · U`, the assessment
+   * status and cognitive level — was wrapped LRI…PDI. Those atoms are no longer PAINTED: the
+   * operator's *"the curriculum SLO isnt needed neither is the learning outcomes, its just
+   * repetition"* took the whole citation tail off the box, so `isoQuote` and that cluster went
+   * with it (`tests/lp612/outcome-one-voice-render.test.js` is what pins the removal).
+   *
+   * The defect class the original test belonged to is still live, though — a Latin/numeric atom
+   * dropped into Urdu chrome reverses under UAX#9 — and the page range is now the only atom of
+   * that kind left on the page. It is stamped at THREE sites (teach header, teach h-meta, support
+   * header), and the test above proves one of them. So this now proves there is no un-isolated
+   * fourth: every occurrence, not the first.
+   */
+  test('every page-range atom in the Urdu build is isolated — no un-isolated fourth site', () => {
     const doc = load();
-    if (!doc.slo.assessment_status) doc.slo.assessment_status = 'Formative';
     const ur = buildHtml(doc, { docDir: path.dirname(FIXTURE), lang: 'ur' }).html;
-    expect(ur).toContain(`${LRI}${doc.slo.assessment_status}${PDI}`);
-    expect(ur).toContain(`${LRI}${doc.slo.cognitive_level}${PDI}`);
+    const pp = doc.provenance.printed_pages;
+    // CSS COMMENTS SHIP VERBATIM inside the emitted <style>, and one of them quotes a page range
+    // as an example. Count what is PAINTED, which starts after the sheet.
+    const body = ur.slice(ur.lastIndexOf('</style>') + 8);
+
+    const isolated = body.split(`${LRI}${pp}${PDI}`).length - 1;
+    const total = body.split(pp).length - 1;
+    expect(isolated).toBeGreaterThanOrEqual(3); // the three known stamps
+    expect(total).toBe(isolated); // and nothing paints it bare
+  });
+
+  test('the citation cluster the box used to carry is gone, not merely unisolated', () => {
+    // Guards the other half: a re-render that brought the tail back WITHOUT its isolates would
+    // otherwise slip past, because the assertion above only counts page ranges.
+    //
+    // Both fields are given sentinels first. `cognitive_level` ships as a single letter ("A"),
+    // which is a substring of every HTML document ever written — asserting on the fixture's own
+    // value would be a test that can never fail.
+    const doc = load();
+    doc.slo.assessment_status = 'ZZ_STATUS_SENTINEL_ZZ';
+    doc.slo.cognitive_level = 'ZZ_COGLEVEL_SENTINEL_ZZ';
+    const ur = buildHtml(doc, { docDir: path.dirname(FIXTURE), lang: 'ur' }).html;
+    expect(ur).not.toContain(doc.slo.assessment_status);
+    expect(ur).not.toContain(doc.slo.cognitive_level);
   });
 });
