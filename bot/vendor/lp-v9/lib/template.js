@@ -414,12 +414,19 @@ p{ font-size:18px; }
 
 /* ── warm-up ────────────────────────────────────────────────────────────── */
 .wu{ display:flex; flex-direction:column; gap:var(--sp-1); }
-.wu .it{ display:flex; gap:9px; align-items:baseline; border:1.5px solid #EADFC5; background:#FFFCF5;
+/* A question row is a BLOCK with two floated corners, not a flex line (bd-a8veu.5). As a flex
+   line the chip was flex:0 0 auto — an unshrinkable column reserved for the whole height of
+   the row — so the question wrapped into a ribbon beside it and the space under the chip stayed
+   blank. Worst case measured at 520px: a 372.8px chip on a 478px row left the question 70.1px
+   and the row 261.4px tall. Floated, the question flows the full measure and wraps back under
+   the chip: 1865.6px -> 1326.5px over the fixture's 11 rows. flow-root contains the floats so
+   a row whose text is shorter than its chip cannot leak one into the next row. */
+.wu .it{ display:flow-root; border:1.5px solid #EADFC5; background:#FFFCF5;
       border-radius:6px; padding:3px 10px; }
-.wu .n{ flex:0 0 auto; font-weight:800; color:#C98A12; font-size:16.5px; }
+.wu .n{ float:${start}; margin-${end}:9px; font-weight:800; color:#C98A12; font-size:16.5px; }
 .wu .q{ font-size:18px; }
 .wu .a{ color:var(--leaf); font-weight:700; }
-.wu .kind{ flex:0 0 auto; margin-${start}:auto; font-size:14px; font-weight:800; letter-spacing:.05em;
+.wu .kind{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:800; letter-spacing:.05em;
       text-transform:uppercase; color:#9aa3b0; }
 
 /* ── blocks ─────────────────────────────────────────────────────────────── */
@@ -461,11 +468,11 @@ p{ font-size:18px; }
       text-transform:uppercase; padding:3px 10px; border-radius:14px; background:var(--leaf-soft);
       color:#14603A; border:1.5px solid #BFE3CD; }
 .pr .items{ margin-top:var(--sp-1); display:flex; flex-direction:column; gap:var(--sp-1); }
-.pr .it{ display:flex; gap:8px; align-items:baseline; }
-.pr .n{ flex:0 0 auto; font-weight:800; color:var(--navy2); font-size:16.5px; min-width:17px; }
+.pr .it{ display:flow-root; }
+.pr .n{ float:${start}; margin-${end}:8px; font-weight:800; color:var(--navy2); font-size:16.5px; min-width:17px; }
 .pr .q{ font-size:18px; }
 .pr .a{ color:var(--leaf); font-weight:700; }
-.pr .tier{ flex:0 0 auto; margin-${start}:auto; font-size:14px; font-weight:800; letter-spacing:.05em;
+.pr .tier{ float:${end}; margin-${start}:8px; font-size:14px; font-weight:800; letter-spacing:.05em;
       text-transform:uppercase; color:#9aa3b0; }
 .se{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3);"} }
 ${PAGE.oneColumn ? ".se > div + div{ margin-top:var(--sp-2); }" : ""}
@@ -587,11 +594,11 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* Homework as DATA. Each item wears its [SLO, K/U/A] tag; NO answer is printed here — the
    answers live in reference F, which is the whole point of defect class E. */
 .hw{ display:flex; flex-direction:column; gap:var(--sp-1); }
-.hw .it{ display:flex; gap:9px; align-items:baseline; border:1.5px solid var(--line); background:#FAFBFD;
+.hw .it{ display:flow-root; border:1.5px solid var(--line); background:#FAFBFD;
       border-radius:6px; padding:4px 11px; }
-.hw .n{ flex:0 0 auto; font-weight:800; color:#5b6472; font-size:16.5px; }
+.hw .n{ float:${start}; margin-${end}:9px; font-weight:800; color:#5b6472; font-size:16.5px; }
 .hw .q{ font-size:18px; }
-.hw .tag{ flex:0 0 auto; margin-${start}:auto; font-size:14px; font-weight:800; letter-spacing:.04em;
+.hw .tag{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:800; letter-spacing:.04em;
       color:#414A57; background:#E7EAEF; border-radius:11px; padding:1px 8px; white-space:nowrap; }
 .hw .src{ color:var(--mut); font-size:15.5px; }
 /* An inline matrix is promoted to display style (lib/rich.js). Give it room to breathe so it
