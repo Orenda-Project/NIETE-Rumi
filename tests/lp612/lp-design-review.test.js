@@ -53,13 +53,25 @@ const { buildHtml } = require(path.join(VENDOR, 'lib', 'template'));
 const FIXTURE = path.join(__dirname, '__fixtures__', 'v9_gate_base.lp.json');
 const doc = () => JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
 
-const built = (lang = 'en') => buildHtml(doc(), { lang, docDir: path.dirname(FIXTURE) }).html;
+const buildFrom = (d, lang = 'en') => buildHtml(d, { lang, docDir: path.dirname(FIXTURE) }).html;
+const built = (lang = 'en') => buildFrom(doc(), lang);
 
 /** the one rule the emitted sheet declares for `sel`, as it was written */
 function rule(html, sel) {
   const m = html.match(new RegExp(`\\n${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\{[^}]*\\}`));
   if (!m) throw new Error(`the emitted stylesheet has no rule for \`${sel}\``);
   return m[0];
+}
+
+/** the emitted BODY — everything after the stylesheet, so a class name in a CSS
+ *  selector can never be mistaken for a class name on an element */
+const body = (html) => html.slice(html.indexOf('</style>'));
+
+/** where `needle` first appears in the body, asserted to appear at all */
+function at(html, needle, what) {
+  const i = body(html).indexOf(needle);
+  if (i < 0) throw new Error(`the emitted document has no ${what} (looked for \`${needle}\`)`);
+  return i;
 }
 
 /** the three question rows, and the chip each one carries */
@@ -123,5 +135,87 @@ describe('bd-a8veu.5 — a question row gives its question the whole measure', (
       // `gap` dies with the flex line; without a replacement the number touches the question.
       expect(r).toMatch(/margin-right:\s*[\d.]+px/);
     }
+  });
+});
+
+/**
+ * ── item 6 · "Key words should come on the 1st page, so teachers have their materials
+ *              listed, videos, and key words. So the 1st page quickly tells the teacher
+ *              where they are at, what they are teacing, the SLO, the resources, videos
+ *              and key words of this lesson" ────────────────────────────────────────
+ *
+ * Page 1 already opens with WHERE (the hero: grade, subject, chapter, pages, minutes),
+ * WHAT NEXT (the sequence strip) and the SLO (the outcome box). The three things the
+ * operator names as missing are the three that were scattered:
+ *
+ *   the video      one bordered row under the outcome box  — already on page 1
+ *   the materials  14px muted ITALIC, folded into the pacing sentence at the very END
+ *                  of the teach part (`.mats .cont`), four pages away
+ *   the key words  a block INSIDE the Introduction section, mid-page
+ *
+ * All three are resources — things the teacher has to have in her hand before the bell —
+ * so they become one box directly under the outcome. This is a MOVE, exactly as the video
+ * itself was moved out of Development (see `resourcesLine`): each renders in exactly ONE
+ * place, and a second copy of the same content is a defect that costs a page.
+ *
+ * The key words move in the RENDERER only. `lint_lp.js`'s VOCAB_PAGE reads the DOCUMENT —
+ * it requires a `keywords` block among the introduction's blocks and a page number on it —
+ * so the lp_doc shape, the author brief, and every `ur_overlay` pointer are untouched.
+ *
+ * `L.continues` ("Support pages follow — planning material for you, not read aloud in
+ * class") stays at the end of the teach part, because that is the only place it is true.
+ */
+describe("bd-a8veu.6 — page 1 is the teacher's at-a-glance card", () => {
+  // `atom()` rewrites the outer element's class attribute to add its spacing class, so the card
+  // ships as `class="rescard sp-2"`. Match the opening of the attribute, not a closed one.
+  const CARD = 'class="rescard';
+
+  test('the resources card is on page 1, above the first section', () => {
+    const html = built('en');
+    const card = at(html, CARD, 'resources card');
+    const intro = at(html, 'data-sec="introduction"', 'introduction bar');
+    expect(card).toBeLessThan(intro);
+  });
+
+  test('the key words are in that card, not buried inside the Introduction', () => {
+    const html = built('en');
+    expect(at(html, 'class="kwrow"', 'key-words row'))
+      .toBeLessThan(at(html, 'data-sec="introduction"', 'introduction bar'));
+    // ONE copy. A hoist that leaves the block rendering in place too is not a move.
+    expect(body(html).match(/class="kwrow"/g)).toHaveLength(1);
+  });
+
+  test('the materials are on page 1, not in the tail sentence four pages later', () => {
+    const html = built('en');
+    const intro = at(html, 'data-sec="introduction"', 'introduction bar');
+    // the fixture's own materials, so this cannot pass on a label alone
+    expect(at(html, 'Squared paper', 'materials list')).toBeLessThan(intro);
+    // and the tail keeps the one sentence that is only true at the end
+    const tail = body(html).slice(at(html, 'class="mats', 'tail sentence'));
+    expect(tail).toMatch(/Support pages follow/);
+    expect(tail).not.toMatch(/Squared paper/);
+  });
+
+  test('the video still renders exactly once, and inside the card', () => {
+    const html = built('en');
+    expect(body(html).match(/class="vres"/g)).toHaveLength(1);
+    const card = at(html, CARD, 'resources card');
+    expect(at(html, 'class="vres"', 'video row')).toBeGreaterThan(card);
+    expect(at(html, 'class="vres"', 'video row'))
+      .toBeLessThan(at(html, 'data-sec="introduction"', 'introduction bar'));
+  });
+
+  test('a lesson with no video still gets its card, with materials and key words', () => {
+    // the card is not the video row wearing a new name: it must hold on its own. Most lessons
+    // carry a video (the fixture does), so strip it to reach the branch that does not.
+    const d = doc();
+    delete d.sections.find((s) => s.id === 'development').video;
+    const html = buildFrom(d);
+    expect(body(html)).not.toMatch(/class="vres"/);
+    const card = at(html, CARD, 'resources card');
+    expect(at(html, 'class="kwrow"', 'key-words row')).toBeGreaterThan(card);
+    expect(at(html, 'Squared paper', 'materials list')).toBeGreaterThan(card);
+    expect(at(html, 'Squared paper', 'materials list'))
+      .toBeLessThan(at(html, 'data-sec="introduction"', 'introduction bar'));
   });
 });

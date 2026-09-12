@@ -563,13 +563,26 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* Development's textbook citation. Reviewer sign-off 7: no page, no pass. */
 .cite{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
       color:var(--navy2); background:#EAF0F8; border-radius:11px; padding:2px 9px; }
-/* The resources line: one compact row under the outcome box. Amber link on a pale rule so it
-   reads as an offer rather than as part of the lesson body. No font-size — it inherits the 18px
-   floor render_lp.js enforces.
+/* THE RESOURCES CARD — page 1's at-a-glance panel (bd-a8veu.6). Operator: "the 1st page
+   quickly tells the teacher where they are at, what they are teacing, the SLO, the resources,
+   videos and key words of this lesson." The hero says where, the sequence strip says what is
+   next, the outcome box says the SLO; this box says what she has to have in her hand. Its
+   three rows were previously three different places in the document — the video here, the
+   materials folded into the muted italic pacing sentence at the very END of the teach part,
+   and the key words mid-page inside the Introduction.
+   ONE box, not three: each row was already its own bordered strip or labelled block, so
+   collapsing them into one panel costs one border instead of three and reads as one answer to
+   one question. The panel supplies the box; .vres below is now a plain row inside it. */
+.rescard{ border:1.5px solid #E5E9F0; border-radius:9px; background:#FBFCFE; padding:7px 12px;
+      display:flex; flex-direction:column; gap:var(--sp-1); }
+.rescard .rrow{ font-size:16.5px; }
+.rescard .rrow b{ color:var(--navy2); }
+.rescard .blk .lbl{ margin-top:2px; }
+/* The video row. Amber link on the panel so it reads as an offer rather than as part of the
+   lesson body.
    NAMED .vres, not .res or .vid: BOTH of those are already taken (.res is the KaTeX result block,
    .vid was the old inline video block). A colliding class silently inherits someone else's box. */
-.vres{ display:flex; gap:8px; align-items:baseline; margin-top:var(--sp-2);
-      padding:6px 10px; border:1.5px solid #E5E9F0; border-radius:8px; background:#FBFCFE; }
+.vres{ display:flex; gap:8px; align-items:baseline; }
 .vres .ico{ flex:0 0 auto; }
 .vres .lbl{ color:var(--navy2); font-weight:700; flex:0 0 auto; }
 .vres a{ color:#8A5F04; text-decoration:underline; word-break:break-all; }
@@ -1367,6 +1380,44 @@ function page1(doc, ctx, secIndex) {
     return `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(L.video)}</span><a href="${esc(href)}">${esc(shown)}</a></div>`;
   })();
 
+  /**
+   * THE RESOURCES CARD \u2014 everything the teacher must have in her hand, in one box on page 1.
+   *
+   * Operator, on the v9.3 pull: *"Key words should come on the 1st page, so teachers have their
+   * materials listed, videos, and key words. So the 1st page quickly tells the teacher where they
+   * are at, what they are teacing, the SLO, the resources, videos and key words of this lesson"*.
+   *
+   * The hero already says WHERE, the sequence strip says what comes before and after, the outcome
+   * box says the SLO. The three things he names were the three that were scattered: the video was
+   * here already, the materials were folded into the muted 14px pacing sentence at the very END of
+   * the teach part (four pages away from the bell), and the key words were a block buried mid-page
+   * inside the Introduction.
+   *
+   * Like the video move above, this is a MOVE and not an addition \u2014 each of the three renders in
+   * exactly ONE place. `sectionAtoms` drops the hoisted keywords block, and the tail keeps only
+   * `L.continues`, the one sentence that is true only at the end.
+   *
+   * The key words move in the RENDERER ONLY. `lint_lp.js`'s VOCAB_PAGE reads the DOCUMENT \u2014 it
+   * wants a `keywords` block among the introduction's blocks, carrying a textbook page \u2014 so the
+   * lp_doc shape, the author brief, and every `ur_overlay` pointer are untouched by this.
+   */
+  const kwHoisted = (() => {
+    const intro = (doc.sections || []).find((x) => x && x.id === "introduction");
+    if (!intro || !Array.isArray(intro.blocks)) return null;
+    return intro.blocks.find((b) => b && b.type === "keywords") || null;
+  })();
+
+  const resourcesCard = (() => {
+    const rows = [];
+    if (resourcesLine) rows.push(resourcesLine);
+    if (doc.materials && doc.materials.length) {
+      rows.push(`<div class="rrow"><b>${esc(L.materials)}:</b> ${doc.materials.map((m) => rich(m)).join(" &middot; ")}</div>`);
+    }
+    rows.push(`<div class="rrow"><b>${esc(L.pacing)}:</b> ${pacing.join(" + ")} = ${pacingSum} ${esc(L.min)}</div>`);
+    if (kwHoisted) rows.push(blk(kwHoisted, FULL_COL));
+    return `<div class="rescard">${rows.join("")}</div>`;
+  })();
+
   // The sequence strip (spec §5), directly under the masthead. Arrows point
   // WITH the reading direction — see arrowFor.
   const AR = arrowFor(ctx);
@@ -1478,6 +1529,8 @@ function page1(doc, ctx, secIndex) {
     const out = [atom(bar(id, title, s.minutes, L), { sec: id, first: true, glue: true, sp: 4 })];
     for (const x of before(s)) out.push(atom(x.html, { sec: id, glue: x.glue, sp: x.sp }));
     for (const b of s.blocks) {
+      // the key words are printed once, in the resources card at the top of the page
+      if (kwHoisted && b === kwHoisted) continue;
       for (const a of blockAtoms(b, colPx)) out.push(atom(a.html, { sec: id, glue: a.glue, sp: a.sp }));
     }
     // `glue` is forwarded here exactly as it is for before(s) above. No atom from after()
@@ -1495,7 +1548,7 @@ function page1(doc, ctx, secIndex) {
   if (seq) A.push(atom(seq, { sp: 2, glue: true }));
   A.push(atom(sloBox, { sp: 2 }));
   // Directly under the outcome box: the first thing after "what the pupil can do".
-  if (resourcesLine) A.push(atom(resourcesLine, { sp: 2 }));
+  A.push(atom(resourcesCard, { sp: 2 }));
 
   // consecutive layout:"half" sections share one two-column band. Each keeps its own
   // lettered bar, so the closed heading vocabulary survives; only the stacking goes away.
@@ -1511,8 +1564,10 @@ function page1(doc, ctx, secIndex) {
     }
   }
 
+  // The materials and the pacing moved UP into the resources card; what stays here is the one
+  // sentence that is only true at the end of the teach part — the next sheet is planning material.
   const mats = `<div class="mats">
-    <div class="cont">${doc.materials.length ? `<b>${esc(L.materials)}:</b> ${doc.materials.map((m) => rich(m)).join(" &middot; ")} &nbsp;|&nbsp; ` : ""}<b>${esc(L.pacing)}:</b> ${pacing.join(" + ")} = ${pacingSum} ${esc(L.min)}. ${esc(L.continues)}</div>
+    <div class="cont">${esc(L.continues)}</div>
   </div>`;
   A.push(atom(mats, { sp: 4 }));
 
