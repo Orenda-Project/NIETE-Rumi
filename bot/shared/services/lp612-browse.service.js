@@ -46,6 +46,7 @@ const { logToFile } = require('../utils/logger');
 const {
   isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE, templateVersion,
 } = require('../config/lp612-flags');
+const { compareSubjects } = require('../config/lp612-subject-order');
 
 const TABLE = 'niete_lp612_segments';
 const RENDERS = 'niete_lp612_renders';
@@ -120,7 +121,9 @@ async function listSubjects(grade) {
 
   return [...counts.entries()]
     .map(([subject, lesson_count]) => ({ subject, lesson_count }))
-    .sort((a, b) => a.subject.localeCompare(b.subject));
+    // The same core-before-elective order the WhatsApp menu uses (bd-y5vx3), from the same
+    // module — a teacher who checks the portal and then the bot must not meet two orders.
+    .sort((a, b) => compareSubjects(a.subject, b.subject));
 }
 
 /**

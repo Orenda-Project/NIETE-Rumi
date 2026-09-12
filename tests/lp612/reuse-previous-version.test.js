@@ -170,7 +170,10 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => { delete process.env.LP_612_TEMPLATE_FALLBACK; });
+afterEach(() => {
+  delete process.env.LP_612_TEMPLATE_FALLBACK;
+  delete process.env.LP_612_TEMPLATE_VERSION;
+});
 
 // ── 1 · the lineage is data, and it has an off switch ───────────────────────
 
@@ -199,6 +202,49 @@ describe('previousTemplateVersions', () => {
 
   test('the lineage lists only versions today\'s renderer accepts, newest first', () => {
     expect(Flags.TEMPLATE_VERSION_LINEAGE[0]).toBe(Flags.DEFAULT_TEMPLATE_VERSION);
+  });
+
+  /**
+   * bd-m1k16 — THE ENV CAN NAME A VERSION THE LINEAGE HAS NEVER HEARD OF, AND THAT KILLS REUSE
+   * SILENTLY.
+   *
+   * The test above pins the lineage against `DEFAULT_TEMPLATE_VERSION`, but the default is not
+   * what gets served: `templateVersion()` reads `LP_612_TEMPLATE_VERSION`, and prod, staging and
+   * sandbox all SET it — the code default is deliberately kept one step ahead of the variable
+   * (see `tests/lp612/flags.test.js`). So the version a teacher's lesson is actually keyed on is
+   * an env string, and nothing until now checked that string against the lineage.
+   *
+   * When it is absent, `previousTemplateVersions` returns `[]` by design — *"an unknown version
+   * claims no ancestry rather than guessing one"* — and the worker's `if (!tried.length) return
+   * null` (lp612-author.worker.js) drops straight through to the LLM. Every already-cached lesson
+   * is written again from scratch: minutes and dollars a segment, for a document already stored
+   * as `lp612/{tv}/{lang}/{segment}.lp.json`.
+   *
+   * That is exactly what sandbox was doing. `LP_612_TEMPLATE_VERSION` was moved to v9.4 for the
+   * page fixes in 7b37d4b7 while this lineage still ended at v9.3, so the bump that was supposed
+   * to cost zero model calls was re-authoring the corpus instead — and it fed the ten-minute
+   * generation the operator reported.
+   *
+   * The assertion is on the SERVED version, not on a literal, so the next bump-by-variable
+   * reddens here rather than on a teacher's invoice.
+   */
+  test('the version the env actually serves is one the lineage knows, with v9.3 behind it', () => {
+    process.env.LP_612_TEMPLATE_VERSION = 'v9.4';
+    const tv = Flags.templateVersion();
+
+    expect(Flags.TEMPLATE_VERSION_LINEAGE).toContain(tv);
+    expect(Flags.previousTemplateVersions(tv)[0]).toBe('v9.3');
+  });
+
+  test('v9.4 leads the lineage — it changed the PAGE, so v9.3 documents re-render unchanged', () => {
+    // v9.4 is the operator's 2026-09-12 page review: the outcome box states the lesson once, the
+    // page-1 material/pacing/key-word blocks, the paragraphed current-next-checkpoint lines, the
+    // teacher-facing long-question label and the SSC-only FBISE section. All of it is layout over
+    // the SAME `lp_doc` — no schema key moved — which is the precondition this list encodes for
+    // keeping the older entries rather than dropping them.
+    expect(Flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.4');
+    expect(Flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
+    expect(Flags.previousTemplateVersions('v9.4')).toEqual(['v9.3', 'v9.2', 'v9.1']);
   });
 });
 

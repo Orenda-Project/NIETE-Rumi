@@ -28,7 +28,7 @@ const LP612_MAX_GRADE = 12;
 /** The template the renderer is on. Part of the R2 cache key, so bumping it
  *  misses every cached render rather than serving stale layouts — and rolling
  *  back re-serves the old ones instantly, because nothing was deleted. */
-const DEFAULT_TEMPLATE_VERSION = 'v9.3';
+const DEFAULT_TEMPLATE_VERSION = 'v9.4';
 
 /**
  * THE VERSIONS WHOSE STORED DOCUMENTS TODAY'S RENDERER IS KNOWN TO ACCEPT — newest first.
@@ -47,8 +47,20 @@ const DEFAULT_TEMPLATE_VERSION = 'v9.3';
  * v9.3 (the phone-first page, bd-oak77.16) changes the PAGE, not the SCHEMA: it lays the same
  * `lp_doc` out on a 520 x 2000 box instead of A4. So v9.2 and v9.1 documents are read unchanged
  * and every cached lesson re-renders for zero model spend, exactly as the v9.2 bump did.
+ *
+ * v9.4 (the operator's 2026-09-12 page review, bd-a8veu.14-.19) is the same kind of change again —
+ * the outcome box stating the lesson once instead of three ways, the material/pacing/key-word
+ * blocks on page 1, paragraphed current/next/checkpoint lines, a teacher-facing long-question
+ * heading, and the FBISE section printed for SSC only. Every one of those is the renderer laying
+ * out the SAME `lp_doc`; no schema key moved, so v9.3 and older documents stay readable.
+ *
+ * AND THE ENTRY HAS TO BE HERE, not only in Railway — bd-m1k16. The served version comes from
+ * `LP_612_TEMPLATE_VERSION`, and a variable moved to a version this list does not contain makes
+ * `previousTemplateVersions` return [] ("no ancestry rather than a guess"), which the worker reads
+ * as "nothing to reuse" and answers with a full re-author. The bump then costs a model run per
+ * lesson — the exact spend this list exists to avoid. Sandbox ran that way until this entry landed.
  */
-const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.3', 'v9.2', 'v9.1']);
+const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
 
 /**
  * Which older template versions' stored documents may be re-rendered for `tv`, newest first.

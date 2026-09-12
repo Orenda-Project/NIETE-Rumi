@@ -276,13 +276,18 @@ describe('v9.3 — the renderer prints what it laid out', () => {
   });
 });
 
-describe('v9.3 — a cached lesson re-renders, it does not re-author', () => {
-  test('the template version is v9.3 and v9.2 is the first fallback', () => {
+describe('a cached lesson re-renders, it does not re-author', () => {
+  // Was pinned to v9.3 as the head. The head moved to v9.4 on 2026-09-12 (bd-m1k16), and this
+  // guard's job is the SHAPE — the current version leads, every older one the renderer still
+  // accepts stays behind it — not one particular literal at the front. v9.3 keeps its own
+  // assertion because it is the version whose stored documents the corpus is actually made of.
+  test('the current version leads the lineage and v9.3 re-renders behind it', () => {
     const flags = require('../../bot/shared/config/lp612-flags');
-    expect(flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.3');
-    expect(flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.3', 'v9.2', 'v9.1']);
-    // every v9.2 and v9.1 PDF in the cache has its `.lp.json` beside it, so the bump costs
+    expect(flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.4');
+    expect(flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
+    // every v9.3, v9.2 and v9.1 PDF in the cache has its `.lp.json` beside it, so the bump costs
     // 0 model calls — 07_font proved the path live on staging (PROOF.md there).
+    expect(flags.previousTemplateVersions('v9.4')).toEqual(['v9.3', 'v9.2', 'v9.1']);
     expect(flags.previousTemplateVersions('v9.3')).toEqual(['v9.2', 'v9.1']);
   });
 });
