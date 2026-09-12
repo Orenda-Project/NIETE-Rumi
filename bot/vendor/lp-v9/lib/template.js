@@ -255,7 +255,7 @@ function scaleTypeCss(sheet, k) {
     (_m, sp, n) => `font-size:${sp}${f(Number(n))}px`);
 }
 
-function css(rtl, fonts, katex) {
+function css(rtl, fonts, katex, urduScript) {
   const start = rtl ? "right" : "left";
   const end = rtl ? "left" : "right";
   const sheet = `
@@ -274,7 +274,18 @@ function css(rtl, fonts, katex) {
 }
 *{ box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 html,body{
-  font-family:${rtl ? `'Noto Nastaliq Urdu',` : ""}'Inter','Helvetica Neue',Arial,sans-serif;
+  /* bd-jdtdl — the LABEL PACK and the BODY LANGUAGE are independent. An Urdu-medium lesson is
+     authored in Urdu and may be served with the English chrome, and Inter has no Arabic glyphs:
+     the face has to be reachable whenever the DOCUMENT carries Urdu, not only when lang=ur.
+     Under RTL it leads, as R6 requires.
+     Under LTR it goes SECOND — after Inter, BEFORE the Latin fallbacks — and the order is the
+     whole fix. Appending it to the tail was measured and does nothing: CSS fallback is
+     per-character, so it stops at the first family that HAS the glyph, and Arial is that
+     family on any host whose Arial carries Arabic (macOS does). On the Linux container Arial
+     resolves to LiberationSerif, which has no Arabic and draws .notdef — the operator's boxes.
+     Second place keeps Latin on Inter (Inter has every Latin glyph, so it never falls through)
+     and sends Arabic script to Nastaliq on every host, which is what "only nastaliq" means. */
+  font-family:${rtl ? `'Noto Nastaliq Urdu',` : ""}'Inter'${!rtl && urduScript ? `,'Noto Nastaliq Urdu'` : ""},'Helvetica Neue',Arial,sans-serif;
   color:var(--ink);
   /* unitless: scales with font-size. A px line-height clips Nastaliq descenders. */
   line-height:${rtl ? "2.05" : "1.55"};
@@ -2180,6 +2191,15 @@ function buildHtml(input, opts = {}) {
   const doc = toV3(input);
   const lang = opts.lang || doc.provenance.medium || "en";
   const rtl = lang === "ur";
+  /** bd-jdtdl — DOES THIS DOCUMENT CONTAIN URDU, whatever chrome it is being served with?
+   *  An Urdu-medium lesson (Urdu, Pak Studies Urdu, Islamiat) is authored in Urdu script and
+   *  is routinely served at lang=en, which used to mean no Nastaliq face and no Nastaliq in
+   *  the stack — so every Urdu codepoint printed .notdef. The face is 1.1 MB of base64, so it
+   *  is embedded on evidence rather than always: Arabic, Arabic Supplement, and the
+   *  presentation-forms blocks Urdu actually uses. */
+  const urduScript = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(
+    JSON.stringify(doc),
+  );
   // Every build sets the prose pipeline's direction for itself (see lib/rich.js
   // — buildHtml is synchronous, so two documents cannot interleave).
   setRtlProse(rtl);
@@ -2229,7 +2249,7 @@ function buildHtml(input, opts = {}) {
     vectorFigure: false,
   };
 
-  const fonts = fontCss({ urdu: rtl });
+  const fonts = fontCss({ urdu: rtl || urduScript });
   if (fonts.missing.length) warnings.push(`font file(s) not embedded, falling back to system: ${fonts.missing.join(", ")}`);
 
   const secIndex = {};
@@ -2260,7 +2280,7 @@ function buildHtml(input, opts = {}) {
 <title>${rich(doc.provenance.topic)} &middot; ${esc(L.grade)} ${doc.provenance.grade} ${rich(doc.provenance.subject)}</title>
 <meta name="subject" content="lesson_id=${esc(doc.lesson_id)}">
 <meta name="keywords" content="${esc(doc.provenance.book_stem)}; lp_doc ${esc(doc.schema_version)}; ${esc(doc.lp_type)}">
-<style>${css(rtl, fonts.css, katexCss())}</style>
+<style>${css(rtl, fonts.css, katexCss(), urduScript)}</style>
 </head>
 <body${brandHex ? ` style="--brand:${esc(brandHex)}"` : ""}>
 ${contProbe}${paginate("teach", teach.atoms, breaks.teach || [], ctx, doc, secIndex, 1, total)}
