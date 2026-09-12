@@ -1033,7 +1033,8 @@ exactly like a schema error, and its defects are listed FIRST in that round.
 
 1. **≥2 FIGURES — a `diagram` block or a `textbook_figure` block; `latex`/`chem` are not
    figures.** One of them lives **inside `development` or `activity`, at the point of use** —
-   beside the sentence it explains, never parked at the end. The other may be the
+   carrying the beat it explains **instead of** the prose that would otherwise carry it, never
+   parked at the end and never printed underneath it. The other may be the
    `page2.board_final.diagram`, which is the **final state of the board** and is the single most
    requested artefact a teacher asked for.
 
@@ -1057,9 +1058,33 @@ exactly like a schema error, and its defects are listed FIRST in that round.
    > to expect on the bench. Ours leads where ours is good.
 2. **`page2.board_final.diagram` is required**, not optional. `draw_order` alone is prose about a
    picture; the picture itself is the deliverable.
-3. **At point of use** means: the block sits immediately after the `key_points` / `paragraph` /
-   `worked_example` it illustrates, in the same section. A diagram at the bottom of `homework` is a
-   decoration and is scored as absent.
+3. **At point of use** means: the block sits where the `key_points` / `paragraph` /
+   `worked_example` it illustrates **would have sat, and that prose comes out**. Same section,
+   same beat, one copy of the content. A diagram at the bottom of `homework` is a decoration and is
+   scored as absent; a diagram printed underneath four bullets that already say the same thing is a
+   **duplicate**, and the page pays for it twice.
+
+   > **THIS CHANGED ON 2026-09-13, AND IT CHANGED BECAUSE MORE FIGURES WERE MAKING LESSONS
+   > LONGER.** The rule used to read *"the block sits immediately after the `key_points` /
+   > `paragraph` / `worked_example` it illustrates"*. A model reads that literally: say the thing
+   > in prose, then draw the same thing below it. So every figure added its own height to a page
+   > that already carried the content, and five sandbox lessons in a row came back at 7 PDF pages
+   > against a 4-page teach cap — all of them visually rich, all of them over.
+   >
+   > So: **a figure is a SUBSTITUTE, not an illustration.** Write the section as if the figure were
+   > the only thing carrying that beat. What survives beside it is at most **one lead-in line**
+   > naming what the teacher is looking at and what to do with it — never a `key_points` list
+   > restating the labels, never a `paragraph` walking through the same steps the `flow` already
+   > shows in order.
+   >
+   > The test is one question: **if you deleted the figure, what would be lost?** If the answer is
+   > "nothing, the prose above it already says it", the figure is a duplicate — cut the prose. If
+   > the answer is "the prose is still needed word for word", the figure was not the right way to
+   > carry that beat — cut the figure and keep the prose, or find the part of the section the
+   > figure genuinely replaces.
+   >
+   > And rule 1's floor is a floor on **FIGURES**, not on total content. Meeting it by adding two
+   > blocks to a finished lesson is exactly the failure this rule exists to stop.
 4. **Every piece of mathematical notation is `$…$` or a `latex` block. Never prose.** Not
    "x squared minus two x minus three", not "the determinant of A", not "2 to the power 3". If a
    symbol exists for it, use the symbol. This applies in **every subject**, including a biology

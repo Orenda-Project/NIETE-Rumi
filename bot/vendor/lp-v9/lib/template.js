@@ -530,8 +530,27 @@ p{ font-size:18px; }
 .board .t{ font-size:18px; color:#2b3341; }
 .kwrow{ display:flex; flex-wrap:wrap; gap:var(--sp-1); margin-top:var(--sp-1); }
 /* A key word sits on the grey key-words card, so the chip goes WHITE: a pale chip on a pale card is
-   not a chip. White is the page, not a role, which is why it stays a literal here. */
-.kw{ background:#fff; border:1px solid var(--s-quiet-line); border-radius:var(--r-pill); padding:2px 11px; font-size:16.5px; }
+   not a chip. White is the page, not a role, which is why it stays a literal here.
+
+   IT IS A ROW, NOT A PILL (bd-3wjme). Operator, on grade 8 history: "vocab boxes not fitting
+   properly". This was --r-pill. A 999px radius is correct at exactly ONE line height. A humanities
+   key word's meaning is a clause — "a system where Muslim voters choose Muslim representatives in a
+   vote held only among Muslims" — so the entry wraps to four lines, the radius clamps to half the
+   box height, and each end becomes a full semicircle that curves away from the text it is supposed
+   to enclose. The first and last lines run out past the border. That is the "not fitting".
+
+   This is a LOOK fix and only a look fix. Measured at the card's real 424px inner column, on the
+   two entries off her page 1: 250.8px before, 250.8px after. Identical, and it was always going to
+   be — border-radius does not touch line boxes, so the curve never narrowed the text column. Do not
+   reach for this rule to win a page.
+
+   A grow (flex:1 1 auto) was tried here and REMOVED after measuring: it buys nothing on a long
+   meaning, which already fills its line on its own, and it forces four two-word meanings to one per
+   line instead of packing them. Leave the entry sized to its content and let .kwrow do the wrapping.
+   No min-width:0 either, on purpose: this box WRAPS, so its automatic min size is the longest word,
+   and letting it shrink past that would push that word outside the border. */
+.kw{ background:#fff; border:1px solid var(--s-quiet-line); border-radius:var(--r-1);
+      padding:2px 11px; font-size:16.5px; }
 .kw b{ color:var(--navy2); font-weight:800; }
 .kw i{ color:var(--mut); font-style:normal; }
 .kp{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
