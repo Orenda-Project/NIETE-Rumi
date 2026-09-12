@@ -41,11 +41,11 @@
   "by_the_end": "By the end you can answer a 4-mark short-response question that asks you to find the product of two 2×2 matrices.",
   "items": [
    {
-    "text": "State whether a product is defined by comparing the inner orders.",
+    "text": "You can say whether a product is defined from the inner orders.",
     "slo_code": "M-09-A-07"
    },
    {
-    "text": "Find the product of two 2×2 matrices row by column.",
+    "text": "You can multiply two 2×2 matrices row by column.",
     "slo_code": "M-09-A-07"
    }
   ]

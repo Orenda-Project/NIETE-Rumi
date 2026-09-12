@@ -119,9 +119,33 @@ const SECTION_BUDGET_V9 = {
 const OUTCOME_BOX_V9 = {
   outcome: 20,       // the outcome sentence: what the pupil can DO, in one line
   by_the_end: 22,    // the ✓ line naming the question type and its marks
-  objective: 15,     // EACH objective
+  objective: 17,     // EACH objective — 15 of content plus the two words OUTCOME_VOICE mandates
   total: 80,         // the whole box, because three legal fields can still fill a page
 };
+// bd-a8veu.3 — the stem the register rule requires ("You can …", "آپ …") is furniture, not content,
+// so it was added to the per-objective ceiling rather than taken out of the author's allowance. The
+// box TOTAL is untouched: 80 is the measured render bound, and it stays the binding constraint
+// either way (3x17 + 20 + 22 = 93, over 80, exactly as 3x15 + 20 + 22 = 87 was before).
+
+// bd-a8veu.3 — who the O box is written TO. The operator counted three styles in one box and asked
+// for one, "which should be student facing". Two of the three were authored: the outcome addressed
+// the pupil, the objectives were bare imperatives copied out of the curriculum ("Name…", "Match…",
+// "State…"). The third was the printed SLO quotation, which is not ours to rewrite — it carries its
+// own page number and lint forbids overlaying it — so it is excluded here and was fixed by giving
+// it its own label instead (overlay.js: it used to be captioned with the box's own heading).
+//
+// The test is presence of an address, not absence of an imperative. A negative test would have to
+// enumerate every verb an objective may open with; the register precedent one screen down (COMMANDS,
+// AUX_OPEN) records what that costs — "every verb missing from this list costs a revision round".
+// An address is a closed set in both languages, so the gate cannot fail correct work it has not met.
+const SECOND_PERSON = {
+  en: /\b(you|your|yours|you're)\b/i,
+  ur: /(آپ|تم|تمہار)/,
+};
+// The stem the author should reach for, in the language the plan was WRITTEN in. Urdu is verb-final,
+// so it wraps the objective rather than prefixing it — which is also why the rule is per-objective
+// and not a shared stem printed once on the heading.
+const VOICE_STEM = { en: "You can …", ur: "آپ … سکتے ہیں" };
 // Homework: the operator asked for fewer questions. Five is the cap, four is the shape the fleet
 // samples already settled on. This is a different count from the you-do + exit-ticket graded bar
 // (6-8 items) in §8 of the brief, which is classwork and is unchanged.
@@ -1405,6 +1429,30 @@ function v9Gates(doc, ctx) {
       if (box > OUTCOME_BOX_V9.total) {
         fail("OUTCOME_BOX", `the whole outcome-and-objectives box is ${box} words against a ceiling of ${OUTCOME_BOX_V9.total}. Every field can be legal and the box still fill the top of page 1 — that is the thing being fixed.`);
       }
+    }
+
+    // ── OUTCOME_VOICE ──────────────────────────────────────────────────────
+    // Operator, 2026-09-12: "Learning Outcomes STILL has objectives written in 3 different styles,
+    // it should be just 1, which should be student facing." The second asking. The first was
+    // answered in the brief, and a brief is a request; this is the same thing as a rule.
+    {
+      const O = doc.objectives || {};
+      // the register belongs to the text as AUTHORED, so it is the doc's medium that decides which
+      // address to look for — not the language this render was asked for.
+      const medium = ((doc.provenance && doc.provenance.medium) || "en").toLowerCase();
+      const addresses = SECOND_PERSON[medium] || SECOND_PERSON.en;
+      const stem = VOICE_STEM[medium] || VOICE_STEM.en;
+      const impersonal = (s) => typeof s === "string" && s.trim() && !addresses.test(s);
+      if (impersonal(O.outcome)) {
+        fail("OUTCOME_VOICE", `the outcome sentence does not address the pupil: "${O.outcome.trim()}". Write it as "${stem}" — the box is read by the pupil and it speaks in one voice.`);
+      }
+      if (impersonal(O.by_the_end)) {
+        fail("OUTCOME_VOICE", `the "by_the_end" ✓ line does not address the pupil: "${O.by_the_end.trim()}". Write it as "${stem}", the same voice as the outcome above it.`);
+      }
+      (O.items || []).forEach((o, i) => {
+        if (!impersonal(o && o.text)) return;
+        fail("OUTCOME_VOICE", `objective ${i + 1} does not address the pupil: "${o.text.trim()}". Start it with "${stem}". A bare imperative is the curriculum's voice, not the pupil's, and printing both in one box is what the box is being read as three styles.`);
+      });
     }
   }
 }

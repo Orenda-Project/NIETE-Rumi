@@ -173,7 +173,11 @@ const LABELS = {
     keyPoints: "Key points", worked: "Worked example", faded: "Faded example",
     guided: "Guided practice", independent: "Independent practice",
     practice: "Practice", answer: "Answer", support: "Support", extension: "Extension",
-    materials: "Materials", pacing: "Pacing", slo: "Learning outcome",
+    // bd-a8veu.3 — `slo` captions the QUOTED curriculum wording; `outcome` (below) heads the box.
+    // In English both were "Learning outcome", so the box printed that heading twice over two
+    // differently-worded sentences and read as two of the three styles the operator counted. Urdu
+    // never collided (متعینہ تدریسی مقصد / تدریسی نتیجہ) and is unchanged.
+    materials: "Materials", pacing: "Pacing", slo: "Curriculum SLO",
     prerequisite: "prerequisite", spaced: "spaced review",
     supportPage: "Reference", notReadAloud: "Not read aloud in class",
     p2Board: "The board at the end of the lesson", p2Model: "Model answers",

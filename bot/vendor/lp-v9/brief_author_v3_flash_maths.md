@@ -125,12 +125,14 @@ answering itself.
 |---|---|---|
 | `outcome` — the ONE thing the pupil can do | ~13 | **20** |
 | `by_the_end` | ~16 | **22** |
-| **each** objective | ~11 | **15** |
+| **each** objective — stem counts | ~13 | **17** |
 | **the whole box added up** | **~52 (never over 60)** | **80** |
 
 Write the outcome as ONE clause. An objective needing a subordinate clause is two objectives —
 split it or drop one. **Two objectives is the norm; three is usually one too many.** `OUTCOME_BOX`
 is a hard gate, not a ±30% budget.
+
+**Every line of the O box is written TO the pupil — `OUTCOME_VOICE` (bd-a8veu.3).** `outcome`, `by_the_end` and **every** `objective.text` address the pupil in the second person: English *"You can …"*, Urdu *"آپ … سکتے ہیں"*. A bare imperative — *"State whether…"*, *"Match each…"* — is the curriculum's voice, not the pupil's, and a box that mixes the two reads as several different styles, which is what this box was sent back for twice. Each objective carries its OWN stem; there is no shared stem on the heading, because Urdu is verb-final and cannot prefix one, and an objective has to survive being read on its own. The one exception is `slo.text_verbatim`: that is the curriculum's printed wording, quoted with its page, and it may NOT be reworded to suit this rule — lint already forbids overlaying it, and it is captioned *Curriculum SLO* precisely so it is not mistaken for the outcome. The stem costs two words, which is why the per-objective ceiling is **17** and not 15; the box total stays **80**.
 
 **Three counted bars, so hit them on the first pass:**
 - **SEVEN graded items with answers** (bar is 6–8). You-do items and exit-ticket items count
@@ -196,11 +198,11 @@ section actually is when it fits the page, and what a finished `one_screen` look
   "by_the_end": "By the end you can answer a 3-mark question on the time a dropped object takes to reach a given speed.",
   "items": [
    {
-    "text": "State that all freely falling bodies have the same acceleration g, regardless of mass.",
+    "text": "You can state that all freely falling bodies have the same acceleration g, regardless of mass.",
     "slo_code": "P-09-B-10"
    },
    {
-    "text": "Calculate the time for an object dropped from rest to reach a stated speed.",
+    "text": "You can calculate the time for an object dropped from rest to reach a stated speed.",
     "slo_code": "P-09-B-10"
    }
   ]
@@ -1543,8 +1545,8 @@ emit these keys and no others, and use exactly these `type` values inside `block
     "outcome": "You can multiply two 2×2 matrices and say when the product is defined.",
     "by_the_end": "By the end you can answer a 4-mark short-response question that asks you to find the product of two 2×2 matrices.",
     "items": [                            // TWO or THREE. Never six — split the LP instead.
-      {"text": "State whether a product is defined by comparing the inner orders.", "slo_code": "M-09-A-07"},
-      {"text": "Find the product of two 2×2 matrices row by column.", "slo_code": "M-09-A-07"}
+      {"text": "You can say whether a product is defined from the inner orders.", "slo_code": "M-09-A-07"},
+      {"text": "You can multiply two 2×2 matrices row by column.", "slo_code": "M-09-A-07"}
     ]
   },
 
@@ -1895,10 +1897,10 @@ was running 70–120 words across the samples. `OUTCOME_BOX` is a hard gate, not
 |---|---|---|
 | `outcome` — the one thing the pupil can do | ~15 words | **20** |
 | `by_the_end` — the ✓ line naming the question type and its marks | ~18 words | **22** |
-| **each** objective | ~12 words | **15** |
+| **each** objective — the `You can …` stem counts | ~14 words | **17** |
 | the whole box (all of the above added up) | **~60 words** | **80** |
 
-Write the outcome as one clause: *"Multiply two 2×2 matrices and state the order of the product."*
+Write the outcome as one clause: *"You can multiply two 2×2 matrices and state the order of the product."*
 An objective that needs a subordinate clause is two objectives — split it or drop one.
 
 **Over the ceiling FAILS** — it will not fit, and the renderer proves it. **Under budget only
