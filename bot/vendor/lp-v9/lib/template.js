@@ -348,16 +348,25 @@ body{ background:#fff; }
 .bar{ display:flex; align-items:center; gap:8px; border-radius:7px; padding:4px 11px; margin:0; }
 .bar .badge{ flex:0 0 auto; width:20px; height:20px; border-radius:50%; color:#fff;
       font-size:16.5px; font-weight:800; display:flex; align-items:center; justify-content:center;
-      line-height:1; }
+      line-height:1; background:rgba(255,255,255,.22); }
 .bar .nm{ font-size:17.5px; font-weight:800; letter-spacing:.02em; line-height:${rtl ? "1.8" : "1.3"}; }
 .bar .mins{ margin-${start}:auto; font-size:15.5px; font-weight:800; letter-spacing:.03em; }
-.s-o{ background:var(--amber-soft); } .s-o .badge{ background:var(--amber); color:#3a2c0a; } .s-o .nm,.s-o .mins{ color:#8A5F04; }
-.s-w{ background:#FBF1DF; } .s-w .badge{ background:#C98A12; } .s-w .nm,.s-w .mins{ color:#8A5F04; }
-.s-i{ background:#EAF0F8; } .s-i .badge{ background:var(--navy2); } .s-i .nm,.s-i .mins{ color:var(--navy2); }
-.s-d{ background:#E1EAF6; } .s-d .badge{ background:var(--navy); } .s-d .nm,.s-d .mins{ color:var(--navy); }
-.s-a{ background:var(--leaf-soft); } .s-a .badge{ background:var(--leaf); } .s-a .nm,.s-a .mins{ color:#14603A; }
-.s-c{ background:#ECE8F6; } .s-c .badge{ background:#584A93; } .s-c .nm,.s-c .mins{ color:#4A3E80; }
-.s-h{ background:#EFF1F4; } .s-h .badge{ background:#5b6472; } .s-h .nm,.s-h .mins{ color:#414A57; }
+.bar .nm,.bar .mins{ color:#fff; }
+/* The band is a SOLID block of the section's own colour — the same hue its badge already wore,
+   only now carrying the band instead of a 20px disc inside it. It was a pale wash before, and it
+   lost: the first thing inside Activity is a solid green "WE DO" pill, so the label outranked the
+   landmark it sat under. A teacher flipping a seven-page plan for "Development" has these seven
+   bands and nothing else to catch. Fill and weight only — the padding and the type sizes above are
+   untouched, because the teach part renders at 99-100% of its four-page cap and one added pixel
+   per section buys a fifth page. The badge stops being a second solid and becomes a translucent
+   white chip, which reads on a dark navy fill and on a mid amber one alike. */
+.s-o{ background:#8A5F04; }
+.s-w{ background:#8A5F04; }
+.s-i{ background:var(--navy2); }
+.s-d{ background:var(--navy); }
+.s-a{ background:var(--leaf); }
+.s-c{ background:#584A93; }
+.s-h{ background:#5b6472; }
 
 .contstrip{ display:flex; align-items:baseline; gap:7px; font-size:15.5px; font-weight:800; color:var(--navy);
       border-bottom:2px solid var(--line); padding-bottom:5px; }
@@ -396,6 +405,17 @@ ${PAGE.oneColumn ? ".split > div + div{ margin-top:var(--sp-2); }" : ""}
 .blk{ margin:0; }
 p{ font-size:18px; }
 .lbl{ font-weight:800; font-size:14px; line-height:1.35; letter-spacing:.09em; text-transform:uppercase; }
+/* ONE label rule used to serve two different jobs. "Differentiation" heads a GROUP of three cards;
+   "If stuck" names one of those cards. "Common mistakes and the question you ask back" heads a
+   group; "What pupils write" is a leaf inside it. Printed identically, the reader has to work out
+   the nesting from position alone. The .g variant is that missing level: navy ink and an amber rule
+   on the INLINE-START edge. Start edge, not left — an Urdu plan puts it on the right. It is inline-
+   direction geometry on purpose: a rule down the side and a little indent cost zero vertical
+   pixels, and there are none to spend. Size and leading stay exactly as the leaf's, so the
+   hierarchy is carried by colour and the mark, never by making one label bigger than another.
+   This replaces four hand-written style="color:..." attributes at the call sites.
+   NOTE: no backticks in here. This whole sheet is one template literal. */
+.lbl.g{ color:var(--navy2); border-${start}:3px solid var(--amber); padding-${start}:7px; }
 
 /* ── SLO ────────────────────────────────────────────────────────────────── */
 .slo{ background:var(--amber-soft); border-${start}:6px solid var(--amber); border-radius:9px;
@@ -454,7 +474,12 @@ p{ font-size:18px; }
 .kp{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .kp li{ font-size:18px; margin:0; }
 .kp li::marker{ color:var(--navy2); }
-.exq{ border:1px solid var(--line); border-radius:9px; padding:6px 11px; }
+/* The two worked examples are a pair with different jobs — I DO is modelled at the board, WE DO is
+   solved with the class — and the we-do box already said so, tinted green to match its green tag.
+   The i-do box carried an AMBER tag on a grey hairline, so the pair read as "one coloured box and
+   one unstyled box" rather than as two steps of a gradual release. It now wears its own tag's
+   amber on the same 1px border and the same padding: colour only, no height. */
+.exq{ border:1px solid #F0D9A8; border-radius:9px; padding:6px 11px; background:#FFFBF2; }
 .exq.we{ border-color:#BFE3CD; background:#F6FCF8; }
 .exq .tag{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.08em;
       text-transform:uppercase; padding:3px 10px; border-radius:14px; color:#fff; background:var(--amber); }
@@ -973,14 +998,14 @@ function makeBlockRenderer(ctx) {
     board: (b) => `<div class="blk board"><div class="lbl">${esc(L.board)}</div>
       <div class="t">${rich(b.text)}</div></div>`,
 
-    keywords: (b) => `<div class="blk"><div class="lbl" style="color:var(--navy2)">${esc(L.keywords)}</div>
+    keywords: (b) => `<div class="blk"><div class="lbl g">${esc(L.keywords)}</div>
       <div class="kwrow">${b.items
         .map((k) => `<span class="kw"><b>${rich(k.word)}</b> <i>— ${rich(k.meaning)}</i></span>`)
         .join("")}</div></div>`,
 
     key_points: (b) => {
       const label = b.title === undefined ? L.keyPoints : b.title;
-      return `<div class="blk">${label ? `<div class="lbl" style="color:var(--navy2)">${rich(label)}</div>` : ""}
+      return `<div class="blk">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
       <ul class="kp"${label ? "" : ' style="margin-top:0"'}>${b.items.map((i) => `<li>${rich(i)}</li>`).join("")}</ul></div>`;
     },
 
@@ -1474,7 +1499,7 @@ function page1(doc, ctx, secIndex) {
 
   // The warm-up is ONE ROW inside the Introduction (spec §2) — not a section, not a band of
   // its own. The scaffold item comes first and says so; prior knowledge alone is not a warm-up.
-  const warmupBody = (wu) => `<div class="blk wu"><div class="lbl" style="color:#8A5F04">${esc(L.warmup)}</div>${wu.items
+  const warmupBody = (wu) => `<div class="blk wu"><div class="lbl g">${esc(L.warmup)}</div>${wu.items
     .map(
       (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
         <span class="q">${rich(it.q)} <span class="a">${AR} ${rich(it.a)}</span></span>
@@ -1763,13 +1788,15 @@ const diffCards = (D, L) => [
  * on a bare card with no statement of what it is a card of.
  *
  * A bare `.blk` wrapper, not a boxed one: `.blk` is `margin:0` with no box, so the label sits on
- * the group exactly as a section's own `.lbl`s do.
+ * the group with nothing drawn around it. It is a `.lbl.g`, not a plain `.lbl` — this label heads
+ * three sibling cards that carry plain `.lbl`s of their own, and without the group level the
+ * heading and its own children print identically.
  */
 function groupAtoms(label, cards) {
   if (!cards.length) return [];
   return cards.map((c, i) => ({
     html: i === 0
-      ? `<div class="blk"><div class="lbl">${esc(label)}</div><div class="grid3">${c}</div></div>`
+      ? `<div class="blk"><div class="lbl g">${esc(label)}</div><div class="grid3">${c}</div></div>`
       : `<div class="grid3">${c}</div>`,
     sp: i === 0 ? 3 : 2,
   }));
@@ -1990,7 +2017,7 @@ function page2(doc, ctx, secIndex) {
     : null;
 
   S(L.p2Exam, [
-    mcqAtoms.length ? { html: `<div class="lbl" style="color:var(--navy2)">${esc(L.mcq)}</div>`, sp: 1 } : null,
+    mcqAtoms.length ? { html: `<div class="lbl g">${esc(L.mcq)}</div>`, sp: 1 } : null,
     ...mcqAtoms,
     srqHtml ? { html: srqHtml, sp: 2 } : null,
     erqHtml ? { html: erqHtml, sp: 2 } : null,

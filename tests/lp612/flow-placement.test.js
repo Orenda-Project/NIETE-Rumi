@@ -55,10 +55,17 @@ const count = (s, re) => (s.match(re) || []).length;
  * `buildHtml().atoms` is deliberately HTML-free — it ships `{sec, first, glue}` for the packer
  * and nothing else — so placement is read off the RENDERED markup, which is the artefact the
  * operator is complaining about anyway.
+ *
+ * The stylesheet is dropped first. It is emitted ahead of everything, so it used to land inside
+ * `teach`, and the sheet's own comments name the very labels these tests search for — bd-a8veu.11
+ * added one explaining why "If stuck" is a leaf label and not a group heading, and this suite read
+ * that sentence as a differentiation card rendered in the flow. A rule block is not a placement;
+ * the markup is.
  */
 const split = (html) => {
-  const at = html.indexOf('class="p2head');
-  return { teach: html.slice(0, at), support: html.slice(at) };
+  const body = html.slice(html.indexOf('</style>'));
+  const at = body.indexOf('class="p2head');
+  return { teach: body.slice(0, at), support: body.slice(at) };
 };
 
 /**
