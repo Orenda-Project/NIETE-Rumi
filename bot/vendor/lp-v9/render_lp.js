@@ -622,6 +622,53 @@ function overCapProblem(part, n, cap, advice) {
 }
 
 /**
+ * THE SOFT TARGET, SAID TO SOMEONE — bd-a8veu.22.
+ *
+ * There have always been two numbers per part: the hard cap, above which the render FAILS, and a
+ * soft target one page below it. Only the cap ever did anything. This sentence went into
+ * `report.warnings`, which nothing reads on the success path, and it said *"Allowed —
+ * completeness beats page count — but check nothing is padding"* — an instruction to no one, and
+ * the opposite of the one the operator wants.
+ *
+ * The measured consequence: the only length pressure in the system fired at the hard cap and
+ * pushed a document back to exactly the hard cap, so every lesson converged there. Four sandbox
+ * renders on 2026-09-12 across four subjects and two grades came out at exactly 7 pages — 4 teach
+ * + 3 support — all four.
+ *
+ * Two things change here and nothing else:
+ *
+ *   1. It carries the `PAGE TARGET:` code, which the author ladder prices exactly like
+ *      `PAGE COUNT:` — ONE revision round, then deliver (`PAGE_COUNT_ROUND_BUDGET`).
+ *   2. It carries the same per-block arithmetic the over-cap defect carries, read off the packing
+ *      that just ran, because "shorten it" in a unit the author cannot measure is what produced
+ *      shortened sentences and the same page count.
+ *
+ * WHAT DOES NOT CHANGE: it is a WARNING, not a `problem`. The render succeeds, the PDF is
+ * written, the lesson is delivered. A plan that stays a page long is a delivered plan, exactly as
+ * it is today — the last clause says so out loud, because the author is also being told elsewhere
+ * never to drop a required property to save space.
+ */
+function overTargetWarning(part, n, target, cap, advice) {
+  const head = `PAGE TARGET: ${part} runs to ${n} pages; the soft target is ${target} (hard cap ${cap}). `;
+  const tail = "This is a TARGET, not the cap: the lesson renders and is delivered either way.";
+  if (!advice) {
+    return head + `Aim for ${target}: cut whole blocks, or move them to the other part. ` + tail;
+  }
+  const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const name = (s) => (s.title && norm(s.title) !== norm(s.sec) ? `${s.sec} "${s.title}"` : s.sec);
+  const top = advice.sections
+    .slice(0, ADVICE_SECTIONS)
+    .map((s) => `${name(s)} ${s.blocks} blocks/${s.px}px`)
+    .join(", ");
+  return head
+    + `The ${advice.blocks} block(s) past the target are ${advice.px}px of content, out of ${part}'s ${advice.totalBlocks} — `
+    + `that is what would have to come out, and a BLOCK is the unit: shortening the prose inside a block removes no page. `
+    + `Tallest sections in ${part}: ${top}. `
+    + `Cut whole blocks from the tallest, or move them to the other part. `
+    + tail;
+}
+
+/**
  * The v8 signature, kept because it is the honest description of the degenerate case
  * (no glue, no per-section bars) and because the packer's oldest regression tests speak it.
  */
@@ -944,7 +991,12 @@ async function renderDoc(a) {
         : null;
       problems.push(overCapProblem(part, n, cap, advice));
     } else if (CAPS.warn[part] && n > CAPS.warn[part]) {
-      warnings.push(`${part} runs to ${n} pages (soft target ${CAPS.warn[part]}, hard cap ${cap}). Allowed — completeness beats page count — but check nothing is padding.`);
+      const target = CAPS.warn[part];
+      const p = result.packed && result.packed[part];
+      const advice = p && p.pages.length === n
+        ? overCapAdvice(p.atoms, p.pages, target, built.secTitles || {})
+        : null;
+      warnings.push(overTargetWarning(part, n, target, cap, advice));
     }
   }
   const pagesBuilt = (byPart.teach || 0) + (byPart.support || 0);

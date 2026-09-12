@@ -851,9 +851,24 @@ async function process(payload) {
         e.infra === true || !Array.isArray(e.problems) || e.problems.length === 0
       );
 
+      /**
+       * THE SOFT TARGET IS A FINDING OF A SUCCESSFUL RENDER — bd-a8veu.22.
+       *
+       * `PAGE COUNT:` is a `problem`: the render throws and the defect reaches the ladder through
+       * the catch below. `PAGE TARGET:` is a WARNING: the render succeeds, so it comes back on
+       * the RETURN, and until now `attemptRenderCheck` threw that return away and answered
+       * `{ clean: true }`. That is why the target had never once moved a document — nothing
+       * downstream of the renderer could see it. Matched on the renderer's own emitted prefix,
+       * the same way every other finding in this lane is matched, because `warnings` also carries
+       * layout notes from the template build that are not addressed to the author.
+       */
+      const targetFindings = (res) => (
+        Array.isArray(res && res.warnings) ? res.warnings.filter((w) => String(w).startsWith('PAGE TARGET:')) : []
+      );
+
       const attemptRenderCheck = async (candidate) => {
         try {
-          await renderLessonPlan({
+          const res = await renderLessonPlan({
             lpDoc: candidate,
             lang,
             stem: `gate_${Date.now()}`,
@@ -867,7 +882,7 @@ async function process(payload) {
             renderId,
             phase: 'gate',
           });
-          return { clean: true };
+          return { clean: true, targets: targetFindings(res) };
         } catch (e) {
           return {
             clean: false,
@@ -879,11 +894,11 @@ async function process(payload) {
 
       const renderCheck = async (candidate) => {
         let result = await attemptRenderCheck(candidate);
-        if (result.clean) return [];
+        if (result.clean) return result.targets || [];
         if (!result.infra) return result.problems; // a real defect — feed it to the model, once
 
         result = await attemptRenderCheck(candidate); // the one retry
-        if (result.clean) return [];
+        if (result.clean) return result.targets || [];
         if (!result.infra) return result.problems;
 
         logEvent('lp612.render.gate_infra_unresolved', {

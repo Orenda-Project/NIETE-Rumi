@@ -208,6 +208,45 @@ describe('the ladder and the prompts', () => {
     expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${UR.support} pages`));
   });
 
+  test('the card AIMS at the soft target, and names the cap only as the cap — bd-a8veu.22', async () => {
+    // The other half of "why are all of them 7 pages?". The card stated the HARD caps as the aim
+    // (`pageCapsFor(lang).max`) and then said "completeness beats page count", so the author
+    // opened every lesson aiming at 4 + 3 = the exact 7 pages four sandbox renders came out at on
+    // 2026-09-12. The renderer has always carried a soft target one page under each cap; the
+    // author was never given it. Read from the constants, never restated — a literal here would
+    // keep passing while the card and the renderer silently diverged.
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(CLEAN_DOC));
+
+    await run(renderCheck);
+
+    const user = create.mock.calls[0][0].messages.find((m) => m.role === 'user').content;
+    const EN = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('en');
+    expect(user).toMatch(/AIM FOR/);
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${EN.warn.teach} pages`));
+    expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${EN.warn.support} pages`));
+    // The cap is still stated — it is a real failure boundary — but as the boundary, not the aim.
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${EN.max.teach} pages`));
+    // And the sentence that told the author length does not matter is gone. It has to keep
+    // protecting the required properties (below), but not by denying the budget above it.
+    expect(user).not.toMatch(/completeness beats page count/);
+    expect(user).toMatch(/cutting a required property/i);
+  });
+
+  test('the Urdu card aims at the URDU soft target', async () => {
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(CLEAN_DOC));
+
+    await Author.authorLessonPlan({
+      segment: SEGMENT, lang: 'ur', model: 'test/model', rounds: 1, renderCheck, correlationId: 'c',
+    });
+
+    const user = create.mock.calls[0][0].messages.find((m) => m.role === 'user').content;
+    const UR = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('ur');
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${UR.warn.teach} pages`));
+    expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${UR.warn.support} pages`));
+  });
+
   test('every revision prompt opens with the same card, ABOVE the defect lists', async () => {
     const prompt = Author.buildRevisionPrompt({
       doc: CLEAN_DOC,

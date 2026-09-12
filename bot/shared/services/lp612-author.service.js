@@ -816,13 +816,30 @@ function languageDirective(want, medium) {
 // moves the budget from line 890 of the system prompt to line 1 of the user turn, and adds the
 // countable the model was never given — but the honest prior is that it moves page counts a
 // little, and the delivery policy above is what actually removes the failure class.
+// bd-a8veu.22 — THE CARD AIMS AT THE SOFT TARGET, NOT AT THE CAP.
+//
+// Until 2026-09-12 this read `pageCapsFor(lang).max` and stated the HARD caps as the aim, then
+// told the author "completeness beats page count". Both halves pointed the same way: write to the
+// cap. The renderer has carried a soft target one page under each cap since the caps existed
+// (`WARN_PAGES`), and nothing had ever shown it to the author — so the only length pressure in the
+// system fired AT the cap and pushed documents back TO the cap. Four sandbox renders on
+// 2026-09-12, four subjects across two grades, all came out at exactly 4 teach + 3 support = 7
+// pages. The operator: *"all of them are 7 pages long"*.
+//
+// The cap is still stated, because it is a real boundary and an author aiming blind at a number it
+// cannot see needs to know where the edge is — but it is stated AS the edge. The honest-terms
+// paragraph stays untouched: it is what stops the model cutting real pedagogy to clear a number,
+// and the own-goal PR #597 removed is still an own-goal.
 function budgetCard(lang) {
-  const caps = pageCapsFor(lang).max;
+  const { max: caps, warn: aim } = pageCapsFor(lang);
   return [
     '## YOUR PAGE BUDGET FOR THIS LESSON — read this before you write anything',
     '',
-    `This lesson is laid out on A4 and MEASURED after you write it. For this render the caps are `
-      + `**TEACH ≤ ${caps.teach} pages, SUPPORT ≤ ${caps.support} pages**.`,
+    `This lesson is laid out on A4 and MEASURED after you write it. AIM FOR `
+      + `**TEACH ${aim.teach} pages, SUPPORT ${aim.support} pages**. The hard cap, where the render `
+      + `fails, is one sheet further out: TEACH ≤ ${caps.teach} pages, SUPPORT ≤ ${caps.support} pages. `
+      + `A lesson that lands between the aim and the cap is delivered — and it costs a revision round, `
+      + `so aim at the aim.`,
     '',
     'You cannot count pages — you never see the layout. These you CAN count, and they are what',
     'the paper is actually spent on. Measured over 62 rendered lessons, the ones that FIT carry:',
@@ -834,10 +851,13 @@ function budgetCard(lang) {
     '  · the whole lp_doc — a lesson that fits is roughly 7,700 tokens of JSON, and about 8,300',
     '    at the long end. Past that you are writing paper this lesson does not have.',
     '',
-    'Those are AIMS taken from lessons that fit, not gates: nothing above is checked, and no',
-    'count of items has ever been the difference between a lesson that fits and one that does',
-    'not. Write the COMPLETE lesson — completeness beats page count, and cutting a required',
-    'property to save space fails the whole document.',
+    'Those are AIMS taken from lessons that fit THE CAP, not gates: nothing above is checked, and',
+    'no count of items has ever been the difference between a lesson that fits and one that does',
+    'not. You are aiming one sheet tighter than that, so spend every countable at its low end —',
+    '2 model answers, 3 homework items, 6 answerables — and write the COMPLETE lesson at that',
+    'size. Cutting a required property to save space fails the whole document; a page is saved by',
+    'dropping a WHOLE block, or moving it to the other part, never by shortening the words inside',
+    'one.',
     '',
     'And the honest terms, so you aim rather than fear: the pages are measured after rendering,',
     'a lesson over the cap is STILL DELIVERED to the teacher, and if it runs long it costs one',
@@ -1301,7 +1321,10 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted =
     // renderer enforces, so pages are spent on CARD COUNT and barely at all on prose length.
     // The first render-gated run proved the point: told only "it is too long", the model
     // shortened sentences and moved 6 pages to 5. It has to be told to delete whole items.
-    ((gates.render || []).some((d) => /PAGE COUNT/.test(d))
+    // bd-a8veu.22: `PAGE TARGET` too — the theory below is what makes either number reachable,
+    // and a target handed over without it is the "make it shorter" that produced shortened
+    // sentences and the same page count.
+    ((gates.render || []).some((d) => /PAGE (COUNT|TARGET)/.test(d))
       ? '\n\nHOW TO FIX A PAGE-COUNT ERROR: pages are spent on CARD COUNT, not on word count — '
         + 'each exam_bank item, model_answers entry, mistakes row and differentiation row is a '
         + 'box with its own heading and padding. Shortening sentences will NOT remove a page. '
@@ -1848,7 +1871,19 @@ const PAGE_COUNT_ROUND_BUDGET = 1;
  * ship) and `OVERFLOW on ...` (content clipped off the bottom of a page). Both are broken
  * documents, not long ones, and neither may ever be delivered under this policy.
  */
-const isPageCountDefect = (d) => String(d).startsWith('PAGE COUNT:');
+/**
+ * `PAGE TARGET:` is the SOFT target — bd-a8veu.22 — and it is priced here, deliberately, as the
+ * same kind of thing as the hard cap: one revision round, then deliver. It is a weaker finding
+ * (the render SUCCEEDED; the document is whole and would have shipped untouched), so it can never
+ * warrant more patience than the cap breach does, and the budget above is already 1.
+ *
+ * Being matched by `isPageCountDefect` is what gives it all four of the behaviours it needs, none
+ * of which had to be written twice: it is page-count-only, so `PAGE_COUNT_ROUND_BUDGET` caps it
+ * at one round; the "HOW TO FIX A PAGE-COUNT ERROR" theory rides into the revision prompt with
+ * it; `isDeliverableRenderDefect` lets a candidate carrying only this one be sent to a teacher;
+ * and `TRUNCATION`/`OVERFLOW` stay exactly as excluded as they were.
+ */
+const isPageCountDefect = (d) => /^PAGE (COUNT|TARGET):/.test(String(d));
 
 /** True when the ONLY things standing between this document and a teacher are page counts. */
 /**
