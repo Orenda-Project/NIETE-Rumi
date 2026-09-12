@@ -642,10 +642,19 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* ── page 2 ─────────────────────────────────────────────────────────────── */
 .p2head{ ${PAGE.oneColumn ? "display:block;" : "display:flex; justify-content:space-between; align-items:center; gap:12px;"}
       border-bottom:3px solid var(--navy); padding-bottom:var(--sp-2); }
+/* The pill rides INSIDE the meta line (bd-a8veu.9), ahead of the locator, so it needs the gap
+   the flex row used to give it as a sibling. A trailing margin in the READING direction, not a
+   literal one: on the Urdu page that gap belongs on the left. vertical-align centres the 14px
+   badge against the 15.5px meta it now shares a line box with, so neither one lifts the line.
+   It is beside the META and not the TITLE on purpose: the badge costs 133px of whatever line it
+   sits on, the meta is short and fixed in shape, and the title is the one piece here that has
+   to be free to wrap across the full measure. */
 .p2head .pill{ background:var(--navy); color:#fff; font-size:14px; font-weight:800; letter-spacing:.11em;
-      text-transform:uppercase; padding:5px 14px; border-radius:16px; flex:0 0 auto;${PAGE.oneColumn ? " display:inline-block;" : ""} }
-.p2head .t{ font-size:20.5px; font-weight:800; color:var(--navy); line-height:${rtl ? "1.8" : "1.3"}; }
-.p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${PAGE.oneColumn ? start : end}; line-height:${rtl ? "1.85" : "1.45"};${PAGE.oneColumn ? " margin-top:var(--sp-1);" : ""} }
+      text-transform:uppercase; padding:5px 14px; border-radius:16px; flex:0 0 auto;
+      display:inline-block; vertical-align:middle; margin-${end}:9px; }
+/* The eyebrow leads, so the space between the two pieces hangs off the TITLE now. */
+.p2head .t{ font-size:20.5px; font-weight:800; color:var(--navy); line-height:${rtl ? "1.8" : "1.3"};${PAGE.oneColumn ? " margin-top:var(--sp-1);" : ""} }
+.p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${PAGE.oneColumn ? start : end}; line-height:${rtl ? "1.85" : "1.45"}; }
 .p2sec{ break-inside:avoid; }
 .p2bar{ display:flex; align-items:center; gap:7px; margin:0; }
 .p2bar .badge{ flex:0 0 auto; width:21px; height:21px; border-radius:6px; background:var(--navy); color:#fff;
@@ -1836,10 +1845,36 @@ function page2(doc, ctx, secIndex) {
     return out;
   };
 
+  // THE REFERENCE HEADER IS A RUNNING HEAD, NOT A SECOND COVER (bd-a8veu.9). An eyebrow and a
+  // name, bounded at three line boxes:
+  //
+  //     REFERENCE  Grade 6 Geography · p.63–64
+  //     Forests of Pakistan
+  //
+  // It used to run to four lines, and five once the topic wrapped, because three separate
+  // things each took a whole line of a 478px column and none of them filled it. The pill sat
+  // alone on a line that was 352.8px blank — 74% of the measure for a nine-letter badge. The
+  // meta carried a hard `<br>`, a break that cannot be taken back: it cost a line whether the
+  // text needed one or not. And the half after that break repeated the chapter, which the hero
+  // on page 1 already prints in full.
+  //
+  // WHAT DECIDES THE ARRANGEMENT is the arithmetic of the phone measure, not taste. The type
+  // ships scaled (20.5px of title renders at 23.92px), so the column holds ~36 characters of
+  // title per line and the pill costs 133px of whatever line it sits on. Put the pill beside
+  // the TITLE and a long topic loses a third of its first line and runs to three lines on its
+  // own, blowing the budget; put it beside the META — which is short, fixed in shape, and
+  // never needs the whole measure — and it costs nothing at all. That leaves the title the
+  // full width on both of its lines, which is what holds the bound: one line of furniture that
+  // cannot grow, plus two lines of topic.
+  //
+  // The meta carries the LOCATOR and nothing else. `Not read aloud in class` was the other
+  // casualty of the arithmetic, and it is the right one to lose: it is advice rather than
+  // identity, and a page badged REFERENCE — whose contents are model answers, an exam bank and
+  // the mistakes to expect — is not a thing anyone reads to a class. Grade, subject and pages
+  // are what re-identify these sheets once they are printed and shuffled.
   const p2head = `<div class="p2head">
-      <span class="pill">${esc(L.supportPage)}</span>
+      <div class="r"><span class="pill">${esc(L.supportPage)}</span>${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)}</div>
       <div class="t">${rich(p.topic)}</div>
-      <div class="r">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.notReadAloud)}<br>${rich(p.chapter)} &middot; ${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)}</div>
     </div>`;
   // The support page's masthead, glued for the same reason as the teach page's hero.
   A.push(atom(p2head, { sp: 0, glue: true }));
