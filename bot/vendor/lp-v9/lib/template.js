@@ -265,9 +265,42 @@ function css(rtl, fonts, katex, urduScript) {
 @page { size: ${PAGE.w}px ${PAGE.h}px; margin: 0; }
 :root{
   --navy:#0B2545; --navy2:#13315C; --amber:#F2A20C; --amber-soft:#FDEBC8;
-  --ink:#1a2233; --mut:#5b6472; --line:#e5e9f0; --leaf:#1F7A4D; --leaf-soft:#E3F3E9;
-  --warn:#B4531F; --warn-soft:#FCEDE6; --warn-line:#F2C4AD;
+  --ink:#1a2233; --mut:#5b6472; --line:#e5e9f0; --leaf:#1F7A4D; --warn:#B4531F;
   --page-w:${PAGE.w}px; --page-h:${PAGE.h}px;
+  /* THE SURFACE LADDER (v9.4, bd-a8veu.23). Operator, on the PDF review: "the readability of the
+     LP should be better with colour blocks and formatting of text and font to hold the eye."
+
+     A census of this sheet before the ladder: NINETEEN distinct pale tints, seven solid fills,
+     seventeen border treatments and ELEVEN corner radii, every one a hex literal written at the
+     block that wanted it. .askb was #F5F8FC, .say #F7F9FC, .seq #F6F8FC, .kw #EEF2F8 and .cite
+     #EAF0F8 — five colours no reader can tell apart, five borders that all say "a box", and no
+     rank for the eye to follow. Nothing there was wrong on its own; the problem was the sum.
+
+     So a block now picks a ROLE, never a colour:
+       teach   the teacher explains, asks, scripts, cites   blue
+       do      the pupils work, and the answer is right     green
+       watch   a warning, a misconception, a re-teach       terracotta
+       note    a resource, an aside, an offer, a warm-up    amber
+       quiet   neutral furniture, rows and metadata         grey
+     Each role brings a FILL, a HAIRLINE and an INK for the label that sits on it. On top of the
+     five sit the page's own white and the two emphasis surfaces that were already tokens (navy
+     for a landmark block, amber-soft for the outcome box) — those are L1 and stay loud on purpose.
+
+     FILL, LINE AND CASE ONLY. No padding, no margin, no border width and no font-size moves in
+     this pass: the teach part renders at 99-100% of its four-page cap, so one added pixel per
+     block buys a page. Translucent overlays (rgba) on the navy and amber BANDS are deliberately
+     NOT roles — they are chrome painted on a solid, not a surface of their own. */
+  --s-teach:#F2F6FC; --s-teach-line:#CBD8E8; --s-teach-ink:var(--navy2);
+  --s-do:#EFF7F2;    --s-do-line:#BFE3CD;    --s-do-ink:#14603A;
+  --s-watch:#FCEDE6; --s-watch-line:#F2C4AD; --s-watch-ink:var(--warn);
+  --s-note:#FFF8E8;  --s-note-line:#F0DFB4;  --s-note-ink:#8A5F04;
+  --s-quiet:#F5F7FA; --s-quiet-line:#E1E6EE; --s-quiet-ink:#414A57;
+  /* The Conclusion band's plum is the one section fill with no role behind it — every other band
+     wears the solid form of a role ink (see .s-* below). */
+  --band-c:#584A93;
+  /* THREE RADII, down from eleven. --r-1 rows and small chips, --r-2 blocks and boxes, --r-pill
+     anything shaped as a pill. A circle is a SHAPE, not a radius choice, and keeps its 50%. */
+  --r-1:6px; --r-2:9px; --r-pill:999px;
   /* THE SPACING SCALE (v8.1). One ladder, five rungs, used for every vertical gap on the
      page. Before this the gaps were ad-hoc 1-5px values chosen per block and the operator's
      verdict was that "the sections and boxes are on top of each other". Vertical rhythm is
@@ -322,7 +355,7 @@ body{ background:#fff; }
    the width from the title — the exact pathology the h-meta comment above records at 794px,
    reappearing one page size down. .p2head was worse again: eight lines of wrapped meta.
    Stacking is the fix and it costs nothing measurable: the corpus page count is unchanged. */
-.hero{ background:var(--navy); color:#fff; border-radius:11px; padding:${rtl ? "12px" : "8px"} 14px ${rtl ? "9px" : "8px"};
+.hero{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:${rtl ? "12px" : "8px"} 14px ${rtl ? "9px" : "8px"};
        ${PAGE.oneColumn ? "display:block;" : "display:flex; justify-content:space-between; align-items:flex-start; gap:18px;"} }
 .hero .kicker{ color:var(--amber); font-weight:800; letter-spacing:.13em; font-size:14px;
        text-transform:uppercase; line-height:1.3; }
@@ -349,17 +382,19 @@ body{ background:#fff; }
    instead. The badge wraps INSIDE its pill; overflow-wrap covers the pathological single long
    token that would otherwise still push out. */
 .hero .tchip{ background:rgba(242,162,12,.17); border:1.5px solid var(--amber); color:#FFD98A;
-       font-size:14px; font-weight:800; letter-spacing:.06em; padding:3px 9px; border-radius:20px;
+       font-size:14px; font-weight:800; letter-spacing:.06em; padding:3px 9px; border-radius:var(--r-pill);
        max-width:100%; white-space:normal; overflow-wrap:anywhere; line-height:1.35;
        text-align:${end}; }
-.hero .tchip.plain{ background:rgba(255,255,255,.10); border-color:#5d7194; color:#dbe5f3; }
+/* Chrome on the navy, not a surface: fill AND line are the same white the hero text is, held back
+   to a wash. A fixed slate hex here had to be re-picked by hand every time the navy moved. */
+.hero .tchip.plain{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.35); color:#dbe5f3; }
 .brand{ display:inline-flex; align-items:center; gap:5px; margin-top:5px; justify-content:flex-${rtl ? "start" : "end"}; }
 .brand .dot{ width:8px; height:8px; border-radius:50%; background:var(--amber); }
 .brand .dot.b{ background:#fff; }
 .brand span{ font-weight:800; font-size:17.5px; letter-spacing:.02em; color:#fff; }
 
 /* ── section bars (O I D A C H) ─────────────────────────────────────────── */
-.bar{ display:flex; align-items:center; gap:8px; border-radius:7px; padding:4px 11px; margin:0; }
+.bar{ display:flex; align-items:center; gap:8px; border-radius:var(--r-1); padding:4px 11px; margin:0; }
 .bar .badge{ flex:0 0 auto; width:20px; height:20px; border-radius:50%; color:#fff;
       font-size:16.5px; font-weight:800; display:flex; align-items:center; justify-content:center;
       line-height:1; background:rgba(255,255,255,.22); }
@@ -374,13 +409,13 @@ body{ background:#fff; }
    untouched, because the teach part renders at 99-100% of its four-page cap and one added pixel
    per section buys a fifth page. The badge stops being a second solid and becomes a translucent
    white chip, which reads on a dark navy fill and on a mid amber one alike. */
-.s-o{ background:#8A5F04; }
-.s-w{ background:#8A5F04; }
+.s-o{ background:var(--s-note-ink); }
+.s-w{ background:var(--s-note-ink); }
 .s-i{ background:var(--navy2); }
 .s-d{ background:var(--navy); }
 .s-a{ background:var(--leaf); }
-.s-c{ background:#584A93; }
-.s-h{ background:#5b6472; }
+.s-c{ background:var(--band-c); }
+.s-h{ background:var(--mut); }
 
 .contstrip{ display:flex; align-items:baseline; gap:7px; font-size:15.5px; font-weight:800; color:var(--navy);
       border-bottom:2px solid var(--line); padding-bottom:5px; }
@@ -432,14 +467,17 @@ p{ font-size:18px; }
 .lbl.g{ color:var(--navy2); border-${start}:3px solid var(--amber); padding-${start}:7px; }
 
 /* ── SLO ────────────────────────────────────────────────────────────────── */
-.slo{ background:var(--amber-soft); border-${start}:6px solid var(--amber); border-radius:9px;
+/* The outcome box is L1 and deliberately NOT a pale role: --amber-soft is a full tone deeper than
+   --s-note, and the 6px amber edge is the loudest mark on page one. It is the one thing a teacher
+   must not miss, so it is allowed to outrank every note-coloured block below it. */
+.slo{ background:var(--amber-soft); border-${start}:6px solid var(--amber); border-radius:var(--r-2);
       padding:8px 14px; }
-.slo .lbl{ color:#8A5F04; }
+.slo .lbl{ color:var(--s-note-ink); }
 .slo p{ font-size:18.5px; line-height:${rtl ? "2.0" : "1.55"}; margin-top:1px; font-weight:600; color:#3a2c0a; }
 .slo .src{ font-size:14.5px; color:#7d6425; margin-top:2px; font-weight:600; }
 .crit{ font-size:17px; color:#6B5312; margin-top:1px; font-weight:600; }
 .objhd{ display:flex; align-items:center; gap:6px; margin-top:var(--sp-2); font-size:14px; font-weight:800;
-      letter-spacing:.09em; text-transform:uppercase; color:#8A5F04; }
+      letter-spacing:.09em; text-transform:uppercase; color:var(--s-note-ink); }
 .objhd .badge{ width:18px; height:18px; border-radius:50%; background:var(--amber); color:#3a2c0a;
       font-size:14px; display:flex; align-items:center; justify-content:center; line-height:1; }
 .objs{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
@@ -455,34 +493,45 @@ p{ font-size:18px; }
    and the row 261.4px tall. Floated, the question flows the full measure and wraps back under
    the chip: 1865.6px -> 1326.5px over the fixture's 11 rows. flow-root contains the floats so
    a row whose text is shorter than its chip cannot leak one into the next row. */
-.wu .it{ display:flow-root; border:1.5px solid #EADFC5; background:#FFFCF5;
-      border-radius:6px; padding:3px 10px; }
-.wu .n{ float:${start}; margin-${end}:9px; font-weight:800; color:#C98A12; font-size:16.5px; }
+.wu .it{ display:flow-root; border:1px solid var(--s-note-line); background:var(--s-note);
+      border-radius:var(--r-1); padding:3px 10px; }
+.wu .n{ float:${start}; margin-${end}:9px; font-weight:800; color:var(--s-note-ink); font-size:16.5px; }
 .wu .q{ font-size:18px; }
 .wu .a{ color:var(--leaf); font-weight:700; }
-.wu .kind{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:800; letter-spacing:.05em;
-      text-transform:uppercase; color:#9aa3b0; }
+/* L3. This tag ("revision", "recall") repeats on every row of the warm-up, so at the block label's
+   own volume — 800, uppercase, tracked — a five-row warm-up printed five extra shouts in the
+   margin. Sentence case at 700 is metadata a teacher reads once. Same 14px: the ladder is weight
+   and case, never size, and lowercase is also the narrower of the two, so the float shrinks. */
+.wu .kind{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:700; letter-spacing:.02em;
+      color:var(--mut); }
 
 /* ── blocks ─────────────────────────────────────────────────────────────── */
-.hook{ background:var(--navy); color:#fff; border-radius:10px; padding:9px 14px; }
+.hook{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:9px 14px; }
 .hook .lbl{ color:var(--amber); }
 .hook .q{ font-size:19px; font-weight:700; line-height:${rtl ? "1.95" : "1.55"}; margin-top:3px; }
 .hook .lf{ font-size:16px; color:#c9d4e6; margin-top:3px; line-height:${rtl ? "1.9" : "1.55"}; }
-.askb{ border-${start}:4px solid var(--navy2); background:#F5F8FC; border-radius:8px; padding:7px 13px; }
-.askb .lbl{ color:var(--navy2); }
+/* Ask, script and board are all the TEACH role, and they used to be #F5F8FC, #F7F9FC and #EFF1F4 —
+   three fills nobody can tell apart, doing the job of telling them apart. What actually separates
+   them is the EDGE: ask carries the solid navy rule because it is the one a teacher has to say out
+   loud; the script carries the same rule held back to the hairline tone; the board is quiet grey,
+   because it is a note about the wall, not about the lesson. */
+.askb{ border-${start}:4px solid var(--navy2); background:var(--s-teach); border-radius:var(--r-2); padding:7px 13px; }
+.askb .lbl{ color:var(--s-teach-ink); }
 .askb .q{ font-size:18.5px; font-weight:700; color:var(--navy2); }
 .askb .lf{ font-size:16.5px; color:var(--mut); margin-top:2px; }
-.say{ border-${start}:4px solid #9FB4D0; background:#F7F9FC; border-radius:8px; padding:7px 13px; }
-.say .lbl{ color:var(--navy2); }
+.say{ border-${start}:4px solid var(--s-teach-line); background:var(--s-teach); border-radius:var(--r-2); padding:7px 13px; }
+.say .lbl{ color:var(--s-teach-ink); }
 .say .t{ font-size:18px; color:#173355; }
-.watch{ background:var(--warn-soft); border:1px solid var(--warn-line); border-radius:8px; padding:7px 12px; }
-.watch .lbl{ color:var(--warn); }
+.watch{ background:var(--s-watch); border:1px solid var(--s-watch-line); border-radius:var(--r-2); padding:7px 12px; }
+.watch .lbl{ color:var(--s-watch-ink); }
 .watch .t{ font-size:18px; color:#5a2f18; }
-.board{ background:#EFF1F4; border-${start}:4px solid #8A93A3; border-radius:8px; padding:7px 13px; }
-.board .lbl{ color:#414A57; }
+.board{ background:var(--s-quiet); border-${start}:4px solid var(--s-quiet-ink); border-radius:var(--r-2); padding:7px 13px; }
+.board .lbl{ color:var(--s-quiet-ink); }
 .board .t{ font-size:18px; color:#2b3341; }
 .kwrow{ display:flex; flex-wrap:wrap; gap:var(--sp-1); margin-top:var(--sp-1); }
-.kw{ background:#EEF2F8; border:1.5px solid #DBE3EF; border-radius:16px; padding:2px 11px; font-size:16.5px; }
+/* A key word sits on the grey key-words card, so the chip goes WHITE: a pale chip on a pale card is
+   not a chip. White is the page, not a role, which is why it stays a literal here. */
+.kw{ background:#fff; border:1px solid var(--s-quiet-line); border-radius:var(--r-pill); padding:2px 11px; font-size:16.5px; }
 .kw b{ color:var(--navy2); font-weight:800; }
 .kw i{ color:var(--mut); font-style:normal; }
 .kp{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
@@ -507,21 +556,26 @@ p{ font-size:18px; }
    table-layout:auto, measured: the columns genuinely want different widths — a one-word TYPE
    column beside a longer WHERE column — and auto beat fixed 728.9 to 785.6. */
 .tbl{ border-collapse:collapse; width:100%; margin-top:var(--sp-1); table-layout:auto; }
-.tbl th{ font-size:14px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
-  text-align:${start}; color:var(--mut); padding:3px 7px; border-bottom:1.5px solid #D8DEE8; }
+/* L3. A header row already announces itself by sitting on top of a ruled column of data; it does
+   not also need caps, tracking and the block label's weight. Demoted, the eye goes to the CELLS,
+   which is the whole reason the table block exists. */
+.tbl th{ font-size:14px; font-weight:700; letter-spacing:.02em;
+  text-align:${start}; color:var(--mut); padding:3px 7px; border-bottom:1px solid var(--s-quiet-line); }
 .tbl td{ font-size:18px; line-height:1.35; padding:5px 7px; vertical-align:top;
-  text-align:${start}; border-bottom:1px solid #EDF0F5; }
-.tbl tbody tr:nth-child(odd){ background:#FAFBFD; }
+  text-align:${start}; border-bottom:1px solid var(--line); }
+.tbl tbody tr:nth-child(odd){ background:var(--s-quiet); }
 .tbl td:first-child{ font-weight:700; color:var(--navy2); }
 /* The two worked examples are a pair with different jobs — I DO is modelled at the board, WE DO is
    solved with the class — and the we-do box already said so, tinted green to match its green tag.
    The i-do box carried an AMBER tag on a grey hairline, so the pair read as "one coloured box and
    one unstyled box" rather than as two steps of a gradual release. It now wears its own tag's
    amber on the same 1px border and the same padding: colour only, no height. */
-.exq{ border:1px solid #F0D9A8; border-radius:9px; padding:6px 11px; background:#FFFBF2; }
-.exq.we{ border-color:#BFE3CD; background:#F6FCF8; }
+.exq{ border:1px solid var(--s-note-line); border-radius:var(--r-2); padding:6px 11px; background:var(--s-note); }
+.exq.we{ border-color:var(--s-do-line); background:var(--s-do); }
+/* L1 and staying loud: I DO / WE DO is the gradual-release step, the one badge on the page that
+   names WHO is holding the pen. Solid fill, caps, tracked. */
 .exq .tag{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.08em;
-      text-transform:uppercase; padding:3px 10px; border-radius:14px; color:#fff; background:var(--amber); }
+      text-transform:uppercase; padding:3px 10px; border-radius:var(--r-pill); color:#fff; background:var(--amber); }
 .exq.we .tag{ background:var(--leaf); }
 .exq h4{ font-size:18px; color:var(--navy); margin-top:var(--sp-1); line-height:${rtl ? "1.85" : "1.45"}; }
 .exq .prompt{ font-size:18px; margin-top:var(--sp-1); }
@@ -529,22 +583,23 @@ p{ font-size:18px; }
 .exq ol li{ font-size:18px; margin:0; }
 .exq .res{ margin-top:var(--sp-1); font-size:18px; color:var(--leaf); font-weight:700; }
 .pr .tag{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.08em;
-      text-transform:uppercase; padding:3px 10px; border-radius:14px; background:var(--leaf-soft);
-      color:#14603A; border:1.5px solid #BFE3CD; }
+      text-transform:uppercase; padding:3px 10px; border-radius:var(--r-pill); background:var(--s-do);
+      color:var(--s-do-ink); border:1px solid var(--s-do-line); }
 .pr .items{ margin-top:var(--sp-1); display:flex; flex-direction:column; gap:var(--sp-1); }
 .pr .it{ display:flow-root; }
 .pr .n{ float:${start}; margin-${end}:8px; font-weight:800; color:var(--navy2); font-size:16.5px; min-width:17px; }
 .pr .q{ font-size:18px; }
 .pr .a{ color:var(--leaf); font-weight:700; }
-.pr .tier{ float:${end}; margin-${start}:8px; font-size:14px; font-weight:800; letter-spacing:.05em;
-      text-transform:uppercase; color:#9aa3b0; }
+/* L3 — same demotion as .wu .kind, same reason: one per practice item, several per page. */
+.pr .tier{ float:${end}; margin-${start}:8px; font-size:14px; font-weight:700; letter-spacing:.02em;
+      color:var(--mut); }
 .se{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3);"} }
 ${PAGE.oneColumn ? ".se > div + div{ margin-top:var(--sp-2); }" : ""}
-.se > div{ flex:1 1 0; border-radius:9px; padding:7px 13px; border:1.5px solid; }
-.se .sup{ background:#F5F8FC; border-color:#CBD8E8; }
-.se .sup .lbl{ color:var(--navy2); }
-.se .ext{ background:var(--leaf-soft); border-color:#BFE3CD; }
-.se .ext .lbl{ color:#14603A; }
+.se > div{ flex:1 1 0; border-radius:var(--r-2); padding:7px 13px; border:1px solid; }
+.se .sup{ background:var(--s-teach); border-color:var(--s-teach-line); }
+.se .sup .lbl{ color:var(--s-teach-ink); }
+.se .ext{ background:var(--s-do); border-color:var(--s-do-line); }
+.se .ext .lbl{ color:var(--s-do-ink); }
 .se p{ font-size:18px; margin-top:var(--sp-1); }
 
 /* ── figures ────────────────────────────────────────────────────────────── */
@@ -561,16 +616,19 @@ ${PAGE.oneColumn ? ".se > div + div{ margin-top:var(--sp-2); }" : ""}
    the border box is not. The property is absent on every figure that fits, so this rule is a no-op for them.
 
    NOTE FOR ANYONE EDITING THIS STYLESHEET: it lives inside a JS template literal. No backticks. */
-figure.dg{ border:1.5px solid var(--line); border-radius:10px; padding:9px 11px; break-inside:avoid;
+figure.dg{ border:1.5px solid var(--line); border-radius:var(--r-2); padding:9px 11px; break-inside:avoid;
       margin-left:calc(-1 * var(--fig-wide, 0px)); margin-right:calc(-1 * var(--fig-wide, 0px)); }
-figure.dg.book{ border-color:#CBD8E8; }
+/* A crop lifted from the textbook wears the teach hairline, so "this came from the book" is a
+   colour the teacher can learn once. Width unchanged — the 1.5px frame is load-bearing geometry
+   here (see --fig-wide above), so only its colour moves. */
+figure.dg.book{ border-color:var(--s-teach-line); }
 figure.dg .ftop{ display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-1); gap:8px; }
 /* NOT uppercase. The badge carries a human label now ("Equation", "Force diagram"), and
    uppercasing a human label is what made "chem_equation" read as the enum CHEM_EQUATION in the
    first place. Nastaliq gets no tracking either — letter-spacing breaks Urdu joining. */
 figure.dg .ftag{ background:var(--navy); color:#fff; font-size:14px; font-weight:800;
       letter-spacing:${rtl ? "0" : ".02em"};
-      padding:3px 10px; border-radius:16px; }
+      padding:3px 10px; border-radius:var(--r-pill); }
 figure.dg .fsrc{ color:var(--leaf); font-weight:800; font-size:14px; }
 /* NO blanket max-height on an SVG. An SVG with a viewBox scales by min(boxW/vbW, boxH/vbH),
    so a fixed 118px clamp did not "fit" a diagram — it SHRANK it, and every label inside it,
@@ -592,9 +650,9 @@ figure.dg img{ display:block; width:100%; height:auto; max-height:${CROP_MAX_H}p
       object-fit:contain; margin:0 auto; }
 figure.dg figcaption{ text-align:center; font-size:15.5px; color:var(--mut); font-weight:600; margin-top:var(--sp-1);
       line-height:${rtl ? "1.9" : "1.5"}; }
-figure.dg .legend{ background:#F6F8FC; border-radius:8px; padding:6px 11px; margin-top:var(--sp-2); font-size:16.5px; }
-figure.dg .legend .lbl{ color:var(--navy2); display:block; margin-bottom:2px; }
-.mathb{ background:var(--leaf-soft); border:1.5px solid #BFE3CD; border-radius:10px; padding:8px 12px; line-height:1.45;
+figure.dg .legend{ background:var(--s-teach); border-radius:var(--r-2); padding:6px 11px; margin-top:var(--sp-2); font-size:16.5px; }
+figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2px; }
+.mathb{ background:var(--s-do); border:1px solid var(--s-do-line); border-radius:var(--r-2); padding:8px 12px; line-height:1.45;
       text-align:center; }
 .mathb .katex{ font-size:1.24em; }
 .mathb figcaption{ font-size:15.5px; color:#3F6B53; margin-top:2px; }
@@ -633,7 +691,7 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    and still wraps word by word.
    (No backticks anywhere in this sheet: the whole stylesheet is one JS template literal, and a
    backtick in a comment ends it. See bd-a8veu.19 for the sibling trap.) */
-.seq{ background:#F6F8FC; border:1.5px solid #E1E7F0; border-radius:9px; padding:5px 12px;
+.seq{ background:var(--s-quiet); border:1px solid var(--s-quiet-line); border-radius:var(--r-2); padding:5px 12px;
       font-size:16px; line-height:1.5; color:var(--mut); }
 .seq > span{ display:block; }
 .seq > span + span{ margin-top:3px; }
@@ -641,12 +699,14 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .seq .now{ color:var(--navy); font-weight:800; }
 .seq .arrow{ color:var(--amber); font-weight:800; padding:0 5px; }
 /* An objective's own SLO code — spec §3 O wants one PER OBJECTIVE, not one per plan. */
-.slocode{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.05em; color:#8A5F04;
-      background:rgba(242,162,12,.20); border-radius:11px; padding:1px 8px; margin-${start}:6px; white-space:nowrap; }
+.slocode{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.05em; color:var(--s-note-ink);
+      background:rgba(242,162,12,.20); border-radius:var(--r-pill); padding:1px 8px; margin-${start}:6px; white-space:nowrap; }
 .bythe{ font-size:17px; color:#6B5312; margin-top:2px; font-weight:600; }
-/* Development's textbook citation. Reviewer sign-off 7: no page, no pass. */
-.cite{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
-      color:var(--navy2); background:#EAF0F8; border-radius:11px; padding:2px 9px; }
+/* Development's textbook citation. Reviewer sign-off 7: no page, no pass.
+   L3: it appears beside every development step, and "Textbook page 63" is an address, not a
+   heading. Sentence case at 700 keeps it findable without letting it compete with the step. */
+.cite{ display:inline-block; font-size:14px; font-weight:700; letter-spacing:.01em;
+      color:var(--s-teach-ink); background:var(--s-teach); border-radius:var(--r-pill); padding:2px 9px; }
 /* THE RESOURCES CARD — page 1's at-a-glance panel (bd-a8veu.6). Operator: "the 1st page
    quickly tells the teacher where they are at, what they are teacing, the SLO, the resources,
    videos and key words of this lesson." The hero says where, the sequence strip says what is
@@ -675,60 +735,68 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    The panel is still the ATOM, so nothing about pagination moves: the four travel together and
    still land on page 1. */
 .rescard{ display:flex; flex-direction:column; gap:var(--sp-1); }
-.rescard > div{ font-size:16.5px; border-radius:8px; padding:6px 11px;
+.rescard > div{ font-size:16.5px; border-radius:var(--r-2); padding:6px 11px;
       display:flex; gap:8px; align-items:baseline; }
 .rescard .ico{ flex:0 0 auto; }
 .rescard .lbl{ font-weight:700; flex:0 0 auto; }
-.rmat{ background:#EFF7F2; border:1.5px solid #CFE5DA; }
-.rmat .lbl{ color:#14603A; }
-.rpace{ background:#EEF3FB; border:1.5px solid #CFDCEF; }
-.rpace .lbl{ color:var(--navy2); }
+/* The four tints are now the four ROLES, re-derived rather than flattened — bd-a8veu.16 asked for
+   four different colours and it still gets four, but each one is a colour that means the same
+   thing everywhere else in the plan. Materials is what the class DOES with its hands (do/green),
+   pacing is the teacher's own plan (teach/blue), key words are reference (quiet/grey — which also
+   retires the page's lone purple, a hue used exactly once and standing for nothing), and the video
+   is an offer (note/amber, unchanged, because it is the one the operator held up as the standard). */
+.rmat{ background:var(--s-do); border:1px solid var(--s-do-line); }
+.rmat .lbl{ color:var(--s-do-ink); }
+.rpace{ background:var(--s-teach); border:1px solid var(--s-teach-line); }
+.rpace .lbl{ color:var(--s-teach-ink); }
 /* Key words keep their stacked label-over-row shape — the meanings need the width — so the icon
    sits beside the whole block rather than on the label's line. min-width:0 is what lets the
    flex item shrink below its content; without it the meanings overflow the 478px column. */
-.rkw{ background:#F4F0FA; border:1.5px solid #DCD2EC; }
+.rkw{ background:var(--s-quiet); border:1px solid var(--s-quiet-line); }
 .rkw .blk{ min-width:0; flex:1 1 auto; }
-.rkw .lbl.g{ color:#4A3A75; margin-top:0; }
+.rkw .lbl.g{ color:var(--s-quiet-ink); margin-top:0; }
 /* The video block. Amber, matching its own link, so it reads as an offer rather than as part of
    the lesson body.
    NAMED .vres, not .res or .vid: BOTH of those are already taken (.res is the KaTeX result block,
    .vid was the old inline video block). A colliding class silently inherits someone else's box. */
-.vres{ display:flex; gap:8px; align-items:baseline; background:#FFF8E8; border:1.5px solid #F0DFB4; }
+.vres{ display:flex; gap:8px; align-items:baseline; background:var(--s-note); border:1px solid var(--s-note-line); }
 .vres .ico{ flex:0 0 auto; }
-.vres .lbl{ color:#8A5F04; font-weight:700; flex:0 0 auto; }
+.vres .lbl{ color:var(--s-note-ink); font-weight:700; flex:0 0 auto; }
 /* The visible run is the video's TITLE (bd-a8veu.4), so this is a one-line clamp and no longer a
    url rule: word-break:break-all would hyphenate a title mid-word, and a long YouTube title on a
    478px column is three lines of furniture on a page that is already at its cap. min-width:0 is
    what lets a flex item shrink below its content — without it the row simply overflows. */
-.vres a{ color:#8A5F04; text-decoration:underline;
+.vres a{ color:var(--s-note-ink); text-decoration:underline;
       min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.vid{ display:flex; gap:8px; align-items:baseline; background:#F5F8FC; border:1.5px solid #CBD8E8;
-      border-radius:8px; padding:6px 12px; font-size:16.5px; }
+.vid{ display:flex; gap:8px; align-items:baseline; background:var(--s-teach); border:1px solid var(--s-teach-line);
+      border-radius:var(--r-2); padding:6px 12px; font-size:16.5px; }
 .vid .lbl{ color:var(--navy2); flex:0 0 auto; }
 .vid a{ color:var(--navy2); font-weight:700; text-decoration:none; }
 .vid .why{ color:var(--mut); }
 /* Conclusion: the board-phrased checkpoint, its mark scheme, the exit ticket, the re-teach rule. */
-.ck{ background:var(--navy); color:#fff; border-radius:9px; padding:7px 13px; }
+.ck{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:7px 13px; }
 .ck .lbl{ color:var(--amber); }
 .ck .q{ font-size:18.5px; font-weight:700; margin-top:2px; line-height:${rtl ? "1.9" : "1.55"}; }
 .ck ul{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .ck li{ font-size:18px; color:#d7e0ee; }
-.exit{ border:1.5px solid #BFE3CD; background:#F6FCF8; border-radius:8px; padding:6px 12px; }
-.exit .lbl{ color:#14603A; }
+.exit{ border:1px solid var(--s-do-line); background:var(--s-do); border-radius:var(--r-2); padding:6px 12px; }
+.exit .lbl{ color:var(--s-do-ink); }
 .exit .it{ display:flex; gap:8px; align-items:baseline; font-size:18px; }
 .exit .a{ color:var(--leaf); font-weight:700; }
-.reteach{ background:var(--warn-soft); border:1px solid var(--warn-line); border-radius:8px; padding:6px 12px; }
-.reteach .lbl{ color:var(--warn); }
+.reteach{ background:var(--s-watch); border:1px solid var(--s-watch-line); border-radius:var(--r-2); padding:6px 12px; }
+.reteach .lbl{ color:var(--s-watch-ink); }
 .reteach .t{ font-size:18px; color:#5a2f18; }
 /* Homework as DATA. Each item wears its [SLO, K/U/A] tag; NO answer is printed here — the
    answers live in reference F, which is the whole point of defect class E. */
 .hw{ display:flex; flex-direction:column; gap:var(--sp-1); }
-.hw .it{ display:flow-root; border:1.5px solid var(--line); background:#FAFBFD;
-      border-radius:6px; padding:4px 11px; }
-.hw .n{ float:${start}; margin-${end}:9px; font-weight:800; color:#5b6472; font-size:16.5px; }
+.hw .it{ display:flow-root; border:1px solid var(--s-quiet-line); background:var(--s-quiet);
+      border-radius:var(--r-1); padding:4px 11px; }
+.hw .n{ float:${start}; margin-${end}:9px; font-weight:800; color:var(--mut); font-size:16.5px; }
 .hw .q{ font-size:18px; }
-.hw .tag{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:800; letter-spacing:.04em;
-      color:#414A57; background:#E7EAEF; border-radius:11px; padding:1px 8px; white-space:nowrap; }
+/* L3. This is the [SLO, K/U/A] code — the single most repeated string in the plan, once per
+   homework item. At 800 it was a column of shouting in the margin of every row. */
+.hw .tag{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:700; letter-spacing:.02em;
+      color:var(--s-quiet-ink); background:#fff; border-radius:var(--r-pill); padding:1px 8px; white-space:nowrap; }
 .hw .src{ color:var(--mut); font-size:15.5px; }
 /* An inline matrix is promoted to display style (lib/rich.js). Give it room to breathe so it
    does not crowd the line it sits in. */
@@ -736,16 +804,16 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* THE TEACHER NOTE. Distractor codes are data the teacher needs and a pupil must never read
    beside the option — so they are never painted in .op. Same for a resolved question ref.
    lint's DISTRACTOR_VISIBLE asserts every code is inside one of these. */
-.tnote{ display:block; font-size:14.5px; color:#7d6425; background:#FDF6E7; border-radius:6px;
+.tnote{ display:block; font-size:14.5px; color:#7d6425; background:var(--s-note); border-radius:var(--r-1);
       padding:4px 10px; margin-top:var(--sp-1); line-height:${rtl ? "1.8" : "1.5"}; }
-.tnote b{ color:#8A5F04; }
+.tnote b{ color:var(--s-note-ink); }
 .refq{ display:block; font-size:16px; color:var(--navy2); font-weight:600; margin-bottom:2px; }
 
 /* ── page-1 foot ────────────────────────────────────────────────────────── */
 .mats{ padding-top:0; }
-.matbox{ background:#F6F8FC; border:1.5px solid #E1E7F0; border-radius:9px; padding:7px 13px;
+.matbox{ background:var(--s-do); border:1px solid var(--s-do-line); border-radius:var(--r-2); padding:7px 13px;
       font-size:16.5px; display:flex; gap:9px; align-items:baseline; }
-.matbox .lbl{ color:var(--navy2); flex:0 0 auto; }
+.matbox .lbl{ color:var(--s-do-ink); flex:0 0 auto; }
 .cont{ margin-top:0; font-size:14px; color:var(--mut); font-style:${rtl ? "normal" : "italic"};
       border-top:1px solid var(--line); padding-top:var(--sp-2); line-height:${rtl ? "1.9" : "1.55"}; }
 
@@ -760,14 +828,14 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    sits on, the meta is short and fixed in shape, and the title is the one piece here that has
    to be free to wrap across the full measure. */
 .p2head .pill{ background:var(--navy); color:#fff; font-size:14px; font-weight:800; letter-spacing:.11em;
-      text-transform:uppercase; padding:5px 14px; border-radius:16px; flex:0 0 auto;
+      text-transform:uppercase; padding:5px 14px; border-radius:var(--r-pill); flex:0 0 auto;
       display:inline-block; vertical-align:middle; margin-${end}:9px; }
 /* The eyebrow leads, so the space between the two pieces hangs off the TITLE now. */
 .p2head .t{ font-size:20.5px; font-weight:800; color:var(--navy); line-height:${rtl ? "1.8" : "1.3"};${PAGE.oneColumn ? " margin-top:var(--sp-1);" : ""} }
 .p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${PAGE.oneColumn ? start : end}; line-height:${rtl ? "1.85" : "1.45"}; }
 .p2sec{ break-inside:avoid; }
 .p2bar{ display:flex; align-items:center; gap:7px; margin:0; }
-.p2bar .badge{ flex:0 0 auto; width:21px; height:21px; border-radius:6px; background:var(--navy); color:#fff;
+.p2bar .badge{ flex:0 0 auto; width:21px; height:21px; border-radius:var(--r-1); background:var(--navy); color:#fff;
       font-size:15.5px; font-weight:800; display:flex; align-items:center; justify-content:center; line-height:1; }
 .p2bar .nm{ font-size:17px; font-weight:800; color:var(--navy); letter-spacing:.03em;
       text-transform:uppercase; line-height:${rtl ? "1.8" : "1.35"}; }
@@ -779,33 +847,36 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    hard that the row is taller than the same cards stacked. DESIGN.md section 5(b). */
 .grid2{ display:grid; grid-template-columns:${PAGE.oneColumn ? "1fr" : "1fr 1fr"}; gap:var(--sp-2); }
 .grid3{ display:grid; grid-template-columns:${PAGE.oneColumn ? "1fr" : "1fr 1fr 1fr"}; gap:var(--sp-2); }
-.card{ border:1px solid var(--line); border-radius:6px; padding:3px 10px; background:#fff; }
-.card .lbl{ color:var(--navy2); display:block; margin-bottom:var(--sp-1); }
+.card{ border:1px solid var(--line); border-radius:var(--r-1); padding:3px 10px; background:#fff; }
+.card .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:var(--sp-1); }
 .card p{ font-size:18px; }
 .card .a{ color:var(--leaf); font-weight:700; }
-.card.mk{ background:#FAFBFD; }
-.mis{ border:1px solid var(--line); border-radius:8px; overflow:hidden; }
-.mis .x{ background:#FCEDE6; padding:4px 10px; }
-.mis .x .lbl{ color:var(--warn); display:block; }
+.card.mk{ background:var(--s-quiet); }
+.mis{ border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden; }
+.mis .x{ background:var(--s-watch); padding:4px 10px; }
+.mis .x .lbl{ color:var(--s-watch-ink); display:block; }
 .mis .x p{ font-size:18px; color:#5a2f18; }
-.mis .v{ background:var(--leaf-soft); padding:4px 10px; }
-.mis .v .lbl{ color:#14603A; display:block; }
+.mis .v{ background:var(--s-do); padding:4px 10px; }
+.mis .v .lbl{ color:var(--s-do-ink); display:block; }
 .mis .v p{ font-size:18px; color:#14472F; }
-.mcq{ border:1px solid var(--line); border-radius:7px; padding:4px 10px; margin:0; }
-.mcq .q{ font-size:18px; font-weight:700; color:var(--navy2); }
+.mcq{ border:1px solid var(--line); border-radius:var(--r-2); padding:4px 10px; margin:0; }
+.mcq .q{ font-size:18px; font-weight:700; color:var(--s-teach-ink); }
 .mcq .opts{ display:flex; flex-wrap:wrap; gap:var(--sp-1); margin-top:var(--sp-1); }
-.mcq .op{ font-size:16px; border:1px solid var(--line); border-radius:5px; padding:2px 8px; background:#FAFBFD; }
-.mcq .op.ok{ border-color:#BFE3CD; background:var(--leaf-soft); font-weight:700; color:#14603A; }
-.mcq .op .dc{ color:var(--warn); font-size:14px; font-weight:700; }
-.srq{ background:var(--navy); color:#fff; border-radius:8px; padding:6px 12px; }
+.mcq .op{ font-size:16px; border:1px solid var(--s-quiet-line); border-radius:var(--r-1); padding:2px 8px; background:var(--s-quiet); }
+.mcq .op.ok{ border-color:var(--s-do-line); background:var(--s-do); font-weight:700; color:var(--s-do-ink); }
+.mcq .op .dc{ color:var(--s-watch-ink); font-size:14px; font-weight:700; }
+.srq{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:6px 12px; }
 .srq .lbl{ color:var(--amber); }
 .srq .q{ font-size:18.5px; font-weight:700; margin-top:var(--sp-1); line-height:${rtl ? "1.9" : "1.55"}; }
-.ms{ background:var(--leaf-soft); border:1px solid #BFE3CD; border-radius:8px; padding:6px 12px; margin-top:0; }
-.ms .lbl{ color:#14603A; display:block; }
+.ms{ background:var(--s-do); border:1px solid var(--s-do-line); border-radius:var(--r-2); padding:6px 12px; margin-top:0; }
+.ms .lbl{ color:var(--s-do-ink); display:block; }
 .ms ul{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .ms li{ font-size:18px; margin:0; }
-.erq{ border:1.5px dashed #C3CCDA; border-radius:9px; padding:6px 12px; margin-top:0; }
-.erq .lbl{ color:var(--navy2); display:block; }
+/* The one box on the page whose POINT is that it is empty: the dashed frame stays 1.5px where
+   the solid frames standardised down to 1px, because a dash reads lighter than a rule of the
+   same width and this is the box a teacher has to see as space to write in. */
+.erq{ border:1.5px dashed var(--s-teach-line); border-radius:var(--r-2); padding:6px 12px; margin-top:0; }
+.erq .lbl{ color:var(--s-teach-ink); display:block; }
 .erq .q{ font-size:18px; font-weight:700; margin:var(--sp-1) 0 var(--sp-2); }
 .erq .part{ display:flex; gap:8px; font-size:18px; align-items:baseline; }
 .erq .part .mk{ flex:0 0 auto; margin-${start}:auto; color:var(--amber); font-weight:800; font-size:15.5px; }
@@ -814,7 +885,7 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .ord li{ font-size:18px; margin:0; line-height:1.55; }
 /* .nxt went with the Next period / Not going today section (bd-a8veu.20) — the last
    selector that used it was deleted in the same commit. */
-.coach{ background:var(--navy); color:#fff; border-radius:8px; padding:6px 12px; }
+.coach{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:6px 12px; }
 .coach .lbl{ color:var(--amber); display:block; }
 .coach p{ font-size:18px; }
 .coach .ask{ margin-top:var(--sp-1); } .coach .ask .lbl{ display:inline; margin-inline-end:6px; }

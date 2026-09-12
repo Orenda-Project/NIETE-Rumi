@@ -70,16 +70,34 @@ const OUT = render(baseDoc(), { lang: 'en' });
 const CSS = sheet(OUT);
 const HTML = body(OUT);
 
-/** The seven sections, and the strong colour each one's BADGE already carried. */
+/**
+ * The seven sections, and the strong colour each one's BADGE already carried.
+ *
+ * These are TOKEN SPELLINGS, not hexes, since bd-a8veu.23 collapsed the sheet onto the surface
+ * ladder: a band names a role and the role owns the value. The values themselves did not move —
+ * the test below re-reads each token out of `:root` and pins it to the hex it has always been, so
+ * this pair of tests still proves "a band is a solid block of the strong colour", which is the
+ * invariant, while leaving the sheet free to say it once instead of seven times.
+ */
 const SECTIONS = [
-  ['.s-o', '#8A5F04'],          // objectives — the amber the band's own text already used
-  ['.s-w', '#8A5F04'],          // warm-up
-  ['.s-i', 'var(--navy2)'],     // introduction
-  ['.s-d', 'var(--navy)'],      // development
-  ['.s-a', 'var(--leaf)'],      // activity
-  ['.s-c', '#584A93'],          // conclusion
-  ['.s-h', '#5b6472'],          // homework
+  ['.s-o', 'var(--s-note-ink)'], // objectives — the amber the band's own text already used
+  ['.s-w', 'var(--s-note-ink)'], // warm-up
+  ['.s-i', 'var(--navy2)'],      // introduction
+  ['.s-d', 'var(--navy)'],       // development
+  ['.s-a', 'var(--leaf)'],       // activity
+  ['.s-c', 'var(--band-c)'],     // conclusion — the one band fill with no pale role behind it
+  ['.s-h', 'var(--mut)'],        // homework
 ];
+
+/** What each band token must still resolve to in `:root`. */
+const BAND_VALUES = {
+  '--s-note-ink': '#8A5F04',
+  '--navy2': '#13315C',
+  '--navy': '#0B2545',
+  '--leaf': '#1F7A4D',
+  '--band-c': '#584A93',
+  '--mut': '#5b6472',
+};
 
 /** The pale tints the bands used to be filled with. None may survive as a band fill. */
 const OLD_TINTS = ['#E1EAF6', '#EAF0F8', '#FBF1DF', '#ECE8F6', '#EFF1F4', 'var(--amber-soft)', 'var(--leaf-soft)'];
@@ -89,6 +107,13 @@ describe('the section band is a block of colour, not a wash', () => {
     const decl = rule(CSS, cls);
     expect(decl).toBeTruthy();
     expect(decl).toMatch(new RegExp(`background:\\s*${colour.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*;`, 'i'));
+  });
+
+  test('the band tokens still carry the strong values they replaced', () => {
+    const root = CSS.match(/:root\{([\s\S]*?)\}/)[1];
+    for (const [token, hex] of Object.entries(BAND_VALUES)) {
+      expect(root).toMatch(new RegExp(`${token}\\s*:\\s*${hex}\\s*;`, 'i'));
+    }
   });
 
   test('no band is still filled with one of the old pale tints', () => {
@@ -205,10 +230,16 @@ describe('the two worked examples read as a pair with different roles', () => {
     expect(box).not.toMatch(/border:\s*1px solid var\(--line\)/);
   });
 
+  // WE DO is the box the class works through together, so under the ladder it is the `do` role,
+  // and the role is what this asserts: the I-do box is amber-tagged on note, the we-do box is
+  // green on do. The green got one step deeper (#F6FCF8 -> the shared --s-do) when the sheet
+  // collapsed nineteen pale tints onto five; what matters here is that the two are still a pair
+  // a teacher can tell apart at a glance, not which of two near-identical greens it is.
   test('the we-do box keeps its own green, so the two are still told apart', () => {
     const we = rule(CSS, '.exq.we');
-    expect(we).toMatch(/border-color:\s*#BFE3CD/i);
-    expect(we).toMatch(/background:\s*#F6FCF8/i);
+    expect(we).toMatch(/border-color:\s*var\(--s-do-line\)/);
+    expect(we).toMatch(/background:\s*var\(--s-do\)/);
+    expect(rule(CSS, '.exq')).not.toMatch(/background:\s*var\(--s-do\)/);
   });
 
   test('THE BUDGET: the fill costs no height — the box keeps its border width and padding', () => {
