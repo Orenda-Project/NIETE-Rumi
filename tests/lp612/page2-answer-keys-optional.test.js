@@ -158,6 +158,12 @@ describe('page2.model_answers and page2.homework_key are optional', () => {
     const html = build(load());
     expect(html).toContain('Model answers');
     expect(html).toContain('Homework, in full');
-    expect(barLetters(html)).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+    // Both keys still paint, and the index is still gapless. The run used to be spelled
+    // A…H here; bd-a8veu.7 moved the board plan out of Reference and into the Introduction,
+    // so it is one shorter — which is exactly what the sibling contiguity test above already
+    // says the right way. The count was never this test's subject.
+    const letters = barLetters(html);
+    expect(letters.length).toBeGreaterThan(3);
+    expect(letters).toEqual(letters.map((_, i) => String.fromCharCode(65 + i)));
   });
 });

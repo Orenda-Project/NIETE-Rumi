@@ -53,7 +53,8 @@ const { buildHtml } = require(path.join(VENDOR, 'lib', 'template'));
 const FIXTURE = path.join(__dirname, '__fixtures__', 'v9_gate_base.lp.json');
 const doc = () => JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
 
-const buildFrom = (d, lang = 'en') => buildHtml(d, { lang, docDir: path.dirname(FIXTURE) }).html;
+const buildAll = (d, lang = 'en') => buildHtml(d, { lang, docDir: path.dirname(FIXTURE) });
+const buildFrom = (d, lang = 'en') => buildAll(d, lang).html;
 const built = (lang = 'en') => buildFrom(doc(), lang);
 
 /** the one rule the emitted sheet declares for `sel`, as it was written */
@@ -217,5 +218,103 @@ describe("bd-a8veu.6 — page 1 is the teacher's at-a-glance card", () => {
     expect(at(html, 'Squared paper', 'materials list')).toBeGreaterThan(card);
     expect(at(html, 'Squared paper', 'materials list'))
       .toBeLessThan(at(html, 'data-sec="introduction"', 'introduction bar'));
+  });
+});
+
+/**
+ * ── item 7 · "2nd page should be the introduction: warm up and opening, watch out,
+ *              on the board should have the diagram needed there as well" ─────────
+ *
+ * Measured on the fixture at 520x2000, after item 6 shipped, the Introduction was cut in
+ * half and its picture was four sheets away:
+ *
+ *   page 1  hero 204 · seq 146 · outcome 448 · resources 294 | intro bar 36 · warm-up 335 · hook 241
+ *   page 2  watch 136 · board note 101        <- the Introduction's orphaned tail
+ *           development bar 36 · the whole D section
+ *   page 5  REFERENCE A · board diagram 220 + draw-order card 262
+ *
+ * The second half of the operator's sentence is the load-bearing one. `page2.board_final`
+ * is the FINAL STATE OF THE BOARD plus the order to build it — the brief calls it "the single
+ * most requested artefact a teacher asked for" — and it was printed as reference matter, on a
+ * sheet the teacher is told not to read in class. A board plan is useless after the board is
+ * built. It belongs under the Introduction's own `ON THE BOARD` note, which is where the
+ * teacher first picks up the chalk: she sees what she is building toward before she starts
+ * laying it out.
+ *
+ * So the pair MOVES — figure and draw-order card together, out of reference A and into the
+ * Introduction. It is a move, not a copy: reference A is emitted by `S()`, which paints
+ * nothing for a section whose bodies are all empty, so the support index closes up and B
+ * becomes A by itself (render-law 15). No string, no schema key and no `ur_overlay` pointer
+ * changes — `page2.board_final` is still where the document keeps it, exactly as the key
+ * words stayed in `introduction.blocks` when they were hoisted for item 6.
+ *
+ * The arithmetic of item 1 is why the packing is not touched here: page-1 furniture is
+ * 1092px and the Introduction with the board plan folded in is 1331px, so 2423px against a
+ * 1917px box — the Introduction can never START on page 1. Whether the teach part spends a
+ * fifth page on it is measured on a real render and recorded on the bead, not guessed here.
+ */
+describe('bd-a8veu.7 — the board plan is in the Introduction, not in Reference', () => {
+  const INTRO = 'data-sec="introduction"';
+  const DEV = 'data-sec="development"';
+  /** the draw-order card: `.ord` is emitted nowhere else in the document */
+  const ORD = 'class="ord"';
+  /** a support-page section bar prints its name in `.nm`; the moved block uses a `.lbl` */
+  const REF_BOARD_BAR = 'class="nm">The board at the end of the lesson<';
+
+  /** the body between the Introduction bar and the Development bar */
+  const introRun = (html) => body(html).slice(at(html, INTRO, 'introduction bar'), at(html, DEV, 'development bar'));
+
+  test('the draw-order card is inside the Introduction', () => {
+    const html = built('en');
+    const run = introRun(html);
+    expect(run).toContain(ORD);
+    // the fixture's own first board step, so this cannot pass on a class name alone
+    expect(run).toContain('Write the two matrices side by side');
+  });
+
+  test('the board diagram travels with it, and the figure leads the order', () => {
+    const html = built('en');
+    const run = introRun(html);
+    const fig = run.indexOf('<figure class="dg"');
+    expect(fig).toBeGreaterThan(-1);
+    expect(fig).toBeLessThan(run.indexOf(ORD));
+    // and it lands under the Introduction's own ON THE BOARD note, not above it
+    expect(run.indexOf('class="blk board"')).toBeLessThan(fig);
+  });
+
+  test('it is a MOVE — Reference carries no board section, and the letters close up', () => {
+    const html = built('en');
+    expect(body(html)).not.toContain(REF_BOARD_BAR);
+    // one draw-order card in the whole document. A copy left behind costs the page it saved.
+    expect(body(html).match(/class="ord"/g)).toHaveLength(1);
+    // `S` assigns letters in emission order, so the next section becomes A by itself
+    expect(body(html)).toMatch(/data-sec="p2-A"[\s\S]{0,160}class="nm">Model answers</);
+  });
+
+  test('the diagram can never be the last atom on a page — the order follows it', () => {
+    // This is the half the emitted text cannot show: `glue` lives in the atom metadata the
+    // packer reads, not in the HTML. A figure that ends a sheet leaves the teacher looking at
+    // a finished board with the order to draw it overleaf.
+    const { atoms } = buildAll(doc(), 'en');
+    const run = atoms.teach.filter((a) => a.sec === 'introduction');
+    expect(run.length).toBeGreaterThan(2);
+    expect(run[run.length - 2].glue).toBe(true);
+    expect(run[run.length - 1].glue).toBeFalsy();
+  });
+
+  test('the Urdu build moves it too', () => {
+    const ur = built('ur');
+    expect(introRun(ur)).toContain(ORD);
+    expect(body(ur)).not.toContain('class="nm">سبق کے اختتام پر تختۂ سیاہ<');
+  });
+
+  test('a lesson whose board plan has no diagram still moves the order out of Reference', () => {
+    // `board_final.diagram` is required by the brief but optional in the schema, and that
+    // branch used to be the only thing keeping reference A alive on its own.
+    const d = doc();
+    delete d.page2.board_final.diagram;
+    const html = buildFrom(d);
+    expect(introRun(html)).toContain(ORD);
+    expect(body(html)).not.toContain(REF_BOARD_BAR);
   });
 });

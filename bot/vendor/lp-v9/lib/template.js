@@ -1456,6 +1456,11 @@ function page1(doc, ctx, secIndex) {
     // The video used to print HERE, mid-Development. It now renders once, in the resources
     // line at the top of page 1 — see resourcesLine. Do not re-add it here: two copies of one
     // link on one document is the defect that cost a page on the part already at its cap.
+    //
+    // bd-a8veu.7: the board plan lands here, at the END of the Introduction — the brief's
+    // canonical section closes on its own `board` note, so the picture of the finished board
+    // sits directly under the sentence that tells the teacher what to write. See boardPlanAtoms.
+    if (s.id === "introduction") out.push(...boardPlanAtoms(doc, ctx));
     if (s.id === "conclusion") {
       if (s.checkpoint) {
         const c = s.checkpoint;
@@ -1580,6 +1585,83 @@ function unnumber(s) {
   return String(s ?? "").replace(/^\s*[0-9\u0660-\u0669\u06F0-\u06F9]{1,2}\s*[.)\u06D4\u060C:\u2013-]\s+/, "");
 }
 
+/**
+ * The board plan — the FINAL STATE of the board plus the order to build it — as teach-part atoms.
+ *
+ * bd-a8veu.7. This pair used to print as REFERENCE SECTION A, on the sheet whose own masthead
+ * tells the teacher not to read it in class, four pages from the chalk. The author brief calls
+ * `page2.board_final` "the single most requested artefact a teacher asked for" and requires the
+ * diagram — and a plan for a board is worth nothing once the board is built. It belongs under the
+ * Introduction's own ON THE BOARD note, where the teacher first picks up the chalk: she sees what
+ * she is building toward before she starts laying it out.
+ *
+ * This is a MOVE, not a copy. `page2()` no longer emits the section at all, and `S` paints nothing
+ * for a section whose bodies are all empty, so the support index closes up and B becomes A by
+ * itself (render-law 15). Nothing outside `page2()` keys off the letter. The DOCUMENT is untouched:
+ * `page2.board_final` is still where the schema, lint, the author briefs and every `ur_overlay`
+ * pointer address it — exactly as the key words stayed in `introduction.blocks` when they were
+ * hoisted into the resources card for bd-a8veu.6.
+ *
+ * The figure carries `glue`, so the order can never be stranded on the next sheet — the whole use
+ * of the pair, and the reason the old section A comment existed.
+ */
+function boardPlanAtoms(doc, ctx) {
+  const L = ctx.L;
+  const B = (doc.page2 && doc.page2.board_final) || null;
+  if (!B) return [];
+  const out = [];
+
+  if (B.diagram) {
+    let svg;
+    try {
+      svg = ctx.renderDiagram(B.diagram);
+    } catch (e) {
+      ctx.warn(`board plan diagram did not render: ${e.message}`);
+      svg = ctx.placeholder(B.diagram);
+    }
+    ctx.vectorFigure = true;
+    // Same repair as R.diagram (bd-oak77.14) — this figure is always full-width, so it always
+    // qualifies. A second copy of the sizing rule that silently omitted the widening would fail
+    // for a defect the rest of the teach page recovers from.
+    const slot = figureFit(svg, FULL_COL, FIG_GROW_MAX);
+    if (slot.growPx) {
+      ctx.figureRepair({
+        code: "FIGURE_WIDENED",
+        specType: B.diagram.type || null,
+        caption: null,
+        colPx: FULL_COL,
+        growPx: slot.growPx,
+        neededPx: slot.neededPx,
+        renderedPxBefore: slot.renderedPxBefore,
+        renderedPxAfter: slot.renderedPx,
+        floorPx: DIAGRAM_MIN_PX,
+      });
+    }
+    const styleBits = [];
+    if (slot.maxHeightPx) styleBits.push(`--fig-h:${slot.maxHeightPx}px`);
+    if (slot.growPx) styleBits.push(`--fig-wide:${slot.growPx}px`);
+    const style = styleBits.length ? ` style="${styleBits.join(";")}"` : "";
+    // board_final.caption is a SEPARATE authored string from the diagram spec's own caption
+    // (which the SVG already prints). Print it only when it says something different.
+    const cap = B.caption && B.caption !== B.diagram.caption ? B.caption : null;
+    const fig = `<figure class="dg"${style}>${svg}${cap ? `<figcaption>${rich(cap)}</figcaption>` : ""}</figure>`;
+    // A bare `.blk` label, NOT the `.blk board` box: that box carries 13px of side padding, and
+    // `figureFit` has already sized the SVG against the full column. Boxing it here would crop
+    // the widening the repair just granted.
+    out.push({ html: `<div class="blk"><div class="lbl">${esc(L.p2Board)}</div>${fig}</div>`, sp: 2, glue: true });
+  }
+
+  const order = B.draw_order || [];
+  if (order.length) {
+    out.push({
+      html: `<div class="card"><span class="lbl">${esc(B.diagram ? L.drawOrder : L.p2Board)}</span>
+      <ol class="ord">${order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
+      sp: 1,
+    });
+  }
+  return out;
+}
+
 function page2(doc, ctx, secIndex) {
   const L = ctx.L;
   const P = doc.page2;
@@ -1669,44 +1751,6 @@ function page2(doc, ctx, secIndex) {
     return out;
   };
 
-  let boardDia = "";
-  if (P.board_final.diagram) {
-    let svg;
-    try {
-      svg = ctx.renderDiagram(P.board_final.diagram);
-    } catch (e) {
-      ctx.warn(`page2 board diagram did not render: ${e.message}`);
-      svg = ctx.placeholder(P.board_final.diagram);
-    }
-    ctx.vectorFigure = true;
-    // Same repair as R.diagram (bd-oak77.14) — this figure is always full-width, so it always
-    // qualifies. A second copy of the sizing rule that silently omitted the widening would fail
-    // support pages for a defect the teach page recovers from.
-    const slot = figureFit(svg, FULL_COL, FIG_GROW_MAX);
-    if (slot.growPx) {
-      ctx.figureRepair({
-        code: "FIGURE_WIDENED",
-        specType: (P.board_final.diagram && P.board_final.diagram.type) || null,
-        caption: null,
-        colPx: FULL_COL,
-        growPx: slot.growPx,
-        neededPx: slot.neededPx,
-        renderedPxBefore: slot.renderedPxBefore,
-        renderedPxAfter: slot.renderedPx,
-        floorPx: DIAGRAM_MIN_PX,
-      });
-    }
-    const styleBits2 = [];
-    if (slot.maxHeightPx) styleBits2.push(`--fig-h:${slot.maxHeightPx}px`);
-    if (slot.growPx) styleBits2.push(`--fig-wide:${slot.growPx}px`);
-    const style = styleBits2.length ? ` style="${styleBits2.join(";")}"` : "";
-    // board_final.caption is a SEPARATE authored string from the diagram spec's own caption
-    // (which the SVG already prints). Print it only when it says something different.
-    const specCap = P.board_final.diagram.caption;
-    const cap = P.board_final.caption && P.board_final.caption !== specCap ? P.board_final.caption : null;
-    boardDia = `<figure class="dg"${style}>${svg}${cap ? `<figcaption>${rich(cap)}</figcaption>` : ""}</figure>`;
-  }
-
   const p2head = `<div class="p2head">
       <span class="pill">${esc(L.supportPage)}</span>
       <div class="t">${rich(p.topic)}</div>
@@ -1715,18 +1759,14 @@ function page2(doc, ctx, secIndex) {
   // The support page's masthead, glued for the same reason as the teach page's hero.
   A.push(atom(p2head, { sp: 0, glue: true }));
 
-  // The board diagram and the draw-order card that tells the teacher how to build it are ONE
-  // instruction in two atoms. Splitting them across a page leaves the teacher looking at a
-  // finished board on one sheet and the order to draw it on another — which is the whole use
-  // of section A. It was never marked `glue` because the greedy packer separated them only
-  // when the card genuinely did not fit; an exact packer would find that break and take it.
-  S(L.p2Board, [
-    boardDia ? { html: boardDia, sp: 2, glue: true } : null,
-    `<div class="card"><span class="lbl">${esc(L.drawOrder)}</span>
-      <ol class="ord">${P.board_final.draw_order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
-  ]);
-
-  // B — MODEL ANSWERS THAT NAME THEIR QUESTION, when the LP carries any.
+  // bd-a8veu.7: SECTION A WAS THE BOARD PLAN, and it is gone from here. The diagram and the
+  // draw-order card now print at the end of the Introduction, where the teacher picks up the
+  // chalk — see boardPlanAtoms. Do not re-add them here: two copies of one board is the same
+  // defect the video hoist fixed, on a part that is already over its page cap. The letters
+  // close up by themselves because `S` assigns them in emission order (render-law 15), so what
+  // follows is now section A.
+  //
+  // A — MODEL ANSWERS THAT NAME THEIR QUESTION, when the LP carries any.
   // The expert's complaint was not that answers were wrong; it was that a page of answers
   // never said what they were answers TO. Each card now resolves its `ref` back to the
   // question as the LP states it, and prints that question above the answer. When a ref

@@ -109,10 +109,18 @@ describe('a normal LP carries an exam bank', () => {
     expect(eb.erq_skeleton.parts.length).toBeGreaterThan(0);
   });
 
-  test('it renders, and the letters run A…H as they always did', () => {
+  test('it renders, and the letters stay a contiguous run', () => {
     const html = build(load());
     expect(hasClass(html, 'mcq')).toBe(true);
-    expect(barLetters(html)).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+    // This test is about the BANK, not about how many sections Reference happens to hold.
+    // It used to spell the run out as A…H; bd-a8veu.7 moved the board plan into the
+    // Introduction, so Reference legitimately lost a section and the run is one shorter.
+    // The invariant that was ever worth asserting is that `S` leaves no gap in the index
+    // (render-law 15) — spell that, not the count, so the next section move does not
+    // redden a suite that has nothing to say about it.
+    const letters = barLetters(html);
+    expect(letters.length).toBeGreaterThan(3);
+    expect(letters).toEqual(letters.map((_, i) => String.fromCharCode(65 + i)));
   });
 
   test('a bank that IS present must still be complete', () => {
