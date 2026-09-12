@@ -321,6 +321,31 @@ function lint(doc, docPath, opts = {}) {
     fail("ACTIVITIES", `${activities} activities (warm-up + ${activities - 1} blocks); the cap is ${MAX_ACTIVITIES}.`);
   }
 
+  // 2b — bd-4pw4y. There must BE a worked example, and it must be here, in the flow.
+  //
+  //      Operator: *"we need worked examples, but it should be in the practice sections of the LP
+  //      not in reference"*. Read it next to bd-s19g8, which is what it answers: that bead took the
+  //      two answer keys off the support page, and an answer key is easy to confuse with this. It
+  //      is not the same object. A model answer is the finished result, filed at the back for
+  //      marking; a worked example is the METHOD, performed in front of the class at the moment it
+  //      is taught. The keys were right to go. An LP with no I-do asks pupils to practise something
+  //      nobody demonstrated.
+  //
+  //      Until now all three layers ALLOWED a worked example and none of them asked for one: the
+  //      rule above counts it only towards the cap, UNWORDED_Q only checks a prompt that exists,
+  //      the schema carries the type but requires no instance, and the brief ordered one only on a
+  //      STEM-2 New-Procedure Day. The flash briefs' worked documents each carry one, so the model
+  //      has been imitating a habit rather than following a rule — and a habit is what drops out
+  //      under pressure.
+  //
+  //      Deliberately not a warn. "Optional demonstration" is not a shape anyone asked for, and the
+  //      cap above makes the trade tempting: an LP over MAX_ACTIVITIES can always get under it by
+  //      deleting the I-do, which is the worst of the four to lose.
+  const hasWorked = doc.sections.some((s) => allBlocks(s.blocks).some((b) => b.type === "worked_example"));
+  if (!hasWorked) {
+    fail("WORKED_ABSENT", "no worked_example block anywhere in the sections. Demonstrate the method — the I do — in the practice flow, before the faded practice that copies it. It belongs in the lesson the teacher is teaching from, not filed at the back.");
+  }
+
   // 3 — the SLO is real, verbatim and sourced (R2)
   if (!doc.slo.text_verbatim || !doc.slo.text_verbatim.trim()) fail("SLO", "slo.text_verbatim is empty.");
   if (!doc.slo.source_page || !String(doc.slo.source_page).trim()) fail("SLO", "slo.source_page is missing — a verbatim quote must carry its page.");
@@ -397,9 +422,25 @@ function lint(doc, docPath, opts = {}) {
     }
   }
 
-  // 9 — exam bank, grades 9-12 (FBISE's remit starts at SSC)
+  // 9 — an exam bank THAT EXISTS must be complete, grades 9-12 (FBISE's remit starts at SSC)
+  //
+  // bd-x0pw1, operator: *"exam qs would be as optional"*, then, on reading the first pass back:
+  // *"we need an exam bank whose heading is FBISE format Questions - (Optional)"*. The optionality
+  // is addressed to the TEACHER and printed in the heading; the briefs still order a bank on every
+  // plan. What this rule keeps from the first reading is only the crash-avoidance half: it was
+  // written against `exam_bank || {}`, so an ABSENT bank read to it as an EMPTY one and every
+  // clause below fired — including SCHEMA, which returns early and takes the other forty rules
+  // with it. It now binds to a bank that IS there.
+  //
+  // And it keeps the half that was always the point: a HALF-WRITTEN bank is worse than none. A
+  // teacher who sees "FBISE format Questions" on the support page expects the retrieval dose under
+  // it, and one MCQ with no mark scheme is a section that lies about what it holds. So an LP that
+  // ships a bank still owes the full 2 distractor-coded MCQs, the SRQ mark scheme and the ERQ
+  // skeleton; an LP that ships none is a quiet gap rather than a wrecked validation run, and `S()`
+  // paints no section E.
   const eb = doc.page2.exam_bank || {};
-  if (full && grade >= 9) {
+  const hasBank = doc.page2.exam_bank != null;
+  if (full && hasBank && grade >= 9) {
     if (!eb.mcq || eb.mcq.length < 2) fail("EXAM", `grade ${grade} needs >= 2 distractor-coded MCQs; found ${(eb.mcq || []).length}.`);
     (eb.mcq || []).forEach((q, i) => {
       const wrong = q.options.length - 1;
@@ -409,7 +450,7 @@ function lint(doc, docPath, opts = {}) {
     });
     if (!eb.srq || !eb.srq.mark_scheme || !eb.srq.mark_scheme.length) fail("EXAM", `grade ${grade} needs one board-phrased SRQ with a bullet mark scheme.`);
     if (!eb.erq_skeleton || !(eb.erq_skeleton.parts || []).length) fail("EXAM", `grade ${grade} needs an ERQ skeleton with parts and marks.`);
-  } else if (full && grade >= 6) {
+  } else if (full && hasBank && grade >= 6) {
     if (!eb.mcq || eb.mcq.length < 2) warn("EXAM", `grade ${grade}: only ${(eb.mcq || []).length} MCQ(s). 2-3 is the retrieval-practice dose even below SSC.`);
     if (!eb.srq) warn("EXAM", `grade ${grade}: no SRQ. The board-phrasing habit starts before grade 9.`);
   }
@@ -680,8 +721,10 @@ function lint(doc, docPath, opts = {}) {
     }
   }
 
-  // 15b — the reference block must be able to answer everything the flow asked
-  if (full && doc.page2.model_answers.length < 2) warn("MODELS", "fewer than 2 model-answer cards; the reference block is meant to answer every tier.");
+  // 15b — a reference block THAT EXISTS must be able to answer everything the flow asked.
+  // bd-s19g8 made `model_answers` optional, so this is a complaint about a thin key, never
+  // about a missing one: an LP with no answer key at all is now a legitimate shape.
+  if (full && doc.page2.model_answers && doc.page2.model_answers.length < 2) warn("MODELS", "fewer than 2 model-answer cards; a reference block that exists is meant to answer every tier.");
   if (full && doc.page2.mistakes.length < 3) warn("MISTAKES", `${doc.page2.mistakes.length} mistake/repair pairs; the v7-1 shape teachers recognised carries 3.`);
 
   // ── DUPLICATE_DIAGRAM ────────────────────────────────────────────────────
@@ -998,7 +1041,10 @@ function v9Gates(doc, ctx) {
   const ANNOUNCED = /\b(?:answer|ans|solution|soln)\b\s*[:=]|\(\s*(?:answer|ans)\s*[:=]|جواب\s*[:：]/i;
   for (const it of (hw && hw.homework && hw.homework.items) || []) {
     if (ANNOUNCED.test(it.text || "")) {
-      fail("HW_ANSWER_INLINE", `homework item ${it.ref || ""} announces its own answer: "${String(it.text).slice(0, 70)}". The answers live in the reference block, and nowhere else.`);
+      // Not "the answers live in the reference block" any more — bd-s19g8 made that block
+      // optional, and the defect is the same with or without one: an item that prints its own
+      // answer asks the pupil to copy rather than to work.
+      fail("HW_ANSWER_INLINE", `homework item ${it.ref || ""} announces its own answer: "${String(it.text).slice(0, 70)}". The item asks; it must not answer itself.`);
       continue;
     }
     const key = (doc.page2.homework_key || []).find((k) => k.ref === it.ref);
@@ -1083,16 +1129,33 @@ function v9Gates(doc, ctx) {
   for (const k of doc.page2.homework_key || []) {
     if (!index.has(k.ref)) fail("REF_ABSENT", `homework key "${k.ref}" solves an item the LP never sets.`);
   }
-  // and the other direction: a question with no answer anywhere
+  // AND THE OTHER DIRECTION — reworked by bd-s19g8 to: **an answer key that exists must be
+  // complete; an LP need no longer have one.**
+  //
+  // It used to read "every question is answered somewhere", which was an answer-key COMPLETENESS
+  // policy wearing a ref-integrity name, and it is what made the two blocks impossible to drop.
+  // `lib/questions.js` builds every CHECKPOINT (:52) and every HOMEWORK item (:57) with
+  // `a: null` STRUCTURALLY — their answers can only ever live in a reference block — so an LP
+  // without those blocks failed once per checkpoint and once per homework item, on every doc.
+  //
+  // The rule now binds per key. A doc that ships `model_answers` still has to answer every
+  // question whose answer isn't in place; a doc that ships `homework_key` still has to solve
+  // every homework item; a doc that ships neither is an LP without an answer key, which the
+  // operator asked for. The FORWARD direction above is untouched and stays absolute — an answer
+  // pointing at a question the LP never states is a lie on the page whatever else is present.
+  const models = doc.page2.model_answers;
+  const hwKey = doc.page2.homework_key;
   const answered = new Set([
-    ...(doc.page2.model_answers || []).map((m) => m.ref),
-    ...(doc.page2.homework_key || []).map((k) => k.ref),
+    ...(models || []).map((m) => m.ref),
+    ...(hwKey || []).map((k) => k.ref),
   ]);
   for (const q of qs) {
     if (q.kind === "exam") continue;                      // the bank carries its own key
     if (q.a != null && String(q.a).trim()) continue;      // answered in place
     if (answered.has(q.ref)) continue;
-    fail("REF_ABSENT", `${q.ref} (${q.where}) is asked and never answered — not in place, and not in the reference block.`);
+    const key = q.kind === "homework" ? hwKey : models;   // the block that would have to carry it
+    if (!key) continue;                                   // no such key — nothing to be incomplete
+    fail("REF_ABSENT", `${q.ref} (${q.where}) is asked and never answered — not in place, and not in the ${q.kind === "homework" ? "homework key" : "reference block"} the LP does carry.`);
   }
   // prose that points at a question by number
   // ONLY the explicit form. A bare "Q1" is almost always a TEXTBOOK citation — "Ex 1.3

@@ -1279,6 +1279,16 @@ function page1(doc, ctx, secIndex) {
   // default: a teacher in an ICT government school must not read the authoring house's
   // product name on her lesson plan. v8.1 moved the wordmark OUT of this kicker (it wrapped
   // onto a second line on every page) and into the footer.
+  //
+  // RENDER-LAW 14 (bd-ydz6z). The chips row carries `board_weight` and nothing else. `lp_type`
+  // (STEM-2, LL-1, RECALL …) is OUR authoring taxonomy — it picks the Development/Activity
+  // internals before a word is written, and a teacher can neither act on it nor look it up. Same
+  // defect class the v8.1 footer fixed (`PK_G11_CHEM_CH4_MOLE_RATIO`) and bd-w56zx's
+  // `previous: grade_10_urdu.p1c01.r990`: an internal key may live in the document and in the PDF
+  // Info dictionary, never on a page a teacher carries into a classroom. `board_weight` is the
+  // opposite — it says what the topic is worth in the exam she is preparing them for — so it
+  // stays; and where it too is absent (grades 6-8, outside FBISE's examining remit) the row is
+  // not painted at all rather than left as an empty gapped flex box under the page line.
   const hero = `<div class="hero">
     <div class="h-col">
       <div class="kicker">${esc(L.grade)} ${p.grade} &middot; ${rich(p.subject)}</div>
@@ -1287,10 +1297,9 @@ function page1(doc, ctx, secIndex) {
     <div class="h-meta">
       <div>${rich(p.chapter)}</div>
       <div>${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)} &middot; <b>${doc.period_minutes} ${esc(L.min)}</b></div>
-      <div class="chips">
-        <span class="tchip">${esc(doc.lp_type)}</span>
-        ${doc.board_weight ? `<span class="tchip plain">${rich(doc.board_weight)}</span>` : ""}
-      </div>
+      ${doc.board_weight ? `<div class="chips">
+        <span class="tchip plain">${rich(doc.board_weight)}</span>
+      </div>` : ""}
     </div>
   </div>`;
 
@@ -1524,12 +1533,25 @@ function page2(doc, ctx, secIndex) {
    * stacked boxes (the hook / say / board / watch run), and that is where the full 8/12/16
    * rhythm goes. Loosening this page by one rung costs it a THIRD page, which is worse for
    * the same teacher.
+   *
+   * RENDER-LAW 15 (bd-s19g8). The LETTER is assigned here, in emission order, rather than
+   * written at the call site. Sections B (`model_answers`) and F (`homework_key`) are optional
+   * now — the operator: *"we didnt need model answers"*, *"homework key goes too"* — and a
+   * support page that ran A, C, D, E, G, H would read as a printing fault rather than as a
+   * deliberate omission. Nothing outside this function keys off the letter (`p2-B` appears in
+   * no other file), so the index is free to close up. A section whose bodies are all empty is
+   * not painted at all: `S` emits nothing, bar included, rather than leaving a lettered rule
+   * over an empty grid.
    */
-  const S = (letter, name, bodies) => {
+  let nS = 0;
+  const S = (name, bodies) => {
+    const present = bodies.filter(Boolean);
+    if (!present.length) return;
+    const letter = String.fromCharCode(65 + nS++);
     const key = `p2-${letter}`;
     secIndex[key] = { kind: "p2", letter, title: name };
     A.push(atom(p2bar(letter, name), { sec: key, first: true, glue: true, sp: 2 }));
-    bodies.filter(Boolean).forEach((b) => {
+    present.forEach((b) => {
       const html = typeof b === "string" ? b : b.html;
       // A body may now declare its own `glue`. It could not before, and it did not need to
       // while the packer was greedy: greedy breaks as LATE as it can, so it only ever
@@ -1636,20 +1658,23 @@ function page2(doc, ctx, secIndex) {
   // finished board on one sheet and the order to draw it on another — which is the whole use
   // of section A. It was never marked `glue` because the greedy packer separated them only
   // when the card genuinely did not fit; an exact packer would find that break and take it.
-  S("A", L.p2Board, [
+  S(L.p2Board, [
     boardDia ? { html: boardDia, sp: 2, glue: true } : null,
     `<div class="card"><span class="lbl">${esc(L.drawOrder)}</span>
       <ol class="ord">${P.board_final.draw_order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
   ]);
 
-  // B — MODEL ANSWERS THAT NAME THEIR QUESTION.
+  // B — MODEL ANSWERS THAT NAME THEIR QUESTION, when the LP carries any.
   // The expert's complaint was not that answers were wrong; it was that a page of answers
   // never said what they were answers TO. Each card now resolves its `ref` back to the
   // question as the LP states it, and prints that question above the answer. When a ref
   // resolves to nothing the card says so out loud — lint's REF_ABSENT fails the doc, and the
   // page must not quietly look complete in the meantime.
+  //
+  // bd-s19g8: `model_answers` is optional, so `gridRows` gets an empty list when it is absent
+  // and `S` skips the whole section. `Q` is built unconditionally — section F needs it too.
   const Q = questionIndex(doc);
-  S("B", L.p2Model, gridRows("grid2", P.model_answers
+  S(L.p2Model, gridRows("grid2", (P.model_answers || [])
     .map((m) => {
       const q = m.ref ? Q.get(m.ref) : null;
       return `<div class="card"><span class="lbl">${m.ref ? esc(m.ref) : ""}</span>
@@ -1658,14 +1683,14 @@ function page2(doc, ctx, secIndex) {
       ${m.marking_note ? `<span class="how">${rich(m.marking_note)}</span>` : ""}</div>`;
     })));
 
-  S("C", L.p2Mistakes, gridRows("grid3", P.mistakes
+  S(L.p2Mistakes, gridRows("grid3", P.mistakes
     .map(
       (m) => `<div class="mis">
       <div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>
       <div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div></div>`
     )));
 
-  S("D", L.p2Diff, [`<div class="grid3">
+  S(L.p2Diff, [`<div class="grid3">
     <div class="card"><span class="lbl">${esc(L.stuck)}</span><p>${rich(P.differentiation.stuck)}</p></div>
     <div class="card"><span class="lbl">${esc(L.barrier)}</span><p>${rich(P.differentiation.barrier)}</p></div>
     <div class="card"><span class="lbl">${esc(L.early)}</span><p>${rich(P.differentiation.early)}</p></div></div>`]);
@@ -1719,7 +1744,7 @@ function page2(doc, ctx, secIndex) {
          .join("")}</div>`
     : null;
 
-  S("E", L.p2Exam, [
+  S(L.p2Exam, [
     mcqAtoms.length ? { html: `<div class="lbl" style="color:var(--navy2)">${esc(L.mcq)}</div>`, sp: 1 } : null,
     ...mcqAtoms,
     srqHtml ? { html: srqHtml, sp: 2 } : null,
@@ -1727,11 +1752,12 @@ function page2(doc, ctx, secIndex) {
     eb.how_marked ? `<span class="how"><b>${esc(L.howMarked)}:</b> ${rich(eb.how_marked)}</span>` : null,
   ]);
 
-  // F — the homework worked in full. Like B, each entry resolves its `ref` back to the item as
-  // the homework section states it, so the teacher never has to hold two pages side by side.
-  // F is the tallest structure on the support page — median 496px, max 853px across the study's
-  // 24 lessons — and therefore the single biggest source of stranded space. It splits by row.
-  S("F", L.p2Hw, gridRows("grid2", P.homework_key
+  // F — the homework worked in full, when the LP carries a key. Like B, each entry resolves its
+  // `ref` back to the item as the homework section states it, so the teacher never has to hold
+  // two pages side by side. F is the tallest structure on the support page — median 496px, max
+  // 853px across the study's 24 lessons — and therefore the single biggest source of stranded
+  // space. It splits by row, and when `homework_key` is absent (bd-s19g8) it is not painted.
+  S(L.p2Hw, gridRows("grid2", (P.homework_key || [])
     .map((h) => {
       const it = h.ref ? Q.get(h.ref) : null;
       return `<div class="card mk"><span class="lbl">${h.ref ? esc(h.ref) : ""}${h.marks ? ` &middot; ${h.marks} ${esc(L.marks)}` : ""}</span>
@@ -1739,7 +1765,7 @@ function page2(doc, ctx, secIndex) {
       <p class="a">${rich(h.answer)}</p></div>`;
     })));
 
-  S("G", `${L.p2Next} / ${L.p2NotGoing}`, [`<div class="nxt">
+  S(`${L.p2Next} / ${L.p2NotGoing}`, [`<div class="nxt">
     <div class="a"><span class="lbl">${esc(L.p2Next)}</span><p>${rich(P.next_period)}</p></div>
     <div class="b"><span class="lbl">&#9888; ${esc(L.p2NotGoing)}</span><p>${rich(P.not_going)}</p></div></div>`]);
 
@@ -1748,7 +1774,7 @@ function page2(doc, ctx, secIndex) {
   // FURNITURE — the number lives in the label pack and nowhere else, so it cannot drift document
   // to document and costs nothing against the word budget. K-5 learned the last step the hard
   // way: a CTA that does not say what comes BACK is just a request (FEEDBACK_LEDGER #13).
-  S("H", L.p2Coach, [`<div class="coach"><p>${rich(P.coaching_lookfor)}</p>
+  S(L.p2Coach, [`<div class="coach"><p>${rich(P.coaching_lookfor)}</p>
     ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
     <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`]);
 

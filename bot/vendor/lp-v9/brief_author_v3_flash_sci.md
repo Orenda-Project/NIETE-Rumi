@@ -114,8 +114,8 @@ Fill these slots in this order. **The word count in each slot is the aim, not th
 
 **HOMEWORK: SET THREE ITEMS, NOT FIVE.** The cap is 5 and the aim is **3**. Homework is the tail a
 teacher cuts first, and a pupil who does three tagged questions properly has learned more than one
-who skips six. Three items, each tagged `[SLO, K/U/A]`, at least half MCQ, every one worked in full
-in the reference block.
+who skips six. Three items, each tagged `[SLO, K/U/A]`, at least half MCQ, and none of them
+answering itself.
 
 **THE OUTCOME BOX IS THE FIRST THING PRINTED, AND IT WAS THE WORST OFFENDER.** It was running
 70–120 words and eating the top of page 1. Aim for **≤60 words for the whole box** — the ceiling is
@@ -518,37 +518,6 @@ section actually is when it fits the page, and what a finished `one_screen` look
     "caption": "A straight line through the origin; slope = g for any mass."
    }
   },
-  "model_answers": [
-   {
-    "ref": "P1",
-    "answer": "$g\\approx 9.8\\,\\text{m/s}^2$; mass-independent."
-   },
-   {
-    "ref": "P2",
-    "answer": "$\\Delta t=(49-0)/9.8=5$ s.",
-    "marking_note": "Needs the formula and substitution shown, not just the number."
-   },
-   {
-    "ref": "P3",
-    "answer": "$\\Delta t=(9.8-0)/9.8=1$ s."
-   },
-   {
-    "ref": "P4",
-    "answer": "Together — $g$ is mass-independent, so both accelerate identically."
-   },
-   {
-    "ref": "C1",
-    "answer": "$\\Delta t=(19.6-0)/9.8=2$ s; time is unchanged if mass doubles, since $g$ is mass-independent."
-   },
-   {
-    "ref": "X1",
-    "answer": "False — $g$ is the same for every mass."
-   },
-   {
-    "ref": "X2",
-    "answer": "$\\Delta t=(29.4-0)/9.8=3$ s."
-   }
-  ],
   "mistakes": [
    {
     "pupil_says": "The heavier stone hits first — it weighs more.",
@@ -630,32 +599,6 @@ section actually is when it fits the page, and what a finished `one_screen` look
    },
    "how_marked": "Full marks need the formula and substitution with units; working-free answers score half marks."
   },
-  "homework_key": [
-   {
-    "ref": "H1",
-    "level": "K",
-    "marks": 1,
-    "answer": "B — $g \\approx 9.8\\,\\text{m/s}^2$ for every mass."
-   },
-   {
-    "ref": "H2",
-    "level": "U",
-    "marks": 1,
-    "answer": "C — with no air resistance, both fall under $g$ and land together."
-   },
-   {
-    "ref": "H3",
-    "level": "A",
-    "marks": 3,
-    "answer": "$\\Delta t=(39.2-0)/9.8=4$ s."
-   },
-   {
-    "ref": "H4",
-    "level": "U",
-    "marks": 2,
-    "answer": "Air resistance slows the light, flat paper more than the compact stone, due to shape and surface area."
-   }
-  ],
   "next_period": "2.6 Graphical analysis of motion — distance-time and speed-time graphs (p.49 onward).",
   "not_going": "The universal speed limit and average vs instantaneous speed come later in this chapter, not today.",
   "coaching_lookfor": "Notice whether you re-solve the We-Do's heavier mass on the board yourself, rather than just telling pupils the answer.",
@@ -769,7 +712,7 @@ deciding what happens inside it. Where the two disagree, this brief wins for gra
 > | An activity headed `$A^{-1}$ (p.68)` that never states the question | `UNWORDED_Q`, `REF_ABSENT` | **State every referenced question inline.** A page citation is a pointer, not a question. |
 > | Model answers that never say what they answer | `REF_ABSENT` | Every question carries a `ref`; every reference-block answer names it. |
 > | Distractor codes printed beside the options | `DISTRACTOR_VISIBLE` | Still author them — the renderer moves them into a teacher note. |
-> | Homework with answers inline, off-topic items, items copied from the class, no tags | `HW_TAGS`, `HW_MCQ_WEIGHT`, `HW_ANSWER_INLINE`, `DUP_QUESTION` | Tagged `[SLO, K/U/A]`, MCQ-weighted, on today's content only, answers **only** in the reference block. |
+> | Homework with answers inline, off-topic items, items copied from the class, no tags | `HW_TAGS`, `HW_MCQ_WEIGHT`, `HW_ANSWER_INLINE`, `DUP_QUESTION` | Tagged `[SLO, K/U/A]`, MCQ-weighted, on today's content only, and **never answering itself** — an item that prints its own answer asks the pupil to copy. |
 > | A near-flat parallelogram for `det = 3` | `DIAGRAM_DEGENERATE` | Choose numbers that draw a shape a pupil can read an area off. |
 > | `37 = 40 min`, and a `0 min` badge on homework | `PACING_SUM` | The section minutes sum to `period_minutes` exactly, and homework is never 0. |
 > | `SAY "…"` boxes; a coaching corner that quizzes the teacher on the lesson's content | `NO_SAY_BOX`, `COACHING_CORNER` | The `say` block **no longer exists**. The corner's LOOK-FOR instructs; its REFLECTION asks her about her own class (§8b). |
@@ -827,12 +770,53 @@ A teacher opening any 6–12 plan finds the same thing in the same place; that i
 | **H** Home work | **≥1, never 0** | real FBISE/textbook items, each tagged `[SLO code, K/U/A]`, MCQ-weighted, **no answers here** |
 
 **Reference block** — below the flow, clearly marked, explicitly not read aloud:
-`A` board at the end · `B` model answers **naming their questions** · `C` common mistakes + the
-question you ask back · `D` differentiation · `E` exam bank (distractor codes as data) ·
-`F` homework solved in full · `G` next period + not-going-today · `H` **coaching corner —
-the teacher's own square inch of the page**: the observable move from THIS lesson, then one
-question she asks HERSELF about her own practice. (The record-and-send offer beside it is
-printed by the renderer; you do not write it.)
+board at the end · common mistakes + the question you ask back · differentiation · exam bank
+(distractor codes as data) · next period + not-going-today · **coaching corner — the teacher's own
+square inch of the page**: the observable move from THIS lesson, then one question she asks HERSELF
+about her own practice. (The record-and-send offer beside it is printed by the renderer; you do not
+write it.)
+
+**The two ANSWER KEYS are gone by default (bd-s19g8).** `page2.model_answers` and
+`page2.homework_key` are no longer required, and you do not author them: *"we didnt need model
+answers"*, *"homework key goes too"*. They were the two tallest structures on the support page and
+the plan reads as a teaching plan without them. The class-flow answers you still write inline — every
+practice, we-do, you-do and exit-ticket item keeps its own answer, because that is the answer the
+teacher reads while the pupils are working. If a future LP does ship one of these keys, it must be
+**complete**: a key that exists and answers only half the questions is worse than no key, and lint
+fails it (`REF_ABSENT`).
+
+**The EXAM BANK STAYS, and its heading already says (Optional) (bd-x0pw1).** The section prints
+under the heading **"FBISE format Questions - (Optional)"** — *"we need an exam bank whose heading is
+FBISE format Questions - (Optional) … the FBISE style Qs can be in referene"*. The word (Optional) is
+addressed to the TEACHER, not to you: it tells her the questions under it are hers to use or to skip,
+the way she already treats the differentiation rows. **You still write the bank, every time.** Do not
+repeat "(optional)" inside a question, a title or `how_marked` — the heading has said it once, and
+twice reads as a hedge. `page2.exam_bank` is no longer in the schema's `required` list, so an LP that
+reaches the renderer without one is a quiet gap rather than a SCHEMA failure that takes every other
+check on the document down with it — but a gap is not a plan, and a bank that DOES ship must be
+**complete**: 2 distractor-coded MCQs, the SRQ mark scheme, the ERQ skeleton. Lint fails a
+half-written one at grades 9–12 and warns at 6–8. A teacher who sees the heading expects the dose
+under it.
+
+**EVERY lesson carries a WORKED EXAMPLE, and it goes in the practice flow (bd-4pw4y).** *"we need
+worked examples, but it should be in the practice sections of the LP not in reference"*. One
+`worked_example` block, on page 1, inside the section that teaches — the I do, fully worked and
+numbered in front of the class, before the `faded_example` that copies it and the `practice` that
+tests it. It does **not** go in the reference block on page 2, and it is **not** an archetype
+detail or a STEM-2 speciality: a prose lesson demonstrates
+how the answer is built from the text, a maths lesson demonstrates the method, and both owe the pupil
+a demonstration before asking for imitation. `WORKED_ABSENT` fails an LP that carries none.
+
+**Do not confuse it with an answer key.** A model answer is the finished result, filed at the back
+for marking — those left the reference block with bd-s19g8 and are not coming back. A worked example
+is the METHOD, performed at the moment it is taught. The reference block keeps the FBISE-style
+questions (bd-x0pw1) and nothing worked-out; the demonstration stays where the teacher is looking
+while she teaches. And note the activity cap: if a plan runs over seven activities, cut a practice
+block, never the I do.
+
+**The reference block's letters are ASSIGNED BY THE RENDERER, in the order the sections are
+printed.** Do not write a letter into the JSON and do not reason about "section B" — sections that
+are absent do not consume a letter, so the printed index always runs A, B, C… with no gaps.
 
 **THE MINUTES RULE.** `introduction + development + activity + conclusion + homework` must equal
 `period_minutes` **exactly**. The warm-up's minutes are **inside** the introduction's — it is a row,
@@ -950,8 +934,10 @@ that repeats any of them is rejected.
    actually saves a skydiver (air resistance) is the exact factor the lesson tells them to ignore.
    Never use death, injury, disaster or communal identity as an icebreaker. Never write a hook whose
    own premise the lesson then contradicts.
-10. **Every referenced item is solved.** Practice, guided work, exit ticket, homework, MCQs, ERQ —
-    all carry model answers. The book prints no answer key; the reference block is the answer key.
+10. **Every item the teacher works through in class is solved WHERE SHE READS IT.** Practice, guided
+    work, exit ticket, MCQs and the ERQ carry their answer inline, on the item. The book prints no
+    answer key, so the plan has to answer what it asks — but it answers in place, not in a separate
+    key at the back (bd-s19g8 removed the two reference-block keys; see §"Reference block").
 11. **Instructions carry context and sit together.** *"The instructions for one activity are
     scattered"* · *"instructions do not build any context — the very first instruction is 'Do not
     summarise either sentence'."* Each activity block holds its own complete, ordered instructions,
@@ -1635,10 +1621,9 @@ emit these keys and no others, and use exactly these `type` values inside `block
   // ── the REFERENCE BLOCK (key stays `page2`; it PRINTS as "Reference") ──────
   "page2": {
     "board_final": {"draw_order": ["…", "…"], "diagram": { /* optional */ }},
-    "model_answers": [                    // EVERY entry names the question it answers
-      {"ref": "P1", "answer": "…", "marking_note": "…"},
-      {"ref": "C1", "answer": "…"}
-    ],
+    // NO "model_answers" and NO "homework_key" (bd-s19g8) — both keys are optional in the schema
+    // and you do not author them. Answers live on the items themselves. If one is ever supplied it
+    // must answer EVERY question of its kind, or lint fails it.
     "mistakes": [{"pupil_says": "…", "you_ask": "…"}],          // 3 pairs
     "differentiation": {"stuck": "…", "barrier": "…", "early": "…"},
     "exam_bank": {
@@ -1651,9 +1636,6 @@ emit these keys and no others, and use exactly these `type` values inside `block
       "erq_skeleton": {"q": "…", "marks_total": 8, "parts": [{"heading": "…", "marks": 2}]},
       "how_marked": "…what scores nothing and what scores half…"
     },
-    "homework_key": [                     // THE ONLY place a homework answer may appear
-      {"ref": "H1", "level": "K", "marks": 1, "answer": "…worked in full…"}
-    ],
     "next_period": "…", "not_going": "…",
     "coaching_lookfor": "…direct instruction about the observable move — NOT a question…",
     "coaching_reflection": "…ONE question she asks HERSELF about HER class — ends in \"?\"…"
@@ -1739,8 +1721,9 @@ activity's you-do (`P` refs), not the exit ticket — the schema hard-rejects a 
 ### Refs — how an answer finds its question
 
 Give every question-bearing item a short `ref`: `W1…` warm-up, `P1…` practice, `X1…` exit ticket,
-`C1` the checkpoint, `H1…` homework. Every `model_answers` and `homework_key` entry points at one.
-`REF_ABSENT` fails a ref that resolves to nothing, a question that nothing answers, and prose that
+`C1` the checkpoint, `H1…` homework. A ref is how a cross-reference finds its question — and if an
+LP ever carries a reference-block key, every one of its entries has to point at one of these.
+`REF_ABSENT` fails a ref that resolves to nothing, a question that a key it DOES carry never answers, and prose that
 says "see Q7" when there is no Q7. When the book prints no SLO codes at all, tag homework with the
 **objective ordinal** — `O1`, `O2` — never with an invented board code.
 
@@ -1782,8 +1765,8 @@ what to do.
 | `$A^{-1}$ (p.68)` | Find $A^{-1}$ for the matrix in Exercise 3.2 Q4 on p.68, which is $A = \begin{bmatrix}…\end{bmatrix}$. |
 
 A page citation is a **pointer**, not a question. If you cite `Ex 3.2 Q4, p.68`, you must **also
-state the question inline** — the teacher has one book and thirty pupils, and the reference block
-has to solve it in full anyway.
+state the question inline** — the teacher has one book and thirty pupils, and the plan has to carry
+the question she is about to ask.
 
 **DIAGRAMS MUST BE WORTH LOOKING AT.** `DIAGRAM_DEGENERATE` fails a drawing whose subject is a
 sliver, spans the canvas while being hairline, or leaves the canvas essentially blank. The
@@ -1813,8 +1796,9 @@ The Physics reviewer named it: homework that is real board-shaped work, tagged, 
 - **Never repeats a class item.** `DUP_QUESTION` normalises the text and compares it against every
   warm-up, practice and exit-ticket item. Copying is not practice.
 - **No answers beside the questions.** `HW_ANSWER_INLINE` catches "Answer: …" and an item that has
-  absorbed its own key. The answers go in `page2.homework_key`, worked in full — textbook questions
-  included, because a teacher marking at 10pm does not have the answer key.
+  absorbed its own key. A homework item asks; it does not answer itself. (It used to be answered in
+  `page2.homework_key`; bd-s19g8 removed that block, so the rule is simply that the item stays a
+  question.)
 - **`homework.minutes ≥ 1`.** A "0 min" badge tells the teacher the work costs nothing.
 
 ---
@@ -1900,7 +1884,7 @@ target is the aim.
 | Development | ~170 | 243 | key points, the I-do, the citation, the video line, the misconception |
 | Activity | ~200 | 287 | the we-do and the you-do, with every answer |
 | Conclusion | ~115 | 166 | the board question **and its mark scheme**, the exit ticket, the re-teach rule |
-| Homework | ~85 | 124 | **3–5 tagged items** (their answers are in the reference block) |
+| Homework | ~85 | 124 | **3–5 tagged items**, each a question and nothing else |
 | Whole document | **1,000–1,100** | 800–**1,200** | the measured five-page capacity at the 18px body floor |
 
 **The learning-outcome box (`O`) has its own ceiling now** — it is the first thing printed and it
@@ -1942,7 +1926,8 @@ English if the lesson has an Urdu toggle.
 
 ## 8b · THE COACHING CORNER — the teacher's own square inch of the page
 
-Section `H` of the reference block is **not** about the pupils. It is the one place on the plan
+The LAST section of the reference block (`coaching_lookfor` / `coaching_reflection` — the renderer
+letters it, you do not) is **not** about the pupils. It is the one place on the plan
 addressed to the teacher as a professional, and it is the K-5 shape, ported: **something from THIS
 lesson → a question she asks herself → an offer of real coaching.**
 
@@ -1998,8 +1983,8 @@ one edit; finding it in the build costs a round.
 - [ ] Every question is a **sentence** that says what to do — warm-up, practice, exit ticket,
       checkpoint, homework, exam bank, and every `prompt`.
 - [ ] Every referenced question is **stated inline**, not just cited.
-- [ ] Every question has a `ref`; every `model_answers` / `homework_key` entry names one that exists;
-      every question is answered somewhere.
+- [ ] Every question has a `ref`; every class-flow item (practice, we-do, you-do, exit ticket)
+      carries its own answer. No `model_answers`, no `homework_key` (bd-s19g8).
 - [ ] Every MCQ has one distractor code per wrong option. (Author them; the renderer hides them.)
 - [ ] Homework: **3–5 items**, tagged `[SLO, K/U/A]`, ≥50% MCQ, today's content only, **no answers**,
       nothing copied from a class item.

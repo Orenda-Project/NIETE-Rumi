@@ -348,13 +348,11 @@
     "page2": {
       "type": "object",
       "additionalProperties": false,
+      "$comment": "bd-s19g8, then bd-x0pw1. `model_answers` (B) and `homework_key` (F) left `required` here as well as in 3.0, and `exam_bank` followed them. The 2.0 corpus predates both changes and still carries all three, so nothing stored stops validating; what changes is that a doc WITHOUT them is no longer a SCHEMA failure — and since lint returns early on SCHEMA, that was the gate keeping every other rule from even running.",
       "required": [
         "board_final",
-        "model_answers",
         "mistakes",
         "differentiation",
-        "exam_bank",
-        "homework_key",
         "next_period",
         "not_going",
         "coaching_lookfor"

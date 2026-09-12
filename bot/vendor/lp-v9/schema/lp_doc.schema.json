@@ -303,8 +303,9 @@
     "page2": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["board_final", "model_answers", "mistakes", "differentiation", "exam_bank", "homework_key", "next_period", "coaching_lookfor"],
-      "description": "THE REFERENCE BLOCK — A board · B model answers · C mistakes · D differentiation · E exam bank · F homework in full · G next period · H coaching corner. Sits BELOW the teaching flow, clearly marked, explicitly not read aloud. Key kept as `page2` so every existing ur_overlay pointer still resolves.",
+      "$comment": "bd-s19g8, then bd-x0pw1. `model_answers`, `homework_key` and `exam_bank` are OPTIONAL, not removed: an LP may ship without an answer key or an exam bank, and one that ships either must still make it complete (lint_lp.js's reverse REF_ABSENT, and rule 9's MCQ/SRQ/ERQ floor). They stay declared below so the stored corpus that carries them keeps validating.",
+      "required": ["board_final", "mistakes", "differentiation", "next_period", "coaching_lookfor"],
+      "description": "THE REFERENCE BLOCK — the board at the end · model answers · common mistakes · differentiation · exam bank · homework in full · next period · coaching corner. Sits BELOW the teaching flow, clearly marked, explicitly not read aloud. Sections are LETTERED BY THE RENDERER in emission order, so the optional ones consume no letter when absent (bd-s19g8). Key kept as `page2` so every existing ur_overlay pointer still resolves.",
       "properties": {
         "board_final": {
           "type": "object",
