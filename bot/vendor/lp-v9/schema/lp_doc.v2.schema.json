@@ -616,7 +616,7 @@
     "one_screen": {
       "type": "string",
       "minLength": 40,
-      "description": "The ~200-word WhatsApp message body: objective -> 1 prerequisite item + answer -> worked example <=5 steps -> 3 practice items + answers -> misconception -> exit question. The PDF is the attachment. Front-loads practice because the END of a structured lesson is what gets cut (MDPI 16:5:699)."
+      "description": "The ~200-word WhatsApp message body: objective -> 1 prerequisite item + answer -> worked example <=5 steps -> 3 practice items + answers -> misconception -> exit question. The PDF is the attachment. Front-loads practice because the END of a structured lesson is what gets cut (MDPI 16:5:699). Those six beats are SIX paragraphs, separated by a blank line, each opening with a short cue in WhatsApp bold — *single* asterisks, in the lesson's own language. WhatsApp prints **double** asterisks literally; those belong to the PDF, not to this field."
     },
     "notes": {
       "type": "object",

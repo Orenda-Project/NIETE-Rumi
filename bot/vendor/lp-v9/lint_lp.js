@@ -152,6 +152,10 @@ const DOC_BUDGET_V9 = { min: 800, max: 1200 };
 const MAX_BOARD_WEIGHT = 50;
 const FDE_ORDER = ["introduction", "development", "activity", "conclusion", "homework"];
 const MAX_ACTIVITIES = 7;
+// The WhatsApp body's beats: objective, warm-up, worked example, practice, misconception, exit.
+// One paragraph each — the ORDER is the v2 schema's and is load-bearing (it front-loads practice
+// because the END of a structured lesson is what gets cut, MDPI 16:5:699). bd-uu4lr.
+const ONESCREEN_BEATS = 6;
 
 const PLACEHOLDERS = [
   { re: /\bTODO\b/i, name: "TODO" },
@@ -591,6 +595,40 @@ function lint(doc, docPath, opts = {}) {
   // 12 — the one-screen WhatsApp body
   const os = wordCount(doc.one_screen);
   if (full && (os < 150 || os > 260)) fail("ONESCREEN", `one_screen is ${os} words; the WhatsApp body is ~200 (150-260).`);
+
+  // 12b — …and it has a SHAPE, not just a word count (bd-uu4lr).
+  //
+  //   The teacher reads this on a phone BEFORE the PDF arrives. One unbroken
+  //   200-word paragraph is a grey wall. Same beats, same budget: one paragraph
+  //   per beat, each opening with a short bold cue.
+  //
+  //   WhatsApp bolds with *single* asterisks and prints `**` literally. The PDF
+  //   path uses `**` (lib/rich.js bold()), so an author carrying the page habit
+  //   into this field puts `**Objective**` in front of a teacher. one_screen
+  //   never reaches the renderer — visual_check.js:328 skips it as "the WhatsApp
+  //   MESSAGE BODY, not the page" — so there is no bidi isolate to collide with,
+  //   and the only real trap is the dialect. Name it and fail it.
+  //
+  //   A cue is `*...*` at the head of a block and nothing more. It is teacher-
+  //   facing prose in the lesson's own language, so an Urdu overlay writes Urdu
+  //   cues; any English word list here would fire on every correct Urdu body.
+  if (full && typeof doc.one_screen === "string" && doc.one_screen.trim()) {
+    const raw = doc.one_screen;
+    if (/\*\*/.test(raw)) {
+      fail("ONESCREEN_BOLD", "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.");
+    }
+    // A doubled-asterisk doc has already been told what is wrong; normalise so it
+    // does not also collect a cue failure for the same characters.
+    const blocks = raw.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+    if (blocks.length < ONESCREEN_BEATS) {
+      fail("ONESCREEN_FORMAT", `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`);
+    }
+    blocks.forEach((b, i) => {
+      if (!/^\*[^*\n]+\*/.test(b)) {
+        fail("ONESCREEN_FORMAT", `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`);
+      }
+    });
+  }
 
   // 13 — the Urdu toggle may not overwrite the book's own language
   for (const ptr of Object.keys(doc.ur_overlay || {})) {

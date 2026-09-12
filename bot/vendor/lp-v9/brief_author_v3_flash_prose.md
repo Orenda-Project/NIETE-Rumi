@@ -604,7 +604,7 @@ section actually is when it fits the page, and what a finished `one_screen` look
   "coaching_lookfor": "Notice whether you re-solve the We-Do's heavier mass on the board yourself, rather than just telling pupils the answer.",
   "coaching_reflection": "Which of my pupils changed their answer after the We-Do, and who still needs the 20 kg case solved again tomorrow?"
  },
- "one_screen": "Today's Physics lesson (Grade 9, Ch.2 §2.5, p.48-49) teaches that every freely falling object accelerates at the same rate, g ≈ 9.8 m/s², whatever its mass. Open by asking pupils to picture a heavy stone and a light ball dropped together from the school roof — which lands first? Most say the heavier one. Reveal both land together, then show the book's own Example 2.5: a 2 kg block dropped from rest reaches 78.5 m/s in 8 s, and the solution never uses the 2 kg. That unused number is the lesson — mass cancels out of g = (vf − vi)/Δt. On the board, re-solve the same example with a 20 kg block and get the same 8 s, so pupils see it, not just hear it. Cover Figure 2.11 honestly: a coin beats a paper sheet in air because of air resistance, not weight, but the two fall together once air is pumped out. Practice runs four items ending in a justify-in-words question. Homework is four items, half MCQ, on today's g-is-constant idea only, marked in full from the reference page.",
+ "one_screen": "*Today's lesson* Physics, Grade 9, Ch.2 §2.5, p.48-49: every freely falling object accelerates at the same rate, g ≈ 9.8 m/s², whatever its mass.\n\n*First, a warm-up* Ask pupils to picture a heavy stone and a light ball dropped together from the school roof — which lands first? Most will say the heavier one. Reveal that both land together.\n\n*Model it on the board* Show the book's own Example 2.5: a 2 kg block dropped from rest reaches 78.5 m/s in 8 s, and the solution never uses the 2 kg. That unused number is the lesson — mass cancels out of g = (vf − vi)/Δt. Then re-solve the same example with a 20 kg block and get the same 8 s, so pupils see it rather than just hear it.\n\n*Then they practise* Four items on the board, the last of them a justify-in-words question rather than another calculation.\n\n*Watch for this mistake* Cover Figure 2.11 honestly: a coin beats a paper sheet in air because of air resistance, not weight, and the two fall together once the air is pumped out. Pupils read that picture as heavier-falls-faster unless you say otherwise.\n\n*Before they leave* Homework is four items, half of them MCQ, on today's g-is-constant idea only, and every one is marked in full from the reference page.",
  "ur_overlay": {
   "/sections/0/blocks/0/question": "آپ اپنے سکول کی چھت سے ایک ٹینس بال اور ایک بڑا پتھر ایک ساتھ گراتے ہیں۔ کون سی چیز پہلے زمین پر گرے گی، اور کیوں؟",
   "/sections/0/blocks/0/look_for": "زیادہ تر طلبہ اندازہ لگائیں گے کہ پتھر پہلے گرے گا؛ دونوں ایک ساتھ گرتے ہیں، کیونکہ g کمیت پر منحصر نہیں ہوتی۔",
@@ -1644,7 +1644,7 @@ emit these keys and no others, and use exactly these `type` values inside `block
     "coaching_reflection": "…ONE question she asks HERSELF about HER class — ends in \"?\"…"
   },
 
-  "one_screen": "…~200 words (150-260), the WhatsApp body…",
+  "one_screen": "*cue* …objective…\n\n*cue* …warm-up…\n\n*cue* …worked example…\n\n*cue* …practice…\n\n*cue* …misconception…\n\n*cue* …exit… — SIX paragraphs, one blank line between each, ~200 words in total (150-260), the WhatsApp body…",
   "ur_overlay": { "/sections/0/blocks/0/question": "…" }   // JSON Pointers -> Urdu
 }
 ```
@@ -1920,6 +1920,16 @@ Three counted bars the lint holds you to, so hit them on the first pass:
 - **`one_screen`: aim 180–230 words** (hard 150–260). It is not counted in the document total —
   write it in full; a 145-word one_screen fails just as loudly as a 270-word one.
 
+**`one_screen` has a SHAPE as well as a budget (bd-uu4lr).** The teacher reads it on a phone before
+the PDF has downloaded, so one unbroken 200-word paragraph arrives as a grey wall. Same beats, same
+budget: **six paragraphs, one per beat** — objective, warm-up, worked example, practice,
+misconception, exit — **separated by a blank line**, each opening with a short cue in bold. WhatsApp
+bolds with `*single*` asterisks and prints `**double**` ones literally, so `**Objective**` lands in
+front of a teacher as four stray characters; the double form belongs to the PDF, never to this
+field. The cue is teacher-facing prose in the lesson's own language — an Urdu overlay writes Urdu
+cues. `lint_lp.js` fails a wall (`ONESCREEN_FORMAT`) and fails the wrong asterisks
+(`ONESCREEN_BOLD`).
+
 **Urdu costs roughly 1.5× the space of English** at the same content, because Nastaliq needs a
 unitless line-height ≥ 2.0. An `ur_overlay` does not change the word budget, but it does change the
 page count — an English plan packed to the cap will overflow in Urdu. Aim for ≤4 teach pages in
@@ -2013,6 +2023,8 @@ one edit; finding it in the build costs a round.
       appears in any teacher-facing block.
 - [ ] `notes.gaps` says **what is absent**, in words. Never `"none"`.
 - [ ] `one_screen` is 150–260 words.
+- [ ] `one_screen` is SIX paragraphs separated by a blank line, each opening with a `*single-asterisk*`
+      cue. No `**double**` asterisks — WhatsApp prints those literally.
 
 **Then run the gates yourself if you can:**
 

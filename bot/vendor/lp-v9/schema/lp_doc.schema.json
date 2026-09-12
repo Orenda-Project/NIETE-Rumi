@@ -453,7 +453,7 @@
     "one_screen": {
       "type": "string",
       "minLength": 40,
-      "description": "The ~200-word WhatsApp message body. The PDF is the attachment."
+      "description": "The ~200-word WhatsApp message body. The PDF is the attachment. SIX paragraphs, one per beat, separated by a blank line, each opening with a short cue in WhatsApp bold — *single* asterisks. WhatsApp prints **double** asterisks literally; those belong to the PDF, not here."
     },
     "notes": {
       "type": "object",
