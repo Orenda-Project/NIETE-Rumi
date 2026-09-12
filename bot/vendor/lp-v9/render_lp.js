@@ -541,6 +541,87 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
 }
 
 /**
+ * WHAT HAS TO COME OUT, AND FROM WHERE — read off the packing that just ran (bd-a8veu.1).
+ *
+ * The over-cap defect used to say only *"teach needs 5 pages; the cap is 4. Cut it."* That is
+ * stated in a unit the author cannot measure: nothing in an `lp_doc` is a page, and the author
+ * has no renderer, so "cut it" carries neither a QUANTITY nor a LOCUS. The revision prompt
+ * already tells the model the right THEORY — pages are spent on card count, so remove whole
+ * items — and then hands it a defect with no number to aim at.
+ *
+ * Everything the number needs was already measured a few lines above: the packer ran on real
+ * per-atom heights, and every atom knows the section it belongs to. So the advice is READ, not
+ * estimated — this function computes nothing the layout did not already decide.
+ *
+ * Two deliberate choices:
+ *
+ *   - A BLOCK is a deletable atom. A section BAR (`first`) is furniture the author never writes
+ *     as an item, so it is not counted as something to cut — but its height IS counted, because
+ *     emptying a section takes its bar with it.
+ *   - An atom with no `sec` is page 1's masthead — hero, sequence strip, outcomes, resources.
+ *     That is the teacher's at-a-glance card, not the author's to delete, so it is never named
+ *     as a place to cut from.
+ *
+ * @returns null when the layout cannot support the claim — which is the whole point of the
+ *   guard. A message that invents arithmetic is worse than the blunt one it replaced.
+ */
+function overCapAdvice(atoms, pages, cap, titles = {}) {
+  if (!Array.isArray(atoms) || !Array.isArray(pages) || !atoms.length) return null;
+  if (!(cap >= 1) || pages.length <= cap) return null;
+  const from = pages[cap] && pages[cap].start;
+  if (!(from > 0) || from >= atoms.length) return null;
+
+  const costOf = (j) => atoms[j].h + (j === 0 ? 0 : atoms[j].mt || 0);
+  const deletable = (a) => !a.first;
+
+  let px = 0;
+  let blocks = 0;
+  for (let j = from; j < atoms.length; j++) {
+    px += costOf(j);
+    if (deletable(atoms[j])) blocks += 1;
+  }
+
+  const bySec = new Map();
+  atoms.forEach((a, j) => {
+    if (!a.sec) return;
+    const e = bySec.get(a.sec) || { sec: a.sec, title: titles[a.sec] || null, blocks: 0, px: 0 };
+    if (deletable(a)) e.blocks += 1;
+    e.px += costOf(j);
+    bySec.set(a.sec, e);
+  });
+  const sections = [...bySec.values()].sort((x, y) => y.px - x.px);
+  if (!sections.length) return null;
+
+  return { blocks, px: Math.round(px), totalBlocks: atoms.filter(deletable).length, sections };
+}
+
+/** How many of the tallest sections the defect names. Enough to choose between, short enough to read. */
+const ADVICE_SECTIONS = 3;
+
+/**
+ * The over-cap defect, in whichever of its two forms the layout can actually support.
+ *
+ * The section is named by its KEY first, because that is what the author addresses in the
+ * document; the printed heading is added only when it says something the key does not — which
+ * on the support page is always, since those keys are bar letters (`p2-D`) and nothing else.
+ */
+function overCapProblem(part, n, cap, advice) {
+  const plain = `PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. Cut it, or move content to the other part.`;
+  if (!advice) return plain;
+  const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const name = (s) => (s.title && norm(s.title) !== norm(s.sec) ? `${s.sec} "${s.title}"` : s.sec);
+  const top = advice.sections
+    .slice(0, ADVICE_SECTIONS)
+    .map((s) => `${name(s)} ${s.blocks} blocks/${s.px}px`)
+    .join(", ");
+  return `PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. `
+    + `The ${advice.blocks} block(s) past the cap are ${advice.px}px of content, out of ${part}'s ${advice.totalBlocks} — `
+    + `that is what has to come out, and a BLOCK is the unit: shortening the prose inside a block removes no page. `
+    + `Tallest sections in ${part}: ${top}. `
+    + `Cut whole blocks from the tallest, or move them to the other part.`;
+}
+
+/**
  * The v8 signature, kept because it is the honest description of the degenerate case
  * (no glue, no per-section bars) and because the packer's oldest regression tests speak it.
  */
@@ -669,8 +750,10 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       // purpose: a packer allowed more slack than the absorber can pay for would manufacture
       // the very OVERFLOW this all exists to stop.
       const packOpts = { slack: OVERFLOW_ABSORB_MAX_PX };
-      const teach = packAtoms(withMeta("teach"), capacity, furn, packOpts);
-      const support = packAtoms(withMeta("support"), capacity, furn, packOpts);
+      const teachAtoms = withMeta("teach");
+      const supportAtoms = withMeta("support");
+      const teach = packAtoms(teachAtoms, capacity, furn, packOpts);
+      const support = packAtoms(supportAtoms, capacity, furn, packOpts);
       const breaks = { teach: teach.breaks, support: support.breaks };
       const rebuilt = repaginate.rebuild(breaks);
       fs.writeFileSync(htmlPath, rebuilt.html);
@@ -680,9 +763,15 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       repaginate.figureRepairs = rebuilt.figureRepairs;
       repaginate.breaks = breaks;
       repaginate.furniture = { footer_px: footH, cont_strip_px: strip, cont_bar_px: contBar, capacity_px: capacity };
-      // the fill each page is packed to — the number the operator asked us to MEASURE, not
-      // estimate. The probe below re-reads it from the real render as a cross-check.
-      repaginate.packed = { teach: teach.pages, support: support.pages };
+      // The layout the packer actually produced, MEASURED rather than estimated — the pages it
+      // chose, and the atoms it chose them from, each carrying its real height and the section
+      // it belongs to. The probe below re-reads the page count from the real render as a
+      // cross-check; this is the only place the PER-BLOCK arithmetic behind it exists, and the
+      // over-cap defect below is written from it (bd-a8veu.1).
+      repaginate.packed = {
+        teach: { pages: teach.pages, atoms: teachAtoms },
+        support: { pages: support.pages, atoms: supportAtoms },
+      };
     }
     // evaluate() treats a string as an EXPRESSION — a bare arrow function would come
     // back as an unserializable function object (silently undefined). Call it.
@@ -721,7 +810,8 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       }
     }
     return { probe, pdfPages, absorbed, breaks: repaginate ? repaginate.breaks : null,
-             furniture: repaginate ? repaginate.furniture : null };
+             furniture: repaginate ? repaginate.furniture : null,
+             packed: repaginate ? repaginate.packed : null };
   } finally {
     await browser.close();
   }
@@ -842,8 +932,18 @@ async function renderDoc(a) {
   const CAPS = pageCapsFor(lang);
   for (const [part, cap] of Object.entries(CAPS.max)) {
     const n = byPart[part] || 0;
-    if (n > cap) problems.push(`PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. Cut it, or move content to the other part.`);
-    else if (CAPS.warn[part] && n > CAPS.warn[part]) {
+    if (n > cap) {
+      // The per-block advice is only ever written from a packing that AGREES with the render.
+      // The Chrome-CLI fallback has no measure pass at all, and a probe that counts different
+      // pages from the packer means something else has already gone wrong — in both cases the
+      // defect falls back to the blunt sentence rather than quote arithmetic it cannot stand
+      // behind.
+      const p = result.packed && result.packed[part];
+      const advice = p && p.pages.length === n
+        ? overCapAdvice(p.atoms, p.pages, cap, built.secTitles || {})
+        : null;
+      problems.push(overCapProblem(part, n, cap, advice));
+    } else if (CAPS.warn[part] && n > CAPS.warn[part]) {
       warnings.push(`${part} runs to ${n} pages (soft target ${CAPS.warn[part]}, hard cap ${cap}). Allowed — completeness beats page count — but check nothing is padding.`);
     }
   }
@@ -951,6 +1051,7 @@ if (require.main === module) {
 // Exported for test/run_tests.js — the packer is the new core logic and needs its own cover.
 // `renderDoc` and `chromeChannel` are vendor additions (see SYNC.md).
 module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtomsGreedy,
+  overCapAdvice, overCapProblem,
   PAGE,
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor,
   absorbPlan, OVERFLOW_ABSORB_MAX_PX,

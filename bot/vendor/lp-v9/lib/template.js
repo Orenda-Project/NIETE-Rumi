@@ -2022,6 +2022,10 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
       support: support.atoms.map((a) => ({ sec: a.sec, first: a.first, glue: a.glue })),
     },
     probeKeys,
+    // An atom's `sec` is a KEY, and on the support page it is only a bar letter ("p2-D"). The
+    // renderer has to be able to say "Practice" when it tells the author which section to cut
+    // from, so the human title of every indexed section travels with the layout.
+    secTitles: Object.fromEntries(Object.entries(secIndex).map(([k, v]) => [k, v.title])),
     childCounts: { teach: teach.atoms.length, support: support.atoms.length },
     hasRasterFigure: ctx.rasterFigure,
     hasVectorFigure: ctx.vectorFigure,
