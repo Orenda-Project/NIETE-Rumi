@@ -178,9 +178,4 @@ describe('bd-v60qf — llm-client hung-call behaviour (real SDK, mocked fetch bo
     expect(client.timeout).toBe(180000);
     expect(client.maxRetries).toBe(1);
   });
-  // REMOVED FOR THIS EXTRACTION: the `anthropic-direct/` lane (bd-yoc6i) is on develop
-  // only — this vehicle takes llm-client's timeout/retry budget and leaves that lane
-  // behind, so `getClientForModel` does not exist here and a test of it would assert
-  // a module this branch has no reason to carry. The OpenRouter and direct-OpenAI
-  // cases above cover every client this branch actually builds.
 });

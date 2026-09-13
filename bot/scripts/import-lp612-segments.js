@@ -267,7 +267,8 @@ function overlayYt(segments, ytSegments) {
 }
 
 /**
- * Never let a yt-less run wipe a pick that is already in the table.
+ * Never let a yt-less run wipe a pick that is already in the table — UNLESS the
+ * swarm looked at that segment this run and came back with nothing.
  *
  * The corpora arrive in the wrong order on purpose: segments tonight, picks
  * overnight, and in the morning someone re-imports a book from `out/` to top up
@@ -275,19 +276,52 @@ function overlayYt(segments, ytSegments) {
  * replaces the whole row — so without this the morning's top-up is also the
  * morning's deletion of ~4,700 video links, and nothing would report it.
  *
- * An INCOMING pick still wins. A re-run is how a bad pick gets replaced.
+ * `ytCovered` is what tells those two apart, and it has to come from the
+ * caller because a row cannot say it: a withdrawn pick and a segments-only
+ * top-up look identical at this level, both `yt: null`. It holds every
+ * segment_id the filled corpus NAMED — deliberately not filtered by `hasPick`,
+ * because the swarm writes a `yt` slot for every segment it CONSIDERED and a
+ * considered-and-rejected row is exactly the withdrawal. A covered id is
+ * therefore this run's verdict on that segment, empty or not, and it stands.
+ *
+ * That matters under the operator's 2026-09-12 decision on the v9.3 review
+ * (bd-a8veu.12): a video must ENHANCE the lesson, and the slot is left EMPTY
+ * when nothing does. Without this the swarm could add a pick but never retract
+ * one, and every re-read it withdrew would come straight back.
+ *
+ * An INCOMING pick still wins, as before. A re-run is how a bad pick gets
+ * replaced — and now also how one gets dropped.
  */
-function mergeExistingYt(rows, existingRows) {
+function mergeExistingYt(rows, existingRows, ytCovered) {
   const stored = new Map();
   for (const r of existingRows || []) {
     if (r && r.segment_id && hasPick(r.yt)) stored.set(r.segment_id, r.yt);
   }
   if (!stored.size) return rows || [];
   return (rows || []).map((r) => (
-    !hasPick(r.yt) && stored.has(r.segment_id)
+    !hasPick(r.yt) && stored.has(r.segment_id) && !(ytCovered && ytCovered.has(r.segment_id))
       ? { ...r, yt: stored.get(r.segment_id) }
       : r
   ));
+}
+
+/**
+ * The picks this run is CLEARING: stored, covered by the filled corpus, and
+ * still empty after the merge above.
+ *
+ * Counted rather than inferred, because "video links: 4,700 → 4,690" in the
+ * run report is the only place a teacher-visible deletion becomes visible to
+ * the person who ran the import.
+ */
+function countWithdrawn(rows, existingRows, ytCovered) {
+  if (!ytCovered || !ytCovered.size) return 0;
+  const stored = new Set();
+  for (const r of existingRows || []) {
+    if (r && r.segment_id && hasPick(r.yt)) stored.add(r.segment_id);
+  }
+  return (rows || []).filter(
+    (r) => !hasPick(r.yt) && stored.has(r.segment_id) && ytCovered.has(r.segment_id)
+  ).length;
 }
 
 // ── reconcile ───────────────────────────────────────────────────────────────
@@ -327,7 +361,7 @@ function parseFile(file) {
 
 // ── main ────────────────────────────────────────────────────────────────────
 
-async function importFile({ supabase, file, segments, corpusVersion, dryRun, report }) {
+async function importFile({ supabase, file, segments, corpusVersion, dryRun, report, ytCovered }) {
   const rows = [];
   for (const s of segments) {
     const { errors, warnings } = validateSegment(s);
@@ -370,7 +404,8 @@ async function importFile({ supabase, file, segments, corpusVersion, dryRun, rep
     const ids = incomingIds.slice(i, i + CHUNK);
     const { data, error } = await supabase.from(TABLE).select('segment_id, yt').in('segment_id', ids);
     if (error) throw new Error(`existing-pick read failed for ${file}: ${error.message}`);
-    carried = mergeExistingYt(carried, data || []);
+    report.ytWithdrawn += countWithdrawn(carried, data || [], ytCovered);
+    carried = mergeExistingYt(carried, data || [], ytCovered);
   }
   report.ytFilled += carried.filter((r) => hasPick(r.yt)).length;
 
@@ -423,7 +458,7 @@ async function main(argv = process.argv.slice(2)) {
   const supabase = dryRun ? null : require('../shared/config/supabase');
 
   const report = {
-    files: 0, upserted: 0, retired: 0, wouldUpsert: 0, ytFilled: 0, ytBooks: 0,
+    files: 0, upserted: 0, retired: 0, wouldUpsert: 0, ytFilled: 0, ytWithdrawn: 0, ytBooks: 0,
     errors: [], warnings: [], flaggedByText: [],
   };
 
@@ -436,15 +471,21 @@ async function main(argv = process.argv.slice(2)) {
     // swarm has not reached yet simply has no file here, and imports without a
     // pick rather than failing.
     let merged = segments;
+    // Every segment_id the swarm's file NAMES for this book — its verdict list,
+    // not its hit list. Scoped per book by the file that named them, so a book
+    // the swarm has not reached withdraws nothing and keeps every pick it has.
+    let ytCovered = null;
     if (ytDir) {
       const ytFile = path.join(ytDir, path.basename(file));
       if (fs.existsSync(ytFile)) {
-        merged = overlayYt(segments, parseFile(ytFile).segments);
+        const ytSegments = parseFile(ytFile).segments;
+        merged = overlayYt(segments, ytSegments);
+        ytCovered = new Set((ytSegments || []).map((y) => y && y.segment_id).filter(Boolean));
         report.ytBooks += 1;
       }
     }
 
-    await importFile({ supabase, file, segments: merged, corpusVersion, dryRun, report });
+    await importFile({ supabase, file, segments: merged, corpusVersion, dryRun, report, ytCovered });
   }
 
   console.log(`\nlp612 segment import ${dryRun ? '(DRY RUN) ' : ''}—`);
@@ -452,6 +493,9 @@ async function main(argv = process.argv.slice(2)) {
   console.log(`  ${dryRun ? 'would load' : 'upserted '}  ${dryRun ? report.wouldUpsert : report.upserted}`);
   if (!dryRun) console.log(`  retired    ${report.retired}`);
   console.log(`  video links ${report.ytFilled}${ytDir ? ` (overlay read for ${report.ytBooks} book(s))` : ' (no --yt-dir given)'}`);
+  // Printed unconditionally when the swarm was read: a withdrawal removes a link
+  // from a teacher's page, so a run that clears links must say so out loud.
+  if (ytDir && !dryRun) console.log(`  withdrawn  ${report.ytWithdrawn} (swarm looked again and found nothing that enhances)`);
   console.log(`  held (religious, flagged by text, review these): ${report.flaggedByText.length}`);
   for (const f of report.flaggedByText.slice(0, 20)) {
     console.log(`    ${f.segment_id}  ${f.title}`);
@@ -477,6 +521,7 @@ module.exports = {
   toRow,
   overlayYt,
   mergeExistingYt,
+  countWithdrawn,
   parseGradeSpan,
   hasPick,
   reconcilePlan,

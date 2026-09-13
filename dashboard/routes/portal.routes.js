@@ -5054,6 +5054,162 @@ router.get('/config', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// LESSON PLANS, GRADES 6-12 — the other corpus, same delegation
+// ───────────────────────────────────────────────────────────────────────────
+// The routes above serve grades 1-5, where every lesson is a pre-rendered PDF.
+// Grades 6-12 are 5,466 SEGMENTS with a write-once render cache beside them:
+// every segment is real and requestable, and about 8% have been written.
+//
+// So this block has two things the K-5 block does not:
+//
+//   ready   per lesson, because a tap on an unwritten one starts real work
+//   request → poll, because that work takes a MEDIAN OF 172 SECONDS
+//             (p90 314s, over all 473 completed renders on production)
+//
+// No lp612 logic and no lp612 table here — a test asserts it, the same way it
+// does for the LP catalogue and the assessment generator.
+//
+// `userId` comes from req.session.portalUserId on EVERY route below.
+// `requirePortalAuth` sets that session key and attaches nothing to `req`;
+// `req.portalUser` is set only by the leader guard, which 403s teachers. That
+// mistake is what made every Generate on the Assessment Generator answer
+// "userId is required", and it had already been sitting unnoticed in
+// /curriculum/lps before that.
+
+const Lp612 = require('../services/lp612.service');
+
+/** GET /api/portal/lp612/grades → { success, grades: [{ grade }] } */
+router.get('/lp612/grades', requirePortalAuth, async (req, res) => {
+  try {
+    res.json({ success: true, grades: await Lp612.listGrades() });
+  } catch (error) {
+    console.error('❌ Portal lp612/grades failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load grades' });
+  }
+});
+
+/** GET /api/portal/lp612/subjects?grade=9 */
+router.get('/lp612/subjects', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    if (!Number.isFinite(grade)) {
+      return res.status(400).json({ success: false, error: 'grade required' });
+    }
+    res.json({ success: true, subjects: await Lp612.listSubjects(grade) });
+  } catch (error) {
+    console.error('❌ Portal lp612/subjects failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load subjects' });
+  }
+});
+
+/** GET /api/portal/lp612/chapters?grade=9&subject=Physics */
+router.get('/lp612/chapters', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    if (!Number.isFinite(grade) || !subject) {
+      return res.status(400).json({ success: false, error: 'grade + subject required' });
+    }
+    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject) });
+  } catch (error) {
+    console.error('❌ Portal lp612/chapters failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load chapters' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/lessons?grade=9&subject=Physics&chapter_key=c02&lang=en
+ *
+ * Each lesson carries `ready`. The UI must surface it — starting a
+ * three-minute job should be a thing she chooses, not a thing she discovers.
+ */
+router.get('/lp612/lessons', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    const chapterKey = String(req.query.chapter_key || '').trim();
+    if (!Number.isFinite(grade) || !subject || !chapterKey) {
+      return res.status(400).json({ success: false, error: 'grade + subject + chapter_key required' });
+    }
+    const lang = req.query.lang === 'ur' ? 'ur' : 'en';
+    res.json({ success: true, lessons: await Lp612.listLessons(grade, subject, chapterKey, lang) });
+  } catch (error) {
+    console.error('❌ Portal lp612/lessons failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load lessons' });
+  }
+});
+
+/**
+ * POST /api/portal/lp612/request  { segment_id, lang? }
+ * → 202 { success, state: 'ready' | 'authoring', renderId }
+ *
+ * Always a state, never the document — one code path in the browser whether
+ * this was a cache hit or a cold miss.
+ */
+router.post('/lp612/request', requirePortalAuth, async (req, res) => {
+  try {
+    const segmentId = String((req.body || {}).segment_id || '').trim();
+    if (!segmentId) {
+      return res.status(400).json({ success: false, error: 'segment_id required' });
+    }
+    const lang = (req.body || {}).lang === 'ur' ? 'ur' : 'en';
+    const out = await Lp612.requestLesson(segmentId, req.session.portalUserId, lang);
+
+    // Real answers about a real lesson, not faults.
+    if (out.notFound) {
+      return res.status(404).json({ success: false, error: 'That lesson is not in the catalogue' });
+    }
+    if (out.withheld) {
+      return res.status(403).json({ success: false, error: 'That lesson is not available yet' });
+    }
+
+    res.status(202).json({ success: true, state: out.state, renderId: out.renderId });
+  } catch (error) {
+    console.error('❌ Portal lp612/request failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not start that lesson' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/status/:render_id
+ * → { success, state, url? }
+ *
+ * The poll. A `ready` answer carries a freshly presigned URL — minted on the
+ * way past, never cached, because a presigned link expires.
+ */
+router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
+  try {
+    const renderId = String(req.params.render_id || '').trim();
+    if (!renderId) {
+      return res.status(400).json({ success: false, error: 'render_id required' });
+    }
+    const out = await Lp612.requestStatus(renderId, req.session.portalUserId);
+    if (out.notFound) {
+      return res.status(404).json({ success: false, error: 'No such lesson request' });
+    }
+    res.json({ success: true, ...out });
+  } catch (error) {
+    console.error('❌ Portal lp612/status failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not check that lesson' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/mine → { success, lessons: [...] }
+ *
+ * "My lesson plans". At a median of ~3 minutes she will navigate away; without
+ * this list the render we already paid for is lost to her.
+ */
+router.get('/lp612/mine', requirePortalAuth, async (req, res) => {
+  try {
+    res.json({ success: true, lessons: await Lp612.myLessons(req.session.portalUserId) });
+  } catch (error) {
+    console.error('❌ Portal lp612/mine failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load your lesson plans' });
+  }
+});
+
 // Exported for tests only (an express Router is a function; attaching a
 // property to it does not affect mounting). Keeps the media-URL contract —
 // presign-vs-passthrough and the signed disposition options — testable

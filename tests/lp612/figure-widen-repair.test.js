@@ -55,13 +55,19 @@ jest.mock('../../bot/vendor/lp-v9/diagrams', () => {
   };
 });
 
-const { buildHtml } = require('../../bot/vendor/lp-v9/lib/template.js');
+const { buildHtml, PAGE, FULL_COL, FIG_GROW_MAX, DIAGRAM_MIN_PX, DIAGRAM_MIN_PX_A4 }
+  = require('../../bot/vendor/lp-v9/lib/template.js');
 const { requiredBox } = require('../../bot/vendor/lp-v9/diagrams/lib/svg.js');
 
 const BASE = require('./__fixtures__/v9_gate_base.lp.json');
 
-const FULL_COL = 729;      // PAGE_INNER_W (794 − 21*2) − FIG_CHROME (10*2 + 3)
-const PAGE_SIDE_PAD = 21;  // the page's own left/right padding — the hard ceiling on any bleed
+// The A4 numbers the 2026-09-06 PROD INCIDENT happened on. They are frozen on purpose: the first
+// describe below re-plays that incident from the engine's recorded bytes, and an incident does not
+// change because the page later did. Everything that goes through TODAY's engine reads the
+// engine's own constants instead — v9.3 lays out on a 520px page, so FULL_COL is 455, not 729, and
+// a test carrying the old literal would assert the geometry of a page nobody is served (bd-oak77.16).
+const FULL_COL_A4 = 729;   // PAGE_INNER_W (794 − 21*2) − FIG_CHROME (10*2 + 3), at v9.2
+const PAGE_SIDE_PAD = PAGE.padX;  // the page's own left/right padding — the ceiling on any bleed
 
 function build(spec, lang = 'en') {
   const d = JSON.parse(JSON.stringify(BASE));
@@ -77,16 +83,16 @@ const svgOf = (vbW, vbH, minFont) =>
 
 describe('the prod incident, reproduced from the real engine\'s own bytes', () => {
   test('the failed run\'s molecule renders its smallest label at 13.25px in a 729px column', () => {
-    const box = requiredBox(SPECS.failed_ur_svg, { minPx: 13.5, colPx: FULL_COL });
+    const box = requiredBox(SPECS.failed_ur_svg, { minPx: DIAGRAM_MIN_PX_A4, colPx: FULL_COL_A4 });
     expect(box.minFont).toBe(12);
     expect(box.renderedPx).toBe(13.25);   // the number in the prod log line, to the digit
     expect(box.minWidthPx).toBe(743);     // and the width it asked for
   });
 
   test('the ENGLISH run of the SAME segment clears the floor — this was never a language defect', () => {
-    const box = requiredBox(SPECS.delivered_en_svg, { minPx: 13.5, colPx: FULL_COL });
+    const box = requiredBox(SPECS.delivered_en_svg, { minPx: DIAGRAM_MIN_PX_A4, colPx: FULL_COL_A4 });
     expect(box.minFont).toBe(13.5);
-    expect(box.renderedPx).toBeGreaterThanOrEqual(13.5);
+    expect(box.renderedPx).toBeGreaterThanOrEqual(DIAGRAM_MIN_PX_A4);
     // Identical viewBox in both — so the difference is the molecular graph, not the labels.
     expect(SPECS.delivered_en_svg).toContain('viewBox="0 0 660 392.6"');
     expect(SPECS.failed_ur_svg).toContain('viewBox="0 0 660 392.6"');
@@ -105,11 +111,15 @@ describe('a full-width figure reclaims its own chrome instead of failing the les
         code: 'FIGURE_WIDENED',
         specType: 'molecule',
         colPx: FULL_COL,
-        neededPx: 743,
-        renderedPxBefore: 13.25,
+        floorPx: DIAGRAM_MIN_PX,
       }),
     ]);
-    expect(out.figureRepairs[0].renderedPxAfter).toBeGreaterThanOrEqual(13.5);
+    const r = out.figureRepairs[0];
+    // it was short, it asked for more width than the column has, and afterwards it clears —
+    // stated as the RELATIONS that make the repair a repair, not as this page's three numbers
+    expect(r.renderedPxBefore).toBeLessThan(DIAGRAM_MIN_PX);
+    expect(r.neededPx).toBeGreaterThan(FULL_COL);
+    expect(r.renderedPxAfter).toBeGreaterThanOrEqual(DIAGRAM_MIN_PX);
   });
 
   test('the widened figure is emitted with a bounded, symmetric growth', () => {
@@ -126,8 +136,11 @@ describe('a full-width figure reclaims its own chrome instead of failing the les
     // defect than the one being fixed.
     expect(grow).toBeLessThanOrEqual(PAGE_SIDE_PAD);
     // and it is the SMALLEST growth that clears the floor, not the maximum available
-    expect(12 * ((FULL_COL + 2 * grow) / 660)).toBeGreaterThanOrEqual(13.5);
-    expect(12 * ((FULL_COL + 2 * (grow - 1)) / 660)).toBeLessThan(13.5);
+    expect(12 * ((FULL_COL + 2 * grow) / 660)).toBeGreaterThanOrEqual(DIAGRAM_MIN_PX);
+    if (grow < FIG_GROW_MAX) {
+      // only meaningful below the ceiling: at the ceiling the growth is capped, not chosen
+      expect(12 * ((FULL_COL + 2 * (grow - 1)) / 660)).toBeLessThan(DIAGRAM_MIN_PX);
+    }
   });
 
   test('a figure that already clears the floor is left completely alone', () => {
@@ -147,7 +160,8 @@ describe('a full-width figure reclaims its own chrome instead of failing the les
     // and the message says what was ALREADY TRIED — accurately. It must not claim a widening that
     // did not happen; the model reads this string as a revision instruction, and "we widened it and
     // it still failed" would send it looking for a layout answer that has already been exhausted.
-    expect(out.figureProblems[0]).toMatch(/the most the page can give it is \+18px a side/);
+    expect(out.figureProblems[0])
+      .toMatch(new RegExp(`the most the page can give it is \\+${FIG_GROW_MAX}px a side`));
     expect(out.figureProblems[0]).toMatch(/split it into two smaller figures/);
     expect(out.figureProblems[0]).not.toMatch(/already widened/i);
   });
@@ -173,8 +187,11 @@ describe('a full-width figure reclaims its own chrome instead of failing the les
 
     // hoisted: it is measured at FULL_COL, not at its half of the split
     expect(out.figureRepairs).toEqual([
-      expect.objectContaining({ code: 'FIGURE_WIDENED', colPx: FULL_COL, growPx: 7 }),
+      expect.objectContaining({ code: 'FIGURE_WIDENED', colPx: FULL_COL }),
     ]);
+    // the hoist is the point: it is measured at the FULL column, not at its half of the split
+    expect(out.figureRepairs[0].growPx).toBeGreaterThan(0);
+    expect(out.figureRepairs[0].growPx).toBeLessThanOrEqual(FIG_GROW_MAX);
     // and the composed result is a legible figure, not a defect
     expect(out.figureProblems).toEqual([]);
   });

@@ -50,8 +50,8 @@ const {
   resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, overlayTimeoutMs,
   overlayPassOff,
   followupAfterMs,
-  previousTemplateVersions,
   checkpointOff,
+  previousTemplateVersions,
 } = require('../shared/config/lp612-flags');
 const { familyForBook } = require('../shared/config/lp612-families');
 
@@ -301,8 +301,22 @@ async function patch(renderId, fields) {
   }
 }
 
+/**
+ * The waiter list, sanitised — but NOT narrowed to WhatsApp.
+ *
+ * This used to `.filter(w => w.phone)`, which was right when a phone number was the only way a
+ * waiter could exist. It is now wrong in a way that would have been very hard to see: the portal
+ * parks phoneless waiters on this same list, and dropping them HERE means they are dropped from
+ * `claimWaiters` too — the one statement that both reads the list and empties it. She would be
+ * silently discarded at the moment her lesson succeeded, and the counters would still add up,
+ * because as far as every downstream count was concerned she was never waiting.
+ *
+ * So the filter now removes only entries that are structurally junk. Deciding who can be SENT to
+ * belongs to the delivery loop, which knows about phones; deciding who is WAITING belongs here,
+ * and the portal teacher is waiting.
+ */
 const waitersOf = (render) => (Array.isArray(render && render.waiters) ? render.waiters : [])
-  .filter((w) => w && w.phone);
+  .filter((w) => w && (w.phone || w.user_id));
 
 /**
  * Who is waiting RIGHT NOW — read fresh, and left on the row.
@@ -365,6 +379,11 @@ async function claimWaiters(renderId, fallback) {
  *  failure to console someone must not become the reason the job dies. */
 async function tellAll(waiters, key, lang) {
   for (const w of waiters) {
+    // Nobody to tell. A portal waiter reads the outcome off the row when her browser next polls,
+    // and `waitersOf` deliberately no longer strips her (see its comment) — so the "can we send
+    // to this waiter?" question, which used to be answered by her mere presence in the list,
+    // has to be asked explicitly here. Mirrors the same guard in lp612-serving's `tell()`.
+    if (!w.phone) continue;
     try {
       await WhatsAppService.sendMessage(w.phone, resolveUx(key, { language: w.ui_lang || lang }));
     } catch (err) {
@@ -832,9 +851,24 @@ async function process(payload) {
         e.infra === true || !Array.isArray(e.problems) || e.problems.length === 0
       );
 
+      /**
+       * THE SOFT TARGET IS A FINDING OF A SUCCESSFUL RENDER — bd-a8veu.22.
+       *
+       * `PAGE COUNT:` is a `problem`: the render throws and the defect reaches the ladder through
+       * the catch below. `PAGE TARGET:` is a WARNING: the render succeeds, so it comes back on
+       * the RETURN, and until now `attemptRenderCheck` threw that return away and answered
+       * `{ clean: true }`. That is why the target had never once moved a document — nothing
+       * downstream of the renderer could see it. Matched on the renderer's own emitted prefix,
+       * the same way every other finding in this lane is matched, because `warnings` also carries
+       * layout notes from the template build that are not addressed to the author.
+       */
+      const targetFindings = (res) => (
+        Array.isArray(res && res.warnings) ? res.warnings.filter((w) => String(w).startsWith('PAGE TARGET:')) : []
+      );
+
       const attemptRenderCheck = async (candidate) => {
         try {
-          await renderLessonPlan({
+          const res = await renderLessonPlan({
             lpDoc: candidate,
             lang,
             stem: `gate_${Date.now()}`,
@@ -848,7 +882,7 @@ async function process(payload) {
             renderId,
             phase: 'gate',
           });
-          return { clean: true };
+          return { clean: true, targets: targetFindings(res) };
         } catch (e) {
           return {
             clean: false,
@@ -860,11 +894,11 @@ async function process(payload) {
 
       const renderCheck = async (candidate) => {
         let result = await attemptRenderCheck(candidate);
-        if (result.clean) return [];
+        if (result.clean) return result.targets || [];
         if (!result.infra) return result.problems; // a real defect — feed it to the model, once
 
         result = await attemptRenderCheck(candidate); // the one retry
-        if (result.clean) return [];
+        if (result.clean) return result.targets || [];
         if (!result.infra) return result.problems;
 
         logEvent('lp612.render.gate_infra_unresolved', {
@@ -1334,7 +1368,26 @@ async function process(payload) {
 
     let delivered = 0;
     let deliveryFailures = 0;
+    let selfServe = 0;
     for (const w of waiters) {
+      // A WAITER WITH NO PHONE IS NOT A FAILED DELIVERY.
+      //
+      // Portal waiters are parked on this same list deliberately: the row is the only record of
+      // who is owed this lesson, and leaving them off it would mean a teacher whose 3-minute
+      // render finished had no way to be told. But they must not be SENT to. The lesson is
+      // already sitting in R2 and her browser will presign it on its next poll — there is
+      // nothing for this loop to do for her.
+      //
+      // Skipping is not a nicety. `deliverRender` would hand `phone: undefined` to Meta, throw,
+      // and be counted as `deliveryFailures` — a lesson authored perfectly well, recorded as
+      // lost. And because this loop shares ONE deadline across every waiter (see
+      // SEND_TOTAL_BUDGET_MS), each doomed attempt spends retry budget belonging to the real
+      // WhatsApp waiters queued behind it. One portal waiter could shorten the retries of the
+      // teachers who actually need them.
+      if (!w.phone) {
+        selfServe += 1;
+        continue;
+      }
       try {
         await Serving.deliverRender({
           // `userId` is what the shelf write is keyed by, and the waiter list is the only place
@@ -1375,6 +1428,10 @@ async function process(payload) {
       elapsedMs: Date.now() - startedAt,
       delivered,
       deliveryFailures,
+      // Waiters who collect the lesson themselves (the portal polls for it). Counted separately
+      // so `delivered + deliveryFailures` no longer has to account for every waiter — without
+      // this the arithmetic silently stops adding up once the portal is live.
+      selfServe,
       correlationId,
     });
 
@@ -1394,6 +1451,14 @@ async function process(payload) {
       rounds: authored.rounds ?? null,
       lintClean: authored.lintClean === true,
       pageCount: rendered.pageCount ?? null,
+      // WHO ACTUALLY GOT IT, on the terminal event rather than only in a log line that rolls
+      // off. `delivered + deliveryFailures` used to equal the whole waiter list; once the portal
+      // parks phoneless waiters here it does not, and a gap with no name for it reads as lost
+      // lessons. `selfServe` is that name — she is owed nothing by this loop because her browser
+      // presigns the object on its next poll.
+      delivered,
+      deliveryFailures,
+      selfServe,
       // The per-part pages on EVERY delivery, not only the over-cap ones (bd-vjk68). "Does the
       // distribution refill to the new cap?" is a question about all delivered lessons; a
       // sample of only the ones that spilled cannot answer it.
