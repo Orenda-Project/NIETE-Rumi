@@ -198,15 +198,19 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
   });
 
   test('a grid row carries exactly ONE card, so the packer can break between them', () => {
-    // The fixture has 3 `mistakes` and 5 `model_answers`. On A4 those were 1 grid3 row and 3
-    // grid2 rows; a break may never fall inside a row, so each card must now be its own row.
+    // The fixture has 3 `mistakes` and a homework key. On A4 those were 1 grid3 row and a
+    // handful of grid2 rows; a break may never fall inside a row, so each card must now be its
+    // own row.
     const d = doc();
     const html = buildHtml(d, { lang: 'en', docDir: path.dirname(FIXTURE) }).html;
     // count the class in the class LIST — decorate() appends the spacing rung, so what is
     // emitted is `<div data-atom class="grid3 sp-2">`.
     const body = html.slice(html.indexOf('</style>'));
     const rows = (cls) => (body.match(new RegExp(`class="${cls}[\\s"]`, 'g')) || []).length;
-    expect(rows('grid2')).toBe(d.page2.model_answers.length + d.page2.homework_key.length);
+    // bd-ir1aq: the homework key is the ONLY grid2 left. The fixture still carries
+    // `model_answers`, and the renderer now ignores it wherever it appears — which is exactly
+    // the subject of tests/lp612/page2-answer-keys-optional.test.js.
+    expect(rows('grid2')).toBe(d.page2.homework_key.length);
     // Differentiation used to be the ONE exception: a hand-written `<div class="grid3">` holding
     // all three fixed cards in a single unbreakable atom. bd-a8veu.10 moved it into the flow and
     // split it the same way as everything else — one card, one row, one atom — so the exception
@@ -292,17 +296,23 @@ describe('v9.3 — the renderer prints what it laid out', () => {
 });
 
 describe('a cached lesson re-renders, it does not re-author', () => {
-  // Was pinned to v9.3 as the head, then v9.4 (bd-m1k16), now v9.5 (2026-09-13). This guard's job
-  // is the SHAPE — the current version leads, every older one the renderer still accepts stays
-  // behind it — not one particular literal at the front. v9.3 keeps its own assertion because it
-  // is the version whose stored documents the corpus is actually made of.
+  // Was pinned to v9.3 as the head, then v9.4 (bd-m1k16), then v9.5, now v9.6 (bd-ir1aq). Four
+  // bumps, four times this test went red for no reason of its own — so it is now written as what
+  // its own comment always claimed it was about: the SHAPE. The head is whatever the config says;
+  // what matters is that it LEADS the lineage and that everything older re-renders behind it. A
+  // literal at the front asserts the release note, not the invariant.
+  //
+  // v9.3 keeps its own named assertion because it is the version whose stored documents the corpus
+  // is actually made of — losing it would be a real regression, not a bump.
   test('the current version leads the lineage and v9.3 re-renders behind it', () => {
     const flags = require('../../bot/shared/config/lp612-flags');
-    expect(flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.5');
-    expect(flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
-    // every v9.4, v9.3, v9.2 and v9.1 PDF in the cache has its `.lp.json` beside it, so the bump
-    // costs 0 model calls — 07_font proved the path live on staging (PROOF.md there).
-    expect(flags.previousTemplateVersions('v9.5')).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
+    const lineage = flags.TEMPLATE_VERSION_LINEAGE;
+    expect(lineage[0]).toBe(flags.DEFAULT_TEMPLATE_VERSION);
+    expect(lineage).toContain('v9.3');
+    // every older PDF in the cache has its `.lp.json` beside it, so the bump costs 0 model calls —
+    // 07_font proved the path live on staging (PROOF.md there). That is only true while the head's
+    // ancestry is the WHOLE tail; a bump that forgets the lineage entry returns [] and re-authors.
+    expect(flags.previousTemplateVersions(flags.DEFAULT_TEMPLATE_VERSION)).toEqual(lineage.slice(1));
     expect(flags.previousTemplateVersions('v9.3')).toEqual(['v9.2', 'v9.1']);
   });
 });

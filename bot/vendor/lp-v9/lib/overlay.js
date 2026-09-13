@@ -180,7 +180,7 @@ const LABELS = {
     materials: "Materials", pacing: "Pacing", slo: "Curriculum SLO",
     prerequisite: "prerequisite", spaced: "spaced review",
     supportPage: "Reference", notReadAloud: "Not read aloud in class",
-    p2Board: "The board at the end of the lesson", p2Model: "Model answers",
+    p2Board: "The board at the end of the lesson",
     p2Mistakes: "Common mistakes and the question you ask back",
     // bd-x0pw1. "Exam bank" was a filing label — it said which drawer the questions were in and
     // nothing about what they were for or whether the teacher had to use them. The operator's
@@ -244,7 +244,7 @@ const LABELS = {
     materials: "درکار اشیاء", pacing: "وقت کی تقسیم", slo: "متعینہ تدریسی مقصد",
     prerequisite: "سابقہ علم", spaced: "دہرائی",
     supportPage: "حوالہ جاتی مواد", notReadAloud: "کلاس میں پڑھ کر نہ سنائیں",
-    p2Board: "سبق کے اختتام پر تختۂ سیاہ", p2Model: "نمونہ جوابات",
+    p2Board: "سبق کے اختتام پر تختۂ سیاہ",
     p2Mistakes: "عام غلطیاں اور آپ کا جوابی سوال",
     // bd-x0pw1 — see the English note. FBISE is spelled out in Urdu letters rather than left in
     // Latin: the heading is the renderer's own furniture and sits in an RTL line, and a Latin

@@ -784,9 +784,10 @@ function lint(doc, docPath, opts = {}) {
   }
 
   // 15b — a reference block THAT EXISTS must be able to answer everything the flow asked.
-  // bd-s19g8 made `model_answers` optional, so this is a complaint about a thin key, never
-  // about a missing one: an LP with no answer key at all is now a legitimate shape.
-  if (full && doc.page2.model_answers && doc.page2.model_answers.length < 2) warn("MODELS", "fewer than 2 model-answer cards; a reference block that exists is meant to answer every tier.");
+  // bd-ir1aq: the MODELS half of this rule is gone. `model_answers` is no longer rendered at
+  // all (lib/template.js), so a doc that still carries the key carries dead weight — and
+  // warning that the dead weight is thin would be noise the author rounds then try to fix by
+  // writing MORE of it. The homework key keeps its own completeness rule below.
   if (full && doc.page2.mistakes.length < 3) warn("MISTAKES", `${doc.page2.mistakes.length} mistake/repair pairs; the v7-1 shape teachers recognised carries 3.`);
 
   // ── DUPLICATE_DIAGRAM ────────────────────────────────────────────────────
@@ -1183,11 +1184,10 @@ function v9Gates(doc, ctx) {
   for (const d of duplicateRefs(doc)) {
     fail("REF_ABSENT", `the ref "${d}" is declared by more than one question, so an answer pointing at it is ambiguous.`);
   }
-  for (const m of doc.page2.model_answers || []) {
-    if (!index.has(m.ref)) {
-      fail("REF_ABSENT", `model answer "${m.ref}" answers a question the LP never states. Known refs: ${[...index.keys()].join(", ")}.`);
-    }
-  }
+  // bd-ir1aq: `model_answers` is no longer checked in either direction. It is not rendered
+  // (lib/template.js) and it is stripped from newly authored docs (lp612-author.worker.js), so
+  // a ref inside it can no longer be a lie ON THE PAGE — nothing of it reaches the page. Failing
+  // a doc over dead weight would only block lessons the teacher would have read correctly.
   for (const k of doc.page2.homework_key || []) {
     if (!index.has(k.ref)) fail("REF_ABSENT", `homework key "${k.ref}" solves an item the LP never sets.`);
   }
@@ -1200,24 +1200,23 @@ function v9Gates(doc, ctx) {
   // `a: null` STRUCTURALLY — their answers can only ever live in a reference block — so an LP
   // without those blocks failed once per checkpoint and once per homework item, on every doc.
   //
-  // The rule now binds per key. A doc that ships `model_answers` still has to answer every
-  // question whose answer isn't in place; a doc that ships `homework_key` still has to solve
-  // every homework item; a doc that ships neither is an LP without an answer key, which the
-  // operator asked for. The FORWARD direction above is untouched and stays absolute — an answer
-  // pointing at a question the LP never states is a lie on the page whatever else is present.
-  const models = doc.page2.model_answers;
+  // The rule now binds per key. A doc that ships `homework_key` still has to solve every
+  // homework item; a doc that ships none is an LP without an answer key, which the operator
+  // asked for. The FORWARD direction above is untouched and stays absolute — a homework answer
+  // pointing at an item the LP never sets is a lie on the page whatever else is present.
+  //
+  // bd-ir1aq: HOMEWORK IS THE ONLY KEY LEFT. `model_answers` no longer prints, so the checkpoint
+  // half of this rule would demand completeness of a block the teacher never sees — it is gone,
+  // and an unanswered checkpoint is now simply an unanswered checkpoint, the way an in-flow
+  // question already was.
   const hwKey = doc.page2.homework_key;
-  const answered = new Set([
-    ...(models || []).map((m) => m.ref),
-    ...(hwKey || []).map((k) => k.ref),
-  ]);
+  const answered = new Set((hwKey || []).map((k) => k.ref));
   for (const q of qs) {
-    if (q.kind === "exam") continue;                      // the bank carries its own key
+    if (q.kind !== "homework") continue;                  // the only key that reaches the page
     if (q.a != null && String(q.a).trim()) continue;      // answered in place
     if (answered.has(q.ref)) continue;
-    const key = q.kind === "homework" ? hwKey : models;   // the block that would have to carry it
-    if (!key) continue;                                   // no such key — nothing to be incomplete
-    fail("REF_ABSENT", `${q.ref} (${q.where}) is asked and never answered — not in place, and not in the ${q.kind === "homework" ? "homework key" : "reference block"} the LP does carry.`);
+    if (!hwKey) continue;                                 // no key — nothing to be incomplete
+    fail("REF_ABSENT", `${q.ref} (${q.where}) is asked and never answered — not in place, and not in the homework key the LP does carry.`);
   }
   // prose that points at a question by number
   // ONLY the explicit form. A bare "Q1" is almost always a TEXTBOOK citation — "Ex 1.3
