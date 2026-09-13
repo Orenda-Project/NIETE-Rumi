@@ -32,6 +32,11 @@ module.exports = {
     // teacher-register tests can assert what the generator wrote without the dep.
     '^exceljs$': '<rootDir>/tests/__mocks__/exceljs.js',
     '^canvas$': '<rootDir>/tests/__mocks__/canvas.js',
+    // Same case: uuid is declared in bot/package.json only, and portal-invite.service.js
+    // and feature-registration.service.js require it at module scope — so any root suite
+    // reaching either one died on the require, not on its assertions. The stub is a real
+    // v4 (crypto.randomUUID), because callers use the value as a key.
+    '^uuid$': '<rootDir>/tests/__mocks__/uuid.js',
     // Media + PDF: fluent-ffmpeg shells out to a real transcoder and the two
     // installer packages exist only to expose a binary path, so these are stubbed
     // rather than added as root deps — a unit suite must never invoke ffmpeg.

@@ -28,10 +28,16 @@ const fs = require('fs');
 const VENDOR = path.join(__dirname, '..', '..', 'bot', 'vendor', 'lp-v9');
 
 describe('one column width, one definition', () => {
-  test('the renderer exports its full-width drawing box, and it is 729px', () => {
+  test('the renderer exports its full-width drawing box, and the A4 measure is still 729px', () => {
     const T = require(path.join(VENDOR, 'lib', 'template.js'));
-    expect(T.FULL_COL).toBe(794 - 21 * 2 - (10 * 2 + 3));
-    expect(T.FULL_COL).toBe(729);
+    // v9.3 moved the live page off A4 onto the phone page, so the number this guard was written
+    // against moved with it — 729 is now `FULL_COL_A4`, kept because the legibility floor was
+    // chosen at that measure and has to scale from it. The invariant the guard exists for is
+    // unchanged: ONE definition, derived from ONE page object, and the lint imports it.
+    expect(T.FULL_COL_A4).toBe(794 - 21 * 2 - (10 * 2 + 3));
+    expect(T.FULL_COL_A4).toBe(729);
+    // …and the live column is derived the same way from the page actually being rendered.
+    expect(T.FULL_COL).toBe(T.PAGE.w - T.PAGE.padX * 2 - T.FIG_CHROME);
   });
 
   test('lint_lp.js does not recompute it', () => {
