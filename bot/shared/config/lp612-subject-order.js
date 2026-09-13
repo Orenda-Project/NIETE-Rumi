@@ -72,6 +72,48 @@ const ALIASES = Object.freeze({
   computers: 'computer science',
 });
 
+/**
+ * The Urdu name of each subject, keyed on what `normalizeSubject()` returns — bd-63dea.
+ *
+ * WHY IT LIVES HERE. The caption read «جماعت 7 · Urdu · صفحات 30»: an Urdu topic, an Urdu grade
+ * word, an Urdu pages word, and the subject in English, because `buildCaption` interpolated the
+ * raw import string into both languages. Translating it needs exactly the folding this file
+ * already does — `Mathematics`, `mathematics` and `math` all have to reach one Urdu name or the
+ * caption would be Urdu for grade 6 and half-English for grade 7, with no visible reason. Keying
+ * the map on the canonical form is what buys that; a map over literal corpus spellings would have
+ * to be extended every time the importer meets a new one.
+ *
+ * NOT `SUBJECT_LABELS` in ux-strings.js. That table is the K-5 subject *code* vocabulary — its
+ * keys are `maths`, `science`, `social_studies`, which are the codes a K-5 row carries, not the
+ * canonical names this file produces (`mathematics`, `general science`, `social studies`). The two
+ * key spaces do not meet, and chaining them would silently miss on exactly those three.
+ *
+ * IT SPANS MORE THAN CORE on purpose. CORE ranks a menu, so a subject omitted from it merely sorts
+ * late; this map NAMES a subject, so an omission shows a teacher an English word. History and
+ * Geography are not in CORE — they are humanities-stream books, ranked in the tail — but they are
+ * in the 6-12 corpus and so they are named here.
+ *
+ * AN UNNAMED SUBJECT KEEPS ITS ENGLISH. `subjectNameFor` falls back to the raw string rather than
+ * emitting nothing or inventing a transliteration at render time: a teacher already reads that
+ * same English word on the menu row she tapped, so the fallback is merely untranslated, not wrong.
+ */
+const SUBJECT_NAMES_UR = Object.freeze({
+  english: 'انگریزی',
+  urdu: 'اردو',
+  mathematics: 'ریاضی',
+  'general science': 'سائنس',
+  islamiyat: 'اسلامیات',
+  'religious studies': 'مذہبی تعلیم',
+  'pakistan studies': 'مطالعہ پاکستان',
+  'social studies': 'معاشرتی علوم',
+  physics: 'طبیعیات',
+  chemistry: 'کیمیا',
+  biology: 'حیاتیات',
+  'computer science': 'کمپیوٹر سائنس',
+  history: 'تاریخ',
+  geography: 'جغرافیہ',
+});
+
 /** Lower-cased, trimmed, inner whitespace collapsed — then run through ALIASES. */
 function normalizeSubject(subject) {
   const s = String(subject == null ? '' : subject).trim().replace(/\s+/g, ' ').toLowerCase();
@@ -97,4 +139,19 @@ function compareSubjects(a, b) {
   return d !== 0 ? d : String(a).localeCompare(String(b));
 }
 
-module.exports = { CORE, ALIASES, normalizeSubject, subjectRank, compareSubjects };
+/**
+ * The subject's name in `lang`, for teacher-facing text — bd-63dea.
+ *
+ * English returns the corpus string as written, deliberately: it IS the English name, and it is
+ * the same string the menu row the teacher tapped was labelled with (`lp612-catalog.service.js`
+ * renders `subject` raw). Re-spelling it here would make the caption disagree with the row.
+ */
+function subjectNameFor(subject, lang) {
+  const raw = String(subject == null ? '' : subject).trim();
+  if (lang !== 'ur') return raw;
+  return SUBJECT_NAMES_UR[normalizeSubject(raw)] || raw;
+}
+
+module.exports = {
+  CORE, ALIASES, SUBJECT_NAMES_UR, normalizeSubject, subjectRank, compareSubjects, subjectNameFor,
+};
