@@ -36,6 +36,7 @@ const WhatsAppService = require('./whatsapp.service');
 // NB: the queue is required LAZILY, inside enqueue() — see the note there.
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
+const { subjectNameFor } = require('../config/lp612-subject-order');
 const Catalog = require('./lp612-catalog.service');
 // The shelf `buildLpContext` reads. Required at module scope deliberately: it pulls in the Redis
 // wrapper, which the root suites already stub, and a lazy require here would hide a missing
@@ -238,7 +239,11 @@ function buildCaption(segment, lang, { overlayDropped = false, renderDegraded = 
     params: {
       topic: segment.subtopic_title || segment.menu_title || '',
       grade: segment.grade,
-      subject: segment.subject,
+      // bd-63dea: the one token on this line that used to stay English. `segment.subject` is free
+      // text from the segmentation import, so an Urdu delivery read «جماعت 7 · Urdu · صفحات 30».
+      // The name map folds the corpus spellings first, and hands back the raw string for a subject
+      // it has no Urdu name for — see config/lp612-subject-order.js.
+      subject: subjectNameFor(segment.subject, lang),
       pages,
     },
   });
