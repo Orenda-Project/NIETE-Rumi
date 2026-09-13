@@ -1405,6 +1405,7 @@ confident wrong picture, so read the row for any type you are about to emit.
 - **`fraction_bar`**
   - Every bar is drawn to the SAME total width -- that is what makes a comparison honest, and it is why two bars with different `parts` are the right way to show equivalence.
   - Set urduDigits:true (or lang:"ur") for Urdu numerals in the labels.
+  - model is "fraction" (default), "unit" (Singapore bar, needs unitLabel) or "circle" (n equal sectors, k shaded). A lesson taught with a roti/pizza/circle draws the circle model; a strip or a chocolate bar draws bars.
 - **`free_body`**
   - angle is in DEGREES with 90 = up.
   - forces[].color is a SHORT NAME (ink|accent|leaf|warn|cool|clay), not a colour string -- the one place in the engine where that is true.
