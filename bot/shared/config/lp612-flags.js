@@ -28,7 +28,7 @@ const LP612_MAX_GRADE = 12;
 /** The template the renderer is on. Part of the R2 cache key, so bumping it
  *  misses every cached render rather than serving stale layouts — and rolling
  *  back re-serves the old ones instantly, because nothing was deleted. */
-const DEFAULT_TEMPLATE_VERSION = 'v9.5';
+const DEFAULT_TEMPLATE_VERSION = 'v9.6';
 
 /**
  * THE VERSIONS WHOSE STORED DOCUMENTS TODAY'S RENDERER IS KNOWN TO ACCEPT — newest first.
@@ -61,13 +61,21 @@ const DEFAULT_TEMPLATE_VERSION = 'v9.5';
  * fills, an SVG layout, and two strings the renderer composes — no schema key moved, so v9.4 and
  * older documents stay readable and every cached lesson re-renders for zero model spend.
  *
+ * v9.6 (2026-09-13, bd-ir1aq) is a SUBTRACTION, and subtracting is the safest kind of bump there
+ * is: the renderer stops emitting the model-answers section of Reference. Nothing about the
+ * document changed — `page2.model_answers` stays in the schema and every stored lesson still
+ * carries whatever it was authored with — so v9.5 and older documents re-render under the new
+ * rule and simply come back one section shorter, for zero model spend. The bump is what makes that
+ * happen at all: without it every lesson the operator has already tested keeps serving its CACHED
+ * PDF, model answers and all, and the fix looks like it did not ship.
+ *
  * AND THE ENTRY HAS TO BE HERE, not only in Railway — bd-m1k16. The served version comes from
  * `LP_612_TEMPLATE_VERSION`, and a variable moved to a version this list does not contain makes
  * `previousTemplateVersions` return [] ("no ancestry rather than a guess"), which the worker reads
  * as "nothing to reuse" and answers with a full re-author. The bump then costs a model run per
  * lesson — the exact spend this list exists to avoid. Sandbox ran that way until this entry landed.
  */
-const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
+const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.6', 'v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
 
 /**
  * Which older template versions' stored documents may be re-rendered for `tv`, newest first.

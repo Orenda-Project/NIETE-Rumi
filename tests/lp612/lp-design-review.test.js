@@ -287,8 +287,10 @@ describe('bd-a8veu.7 — the board plan is in the Introduction, not in Reference
     expect(body(html)).not.toContain(REF_BOARD_BAR);
     // one draw-order card in the whole document. A copy left behind costs the page it saved.
     expect(body(html).match(/class="ord"/g)).toHaveLength(1);
-    // `S` assigns letters in emission order, so the next section becomes A by itself
-    expect(body(html)).toMatch(/data-sec="p2-A"[\s\S]{0,160}class="nm">Model answers</);
+    // `S` assigns letters in emission order, so the next section becomes A by itself.
+    // bd-ir1aq: that used to be "Model answers", which is no longer emitted at all — the FBISE
+    // bank is what now inherits the letter. The subject here is the re-lettering, not the name.
+    expect(body(html)).toMatch(/data-sec="p2-A"[\s\S]{0,160}class="nm">FBISE format Questions/);
   });
 
   test('the diagram can never be the last atom on a page — the order follows it', () => {

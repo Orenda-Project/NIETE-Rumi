@@ -67,6 +67,33 @@ function oneScreenOf(authored) {
   return v ? String(v) : null;
 }
 
+/**
+ * bd-ir1aq — DROP `page2.model_answers` BEFORE THE DOCUMENT IS STORED.
+ *
+ * Operator, twice: *"Section B in the reference section is not needed"*, then *"why does
+ * reference pages still have model answers? I just wanted HW answers"*. The renderer already
+ * refuses to paint the key (lib/template.js) and lint no longer judges it, so this is not what
+ * keeps it off the page — it is what keeps it out of the corpus, so the next template bump is
+ * not re-reading dead weight and the author rounds are not re-litigating it.
+ *
+ * THE OVERLAY POINTERS GO WITH IT, IN THE SAME OPERATION. `lib/overlay.js`'s `pointerSet()`
+ * throws on a pointer that does not resolve, `applyOverlay()` collects the throw, and
+ * `renderDoc()` then refuses the WHOLE lesson with OVERLAY_INVALID. Deleting the body without
+ * the `/page2/model_answers/...` keys would therefore turn an Urdu lesson into no lesson at all.
+ * Mutates in place: the caller is about to render and store this exact object.
+ */
+function stripModelAnswers(doc) {
+  if (!doc || !doc.page2 || doc.page2.model_answers === undefined) return doc;
+  delete doc.page2.model_answers;
+  const ov = doc.ur_overlay;
+  if (ov && typeof ov === 'object') {
+    for (const ptr of Object.keys(ov)) {
+      if (ptr === '/page2/model_answers' || ptr.startsWith('/page2/model_answers/')) delete ov[ptr];
+    }
+  }
+  return doc;
+}
+
 /** The columns this job has always needed. */
 const RENDER_COLUMNS = 'id, status, waiters, segment_id, lang, template_version';
 
@@ -932,6 +959,11 @@ async function process(payload) {
           writeCheckpoint(c);
         },
       });
+      // bd-ir1aq. Before ANYTHING reads the document — the figure sweep, the render, the row.
+      // It runs on the reused branch too, which is the point: a cached lesson coming back for a
+      // template bump loses the key on the way through rather than carrying it forever.
+      stripModelAnswers(authored.lpDoc);
+
       // Recorded the moment it exists, so a render that refuses it below is still explicable.
       authoredDoc = authored.lpDoc;
 
