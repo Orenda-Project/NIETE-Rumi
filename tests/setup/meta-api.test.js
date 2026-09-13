@@ -84,7 +84,7 @@ describe('MetaAPI', () => {
       const result = await api.listFlows();
 
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE}/waba_123/flows`,
+        expect.stringContaining(`${BASE}/waba_123/flows`),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -119,6 +119,78 @@ describe('MetaAPI', () => {
       expect(result.error.type).toBe('NETWORK_ERROR');
       expect(result.error.message).toBe('ECONNREFUSED');
     });
+
+    // Meta pages this edge at 25 by default and hands back a paging.next cursor.
+    // Reading only the first page made three different NIETE accounts all report
+    // exactly 25 flows; the real counts were 26 and 34. A flow past the cut then
+    // reads as "not registered", which is how a live flow gets a duplicate.
+    it('asks for more than one default page in the first place', async () => {
+      fetchMock.mockResolvedValue(okResponse({ data: [] }));
+
+      await api.listFlows();
+
+      expect(fetchMock.mock.calls[0][0]).toMatch(/[?&]limit=\d{2,}/);
+    });
+
+    it('follows paging.next until the account is exhausted', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          okResponse({
+            data: [{ id: '1', name: 'A' }],
+            paging: { next: `${BASE}/waba_123/flows?after=CURSOR2` },
+          }),
+        )
+        .mockResolvedValueOnce(okResponse({ data: [{ id: '2', name: 'B' }] }));
+
+      const result = await api.listFlows();
+
+      expect(result.success).toBe(true);
+      expect(result.data.map((f) => f.id)).toEqual(['1', '2']);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('carries the auth header onto the follow-up pages', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          okResponse({ data: [], paging: { next: `${BASE}/waba_123/flows?after=C2` } }),
+        )
+        .mockResolvedValueOnce(okResponse({ data: [] }));
+
+      await api.listFlows();
+
+      expect(fetchMock.mock.calls[1][1].headers).toEqual(
+        expect.objectContaining({ Authorization: 'Bearer tok_secret' }),
+      );
+    });
+
+    it('gives up rather than looping forever on a cursor that points at itself', async () => {
+      fetchMock.mockResolvedValue(
+        okResponse({
+          data: [{ id: '1', name: 'A' }],
+          paging: { next: `${BASE}/waba_123/flows?after=SAME` },
+        }),
+      );
+
+      const result = await api.listFlows();
+
+      expect(result.success).toBe(false);
+      expect(result.error.message).toMatch(/page| cursor/i);
+    });
+
+    it('fails the whole listing when a later page errors, rather than returning a partial account', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          okResponse({
+            data: [{ id: '1', name: 'A' }],
+            paging: { next: `${BASE}/waba_123/flows?after=C2` },
+          }),
+        )
+        .mockResolvedValueOnce(errResponse(400, { error: { code: 100, message: 'Bad cursor' } }));
+
+      const result = await api.listFlows();
+
+      expect(result.success).toBe(false);
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -143,6 +215,21 @@ describe('MetaAPI', () => {
       const result = await api.findFlowByName('NonExistent');
 
       expect(result).toEqual({ success: true, data: null });
+    });
+
+    it('finds a flow that only appears on a later page', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          okResponse({
+            data: [{ id: '1', name: 'Registration' }],
+            paging: { next: `${BASE}/waba_123/flows?after=C2` },
+          }),
+        )
+        .mockResolvedValueOnce(okResponse({ data: [{ id: '2', name: 'Status' }] }));
+
+      const result = await api.findFlowByName('Status');
+
+      expect(result.data).toEqual({ id: '2', name: 'Status' });
     });
 
     it('propagates errors from listFlows', async () => {

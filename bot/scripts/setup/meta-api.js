@@ -84,19 +84,46 @@ class MetaAPI {
   // Flows
   // -----------------------------------------------------------------------
 
-  /** GET /{wabaId}/flows */
+  /**
+   * GET /{wabaId}/flows — every flow on the account, not just the first page.
+   *
+   * Meta pages this edge (25 by default) and puts the continuation in
+   * `paging.next`. Reading page one and stopping made three separate accounts
+   * each report exactly 25 flows when the real counts were 26 and 34, and a
+   * flow past the cut then looks unregistered — which is how findFlowByName
+   * comes back null for a flow that is live, and a second copy of it gets
+   * created alongside.
+   *
+   * A later page failing fails the whole call. A partial account is worse than
+   * no account here: callers use this to decide whether something exists, and
+   * a short list answers "no" with false confidence.
+   */
   async listFlows() {
-    const result = await this._request(`${this.baseUrl}/${this.wabaId}/flows`, {
-      method: 'GET',
-      headers: this._headers(),
-    });
+    const flows = [];
+    let url = `${this.baseUrl}/${this.wabaId}/flows?limit=100`;
+    const seen = new Set([url]);
 
-    // Unwrap the Graph API { data: [...] } envelope
-    if (result.success && result.data?.data) {
-      result.data = result.data.data;
+    // Meta has never returned more than a few dozen flows per account; the cap
+    // and the seen-set only exist to stop a cursor that points back at a page
+    // already read from spinning, or from counting the same flows twice.
+    const fail = (message) => ({ success: false, error: { type: 'PAGINATION_ERROR', message } });
+
+    for (let page = 0; page < 25; page++) {
+      const result = await this._request(url, { method: 'GET', headers: this._headers() });
+      if (!result.success) return result;
+
+      flows.push(...(result.data?.data || []));
+
+      const next = result.data?.paging?.next;
+      if (!next) return { success: true, data: flows };
+      if (seen.has(next)) {
+        return fail(`Flow listing for WABA ${this.wabaId} returned a page cursor it had already followed.`);
+      }
+      seen.add(next);
+      url = next;
     }
 
-    return result;
+    return fail(`Flow listing did not terminate after 25 pages for WABA ${this.wabaId}.`);
   }
 
   /** Find a single flow by its name. Returns the flow object or null. */
