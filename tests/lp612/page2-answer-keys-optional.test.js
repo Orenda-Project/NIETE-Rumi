@@ -157,17 +157,36 @@ describe('page2.model_answers and page2.homework_key are optional', () => {
     expect(letters).toEqual(letters.map((_, i) => String.fromCharCode(65 + i)));
   });
 
-  // ── 4. nothing changes for a doc that still has them ──────────────────────
-  test('a doc that still carries both renders exactly as it does today', () => {
-    const html = build(load());
-    expect(html).toContain('Model answers');
-    expect(html).toContain('Homework, in full');
-    // Both keys still paint, and the index is still gapless. The run used to be spelled
-    // A…H here; bd-a8veu.7 moved the board plan out of Reference and into the Introduction,
-    // so it is one shorter — which is exactly what the sibling contiguity test above already
-    // says the right way. The count was never this test's subject.
-    const letters = barLetters(html);
-    expect(letters.length).toBeGreaterThan(3);
+  // ── 4. a doc that still CARRIES model_answers still must not PAINT them ───
+  //
+  // bd-ir1aq. Operator, twice: *"Section B in the reference section is not needed"*, then
+  // *"why does reference pages still have model answers? I just wanted HW answers"*. The first
+  // pass took `model_answers` out of the four author briefs only — a SOFT constraint on the
+  // model — so every LP already cached, and every LP whose author round happened to emit the
+  // key anyway, kept printing section B. The removal has to hold at RENDER time, against a doc
+  // that carries the key, or it does not hold at all.
+  //
+  // Deleting the key from stored docs was the other candidate and is rejected on evidence: a
+  // cached Urdu doc whose `ur_overlay` points at `/page2/model_answers/…` would make
+  // `pointerSet()` throw, `applyOverlay()` collect it, and `renderDoc()` refuse the whole
+  // lesson with OVERLAY_INVALID. So the stored corpus keeps the key and the renderer ignores it.
+  test('a doc that still carries model_answers paints no section B', () => {
+    const d = load();
+    expect(Array.isArray(d.page2.model_answers)).toBe(true);   // the fixture really has them
+    const html = build(d);
+    expect(html).not.toContain('Model answers');
+    expect(html).toContain('Homework, in full');               // the key she DID ask to keep
+  });
+
+  test('Urdu ignores a carried model_answers too', () => {
+    const html = build(load(), 'ur');
+    expect(html).not.toContain('نمونہ جوابات');
+    expect(html).toContain('گھر کے کام کے مکمل جوابات');
+  });
+
+  test('and the bars stay contiguous with the key present but unpainted', () => {
+    const letters = barLetters(build(load()));
+    expect(letters.length).toBeGreaterThan(1);
     expect(letters).toEqual(letters.map((_, i) => String.fromCharCode(65 + i)));
   });
 });

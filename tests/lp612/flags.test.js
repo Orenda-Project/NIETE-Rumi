@@ -76,9 +76,13 @@ describe('serving constants', () => {
   // is that the version must also be added to TEMPLATE_VERSION_LINEAGE in the same change, or
   // reuse returns [] and the bump re-authors instead of re-rendering. Pinned in
   // `tests/lp612/reuse-previous-version.test.js`.
-  test('template version defaults to v9.5 and is env-overridable', () => {
+  // bd-ir1aq: v9.6 stops emitting the model-answers section. The literal is no longer spelled here
+  // — this test is about the DEFAULT-then-env precedence, and pinning the number made every bump
+  // redden a suite with nothing to say about it. The head-of-lineage invariant, which is the one
+  // that actually protects the spend, is asserted in `tests/lp612/phone-page.test.js`.
+  test('template version defaults to the configured one and is env-overridable', () => {
     delete process.env.LP_612_TEMPLATE_VERSION;
-    expect(load().templateVersion()).toBe('v9.5');
+    expect(load().templateVersion()).toBe(load().DEFAULT_TEMPLATE_VERSION);
     jest.resetModules();
     process.env.LP_612_TEMPLATE_VERSION = 'v9.1';
     expect(load().templateVersion()).toBe('v9.1');
