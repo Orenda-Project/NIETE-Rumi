@@ -118,8 +118,11 @@ describe('a normal LP carries an exam bank', () => {
     // The invariant that was ever worth asserting is that `S` leaves no gap in the index
     // (render-law 15) — spell that, not the count, so the next section move does not
     // redden a suite that has nothing to say about it.
+    // bd-ir1aq: and again — model answers are no longer emitted at all, so Reference is one
+    // section shorter still. The floor exists only to stop the contiguity assertion below going
+    // vacuous on an empty run; the count itself has never been this test's subject.
     const letters = barLetters(html);
-    expect(letters.length).toBeGreaterThan(3);
+    expect(letters.length).toBeGreaterThan(2);
     expect(letters).toEqual(letters.map((_, i) => String.fromCharCode(65 + i)));
   });
 

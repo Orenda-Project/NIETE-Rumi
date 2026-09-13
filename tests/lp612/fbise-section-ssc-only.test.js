@@ -87,7 +87,11 @@ describe('bd-a8veu.18 — FBISE format questions are printed for SSC only', () =
 
   test('the support index closes up behind it — no gap where B used to be', () => {
     const letters = barLetters(build(at(7)));
-    expect(letters.length).toBeGreaterThan(2);
+    // The floor only stops the contiguity assertion going vacuous. It keeps dropping as
+    // sections leave Reference — bd-a8veu.7 took the board plan into the Introduction,
+    // bd-a8veu.10 took mistakes and differentiation into the flow, bd-ir1aq stopped emitting
+    // model answers entirely. The count has never been this test's subject; line 93 is.
+    expect(letters.length).toBeGreaterThan(1);
     expect(letters).toEqual(letters.map((_, i) => String.fromCharCode(65 + i)));
     // and it is genuinely one shorter than the SSC page, so this cannot pass on a re-letter alone
     expect(letters.length).toBe(barLetters(build(at(9))).length - 1);

@@ -2178,24 +2178,22 @@ function page2(doc, ctx, secIndex) {
   // close up by themselves because `S` assigns them in emission order (render-law 15), so what
   // follows is now section A.
   //
-  // A — MODEL ANSWERS THAT NAME THEIR QUESTION, when the LP carries any.
-  // The expert's complaint was not that answers were wrong; it was that a page of answers
-  // never said what they were answers TO. Each card now resolves its `ref` back to the
-  // question as the LP states it, and prints that question above the answer. When a ref
-  // resolves to nothing the card says so out loud — lint's REF_ABSENT fails the doc, and the
-  // page must not quietly look complete in the meantime.
+  // bd-ir1aq: THE MODEL-ANSWER SECTION IS NOT EMITTED AT ALL, whatever the doc carries.
+  // Operator, twice — *"Section B in the reference section is not needed"*, then *"why does
+  // reference pages still have model answers? I just wanted HW answers"*. bd-s19g8 only took
+  // `model_answers` out of the four author briefs, which is a soft constraint on the model: an
+  // LP already cached, or one whose author round emitted the key anyway, kept printing it. The
+  // refusal has to live here, where the page is actually built.
   //
-  // bd-s19g8: `model_answers` is optional, so `gridRows` gets an empty list when it is absent
-  // and `S` skips the whole section. `Q` is built unconditionally — section F needs it too.
+  // The key is NOT deleted from stored docs and NOT dropped from the schemas, deliberately. A
+  // cached Urdu doc whose `ur_overlay` points at `/page2/model_answers/…` would make
+  // `pointerSet()` throw and `renderDoc()` refuse the whole lesson with OVERLAY_INVALID; and
+  // `page2` is `additionalProperties: false`, so an undeclared key would turn every stored doc
+  // that carries one into a SCHEMA failure. The corpus keeps validating, the renderer ignores
+  // the key, and `lp612-author.worker.js` strips it (with its overlay pointers) from new docs.
+  //
+  // `Q` stays — the homework key, section F below, resolves its refs through it.
   const Q = questionIndex(doc);
-  S(L.p2Model, gridRows("grid2", (P.model_answers || [])
-    .map((m) => {
-      const q = m.ref ? Q.get(m.ref) : null;
-      return `<div class="card"><span class="lbl">${m.ref ? esc(m.ref) : ""}</span>
-      ${q ? `<span class="refq">${rich(q.q)}</span>` : (m.label ? `<span class="refq">${rich(m.label)}</span>` : `<span class="refq">${esc(L.refMissing)}</span>`)}
-      <p class="a">${rich(m.answer)}</p>
-      ${m.marking_note ? `<span class="how">${rich(m.marking_note)}</span>` : ""}</div>`;
-    })));
 
   // bd-a8veu.10: MISTAKES AND DIFFERENTIATION NORMALLY PRINT IN THE FLOW, not here — the
   // pupil-says/you-ask pair at the end of Development where the misconception surfaces, the
