@@ -19,13 +19,19 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const { buildHtml, scaledPx } = require("./lib/template");
+const { buildHtml, scaledPx, PAGE } = require("./lib/template");
 const { applyOverlay } = require("./lib/overlay");
 const { validateDoc } = require("./lib/validate");
 const { REPO_ROOT } = require("./lib/fonts");
 const { setInfo } = require("./lib/pdfmeta");
 
-const A4 = { w: 794, h: 1123 };
+// THE PAGE BOX LIVES IN lib/template.js AND IS IMPORTED, NEVER RE-DECLARED (v9.3, bd-oak77.16).
+// v9.2 carried `const A4 = { w: 794, h: 1123 }` here AND `--page-w:794px` there — two homes for
+// one number, which is exactly how a document gets laid out at one size and printed at another.
+// v9.3's page is 520 x 2000: phone-first, because an A4 page fit to a 390-px screen delivers its
+// 21px body at 67% of the arm's-length reading floor and the type has nowhere left to go. The
+// measurement, the two-corpus page count and the printing trade-off are in
+// prod_golive_2026-09-06/15_phone_page/DESIGN.md.
 // Operator decision 2026-08-30 (floor raised to 18px on 2026-09-01): the body floor is the
 // hard constraint, so the page
 // cap gives instead. Each part starts on a fresh page.
@@ -74,8 +80,13 @@ const A4 = { w: 794, h: 1123 };
 // flag 53 of 62 documents, which is not a gate, it is noise. EN teach 6->7 / support 4->6 and
 // UR teach 7->9 / support 6->7 is the TIGHTEST candidate that holds the flag rate at 2/62,
 // against 1/62 at the old type. Numbers and the arm-by-arm table: 07_font/OPTIONS.md.
-const MAX_PAGES = { teach: 7, support: 6 };     // above this: FAIL
-const WARN_PAGES = { teach: 6, support: 5 };    // above this: WARN, and keep going
+//
+// LOWERED 2026-09-11 (bd-g6sww, closing bd-q29w9). Operator: LPs shipping at 11-16 pages are
+// "unreadable" — the v9.2-type-scale ceiling above (7/6) still let a lesson reach that range. This
+// is a universal, subject-agnostic hard ceiling; any subject-specific tightening belongs in the
+// word budgets in lint_lp.js, not here. EN teach 7->4 / support 6->3.
+const MAX_PAGES = { teach: 4, support: 3 };     // above this: FAIL
+const WARN_PAGES = { teach: 3, support: 2 };    // above this: WARN, and keep going
 
 // PAGE CAPS ARE LANGUAGE-AWARE; WORD BUDGETS ARE NOT (operator, 2026-09-03).
 //
@@ -101,8 +112,13 @@ const WARN_PAGES = { teach: 6, support: 5 };    // above this: WARN, and keep go
 // the derivation was a prediction, these are the measured overflows, and the measurement wins.
 // The n=4 "raise-and-refill" datum for Urdu is too thin to settle whether 7 is still short —
 // that is what the post-40-lesson re-measure is for.
-const MAX_PAGES_UR = { teach: 9, support: 7 };
-const WARN_PAGES_UR = { teach: 8, support: 6 };
+//
+// LOWERED 2026-09-11 (bd-g6sww, closing bd-q29w9), alongside the EN ceiling above. UR keeps its
+// measured Nastaliq premium over EN rather than the field-measured overflow ratio this comment
+// tracked through 2026-09-06 — at this size the corpus data thins out, so UR = round(EN x 1.33):
+// teach 4x1.33=5.32->5, support 3x1.33=3.99->4.
+const MAX_PAGES_UR = { teach: 5, support: 4 };
+const WARN_PAGES_UR = { teach: 4, support: 3 };
 
 /** The caps for one render, by the language actually being laid out. */
 function pageCapsFor(lang) {
@@ -525,6 +541,134 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
 }
 
 /**
+ * WHAT HAS TO COME OUT, AND FROM WHERE — read off the packing that just ran (bd-a8veu.1).
+ *
+ * The over-cap defect used to say only *"teach needs 5 pages; the cap is 4. Cut it."* That is
+ * stated in a unit the author cannot measure: nothing in an `lp_doc` is a page, and the author
+ * has no renderer, so "cut it" carries neither a QUANTITY nor a LOCUS. The revision prompt
+ * already tells the model the right THEORY — pages are spent on card count, so remove whole
+ * items — and then hands it a defect with no number to aim at.
+ *
+ * Everything the number needs was already measured a few lines above: the packer ran on real
+ * per-atom heights, and every atom knows the section it belongs to. So the advice is READ, not
+ * estimated — this function computes nothing the layout did not already decide.
+ *
+ * Two deliberate choices:
+ *
+ *   - A BLOCK is a deletable atom. A section BAR (`first`) is furniture the author never writes
+ *     as an item, so it is not counted as something to cut — but its height IS counted, because
+ *     emptying a section takes its bar with it.
+ *   - An atom with no `sec` is page 1's masthead — hero, sequence strip, outcomes, resources.
+ *     That is the teacher's at-a-glance card, not the author's to delete, so it is never named
+ *     as a place to cut from.
+ *
+ * @returns null when the layout cannot support the claim — which is the whole point of the
+ *   guard. A message that invents arithmetic is worse than the blunt one it replaced.
+ */
+function overCapAdvice(atoms, pages, cap, titles = {}) {
+  if (!Array.isArray(atoms) || !Array.isArray(pages) || !atoms.length) return null;
+  if (!(cap >= 1) || pages.length <= cap) return null;
+  const from = pages[cap] && pages[cap].start;
+  if (!(from > 0) || from >= atoms.length) return null;
+
+  const costOf = (j) => atoms[j].h + (j === 0 ? 0 : atoms[j].mt || 0);
+  const deletable = (a) => !a.first;
+
+  let px = 0;
+  let blocks = 0;
+  for (let j = from; j < atoms.length; j++) {
+    px += costOf(j);
+    if (deletable(atoms[j])) blocks += 1;
+  }
+
+  const bySec = new Map();
+  atoms.forEach((a, j) => {
+    if (!a.sec) return;
+    const e = bySec.get(a.sec) || { sec: a.sec, title: titles[a.sec] || null, blocks: 0, px: 0 };
+    if (deletable(a)) e.blocks += 1;
+    e.px += costOf(j);
+    bySec.set(a.sec, e);
+  });
+  const sections = [...bySec.values()].sort((x, y) => y.px - x.px);
+  if (!sections.length) return null;
+
+  return { blocks, px: Math.round(px), totalBlocks: atoms.filter(deletable).length, sections };
+}
+
+/** How many of the tallest sections the defect names. Enough to choose between, short enough to read. */
+const ADVICE_SECTIONS = 3;
+
+/**
+ * The over-cap defect, in whichever of its two forms the layout can actually support.
+ *
+ * The section is named by its KEY first, because that is what the author addresses in the
+ * document; the printed heading is added only when it says something the key does not — which
+ * on the support page is always, since those keys are bar letters (`p2-D`) and nothing else.
+ */
+function overCapProblem(part, n, cap, advice) {
+  const plain = `PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. Cut it, or move content to the other part.`;
+  if (!advice) return plain;
+  const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const name = (s) => (s.title && norm(s.title) !== norm(s.sec) ? `${s.sec} "${s.title}"` : s.sec);
+  const top = advice.sections
+    .slice(0, ADVICE_SECTIONS)
+    .map((s) => `${name(s)} ${s.blocks} blocks/${s.px}px`)
+    .join(", ");
+  return `PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. `
+    + `The ${advice.blocks} block(s) past the cap are ${advice.px}px of content, out of ${part}'s ${advice.totalBlocks} — `
+    + `that is what has to come out, and a BLOCK is the unit: shortening the prose inside a block removes no page. `
+    + `Tallest sections in ${part}: ${top}. `
+    + `Cut whole blocks from the tallest, or move them to the other part.`;
+}
+
+/**
+ * THE SOFT TARGET, SAID TO SOMEONE — bd-a8veu.22.
+ *
+ * There have always been two numbers per part: the hard cap, above which the render FAILS, and a
+ * soft target one page below it. Only the cap ever did anything. This sentence went into
+ * `report.warnings`, which nothing reads on the success path, and it said *"Allowed —
+ * completeness beats page count — but check nothing is padding"* — an instruction to no one, and
+ * the opposite of the one the operator wants.
+ *
+ * The measured consequence: the only length pressure in the system fired at the hard cap and
+ * pushed a document back to exactly the hard cap, so every lesson converged there. Four sandbox
+ * renders on 2026-09-12 across four subjects and two grades came out at exactly 7 pages — 4 teach
+ * + 3 support — all four.
+ *
+ * Two things change here and nothing else:
+ *
+ *   1. It carries the `PAGE TARGET:` code, which the author ladder prices exactly like
+ *      `PAGE COUNT:` — ONE revision round, then deliver (`PAGE_COUNT_ROUND_BUDGET`).
+ *   2. It carries the same per-block arithmetic the over-cap defect carries, read off the packing
+ *      that just ran, because "shorten it" in a unit the author cannot measure is what produced
+ *      shortened sentences and the same page count.
+ *
+ * WHAT DOES NOT CHANGE: it is a WARNING, not a `problem`. The render succeeds, the PDF is
+ * written, the lesson is delivered. A plan that stays a page long is a delivered plan, exactly as
+ * it is today — the last clause says so out loud, because the author is also being told elsewhere
+ * never to drop a required property to save space.
+ */
+function overTargetWarning(part, n, target, cap, advice) {
+  const head = `PAGE TARGET: ${part} runs to ${n} pages; the soft target is ${target} (hard cap ${cap}). `;
+  const tail = "This is a TARGET, not the cap: the lesson renders and is delivered either way.";
+  if (!advice) {
+    return head + `Aim for ${target}: cut whole blocks, or move them to the other part. ` + tail;
+  }
+  const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const name = (s) => (s.title && norm(s.title) !== norm(s.sec) ? `${s.sec} "${s.title}"` : s.sec);
+  const top = advice.sections
+    .slice(0, ADVICE_SECTIONS)
+    .map((s) => `${name(s)} ${s.blocks} blocks/${s.px}px`)
+    .join(", ");
+  return head
+    + `The ${advice.blocks} block(s) past the target are ${advice.px}px of content, out of ${part}'s ${advice.totalBlocks} — `
+    + `that is what would have to come out, and a BLOCK is the unit: shortening the prose inside a block removes no page. `
+    + `Tallest sections in ${part}: ${top}. `
+    + `Cut whole blocks from the tallest, or move them to the other part. `
+    + tail;
+}
+
+/**
  * The v8 signature, kept because it is the honest description of the degenerate case
  * (no glue, no per-section bars) and because the packer's oldest regression tests speak it.
  */
@@ -625,7 +769,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
     channel ? { channel, args: LAUNCH_ARGS } : { args: LAUNCH_ARGS },
   );
   try {
-    const page = await browser.newPage({ viewport: { width: A4.w, height: A4.h }, deviceScaleFactor: 2 });
+    const page = await browser.newPage({ viewport: { width: PAGE.w, height: PAGE.h }, deviceScaleFactor: 2 });
     const load = async (p) => {
       await page.goto("file://" + p + "?t=" + Date.now(), { waitUntil: "load" });
       await page.evaluate("document.fonts.ready.then(function(){return true;})");
@@ -653,8 +797,10 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       // purpose: a packer allowed more slack than the absorber can pay for would manufacture
       // the very OVERFLOW this all exists to stop.
       const packOpts = { slack: OVERFLOW_ABSORB_MAX_PX };
-      const teach = packAtoms(withMeta("teach"), capacity, furn, packOpts);
-      const support = packAtoms(withMeta("support"), capacity, furn, packOpts);
+      const teachAtoms = withMeta("teach");
+      const supportAtoms = withMeta("support");
+      const teach = packAtoms(teachAtoms, capacity, furn, packOpts);
+      const support = packAtoms(supportAtoms, capacity, furn, packOpts);
       const breaks = { teach: teach.breaks, support: support.breaks };
       const rebuilt = repaginate.rebuild(breaks);
       fs.writeFileSync(htmlPath, rebuilt.html);
@@ -664,9 +810,15 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       repaginate.figureRepairs = rebuilt.figureRepairs;
       repaginate.breaks = breaks;
       repaginate.furniture = { footer_px: footH, cont_strip_px: strip, cont_bar_px: contBar, capacity_px: capacity };
-      // the fill each page is packed to — the number the operator asked us to MEASURE, not
-      // estimate. The probe below re-reads it from the real render as a cross-check.
-      repaginate.packed = { teach: teach.pages, support: support.pages };
+      // The layout the packer actually produced, MEASURED rather than estimated — the pages it
+      // chose, and the atoms it chose them from, each carrying its real height and the section
+      // it belongs to. The probe below re-reads the page count from the real render as a
+      // cross-check; this is the only place the PER-BLOCK arithmetic behind it exists, and the
+      // over-cap defect below is written from it (bd-a8veu.1).
+      repaginate.packed = {
+        teach: { pages: teach.pages, atoms: teachAtoms },
+        support: { pages: support.pages, atoms: supportAtoms },
+      };
     }
     // evaluate() treats a string as an EXPRESSION — a bare arrow function would come
     // back as an unserializable function object (silently undefined). Call it.
@@ -692,7 +844,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       // plan and both G10 Urdu support pages in the 2026-08-30 sample run.
       // The renderer emits EVERY page the packer laid out; going over the cap is reported
       // below as a loud PAGE COUNT failure. Cutting a long plan is an authoring decision.
-      const buf = await page.pdf({ width: `${A4.w}px`, height: `${A4.h}px`, printBackground: true });
+      const buf = await page.pdf({ width: `${PAGE.w}px`, height: `${PAGE.h}px`, printBackground: true });
       // The internal identifiers the footer no longer prints live HERE instead — visible to
       // the pipeline (and in File > Properties), invisible to the teacher.
       fs.writeFileSync(outPdf, pdfMeta ? setInfo(buf, pdfMeta) : buf);
@@ -705,7 +857,8 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       }
     }
     return { probe, pdfPages, absorbed, breaks: repaginate ? repaginate.breaks : null,
-             furniture: repaginate ? repaginate.furniture : null };
+             furniture: repaginate ? repaginate.furniture : null,
+             packed: repaginate ? repaginate.packed : null };
   } finally {
     await browser.close();
   }
@@ -826,9 +979,24 @@ async function renderDoc(a) {
   const CAPS = pageCapsFor(lang);
   for (const [part, cap] of Object.entries(CAPS.max)) {
     const n = byPart[part] || 0;
-    if (n > cap) problems.push(`PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. Cut it, or move content to the other part.`);
-    else if (CAPS.warn[part] && n > CAPS.warn[part]) {
-      warnings.push(`${part} runs to ${n} pages (soft target ${CAPS.warn[part]}, hard cap ${cap}). Allowed — completeness beats page count — but check nothing is padding.`);
+    if (n > cap) {
+      // The per-block advice is only ever written from a packing that AGREES with the render.
+      // The Chrome-CLI fallback has no measure pass at all, and a probe that counts different
+      // pages from the packer means something else has already gone wrong — in both cases the
+      // defect falls back to the blunt sentence rather than quote arithmetic it cannot stand
+      // behind.
+      const p = result.packed && result.packed[part];
+      const advice = p && p.pages.length === n
+        ? overCapAdvice(p.atoms, p.pages, cap, built.secTitles || {})
+        : null;
+      problems.push(overCapProblem(part, n, cap, advice));
+    } else if (CAPS.warn[part] && n > CAPS.warn[part]) {
+      const target = CAPS.warn[part];
+      const p = result.packed && result.packed[part];
+      const advice = p && p.pages.length === n
+        ? overCapAdvice(p.atoms, p.pages, target, built.secTitles || {})
+        : null;
+      warnings.push(overTargetWarning(part, n, target, cap, advice));
     }
   }
   const pagesBuilt = (byPart.teach || 0) + (byPart.support || 0);
@@ -935,6 +1103,8 @@ if (require.main === module) {
 // Exported for test/run_tests.js — the packer is the new core logic and needs its own cover.
 // `renderDoc` and `chromeChannel` are vendor additions (see SYNC.md).
 module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtomsGreedy,
+  overCapAdvice, overCapProblem,
+  PAGE,
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor,
   absorbPlan, OVERFLOW_ABSORB_MAX_PX,
   BODY_FLOOR_PX, CHIP_FLOOR_PX };

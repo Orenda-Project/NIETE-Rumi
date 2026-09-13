@@ -916,4 +916,237 @@ router.post('/training/bands/apply', requireInternalKey, bandsRoute('apply', asy
   return res.json({ success: true, result });
 }));
 
+// ─── lesson plans, grades 6-12 ──────────────────────────────────────────────
+//
+// The portal's catalogue stops at grade 5. On WhatsApp a teacher reaches 5,466
+// segments across grades 6-12, and where no lesson has been written yet the
+// bot writes one on the spot.
+//
+// TWO THINGS MAKE THIS LANE DIFFERENT FROM /lp/v8/* ABOVE.
+//
+// 1. K-5 lessons are pre-rendered: a lesson exists iff its PDF is uploaded. A
+//    6-12 SEGMENT always exists; only ~8% have a render on today's template.
+//    So `ready` is a per-lesson fact the browse endpoints report, and a tap on
+//    a lesson that is not ready starts real work.
+// 2. That work takes a MEDIAN OF 172 SECONDS (p90 314s, measured over all 473
+//    completed renders on production). The portal therefore cannot use the
+//    request/response shape the AG uses for a ~25s job. `/request` answers 202
+//    with a state, and the browser polls `/status`.
+//
+// As with the LP catalogue and the AG, the portal holds no lp612 logic and
+// reads no lp612 table — everything here goes through the same services the
+// WhatsApp Flow uses.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function lp612Route(name, handler) {
+  return async (req, res) => {
+    try {
+      const Browse = require('../services/lp612-browse.service');
+      return await handler(Browse, req, res);
+    } catch (error) {
+      logToFile('❌ Internal LP 6-12 API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Lesson-plan lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/lp612/grades
+ * Body {} → { success, grades: [{ grade }] }
+ */
+router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
+  const grades = await Browse.listGrades();
+  return res.json({ success: true, grades });
+}));
+
+/**
+ * POST /api/internal/lp612/subjects
+ * Body { grade } → { success, subjects: [{ subject, lesson_count }] }
+ */
+router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async (Browse, req, res) => {
+  const grade = num((req.body || {}).grade);
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+
+  const subjects = await Browse.listSubjects(grade);
+  return res.json({ success: true, subjects });
+}));
+
+/**
+ * POST /api/internal/lp612/chapters
+ * Body { grade, subject } → { success, chapters: [...] }
+ */
+router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+
+  const chapters = await Browse.listChapters(grade, subject);
+  return res.json({ success: true, chapters });
+}));
+
+/**
+ * POST /api/internal/lp612/lessons
+ * Body { grade, subject, chapterKey, lang? } → { success, lessons: [{ …, ready }] }
+ *
+ * `ready` is the field the UI must not drop. ~92% of taps are a cold miss, and
+ * a teacher is entitled to know she is starting a three-minute job BEFORE she
+ * starts it.
+ */
+router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapterKey = String(body.chapterKey || '').trim();
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
+
+  const lang = clampLanguage(body.lang);
+  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang);
+  return res.json({ success: true, lessons });
+}));
+
+/**
+ * POST /api/internal/lp612/request
+ * Body { segmentId, userId, lang? } → 202 { success, state, renderId?, url? }
+ *
+ * ALWAYS 202, NEVER 200-with-a-file, even on a cache hit. The four states the
+ * serving path can answer with (`cache_hit`, `joined`, `retry`, `queued`) are
+ * the same four whatever the surface, and a caller that has to handle "your
+ * lesson is being written" anyway is not helped by a second, faster-looking
+ * shape for the ~8% of taps that hit. One code path in the browser.
+ *
+ * `surface: 'portal'` is set HERE and is not read from the body — the same
+ * rule the AG's `deliveryFor(surface)` follows. A body-supplied surface is one
+ * forged request away from WhatsApping a lesson to a number the caller chose.
+ */
+router.post('/lp612/request', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const segmentId = String(body.segmentId || '').trim();
+    const userId = String(body.userId || '').trim();
+    if (!segmentId) return res.status(400).json({ success: false, error: 'segmentId is required' });
+    if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+    const Serving = require('../services/lp612-serving.service');
+    const out = await Serving.requestLesson({
+      segmentId,
+      userId,
+      lang: clampLanguage(body.lang),
+      surface: 'portal',
+      correlationId: body.correlationId || null,
+    });
+
+    // `held` and `not_found` are real answers about a real request, not server
+    // faults — 404/403 rather than a 5xx, so the browser can say something true.
+    if (out.outcome === 'not_found') {
+      return res.status(404).json({ success: false, error: 'That lesson is not in the catalogue' });
+    }
+    if (out.outcome === 'held') {
+      return res.status(403).json({ success: false, error: 'That lesson is not available yet' });
+    }
+    if (out.outcome === 'error' || out.outcome === 'deliver_failed') {
+      return res.status(500).json({ success: false, error: 'Could not start that lesson' });
+    }
+
+    return res.status(202).json({
+      success: true,
+      state: out.outcome === 'cache_hit' ? 'ready' : 'authoring',
+      renderId: out.renderId || null,
+      r2Key: out.r2Key || null,
+      oneScreen: out.oneScreen || null,
+    });
+  } catch (error) {
+    logToFile('❌ Internal LP 6-12 request failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not start that lesson' });
+  }
+});
+
+/**
+ * POST /api/internal/lp612/status
+ * Body { renderId, userId } → { success, state, url?, oneScreen?, errorCode? }
+ *
+ * The poll. `state` is one of ready | authoring | failed, and a `ready` answer
+ * carries a freshly presigned URL — never a raw R2 key, and never a URL minted
+ * earlier and cached, because a presigned link expires.
+ *
+ * A render this teacher has no claim on answers 404, identically to one that
+ * does not exist. Distinguishing them would let a caller enumerate other
+ * teachers' renders by id.
+ */
+router.post('/lp612/status', requireInternalKey, lp612Route('status', async (Browse, req, res) => {
+  const body = req.body || {};
+  const renderId = String(body.renderId || '').trim();
+  const userId = String(body.userId || '').trim();
+  if (!renderId) return res.status(400).json({ success: false, error: 'renderId is required' });
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const row = await Browse.renderStatus(renderId, userId);
+  if (!row) return res.status(404).json({ success: false, error: 'No such lesson request' });
+
+  if (row.status === 'ready' && row.r2_key) {
+    const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
+    return res.json({
+      success: true,
+      state: 'ready',
+      url: await getPresignedUrl(buildR2PublicUrl(row.r2_key)),
+      oneScreen: row.one_screen || null,
+      segmentId: row.segment_id,
+    });
+  }
+
+  return res.json({
+    success: true,
+    // A `ready` row with no key is NOT ready — presigning `undefined` fails far
+    // from here with nothing useful logged. The serving path makes the same
+    // judgement for the same reason.
+    state: row.status === 'failed' ? 'failed' : 'authoring',
+    errorCode: row.error_code || null,
+    segmentId: row.segment_id,
+    startedAt: row.started_at || null,
+  });
+}));
+
+/**
+ * POST /api/internal/lp612/mine
+ * Body { userId } → { success, lessons: [...] }
+ *
+ * "My lesson plans". Authoring takes a median of 172 seconds, so a teacher
+ * WILL navigate away — without this list the lesson we already paid for is
+ * lost to her.
+ *
+ * Deliberately does NOT presign every row: a list of fifty would mint fifty
+ * URLs, most never clicked, all expiring. The list says which are ready; the
+ * download endpoint mints one when she asks for it.
+ */
+router.post('/lp612/mine', requireInternalKey, lp612Route('mine', async (Browse, req, res) => {
+  const userId = String((req.body || {}).userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const rows = await Browse.myRenders(userId);
+  const segments = await Promise.all(rows.map((r) => Browse.segmentById(r.segment_id)));
+
+  return res.json({
+    success: true,
+    lessons: rows.map((r, i) => ({
+      renderId: r.id,
+      segmentId: r.segment_id,
+      state: r.status === 'ready' && r.r2_key
+        ? 'ready'
+        : (r.status === 'failed' ? 'failed' : 'authoring'),
+      lang: r.lang,
+      startedAt: r.started_at || null,
+      completedAt: r.completed_at || null,
+      errorCode: r.error_code || null,
+      // Null when the segment has since been superseded or withheld — the render
+      // still happened, and hiding the row would be stranger than naming it thinly.
+      title: segments[i] ? (segments[i].subtopic_title || segments[i].menu_title) : null,
+      grade: segments[i] ? segments[i].grade : null,
+      subject: segments[i] ? segments[i].subject : null,
+    })),
+  });
+}));
+
 module.exports = router;

@@ -60,10 +60,21 @@ function extractTableReferences(content) {
  * Patterns matched:
  *   .rpc('function_name')
  *   .rpc("function_name")
+ *
+ * A DIGIT IN THE NAME USED TO MAKE THE REFERENCE INVISIBLE. The pattern was `[a-z_]+`, which
+ * matches no digit anywhere, so `.rpc('lp612_join_waiters')` simply did not match and the guard
+ * reported nothing — while `extractCreateFunctions` below has always accepted digits. The two
+ * halves of one contract disagreed about what a function name is, and the half that finds
+ * offenders was the narrower one, so the guard was silently blind rather than noisily wrong.
+ *
+ * It cost exactly what a schema↔code guard exists to prevent: `lp612_join_waiters` shipped in a
+ * migration and never reached 00_complete-schema.sql, so a clone bootstrapped with
+ * `npm run bootstrap:db` got the tables and not the function — every waiter append returning
+ * 'error', every waiting teacher dropped, and this guard green about it.
  */
 function extractRpcReferences(content) {
   const rpcs = new Set();
-  const rpcPattern = /\.rpc\(\s*['"]([a-z_]+)['"]\s*[,)]/g;
+  const rpcPattern = /\.rpc\(\s*['"]([a-z_][a-z0-9_]*)['"]\s*[,)]/g;
   let match;
   while ((match = rpcPattern.exec(content)) !== null) {
     rpcs.add(match[1]);
@@ -230,6 +241,21 @@ describe('Schema Completeness', () => {
       missing.sort();
       // (message intentionally mirrors the table assertion's guidance)
       expect(missing).toEqual([]);
+    });
+
+    it('sees an RPC name containing digits — the blind spot that let lp612_* through', () => {
+      // The extractor and the schema parser have to agree on what a function name looks like.
+      // While they did not, a whole family of RPCs was exempt from this guard by accident.
+      const found = extractRpcReferences("await supabase.rpc('lp612_join_waiters', { p_id: x });");
+      expect([...found]).toEqual(['lp612_join_waiters']);
+    });
+
+    it('holds the lp612 serving-path functions specifically', () => {
+      // These two ARE the runtime cache's concurrency control: one appends a waiter atomically,
+      // the other claims the delivery audience. A clone missing either drops waiting teachers
+      // silently — the failure has no error and no log on the teacher's side.
+      expect(schemaFunctions.has('lp612_join_waiters')).toBe(true);
+      expect(schemaFunctions.has('lp612_claim_waiters')).toBe(true);
     });
   });
 

@@ -42,12 +42,13 @@ Everything else — title, caption, steps, panels, rows — lives INSIDE `spec`.
 **③ The exit ticket holds AT MOST TWO items.** A third graded recall question goes in the you-do
 with a `P` ref. The schema hard-rejects a third `X`.
 
-**④ `video` is DEVELOPMENT-ONLY, and it is an OBJECT or it is ABSENT.** Never `"video": null`.
-If you have no link, omit the key entirely.
-
-```json
-"video": {"url": "https://…", "title": "…", "channel": "…", "duration": "4:12", "why": "…"}
-```
+**④ Emit NO `"video"` key, anywhere, ever (bd-a8veu.4).** The lesson's video is curated data on
+`segment.yt` and is written into Development mechanically after you answer, exactly as the figure
+`src` is; whatever you write there is discarded. The slot is often empty, and an empty slot is
+ordinary — better no video than a link nobody has watched. The standard the pick is held to, when
+there is one: a video must ADD what the lesson cannot do live — motion, scale, an experiment the
+lab has no kit for. Replaying the passage or re-solving the same exercise is the defect teachers
+reported, and a second viewing of the lesson you just taught is not enhancement.
 
 **⑤+⑥ SUBJECT-SPECIFIC RULES ARE IN §F5 BELOW.** Your lesson's family — maths/physics,
 science, or language/prose — has its own short section there carrying only the rules that
@@ -63,7 +64,7 @@ family actually fails in practice. It is short because it is targeted; read it i
 
 The ONLY legal block types are: `paragraph` · `ask` · `watch_out` · `board` · `keywords` ·
 `key_points` · `worked_example` · `faded_example` · `practice` · `support_extension` · `split` ·
-`diagram` · `textbook_figure` · `latex` · `chem`.
+`diagram` · `textbook_figure` · `latex` · `chem` · `table`.
 
 **⑧ `slo_code` in a HOMEWORK item is a NON-EMPTY STRING — never `null`.** The schema requires it.
 When the book prints no SLO codes at all, tag the item with the **objective ordinal** it tests —
@@ -114,8 +115,8 @@ Fill these slots in this order. **The word count in each slot is the aim, not th
 
 **HOMEWORK: SET THREE ITEMS, NOT FIVE.** The cap is 5 and the aim is **3**. Homework is the tail a
 teacher cuts first, and a pupil who does three tagged questions properly has learned more than one
-who skips six. Three items, each tagged `[SLO, K/U/A]`, at least half MCQ, every one worked in full
-in the reference block.
+who skips six. Three items, each tagged `[SLO, K/U/A]`, at least half MCQ, and none of them
+answering itself.
 
 **THE OUTCOME BOX IS THE FIRST THING PRINTED, AND IT WAS THE WORST OFFENDER.** It was running
 70–120 words and eating the top of page 1. Aim for **≤60 words for the whole box** — the ceiling is
@@ -125,12 +126,14 @@ in the reference block.
 |---|---|---|
 | `outcome` — the ONE thing the pupil can do | ~13 | **20** |
 | `by_the_end` | ~16 | **22** |
-| **each** objective | ~11 | **15** |
+| **each** objective — stem counts | ~13 | **17** |
 | **the whole box added up** | **~52 (never over 60)** | **80** |
 
 Write the outcome as ONE clause. An objective needing a subordinate clause is two objectives —
 split it or drop one. **Two objectives is the norm; three is usually one too many.** `OUTCOME_BOX`
 is a hard gate, not a ±30% budget.
+
+**Every line of the O box is written TO the pupil — `OUTCOME_VOICE` (bd-a8veu.3).** `outcome`, `by_the_end` and **every** `objective.text` address the pupil in the second person: English *"You can …"*, Urdu *"آپ … سکتے ہیں"*. A bare imperative — *"State whether…"*, *"Match each…"* — is the curriculum's voice, not the pupil's, and a box that mixes the two reads as several different styles, which is what this box was sent back for twice. Each objective carries its OWN stem; there is no shared stem on the heading, because Urdu is verb-final and cannot prefix one, and an objective has to survive being read on its own. The one exception is `slo.text_verbatim`: that is the curriculum's printed wording, quoted with its page, and it may NOT be reworded to suit this rule — lint already forbids overlaying it, and it is captioned *Curriculum SLO* precisely so it is not mistaken for the outcome. The stem costs two words, which is why the per-objective ceiling is **17** and not 15; the box total stays **80**.
 
 **Three counted bars, so hit them on the first pass:**
 - **SEVEN graded items with answers** (bar is 6–8). You-do items and exit-ticket items count
@@ -196,11 +199,11 @@ section actually is when it fits the page, and what a finished `one_screen` look
   "by_the_end": "By the end you can answer a 3-mark question on the time a dropped object takes to reach a given speed.",
   "items": [
    {
-    "text": "State that all freely falling bodies have the same acceleration g, regardless of mass.",
+    "text": "You can state that all freely falling bodies have the same acceleration g, regardless of mass.",
     "slo_code": "P-09-B-10"
    },
    {
-    "text": "Calculate the time for an object dropped from rest to reach a stated speed.",
+    "text": "You can calculate the time for an object dropped from rest to reach a stated speed.",
     "slo_code": "P-09-B-10"
    }
   ]
@@ -481,6 +484,12 @@ section actually is when it fits the page, and what a finished `one_screen` look
   }
  ],
  "page2": {
+  "homework_key": [
+   {"ref": "H1", "answer": "(B). $g$ is the same for every mass, about $9.8\\,\\text{m/s}^2$ — the mass cancels between $F=mg$ and $a=F/m$."},
+   {"ref": "H2", "answer": "(C), together. With the air removed there is no drag, so the only force on each is weight and both accelerate at $g$."},
+   {"ref": "H3", "answer": "$\\Delta t=(v_f-v_i)/g=39.2/9.8=4$ s. Dropped from rest, so $v_i=0$."},
+   {"ref": "H4", "answer": "Air resistance, not $g$. Drag is large compared with the feather’s tiny weight, so it reaches terminal speed almost at once; the stone’s weight dwarfs its drag, so it keeps accelerating at nearly $g$."}
+  ],
   "board_final": {
    "draw_order": [
     "g = 9.8 m/s² — same for every mass",
@@ -518,37 +527,6 @@ section actually is when it fits the page, and what a finished `one_screen` look
     "caption": "A straight line through the origin; slope = g for any mass."
    }
   },
-  "model_answers": [
-   {
-    "ref": "P1",
-    "answer": "$g\\approx 9.8\\,\\text{m/s}^2$; mass-independent."
-   },
-   {
-    "ref": "P2",
-    "answer": "$\\Delta t=(49-0)/9.8=5$ s.",
-    "marking_note": "Needs the formula and substitution shown, not just the number."
-   },
-   {
-    "ref": "P3",
-    "answer": "$\\Delta t=(9.8-0)/9.8=1$ s."
-   },
-   {
-    "ref": "P4",
-    "answer": "Together — $g$ is mass-independent, so both accelerate identically."
-   },
-   {
-    "ref": "C1",
-    "answer": "$\\Delta t=(19.6-0)/9.8=2$ s; time is unchanged if mass doubles, since $g$ is mass-independent."
-   },
-   {
-    "ref": "X1",
-    "answer": "False — $g$ is the same for every mass."
-   },
-   {
-    "ref": "X2",
-    "answer": "$\\Delta t=(29.4-0)/9.8=3$ s."
-   }
-  ],
   "mistakes": [
    {
     "pupil_says": "The heavier stone hits first — it weighs more.",
@@ -630,38 +608,12 @@ section actually is when it fits the page, and what a finished `one_screen` look
    },
    "how_marked": "Full marks need the formula and substitution with units; working-free answers score half marks."
   },
-  "homework_key": [
-   {
-    "ref": "H1",
-    "level": "K",
-    "marks": 1,
-    "answer": "B — $g \\approx 9.8\\,\\text{m/s}^2$ for every mass."
-   },
-   {
-    "ref": "H2",
-    "level": "U",
-    "marks": 1,
-    "answer": "C — with no air resistance, both fall under $g$ and land together."
-   },
-   {
-    "ref": "H3",
-    "level": "A",
-    "marks": 3,
-    "answer": "$\\Delta t=(39.2-0)/9.8=4$ s."
-   },
-   {
-    "ref": "H4",
-    "level": "U",
-    "marks": 2,
-    "answer": "Air resistance slows the light, flat paper more than the compact stone, due to shape and surface area."
-   }
-  ],
   "next_period": "2.6 Graphical analysis of motion — distance-time and speed-time graphs (p.49 onward).",
   "not_going": "The universal speed limit and average vs instantaneous speed come later in this chapter, not today.",
   "coaching_lookfor": "Notice whether you re-solve the We-Do's heavier mass on the board yourself, rather than just telling pupils the answer.",
   "coaching_reflection": "Which of my pupils changed their answer after the We-Do, and who still needs the 20 kg case solved again tomorrow?"
  },
- "one_screen": "Today's Physics lesson (Grade 9, Ch.2 §2.5, p.48-49) teaches that every freely falling object accelerates at the same rate, g ≈ 9.8 m/s², whatever its mass. Open by asking pupils to picture a heavy stone and a light ball dropped together from the school roof — which lands first? Most say the heavier one. Reveal both land together, then show the book's own Example 2.5: a 2 kg block dropped from rest reaches 78.5 m/s in 8 s, and the solution never uses the 2 kg. That unused number is the lesson — mass cancels out of g = (vf − vi)/Δt. On the board, re-solve the same example with a 20 kg block and get the same 8 s, so pupils see it, not just hear it. Cover Figure 2.11 honestly: a coin beats a paper sheet in air because of air resistance, not weight, but the two fall together once air is pumped out. Practice runs four items ending in a justify-in-words question. Homework is four items, half MCQ, on today's g-is-constant idea only, marked in full from the reference page.",
+ "one_screen": "*Today's lesson* Physics, Grade 9, Ch.2 §2.5, p.48-49: every freely falling object accelerates at the same rate, g ≈ 9.8 m/s², whatever its mass.\n\n*First, a warm-up* Ask pupils to picture a heavy stone and a light ball dropped together from the school roof — which lands first? Most will say the heavier one. Reveal that both land together.\n\n*Model it on the board* Show the book's own Example 2.5: a 2 kg block dropped from rest reaches 78.5 m/s in 8 s, and the solution never uses the 2 kg. That unused number is the lesson — mass cancels out of g = (vf − vi)/Δt. Then re-solve the same example with a 20 kg block and get the same 8 s, so pupils see it rather than just hear it.\n\n*Then they practise* Four items on the board, the last of them a justify-in-words question rather than another calculation.\n\n*Watch for this mistake* Cover Figure 2.11 honestly: a coin beats a paper sheet in air because of air resistance, not weight, and the two fall together once the air is pumped out. Pupils read that picture as heavier-falls-faster unless you say otherwise.\n\n*Before they leave* Homework is four items, half of them MCQ, on today's g-is-constant idea only, and every one is marked in full from the reference page.",
  "ur_overlay": {
   "/sections/0/blocks/0/question": "آپ اپنے سکول کی چھت سے ایک ٹینس بال اور ایک بڑا پتھر ایک ساتھ گراتے ہیں۔ کون سی چیز پہلے زمین پر گرے گی، اور کیوں؟",
   "/sections/0/blocks/0/look_for": "زیادہ تر طلبہ اندازہ لگائیں گے کہ پتھر پہلے گرے گا؛ دونوں ایک ساتھ گرتے ہیں، کیونکہ g کمیت پر منحصر نہیں ہوتی۔",
@@ -700,8 +652,8 @@ documents. Check them literally, key by key, against the JSON you are about to r
 3. **Search for `"slo_code": null`.** In homework there must be none — use `"O1"`/`"O2"` (§F1⑧).
 4. Open every `diagram` block. Does it have **exactly** `type`, `id`, `spec` and nothing else?
 5. Count the exit-ticket items. Is it **≤ 2**?
-6. Search for `"video"`. Is every one an **object with `url` and `title`**, in Development?
-   Delete any that is `null`.
+6. Search for `"video"`. There must be **none** — the slot is filled from `segment.yt` after you
+   answer (§F1④). Delete every one you find.
 7. **Count the words in the outcome box** (outcome + by_the_end + every objective).
    **Aim ≤60. Hard ceiling 80.** This box is printed first and was the worst offender — if it is
    over 60, cut it before anything else.
@@ -770,7 +722,7 @@ deciding what happens inside it. Where the two disagree, this brief wins for gra
 > | An activity headed `$A^{-1}$ (p.68)` that never states the question | `UNWORDED_Q`, `REF_ABSENT` | **State every referenced question inline.** A page citation is a pointer, not a question. |
 > | Model answers that never say what they answer | `REF_ABSENT` | Every question carries a `ref`; every reference-block answer names it. |
 > | Distractor codes printed beside the options | `DISTRACTOR_VISIBLE` | Still author them — the renderer moves them into a teacher note. |
-> | Homework with answers inline, off-topic items, items copied from the class, no tags | `HW_TAGS`, `HW_MCQ_WEIGHT`, `HW_ANSWER_INLINE`, `DUP_QUESTION` | Tagged `[SLO, K/U/A]`, MCQ-weighted, on today's content only, answers **only** in the reference block. |
+> | Homework with answers inline, off-topic items, items copied from the class, no tags | `HW_TAGS`, `HW_MCQ_WEIGHT`, `HW_ANSWER_INLINE`, `DUP_QUESTION` | Tagged `[SLO, K/U/A]`, MCQ-weighted, on today's content only, and **never answering itself** — an item that prints its own answer asks the pupil to copy. |
 > | A near-flat parallelogram for `det = 3` | `DIAGRAM_DEGENERATE` | Choose numbers that draw a shape a pupil can read an area off. |
 > | `37 = 40 min`, and a `0 min` badge on homework | `PACING_SUM` | The section minutes sum to `period_minutes` exactly, and homework is never 0. |
 > | `SAY "…"` boxes; a coaching corner that quizzes the teacher on the lesson's content | `NO_SAY_BOX`, `COACHING_CORNER` | The `say` block **no longer exists**. The corner's LOOK-FOR instructs; its REFLECTION asks her about her own class (§8b). |
@@ -828,12 +780,54 @@ A teacher opening any 6–12 plan finds the same thing in the same place; that i
 | **H** Home work | **≥1, never 0** | real FBISE/textbook items, each tagged `[SLO code, K/U/A]`, MCQ-weighted, **no answers here** |
 
 **Reference block** — below the flow, clearly marked, explicitly not read aloud:
-`A` board at the end · `B` model answers **naming their questions** · `C` common mistakes + the
-question you ask back · `D` differentiation · `E` exam bank (distractor codes as data) ·
-`F` homework solved in full · `G` next period + not-going-today · `H` **coaching corner —
-the teacher's own square inch of the page**: the observable move from THIS lesson, then one
-question she asks HERSELF about her own practice. (The record-and-send offer beside it is
-printed by the renderer; you do not write it.)
+board at the end · common mistakes + the question you ask back · differentiation · exam bank
+(distractor codes as data) · next period + not-going-today · **coaching corner — the teacher's own
+square inch of the page**: the observable move from THIS lesson, then one question she asks HERSELF
+about her own practice. (The record-and-send offer beside it is printed by the renderer; you do not
+write it.)
+
+**THE HOMEWORK KEY IS BACK; `model_answers` STAYS GONE (bd-yprue, 2026-09-13).** Operator, reading
+a rendered plan: *"hw answers come back"*. So `page2.homework_key` is authored again — one entry per
+homework item — and prints as Reference section F, on the page the pupils do not get. `model_answers`
+does NOT come back: bd-s19g8 removed both, only the homework key was asked for, and model_answers was
+the taller structure of the two. The class-flow answers you still write inline — every practice,
+we-do, you-do and exit-ticket item keeps its own answer, because that is the answer the teacher reads
+while the pupils are working. The homework key must be **complete**: one that answers half the
+questions is worse than none, and lint fails it (`REF_ABSENT`) in both directions — every homework
+`ref` needs an entry, and every entry needs a question.
+
+**The EXAM BANK STAYS, and its heading already says (Optional) (bd-x0pw1).** The section prints
+under the heading **"FBISE format Questions - (Optional)"** — *"we need an exam bank whose heading is
+FBISE format Questions - (Optional) … the FBISE style Qs can be in referene"*. The word (Optional) is
+addressed to the TEACHER, not to you: it tells her the questions under it are hers to use or to skip,
+the way she already treats the differentiation rows. **You still write the bank, every time.** Do not
+repeat "(optional)" inside a question, a title or `how_marked` — the heading has said it once, and
+twice reads as a hedge. `page2.exam_bank` is no longer in the schema's `required` list, so an LP that
+reaches the renderer without one is a quiet gap rather than a SCHEMA failure that takes every other
+check on the document down with it — but a gap is not a plan, and a bank that DOES ship must be
+**complete**: 2 distractor-coded MCQs, the SRQ mark scheme, the ERQ skeleton. Lint fails a
+half-written one at grades 9–12 and warns at 6–8. A teacher who sees the heading expects the dose
+under it.
+
+**EVERY lesson carries a WORKED EXAMPLE, and it goes in the practice flow (bd-4pw4y).** *"we need
+worked examples, but it should be in the practice sections of the LP not in reference"*. One
+`worked_example` block, on page 1, inside the section that teaches — the I do, fully worked and
+numbered in front of the class, before the `faded_example` that copies it and the `practice` that
+tests it. It does **not** go in the reference block on page 2, and it is **not** an archetype
+detail or a STEM-2 speciality: a prose lesson demonstrates
+how the answer is built from the text, a maths lesson demonstrates the method, and both owe the pupil
+a demonstration before asking for imitation. `WORKED_ABSENT` fails an LP that carries none.
+
+**Do not confuse it with an answer key.** A model answer is the finished result, filed at the back
+for marking — those left the reference block with bd-s19g8 and are not coming back. A worked example
+is the METHOD, performed at the moment it is taught. The reference block keeps the FBISE-style
+questions (bd-x0pw1) and nothing worked-out; the demonstration stays where the teacher is looking
+while she teaches. And note the activity cap: if a plan runs over seven activities, cut a practice
+block, never the I do.
+
+**The reference block's letters are ASSIGNED BY THE RENDERER, in the order the sections are
+printed.** Do not write a letter into the JSON and do not reason about "section B" — sections that
+are absent do not consume a letter, so the printed index always runs A, B, C… with no gaps.
 
 **THE MINUTES RULE.** `introduction + development + activity + conclusion + homework` must equal
 `period_minutes` **exactly**. The warm-up's minutes are **inside** the introduction's — it is a row,
@@ -951,8 +945,10 @@ that repeats any of them is rejected.
    actually saves a skydiver (air resistance) is the exact factor the lesson tells them to ignore.
    Never use death, injury, disaster or communal identity as an icebreaker. Never write a hook whose
    own premise the lesson then contradicts.
-10. **Every referenced item is solved.** Practice, guided work, exit ticket, homework, MCQs, ERQ —
-    all carry model answers. The book prints no answer key; the reference block is the answer key.
+10. **Every item the teacher works through in class is solved WHERE SHE READS IT.** Practice, guided
+    work, exit ticket, MCQs and the ERQ carry their answer inline, on the item. The book prints no
+    answer key, so the plan has to answer what it asks — but it answers in place, not in a separate
+    key at the back (bd-s19g8 removed the two reference-block keys; see §"Reference block").
 11. **Instructions carry context and sit together.** *"The instructions for one activity are
     scattered"* · *"instructions do not build any context — the very first instruction is 'Do not
     summarise either sentence'."* Each activity block holds its own complete, ordered instructions,
@@ -1044,7 +1040,8 @@ exactly like a schema error, and its defects are listed FIRST in that round.
 
 1. **≥2 FIGURES — a `diagram` block or a `textbook_figure` block; `latex`/`chem` are not
    figures.** One of them lives **inside `development` or `activity`, at the point of use** —
-   beside the sentence it explains, never parked at the end. The other may be the
+   carrying the beat it explains **instead of** the prose that would otherwise carry it, never
+   parked at the end and never printed underneath it. The other may be the
    `page2.board_final.diagram`, which is the **final state of the board** and is the single most
    requested artefact a teacher asked for.
 
@@ -1068,9 +1065,33 @@ exactly like a schema error, and its defects are listed FIRST in that round.
    > to expect on the bench. Ours leads where ours is good.
 2. **`page2.board_final.diagram` is required**, not optional. `draw_order` alone is prose about a
    picture; the picture itself is the deliverable.
-3. **At point of use** means: the block sits immediately after the `key_points` / `paragraph` /
-   `worked_example` it illustrates, in the same section. A diagram at the bottom of `homework` is a
-   decoration and is scored as absent.
+3. **At point of use** means: the block sits where the `key_points` / `paragraph` /
+   `worked_example` it illustrates **would have sat, and that prose comes out**. Same section,
+   same beat, one copy of the content. A diagram at the bottom of `homework` is a decoration and is
+   scored as absent; a diagram printed underneath four bullets that already say the same thing is a
+   **duplicate**, and the page pays for it twice.
+
+   > **THIS CHANGED ON 2026-09-13, AND IT CHANGED BECAUSE MORE FIGURES WERE MAKING LESSONS
+   > LONGER.** The rule used to read *"the block sits immediately after the `key_points` /
+   > `paragraph` / `worked_example` it illustrates"*. A model reads that literally: say the thing
+   > in prose, then draw the same thing below it. So every figure added its own height to a page
+   > that already carried the content, and five sandbox lessons in a row came back at 7 PDF pages
+   > against a 4-page teach cap — all of them visually rich, all of them over.
+   >
+   > So: **a figure is a SUBSTITUTE, not an illustration.** Write the section as if the figure were
+   > the only thing carrying that beat. What survives beside it is at most **one lead-in line**
+   > naming what the teacher is looking at and what to do with it — never a `key_points` list
+   > restating the labels, never a `paragraph` walking through the same steps the `flow` already
+   > shows in order.
+   >
+   > The test is one question: **if you deleted the figure, what would be lost?** If the answer is
+   > "nothing, the prose above it already says it", the figure is a duplicate — cut the prose. If
+   > the answer is "the prose is still needed word for word", the figure was not the right way to
+   > carry that beat — cut the figure and keep the prose, or find the part of the section the
+   > figure genuinely replaces.
+   >
+   > And rule 1's floor is a floor on **FIGURES**, not on total content. Meeting it by adding two
+   > blocks to a finished lesson is exactly the failure this rule exists to stop.
 4. **Every piece of mathematical notation is `$…$` or a `latex` block. Never prose.** Not
    "x squared minus two x minus three", not "the determinant of A", not "2 to the power 3". If a
    symbol exists for it, use the symbol. This applies in **every subject**, including a biology
@@ -1557,8 +1578,8 @@ emit these keys and no others, and use exactly these `type` values inside `block
     "outcome": "You can multiply two 2×2 matrices and say when the product is defined.",
     "by_the_end": "By the end you can answer a 4-mark short-response question that asks you to find the product of two 2×2 matrices.",
     "items": [                            // TWO or THREE. Never six — split the LP instead.
-      {"text": "State whether a product is defined by comparing the inner orders.", "slo_code": "M-09-A-07"},
-      {"text": "Find the product of two 2×2 matrices row by column.", "slo_code": "M-09-A-07"}
+      {"text": "You can say whether a product is defined from the inner orders.", "slo_code": "M-09-A-07"},
+      {"text": "You can multiply two 2×2 matrices row by column.", "slo_code": "M-09-A-07"}
     ]
   },
 
@@ -1582,8 +1603,7 @@ emit these keys and no others, and use exactly these `type` values inside `block
 
     { "id": "development", "minutes": 12,
       "textbook_page": "24",              // REQUIRED. Reviewer sign-off 7.
-      "video": {"url": "https://…", "title": "…", "channel": "…", "duration": "4:12",
-                "why": "Play once after the I-do, so the class sees the sweep a second time."},
+      // NO "video" key. It is filled mechanically from segment.yt — see §F1④.
       "blocks": [
         // The FIRST block closes the hook, in its first sentence, and says so.
         {"type": "paragraph", "id": "close-hook", "closes_hook": true, "text": "Yes — …"},
@@ -1636,10 +1656,9 @@ emit these keys and no others, and use exactly these `type` values inside `block
   // ── the REFERENCE BLOCK (key stays `page2`; it PRINTS as "Reference") ──────
   "page2": {
     "board_final": {"draw_order": ["…", "…"], "diagram": { /* optional */ }},
-    "model_answers": [                    // EVERY entry names the question it answers
-      {"ref": "P1", "answer": "…", "marking_note": "…"},
-      {"ref": "C1", "answer": "…"}
-    ],
+    // NO "model_answers" (bd-s19g8) — that one stays gone; class-flow answers live on the items.
+    "homework_key": [{"ref": "H1", "answer": "…the worked answer, not just the final value…"}],
+    // ^ AUTHOR THIS (bd-yprue): one entry per homework item, every ref covered, no extras.
     "mistakes": [{"pupil_says": "…", "you_ask": "…"}],          // 3 pairs
     "differentiation": {"stuck": "…", "barrier": "…", "early": "…"},
     "exam_bank": {
@@ -1652,15 +1671,12 @@ emit these keys and no others, and use exactly these `type` values inside `block
       "erq_skeleton": {"q": "…", "marks_total": 8, "parts": [{"heading": "…", "marks": 2}]},
       "how_marked": "…what scores nothing and what scores half…"
     },
-    "homework_key": [                     // THE ONLY place a homework answer may appear
-      {"ref": "H1", "level": "K", "marks": 1, "answer": "…worked in full…"}
-    ],
     "next_period": "…", "not_going": "…",
     "coaching_lookfor": "…direct instruction about the observable move — NOT a question…",
     "coaching_reflection": "…ONE question she asks HERSELF about HER class — ends in \"?\"…"
   },
 
-  "one_screen": "…~200 words (150-260), the WhatsApp body…",
+  "one_screen": "*cue* …objective…\n\n*cue* …warm-up…\n\n*cue* …worked example…\n\n*cue* …practice…\n\n*cue* …misconception…\n\n*cue* …exit… — SIX paragraphs, one blank line between each, ~200 words in total (150-260), the WhatsApp body…",
   "ur_overlay": { "/sections/0/blocks/0/question": "…" }   // JSON Pointers -> Urdu
 }
 ```
@@ -1669,7 +1685,7 @@ emit these keys and no others, and use exactly these `type` values inside `block
 
 `paragraph` · `ask` · `watch_out` · `board` · `keywords` · `key_points` · `worked_example` ·
 `faded_example` · `practice` · `support_extension` · `split` · `diagram` · `textbook_figure` ·
-`latex` · `chem`.
+`latex` · `chem` · `table`.
 
 **`say` NO LONGER EXISTS.** Spec §8 bans scripted talk outright, and the schema now enforces it.
 Give the teacher the example and the board line instead. `NO_SAY_BOX` also catches the shape
@@ -1701,6 +1717,34 @@ so **re-wording the caption does not make it a different figure**. Decide which 
 
 Two genuinely different figures are always fine — vary the data, the window or the labels, not just
 the caption.
+
+```json
+{"type": "table", "columns": ["Type", "Climate", "Where"],
+ "rows": [["Tropical", "Hot, wet", "Amazon"], ["Boreal", "Cold winter", "Siberia"]]}
+```
+**`table` — for N cases that share the same attributes, and ONLY when every cell is a LABEL.**
+Reach for it when you are about to write the same attribute names into sentence after sentence
+("Coniferous forest grows in cold, high-rainfall mountains… Scrub forest grows at lower altitude
+with less rain…"). Set as a grid, the teacher scans it instead of reading it.
+
+Three conditions, all three required — if any one fails, write prose and that is the correct
+outcome, not a failure:
+
+1. **Two or three columns.** A fourth is rejected by the schema, and it was rejected because it
+   measured +13.1% TALLER than the prose it replaced.
+2. **Every cell short enough to sit on one line.** At the printed column width that is **about 14
+   characters per cell at three columns, about 24 at two**. A row is as tall as its tallest cell,
+   so one overrunning cell costs the whole row a line, and a few of those make the table the
+   taller shape. "Hot, wet" — yes. "Hot and wet throughout the year" — no, that is prose.
+3. **At most six rows.** A table cannot break across a page; an over-tall one is clipped, not
+   flowed.
+
+**A table is not a way to fit more on a page.** Matched fact-for-fact against the prose it
+replaces it is height-neutral; it wins only on one- and two-word cells. Use it because the
+comparison reads better as a grid, and keep the caps.
+
+Omit `title` (or pass `""`) when the column headers already say what each column is — which is
+the usual case, and saves the line.
 
 ```json
 {"type": "textbook_figure", "id": "fig-1-1", "ref": "grade_10_biology/pg_008_f0",
@@ -1740,8 +1784,9 @@ activity's you-do (`P` refs), not the exit ticket — the schema hard-rejects a 
 ### Refs — how an answer finds its question
 
 Give every question-bearing item a short `ref`: `W1…` warm-up, `P1…` practice, `X1…` exit ticket,
-`C1` the checkpoint, `H1…` homework. Every `model_answers` and `homework_key` entry points at one.
-`REF_ABSENT` fails a ref that resolves to nothing, a question that nothing answers, and prose that
+`C1` the checkpoint, `H1…` homework. A ref is how a cross-reference finds its question — and if an
+LP ever carries a reference-block key, every one of its entries has to point at one of these.
+`REF_ABSENT` fails a ref that resolves to nothing, a question that a key it DOES carry never answers, and prose that
 says "see Q7" when there is no Q7. When the book prints no SLO codes at all, tag homework with the
 **objective ordinal** — `O1`, `O2` — never with an invented board code.
 
@@ -1783,8 +1828,8 @@ what to do.
 | `$A^{-1}$ (p.68)` | Find $A^{-1}$ for the matrix in Exercise 3.2 Q4 on p.68, which is $A = \begin{bmatrix}…\end{bmatrix}$. |
 
 A page citation is a **pointer**, not a question. If you cite `Ex 3.2 Q4, p.68`, you must **also
-state the question inline** — the teacher has one book and thirty pupils, and the reference block
-has to solve it in full anyway.
+state the question inline** — the teacher has one book and thirty pupils, and the plan has to carry
+the question she is about to ask.
 
 **DIAGRAMS MUST BE WORTH LOOKING AT.** `DIAGRAM_DEGENERATE` fails a drawing whose subject is a
 sliver, spans the canvas while being hairline, or leaves the canvas essentially blank. The
@@ -1814,8 +1859,9 @@ The Physics reviewer named it: homework that is real board-shaped work, tagged, 
 - **Never repeats a class item.** `DUP_QUESTION` normalises the text and compares it against every
   warm-up, practice and exit-ticket item. Copying is not practice.
 - **No answers beside the questions.** `HW_ANSWER_INLINE` catches "Answer: …" and an item that has
-  absorbed its own key. The answers go in `page2.homework_key`, worked in full — textbook questions
-  included, because a teacher marking at 10pm does not have the answer key.
+  absorbed its own key. A homework item asks; it does not answer itself. The answer goes in
+  `page2.homework_key` (bd-yprue), which prints on the Reference page the pupils never see — that
+  separation is the whole point, so writing it in both places defeats it.
 - **`homework.minutes ≥ 1`.** A "0 min" badge tells the teacher the work costs nothing.
 
 ---
@@ -1901,7 +1947,7 @@ target is the aim.
 | Development | ~170 | 243 | key points, the I-do, the citation, the video line, the misconception |
 | Activity | ~200 | 287 | the we-do and the you-do, with every answer |
 | Conclusion | ~115 | 166 | the board question **and its mark scheme**, the exit ticket, the re-teach rule |
-| Homework | ~85 | 124 | **3–5 tagged items** (their answers are in the reference block) |
+| Homework | ~85 | 124 | **3–5 tagged items**, each a question and nothing else |
 | Whole document | **1,000–1,100** | 800–**1,200** | the measured five-page capacity at the 18px body floor |
 
 **The learning-outcome box (`O`) has its own ceiling now** — it is the first thing printed and it
@@ -1911,10 +1957,10 @@ was running 70–120 words across the samples. `OUTCOME_BOX` is a hard gate, not
 |---|---|---|
 | `outcome` — the one thing the pupil can do | ~15 words | **20** |
 | `by_the_end` — the ✓ line naming the question type and its marks | ~18 words | **22** |
-| **each** objective | ~12 words | **15** |
+| **each** objective — the `You can …` stem counts | ~14 words | **17** |
 | the whole box (all of the above added up) | **~60 words** | **80** |
 
-Write the outcome as one clause: *"Multiply two 2×2 matrices and state the order of the product."*
+Write the outcome as one clause: *"You can multiply two 2×2 matrices and state the order of the product."*
 An objective that needs a subordinate clause is two objectives — split it or drop one.
 
 **Over the ceiling FAILS** — it will not fit, and the renderer proves it. **Under budget only
@@ -1934,6 +1980,16 @@ Three counted bars the lint holds you to, so hit them on the first pass:
 - **`one_screen`: aim 180–230 words** (hard 150–260). It is not counted in the document total —
   write it in full; a 145-word one_screen fails just as loudly as a 270-word one.
 
+**`one_screen` has a SHAPE as well as a budget (bd-uu4lr).** The teacher reads it on a phone before
+the PDF has downloaded, so one unbroken 200-word paragraph arrives as a grey wall. Same beats, same
+budget: **six paragraphs, one per beat** — objective, warm-up, worked example, practice,
+misconception, exit — **separated by a blank line**, each opening with a short cue in bold. WhatsApp
+bolds with `*single*` asterisks and prints `**double**` ones literally, so `**Objective**` lands in
+front of a teacher as four stray characters; the double form belongs to the PDF, never to this
+field. The cue is teacher-facing prose in the lesson's own language — an Urdu overlay writes Urdu
+cues. `lint_lp.js` fails a wall (`ONESCREEN_FORMAT`) and fails the wrong asterisks
+(`ONESCREEN_BOLD`).
+
 **Urdu costs roughly 1.5× the space of English** at the same content, because Nastaliq needs a
 unitless line-height ≥ 2.0. An `ur_overlay` does not change the word budget, but it does change the
 page count — an English plan packed to the cap will overflow in Urdu. Aim for ≤4 teach pages in
@@ -1943,7 +1999,8 @@ English if the lesson has an Urdu toggle.
 
 ## 8b · THE COACHING CORNER — the teacher's own square inch of the page
 
-Section `H` of the reference block is **not** about the pupils. It is the one place on the plan
+The LAST section of the reference block (`coaching_lookfor` / `coaching_reflection` — the renderer
+letters it, you do not) is **not** about the pupils. It is the one place on the plan
 addressed to the teacher as a professional, and it is the K-5 shape, ported: **something from THIS
 lesson → a question she asks herself → an offer of real coaching.**
 
@@ -1999,8 +2056,9 @@ one edit; finding it in the build costs a round.
 - [ ] Every question is a **sentence** that says what to do — warm-up, practice, exit ticket,
       checkpoint, homework, exam bank, and every `prompt`.
 - [ ] Every referenced question is **stated inline**, not just cited.
-- [ ] Every question has a `ref`; every `model_answers` / `homework_key` entry names one that exists;
-      every question is answered somewhere.
+- [ ] Every question has a `ref`; every class-flow item (practice, we-do, you-do, exit ticket)
+      carries its own answer. No `model_answers` (bd-s19g8). `page2.homework_key` IS authored
+      (bd-yprue) and solves EVERY homework item — no gaps, no extras.
 - [ ] Every MCQ has one distractor code per wrong option. (Author them; the renderer hides them.)
 - [ ] Homework: **3–5 items**, tagged `[SLO, K/U/A]`, ≥50% MCQ, today's content only, **no answers**,
       nothing copied from a class item.
@@ -2026,6 +2084,8 @@ one edit; finding it in the build costs a round.
       appears in any teacher-facing block.
 - [ ] `notes.gaps` says **what is absent**, in words. Never `"none"`.
 - [ ] `one_screen` is 150–260 words.
+- [ ] `one_screen` is SIX paragraphs separated by a blank line, each opening with a `*single-asterisk*`
+      cue. No `**double**` asterisks — WhatsApp prints those literally.
 
 **Then run the gates yourself if you can:**
 

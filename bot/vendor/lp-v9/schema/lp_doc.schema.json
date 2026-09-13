@@ -146,8 +146,8 @@
       "required": ["outcome", "items"],
       "description": "Section O — ONE BOX (spec §2/§3). Outcome and objectives are never two stacked blocks.",
       "properties": {
-        "outcome": { "type": "string", "minLength": 10, "description": "One outcome, phrased as what the PUPIL can do." },
-        "by_the_end": { "type": "string", "description": "The '✓ By the end you can answer…' line, naming the question type and its marks." },
+        "outcome": { "type": "string", "minLength": 10, "description": "One outcome, addressed TO the pupil: 'You can …' (Urdu 'آپ …'). lint OUTCOME_VOICE fails any other register." },
+        "by_the_end": { "type": "string", "description": "The '✓ By the end you can answer…' line, naming the question type and its marks. Addressed to the pupil, the same register as outcome (lint OUTCOME_VOICE)." },
         "items": {
           "type": "array",
           "minItems": 1,
@@ -158,7 +158,7 @@
             "additionalProperties": false,
             "required": ["text"],
             "properties": {
-              "text": { "type": "string", "minLength": 5 },
+              "text": { "type": "string", "minLength": 5, "description": "The objective, addressed TO the pupil and carrying its OWN stem: 'You can …' (Urdu 'آپ … سکتے ہیں'). A bare imperative ('State…', 'Match…') is the curriculum's voice, not the pupil's, and fails lint OUTCOME_VOICE (bd-a8veu.3). Ceiling 17 words, stem included." },
               "slo_code": { "type": ["string", "null"], "description": "This objective's own SLO code. null ONLY when the book prints none — never invented." },
               "locally_added": { "type": "boolean", "description": "true = an application objective this LP adds; it must SAY so." }
             }
@@ -218,7 +218,7 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["url", "title"],
-            "description": "DEVELOPMENT ONLY. Sits next to the content it supports, never in materials. Operator override of format-doc §8 (2026-09-01): every LP, all subjects, best available link, validated live.",
+            "description": "DEVELOPMENT ONLY. Sits next to the content it supports, never in materials. THE ENHANCEMENT TEST (operator, 2026-09-12, superseding the 2026-09-01 'every LP, all subjects, best available link' override): a video ships only if it shows the teacher something the printed page cannot — a process animated, a real instance filmed, a method demonstrated, a scale or a timespan made visible. A read-through of the same passage, or a walk-through of the same exercises, fails the test. Every LP is still CONSIDERED; an EMPTY slot is the ordinary outcome for a descriptive topic and is not an error. See docs/lp612/video-enhancement-test.md.",
             "properties": {
               "url": { "type": "string", "pattern": "^https?://" },
               "title": { "type": "string", "minLength": 3 },
@@ -303,8 +303,9 @@
     "page2": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["board_final", "model_answers", "mistakes", "differentiation", "exam_bank", "homework_key", "next_period", "coaching_lookfor"],
-      "description": "THE REFERENCE BLOCK — A board · B model answers · C mistakes · D differentiation · E exam bank · F homework in full · G next period · H coaching corner. Sits BELOW the teaching flow, clearly marked, explicitly not read aloud. Key kept as `page2` so every existing ur_overlay pointer still resolves.",
+      "$comment": "bd-s19g8, then bd-x0pw1. `model_answers`, `homework_key` and `exam_bank` are OPTIONAL, not removed: an LP may ship without an answer key or an exam bank, and one that ships either must still make it complete (lint_lp.js's reverse REF_ABSENT, and rule 9's MCQ/SRQ/ERQ floor). They stay declared below so the stored corpus that carries them keeps validating.",
+      "required": ["board_final", "mistakes", "differentiation", "next_period", "coaching_lookfor"],
+      "description": "THE REFERENCE BLOCK — the board at the end · model answers · common mistakes · differentiation · exam bank · homework in full · next period · coaching corner. Sits BELOW the teaching flow, clearly marked, explicitly not read aloud. Sections are LETTERED BY THE RENDERER in emission order, so the optional ones consume no letter when absent (bd-s19g8). Key kept as `page2` so every existing ur_overlay pointer still resolves.",
       "properties": {
         "board_final": {
           "type": "object",
@@ -452,7 +453,7 @@
     "one_screen": {
       "type": "string",
       "minLength": 40,
-      "description": "The ~200-word WhatsApp message body. The PDF is the attachment."
+      "description": "The ~200-word WhatsApp message body. The PDF is the attachment. SIX paragraphs, one per beat, separated by a blank line, each opening with a short cue in WhatsApp bold — *single* asterisks. WhatsApp prints **double** asterisks literally; those belong to the PDF, not here."
     },
     "notes": {
       "type": "object",
@@ -578,6 +579,36 @@
             "items": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "type": "string", "minLength": 3 } }
           },
           "required": ["type", "items"],
+          "additionalProperties": false
+        },
+        {
+          "description": "TABLE — N cases that share the same attributes, set as a SHAPE the eye can scan instead of the same attribute names repeated in sentence after sentence (bd-a8veu.21). This is a READABILITY block, not a way to buy pages, and the difference is measured: against prose carrying exactly the same facts, a 3-column table is height-NEUTRAL (-2.5% on a real grade-6 geography key-points list). It only saves height when every cell is SHORT — one or two words, -23% to -25% — and it LOSES when cells run to sentence length (+11.7%) or even to three or four words (+13.1%). The mechanism is one line per row: a row is as tall as its tallest cell, so ONE cell that wraps costs the WHOLE row a line. Measured at the 478px column: a 3-column row stays on one line while every cell is <=14 characters, a 2-column row while every cell is <=24. Past that the table is taller than the prose it replaced. So the trigger is CELL LENGTH, not the number of cases. The caps are load-bearing, not style. THREE columns, because a FOURTH is a measured REGRESSION: at 478px a 4-column table is 728.9px, +13.1% WORSE than the prose it replaces, because ~119px of column breaks body-size words across 4-5 lines per row. And a table is a single page ATOM — it cannot break across a page, and an over-tall one is clipped — hence the row cap.",
+          "properties": {
+            "type": { "const": "table" },
+            "id": { "type": "string" },
+            "title": { "type": "string", "description": "Optional heading above the table. Omit it — or pass \"\" — when the column headers already say what each column is, which is the usual case." },
+            "columns": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "description": "The attribute names, ONCE. Keep them short — one or two words; they print small and uppercase. THREE at most: a fourth column makes the table taller than the prose it replaced.",
+              "$comment": "column count also sets the cell budget: 3 columns => <=14 characters per cell, 2 columns => <=24, measured at the 478px column.",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "rows": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "description": "One array per case, in the same order as `columns`. A short row is padded, but write them full. Every cell must be a LABEL, not a sentence: at three columns keep each one under about 14 characters, at two columns under about 24. One cell that overruns wraps and costs its whole row an extra line, which is how a table ends up TALLER than the prose it replaced. If the facts will not compress that far, leave them as prose — that is the correct outcome, not a failure.",
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "required": ["type", "columns", "rows"],
           "additionalProperties": false
         },
         {

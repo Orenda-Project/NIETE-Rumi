@@ -65,7 +65,9 @@ describe('template QUICK_REPLY buttons (bd-kggts)', () => {
     const { matchDetail } = require('../../shared/utils/lp-intent');
     const r = matchDetail('Lesson Plans & Assessment');
     expect(r.matched).toBe(true);
-    expect(r.tier).toBe('strong');
+    // bd-oak77.4: the 'strong' tier was retired with the tiered matcher (bd-hgwfo). The label is
+    // now matched exactly, as a label we publish — see lp-intent.js BROADCAST_BUTTON_LABELS.
+    expect(r.tier).toBe('broadcast_button');
     expect('Lesson Plans & Assessment'.length).toBeLessThanOrEqual(25); // Meta's cap
   });
 });

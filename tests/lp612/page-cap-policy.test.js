@@ -34,17 +34,18 @@ const path = require('path');
 describe('the page caps', () => {
   const R = require('../../bot/vendor/lp-v9/render_lp.js');
 
-  // Moved again on 2026-09-06 with the v9.2 type scale (body 18 -> 21px, lane 07_font). The caps
-  // travel with the type for the reason they always have — a deliberate font increase is not
-  // bloat — and the size of the move is measured over the same 62-document corpus this lane used:
-  // at the new type the old caps flag 53 of 62, which is not a gate, it is noise. 7/6 and 9/7 is
-  // the tightest pair that holds the flag rate where it was (1 -> 3 of 62). 07_font/OPTIONS.md §3.
-  test('English is teach 7 / support 6 at the v9.2 type scale', () => {
-    expect(R.pageCapsFor('en').max).toEqual({ teach: 7, support: 6 });
+  // Lowered on 2026-09-11 (bd-g6sww, closing bd-q29w9). Operator: LPs shipping at 11-16 pages are
+  // "unreadable" — the v9.2-type-scale ceiling (7/6 EN, 9/7 UR) still let a lesson reach that
+  // range. The ceiling is a universal, subject-agnostic hard cap (any subject-specific tightening
+  // is a word-budget lever in lint_lp.js, not this constant). UR keeps its premium over EN — Nastaliq
+  // leads by ~+33% page cost on the same document (see bidi-caps.test.js, type-scale.test.js) — so
+  // UR = round(EN x 1.33): teach 4x1.33=5.32->5, support 3x1.33=3.99->4.
+  test('English is teach 4 / support 3, the new unreadable-length ceiling', () => {
+    expect(R.pageCapsFor('en').max).toEqual({ teach: 4, support: 3 });
   });
 
-  test('Urdu is teach 9 / support 7', () => {
-    expect(R.pageCapsFor('ur').max).toEqual({ teach: 9, support: 7 });
+  test('Urdu is teach 5 / support 4, EN x ~1.33 for the Nastaliq premium', () => {
+    expect(R.pageCapsFor('ur').max).toEqual({ teach: 5, support: 4 });
   });
 
   test('each WARN still sits exactly one page under its own cap', () => {
@@ -205,6 +206,45 @@ describe('the ladder and the prompts', () => {
     const UR = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('ur').max;
     expect(user).toMatch(new RegExp(`TEACH .{0,4}${UR.teach} pages`));
     expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${UR.support} pages`));
+  });
+
+  test('the card AIMS at the soft target, and names the cap only as the cap — bd-a8veu.22', async () => {
+    // The other half of "why are all of them 7 pages?". The card stated the HARD caps as the aim
+    // (`pageCapsFor(lang).max`) and then said "completeness beats page count", so the author
+    // opened every lesson aiming at 4 + 3 = the exact 7 pages four sandbox renders came out at on
+    // 2026-09-12. The renderer has always carried a soft target one page under each cap; the
+    // author was never given it. Read from the constants, never restated — a literal here would
+    // keep passing while the card and the renderer silently diverged.
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(CLEAN_DOC));
+
+    await run(renderCheck);
+
+    const user = create.mock.calls[0][0].messages.find((m) => m.role === 'user').content;
+    const EN = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('en');
+    expect(user).toMatch(/AIM FOR/);
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${EN.warn.teach} pages`));
+    expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${EN.warn.support} pages`));
+    // The cap is still stated — it is a real failure boundary — but as the boundary, not the aim.
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${EN.max.teach} pages`));
+    // And the sentence that told the author length does not matter is gone. It has to keep
+    // protecting the required properties (below), but not by denying the budget above it.
+    expect(user).not.toMatch(/completeness beats page count/);
+    expect(user).toMatch(/cutting a required property/i);
+  });
+
+  test('the Urdu card aims at the URDU soft target', async () => {
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(CLEAN_DOC));
+
+    await Author.authorLessonPlan({
+      segment: SEGMENT, lang: 'ur', model: 'test/model', rounds: 1, renderCheck, correlationId: 'c',
+    });
+
+    const user = create.mock.calls[0][0].messages.find((m) => m.role === 'user').content;
+    const UR = require('../../bot/vendor/lp-v9/render_lp.js').pageCapsFor('ur');
+    expect(user).toMatch(new RegExp(`TEACH .{0,4}${UR.warn.teach} pages`));
+    expect(user).toMatch(new RegExp(`SUPPORT .{0,4}${UR.warn.support} pages`));
   });
 
   test('every revision prompt opens with the same card, ABOVE the defect lists', async () => {
