@@ -102,17 +102,16 @@ describe('the render floors follow the scale rather than restating it', () => {
 });
 
 describe('the page caps moved with the type', () => {
-  // A type scale that grows the corpus a third while the caps stand still does not keep the caps
-  // strict — it turns `over_cap` from a signal into noise. Measured over the same 62-document
-  // corpus the packer lane used: at the new type the OLD caps flag 53 of 62. These flag 3.
-  test('English is teach 7 / support 6', () => {
-    expect(pageCapsFor('en').max).toEqual({ teach: 7, support: 6 });
-    expect(pageCapsFor('en').warn).toEqual({ teach: 6, support: 5 });
+  // Lowered again 2026-09-11 (bd-g6sww): the operator's "no LP ships at 11-16 pages" ceiling
+  // (bd-q29w9) sits below what the v9.2 type-scale caps (7/6 EN, 9/7 UR) allowed on their own.
+  test('English is teach 4 / support 3', () => {
+    expect(pageCapsFor('en').max).toEqual({ teach: 4, support: 3 });
+    expect(pageCapsFor('en').warn).toEqual({ teach: 3, support: 2 });
   });
 
-  test('Urdu is teach 9 / support 7', () => {
-    expect(pageCapsFor('ur').max).toEqual({ teach: 9, support: 7 });
-    expect(pageCapsFor('ur').warn).toEqual({ teach: 8, support: 6 });
+  test('Urdu is teach 5 / support 4', () => {
+    expect(pageCapsFor('ur').max).toEqual({ teach: 5, support: 4 });
+    expect(pageCapsFor('ur').warn).toEqual({ teach: 4, support: 3 });
   });
 
   test('Urdu is never tighter than English on any part', () => {

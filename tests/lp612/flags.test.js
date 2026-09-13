@@ -66,12 +66,19 @@ describe('LP 6-12 feature flags', () => {
 });
 
 describe('serving constants', () => {
-  // bd-oak77.12: the code default moved to v9.2 AHEAD of the Railway variable, deliberately —
-  // both prod and staging SET LP_612_TEMPLATE_VERSION, so this line changes nothing until the
-  // variable moves, and the reuse path it unlocks is in place before the first miss can happen.
-  test('template version defaults to v9.2 and is env-overridable', () => {
+  // bd-oak77.12, then bd-oak77.16: the code default moves AHEAD of the Railway variable,
+  // deliberately — both prod and staging SET LP_612_TEMPLATE_VERSION, so this line changes nothing
+  // until the variable moves, and the reuse path it unlocks is in place before the first miss can
+  // happen. v9.3 is the phone-first page: the same document laid out on a 520 x 2000 box, so every
+  // v9.2 and v9.1 render in the cache re-renders for zero model spend rather than re-authoring.
+  // bd-m1k16: v9.4 is the 2026-09-12 page review. The default moving ahead of the variable is the
+  // established pattern above — what was NOT established, and cost a corpus re-author on sandbox,
+  // is that the version must also be added to TEMPLATE_VERSION_LINEAGE in the same change, or
+  // reuse returns [] and the bump re-authors instead of re-rendering. Pinned in
+  // `tests/lp612/reuse-previous-version.test.js`.
+  test('template version defaults to v9.5 and is env-overridable', () => {
     delete process.env.LP_612_TEMPLATE_VERSION;
-    expect(load().templateVersion()).toBe('v9.2');
+    expect(load().templateVersion()).toBe('v9.5');
     jest.resetModules();
     process.env.LP_612_TEMPLATE_VERSION = 'v9.1';
     expect(load().templateVersion()).toBe('v9.1');
