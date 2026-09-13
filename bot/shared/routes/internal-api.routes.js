@@ -819,7 +819,7 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
 
-  const lang = body.lang === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(body.lang);
   const lessons = await Browse.listLessons(grade, subject, chapterKey, lang);
   return res.json({ success: true, lessons });
 }));
@@ -850,7 +850,7 @@ router.post('/lp612/request', requireInternalKey, async (req, res) => {
     const out = await Serving.requestLesson({
       segmentId,
       userId,
-      lang: body.lang === 'ur' ? 'ur' : 'en',
+      lang: clampLanguage(body.lang),
       surface: 'portal',
       correlationId: body.correlationId || null,
     });
