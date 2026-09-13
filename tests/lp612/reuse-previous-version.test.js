@@ -236,16 +236,23 @@ describe('previousTemplateVersions', () => {
     expect(Flags.previousTemplateVersions(tv)[0]).toBe('v9.4');
   });
 
-  test('v9.5 leads the lineage — it changed the PAGE, so v9.4 documents re-render unchanged', () => {
-    // v9.5 is the operator's 2026-09-13 review: seven move bands in seven distinguishable colours
-    // (they were two browns and two navies), a number line that stacks sentence-length labels
-    // instead of smearing them, a footer with the author-run date and the double-printed chapter
-    // gone and each half clamped to one line box, and a homework tag reduced to its Bloom's
-    // level. CSS fills, an SVG layout and two composed strings — no schema key moved, which is
-    // the precondition this list encodes for keeping the older entries rather than dropping them.
-    expect(Flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.5');
-    expect(Flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
-    expect(Flags.previousTemplateVersions('v9.5')).toEqual(['v9.4', 'v9.3', 'v9.2', 'v9.1']);
+  test('the head leads the lineage, and every older version re-renders behind it', () => {
+    // Every bump so far has been a PRESENTATION change — v9.4 the page review, v9.5 the move
+    // colours and the number line, v9.6 (bd-ir1aq) the model-answers section leaving Reference.
+    // No schema key has moved, which is the precondition this list encodes for keeping the older
+    // entries rather than dropping them: a v9.1 document still renders under today's renderer.
+    //
+    // The literal is deliberately not spelled here. This was pinned to v9.5, and before that to
+    // v9.4, and each bump reddened it for no reason of its own — the version number is a release
+    // note, not an invariant. What IS the invariant, and what actually protects the spend, is the
+    // shape: the head is whatever the config serves, its ancestry is the WHOLE tail, and a bump
+    // that forgets its lineage entry returns [] and re-authors the corpus instead of re-rendering.
+    const head = Flags.DEFAULT_TEMPLATE_VERSION;
+    expect(Flags.TEMPLATE_VERSION_LINEAGE[0]).toBe(head);
+    expect(Flags.previousTemplateVersions(head)).toEqual(Flags.TEMPLATE_VERSION_LINEAGE.slice(1));
+    // v9.3 keeps its own named assertion: it is the version the stored corpus is actually made of,
+    // so losing its ancestry would be a real regression rather than a bump.
+    expect(Flags.previousTemplateVersions('v9.3')).toEqual(['v9.2', 'v9.1']);
   });
 });
 
