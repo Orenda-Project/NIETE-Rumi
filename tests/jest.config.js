@@ -77,6 +77,12 @@ module.exports = {
     '^katex$': '<rootDir>/tests/__mocks__/katex.js',
     '^ajv$': '<rootDir>/tests/__mocks__/ajv.js',
     '^openchemlib$': '<rootDir>/tests/__mocks__/openchemlib.js',
+    // bd-4lnru — the same rule once more, for the last unmapped package on the worker chain.
+    // `uuid` is bot-only and is required at module scope by feature-registration.service.js,
+    // portal-invite.service.js and flow-response.handler.js, so every root suite that loads the
+    // real sqs-worker (the bd-oak77.11 drain suites) or the real webhook router died at LOAD.
+    // Suites that need a PREDICTABLE id keep their own jest.mock — that wins over this mapping.
+    '^uuid$': '<rootDir>/tests/__mocks__/uuid.js',
   },
   setupFiles: ['<rootDir>/tests/setup.js'],
   testEnvironment: 'node',
