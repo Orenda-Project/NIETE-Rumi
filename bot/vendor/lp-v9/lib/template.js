@@ -87,7 +87,10 @@ const DIAGRAM_LABELS = {
   structure:          { en: "Structure",       ur: "ساخت" },
   numberline:         { en: "Number line",     ur: "عددی خط" },
   number_line:        { en: "Number line",     ur: "عددی خط" },
-  panels:             { en: "Panels",          ur: "موازنہ" },
+  // "Panels" was the SHAPE, not the point: it told the teacher how the SVG is laid out, which is
+  // the one thing she can already see. Its own Urdu has always said موازنہ — comparison — so the
+  // English was the outlier, not the translation. The badge names what the figure is FOR.
+  panels:             { en: "Comparison",      ur: "موازنہ" },
   comparison:         { en: "Comparison",      ur: "موازنہ" },
   compare:            { en: "Comparison",      ur: "موازنہ" },
   punnett:            { en: "Punnett square",  ur: "پنیٹ مربع" },
@@ -185,6 +188,67 @@ const TYPE_SCALE  = BODY_PX / BODY_PX_V91;     // 1.1666…
  *  rounds, and both the stylesheet and the floors go through it. */
 const scaledPx = (px) => +(px * TYPE_SCALE).toFixed(2);
 
+/* ── THE PAGE (v9.3, 2026-09-07, bd-oak77.16) ─────────────────────────────────
+   v9.2 took the type as far as A4 will carry it and 07_font measured, honestly, where
+   that lands: an A4 page box opened in WhatsApp is fit to a ~390 CSS-px screen, so every
+   size on it is multiplied by 390/794 = 0.4912 before a teacher reads it, and the 21px
+   body arrives at 0.930 mm of x-height — 7.99 arcmin at 40 cm, 67% of the 12-arcmin
+   critical print size for fluent reading (Legge & Bigelow 2011).
+
+     apparent x-height (mm) = font_px x 0.5411 x (390 / PAGE.w) x 0.16667
+
+   There are exactly two terms and the type is spent. THIS one is the page. At the shipped
+   21px body the floor needs a page 528px wide or narrower; 520 measures 1.431 mm =
+   12.30 arcmin on a real production lesson re-rendered from its stored document
+   (prod_golive_2026-09-06/15_phone_page/DESIGN.md section 3).
+
+   WHY 2000 TALL, and why that is not a typo. Page count is set by page AREA, so a narrow
+   page that keeps A4's proportions is simply A4 with 31.5px type — the arm 07_font priced
+   at 2,261 pages, a 36-page lesson. Height is the term that buys the area back. Measured
+   over 62 documents AND all 116 lessons production has delivered, 520x2000 costs FEWER
+   pages than today (1,136 against 1,577 on production traffic, median 14 -> 10), flags 1
+   document over cap where the live geometry flags 72, and produces zero layout defects.
+   Every candidate height from 1040 to 2380 is in DESIGN.md section 4 with its numbers.
+
+   Total scroll length is NOT set by this: it is set by the type and the column, and it
+   roughly doubles because the type is 1.5x bigger in the hand. That is the honest cost of
+   the change and no page size avoids it. A taller page reduces it (fewer page bottoms left
+   ragged), which is the other reason 2000 wins over 1470.
+
+   WHAT THIS COSTS ON PAPER. Printed fit-to-page on A4 this page scales 0.561 and lands as
+   a 77 x 297 mm column using 37% of the sheet, its type at 14.5 arcmin — legible, wasteful.
+   The answer to that is a SECOND render of the same stored document at `a4`, which is why
+   this is a shaped object with a named format and not five loose numbers: the printable
+   variant is a parameter, not a rewrite. Priced in DESIGN.md section 7 (bd-oak77.19).
+
+   The rollback is one variable and no deploy: LP_612_TEMPLATE_VERSION=v9.2. */
+const PAGE_FORMATS = Object.freeze({
+  /** v9.2 and before. Kept, named, and unused by the delivery path — it is the printable
+   *  variant's geometry and the reference the phone page's derivations are stated against. */
+  a4: Object.freeze({
+    name: "a4", w: 794, h: 1123, padX: 21, padT: 10, padB: 4, oneColumn: false,
+  }),
+  /** v9.3 — what a teacher receives. */
+  phone: Object.freeze({
+    name: "phone", w: 520, h: 2000, padX: 21, padT: 10, padB: 4, oneColumn: true,
+  }),
+});
+
+/** The page this build lays out on. A CONSTANT, deliberately, and not an env switch: the page
+ *  format IS the template version, and a service that could flip it would put two geometries in
+ *  the render cache under one key. A printable render changes this by passing a format, once the
+ *  parameter exists — never by changing what v9.3 means. */
+const PAGE = PAGE_FORMATS.phone;
+
+/** The A4 reference for anything whose apparent size on the phone must be stated against the
+ *  page it was chosen for. */
+const PAGE_A4 = PAGE_FORMATS.a4;
+
+/** Scale a length that was chosen against the A4 measure so its APPARENT size on the phone is
+ *  unchanged by the page. Used for the diagram engine's label floor, which sizes labels against
+ *  the figure's own column and would otherwise refuse 99 of 116 real lessons a figure. */
+const pageScaled = (pxAtA4) => +(pxAtA4 * (PAGE.w / PAGE_A4.w)).toFixed(2);
+
 /** Multiply every `font-size: <n>px` in a stylesheet by the type scale, and nothing else.
  *  `em`/unitless values scale with their parent for free and are left alone. */
 function scaleTypeCss(sheet, k) {
@@ -194,16 +258,60 @@ function scaleTypeCss(sheet, k) {
     (_m, sp, n) => `font-size:${sp}${f(Number(n))}px`);
 }
 
-function css(rtl, fonts, katex) {
+function css(rtl, fonts, katex, urduScript) {
   const start = rtl ? "right" : "left";
   const end = rtl ? "left" : "right";
   const sheet = `
-@page { size: A4; margin: 0; }
+@page { size: ${PAGE.w}px ${PAGE.h}px; margin: 0; }
 :root{
   --navy:#0B2545; --navy2:#13315C; --amber:#F2A20C; --amber-soft:#FDEBC8;
-  --ink:#1a2233; --mut:#5b6472; --line:#e5e9f0; --leaf:#1F7A4D; --leaf-soft:#E3F3E9;
-  --warn:#B4531F; --warn-soft:#FCEDE6; --warn-line:#F2C4AD;
-  --page-w:794px; --page-h:1123px;
+  --ink:#1a2233; --mut:#5b6472; --line:#e5e9f0; --leaf:#1F7A4D; --warn:#B4531F;
+  --page-w:${PAGE.w}px; --page-h:${PAGE.h}px;
+  /* THE SURFACE LADDER (v9.4, bd-a8veu.23). Operator, on the PDF review: "the readability of the
+     LP should be better with colour blocks and formatting of text and font to hold the eye."
+
+     A census of this sheet before the ladder: NINETEEN distinct pale tints, seven solid fills,
+     seventeen border treatments and ELEVEN corner radii, every one a hex literal written at the
+     block that wanted it. .askb was #F5F8FC, .say #F7F9FC, .seq #F6F8FC, .kw #EEF2F8 and .cite
+     #EAF0F8 — five colours no reader can tell apart, five borders that all say "a box", and no
+     rank for the eye to follow. Nothing there was wrong on its own; the problem was the sum.
+
+     So a block now picks a ROLE, never a colour:
+       teach   the teacher explains, asks, scripts, cites   blue
+       do      the pupils work, and the answer is right     green
+       watch   a warning, a misconception, a re-teach       terracotta
+       note    a resource, an aside, an offer, a warm-up    amber
+       quiet   neutral furniture, rows and metadata         grey
+     Each role brings a FILL, a HAIRLINE and an INK for the label that sits on it. On top of the
+     five sit the page's own white and the two emphasis surfaces that were already tokens (navy
+     for a landmark block, amber-soft for the outcome box) — those are L1 and stay loud on purpose.
+
+     FILL, LINE AND CASE ONLY. No padding, no margin, no border width and no font-size moves in
+     this pass: the teach part renders at 99-100% of its four-page cap, so one added pixel per
+     block buys a page. Translucent overlays (rgba) on the navy and amber BANDS are deliberately
+     NOT roles — they are chrome painted on a solid, not a surface of their own. */
+  --s-teach:#F2F6FC; --s-teach-line:#CBD8E8; --s-teach-ink:var(--navy2);
+  --s-do:#EFF7F2;    --s-do-line:#BFE3CD;    --s-do-ink:#14603A;
+  --s-watch:#FCEDE6; --s-watch-line:#F2C4AD; --s-watch-ink:var(--warn);
+  --s-note:#FFF8E8;  --s-note-line:#F0DFB4;  --s-note-ink:#8A5F04;
+  --s-quiet:#F5F7FA; --s-quiet-line:#E1E6EE; --s-quiet-ink:#414A57;
+  /* THE THREE BAND FILLS WITH NO ROLE BEHIND THEM. Most bands wear the solid form of a role ink
+     (see .s-* below), but there are seven moves and only five role inks, so three moves have to
+     carry a colour of their own. Operator, on the seven-band strip: "what about the moves being
+     different coloured in the LP?" — they were not. Objectives and Warm-up were the SAME
+     --s-note-ink amber, byte for byte, and Introduction's --navy2 sat 8.8 dE from Development's
+     --navy, which at band size under a white badge is one navy, not two. Four of seven bands were
+     two browns and two navies. Warm-up takes the rose and Introduction the teal; DEVELOPMENT KEEPS
+     THE NAVY, because it is the spine of the lesson and #0B2545 is the darkest, strongest band on
+     the page — the one a teacher flipping seven pages aims at. Each of the three clears 4.5:1
+     against the white name and minutes the band prints (rose 6.56, teal 6.31, plum 7.46), and the
+     closest pair among all seven is now 21 dE apart. readability-blocks.test.js holds both. */
+  --band-c:#584A93;
+  --band-w:#9E3B52;
+  --band-i:#0F6A73;
+  /* THREE RADII, down from eleven. --r-1 rows and small chips, --r-2 blocks and boxes, --r-pill
+     anything shaped as a pill. A circle is a SHAPE, not a radius choice, and keeps its 50%. */
+  --r-1:6px; --r-2:9px; --r-pill:999px;
   /* THE SPACING SCALE (v8.1). One ladder, five rungs, used for every vertical gap on the
      page. Before this the gaps were ad-hoc 1-5px values chosen per block and the operator's
      verdict was that "the sections and boxes are on top of each other". Vertical rhythm is
@@ -213,7 +321,18 @@ function css(rtl, fonts, katex) {
 }
 *{ box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 html,body{
-  font-family:${rtl ? `'Noto Nastaliq Urdu',` : ""}'Inter','Helvetica Neue',Arial,sans-serif;
+  /* bd-jdtdl — the LABEL PACK and the BODY LANGUAGE are independent. An Urdu-medium lesson is
+     authored in Urdu and may be served with the English chrome, and Inter has no Arabic glyphs:
+     the face has to be reachable whenever the DOCUMENT carries Urdu, not only when lang=ur.
+     Under RTL it leads, as R6 requires.
+     Under LTR it goes SECOND — after Inter, BEFORE the Latin fallbacks — and the order is the
+     whole fix. Appending it to the tail was measured and does nothing: CSS fallback is
+     per-character, so it stops at the first family that HAS the glyph, and Arial is that
+     family on any host whose Arial carries Arabic (macOS does). On the Linux container Arial
+     resolves to LiberationSerif, which has no Arabic and draws .notdef — the operator's boxes.
+     Second place keeps Latin on Inter (Inter has every Latin glyph, so it never falls through)
+     and sends Arabic script to Nastaliq on every host, which is what "only nastaliq" means. */
+  font-family:${rtl ? `'Noto Nastaliq Urdu',` : ""}'Inter'${!rtl && urduScript ? `,'Noto Nastaliq Urdu'` : ""},'Helvetica Neue',Arial,sans-serif;
   color:var(--ink);
   /* unitless: scales with font-size. A px line-height clips Nastaliq descenders. */
   line-height:${rtl ? "2.05" : "1.55"};
@@ -223,7 +342,7 @@ body{ background:#fff; }
 .page{ width:var(--page-w); height:var(--page-h); position:relative; background:#fff;
        page-break-after:always; overflow:hidden; }
 .page:last-child{ page-break-after:auto; }
-.pad{ padding:10px 21px 4px; height:100%; display:flex; flex-direction:column; }
+.pad{ padding:${PAGE.padT}px ${PAGE.padX}px ${PAGE.padB}px; height:100%; display:flex; flex-direction:column; }
 /* Every direct child of .pad is an ATOM the packer measured. Rhythm is margin-top ONLY —
    margin-bottom would double up between neighbours and margins never collapse between flex
    items, so one-sided margins are the only shape whose sum equals the stack height. The
@@ -239,8 +358,16 @@ body{ background:#fff; }
 /* Urdu needs more top padding than Latin: Nastaliq's honorific ligatures (ﷺ) and its tall
    marks reach far above the x-height, and at 7px the ﷺ in a chapter title sat on the hero's
    own top edge. Measured on the G10 Urdu sample, not guessed. */
-.hero{ background:var(--navy); color:#fff; border-radius:11px; padding:${rtl ? "12px" : "8px"} 14px ${rtl ? "9px" : "8px"};
-       display:flex; justify-content:space-between; align-items:flex-start; gap:18px; }
+/* ── EVERY REMAINING SIDE-BY-SIDE PAIR, COLLAPSED ON THE PHONE PAGE (v9.3, bd-oak77.16) ──
+   Found by rendering the whole type sweep at 390px and READING it, not by grepping for display:flex.
+   At the phone page's 478px measure each of these gives its halves ~230px, and the masthead
+   pair is worse than that: .hero .h-meta is flex:0 1 auto, so it shrank to ~110px and
+   printed "Ch. 1 · Matrices and Determinants p.24-25 · 40 min" down five lines while stealing
+   the width from the title — the exact pathology the h-meta comment above records at 794px,
+   reappearing one page size down. .p2head was worse again: eight lines of wrapped meta.
+   Stacking is the fix and it costs nothing measurable: the corpus page count is unchanged. */
+.hero{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:${rtl ? "12px" : "8px"} 14px ${rtl ? "9px" : "8px"};
+       ${PAGE.oneColumn ? "display:block;" : "display:flex; justify-content:space-between; align-items:flex-start; gap:18px;"} }
 .hero .kicker{ color:var(--amber); font-weight:800; letter-spacing:.13em; font-size:14px;
        text-transform:uppercase; line-height:1.3; }
 /* The TITLE COLUMN. flex:1 1 auto with min-width:0 is load-bearing: without the min-width a
@@ -258,37 +385,48 @@ body{ background:#fff; }
    lines; 49 -> 29%/7; 63 -> 23%/9 AND 50px of the badge hanging off the hero; 82 -> 119px off,
    past the page edge and over the chapter line. Hence: the meta column may shrink, and may
    never take more than 46% of the hero. */
-.hero .h-meta{ text-align:${end}; font-size:14.5px; color:#c9d4e6; line-height:${rtl ? "1.9" : "1.55"};
-       flex:0 1 auto; min-width:0; max-width:46%; }
+.hero .h-meta{ text-align:${PAGE.oneColumn ? start : end}; font-size:14.5px; color:#c9d4e6; line-height:${rtl ? "1.9" : "1.55"};
+       flex:0 1 auto; min-width:0; max-width:${PAGE.oneColumn ? "100%" : "46%"};${PAGE.oneColumn ? " margin-top:6px;" : ""} }
 .hero .h-meta b{ color:#fff; }
-.hero .chips{ display:flex; gap:5px; justify-content:flex-${rtl ? "start" : "end"}; margin-top:5px; flex-wrap:wrap; }
+.hero .chips{ display:flex; gap:5px; justify-content:flex-${PAGE.oneColumn || rtl ? "start" : "end"}; margin-top:5px; flex-wrap:wrap; }
 /* A chip whose text cannot wrap cannot shrink, so a capped column would have overflowed
    instead. The badge wraps INSIDE its pill; overflow-wrap covers the pathological single long
    token that would otherwise still push out. */
 .hero .tchip{ background:rgba(242,162,12,.17); border:1.5px solid var(--amber); color:#FFD98A;
-       font-size:14px; font-weight:800; letter-spacing:.06em; padding:3px 9px; border-radius:20px;
+       font-size:14px; font-weight:800; letter-spacing:.06em; padding:3px 9px; border-radius:var(--r-pill);
        max-width:100%; white-space:normal; overflow-wrap:anywhere; line-height:1.35;
        text-align:${end}; }
-.hero .tchip.plain{ background:rgba(255,255,255,.10); border-color:#5d7194; color:#dbe5f3; }
+/* Chrome on the navy, not a surface: fill AND line are the same white the hero text is, held back
+   to a wash. A fixed slate hex here had to be re-picked by hand every time the navy moved. */
+.hero .tchip.plain{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.35); color:#dbe5f3; }
 .brand{ display:inline-flex; align-items:center; gap:5px; margin-top:5px; justify-content:flex-${rtl ? "start" : "end"}; }
 .brand .dot{ width:8px; height:8px; border-radius:50%; background:var(--amber); }
 .brand .dot.b{ background:#fff; }
 .brand span{ font-weight:800; font-size:17.5px; letter-spacing:.02em; color:#fff; }
 
 /* ── section bars (O I D A C H) ─────────────────────────────────────────── */
-.bar{ display:flex; align-items:center; gap:8px; border-radius:7px; padding:4px 11px; margin:0; }
+.bar{ display:flex; align-items:center; gap:8px; border-radius:var(--r-1); padding:4px 11px; margin:0; }
 .bar .badge{ flex:0 0 auto; width:20px; height:20px; border-radius:50%; color:#fff;
       font-size:16.5px; font-weight:800; display:flex; align-items:center; justify-content:center;
-      line-height:1; }
+      line-height:1; background:rgba(255,255,255,.22); }
 .bar .nm{ font-size:17.5px; font-weight:800; letter-spacing:.02em; line-height:${rtl ? "1.8" : "1.3"}; }
 .bar .mins{ margin-${start}:auto; font-size:15.5px; font-weight:800; letter-spacing:.03em; }
-.s-o{ background:var(--amber-soft); } .s-o .badge{ background:var(--amber); color:#3a2c0a; } .s-o .nm,.s-o .mins{ color:#8A5F04; }
-.s-w{ background:#FBF1DF; } .s-w .badge{ background:#C98A12; } .s-w .nm,.s-w .mins{ color:#8A5F04; }
-.s-i{ background:#EAF0F8; } .s-i .badge{ background:var(--navy2); } .s-i .nm,.s-i .mins{ color:var(--navy2); }
-.s-d{ background:#E1EAF6; } .s-d .badge{ background:var(--navy); } .s-d .nm,.s-d .mins{ color:var(--navy); }
-.s-a{ background:var(--leaf-soft); } .s-a .badge{ background:var(--leaf); } .s-a .nm,.s-a .mins{ color:#14603A; }
-.s-c{ background:#ECE8F6; } .s-c .badge{ background:#584A93; } .s-c .nm,.s-c .mins{ color:#4A3E80; }
-.s-h{ background:#EFF1F4; } .s-h .badge{ background:#5b6472; } .s-h .nm,.s-h .mins{ color:#414A57; }
+.bar .nm,.bar .mins{ color:#fff; }
+/* The band is a SOLID block of the section's own colour — the same hue its badge already wore,
+   only now carrying the band instead of a 20px disc inside it. It was a pale wash before, and it
+   lost: the first thing inside Activity is a solid green "WE DO" pill, so the label outranked the
+   landmark it sat under. A teacher flipping a seven-page plan for "Development" has these seven
+   bands and nothing else to catch. Fill and weight only — the padding and the type sizes above are
+   untouched, because the teach part renders at 99-100% of its four-page cap and one added pixel
+   per section buys a fifth page. The badge stops being a second solid and becomes a translucent
+   white chip, which reads on a dark navy fill and on a mid amber one alike. */
+.s-o{ background:var(--s-note-ink); }
+.s-w{ background:var(--band-w); }
+.s-i{ background:var(--band-i); }
+.s-d{ background:var(--navy); }
+.s-a{ background:var(--leaf); }
+.s-c{ background:var(--band-c); }
+.s-h{ background:var(--mut); }
 
 .contstrip{ display:flex; align-items:baseline; gap:7px; font-size:15.5px; font-weight:800; color:var(--navy);
       border-bottom:2px solid var(--line); padding-bottom:5px; }
@@ -319,23 +457,38 @@ body.measuring .pad{ height:auto; }
    +16 on this one atom, 0 on the other fifteen. */
 body.measuring .foot{ margin-top:0; }
 .sec{ break-inside:avoid; display:flex; flex-direction:column; gap:var(--sp-2); }
-.split{ display:flex; gap:var(--sp-3); align-items:flex-start; }
+.split{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3); align-items:flex-start;"} }
 .split > div{ display:flex; flex-direction:column; gap:var(--sp-2); }
-.secrow{ display:flex; gap:var(--sp-3); align-items:flex-start; }
+${PAGE.oneColumn ? ".split > div + div{ margin-top:var(--sp-2); }" : ""}
+.secrow{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3); align-items:flex-start;"} }
 .secrow > .sec{ flex:1 1 0; min-width:0; }
 .blk{ margin:0; }
 p{ font-size:18px; }
 .lbl{ font-weight:800; font-size:14px; line-height:1.35; letter-spacing:.09em; text-transform:uppercase; }
+/* ONE label rule used to serve two different jobs. "Differentiation" heads a GROUP of three cards;
+   "If stuck" names one of those cards. "Common mistakes and the question you ask back" heads a
+   group; "What pupils write" is a leaf inside it. Printed identically, the reader has to work out
+   the nesting from position alone. The .g variant is that missing level: navy ink and an amber rule
+   on the INLINE-START edge. Start edge, not left — an Urdu plan puts it on the right. It is inline-
+   direction geometry on purpose: a rule down the side and a little indent cost zero vertical
+   pixels, and there are none to spend. Size and leading stay exactly as the leaf's, so the
+   hierarchy is carried by colour and the mark, never by making one label bigger than another.
+   This replaces four hand-written style="color:..." attributes at the call sites.
+   NOTE: no backticks in here. This whole sheet is one template literal. */
+.lbl.g{ color:var(--navy2); border-${start}:3px solid var(--amber); padding-${start}:7px; }
 
 /* ── SLO ────────────────────────────────────────────────────────────────── */
-.slo{ background:var(--amber-soft); border-${start}:6px solid var(--amber); border-radius:9px;
+/* The outcome box is L1 and deliberately NOT a pale role: --amber-soft is a full tone deeper than
+   --s-note, and the 6px amber edge is the loudest mark on page one. It is the one thing a teacher
+   must not miss, so it is allowed to outrank every note-coloured block below it. */
+.slo{ background:var(--amber-soft); border-${start}:6px solid var(--amber); border-radius:var(--r-2);
       padding:8px 14px; }
-.slo .lbl{ color:#8A5F04; }
+.slo .lbl{ color:var(--s-note-ink); }
 .slo p{ font-size:18.5px; line-height:${rtl ? "2.0" : "1.55"}; margin-top:1px; font-weight:600; color:#3a2c0a; }
 .slo .src{ font-size:14.5px; color:#7d6425; margin-top:2px; font-weight:600; }
 .crit{ font-size:17px; color:#6B5312; margin-top:1px; font-weight:600; }
 .objhd{ display:flex; align-items:center; gap:6px; margin-top:var(--sp-2); font-size:14px; font-weight:800;
-      letter-spacing:.09em; text-transform:uppercase; color:#8A5F04; }
+      letter-spacing:.09em; text-transform:uppercase; color:var(--s-note-ink); }
 .objhd .badge{ width:18px; height:18px; border-radius:50%; background:var(--amber); color:#3a2c0a;
       font-size:14px; display:flex; align-items:center; justify-content:center; line-height:1; }
 .objs{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
@@ -344,43 +497,115 @@ p{ font-size:18px; }
 
 /* ── warm-up ────────────────────────────────────────────────────────────── */
 .wu{ display:flex; flex-direction:column; gap:var(--sp-1); }
-.wu .it{ display:flex; gap:9px; align-items:baseline; border:1.5px solid #EADFC5; background:#FFFCF5;
-      border-radius:6px; padding:3px 10px; }
-.wu .n{ flex:0 0 auto; font-weight:800; color:#C98A12; font-size:16.5px; }
+/* A question row is a BLOCK with two floated corners, not a flex line (bd-a8veu.5). As a flex
+   line the chip was flex:0 0 auto — an unshrinkable column reserved for the whole height of
+   the row — so the question wrapped into a ribbon beside it and the space under the chip stayed
+   blank. Worst case measured at 520px: a 372.8px chip on a 478px row left the question 70.1px
+   and the row 261.4px tall. Floated, the question flows the full measure and wraps back under
+   the chip: 1865.6px -> 1326.5px over the fixture's 11 rows. flow-root contains the floats so
+   a row whose text is shorter than its chip cannot leak one into the next row. */
+.wu .it{ display:flow-root; border:1px solid var(--s-note-line); background:var(--s-note);
+      border-radius:var(--r-1); padding:3px 10px; }
+.wu .n{ float:${start}; margin-${end}:9px; font-weight:800; color:var(--s-note-ink); font-size:16.5px; }
 .wu .q{ font-size:18px; }
 .wu .a{ color:var(--leaf); font-weight:700; }
-.wu .kind{ flex:0 0 auto; margin-${start}:auto; font-size:14px; font-weight:800; letter-spacing:.05em;
-      text-transform:uppercase; color:#9aa3b0; }
+/* L3. This tag ("revision", "recall") repeats on every row of the warm-up, so at the block label's
+   own volume — 800, uppercase, tracked — a five-row warm-up printed five extra shouts in the
+   margin. Sentence case at 700 is metadata a teacher reads once. Same 14px: the ladder is weight
+   and case, never size, and lowercase is also the narrower of the two, so the float shrinks. */
+.wu .kind{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:700; letter-spacing:.02em;
+      color:var(--mut); }
 
 /* ── blocks ─────────────────────────────────────────────────────────────── */
-.hook{ background:var(--navy); color:#fff; border-radius:10px; padding:9px 14px; }
+.hook{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:9px 14px; }
 .hook .lbl{ color:var(--amber); }
 .hook .q{ font-size:19px; font-weight:700; line-height:${rtl ? "1.95" : "1.55"}; margin-top:3px; }
 .hook .lf{ font-size:16px; color:#c9d4e6; margin-top:3px; line-height:${rtl ? "1.9" : "1.55"}; }
-.askb{ border-${start}:4px solid var(--navy2); background:#F5F8FC; border-radius:8px; padding:7px 13px; }
-.askb .lbl{ color:var(--navy2); }
+/* Ask, script and board are all the TEACH role, and they used to be #F5F8FC, #F7F9FC and #EFF1F4 —
+   three fills nobody can tell apart, doing the job of telling them apart. What actually separates
+   them is the EDGE: ask carries the solid navy rule because it is the one a teacher has to say out
+   loud; the script carries the same rule held back to the hairline tone; the board is quiet grey,
+   because it is a note about the wall, not about the lesson. */
+.askb{ border-${start}:4px solid var(--navy2); background:var(--s-teach); border-radius:var(--r-2); padding:7px 13px; }
+.askb .lbl{ color:var(--s-teach-ink); }
 .askb .q{ font-size:18.5px; font-weight:700; color:var(--navy2); }
 .askb .lf{ font-size:16.5px; color:var(--mut); margin-top:2px; }
-.say{ border-${start}:4px solid #9FB4D0; background:#F7F9FC; border-radius:8px; padding:7px 13px; }
-.say .lbl{ color:var(--navy2); }
+.say{ border-${start}:4px solid var(--s-teach-line); background:var(--s-teach); border-radius:var(--r-2); padding:7px 13px; }
+.say .lbl{ color:var(--s-teach-ink); }
 .say .t{ font-size:18px; color:#173355; }
-.watch{ background:var(--warn-soft); border:1px solid var(--warn-line); border-radius:8px; padding:7px 12px; }
-.watch .lbl{ color:var(--warn); }
+.watch{ background:var(--s-watch); border:1px solid var(--s-watch-line); border-radius:var(--r-2); padding:7px 12px; }
+.watch .lbl{ color:var(--s-watch-ink); }
 .watch .t{ font-size:18px; color:#5a2f18; }
-.board{ background:#EFF1F4; border-${start}:4px solid #8A93A3; border-radius:8px; padding:7px 13px; }
-.board .lbl{ color:#414A57; }
+.board{ background:var(--s-quiet); border-${start}:4px solid var(--s-quiet-ink); border-radius:var(--r-2); padding:7px 13px; }
+.board .lbl{ color:var(--s-quiet-ink); }
 .board .t{ font-size:18px; color:#2b3341; }
 .kwrow{ display:flex; flex-wrap:wrap; gap:var(--sp-1); margin-top:var(--sp-1); }
-.kw{ background:#EEF2F8; border:1.5px solid #DBE3EF; border-radius:16px; padding:2px 11px; font-size:16.5px; }
+/* A key word sits on the grey key-words card, so the chip goes WHITE: a pale chip on a pale card is
+   not a chip. White is the page, not a role, which is why it stays a literal here.
+
+   IT IS A ROW, NOT A PILL (bd-3wjme). Operator, on grade 8 history: "vocab boxes not fitting
+   properly". This was --r-pill. A 999px radius is correct at exactly ONE line height. A humanities
+   key word's meaning is a clause — "a system where Muslim voters choose Muslim representatives in a
+   vote held only among Muslims" — so the entry wraps to four lines, the radius clamps to half the
+   box height, and each end becomes a full semicircle that curves away from the text it is supposed
+   to enclose. The first and last lines run out past the border. That is the "not fitting".
+
+   This is a LOOK fix and only a look fix. Measured at the card's real 424px inner column, on the
+   two entries off her page 1: 250.8px before, 250.8px after. Identical, and it was always going to
+   be — border-radius does not touch line boxes, so the curve never narrowed the text column. Do not
+   reach for this rule to win a page.
+
+   A grow (flex:1 1 auto) was tried here and REMOVED after measuring: it buys nothing on a long
+   meaning, which already fills its line on its own, and it forces four two-word meanings to one per
+   line instead of packing them. Leave the entry sized to its content and let .kwrow do the wrapping.
+   No min-width:0 either, on purpose: this box WRAPS, so its automatic min size is the longest word,
+   and letting it shrink past that would push that word outside the border. */
+.kw{ background:#fff; border:1px solid var(--s-quiet-line); border-radius:var(--r-1);
+      padding:2px 11px; font-size:16.5px; }
 .kw b{ color:var(--navy2); font-weight:800; }
 .kw i{ color:var(--mut); font-style:normal; }
 .kp{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .kp li{ font-size:18px; margin:0; }
 .kp li::marker{ color:var(--navy2); }
-.exq{ border:1px solid var(--line); border-radius:9px; padding:6px 11px; }
-.exq.we{ border-color:#BFE3CD; background:#F6FCF8; }
+/* bd-a8veu.21 — N cases that share attributes, as a shape instead of as repeated sentences.
+   The sizes here are SOURCE sizes: every font-size in this sheet is multiplied by TYPE_SCALE
+   (1.1667) on the way out, so 18px emits at 21px = BODY_FLOOR_PX, and 14px emits at 16.33px =
+   CHIP_FLOOR_PX. Do NOT shrink them to buy height. The renderer's in-page type probe checks
+   BODY_SEL/CHIP_SEL, and neither list matches td or th, so a table can silently ship below the
+   floor — the first version of this block did exactly that, and its -42.5% "win" was small type
+   beating big type, not a table beating prose.
+   THIS BLOCK IS FOR SCANNABILITY, NOT FOR PAGE COUNT, and the numbers here are the ones that
+   survived content-matching both sides. -17.7% was the second artefact: that rig quietly dropped a
+   column of facts from the table while leaving them in the prose baseline. Matched fact-for-fact,
+   a 3-column table is height-NEUTRAL (-2.5% on a real grade-6 key-points list). It saves height
+   only when every cell is one or two words (-23% to -25%) and LOSES at three or four words
+   (+13.1%) or at sentence length (+11.7%). The mechanism is a row is as tall as its tallest cell,
+   so one wrapping cell costs the whole row a line: at this 478px column a 3-column row holds one
+   line to ~14 characters per cell, a 2-column row to ~24. Past that the table is the taller shape.
+   A 4th column is +13.1% WORSE than the prose even before that (schema caps columns at 3).
+   table-layout:auto, measured: the columns genuinely want different widths — a one-word TYPE
+   column beside a longer WHERE column — and auto beat fixed 728.9 to 785.6. */
+.tbl{ border-collapse:collapse; width:100%; margin-top:var(--sp-1); table-layout:auto; }
+/* L3. A header row already announces itself by sitting on top of a ruled column of data; it does
+   not also need caps, tracking and the block label's weight. Demoted, the eye goes to the CELLS,
+   which is the whole reason the table block exists. */
+.tbl th{ font-size:14px; font-weight:700; letter-spacing:.02em;
+  text-align:${start}; color:var(--mut); padding:3px 7px; border-bottom:1px solid var(--s-quiet-line); }
+.tbl td{ font-size:18px; line-height:1.35; padding:5px 7px; vertical-align:top;
+  text-align:${start}; border-bottom:1px solid var(--line); }
+.tbl tbody tr:nth-child(odd){ background:var(--s-quiet); }
+.tbl td:first-child{ font-weight:700; color:var(--navy2); }
+/* The two worked examples are a pair with different jobs — I DO is modelled at the board, WE DO is
+   solved with the class — and the we-do box already said so, tinted green to match its green tag.
+   The i-do box carried an AMBER tag on a grey hairline, so the pair read as "one coloured box and
+   one unstyled box" rather than as two steps of a gradual release. It now wears its own tag's
+   amber on the same 1px border and the same padding: colour only, no height. */
+.exq{ border:1px solid var(--s-note-line); border-radius:var(--r-2); padding:6px 11px; background:var(--s-note); }
+.exq.we{ border-color:var(--s-do-line); background:var(--s-do); }
+/* L1 and staying loud: I DO / WE DO is the gradual-release step, the one badge on the page that
+   names WHO is holding the pen. Solid fill, caps, tracked. */
 .exq .tag{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.08em;
-      text-transform:uppercase; padding:3px 10px; border-radius:14px; color:#fff; background:var(--amber); }
+      text-transform:uppercase; padding:3px 10px; border-radius:var(--r-pill); color:#fff; background:var(--amber); }
 .exq.we .tag{ background:var(--leaf); }
 .exq h4{ font-size:18px; color:var(--navy); margin-top:var(--sp-1); line-height:${rtl ? "1.85" : "1.45"}; }
 .exq .prompt{ font-size:18px; margin-top:var(--sp-1); }
@@ -388,21 +613,23 @@ p{ font-size:18px; }
 .exq ol li{ font-size:18px; margin:0; }
 .exq .res{ margin-top:var(--sp-1); font-size:18px; color:var(--leaf); font-weight:700; }
 .pr .tag{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.08em;
-      text-transform:uppercase; padding:3px 10px; border-radius:14px; background:var(--leaf-soft);
-      color:#14603A; border:1.5px solid #BFE3CD; }
+      text-transform:uppercase; padding:3px 10px; border-radius:var(--r-pill); background:var(--s-do);
+      color:var(--s-do-ink); border:1px solid var(--s-do-line); }
 .pr .items{ margin-top:var(--sp-1); display:flex; flex-direction:column; gap:var(--sp-1); }
-.pr .it{ display:flex; gap:8px; align-items:baseline; }
-.pr .n{ flex:0 0 auto; font-weight:800; color:var(--navy2); font-size:16.5px; min-width:17px; }
+.pr .it{ display:flow-root; }
+.pr .n{ float:${start}; margin-${end}:8px; font-weight:800; color:var(--navy2); font-size:16.5px; min-width:17px; }
 .pr .q{ font-size:18px; }
 .pr .a{ color:var(--leaf); font-weight:700; }
-.pr .tier{ flex:0 0 auto; margin-${start}:auto; font-size:14px; font-weight:800; letter-spacing:.05em;
-      text-transform:uppercase; color:#9aa3b0; }
-.se{ display:flex; gap:var(--sp-3); }
-.se > div{ flex:1 1 0; border-radius:9px; padding:7px 13px; border:1.5px solid; }
-.se .sup{ background:#F5F8FC; border-color:#CBD8E8; }
-.se .sup .lbl{ color:var(--navy2); }
-.se .ext{ background:var(--leaf-soft); border-color:#BFE3CD; }
-.se .ext .lbl{ color:#14603A; }
+/* L3 — same demotion as .wu .kind, same reason: one per practice item, several per page. */
+.pr .tier{ float:${end}; margin-${start}:8px; font-size:14px; font-weight:700; letter-spacing:.02em;
+      color:var(--mut); }
+.se{ ${PAGE.oneColumn ? "display:block;" : "display:flex; gap:var(--sp-3);"} }
+${PAGE.oneColumn ? ".se > div + div{ margin-top:var(--sp-2); }" : ""}
+.se > div{ flex:1 1 0; border-radius:var(--r-2); padding:7px 13px; border:1px solid; }
+.se .sup{ background:var(--s-teach); border-color:var(--s-teach-line); }
+.se .sup .lbl{ color:var(--s-teach-ink); }
+.se .ext{ background:var(--s-do); border-color:var(--s-do-line); }
+.se .ext .lbl{ color:var(--s-do-ink); }
 .se p{ font-size:18px; margin-top:var(--sp-1); }
 
 /* ── figures ────────────────────────────────────────────────────────────── */
@@ -419,16 +646,19 @@ p{ font-size:18px; }
    the border box is not. The property is absent on every figure that fits, so this rule is a no-op for them.
 
    NOTE FOR ANYONE EDITING THIS STYLESHEET: it lives inside a JS template literal. No backticks. */
-figure.dg{ border:1.5px solid var(--line); border-radius:10px; padding:9px 11px; break-inside:avoid;
+figure.dg{ border:1.5px solid var(--line); border-radius:var(--r-2); padding:9px 11px; break-inside:avoid;
       margin-left:calc(-1 * var(--fig-wide, 0px)); margin-right:calc(-1 * var(--fig-wide, 0px)); }
-figure.dg.book{ border-color:#CBD8E8; }
+/* A crop lifted from the textbook wears the teach hairline, so "this came from the book" is a
+   colour the teacher can learn once. Width unchanged — the 1.5px frame is load-bearing geometry
+   here (see --fig-wide above), so only its colour moves. */
+figure.dg.book{ border-color:var(--s-teach-line); }
 figure.dg .ftop{ display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-1); gap:8px; }
 /* NOT uppercase. The badge carries a human label now ("Equation", "Force diagram"), and
    uppercasing a human label is what made "chem_equation" read as the enum CHEM_EQUATION in the
    first place. Nastaliq gets no tracking either — letter-spacing breaks Urdu joining. */
 figure.dg .ftag{ background:var(--navy); color:#fff; font-size:14px; font-weight:800;
       letter-spacing:${rtl ? "0" : ".02em"};
-      padding:3px 10px; border-radius:16px; }
+      padding:3px 10px; border-radius:var(--r-pill); }
 figure.dg .fsrc{ color:var(--leaf); font-weight:800; font-size:14px; }
 /* NO blanket max-height on an SVG. An SVG with a viewBox scales by min(boxW/vbW, boxH/vbH),
    so a fixed 118px clamp did not "fit" a diagram — it SHRANK it, and every label inside it,
@@ -450,9 +680,9 @@ figure.dg img{ display:block; width:100%; height:auto; max-height:${CROP_MAX_H}p
       object-fit:contain; margin:0 auto; }
 figure.dg figcaption{ text-align:center; font-size:15.5px; color:var(--mut); font-weight:600; margin-top:var(--sp-1);
       line-height:${rtl ? "1.9" : "1.5"}; }
-figure.dg .legend{ background:#F6F8FC; border-radius:8px; padding:6px 11px; margin-top:var(--sp-2); font-size:16.5px; }
-figure.dg .legend .lbl{ color:var(--navy2); display:block; margin-bottom:2px; }
-.mathb{ background:var(--leaf-soft); border:1.5px solid #BFE3CD; border-radius:10px; padding:8px 12px; line-height:1.45;
+figure.dg .legend{ background:var(--s-teach); border-radius:var(--r-2); padding:6px 11px; margin-top:var(--sp-2); font-size:16.5px; }
+figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2px; }
+.mathb{ background:var(--s-do); border:1px solid var(--s-do-line); border-radius:var(--r-2); padding:8px 12px; line-height:1.45;
       text-align:center; }
 .mathb .katex{ font-size:1.24em; }
 .mathb figcaption{ font-size:15.5px; color:#3F6B53; margin-top:2px; }
@@ -472,56 +702,131 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* ── v9 furniture ───────────────────────────────────────────────────────── */
 /* The sequence strip (spec §5): where this LP sits, what is next, and the next checkpoint.
    It rides directly under the hero because "where am I in the chapter" is the first thing a
-   teacher asks of a plan she did not write. */
-.seq{ display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; background:#F6F8FC;
-      border:1.5px solid #E1E7F0; border-radius:9px; padding:5px 12px; font-size:16px; color:var(--mut); }
+   teacher asks of a plan she did not write.
+   It flows as TEXT, not as a row of boxes: a flex container makes every child atomic, so a
+   phrase that does not fit jumps to the next line whole and leaves the rest of its line blank —
+   and an arrow, being a child of its own, gets stranded on a line by itself (bd-a8veu.2). In
+   ordinary inline flow the phrases wrap word by word and pack continuously. The arrow's gap is
+   PADDING rather than a space, so there is no break opportunity between a phrase's last word
+   and the arrow that terminates it.
+
+   Each leg then takes a LINE OF ITS OWN (bd-a8veu.15). Operator: "the current and next and
+   checkpoint statements should be on new lines, like a new paragraph." They are four independent
+   facts — where she was, what she is teaching, what follows, when it is assessed — and a teacher
+   scanning for today's lesson should not have to read a sentence to find it.
+
+   The blocks are made with a DIRECT-CHILD combinator, and that is load-bearing: .arrow is nested
+   inside a leg, and a display:block reaching it would make it a box of its own again, which is
+   precisely the stranding bd-a8veu.2 removed. Within its own line a leg is still ordinary text
+   and still wraps word by word.
+   (No backticks anywhere in this sheet: the whole stylesheet is one JS template literal, and a
+   backtick in a comment ends it. See bd-a8veu.19 for the sibling trap.) */
+.seq{ background:var(--s-quiet); border:1px solid var(--s-quiet-line); border-radius:var(--r-2); padding:5px 12px;
+      font-size:16px; line-height:1.5; color:var(--mut); }
+.seq > span{ display:block; }
+.seq > span + span{ margin-top:3px; }
 .seq b{ color:var(--navy2); font-weight:800; }
 .seq .now{ color:var(--navy); font-weight:800; }
-.seq .arrow{ color:var(--amber); font-weight:800; }
+.seq .arrow{ color:var(--amber); font-weight:800; padding:0 5px; }
 /* An objective's own SLO code — spec §3 O wants one PER OBJECTIVE, not one per plan. */
-.slocode{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.05em; color:#8A5F04;
-      background:rgba(242,162,12,.20); border-radius:11px; padding:1px 8px; margin-${start}:6px; white-space:nowrap; }
+.slocode{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.05em; color:var(--s-note-ink);
+      background:rgba(242,162,12,.20); border-radius:var(--r-pill); padding:1px 8px; margin-${start}:6px; white-space:nowrap; }
 .bythe{ font-size:17px; color:#6B5312; margin-top:2px; font-weight:600; }
-/* Development's textbook citation. Reviewer sign-off 7: no page, no pass. */
-.cite{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
-      color:var(--navy2); background:#EAF0F8; border-radius:11px; padding:2px 9px; }
-/* The resources line: one compact row under the outcome box. Amber link on a pale rule so it
-   reads as an offer rather than as part of the lesson body. No font-size — it inherits the 18px
-   floor render_lp.js enforces.
+/* Development's textbook citation. Reviewer sign-off 7: no page, no pass.
+   L3: it appears beside every development step, and "Textbook page 63" is an address, not a
+   heading. Sentence case at 700 keeps it findable without letting it compete with the step. */
+.cite{ display:inline-block; font-size:14px; font-weight:700; letter-spacing:.01em;
+      color:var(--s-teach-ink); background:var(--s-teach); border-radius:var(--r-pill); padding:2px 9px; }
+/* THE RESOURCES CARD — page 1's at-a-glance panel (bd-a8veu.6). Operator: "the 1st page
+   quickly tells the teacher where they are at, what they are teacing, the SLO, the resources,
+   videos and key words of this lesson." The hero says where, the sequence strip says what is
+   next, the outcome box says the SLO; this box says what she has to have in her hand. Its
+   three rows were previously three different places in the document — the video here, the
+   materials folded into the muted italic pacing sentence at the very END of the teach part,
+   and the key words mid-page inside the Introduction.
+   ONE box, not three: each row was already its own bordered strip or labelled block, so
+   collapsing them into one panel costs one border instead of three and reads as one answer to
+   one question.
+
+   FOUR BLOCKS, NOT FOUR ROWS (bd-a8veu.16). Operator: "Materials, Pacing and Key words should be
+   spaced as their own blocks on page 1, with slightly different colours and formats to hold the
+   eye like Video does." Collapsing the three into one panel was the right call for PLACEMENT and
+   the wrong one for READING: four facts of four different kinds — what to bring, how long it
+   takes, what the words mean, what to play — arrived as four undifferentiated rows, and only the
+   video, which had kept its icon and its amber link, was findable at a glance. He is naming the
+   video as the standard the other three should meet.
+
+   So each of the four takes its own icon and its own pale tint, and the panel stops drawing a box
+   of its own: a box of boxes reads as clutter and spends a border to say nothing. The tints are
+   deliberately CLOSE to one another — "slightly different", his word — so page 1 reads as one
+   card of four parts rather than four unrelated widgets. Radius, padding and the icon gutter are
+   shared for the same reason; only fill and label colour vary.
+
+   The panel is still the ATOM, so nothing about pagination moves: the four travel together and
+   still land on page 1. */
+.rescard{ display:flex; flex-direction:column; gap:var(--sp-1); }
+.rescard > div{ font-size:16.5px; border-radius:var(--r-2); padding:6px 11px;
+      display:flex; gap:8px; align-items:baseline; }
+.rescard .ico{ flex:0 0 auto; }
+.rescard .lbl{ font-weight:700; flex:0 0 auto; }
+/* The four tints are now the four ROLES, re-derived rather than flattened — bd-a8veu.16 asked for
+   four different colours and it still gets four, but each one is a colour that means the same
+   thing everywhere else in the plan. Materials is what the class DOES with its hands (do/green),
+   pacing is the teacher's own plan (teach/blue), key words are reference (quiet/grey — which also
+   retires the page's lone purple, a hue used exactly once and standing for nothing), and the video
+   is an offer (note/amber, unchanged, because it is the one the operator held up as the standard). */
+.rmat{ background:var(--s-do); border:1px solid var(--s-do-line); }
+.rmat .lbl{ color:var(--s-do-ink); }
+.rpace{ background:var(--s-teach); border:1px solid var(--s-teach-line); }
+.rpace .lbl{ color:var(--s-teach-ink); }
+/* Key words keep their stacked label-over-row shape — the meanings need the width — so the icon
+   sits beside the whole block rather than on the label's line. min-width:0 is what lets the
+   flex item shrink below its content; without it the meanings overflow the 478px column. */
+.rkw{ background:var(--s-quiet); border:1px solid var(--s-quiet-line); }
+.rkw .blk{ min-width:0; flex:1 1 auto; }
+.rkw .lbl.g{ color:var(--s-quiet-ink); margin-top:0; }
+/* The video block. Amber, matching its own link, so it reads as an offer rather than as part of
+   the lesson body.
    NAMED .vres, not .res or .vid: BOTH of those are already taken (.res is the KaTeX result block,
    .vid was the old inline video block). A colliding class silently inherits someone else's box. */
-.vres{ display:flex; gap:8px; align-items:baseline; margin-top:var(--sp-2);
-      padding:6px 10px; border:1.5px solid #E5E9F0; border-radius:8px; background:#FBFCFE; }
+.vres{ display:flex; gap:8px; align-items:baseline; background:var(--s-note); border:1px solid var(--s-note-line); }
 .vres .ico{ flex:0 0 auto; }
-.vres .lbl{ color:var(--navy2); font-weight:700; flex:0 0 auto; }
-.vres a{ color:#8A5F04; text-decoration:underline; word-break:break-all; }
-.vid{ display:flex; gap:8px; align-items:baseline; background:#F5F8FC; border:1.5px solid #CBD8E8;
-      border-radius:8px; padding:6px 12px; font-size:16.5px; }
+.vres .lbl{ color:var(--s-note-ink); font-weight:700; flex:0 0 auto; }
+/* The visible run is the video's TITLE (bd-a8veu.4), so this is a one-line clamp and no longer a
+   url rule: word-break:break-all would hyphenate a title mid-word, and a long YouTube title on a
+   478px column is three lines of furniture on a page that is already at its cap. min-width:0 is
+   what lets a flex item shrink below its content — without it the row simply overflows. */
+.vres a{ color:var(--s-note-ink); text-decoration:underline;
+      min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vid{ display:flex; gap:8px; align-items:baseline; background:var(--s-teach); border:1px solid var(--s-teach-line);
+      border-radius:var(--r-2); padding:6px 12px; font-size:16.5px; }
 .vid .lbl{ color:var(--navy2); flex:0 0 auto; }
 .vid a{ color:var(--navy2); font-weight:700; text-decoration:none; }
 .vid .why{ color:var(--mut); }
 /* Conclusion: the board-phrased checkpoint, its mark scheme, the exit ticket, the re-teach rule. */
-.ck{ background:var(--navy); color:#fff; border-radius:9px; padding:7px 13px; }
+.ck{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:7px 13px; }
 .ck .lbl{ color:var(--amber); }
 .ck .q{ font-size:18.5px; font-weight:700; margin-top:2px; line-height:${rtl ? "1.9" : "1.55"}; }
 .ck ul{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .ck li{ font-size:18px; color:#d7e0ee; }
-.exit{ border:1.5px solid #BFE3CD; background:#F6FCF8; border-radius:8px; padding:6px 12px; }
-.exit .lbl{ color:#14603A; }
+.exit{ border:1px solid var(--s-do-line); background:var(--s-do); border-radius:var(--r-2); padding:6px 12px; }
+.exit .lbl{ color:var(--s-do-ink); }
 .exit .it{ display:flex; gap:8px; align-items:baseline; font-size:18px; }
 .exit .a{ color:var(--leaf); font-weight:700; }
-.reteach{ background:var(--warn-soft); border:1px solid var(--warn-line); border-radius:8px; padding:6px 12px; }
-.reteach .lbl{ color:var(--warn); }
+.reteach{ background:var(--s-watch); border:1px solid var(--s-watch-line); border-radius:var(--r-2); padding:6px 12px; }
+.reteach .lbl{ color:var(--s-watch-ink); }
 .reteach .t{ font-size:18px; color:#5a2f18; }
 /* Homework as DATA. Each item wears its [SLO, K/U/A] tag; NO answer is printed here — the
    answers live in reference F, which is the whole point of defect class E. */
 .hw{ display:flex; flex-direction:column; gap:var(--sp-1); }
-.hw .it{ display:flex; gap:9px; align-items:baseline; border:1.5px solid var(--line); background:#FAFBFD;
-      border-radius:6px; padding:4px 11px; }
-.hw .n{ flex:0 0 auto; font-weight:800; color:#5b6472; font-size:16.5px; }
+.hw .it{ display:flow-root; border:1px solid var(--s-quiet-line); background:var(--s-quiet);
+      border-radius:var(--r-1); padding:4px 11px; }
+.hw .n{ float:${start}; margin-${end}:9px; font-weight:800; color:var(--mut); font-size:16.5px; }
 .hw .q{ font-size:18px; }
-.hw .tag{ flex:0 0 auto; margin-${start}:auto; font-size:14px; font-weight:800; letter-spacing:.04em;
-      color:#414A57; background:#E7EAEF; border-radius:11px; padding:1px 8px; white-space:nowrap; }
+/* L3. This is the [SLO, K/U/A] code — the single most repeated string in the plan, once per
+   homework item. At 800 it was a column of shouting in the margin of every row. */
+.hw .tag{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:700; letter-spacing:.02em;
+      color:var(--s-quiet-ink); background:#fff; border-radius:var(--r-pill); padding:1px 8px; white-space:nowrap; }
 .hw .src{ color:var(--mut); font-size:15.5px; }
 /* An inline matrix is promoted to display style (lib/rich.js). Give it room to breathe so it
    does not crowd the line it sits in. */
@@ -529,74 +834,88 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 /* THE TEACHER NOTE. Distractor codes are data the teacher needs and a pupil must never read
    beside the option — so they are never painted in .op. Same for a resolved question ref.
    lint's DISTRACTOR_VISIBLE asserts every code is inside one of these. */
-.tnote{ display:block; font-size:14.5px; color:#7d6425; background:#FDF6E7; border-radius:6px;
+.tnote{ display:block; font-size:14.5px; color:#7d6425; background:var(--s-note); border-radius:var(--r-1);
       padding:4px 10px; margin-top:var(--sp-1); line-height:${rtl ? "1.8" : "1.5"}; }
-.tnote b{ color:#8A5F04; }
+.tnote b{ color:var(--s-note-ink); }
 .refq{ display:block; font-size:16px; color:var(--navy2); font-weight:600; margin-bottom:2px; }
 
 /* ── page-1 foot ────────────────────────────────────────────────────────── */
 .mats{ padding-top:0; }
-.matbox{ background:#F6F8FC; border:1.5px solid #E1E7F0; border-radius:9px; padding:7px 13px;
+.matbox{ background:var(--s-do); border:1px solid var(--s-do-line); border-radius:var(--r-2); padding:7px 13px;
       font-size:16.5px; display:flex; gap:9px; align-items:baseline; }
-.matbox .lbl{ color:var(--navy2); flex:0 0 auto; }
+.matbox .lbl{ color:var(--s-do-ink); flex:0 0 auto; }
 .cont{ margin-top:0; font-size:14px; color:var(--mut); font-style:${rtl ? "normal" : "italic"};
       border-top:1px solid var(--line); padding-top:var(--sp-2); line-height:${rtl ? "1.9" : "1.55"}; }
 
 /* ── page 2 ─────────────────────────────────────────────────────────────── */
-.p2head{ display:flex; justify-content:space-between; align-items:center;
-      border-bottom:3px solid var(--navy); padding-bottom:var(--sp-2); gap:12px; }
+.p2head{ ${PAGE.oneColumn ? "display:block;" : "display:flex; justify-content:space-between; align-items:center; gap:12px;"}
+      border-bottom:3px solid var(--navy); padding-bottom:var(--sp-2); }
+/* The pill rides INSIDE the meta line (bd-a8veu.9), ahead of the locator, so it needs the gap
+   the flex row used to give it as a sibling. A trailing margin in the READING direction, not a
+   literal one: on the Urdu page that gap belongs on the left. vertical-align centres the 14px
+   badge against the 15.5px meta it now shares a line box with, so neither one lifts the line.
+   It is beside the META and not the TITLE on purpose: the badge costs 133px of whatever line it
+   sits on, the meta is short and fixed in shape, and the title is the one piece here that has
+   to be free to wrap across the full measure. */
 .p2head .pill{ background:var(--navy); color:#fff; font-size:14px; font-weight:800; letter-spacing:.11em;
-      text-transform:uppercase; padding:5px 14px; border-radius:16px; flex:0 0 auto; }
-.p2head .t{ font-size:20.5px; font-weight:800; color:var(--navy); line-height:${rtl ? "1.8" : "1.3"}; }
-.p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${end}; line-height:${rtl ? "1.85" : "1.45"}; }
+      text-transform:uppercase; padding:5px 14px; border-radius:var(--r-pill); flex:0 0 auto;
+      display:inline-block; vertical-align:middle; margin-${end}:9px; }
+/* The eyebrow leads, so the space between the two pieces hangs off the TITLE now. */
+.p2head .t{ font-size:20.5px; font-weight:800; color:var(--navy); line-height:${rtl ? "1.8" : "1.3"};${PAGE.oneColumn ? " margin-top:var(--sp-1);" : ""} }
+.p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${PAGE.oneColumn ? start : end}; line-height:${rtl ? "1.85" : "1.45"}; }
 .p2sec{ break-inside:avoid; }
 .p2bar{ display:flex; align-items:center; gap:7px; margin:0; }
-.p2bar .badge{ flex:0 0 auto; width:21px; height:21px; border-radius:6px; background:var(--navy); color:#fff;
+.p2bar .badge{ flex:0 0 auto; width:21px; height:21px; border-radius:var(--r-1); background:var(--navy); color:#fff;
       font-size:15.5px; font-weight:800; display:flex; align-items:center; justify-content:center; line-height:1; }
 .p2bar .nm{ font-size:17px; font-weight:800; color:var(--navy); letter-spacing:.03em;
       text-transform:uppercase; line-height:${rtl ? "1.8" : "1.35"}; }
 .p2bar .rule{ flex:1 1 auto; height:2px; background:var(--line); }
-.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-2); }
-.grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--sp-2); }
-.card{ border:1px solid var(--line); border-radius:6px; padding:3px 10px; background:#fff; }
-.card .lbl{ color:var(--navy2); display:block; margin-bottom:var(--sp-1); }
+/* ONE COLUMN on the phone page (v9.3). A .grid3 cell at the 478px measure is 154px — about
+   seven characters a line — and .grid2's is 231px. This is a LAYOUT change, not a scale one:
+   no size rescues a seven-character column. Measured over the 62 documents it SAVES 27 pages
+   rather than costing them, because a three-column grid at a phone measure wraps its cells so
+   hard that the row is taller than the same cards stacked. DESIGN.md section 5(b). */
+.grid2{ display:grid; grid-template-columns:${PAGE.oneColumn ? "1fr" : "1fr 1fr"}; gap:var(--sp-2); }
+.grid3{ display:grid; grid-template-columns:${PAGE.oneColumn ? "1fr" : "1fr 1fr 1fr"}; gap:var(--sp-2); }
+.card{ border:1px solid var(--line); border-radius:var(--r-1); padding:3px 10px; background:#fff; }
+.card .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:var(--sp-1); }
 .card p{ font-size:18px; }
 .card .a{ color:var(--leaf); font-weight:700; }
-.card.mk{ background:#FAFBFD; }
-.mis{ border:1px solid var(--line); border-radius:8px; overflow:hidden; }
-.mis .x{ background:#FCEDE6; padding:4px 10px; }
-.mis .x .lbl{ color:var(--warn); display:block; }
+.card.mk{ background:var(--s-quiet); }
+.mis{ border:1px solid var(--line); border-radius:var(--r-2); overflow:hidden; }
+.mis .x{ background:var(--s-watch); padding:4px 10px; }
+.mis .x .lbl{ color:var(--s-watch-ink); display:block; }
 .mis .x p{ font-size:18px; color:#5a2f18; }
-.mis .v{ background:var(--leaf-soft); padding:4px 10px; }
-.mis .v .lbl{ color:#14603A; display:block; }
+.mis .v{ background:var(--s-do); padding:4px 10px; }
+.mis .v .lbl{ color:var(--s-do-ink); display:block; }
 .mis .v p{ font-size:18px; color:#14472F; }
-.mcq{ border:1px solid var(--line); border-radius:7px; padding:4px 10px; margin:0; }
-.mcq .q{ font-size:18px; font-weight:700; color:var(--navy2); }
+.mcq{ border:1px solid var(--line); border-radius:var(--r-2); padding:4px 10px; margin:0; }
+.mcq .q{ font-size:18px; font-weight:700; color:var(--s-teach-ink); }
 .mcq .opts{ display:flex; flex-wrap:wrap; gap:var(--sp-1); margin-top:var(--sp-1); }
-.mcq .op{ font-size:16px; border:1px solid var(--line); border-radius:5px; padding:2px 8px; background:#FAFBFD; }
-.mcq .op.ok{ border-color:#BFE3CD; background:var(--leaf-soft); font-weight:700; color:#14603A; }
-.mcq .op .dc{ color:var(--warn); font-size:14px; font-weight:700; }
-.srq{ background:var(--navy); color:#fff; border-radius:8px; padding:6px 12px; }
+.mcq .op{ font-size:16px; border:1px solid var(--s-quiet-line); border-radius:var(--r-1); padding:2px 8px; background:var(--s-quiet); }
+.mcq .op.ok{ border-color:var(--s-do-line); background:var(--s-do); font-weight:700; color:var(--s-do-ink); }
+.mcq .op .dc{ color:var(--s-watch-ink); font-size:14px; font-weight:700; }
+.srq{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:6px 12px; }
 .srq .lbl{ color:var(--amber); }
 .srq .q{ font-size:18.5px; font-weight:700; margin-top:var(--sp-1); line-height:${rtl ? "1.9" : "1.55"}; }
-.ms{ background:var(--leaf-soft); border:1px solid #BFE3CD; border-radius:8px; padding:6px 12px; margin-top:0; }
-.ms .lbl{ color:#14603A; display:block; }
+.ms{ background:var(--s-do); border:1px solid var(--s-do-line); border-radius:var(--r-2); padding:6px 12px; margin-top:0; }
+.ms .lbl{ color:var(--s-do-ink); display:block; }
 .ms ul{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .ms li{ font-size:18px; margin:0; }
-.erq{ border:1.5px dashed #C3CCDA; border-radius:9px; padding:6px 12px; margin-top:0; }
-.erq .lbl{ color:var(--navy2); display:block; }
+/* The one box on the page whose POINT is that it is empty: the dashed frame stays 1.5px where
+   the solid frames standardised down to 1px, because a dash reads lighter than a rule of the
+   same width and this is the box a teacher has to see as space to write in. */
+.erq{ border:1.5px dashed var(--s-teach-line); border-radius:var(--r-2); padding:6px 12px; margin-top:0; }
+.erq .lbl{ color:var(--s-teach-ink); display:block; }
 .erq .q{ font-size:18px; font-weight:700; margin:var(--sp-1) 0 var(--sp-2); }
 .erq .part{ display:flex; gap:8px; font-size:18px; align-items:baseline; }
 .erq .part .mk{ flex:0 0 auto; margin-${start}:auto; color:var(--amber); font-weight:800; font-size:15.5px; }
 .how{ font-size:15.5px; color:var(--mut); display:block; margin-top:var(--sp-1); }
 .ord{ margin:0; padding-${start}:21px; }
 .ord li{ font-size:18px; margin:0; line-height:1.55; }
-.nxt{ display:flex; gap:var(--sp-2); }
-.nxt > div{ flex:1 1 0; border-radius:7px; padding:5px 11px; border:1px solid; }
-.nxt .a{ background:#F5F8FC; border-color:#CBD8E8; } .nxt .a .lbl{ color:var(--navy2); display:block; }
-.nxt .b{ background:var(--warn-soft); border-color:var(--warn-line); } .nxt .b .lbl{ color:var(--warn); display:block; }
-.nxt p{ font-size:18px; }
-.coach{ background:var(--navy); color:#fff; border-radius:8px; padding:6px 12px; }
+/* .nxt went with the Next period / Not going today section (bd-a8veu.20) — the last
+   selector that used it was deleted in the same commit. */
+.coach{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:6px 12px; }
 .coach .lbl{ color:var(--amber); display:block; }
 .coach p{ font-size:18px; }
 .coach .ask{ margin-top:var(--sp-1); } .coach .ask .lbl{ display:inline; margin-inline-end:6px; }
@@ -610,13 +929,27 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    line box and the wordmark ran 4px past the page's inner bottom on every single Urdu page.
    A bottom padding lifts the text off the floor and — because the packer measures the
    footer's real box in the probe — is charged for exactly. */
+/* STACKED, not a two-column row (v9.3, bd-oak77.16). The row was built for a 752px measure:
+   at the phone page's 478px its left half wraps to three or four lines and the strip goes
+   74px -> 188px ON EVERY PAGE — measured on cell_c06 — which is more than a whole page of
+   furniture over a 16-page lesson and is what pushed 29 of 62 documents into OVERFLOW with
+   overflowingSections EMPTY: nothing of the lesson clipped, only the strip that prints
+   "page 6 of 14" over the line, and 16-78px of it, past bd-c3le6's 12px absorber. Stacked,
+   each half gets the full column and the strip measures 74px again. Same words, same order,
+   no string touched. */
 .foot{ margin-top:auto; padding-top:var(--sp-2); padding-bottom:${rtl ? "7px" : "1px"};
       border-top:1px solid var(--line);
-      display:flex; justify-content:space-between; align-items:baseline; color:var(--mut);
-      font-size:14px; gap:14px; line-height:${rtl ? "1.75" : "1.4"}; }
+      display:block; color:var(--mut);
+      font-size:14px; line-height:${rtl ? "1.75" : "1.4"}; }
 .foot b{ color:var(--navy); font-weight:700; }
-.foot .fl{ min-width:0; }
-.foot .fr{ text-align:${end}; flex:0 0 auto; white-space:nowrap; }
+/* TWO LINE BOXES, STRUCTURALLY — operator: "footer to take no more than 2 lines pls". Stacked
+   halves are two lines only while each half FITS the 478px column, and the left half holds a
+   chapter title of unknown length, so no amount of shortening the string can guarantee it. A
+   nowrap block has exactly one line box whatever it holds; overflow+ellipsis is what keeps that
+   from running off the page edge instead. Clamping only ever SHRINKS the measured strip, so the
+   packer's page budget cannot lose a pixel to this. No padding, no line-height, no font-size. */
+.foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.foot .fr{ text-align:${start}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
 ${rtl ? `
 /* ── mixed-script prose under RTL (the 2026-09 audit, class D3) ──────────────
@@ -638,20 +971,44 @@ p, li, figcaption,
 }
 
 // ── geometry the figure sizer needs ─────────────────────────────────────────
-// .pad is padded 22px each side inside a 794px page; figure.dg adds 10px padding either
-// side plus a 1.5px border. So a full-width diagram's own drawing box is 729px — the number the
-// production defect string quotes ("13.25px in a 729px column", 2026-09-06). This comment said 727
-// for as long as the constant existed, and lint_lp.js believed it and recomputed the box from 22px
-// of page padding instead of 21, so the two legibility gates were 2px apart. There is now ONE
-// definition and both read it (bd-oak77.14).
-const PAGE_INNER_W = 794 - 21 * 2;      // 752
+// .pad is padded PAGE.padX each side inside a PAGE.w page; figure.dg adds 10px padding either
+// side plus a 1.5px border. On A4 that made a full-width diagram's drawing box 729px; on the
+// v9.3 phone page it is 455px. ONE definition, derived from ONE page object — the two legibility
+// gates were 2px apart for as long as this number was written down twice (bd-oak77.14).
+const PAGE_INNER_W = PAGE.w - PAGE.padX * 2;
 /* The flat height clamp on a raster book crop. See the note above `figure.dg img`. */
 const CROP_MAX_H = 320;
 
 const FIG_CHROME = 10 * 2 + 3;          // figure.dg padding + border
-const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 729
+const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 727
 const SPLIT_GAP = 9;
-const DIAGRAM_MIN_PX = 13.5;            // the legibility floor inside a figure
+/** The legibility floor inside a figure, AT THE A4 MEASURE it was chosen against, and the drawing
+ *  box it was chosen for. A figure's labels scale with ITS COLUMN, not with the page. */
+const DIAGRAM_MIN_PX_A4 = 13.5;
+const FULL_COL_A4 = PAGE_A4.w - PAGE_A4.padX * 2 - FIG_CHROME;   // 729
+/* And the same floor on this page. IT MUST SCALE, AND IT MUST SCALE BY THE COLUMN.
+
+   That it must scale at all is not a preference: `requiredBox()` sizes a figure so its smallest
+   label clears this floor in the FIGURE's own column, so holding 13.5 on a 455px drawing box means
+   the drawing can no longer shrink to fit. Measured over the 116 lessons production has actually
+   delivered, that is 159 BLOCKING lint failures across 101 of them — `FIGURE` is not on
+   `ADVISORY_CODES`, so each one is a revision round the ladder spends and a lesson it can lose.
+
+   That it must scale by FULL_COL and not by PAGE.w is the part that is easy to get wrong, and it
+   cost this lane a measurement to find. The two ratios are NOT the same, because `padX` and
+   `FIG_CHROME` are absolute pixels that did not shrink with the page: 520/794 = 0.6549 but
+   455/729 = 0.6242. Scaling by the page gives 8.84, which is apparent-size-neutral on the screen
+   but 5% STRICTER than A4 relative to the column a figure actually gets — and it rejects figures
+   A4 accepts: 26 blocking failures across 25 documents against today's 8 across 8. Scaling by the
+   column gives 8.43 and reproduces today's set EXACTLY — 8 across 8, the same documents.
+
+   WHAT THAT COSTS, SAID PLAINLY: a diagram's smallest label arrives on the phone about 5% smaller
+   than it does today (6.32 phone px against 6.63). That is the price of keeping the 21px gutters,
+   which this lane deliberately did not narrow, and it is a 5% change to a mark already sitting at
+   43% of the reading floor. ACCEPTANCE-neutrality is what protects a teacher's lesson; the 5% is
+   bd-oak77.15's to win back, and DESIGN.md section 5(c) says why that needs simpler diagrams
+   rather than a bigger floor. */
+const DIAGRAM_MIN_PX = +(DIAGRAM_MIN_PX_A4 * (FULL_COL / FULL_COL_A4)).toFixed(2);
 /**
  * How far a FULL-WIDTH figure may grow, per side, to rescue its own labels — bd-oak77.14.
  *
@@ -668,7 +1025,7 @@ const DIAGRAM_MIN_PX = 13.5;            // the legibility floor inside a figure
  * lp612-render-policy.service.js). That is the same advice the defect string has always given
  * ("give it a full-width row"), enforced instead of suggested.
  */
-const FIG_GROW_MAX = 18;
+const FIG_GROW_MAX = PAGE.padX - 3;
 
 let _requiredBox = null;
 function requiredBoxFn() {
@@ -824,15 +1181,27 @@ function makeBlockRenderer(ctx) {
     board: (b) => `<div class="blk board"><div class="lbl">${esc(L.board)}</div>
       <div class="t">${rich(b.text)}</div></div>`,
 
-    keywords: (b) => `<div class="blk"><div class="lbl" style="color:var(--navy2)">${esc(L.keywords)}</div>
+    keywords: (b) => `<div class="blk"><div class="lbl g">${esc(L.keywords)}</div>
       <div class="kwrow">${b.items
         .map((k) => `<span class="kw"><b>${rich(k.word)}</b> <i>— ${rich(k.meaning)}</i></span>`)
         .join("")}</div></div>`,
 
     key_points: (b) => {
       const label = b.title === undefined ? L.keyPoints : b.title;
-      return `<div class="blk">${label ? `<div class="lbl" style="color:var(--navy2)">${rich(label)}</div>` : ""}
+      return `<div class="blk">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
       <ul class="kp"${label ? "" : ' style="margin-top:0"'}>${b.items.map((i) => `<li>${rich(i)}</li>`).join("")}</ul></div>`;
+    },
+
+    /* bd-a8veu.21 — the same facts, one attribute name instead of one per sentence. A ragged
+       row is PADDED, never dropped and never shifted left: the author is a model, and a short
+       row must cost one empty cell rather than a whole lost case. */
+    table: (b) => {
+      const label = b.title === undefined ? "" : b.title;
+      const cells = (r) =>
+        b.columns.map((_, i) => `<td>${rich(r[i] == null ? "" : r[i])}</td>`).join("");
+      return `<div class="blk">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
+      <table class="tbl"><thead><tr>${b.columns.map((c) => `<th>${rich(c)}</th>`).join("")}</tr></thead>
+      <tbody>${b.rows.map((r) => `<tr>${cells(r)}</tr>`).join("")}</tbody></table></div>`;
     },
 
     worked_example: (b) => `<div class="blk exq">
@@ -971,7 +1340,10 @@ function makeBlockRenderer(ctx) {
     const r = b.ratio || 0.5;
     const outer = (colPx || FULL_COL) + FIG_CHROME;     // the split divides the TEXT column
     const wide = outer - SPLIT_GAP;
-    const colW = (grow) => Math.floor(wide * grow) - FIG_CHROME;
+    // v9.3: stacked, both columns are the full measure, so a figure inside a split is sized
+    // for the width it will actually be drawn at. Sizing for a half it no longer occupies is how
+    // a legible figure gets clamped to half its height.
+    const colW = (grow) => (PAGE.oneColumn ? outer - FIG_CHROME : Math.floor(wide * grow) - FIG_CHROME);
 
     // A diagram that cannot stay legible in its half is HOISTED to a full-width row under
     // the split rather than silently crushed. Legibility beats the two-column layout — the
@@ -1135,21 +1507,40 @@ function contStripHtml(doc, ctx) {
  * <stem>.render.json; the page gets words instead:
  *
  *   left   Grade 11 Chemistry · Ch. 4 Stoichiometry · pp. 82-84
- *   right  NIETE Teaching Assistant · v2026-08-30 · page 3 of 5
+ *   right  NIETE Teaching Assistant · page 3 of 5
  *
  * The wordmark lives HERE and not in the hero kicker: "GRADE 9 · CHEMISTRY — NIETE TEACHING
  * ASSISTANT" wrapped onto two lines and pushed the lesson title down every single page.
  * Render-law 13 still holds — no brand in the document means no brand text at all.
+ *
+ * 2026-09-13 — THE LAST INTERNAL REF, AND THE DOUBLE-PRINTED CHAPTER. Operator: *"the footer
+ * contains v2026-09-01 pls remove that tag from the footer as well"*, and *"footer to take no
+ * more than 2 lines pls"*. Those are one defect in two halves.
+ *
+ * `provenance.version` is the date OUR author run stamped the document. It is the same class of
+ * key as `lesson_id` and `book_stem`, which is exactly what this function was written in v8.1 to
+ * clear off the page, and it has no business surviving the sweep that removed them. It is still
+ * carried — pdfmeta.js puts it in the Info dictionary and <stem>.render.json records it — it
+ * simply stops printing. "As well" is her word, and it is right: the tag is off the first page
+ * already, so this strip was the only place left that showed it.
+ *
+ * And the strip was over two lines before the date was counted at all. Every authored document
+ * has `provenance.chapter` ALREADY ending in `chapter_title` — "Ch. 1 · Matrices and
+ * Determinants" beside "Matrices and Determinants" — and this line appended the title anyway, so
+ * the left half read "Ch. 1 · Matrices and Determinants — Matrices and Determinants", ran past
+ * the 478px column and wrapped. Since v9.3 the halves are STACKED, so a wrap is a THIRD line.
+ * Say the chapter once; append the title only for the document whose chapter really is bare
+ * ("Ch. 1"), where dropping it would lose the only words naming the lesson's chapter.
+ * The nowrap clamp on `.foot .fl` / `.foot .fr` holds the other end — see the sheet.
  */
 function footerHtml(doc, ctx, n, total) {
   const p = doc.provenance;
   const L = ctx.L;
-  const chapter = p.chapter_title ? `${p.chapter} &mdash; ${rich(p.chapter_title)}` : rich(p.chapter);
+  const named = p.chapter_title && !String(p.chapter || "").includes(p.chapter_title);
+  const chapter = named ? `${rich(p.chapter)} &mdash; ${rich(p.chapter_title)}` : rich(p.chapter || p.chapter_title);
   const left = `${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter} &middot; ${esc(L.pp)}${isoAtom(esc(p.printed_pages), ctx)}`;
   const brand = p.brand && p.brand.name ? `<span class="wm">${esc(p.brand.name)}</span> &middot; ` : "";
-  // No invented dates: a doc with no provenance.version simply carries none.
-  const ver = p.version ? `v${esc(p.version)} &middot; ` : "";
-  return `<div class="foot"><div class="fl">${left}</div><div class="fr">${brand}${ver}${esc(L.pageOf(n, total))}</div></div>`;
+  return `<div class="foot"><div class="fl">${left}</div><div class="fr">${brand}${esc(L.pageOf(n, total))}</div></div>`;
 }
 
 function page1(doc, ctx, secIndex) {
@@ -1167,6 +1558,16 @@ function page1(doc, ctx, secIndex) {
   // default: a teacher in an ICT government school must not read the authoring house's
   // product name on her lesson plan. v8.1 moved the wordmark OUT of this kicker (it wrapped
   // onto a second line on every page) and into the footer.
+  //
+  // RENDER-LAW 14 (bd-ydz6z). The chips row carries `board_weight` and nothing else. `lp_type`
+  // (STEM-2, LL-1, RECALL …) is OUR authoring taxonomy — it picks the Development/Activity
+  // internals before a word is written, and a teacher can neither act on it nor look it up. Same
+  // defect class the v8.1 footer fixed (`PK_G11_CHEM_CH4_MOLE_RATIO`) and bd-w56zx's
+  // `previous: grade_10_urdu.p1c01.r990`: an internal key may live in the document and in the PDF
+  // Info dictionary, never on a page a teacher carries into a classroom. `board_weight` is the
+  // opposite — it says what the topic is worth in the exam she is preparing them for — so it
+  // stays; and where it too is absent (grades 6-8, outside FBISE's examining remit) the row is
+  // not painted at all rather than left as an empty gapped flex box under the page line.
   const hero = `<div class="hero">
     <div class="h-col">
       <div class="kicker">${esc(L.grade)} ${p.grade} &middot; ${rich(p.subject)}</div>
@@ -1175,29 +1576,40 @@ function page1(doc, ctx, secIndex) {
     <div class="h-meta">
       <div>${rich(p.chapter)}</div>
       <div>${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)} &middot; <b>${doc.period_minutes} ${esc(L.min)}</b></div>
-      <div class="chips">
-        <span class="tchip">${esc(doc.lp_type)}</span>
-        ${doc.board_weight ? `<span class="tchip plain">${rich(doc.board_weight)}</span>` : ""}
-      </div>
+      ${doc.board_weight ? `<div class="chips">
+        <span class="tchip plain">${rich(doc.board_weight)}</span>
+      </div>` : ""}
     </div>
   </div>`;
 
-  // ── O · LEARNING OUTCOME & OBJECTIVES — ONE BOX ──────────────────────────
+  // ── O · LEARNING OUTCOME — ONE BOX, ONE VOICE (bd-a8veu.14) ──────────────
   // Spec §2: "Outcome and objectives are one box — not two stacked blocks." v8 printed the
   // verbatim SLO as the box and the objectives as a list beneath it, which read as two.
-  // v9 leads with the OUTCOME (what the pupil can do), then the ✓ line naming the question
-  // type and its marks, then the objectives — each wearing its OWN SLO code (spec §3 O).
+  // v9 led with the OUTCOME, then the ✓ line, then the curriculum SLO, then the objectives —
+  // which is FOUR statements of one sentence, and on a real grade 6 render the first objective
+  // was a character-for-character copy of the outcome.
+  //
+  // Operator, three times, most recently 2026-09-12: *"The learning outcomess are still stated
+  // 3 ways, only the first ones are needed, the curriculum SLO isnt needed neither is the
+  // learning outcomes, its just repetition."*
+  //
+  // So the box paints the outcome and the ✓ line, and nothing else. The ✓ line stays because it
+  // is the only place the assessment task and its mark split appear — it says what the outcome
+  // is WORTH, it does not restate it.
+  //
+  // `doc.slo` and `doc.objectives.items` are untouched in the schema: the linter still gates on
+  // them, the author still writes them, `slo.code` still titles this box. They stop being PAINTED.
+  //
+  // WHY THIS LIVES HERE AND NOT IN A BRIEF: bd-a8veu.3 answered this same complaint by editing
+  // four author briefs and the linter — zero renderer lines (93e948cf). An author-side rule only
+  // fires on a genuine re-author; it cannot reach a stored document, and a template-version bump
+  // re-renders stored documents on purpose, for zero model spend. A defect you can see on the
+  // page is a renderer defect. Guarded by tests/lp612/outcome-one-voice-render.test.js.
   const O = doc.objectives;
-  const objLi = (o) =>
-    `<li>${rich(o.text)}${o.slo_code ? `<span class="slocode">${rich(o.slo_code)}</span>` : ""}` +
-    `${o.locally_added ? ` <i style="color:var(--mut)">(${esc(L.locallyAdded)})</i>` : ""}</li>`;
   const sloBox = `<div class="slo">
     <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}</div>
     <p>${rich(O.outcome)}</p>
     ${O.by_the_end ? `<div class="bythe"><b>&#10003;</b> ${rich(O.by_the_end)}</div>` : ""}
-    <div class="src">${esc(L.slo)}: ${isoQuote(`&ldquo;${rich(doc.slo.text_verbatim)}&rdquo;`, ctx)} &middot; ${esc(L.page)}${rich(doc.slo.source_page)}${doc.slo.assessment_status ? ` &middot; ${isoAtom(esc(doc.slo.assessment_status), ctx)}` : ""} &middot; ${isoAtom(esc(doc.slo.cognitive_level), ctx)}</div>
-    <div class="objhd"><span class="badge">O</span>${esc(L.objectives)}</div>
-    <ul class="objs">${O.items.map(objLi).join("")}</ul>
   </div>`;
 
   /**
@@ -1213,9 +1625,19 @@ function page1(doc, ctx, secIndex) {
    * ONE place. A second copy of the same link on the same document is a defect that costs a page,
    * which is what the coaching-corner version was.
    *
-   * COMPACT on purpose: the url alone, not the title/channel/duration/why the old block printed.
-   * Page 1 is the busiest page in the document and this is furniture, so it may cost a LINE, not a
-   * paragraph — the page-count gate is real and the teach part is often at its cap.
+   * COMPACT on purpose: ONE line, not the title/channel/duration/why paragraph the old block
+   * printed. Page 1 is the busiest page in the document and this is furniture, so it may cost a
+   * LINE, not a paragraph — the page-count gate is real and the teach part is often at its cap.
+   *
+   * bd-a8veu.4: that line SAYS THE TITLE, and used to say the video id. The operator's own plan
+   * printed `youtu.be/7E3NQRBDNXY` — eleven characters of base64, out of which nobody can tell a
+   * demonstration from a read-aloud of the same passage. His item 4 is that the picks are
+   * re-reads; the pick itself is made upstream by the YouTube swarm and is not ours to change
+   * from here, but a teacher who can SEE what she is about to play can skip a bad one before she
+   * plays it to a class. It stays one line because the clamp is now CSS (`.vres a`), not a hope
+   * that the title is short: a 90-character title on a 478px column would otherwise be three
+   * lines of furniture. The url is not lost — it is the href, which is the only part of it she
+   * ever used.
    */
   const shortVideoUrl = (v) => {
     if (!v || !v.url) return null;
@@ -1233,25 +1655,86 @@ function page1(doc, ctx, secIndex) {
     // Only http(s) becomes a tap target. The picks come from our own ranker, but an anchor built
     // out of stored data is an anchor someone would eventually like to control.
     if (!/^https?:\/\//i.test(href)) return "";
-    // U+2066 … U+2069 around the VISIBLE run: an RTL paragraph reorders a bare latin url into
+    // An isolate around the VISIBLE run: an RTL paragraph reorders an embedded latin run into
     // something a teacher cannot read, which is the fix the phone number already carries.
-    const shown = ctx.rtl ? `\u2066${short}\u2069` : short;
+    // The title when there is one, the short url when there is not. `parseYt` requires a title on
+    // anything written today, but stored rows predate it, and a video line with no visible run is
+    // worse than an id.
+    const label = String(v.title || "").trim() || short;
+    // FIRST STRONG (U+2068), not the LRI (U+2066) this carried while the visible run was always a
+    // url: the run is now a title, and on an Urdu plan that title is Urdu, which an LRI reverses.
+    const shown = ctx.rtl ? `\u2068${label}\u2069` : label;
     return `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(L.video)}</span><a href="${esc(href)}">${esc(shown)}</a></div>`;
+  })();
+
+  /**
+   * THE RESOURCES CARD \u2014 everything the teacher must have in her hand, in one box on page 1.
+   *
+   * Operator, on the v9.3 pull: *"Key words should come on the 1st page, so teachers have their
+   * materials listed, videos, and key words. So the 1st page quickly tells the teacher where they
+   * are at, what they are teacing, the SLO, the resources, videos and key words of this lesson"*.
+   *
+   * The hero already says WHERE, the sequence strip says what comes before and after, the outcome
+   * box says the SLO. The three things he names were the three that were scattered: the video was
+   * here already, the materials were folded into the muted 14px pacing sentence at the very END of
+   * the teach part (four pages away from the bell), and the key words were a block buried mid-page
+   * inside the Introduction.
+   *
+   * Like the video move above, this is a MOVE and not an addition \u2014 each of the three renders in
+   * exactly ONE place. `sectionAtoms` drops the hoisted keywords block, and the tail keeps only
+   * `L.continues`, the one sentence that is true only at the end.
+   *
+   * The key words move in the RENDERER ONLY. `lint_lp.js`'s VOCAB_PAGE reads the DOCUMENT \u2014 it
+   * wants a `keywords` block among the introduction's blocks, carrying a textbook page \u2014 so the
+   * lp_doc shape, the author brief, and every `ur_overlay` pointer are untouched by this.
+   */
+  const kwHoisted = (() => {
+    const intro = (doc.sections || []).find((x) => x && x.id === "introduction");
+    if (!intro || !Array.isArray(intro.blocks)) return null;
+    return intro.blocks.find((b) => b && b.type === "keywords") || null;
+  })();
+
+  // Each of the four is its own BLOCK, with its own icon and its own tint (bd-a8veu.16) — see the
+  // .rescard comment in the stylesheet for why. The icon leads, the way the video's already did;
+  // the label's trailing colon goes with the row, because a block boundary already separates the
+  // label from what it labels and a colon on top of it is a mark doing nothing.
+  const resourcesCard = (() => {
+    const rows = [];
+    if (resourcesLine) rows.push(resourcesLine);
+    if (doc.materials && doc.materials.length) {
+      rows.push(`<div class="rmat"><span class="ico">&#129520;</span><span class="lbl">${esc(L.materials)}</span><span>${doc.materials.map((m) => rich(m)).join(" &middot; ")}</span></div>`);
+    }
+    rows.push(`<div class="rpace"><span class="ico">&#9201;</span><span class="lbl">${esc(L.pacing)}</span><span>${pacing.join(" + ")} = ${pacingSum} ${esc(L.min)}</span></div>`);
+    if (kwHoisted) rows.push(`<div class="rkw"><span class="ico">&#128273;</span>${blk(kwHoisted, FULL_COL)}</div>`);
+    return `<div class="rescard">${rows.join("")}</div>`;
   })();
 
   // The sequence strip (spec §5), directly under the masthead. Arrows point
   // WITH the reading direction — see arrowFor.
+  //
+  // Each arrow closes the phrase it leads AWAY from, inside that phrase's own span and with no
+  // whitespace before it: an arrow that is a sibling of the phrases is a box of its own, and a
+  // box of its own is what gets pushed onto an empty line (bd-a8veu.2). The only break
+  // opportunities in the strip are the single spaces BETWEEN phrases, which is where a break
+  // belongs. The arrow before `next` therefore rides at the end of `.now`, and only when there
+  // is a next period for it to point at.
+  //
+  // Each leg is a BLOCK (`.seq > span`, bd-a8veu.15) — four statements, four lines. The arrows
+  // stay because the stack is the only thing that says these four lines are one sequence and not
+  // four unrelated facts; the checkpoint's leading `&middot;` goes, because a separator between
+  // two things that no longer share a line is a stray mark.
   const AR = arrowFor(ctx);
+  const arrow = `<span class="arrow">${AR}</span>`;
   const seq = doc.sequence
-    ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}</span><span class="arrow">${AR}</span>` : ""}
-       <span class="now">${rich(doc.sequence.this)}</span>
-       ${doc.sequence.next ? `<span class="arrow">${AR}</span><span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
-       ${doc.sequence.checkpoint ? `<span>&middot; <b>${esc(L.seqCheck)}:</b> ${rich(doc.sequence.checkpoint)}</span>` : ""}</div>`
+    ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}${arrow}</span>` : ""}
+       <span class="now">${rich(doc.sequence.this)}${doc.sequence.next ? arrow : ""}</span>
+       ${doc.sequence.next ? `<span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
+       ${doc.sequence.checkpoint ? `<span><b>${esc(L.seqCheck)}:</b> ${rich(doc.sequence.checkpoint)}</span>` : ""}</div>`
     : "";
 
   // The warm-up is ONE ROW inside the Introduction (spec §2) — not a section, not a band of
   // its own. The scaffold item comes first and says so; prior knowledge alone is not a warm-up.
-  const warmupBody = (wu) => `<div class="blk wu"><div class="lbl" style="color:#8A5F04">${esc(L.warmup)}</div>${wu.items
+  const warmupBody = (wu) => `<div class="blk wu"><div class="lbl g">${esc(L.warmup)}</div>${wu.items
     .map(
       (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
         <span class="q">${rich(it.q)} <span class="a">${AR} ${rich(it.a)}</span></span>
@@ -1264,6 +1747,7 @@ function page1(doc, ctx, secIndex) {
   // the video (D), the checkpoint / exit ticket / re-teach rule (C), the tagged homework (H).
   // They render in a fixed position inside their section so a teacher finds them in the same
   // place in every plan — which is the whole point of a closed heading system.
+  const flowHost = flowHosts(doc);
   const before = (s) => {
     const out = [];
     if (s.id === "introduction" && s.warmup) out.push({ html: warmupBody(s.warmup), sp: 2 });
@@ -1277,6 +1761,20 @@ function page1(doc, ctx, secIndex) {
     // The video used to print HERE, mid-Development. It now renders once, in the resources
     // line at the top of page 1 — see resourcesLine. Do not re-add it here: two copies of one
     // link on one document is the defect that cost a page on the part already at its cap.
+    //
+    // bd-a8veu.7: the board plan lands here, at the END of the Introduction — the brief's
+    // canonical section closes on its own `board` note, so the picture of the finished board
+    // sits directly under the sentence that tells the teacher what to write. See boardPlanAtoms.
+    if (s.id === "introduction") out.push(...boardPlanAtoms(doc, ctx));
+    // bd-a8veu.10: the two groups that used to stand alone in Reference land where they are
+    // used — mistakes at the close of the teaching, differentiation at the close of the
+    // practice, after the items it differentiates. `page2()` no longer paints either unless
+    // this document has no host for it. See flowHosts.
+    const P2 = doc.page2 || {};
+    if (s.id === flowHost.mistakes) out.push(...groupAtoms(L.p2Mistakes, (P2.mistakes || []).map((m) => misCard(m, L))));
+    if (s.id === flowHost.differentiation && P2.differentiation) {
+      out.push(...groupAtoms(L.p2Diff, diffCards(P2.differentiation, L)));
+    }
     if (s.id === "conclusion") {
       if (s.checkpoint) {
         const c = s.checkpoint;
@@ -1304,10 +1802,19 @@ function page1(doc, ctx, secIndex) {
       // separation is `gap:var(--sp-1)`, each `.hw .it` carries its own border and background,
       // and `.blk` is `margin:0` with no box of its own — so N one-item wrappers paint exactly
       // what one N-item wrapper painted, with the 4px gap returning as the atom's sp-1 margin.
+      //
+      // THE TAG IS THE BLOOM'S LEVEL ALONE. Operator, 2026-09-13: "HW has O1,O2 type marking
+      // with Blooms tag, the tag can remain, but the O1 type objective tagging should be gone".
+      // [K] / [U] / [A] tells a teacher what the question asks a student to DO, which is the
+      // reason the tag is on the page at all. `slo_code` is a curriculum key -- `M-09-A-07` on a
+      // maths plan, `O1` on hers -- and it is OURS, the same class of internal ref this document
+      // was cleared of in v8.1 and again in the footer today. The item still CARRIES `slo_code`:
+      // the objectives band reads it and lint_lp.js's coverage rules check against it. It simply
+      // stops printing beside the question.
       const hwItem = (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
           <span class="q">${rich(it.text)}${it.source && (it.source.page || it.source.questions || it.source.paper)
             ? ` <span class="src">(${[it.source.paper, it.source.questions, it.source.page ? `${L.page}${it.source.page}` : null].filter(Boolean).map((x) => rich(x)).join(", ")})</span>` : ""}</span>
-          <span class="tag">[${rich(it.slo_code)}, ${esc(it.level)}]${it.marks ? ` ${it.marks}${esc(L.markAbbr)}` : ""}</span></div>`;
+          <span class="tag">[${esc(it.level)}]${it.marks ? ` ${it.marks}${esc(L.markAbbr)}` : ""}</span></div>`;
       s.homework.items.forEach((it, i) => {
         out.push({ html: `<div class="blk hw">${hwItem(it, i)}</div>`, sp: i === 0 ? 2 : 1 });
       });
@@ -1350,6 +1857,8 @@ function page1(doc, ctx, secIndex) {
     const out = [atom(bar(id, title, s.minutes, L), { sec: id, first: true, glue: true, sp: 4 })];
     for (const x of before(s)) out.push(atom(x.html, { sec: id, glue: x.glue, sp: x.sp }));
     for (const b of s.blocks) {
+      // the key words are printed once, in the resources card at the top of the page
+      if (kwHoisted && b === kwHoisted) continue;
       for (const a of blockAtoms(b, colPx)) out.push(atom(a.html, { sec: id, glue: a.glue, sp: a.sp }));
     }
     // `glue` is forwarded here exactly as it is for before(s) above. No atom from after()
@@ -1367,7 +1876,7 @@ function page1(doc, ctx, secIndex) {
   if (seq) A.push(atom(seq, { sp: 2, glue: true }));
   A.push(atom(sloBox, { sp: 2 }));
   // Directly under the outcome box: the first thing after "what the pupil can do".
-  if (resourcesLine) A.push(atom(resourcesLine, { sp: 2 }));
+  A.push(atom(resourcesCard, { sp: 2 }));
 
   // consecutive layout:"half" sections share one two-column band. Each keeps its own
   // lettered bar, so the closed heading vocabulary survives; only the stacking goes away.
@@ -1375,7 +1884,7 @@ function page1(doc, ctx, secIndex) {
   for (let i = 0; i < doc.sections.length; i++) {
     const s = doc.sections[i];
     const n = doc.sections[i + 1];
-    if (s.layout === "half" && n && n.layout === "half") {
+    if (!PAGE.oneColumn && s.layout === "half" && n && n.layout === "half") {
       A.push(atom(`<div class="secrow">${whole(s, HALF_COL)}${whole(n, HALF_COL)}</div>`, { sp: 4 }));
       i++;
     } else {
@@ -1383,8 +1892,10 @@ function page1(doc, ctx, secIndex) {
     }
   }
 
+  // The materials and the pacing moved UP into the resources card; what stays here is the one
+  // sentence that is only true at the end of the teach part — the next sheet is planning material.
   const mats = `<div class="mats">
-    <div class="cont">${doc.materials.length ? `<b>${esc(L.materials)}:</b> ${doc.materials.map((m) => rich(m)).join(" &middot; ")} &nbsp;|&nbsp; ` : ""}<b>${esc(L.pacing)}:</b> ${pacing.join(" + ")} = ${pacingSum} ${esc(L.min)}. ${esc(L.continues)}</div>
+    <div class="cont">${esc(L.continues)}</div>
   </div>`;
   A.push(atom(mats, { sp: 4 }));
 
@@ -1397,9 +1908,149 @@ function unnumber(s) {
   return String(s ?? "").replace(/^\s*[0-9\u0660-\u0669\u06F0-\u06F9]{1,2}\s*[.)\u06D4\u060C:\u2013-]\s+/, "");
 }
 
+/**
+ * The board plan — the FINAL STATE of the board plus the order to build it — as teach-part atoms.
+ *
+ * bd-a8veu.7. This pair used to print as REFERENCE SECTION A, on the sheet whose own masthead
+ * tells the teacher not to read it in class, four pages from the chalk. The author brief calls
+ * `page2.board_final` "the single most requested artefact a teacher asked for" and requires the
+ * diagram — and a plan for a board is worth nothing once the board is built. It belongs under the
+ * Introduction's own ON THE BOARD note, where the teacher first picks up the chalk: she sees what
+ * she is building toward before she starts laying it out.
+ *
+ * This is a MOVE, not a copy. `page2()` no longer emits the section at all, and `S` paints nothing
+ * for a section whose bodies are all empty, so the support index closes up and B becomes A by
+ * itself (render-law 15). Nothing outside `page2()` keys off the letter. The DOCUMENT is untouched:
+ * `page2.board_final` is still where the schema, lint, the author briefs and every `ur_overlay`
+ * pointer address it — exactly as the key words stayed in `introduction.blocks` when they were
+ * hoisted into the resources card for bd-a8veu.6.
+ *
+ * The figure carries `glue`, so the order can never be stranded on the next sheet — the whole use
+ * of the pair, and the reason the old section A comment existed.
+ */
+function boardPlanAtoms(doc, ctx) {
+  const L = ctx.L;
+  const B = (doc.page2 && doc.page2.board_final) || null;
+  if (!B) return [];
+  const out = [];
+
+  if (B.diagram) {
+    let svg;
+    try {
+      svg = ctx.renderDiagram(B.diagram);
+    } catch (e) {
+      ctx.warn(`board plan diagram did not render: ${e.message}`);
+      svg = ctx.placeholder(B.diagram);
+    }
+    ctx.vectorFigure = true;
+    // Same repair as R.diagram (bd-oak77.14) — this figure is always full-width, so it always
+    // qualifies. A second copy of the sizing rule that silently omitted the widening would fail
+    // for a defect the rest of the teach page recovers from.
+    const slot = figureFit(svg, FULL_COL, FIG_GROW_MAX);
+    if (slot.growPx) {
+      ctx.figureRepair({
+        code: "FIGURE_WIDENED",
+        specType: B.diagram.type || null,
+        caption: null,
+        colPx: FULL_COL,
+        growPx: slot.growPx,
+        neededPx: slot.neededPx,
+        renderedPxBefore: slot.renderedPxBefore,
+        renderedPxAfter: slot.renderedPx,
+        floorPx: DIAGRAM_MIN_PX,
+      });
+    }
+    const styleBits = [];
+    if (slot.maxHeightPx) styleBits.push(`--fig-h:${slot.maxHeightPx}px`);
+    if (slot.growPx) styleBits.push(`--fig-wide:${slot.growPx}px`);
+    const style = styleBits.length ? ` style="${styleBits.join(";")}"` : "";
+    // board_final.caption is a SEPARATE authored string from the diagram spec's own caption
+    // (which the SVG already prints). Print it only when it says something different.
+    const cap = B.caption && B.caption !== B.diagram.caption ? B.caption : null;
+    const fig = `<figure class="dg"${style}>${svg}${cap ? `<figcaption>${rich(cap)}</figcaption>` : ""}</figure>`;
+    // A bare `.blk` label, NOT the `.blk board` box: that box carries 13px of side padding, and
+    // `figureFit` has already sized the SVG against the full column. Boxing it here would crop
+    // the widening the repair just granted.
+    out.push({ html: `<div class="blk"><div class="lbl">${esc(L.p2Board)}</div>${fig}</div>`, sp: 2, glue: true });
+  }
+
+  const order = B.draw_order || [];
+  if (order.length) {
+    out.push({
+      html: `<div class="card"><span class="lbl">${esc(B.diagram ? L.drawOrder : L.p2Board)}</span>
+      <ol class="ord">${order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
+      sp: 1,
+    });
+  }
+  return out;
+}
+
+/**
+ * bd-a8veu.10 — WHERE the two in-flow reference groups are allowed to land.
+ *
+ * Operator: *"common mistakes should be in the part where its needed much like how its in
+ * opening, not stand alone as reference. Differentiation should also be part of practice where
+ * students are going to do work, not in reference"*.
+ *
+ * The host is LOOKED UP, never hardcoded at the emission site, for two reasons. Differentiation
+ * is addressed to "where students are going to do work", which is a property of the BLOCKS a
+ * section carries (`practice` / `faded_example`), not of its id — a plan that puts its practice
+ * in Development rather than Activity still gets it in the right place. And a null host is a
+ * real answer: it means "there is nowhere in the flow for this", and the group stays in
+ * Reference. Content may move; it may never vanish.
+ *
+ * @returns {{mistakes: string|null, differentiation: string|null}} section ids, or null
+ */
+function flowHosts(doc) {
+  const secs = doc.sections || [];
+  const practice = secs.find((s) => (s.blocks || []).some((b) => b.type === "practice" || b.type === "faded_example"));
+  return {
+    mistakes: secs.some((s) => s.id === "development") ? "development" : null,
+    differentiation: practice ? practice.id : null,
+  };
+}
+
+/** One authored misconception: what the pupil writes, and the question you ask back. */
+const misCard = (m, L) => `<div class="mis">
+      <div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>
+      <div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div></div>`;
+
+/** The three differentiation cards, in the order a teacher reaches for them mid-practice. */
+const diffCards = (D, L) => [
+  `<div class="card"><span class="lbl">${esc(L.stuck)}</span><p>${rich(D.stuck)}</p></div>`,
+  `<div class="card"><span class="lbl">${esc(L.barrier)}</span><p>${rich(D.barrier)}</p></div>`,
+  `<div class="card"><span class="lbl">${esc(L.early)}</span><p>${rich(D.early)}</p></div>`,
+];
+
+/**
+ * A labelled card group as FLOW atoms — the shape `gridRows` gives the support page, plus the
+ * label the section bar used to supply.
+ *
+ * ONE CARD PER ATOM, because `PAGE.oneColumn` makes a row a card and a break may never fall
+ * inside a row: three cards in one atom would force all three onto a fresh page. The LABEL rides
+ * in the same atom as card 1 — the YOU-DO precedent in `blockAtoms` — so a page can never open
+ * on a bare card with no statement of what it is a card of.
+ *
+ * A bare `.blk` wrapper, not a boxed one: `.blk` is `margin:0` with no box, so the label sits on
+ * the group with nothing drawn around it. It is a `.lbl.g`, not a plain `.lbl` — this label heads
+ * three sibling cards that carry plain `.lbl`s of their own, and without the group level the
+ * heading and its own children print identically.
+ */
+function groupAtoms(label, cards) {
+  if (!cards.length) return [];
+  return cards.map((c, i) => ({
+    html: i === 0
+      ? `<div class="blk"><div class="lbl g">${esc(label)}</div><div class="grid3">${c}</div></div>`
+      : `<div class="grid3">${c}</div>`,
+    sp: i === 0 ? 3 : 2,
+  }));
+}
+
 function page2(doc, ctx, secIndex) {
   const L = ctx.L;
   const P = doc.page2;
+  // bd-a8veu.10: a group with a host in the flow is NOT painted here. See flowHosts.
+  const hosts = flowHosts(doc);
   const p = doc.provenance;
   const A = [];
   /**
@@ -1412,12 +2063,25 @@ function page2(doc, ctx, secIndex) {
    * stacked boxes (the hook / say / board / watch run), and that is where the full 8/12/16
    * rhythm goes. Loosening this page by one rung costs it a THIRD page, which is worse for
    * the same teacher.
+   *
+   * RENDER-LAW 15 (bd-s19g8). The LETTER is assigned here, in emission order, rather than
+   * written at the call site. Sections B (`model_answers`) and F (`homework_key`) are optional
+   * now — the operator: *"we didnt need model answers"*, *"homework key goes too"* — and a
+   * support page that ran A, C, D, E, G, H would read as a printing fault rather than as a
+   * deliberate omission. Nothing outside this function keys off the letter (`p2-B` appears in
+   * no other file), so the index is free to close up. A section whose bodies are all empty is
+   * not painted at all: `S` emits nothing, bar included, rather than leaving a lettered rule
+   * over an empty grid.
    */
-  const S = (letter, name, bodies) => {
+  let nS = 0;
+  const S = (name, bodies) => {
+    const present = bodies.filter(Boolean);
+    if (!present.length) return;
+    const letter = String.fromCharCode(65 + nS++);
     const key = `p2-${letter}`;
     secIndex[key] = { kind: "p2", letter, title: name };
     A.push(atom(p2bar(letter, name), { sec: key, first: true, glue: true, sp: 2 }));
-    bodies.filter(Boolean).forEach((b) => {
+    present.forEach((b) => {
       const html = typeof b === "string" ? b : b.html;
       // A body may now declare its own `glue`. It could not before, and it did not need to
       // while the packer was greedy: greedy breaks as LATE as it can, so it only ever
@@ -1461,7 +2125,10 @@ function page2(doc, ctx, secIndex) {
    * @param firstSp the rung the FIRST row sits at (it follows the section bar, not a gap)
    */
   const gridRows = (cls, cards, firstSp = 1) => {
-    const perRow = cls === "grid3" ? 3 : 2;
+    // v9.3: on a one-column page a "row" is a card. Keeping 3-per-row would emit three
+    // stacked cards inside ONE atom, and a break may never fall inside a row — the packer
+    // would have to push all three to a fresh page.
+    const perRow = PAGE.oneColumn ? 1 : (cls === "grid3" ? 3 : 2);
     const out = [];
     for (let i = 0; i < cards.length; i += perRow) {
       out.push({ html: `<div class="${cls}">${cards.slice(i, i + perRow).join("")}</div>`,
@@ -1470,90 +2137,77 @@ function page2(doc, ctx, secIndex) {
     return out;
   };
 
-  let boardDia = "";
-  if (P.board_final.diagram) {
-    let svg;
-    try {
-      svg = ctx.renderDiagram(P.board_final.diagram);
-    } catch (e) {
-      ctx.warn(`page2 board diagram did not render: ${e.message}`);
-      svg = ctx.placeholder(P.board_final.diagram);
-    }
-    ctx.vectorFigure = true;
-    // Same repair as R.diagram (bd-oak77.14) — this figure is always full-width, so it always
-    // qualifies. A second copy of the sizing rule that silently omitted the widening would fail
-    // support pages for a defect the teach page recovers from.
-    const slot = figureFit(svg, FULL_COL, FIG_GROW_MAX);
-    if (slot.growPx) {
-      ctx.figureRepair({
-        code: "FIGURE_WIDENED",
-        specType: (P.board_final.diagram && P.board_final.diagram.type) || null,
-        caption: null,
-        colPx: FULL_COL,
-        growPx: slot.growPx,
-        neededPx: slot.neededPx,
-        renderedPxBefore: slot.renderedPxBefore,
-        renderedPxAfter: slot.renderedPx,
-        floorPx: DIAGRAM_MIN_PX,
-      });
-    }
-    const styleBits2 = [];
-    if (slot.maxHeightPx) styleBits2.push(`--fig-h:${slot.maxHeightPx}px`);
-    if (slot.growPx) styleBits2.push(`--fig-wide:${slot.growPx}px`);
-    const style = styleBits2.length ? ` style="${styleBits2.join(";")}"` : "";
-    // board_final.caption is a SEPARATE authored string from the diagram spec's own caption
-    // (which the SVG already prints). Print it only when it says something different.
-    const specCap = P.board_final.diagram.caption;
-    const cap = P.board_final.caption && P.board_final.caption !== specCap ? P.board_final.caption : null;
-    boardDia = `<figure class="dg"${style}>${svg}${cap ? `<figcaption>${rich(cap)}</figcaption>` : ""}</figure>`;
-  }
-
+  // THE REFERENCE HEADER IS A RUNNING HEAD, NOT A SECOND COVER (bd-a8veu.9). An eyebrow and a
+  // name, bounded at three line boxes:
+  //
+  //     REFERENCE  Grade 6 Geography · p.63–64
+  //     Forests of Pakistan
+  //
+  // It used to run to four lines, and five once the topic wrapped, because three separate
+  // things each took a whole line of a 478px column and none of them filled it. The pill sat
+  // alone on a line that was 352.8px blank — 74% of the measure for a nine-letter badge. The
+  // meta carried a hard `<br>`, a break that cannot be taken back: it cost a line whether the
+  // text needed one or not. And the half after that break repeated the chapter, which the hero
+  // on page 1 already prints in full.
+  //
+  // WHAT DECIDES THE ARRANGEMENT is the arithmetic of the phone measure, not taste. The type
+  // ships scaled (20.5px of title renders at 23.92px), so the column holds ~36 characters of
+  // title per line and the pill costs 133px of whatever line it sits on. Put the pill beside
+  // the TITLE and a long topic loses a third of its first line and runs to three lines on its
+  // own, blowing the budget; put it beside the META — which is short, fixed in shape, and
+  // never needs the whole measure — and it costs nothing at all. That leaves the title the
+  // full width on both of its lines, which is what holds the bound: one line of furniture that
+  // cannot grow, plus two lines of topic.
+  //
+  // The meta carries the LOCATOR and nothing else. `Not read aloud in class` was the other
+  // casualty of the arithmetic, and it is the right one to lose: it is advice rather than
+  // identity, and a page badged REFERENCE — whose contents are model answers, an exam bank and
+  // the mistakes to expect — is not a thing anyone reads to a class. Grade, subject and pages
+  // are what re-identify these sheets once they are printed and shuffled.
   const p2head = `<div class="p2head">
-      <span class="pill">${esc(L.supportPage)}</span>
+      <div class="r"><span class="pill">${esc(L.supportPage)}</span>${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)}</div>
       <div class="t">${rich(p.topic)}</div>
-      <div class="r">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.notReadAloud)}<br>${rich(p.chapter)} &middot; ${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)}</div>
     </div>`;
   // The support page's masthead, glued for the same reason as the teach page's hero.
   A.push(atom(p2head, { sp: 0, glue: true }));
 
-  // The board diagram and the draw-order card that tells the teacher how to build it are ONE
-  // instruction in two atoms. Splitting them across a page leaves the teacher looking at a
-  // finished board on one sheet and the order to draw it on another — which is the whole use
-  // of section A. It was never marked `glue` because the greedy packer separated them only
-  // when the card genuinely did not fit; an exact packer would find that break and take it.
-  S("A", L.p2Board, [
-    boardDia ? { html: boardDia, sp: 2, glue: true } : null,
-    `<div class="card"><span class="lbl">${esc(L.drawOrder)}</span>
-      <ol class="ord">${P.board_final.draw_order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
-  ]);
-
-  // B — MODEL ANSWERS THAT NAME THEIR QUESTION.
-  // The expert's complaint was not that answers were wrong; it was that a page of answers
-  // never said what they were answers TO. Each card now resolves its `ref` back to the
-  // question as the LP states it, and prints that question above the answer. When a ref
-  // resolves to nothing the card says so out loud — lint's REF_ABSENT fails the doc, and the
-  // page must not quietly look complete in the meantime.
+  // bd-a8veu.7: SECTION A WAS THE BOARD PLAN, and it is gone from here. The diagram and the
+  // draw-order card now print at the end of the Introduction, where the teacher picks up the
+  // chalk — see boardPlanAtoms. Do not re-add them here: two copies of one board is the same
+  // defect the video hoist fixed, on a part that is already over its page cap. The letters
+  // close up by themselves because `S` assigns them in emission order (render-law 15), so what
+  // follows is now section A.
+  //
+  // bd-ir1aq: THE MODEL-ANSWER SECTION IS NOT EMITTED AT ALL, whatever the doc carries.
+  // Operator, twice — *"Section B in the reference section is not needed"*, then *"why does
+  // reference pages still have model answers? I just wanted HW answers"*. bd-s19g8 only took
+  // `model_answers` out of the four author briefs, which is a soft constraint on the model: an
+  // LP already cached, or one whose author round emitted the key anyway, kept printing it. The
+  // refusal has to live here, where the page is actually built.
+  //
+  // The key is NOT deleted from stored docs and NOT dropped from the schemas, deliberately. A
+  // cached Urdu doc whose `ur_overlay` points at `/page2/model_answers/…` would make
+  // `pointerSet()` throw and `renderDoc()` refuse the whole lesson with OVERLAY_INVALID; and
+  // `page2` is `additionalProperties: false`, so an undeclared key would turn every stored doc
+  // that carries one into a SCHEMA failure. The corpus keeps validating, the renderer ignores
+  // the key, and `lp612-author.worker.js` strips it (with its overlay pointers) from new docs.
+  //
+  // `Q` stays — the homework key, section F below, resolves its refs through it.
   const Q = questionIndex(doc);
-  S("B", L.p2Model, gridRows("grid2", P.model_answers
-    .map((m) => {
-      const q = m.ref ? Q.get(m.ref) : null;
-      return `<div class="card"><span class="lbl">${m.ref ? esc(m.ref) : ""}</span>
-      ${q ? `<span class="refq">${rich(q.q)}</span>` : (m.label ? `<span class="refq">${rich(m.label)}</span>` : `<span class="refq">${esc(L.refMissing)}</span>`)}
-      <p class="a">${rich(m.answer)}</p>
-      ${m.marking_note ? `<span class="how">${rich(m.marking_note)}</span>` : ""}</div>`;
-    })));
 
-  S("C", L.p2Mistakes, gridRows("grid3", P.mistakes
-    .map(
-      (m) => `<div class="mis">
-      <div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>
-      <div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div></div>`
-    )));
+  // bd-a8veu.10: MISTAKES AND DIFFERENTIATION NORMALLY PRINT IN THE FLOW, not here — the
+  // pupil-says/you-ask pair at the end of Development where the misconception surfaces, the
+  // three differentiation cards at the end of the section that carries the practice. See
+  // flowHosts and the `after(s)` hook. What is left here is the FALLBACK: an LP with no
+  // Development section, or none carrying a practice block, still gets its group printed, in
+  // Reference, exactly as it was printed before. `S` paints nothing for an empty body list, so
+  // the support index closes up on its own (render-law 15) when the flow takes the group.
+  S(L.p2Mistakes, hosts.mistakes ? [] : gridRows("grid3", (P.mistakes || []).map((m) => misCard(m, L))));
 
-  S("D", L.p2Diff, [`<div class="grid3">
-    <div class="card"><span class="lbl">${esc(L.stuck)}</span><p>${rich(P.differentiation.stuck)}</p></div>
-    <div class="card"><span class="lbl">${esc(L.barrier)}</span><p>${rich(P.differentiation.barrier)}</p></div>
-    <div class="card"><span class="lbl">${esc(L.early)}</span><p>${rich(P.differentiation.early)}</p></div></div>`]);
+  S(L.p2Diff, hosts.differentiation || !P.differentiation
+    ? []
+    : [`<div class="grid3">
+    ${diffCards(P.differentiation, L).join("\n    ")}</div>`]);
 
   const eb = P.exam_bank || {};
   const letterOf = (i) => "ABCDE"[i];
@@ -1604,19 +2258,34 @@ function page2(doc, ctx, secIndex) {
          .join("")}</div>`
     : null;
 
-  S("E", L.p2Exam, [
-    mcqAtoms.length ? { html: `<div class="lbl" style="color:var(--navy2)">${esc(L.mcq)}</div>`, sp: 1 } : null,
+  // bd-a8veu.18 — THE SECTION IS PRINTED FOR SSC ONLY. Operator: "Section B in the reference
+  // section is not needed." The heading names FBISE, and FBISE's examining remit starts at SSC, so
+  // on a grade 6-8 plan it names a board that does not examine her pupils — over questions the
+  // rule two screens up was careful not to call board practice. The document is unchanged: the
+  // bank stays in the schema, the briefs keep ordering one, and lint keeps its 6-8 warn. This is
+  // only what we PAINT, so a stored middle-school lesson re-renders without it at no model cost.
+  //
+  // Polarity differs from `srqLabel` on purpose. A missing grade there falls toward the label that
+  // claims LESS; here it falls toward printing, because withholding a whole section on an absent
+  // field would silently strip SSC lessons whose provenance never carried one.
+  //
+  // `S` assigns the support-page letter in emission order (render-law 15), so C becomes B by
+  // itself and the index closes up with no gap.
+  const fbiseGrade = p.grade == null || p.grade >= 9;
+  S(L.p2Exam, !fbiseGrade ? [] : [
+    mcqAtoms.length ? { html: `<div class="lbl g">${esc(L.mcq)}</div>`, sp: 1 } : null,
     ...mcqAtoms,
     srqHtml ? { html: srqHtml, sp: 2 } : null,
     erqHtml ? { html: erqHtml, sp: 2 } : null,
     eb.how_marked ? `<span class="how"><b>${esc(L.howMarked)}:</b> ${rich(eb.how_marked)}</span>` : null,
   ]);
 
-  // F — the homework worked in full. Like B, each entry resolves its `ref` back to the item as
-  // the homework section states it, so the teacher never has to hold two pages side by side.
-  // F is the tallest structure on the support page — median 496px, max 853px across the study's
-  // 24 lessons — and therefore the single biggest source of stranded space. It splits by row.
-  S("F", L.p2Hw, gridRows("grid2", P.homework_key
+  // F — the homework worked in full, when the LP carries a key. Like B, each entry resolves its
+  // `ref` back to the item as the homework section states it, so the teacher never has to hold
+  // two pages side by side. F is the tallest structure on the support page — median 496px, max
+  // 853px across the study's 24 lessons — and therefore the single biggest source of stranded
+  // space. It splits by row, and when `homework_key` is absent (bd-s19g8) it is not painted.
+  S(L.p2Hw, gridRows("grid2", (P.homework_key || [])
     .map((h) => {
       const it = h.ref ? Q.get(h.ref) : null;
       return `<div class="card mk"><span class="lbl">${h.ref ? esc(h.ref) : ""}${h.marks ? ` &middot; ${h.marks} ${esc(L.marks)}` : ""}</span>
@@ -1624,16 +2293,27 @@ function page2(doc, ctx, secIndex) {
       <p class="a">${rich(h.answer)}</p></div>`;
     })));
 
-  S("G", `${L.p2Next} / ${L.p2NotGoing}`, [`<div class="nxt">
-    <div class="a"><span class="lbl">${esc(L.p2Next)}</span><p>${rich(P.next_period)}</p></div>
-    <div class="b"><span class="lbl">&#9888; ${esc(L.p2NotGoing)}</span><p>${rich(P.not_going)}</p></div></div>`]);
+  // bd-a8veu.20 — NEXT PERIOD / NOT GOING TODAY IS NO LONGER PAINTED. Operator, on a grade-6
+  // English plan: "inside Reference, A is not at all needed since on Page 1 it is already
+  // present, so pls remove the whole thing." The page-1 twin is the sequence strip at :1694,
+  // which prints `Next: <doc.sequence.next>` directly under the hero — the same fact as
+  // `page2.next_period`, one page earlier, where a teacher meets it before she teaches rather
+  // than after. Reference was re-stating it at the far end of the plan.
+  //
+  // `S` assigns the letter in emission order (render-law 15), so the coaching corner takes the
+  // freed slot with no gap — which is the space the operator said it needed.
+  //
+  // THE DOCUMENT IS UNCHANGED. `next_period` and `not_going` stay required in both schemas,
+  // the briefs keep ordering them, and lint keeps its rules: this is only what we PAINT, so a
+  // stored lesson re-renders without the section at no model cost. `not_going` therefore still
+  // travels with every plan and is one `S(...)` away if it is ever wanted back on the page.
 
-  // H — the coaching corner, on the K-5 pattern (operator, 2026-09-02): something from THIS
+  // The coaching corner, on the K-5 pattern (operator, 2026-09-02): something from THIS
   // lesson, then a question she asks herself, then the offer of real coaching. The offer is
   // FURNITURE — the number lives in the label pack and nowhere else, so it cannot drift document
   // to document and costs nothing against the word budget. K-5 learned the last step the hard
   // way: a CTA that does not say what comes BACK is just a request (FEEDBACK_LEDGER #13).
-  S("H", L.p2Coach, [`<div class="coach"><p>${rich(P.coaching_lookfor)}</p>
+  S(L.p2Coach, [`<div class="coach"><p>${rich(P.coaching_lookfor)}</p>
     ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
     <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`]);
 
@@ -1641,7 +2321,7 @@ function page2(doc, ctx, secIndex) {
 }
 
 // The page box, in CSS px: A4 at 96dpi, less .pad's own padding.
-const PAGE_CONTENT_H = 1123 - 10 - 4;
+const PAGE_CONTENT_H = PAGE.h - PAGE.padT - PAGE.padB;
 
 /** The spacing scale, exported so a test can assert there is exactly ONE ladder. */
 const SPACING = { sp1: 4, sp2: 8, sp3: 12, sp4: 16, sp5: 24 };
@@ -1684,6 +2364,15 @@ function buildHtml(input, opts = {}) {
   const doc = toV3(input);
   const lang = opts.lang || doc.provenance.medium || "en";
   const rtl = lang === "ur";
+  /** bd-jdtdl — DOES THIS DOCUMENT CONTAIN URDU, whatever chrome it is being served with?
+   *  An Urdu-medium lesson (Urdu, Pak Studies Urdu, Islamiat) is authored in Urdu script and
+   *  is routinely served at lang=en, which used to mean no Nastaliq face and no Nastaliq in
+   *  the stack — so every Urdu codepoint printed .notdef. The face is 1.1 MB of base64, so it
+   *  is embedded on evidence rather than always: Arabic, Arabic Supplement, and the
+   *  presentation-forms blocks Urdu actually uses. */
+  const urduScript = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(
+    JSON.stringify(doc),
+  );
   // Every build sets the prose pipeline's direction for itself (see lib/rich.js
   // — buildHtml is synchronous, so two documents cannot interleave).
   setRtlProse(rtl);
@@ -1733,7 +2422,7 @@ function buildHtml(input, opts = {}) {
     vectorFigure: false,
   };
 
-  const fonts = fontCss({ urdu: rtl });
+  const fonts = fontCss({ urdu: rtl || urduScript });
   if (fonts.missing.length) warnings.push(`font file(s) not embedded, falling back to system: ${fonts.missing.join(", ")}`);
 
   const secIndex = {};
@@ -1764,7 +2453,7 @@ function buildHtml(input, opts = {}) {
 <title>${rich(doc.provenance.topic)} &middot; ${esc(L.grade)} ${doc.provenance.grade} ${rich(doc.provenance.subject)}</title>
 <meta name="subject" content="lesson_id=${esc(doc.lesson_id)}">
 <meta name="keywords" content="${esc(doc.provenance.book_stem)}; lp_doc ${esc(doc.schema_version)}; ${esc(doc.lp_type)}">
-<style>${css(rtl, fonts.css, katexCss())}</style>
+<style>${css(rtl, fonts.css, katexCss(), urduScript)}</style>
 </head>
 <body${brandHex ? ` style="--brand:${esc(brandHex)}"` : ""}>
 ${contProbe}${paginate("teach", teach.atoms, breaks.teach || [], ctx, doc, secIndex, 1, total)}
@@ -1779,6 +2468,10 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
       support: support.atoms.map((a) => ({ sec: a.sec, first: a.first, glue: a.glue })),
     },
     probeKeys,
+    // An atom's `sec` is a KEY, and on the support page it is only a bar letter ("p2-D"). The
+    // renderer has to be able to say "Practice" when it tells the author which section to cut
+    // from, so the human title of every indexed section travels with the layout.
+    secTitles: Object.fromEntries(Object.entries(secIndex).map(([k, v]) => [k, v.title])),
     childCounts: { teach: teach.atoms.length, support: support.atoms.length },
     hasRasterFigure: ctx.rasterFigure,
     hasVectorFigure: ctx.vectorFigure,
@@ -1786,10 +2479,7 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
   };
 }
 
-module.exports = {
-  buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss,
-  SECTION_META, PAGE_CONTENT_H, SPACING, DIAGRAM_LABELS, diagramLabel,
-  // The full-width drawing box and the legibility floor, exported so lint_lp.js can ASK rather
-  // than restate. It restated them and drifted (bd-oak77.14).
-  FULL_COL, DIAGRAM_MIN_PX, FIG_GROW_MAX,
-};
+module.exports = { buildHtml, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META,
+  PAGE, PAGE_A4, PAGE_FORMATS, pageScaled, PAGE_INNER_W, PAGE_CONTENT_H, DIAGRAM_MIN_PX, DIAGRAM_MIN_PX_A4,
+  FIG_CHROME, FULL_COL, FULL_COL_A4, FIG_GROW_MAX,
+  SPACING, DIAGRAM_LABELS, diagramLabel };

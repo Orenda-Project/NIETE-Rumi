@@ -150,10 +150,12 @@ describe('BAND_PICKER — the screen itself', () => {
 describe('VENDOR_PICKER — bands are shown, not gated behind a confirm step', () => {
   const vp = () => screenById.get('VENDOR_PICKER');
 
-  test('carries an "Edit the grades I teach" link into BAND_PICKER', () => {
+  test('carries an "Edit Teacher Level" link into BAND_PICKER', () => {
+    // Label set by the operator (2026-08-21) and used verbatim on the portal
+    // too, so the two surfaces read the same.
     const json = JSON.stringify(vp().layout);
     expect(json).toContain('change_bands');
-    expect(json).toContain('Edit the grades I teach');
+    expect(json).toContain('Edit Teacher Level');
   });
 
   test('the edit link has its own visibility flag', () => {

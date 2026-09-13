@@ -119,9 +119,33 @@ const SECTION_BUDGET_V9 = {
 const OUTCOME_BOX_V9 = {
   outcome: 20,       // the outcome sentence: what the pupil can DO, in one line
   by_the_end: 22,    // the ✓ line naming the question type and its marks
-  objective: 15,     // EACH objective
+  objective: 17,     // EACH objective — 15 of content plus the two words OUTCOME_VOICE mandates
   total: 80,         // the whole box, because three legal fields can still fill a page
 };
+// bd-a8veu.3 — the stem the register rule requires ("You can …", "آپ …") is furniture, not content,
+// so it was added to the per-objective ceiling rather than taken out of the author's allowance. The
+// box TOTAL is untouched: 80 is the measured render bound, and it stays the binding constraint
+// either way (3x17 + 20 + 22 = 93, over 80, exactly as 3x15 + 20 + 22 = 87 was before).
+
+// bd-a8veu.3 — who the O box is written TO. The operator counted three styles in one box and asked
+// for one, "which should be student facing". Two of the three were authored: the outcome addressed
+// the pupil, the objectives were bare imperatives copied out of the curriculum ("Name…", "Match…",
+// "State…"). The third was the printed SLO quotation, which is not ours to rewrite — it carries its
+// own page number and lint forbids overlaying it — so it is excluded here and was fixed by giving
+// it its own label instead (overlay.js: it used to be captioned with the box's own heading).
+//
+// The test is presence of an address, not absence of an imperative. A negative test would have to
+// enumerate every verb an objective may open with; the register precedent one screen down (COMMANDS,
+// AUX_OPEN) records what that costs — "every verb missing from this list costs a revision round".
+// An address is a closed set in both languages, so the gate cannot fail correct work it has not met.
+const SECOND_PERSON = {
+  en: /\b(you|your|yours|you're)\b/i,
+  ur: /(آپ|تم|تمہار)/,
+};
+// The stem the author should reach for, in the language the plan was WRITTEN in. Urdu is verb-final,
+// so it wraps the objective rather than prefixing it — which is also why the rule is per-objective
+// and not a shared stem printed once on the heading.
+const VOICE_STEM = { en: "You can …", ur: "آپ … سکتے ہیں" };
 // Homework: the operator asked for fewer questions. Five is the cap, four is the shape the fleet
 // samples already settled on. This is a different count from the you-do + exit-ticket graded bar
 // (6-8 items) in §8 of the brief, which is classwork and is unchanged.
@@ -152,6 +176,10 @@ const DOC_BUDGET_V9 = { min: 800, max: 1200 };
 const MAX_BOARD_WEIGHT = 50;
 const FDE_ORDER = ["introduction", "development", "activity", "conclusion", "homework"];
 const MAX_ACTIVITIES = 7;
+// The WhatsApp body's beats: objective, warm-up, worked example, practice, misconception, exit.
+// One paragraph each — the ORDER is the v2 schema's and is load-bearing (it front-loads practice
+// because the END of a structured lesson is what gets cut, MDPI 16:5:699). bd-uu4lr.
+const ONESCREEN_BEATS = 6;
 
 const PLACEHOLDERS = [
   { re: /\bTODO\b/i, name: "TODO" },
@@ -165,6 +193,38 @@ const PLACEHOLDERS = [
   { re: /#[0-9A-Fa-f]{6}\b/, name: "raw hex colour code" },
   { re: /\bINSERT\b|\bPLACEHOLDER\b/i, name: "INSERT/PLACEHOLDER" },
 ];
+
+// render-law 22: a warm-up item that would read the same in any lesson on any subject is
+// content-free scaffolding, not a warm-up. Swap the subject and see if it still makes sense —
+// if it does, it fails here.
+// VENDOR DIVERGENCE (SYNC.md §3.11): adopted verbatim from upstream lp_html's lint_lp.js
+// (its 8-pattern list is a superset of this copy's prior 3 patterns).
+const WARMUP_ICEBREAKERS = [
+  { re: /tell me about a time/i, name: "generic 'tell me about a time...' icebreaker" },
+  { re: /what (was|is) (it|that) like/i, name: "generic 'what was it like' icebreaker" },
+  { re: /describe a time/i, name: "generic 'describe a time...' icebreaker" },
+  { re: /\byour favou?rite\b/i, name: "generic 'your favourite ___' icebreaker" },
+  { re: /\bicebreaker\b/i, name: "the literal word 'icebreaker'" },
+  { re: /how (was|is) your (day|weekend|morning)/i, name: "generic 'how was your day/weekend' icebreaker" },
+  { re: /اپنے بارے میں بتائیں/, name: "generic 'tell us about yourself' icebreaker" },
+  { re: /آپ کی پسندیدہ/, name: "generic 'your favourite ___' icebreaker" },
+];
+
+// render-law 24: a board draw_order line must open with an imperative — it must survive being
+// read alone, out of context, mid-lesson.
+// VENDOR DIVERGENCE (SYNC.md §3.11): adopted verbatim from upstream lp_html's lint_lp.js (its
+// ~38-verb list drops this copy's prior "arrow"/"connect"/"plot" but adds ~20 verbs, e.g. "solve").
+// "rule" (draw a straight line with a ruler) was missing from both the upstream and prior vendored
+// lists — found during false-positive validation against a real corpus (bd-i2udq); applied
+// identically in both trees to keep this list non-divergent.
+const LABELACT_EN = /^(draw|label|write|circle|underline|point|number|box|show|add|mark|list|copy|balance|highlight|shade|colour|color|trace|outline|fill|complete|solve|count|check|compare|match|sort|arrange|record|note|state|name|identify|explain|describe|calculate|measure|rule)\b/i;
+// Merge, not a straight swap: try upstream's exact conjugated forms first; anything that misses
+// (an informal or otherwise-inflected verb upstream's list doesn't spell out) falls back to this
+// copy's original loose stem match, so the wider net this copy already cast isn't lost.
+// VENDOR DIVERGENCE (SYNC.md §3.11).
+const LABELACT_UR_EXACT = /(لکھیے|لکھیں|بنائیے|بنائیں|دکھائیں|دکھایے|نشان\s*لگائیں|رنگ\s*بھریں|شمار\s*کریں|گنیں|مکمل\s*کریں|حل\s*کریں|موازنہ\s*کریں)/;
+const LABELACT_UR_STEMS = /(لکھ|بنائ|دائرہ|نشان|لگائ|رنگ|بھر)/;
+const LABELACT_UR = { test: (s) => LABELACT_UR_EXACT.test(s) || LABELACT_UR_STEMS.test(s) };
 
 // ── string harvesting ───────────────────────────────────────────────────────
 /** Every human-readable string in a value, with a JSON-Pointer-ish path. */
@@ -289,6 +349,31 @@ function lint(doc, docPath, opts = {}) {
     fail("ACTIVITIES", `${activities} activities (warm-up + ${activities - 1} blocks); the cap is ${MAX_ACTIVITIES}.`);
   }
 
+  // 2b — bd-4pw4y. There must BE a worked example, and it must be here, in the flow.
+  //
+  //      Operator: *"we need worked examples, but it should be in the practice sections of the LP
+  //      not in reference"*. Read it next to bd-s19g8, which is what it answers: that bead took the
+  //      two answer keys off the support page, and an answer key is easy to confuse with this. It
+  //      is not the same object. A model answer is the finished result, filed at the back for
+  //      marking; a worked example is the METHOD, performed in front of the class at the moment it
+  //      is taught. The keys were right to go. An LP with no I-do asks pupils to practise something
+  //      nobody demonstrated.
+  //
+  //      Until now all three layers ALLOWED a worked example and none of them asked for one: the
+  //      rule above counts it only towards the cap, UNWORDED_Q only checks a prompt that exists,
+  //      the schema carries the type but requires no instance, and the brief ordered one only on a
+  //      STEM-2 New-Procedure Day. The flash briefs' worked documents each carry one, so the model
+  //      has been imitating a habit rather than following a rule — and a habit is what drops out
+  //      under pressure.
+  //
+  //      Deliberately not a warn. "Optional demonstration" is not a shape anyone asked for, and the
+  //      cap above makes the trade tempting: an LP over MAX_ACTIVITIES can always get under it by
+  //      deleting the I-do, which is the worst of the four to lose.
+  const hasWorked = doc.sections.some((s) => allBlocks(s.blocks).some((b) => b.type === "worked_example"));
+  if (!hasWorked) {
+    fail("WORKED_ABSENT", "no worked_example block anywhere in the sections. Demonstrate the method — the I do — in the practice flow, before the faded practice that copies it. It belongs in the lesson the teacher is teaching from, not filed at the back.");
+  }
+
   // 3 — the SLO is real, verbatim and sourced (R2)
   if (!doc.slo.text_verbatim || !doc.slo.text_verbatim.trim()) fail("SLO", "slo.text_verbatim is empty.");
   if (!doc.slo.source_page || !String(doc.slo.source_page).trim()) fail("SLO", "slo.source_page is missing — a verbatim quote must carry its page.");
@@ -365,9 +450,25 @@ function lint(doc, docPath, opts = {}) {
     }
   }
 
-  // 9 — exam bank, grades 9-12 (FBISE's remit starts at SSC)
+  // 9 — an exam bank THAT EXISTS must be complete, grades 9-12 (FBISE's remit starts at SSC)
+  //
+  // bd-x0pw1, operator: *"exam qs would be as optional"*, then, on reading the first pass back:
+  // *"we need an exam bank whose heading is FBISE format Questions - (Optional)"*. The optionality
+  // is addressed to the TEACHER and printed in the heading; the briefs still order a bank on every
+  // plan. What this rule keeps from the first reading is only the crash-avoidance half: it was
+  // written against `exam_bank || {}`, so an ABSENT bank read to it as an EMPTY one and every
+  // clause below fired — including SCHEMA, which returns early and takes the other forty rules
+  // with it. It now binds to a bank that IS there.
+  //
+  // And it keeps the half that was always the point: a HALF-WRITTEN bank is worse than none. A
+  // teacher who sees "FBISE format Questions" on the support page expects the retrieval dose under
+  // it, and one MCQ with no mark scheme is a section that lies about what it holds. So an LP that
+  // ships a bank still owes the full 2 distractor-coded MCQs, the SRQ mark scheme and the ERQ
+  // skeleton; an LP that ships none is a quiet gap rather than a wrecked validation run, and `S()`
+  // paints no section E.
   const eb = doc.page2.exam_bank || {};
-  if (full && grade >= 9) {
+  const hasBank = doc.page2.exam_bank != null;
+  if (full && hasBank && grade >= 9) {
     if (!eb.mcq || eb.mcq.length < 2) fail("EXAM", `grade ${grade} needs >= 2 distractor-coded MCQs; found ${(eb.mcq || []).length}.`);
     (eb.mcq || []).forEach((q, i) => {
       const wrong = q.options.length - 1;
@@ -377,7 +478,7 @@ function lint(doc, docPath, opts = {}) {
     });
     if (!eb.srq || !eb.srq.mark_scheme || !eb.srq.mark_scheme.length) fail("EXAM", `grade ${grade} needs one board-phrased SRQ with a bullet mark scheme.`);
     if (!eb.erq_skeleton || !(eb.erq_skeleton.parts || []).length) fail("EXAM", `grade ${grade} needs an ERQ skeleton with parts and marks.`);
-  } else if (full && grade >= 6) {
+  } else if (full && hasBank && grade >= 6) {
     if (!eb.mcq || eb.mcq.length < 2) warn("EXAM", `grade ${grade}: only ${(eb.mcq || []).length} MCQ(s). 2-3 is the retrieval-practice dose even below SSC.`);
     if (!eb.srq) warn("EXAM", `grade ${grade}: no SRQ. The board-phrasing habit starts before grade 9.`);
   }
@@ -433,7 +534,7 @@ function lint(doc, docPath, opts = {}) {
     }
   }
 
-  // 10d — a diagram that cannot render its own labels at 13.5px in the column it is given.
+  // 10d — a diagram that cannot render its own labels at the floor, in the column it is given.
   //       Checked here as well as in the renderer so an author finds out before a build.
   if (full) {
     let renderDiagram = null, requiredBox = null, checkOverlaps = null;
@@ -443,14 +544,20 @@ function lint(doc, docPath, opts = {}) {
       checkOverlaps = require("./diagrams").checkOverlaps;
     } catch (_) { /* engine absent — the renderer still checks */ }
     if (renderDiagram && requiredBox) {
-      // READ FROM THE RENDERER, never recomputed. This line used to be
-      // `794 - 22 * 2 - (10 * 2 + 3)` = 727 with the comment "per lib/template.js" — and
-      // lib/template.js computes 794 - 21 * 2 - 23 = 729, while ITS comment also said 727. So both
-      // files were wrong about the same number in opposite directions and the two legibility gates
-      // measured different columns: the lint was 2px stricter than the renderer, and could buy the
-      // ladder ~60s revision rounds chasing a FIGURE defect the renderer would never report.
-      // Production settled it on 2026-09-06 ("13.25px in a 729px column"). One definition, imported.
-      const FULL_COL = require("./lib/template.js").FULL_COL;
+      // READ FROM THE RENDERER, never recomputed — BOTH numbers. This line used to be
+      // `794 - 22 * 2 - (10 * 2 + 3)` = 727 with the comment "per lib/template.js", while
+      // lib/template.js computed 794 - 21 * 2 - 23 = 729 and ITS comment also said 727: two files
+      // wrong about the same number in opposite directions, and the two legibility gates measuring
+      // different columns. Production settled it ("13.25px in a 729px column", 2026-09-06).
+      //
+      // THE FLOOR IS THE OTHER HALF OF THAT, and v9.3 is why it matters (bd-oak77.16). The page is
+      // now 520px wide, so a full-width drawing box is 455px rather than 729, and the floor moves
+      // with it — 8.43px. Importing the column while hardcoding 13.5 is strictly worse than
+      // hardcoding both: measured over the 116 lessons production has delivered, a 455px column
+      // judged against a 13.5px floor is 159 BLOCKING `FIGURE` failures across 101 of them
+      // (`FIGURE` is not advisory — each is a revision round, and a lesson the ladder can lose)
+      // against today's 8 across 8. With both imported it is 8 across 8: the same documents.
+      const { FULL_COL, DIAGRAM_MIN_PX } = require("./lib/template.js");
       for (const s of doc.sections) {
         for (const b of allBlocks(s.blocks)) {
           if (b.type !== "diagram") continue;
@@ -461,9 +568,9 @@ function lint(doc, docPath, opts = {}) {
             const svg = renderDiagram(
               b.spec.lang || !opts.lang ? b.spec : { ...b.spec, lang: opts.lang }
             );
-            const box = requiredBox(svg, { minPx: 13.5, colPx: FULL_COL });
-            if (box.renderedPx != null && box.renderedPx < 13.5) {
-              fail("FIGURE", `${s.id}: diagram "${b.spec.type}" renders its smallest label at ${box.renderedPx}px even at full width (floor 13.5px). It needs ${box.minWidthPx}px — simplify it or split it in two.`);
+            const box = requiredBox(svg, { minPx: DIAGRAM_MIN_PX, colPx: FULL_COL });
+            if (box.renderedPx != null && box.renderedPx < DIAGRAM_MIN_PX) {
+              fail("FIGURE", `${s.id}: diagram "${b.spec.type}" renders its smallest label at ${box.renderedPx}px even at full width (floor ${DIAGRAM_MIN_PX}px). It needs ${box.minWidthPx}px — simplify it or split it in two.`);
             }
             // 10e — ZERO overlaps. A label under a box, two labels on each
             //       other, or a rule through a label is a build failure, not a
@@ -513,6 +620,40 @@ function lint(doc, docPath, opts = {}) {
   const os = wordCount(doc.one_screen);
   if (full && (os < 150 || os > 260)) fail("ONESCREEN", `one_screen is ${os} words; the WhatsApp body is ~200 (150-260).`);
 
+  // 12b — …and it has a SHAPE, not just a word count (bd-uu4lr).
+  //
+  //   The teacher reads this on a phone BEFORE the PDF arrives. One unbroken
+  //   200-word paragraph is a grey wall. Same beats, same budget: one paragraph
+  //   per beat, each opening with a short bold cue.
+  //
+  //   WhatsApp bolds with *single* asterisks and prints `**` literally. The PDF
+  //   path uses `**` (lib/rich.js bold()), so an author carrying the page habit
+  //   into this field puts `**Objective**` in front of a teacher. one_screen
+  //   never reaches the renderer — visual_check.js:328 skips it as "the WhatsApp
+  //   MESSAGE BODY, not the page" — so there is no bidi isolate to collide with,
+  //   and the only real trap is the dialect. Name it and fail it.
+  //
+  //   A cue is `*...*` at the head of a block and nothing more. It is teacher-
+  //   facing prose in the lesson's own language, so an Urdu overlay writes Urdu
+  //   cues; any English word list here would fire on every correct Urdu body.
+  if (full && typeof doc.one_screen === "string" && doc.one_screen.trim()) {
+    const raw = doc.one_screen;
+    if (/\*\*/.test(raw)) {
+      fail("ONESCREEN_BOLD", "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.");
+    }
+    // A doubled-asterisk doc has already been told what is wrong; normalise so it
+    // does not also collect a cue failure for the same characters.
+    const blocks = raw.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+    if (blocks.length < ONESCREEN_BEATS) {
+      fail("ONESCREEN_FORMAT", `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`);
+    }
+    blocks.forEach((b, i) => {
+      if (!/^\*[^*\n]+\*/.test(b)) {
+        fail("ONESCREEN_FORMAT", `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`);
+      }
+    });
+  }
+
   // 13 — the Urdu toggle may not overwrite the book's own language
   for (const ptr of Object.keys(doc.ur_overlay || {})) {
     const why = frozenReason(doc, ptr);
@@ -539,6 +680,25 @@ function lint(doc, docPath, opts = {}) {
     for (const b of allBlocks(s.blocks)) {
       if (b.type === "textbook_figure" && b.src && !b.legend) {
         fail("FIGURE", `${s.id}: a textbook_figure with a real crop must carry a \`legend\` — its labels are baked pixels and vanish at phone scale.`);
+      }
+    }
+  }
+
+  // 14a2 — render-law 23: a caption NAMES the figure; the legend must UNPACK what's inside it.
+  //        When the legend just repeats the caption, the teacher paid for a second label that
+  //        carries nothing new. This does not fire on a missing legend at all — FIGURE above
+  //        owns that gap.
+  // VENDOR DIVERGENCE (SYNC.md §3.11): the check logic (norm() + this comparison) is identical to
+  // upstream; only the fail() message text below and this comment's wording differ.
+  const norm = (s) => String(s || "").toLowerCase().replace(/[.,;:!?()"'"''·•\-–—]/g, "").replace(/\s+/g, " ").trim();
+  for (const s of doc.sections) {
+    for (const b of allBlocks(s.blocks)) {
+      if (b.type === "textbook_figure" && b.caption && b.legend) {
+        const nc = norm(b.caption);
+        const nl = norm(b.legend);
+        if (nc && nl && (nc === nl || nc.includes(nl) || nl.includes(nc))) {
+          fail("REDUNDANT", `${s.id}: a textbook_figure's legend just repeats its caption ("${b.caption}") instead of adding what the caption does not already say.`);
+        }
       }
     }
   }
@@ -623,8 +783,11 @@ function lint(doc, docPath, opts = {}) {
     }
   }
 
-  // 15b — the reference block must be able to answer everything the flow asked
-  if (full && doc.page2.model_answers.length < 2) warn("MODELS", "fewer than 2 model-answer cards; the reference block is meant to answer every tier.");
+  // 15b — a reference block THAT EXISTS must be able to answer everything the flow asked.
+  // bd-ir1aq: the MODELS half of this rule is gone. `model_answers` is no longer rendered at
+  // all (lib/template.js), so a doc that still carries the key carries dead weight — and
+  // warning that the dead weight is thin would be noise the author rounds then try to fix by
+  // writing MORE of it. The homework key keeps its own completeness rule below.
   if (full && doc.page2.mistakes.length < 3) warn("MISTAKES", `${doc.page2.mistakes.length} mistake/repair pairs; the v7-1 shape teachers recognised carries 3.`);
 
   // ── DUPLICATE_DIAGRAM ────────────────────────────────────────────────────
@@ -836,6 +999,29 @@ const PROPHET_TOKENS = [
   "محمد", "حضور", "نبی",
 ].sort((a, b) => b.length - a.length);
 const PROPHET_RE = new RegExp(PROPHET_TOKENS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+
+// A bare `محمد` followed by another name-word (not a function word, not one of the Prophet's own
+// epithets) is a compound given name — a person, not the Prophet. Same shape as the K-5 lane's
+// niete-nbpro/src/honorifics.js `isCompoundGivenName`; kept in step by hand.
+const PROPHET_CONTINUATIONS = ["مصطفی", "مصطفیٰ", "رسول", "عربی", "خاتم", "النبیین", "مجتبی", "مجتبیٰ", "مدنی",
+  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک"];
+const NAME_FUNCTION_WORDS = ["نے", "کا", "کی", "کے", "کو", "سے", "پر", "میں", "تک", "اور", "یا", "ہے", "ہیں",
+  "تھا", "تھے", "تھی", "جو", "کہ", "بھی", "ہی", "نہیں", "والا", "والے", "والی", "صاحب", "نامی", "یعنی", "کہا", "کہتے"];
+function isCompoundGivenName(s, afterIdx) {
+  const rest = s.slice(afterIdx);
+  if (/^[،؛۔.,;:!?…'"’”»›)\]}]/.test(rest)) return false;              // `محمد۔` stands alone
+  const m = /^\s+([^\s،؛۔.,;:!?…'"’”«»‹›()\[\]{}]+)/.exec(rest);
+  if (!m) return false;
+  const w = m[1].replace(/[\u064B-\u0652\u0670\u06D6-\u06ED]/g, "");      // read through aeraab
+  if (!/[\u0620-\u064A\u066E-\u06D3]/.test(w)) return false;
+  if (PROPHET_CONTINUATIONS.includes(w) || NAME_FUNCTION_WORDS.includes(w)) return false;
+  if (PROPHET_TOKENS.some((t) => t.split(" ")[0] === w)) return false;         // حضور، نبی، رسول …
+  if (w === "بن") {                                                               // محمد بن عبداللہ = the Prophet
+    const m2 = /^\s+\S+\s+([^\s،؛۔]+)/.exec(rest);
+    return !(m2 && /^عبد\s*الل[ہه]$|^عبداللہ$|^عبدالله$/.test(m2[1].replace(/[\u064B-\u0652\u0670]/g, "")));
+  }
+  return true;
+}
 // The honorific may be the ligature or spelled out, and a comma or a quote may sit between.
 const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/;
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
@@ -918,7 +1104,10 @@ function v9Gates(doc, ctx) {
   const ANNOUNCED = /\b(?:answer|ans|solution|soln)\b\s*[:=]|\(\s*(?:answer|ans)\s*[:=]|جواب\s*[:：]/i;
   for (const it of (hw && hw.homework && hw.homework.items) || []) {
     if (ANNOUNCED.test(it.text || "")) {
-      fail("HW_ANSWER_INLINE", `homework item ${it.ref || ""} announces its own answer: "${String(it.text).slice(0, 70)}". The answers live in the reference block, and nowhere else.`);
+      // Not "the answers live in the reference block" any more — bd-s19g8 made that block
+      // optional, and the defect is the same with or without one: an item that prints its own
+      // answer asks the pupil to copy rather than to work.
+      fail("HW_ANSWER_INLINE", `homework item ${it.ref || ""} announces its own answer: "${String(it.text).slice(0, 70)}". The item asks; it must not answer itself.`);
       continue;
     }
     const key = (doc.page2.homework_key || []).find((k) => k.ref === it.ref);
@@ -995,24 +1184,39 @@ function v9Gates(doc, ctx) {
   for (const d of duplicateRefs(doc)) {
     fail("REF_ABSENT", `the ref "${d}" is declared by more than one question, so an answer pointing at it is ambiguous.`);
   }
-  for (const m of doc.page2.model_answers || []) {
-    if (!index.has(m.ref)) {
-      fail("REF_ABSENT", `model answer "${m.ref}" answers a question the LP never states. Known refs: ${[...index.keys()].join(", ")}.`);
-    }
-  }
+  // bd-ir1aq: `model_answers` is no longer checked in either direction. It is not rendered
+  // (lib/template.js) and it is stripped from newly authored docs (lp612-author.worker.js), so
+  // a ref inside it can no longer be a lie ON THE PAGE — nothing of it reaches the page. Failing
+  // a doc over dead weight would only block lessons the teacher would have read correctly.
   for (const k of doc.page2.homework_key || []) {
     if (!index.has(k.ref)) fail("REF_ABSENT", `homework key "${k.ref}" solves an item the LP never sets.`);
   }
-  // and the other direction: a question with no answer anywhere
-  const answered = new Set([
-    ...(doc.page2.model_answers || []).map((m) => m.ref),
-    ...(doc.page2.homework_key || []).map((k) => k.ref),
-  ]);
+  // AND THE OTHER DIRECTION — reworked by bd-s19g8 to: **an answer key that exists must be
+  // complete; an LP need no longer have one.**
+  //
+  // It used to read "every question is answered somewhere", which was an answer-key COMPLETENESS
+  // policy wearing a ref-integrity name, and it is what made the two blocks impossible to drop.
+  // `lib/questions.js` builds every CHECKPOINT (:52) and every HOMEWORK item (:57) with
+  // `a: null` STRUCTURALLY — their answers can only ever live in a reference block — so an LP
+  // without those blocks failed once per checkpoint and once per homework item, on every doc.
+  //
+  // The rule now binds per key. A doc that ships `homework_key` still has to solve every
+  // homework item; a doc that ships none is an LP without an answer key, which the operator
+  // asked for. The FORWARD direction above is untouched and stays absolute — a homework answer
+  // pointing at an item the LP never sets is a lie on the page whatever else is present.
+  //
+  // bd-ir1aq: HOMEWORK IS THE ONLY KEY LEFT. `model_answers` no longer prints, so the checkpoint
+  // half of this rule would demand completeness of a block the teacher never sees — it is gone,
+  // and an unanswered checkpoint is now simply an unanswered checkpoint, the way an in-flow
+  // question already was.
+  const hwKey = doc.page2.homework_key;
+  const answered = new Set((hwKey || []).map((k) => k.ref));
   for (const q of qs) {
-    if (q.kind === "exam") continue;                      // the bank carries its own key
+    if (q.kind !== "homework") continue;                  // the only key that reaches the page
     if (q.a != null && String(q.a).trim()) continue;      // answered in place
     if (answered.has(q.ref)) continue;
-    fail("REF_ABSENT", `${q.ref} (${q.where}) is asked and never answered — not in place, and not in the reference block.`);
+    if (!hwKey) continue;                                 // no key — nothing to be incomplete
+    fail("REF_ABSENT", `${q.ref} (${q.where}) is asked and never answered — not in place, and not in the homework key the LP does carry.`);
   }
   // prose that points at a question by number
   // ONLY the explicit form. A bare "Q1" is almost always a TEXTBOOK citation — "Ex 1.3
@@ -1126,6 +1330,35 @@ function v9Gates(doc, ctx) {
     for (const { where, spec } of gSpecs) for (const d of specContractDefects(spec, where)) fail(d.code, d.msg);
   }
 
+  // ── LABELACT (render-law 24) ──────────────────────────────────────────────
+  // Not gated on `full`: a board draw_order line must open with an imperative — it must
+  // survive being read alone, out of context, mid-lesson — and that is as true in a
+  // part-lint as in a whole-document one.
+  {
+    const drawOrder = (doc.page2.board_final && doc.page2.board_final.draw_order) || [];
+    drawOrder.forEach((line, i) => {
+      const s = String(line ?? "").trim();
+      if (!LABELACT_EN.test(s) && !LABELACT_UR.test(s)) {
+        fail("LABELACT", `page2.board_final.draw_order[${i}] does not open with an imperative: "${s}". A board step tells the teacher what to DO, not just what is there.`);
+      }
+    });
+  }
+
+  // ── WARMTOPIC (render-law 22) ─────────────────────────────────────────────
+  // A warm-up item that would read the same in any lesson on any subject is content-free
+  // scaffolding, not a warm-up. Swap the subject and see if it still makes sense — if it
+  // does, it fails here.
+  {
+    const items = (intro && intro.warmup && intro.warmup.items) || [];
+    items.forEach((it, i) => {
+      const q = String((it && it.q) ?? "");
+      const hit = WARMUP_ICEBREAKERS.find((p) => p.re.test(q));
+      if (hit) {
+        fail("WARMTOPIC", `warm-up item ${i + 1} is a ${hit.name} — it would read the same in any lesson on any subject: "${q}". A warm-up must be about TODAY'S specific lesson.`);
+      }
+    });
+  }
+
   // ── the rest of the closed heading system ────────────────────────────────
   if (full) {
     if (!doc.sequence) fail("SEQUENCE", "no sequence strip. Spec §5 wants a strip near the masthead saying where this LP sits, what comes next, and the next checkpoint.");
@@ -1196,6 +1429,30 @@ function v9Gates(doc, ctx) {
         fail("OUTCOME_BOX", `the whole outcome-and-objectives box is ${box} words against a ceiling of ${OUTCOME_BOX_V9.total}. Every field can be legal and the box still fill the top of page 1 — that is the thing being fixed.`);
       }
     }
+
+    // ── OUTCOME_VOICE ──────────────────────────────────────────────────────
+    // Operator, 2026-09-12: "Learning Outcomes STILL has objectives written in 3 different styles,
+    // it should be just 1, which should be student facing." The second asking. The first was
+    // answered in the brief, and a brief is a request; this is the same thing as a rule.
+    {
+      const O = doc.objectives || {};
+      // the register belongs to the text as AUTHORED, so it is the doc's medium that decides which
+      // address to look for — not the language this render was asked for.
+      const medium = ((doc.provenance && doc.provenance.medium) || "en").toLowerCase();
+      const addresses = SECOND_PERSON[medium] || SECOND_PERSON.en;
+      const stem = VOICE_STEM[medium] || VOICE_STEM.en;
+      const impersonal = (s) => typeof s === "string" && s.trim() && !addresses.test(s);
+      if (impersonal(O.outcome)) {
+        fail("OUTCOME_VOICE", `the outcome sentence does not address the pupil: "${O.outcome.trim()}". Write it as "${stem}" — the box is read by the pupil and it speaks in one voice.`);
+      }
+      if (impersonal(O.by_the_end)) {
+        fail("OUTCOME_VOICE", `the "by_the_end" ✓ line does not address the pupil: "${O.by_the_end.trim()}". Write it as "${stem}", the same voice as the outcome above it.`);
+      }
+      (O.items || []).forEach((o, i) => {
+        if (!impersonal(o && o.text)) return;
+        fail("OUTCOME_VOICE", `objective ${i + 1} does not address the pupil: "${o.text.trim()}". Start it with "${stem}". A bare imperative is the curriculum's voice, not the pupil's, and printing both in one box is what the box is being read as three styles.`);
+      });
+    }
   }
 }
 
@@ -1223,6 +1480,11 @@ function religiousMarks(doc, ctx) {
     let m;
     while ((m = PROPHET_RE.exec(s))) {
       if (HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      // VENDOR DIVERGENCE (bd-gyrg8, 2026-09-11; also upstream): `محمد` opening ANOTHER PERSON's
+      // compound name is not a mention of the Prophet — محمد علی جناح، محمد بن قاسم، علامہ محمد
+      // اقبال، محمد خان. An author under this gate wrote `محمد ﷺ خان` for Ashfaq Ahmed's father.
+      // The Prophet's own name-continuations (مصطفیٰ، رسول اللہ، بن عبداللہ …) still demand it.
+      if (m[0] === "محمد" && isCompoundGivenName(s, m.index + m[0].length)) continue;
       fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
     }
   }

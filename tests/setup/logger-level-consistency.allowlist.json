@@ -139,12 +139,6 @@
   },
   {
     "file": "bot/shared/handlers/text-message.handler.js",
-    "line": 1895,
-    "snippet": "logToFile('❌ Error starting /status', { userId: user?.id, error: error.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/text-message.handler.js",
     "line": 2579,
     "snippet": "logToFile('❌ Error processing lesson plan request', {",
     "occurrence": 0
@@ -1731,18 +1725,6 @@
     "file": "bot/shared/services/training/quiz-delivery.service.js",
     "line": 497,
     "snippet": "logToFile('❌ Attempt insert failed', { userId, error: aErr?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 544,
-    "snippet": "logToFile('❌ Module lookup failed', { moduleId: moduleIdNum, error: mErr?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 643,
-    "snippet": "logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.mes",
     "occurrence": 0
   },
   {

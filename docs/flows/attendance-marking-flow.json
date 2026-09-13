@@ -644,7 +644,9 @@
                 "label": "Done",
                 "on-click-action": {
                   "name": "complete",
-                  "payload": {}
+                  "payload": {
+                    "attendance_action": "saved"
+                  }
                 }
               }
             ]

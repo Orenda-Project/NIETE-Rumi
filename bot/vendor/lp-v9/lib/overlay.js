@@ -173,12 +173,21 @@ const LABELS = {
     keyPoints: "Key points", worked: "Worked example", faded: "Faded example",
     guided: "Guided practice", independent: "Independent practice",
     practice: "Practice", answer: "Answer", support: "Support", extension: "Extension",
-    materials: "Materials", pacing: "Pacing", slo: "Learning outcome",
+    // bd-a8veu.3 — `slo` captions the QUOTED curriculum wording; `outcome` (below) heads the box.
+    // In English both were "Learning outcome", so the box printed that heading twice over two
+    // differently-worded sentences and read as two of the three styles the operator counted. Urdu
+    // never collided (متعینہ تدریسی مقصد / تدریسی نتیجہ) and is unchanged.
+    materials: "Materials", pacing: "Pacing", slo: "Curriculum SLO",
     prerequisite: "prerequisite", spaced: "spaced review",
     supportPage: "Reference", notReadAloud: "Not read aloud in class",
-    p2Board: "The board at the end of the lesson", p2Model: "Model answers",
+    p2Board: "The board at the end of the lesson",
     p2Mistakes: "Common mistakes and the question you ask back",
-    p2Diff: "Differentiation", p2Exam: "Exam bank", p2Hw: "Homework, in full",
+    // bd-x0pw1. "Exam bank" was a filing label — it said which drawer the questions were in and
+    // nothing about what they were for or whether the teacher had to use them. The operator's
+    // heading does both jobs: FBISE names the register they are written in, and (Optional) is the
+    // permission she was otherwise left to infer. The word belongs in the HEADING, not in the
+    // questions — the author brief forbids repeating it inside the bank.
+    p2Diff: "Differentiation", p2Exam: "FBISE format Questions - (Optional)", p2Hw: "Homework, in full",
     p2Next: "Next period", p2NotGoing: "Not going today", p2Coach: "Coaching corner",
     pupilSays: "What pupils write", youAsk: "You ask",
     stuck: "If stuck", barrier: "If the method is the barrier", early: "If they finish early",
@@ -186,10 +195,20 @@ const LABELS = {
     // The SRQ label follows the GRADE. FBISE's examining remit starts at SSC, so on a
     // grade 6-8 plan nothing may be framed as board practice (the author brief forbids it).
     srq: "Short response — board phrasing", srqEarly: "Short response — exam-style",
-    erq: "Extended response — skeleton", markScheme: "Mark scheme", howMarked: "How this is marked",
+    // bd-a8veu.17. "Extended response" is an assessment-designer's name for a question type and
+    // "skeleton" was ours for the shape printed under it; a teacher calls it the long question, and
+    // what the parts-and-marks structure is FOR is planning an answer that earns all of them. The
+    // schema key stays `erq_skeleton` — this is the display label and nothing else.
+    erq: "Long question — answer plan", markScheme: "Mark scheme", howMarked: "How this is marked",
     marks: "marks", drawOrder: "Draw it in this order", tier: { support: "support", core: "core", extension: "extension" },
     figureIn: "as in your book", page: "p.", reading: "Reading the diagram",
-    continues: "Support pages: board plan, answers, mistakes, differentiation — not read aloud.", continued: "continued",
+    // bd-s19g8. This line used to ENUMERATE what page 2 holds ("board plan, answers, mistakes,
+    // differentiation"). Sections B and F are optional now, and E is going the same way, so a
+    // hardcoded list on page 1 became a promise page 2 need not keep — the Urdu string, which
+    // named نمونہ جوابات outright, advertised a model-answer block that was no longer printed.
+    // The strip's job is to say what the following pages ARE, not to index them; the support
+    // page carries its own lettered index.
+    continues: "Support pages follow — planning material for you, not read aloud in class.", continued: "continued",
     // v8.1 footer + header furniture. `grade` used to be injected by template.js instead of
     // living here, which is why the Urdu pack silently had no say in it.
     // ── v9 furniture (the closed heading system) ──────────────────────────
@@ -225,18 +244,23 @@ const LABELS = {
     materials: "درکار اشیاء", pacing: "وقت کی تقسیم", slo: "متعینہ تدریسی مقصد",
     prerequisite: "سابقہ علم", spaced: "دہرائی",
     supportPage: "حوالہ جاتی مواد", notReadAloud: "کلاس میں پڑھ کر نہ سنائیں",
-    p2Board: "سبق کے اختتام پر تختۂ سیاہ", p2Model: "نمونہ جوابات",
+    p2Board: "سبق کے اختتام پر تختۂ سیاہ",
     p2Mistakes: "عام غلطیاں اور آپ کا جوابی سوال",
-    p2Diff: "انفرادی فرق کے مطابق", p2Exam: "امتحانی سوالات", p2Hw: "گھر کے کام کے مکمل جوابات",
+    // bd-x0pw1 — see the English note. FBISE is spelled out in Urdu letters rather than left in
+    // Latin: the heading is the renderer's own furniture and sits in an RTL line, and a Latin
+    // acronym there needs bidi isolates to print in the right order. The QUESTIONS under it are
+    // still frozen to the book's language by the ur_overlay rule; only the heading is translated.
+    p2Diff: "انفرادی فرق کے مطابق", p2Exam: "ایف بی آئی ایس ای طرز کے سوالات — (اختیاری)", p2Hw: "گھر کے کام کے مکمل جوابات",
     p2Next: "اگلا پیریڈ", p2NotGoing: "آج نہیں پڑھانا", p2Coach: "کوچنگ کارنر",
     pupilSays: "طلبہ کیا لکھتے ہیں", youAsk: "آپ پوچھیں",
     stuck: "اگر بچے اٹک جائیں", barrier: "اگر طریقہ رکاوٹ بنے", early: "اگر جلد فارغ ہو جائیں",
     mcq: "کثیر الانتخابی سوالات",
     srq: "مختصر جواب — بورڈ کے الفاظ میں", srqEarly: "مختصر جواب — امتحانی انداز",
-    erq: "تفصیلی جواب — خاکہ", markScheme: "نمبروں کی تقسیم", howMarked: "نمبر کیسے ملتے ہیں",
+    erq: "تفصیلی سوال — جواب کی ترتیب", markScheme: "نمبروں کی تقسیم", howMarked: "نمبر کیسے ملتے ہیں",
     marks: "نمبر", drawOrder: "اسی ترتیب سے بنائیں", tier: { support: "مدد", core: "بنیادی", extension: "اضافی" },
     figureIn: "آپ کی کتاب میں", page: "صفحہ ", reading: "تصویر کو کیسے پڑھیں",
-    continues: "اگلا صفحہ: تختۂ سیاہ کا خاکہ، نمونہ جوابات، عام غلطیاں اور انفرادی فرق — یہ معاون مواد ہے، کلاس میں پڑھ کر نہ سنائیں۔", continued: "جاری ہے",
+    // bd-s19g8 — see the English note: no enumeration, because page 2's sections are optional.
+    continues: "اگلے صفحات معاون مواد ہیں — یہ آپ کی تیاری کے لیے ہیں، کلاس میں پڑھ کر نہ سنائیں۔", continued: "جاری ہے",
     outcome: "تدریسی نتیجہ", locallyAdded: "مقامی اضافہ",
     kind: { scaffold: "آج کے سبق کی بنیاد", prerequisite: "سابقہ علم", spaced: "دہرائی" },
     seqPrev: "پچھلا", seqNext: "اگلا", seqCheck: "جانچ",

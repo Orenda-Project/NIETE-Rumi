@@ -62,6 +62,13 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
+// bd-2673 — the marking rule lives in ONE module, shared with the portal over
+// the internal API. Do not re-implement isMultiKey/normalizeSet here: a second
+// copy is the bug this extraction removed.
+const {
+  isMultiKey,
+  normalizeAnswerKey,
+} = require('./paper-marking.service');
 const {
   DEFAULT_SERVING_CONFIG,
   normalizeServingConfig,
@@ -179,16 +186,20 @@ async function deliverCertificatePdf(phoneNumber, cert) {
 // correct_option holds a comma-joined set ('1,3,5' — restored from the
 // legacy `answers` array). Selection accumulates on the answers row across
 // taps and is graded by SET EQUALITY when the teacher taps Done.
-function isMultiKey(correctOption) {
-  return String(correctOption || '').includes(',');
-}
+//
+// bd-2673 — `isMultiKey` now comes from paper-marking.service (imported above)
+// so the portal and WhatsApp cannot disagree about what counts as multi.
+// The Set-based helpers below stay local on purpose: they serve WhatsApp's
+// INCREMENTAL tap accumulation (a selection built up across several taps),
+// which the portal has no equivalent of — it submits a complete paper in one
+// request. normalizeSet(set) is normalizeAnswerKey([...set]) by construction.
 
 function parseSet(str) {
   return new Set(String(str || '').split(',').map(s => s.trim()).filter(Boolean));
 }
 
 function normalizeSet(set) {
-  return [...set].map(Number).sort((a, b) => a - b).join(',');
+  return normalizeAnswerKey([...set]);
 }
 
 function setsEqual(a, b) {
@@ -529,7 +540,9 @@ async function startGrandQuiz(userId, levelOrder, phoneNumber) {
 async function startTrainingQuiz(userId, moduleId, phoneNumber) {
   const moduleIdNum = (typeof moduleId === 'number' ? moduleId : parseInt(moduleId, 10));
   if (!Number.isFinite(moduleIdNum) || moduleIdNum <= 0) {
-    logToFile('⚠️ Invalid moduleId for startTrainingQuiz', { userId, moduleId });
+    logToFile('⚠️ Invalid moduleId for startTrainingQuiz', { userId, moduleId }, 'warn');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'Could not open that module check — please send /training and try again.');
     return false;
   }
 
@@ -541,7 +554,9 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     .eq('id', moduleIdNum)
     .maybeSingle();
   if (mErr || !mod) {
-    logToFile('❌ Module lookup failed', { moduleId: moduleIdNum, error: mErr?.message });
+    logToFile('❌ Module lookup failed', { moduleId: moduleIdNum, error: mErr?.message }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'Could not open that module check — please send /training and try again.');
     return false;
   }
 
@@ -560,7 +575,30 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
   logEvent('training_quiz_eligibility_checked', eligPayload);
 
   if (bank.length === 0) {
-    // No questions for this module — caller decides what to do next.
+    // bd-2wzpi — the comment used to read "caller decides what to do next".
+    // Neither caller checks the return value, so nobody decided and the teacher
+    // got silence. Reachable from the Retry button, which does not pre-count
+    // questions the way handleModuleDone does.
+    //
+    // loadQuestionBank returns [] for BOTH "no questions" and "the query
+    // failed" — it logs the error and hands back an empty array. Telling a
+    // teacher to carry on because a lookup blipped would wave her past a check
+    // that gates her next module, so re-count before saying which it was.
+    // Lazy require, matching how markModuleComplete is pulled in below — these
+    // two modules reference each other and a top-level import would cycle.
+    const { countActiveQuestions } = require('./progress.service');
+    const actual = await countActiveQuestions(moduleIdNum);
+    if (actual > 0) {
+      logToFile('❌ Question bank came back empty but the module has questions', {
+        userId, moduleId: moduleIdNum, expected: actual,
+      }, 'error');
+      await WhatsAppService.sendMessage(phoneNumber,
+        'Could not load the questions for this module check — please try again in a moment.');
+      return false;
+    }
+    logToFile('⚠️ Module check has no active questions', { userId, moduleId: moduleIdNum }, 'warn');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'This module has no quick check yet — you can carry on to the next one.');
     return true;
   }
 
@@ -574,7 +612,10 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     .limit(1)
     .maybeSingle();
   if (!assignment) {
-    logToFile('⚠️ Cannot start module quiz — no active program assignment', { userId, moduleId: moduleIdNum });
+    logToFile('⚠️ Cannot start module quiz — no active program assignment', { userId, moduleId: moduleIdNum }, 'warn');
+    // Same sentence the level-exam path already sends on this exact condition.
+    await WhatsAppService.sendMessage(phoneNumber,
+      'You are not enrolled in a training program yet. Please contact your NIETE coach.');
     return false;
   }
 
@@ -640,7 +681,9 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     .select('id')
     .single();
   if (aErr || !attempt) {
-    logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.message });
+    logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.message }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'Could not start the module check — please try again in a moment.');
     return false;
   }
 
@@ -1702,6 +1745,34 @@ async function decideModuleQuizPass(moduleId, score, totalQuestions) {
   };
 }
 
+/**
+ * bd-2673 — the LEVEL-EXAM pass decision, the sibling of the above.
+ *
+ * The portal was doing this arithmetic itself: reading training_vendors
+ * .passing_pct inline and comparing `(score / total) * 100 >= bar`, with a
+ * hardcoded fallback of 100. bd-2393 had already fixed that same line once (it
+ * used to require 100% and failed teachers who had passed on WhatsApp), which
+ * is the tell that a second copy invites the same bug twice.
+ *
+ * Same shape and same guards as decideModuleQuizPass, differing only in which
+ * vendor column supplies the bar — `passing_pct` here (NIETE 80, Beacon House
+ * 70) rather than `module_passing_pct`.
+ *
+ * @returns {Promise<{is_passed: boolean, status: string, pass_pct: number, achieved_pct: number}>}
+ */
+async function decideExamPass(levelId, score, totalQuestions) {
+  const passingPct = await getVendorPassingPctByLevel(levelId, 'exam');
+  const total = Number(totalQuestions) || 0;
+  const pct = total > 0 ? (Number(score) / total) * 100 : 0;
+  const isPassed = total > 0 && pct >= passingPct;
+  return {
+    is_passed: isPassed,
+    status: isPassed ? 'passed' : 'failed',
+    pass_pct: passingPct,
+    achieved_pct: Math.round(pct),
+  };
+}
+
 module.exports = {
   startGrandQuiz,
   startTrainingQuiz,
@@ -1709,6 +1780,7 @@ module.exports = {
   handleQuizButton,
   gradeAttempt,
   decideModuleQuizPass,
+  decideExamPass,
   getVendorPassingPctByLevel,
   // Multi-answer Flow surface
   buildMsqFlowScreenData,

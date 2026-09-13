@@ -23,12 +23,34 @@
  * quiz_kind/quiz_type) stays inert.
  */
 
-const supabase = require('../../config/supabase');
-const WhatsAppService = require('../whatsapp.service');
-const { logToFile } = require('../../utils/logger');
-const { logEvent } = require('../../utils/structured-logger');
-const { getClient, getDefaultModel } = require('../llm-client');
-const { issueCertificate } = require('./certificate.service');
+// bd-60085 — REQUIRED LAZILY, and this is load-bearing rather than tidy.
+//
+// The portal imports this module for four things that need no I/O at all:
+// MIN_ANSWER_CHARS, POINTS_PER_QUESTION, meetsAnswerFloor and decideCapstonePass.
+// With the requires below at top level, that import also pulled in
+// bot/shared/config/supabase.js -> `require('dotenv')`, which the portal service cannot
+// resolve: Node searches from the REQUIRING FILE's directory, so a file under /app/bot/
+// looks in /app/bot/node_modules then /app/node_modules and never /app/dashboard/node_modules
+// where dotenv actually is. The portal installs only the root package.json and never
+// installs bot/ at all.
+//
+// The identical shape took down POST /training/bands with a 500 the first time a teacher
+// pressed save. The capstone endpoints are staging-only today, so this one had not been hit
+// yet — it would have broken on promotion instead, which is a worse place to find it.
+//
+// `band-selection.service.js` already carries the same deps() pattern for the same reason.
+// Lazy is not a workaround here: the pure rules below must stay importable from anywhere,
+// including a test with no bot dependencies present.
+function deps() {
+  return {
+    supabase: require('../../config/supabase'),
+    WhatsAppService: require('../whatsapp.service'),
+    logToFile: require('../../utils/logger').logToFile,
+    logEvent: require('../../utils/structured-logger').logEvent,
+    llm: require('../llm-client'),
+    issueCertificate: require('./certificate.service').issueCertificate,
+  };
+}
 
 const KIND_CAPSTONE = 'capstone';
 const POINTS_PER_QUESTION = 5;
@@ -39,6 +61,7 @@ const BUTTON_PREFIX = 'capstone_start_';
 // ─── shared lookups ─────────────────────────────────────────────────────────
 
 async function loadCapstoneQuiz(levelId) {
+  const { supabase } = deps();
   const { data } = await supabase
     .from('training_grand_quizzes')
     .select('id, level_id, quiz_type, is_active')
@@ -50,6 +73,7 @@ async function loadCapstoneQuiz(levelId) {
 }
 
 async function loadCapstoneQuestions(grandQuizId) {
+  const { supabase } = deps();
   const { data } = await supabase
     .from('training_questions')
     .select('id, question_text, order_index')
@@ -60,6 +84,7 @@ async function loadCapstoneQuestions(grandQuizId) {
 }
 
 async function levelFullyComplete(userId, levelId) {
+  const { supabase } = deps();
   const { data: courses } = await supabase
     .from('training_courses')
     .select('id')
@@ -100,6 +125,7 @@ function questionMessage(idx, total, text) {
  * @returns {Promise<boolean>} whether the offer was sent
  */
 async function maybeOfferCapstone(userId, moduleId, phoneNumber) {
+  const { supabase, WhatsAppService, logToFile, logEvent } = deps();
   try {
     const { data: mod } = await supabase
       .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
@@ -154,6 +180,7 @@ async function maybeOfferCapstone(userId, moduleId, phoneNumber) {
 // ─── 2. start ───────────────────────────────────────────────────────────────
 
 async function handleCapstoneButton(userId, buttonId, phoneNumber) {
+  const { supabase, WhatsAppService, logToFile, logEvent } = deps();
   try {
     // bd-2476 — this function had FOUR paths that returned false without a word
     // to the teacher and, in two cases, without a log line either. A tester
@@ -268,6 +295,8 @@ async function handleCapstoneButton(userId, buttonId, phoneNumber) {
 // ─── 3. answers ─────────────────────────────────────────────────────────────
 
 async function scoreAnswer(question, answerText) {
+  const { logToFile } = deps();
+  const { getClient, getDefaultModel } = deps().llm;
   const client = getClient();
   const response = await client.chat.completions.create({
     model: getDefaultModel(),
@@ -302,6 +331,7 @@ async function scoreAnswer(question, answerText) {
  * capstone answer (or cancel); false → the message flows to normal handling.
  */
 async function routeTextAnswer(phoneNumber, text) {
+  const { supabase, WhatsAppService, logToFile } = deps();
   const trimmed = String(text || '').trim();
   if (!trimmed || trimmed.startsWith('/')) return false;
 
@@ -309,14 +339,51 @@ async function routeTextAnswer(phoneNumber, text) {
     .from('users').select('id, first_name').eq('phone_number', phoneNumber).maybeSingle();
   if (!user) return false;
 
-  const { data: attempt } = await supabase
+  // bd-5tn5d — NOT .maybeSingle(). A teacher can legitimately hold one open
+  // capstone PER SUBJECT: ux_taa_one_active_per_quiz is UNIQUE (user_id,
+  // grand_quiz_id) WHERE status='in_progress', and Beacon House has four. A
+  // single-row read over two rows is a PGRST116 ERROR, not a truncation — and
+  // the error was never destructured, so `attempt` came back null, this
+  // returned false, and the handler passed her answer on to ordinary chat.
+  // She got a lesson-plan reply instead of a score and the answer was lost;
+  // `cancel` below was equally unreachable. 11 teachers on production, 28
+  // attempts, growing by about one teacher every two days.
+  //
+  // Most-recently-active wins: that is the paper she is actually sitting.
+  // Whether a second capstone should be openable AT ALL is a separate
+  // question the 2026-08-02 migration deliberately deferred; this only makes
+  // sure that whatever is open, an answer lands and cancel works.
+  const { data: openAttempts, error: attemptErr } = await supabase
     .from('training_assessment_attempts')
     .select('id, user_id, level_id, grand_quiz_id, program_id, current_question_index, total_questions, total_score, status')
     .eq('user_id', user.id)
     .eq('quiz_kind', KIND_CAPSTONE)
     .eq('status', 'in_progress')
-    .maybeSingle();
+    .order('last_activity_at', { ascending: false })
+    // Total order, not just a sort key. last_activity_at is NOT NULL DEFAULT
+    // now() and no two of a teacher's open attempts share a timestamp today
+    // (closest spread on production: 5m39s) — but "no ties in the data right
+    // now" is not a guarantee, and a tie here would make WHICH paper receives
+    // her answer non-deterministic. Same defect this codebase already carries
+    // in module sequencing, where 28 modules share one order_index and the
+    // "next" module is whatever the plan happens to return.
+    .order('id', { ascending: false })
+    .limit(2);
+  if (attemptErr) {
+    logToFile('❌ Capstone attempt lookup failed — answer not routed', {
+      userId: user.id, error: attemptErr.message,
+    }, 'error');
+    return false;
+  }
+  const attempt = openAttempts?.[0];
   if (!attempt) return false;
+  if (openAttempts.length > 1) {
+    // Visible on purpose: this condition grew silently for nine days because
+    // nothing counted it.
+    logToFile('⚠️ Teacher holds more than one open capstone — routing to the most recent', {
+      userId: user.id, routedTo: attempt.id, levelId: attempt.level_id,
+    }, 'warn');
+  }
 
   if (trimmed.toLowerCase() === 'cancel') {
     await supabase.from('training_assessment_attempts')
@@ -385,6 +452,7 @@ async function routeTextAnswer(phoneNumber, text) {
 // ─── 4. grading ─────────────────────────────────────────────────────────────
 
 async function finalizeAttempt(attempt, user, phoneNumber, { lastScore } = {}) {
+  const { supabase, WhatsAppService, logToFile, logEvent, issueCertificate } = deps();
   const { data: answers } = await supabase
     .from('training_assessment_answers')
     .select('question_index, answer_score')
@@ -481,10 +549,76 @@ async function finalizeAttempt(attempt, user, phoneNumber, { lastScore } = {}) {
   return true;
 }
 
+/* ------------------------------------------------------------------------- *
+ * bd-2673 — the pure, surface-agnostic half of the capstone.
+ *
+ * The portal can now run a capstone (it is the reason assessments were
+ * WhatsApp-only: a free-text paper rendered as radio buttons gave a Beacon
+ * House teacher eight questions, no inputs and a dead Submit). It must reach
+ * the SAME rubric and the SAME pass rule as WhatsApp, but it cannot call
+ * finalizeAttempt: that function interleaves scoring with WhatsApp sends and
+ * takes a phone number.
+ *
+ * So the rules come out here as pure functions, and finalizeAttempt keeps the
+ * delivery. Same split as decideModuleQuizPass / decideExamPass.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The minimum answer length, in characters.
+ *
+ * This module's own header has always described the capstone as "min ~400 chars
+ * each in-app" — but nothing enforced it, because on WhatsApp the answer is just
+ * the teacher's next text message and there is no field to validate. The portal
+ * has a textarea and a Submit button, so the floor becomes real there: it is
+ * stated to the teacher, counted live, and checked again server-side.
+ */
+const MIN_ANSWER_CHARS = 400;
+
+/** Does this answer clear the length floor? Pure; no I/O. */
+function meetsAnswerFloor(answerText) {
+  return String(answerText || '').trim().length >= MIN_ANSWER_CHARS;
+}
+
+/**
+ * The capstone verdict, given the per-answer scores that were persisted.
+ *
+ * Carries the bd-2478 refusal: if fewer answer rows came back than the attempt
+ * expects, the paper is NOT scored. That bug told a teacher who answered eight
+ * questions well that they had scored 2/40, because the rows had not persisted
+ * and the sum ran anyway. A missing row is a fault, not a low score.
+ *
+ * @param {{answerScores: number[], totalQuestions: number, totalScore: number}} input
+ * @returns {{ok: boolean, reason?: string, score?: number, pass_bar?: number,
+ *            is_passed?: boolean, pass_pct?: number}}
+ */
+function decideCapstonePass({ answerScores, totalQuestions, totalScore } = {}) {
+  const scores = Array.isArray(answerScores) ? answerScores : [];
+  const expected = Number(totalQuestions) || 0;
+  if (scores.length < expected) {
+    return { ok: false, reason: 'answers_missing' };
+  }
+  const total = Number(totalScore) || 0;
+  const score = scores.reduce((s, v) => s + (Number(v) || 0), 0);
+  const passBar = Math.ceil(total * PASS_PCT);
+  return {
+    ok: true,
+    score,
+    pass_bar: passBar,
+    is_passed: score >= passBar,
+    pass_pct: Math.round(PASS_PCT * 100),
+  };
+}
+
 module.exports = {
   maybeOfferCapstone,
   handleCapstoneButton,
   routeTextAnswer,
+  // bd-2673 — the portal's capstone path. Pure: no WhatsApp, no phone number.
+  scoreAnswer,
+  decideCapstonePass,
+  meetsAnswerFloor,
+  MIN_ANSWER_CHARS,
+  POINTS_PER_QUESTION,
   // exported for the certificate trigger tests
   levelFullyComplete,
   BUTTON_PREFIX,

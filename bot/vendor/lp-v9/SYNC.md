@@ -35,6 +35,33 @@ outside this repo and not in this repo's git history:
 | `fonts/Inter-{Regular,SemiBold,Bold}.ttf` | workspace `06_Logs & Misc/Reports/Active/Tanzania Expansion/02_Coaching_MEWAKA/mewaka-sample-report/` |
 | `fonts/NotoNastaliqUrdu.ttf` | workspace `02_Main Rumi Bot/fonts/` |
 
+> **Divergence-local edit 2026-09-13 (bd-mn5tt): `visual_check.js` — `DIAGRAM_TYPES` and `CANON`
+> gain the early-years eight.** NOT a re-vendor: nothing was copied from upstream, and
+> `lp_author/visual_check.py` upstream does not yet carry these entries, so the "change one, change
+> both" parity this table asserts for `visual_check.js` is **temporarily one-sided in the vendored
+> copy's favour**. Push the same eight families up when the authoring lane next re-syncs; until
+> then the 62-document parity replay will differ on any document carrying a grade 1-5 figure, and
+> the vendored copy is the correct half.
+>
+> **What changed.** `clock`, `compare_size`, `count_frame`, `count_objects`, `match`, `money`,
+> `pattern` and `word_blank` — plus their 24 aliases — are now legal to V5, with the matching
+> `CANON` alias→family rows every other family already had.
+>
+> **Why.** The eight landed in `diagrams/types_manifest.json` with the grade 1-5 picture question
+> (`0cb5ab39`, the quiz lane) and reached this table never. The manifest's own `$comment` says
+> anything consuming the type list checks itself against that file; V5 was the consumer that did
+> not. Until this edit the checker **rejected as an unknown type a figure the engine draws
+> happily** — a hard fail on a document that is not wrong. `tests/lp612/visual-contract.test.js`
+> asserts the two rosters equal in both directions and was red on exactly this.
+>
+> **What this is NOT.** It is not the 6-12 author roster widening. V5 accepts; it does not
+> re-litigate the grade. That is the rule `bot/shared/services/quiz/transcript-quiz-figure.js`
+> already states — its `ALLOWED_TYPES` carries all 28 while its author-facing `CORE_TYPES` carries
+> the 6-12 twenty — and the four `brief_author_v3*.md` files here stay on the 6-12 twenty
+> accordingly (guarded by `tests/lp612/brief-field-coverage.test.js`). A grade 9 chemistry quiz has
+> no use for a ten-frame, and eight unreachable shapes in the brief cost tokens on every author
+> call.
+
 > **Partial re-vendor 2026-09-06 (bd-mg9c7.49, TQ-R4 lane D): `diagrams/types/fraction_bar.js`
 > and `diagrams/types_manifest.json` (the `fraction_bar` entry only).** Fixed upstream first
 > (`.claude/skills/curriculum-baked-lesson-plans/scripts/lp_html/diagrams/`), then copied
@@ -683,14 +710,58 @@ cap 1/62 → 3/62 at the new caps.
 column, not the page's body scale, and raising it re-lays every diagram in the corpus behind the
 overlap sweep. It is now 43% of the readability floor against the body's 67%. Bead filed.
 
+### 3.11 `lint_lp.js` — render-laws 22-24: WARMTOPIC, REDUNDANT, LABELACT (2026-09-11)
+
+Three new lint checks (`bd-i2udq`): a warm-up item must be about today's lesson, not a
+content-free icebreaker (render-law 22); a figure's legend must add content beyond its caption, not
+restate it (render-law 23); a board `draw_order` line must open with an imperative, not merely name
+what's already there (render-law 24, English + Urdu).
+
+**WARMTOPIC and LABELACT's English half — NOT a divergence, applied as identical hunks in both
+trees.** `WARMUP_ICEBREAKERS` (the 8-pattern icebreaker list) and `LABELACT_EN` (the ~39-verb
+anchored regex) are byte-identical between this copy and upstream's
+`.claude/skills/curriculum-baked-lesson-plans/scripts/lp_html/lint_lp.js` — confirmed by direct
+diff, 2026-09-11. Both lists were adopted from upstream wholesale rather than maintaining a
+narrower vendored list in parallel (upstream's icebreaker list is a superset of this copy's prior
+3 patterns; its verb list drops this copy's prior "arrow"/"connect"/"plot" but adds ~20 verbs, e.g.
+"solve").
+
+**Post-adoption fix, same day: "rule" added to `LABELACT_EN`, applied identically in both trees.**
+False-positive validation against a real corpus (`PK_G10_PHYS_CH14_REFLECTION.agastya.lp.json`,
+schema-3.0) found a genuine board-work imperative — "Rule the mirror line and hatch behind it."
+("rule" = draw a straight line with a ruler) — that neither this copy's prior list nor upstream's
+adopted list recognised. Added `|rule` to both trees' `LABELACT_EN` alternation (still byte-identical
+between them) with red-first TDD: `tests/lp612/labelact.test.js` now carries 10 cases, the 10th
+encoding this exact false positive.
+
+**LABELACT's Urdu half — a genuine, permanent divergence, kept deliberately.** Upstream's Urdu
+check is a single regex of exact conjugated forms (`لکھیے`/`لکھیں`/… — 13 forms, no fallback). This
+copy merges that exact-form list with its own prior loose-stem match —
+`LABELACT_UR = { test: (s) => LABELACT_UR_EXACT.test(s) || LABELACT_UR_STEMS.test(s) }` — so an
+informal or otherwise-inflected imperative upstream's exact list doesn't spell out (e.g. "لکھو")
+still passes here but would false-positive upstream. This is real coverage this deployment's Urdu
+teacher traffic needs; upstream does not carry it and is not expected to.
+
+**REDUNDANT — same check logic, independently-worded message; a cosmetic divergence.** The
+comparison itself (`norm()` collapsing punctuation/case/whitespace, then
+`nc === nl || nc.includes(nl) || nl.includes(nc)`) is functionally identical in both trees. Only the
+`fail()` message string and the surrounding comment differ in wording — each tree's copy was
+authored independently rather than as one hunk applied twice. Not worth reconciling byte-for-byte;
+the check's behaviour is the same either way.
+
+Tests: `tests/lp612/warmtopic.test.js` (8), `tests/lp612/labelact.test.js` (10),
+`tests/lp612/redundant.test.js` (7) — all red-first against this branch's unmodified `lint_lp.js`.
+
 ### 3.8 Nothing else
 
-`lint_lp.js`, both schemas, every other file in `lib/`, and the whole `diagrams/` tree are
-**byte-identical to upstream**, with the single exception of the four `glue` marks in
-`lib/template.js` recorded in §3.9. In particular the lint's gate list, thresholds and word budgets
-were not touched. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` / `CHIP_FLOOR_PX`
-moved on 2026-09-06 (§3.10) — **in both homes, to the same values**, so they are still not a
-divergence. Verify with §6's diff command.
+Both schemas, every other file in `lib/`, and the whole `diagrams/` tree are **byte-identical to
+upstream**, with the single exception of the four `glue` marks in `lib/template.js` recorded in
+§3.9. `lint_lp.js` is no longer wholesale byte-identical — see §3.11 for its three new checks
+(render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
+hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
+message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
+`CHIP_FLOOR_PX` moved on 2026-09-06 (§3.10) — **in both homes, to the same values**, so they are
+still not a divergence. Verify with §6's diff command.
 
 ---
 
@@ -821,3 +892,5 @@ belongs upstream.
 > `transcript-quiz-early-years-gating.test.js` (13) — all through the quiz lane's own
 > `renderFigureSvg`, so a red run proves the **vendored** copy is what changed. Red was confirmed for
 > each by restoring the pre-patch file and re-running.
+
+- **`lint_lp.js` — RELIGIOUS_MARKS no longer demands ﷺ after a `محمد` that opens another person's compound name** (bd-gyrg8, 2026-09-11). Added `isCompoundGivenName()` next to `PROPHET_RE`. Applied upstream in the same change, so a straight re-vendor keeps it.

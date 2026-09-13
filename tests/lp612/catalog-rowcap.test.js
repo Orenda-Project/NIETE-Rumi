@@ -121,7 +121,10 @@ describe('buildSubjectItems past the cap', () => {
 
   test('a subject whose rows sit past the cap is STILL offered', async () => {
     const items = await Catalog.buildSubjectItems(10);
-    expect(items.map((i) => i.id)).toEqual(['Chemistry', 'Physics']);
+    // Sorted, because what is under test is that Physics SURVIVED the 1,000-row cap — not where
+    // it sits. The menu's order is core-before-elective (bd-y5vx3) and is pinned in
+    // `subject-order.test.js`; this suite must not redden when that policy is edited.
+    expect(items.map((i) => i.id).sort()).toEqual(['Chemistry', 'Physics']);
   });
 
   test('the lesson count on a subject row is the whole subject, not the first page', async () => {

@@ -102,14 +102,51 @@ async function readRow(userId) {
   return data || null;
 }
 
-async function writeRow(userId, state, expiresAtIso) {
-  const { error } = await supabase
+async function writeRow(userId, state, expiresAtIso, opts = {}) {
+  const base = supabase
     .from('users')
     .update({
       conversation_state: state,
       conversation_state_expires_at: expiresAtIso,
     })
     .eq('id', userId);
+
+  // A CONDITIONAL write, for the one caller that reads a row and writes it back
+  // later: the resume sweeper. It selects expired rows and then, per row, converts
+  // one to an offer — two statements with a gap, and an unconditional write in that
+  // gap replaced the state of any teacher who came back inside it, then messaged her
+  // about the task she had already left.
+  //
+  // "Still expired" is the whole predicate, and it is the right one: a fresh
+  // setState always writes a FUTURE deadline, so a row that is no longer expired is
+  // exactly a teacher who has come back. If she restarted the SAME flow her row is
+  // live and the offer is correctly refused — she is doing it, she does not need
+  // asking.
+  //
+  // `.select('id')` and NOT `.single()`: the point is to learn whether the row was
+  // affected, and `.single()` turns "no rows" into an error, which is the chain
+  // pitfall the pre-merge checklist has its own class for. An empty array is the
+  // answer here, not a failure.
+  if (opts.onlyIfStillExpired) {
+    const nowIso = new Date(nowMs()).toISOString();
+    const { data, error: guardErr } = await base
+      .lt('conversation_state_expires_at', nowIso)
+      .select('id');
+
+    if (guardErr) {
+      logToFile('❌ conversation-state: guarded write failed', { userId, error: guardErr.message }, 'error');
+      return false;
+    }
+
+    const applied = Array.isArray(data) && data.length > 0;
+    if (!applied) {
+      // Not an error, and worth a line: this is the race being caught rather than lost.
+      logToFile('conversation-state: guarded write refused — the teacher is active again', { userId });
+    }
+    return applied;
+  }
+
+  const { error } = await base;
 
   if (error) {
     // Deliberately loud. A failed state write means the next turn will not know
@@ -149,7 +186,7 @@ async function getState(userId) {
  * @param {{flow: string, step?: string, payload?: object, ttlSeconds: number}} next
  */
 async function setState(userId, next = {}) {
-  const { flow, step = null, payload = {}, ttlSeconds } = next;
+  const { flow, step = null, payload = {}, ttlSeconds, onlyIfStillExpired = false } = next;
   if (!userId) throw new Error('conversation-state: userId is required');
   if (!flow) throw new Error('conversation-state: flow is required');
   assertTtl(ttlSeconds);
@@ -173,7 +210,7 @@ async function setState(userId, next = {}) {
   // intent-first — but a caller must never be TOLD it succeeded when it did not.
   // (For popState a null therefore means "nothing was resumed", which is the
   // correct thing to act on whether the stack was empty or the write failed.)
-  const ok = await writeRow(userId, state, isoIn(ttlSeconds));
+  const ok = await writeRow(userId, state, isoIn(ttlSeconds), { onlyIfStillExpired });
   return ok ? hydrate(state) : null;
 }
 

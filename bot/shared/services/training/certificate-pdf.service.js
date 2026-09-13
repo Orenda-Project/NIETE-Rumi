@@ -629,14 +629,29 @@ async function listCertificates(supabase, userId) {
  * Silent success is what hid a comparable bug for two days elsewhere in this
  * codebase; degrading is the CALLER's decision, not this function's.
  *
+ * DISPOSITION: `attachment` (default) saves the file; `inline` renders it in
+ * place. The teacher gets both affordances — a View button and a Download
+ * button — because a certificate is genuinely something to look at AND
+ * something to keep, and a reported bug was that only one of those worked.
+ * The default stays `attachment` so WhatsApp delivery and every pre-existing
+ * caller behave exactly as before.
+ *
  * @param {object} supabase
- * @param {{userId: string, certificateCode: string, expiresIn?: number}} p
+ * @param {{userId: string, certificateCode: string, expiresIn?: number,
+ *          disposition?: 'attachment'|'inline'}} p
  * @returns {Promise<{certificate_code, level_name, teacher_name, issued_at, pdf_r2_key, download_url, minted}>}
  */
 async function fetchOrMintCertificatePdf(supabase, p = {}) {
-  const { userId, certificateCode, expiresIn = 3600 } = p;
+  const { userId, certificateCode, expiresIn = 3600, disposition = 'attachment' } = p;
   if (!userId || !certificateCode) {
     throw certError('bad_request', 'userId and certificateCode are required');
+  }
+  // Fail closed on an unknown disposition rather than forwarding it. The
+  // presigner ignores what it does not recognise, which would yield a URL whose
+  // behaviour comes from stored metadata — unpredictable, and it would read as
+  // "the fix did not work" with nothing in the logs to say why.
+  if (disposition !== 'attachment' && disposition !== 'inline') {
+    throw certError('bad_request', `disposition must be attachment or inline, got: ${disposition}`);
   }
 
   const { data: row, error } = await supabase
@@ -665,11 +680,10 @@ async function fetchOrMintCertificatePdf(supabase, p = {}) {
     logToFile('🏆 Certificate PDF minted on demand', { certificateCode, key });
   }
 
-  // Attachment, not inline: a certificate is a file a teacher saves and prints.
-  const downloadUrl = await certificatePdfUrl(key, expiresIn, {
-    disposition: 'attachment',
-    filename: `${row.certificate_code}.pdf`,
-  });
+  // A filename only belongs on attachment — see buildPresignOverrides.
+  const downloadUrl = await certificatePdfUrl(key, expiresIn, disposition === 'inline'
+    ? { disposition: 'inline' }
+    : { disposition: 'attachment', filename: `${row.certificate_code}.pdf` });
   if (!downloadUrl) throw certError('mint_failed', 'Certificate PDF could not be signed');
 
   return {

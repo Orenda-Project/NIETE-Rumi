@@ -56,7 +56,11 @@ regex = '''(?i)(?:token|secret|password|api[_-]?key|access[_-]?token|account[_-]
 # secrets (a live token leaked into dashboard/docs once). Placeholders in docs are
 # covered by the regex allowlist below instead.
 
-[allowlist]
+# NOTE: the plural `[[allowlists]]` form is required — gitleaks refuses a config
+# that mixes the deprecated singular `[allowlist]` with `[[allowlists]]`
+# ("[allowlist] is deprecated, it cannot be used alongside [[allowlists]]"), and a
+# second, narrowly-scoped allowlist is added below. Same semantics, same content.
+[[allowlists]]
 description = "Template placeholders, test fixtures, and this config are not leaks"
 paths = [
   '''\.env\.template$''',
@@ -76,4 +80,38 @@ regexes = [
   '''example\.com''',
   '''your-project\.supabase\.co''',
   '''YOUR_[A-Z_]+''',
+]
+
+# --- Our own Postgres identifiers, named in prose -----------------------------
+#
+# The default `generic-api-key` rule fires on a KEYWORD followed by a quoted
+# high-entropy-looking value. A comment explaining a schema decision does exactly
+# that, in ordinary English:
+#
+#   "segment_id is the primary key, `niete_lp612_renders` carries a foreign key to it"
+#
+# gitleaks captures `niete_lp612_renders` as the secret (entropy 3.51) because it
+# follows the word "key,". It is a TABLE NAME, it is in the public schema file,
+# and it cannot be a credential.
+#
+# This had turned the scanner permanently red — every PR from #574 onward failed
+# on this one finding. That is worse than the false positive itself: a check that
+# is always red teaches everyone to merge through red, so the next finding (a real
+# one) gets waved through too. Fixing it is a security change, not a cosmetic one.
+#
+# Kept deliberately narrow rather than disabling the rule or path-excluding the
+# file:
+#   * targetRules  — only `generic-api-key`; every explicit key-shape rule above
+#                    (Anthropic, OpenRouter, Supabase, Google, OpenAI) is untouched.
+#   * regexTarget  — matched against the captured SECRET, not the whole line, so
+#                    a real key sitting on the same line is still reported.
+#   * the regex    — only our `niete_`-prefixed snake_case identifiers. Real keys
+#                    from every vendor we use carry mixed case, digits and dashes,
+#                    so none of them can match this shape.
+[[allowlists]]
+description = "Our own niete_* Postgres identifiers discussed in comments are not secrets"
+targetRules = ["generic-api-key"]
+regexTarget = "secret"
+regexes = [
+  '''^niete_[a-z0-9_]+$''',
 ]

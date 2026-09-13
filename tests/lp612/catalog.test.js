@@ -224,7 +224,10 @@ describe('menu shape', () => {
   test('subjects are de-duplicated across a book\'s many segments', async () => {
     mockRows = [seg(), seg({ segment_id: 'x.c01.p1' }), seg({ subject: 'Physics' })];
     const items = await Catalog.buildSubjectItems(9);
-    expect(items.map((i) => i.id)).toEqual(['Chemistry', 'Physics']);
+    // Physics leads Chemistry because the menu is ordered core-before-elective, not
+    // alphabetically (bd-y5vx3, `config/lp612-subject-order.js`). What this test is about is the
+    // 3 rows collapsing to 2 subjects; the order is pinned in `subject-order.test.js`.
+    expect(items.map((i) => i.id)).toEqual(['Physics', 'Chemistry']);
   });
 
   test('chapters are de-duplicated and ordered by chapter number', async () => {

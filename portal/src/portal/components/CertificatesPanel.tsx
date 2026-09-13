@@ -23,12 +23,33 @@
  *     disposition is SIGNED into the presigned URL by the bot instead. Adding
  *     `download` here would look like it does the work and would hide the day
  *     the signing regresses.
+ *
+ *  3. TWO buttons, View and Download — bd-2676. Reported from the app: "user is
+ *     redirected to browser first and the certificate is downloading in the
+ *     background... should be accessible directly."
+ *
+ *     Two causes, and each needed its own fix. `target="_blank"` inside the
+ *     Capacitor WebView is a hand-off to EXTERNAL Chrome, so the teacher watched
+ *     the app disappear before Content-Disposition was ever read — View
+ *     therefore navigates in place. And the signed url said `attachment`, so
+ *     whatever opened it saved rather than rendered — View asks for `?view=1`,
+ *     which the route turns into an inline disposition.
+ *
+ *     Why keep a Download button at all: a certificate really is something
+ *     teachers save and print. Leaving that to the PDF viewer's own save button
+ *     bets on the Android WebView PDF toolbar being present and findable, which
+ *     varies by Android version and is not something this codebase can assert.
+ *     An explicit button reuses the attachment path already live in production.
+ *
+ *     Download KEEPS target="_blank": a save is a side-errand, and navigating
+ *     the SPA away to a url that returns a file leaves the teacher on a blank
+ *     page with no history entry to come back to.
  */
 
 import { useState, useCallback } from 'react';
-import { Award, Download, Loader2, AlertCircle } from 'lucide-react';
+import { Award, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
 import api from '../services/api';
-import { getApiBaseUrl } from '@/lib/runtime';
+import { getApiBaseUrl, isNativeApp } from '@/lib/runtime';
 
 /**
  * Resolve the API's `download_url` for the environment we are actually in.
@@ -59,6 +80,19 @@ export function resolveDownloadUrl(downloadUrl: string): string {
   return `${origin}${downloadUrl}`;
 }
 
+/**
+ * The same certificate url, asking the server to render rather than save.
+ *
+ * bd-2676. `?view=1` is read by the portal download route and turned into an
+ * inline Content-Disposition on the signed R2 url. Appended here rather than
+ * sent as a second field from the API so there is one url in the payload and no
+ * chance of the two drifting apart.
+ */
+export function toViewUrl(downloadUrl: string): string {
+  const sep = downloadUrl.includes('?') ? '&' : '?';
+  return `${downloadUrl}${sep}view=1`;
+}
+
 export type PortalCertificate = {
   id: string;
   certificate_code: string;
@@ -83,6 +117,12 @@ export default function CertificatesPanel() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [certificates, setCertificates] = useState<PortalCertificate[]>([]);
+
+  // Android's WebView has no PDF viewer, so an inline url downloads there
+  // anyway — View and Download become the same action. Verified on a handset.
+  // Show View only where inline actually renders. Read once at render: the
+  // native shell cannot change under a running app.
+  const native = isNativeApp();
 
   const toggle = useCallback(async () => {
     if (open) { setOpen(false); return; }
@@ -158,25 +198,56 @@ export default function CertificatesPanel() {
                     )}
                     {c.has_pdf === false && (
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Your PDF will be prepared on first download.
+                        Your PDF will be prepared the first time you open it.
                       </div>
                     )}
                   </div>
 
                   {c.download_url ? (
-                    <a
-                      href={resolveDownloadUrl(c.download_url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      data-testid="certificate-download"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-900 hover:bg-green-100 transition-colors"
-                    >
-                      <Download className="w-4 h-4" /> Download PDF
-                    </a>
+                    <div className="flex items-center gap-2">
+                      {/*
+                        View is WEB-ONLY. In the app it would download exactly
+                        like Download does (no WebView PDF viewer), and two
+                        buttons with one behaviour imply a choice that is not
+                        there. Delete this branch once the app can render a PDF.
+
+                        NO target="_blank": in the WebView that hands the url to
+                        external Chrome, which holds none of the session cookies
+                        and gets a 401.
+                      */}
+                      {!native && (
+                        <a
+                          href={resolveDownloadUrl(toViewUrl(c.download_url))}
+                          data-testid="certificate-view"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-900 hover:bg-green-100 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" /> View
+                        </a>
+                      )}
+                      {/*
+                        _blank ON THE WEB ONLY. The url returns a file rather
+                        than a page, so a new tab keeps the teacher's place in
+                        the SPA. In the native shell the same attribute sent the
+                        url to external Chrome, which carries none of the
+                        WebView's cookies — the request arrived with no session
+                        and the portal answered 401 "Not authenticated". That is
+                        the failure a handset showed; the download manager is
+                        already a background errand there, so nothing is lost by
+                        navigating in place.
+                      */}
+                      <a
+                        href={resolveDownloadUrl(c.download_url)}
+                        {...(native ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                        data-testid="certificate-download"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Download className="w-4 h-4" /> Download
+                      </a>
+                    </div>
                   ) : (
                     // Defensive only: the API gives every certificate a
                     // download route, so this should never render.
-                    <span className="text-xs text-muted-foreground">Download unavailable</span>
+                    <span className="text-xs text-muted-foreground">Unavailable</span>
                   )}
                 </li>
               ))}
