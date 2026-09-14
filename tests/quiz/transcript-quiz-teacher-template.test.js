@@ -55,9 +55,9 @@ describe('Urdu render', () => {
     expect(html).not.toMatch(/What this quiz checks/);
     expect(html).toMatch(/\.ltr\{[^}]*direction:ltr/);
   });
-  test('every question shows its SLO, the options and each distractor’s meaning', () => {
+  test('every question shows its SLO and the options; no distractor meaning prints (round 7)', () => {
     expect(html).toMatch(/آدھے کو کسر میں لکھنا/);
-    expect(html).toMatch(/تین حصے سمجھنا/);
+    expect(html).not.toMatch(/تین حصے سمجھنا/);
     expect(html).toMatch(/آدھی روٹی کا/);
   });
   test('marks the correct option and isolates Latin runs', () => {
@@ -192,11 +192,24 @@ describe('PLAN_R4 D4 — what you taught, and why each question was chosen', () 
     expect(html).not.toMatch(/آپ نے کیا پڑھایا/);
   });
 
-  test('every question carries its one-line “from your lesson”, read from either shape', () => {
+  // Round 7 (operator, 14 Sep 2026): the per-question line is gone; the idea
+  // is said ONCE, at the end of the summary. selected_because still flows to
+  // the class report — it is only no longer printed here.
+  test('no question carries a “from your lesson” line; the summary closes with it once', () => {
     const html = render(BASE);
-    expect(html).toMatch(/آپ کے سبق سے/);
-    expect(html).toMatch(/جب آپ نے بورڈ پر روٹی دو حصوں میں کاٹی/);   // media.selected_because
-    expect(html).toMatch(/برابر اور غیر برابر ٹکڑوں کی مثال/);          // q.selected_because
+    expect(html).not.toMatch(/آپ کے سبق سے/);
+    expect(html).not.toMatch(/جب آپ نے بورڈ پر روٹی دو حصوں میں کاٹی/);   // media.selected_because
+    expect(html).not.toMatch(/برابر اور غیر برابر ٹکڑوں کی مثال/);          // q.selected_because
+    expect(html).toMatch(/نیچے دیا گیا ہر سوال اسی سبق سے لیا گیا ہے/);
+    expect([...html.matchAll(/class="fromlesson"/g)]).toHaveLength(1);
+  });
+
+  test('the summary is one sentence; the checks line is the goal count and the levels tested, not the objectives', () => {
+    const html = render({ ...BASE, language: 'en', contentLanguage: 'en', topic: 'Fractions',
+      lessonSummary: 'You started with half a roti. Then you moved to quarters. Then thirds.' });
+    expect(html).toMatch(/You started with half a roti\./);
+    expect(html).not.toMatch(/Then you moved to quarters/);
+    expect(html).toMatch(/learning goals? from the lesson, tested for/);
   });
 });
 
@@ -217,15 +230,12 @@ describe('PLAN_R4 D5 — the sheet is scannable', () => {
     expect(html).not.toMatch(/بالکل — ایک بٹا دو/);
   });
 
-  test('each wrong option is ONE compressed line: a short misconception prints whole, a long one is cut at 14 words', () => {
+  // Round 7 (operator, 14 Sep 2026): the wrong-option lines are gone too.
+  test('no wrong-option line prints at all, however short the authored misconception', () => {
     const short = { ...QUESTIONS[0], distractor_misconceptions: { B: 'counting every single piece on the board instead of the shaded ones' } };
-    let out = render({ ...BASE, language: 'en', contentLanguage: 'en', questions: [short] });
-    expect(out).toMatch(/counting every single piece on the board instead of the shaded ones/);
-    expect(out).not.toMatch(/shaded ones…/);
-    const long = { ...QUESTIONS[0], distractor_misconceptions: { B: 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen' } };
-    out = render({ ...BASE, language: 'en', contentLanguage: 'en', questions: [long] });
-    expect(out).toMatch(/thirteen fourteen…/);
-    expect(out).not.toMatch(/fifteen sixteen/);
+    const out = render({ ...BASE, language: 'en', contentLanguage: 'en', questions: [short] });
+    expect(out).not.toMatch(/counting every single piece/);
+    expect(out).not.toMatch(/<div class="miss">/);
   });
 
   test('cards never break across a page', () => {

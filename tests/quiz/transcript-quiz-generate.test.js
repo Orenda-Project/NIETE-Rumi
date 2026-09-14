@@ -233,8 +233,10 @@ describe('process — the PDF is written in the quiz language, whole', () => {
 
   test('every question carries its one-line "from your lesson" out of media.selected_because', async () => {
     const html = await runWithUrduQuizForEnglishTeacher();
-    expect(html).toMatch(/آپ کے سبق سے/);
-    expect(html).toMatch(/روٹی کے ٹکڑوں والے حصے سے لیا گیا/);
+    // Round 7: the per-question line is gone; the summary closes with the idea once.
+    expect(html).not.toMatch(/آپ کے سبق سے/);
+    expect(html).not.toMatch(/روٹی کے ٹکڑوں والے حصے سے لیا گیا/);
+    expect(html).toMatch(/نیچے دیا گیا ہر سوال اسی سبق سے لیا گیا ہے/);
   });
 });
 
