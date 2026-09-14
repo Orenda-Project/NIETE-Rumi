@@ -9,7 +9,13 @@
  *
  * Seen on the sandbox E2E (14 Sep 2026): a single caption on frame 1 only, cut mid-clause at
  * 110 chars ("… with vocabulary and polite"), and a blank panel under frame 2. 93% of prod
- * descriptions have a first sentence over 110 chars; the first clause fits in 90%.
+ * descriptions have a first sentence over 110 chars.
+ *
+ * bd-47vud (staging E2E, same day): first clauses with a participle elaboration (", supporting
+ * lesson content", ", indicating readiness …") still ran past the cap and were cut at the last
+ * space — "… on the walls, supporting." — 24 of 71 cohort captions ended on a dangling word. An
+ * over-cap clause still gets a word cut, but never ends on a function word or bare participle, and a
+ * cut that stops inside an elaboration (", indicating …") ends at the comma that opens it.
  *
  * The scorer's "Photo:"-prefixed indicator evidence is NOT used here: it does not say which
  * photo it came from, so it cannot be placed under the right picture.
@@ -22,17 +28,32 @@ const CAP = 110;
 const BLOCK_RE = /Classroom photo (\d+) \(submitted by the teacher\):\s*([\s\S]*?)(?=\n\s*\n\s*Classroom photo \d+ \(submitted by the teacher\):|$)/g;
 // Where the descriptive half ends and the scorer's critique/elaboration begins.
 const CLAUSE_BREAK = /,\s*(?:but|however|with|suggesting|though|although|while|yet|and there)\b|;\s*|\s+[—–]\s+/i;
+// A cut caption must not end on one of these ("… flashcards that.", "… on the walls, supporting.").
+const PARTICIPLE = 'indicating|supporting|suggesting|reflecting|demonstrating|showing|matching|limiting|including|categorizing|requiring|allowing|making|creating|providing|enhancing|aligning|aligned|supported';
+const DANGLING_END = new RegExp(`[\\s,]+(?:and|or|but|with|the|a|an|of|to|for|on|in|at|by|like|as|such|which|that|while|from|into|through|their|its|is|are|${PARTICIPLE})$`, 'i');
+// A comma-segment that opens an elaboration rather than continuing a list ("…, indicating readiness").
+const ELABORATION = new RegExp(`^\\s*(?:${PARTICIPLE}|as|which|where|while)\\b`, 'i');
 
-/** The first clause of a description's first sentence, capped at a word boundary, ending in a full stop. */
+/**
+ * The first clause of a description's first sentence, ending in a full stop. Over the cap: a word
+ * cut that never ends on a function word, pulled back to the comma if it stopped inside an elaboration.
+ */
 function firstClause(desc) {
   const text = String(desc || '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
   const sentence = (text.match(/^[^.!?۔]+[.!?۔]?/) || [text])[0].trim();
   let clause = sentence.split(CLAUSE_BREAK)[0].trim().replace(/[.!?۔\s,;:—–-]+$/, '');
   if (clause.length > CAP - 1) {
-    const cut = clause.slice(0, CAP - 1);
+    const full = clause;
+    const cut = full.slice(0, CAP - 1);
     const at = cut.lastIndexOf(' ');
-    clause = (at > 40 ? cut.slice(0, at) : cut).replace(/[\s,;:—–-]+$/, '');
+    let kept = at > 40 ? cut.slice(0, at) : cut;
+    while (kept.length > 40 && DANGLING_END.test(kept)) kept = kept.replace(DANGLING_END, '');
+    // Stopped mid-segment: if that segment is an elaboration, end at the comma that opens it.
+    // A list ("…, and textbooks") keeps its word cut; landing exactly on a comma is already clean.
+    const comma = kept.lastIndexOf(',');
+    if (full[kept.length] !== ',' && comma > 40 && ELABORATION.test(kept.slice(comma + 1))) kept = kept.slice(0, comma);
+    clause = kept.replace(/[\s,;:—–-]+$/, '');
   }
   return clause ? `${clause}.` : '';
 }
