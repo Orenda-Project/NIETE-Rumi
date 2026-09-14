@@ -50,11 +50,26 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('L02', 'A recognised keyword opens the Lesson Plans Flow',
       ...V(hits.every(h => h.card), { hits }), t() - s);
 
-  // L08 — "/lesson plan" (slash + space) is NOT a keyword
+  // L08 — "/lesson plan" (slash + space) IS a keyword, and opens the card.
+  //
+  // INVERTED 2026-09-14 (bd-mww73). This asserted the opposite — that the slash form was not
+  // recognised — and had been failing for that reason, not because of a defect. The matcher was
+  // right: `BARE` in bot/shared/utils/lp-intent.js opens with `^\/?\s*`, deliberately, and its
+  // comment records that 111 of the 153 production bare commands were literally "/lesson plan".
+  // Operator settled it the same day: slash plus space should open the card. The matcher was
+  // unchanged; this scenario and the CI-gated case list in
+  // tests/handlers/text-message-lp-keyword.test.js are what moved.
+  //
+  // Kept as its own scenario rather than folded into L02's keyword list: the slash form is the
+  // one teachers actually type, and it earns a line of its own in the ledger. The pace sleep is
+  // L02's — this is now a SIXTH Flow send in the same burst, and five inside ~40s already tripped
+  // Meta #131056 once (2026-09-02).
+  await sleep(15000);
   s = t();
   r = await api.sendWait('/lesson plan');
-  rec('L08', '"/lesson plan" is not a recognised keyword',
-      ...V(!CARD.test(r.txt), { reply: (r.txt || '').slice(0, 100) }), t() - s);
+  rec('L08', '"/lesson plan" opens the Lesson Plans Flow',
+      ...V(CARD.test(r.txt) && r.btns.length > 0,
+           { reply: (r.txt || '').slice(0, 100), btns: r.btns.length }), t() - s);
 
   // L04 — a natural-language request must NOT generate a freeform plan
   // Free text is swallowed by awaiting_menu_selection (left by the /menu above and by every
@@ -112,12 +127,23 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('L01', 'Completing the Pick Class Flow delivers the lesson-plan PDF',
       ...VF(op, !!(delivered && delivered.ok), delivered || {}), t() - s);
 
-  // L03 — a secondary grade delivers an Oxbridge plan instead of the Pakistan corpus
+  // L03 — a secondary grade delivers a lesson plan from the Pakistan 6-12 corpus
+  //
+  // INVERTED 2026-09-14 (bd-mww73). This used to wait for the literal string "oxbridge" and
+  // recorded a PASS when it found one — from when secondary grades had no Pakistan content and
+  // fell through to the Oxbridge corpus. Grades 6-12 have been authored and shipped since, so the
+  // old assertion now scores the CORRECT behaviour as a failure. What a secondary grade must
+  // deliver is a lesson plan from the Pakistan corpus, and the delivered PDF's own filename is
+  // the provenance: `grade_<n>_<subject>_c<NN>_p<NN>_<lang>.pdf`. Finding "oxbridge" in the
+  // transcript is now the failure, and is captured separately so a regression says so plainly
+  // rather than just timing out.
+  //
+  // The 150s wait stays: a cold secondary-grade render genuinely took 151s.
   s = t();
   await api.resetFlow();
   await api.sendWait('/lp');
   const op3 = await openLP();
-  let ox = null;
+  let pk = null;
   if (op3.ok) {
     for (const pick of ['Grade 6', 'Computer Science', 'ICT Fundamentals', 'Fundamentals of ICT']) {
       const c3 = await api.flowClick(pick, { settleMs: 3000 });
@@ -127,17 +153,21 @@ exports.run = async ({ api, rec, sleep }) => {
     const w3 = await api.ev(`(async()=>{
       const wa=window.__wa; wa.restore();
       const t0=Date.now();
+      const PK = /grade[_\\s-]*6.*\\.pdf/i;
       while(Date.now()-t0 < 150000){
-        const hit = wa.readLast(5).find(x=>!x.mine && /oxbridge/i.test(x.txt||''));
-        if(hit) return JSON.stringify({ok:true,waitedMs:Date.now()-t0,txt:hit.txt.slice(0,130)});
+        const rows = wa.readLast(5).filter(x=>!x.mine);
+        const ox  = rows.find(x=>/oxbridge/i.test(x.txt||''));
+        if(ox) return JSON.stringify({ok:false,oxbridge:true,waitedMs:Date.now()-t0,txt:ox.txt.slice(0,130)});
+        const hit = rows.find(x=>PK.test(x.txt||''));
+        if(hit) return JSON.stringify({ok:true,oxbridge:false,waitedMs:Date.now()-t0,txt:hit.txt.slice(0,130)});
         await new Promise(r=>setTimeout(r,2000));
       }
-      return JSON.stringify({ok:false,waitedMs:Date.now()-t0,last:(wa.readLast(1)[0]||{}).txt||''});
+      return JSON.stringify({ok:false,oxbridge:false,waitedMs:Date.now()-t0,last:(wa.readLast(1)[0]||{}).txt||''});
     })()`);
-    ox = JSON.parse(w3);
+    pk = JSON.parse(w3);
   }
-  rec('L03', 'A secondary grade delivers an Oxbridge lesson plan, not a Pakistan one',
-      ...VF(op3, !!(ox && ox.ok), ox || {}), t() - s);
+  rec('L03', 'A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one',
+      ...VF(op3, !!(pk && pk.ok), pk || {}), t() - s);
 
   // L09 — a photo must draw SOME reply
   s = t();
