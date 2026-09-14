@@ -70,11 +70,14 @@ describe('bd-mg9c7.77 — every correct option marked on a select-all-that-apply
     expect(html).not.toContain(resolveUx('vqMultiSelectAll', { language: 'en' }));
   });
 
-  test('exactly one miss line per wrong option with a misconception; none for A or C even though they also have entries', () => {
+  // Round 7 (operator, 14 Sep 2026): the sheet prints no misconception line
+  // for any option — the authored text for the correct options never rendered
+  // before, and the wrong options' lines are gone now too.
+  test('no miss line for any option; no authored misconception text reaches the sheet', () => {
     const html = renderMulti('en');
-    expect([...html.matchAll(/<div class="miss">/g)]).toHaveLength(2);
-    expect(html).toMatch(/thinks even numbers can be prime/);
-    expect(html).toMatch(/confuses composite with prime/);
+    expect([...html.matchAll(/<div class="miss">/g)]).toHaveLength(0);
+    expect(html).not.toMatch(/thinks even numbers can be prime/);
+    expect(html).not.toMatch(/confuses composite with prime/);
     expect(html).not.toMatch(/MUST-NOT-RENDER/);
   });
 
