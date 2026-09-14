@@ -54,7 +54,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot posts "Step 1/5: Transcribing your classroom audio"
     And for a long recording it warns "Long Lesson Detected" and that analysis will take longer
     And it acknowledges the lesson (e.g. "Great job, Teacher! …engaging <N>-minute lesson")
-    And it asks whether I want to share a classroom photo to improve the analysis
+    And it asks whether I want to add up to 3 photos, naming the useful ones (the board with the objective/task, a student's notebook or worksheet, the materials used) and that a photo of the class at their desks does not help
     And when I decline it asks whether I have a lesson plan for this class
     And when I decline it replies "No problem! I'll analyze your classroom audio without the lesson plan."
     And it continues "Step 2/5: Analyzing your teaching using research-based pedagogical frameworks"
@@ -116,12 +116,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   @e2e @wip @draft @P3
   Scenario: Accepting the classroom-photo prompt folds photos into the analysis
     Given the NIETE bot chat is open
-    And the coaching pipeline has asked whether I want to share a classroom photo
-    When I tap Yes and send a photo
-    Then the bot collects it (up to 3) and folds it into the analysis
+    And the coaching pipeline has asked whether I want to add photos
+    When I tap Yes
+    Then the bot says to send the photos one at a time, board first, and that it will read what is on them and use it alongside the recording
+    When I send a board photo, a notebook photo and a class photo
+    Then the bot collects all 3 and folds every one into the analysis
+    And with COACHING_PHOTO_MODE=both the scorer receives the vision description AND the photos, and the session records photo_mode "both" and photo_count_analysed 3
+    And with the flag unset the session records photo_mode "note" and the scoring prompt is unchanged from before
+    And any indicator the photo informed carries evidence starting "Photo:" — in the coach's editable draft as well
+    And the coaching report shows a "From your photo: …" caption under the framed photo
     # coaching classroom-photo sub-flow; photo receipt image-message.handler.js:87-208
-    # (Redis setNX dedup, MAX 3 → auto-analyze). (The verified pipeline DECLINES this;
-    # this covers the ACCEPT branch.)
+    # (Redis setNX dedup, MAX 3 → LP step). bd-8s2xb: analysis-processor analyses ALL
+    # photos (was 2), attaches them to the gpt-5-mini scoring call in image/both mode
+    # (fico-framework photo rule + gpt5-mini.service image parts), persists the EFFECTIVE
+    # mode in analysis_data, and hero-report renders photo-note.js as the strip caption.
 
   # ── EDGE ──
   @e2e @wip @draft @edge @P2

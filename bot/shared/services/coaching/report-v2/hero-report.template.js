@@ -252,7 +252,14 @@ function buildHeroReportHtml(vm) {
      on a correctly-labelled ur report; it was pinned to Latin-only Lexend in
      every branch. This is the bd-2362 class: the small-print element nobody
      re-checks after the main stacks are fixed. */
-  .pframe .pcap{font-size:11px;color:${P.quiet};padding:8px 12px;font-family:'Lexend',${NON_LATIN},sans-serif;letter-spacing:.01em}
+  /* bd-8s2xb — the caption is an English sentence ("From your photo: …") that may embed an Urdu
+     quote. Under the page's RTL base direction the UBA reorders the mixed runs (the quote painted
+     at the far left of the line on the first sample render). direction:ltr + unicode-bidi:isolate
+     — both, never isolate alone (playwrite-reports §3) — keeps the sentence in reading order
+     while the Nastaliq fallback still shapes the quote. The caption is therefore esc()'d but NOT
+     wrapLatin()'d: the embed spans wrapLatin injects reorder the runs even inside an LTR block
+     (verified with a 4-variant Playwright render, 2026-09-14). */
+  .pframe .pcap{font-size:11px;color:${P.quiet};padding:8px 12px;font-family:'Lexend',${NON_LATIN},sans-serif;letter-spacing:.01em;direction:ltr;unicode-bidi:isolate;text-align:left;line-height:1.45}
   .journey{padding:14px 42px 0}.j-cap{font-size:12.5px;color:${P.note};line-height:${RTL ? '1.7' : '1.5'};margin-top:2px}
   /* feedback-uptake loop: "last time we asked" — the ask, a status pill, the tally in words. Never a score. */
   .uptake{margin:16px 42px 0;border:1px solid ${P.barBg};border-radius:16px;padding:14px 20px;background:#fff}
@@ -292,7 +299,7 @@ function buildHeroReportHtml(vm) {
         <div class="sh h"><span class="pill">${T(C.horizon)}</span><h3>${T(n.horizon_title || '')}</h3><div class="nt">${T(n.horizon_note || '')}</div></div>
       </div>
     </div>
-    ${(vm.classroomPhotos && vm.classroomPhotos.length) ? `<div class="photos"><div class="label">${T(C.classroom)}</div><div class="pgrid">${vm.classroomPhotos.slice(0, 2).map((p) => `<div class="pframe"><img src="${p.src}" alt="classroom photo">${p.caption ? `<div class="pcap">${T(p.caption)}</div>` : ''}</div>`).join('')}</div></div>` : ''}
+    ${(vm.classroomPhotos && vm.classroomPhotos.length) ? `<div class="photos"><div class="label">${T(C.classroom)}</div><div class="pgrid">${vm.classroomPhotos.slice(0, 2).map((p) => `<div class="pframe"><img src="${p.src}" alt="classroom photo">${p.caption ? `<div class="pcap">${esc(p.caption)}</div>` : ''}</div>`).join('')}</div></div>` : ''}
     ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
     ${(vm.uptake && vm.uptake.asked) ? `<div class="uptake"><div class="label">${T(C.uptake_asked)}</div><div class="u-asked">${T(vm.uptake.asked)}</div><div class="u-line"><span class="upill ${esc(vm.uptake.status || 'unknown')}">${T(C['uptake_' + (vm.uptake.status || 'unknown')] || C.uptake_unknown)}</span>${T(vm.uptake.line || '')}</div></div>` : ''}
     ${vm.tryNext ? `<div class="try"><div class="label">${T(C.trynext)}</div><div class="try-text">${T(vm.tryNext)}</div></div>` : ''}
