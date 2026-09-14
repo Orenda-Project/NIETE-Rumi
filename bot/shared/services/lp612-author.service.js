@@ -1786,6 +1786,50 @@ const blockingFails = (g) => gateFails(g).filter((d) => !isAdvisory(d));
 const blockingCost = (g) => blockingFails(g).length;
 
 /**
+ * THE ONE CLASS OF DEFECT THAT IS NEVER DELIVERED, HOWEVER LONG THE TEACHER HAS WAITED.
+ *
+ * Everything else this lane ships when the rounds run out makes a lesson WORSE — a page over
+ * cap, a diagram under a legibility floor, a missing worked example. `RELIGIOUS_MARKS` makes it
+ * OFFENSIVE, and it reached a teacher on production: the 2026-09-14 survey of the 70 live `v9.6`
+ * rows found one lesson carrying five of them, delivered, including
+ *
+ *   RELIGIOUS_MARKS: /page2/board_final/diagram/steps/1/lines/0 names the Prophet ("محمد") with
+ *   no honorific after it: "سیّد ولی محمد". Write "محمد ﷺ" …
+ *
+ * It shipped because `lint_clean` is RECORDED on the render row and never CONSULTED — there is
+ * no lint gate anywhere between `authorLessonPlan` and the send. The ladder simply ran out of
+ * patience (`STALE_ROUNDS`, four unchanging rounds) and handed the document back, and the worker
+ * rendered, uploaded and sent what it was given.
+ *
+ * `lint_lp.js`'s own rule already says this must not happen, in the message it emits: *"no
+ * Islamiat or سیرت lesson is served on demand, and --auto-send must be able to refuse it"*
+ * (brief §4c.1), and every one of its findings ends with the standing hold — *"Automated checks
+ * do NOT clear religious content: the native-speaker review remains a hard hold before any
+ * teacher delivery"* (gate G5c). Nothing in this lane could refuse. Now it can.
+ *
+ * TWO CONSEQUENCES, and they are the operator's instruction in her own words — a lesson failing
+ * this *"gets re-authored rather than delivered"*:
+ *
+ *   • RE-AUTHORED. Neither early exit may abandon the climb while this code is present. The
+ *     stale guard is the one that actually fired on prod, and "four rounds have not shifted it"
+ *     is a reason to keep trying here, not to stop. The page-count budget is guarded for the
+ *     same reason even though `isPageCountOnly` already excludes it — a predicate that is only
+ *     correct as long as nobody edits the other one is not a guarantee.
+ *   • RATHER THAN DELIVERED. If it is still there when the budget is genuinely spent, the run
+ *     FAILS. The worker's existing error path then refuses the lesson exactly as it already does
+ *     for `TRUNCATION`, and an operator sees a named failure instead of a teacher seeing the
+ *     document.
+ *
+ * SCOPED TO ONE CODE, DELIBERATELY. This is not a re-opening of the never-fail policy (bd-vjk68,
+ * bd-oak77.14): PAGE COUNT, FIGURE, OVERFLOW and every other finding keep today's behaviour to
+ * the letter. Matching is on the lint's own `CODE: message` shape, like `isAdvisory`, so it
+ * cannot catch the word "religious" inside someone's prose.
+ */
+const NEVER_DELIVER_CODES = ['RELIGIOUS_MARKS'];
+const isNeverDeliverable = (d) => NEVER_DELIVER_CODES.some((c) => String(d).startsWith(`${c}:`));
+const hasNeverDeliverable = (g) => gateFails(g).some(isNeverDeliverable);
+
+/**
  * Did this candidate even reach lint/render? See `runGates`: a schema failure short-circuits,
  * so `g.schema` is non-empty ONLY on that path — a schema-valid document always has `schema: []`
  * (its findings, if any, live in `lint`/`render` instead).
@@ -2227,7 +2271,11 @@ async function authorLessonPlan({
     // rather than aspirational. Note it is checked BEFORE the stale guard on purpose: a
     // page-count-only ladder is the exact shape that used to reach `stale >= 4`, four rounds
     // and ~four minutes later.
-    if (isPageCountOnly(gates) && pageOnlyRounds >= PAGE_COUNT_ROUND_BUDGET) {
+    // NEVER_DELIVER_CODES: neither exit below may abandon the climb while one is present. See the
+    // block above — a defect that will not be delivered is a defect worth spending the whole
+    // budget on, and stopping early only buys an earlier refusal.
+    const neverDeliver = hasNeverDeliverable(gates);
+    if (!neverDeliver && isPageCountOnly(gates) && pageOnlyRounds >= PAGE_COUNT_ROUND_BUDGET) {
       logToFile('lp612 author ladder stopped — page count only, budget spent', {
         correlationId, segmentId: segment.segment_id, roundsUsed: spent, of: maxRounds,
         pageOnlyRounds, blockingFails: blockingFails(gates).slice(0, 5),
@@ -2243,7 +2291,7 @@ async function authorLessonPlan({
       break;
     }
     if (isPageCountOnly(gates)) pageOnlyRounds += 1;
-    if (stale >= STALE_ROUNDS) {
+    if (!neverDeliver && stale >= STALE_ROUNDS) {
       logToFile('lp612 author ladder stopped — no blocking progress', {
         correlationId, segmentId: segment.segment_id, roundsUsed: spent, of: maxRounds,
         staleRounds: stale, blocking: blockingCost(gates),
@@ -2425,6 +2473,44 @@ async function authorLessonPlan({
   }
 
   const fails = gateFails(gates);
+
+  // ▶ THE REFUSAL. The budget is spent and the document still names the Prophet without an
+  //   honorific (or carries religious content it never flagged for review). See
+  //   NEVER_DELIVER_CODES: this is the one defect the never-fail policy does not cover, and the
+  //   worker's existing error path refuses it exactly as it already refuses `TRUNCATION`.
+  //   Thrown rather than returned BECAUSE the return value is not gated anywhere downstream —
+  //   `lint_clean` is written to the render row and never read, so a flag on the result would
+  //   change nothing and the lesson would send.
+  if (fails.some(isNeverDeliverable)) {
+    const refused = fails.filter(isNeverDeliverable);
+    logToFile('lp612 author refused — religious content not cleared', {
+      correlationId, segmentId: segment.segment_id, model: chosenModel,
+      rounds: spent, of: maxRounds, fails: refused.slice(0, 5),
+    });
+    logEvent('lp612.author.refused', {
+      correlationId: correlationId || null,
+      segmentId: segment.segment_id || null,
+      lang: language,
+      model: chosenModel,
+      family,
+      tier,
+      rounds: spent,
+      outcome: 'refused',
+      reason: 'religious_marks',
+      elapsedMs: Date.now() - startedAt,
+      failCount: fails.length,
+      fails: refused.slice(0, 4),
+      tokens: usage.total_tokens,
+      calls: usage.calls,
+      costUsd: usage.cost_usd,
+    });
+    throw fail(
+      'LP612_RELIGIOUS_MARKS',
+      `lesson not delivered: religious content still uncleared after ${spent} round(s) — ${refused[0]}`,
+      { fails, rounds: spent, lpDoc: doc },
+    );
+  }
+
   logToFile('lp612 author finished', {
     correlationId, segmentId: segment.segment_id, model: chosenModel,
     family, tier,
