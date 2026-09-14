@@ -340,7 +340,10 @@ async function runImageAnalysis({ user, from, imageId, mimeType, caption, typing
     mimeType,
     {
       prompt: analysisPrompt,
-      language: userLanguage
+      language: userLanguage,
+      // bd-5rd2f: the teacher, so a model rollout can be a stable slice of teachers rather
+      // than a coin flip per message. Nothing reads it until a rollout is written.
+      userId: user.id
     }
   );
 
