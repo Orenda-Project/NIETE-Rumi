@@ -43,7 +43,16 @@ Per feature it carries:
 | `only_shared` | **true = probably leave this spec alone.** See §3 |
 | `diff` | bounded; `diff_truncated` says when it bit |
 | `scenarios[]` | what the spec covers **today**, with tags |
-| `map_gaps` | in-scope files `feature-map.yaml` claims nothing about |
+
+And alongside the features, at the top level:
+
+| Field | What it decides |
+|---|---|
+| `gaps[]` | in-scope files `feature-map.yaml` claims nothing about — each with `action: map-gap` and its own bounded `diff`. **This is work, not a footnote — see §5** |
+| `existing_features` | every feature that has a `.feature` today, so you can answer "does an appropriate spec already exist?" without listing a directory |
+| `map_gaps` | the same paths as a flat list (kept for the hook and older callers) |
+
+A brief can have `gaps` and **no** features at all. That is not an empty brief.
 
 ---
 
@@ -128,7 +137,71 @@ add goes in the report as an explicit ask.
 
 ---
 
-## 5. Validate — this is a gate, not a formality
+## 5. `gaps[]` — in-scope code the map claims nothing about
+
+A gap is a changed file that is **real bot code, inside `scope:`, and claimed by
+no rule in `feature-map.yaml`**. It arrives with `action: map-gap` and its own
+bounded diff, and it is **work you must finish in this pass** — not a note to
+leave for later.
+
+**Why it is stated this hard.** A gap used to be a bare string on `map_gaps`, and
+`sync_needed` counted features only. A commit whose diff was *entirely* unmapped
+therefore produced no features, so the hook wrote no brief and `/sync-specs`
+printed *"nothing selected — no Gherkin work for this change"*. The worked
+example that forced this fix was a change to `bot/vendor/lp-v9/**` — the
+lesson-plan render engine, behind the single busiest teacher-facing surface in
+the deployment — which bought itself a complete exemption from the coverage step
+because its files were *hard to attribute*, not because they were unimportant.
+Being unclaimed by the map is not evidence a change is inert. It is the absence
+of evidence, and the only honest response is to look.
+
+### The procedure
+
+```
+gap detected
+    ↓
+inspect the changed behaviour  (read the diff; if truncated, read the file)
+    ↓
+does an appropriate .feature already exist?   ← `existing_features` in the brief
+    ↓                                    ↓
+   YES                                  NO
+    ↓                                    ↓
+add the map entry under that          CREATE the new surface:
+feature in feature-map.yaml             · tests/features/whatsapp/niete/<x>.feature
+    ↓                                    · .claude/qa/agents/niete-<x>-agent.md
+author the scenario into that              (both — or validate_specs raises E-NOAGENT)
+existing spec (§2 `update` rules)        · a `features:` block in feature-map.yaml
+    ↓                                    ↓
+    └──────────────→ validate (§6) ←─────┘
+```
+
+**Default hard to YES.** Nine features already cover the teacher-facing surface
+of this bot. A tenth `.feature` per unclaimed vendor directory fragments the
+suite, and every new key needs its own agent or the map loader raises `MapError`.
+Create a new surface only when you can name the teacher-visible thing it tests
+that no existing spec could hold.
+
+**Attribution is a fan-out question, not a folder question.** Ask *which
+surfaces' entry points reach this file*, not *where does it live*. `vendor/lp-v9`
+is required by `lp612-*.service.js` (**lesson-plan**) **and** by
+`quiz/transcript-quiz-*.js` (**training**), so it belongs under `shared:` with
+both — mapping it to `lesson-plan` alone would under-select exactly the way the
+graph audit exists to catch. `audit_feature_map.py --repo NIETE-Rumi` walks the
+real `require()` graph and will answer this for you.
+
+**If the diff genuinely changes nothing a teacher can see** — a lint rule, a
+build script, a fixture — the right outcome is still a map entry: add it to
+`ignore:` or `not_covered:` **with its reason**. Silence is the one outcome that
+is not allowed, because a gap left unresolved re-fires the SAFE subset on every
+future push to that path until somebody does this.
+
+**Scope note.** `not_covered:` surfaces (reading, video, homework,
+student-videos) are a deliberate, reasoned *no* — a change there is reported, not
+promoted. Do not turn one into a spec without an explicit ask.
+
+---
+
+## 6. Validate — this is a gate, not a formality
 
 ```bash
 python3 .claude/qa/shared/validate_specs.py --only menu,status
@@ -160,7 +233,7 @@ python3 .claude/qa/shared/check-all-mode-counts.py
 
 ---
 
-## 6. Commit the spec — a working-tree edit is not done
+## 7. Commit the spec — a working-tree edit is not done
 
 Everything downstream judges **commits**: the PR check (`.github/workflows/qa-impact.yml`)
 diffs the PR range, and the Stop-hook gate compares the spec *as committed at HEAD* with its
@@ -175,7 +248,7 @@ git commit -m "test(gherkin): sync <feature>.feature to <sha-of-the-change>"
 The post-commit hook sees a spec-only change, marks it `validate-only`, and authors nothing —
 it cannot loop.
 
-## 7. Report, then release phase 2
+## 8. Report, then release phase 2
 
 State, briefly:
 
