@@ -140,6 +140,23 @@ const UX_STRINGS = {
     ur: 'بتانے کا شکریہ — اگلی بار ہم کچھ مختلف تجویز کریں گے۔',
   },
 
+  // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
+  // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
+  // class seated at desks, which no FICO indicator can use. The board, a student's
+  // work and the materials used are what the scorer can verify. Copy approved by the
+  // operator 2026-09-14. Both bodies ≈285 code points (cap 1,024); the Urdu addresses
+  // the teacher with a respectful plural, no gendered verb stem.
+  coachingPhotoOffer: {
+    en: "📸 Would you like to add up to 3 photos? The most useful ones: (1) the board with today's objective or the task, (2) a student's notebook or worksheet, (3) anything you used to explain — a drawing, object, chart or cards. A photo of the class at their desks does not help the analysis.",
+    ur: '📸 کیا آپ 3 تک تصاویر شامل کرنا چاہیں گے؟ سب سے مفید: (1) بورڈ جس پر آج کا مقصد یا کام لکھا ہو، (2) کسی طالبِ علم کی کاپی یا ورک شیٹ، (3) جو چیز آپ نے سمجھانے کے لیے استعمال کی — ڈرائنگ، کوئی چیز، چارٹ یا کارڈز۔ بچوں کے ڈیسک پر بیٹھے ہونے کی تصویر تجزیے میں مدد نہیں کرتی۔',
+  },
+  coachingPhotoOfferYes: { en: 'Yes', ur: 'ہاں' },
+  coachingPhotoOfferNo: { en: 'No', ur: 'نہیں' },
+  coachingPhotoSendNow: {
+    en: "📸 Send the photos now, one at a time — board first if you have it. I'll read what's on them and use it alongside the recording.",
+    ur: '📸 اب تصاویر بھیجیں، ایک ایک کر کے — پہلے بورڈ، اگر ہو۔ میں ان میں لکھی چیزیں پڑھ کر ریکارڈنگ کے ساتھ استعمال کروں گا۔',
+  },
+
   // ─── classroom-photo "Add another" (bd-pzs9a) ───────────────────────
   // The tap re-opens the photo step, so the copy must say what state the session
   // is now in — one shared "something went wrong" line across three different
