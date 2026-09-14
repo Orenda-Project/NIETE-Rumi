@@ -182,6 +182,7 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
  */
 
 const { evaluateHomeworkTrigger } = require('./homework-trigger');
+const { evaluateCoachingTrigger } = require('./coaching-trigger');
 const {
   parseCertificateCommand,
   deliverCertificateByCode,
@@ -2226,6 +2227,41 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // COACHING hot trigger — "coaching" / "/coaching" (any case, stray
+  // whitespace tolerated).
+  //
+  // bd-60080 (DC tracker row 84): there was no interceptor here at all —
+  // only the tapped ice-breaker chip and the numeric menu choice reached
+  // _handleClassroomCoachingChoice. A typed /coaching fell through every
+  // check above to general chat, which always includes the teacher's own
+  // conversation history (getResponseWithFormat pulls it unconditionally).
+  // Her FIRST /coaching in a clean chat got a plausible-looking reply; every
+  // /coaching AFTER that had her own earlier classroom-audio transcript still
+  // in context, so the model answered as if continuing that recording —
+  // feedback, no ask for a new one — until she typed "I didn't send a
+  // recording". Routing the command here, before intent detection can ever
+  // see that history, closes the gap regardless of what came before it in
+  // the chat. Same door as the ice-breaker chip and the /menu row — no
+  // second coaching entry point, no new session state.
+  // ============================================================
+  {
+    const coachDecision = evaluateCoachingTrigger({ messageBody });
+    if (coachDecision.match) {
+      typingController.stop();
+      if (user) {
+        await FeatureIntroService.sendFirstUseIntroIfNeeded(user.id, from, 'ai_coaching', responseLanguage);
+        await MenuService._handleClassroomCoachingChoice(user.id, sessionId, from, responseLanguage);
+        logToFile('🎓 Coaching hot trigger matched', { userId: user.id });
+        return;
+      }
+      await WhatsAppService.sendMessage(from, ({
+        ur: 'براہ کرم پہلے رجسٹریشن مکمل کریں۔ /register ٹائپ کریں۔',
+      })[responseLanguage] || 'Please complete registration first. Type /register to get started.');
+      return;
+    }
+  }
+
+  // ============================================================
   // ATTENDANCE — a TYPED answer to the tap-or-voice question.
   //
   // Checked before the keyword block and before anything else can claim the message.
@@ -3297,6 +3333,7 @@ module.exports = {
   handleTextMessage,
   parseStyleFromButtonId,
   evaluateHomeworkTrigger, // exported for trigger unit tests
+  evaluateCoachingTrigger, // exported for trigger unit tests
   tryCurriculumLessonPlanServe, // exported for intercept unit tests
   handleLessonPlanRequest, // exported for the Oxbridge-picker "Generate NIETE LP" tap
   isSelectVideoButton, // video-library broadcast "Select Video" button
