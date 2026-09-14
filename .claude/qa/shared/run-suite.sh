@@ -118,7 +118,8 @@ if [ "$MODE" = "all" ] || echo "$FEATURES" | grep -qx coaching; then
   # "N prior coaching sessions" block — that block changes the LLM request every run and defeats the
   # e2e cassette. With 0 prior the prompt is identical run-to-run, so E2E_CASSETTE=replay HITS the
   # analysis calls (coaching's biggest cost). Reversible; staging test driver only.
-  if [ "${E2E_CASSETTE:-off}" != "off" ] || [ "$MODE" = "all" ]; then
+  . "$QA/reset-history-decision.sh"
+  if should_reset_history "$METHOD" "$MODE" "${E2E_CASSETTE:-off}"; then
     python3 "$QA/niete_coaching_db.py" reset-history --env "$ENV" --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
   fi
   # FIRSTUSE=1: delete the driver's coaching first-use row so COA02's intro offer + "Just tell me"
@@ -172,6 +173,13 @@ for f in $FEATURES; do
       # window). The once-at-start hygiene ran BEFORE status seeded it, so cancel any in-flight coaching
       # session NOW — coaching must start clean or its whole pipeline is deferred, not tested. (2026-09-09)
       python3 "$QA/niete_coaching_db.py" cancel-stuck --env "$ENV" --phone "$DRIVER" --yes-write >>"$LOG" 2>&1 || true
+      # Clear the driver's conversation message log so the conversational voice/text-reply LLM
+      # prompt (openai.service loads the last 10 from `conversations`) is deterministic run-to-run
+      # and its cassette — plus the TTS it feeds — HITS under replay-strict. Same clean-room reason
+      # as reset-history; cassette/mock lane only.
+      if should_reset_history "$METHOD" "$MODE" "${E2E_CASSETTE:-off}"; then
+        python3 "$QA/niete_coaching_db.py" reset-conversations --env "$ENV" --phone "$DRIVER" --yes-write >>"$LOG" 2>&1 || true
+      fi
       # The mock lane is cheap and private: drive the @slow/@wip set (DEEP) and the first-use intro (FIRSTUSE)
       # by default — a scenario that needs a vendor answer the cassette lacks then FAILS with a named miss
       # instead of hiding behind SKIP. Env overrides still win (DEEP=0 to go shallow).

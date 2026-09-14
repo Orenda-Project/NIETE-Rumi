@@ -45,12 +45,30 @@ def sessions(creds, uid, limit=15):
                 "user_id=eq.%s&select=id,status,created_at,updated_at&order=created_at.desc&limit=%d" % (uid, limit))
 
 
+
+def reset_conversations(creds, uid, yes_write=False):
+    """Delete the driver's `conversations` rows so the conversational voice/text reply LLM prompt
+    (openai.service loads the last 10 from `conversations`) starts from a fixed baseline. That block
+    accumulates across scenarios/runs and, like prior-feedback, makes the LLM request — and the TTS it
+    feeds — unique every run, defeating the e2e cassette. Test driver on the staging/sandbox DB only."""
+    rows = _get(creds, "conversations", "user_id=eq.%s&select=id" % uid) or []
+    if not rows:
+        print("no conversation rows for driver — history block is already empty"); return
+    print(("would delete" if not yes_write else "deleting") + " %d conversation row(s)" % len(rows))
+    if not yes_write:
+        print("dry run — re-run with --yes-write"); return
+    _req("DELETE", "/rest/v1/conversations?user_id=eq.%s" % uid, creds, prefer="return=minimal")
+    left = _get(creds, "conversations", "user_id=eq.%s&select=id" % uid) or []
+    print("deleted; conversation rows now: %d" % len(left))
+    if left: sys.exit(1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for c in ("list", "cancel-stuck", "reset-history", "reset-first-use"):
+    for c in ("list", "cancel-stuck", "reset-history", "reset-first-use", "reset-conversations"):
         p = sub.add_parser(c); p.add_argument("--env"); p.add_argument("--phone", required=True)
-        if c in ("cancel-stuck", "reset-history", "reset-first-use"): p.add_argument("--yes-write", action="store_true")
+        if c in ("cancel-stuck", "reset-history", "reset-first-use", "reset-conversations"): p.add_argument("--yes-write", action="store_true")
     a = ap.parse_args()
     creds = _creds(a.env)
     uid = _user_id(creds, a.phone)
@@ -83,6 +101,9 @@ def main():
         print("deleted; coaching first-use rows now: %d" % len(left))
         if left: sys.exit(1)
         return
+
+    if a.cmd == "reset-conversations":
+        reset_conversations(creds, uid, a.yes_write); return
 
     if not stuck: print("nothing in flight for %s" % a.phone); return
     for r in stuck: print("would cancel" if not a.yes_write else "cancelling", r["id"][:8], r.get("status"), r["created_at"][:19])

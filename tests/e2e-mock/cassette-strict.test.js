@@ -80,3 +80,31 @@ describe('e2e-cassette: replay-strict', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 });
+
+describe('e2e-cassette: key is stable across volatile date tokens', () => {
+  // The coaching analysis prompt embeds prior-observation feedback dated with
+  // toLocaleDateString('en-US', numeric) → "M/D/YYYY" (e.g. "9/8/2026"). That date changes
+  // day-to-day and run-to-run, so it must be blanked from the cassette KEY or a committed
+  // fixture recorded today misses tomorrow. VOLATILE already blanks ISO and YYYY-MM-DD dates;
+  // this asserts the same for the M/D/YYYY the coaching prompt actually uses.
+  const mkPrompt = (date) => ({
+    model: 'gpt-5-mini-2025-08-07',
+    messages: [
+      { role: 'system', content: 'You are a teacher coach.' },
+      { role: 'user', content: `PRIOR FEEDBACK FROM PREVIOUS OBSERVATION(S):\nObservation ${date}:\nGrowth Areas: Effective Feedback (C3), Differentiation (B6)` },
+    ],
+  });
+
+  test('two prompts differing only by an M/D/YYYY date hash to the same key', () => {
+    const c = fresh({ E2E_CASSETTE: 'replay-strict', SUPABASE_URL: SANDBOX });
+    const k1 = c.keyFor('llm', c.normaliseForKey(mkPrompt('9/8/2026')));
+    const k2 = c.keyFor('llm', c.normaliseForKey(mkPrompt('9/14/2026')));
+    expect(k1).toBe(k2);
+  });
+
+  test('a real fraction like 1/2 in a transcript is NOT blanked (not a date)', () => {
+    const c = fresh({ E2E_CASSETTE: 'replay-strict', SUPABASE_URL: SANDBOX });
+    const withHalf = c.normaliseForKey({ messages: [{ role: 'user', content: 'the cake is cut into 1/2 pieces' }] });
+    expect(JSON.stringify(withHalf)).toContain('1/2');
+  });
+});

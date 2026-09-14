@@ -78,6 +78,7 @@ const VOLATILE = [
   [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<uuid>'],
   [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g, '<iso>'],
   [/\b\d{4}-\d{2}-\d{2}\b/g, '<date>'],
+  [/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, '<date>'],   // M/D/YYYY — toLocaleDateString('en-US', numeric); the coaching prior-feedback date
   [/\b\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM|am|pm)?\b/g, '<time>'],
 ];
 function normaliseForKey(v) {
