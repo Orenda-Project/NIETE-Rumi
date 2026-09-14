@@ -792,11 +792,58 @@ emitted a backslash, against the module's own stated rule. This changes the What
 Upstream carries none of this yet. Push `diagrams/index.js` + `diagrams/lib/tex.js` up at the next
 re-sync.
 
+### 3.13 `lint_lp.js` — `overlayTargets()`: the lesson's title, and figure labels (2026-09-14)
+
+Two decisions inside `overlayTargets()` left English on an otherwise Urdu page, on the first Urdu
+lessons this lane delivered (d04/d05/d06, 2026-09-05). Both are fixed here (`bd-x3dn6`, `bd-8g1u7`),
+and both are changes to **which pointers the overlay is allowed to carry** — nothing else moves. The
+overlay-writing pass in `lp612-author.service.js` sees only the pointer→English map, so widening the
+target set is the whole lever; no prompt, no schema and no renderer change goes with it.
+
+**`bd-x3dn6` — `/provenance` was skipped whole.** `OVERLAY_SKIP_ROOTS` dropped the entire block.
+That is right for what most of it holds — publisher, curriculum, edition, the operator's
+`source_quality_flags` about the scan — because a translated citation no longer matches the book on
+the teacher's desk. It is wrong for `topic`, which is not citation at all: it is the lesson's TITLE,
+drawn at four sites in `lib/template.js` from one pointer (the document `<title>` :2474, the hero
+:1589, the page-2 head :2184, the running header of every continued page :1512). «Rational and
+Irrational Numbers» headed a page that was otherwise 74% Urdu. `chapter` and `chapter_title` join it
+for the same reason. The root is now narrowed to `["/video", "/revisions", "/ur_overlay"]` and
+`/provenance` is gated per field by `OVERLAY_PROVENANCE_KEYS = {topic, chapter, chapter_title}`.
+
+`subject` is deliberately excluded. `SUBJECT_NAMES_UR` / `subjectNameFor()` in
+`bot/shared/config/lp612-subject-order.js` already produce the Urdu subject name the WhatsApp
+caption prints (`bd-63dea`); a model translating it a second time is how the caption and the PDF
+header end up disagreeing about what the subject is called.
+
+`lib/overlay.js` needed no change — `applyOverlay` never froze `/provenance/topic`, so the linter's
+target list was the only thing standing between the pointer and the render.
+
+**`bd-8g1u7` — figure labels were never targets.** Not because a rule excluded them, but because
+`isInstructionProse` wants ≥ 8 characters AND two runs of two-or-more Latin letters, and a label is
+a short single word by nature: `Nucleus` fails on length, `p_photon` fails on word count, `p_e-`
+fails on both. So an Urdu physics lesson kept every English label in its figures — arguable for a
+symbol, not for a bio schematic or a flow chart. `walk()` now carries two facts down the tree:
+whether it is inside a diagram `spec`, and which display key the current string hangs off
+(`DIAGRAM_DISPLAY_KEYS` = label, labels, text, title, caption, note, alt, name). Inside a spec, and
+only there, a display string may be a single word.
+
+`isDiagramLabel` is what keeps notation out: a string carrying `_` or `^` is a symbol, and one with
+no run of three Latin letters is not a word. The fields a renderer PARSES rather than prints — tex,
+smiles, equation, formula — are not display keys at all and stay frozen through `MACHINE_KEYS` and
+`frozenReason`. The display-key check also has to bypass the `OVERLAY_SKIP_KEYS` shortcut in the
+object walk, because `name` is on that list for a brand and a font and is also what several diagram
+types call their label.
+
+Covered by `tests/lp612/overlay-urdu-chrome.test.js` (8 tests), including the negatives: citation
+metadata, `subject`, a physics symbol, the machine fields, and a short label outside a spec.
+
+Upstream carries neither fix. Push both hunks up at the next re-sync.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes, and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
