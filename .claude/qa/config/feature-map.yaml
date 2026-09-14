@@ -121,6 +121,10 @@ features:
     - bot/shared/templates/quiz-report.template.js
     - bot/shared/templates/video-quiz-report.template.js
     - bot/shared/templates/video-quiz-scorecard.template.js
+    # The transcript-quiz figure/card modules render through the same vendored
+    # engine the LP-612 lane uses — see the note under `lesson-plan:`. Owned by
+    # both on purpose; not `shared:`.
+    - bot/vendor/lp-v9/**
 
   lesson-plan:
     - bot/shared/handlers/lesson-plan-v2.handler.js
@@ -137,6 +141,25 @@ features:
     - bot/shared/services/toc-loading.service.js
     - bot/shared/routes/pakistan-lp-endpoint.js
     - bot/workers/lesson-plan-*.worker.js
+    # The LP-612 lane — the curriculum-baked path, and by volume the busiest
+    # lesson-plan surface in the deployment. It was UNMAPPED in its entirety
+    # (10 services + the author worker), so every change to it armed the SAFE
+    # subset and authored no spec. Reached from pakistan-lp-endpoint.js and
+    # text-message.handler.js, both already lesson-plan.
+    - bot/shared/services/lp612-*.service.js
+    - bot/workers/lp612-*.worker.js
+    # The vendored authoring/rendering engine behind that lane: the author briefs,
+    # the diagram type manifest, the linter, the renderer.
+    #
+    # It is ALSO listed under `training:` — deliberately, and not in `shared:`.
+    # The require() graph gives it two owners (`lp612-{author,render}.service.js`
+    # here; five `quiz/transcript-quiz-*.js` modules there), so `shared:` is where
+    # convention would put it. But `shared:` sets `only_shared`, whose documented
+    # default is "leave the spec alone" — right for a logging tweak in
+    # whatsapp.service.js, wrong here, where the manifest IS the teacher-visible
+    # behaviour. Listing it as OWNED by both features keeps `only_shared` false and
+    # the brief's action `update`, which is the honest answer for an engine.
+    - bot/vendor/lp-v9/**
     - bot/shared/utils/html-to-pdf.js
     - bot/shared/utils/html-to-docx.js
     - bot/shared/services/aws-textract.service.js   # only consumer: lesson-plan-extraction.worker.js
@@ -257,6 +280,7 @@ shared:
   # Reaches the LP / training / language internals it proxies for the portal.
   bot/shared/routes/internal-api.routes.js:
     [language, lesson-plan, training]
+
 
   # ── graph-derived (audit_feature_map.py, 2026-08-24) ─────────────────────
   #

@@ -268,6 +268,116 @@ def test_range_diff_uses_diff_with_the_range():
     assert cmd[-2:] == ["--", "a.js"]
 
 
+
+
+# ── map gaps: a change nothing claims still owes a spec ──────────────────────
+#
+# The shape that forced this: a whole diff inside `bot/vendor/lp-v9/**` — in scope, real
+# bot code, claimed by no rule. select_e2e reported UNMAPPED and armed the SAFE
+# subset; spec_sync returned sync_needed:false, so the hook never wrote a brief
+# and `/sync-specs` short-circuited with "nothing selected". A change that was
+# harder to attribute than usual therefore bought itself an EXEMPTION from the
+# one step that would have noticed it had no coverage.
+#
+# The rule these tests encode: a map gap is WORK, not a footnote. It carries its
+# own diff so the agent can inspect the behaviour, and it makes the sync needed
+# on its own — with no feature selected at all.
+
+def test_gap_only_change_still_needs_a_sync():
+    """THE GAP-ONLY CASE. No feature selected, two unmapped files → the sync must
+    still be needed. This is the whole bug: sync_needed was False here."""
+    sel = _selection([], {}, unmapped=["bot/vendor/lp-v9/lint_lp.js",
+                                       "bot/vendor/lp-v9/diagrams/types_manifest.json"],
+                     fallback=True)
+    d = _specs({"menu": MENU_SPEC})
+    brief = ss.build_brief(sel, d, _differ({}))
+    assert brief["sync_needed"] is True, "a gap-only change must not be exempt"
+    shutil.rmtree(d)
+
+
+def test_each_gap_is_an_actionable_entry_not_just_a_path():
+    """The agent has to decide 'does an appropriate .feature exist?'. A bare
+    string cannot be worked; it needs the path, the action, and the diff."""
+    sel = _selection([], {}, unmapped=["bot/vendor/lp-v9/lint_lp.js"], fallback=True)
+    d = _specs({"menu": MENU_SPEC})
+    brief = ss.build_brief(sel, d, _differ({"bot/vendor/lp-v9/lint_lp.js": "+ askable(plane mirror)"}))
+    assert len(brief["gaps"]) == 1
+    gap = brief["gaps"][0]
+    assert gap["path"] == "bot/vendor/lp-v9/lint_lp.js"
+    assert gap["action"] == ss.MAP_GAP
+    assert "plane mirror" in gap["diff"]
+    shutil.rmtree(d)
+
+
+def test_gap_diff_is_bounded_like_every_other_diff():
+    """A 4,000-line vendor drop must not flood the brief just because it is
+    unmapped. Same cap, same truthful flag."""
+    sel = _selection([], {}, unmapped=["bot/vendor/lp-v9/lint_lp.js"], fallback=True)
+    d = _specs({})
+    big = "\n".join("+ line %d" % i for i in range(500))
+    brief = ss.build_brief(sel, d, _differ({"bot/vendor/lp-v9/lint_lp.js": big}),
+                           max_diff_lines=50)
+    gap = brief["gaps"][0]
+    assert gap["diff_truncated"] is True
+    assert len(gap["diff"].splitlines()) <= 51
+    shutil.rmtree(d)
+
+
+def test_gaps_carry_the_existing_features_so_attribution_is_possible():
+    """Step 1 of the procedure is 'does an appropriate .feature exist?'. The
+    agent cannot answer that without knowing which specs exist — and it must not
+    have to go listing directories to find out."""
+    sel = _selection([], {}, unmapped=["bot/vendor/lp-v9/lint_lp.js"], fallback=True)
+    d = _specs({"menu": MENU_SPEC, "lesson-plan": MENU_SPEC, "training": MENU_SPEC})
+    brief = ss.build_brief(sel, d, _differ({}))
+    assert brief["existing_features"] == ["lesson-plan", "menu", "training"]
+    shutil.rmtree(d)
+
+
+def test_gaps_coexist_with_selected_features():
+    """A commit can do both: change a mapped file AND a file nothing claims.
+    The gap must not be swallowed by the feature brief."""
+    sel = _selection(["menu"], {"menu": [{"path": "bot/shared/services/menu.service.js",
+                                          "pattern": "p", "shared": False, "kind": "map"}]},
+                     unmapped=["bot/vendor/lp-v9/lint_lp.js"], fallback=True)
+    d = _specs({"menu": MENU_SPEC})
+    brief = ss.build_brief(sel, d, _differ({}))
+    assert [f["feature"] for f in brief["features"]] == ["menu"]
+    assert [g["path"] for g in brief["gaps"]] == ["bot/vendor/lp-v9/lint_lp.js"]
+    shutil.rmtree(d)
+
+
+def test_no_gaps_means_no_gap_section():
+    """The ordinary case stays quiet — an empty list, not a phantom work item."""
+    sel = _selection(["menu"], {"menu": [{"path": "p", "pattern": "p",
+                                          "shared": False, "kind": "map"}]})
+    d = _specs({"menu": MENU_SPEC})
+    brief = ss.build_brief(sel, d, _differ({}))
+    assert brief["gaps"] == []
+    shutil.rmtree(d)
+
+
+def test_map_gaps_stays_for_backwards_compatibility():
+    """The old flat list is what the hook and the skill already read. Adding
+    `gaps` must not break them."""
+    sel = _selection([], {}, unmapped=["bot/vendor/lp-v9/lint_lp.js"], fallback=True)
+    d = _specs({})
+    brief = ss.build_brief(sel, d, _differ({}))
+    assert brief["map_gaps"] == ["bot/vendor/lp-v9/lint_lp.js"]
+    shutil.rmtree(d)
+
+
+def test_render_names_the_gap_work_when_nothing_else_was_selected():
+    """The human-readable line must not say 'no Gherkin work for this change'
+    when there is a gap — that sentence is exactly what hid the gap-only case."""
+    sel = _selection([], {}, unmapped=["bot/vendor/lp-v9/lint_lp.js"], fallback=True)
+    d = _specs({})
+    out = ss.render(ss.build_brief(sel, d, _differ({})))
+    assert "no Gherkin work" not in out
+    assert "bot/vendor/lp-v9/lint_lp.js" in out
+    shutil.rmtree(d)
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

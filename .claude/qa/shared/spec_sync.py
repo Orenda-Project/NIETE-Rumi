@@ -65,6 +65,10 @@ UPDATE = "update"                # source changed under an existing spec
 VALIDATE_ONLY = "validate-only"  # nothing to author: the spec itself was the edit,
                                  # or this is a full-suite promotion
 
+# ...and the one that is handed per FILE rather than per feature.
+MAP_GAP = "map-gap"              # in-scope code no rule claims — attribute it,
+                                 # then author into the spec that ends up owning it
+
 
 # ── diff bounding ────────────────────────────────────────────────────────────
 
@@ -159,17 +163,61 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
             "diff_truncated": truncated,
         })
 
+    # ── map gaps ─────────────────────────────────────────────────────────────
+    #
+    # In-scope files the map claims nothing about. The sync is the only step that
+    # reads both the code and the map, so it is where the drift shows.
+    #
+    # These used to be a flat list of strings on `map_gaps` and nothing else, and
+    # `sync_needed` was `bool(out)` — features only. A commit whose diff was
+    # ENTIRELY unmapped therefore produced no features, `sync_needed: false`, no
+    # brief from the hook, and `/sync-specs` printing "nothing selected — no
+    # Gherkin work for this change". The worked example that forced this fix was a
+    # change to `bot/vendor/lp-v9/**` — the lesson-plan render engine, behind the
+    # busiest teacher-facing surface in the deployment — which sailed through with
+    # no spec because its files were hard to attribute, not unimportant.
+    #
+    # That is backwards. Being unclaimed by the map is not evidence a change is
+    # inert; it is the absence of evidence either way, and the only honest
+    # response is to make somebody look. So a gap is now WORK — it carries its
+    # own bounded diff, it names the action, and it makes the sync needed on its
+    # own, with no feature selected at all.
+    #
+    # What it deliberately does NOT do is decide the answer. `MAP_GAP` means
+    # "attribute this", and the agent follows gherkin-spec-sync §5: inspect the
+    # behaviour, and if an existing surface owns it, add the map entry and author
+    # into that spec; only a genuinely new surface earns a new .feature (plus its
+    # agent, or validate_specs raises E-NOAGENT). Guessing that here — from a
+    # path and a diff, with no view of the nine specs' contents — is exactly the
+    # judgement this module exists not to make.
+    gaps = []
+    for path in (selection.get("unmapped") or []):
+        gap_diff, gap_truncated = truncate(differ([path]), max_diff_lines)
+        gaps.append({
+            "path": path,
+            "action": MAP_GAP,
+            "diff": gap_diff,
+            "diff_truncated": gap_truncated,
+        })
+
     return {
         "version": 1,
         "repo": repo,
         "range": rev_range,
         "spec_dir": SPEC_DIR,
         "full_suite": full_suite,
-        "sync_needed": bool(out),
+        "sync_needed": bool(out) or bool(gaps),
         "features": out,
-        # In-scope files the map claims nothing about. The sync is the only step
-        # that reads both the code and the map, so it is where the drift shows.
-        "map_gaps": list(selection.get("unmapped") or []),
+        "gaps": gaps,
+        # Every feature that HAS a spec today. Step 1 of attributing a gap is
+        # "does an appropriate .feature already exist?", and the agent should not
+        # have to list a directory to answer it.
+        "existing_features": sorted(
+            os.path.basename(p)[:-len(".feature")]
+            for p in os.listdir(spec_dir) if p.endswith(".feature")
+        ) if os.path.isdir(spec_dir) else [],
+        # The flat list stays: the hook and the skill already read it.
+        "map_gaps": [g["path"] for g in gaps],
         "fallback": bool(selection.get("fallback")),
         "fallback_reason": selection.get("fallback_reason") or "",
     }
@@ -221,9 +269,17 @@ def render(brief):
         lines.append("  %-14s %-13s %2d scenario(s), %d changed file(s)%s"
                      % (f["feature"], f["action"], f["scenario_count"],
                         len(f["changed_files"]), note))
-    if brief["map_gaps"]:
-        lines.append("  map gaps (feature-map.yaml is behind the code):")
-        lines += ["    " + p for p in brief["map_gaps"]]
+    if brief.get("gaps"):
+        # Named as work, with the verb in it. "map gaps:" read as a footnote and
+        # was treated as one; a gap is the one item here that can still end in a
+        # brand-new .feature file.
+        lines.append("  MAP GAPS — attribute each, then author into whichever spec "
+                     "ends up owning it (gherkin-spec-sync §5):")
+        for g in brief["gaps"]:
+            lines.append("    %-13s %s%s" % (g["action"], g["path"],
+                                             "  [diff truncated]" if g["diff_truncated"] else ""))
+        if brief.get("existing_features"):
+            lines.append("    existing specs: " + ", ".join(brief["existing_features"]))
     return "\n".join(lines)
 
 
