@@ -1404,6 +1404,19 @@ const UX_STRINGS = {
   // fit on the card itself. Both sets say the same thing, so a child hears one
   // voice whether she reads the picture or the text under it.
   vqScorecardEyebrow: { en: 'QUIZ COMPLETE', ur: 'کوئز مکمل' },
+
+  // ─── the child's CLASS card (bd-2yyry.10) ───────────────────────────────
+  // Painted into the 540px card, never sent as a message. The child is "you"
+  // / آپ and is never described; the ordinal is built in code. An Urdu body
+  // that opens with a number carries the right-to-left mark.
+  vqClassEyebrow: { en: 'CLASS RESULTS', ur: 'کلاس کے نتائج' },
+  vqClassPlace: { en: 'You came {place} of {n}', ur: '\u200F{n} میں سے آپ کا {place} نمبر' },
+  vqClassPlaceTie: { en: 'You are joint {place} of {n}', ur: '\u200F{n} میں سے آپ مشترکہ {place} نمبر پر' },
+  vqClassYou: { en: 'you', ur: 'آپ' },
+  vqClassAvg: { en: 'class average', ur: 'کلاس کا اوسط' },
+  vqClassYours: { en: 'your score', ur: 'آپ کا اسکور' },
+  vqClassOthers: { en: '{n} more in the class', ur: 'کلاس کے {n} اور بچے' },
+  vqClassFinished: { en: '{n} finished', ur: '\u200F{n} نے مکمل کیا' },
   vqBadgeMastered: { en: 'Brilliant!', ur: 'زبردست!' },
   vqBadgeDeveloping: { en: 'Nicely done', ur: 'بہت اچھا' },
   vqBadgeNeedsPractice: { en: 'Good effort', ur: 'اچھی کوشش' },

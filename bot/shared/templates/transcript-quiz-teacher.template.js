@@ -150,16 +150,48 @@ function clampWords(s, max) {
 
 const RTL_LANGS = new Set(['ur']);
 
+/**
+ * "Briefly tell the teacher what they taught" (operator, 2026-09-14): the
+ * lesson summary is authored at four or five sentences; the sheet shows the
+ * first one, capped at 32 words. Sentence ends in either script count. An
+ * authored one-line summary (digest.lesson_summary_short) replaces the cap.
+ */
+function clampSentences(text, max, maxWords = 32) {
+  const parts = String(text || '').trim().split(/(?<=[.!?۔؟])\s+/).filter(Boolean);
+  const words = parts.slice(0, max).join(' ').split(/\s+/).filter(Boolean);
+  return words.length <= maxWords ? words.join(' ') : `${words.slice(0, maxWords).join(' ')}…`;
+}
+
+/**
+ * One sentence for "what this quiz checks". A digest authored after this
+ * change carries `checks_summary` written by the model in the quiz language;
+ * an older digest gets its objectives folded into one sentence — each
+ * statement lower-cased at its first Latin letter and stripped of its full
+ * stop, joined with the document's own list separators.
+ */
+function checksSentence(digest, slos, C, docLang) {
+  const authored = digest && typeof digest.checks_summary === 'string' && digest.checks_summary.trim();
+  if (authored) return authored;
+  if (!slos.length) return '';
+  const order = ['recall', 'understand', 'apply'];
+  const levels = order.filter((l) => slos.some((s) => s.taught_level === l)).map((l) => C.levelWord[l]);
+  const last = levels.pop();
+  const list = levels.length ? `${levels.join(C.listSep)}${C.listAnd}${last}` : (last || '');
+  return C.checksFallback(slos.length, list);
+}
+
 const CHROME = {
   en: {
     eyebrow: 'Class quiz · ready to forward',
     questions: 'questions', slos: 'learning goals',
     taught: 'What you taught', checks: 'What this quiz checks',
     level: { recall: 'recall', understand: 'understand', apply: 'apply' },
-    howTo: 'How to send it',
-    howToText: 'The NEXT message is for your students — forward it to the class group. Each child taps the link and answers in their own chat. Your report on what to reteach follows about 12 hours after the first child starts.',
-    chosen: 'From your lesson', correct: 'correct',
-    link: 'Link', footer: 'Made from your lesson recording · NIETE Teaching Assistant',
+    fromLesson: 'Every question below is taken from this lesson.',
+    checksFallback: (n, levels) => `${n} learning goals from the lesson, tested for ${levels}.`,
+    levelWord: { recall: 'recall', understand: 'understanding', apply: 'application' },
+    listAnd: ' and ', listSep: ', ',
+    correct: 'correct',
+    footer: 'Made from your lesson recording · NIETE Teaching Assistant',
   },
   ur: {
     // 'quiz' is a term of record (root rule 20 / operator item 14) — it stays
@@ -168,10 +200,12 @@ const CHROME = {
     questions: 'سوالات', slos: 'سیکھنے کے مقاصد',
     taught: 'آپ نے کیا پڑھایا', checks: 'یہ quiz کیا جانچتا ہے',
     level: { recall: 'یاد', understand: 'سمجھ', apply: 'استعمال' },
-    howTo: 'بھیجنے کا طریقہ',
-    howToText: 'اگلا پیغام طلبہ کے لیے ہے — اسے کلاس کے group میں forward کریں۔ ہر بچہ link پر tap کر کے اپنی chat میں جواب دے گا۔ پہلے بچے کے شروع کرنے کے تقریباً 12 گھنٹے بعد رپورٹ آ جائے گی۔',
-    chosen: 'آپ کے سبق سے', correct: 'درست',
-    link: 'Link', footer: 'آپ کے سبق کی ریکارڈنگ سے تیار · NIETE Teaching Assistant',
+    fromLesson: 'نیچے دیا گیا ہر سوال اسی سبق سے لیا گیا ہے۔',
+    checksFallback: (n, levels) => `سبق کے ${n} سیکھنے کے مقاصد — ${levels} کی جانچ۔`,
+    levelWord: { recall: 'یاد', understand: 'سمجھ', apply: 'استعمال' },
+    listAnd: ' اور ', listSep: '، ',
+    correct: 'درست',
+    footer: 'آپ کے سبق کی ریکارڈنگ سے تیار · NIETE Teaching Assistant',
   },
 };
 
@@ -246,10 +280,10 @@ function renderTranscriptQuizTeacherHtml(d) {
 
   const bullet = diamondSvg({ size: 8, fill: PALETTE.green, stroke: PALETTE.green, width: 0 });
   const optMarkCorrect = diamondSvg({ size: 12, fill: PALETTE.green, stroke: PALETTE.green, width: 0 });
-  const missMark = diamondSvg({ size: 7, fill: '#B9C2CC', stroke: '#B9C2CC', width: 0 });
 
-  const sloList = slos.map((s) => `
-      <li>${bullet}<span class="pill">${L(C.level[s.taught_level] || esc(s.taught_level || ''))}</span> <span ${cls('sloline')}>${K(sloStatement(s, docLang))}</span></li>`).join('');
+  void clampWords;
+  const taughtText = clampSentences(lessonSummary, 1);
+  const checksText = checksSentence(digest, slos, C, docLang);
 
   const cards = questions.map((q, i) => {
     // external_id is `tq:<quizId>:<sloId>:<n>` in production and `tq:<sloId>:<n>`
@@ -269,7 +303,6 @@ function renderTranscriptQuizTeacherHtml(d) {
         .map((c) => order.indexOf(LETTERS.indexOf(c.trim())))
         .filter((p) => p >= 0));
     const isMulti = Boolean(q.media && q.media.answer_mode === 'multi');
-    const misc = q.distractor_misconceptions || {};
     // EVERY row carries its letter, correct one included: the child taps a
     // letter, so a teacher reading "the answer is the one with the tick" still
     // has to count rows to know which button that is.
@@ -280,21 +313,6 @@ function renderTranscriptQuizTeacherHtml(d) {
     // here — the teacher reads that on their phone with the child, not on paper.
     // Skips EVERY correct position, not just the first — otherwise a correct
     // option on a multi-answer question prints as a misconception.
-    const misses = order.map((stored, pos) => {
-      if (correctPositions.has(pos)) return '';
-      const m = clampWords(misc[LETTERS[stored]] || misc[String(stored)] || '', 14);
-      if (!m) return '';
-      // The label is clamped in WORDS, not left to a CSS ellipsis: at the
-      // 18px+ floor a fixed-width nowrap chip clipped mid-word, and in the
-      // Urdu render — a Latin option phrase isolated inside an RTL chip —
-      // the CSS truncation cut from the visual left, printing "…roper
-      // fraction" instead of "Proper fraction…". Clamping the words first
-      // means the chip always ends on a real word boundary either way.
-      const wrongLabel = clampWords(labels[stored], 5);
-      return `
-          <div class="miss"><span ${cls('wrongpill')}>${K(wrongLabel)}</span>${missMark}<span ${cls('misstext')}>${K(m)}</span></div>`;
-    }).join('');
-    const why = q.selected_because || (q.media && q.media.selected_because) || '';
     // The picture, when the question has one, sits beside the words and comes
     // first in reading order — the same order the child meets it in.
     const wide = q.figureSvg && figureIsWide(q.figureSvg);
@@ -310,8 +328,6 @@ function renderTranscriptQuizTeacherHtml(d) {
             <div ${cls('stem')}>${K(q.question_text)}</div>
             ${isMulti ? `<div class="multichip"><span class="pill">${L(resolveUx('vqMultiSelectAll', { language: docLang }))}</span></div>` : ''}
             <div class="opts">${optionsHtml}</div>
-            ${why ? `<div class="chosen"><span class="lbl">${L(C.chosen)}</span> <span ${cls('inline')}>${K(why)}</span></div>` : ''}
-            ${misses}
           </div>
         </div>
       </div>`;
@@ -328,7 +344,7 @@ function renderTranscriptQuizTeacherHtml(d) {
     ? `<span class="nm" dir="${nameRtl ? 'rtl' : 'ltr'}">${esc(teacherName)}</span>` : '';
   // grade is accepted-and-ignored (operator item 6) — the meta line is
   // `name · date` only.
-  void grade;
+  void grade; void link;
   const meta = [nameHtml, date ? L(esc(date)) : ''].filter(Boolean).join('<span class="sep">·</span>');
 
   return `<!doctype html><html dir="${dir}" lang="${docLang}"><head><meta charset="utf-8"><style>
@@ -368,28 +384,18 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .stchip .n{font-family:${bodyFamily(false)};font-weight:700;font-size:${TYPE_STEP.name}px;direction:ltr}
 .stchip .l{font-family:${bodyFam};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.06em}
 /* ── sheet ──────────────────────────────────────────────────────────────── */
-.body{padding:14px 40px 6px}
+.body{padding:12px 40px 6px}
 .label{font-family:${bodyFam};font-size:${RTL ? `${LABEL_UR}px` : `${TYPE_FLOOR.label}px`};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.62;font-weight:700;margin-bottom:7px;break-after:avoid}
-.band{display:flex;gap:18px;align-items:stretch}
-.band>div{flex:1 1 0;min-width:0}
-.band .taught{flex:1.05 1 0}
+.band{display:flex;flex-direction:column;gap:10px}
+.band>div{min-width:0}
 .taught .sum{font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.72)}` : lh};background:${PALETTE.greenWash};border-${RTL ? 'right' : 'left'}:3px solid ${PALETTE.green};border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
-.checks ul{list-style:none}
-.checks li{padding:3px 0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.72)}` : lh};border-bottom:1px solid #eaeeeb}
 .checks .content[dir="rtl"],.taught .content[dir="rtl"]{line-height:${leadingAt(1.72)}}
-.checks li:last-child{border-bottom:0}
-.checks li .dia,.miss .dia{vertical-align:middle;margin-${RTL ? 'left' : 'right'}:7px}
+.checks .checks-sum{background:#f6f8f7;border-${RTL ? 'right' : 'left'}-color:#C6CFCA;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`}}
+.taught .fromlesson{display:block;margin-top:6px;color:#1f7a4b;font-weight:700}
 .pill{display:inline-block;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;color:#1f7a4b;background:${PALETTE.greenWash};border-radius:10px;padding:1px 8px;vertical-align:middle;margin-${RTL ? 'left' : 'right'}:6px;letter-spacing:.02em}
-/* A bordered card must never split across a page. At the R6 floor the Urdu
-   version grew past the space left on page 1 and Chromium tore it, leaving the
-   quiz link alone above the next page's first question card with no box around
-   it. break-inside moves the whole card down instead. */
-.howto{break-inside:avoid;page-break-inside:avoid;margin-top:11px;background:#f6f8f7;border:1px solid #e3e8e5;border-radius:12px;padding:10px 14px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.7)}` : '1.38'};font-family:${bodyFam};display:flex;gap:12px;align-items:flex-start}
-.howto .txt{flex:1}
-.howto .lnk{margin-top:6px;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:#1f7a4b;direction:ltr;unicode-bidi:isolate;text-align:${RTL ? 'right' : 'left'}}
 /* ── question cards ─────────────────────────────────────────────────────── */
-.qs{margin-top:13px}
-.card{background:#f6f8f7;border-radius:12px;padding:8px 12px 8px;margin-bottom:6px;page-break-inside:avoid;break-inside:avoid}
+.qs{margin-top:10px}
+.card{background:#f6f8f7;border-radius:12px;padding:6px 12px 6px;margin-bottom:5px;page-break-inside:avoid;break-inside:avoid}
 .chead{display:flex;gap:9px;align-items:center;margin-bottom:4px}
 .num{flex-shrink:0;width:31px;height:31px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)}}
 .num span{display:block;transform:rotate(-45deg)}
@@ -400,7 +406,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .figure{width:220px;flex-shrink:0;background:#fff;border:1px solid #e7ebe9;border-radius:10px;padding:8px;text-align:center;${figureTokens()}}
 .figure.wide{width:auto;margin-bottom:5px;padding:5px 10px}
 .figure.wide svg,.figure.wide img{max-height:100px;width:100%}
-.figure svg,.figure img{max-width:100%;max-height:190px;width:auto;height:auto;display:inline-block}
+.figure svg,.figure img{max-width:100%;max-height:150px;width:auto;height:auto;display:inline-block}
 /* The stem element is one div carrying BOTH classes ("stem content", dir=rtl),
    so the .content[dir=rtl] rule (0,2,0) has always outranked a bare .stem
    (0,1,0) and the RTL line-height written here has never once reached the
@@ -415,7 +421,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 /* An option row and a caption are UI, not prose: Nastaliq's prose leading
    (1.85) over eight of these is a whole extra page. The reading blocks — the
    summary, the goals, the stems — keep it. */
-.opt.content[dir="rtl"],.miss .content[dir="rtl"],.chosen .content[dir="rtl"]{line-height:${leadingAt(1.5)}}
+.opt.content[dir="rtl"]{line-height:${leadingAt(1.5)}}
 .opt .otext{flex:1;min-width:0}
 .opt.correct{background:${PALETTE.greenWash};border-color:${PALETTE.green};color:#1f5f3e;font-weight:700}
 .opt .mark{display:inline-flex;align-items:center;justify-content:center;width:26px;flex-shrink:0}
@@ -430,17 +436,12 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .dia2>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;color:#7b8494;direction:ltr}
 .opt.correct .dia2>span{color:#0B1A12}
 .opt .tag{font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;letter-spacing:.08em;color:#1f7a4b;flex-shrink:0}
-.chosen{margin-top:5px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.6)}` : lh};font-family:${bodyFam};color:#3d4454}
-.chosen .lbl{font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;letter-spacing:.1em;${RTL ? '' : 'text-transform:uppercase;'}color:#166341;background:${PALETTE.greenWash};border-radius:4px;padding:2px 7px;margin-${RTL ? 'left' : 'right'}:6px;vertical-align:middle}
-.miss{margin-top:2px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:1.5;font-family:${bodyFam};color:#6a7284;display:flex;align-items:flex-start;gap:6px}
 /* The chip's own length is controlled in WORDS (clampWords, 5), not by a
    fixed-width CSS ellipsis: at the 18px+ floor a nowrap+ellipsis chip cut
    mid-word, and on the Urdu render — a Latin option phrase isolated inside
    an RTL chip — the truncation cut from the visual left, printing "…roper
    fraction" instead of "Proper fraction…". Wrapping to a second line beats
    either failure. */
-.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:1px 8px;border-radius:9px;flex-shrink:0;max-width:300px}
-.misstext{flex:1;min-width:0}
 .foot{display:flex;align-items:center;justify-content:space-between;padding:12px 40px 16px;margin-top:8px;border-top:1px solid #eaeeeb;color:#8a92a0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${lh};font-family:${bodyFam}}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-family:${bodyFamily(false)}}
 .brand .mark-img{width:22px;height:22px;object-fit:contain;display:block}
@@ -463,10 +464,9 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
   </div>
   <div class="body">
     <div class="band">
-      ${lessonSummary ? `<div class="taught"><div class="label">${L(C.taught)}</div><div ${cls('sum')}>${K(lessonSummary)}</div></div>` : ''}
-      ${slos.length ? `<div class="checks"><div class="label">${L(C.checks)}</div><ul>${sloList}</ul></div>` : ''}
+      ${taughtText ? `<div class="taught"><div class="label">${L(C.taught)}</div><div ${cls('sum')}>${K(taughtText)} <span class="fromlesson">${L(esc(C.fromLesson))}</span></div></div>` : ''}
+      ${checksText ? `<div class="checks"><div class="label">${L(C.checks)}</div><div ${cls('sum checks-sum')}>${bullet} ${K(checksText)}</div></div>` : ''}
     </div>
-    <div class="howto">${footMark ? `<img class="mark-img" style="width:26px;height:26px;object-fit:contain" src="data:image/png;base64,${a.markOnLight}" alt="">` : ''}<div class="txt"><div class="label" style="margin-bottom:4px">${L(C.howTo)}</div>${L(C.howToText)}${link ? `<div class="lnk">${L(C.link)}: ${esc(link)}</div>` : ''}</div></div>
     <div class="qs">${cards}</div>
   </div>
   <div class="foot">
