@@ -196,6 +196,10 @@ ${questionContract({ gradeBand })}
 
 LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
 
+TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same second-person address:
+- "lesson_summary_short": ONE sentence, at most 25 words — what you taught, with your own first example. No list, no second sentence.
+- "checks_summary": ONE sentence, at most 30 words, beginning with what this quiz checks — the skills, not the question count (e.g. "This quiz checks whether the class can tell a proper fraction from an improper one and compare two with the same denominator."). Never name the teacher or the children; no gendered forms.
+
 ${SELECTED_BECAUSE_RULE}
 ${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
@@ -204,7 +208,7 @@ ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n }
 ${multiContract({ allowMulti, n })}${langAgain}${retry}
 
 Return ONLY this JSON object:
-{ "lesson_summary": "",
+{ "lesson_summary": "", "lesson_summary_short": "", "checks_summary": "",
   "questions": [
   { "slo_id": "S1", "level": "recall|understand|apply", "question": "", "options": ["", "", ""], "correct_index": 0,
     "explanation": "", "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" },
@@ -236,12 +240,23 @@ async function author({
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.author' });
   const questions = Array.isArray(json?.questions) ? json.questions : [];
   const lessonSummary = typeof json?.lesson_summary === 'string' ? json.lesson_summary : '';
+  // bd-2yyry.7 — the two one-liners for the pre-send sheet. A missing or
+  // over-long one is null: the template then falls back to its own cap.
+  const oneLine = (v, maxWords) => {
+    const t = typeof v === 'string' ? v.trim() : '';
+    if (!t) return null;
+    return t.split(/\s+/).length > maxWords ? null : t;
+  };
+  const extras = {
+    lesson_summary_short: oneLine(json?.lesson_summary_short, 40),
+    checks_summary: oneLine(json?.checks_summary, 40),
+  };
   logEvent('transcript_quiz.author_done', {
     quizId, model, costUsd, latencyMs, questions: questions.length, language, retry: Boolean(previousErrors),
-    lessonSummary: Boolean(lessonSummary),
+    lessonSummary: Boolean(lessonSummary), shortSummary: Boolean(extras.lesson_summary_short), checksSummary: Boolean(extras.checks_summary),
   });
   return {
-    questions, model, costUsd, latencyMs, lessonSummary,
+    questions, model, costUsd, latencyMs, lessonSummary, extras,
   };
 }
 
