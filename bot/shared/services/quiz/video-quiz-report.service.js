@@ -258,8 +258,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 
   const { data: sessions } = await supabase
     .from('quiz_sessions')
-    .select('id, user_id, student_id, student_name, student_class, status, total_questions_answered, '
-            + 'correct_answers, mastery_percentage, completed_at, created_at')
+    .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+            + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
     .eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
 
@@ -345,9 +345,10 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // digest === null and behaves exactly as it did before this change.
   let sloOf = () => null;
   let digest = null;
+  let quizRow = null;
   try {
-    const { data: quizRow } = await supabase.from('quizzes')
-      .select('quiz_source, meta, language').eq('id', sc.quiz_id).maybeSingle();
+    ({ data: quizRow } = await supabase.from('quizzes')
+      .select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle());
     const rawDigest = quizRow?.quiz_source === 'transcript' ? (quizRow?.meta?.digest || null) : null;
     if (rawDigest) {
       const slos = Array.isArray(rawDigest.slos) ? rawDigest.slos : [];
@@ -533,12 +534,116 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 
   await markReportSent(shareCodeId, sc.quiz_id);
 
+  // bd-2yyry.11 — the children's class cards, at the moment the teacher's
+  // report goes out. Never to the teacher; once per child per quiz.
+  await sendClassCards({
+    shareCode: sc, quizRow, done, reason, language: contentLang, className: classHeadingText,
+  });
+
   logEvent('video_quiz.report_sent', {
     shareCodeId, quizId: sc.quiz_id, started: all.length,
     completed: done.length, average: avg, reason,
     format: sentAsPdf ? 'pdf' : 'text', hadGuidance: Boolean(guidance),
   });
   return true;
+}
+
+/**
+ * THE CHILD'S CLASS CARD (bd-2yyry.11, operator 14 Sep 2026).
+ *
+ * For every child who finished — one attempt per child, the same rows the
+ * teacher's report counts — an image of where they stand against the class
+ * (video-quiz-leaderboard.template.js), sent to the child's own handset when
+ * the teacher's report goes out, whatever the reason for that report.
+ *
+ *   - never the teacher: the teacher gets the report and only the report;
+ *   - once per child per quiz: quizzes.meta.class_cards[shareCodeId] holds
+ *     the student ids already sent, so a follow-up report reaches only the
+ *     children who finished since;
+ *   - inside WhatsApp's free-form window: a child whose last answer is older
+ *     than CLASS_CARD_WINDOW_MS is skipped and the skip is logged (no
+ *     template is used for children); their own /quiz shows the card later;
+ *   - one child's failure costs that child only, never the report;
+ *   - behind CLASS_CARD_ENABLED (unset = off), read at call time.
+ */
+const CLASS_CARD_WINDOW_MS = 23 * 60 * 60 * 1000;
+
+function classCardsEnabled() {
+  return process.env.CLASS_CARD_ENABLED === 'true';
+}
+
+async function sendClassCards({ shareCode, quizRow, done, reason, language, className }) {
+  if (!classCardsEnabled()) return { sent: 0, skipped: 0 };
+  const finished = (done || []).filter((s) => s && s.status === 'completed');
+  if (!finished.length) return { sent: 0, skipped: 0 };
+
+  const meta = (quizRow && quizRow.meta) || {};
+  const already = new Set(((meta.class_cards || {})[shareCode.id]) || []);
+  const rows = finished.map((s) => ({
+    sessionId: s.id, studentId: s.student_id || null, name: s.student_name || '',
+    correct: s.correct_answers || 0, total: s.total_questions_answered || 0,
+    pct: s.mastery_percentage || 0, completedAt: s.completed_at || null, phone: s.parent_phone || null,
+  }));
+
+  let renderHtml;
+  let htmlToImage;
+  try {
+    renderHtml = require('../../templates/video-quiz-leaderboard.template');
+    ({ htmlToImage } = require('../../utils/html-to-pdf'));
+  } catch (err) {
+    logToFile('⚠️ class card: renderer unavailable', { error: err.message });
+    return { sent: 0, skipped: rows.length };
+  }
+  const rateLimiter = require('./video-quiz-rate-limiter.service');
+  const caption = resolveUx('vqClassCardCaption', { language, params: { topic: shareCode.topic || '' } });
+  const now = Date.now();
+  const sentIds = [];
+  let skipped = 0;
+
+  for (const r of rows) {
+    const key = r.studentId || r.sessionId;
+    if (already.has(key)) continue;
+    if (!r.phone) { skipped += 1; logEvent('video_quiz.class_card_skipped', { shareCodeId: shareCode.id, studentId: key, why: 'no_phone' }); continue; }
+    const at = r.completedAt ? new Date(r.completedAt).getTime() : NaN;
+    if (!Number.isFinite(at) || now - at > CLASS_CARD_WINDOW_MS) {
+      skipped += 1;
+      logEvent('video_quiz.class_card_skipped', { shareCodeId: shareCode.id, studentId: key, why: 'window' });
+      continue;
+    }
+    try {
+      const html = renderHtml({
+        topic: shareCode.topic || '', subject: (quizRow && quizRow.subject) || '', className: className || '',
+        language, rows, targetSessionId: r.sessionId, mode: 'full',
+      });
+      const png = await htmlToImage(html, { width: 540, deviceScaleFactor: 2, selector: '.card' });
+      if (!png) throw new Error('empty image');
+      await rateLimiter.throttle(r.phone);
+      const ok = await WhatsAppService.sendImageFromBuffer(r.phone, png, caption);
+      if (!ok) throw new Error('send returned false');
+      sentIds.push(key);
+      logEvent('video_quiz.class_card_sent', {
+        shareCodeId: shareCode.id, quizId: shareCode.quiz_id, studentId: key, reason, language,
+      });
+    } catch (err) {
+      skipped += 1;
+      logToFile('⚠️ class card: could not send to one child (continuing)', { shareCodeId: shareCode.id, error: err.message });
+      logEvent('video_quiz.class_card_skipped', { shareCodeId: shareCode.id, studentId: key, why: 'error' });
+    }
+  }
+
+  if (sentIds.length) {
+    try {
+      await supabase.from('quizzes').update({
+        meta: {
+          ...meta,
+          class_cards: { ...(meta.class_cards || {}), [shareCode.id]: [...already, ...sentIds] },
+        },
+      }).eq('id', shareCode.quiz_id);
+    } catch (err) {
+      logToFile('⚠️ class card: could not record the sends', { shareCodeId: shareCode.id, error: err.message });
+    }
+  }
+  return { sent: sentIds.length, skipped };
 }
 
 /**
@@ -1247,6 +1352,9 @@ function buildGuidancePrompt({
 
 module.exports = {
   oneAttemptPerChild,
+  sendClassCards,
+  classCardsEnabled,
+  CLASS_CARD_WINDOW_MS,
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
