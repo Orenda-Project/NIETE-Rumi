@@ -221,6 +221,14 @@ async function sendChildMenu(from, language) {
   });
 }
 
+const StudentQuizIds = { RETRY_ID: 'sq_retry', CARD_ID: 'sq_card' };
+
+/** The child's /quiz (bd-2yyry.13): the Flow, or the two-button fallback. */
+async function openQuizzes(from, language) {
+  const StudentQuiz = require('./quiz/student-quiz.service');
+  await StudentQuiz.open(from, { language });
+}
+
 async function openVideos(from, language) {
   const { tryChildVideoMenu } = require('../handlers/text-message.handler');
   const opened = await tryChildVideoMenu(from, language);
@@ -287,7 +295,7 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
         const cmd = body.split(/\s+/)[0].toLowerCase();
         if (cmd === '/video' || cmd === '/videos') return false;    // the handler's child videos path
         if (cmd === '/menu') { await sendChildMenu(from, language); return true; }
-        if (cmd === '/quiz') { await say(from, 'studentQuizHint', language); return true; }
+        if (cmd === '/quiz') { await openQuizzes(from, language); return true; }
         return refuse(from, language, `command:${cmd}`, 'studentTeacherOnly');
       }
 
@@ -324,7 +332,12 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
       if (kind === 'button_reply') {
         const id = String(message.interactive.button_reply.id || '');
         if (id === CHILD_MENU_VIDEO) { await openVideos(from, language); return true; }
-        if (id === CHILD_MENU_QUIZ) { await say(from, 'studentQuizHint', language); return true; }
+        if (id === CHILD_MENU_QUIZ) { await openQuizzes(from, language); return true; }
+        if (id === StudentQuizIds.RETRY_ID || id === StudentQuizIds.CARD_ID) {
+          const StudentQuiz = require('./quiz/student-quiz.service');
+          await StudentQuiz.handleButton(id, from);
+          return true;
+        }
         if (ALLOWED_BUTTON_PREFIXES.some((p) => id.startsWith(p))) return false;
         return refuse(from, language, `button:${id.split('_').slice(0, 2).join('_')}`, 'studentTeacherOnly');
       }

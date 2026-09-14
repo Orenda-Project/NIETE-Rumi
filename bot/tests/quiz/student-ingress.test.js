@@ -31,6 +31,9 @@ jest.mock('../../shared/services/quiz/quiz-session.service', () => ({
   getActiveState: jest.fn().mockResolvedValue(null),
   getPostQuizState: jest.fn().mockResolvedValue(null),
 }));
+jest.mock('../../shared/services/quiz/student-quiz.service', () => ({
+  open: jest.fn().mockResolvedValue(true), handleButton: jest.fn().mockResolvedValue(true), RETRY_ID: 'sq_retry', CARD_ID: 'sq_card',
+}));
 jest.mock('../../shared/handlers/text-message.handler', () => ({
   handleGeneralConversation: jest.fn().mockResolvedValue(undefined),
   tryChildVideoMenu: jest.fn().mockResolvedValue(true),
@@ -206,6 +209,21 @@ describe('route — a child', () => {
     for (const b of opts.buttons) expect(Array.from(b.title).length).toBeLessThanOrEqual(20);
   });
 
+  test('/quiz opens the CHILD quiz (student-quiz.service), never the teacher branch', async () => {
+    const SQ = require('../../shared/services/quiz/student-quiz.service');
+    expect(await Ingress.route({ message: msg('text'), messageType: 'text', messageBody: '/quiz', from: PHONE, user: child })).toBe(true);
+    expect(SQ.open).toHaveBeenCalledWith(PHONE, { language: 'ur' });
+  });
+
+  test('the Quizzes menu button and the two fallback taps go to the child quiz service', async () => {
+    const SQ = require('../../shared/services/quiz/student-quiz.service');
+    const tap = (id) => msg('interactive', { interactive: { type: 'button_reply', button_reply: { id } } });
+    expect(await Ingress.route({ message: tap(Ingress.CHILD_MENU_QUIZ), messageType: 'interactive', from: PHONE, user: child })).toBe(true);
+    expect(SQ.open).toHaveBeenCalled();
+    expect(await Ingress.route({ message: tap('sq_retry'), messageType: 'interactive', from: PHONE, user: child })).toBe(true);
+    expect(SQ.handleButton).toHaveBeenCalledWith('sq_retry', PHONE);
+  });
+
   test('the Videos menu button opens the child videos Flow', async () => {
     const m = msg('interactive', { interactive: { type: 'button_reply', button_reply: { id: Ingress.CHILD_MENU_VIDEO } } });
     expect(await Ingress.route({ message: m, messageType: 'interactive', from: PHONE, user: child })).toBe(true);
@@ -250,7 +268,7 @@ describe('route — everyone else is untouched', () => {
     for (const [type, extra, body] of [
       ['audio', { audio: { id: 'a' } }, ''], ['image', {}, ''],
       ['interactive', { interactive: { type: 'button_reply', button_reply: { id: 'lessonplan_yes_1' } } }, ''],
-      ['text', {}, '/menu'], ['text', {}, 'hello'],
+      ['text', {}, '/menu'], ['text', {}, '/quiz'], ['text', {}, 'hello'],
     ]) {
       expect(await Ingress.route({ message: { id: 'w', type, ...extra }, messageType: type, messageBody: body, from: PHONE, user })).toBe(false);
     }
