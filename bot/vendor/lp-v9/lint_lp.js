@@ -181,6 +181,57 @@ const MAX_ACTIVITIES = 7;
 // because the END of a structured lesson is what gets cut, MDPI 16:5:699). bd-uu4lr.
 const ONESCREEN_BEATS = 6;
 
+/**
+ * bd-jpfww — THE ONE-SCREEN SHAPE, AS A PREDICATE THE REUSE LANE CAN ALSO ASK.
+ *
+ * Gate 12b below used to be the only place this rule lived, and `lint()` is not on every road to
+ * a teacher. `lp612-author.worker.js` re-renders a STORED document when the template version
+ * moves (`reuseFromPreviousVersion`), and that lane runs BEFORE `authorLessonPlan` — no brief, no
+ * ladder, no gate. The row it writes says so: `lint_clean: null`, "we did not look".
+ *
+ * The shape rule landed on 2026-09-12, after v9.3, so every document stored at v9.3 or earlier is
+ * one unbroken paragraph. The v9.6 bump walked the lineage back to them and re-rendered them into
+ * v9.6 rows, and the operator read the result on her phone: *"the whatsapp text message wasnt
+ * formatted"*.
+ *
+ * So the rule is a function, asked from both roads, and gate 12b is one of its two callers. A
+ * second copy in the worker would be a rule that drifts; this cannot.
+ *
+ * Returns `[]` for a body that has the shape — and for an ABSENT or empty one, which is gate 12's
+ * fact to report (a word count of zero), not this one's. Each defect is `{ code, message }`,
+ * exactly the pair gate 12b fails with.
+ */
+function oneScreenShapeDefects(oneScreen) {
+  const out = [];
+  if (typeof oneScreen !== "string" || !oneScreen.trim()) return out;
+
+  if (/\*\*/.test(oneScreen)) {
+    out.push({
+      code: "ONESCREEN_BOLD",
+      message: "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.",
+    });
+  }
+  // A doubled-asterisk doc has already been told what is wrong; normalise so it does not also
+  // collect a cue failure for the same characters.
+  const blocks = oneScreen.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  if (blocks.length < ONESCREEN_BEATS) {
+    out.push({
+      code: "ONESCREEN_FORMAT",
+      message: `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`,
+    });
+  }
+  blocks.forEach((b, i) => {
+    if (!/^\*[^*\n]+\*/.test(b)) {
+      out.push({
+        code: "ONESCREEN_FORMAT",
+        message: `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`,
+      });
+    }
+  });
+  return out;
+}
+oneScreenShapeDefects.BEATS = ONESCREEN_BEATS;
+
 const PLACEHOLDERS = [
   { re: /\bTODO\b/i, name: "TODO" },
   { re: /\bFIXME\b/i, name: "FIXME" },
@@ -636,22 +687,12 @@ function lint(doc, docPath, opts = {}) {
   //   A cue is `*...*` at the head of a block and nothing more. It is teacher-
   //   facing prose in the lesson's own language, so an Urdu overlay writes Urdu
   //   cues; any English word list here would fire on every correct Urdu body.
-  if (full && typeof doc.one_screen === "string" && doc.one_screen.trim()) {
-    const raw = doc.one_screen;
-    if (/\*\*/.test(raw)) {
-      fail("ONESCREEN_BOLD", "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.");
-    }
-    // A doubled-asterisk doc has already been told what is wrong; normalise so it
-    // does not also collect a cue failure for the same characters.
-    const blocks = raw.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
-    if (blocks.length < ONESCREEN_BEATS) {
-      fail("ONESCREEN_FORMAT", `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`);
-    }
-    blocks.forEach((b, i) => {
-      if (!/^\*[^*\n]+\*/.test(b)) {
-        fail("ONESCREEN_FORMAT", `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`);
-      }
-    });
+  //
+  //   The rule itself is `oneScreenShapeDefects` (bd-jpfww), because this gate is
+  //   NOT the only road to a teacher — the worker's template-bump reuse lane never
+  //   calls lint at all, and asks the same function instead.
+  if (full) {
+    for (const d of oneScreenShapeDefects(doc.one_screen)) fail(d.code, d.message);
   }
 
   // 13 — the Urdu toggle may not overwrite the book's own language
@@ -2073,6 +2114,9 @@ overlayDefects.targets = overlayTargets;
 overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 
 module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
+  // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
+  // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
+  oneScreenShapeDefects, ONESCREEN_BEATS,
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,
