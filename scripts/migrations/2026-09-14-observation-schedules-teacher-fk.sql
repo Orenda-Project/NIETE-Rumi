@@ -64,6 +64,16 @@
 --   We would rather leave 54 rows null than mislabel one visit: a NULL is
 --   visibly missing, a wrong FK is not.
 --
+--   The user's name is read from `users.name` ONLY. An earlier draft fell back
+--   to `users.first_name`, which collides with the one-name-column change
+--   (V1.4.4 drops first_name/last_name): whichever migration ran second would
+--   have failed on a column the other had removed. Neither PR could see it —
+--   they share no file, and each was green on its own branch. The fallback was
+--   worth almost nothing anyway. Measured on prod both ways (2,139 rows):
+--   with the fallback 2,079 bind, without it 2,071 — a cost of EIGHT rows, all
+--   of which abstain rather than mislabel, which is the safe direction. Those
+--   eight bind on a later run once V1.4.3 has backfilled `users.name`.
+--
 -- IDEMPOTENT: re-running binds only rows still NULL; the guards abort on a
 -- shape they did not expect rather than writing.
 
@@ -86,7 +96,7 @@ WITH simplify AS (
   SELECT s.id AS sched_id,
          u.id AS user_id,
          lower(regexp_replace(coalesce(s.teacher_name,''), '^(ms|mr|mrs|miss|madam|sir)\.?\s+', '', 'i')) AS s_name,
-         lower(regexp_replace(coalesce(nullif(u.name,''), u.first_name, ''), '^(ms|mr|mrs|miss|madam|sir)\.?\s+', '', 'i')) AS u_name
+         lower(regexp_replace(coalesce(u.name, ''), '^(ms|mr|mrs|miss|madam|sir)\.?\s+', '', 'i')) AS u_name
     FROM observation_schedules s
     JOIN users u ON u.phone_number = s.teacher_ext_id
    WHERE s.teacher_user_id IS NULL
