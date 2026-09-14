@@ -433,6 +433,11 @@ async function personaFor({ from, user, messageBody = '', now = new Date() } = {
 }
 
 module.exports = {
+  // Read by student-ingress.js (the door). The recency window is NOT applied
+  // there: a child stays a child while their quiz-joined row is active — the
+  // escape hatch, not a clock, ends it (operator decision, 14 Sep 2026).
+  quizStudentsForPhone: quizStudentsFor,
+  lastQuizSessionForStudents: lastQuizSessionFor,
   WINDOW_DAYS,
   isEnabled,
   isRegisteredTeacher,
