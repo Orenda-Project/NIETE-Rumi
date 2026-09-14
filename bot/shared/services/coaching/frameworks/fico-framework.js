@@ -564,7 +564,7 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
     ? `\nIMPORTANT - LP Fidelity: A lesson plan is linked. For Section B (especially B1, B2, B3), compare the planned LP objectives + steps against what was observed in the transcript.\n`
     : '';
 
-  // bd-8s2xb — the photo channel, per mode. `metadata.photo` = { mode, text, count } is set by the
+  // bd-8s2xb — the photo channel, per mode (FICO v3 ids in the rule; the v4 branch names its own). `metadata.photo` = { mode, text, count } is set by the
   // analysis processor from COACHING_PHOTO_MODE. Before this, the vision description arrived here
   // as `photoAnalysis` and was DISCARDED: the prompt carried only the one-line notice below, so
   // the scorer was told visual evidence existed and shown none of it (bd-drg79: 4,703 sessions).
@@ -575,7 +575,7 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
   const photoCount = Math.max(1, Number(photo.count) || 1);
   const photoText = photo.text || photoAnalysis || '';
   const PHOTO_RULE = `\nCLASSROOM PHOTO${photoCount > 1 ? 'S' : ''} (${photoCount} submitted by the teacher during this lesson) — supplementary visual evidence.
-Use it only where an indicator has a visible component: the objective or task written on the board (B1, B3), a drawing, object or second representation (C2, F6), a problem written up (F5), phonics stages on the board (F8), differentiated worksheets or grouping (B6), students' written work (F10). Score primarily from the transcript — every rung is defined by a spoken moment; a photo confirms that something existed, it does not replace the quote. Never invent anything beyond what is visible. When a photo informs an indicator, start that indicator's evidence AND its evidence_summary with "Photo:".\n`;
+Use it only where an indicator has a visible component: the objective or task written on the board (B1, B3), the prescribed textbook or materials in use (B8, D6), a drawing, object or second representation (C2, C8), grouping and the room's resources (C9, C12), differentiated tasks or handouts (B6), subject-specific artefacts such as a worked problem, an experiment or a text on the board (F5, F6, F7). Score primarily from the transcript — every rung is defined by a spoken moment; a photo confirms that something existed, it does not replace the quote. Never invent anything beyond what is visible. When a photo informs an indicator, start that indicator's evidence AND its evidence_summary with "Photo:".\n`;
   const descBlock = photoText ? `\nPHOTO ANALYSIS (vision model, from the teacher's photo${photoCount > 1 ? 's' : ''}):\n${photoText}\n` : '';
   const photoNote =
       photo.mode === 'both'  ? PHOTO_RULE + descBlock + `(The photo${photoCount > 1 ? 's are' : ' is'} also attached to this message.)\n`
