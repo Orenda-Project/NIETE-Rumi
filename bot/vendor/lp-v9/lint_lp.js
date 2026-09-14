@@ -695,6 +695,37 @@ function lint(doc, docPath, opts = {}) {
     for (const d of oneScreenShapeDefects(doc.one_screen)) fail(d.code, d.message);
   }
 
+  // 12c — …and its maths is READ, not typeset (bd-lafr9).
+  //
+  //   WhatsApp cannot typeset. A `$...$` span or a `\command` in this field lands on the
+  //   handset as its own source: 44% of maths lessons sent between 2026-09-01 and 2026-09-14
+  //   put a literal `$-6 \times \square = -540$` in front of a teacher, ahead of the PDF that
+  //   renders the same line correctly.
+  //
+  //   `buildBody` now converts on the way out (bot/shared/utils/tex-to-unicode.js), which is
+  //   what repairs the stored backlog — every render cached before today still holds its TeX.
+  //   This gate is the other half: it stops NEW documents being authored that way, so the
+  //   converter stays a safety net rather than the only thing standing between an author's
+  //   habit and a teacher's screen. Writing `×` and `√` here costs an author nothing.
+  //
+  //   Deliberately NOT in `oneScreenShapeDefects`: that predicate is also the worker's
+  //   reuse-rejection rule, and refusing reuse re-authors the document at a real cost. A
+  //   stored body with TeX in it is now converted correctly at send time and must keep
+  //   riding the cache.
+  //
+  //   Prose is left alone. Only the two things that cannot be read are named: a dollar-
+  //   delimited span, and a backslash followed by letters.
+  if (full && typeof doc.one_screen === "string" && doc.one_screen.trim()) {
+    const texSpan = /\$[^$\n]+\$/.exec(doc.one_screen);
+    if (texSpan) {
+      fail("ONESCREEN_TEX", `one_screen contains the TeX span ${JSON.stringify(texSpan[0])}. WhatsApp cannot typeset — write the maths as the Unicode a teacher already reads (× ÷ · √ ² ₁ ≤ π), with no dollar delimiters.`);
+    }
+    const command = /\\[a-zA-Z]+/.exec(doc.one_screen);
+    if (command) {
+      fail("ONESCREEN_TEX", `one_screen contains the TeX command "${command[0]}". WhatsApp prints it literally — write the character itself (\\times is ×, \\sqrt is √, \\frac{a}{b} is a/b).`);
+    }
+  }
+
   // 13 — the Urdu toggle may not overwrite the book's own language
   for (const ptr of Object.keys(doc.ur_overlay || {})) {
     const why = frozenReason(doc, ptr);
