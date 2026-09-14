@@ -1,390 +1,556 @@
 /**
- * AssessmentGeneratorPanel — browser surface for the UG_EG-backed Assessment
- * Generator (previously WhatsApp-Flow-only). Lives as a tab on the Curriculum
- * page.
+ * AssessmentGeneratorPanel — asking the bot for an exam paper.
  *
- * Flow:
- *   1. Teacher picks generation type, grade, subject, page ranges, content
- *      source (Seen / Unseen), and one or more question types with per-type
- *      counts + an objective/subjective category.
- *   2. Submit → POST /assessment/generate → { jobId }.
- *   3. Poll GET /assessment/status/:jobId every ~5s with a spinner.
- *   4. On completed → Download button (PDF / Word toggle re-fetches the URL in
- *      the chosen format). On failed → error toast.
+ * WHAT THIS REPLACES
+ * ------------------
+ * A form that had no engine behind it. POST /assessment/generate answered 404
+ * on production while the config flag kept the tab lit, because the routes were
+ * razed with the old UG_EG generator and the September rebuild went
+ * WhatsApp-Flow-only.
  *
- * All generation happens server-side on the existing engine; this component
- * only collects the spec and polls. No new persistence — the job link lives in
- * Redis for ~30 min server-side.
+ * The old panel had also drifted from the bot in three ways worth naming, since
+ * avoiding all three is why this one looks the way it does:
+ *   - MAX_COUNT = 20 against the bot's MAX_QUESTIONS = 25
+ *   - its own hardcoded SUBJECTS_LOWER / SUBJECTS_UPPER arrays
+ *   - UG_EG subject ids ('Eng', 'GenK') the current generator does not resolve
+ *
+ * SO: THIS COMPONENT KNOWS NO ASSESSMENT RULES
+ * --------------------------------------------
+ * Every option — which grades, which subjects, which question types, and the
+ * question cap — arrives from /assessment/options. The form physically cannot
+ * offer something the validator will refuse, because it does not hold the
+ * numbers or the lists that would let it disagree.
+ *
+ * CHAPTER FIRST, PAGES BEHIND "MORE OPTIONS"
+ * -------------------------------------------
+ * Teachers think in chapters, and the bot already resolves a chapter to its
+ * pages before storing the request. Page ranges stay available for the teacher
+ * who wants them, one disclosure down.
+ *
+ * WHY IT POLLS
+ * ------------
+ * Generation is a queued job of about a minute (the model call alone is ~25s).
+ * `queued` and `generating` are ordinary answers, not errors — only `failed`
+ * draws an apology, and it names the real reason rather than shrugging.
+ *
+ * NO WHATSAPP COPY
+ * ----------------
+ * A portal-generated paper stays on the portal. We are usually outside the
+ * 24-hour window and would need a template, so a "we also sent it to WhatsApp"
+ * promise would hold sometimes and not others. My papers is what makes it
+ * durable instead.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { FileText, Loader2, Download, Sparkles, Plus, Trash2 } from 'lucide-react';
+import { FileText, Loader2, Download, Sparkles, ChevronDown, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { portal } from '../services/api';
-import type { AssessmentQuestionType } from '../services/api';
+import type {
+  AssessmentChapter, AssessmentQuestionType, AssessmentSubject,
+} from '../services/api';
 
-// Subjects per grade — mirrors the WhatsApp Flow's SUBJECTS_BY_GRADE so the
-// browser offers the same set the bot does (ids are stable; only labels differ
-// across grade bands).
-const SUBJECTS_LOWER = [
-  { id: 'Eng', label: 'English' },
-  { id: 'Urdu', label: 'Urdu' },
-  { id: 'Maths', label: 'Maths' },
-  { id: 'Islamiat', label: 'Islamiyat' },
-  { id: 'GenK', label: 'General Knowledge' },
-];
-const SUBJECTS_UPPER = [
-  { id: 'Eng', label: 'English' },
-  { id: 'Maths', label: 'Mathematics' },
-  { id: 'Urdu', label: 'Urdu' },
-  { id: 'Islamiat', label: 'Islamiyat' },
-  { id: 'SST', label: 'Social Studies' },
-  { id: 'Science', label: 'General Science' },
-];
-function subjectsForGrade(grade: string) {
-  const g = parseInt(grade, 10);
-  return g >= 4 ? SUBJECTS_UPPER : SUBJECTS_LOWER;
-}
+const POLL_INTERVAL_MS = 4000;
 
-// A curated set of common UG_EG question types with their natural category.
-// Teachers can add any of these; category stays editable per row. Ids match
-// UG_EG's question-types-ict.md catalogue so the engine resolves them.
-const QUESTION_TYPE_CATALOGUE: { id: string; category: 'objective' | 'subjective' }[] = [
-  { id: 'MCQs', category: 'objective' },
-  { id: 'MSQs', category: 'objective' },
-  { id: 'Fill in the Blanks', category: 'objective' },
-  { id: 'True/False', category: 'objective' },
-  { id: 'Match the Column', category: 'objective' },
-  { id: 'Short Questions', category: 'subjective' },
-  { id: 'Long Question', category: 'subjective' },
-  { id: 'Comprehension Passage', category: 'subjective' },
-  { id: 'Word Problems', category: 'subjective' },
-];
+/**
+ * How long to keep asking before saying something is wrong.
+ *
+ * The job extends its own SQS visibility to 300s, so a paper that has not
+ * arrived by then is not merely slow. Without a ceiling the spinner is
+ * indistinguishable from a worker that died, and she waits forever on a
+ * promise nothing is going to keep.
+ */
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
-const DEFAULT_COUNT = 5;
-const MAX_COUNT = 20;
-const POLL_INTERVAL_MS = 5000;
+/**
+ * What she is told, per failure code, in words that name the thing she can
+ * change. The bot has its own copy of these for WhatsApp; this is the same set
+ * of situations phrased for a page rather than a chat.
+ */
+const FAILURE_MESSAGE: Record<string, string> = {
+  BOOK_NOT_FOUND: "We don't have that book yet. Try a different class or subject.",
+  CHAPTER_NOT_FOUND: "We couldn't find that chapter. Please pick another one.",
+  NO_CONTENT: "We don't have the text for that chapter yet — please try another chapter.",
+  PAGE_OUT_OF_RANGE: 'Those page numbers are outside this book. Please check and try again.',
+  INVALID_PAGE_RANGE: "Those page numbers didn't make sense. Try something like 4-14.",
+  TRUNCATED: 'That was a lot to write in one go. Please try again with fewer questions.',
+  MODEL_UNAVAILABLE: "Sorry — we couldn't build your paper just now. Please try again in a moment.",
+  BAD_JSON: "Sorry — that didn't come out right. Please try again.",
+  NO_QUESTIONS: "Sorry — we couldn't write questions from that chapter. Please try another.",
+  RENDER_FAILED: "Sorry — we couldn't make the file. Please try again.",
+  UPLOAD_FAILED: "Sorry — we couldn't save your paper. Please try again.",
+};
+const FAILURE_FALLBACK = 'Sorry — something went wrong making your paper. Please try again.';
 
-type Row = AssessmentQuestionType;
+type Phase = 'form' | 'working' | 'ready';
 
-const AssessmentGeneratorPanel = () => {
+type Props = {
+  /** Called when a paper finishes, so My papers can refresh. */
+  onPaperReady?: () => void;
+};
+
+const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
   const { toast } = useToast();
 
-  const [generationType, setGenerationType] = useState<'exam' | 'class_assessment'>('exam');
+  // ── options, all server-supplied ────────────────────────────────────────
+  const [grades, setGrades] = useState<number[]>([]);
+  const [subjects, setSubjects] = useState<AssessmentSubject[]>([]);
+  const [types, setTypes] = useState<AssessmentQuestionType[]>([]);
+  const [chapters, setChapters] = useState<AssessmentChapter[]>([]);
+  const [maxQuestions, setMaxQuestions] = useState<number | null>(null);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  // ── her choices ─────────────────────────────────────────────────────────
   const [grade, setGrade] = useState<string>('');
   const [subject, setSubject] = useState<string>('');
-  const [pageRanges, setPageRanges] = useState<string>('');
-  const [contentSource, setContentSource] = useState<'seen' | 'unseen'>('unseen');
-  const [rows, setRows] = useState<Row[]>([{ id: 'MCQs', count: DEFAULT_COUNT, category: 'objective' }]);
-  const [format, setFormat] = useState<'pdf' | 'docx'>('pdf');
+  const [chapterNumber, setChapterNumber] = useState<string>('');
+  const [questionCount, setQuestionCount] = useState<string>('');
+  const [pickedTypes, setPickedTypes] = useState<string[]>([]);
+  const [contentSource, setContentSource] = useState<'seen' | 'unseen' | 'both'>('unseen');
+  const [includeAnswerKey, setIncludeAnswerKey] = useState(false);
+  const [answerLines, setAnswerLines] = useState(true);
+  const [showMore, setShowMore] = useState(false);
 
+  // ── where we are ────────────────────────────────────────────────────────
+  const [phase, setPhase] = useState<Phase>('form');
   const [submitting, setSubmitting] = useState(false);
-  const [polling, setPolling] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [filename, setFilename] = useState<string | null>(null);
+  const [paperId, setPaperId] = useState<string | null>(null);
+  const [countError, setCountError] = useState<string | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedAtRef = useRef<number>(0);
+
   const stopPolling = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    setPolling(false);
   }, []);
   useEffect(() => () => stopPolling(), [stopPolling]);
 
-  // Reset the subject when the grade changes to an incompatible band.
+  // ── the grade list, once ────────────────────────────────────────────────
   useEffect(() => {
-    if (!subject) return;
-    if (!subjectsForGrade(grade).some(s => s.id === subject)) setSubject('');
+    let cancelled = false;
+    (async () => {
+      try {
+        const opts = await portal.getAssessmentOptions();
+        if (cancelled) return;
+        setGrades(opts.grades || []);
+        setMaxQuestions(opts.maxQuestions);
+        // The default count comes from the bot too, so the field starts on a
+        // value the validator already accepts.
+        setQuestionCount(String(opts.defaultQuestions));
+      } catch {
+        if (!cancelled) {
+          toast({
+            title: 'Could not load the assessment options',
+            description: 'Please refresh the page.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) setLoadingOptions(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [toast]);
+
+  // ── subjects follow the grade ───────────────────────────────────────────
+  useEffect(() => {
+    if (!grade) { setSubjects([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const opts = await portal.getAssessmentOptions(Number(grade));
+        if (cancelled) return;
+        setSubjects(opts.subjects || []);
+        // A subject that is not taught in the new grade must not survive the
+        // change — Science does not exist below Grade 4.
+        setSubject((cur) => ((opts.subjects || []).some((s) => s.subject_key === cur) ? cur : ''));
+      } catch {
+        if (!cancelled) setSubjects([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [grade]);
+
+  // ── chapters and question types follow the subject ──────────────────────
+  useEffect(() => {
+    if (!grade || !subject) { setChapters([]); setTypes([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [chapterRes, opts] = await Promise.all([
+          portal.getAssessmentChapters(Number(grade), subject),
+          portal.getAssessmentOptions(Number(grade), subject),
+        ]);
+        if (cancelled) return;
+        setChapters(chapterRes.chapters || []);
+        setTypes(opts.types || []);
+        setMaxQuestions(opts.maxQuestions);
+        setChapterNumber('');
+        setPickedTypes([]);
+      } catch {
+        if (!cancelled) { setChapters([]); setTypes([]); }
+      }
+    })();
+    return () => { cancelled = true; };
   }, [grade, subject]);
 
-  const addRow = () => {
-    // Pick the first catalogue type not already added; fall back to MCQs.
-    const used = new Set(rows.map(r => r.id));
-    const next = QUESTION_TYPE_CATALOGUE.find(t => !used.has(t.id)) || QUESTION_TYPE_CATALOGUE[0];
-    setRows([...rows, { id: next.id, count: DEFAULT_COUNT, category: next.category }]);
-  };
-  const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx));
-  const updateRow = (idx: number, patch: Partial<Row>) =>
-    setRows(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const chosenChapter = chapters.find((c) => String(c.chapter_number) === chapterNumber);
 
-  const poll = useCallback(async (id: string) => {
+  /**
+   * Validate the count against the SERVER's cap.
+   *
+   * Refused rather than clamped, matching the bot exactly: quietly turning 40
+   * into 25 hands her a paper she did not ask for and never mentions it.
+   */
+  const validateCount = (raw: string): string | null => {
+    const text = raw.trim();
+    if (!maxQuestions) return null;
+    const range = `Type a number between 1 and ${maxQuestions}.`;
+    if (!/^\d+$/.test(text)) return range;
+    const n = Number(text);
+    if (n < 1) return range;
+    if (n > maxQuestions) return `A paper can hold up to ${maxQuestions} questions. ${range}`;
+    return null;
+  };
+
+  const canSubmit = !!grade && !!subject && !!chapterNumber
+    && !validateCount(questionCount) && !submitting;
+
+  const toggleType = (id: string) => setPickedTypes((cur) =>
+    (cur.includes(id) ? cur.filter((t) => t !== id) : [...cur, id]));
+
+  const reset = () => {
+    stopPolling();
+    setPhase('form');
+    setPaperId(null);
+  };
+
+  const finishWithFailure = useCallback((code?: string | null) => {
+    stopPolling();
+    setPhase('form');
+    toast({
+      title: 'We could not make your paper',
+      description: (code && FAILURE_MESSAGE[code]) || FAILURE_FALLBACK,
+      variant: 'destructive',
+    });
+  }, [stopPolling, toast]);
+
+  const poll = useCallback(async (requestId: string) => {
     try {
-      const res = await portal.getAssessmentStatus(id, format);
-      if (res.status === 'completed' && res.downloadUrl) {
+      const res = await portal.getAssessmentStatus(requestId);
+
+      if (res.status === 'ready' && res.paperId) {
         stopPolling();
-        setDownloadUrl(res.downloadUrl);
-        setFilename(res.filename || 'assessment');
-        toast({ title: 'Your assessment is ready', description: 'Download it below.' });
-      } else if (res.status === 'failed') {
+        setPaperId(res.paperId);
+        setPhase('ready');
+        onPaperReady?.();
+        return;
+      }
+      if (res.status === 'failed') { finishWithFailure(res.errorCode); return; }
+      if (res.status === 'not_found') { finishWithFailure(null); return; }
+
+      // queued | generating — keep waiting, but not forever.
+      if (Date.now() - startedAtRef.current > POLL_TIMEOUT_MS) {
         stopPolling();
+        setPhase('form');
         toast({
-          title: 'Generation failed',
-          description: res.error || 'Please try again in a minute.',
+          title: 'This is taking longer than it should',
+          description: 'Your paper may still arrive — check My papers in a few minutes.',
           variant: 'destructive',
         });
       }
-      // pending / processing → keep polling
     } catch {
-      stopPolling();
-      toast({ title: 'Lost track of your assessment', description: 'Please try again.', variant: 'destructive' });
+      // A transport blip must not kill the wait: the job is running on the
+      // server regardless of whether this one request got through.
     }
-  }, [format, stopPolling, toast]);
+  }, [finishWithFailure, onPaperReady, stopPolling, toast]);
 
-  const handleGenerate = useCallback(async () => {
-    // Client-side validation mirrors the server's contract (fast feedback).
-    if (!grade) return toast({ title: 'Pick a grade', variant: 'destructive' });
-    if (!subject) return toast({ title: 'Pick a subject', variant: 'destructive' });
-    if (!pageRanges.trim()) return toast({ title: 'Enter page ranges', description: 'e.g. 10-15', variant: 'destructive' });
-    const questionTypes = rows.filter(r => r.id && r.count > 0);
-    if (questionTypes.length === 0) return toast({ title: 'Add at least one question type', variant: 'destructive' });
+  const submit = async () => {
+    const err = validateCount(questionCount);
+    if (err) { setCountError(err); return; }
 
     setSubmitting(true);
-    setDownloadUrl(null);
-    setFilename(null);
-    setJobId(null);
-    stopPolling();
     try {
       const res = await portal.generateAssessment({
-        generationType,
-        grade: parseInt(grade, 10),
+        grade: Number(grade),
         subject,
-        pageRanges: pageRanges.trim(),
+        chapterNumber: Number(chapterNumber),
         contentSource,
-        questionTypes,
-        format,
+        questionCount: Number(questionCount),
+        questionTypes: pickedTypes,
+        includeAnswerKey,
+        answerLines,
+        outputFormat: 'pdf',
       });
-      if (!res.success || !res.jobId) {
-        toast({ title: 'Could not start', description: res.error || 'Please try again.', variant: 'destructive' });
+
+      if (!res.success || !res.requestId) {
+        toast({
+          title: 'Could not start your paper',
+          description: res.error || FAILURE_FALLBACK,
+          variant: 'destructive',
+        });
         return;
       }
-      setJobId(res.jobId);
-      setPolling(true);
-      // Kick an immediate poll, then every POLL_INTERVAL_MS.
-      poll(res.jobId);
-      pollRef.current = setInterval(() => poll(res.jobId!), POLL_INTERVAL_MS);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      toast({ title: 'Could not start', description: msg || 'Please check your inputs and try again.', variant: 'destructive' });
+
+      setPhase('working');
+      startedAtRef.current = Date.now();
+      stopPolling();
+      pollRef.current = setInterval(() => poll(res.requestId as string), POLL_INTERVAL_MS);
+      poll(res.requestId);
+    } catch (e) {
+      const message = (e as { response?: { data?: { error?: string } } })
+        ?.response?.data?.error;
+      toast({
+        title: 'Could not start your paper',
+        description: message || FAILURE_FALLBACK,
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }
-  }, [generationType, grade, subject, pageRanges, contentSource, rows, format, poll, stopPolling, toast]);
+  };
 
-  // When the teacher flips PDF/Word after completion, re-fetch the URL in the
-  // new format (a fresh server render + presign).
-  const handleDownload = useCallback(async () => {
-    if (!jobId) return;
+  const openArtifact = async (artifact: 'paper' | 'answer_key') => {
+    if (!paperId) return;
     try {
-      const res = await portal.getAssessmentStatus(jobId, format);
-      if (res.status === 'completed' && res.downloadUrl) {
-        window.open(res.downloadUrl, '_blank', 'noopener');
-      } else {
-        toast({ title: 'Not ready yet', description: 'Please wait a moment.', variant: 'destructive' });
+      const res = await portal.getAssessmentDownload(paperId, artifact);
+      if (!res.available || !res.url) {
+        toast({
+          title: artifact === 'answer_key' ? 'No answer key for this paper' : 'Not available',
+          description: artifact === 'answer_key'
+            ? 'This paper was made without one.'
+            : 'Please try again in a moment.',
+          variant: 'destructive',
+        });
+        return;
       }
+      window.open(res.url, '_blank', 'noopener,noreferrer');
     } catch {
-      toast({ title: 'Could not fetch the file', variant: 'destructive' });
+      toast({ title: 'Could not open this paper', variant: 'destructive' });
     }
-  }, [jobId, format, toast]);
+  };
 
-  const busy = submitting || polling;
+  if (loadingOptions) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        <span className="text-sm">Loading…</span>
+      </div>
+    );
+  }
+
+  if (phase === 'working') {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg border py-16 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+        <h3 className="text-lg font-medium">Writing your paper</h3>
+        <p className="text-sm text-muted-foreground">
+          Grade {grade} · {subjects.find((s) => s.subject_key === subject)?.subject}
+          {chosenChapter ? ` · ${chosenChapter.chapter_title}` : ''}
+        </p>
+        <p className="max-w-sm text-xs text-muted-foreground">
+          This takes about a minute. You can leave this page — it will be in My papers
+          when it is done.
+        </p>
+      </div>
+    );
+  }
+
+  if (phase === 'ready') {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-lg border py-14 text-center">
+        <FileText className="h-9 w-9 text-primary" aria-hidden="true" />
+        <div>
+          <h3 className="text-lg font-medium">Your paper is ready</h3>
+          <p className="text-sm text-muted-foreground">
+            Grade {grade} · {subjects.find((s) => s.subject_key === subject)?.subject}
+            {chosenChapter ? ` · ${chosenChapter.chapter_title}` : ''}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button onClick={() => openArtifact('paper')}>
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+            Download
+          </Button>
+          {includeAnswerKey && (
+            <Button variant="outline" onClick={() => openArtifact('answer_key')}>
+              <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
+              Answer key
+            </Button>
+          )}
+          <Button variant="ghost" onClick={reset}>Make another</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          It stays in My papers, so you can download it again later.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-lg border bg-card p-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-1">
-        <FileText className="w-6 h-6 text-primary" />
-        <h2 className="text-xl font-medium">Generate an Assessment</h2>
-      </div>
-      <p className="text-sm text-muted-foreground mb-6">
-        Build a print-ready exam or classroom practice paper from the curriculum. Pick your options and
-        we'll prepare it — usually in under a minute.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Generation type */}
-        <div>
-          <Label className="mb-2 block">Type</Label>
-          <Select value={generationType} onValueChange={(v) => setGenerationType(v as 'exam' | 'class_assessment')}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="exam">Exam paper</SelectItem>
-              <SelectItem value="class_assessment">Classroom practice</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Grade */}
-        <div>
-          <Label className="mb-2 block">Grade</Label>
+    <div className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="ag-grade">Class</Label>
           <Select value={grade} onValueChange={setGrade}>
-            <SelectTrigger><SelectValue placeholder="Select grade..." /></SelectTrigger>
+            <SelectTrigger id="ag-grade"><SelectValue placeholder="Pick a class" /></SelectTrigger>
             <SelectContent>
-              {[1, 2, 3, 4, 5].map(g => (
+              {grades.map((g) => (
                 <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Subject */}
-        <div>
-          <Label className="mb-2 block">Subject</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="ag-subject">Subject</Label>
           <Select value={subject} onValueChange={setSubject} disabled={!grade}>
-            <SelectTrigger>
-              <SelectValue placeholder={grade ? 'Select subject...' : 'Select grade first'} />
+            <SelectTrigger id="ag-subject">
+              <SelectValue placeholder={grade ? 'Pick a subject' : 'Pick a class first'} />
             </SelectTrigger>
             <SelectContent>
-              {subjectsForGrade(grade).map(s => (
-                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+              {subjects.map((s) => (
+                <SelectItem key={s.subject_key} value={s.subject_key}>{s.subject}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-
-        {/* Page ranges */}
-        <div>
-          <Label className="mb-2 block" htmlFor="page-ranges">Page ranges</Label>
-          <Input
-            id="page-ranges"
-            placeholder="e.g. 10-15 or 10-15, 20"
-            value={pageRanges}
-            onChange={(e) => setPageRanges(e.target.value)}
-          />
-        </div>
       </div>
 
-      {/* Content source */}
-      <div className="mb-6">
-        <Label className="mb-2 block">Content source</Label>
-        <RadioGroup
-          value={contentSource}
-          onValueChange={(v) => setContentSource(v as 'seen' | 'unseen')}
-          className="flex gap-6"
+      <div className="space-y-1.5">
+        <Label htmlFor="ag-chapter">Chapter</Label>
+        <Select value={chapterNumber} onValueChange={setChapterNumber} disabled={!subject}>
+          <SelectTrigger id="ag-chapter">
+            <SelectValue placeholder={subject ? 'Pick a chapter' : 'Pick a subject first'} />
+          </SelectTrigger>
+          <SelectContent>
+            {chapters.map((c) => (
+              <SelectItem key={c.chapter_number} value={String(c.chapter_number)}>
+                {c.chapter_number} · {c.chapter_title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {chosenChapter && chosenChapter.page_start != null && (
+          <p className="text-xs text-muted-foreground">
+            Pages {chosenChapter.page_start}–{chosenChapter.page_end}
+            {chosenChapter.page_count ? ` · ${chosenChapter.page_count} pages` : ''}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1.5 sm:max-w-[12rem]">
+        <Label htmlFor="ag-count">Questions</Label>
+        <Input
+          id="ag-count"
+          inputMode="numeric"
+          value={questionCount}
+          onChange={(e) => { setQuestionCount(e.target.value); setCountError(null); }}
+          onBlur={() => setCountError(validateCount(questionCount))}
+          aria-invalid={!!countError}
+          aria-describedby="ag-count-help"
+        />
+        <p
+          id="ag-count-help"
+          className={`text-xs ${countError ? 'text-destructive' : 'text-muted-foreground'}`}
         >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="seen" id="cs-seen" />
-            <Label htmlFor="cs-seen" className="font-normal">Seen (from the text)</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="unseen" id="cs-unseen" />
-            <Label htmlFor="cs-unseen" className="font-normal">Unseen (new questions)</Label>
-          </div>
-        </RadioGroup>
+          {countError || (maxQuestions ? `Up to ${maxQuestions}.` : '')}
+        </p>
       </div>
 
-      {/* Question types */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <Label>Question types</Label>
-          <Button type="button" variant="ghost" size="sm" onClick={addRow} className="flex items-center gap-1">
-            <Plus className="w-4 h-4" /> Add type
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {rows.map((row, idx) => (
-            <div key={idx} className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <div className="flex-1">
-                <Select value={row.id} onValueChange={(v) => {
-                  const cat = QUESTION_TYPE_CATALOGUE.find(t => t.id === v)?.category || 'objective';
-                  updateRow(idx, { id: v, category: cat });
-                }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {QUESTION_TYPE_CATALOGUE.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.id}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      <div className="rounded-lg border">
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          aria-expanded={showMore}
+          className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium"
+        >
+          More options
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {showMore && (
+          <div className="space-y-4 border-t px-4 py-4">
+            <div className="space-y-2">
+              <Label>Question types</Label>
+              <div className="flex flex-wrap gap-2">
+                {types.map((t) => {
+                  const on = pickedTypes.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleType(t.id)}
+                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                        on ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {t.id}
+                    </button>
+                  );
+                })}
               </div>
-              <div className="w-full sm:w-40">
-                <Select
-                  value={row.category || 'objective'}
-                  onValueChange={(v) => updateRow(idx, { category: v as 'objective' | 'subjective' })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="objective">Objective</SelectItem>
-                    <SelectItem value="subjective">Subjective</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-full sm:w-24">
-                <Input
-                  type="number"
-                  min={1}
-                  max={MAX_COUNT}
-                  value={row.count}
-                  aria-label={`${row.id} count`}
-                  onChange={(e) => {
-                    const n = Math.min(Math.max(1, parseInt(e.target.value, 10) || 1), MAX_COUNT);
-                    updateRow(idx, { count: n });
-                  }}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => removeRow(idx)}
-                disabled={rows.length === 1}
-                aria-label="Remove question type"
+              <p className="text-xs text-muted-foreground">
+                Leave these alone and we will pick a good mix for you.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ag-source">Questions come from</Label>
+              <Select
+                value={contentSource}
+                onValueChange={(v) => setContentSource(v as 'seen' | 'unseen' | 'both')}
               >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+                <SelectTrigger id="ag-source" className="sm:max-w-[16rem]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="seen">The book</SelectItem>
+                  <SelectItem value="unseen">New, on the same topics</SelectItem>
+                  <SelectItem value="both">A mix</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ))}
-        </div>
+
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={answerLines}
+                  onChange={(e) => setAnswerLines(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Answer lines
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={includeAnswerKey}
+                  onChange={(e) => setIncludeAnswerKey(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Answer key
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Format + generate */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <Label className="mb-2 block">Format</Label>
-          <RadioGroup
-            value={format}
-            onValueChange={(v) => setFormat(v as 'pdf' | 'docx')}
-            className="flex gap-6"
-          >
-            <div className="flex items-center gap-2">
-              <RadioGroupItem value="pdf" id="fmt-pdf" />
-              <Label htmlFor="fmt-pdf" className="font-normal">PDF</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <RadioGroupItem value="docx" id="fmt-docx" />
-              <Label htmlFor="fmt-docx" className="font-normal">Word</Label>
-            </div>
-          </RadioGroup>
-        </div>
-        <div className="sm:ml-auto flex items-end">
-          <Button onClick={handleGenerate} disabled={busy} className="flex items-center gap-2">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {submitting ? 'Starting…' : polling ? 'Preparing…' : 'Generate assessment'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Result */}
-      {polling && (
-        <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Preparing your {format === 'docx' ? 'Word' : 'PDF'} assessment… this usually takes under a minute.
-        </div>
-      )}
-      {downloadUrl && !polling && (
-        <div className="mt-6 rounded-md border bg-muted/40 p-4 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium">{filename || 'Your assessment'} is ready.</span>
-          <Button onClick={handleDownload} className="flex items-center gap-2 ml-auto">
-            <Download className="w-4 h-4" />
-            Download {format === 'docx' ? 'Word' : 'PDF'}
-          </Button>
-        </div>
-      )}
+      <Button onClick={submit} disabled={!canSubmit} className="w-full sm:w-auto">
+        {submitting
+          ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+          : <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />}
+        Generate
+      </Button>
     </div>
   );
 };
