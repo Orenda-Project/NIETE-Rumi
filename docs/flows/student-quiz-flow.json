@@ -1,0 +1,144 @@
+{
+  "_comment": "The CHILD's /quiz Flow (bd-2yyry.13). A separate asset from the teacher's Transcript Quiz Flow: own endpoint (/api/flows/student-quiz), own discriminator (sq_action), own strings. QUIZZES lists the quizzes taken on this handset; QUIZ shows the child's latest and best attempt and offers Try again / See my class card; the endpoint runs the action after the screen closes (SUCCESS) and the chat carries the result. Keys named action, screen, flow_token, data or version are reserved by the client and would be dropped — none are used here. Strip every underscore-prefixed key except __example__ before upload.",
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "QUIZZES": ["QUIZ"],
+    "QUIZ": ["DONE"],
+    "DONE": []
+  },
+  "screens": [
+    {
+      "id": "QUIZZES",
+      "title": "${data.screen_title}",
+      "data": {
+        "screen_title": { "type": "string", "__example__": "Your quizzes" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "metadata": { "type": "string" }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "payload": { "type": "object" }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s1",
+              "main-content": { "title": "Proper Fractions", "description": "6/8 · best 7/8", "metadata": "5 September · Class 4" },
+              "on-click-action": { "name": "data_exchange", "payload": { "step": "quiz", "session_id": "s1" } }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "NavigationList", "name": "quiz_list", "list-items": "${data.items}" }
+        ]
+      }
+    },
+    {
+      "id": "QUIZ",
+      "title": "${data.screen_title}",
+      "data": {
+        "screen_title": { "type": "string", "__example__": "Proper Fractions" },
+        "heading": { "type": "string", "__example__": "Proper Fractions" },
+        "subline": { "type": "string", "__example__": "5 September · Class 4" },
+        "results": { "type": "string", "__example__": "Your latest: 6/8 (75%)\nYour best: 7/8 (88%)\nClass average: 65%" },
+        "actions_label": { "type": "string", "__example__": "What would you like to do?" },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "retry", "title": "Try again", "description": "Take this quiz once more" },
+            { "id": "card", "title": "See my class card", "description": "Where you stand in the class" }
+          ]
+        },
+        "cta": { "type": "string", "__example__": "Continue" },
+        "session_id": { "type": "string", "__example__": "s1" },
+        "share_code_id": { "type": "string", "__example__": "sc1" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "quiz_form",
+            "children": [
+              { "type": "TextHeading", "text": "${data.heading}" },
+              { "type": "TextCaption", "text": "${data.subline}" },
+              { "type": "TextBody", "text": "${data.results}" },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "sq_action",
+                "label": "${data.actions_label}",
+                "data-source": "${data.actions}",
+                "required": true
+              },
+              {
+                "type": "Footer",
+                "label": "${data.cta}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "action",
+                    "sq_action": "${form.sq_action}",
+                    "session_id": "${data.session_id}",
+                    "share_code_id": "${data.share_code_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DONE",
+      "title": "${data.screen_title}",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "screen_title": { "type": "string", "__example__": "Quizzes" },
+        "heading": { "type": "string", "__example__": "No quizzes yet" },
+        "body": { "type": "string", "__example__": "Your quizzes come from the link your class shares." },
+        "close": { "type": "string", "__example__": "Close" },
+        "kind": { "type": "string", "__example__": "empty" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "${data.heading}" },
+          { "type": "TextBody", "text": "${data.body}" },
+          {
+            "type": "Footer",
+            "label": "${data.close}",
+            "on-click-action": { "name": "complete", "payload": { "sq_action": "${data.kind}" } }
+          }
+        ]
+      }
+    }
+  ]
+}
