@@ -69,6 +69,11 @@ function detectFlowType(responseJson) {
   // and DONE's Footer completes with tq_action=<kind>. Before the attendance
   // fallback, which claims any payload that is only a flow_token — a Done tap
   // was logged as attendance_marking on 10 Sep.
+  // bd-2yyry.13 — the CHILD's /quiz Flow completes with sq_action; it is a
+  // different asset from the teacher's and must never be read as one.
+  if (responseJson.sq_action !== undefined) {
+    return 'student_quiz';
+  }
   if (responseJson.tq_action !== undefined) {
     return 'transcript_quiz';
   }

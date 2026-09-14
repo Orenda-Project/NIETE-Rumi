@@ -939,6 +939,12 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
  *
  * @returns {Promise<boolean>} always true — recognised and handled.
  */
+async function handleStudentQuizFlowCompletion(responseJson, from) {
+  const action = String((responseJson && responseJson.sq_action) || 'done');
+  logToFile('📝 Student quiz flow completion', { from, action });
+  return true;
+}
+
 async function handleTranscriptQuizFlowCompletion(responseJson, from) {
   const action = String((responseJson && responseJson.tq_action) || 'done');
   logToFile('📝 Transcript quiz flow completion', {
@@ -1103,6 +1109,7 @@ module.exports = {
   handleObserveVisitFlow,
   handleStatusFlowCompletion,
   handleTranscriptQuizFlowCompletion,
+  handleStudentQuizFlowCompletion,
   mapLevelToPassageType,
   READING_ASSESSMENT_FLOW_ID,
   REGISTRATION_FLOW_ID
