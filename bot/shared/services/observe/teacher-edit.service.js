@@ -23,6 +23,7 @@
  */
 
 const { teacherLevelOf, VALID_LEVELS } = require('../../utils/teacher-level');
+const { softDeletePatch } = require('../../utils/soft-delete');
 
 const CASE_FREE = 'free';     // no account on the new number
 const CASE_SHELL = 'shell';   // an account, but nothing irreplaceable
@@ -124,7 +125,24 @@ function planLevelEdit(user, rawBands, now = Date.now()) {
   return { ok: true, bands, unchanged: same };
 }
 
+/**
+ * The patch that retires the old record after its history has moved.
+ *
+ * Soft, not hard: the classifier that green-lit the merge reads counts from
+ * four tables, and if that is ever wrong the original row is the only way back.
+ * Uses the shared convention (bot/shared/utils/soft-delete.js) rather than a
+ * merge-specific column, so the next feature that needs to retire a row finds
+ * one spelling instead of inventing a fifth.
+ *
+ * The survivor's id goes in the AUDIT row, not in the tombstone — "retired" and
+ * "replaced by that one" are different facts.
+ */
+function retireMergedPatch(actorUserId, now = Date.now()) {
+  return softDeletePatch({ reason: 'phone_change_merge', by: actorUserId, now });
+}
+
 module.exports = {
+  retireMergedPatch,
   CASE_FREE,
   CASE_SHELL,
   CASE_TAKEN,
