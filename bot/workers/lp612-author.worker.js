@@ -44,6 +44,10 @@ const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 // The caps the renderer gated on, read from the renderer itself so the over-cap event can never
 // quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
 const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
+// The one_screen shape rule, read from the LINTER itself so the reuse lane and gate 12b can never
+// drift apart (bd-jpfww). The reuse lane never calls `lint`, which is how a pre-shape body reached
+// a teacher's phone; it asks the same function instead.
+const { oneScreenShapeDefects } = require('../vendor/lp-v9/lint_lp.js');
 const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
@@ -805,6 +809,35 @@ async function process(payload) {
         segmentId, lang, tv: prev, correlationId,
       });
       if (!lpDoc) continue;
+
+      // bd-jpfww. "The versions this renderer is known to accept" is a claim about the DOCUMENT,
+      // not only about the version string it was stored under, and one_screen is where the two
+      // came apart. The shape rule (six cued paragraphs) landed after v9.3, so every stored
+      // document older than that carries one unbroken paragraph — and this lane, which runs
+      // before `authorLessonPlan` and never calls the linter, re-rendered them straight into
+      // v9.6 rows. That row is then a permanent cache hit, so the grey wall is served to every
+      // teacher after the first, not just the one who triggered the bump.
+      //
+      // Refusing the reuse costs one author call for that segment, once. Serving a body the
+      // renderer's own gate would have failed costs every teacher who opens the lesson.
+      const shapeDefects = oneScreenShapeDefects(lpDoc.one_screen);
+      if (shapeDefects.length) {
+        logEvent('lp612.render.reuse_rejected', {
+          renderId,
+          segmentId,
+          correlationId: correlationId || null,
+          lang,
+          fromVersion: prev,
+          toVersion: templateVersion,
+          reason: 'one_screen_shape',
+          defects: shapeDefects.map((d) => d.code),
+        });
+        logToFile('LP 6-12 worker: stored lesson refused for reuse — one_screen has no shape', {
+          renderId, segmentId, lang, fromVersion: prev, toVersion: templateVersion, correlationId,
+        });
+        continue;
+      }
+
       logEvent('lp612.render.reused', {
         renderId,
         segmentId,
