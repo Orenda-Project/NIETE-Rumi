@@ -930,10 +930,8 @@ app.post('/webhook', async (req, res) => {
           .eq('id', user.id)
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
-        // bd-8s2xb — board first; the scorer reads what is written on it (approved copy, 2026-09-14).
-        const msg = lang === 'ur'
-          ? '📸 اب تصاویر بھیجیں، ایک ایک کر کے — پہلے بورڈ، اگر ہو۔ میں ان میں لکھی چیزیں پڑھ کر ریکارڈنگ کے ساتھ استعمال کروں گا۔'
-          : '📸 Send the photos now, one at a time — board first if you have it. I\'ll read what\'s on them and use it alongside the recording.';
+        // bd-8s2xb — board first; the scorer reads what is written on it (catalog string, Rule 20).
+        const msg = require('./shared/config/ux-strings').resolveUx('coachingPhotoSendNow', { language: lang });
         await WhatsAppService.sendMessage(from, msg);
       }
       // bd-u35ex: the classroom-photo collection (image-message.handler.js Phase 3)
