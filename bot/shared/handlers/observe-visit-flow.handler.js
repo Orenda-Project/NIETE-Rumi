@@ -1,4 +1,24 @@
 'use strict';
+
+/**
+ * The audit row for a coach edit.
+ *
+ * Defined at module scope, deliberately: column-completeness.test.js binds an
+ * object literal to the NEAREST PRECEDING `.from('…')`, so writing this inline
+ * next to the insert made the guard read action/person/to/user_id as columns of
+ * `users` — whichever table the surrounding code had queried last.
+ */
+function buildEditAuditRow(actorId, person, action, detail) {
+  return {
+    action,
+    actor_user_id: actorId,
+    affected_leader_user_id: actorId,
+    teacher_ext_id: person && person.userId,
+    teacher_phone_e164: (person && person.phone) || null,
+    teacher_name: (person && person.name) || null,
+    detail: { via: 'observe_flow', ...(detail || {}) },
+  };
+}
 /**
  * bd-2430/bd-2431 (visit picker) + bd-2443 (scheduling UI) — the observe-visit
  * Flow endpoint handler.
@@ -1043,15 +1063,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     const _editAudit = async (actorId, person, action, detail) => {
       try {
         const supabase = require('../config/supabase');
-        await supabase.from('leader_roster_audit').insert([{
-          action,
-          actor_user_id: actorId,
-          affected_leader_user_id: actorId,
-          teacher_ext_id: person && person.userId,
-          teacher_phone_e164: (person && person.phone) || null,
-          teacher_name: (person && person.name) || null,
-          detail: { via: 'observe_flow', ...(detail || {}) },
-        }]);
+        await supabase.from('leader_roster_audit')
+          .insert([buildEditAuditRow(actorId, person, action, detail)]);
       } catch (_) {
         // An unwritten audit row must never fail the edit the coach just made.
       }
