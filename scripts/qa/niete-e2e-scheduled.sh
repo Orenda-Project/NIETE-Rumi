@@ -18,10 +18,97 @@ set -uo pipefail
 REPO="${NIETE_E2E_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 DRIVER="${NIETE_E2E_DRIVER:-}"
 [ -n "$DRIVER" ] || { echo "NIETE_E2E_DRIVER is not set — it must be the WhatsApp number linked in the Chrome this run attaches to" >&2; exit 1; }
-SCOPE="${NIETE_E2E_SCOPE:-all}"
-CHECK_ONLY=0
-[ "${1:-}" = "--check-only" ] && CHECK_ONLY=1
+SCOPE="${NIETE_E2E_SCOPE:-auto}"
+CHECK_ONLY=0; RESOLVE_ONLY=0
+# UNKNOWN FLAGS ARE FATAL. This used to be `[ "$1" = "--check-only" ] && CHECK_ONLY=1`, so a
+# typo or an unrecognised flag fell straight through to a real 3-hour WhatsApp run. A wrong
+# argument must never start a run.
+case "${1:-}" in
+  "")              ;;
+  --check-only)    CHECK_ONLY=1 ;;
+  --resolve-scope) RESOLVE_ONLY=1 ;;
+  *) echo "niete-e2e-scheduled.sh: unknown argument '$1' (expected --check-only or --resolve-scope)" >&2; exit 1 ;;
+esac
 cd "$REPO" || { echo "repo not found: $REPO" >&2; exit 1; }
+
+# ── WHICH FEATURES THIS FIRE SHOULD DRIVE ────────────────────────────────────
+# `all` drove 101 scenarios (~3h15m) every two hours whatever had changed: most of it
+# re-drove features nothing had touched, and one pass outlasts the cadence, so roughly every
+# other fire stepped aside on the driver lock. `auto` (the default since bd-dzyl6) asks the
+# same question the commit hook asks — which features did the diff touch — over the window
+# since the last run that was actually RECORDED. The anchor is the `commit` stamped on the
+# newest runs.jsonl row (added in #838); no new state to keep, and it degrades to `all`
+# rather than guessing whenever that anchor is missing or unusable.
+#
+#   NIETE_E2E_SCOPE=auto           (default) targeted, or `all` when there is no usable anchor
+#   NIETE_E2E_SCOPE=all            the full suite — what a nightly pass should use
+#   NIETE_E2E_SCOPE="menu status"  an explicit list; never consults the ledger
+LEDGER=".claude/qa/ledgers/runs.jsonl"
+
+_ledger_anchor() {   # newest `commit` stamped on any run row; "" when there is none
+  [ -f "$LEDGER" ] || return 0
+  python3 -c '
+import json, sys
+last = ""
+for line in open(sys.argv[1], encoding="utf-8", errors="replace"):
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        row = json.loads(line)
+    except ValueError:
+        continue
+    c = row.get("commit")
+    if isinstance(c, str) and c:
+        last = c          # append-only, so the last one wins
+print(last)' "$LEDGER" 2>/dev/null
+}
+
+resolve_scope() {   # prints the scope; exit 3 = nothing bot-facing changed, decline the fire
+  case "$SCOPE" in
+    auto) ;;
+    *) printf '%s' "$SCOPE"; return 0 ;;
+  esac
+  anchor=$(_ledger_anchor)
+  if [ -z "$anchor" ]; then
+    echo "scope: no commit stamped on any ledger row yet — falling back to the full suite (all)" >&2
+    printf 'all'; return 0
+  fi
+  if ! git cat-file -e "${anchor}^{commit}" 2>/dev/null; then
+    echo "scope: ledger anchor $anchor is not a commit in this clone — falling back to the full suite (all)" >&2
+    printf 'all'; return 0
+  fi
+  feats=$(python3 .claude/qa/shared/select_e2e.py --repo . --range "$anchor...HEAD" --json 2>/dev/null \
+          | python3 -c '
+import json, sys
+try:
+    print(" ".join(json.load(sys.stdin).get("features") or []))
+except Exception:
+    print("")' 2>/dev/null)
+  if [ -z "$feats" ]; then
+    echo "scope: nothing bot-facing changed since the last recorded run ($anchor) — declining this fire" >&2
+    return 3
+  fi
+  echo "scope: since $anchor → $feats" >&2
+  printf '%s' "$feats"
+}
+
+SCOPE_ERR=0
+RESOLVED=$(resolve_scope) || SCOPE_ERR=$?
+if [ "$RESOLVE_ONLY" = "1" ]; then
+  [ "$SCOPE_ERR" = "0" ] && printf '%s\n' "$RESOLVED"
+  exit "$SCOPE_ERR"
+fi
+if [ "$SCOPE_ERR" = "3" ]; then
+  # Not a failure, and not a silent skip either: a fire with nothing to do records that
+  # where the next reader looks, then exits clean. An empty run directory is how the
+  # 2026-08-17/18 fires failed unnoticed, and "nothing changed" must not resemble it.
+  mkdir -p ".claude/qa/results/whatsapp/niete/_scheduler" 2>/dev/null
+  printf '[%s] declined: nothing bot-facing changed since the last recorded run\n' \
+    "$(date '+%Y-%m-%d %H:%M:%S')" >> ".claude/qa/results/whatsapp/niete/_scheduler/declined.log"
+  exit 0
+fi
+SCOPE="$RESOLVED"
 
 RUN="$(date +%Y%m%d-%H%M)"
 RUNDIR=".claude/qa/results/whatsapp/niete/$RUN"
@@ -46,6 +133,7 @@ blocked() {                       # write a VISIBLE report instead of an empty d
 }
 
 say "scheduled fire — scope=$SCOPE driver=$DRIVER run=$RUN"
+[ "${NIETE_E2E_SCOPE:-auto}" = "auto" ] && say "scope came from the ledger anchor; NIETE_E2E_SCOPE=all forces the full suite"
 
 # ── keep the specs current ──────────────────────────────────────────────────
 # The scheduler runs from its OWN clone (one outside ~/Desktop, ~/Documents and

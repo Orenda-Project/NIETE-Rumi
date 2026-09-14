@@ -29,12 +29,14 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const supabase = require('../config/supabase');
-const {
-  applyBandSelection,
-  canChangeBands,
-  changeWarning,
-  BANDS,
-} = require('../../bot/shared/services/training/band-selection.service');
+// bd-60085 — bands go over the internal API, NOT by requiring the bot in-process.
+//
+// This was `require('../../bot/shared/services/training/band-selection.service')`, and saving
+// grades answered 500: that module reaches bot/shared/config/supabase.js, whose `require('dotenv')`
+// resolves from /app/bot/node_modules then /app/node_modules and never /app/dashboard/node_modules
+// where dotenv actually is. The portal service installs only the ROOT package.json, which does
+// not carry it, and never installs bot/ at all. Same trap certificates.service.js documents.
+const TrainingBands = require('../services/training-bands.service');
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { generatePresignedUrl, generatePresignedUrls, isValidR2Url } = require('../services/r2.service');
 const axios = require('axios');
@@ -1354,6 +1356,162 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// LESSON PLANS, GRADES 6-12 — the other corpus, same delegation
+// ───────────────────────────────────────────────────────────────────────────
+// The routes above serve grades 1-5, where every lesson is a pre-rendered PDF.
+// Grades 6-12 are 5,466 SEGMENTS with a write-once render cache beside them:
+// every segment is real and requestable, and about 8% have been written.
+//
+// So this block has two things the K-5 block does not:
+//
+//   ready   per lesson, because a tap on an unwritten one starts real work
+//   request → poll, because that work takes a MEDIAN OF 172 SECONDS
+//             (p90 314s, over all 473 completed renders on production)
+//
+// No lp612 logic and no lp612 table here — a test asserts it, the same way it
+// does for the LP catalogue and the assessment generator.
+//
+// `userId` comes from req.session.portalUserId on EVERY route below.
+// `requirePortalAuth` sets that session key and attaches nothing to `req`;
+// `req.portalUser` is set only by the leader guard, which 403s teachers. That
+// mistake is what made every Generate on the Assessment Generator answer
+// "userId is required", and it had already been sitting unnoticed in
+// /curriculum/lps before that.
+
+const Lp612 = require('../services/lp612.service');
+
+/** GET /api/portal/lp612/grades → { success, grades: [{ grade }] } */
+router.get('/lp612/grades', requirePortalAuth, async (req, res) => {
+  try {
+    res.json({ success: true, grades: await Lp612.listGrades() });
+  } catch (error) {
+    console.error('❌ Portal lp612/grades failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load grades' });
+  }
+});
+
+/** GET /api/portal/lp612/subjects?grade=9 */
+router.get('/lp612/subjects', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    if (!Number.isFinite(grade)) {
+      return res.status(400).json({ success: false, error: 'grade required' });
+    }
+    res.json({ success: true, subjects: await Lp612.listSubjects(grade) });
+  } catch (error) {
+    console.error('❌ Portal lp612/subjects failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load subjects' });
+  }
+});
+
+/** GET /api/portal/lp612/chapters?grade=9&subject=Physics */
+router.get('/lp612/chapters', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    if (!Number.isFinite(grade) || !subject) {
+      return res.status(400).json({ success: false, error: 'grade + subject required' });
+    }
+    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject) });
+  } catch (error) {
+    console.error('❌ Portal lp612/chapters failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load chapters' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/lessons?grade=9&subject=Physics&chapter_key=c02&lang=en
+ *
+ * Each lesson carries `ready`. The UI must surface it — starting a
+ * three-minute job should be a thing she chooses, not a thing she discovers.
+ */
+router.get('/lp612/lessons', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    const chapterKey = String(req.query.chapter_key || '').trim();
+    if (!Number.isFinite(grade) || !subject || !chapterKey) {
+      return res.status(400).json({ success: false, error: 'grade + subject + chapter_key required' });
+    }
+    const lang = req.query.lang === 'ur' ? 'ur' : 'en';
+    res.json({ success: true, lessons: await Lp612.listLessons(grade, subject, chapterKey, lang) });
+  } catch (error) {
+    console.error('❌ Portal lp612/lessons failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load lessons' });
+  }
+});
+
+/**
+ * POST /api/portal/lp612/request  { segment_id, lang? }
+ * → 202 { success, state: 'ready' | 'authoring', renderId }
+ *
+ * Always a state, never the document — one code path in the browser whether
+ * this was a cache hit or a cold miss.
+ */
+router.post('/lp612/request', requirePortalAuth, async (req, res) => {
+  try {
+    const segmentId = String((req.body || {}).segment_id || '').trim();
+    if (!segmentId) {
+      return res.status(400).json({ success: false, error: 'segment_id required' });
+    }
+    const lang = (req.body || {}).lang === 'ur' ? 'ur' : 'en';
+    const out = await Lp612.requestLesson(segmentId, req.session.portalUserId, lang);
+
+    // Real answers about a real lesson, not faults.
+    if (out.notFound) {
+      return res.status(404).json({ success: false, error: 'That lesson is not in the catalogue' });
+    }
+    if (out.withheld) {
+      return res.status(403).json({ success: false, error: 'That lesson is not available yet' });
+    }
+
+    res.status(202).json({ success: true, state: out.state, renderId: out.renderId });
+  } catch (error) {
+    console.error('❌ Portal lp612/request failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not start that lesson' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/status/:render_id
+ * → { success, state, url? }
+ *
+ * The poll. A `ready` answer carries a freshly presigned URL — minted on the
+ * way past, never cached, because a presigned link expires.
+ */
+router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
+  try {
+    const renderId = String(req.params.render_id || '').trim();
+    if (!renderId) {
+      return res.status(400).json({ success: false, error: 'render_id required' });
+    }
+    const out = await Lp612.requestStatus(renderId, req.session.portalUserId);
+    if (out.notFound) {
+      return res.status(404).json({ success: false, error: 'No such lesson request' });
+    }
+    res.json({ success: true, ...out });
+  } catch (error) {
+    console.error('❌ Portal lp612/status failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not check that lesson' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/mine → { success, lessons: [...] }
+ *
+ * "My lesson plans". At a median of ~3 minutes she will navigate away; without
+ * this list the render we already paid for is lost to her.
+ */
+router.get('/lp612/mine', requirePortalAuth, async (req, res) => {
+  try {
+    res.json({ success: true, lessons: await Lp612.myLessons(req.session.portalUserId) });
+  } catch (error) {
+    console.error('❌ Portal lp612/mine failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load your lesson plans' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ASSESSMENT GENERATOR — the bot's pipeline, reached over the internal API
 // ───────────────────────────────────────────────────────────────────────────
 // This tab has been rendering a real form against a route that does
@@ -1710,26 +1868,10 @@ async function _computeLevelStates(userId, levels) {
  */
 router.get('/training/bands', requirePortalAuth, async (req, res) => {
   try {
-    const userId = req.session.portalUserId;
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('training_bands, training_bands_updated_at')
-      .eq('id', userId)
-      .single();
-    if (error) throw error;
-
-    const gate = canChangeBands(user || {});
-    return res.json({
-      success: true,
-      options: BANDS.map(b => ({ id: b.key, title: b.label })),
-      selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
-      can_change: gate.allowed,
-      is_first_selection: gate.isFirstSelection,
-      hours_remaining: gate.hoursRemaining,
-      // Shown before saving when there is something to lose; a first-ever
-      // choice carries no warning.
-      notice: gate.allowed ? (gate.isFirstSelection ? null : changeWarning()) : gate.message,
-    });
+    // Everything — the options, the selection, the cooldown gate and the warning copy — comes
+    // from the bot. The portal supplies only who is asking.
+    const state = await TrainingBands.getBands(req.session.portalUserId);
+    return res.json({ success: true, ...state });
   } catch (e) {
     console.error('Portal GET /training/bands error:', e);
     return res.status(500).json({ success: false, error: 'Could not load your grades.' });
@@ -1749,7 +1891,7 @@ router.post('/training/bands', requirePortalAuth, async (req, res) => {
     const raw = req.body && req.body.bands;
     const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
 
-    const result = await applyBandSelection(userId, selection);
+    const result = await TrainingBands.applyBands(userId, selection);
     if (!result.ok) {
       // 429 for the cooldown (a retry later succeeds), 400 for a bad selection.
       const status = result.reason === 'cooldown' ? 429
@@ -5212,23 +5354,27 @@ router.get('/me/language', requirePortalAuth, async (req, res) => {
  */
 router.put('/me/language', requirePortalAuth, async (req, res) => {
   try {
-    const { setUserLanguage } = require('../../bot/shared/utils/language-cache');
-    const { isOffered, LANGUAGE_OFFER } = require('../../bot/shared/config/languages');
-
+    // bd-60085 — over the internal API, not by requiring language-cache in-process. That module
+    // reaches bot/shared/config/supabase.js and its `require('dotenv')`, which the portal
+    // service cannot resolve from inside bot/ (see training-bands.service.js). The route looked
+    // fine and would have 500'd the first time a teacher changed her language.
+    //
+    // The "one writer" promise above is UNCHANGED and is in fact why this goes to the bot:
+    // setUserLanguage is still the only thing that writes the column, sets the lock and
+    // invalidates both Redis keys.
     const requested = (req.body && req.body.language) || '';
+    const out = await TrainingBands.setLanguage(req.session.portalUserId, requested);
 
-    // Rejected, not clamped. A clamp would silently store English when she asked
-    // for something else; on an explicit choice she deserves to be told.
-    if (!isOffered(requested)) {
+    // Rejected, not clamped. A clamp would silently store English when she asked for something
+    // else; on an explicit choice she deserves to be told — and told what IS on offer.
+    if (out.rejected) {
       return res.status(400).json({
         success: false,
         error: 'That language is not available.',
-        offered: LANGUAGE_OFFER,
+        offered: out.offered || [],
       });
     }
-
-    const ok = await setUserLanguage(req.session.portalUserId, requested, true);
-    if (!ok) {
+    if (!out.applied) {
       return res.status(500).json({ success: false, error: 'Could not save your language.' });
     }
 

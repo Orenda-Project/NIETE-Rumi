@@ -44,6 +44,10 @@ const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 // The caps the renderer gated on, read from the renderer itself so the over-cap event can never
 // quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
 const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
+// The one_screen shape rule, read from the LINTER itself so the reuse lane and gate 12b can never
+// drift apart (bd-jpfww). The reuse lane never calls `lint`, which is how a pre-shape body reached
+// a teacher's phone; it asks the same function instead.
+const { oneScreenShapeDefects } = require('../vendor/lp-v9/lint_lp.js');
 const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
@@ -65,6 +69,33 @@ const nowIso = () => new Date().toISOString();
 function oneScreenOf(authored) {
   const v = authored && authored.lpDoc && authored.lpDoc.one_screen;
   return v ? String(v) : null;
+}
+
+/**
+ * bd-ir1aq — DROP `page2.model_answers` BEFORE THE DOCUMENT IS STORED.
+ *
+ * Operator, twice: *"Section B in the reference section is not needed"*, then *"why does
+ * reference pages still have model answers? I just wanted HW answers"*. The renderer already
+ * refuses to paint the key (lib/template.js) and lint no longer judges it, so this is not what
+ * keeps it off the page — it is what keeps it out of the corpus, so the next template bump is
+ * not re-reading dead weight and the author rounds are not re-litigating it.
+ *
+ * THE OVERLAY POINTERS GO WITH IT, IN THE SAME OPERATION. `lib/overlay.js`'s `pointerSet()`
+ * throws on a pointer that does not resolve, `applyOverlay()` collects the throw, and
+ * `renderDoc()` then refuses the WHOLE lesson with OVERLAY_INVALID. Deleting the body without
+ * the `/page2/model_answers/...` keys would therefore turn an Urdu lesson into no lesson at all.
+ * Mutates in place: the caller is about to render and store this exact object.
+ */
+function stripModelAnswers(doc) {
+  if (!doc || !doc.page2 || doc.page2.model_answers === undefined) return doc;
+  delete doc.page2.model_answers;
+  const ov = doc.ur_overlay;
+  if (ov && typeof ov === 'object') {
+    for (const ptr of Object.keys(ov)) {
+      if (ptr === '/page2/model_answers' || ptr.startsWith('/page2/model_answers/')) delete ov[ptr];
+    }
+  }
+  return doc;
 }
 
 /** The columns this job has always needed. */
@@ -301,8 +332,22 @@ async function patch(renderId, fields) {
   }
 }
 
+/**
+ * The waiter list, sanitised — but NOT narrowed to WhatsApp.
+ *
+ * This used to `.filter(w => w.phone)`, which was right when a phone number was the only way a
+ * waiter could exist. It is now wrong in a way that would have been very hard to see: the portal
+ * parks phoneless waiters on this same list, and dropping them HERE means they are dropped from
+ * `claimWaiters` too — the one statement that both reads the list and empties it. She would be
+ * silently discarded at the moment her lesson succeeded, and the counters would still add up,
+ * because as far as every downstream count was concerned she was never waiting.
+ *
+ * So the filter now removes only entries that are structurally junk. Deciding who can be SENT to
+ * belongs to the delivery loop, which knows about phones; deciding who is WAITING belongs here,
+ * and the portal teacher is waiting.
+ */
 const waitersOf = (render) => (Array.isArray(render && render.waiters) ? render.waiters : [])
-  .filter((w) => w && w.phone);
+  .filter((w) => w && (w.phone || w.user_id));
 
 /**
  * Who is waiting RIGHT NOW — read fresh, and left on the row.
@@ -365,6 +410,11 @@ async function claimWaiters(renderId, fallback) {
  *  failure to console someone must not become the reason the job dies. */
 async function tellAll(waiters, key, lang) {
   for (const w of waiters) {
+    // Nobody to tell. A portal waiter reads the outcome off the row when her browser next polls,
+    // and `waitersOf` deliberately no longer strips her (see its comment) — so the "can we send
+    // to this waiter?" question, which used to be answered by her mere presence in the list,
+    // has to be asked explicitly here. Mirrors the same guard in lp612-serving's `tell()`.
+    if (!w.phone) continue;
     try {
       await WhatsAppService.sendMessage(w.phone, resolveUx(key, { language: w.ui_lang || lang }));
     } catch (err) {
@@ -759,6 +809,35 @@ async function process(payload) {
         segmentId, lang, tv: prev, correlationId,
       });
       if (!lpDoc) continue;
+
+      // bd-jpfww. "The versions this renderer is known to accept" is a claim about the DOCUMENT,
+      // not only about the version string it was stored under, and one_screen is where the two
+      // came apart. The shape rule (six cued paragraphs) landed after v9.3, so every stored
+      // document older than that carries one unbroken paragraph — and this lane, which runs
+      // before `authorLessonPlan` and never calls the linter, re-rendered them straight into
+      // v9.6 rows. That row is then a permanent cache hit, so the grey wall is served to every
+      // teacher after the first, not just the one who triggered the bump.
+      //
+      // Refusing the reuse costs one author call for that segment, once. Serving a body the
+      // renderer's own gate would have failed costs every teacher who opens the lesson.
+      const shapeDefects = oneScreenShapeDefects(lpDoc.one_screen);
+      if (shapeDefects.length) {
+        logEvent('lp612.render.reuse_rejected', {
+          renderId,
+          segmentId,
+          correlationId: correlationId || null,
+          lang,
+          fromVersion: prev,
+          toVersion: templateVersion,
+          reason: 'one_screen_shape',
+          defects: shapeDefects.map((d) => d.code),
+        });
+        logToFile('LP 6-12 worker: stored lesson refused for reuse — one_screen has no shape', {
+          renderId, segmentId, lang, fromVersion: prev, toVersion: templateVersion, correlationId,
+        });
+        continue;
+      }
+
       logEvent('lp612.render.reused', {
         renderId,
         segmentId,
@@ -832,9 +911,24 @@ async function process(payload) {
         e.infra === true || !Array.isArray(e.problems) || e.problems.length === 0
       );
 
+      /**
+       * THE SOFT TARGET IS A FINDING OF A SUCCESSFUL RENDER — bd-a8veu.22.
+       *
+       * `PAGE COUNT:` is a `problem`: the render throws and the defect reaches the ladder through
+       * the catch below. `PAGE TARGET:` is a WARNING: the render succeeds, so it comes back on
+       * the RETURN, and until now `attemptRenderCheck` threw that return away and answered
+       * `{ clean: true }`. That is why the target had never once moved a document — nothing
+       * downstream of the renderer could see it. Matched on the renderer's own emitted prefix,
+       * the same way every other finding in this lane is matched, because `warnings` also carries
+       * layout notes from the template build that are not addressed to the author.
+       */
+      const targetFindings = (res) => (
+        Array.isArray(res && res.warnings) ? res.warnings.filter((w) => String(w).startsWith('PAGE TARGET:')) : []
+      );
+
       const attemptRenderCheck = async (candidate) => {
         try {
-          await renderLessonPlan({
+          const res = await renderLessonPlan({
             lpDoc: candidate,
             lang,
             stem: `gate_${Date.now()}`,
@@ -848,7 +942,7 @@ async function process(payload) {
             renderId,
             phase: 'gate',
           });
-          return { clean: true };
+          return { clean: true, targets: targetFindings(res) };
         } catch (e) {
           return {
             clean: false,
@@ -860,11 +954,11 @@ async function process(payload) {
 
       const renderCheck = async (candidate) => {
         let result = await attemptRenderCheck(candidate);
-        if (result.clean) return [];
+        if (result.clean) return result.targets || [];
         if (!result.infra) return result.problems; // a real defect — feed it to the model, once
 
         result = await attemptRenderCheck(candidate); // the one retry
-        if (result.clean) return [];
+        if (result.clean) return result.targets || [];
         if (!result.infra) return result.problems;
 
         logEvent('lp612.render.gate_infra_unresolved', {
@@ -898,6 +992,11 @@ async function process(payload) {
           writeCheckpoint(c);
         },
       });
+      // bd-ir1aq. Before ANYTHING reads the document — the figure sweep, the render, the row.
+      // It runs on the reused branch too, which is the point: a cached lesson coming back for a
+      // template bump loses the key on the way through rather than carrying it forever.
+      stripModelAnswers(authored.lpDoc);
+
       // Recorded the moment it exists, so a render that refuses it below is still explicable.
       authoredDoc = authored.lpDoc;
 
@@ -1334,7 +1433,26 @@ async function process(payload) {
 
     let delivered = 0;
     let deliveryFailures = 0;
+    let selfServe = 0;
     for (const w of waiters) {
+      // A WAITER WITH NO PHONE IS NOT A FAILED DELIVERY.
+      //
+      // Portal waiters are parked on this same list deliberately: the row is the only record of
+      // who is owed this lesson, and leaving them off it would mean a teacher whose 3-minute
+      // render finished had no way to be told. But they must not be SENT to. The lesson is
+      // already sitting in R2 and her browser will presign it on its next poll — there is
+      // nothing for this loop to do for her.
+      //
+      // Skipping is not a nicety. `deliverRender` would hand `phone: undefined` to Meta, throw,
+      // and be counted as `deliveryFailures` — a lesson authored perfectly well, recorded as
+      // lost. And because this loop shares ONE deadline across every waiter (see
+      // SEND_TOTAL_BUDGET_MS), each doomed attempt spends retry budget belonging to the real
+      // WhatsApp waiters queued behind it. One portal waiter could shorten the retries of the
+      // teachers who actually need them.
+      if (!w.phone) {
+        selfServe += 1;
+        continue;
+      }
       try {
         await Serving.deliverRender({
           // `userId` is what the shelf write is keyed by, and the waiter list is the only place
@@ -1375,6 +1493,10 @@ async function process(payload) {
       elapsedMs: Date.now() - startedAt,
       delivered,
       deliveryFailures,
+      // Waiters who collect the lesson themselves (the portal polls for it). Counted separately
+      // so `delivered + deliveryFailures` no longer has to account for every waiter — without
+      // this the arithmetic silently stops adding up once the portal is live.
+      selfServe,
       correlationId,
     });
 
@@ -1394,6 +1516,14 @@ async function process(payload) {
       rounds: authored.rounds ?? null,
       lintClean: authored.lintClean === true,
       pageCount: rendered.pageCount ?? null,
+      // WHO ACTUALLY GOT IT, on the terminal event rather than only in a log line that rolls
+      // off. `delivered + deliveryFailures` used to equal the whole waiter list; once the portal
+      // parks phoneless waiters here it does not, and a gap with no name for it reads as lost
+      // lessons. `selfServe` is that name — she is owed nothing by this loop because her browser
+      // presigns the object on its next poll.
+      delivered,
+      deliveryFailures,
+      selfServe,
       // The per-part pages on EVERY delivery, not only the over-cap ones (bd-vjk68). "Does the
       // distribution refill to the new cap?" is a question about all delivered lessons; a
       // sample of only the ones that spilled cannot answer it.

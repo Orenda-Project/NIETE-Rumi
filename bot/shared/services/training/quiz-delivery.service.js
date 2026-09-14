@@ -540,7 +540,9 @@ async function startGrandQuiz(userId, levelOrder, phoneNumber) {
 async function startTrainingQuiz(userId, moduleId, phoneNumber) {
   const moduleIdNum = (typeof moduleId === 'number' ? moduleId : parseInt(moduleId, 10));
   if (!Number.isFinite(moduleIdNum) || moduleIdNum <= 0) {
-    logToFile('⚠️ Invalid moduleId for startTrainingQuiz', { userId, moduleId });
+    logToFile('⚠️ Invalid moduleId for startTrainingQuiz', { userId, moduleId }, 'warn');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'Could not open that module check — please send /training and try again.');
     return false;
   }
 
@@ -552,7 +554,9 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     .eq('id', moduleIdNum)
     .maybeSingle();
   if (mErr || !mod) {
-    logToFile('❌ Module lookup failed', { moduleId: moduleIdNum, error: mErr?.message });
+    logToFile('❌ Module lookup failed', { moduleId: moduleIdNum, error: mErr?.message }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'Could not open that module check — please send /training and try again.');
     return false;
   }
 
@@ -571,7 +575,30 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
   logEvent('training_quiz_eligibility_checked', eligPayload);
 
   if (bank.length === 0) {
-    // No questions for this module — caller decides what to do next.
+    // bd-2wzpi — the comment used to read "caller decides what to do next".
+    // Neither caller checks the return value, so nobody decided and the teacher
+    // got silence. Reachable from the Retry button, which does not pre-count
+    // questions the way handleModuleDone does.
+    //
+    // loadQuestionBank returns [] for BOTH "no questions" and "the query
+    // failed" — it logs the error and hands back an empty array. Telling a
+    // teacher to carry on because a lookup blipped would wave her past a check
+    // that gates her next module, so re-count before saying which it was.
+    // Lazy require, matching how markModuleComplete is pulled in below — these
+    // two modules reference each other and a top-level import would cycle.
+    const { countActiveQuestions } = require('./progress.service');
+    const actual = await countActiveQuestions(moduleIdNum);
+    if (actual > 0) {
+      logToFile('❌ Question bank came back empty but the module has questions', {
+        userId, moduleId: moduleIdNum, expected: actual,
+      }, 'error');
+      await WhatsAppService.sendMessage(phoneNumber,
+        'Could not load the questions for this module check — please try again in a moment.');
+      return false;
+    }
+    logToFile('⚠️ Module check has no active questions', { userId, moduleId: moduleIdNum }, 'warn');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'This module has no quick check yet — you can carry on to the next one.');
     return true;
   }
 
@@ -585,7 +612,10 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     .limit(1)
     .maybeSingle();
   if (!assignment) {
-    logToFile('⚠️ Cannot start module quiz — no active program assignment', { userId, moduleId: moduleIdNum });
+    logToFile('⚠️ Cannot start module quiz — no active program assignment', { userId, moduleId: moduleIdNum }, 'warn');
+    // Same sentence the level-exam path already sends on this exact condition.
+    await WhatsAppService.sendMessage(phoneNumber,
+      'You are not enrolled in a training program yet. Please contact your NIETE coach.');
     return false;
   }
 
@@ -651,7 +681,9 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     .select('id')
     .single();
   if (aErr || !attempt) {
-    logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.message });
+    logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.message }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'Could not start the module check — please try again in a moment.');
     return false;
   }
 

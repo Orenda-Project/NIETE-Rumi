@@ -100,11 +100,21 @@ describe('the video sits in a resources line at the top', () => {
     expect(out).not.toContain('javascript:');
   });
 
-  test('on the Urdu page the url is LTR-isolated inside the link text', () => {
+  test('on the Urdu page the visible run is isolated from the RTL paragraph', () => {
+    // SUPERSEDED FORM (bd-a8veu.4). This used to assert an LRI (U+2066) around a url:
+    //     expect(res).toMatch(/⁦[^⁩]*youtu\.be[^⁩]*⁩/)
+    // The visible run is now the video's TITLE, not its url, so the letter of that assertion is
+    // wrong twice over. An LRI forces LEFT-TO-RIGHT, which was right while the run was always a
+    // latin url and is wrong the moment the run is an Urdu title on an Urdu plan — it would print
+    // the title backwards. U+2068 FIRST STRONG ISOLATE does what the LRI did for a latin title and
+    // the right thing for an Urdu one: it takes direction from the run's own first strong
+    // character. The CONCERN — an embedded run must not reorder the surrounding RTL line — is
+    // unchanged and is what this asserts, alongside the two directional cases in
+    // tests/lp612/video-enhancement.test.js.
     const out = html(withVideo(PICK), { lang: 'ur' });
     const res = vresBlock(out);
     expect(res).toBeTruthy();
-    expect(res).toMatch(/⁦[^⁩]*youtu\.be[^⁩]*⁩/);
+    expect(res).toMatch(/⁨[^⁩]*Definition of Chemistry[^⁩]*⁩/);
   });
 
   test('the line is COMPACT — the url, not the video title and channel', () => {

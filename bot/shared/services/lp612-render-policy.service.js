@@ -55,8 +55,16 @@
  * hand.
  */
 
-/** `PAGE COUNT: <part> needs N pages; the cap is M.` — render_lp.js */
-const isPageCount = (d) => String(d).startsWith('PAGE COUNT:');
+/**
+ * `PAGE COUNT: <part> needs N pages; the cap is M.` — render_lp.js
+ *
+ * bd-a8veu.22 adds `PAGE TARGET: <part> runs to N pages; the soft target is M (hard cap C).`, the
+ * renderer's SOFT target. It is a warning, not a `problem`, so it can never arrive here from a
+ * FINAL render — that render returned, which is how the warning was read in the first place. It
+ * reaches this file only through the ladder's `isDeliverableRenderDefect`, and the answer there is
+ * the easy one: a document the renderer was willing to print is a document a teacher may have.
+ */
+const isPageCount = (d) => /^PAGE (COUNT|TARGET):/.test(String(d));
 /** `TRUNCATION: the PDF has N page(s) but the layout built M` — render_lp.js */
 const isTruncation = (d) => String(d).startsWith('TRUNCATION:');
 /** `FIGURE TOO SMALL: ...` / `FIGURE TOO TALL: ...` — lib/template.js */

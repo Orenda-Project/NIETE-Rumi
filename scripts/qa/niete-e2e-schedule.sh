@@ -48,7 +48,7 @@ install)
     echo '  <key>EnvironmentVariables</key><dict>'
     echo '    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>'
     echo "    <key>NIETE_E2E_REPO</key><string>$REPO</string>"
-    echo "    <key>NIETE_E2E_SCOPE</key><string>${NIETE_E2E_SCOPE:-all}</string>"
+    echo "    <key>NIETE_E2E_SCOPE</key><string>${NIETE_E2E_SCOPE:-auto}</string>"
     echo "    <key>NIETE_E2E_DRIVER</key><string>${NIETE_E2E_DRIVER}</string>"
     echo '  </dict>'
     echo '</dict></plist>'

@@ -38,8 +38,12 @@ describe('flow screen contract', () => {
       const declared = new Set(flow.screens.map((s) => s.id));
 
       it('returns only screens the Flow JSON declares', () => {
+        // SUCCESS is Meta's reserved endpoint-close: responding with it and an
+        // extension_message_response ends the Flow without a tap, and it is not
+        // (and must not be) declared. transcript-quiz closes on make this way.
+        const RESERVED = new Set(['SUCCESS']);
         const returned = [...new Set([...src.matchAll(/screen:\s*'([A-Z_]+)'/g)].map((m) => m[1]))];
-        expect(returned.filter((s) => !declared.has(s))).toEqual([]);
+        expect(returned.filter((s) => !declared.has(s) && !RESERVED.has(s))).toEqual([]);
       });
 
       it('declares exactly one terminal screen, and the endpoint can reach it', () => {
