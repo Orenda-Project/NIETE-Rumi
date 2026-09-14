@@ -181,6 +181,57 @@ const MAX_ACTIVITIES = 7;
 // because the END of a structured lesson is what gets cut, MDPI 16:5:699). bd-uu4lr.
 const ONESCREEN_BEATS = 6;
 
+/**
+ * bd-jpfww — THE ONE-SCREEN SHAPE, AS A PREDICATE THE REUSE LANE CAN ALSO ASK.
+ *
+ * Gate 12b below used to be the only place this rule lived, and `lint()` is not on every road to
+ * a teacher. `lp612-author.worker.js` re-renders a STORED document when the template version
+ * moves (`reuseFromPreviousVersion`), and that lane runs BEFORE `authorLessonPlan` — no brief, no
+ * ladder, no gate. The row it writes says so: `lint_clean: null`, "we did not look".
+ *
+ * The shape rule landed on 2026-09-12, after v9.3, so every document stored at v9.3 or earlier is
+ * one unbroken paragraph. The v9.6 bump walked the lineage back to them and re-rendered them into
+ * v9.6 rows, and the operator read the result on her phone: *"the whatsapp text message wasnt
+ * formatted"*.
+ *
+ * So the rule is a function, asked from both roads, and gate 12b is one of its two callers. A
+ * second copy in the worker would be a rule that drifts; this cannot.
+ *
+ * Returns `[]` for a body that has the shape — and for an ABSENT or empty one, which is gate 12's
+ * fact to report (a word count of zero), not this one's. Each defect is `{ code, message }`,
+ * exactly the pair gate 12b fails with.
+ */
+function oneScreenShapeDefects(oneScreen) {
+  const out = [];
+  if (typeof oneScreen !== "string" || !oneScreen.trim()) return out;
+
+  if (/\*\*/.test(oneScreen)) {
+    out.push({
+      code: "ONESCREEN_BOLD",
+      message: "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.",
+    });
+  }
+  // A doubled-asterisk doc has already been told what is wrong; normalise so it does not also
+  // collect a cue failure for the same characters.
+  const blocks = oneScreen.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  if (blocks.length < ONESCREEN_BEATS) {
+    out.push({
+      code: "ONESCREEN_FORMAT",
+      message: `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`,
+    });
+  }
+  blocks.forEach((b, i) => {
+    if (!/^\*[^*\n]+\*/.test(b)) {
+      out.push({
+        code: "ONESCREEN_FORMAT",
+        message: `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`,
+      });
+    }
+  });
+  return out;
+}
+oneScreenShapeDefects.BEATS = ONESCREEN_BEATS;
+
 const PLACEHOLDERS = [
   { re: /\bTODO\b/i, name: "TODO" },
   { re: /\bFIXME\b/i, name: "FIXME" },
@@ -636,22 +687,12 @@ function lint(doc, docPath, opts = {}) {
   //   A cue is `*...*` at the head of a block and nothing more. It is teacher-
   //   facing prose in the lesson's own language, so an Urdu overlay writes Urdu
   //   cues; any English word list here would fire on every correct Urdu body.
-  if (full && typeof doc.one_screen === "string" && doc.one_screen.trim()) {
-    const raw = doc.one_screen;
-    if (/\*\*/.test(raw)) {
-      fail("ONESCREEN_BOLD", "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.");
-    }
-    // A doubled-asterisk doc has already been told what is wrong; normalise so it
-    // does not also collect a cue failure for the same characters.
-    const blocks = raw.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
-    if (blocks.length < ONESCREEN_BEATS) {
-      fail("ONESCREEN_FORMAT", `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`);
-    }
-    blocks.forEach((b, i) => {
-      if (!/^\*[^*\n]+\*/.test(b)) {
-        fail("ONESCREEN_FORMAT", `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`);
-      }
-    });
+  //
+  //   The rule itself is `oneScreenShapeDefects` (bd-jpfww), because this gate is
+  //   NOT the only road to a teacher — the worker's template-bump reuse lane never
+  //   calls lint at all, and asks the same function instead.
+  if (full) {
+    for (const d of oneScreenShapeDefects(doc.one_screen)) fail(d.code, d.message);
   }
 
   // 13 — the Urdu toggle may not overwrite the book's own language
@@ -1328,6 +1369,15 @@ function v9Gates(doc, ctx) {
     for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of atomDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of specContractDefects(spec, where)) fail(d.code, d.msg);
+    // The lesson's own prose is the authority on which mirror/lens this lesson is about;
+    // the diagram's title and caption are excluded on purpose -- they are being checked.
+    const rayLesson = [
+      doc.slo && doc.slo.text_verbatim,
+      doc.sequence && doc.sequence.this,
+      doc.objectives && doc.objectives.outcome,
+      doc.objectives && doc.objectives.by_the_end,
+    ].filter(Boolean).join(" \u2014 ");
+    for (const { where, spec } of gSpecs) for (const d of rayDiagramDefects(spec, where, rayLesson)) fail(d.code, d.msg);
   }
 
   // ── LABELACT (render-law 24) ──────────────────────────────────────────────
@@ -1825,6 +1875,122 @@ function specContractDefects(spec, where) {
   return out;
 }
 
+/* ---------------------------------------------------------------------------
+   RAY_ELEMENT_* — a plane mirror is not a curved one (bd-jir5b)
+
+   Grade 10 Physics, Ch. 14 Optics, "Reflection of Light: Laws and Mirror Image
+   Formation". BOTH ray diagrams in a PLANE-mirror lesson shipped as CURVED
+   mirrors carrying a printed focal length -- `f = 30 cm` and `f = 25 cm`. A
+   plane mirror has no focal length; the picture contradicted its own lesson.
+
+   `ray_diagram.js` was never at fault. `plane_mirror` is in its `ELEMENTS` set,
+   `solve()` returns {v:-u, m:1} for it, and the `f = …` dimension is suppressed
+   by `if (!isPlane)`. Handed the right spec it draws the right picture.
+
+   The CONTRACT was the defect. `types_manifest.json` is the only machine-readable
+   description of a type the author ever sees, and for `ray_diagram` it listed four
+   elements -- none of them plane -- and made `f` required. For a plane-mirror lesson
+   it admitted no valid spec at all, so the author picked a curved mirror and invented
+   a focal length. Every required field was present, so SPEC_CONTRACT passed it.
+
+   That is the silent-default class named above, with one extra turn: the contract
+   did not merely permit the wrong picture, it REQUIRED one. The manifest is fixed
+   at source; these are the assertions that keep it fixed (rule 24(c)).
+
+   Lint, not a renderer throw, for the reason ATOM_UNKNOWN_ELEMENT gives: a defect
+   handed to the revision ladder is repaired next round, a refusal loses the lesson.
+--------------------------------------------------------------------------- */
+
+const RAY_TYPES = new Set(["ray_diagram", "optics", "lens", "mirror"]);
+/** Read from `ray_diagram.js`'s own ELEMENTS set — kept in step by ray-diagram-plane-mirror.test.js. */
+const RAY_ELEMENTS = new Set([
+  "convex_lens", "concave_lens", "concave_mirror", "convex_mirror", "plane_mirror",
+]);
+const RAY_CURVED_MIRRORS = new Set(["concave_mirror", "convex_mirror"]);
+
+const SAYS_PLANE = /\bplane\s+mirror/i;
+const SAYS_CURVED = /\b(concave|convex|spherical|curved)\s+mirror/i;
+
+/**
+ * @param spec    the diagram spec
+ * @param where   block or section id, for the message
+ * @param lesson  the lesson's own prose (SLO, sequence, objectives) — the authority on
+ *                which mirror this lesson is about. The diagram's own title and caption
+ *                are deliberately NOT included: they are the thing being checked.
+ */
+function rayDiagramDefects(spec, where, lesson) {
+  const out = [];
+  if (!spec || typeof spec !== "object") return out;
+  if (!RAY_TYPES.has(String(spec.type || "").trim().toLowerCase())) return out;
+
+  const el = String(spec.element == null ? "" : spec.element).trim();
+  const hasF = spec.f !== undefined && spec.f !== null && spec.f !== ""
+    && Number.isFinite(Number(spec.f)) && Math.abs(Number(spec.f)) > 0;
+
+  // R1 — an element the engine cannot draw. `render()` substitutes `convex_lens` and,
+  // with `f` defaulting to 20, prints a confident `f = 20 cm` under whatever caption
+  // the author wrote. Loud beats silent.
+  if (!RAY_ELEMENTS.has(el)) {
+    out.push({
+      code: "RAY_ELEMENT_UNKNOWN",
+      msg: `${where}: \`ray_diagram\` element ${JSON.stringify(el)} is not one this engine draws. `
+        + `It silently falls back to \`convex_lens\` with f = 20, so the page would carry a `
+        + `CONVERGING LENS under your caption. Use one of: `
+        + `${[...RAY_ELEMENTS].join(", ")}.`,
+    });
+    return out; // everything below reads a valid element
+  }
+
+  // R2 — a plane mirror has no focal length. Supplying one means the author has the
+  // wrong element in mind; `ray_diagram.js` ignores `f` here, so nothing else says so.
+  if (el === "plane_mirror" && hasF) {
+    out.push({
+      code: "RAY_PLANE_FOCAL",
+      msg: `${where}: \`ray_diagram\` gives element \`plane_mirror\` a focal length `
+        + `(\`f\`: ${JSON.stringify(spec.f)}). A plane mirror has no focal length -- the renderer `
+        + `drops \`f\` for this element, so the number is silently doing nothing. Remove \`f\`, `
+        + `or use \`concave_mirror\` / \`convex_mirror\` if the lesson really is about a curved one.`,
+    });
+  }
+
+  // R3 — a curved element with no usable `f`. `f` is no longer in the manifest's
+  // `required` list (it is meaningless for a plane mirror), so SPEC_CONTRACT no longer
+  // covers this; the default of 20 would otherwise be drawn as fact.
+  if (el !== "plane_mirror" && !hasF) {
+    out.push({
+      code: "RAY_MISSING_FOCAL",
+      msg: `${where}: \`ray_diagram\` element \`${el}\` needs a focal length \`f\`. Without one the `
+        + `renderer uses f = 20 ${spec.unit || "cm"} and prints it on a dimension line as though `
+        + `you had said so. Give the \`f\` the question uses.`,
+    });
+  }
+
+  // R4 — the element disagrees with the lesson it illustrates. This is the one that
+  // catches the shipped defect: a plane-mirror lesson drawn with a concave mirror.
+  const text = String(lesson || "");
+  if (text) {
+    const plane = SAYS_PLANE.test(text);
+    const curved = SAYS_CURVED.test(text);
+    if (plane && !curved && RAY_CURVED_MIRRORS.has(el)) {
+      out.push({
+        code: "RAY_ELEMENT_MISMATCH",
+        msg: `${where}: this lesson is about a PLANE MIRROR, but the \`ray_diagram\` draws `
+          + `\`${el}\` -- a curved mirror, with a focal point and a printed focal length the `
+          + `lesson never mentions. Use \`element: "plane_mirror"\` (and no \`f\`).`,
+      });
+    }
+    if (curved && !plane && el === "plane_mirror") {
+      out.push({
+        code: "RAY_ELEMENT_MISMATCH",
+        msg: `${where}: this lesson is about a CURVED mirror, but the \`ray_diagram\` draws `
+          + `\`plane_mirror\`, which has no focal point -- so the construction the lesson `
+          + `teaches cannot appear in the figure. Use \`concave_mirror\` or \`convex_mirror\` with an \`f\`.`,
+      });
+    }
+  }
+  return out;
+}
+
 function atomDefects(spec, where) {
   const out = [];
   if (!spec || typeof spec !== "object") return out;
@@ -2072,7 +2238,10 @@ function overlayDefects(doc, lang, opts = {}) {
 overlayDefects.targets = overlayTargets;
 overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects, rayDiagramDefects,
+  // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
+  // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
+  oneScreenShapeDefects, ONESCREEN_BEATS,
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,
