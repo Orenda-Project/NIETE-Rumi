@@ -27,6 +27,46 @@ const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('.
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
+
+/**
+ * ONE ATTEMPT PER CHILD.
+ *
+ * A child who re-opens the class link is started again — beginFromCode
+ * recognises the handset and startForStudent makes a new quiz_sessions row;
+ * nothing blocks it. Read raw, every such row is another child in "finished",
+ * in the average, in the hardest-question tallies and on the class card. On
+ * production, 6–14 Sep 2026: 1,150 (quiz, child) pairs carried more than one
+ * completed attempt — 2,035 extra rows in class reports, one child at 40.
+ *
+ * The attempt that counts is the LATEST COMPLETED one (the child's current
+ * standing), else the latest row (so a child mid-quiz still shows as started).
+ * Rows without a student_id cannot be grouped and pass through untouched.
+ * Pure, so it can be asserted directly.
+ */
+function oneAttemptPerChild(sessions) {
+  const rank = (s) => [
+    s.status === 'completed' ? 1 : 0,
+    String(s.completed_at || ''),
+    String(s.created_at || ''),
+  ];
+  const better = (a, b) => {
+    const ra = rank(a); const rb = rank(b);
+    for (let i = 0; i < ra.length; i += 1) {
+      if (ra[i] > rb[i]) return true;
+      if (ra[i] < rb[i]) return false;
+    }
+    return false;
+  };
+  const byChild = new Map();
+  const loose = [];
+  (sessions || []).forEach((s) => {
+    if (!s) return;
+    if (!s.student_id) { loose.push(s); return; }
+    const cur = byChild.get(s.student_id);
+    if (!cur || better(s, cur)) byChild.set(s.student_id, s);
+  });
+  return [...byChild.values(), ...loose];
+}
 const { scriptOf } = require('../../templates/niete-brand');
 
 /**
@@ -218,8 +258,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 
   const { data: sessions } = await supabase
     .from('quiz_sessions')
-    .select('id, user_id, student_name, student_class, status, total_questions_answered, '
-            + 'correct_answers, mastery_percentage, completed_at')
+    .select('id, user_id, student_id, student_name, student_class, status, total_questions_answered, '
+            + 'correct_answers, mastery_percentage, completed_at, created_at')
     .eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
 
@@ -227,10 +267,17 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // as a pupil in that same report: not in the roster, not in the average, not in
   // the "0 students" branch.
   const rawAll = sessions || [];
-  const all = excludeSelfTests(rawAll, sc.teacher_user_id);
-  if (all.length < rawAll.length) {
+  const noSelfTests = excludeSelfTests(rawAll, sc.teacher_user_id);
+  if (noSelfTests.length < rawAll.length) {
     logEvent('video_quiz.self_test_excluded', {
-      shareCodeId, n: rawAll.length - all.length,
+      shareCodeId, n: rawAll.length - noSelfTests.length,
+    });
+  }
+  // bd-2yyry.15 — one attempt per child, before anything is counted.
+  const all = oneAttemptPerChild(noSelfTests);
+  if (all.length < noSelfTests.length) {
+    logEvent('video_quiz.retakes_collapsed', {
+      shareCodeId, rows: noSelfTests.length, children: all.length,
     });
   }
   const done = all.filter((s) => s.status === 'completed');
@@ -340,7 +387,8 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // two surfaces say the same thing.
   const classes = classesTaught(done);
 
-  const hardest = (await hardestQuestions(shareCodeId))
+  // The tallies read the SAME attempts the report counts — never a dropped one.
+  const hardest = (await hardestQuestions(shareCodeId, 3, all.map((s) => s.id)))
     .map((h) => ({ ...h, slo: sloOf(h.external_id) }));
   const unfinished = all.filter((s) => s.status !== 'completed');
 
@@ -855,15 +903,17 @@ function teacherFacing(raw) {
   return t || null;
 }
 
-async function hardestQuestions(shareCodeId, limit = 3) {
-  const { data: sessions } = await supabase
-    .from('quiz_sessions').select('id').eq('share_code_id', shareCodeId)
-    .is('invited_by_student_id', null)   // a friend's session is not this teacher's class
-    // PLAN_R5 D8 — same reasoning as maybeSendEarly: within a share code,
-    // user_id IS NOT NULL means the teacher's own self-test. That practice
-    // answers must not decide which question the class found hardest.
-    .is('user_id', null);
-  const ids = (sessions || []).map((s) => s.id);
+async function hardestQuestions(shareCodeId, limit = 3, sessionIds = null) {
+  let ids = Array.isArray(sessionIds) ? sessionIds : null;
+  if (!ids) {
+    const { data: sessions } = await supabase
+      .from('quiz_sessions').select('id').eq('share_code_id', shareCodeId)
+      .is('invited_by_student_id', null)   // a friend's session is not this teacher's class
+      // PLAN_R5 D8 — within a share code, user_id IS NOT NULL means the
+      // teacher's own self-test; practice answers never decide the hardest.
+      .is('user_id', null);
+    ids = (sessions || []).map((s) => s.id);
+  }
   if (!ids.length) return [];
 
   const { data: answers } = await supabase
@@ -1196,6 +1246,7 @@ function buildGuidancePrompt({
 }
 
 module.exports = {
+  oneAttemptPerChild,
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
