@@ -33,7 +33,32 @@
 const fs = require("fs");
 const path = require("path");
 
+const { texToUnicode } = require("./lib/tex");
+
 const TYPES_DIR = path.join(__dirname, "types");
+
+// ─── VENDOR DIVERGENCE (bd-3emr5) — see SYNC.md §3.12 ────────────────────────
+// The contract above says L1 never rewrites the spec. This is L2 rewriting its
+// OWN input, once, at the door: authored `diagram.spec` strings carry TeX, and
+// every type draws them through wrap() + Svg.text(), whose esc() escapes only
+// & < > " ' — a `$` and a backslash land in the emitted SVG verbatim. Converting
+// at the egress is too late: wrap() measures and breaks the string first, so a
+// `$…$` span is already in two pieces by the time anything draws it (which is
+// exactly how it was reported — LaTeX split over two lines). The spec is the
+// only place a whole span is still whole, so converting here fixes every type
+// and both strips at once, and shrinks the string, which makes the pre-computed
+// widths over-reserve rather than under-reserve.
+/** Deep, non-mutating: every string in the spec, TeX → readable Unicode. */
+function deTex(v) {
+  if (typeof v === "string") return texToUnicode(v);
+  if (Array.isArray(v)) return v.map(deTex);
+  if (v && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype) {
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = deTex(v[k]);
+    return out;
+  }
+  return v;
+}
 
 function loadRegistry() {
   const reg = new Map();
@@ -70,7 +95,7 @@ function renderDiagram(spec) {
       `renderDiagram: unknown diagram type "${t}". Known: ${[...REGISTRY.keys()].sort().join(", ")}`
     );
   }
-  const out = mod.render(spec);
+  const out = mod.render(deTex(spec));
   if (typeof out !== "string" || !out.startsWith("<svg")) {
     throw new DiagramError(`renderDiagram: type "${t}" did not return an <svg> string`);
   }
