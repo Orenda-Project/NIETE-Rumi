@@ -1648,6 +1648,35 @@ const STUDENT_TUTOR_STRINGS = {
   // The exact sentence the student prompt tells the model to use when a
   // message drifts off schoolwork — deliberately "a grown-up", not an
   // enumerated list, so it never has to name a teacher.
+  // ─── the child's own routes (student-ingress.js, bd-2yyry.1/.3) ─────────
+  // Read by CHILDREN in the quiz language. Imperatives only — never a verb
+  // that agrees with the addressee.
+  studentVoiceNotSupported: {
+    en: 'I can only read typed messages here — please type your question.',
+    ur: 'یہاں میں صرف لکھے ہوئے پیغام پڑھ سکتا ہوں — براہِ کرم اپنا سوال لکھ کر بھیجیں۔',
+  },
+  studentMediaNotSupported: {
+    en: 'I can’t open pictures or files here — please type your question instead.',
+    ur: 'یہاں تصویر یا فائل نہیں کھل سکتی — براہِ کرم اپنا سوال لکھ کر بھیجیں۔',
+  },
+  studentTeacherOnly: {
+    en: 'That one isn’t for students. You can send /video for videos, /quiz for your quizzes, or just ask me a school question.',
+    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے quiz کے لیے ⁦/quiz⁩ بھیجیں، یا سکول کا کوئی سوال پوچھیں۔',
+  },
+  studentQuizHint: {
+    en: 'Your quizzes come from the link your class shares. Ask a school question here, or send /video for videos.',
+    ur: 'آپ کے quiz کلاس کے link سے آتے ہیں۔ یہاں سکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
+  },
+  studentMenuBody: {
+    en: 'What would you like to do?',
+    ur: 'کیا کرنا ہے؟',
+  },
+  studentMenuVideos: { en: '🎬 Videos', ur: '🎬 ویڈیوز' },
+  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 Quiz' },
+  studentVideosUnavailable: {
+    en: 'Videos aren’t available right now — try /video again in a bit.',
+    ur: 'ابھی ویڈیوز دستیاب نہیں — تھوڑی دیر بعد ⁦/video⁩ دوبارہ بھیجیں۔',
+  },
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
     ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
