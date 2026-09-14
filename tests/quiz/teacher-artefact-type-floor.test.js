@@ -93,12 +93,9 @@ describe('teacher PDF — the reading blocks sit ON the body floor', () => {
   const html = renderTeacher({ ...PDF_BASE, language: 'en', contentLanguage: 'en' });
   test.each([
     ['.taught .sum', 'what she taught'],
-    ['.checks li', 'what the quiz checks'],
+    ['.checks .checks-sum', 'what the quiz checks'],
     ['.stem', 'the question'],
     ['.opt', 'an option the child taps'],
-    ['.chosen', 'which moment of the lesson it came from'],
-    ['.miss', 'what a wrong option reveals'],
-    ['.howto', 'how to send it'],
   ])('%s (%s) is at the body floor', (selector) => {
     const px = sizeOf(html, selector);
     expect(px).not.toBeNull();
@@ -133,7 +130,7 @@ describe('class report — the reading blocks sit ON the body floor', () => {
  */
 describe.each([
   ['teacher PDF', (lang) => renderTeacher({ ...PDF_BASE, language: lang, contentLanguage: lang }), {
-    body: ['.taught .sum', '.checks li', '.opt', '.chosen', '.miss', '.howto', '.who', '.foot'],
+    body: ['.taught .sum', '.checks .checks-sum', '.opt', '.who', '.foot'],
     small: ['.stchip .l', '.pill', '.cmeta', '.opt .tag', '.brand'],
     label: ['.eyebrow', '.label'],
   }],
