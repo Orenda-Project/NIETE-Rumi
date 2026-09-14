@@ -71,10 +71,11 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
     · DO NOT PRE-FILL THE SQUARE. The offspring cells and both ratios are derived; anything you type would be a second, disagreeing source of truth.
     · trait.dominantName / recessiveName may be Urdu; the allele letters stay Latin.
 - ray_diagram — A lens or mirror construction SOLVED from the thin-lens/mirror equation -- F, 2F, the three standard rays, and the real or virtual image where it actually falls.
-  required: element, f, u, hObject
+  required: element, u, hObject
   minimal: {"type":"ray_diagram","element":"convex_lens","f":20,"u":60,"hObject":14}
   limits:
-    · element is convex_lens | concave_lens | concave_mirror | convex_mirror.
+    · element is convex_lens | concave_lens | concave_mirror | convex_mirror | plane_mirror. \`f\` is REQUIRED for the four curved/lens elements and MUST BE OMITTED for plane_mirror, which has no focal length -- for a plane mirror give only u and hObject and the engine solves the image at v = -u, same size, erect, virtual.
+    · Match the element to the lesson: a plane-mirror lesson drawn with a concave_mirror prints a focal length the lesson never mentions, and is rejected (RAY_ELEMENT_MISMATCH).
     · The image position, size and nature are COMPUTED -- you give the object, not the answer. u inside f gives the virtual case, and it draws that correctly.
 - flow — A SEQUENCE -- steps of a process, a chain of reasoning, a decision. If nothing happens first or last, it is a mindmap, not a flow.
   required: steps
