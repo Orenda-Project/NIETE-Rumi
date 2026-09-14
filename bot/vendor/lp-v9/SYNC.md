@@ -752,11 +752,51 @@ the check's behaviour is the same either way.
 Tests: `tests/lp612/warmtopic.test.js` (8), `tests/lp612/labelact.test.js` (10),
 `tests/lp612/redundant.test.js` (7) — all red-first against this branch's unmodified `lint_lp.js`.
 
+### 3.12 `diagrams/index.js` + `diagrams/lib/tex.js` — TeX is converted at the spec boundary (2026-09-14)
+
+`renderDiagram(spec)` now runs a deep, non-mutating TeX → Unicode pass over every string in the
+spec before handing it to the type module (`bd-3emr5`). `diagrams/lib/tex.js` is new here: a
+verbatim copy of `bot/shared/utils/tex-to-unicode.js` with a header block on top.
+
+**Why it is a copy and not a require.** Nothing under `bot/vendor/lp-v9/` reaches into
+`bot/shared/` — the tree is hermetic, which is what lets it be re-vendored, or pushed back up to
+`lp_html/diagrams/`, as one unit. A cross-boundary `require` would make `diagrams/` unusable
+outside this repo. `tests/lp612/bd-3emr5-diagram-latex.test.js` asserts the vendored file is the
+shared file byte-for-byte below its header, so the copy cannot quietly rot.
+**Edit the shared file, then re-copy; never edit the vendored one.**
+
+**Why the conversion sits at the spec and not at the egress.** `Svg.prototype.text()` is the single
+place every drawn string passes through, but `esc()` there escapes only `& < > " '`, and — more to
+the point — `wrap()`/`measure()` run *before* it. A `$…$` span can already be split across two
+wrapped lines by the time `text()` sees it, which is exactly how the bug was reported: literal
+LaTeX broken over two lines in the Grade 10 determinant lesson's WRONG/CORRECT panel. The spec is
+the last point at which a span is still whole. Converting there also covers all 17 types and the
+`title`/`caption`/`source`/`note` strips in `svg.js` at once, and Unicode is shorter than its TeX,
+so the pre-computed widths over-reserve — the safe direction (`panels.js`: "Under-estimating is the
+expensive direction").
+
+**Not a KaTeX port.** The bead was filed against a `_mathText()`/`mathBoxH()`/KaTeX path said to
+have been added upstream for `bd-y86qu`. **That code does not exist in this tree** — `grep` for
+`hasMath|mathLines|_mathText|mathBoxH` under `bot/vendor/lp-v9/` finds nothing, and `bd-y86qu`
+records that its fix was made directly in a shared checkout rather than a worktree. So the leak
+here is wider than the bead describes (the strips leak too, not only panel bodies) and the fix
+stands on its own. KaTeX would not help regardless: it emits HTML + CSS, and this is SVG.
+
+**Shared-file change that rides along.** `tex-to-unicode.js` gains `\begin{…}`/`\end{…}`
+(`bmatrix` → `[ ]`, `pmatrix` → `( )`, …), `\\` → `; ` and a bare `&` → `, ` inside a maths span,
+so `adj = $\begin{bmatrix}5 & -4\\ -2 & 6\end{bmatrix}$` reads as `adj = [5, -4; -2, 6]`. Matrices
+are the commonest maths in the Grade 10 lessons, and `\\` was the one command whose old fallback
+emitted a backslash, against the module's own stated rule. This changes the WhatsApp body path
+(`bd-lafr9`) the same way, for the better.
+
+Upstream carries none of this yet. Push `diagrams/index.js` + `diagrams/lib/tex.js` up at the next
+re-sync.
+
 ### 3.8 Nothing else
 
-Both schemas, every other file in `lib/`, and the whole `diagrams/` tree are **byte-identical to
-upstream**, with the single exception of the four `glue` marks in `lib/template.js` recorded in
-§3.9. `lint_lp.js` is no longer wholesale byte-identical — see §3.11 for its three new checks
+Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
+exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
