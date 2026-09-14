@@ -207,3 +207,44 @@ describe('a tapped chip reaches the real door', () => {
     expect(calls.training).toHaveLength(0);
   });
 });
+
+describe('a typed /coaching command reaches the same coaching door (bd-60080)', () => {
+  // DC tracker row 84 (Sana Nawaz, phone …6091595): a teacher typed /coaching
+  // and got feedback with no ask for a recording. Real conversations log for
+  // that teacher shows why — there was no interceptor at all for the typed
+  // command, only for the tapped ice-breaker chip, so /coaching fell through
+  // to general chat every time. Her FIRST /coaching (clean history) got a
+  // plausible-sounding reply; every later /coaching that same session hit her
+  // own earlier classroom-audio transcript still sitting in conversation
+  // history and answered as if continuing it — feedback, no audio requested,
+  // until she typed "Mai ny recording nhi byji" (I didn't send a recording).
+  // These tests never touch chat history — they prove the command itself is
+  // now intercepted before intent detection can ever reach that history.
+  test('"/coaching" reaches the coaching door, not general chat', async () => {
+    await tap('/coaching');
+    expect(calls.coaching).toHaveLength(1);
+    expect(calls.intro).toHaveLength(1);
+    expect(calls.intro[0][2]).toBe('ai_coaching');
+  });
+
+  test('"/ coaching" (stray space, as she actually typed it) still matches', async () => {
+    await tap('/ coaching');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('bare "coaching" (no slash) also matches', async () => {
+    await tap('coaching');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('case-insensitive', async () => {
+    await tap('/COACHING');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('a sentence merely mentioning coaching is NOT eaten (anchored, no false positive)', async () => {
+    // Her own later message that day — restating what she wants in prose.
+    await tap('Class room coaching get teacher feedback from recording');
+    expect(calls.coaching).toHaveLength(0);
+  });
+});
