@@ -1,51 +1,67 @@
 /**
- * bd-8s2xb — the one line under the report's photo strip that says what was READ from
- * the teacher's photo. Until now the hero report framed the raw photo and nothing the
- * model saw in it reached the teacher (analysis_data.photo_analysis had zero readers).
+ * bd-8s2xb → bd-1mcpe — the caption under each framed classroom photo in the hero report.
  *
- * Source order:
- *   1. the first indicator whose evidence the scorer prefixed "Photo:" (the prefix stripped)
- *   2. else the first sentence of the vision description
- *   3. else null → no caption, strip renders exactly as before
+ * One caption PER framed photo, taken from THAT photo's own vision description
+ * (analysis_data.photo_analysis holds one "Classroom photo N (submitted by the teacher): …"
+ * block per photo, N = the photo's original position). Only the first clause is used:
+ * the descriptions are written for the scorer — a description, then "but lacks …" /
+ * "However, … worn" critique — and the critique must never sit under a teacher's own photo.
  *
- * Capped at ~110 chars, word-boundary, so it fits the 11px caption row in two lines. Pure: no I/O, no LLM.
- * The template HTML-escapes it via T() (untrusted content — it is LLM prose) and .pcap
- * already carries the RTL font branch (bd-osmk0), so an Urdu quote inside it shapes correctly.
+ * Seen on the sandbox E2E (14 Sep 2026): a single caption on frame 1 only, cut mid-clause at
+ * 110 chars ("… with vocabulary and polite"), and a blank panel under frame 2. 93% of prod
+ * descriptions have a first sentence over 110 chars; the first clause fits in 90%.
+ *
+ * The scorer's "Photo:"-prefixed indicator evidence is NOT used here: it does not say which
+ * photo it came from, so it cannot be placed under the right picture.
+ *
+ * Pure: no I/O, no LLM. The template esc()'s the caption into an LTR block (.pcap).
  */
-// The report's chrome (section labels) is English on every report by design (9f1e0b61);
-// this label follows that policy. The note text itself is whatever the scorer wrote.
+// The report's chrome is English on every report by design (9f1e0b61); the label follows it.
 const LABEL = 'From your photo: ';
 const CAP = 110;
+const BLOCK_RE = /Classroom photo (\d+) \(submitted by the teacher\):\s*([\s\S]*?)(?=\n\s*\n\s*Classroom photo \d+ \(submitted by the teacher\):|$)/g;
+// Where the descriptive half ends and the scorer's critique/elaboration begins.
+const CLAUSE_BREAK = /,\s*(?:but|however|with|suggesting|though|although|while|yet|and there)\b|;\s*|\s+[—–]\s+/i;
 
-function firstSentence(s) {
-  const t = String(s || '').replace(/^Classroom photo \d+ \(submitted by the teacher\):\s*/i, '').trim();
-  const m = t.match(/^[^.!?۔]+[.!?۔]?/);
-  return (m ? m[0] : t).trim();
-}
-// Cut at a word boundary, no trailing ellipsis: under an RTL base direction the UBA paints a
-// trailing "…" on the wrong side of the last Latin word (seen on the first sample render).
-function cap(s) {
-  const t = String(s || '').replace(/\s+/g, ' ').trim();
-  if (t.length <= CAP) return t;
-  const cut = t.slice(0, CAP);
-  const at = cut.lastIndexOf(' ');
-  return (at > 40 ? cut.slice(0, at) : cut).replace(/[\s,;:—-]+$/, '');
-}
-
-function buildPhotoNote(analysis) {
-  if (!analysis || typeof analysis !== 'object') return null;
-  const label = LABEL;
-  for (const d of Object.values(analysis.domains || {})) {
-    for (const ind of (d && d.indicators) || []) {
-      // "Photo:" is asked for at the head of the evidence, but the scorer also writes it
-      // mid-sentence ("… Photo: board shows the title …") — take the sentence after it.
-      const ev = String((ind && ind.evidence) || '');
-      const m = ev.match(/Photo:\s*([^]+)/i);
-      if (m && m[1].trim()) return label + cap(firstSentence(m[1]));
-    }
+/** The first clause of a description's first sentence, capped at a word boundary, ending in a full stop. */
+function firstClause(desc) {
+  const text = String(desc || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  const sentence = (text.match(/^[^.!?۔]+[.!?۔]?/) || [text])[0].trim();
+  let clause = sentence.split(CLAUSE_BREAK)[0].trim().replace(/[.!?۔\s,;:—–-]+$/, '');
+  if (clause.length > CAP - 1) {
+    const cut = clause.slice(0, CAP - 1);
+    const at = cut.lastIndexOf(' ');
+    clause = (at > 40 ? cut.slice(0, at) : cut).replace(/[\s,;:—–-]+$/, '');
   }
-  const desc = firstSentence(analysis.photo_analysis);
-  return desc ? label + cap(desc) : null;
+  return clause ? `${clause}.` : '';
 }
 
-module.exports = { buildPhotoNote };
+/** { [photoIndex0]: caption } from analysis.photo_analysis, keyed by the photo's ORIGINAL index. */
+function buildPhotoCaptions(analysis) {
+  const out = {};
+  const pa = analysis && typeof analysis === 'object' ? String(analysis.photo_analysis || '') : '';
+  if (!pa) return out;
+  for (const m of pa.matchAll(BLOCK_RE)) {
+    const idx = Number(m[1]) - 1;
+    const clause = firstClause(m[2]);
+    if (idx >= 0 && clause && out[idx] === undefined) out[idx] = LABEL + clause;
+  }
+  return out;
+}
+
+/**
+ * Put each caption under the frame whose ORIGINAL photo index matches (frames carry `index`
+ * from buildClassroomPhotoVm; a photo that failed to download is simply absent). A frame with
+ * no description is left exactly as it was.
+ */
+function applyPhotoCaptions(framed, analysis) {
+  if (!Array.isArray(framed) || !framed.length) return Array.isArray(framed) ? framed : [];
+  const captions = buildPhotoCaptions(analysis);
+  return framed.map((p, i) => {
+    const idx = Number.isInteger(p && p.index) ? p.index : i;
+    return captions[idx] ? { ...p, caption: captions[idx] } : p;
+  });
+}
+
+module.exports = { firstClause, buildPhotoCaptions, applyPhotoCaptions };

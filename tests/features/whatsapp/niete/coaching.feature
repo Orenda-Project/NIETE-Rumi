@@ -124,12 +124,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And with COACHING_PHOTO_MODE=both the scorer receives the vision description AND the photos, and the session records photo_mode "both" and photo_count_analysed 3
     And with the flag unset the session records photo_mode "note" and the scoring prompt is unchanged from before
     And any indicator the photo informed carries evidence starting "Photo:" — in the coach's editable draft as well
-    And the coaching report shows a "From your photo: …" caption under the framed photo
+    And the coaching report shows a "From your photo: …" caption under EACH framed photo, taken from that photo's own description, ending at a full stop and never showing the critique half
     # coaching classroom-photo sub-flow; photo receipt image-message.handler.js:87-208
     # (Redis setNX dedup, MAX 3 → LP step). bd-8s2xb: analysis-processor analyses ALL
     # photos (was 2), attaches them to the gpt-5-mini scoring call in image/both mode
     # (fico-framework photo rule + gpt5-mini.service image parts), persists the EFFECTIVE
-    # mode in analysis_data, and hero-report renders photo-note.js as the strip caption.
+    # mode in analysis_data, and hero-report applies photo-note.js captions per framed photo by original index (bd-1mcpe).
 
   # ── EDGE ──
   @e2e @wip @draft @edge @P2
