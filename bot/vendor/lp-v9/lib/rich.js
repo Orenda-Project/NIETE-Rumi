@@ -79,6 +79,46 @@ function setRtlProse(on) { RTL_PROSE = !!on; }
 const isolateRanges = (s) => String(s ?? "").replace(NUM_RANGE, (m) => LRI + m + PDI);
 const prose = (s) => (RTL_PROSE ? isolateRanges(s) : s);
 
+// ── LTR prose mode: Nastaliq metrics for Arabic runs on an English page (bd-b8ypq) ─
+//
+// bd-jdtdl made the Nastaliq FACE reachable whenever the document carries Urdu, whatever chrome
+// it is served with. It did not carry the LINE BOX across: `urduScript` feeds the font stack and
+// nothing else, so every line-height, and .hero's and .foot's paddings, still key off `rtl`. An
+// English lesson quoting «حضرت محمد ﷺ» therefore paints Nastaliq ink into a 1.55 line box and the
+// glyphs land on the lines above and below — the operator's Grade 6 English chapter overlapped in
+// the hero, in a Development paragraph, and in the footer.
+//
+// Taking the whole page to the Nastaliq branch is the wrong lever: it inflates every English page
+// carrying one honorific by ~50% and blows the packer's page budget (render_lp.js:94-117). Only
+// the runs that actually carry Arabic need the taller box, so only they get it.
+//
+// The ﷺ ligature is a second defect wearing the same costume. Measured over every glyph in
+// ../fonts/NotoNastaliqUrdu.ttf (unitsPerEm 1000): ordinary Nastaliq wants 1.944em at the 99th
+// percentile, but U+FDFA alone paints 3.190em — more even than its own font's 2.50em content box,
+// so no line-height an English page can afford would contain it. It is drawn far larger than the
+// script around it by design, so scaling it to ~0.61em still leaves ~1.95em of ink — bigger than
+// the Latin beside it, and inside the run's own line box. A `size-adjust` @font-face scoped to
+// `unicode-range:U+FDFA` computes the same number, but a second @font-face means a second copy of
+// a 1.1 MB base64 face on every page that quotes the Prophet's name; the wrapper is free.
+//
+// Same module-state contract as RTL_PROSE above: set by buildHtml at entry, and buildHtml is
+// synchronous, so two documents cannot interleave.
+// Exactly the set buildHtml tests for when it decides to embed the face — the two must agree, or
+// a run could be wrapped on a page that carries no Nastaliq, or carry Nastaliq unwrapped.
+const AR = "؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿";
+// A run is Arabic-script characters plus whatever holds a run together: spaces, and the zero-width
+// non-joiner/joiner (U+200B-U+200D, escaped because they are invisible in source). It must START
+// and END on a strong Arabic character, so the English on either side is never swept in.
+const AR_RUN = new RegExp(`[${AR}](?:[${AR}\\s\\u200B-\\u200D]*[${AR}])?`, "g");
+const AR_LIG = /ﷺ/g;
+let URDU_INLINE = false;
+function setUrduInline(on) { URDU_INLINE = !!on; }
+const markArabic = (s) =>
+  URDU_INLINE
+    ? String(s ?? "").replace(AR_RUN, (m) =>
+      `<span class="ar">${m.replace(AR_LIG, '<span class="ar-lig">$&</span>')}</span>`)
+    : s;
+
 /** Prose -> HTML. Escapes, applies **bold**, renders inline/display maths and chem. */
 function rich(s) {
   const src = String(s ?? "");
@@ -86,14 +126,16 @@ function rich(s) {
   let last = 0;
   let m;
   MATH.lastIndex = 0;
+  // markArabic runs AFTER esc(), or its markup would be escaped into visible angle brackets.
+  // esc() itself must stay markup-free — it is also used in HTML attribute contexts.
   while ((m = MATH.exec(src)) !== null) {
-    out += bold(esc(prose(src.slice(last, m.index))));
+    out += markArabic(bold(esc(prose(src.slice(last, m.index)))));
     if (m[1] !== undefined) out += tex(m[1], true);                    // $$…$$
     else if (m[2] !== undefined) out += inlineMath(m[2]);              // $…$
     else out += tex(`\\ce{${m[3]}}`, false);
     last = m.index + m[0].length;
   }
-  out += bold(esc(prose(src.slice(last))));
+  out += markArabic(bold(esc(prose(src.slice(last)))));
   return out;
 }
 
@@ -155,5 +197,5 @@ function fixChemPlus(s, bare = false) {
 
 module.exports = {
   rich, esc, display, displayChem, wordCount, chemPlusDefects, fixChemPlus,
-  setRtlProse, isolateRanges,
+  setRtlProse, isolateRanges, setUrduInline,
 };
