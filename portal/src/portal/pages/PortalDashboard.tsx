@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { WHATSAPP_URL } from '@/lib/whatsapp';
-import { BookOpen, MessageSquare, TrendingUp, ExternalLink } from 'lucide-react';
+import { Library, MessageSquare, TrendingUp, ExternalLink, GraduationCap, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
@@ -9,13 +9,12 @@ import { isLeader } from '../lib/leaderRole';
 import { portal } from '../services/api';
 import PortalLayout from '../components/PortalLayout';
 import StatCard from '../components/StatCard';
-import LessonPlanCard from '../components/LessonPlanCard';
 import ScoreIndicator from '../components/ScoreIndicator';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { DashboardStats, LessonPlan, CoachingSession } from '../types/portal';
+import type { DashboardStats, CoachingSession } from '../types/portal';
 
 const PortalDashboard = () => {
   const { user } = useAuth();
@@ -30,8 +29,11 @@ const PortalDashboard = () => {
     if (userIsLeader) navigate('/portal/leader', { replace: true });
   }, [userIsLeader, navigate]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({ totalLessonPlans: 0, totalCoachingSessions: 0 });
-  const [recentLessonPlans, setRecentLessonPlans] = useState<LessonPlan[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalCoachingSessions: 0,
+    totalAssessments: 0,
+    training: { modulesCompleted: 0, currentLevel: null },
+  });
   const [recentSession, setRecentSession] = useState<CoachingSession | null>(null);
   const [scoreTrend, setScoreTrend] = useState<Array<{ date: string; score: number; percentage: number }>>([]);
 
@@ -40,8 +42,12 @@ const PortalDashboard = () => {
     const fetchDashboard = async () => {
       try {
         const data = await portal.getDashboard();
-        setStats(data.stats);
-        setRecentLessonPlans(data.recentLessonPlans);
+        // Merged, not replaced. `training` is new (bd-60079) and a response
+        // from an older API — or a partial one after a failed count — has no
+        // such key, which would crash the render on stats.training.
+        // A bundle newer than the service it is talking to is the normal state
+        // during a deploy, so this is not a hypothetical.
+        setStats((prev) => ({ ...prev, ...(data.stats || {}) }));
         setRecentSession(data.recentCoachingSession || null);
         
         // Fetch analytics for score trend
@@ -161,53 +167,72 @@ const PortalDashboard = () => {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        {/* bd-60079 — four smaller stats, not three big ones.
+            "Lesson Plans" counted her own Gamma-generated output and custom
+            generation is off, so it was frozen at whatever she reached. In its
+            place: the three things she is still doing. Compact, because none
+            of the four is the headline — the score trend below is. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
           <StatCard
-            title="Lesson Plans"
-            value={stats.totalLessonPlans}
-            icon={BookOpen}
-          />
-          <StatCard
-            title="Coaching Sessions"
+            compact
+            title="Coaching sessions"
             value={stats.totalCoachingSessions}
             icon={MessageSquare}
           />
           <StatCard
-            title="Latest Score"
-            value={recentSession ? `${recentSession.percentage.toFixed(0)}%` : 'N/A'}
+            compact
+            title="Latest score"
+            value={recentSession?.percentage != null ? `${recentSession.percentage.toFixed(0)}%` : '—'}
+            detail={recentSession?.percentage != null ? 'most recent lesson' : 'no scored session yet'}
             icon={TrendingUp}
+          />
+          <StatCard
+            compact
+            title="Modules completed"
+            // A count, not "X of Y". She is scoped to certain levels and is
+            // not expected to finish all of even those, so a denominator
+            // would invent a target and make progress look like a shortfall.
+            value={stats.training?.modulesCompleted ?? 0}
+            detail={stats.training?.currentLevel || 'training'}
+            icon={GraduationCap}
+          />
+          <StatCard
+            compact
+            title="Assessments made"
+            value={stats.totalAssessments}
+            icon={FileText}
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-          {/* Recent Lesson Plans */}
+          {/* bd-60078 — "Recent Lesson Plans" removed.
+              It listed a teacher's own Gamma-generated plans and linked to My
+              Plans, and custom generation is off. Its empty state actively
+              invited her to "Generate your first lesson plan using the
+              WhatsApp bot" — an instruction for a feature that no longer
+              answers, which is worse than showing nothing.
+
+              The ready-made catalogue she CAN use is under Curriculum, so the
+              column now points there instead of disappearing and leaving the
+              grid lopsided. */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-light">Recent Lesson Plans</h2>
+              <h2 className="text-2xl font-light">Lesson Plans</h2>
               <Button asChild variant="ghost" size="sm">
-                <Link to="/portal/lesson-plans" className="flex items-center gap-2">
-                  View All
+                <Link to="/portal/curriculum" className="flex items-center gap-2">
+                  Browse
                   <ExternalLink className="w-4 h-4" />
                 </Link>
               </Button>
             </div>
 
-            {recentLessonPlans.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {recentLessonPlans.map((plan) => (
-                  <LessonPlanCard key={plan.id} lessonPlan={plan} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={BookOpen}
-                title="No lesson plans yet"
-                description="Generate your first lesson plan using the WhatsApp bot"
-                actionLabel="Open WhatsApp"
-                actionHref={WHATSAPP_URL}
-              />
-            )}
+            <EmptyState
+              icon={Library}
+              title="Ready-made lesson plans"
+              description="Browse the curriculum library by class, subject and chapter."
+              actionLabel="Open the library"
+              actionHref="/portal/curriculum"
+            />
           </div>
 
           {/* Coaching Score Trend */}

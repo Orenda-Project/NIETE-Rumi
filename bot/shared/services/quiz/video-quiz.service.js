@@ -376,8 +376,8 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   let takerName = studentName;
   if (!takerName && source === 'video_solo' && userId) {
     const { data: user } = await supabase
-      .from('users').select('first_name, last_name').eq('id', userId).maybeSingle();
-    takerName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || null;
+      .from('users').select('name').eq('id', userId).maybeSingle();
+    takerName = user?.name || null;
   }
 
   const { data: session, error: sErr } = await supabase

@@ -52,7 +52,7 @@ async function generateCoachingExcel() {
   const userIds = [...new Set(sessions.map(s => s.user_id).filter(Boolean))];
   const { data: users, error: userError } = await supabase
     .from('users')
-    .select('id, first_name, last_name, phone_number, school_name')
+    .select('id, phone_number, school_name, name')
     .in('id', userIds);
 
   if (userError) {
@@ -72,7 +72,7 @@ async function generateCoachingExcel() {
 
   for (const session of sessions) {
     const user = userMap[session.user_id] || {};
-    const teacherName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const teacherName = user.name || 'Unknown';
 
     // Extract subject and topic from analysis_data
     let subject = '';

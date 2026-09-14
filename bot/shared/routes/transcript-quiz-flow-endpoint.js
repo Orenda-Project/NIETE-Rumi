@@ -341,11 +341,11 @@ function actionsFor({ state, quiz, session, language }) {
   const rule = quiz?.language || quizLanguageFor(subject, session?.transcript_language);
   const description = resolveUx('tqFlowActionMakeDesc', { language });
   if (!needsLanguageAsk(subject)) {
-    return [{ id: `make:${rule}`, title: resolveUx('tqFlowActionMake', { language }), description }];
+    return [{ id: `make_${rule}`, title: resolveUx('tqFlowActionMake', { language }), description }];
   }
   const first = LANGUAGE_OFFER.includes(rule) ? rule : LANGUAGE_OFFER[0];
   return [first, ...LANGUAGE_OFFER.filter((c) => c !== first)].map((code) => ({
-    id: `make:${code}`,
+    id: `make_${code}`,
     title: resolveUx('tqFlowActionMakeIn', {
       language, params: { language: getLanguage(code).languageTitle },
     }),
@@ -411,6 +411,9 @@ function doneScreen(kind, language, meta = {}) {
       heading: resolveUx(head, { language }),
       body: resolveUx(body, { language }),
       close: resolveUx('tqFlowClose', { language }),
+      // Shipped back as tq_action when the Footer completes: an empty completion
+      // is claimed by the attendance rule in flow-type-detector.
+      kind,
     },
   };
 }
@@ -439,6 +442,15 @@ function runAfterResponse(action, quizId, fn) {
 // steps
 // ---------------------------------------------------------------------------
 
+/** An id as it arrived, safe to log: server-minted ids are short and plain, so
+ *  anything else is reported by shape rather than echoed into the log. */
+function safeId(v) {
+  if (v === undefined) return '(absent)';
+  if (typeof v !== 'string') return `(${typeof v})`;
+  if (v === '') return '(empty)';
+  return /^[A-Za-z0-9_:.-]{1,40}$/.test(v) ? v : `(unexpected:${v.length}ch)`;
+}
+
 async function stepLesson(teacher, screenData) {
   const language = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
   const loaded = await loadLesson(teacher, screenData && screenData.session_id);
@@ -456,14 +468,28 @@ async function stepLesson(teacher, screenData) {
     started: students.length,
     finished: students.filter((s) => s.status === 'completed').length,
   });
+  // A quiz still being written has nothing to tap. Sending it to the terminal
+  // screen says so plainly instead of serving a lesson whose only control is an
+  // empty, hidden chooser.
+  if (!actionsFor({ state, quiz, session, language }).length) {
+    return doneScreen('wait', language, { userId: teacher.id, quizId: quiz?.id || null });
+  }
   return lessonScreenFrom({ teacher, session, quiz, students, language });
 }
 
 async function stepAction(teacher, screenData) {
   const language = teacherLanguageFor({ preferredLanguage: teacher?.preferred_language });
-  const action = String((screenData && screenData.action) || '').trim();
+  // The choice ships as `tq_action`, never `action`: `action` is the request's
+  // own top-level field and the client drops a payload key that collides with
+  // it — on 10 Sep the submit arrived as {step, session_id, quiz_id} with the
+  // choice absent, not empty. quiz-flow and status-flow carry theirs as
+  // `_action` for the same reason.
+  const submitted = String((screenData && screenData.tq_action) || '').trim();
   const loaded = await loadLesson(teacher, screenData && screenData.session_id);
   if (!loaded) {
+    logEvent('transcript_quiz.flow_action_refused', {
+      userId: teacher.id, reason: 'lesson_not_found', action: submitted,
+    });
     return lessonsScreen(teacher, 1, { error_message: resolveUx('tqFlowErrNotYours', { language }) });
   }
   const { session, quiz } = loaded;
@@ -477,12 +503,30 @@ async function stepAction(teacher, screenData) {
     extra: { error_message: resolveUx(key, { language }) },
   });
 
+  if (!submitted && !available.length) {
+    return doneScreen('wait', language, { userId: teacher.id });
+  }
+
+  // A submit carrying no choice is not a teacher changing their mind — in
+  // production it was every submit there has ever been, 187 of them, 183 inside
+  // a retry burst. Where the lesson offers exactly one thing, do that thing: a
+  // tap on Continue under a single option cannot mean anything else.
+  const action = submitted || (available.length === 1 ? available[0] : '');
   if (!action) {
-    // The "being made" lesson has nothing to tap; its footer says Close.
-    if (!available.length) return doneScreen('wait', language, { userId: teacher.id });
+    logEvent('transcript_quiz.flow_action_refused', {
+      userId: teacher.id, reason: 'no_action_picked', available: available.length,
+    });
     return refuse('tqFlowErrPickAction');
   }
-  if (!available.includes(action)) return refuse('tqFlowErrPickAction');
+  if (!available.includes(action)) {
+    logEvent('transcript_quiz.flow_action_refused', {
+      userId: teacher.id, reason: 'action_unavailable', action, available: available.length,
+    });
+    return refuse('tqFlowErrPickAction');
+  }
+  if (!submitted) {
+    logEvent('transcript_quiz.flow_action_defaulted', { userId: teacher.id, action });
+  }
 
   logEvent('transcript_quiz.flow_action', { userId: teacher.id, action, quizId: quiz?.id || null });
 
@@ -509,8 +553,17 @@ async function stepAction(teacher, screenData) {
     return doneScreen('link', language, { userId: teacher.id, quizId });
   }
 
-  // make:<language>
-  const chosen = clampLanguage(action.slice('make:'.length));
+  // make_<language>.
+  //
+  // The separator is an underscore because a colon does not survive the trip.
+  // These ids are the `id` of a RadioButtonsGroup data-source item, and the one
+  // the teacher picks comes back as ${form.tq_action}. With `make:en` that value
+  // arrived EMPTY every time — 187 times in production, and once more on sandbox
+  // with the radio visibly selected, logged as flow_action_refused
+  // reason=no_action_picked. Every RadioButtonsGroup in this repo that works uses
+  // plain ids (`pdf`, `english`); the two flows shipping colon ids feed a
+  // Dropdown, not a radio.
+  const chosen = clampLanguage(action.slice('make_'.length));
   const teacherId = teacher.id;
   const sessionId = session.id;
   const phone = teacher.phone_number;
@@ -525,7 +578,16 @@ async function stepAction(teacher, screenData) {
     });
     return true;
   });
-  return doneScreen('make', language, { userId: teacher.id, language: chosen });
+  // The chat already says "making it now" (enqueueGenerate sends tqMaking), so
+  // a screen saying it again is the same sentence twice. Close the Flow from
+  // the endpoint instead: SUCCESS is Meta's reserved endpoint-close, not a
+  // declared screen, and its params are the flat discriminator the chat side
+  // routes on (see handleTranscriptQuizFlowCompletion).
+  logEvent('transcript_quiz.flow_closed', { kind: 'make', userId: teacher.id, language: chosen });
+  return {
+    screen: 'SUCCESS',
+    data: { extension_message_response: { params: { tq_action: 'make', language: chosen } } },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -551,6 +613,21 @@ async function handleTranscriptQuizDataExchange(flowToken, screen, screenData) {
     return lessonsScreen(null, 1, { error_message: resolveUx('tqFlowErrNotYours', { language }) });
   }
   const step = String((screenData && screenData.step) || '');
+  // Three separate theories about the dead /quiz action have now been wrong,
+  // each argued from what the client OUGHT to send. Nothing here has ever
+  // recorded what it DID send, so the question that settles it — does `action`
+  // arrive absent, empty, or under another key? — was unanswerable from the
+  // logs. Keys and lengths only: every value in this payload is a server-minted
+  // id, and none of it is the teacher's own text.
+  logEvent('transcript_quiz.flow_payload', {
+    userId: teacher.id,
+    step,
+    screen: String(screen || ''),
+    keys: Object.keys(screenData || {}).sort().join(','),
+    action: safeId(screenData && screenData.tq_action),
+    actionLen: String((screenData && screenData.tq_action) || '').length,
+    actionType: typeof (screenData && screenData.tq_action),
+  });
   try {
     if (step === 'page') {
       const page = Number(screenData.page) || 1;

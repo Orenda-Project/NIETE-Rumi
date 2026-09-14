@@ -50,6 +50,22 @@ const DIAGRAM_TYPES = new Set([
   "dna_helix", "rna_helix", "nucleic_acid_helix", "helix",
   "labelled_figure", "textbook_figure", "photo_labels",
   "illustrative", "ai_art", "placeholder",
+  // ── the early-years eight ──────────────────────────────────────────────────────────────────
+  // Landed in the engine with the grade 1-5 picture question (`0cb5ab39`) and reached this table
+  // only now. V5's job is to accept a LEGAL figure, not to re-litigate the grade — the same rule
+  // `bot/shared/services/quiz/transcript-quiz-figure.js` states for its ALLOWED_TYPES, which
+  // carries all 28 while its author roster carries only the 6-12 twenty. Until this line existed
+  // a ten-frame the engine draws happily was rejected by the checker as an unknown type, which is
+  // a hard fail on a document that is not wrong. The AUTHOR-facing scoping lives in the briefs and
+  // in tests/lp612/brief-field-coverage.test.js, not here.
+  "clock", "analogue_clock", "clock_face", "telling_time",
+  "compare_size", "longer_shorter", "taller_shorter", "heavier_lighter", "balance_scale",
+  "count_frame", "ten_frame", "tally", "tally_marks",
+  "count_objects", "counting", "pictograph_count", "count_pictures",
+  "match", "matching", "two_columns", "pair_up",
+  "money", "coins", "coins_and_notes", "currency",
+  "pattern", "sequence", "what_comes_next", "pattern_completion",
+  "word_blank", "missing_letter", "fill_the_blank_word", "phonics_word",
 ]);
 
 // type -> canonical family, so a spec written with an alias still satisfies its subject minimum.
@@ -74,6 +90,16 @@ const CANON = {
   bio_schematic: "cell",
   photo_labels: "labelled_figure", textbook_figure: "labelled_figure",
   ai_art: "illustrative", placeholder: "illustrative",
+  // the early-years eight — same rule as every family above: an alias satisfies its family's minimum.
+  analogue_clock: "clock", clock_face: "clock", telling_time: "clock",
+  longer_shorter: "compare_size", taller_shorter: "compare_size",
+  heavier_lighter: "compare_size", balance_scale: "compare_size",
+  ten_frame: "count_frame", tally: "count_frame", tally_marks: "count_frame",
+  counting: "count_objects", pictograph_count: "count_objects", count_pictures: "count_objects",
+  matching: "match", two_columns: "match", pair_up: "match",
+  coins: "money", coins_and_notes: "money", currency: "money",
+  sequence: "pattern", what_comes_next: "pattern", pattern_completion: "pattern",
+  missing_letter: "word_blank", fill_the_blank_word: "word_blank", phonics_word: "word_blank",
 };
 
 const NON_VISUAL = new Set(["illustrative"]);

@@ -139,13 +139,16 @@ OUT=$(stop_hook)
 has  "silent with no marker"           "$OUT" "decision"             no
 
 cleanup
-arm "$G $P origin develop" >/dev/null
+# E2E_SPEC_SYNC_OFF: this case pins PHASE 2's once-only nudge in isolation. With a
+# sync armed, the second stop legitimately HOLDS for phase 1 while the spec is
+# unchanged (bd-zqtgs) — that contract is pinned by e2e-phase1-gate.test.sh.
+E2E_SPEC_SYNC_OFF=1 arm "$G $P origin develop" >/dev/null
 OUT=$(stop_hook)
 has  "blocks the stop when armed"      "$OUT" '"block"'              yes
 has  "reason names the command"        "$OUT" "/niete-e2e menu"      yes
 
-# THE LOOP GUARD. One nudge, then it lets go. A Stop hook that blocks forever
-# wedges the session and gets deleted, taking the whole feature with it.
+# THE LOOP GUARD (phase 2). One E2E order, then it lets go. A Stop hook that
+# blocks forever wedges the session and gets deleted, taking the feature with it.
 OUT=$(stop_hook)
 has  "does NOT block a second time"    "$OUT" '"block"'              no
 say  "marker survives for visibility"            "$(marker_exists)"  yes
@@ -874,7 +877,7 @@ has  "...disclosing the stale-build risk" "$MS" "not been deployed"    yes
 # The sign-off used to say "for this push" unconditionally, so a commit-armed
 # reason closed by naming an event that never happened. Same class of bug as the
 # one bd-43513 fixed in the opening line.
-has  "...sign-off names commit, not push" "$MS" "again for this commit" yes
+has  "...sign-off names commit, not push" "$MS" "once for this commit" yes
 
 rm -f "$MPENDING"
 MOUT=$(mode_arm "$G $P origin develop")
@@ -890,8 +893,9 @@ has  "...with no co-equal opt-out"     "$MS" "Do one of these"         no
 # guard against — but there is still exactly ONE nudge, which is the anti-wedge
 # invariant this whole file exists for.
 rm -f "$MPENDING"
-mode_arm "$G $C -m 'first'"  >/dev/null
-mode_arm "$G $C -m 'second'" >/dev/null
+# Phase 2 in isolation again (see the loop-guard case above for why).
+E2E_SPEC_SYNC_OFF=1 mode_arm "$G $C -m 'first'"  >/dev/null
+E2E_SPEC_SYNC_OFF=1 mode_arm "$G $C -m 'second'" >/dev/null
 say  "a second commit re-arms"               "$(marker_mode)"          execute
 MS=$(mode_stop)
 has  "...and still blocks once"        "$MS" "EXECUTE NOW"             yes
@@ -1094,15 +1098,20 @@ cleanup
 OUT=$(arm "$G commit -m docs" "README.md")
 say  "docs-only commit writes no brief"          "$(sync_exists)"        no
 
-# ── the nudge-once guarantee still holds with two phases ─────────────────────
-# Adding a phase must not add a second block. A Stop hook that fires twice is the
-# wedge this whole file exists to prevent.
+# ── with two phases: the E2E is ordered once, the Gherkin HOLDS ──────────────
+# bd-zqtgs. The second stop may block again — but only for phase 1, only while the
+# spec is unchanged/undeclared, and only up to E2E_PHASE1_MAX_BLOCKS times (the
+# anti-wedge bound; e2e-phase1-gate.test.sh pins the cap). It must never re-order
+# the E2E: that is the once-only guarantee this file exists for.
 cleanup
 arm "$G commit -m 'change the menu'" >/dev/null
 FIRST=$(stop_hook)
 SECOND=$(stop_hook)
-has  "two-phase nudge still blocks once"         "$FIRST"  '"block"'     yes
-say  "...and is silent the second time"          "${SECOND:-empty}"      empty
+has  "two-phase: first stop orders the E2E"      "$FIRST"  "EXECUTE NOW"          yes
+has  "...and names phase 1"                      "$FIRST"  "PHASE 1"              yes
+has  "second stop holds for phase 1 (spec unchanged)" "$SECOND" "PHASE 1 IS NOT DONE" yes
+has  "...without re-ordering the E2E"            "$SECOND" "EXECUTE NOW"          no
+has  "...and offers the declaration exit"        "$SECOND" "--declare"            yes
 
 # ── --clear takes the brief with it ──────────────────────────────────────────
 # A stale brief is worse than none: it describes a diff that is no longer HEAD,

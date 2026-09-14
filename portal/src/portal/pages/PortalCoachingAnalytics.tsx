@@ -253,8 +253,14 @@ const PortalCoachingAnalytics = () => {
               <Award className="w-5 h-5 text-green-600" />
               <span className="text-sm text-muted-foreground">Improvement</span>
             </div>
-            <div className="text-3xl font-bold text-green-600">
-              +{analytics.insights.improvement.toFixed(1)}%
+            {/* Signed, and coloured by direction. A hardcoded "+" printed a
+                decline as a gain — and now that this is a real percentage
+                rather than a flat zero, declines actually occur. */}
+            <div className={`text-3xl font-bold ${
+              analytics.insights.improvement < 0 ? 'text-rose-600' : 'text-green-600'
+            }`}>
+              {analytics.insights.improvement > 0 ? '+' : ''}
+              {analytics.insights.improvement.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground mt-1">Since first session</p>
           </div>
@@ -265,7 +271,7 @@ const PortalCoachingAnalytics = () => {
               <span className="text-sm text-muted-foreground">Strongest Area</span>
             </div>
             <div className="text-lg font-semibold text-foreground leading-tight">
-              {analytics.insights.bestGoalArea}
+              {analytics.insights.bestGoalArea || 'Not scored yet'}
             </div>
           </div>
         </div>
@@ -326,9 +332,19 @@ const PortalCoachingAnalytics = () => {
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold mb-2">Recommended Focus Area</h3>
+              {/* Averaged across every scored session, not read off the latest
+                  one. This used to sort six OECD goals that a FICO session
+                  leaves empty, so the "recommendation" was whichever zero
+                  sorted last. */}
               <p className="text-foreground mb-4">
-                Based on your recent sessions, we recommend focusing on <strong>{analytics.insights.focusArea}</strong>. 
-                This area shows the most opportunity for improvement and can have a significant impact on your overall teaching effectiveness.
+                {analytics.insights.focusArea ? (
+                  <>
+                    Across your sessions so far, <strong>{analytics.insights.focusArea}</strong> is
+                    where your scores are lowest — so it is the area with the most room to grow.
+                  </>
+                ) : (
+                  <>Once you have a few more sessions, we will show you where your scores suggest focusing.</>
+                )}
               </p>
               <Button asChild className="bg-accent hover:bg-accent/90">
                 <a 

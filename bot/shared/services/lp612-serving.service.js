@@ -32,10 +32,13 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 // Additive semantic-event channel (feature.action.result). Every prose line below is untouched.
 const { logEvent } = require('../utils/structured-logger');
+// The outbound TeX→Unicode pass for the WhatsApp body (bd-lafr9). See buildBody.
+const { texToUnicode } = require('../utils/tex-to-unicode');
 const WhatsAppService = require('./whatsapp.service');
 // NB: the queue is required LAZILY, inside enqueue() — see the note there.
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
+const { subjectNameFor } = require('../config/lp612-subject-order');
 const Catalog = require('./lp612-catalog.service');
 // The shelf `buildLpContext` reads. Required at module scope deliberately: it pulls in the Redis
 // wrapper, which the root suites already stub, and a lazy require here would hide a missing
@@ -238,7 +241,11 @@ function buildCaption(segment, lang, { overlayDropped = false, renderDegraded = 
     params: {
       topic: segment.subtopic_title || segment.menu_title || '',
       grade: segment.grade,
-      subject: segment.subject,
+      // bd-63dea: the one token on this line that used to stay English. `segment.subject` is free
+      // text from the segmentation import, so an Urdu delivery read «جماعت 7 · Urdu · صفحات 30».
+      // The name map folds the corpus spellings first, and hands back the raw string for a subject
+      // it has no Urdu name for — see config/lp612-subject-order.js.
+      subject: subjectNameFor(segment.subject, lang),
       pages,
     },
   });
@@ -259,6 +266,19 @@ function buildCaption(segment, lang, { overlayDropped = false, renderDegraded = 
 
 /** Say something, always, and never let saying it break the caller. */
 async function tell(phone, key, lang) {
+  // NO PHONE, NO CHATTER — and one guard here rather than fourteen at the call sites.
+  //
+  // `requestLessonImpl` narrates its decision to the teacher on fourteen paths. All fourteen are
+  // fire-and-forget: this function owns the try/catch and returns nothing, and no branch reads a
+  // result. That is what makes the portal seam cheap — the DECISION half of the service is
+  // already surface-neutral, so the only thing standing between it and a browser is the
+  // narration, and the narration has exactly one door.
+  //
+  // Guarding here instead of at the callers is deliberate. A caller-side check is fourteen
+  // chances to forget one, and the one you forget sends `sendMessage(undefined, …)` to Meta:
+  // a rejected request, a logged error, and — because this is soft-failed — total silence about
+  // it. Guarding at the door makes "a surface with no phone number" unrepresentable downstream.
+  if (!phone) return;
   try {
     await WhatsAppService.sendMessage(phone, resolveUx(key, { language: lang }));
   } catch (err) {
@@ -569,11 +589,17 @@ async function findRender(segmentId, lang, tv) {
  *
  * Returns '' when there is nothing to say. Renders cached before this shipped
  * carry no stored `one_screen`, and an empty message is worse than none.
+ *
+ * The TeX pass (bd-lafr9) happens HERE, at the last hop before the handset, and
+ * not at authoring time: the stored `one_screen` on every render cached before
+ * today still holds its TeX, so a fix upstream would leave 44% of maths lessons
+ * shipping `$-6 \times \square = -540$` until every render was regenerated.
+ * Converting on the way out repairs the backlog and the new writes together.
  */
 function buildBody({ oneScreen, segment }) {
   const yt = segment && segment.yt;
   const parts = [];
-  if (oneScreen && String(oneScreen).trim()) parts.push(String(oneScreen).trim());
+  if (oneScreen && String(oneScreen).trim()) parts.push(texToUnicode(String(oneScreen).trim()));
   // `yt.url`, never `yt` — the swarm writes a slot for every segment it
   // considered and only a resolved one carries a url. A truthy urlless object
   // would put a lone emoji on its own line.
@@ -811,9 +837,24 @@ async function deliverRender({
 /** `ui_lang` is the language SHE is spoken to in — recorded per waiter, because
  *  two teachers waiting on one render need not share one. The document's own
  *  language is on the row; this is the other territory. */
-function waiterEntry({ userId, phone, uiLang }) {
+function waiterEntry({ userId, phone, uiLang, surface }) {
   return {
-    user_id: userId, phone, ui_lang: uiLang, requested_at: new Date().toISOString(),
+    user_id: userId,
+    // `null`, never `undefined` — this object is serialised into a jsonb column, and an
+    // undefined value would be dropped from the JSON entirely. The worker's skip below tests
+    // this field, and a field that is absent rather than null is a field that reads as a bug.
+    phone: phone || null,
+    ui_lang: uiLang,
+    // WHICH SURFACE IS OWED THIS LESSON. The worker claims this list when the render completes
+    // and loops `deliverRender({ phone: w.phone, … })` over every entry. A portal waiter has no
+    // phone: without this field the worker would hand `undefined` to Meta, count a lesson that
+    // was authored perfectly well as a delivery failure, and — worse — spend part of the send
+    // deadline that every WhatsApp waiter behind it in the same loop is sharing.
+    //
+    // Defaulted rather than required, so rows written before this change (and any caller that
+    // does not pass it) keep reading as what they are.
+    surface: surface || 'whatsapp',
+    requested_at: new Date().toISOString(),
   };
 }
 
@@ -1004,6 +1045,9 @@ async function requestLesson(req) {
     userId: (req && req.userId) || null,
     renderId: (result && result.renderId) || null,
     templateVersion: templateVersion(),
+    // On every serve event, so "how much of this feature is the portal?" is answerable from
+    // telemetry rather than by inferring it from the absence of a phone number.
+    surface: (req && req.surface) || 'whatsapp',
     correlationId: (req && req.correlationId) || null,
     elapsedMs: Date.now() - startedAt,
     error: (result && result.error) || null,
@@ -1011,10 +1055,25 @@ async function requestLesson(req) {
   return result;
 }
 
-async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, correlationId }, depth = 0) {
+async function requestLessonImpl(
+  { segmentId, userId, phone, lang, uiLang, correlationId, surface }, depth = 0,
+) {
   const language = clampLanguage(lang);
   const voice = clampLanguage(uiLang || lang);
   const tv = templateVersion();
+
+  /**
+   * THE SURFACE DECIDES DELIVERY — the caller does not get a vote.
+   *
+   * Derived here rather than accepted as a `deliver` parameter, which is the rule the Assessment
+   * Generator's split settled on for the same reason: a boolean in the signature is one typo away
+   * from WhatsApping a portal teacher's lesson to whatever `phone` happened to be in scope. A
+   * surface name cannot be got wrong that way — 'whatsapp' delivers, everything else returns.
+   *
+   * Defaulting to 'whatsapp' keeps every existing caller byte-identical in behaviour; the
+   * WhatsApp handler passes nothing and gets exactly what it got before.
+   */
+  const toWhatsApp = (surface || 'whatsapp') === 'whatsapp';
 
   const segment = await Catalog.segmentById(segmentId);
   if (!segment) {
@@ -1033,10 +1092,12 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
     return { outcome: 'held' };
   }
 
-  const req = { userId, phone, uiLang: voice };
+  const req = { userId, phone, uiLang: voice, surface };
   // The INNER function, deliberately: a re-decide is one request, not two, and re-entering the
   // wrapper would emit a second event for the same tap.
-  const retry = () => requestLessonImpl({ segmentId, userId, phone, lang, uiLang, correlationId }, depth + 1);
+  const retry = () => requestLessonImpl(
+    { segmentId, userId, phone, lang, uiLang, correlationId, surface }, depth + 1,
+  );
 
   const { render: existing, readFailed } = await findRender(segmentId, language, tv);
 
@@ -1053,6 +1114,29 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
   // treated as a miss — presigning `undefined` would fail at Meta with nothing
   // useful logged.
   if (existing && existing.status === 'ready' && existing.r2_key) {
+    // A SURFACE THAT DELIVERS ITSELF gets the key, not the send.
+    //
+    // This is the whole cache-hit half of the seam. The decision above — is there a render for
+    // this (segment, language, template)? — is identical for both surfaces and stays where it
+    // is. Only the answer's DELIVERY differs: WhatsApp pushes a document at her, the portal
+    // presigns the same object and hands the browser a link.
+    //
+    // Returned BEFORE the try/catch below on purpose: there is no send to fail here, so there is
+    // no `deliver_failed` to report, and wrapping a return in a catch that can never fire is how
+    // a future edit ends up with an unreachable branch.
+    if (!toWhatsApp) {
+      logToFile('LP 6-12: cache hit served to a non-WhatsApp surface', {
+        segmentId, lang: language, tv, surface, correlationId,
+      });
+      return {
+        outcome: 'cache_hit',
+        renderId: existing.id,
+        r2Key: existing.r2_key,
+        oneScreen: existing.one_screen || null,
+        renderDegraded: existing.render_degraded === true,
+      };
+    }
+
     try {
       await deliverRender({
         phone,

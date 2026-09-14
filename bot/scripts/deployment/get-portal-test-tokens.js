@@ -43,7 +43,7 @@ async function generateTestTokens() {
       // Check if user exists
       const { data: existingUser, error: fetchError } = await supabase
         .from('users')
-        .select('id, first_name, last_name, portal_activated')
+        .select('id, portal_activated, name')
         .eq('phone_number', account.phoneNumber)
         .single();
 
@@ -56,8 +56,7 @@ async function generateTestTokens() {
           .from('users')
           .insert({
             phone_number: account.phoneNumber,
-            first_name: account.firstName,
-            last_name: account.lastName,
+            name: [account.firstName, account.lastName].filter(Boolean).join(' '),
             preferred_language: 'en',
             registration_state: 'REGISTERED',
             registration_completed: true
@@ -70,7 +69,7 @@ async function generateTestTokens() {
           continue;
         }
 
-        console.log(`✅ User created: ${newUser.first_name} ${newUser.last_name}\n`);
+        console.log(`✅ User created: ${newUser.name} ${newUser.name}\n`);
       }
 
       // Generate token and expiry

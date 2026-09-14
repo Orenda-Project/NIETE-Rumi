@@ -91,7 +91,7 @@ function isRegisteredTeacher(user) {
  * been asked who she is by the teacher-facing bot and answered.
  */
 function hasTeacherName(user) {
-  return Boolean(user && typeof user.first_name === 'string' && user.first_name.trim());
+  return Boolean(user && typeof user.name === 'string' && (user.name || '').trim());
 }
 
 /**

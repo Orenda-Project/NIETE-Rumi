@@ -5,7 +5,7 @@
 #   bash .claude/qa/shared/run-suite.sh all   --driver 923…            # EVERYTHING: safe + @slow + @destructive + @wip (DEEP coaching, training seeds)
 #   bash .claude/qa/shared/run-suite.sh safe  --driver 923…            # the default /niete-e2e subset
 #   bash .claude/qa/shared/run-suite.sh lesson-plan,status --driver 923…   # named features (every scenario in them)
-#   options: --env staging|prod  --target <digits>  --port 9223  --run-id <id>  --no-seed  --reflect slash
+#   options: --env sandbox|staging|prod  (default sandbox — the landing branch's env since 2026-09-09)  --target <digits>  --port 9223  --run-id <id>  --no-seed  --reflect slash
 #
 # Preconditions it CHECKS (and stops on): Chrome CDP on the port, a live web.whatsapp.com target, the
 # target chat open in #main, the driver lock free. It does NOT scan a QR code or open the chat for you.
@@ -24,7 +24,7 @@ MODE="${1:-safe}"; shift || true
 # REFLECT: default to the inherited env value (REFLECT=slash drives COA10 instead of COA06);
 # an empty local default here USED to shadow the inherited env, so named `coaching` mode could
 # never take the slash branch. The --reflect flag still overrides. FIRSTUSE passes through untouched.
-DRIVER="" ENV="staging" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFLECT="${REFLECT:-}"
+DRIVER="" ENV="sandbox" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFLECT="${REFLECT:-}"
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
@@ -51,7 +51,7 @@ say "=== /niete-e2e $MODE · $(date -u +%FT%TZ) · tenant NIETE env=$ENV target=
 curl -s -m 3 "http://127.0.0.1:$PORT/json/version" >/dev/null || { say "BLOCKED: no Chrome DevTools on port $PORT — run: bash $QA/start-chrome-cdp.sh"; exit 3; }
 node "$QA/inject-wa-drive.js" --port "$PORT" --quiet >/dev/null 2>&1 || { say "BLOCKED: no linked web.whatsapp.com tab on port $PORT (open it; scan the QR with the driver phone if shown)"; exit 3; }
 HEADER=$(node "$QA/cdp-eval.cjs" '(document.querySelector("#main header")||{innerText:""}).innerText.split("\n").filter(Boolean).slice(0,2).join(" | ")' --port "$PORT" 2>/dev/null || echo "")
-case "$HEADER" in *Staging*|*NIETE*|*"$TARGET"*) say "chat open: $HEADER";; *) say "BLOCKED: the target chat is not open in WhatsApp Web (header: '${HEADER:-none}'). Open the bot chat ($TARGET) with a real click, confirm the header, re-run."; exit 3;; esac
+case "$HEADER" in *Staging*|*NIETE*|*[Ss]andbox*|*"Digital Coach Updates"*|*"$TARGET"*) say "chat open: $HEADER";; *) say "BLOCKED: the target chat is not open in WhatsApp Web (header: '${HEADER:-none}'). Open the bot chat ($TARGET) with a real click, confirm the header, re-run."; exit 3;; esac
 python3 "$QA/driver_lock.py" acquire --driver "$DRIVER" --run-id "$RUN_ID" >>"$LOG" 2>&1 || { say "BLOCKED: driver lock held (see $LOG) — another run is driving $DRIVER"; exit 3; }
 trap 'python3 "$QA/driver_lock.py" release --driver "$DRIVER" >/dev/null 2>&1' EXIT
 

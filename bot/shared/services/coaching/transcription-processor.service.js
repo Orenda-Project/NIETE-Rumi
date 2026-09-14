@@ -47,7 +47,7 @@ class TranscriptionProcessorService {
       // Get session data
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('*, users!inner(phone_number, first_name)')
+        .select('*, users!inner(phone_number, name)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -285,7 +285,7 @@ class TranscriptionProcessorService {
       // Send encouraging message
       const CoachingHelpersService = require('./coaching-helpers.service');
       const encouragingMessage = await CoachingHelpersService.generateEncouragingMessage(
-        session.users.first_name,
+        session.users.name,
         session.audio_duration_seconds
       );
       await WhatsAppService.sendMessage(from, encouragingMessage);
@@ -464,7 +464,7 @@ class TranscriptionProcessorService {
         try {
           const { data: session } = await supabase
             .from('coaching_sessions')
-            .select('users!inner(phone_number)')
+            .select('users!inner(name, phone_number)')
             .eq('id', coachingSessionId)
             .single();
           from = session?.users?.phone_number;

@@ -7,6 +7,7 @@
 > | **Full name** | National Institute for Excellence in Teacher Education (NIETE), Islamabad |
 > | **WhatsApp (prod)** | `+92 320 6281951` (Meta App `2052724122329740`, Mudareb-adopted) |
 > | **WhatsApp (staging)** | `+92 322 2482222` (Meta App `4509630046027431`, added 2026-08-03) |
+> | **WhatsApp (sandbox)** | `+92 302 5502255` — display name "Digital Coach Updates". Railway project **NIETE-Rumi Staging**, env `sandbox` (tracks branch `sandbox`), bot `https://bot-sandbox.up.railway.app`. **Its logs ship to the Axiom dataset `rumi-sandbox` (`env == "sandbox"`), NOT `niete-logs`** — query the wrong one and a sandbox test looks like it never happened (bd-bxa6m). |
 > | **Env** | `NIETE-Rumi/.env` for prod; staging creds in project-root `01_Digital Coach Docs/03_ACCESS_CREDENTIALS.md` |
 > | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
 > | **Staging URLs** | portal `https://portal-production-24e6.up.railway.app` · bot `https://bot-production-67c2.up.railway.app` — Railway project **NIETE-Rumi Staging** (`0aef0655`), env `staging`, tracking `develop`. The `-production-` in those hostnames is Railway's default naming, NOT an environment: **prod** is `portal.niete.edu.pk` / `portal-production-6a508` / `bot-production-2cb6`. Read them with `railway status --json` (each service carries its deployed branch + commit) and `railway variables --service portal`. Not knowing this cost two rounds of "is it deployed yet?" against the wrong host. |

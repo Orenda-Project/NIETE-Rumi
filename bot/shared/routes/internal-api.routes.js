@@ -1179,4 +1179,422 @@ router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', 
   return res.json({ success: true, ...out });
 }));
 
+// ─── coaching ───────────────────────────────────────────────────────────────
+//
+// The portal's coaching screens built their own score breakdown from six
+// hardcoded OECD goal names reading scores.goal1_total…goal5_total. Every
+// NIETE region is configured for FICO and a FICO session contains none of
+// those keys, so five bars rendered zero under labels her framework has never
+// used — silently, because each read carried a `|| 0`.
+//
+// The bot already dispatches five frameworks through one adapter to render her
+// report image. This exposes the same thing, one level deeper (indicators and
+// their evidence quotes, which a browser has room for and a 1080px image does
+// not). The portal holds NO framework logic and never names a domain.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function coachingRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Breakdown = require('../services/coaching/coaching-breakdown.service');
+      return await handler(Breakdown, req, res);
+    } catch (error) {
+      logToFile('❌ Internal coaching API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Coaching breakdown failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/coaching/breakdown
+ * Body { analysisData, language? } → { success, breakdown }
+ *
+ * `breakdown: null` is a real answer with a 200 — the session exists but has
+ * not been scored yet. A caller must be able to tell that from "scored zero",
+ * which is exactly the distinction the portal's `|| 0` destroyed.
+ *
+ * The ANALYSIS is passed in rather than the session id being looked up here:
+ * the portal has already fetched the row (and checked that it is hers) before
+ * it calls, so a second read would be a second chance to get ownership wrong.
+ */
+router.post('/coaching/breakdown', requireInternalKey, coachingRoute('breakdown', async (Breakdown, req, res) => {
+  const body = req.body || {};
+  const analysisData = body.analysisData;
+  if (!analysisData || typeof analysisData !== 'object') {
+    return res.status(400).json({ success: false, error: 'analysisData is required' });
+  }
+  const language = typeof body.language === 'string' ? body.language : 'en';
+  return res.json({ success: true, breakdown: Breakdown.buildBreakdown(analysisData, language) });
+}));
+
+// ─── lesson plans, grades 6-12 ──────────────────────────────────────────────
+//
+// The portal's catalogue stops at grade 5. On WhatsApp a teacher reaches 5,466
+// segments across grades 6-12, and where no lesson has been written yet the
+// bot writes one on the spot.
+//
+// TWO THINGS MAKE THIS LANE DIFFERENT FROM /lp/v8/* ABOVE.
+//
+// 1. K-5 lessons are pre-rendered: a lesson exists iff its PDF is uploaded. A
+//    6-12 SEGMENT always exists; only ~8% have a render on today's template.
+//    So `ready` is a per-lesson fact the browse endpoints report, and a tap on
+//    a lesson that is not ready starts real work.
+// 2. That work takes a MEDIAN OF 172 SECONDS (p90 314s, measured over all 473
+//    completed renders on production). The portal therefore cannot use the
+//    request/response shape the AG uses for a ~25s job. `/request` answers 202
+//    with a state, and the browser polls `/status`.
+//
+// As with the LP catalogue and the AG, the portal holds no lp612 logic and
+// reads no lp612 table — everything here goes through the same services the
+// WhatsApp Flow uses.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function lp612Route(name, handler) {
+  return async (req, res) => {
+    try {
+      const Browse = require('../services/lp612-browse.service');
+      return await handler(Browse, req, res);
+    } catch (error) {
+      logToFile('❌ Internal LP 6-12 API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Lesson-plan lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/lp612/grades
+ * Body {} → { success, grades: [{ grade }] }
+ */
+router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
+  const grades = await Browse.listGrades();
+  return res.json({ success: true, grades });
+}));
+
+/**
+ * POST /api/internal/lp612/subjects
+ * Body { grade } → { success, subjects: [{ subject, lesson_count }] }
+ */
+router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async (Browse, req, res) => {
+  const grade = num((req.body || {}).grade);
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+
+  const subjects = await Browse.listSubjects(grade);
+  return res.json({ success: true, subjects });
+}));
+
+/**
+ * POST /api/internal/lp612/chapters
+ * Body { grade, subject } → { success, chapters: [...] }
+ */
+router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+
+  const chapters = await Browse.listChapters(grade, subject);
+  return res.json({ success: true, chapters });
+}));
+
+/**
+ * POST /api/internal/lp612/lessons
+ * Body { grade, subject, chapterKey, lang? } → { success, lessons: [{ …, ready }] }
+ *
+ * `ready` is the field the UI must not drop. ~92% of taps are a cold miss, and
+ * a teacher is entitled to know she is starting a three-minute job BEFORE she
+ * starts it.
+ */
+router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapterKey = String(body.chapterKey || '').trim();
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
+
+  const lang = body.lang === 'ur' ? 'ur' : 'en';
+  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang);
+  return res.json({ success: true, lessons });
+}));
+
+/**
+ * POST /api/internal/lp612/request
+ * Body { segmentId, userId, lang? } → 202 { success, state, renderId?, url? }
+ *
+ * ALWAYS 202, NEVER 200-with-a-file, even on a cache hit. The four states the
+ * serving path can answer with (`cache_hit`, `joined`, `retry`, `queued`) are
+ * the same four whatever the surface, and a caller that has to handle "your
+ * lesson is being written" anyway is not helped by a second, faster-looking
+ * shape for the ~8% of taps that hit. One code path in the browser.
+ *
+ * `surface: 'portal'` is set HERE and is not read from the body — the same
+ * rule the AG's `deliveryFor(surface)` follows. A body-supplied surface is one
+ * forged request away from WhatsApping a lesson to a number the caller chose.
+ */
+router.post('/lp612/request', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const segmentId = String(body.segmentId || '').trim();
+    const userId = String(body.userId || '').trim();
+    if (!segmentId) return res.status(400).json({ success: false, error: 'segmentId is required' });
+    if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+    const Serving = require('../services/lp612-serving.service');
+    const out = await Serving.requestLesson({
+      segmentId,
+      userId,
+      lang: body.lang === 'ur' ? 'ur' : 'en',
+      surface: 'portal',
+      correlationId: body.correlationId || null,
+    });
+
+    // `held` and `not_found` are real answers about a real request, not server
+    // faults — 404/403 rather than a 5xx, so the browser can say something true.
+    if (out.outcome === 'not_found') {
+      return res.status(404).json({ success: false, error: 'That lesson is not in the catalogue' });
+    }
+    if (out.outcome === 'held') {
+      return res.status(403).json({ success: false, error: 'That lesson is not available yet' });
+    }
+    if (out.outcome === 'error' || out.outcome === 'deliver_failed') {
+      return res.status(500).json({ success: false, error: 'Could not start that lesson' });
+    }
+
+    return res.status(202).json({
+      success: true,
+      state: out.outcome === 'cache_hit' ? 'ready' : 'authoring',
+      renderId: out.renderId || null,
+      r2Key: out.r2Key || null,
+      oneScreen: out.oneScreen || null,
+    });
+  } catch (error) {
+    logToFile('❌ Internal LP 6-12 request failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not start that lesson' });
+  }
+});
+
+/**
+ * POST /api/internal/lp612/status
+ * Body { renderId, userId } → { success, state, url?, oneScreen?, errorCode? }
+ *
+ * The poll. `state` is one of ready | authoring | failed, and a `ready` answer
+ * carries a freshly presigned URL — never a raw R2 key, and never a URL minted
+ * earlier and cached, because a presigned link expires.
+ *
+ * A render this teacher has no claim on answers 404, identically to one that
+ * does not exist. Distinguishing them would let a caller enumerate other
+ * teachers' renders by id.
+ */
+router.post('/lp612/status', requireInternalKey, lp612Route('status', async (Browse, req, res) => {
+  const body = req.body || {};
+  const renderId = String(body.renderId || '').trim();
+  const userId = String(body.userId || '').trim();
+  if (!renderId) return res.status(400).json({ success: false, error: 'renderId is required' });
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const row = await Browse.renderStatus(renderId, userId);
+  if (!row) return res.status(404).json({ success: false, error: 'No such lesson request' });
+
+  if (row.status === 'ready' && row.r2_key) {
+    const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
+    return res.json({
+      success: true,
+      state: 'ready',
+      url: await getPresignedUrl(buildR2PublicUrl(row.r2_key)),
+      oneScreen: row.one_screen || null,
+      segmentId: row.segment_id,
+    });
+  }
+
+  return res.json({
+    success: true,
+    // A `ready` row with no key is NOT ready — presigning `undefined` fails far
+    // from here with nothing useful logged. The serving path makes the same
+    // judgement for the same reason.
+    state: row.status === 'failed' ? 'failed' : 'authoring',
+    errorCode: row.error_code || null,
+    segmentId: row.segment_id,
+    startedAt: row.started_at || null,
+  });
+}));
+
+/**
+ * POST /api/internal/lp612/mine
+ * Body { userId } → { success, lessons: [...] }
+ *
+ * "My lesson plans". Authoring takes a median of 172 seconds, so a teacher
+ * WILL navigate away — without this list the lesson we already paid for is
+ * lost to her.
+ *
+ * Deliberately does NOT presign every row: a list of fifty would mint fifty
+ * URLs, most never clicked, all expiring. The list says which are ready; the
+ * download endpoint mints one when she asks for it.
+ */
+router.post('/lp612/mine', requireInternalKey, lp612Route('mine', async (Browse, req, res) => {
+  const userId = String((req.body || {}).userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const rows = await Browse.myRenders(userId);
+  const segments = await Promise.all(rows.map((r) => Browse.segmentById(r.segment_id)));
+
+  return res.json({
+    success: true,
+    lessons: rows.map((r, i) => ({
+      renderId: r.id,
+      segmentId: r.segment_id,
+      state: r.status === 'ready' && r.r2_key
+        ? 'ready'
+        : (r.status === 'failed' ? 'failed' : 'authoring'),
+      lang: r.lang,
+      startedAt: r.started_at || null,
+      completedAt: r.completed_at || null,
+      errorCode: r.error_code || null,
+      // Null when the segment has since been superseded or withheld — the render
+      // still happened, and hiding the row would be stranger than naming it thinly.
+      title: segments[i] ? (segments[i].subtopic_title || segments[i].menu_title) : null,
+      grade: segments[i] ? segments[i].grade : null,
+      subject: segments[i] ? segments[i].subject : null,
+    })),
+  });
+}));
+
+// ─── training bands, language, capstone ─────────────────────────────────────
+//
+// THE BUG THESE CLOSE. Saving your grades in Teacher Training answered 500:
+//
+//   POST /training/bands
+//   Error: Cannot find module 'dotenv'
+//   Require stack:
+//     /app/bot/shared/config/supabase.js
+//     /app/bot/shared/services/training/band-selection.service.js
+//     /app/dashboard/routes/portal.routes.js
+//
+// Not a missing dependency — `dashboard/package.json` declares dotenv and
+// @supabase/supabase-js and both are installed. Node resolves from the
+// REQUIRING FILE'S directory, so a file under /app/bot/ searches
+// /app/bot/node_modules then /app/node_modules, and never
+// /app/dashboard/node_modules where they live. The portal service builds with
+// `npm install` at the repo ROOT, whose package.json declares four packages
+// and not these; bot/ is never installed on that service at all.
+//
+// This is the same trap `dashboard/services/certificates.service.js` documents
+// in its own docblock — "not a style choice; module resolution forces it" —
+// and the same one the lesson-plan enqueue fell into, where a swallowed
+// require degraded silently for two days.
+//
+// THREE routes were affected, not the one reported: the bands save, the
+// language change, and the capstone (staging-only today, so it would have
+// broken on promotion). All three do a DATABASE WRITE through the bot, which
+// is what drags the Supabase client — and dotenv — into the portal's process.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function bandsRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Bands = require('../services/training/band-selection.service');
+      return await handler(Bands, req, res);
+    } catch (error) {
+      logToFile('❌ Internal bands API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Band lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/training/bands/state
+ * Body { userId } → { success, options, selected, can_change, ... }
+ *
+ * The read half. Pure logic plus one users row — but it is served from here
+ * anyway, so the portal has ONE way to reach bands rather than a read it does
+ * itself and a write it delegates. Two paths to one feature is how they drift.
+ */
+router.post('/training/bands/state', requireInternalKey, bandsRoute('state', async (Bands, req, res) => {
+  const userId = String((req.body || {}).userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const supabase = require('../config/supabase');
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('training_bands, training_bands_updated_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+
+  const gate = Bands.canChangeBands(user || {});
+  return res.json({
+    success: true,
+    options: Bands.BANDS.map((b) => ({ id: b.key, title: b.label })),
+    selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
+    can_change: gate.allowed,
+    is_first_selection: gate.isFirstSelection,
+    hours_remaining: gate.hoursRemaining,
+    notice: gate.allowed
+      ? (gate.isFirstSelection ? null : Bands.changeWarning())
+      : gate.message,
+  });
+}));
+
+/**
+ * POST /api/internal/training/bands/apply
+ * Body { userId, bands } → { success, unchanged, programs } | { ok:false, reason }
+ *
+ * The write. `applyBandSelection` already returns a structured verdict rather
+ * than throwing, so the reason travels intact and the portal can keep mapping
+ * cooldown → 429 exactly as it did.
+ */
+router.post('/training/bands/apply', requireInternalKey, bandsRoute('apply', async (Bands, req, res) => {
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const raw = body.bands;
+  const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const result = await Bands.applyBandSelection(userId, selection);
+
+  // 200 with ok:false — the refusal is an ANSWER about her request (a cooldown,
+  // an empty selection), not a server fault. The portal turns it into the right
+  // status; a 4xx here would be indistinguishable from a broken internal call.
+  return res.json({ success: true, result });
+}));
+
+/**
+ * POST /api/internal/me/language
+ * Body { userId, language } → { success, applied }
+ *
+ * ONE WRITER, and it is `setUserLanguage`. A direct `users.preferred_language`
+ * update from the portal would be a SECOND writer: it sets no lock and
+ * invalidates neither Redis key, so the 24-hour cache keeps serving the old
+ * language and a later classroom recording overwrites her choice. The portal
+ * route says as much in its own comment; this endpoint is what lets it keep
+ * that promise without loading the bot's Supabase client into its process.
+ */
+router.post('/me/language', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const userId = String(body.userId || '').trim();
+    const language = String(body.language || '').trim();
+    if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+    const { isOffered, LANGUAGE_OFFER } = require('../config/languages');
+    // Rejected, not clamped. A clamp would silently store English when she
+    // asked for something else; on an explicit choice she deserves to be told.
+    if (!isOffered(language)) {
+      return res.status(400).json({
+        success: false,
+        error: 'not_offered',
+        offered: LANGUAGE_OFFER,
+      });
+    }
+
+    const { setUserLanguage } = require('../utils/language-cache');
+    const applied = await setUserLanguage(userId, language, true);
+    return res.json({ success: true, applied: applied === true });
+  } catch (error) {
+    logToFile('❌ Internal language API failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not save that language' });
+  }
+});
+
 module.exports = router;

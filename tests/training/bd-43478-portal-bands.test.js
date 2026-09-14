@@ -9,6 +9,20 @@
  * guards the wiring that a unit test cannot see: auth on every route, the
  * shared service actually being used rather than a second copy of the mapping,
  * the right status codes, and the logging idiom this file uses.
+ *
+ * bd-60085 — THE TRANSPORT CHANGED; THE INVARIANTS DID NOT.
+ *
+ * These routes used to `require` the band service in-process, and that is what made saving
+ * grades answer 500 on sandbox: the module reaches bot/shared/config/supabase.js, whose
+ * `require('dotenv')` resolves from /app/bot/node_modules then /app/node_modules and never
+ * /app/dashboard/node_modules where dotenv actually is. The portal installs only the root
+ * package.json and never installs bot/ at all.
+ *
+ * So the routes now go over the internal API, exactly as certificates and the LP catalogue do.
+ * Three assertions below moved layer as a result — "uses the shared service" is now about the
+ * CLIENT rather than a require, and the two GET-shape checks now read the bot's endpoint. What
+ * they protect is unchanged: one implementation of the band mapping, and a read that fetches
+ * only the two band columns.
  */
 
 const fs = require('fs');
@@ -36,10 +50,22 @@ describe('portal band routes — wiring', () => {
   });
 
   test('it uses the SHARED service, not a second copy of the band mapping', () => {
-    expect(SRC).toMatch(/require\('\.\.\/\.\.\/bot\/shared\/services\/training\/band-selection\.service'\)/);
-    expect(SRC).toMatch(/applyBandSelection/);
-    // The mapping itself must not be re-implemented here.
+    // Reached over the internal API rather than required in-process (see the docblock), so the
+    // assertion is that the portal delegates — and, still, that it re-implements nothing.
+    expect(SRC).toMatch(/require\('\.\.\/services\/training-bands\.service'\)/);
+    expect(SRC).toMatch(/TrainingBands\.applyBands/);
+    // The one thing that must never come back: a second copy of the mapping.
     expect(SRC).not.toMatch(/niete_middle_high['"]\s*\]/);
+    // And the in-process require that caused the 500 must stay gone — checked against CODE,
+    // because the fix deliberately leaves a comment naming the require it replaced.
+    const CODE = SRC.replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    expect(CODE).not.toMatch(/require\('\.\.\/\.\.\/bot\/shared\/services\/training\/band-selection\.service'\)/);
+
+    // The service itself is still the ONE implementation — now behind the endpoint.
+    const INTERNAL = fs.readFileSync(
+      path.join(__dirname, '../../bot/shared/routes/internal-api.routes.js'), 'utf8');
+    expect(INTERNAL).toMatch(/applyBandSelection/);
   });
 
   test('the cooldown returns 429, not a silent success', () => {
@@ -65,16 +91,26 @@ describe('portal band routes — wiring', () => {
   });
 
   test('GET exposes the options, the selection, and the change gate', () => {
-    const block = SRC.slice(SRC.indexOf("router.get('/training/bands'"),
-                            SRC.indexOf("router.get('/training/vendors'"));
+    // The portal now spreads the bot's answer, so the KEYS are asserted where they are built.
+    const INTERNAL = fs.readFileSync(
+      path.join(__dirname, '../../bot/shared/routes/internal-api.routes.js'), 'utf8');
+    const block = INTERNAL.slice(INTERNAL.indexOf("'/training/bands/state'"),
+                                 INTERNAL.indexOf("'/training/bands/apply'"));
     for (const key of ['options', 'selected', 'can_change', 'notice']) {
       expect(block).toContain(key);
     }
+    // The portal must pass them through rather than rebuilding a subset of them.
+    const portalBlock = SRC.slice(SRC.indexOf("router.get('/training/bands'"),
+                                  SRC.indexOf("router.get('/training/vendors'"));
+    expect(portalBlock).toMatch(/TrainingBands\.getBands/);
   });
 
-  test('the GET selects only the two band columns — never users.levels', () => {
-    const block = SRC.slice(SRC.indexOf("router.get('/training/bands'"),
-                            SRC.indexOf("router.get('/training/vendors'"));
+  test('the read selects only the two band columns — never users.levels', () => {
+    // Same invariant, now enforced where the query lives.
+    const INTERNAL = fs.readFileSync(
+      path.join(__dirname, '../../bot/shared/routes/internal-api.routes.js'), 'utf8');
+    const block = INTERNAL.slice(INTERNAL.indexOf("'/training/bands/state'"),
+                                 INTERNAL.indexOf("'/training/bands/apply'"));
     expect(block).toMatch(/training_bands, training_bands_updated_at/);
     expect(block).not.toMatch(/select\('[^']*\blevels\b/);
   });

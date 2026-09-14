@@ -51,6 +51,17 @@ const ADD_NEW = '__add__';
 const REMOVE_OPTION_CAP = 20;
 
 /**
+ * Meta's cap on a Flow TextBody, in characters.
+ * https://developers.facebook.com/docs/whatsapp/flows/reference/components
+ *
+ * This file used to say 1024 and pack against a hard-coded 40 names. Both were
+ * wrong, and together they hid children: `roster-lines.js` in this same repo has
+ * carried the right number (4096) since the /roster work. Measured in CODE POINTS,
+ * the conservative reading and the only one that survives Nastaliq.
+ */
+const TEXT_BODY_CAP = 4096;
+
+/**
  * Keeps `remove_options` well-formed when there is nobody to remove yet.
  *
  * ROSTER binds a CheckboxGroup's `data-source` to that array, and an EMPTY array is
@@ -167,7 +178,7 @@ async function handleClassesInit(userId) {
       .map((code) => subjectLabelFor(code, who))
       .filter(Boolean)
       .join(', ');
-    // Kept to one line per class: a Flow TextBody is 1024 code points, and a
+    // Kept to one line per class: a Flow TextBody is 4096 code points, and a
     // teacher with a dozen classes should still see all of them.
     const parts = [display, c.sessionCode];
     if (subjects) parts.push(subjects);
@@ -278,15 +289,58 @@ function buildSubjectsScreen(who, display) {
   };
 }
 
-/** The roster as one numbered block, or a sentence when it is empty. */
+const cpLen = (text) => [...String(text == null ? '' : text)].length;
+
+/**
+ * The roster as one numbered block, or a sentence when it is empty.
+ *
+ * PACKED TO THE BUDGET, NOT TO A COUNT. This used to be `students.slice(0, 40)`
+ * plus a bare `… +N`, which is what a coach reported from the field on 2026-09-08:
+ * a 44-child class showed 40 names and `… +4`, nothing on the screen saying why.
+ * The agreement is that coaches see EVERY student, because proof-reading the names
+ * is the job on this screen.
+ *
+ * The 40 was never a Meta limit. A TextBody holds 4096 characters, and against ICT
+ * production on 2026-09-09 (594 active classes, 19,761 enrolments) the LARGEST class
+ * in the whole deployment — 81 children — renders to 1,109 code points. 166 classes
+ * were over 40 and 1,086 children were invisible; every one of those rosters fits
+ * inside the budget with room to spare. They were dropped for nothing.
+ *
+ * The tail is still needed, because nothing bounds a class at 81. It carries the
+ * count AND the reason, in the teacher's own language, and it is deliberately
+ * DIFFERENT wording from `classEditHintCapped` — that one explains the removal
+ * checkbox cap, a separate truncation on the same screen. One sentence for both
+ * leaves a coach unable to tell which children are missing.
+ */
 function rosterText(students, who) {
   if (!students.length) return resolveUx('classRosterEmpty', { user: who });
-  // A Flow TextBody holds 1024 code points; a capped class is 300 children, so a
-  // full roster does not fit. Show the first 40 and say how many more there are.
-  const shown = students.slice(0, 40)
-    .map((st) => `${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`);
-  if (students.length > shown.length) shown.push(`… +${students.length - shown.length}`);
-  return shown.join('\n');
+
+  const lines = students.map(
+    (st) => `${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`,
+  );
+
+  const whole = lines.join('\n');
+  if (cpLen(whole) <= TEXT_BODY_CAP) return whole;
+
+  // Reserve room for the tail using the LARGEST count it could carry, so the reserve
+  // is an upper bound and the total can never exceed the cap.
+  const reserve = cpLen(resolveUx('classRosterOverflow', {
+    user: who, params: { hidden: students.length },
+  })) + 1; // the newline before it
+  const budget = TEXT_BODY_CAP - reserve;
+
+  const kept = [];
+  let used = 0;
+  for (const line of lines) {
+    const cost = (kept.length ? 1 : 0) + cpLen(line);
+    if (used + cost > budget) break;
+    kept.push(line);
+    used += cost;
+  }
+
+  const hidden = students.length - kept.length;
+  const tail = resolveUx('classRosterOverflow', { user: who, params: { hidden } });
+  return `${kept.join('\n')}\n${tail}`;
 }
 
 /**
@@ -304,9 +358,18 @@ function rosterText(students, who) {
 async function buildRosterScreen(who, classId, display) {
   const students = await ClassService.listStudents({ classId, teacherUserId: who.id });
 
-  // Meta caps a CheckboxGroup at 20 options. The roster TEXT still lists everyone, so
-  // the cap costs a second pass to remove the 21st child rather than hiding her —
-  // and the hint says which, because a silently short list reads as missing data.
+  // Meta caps a CheckboxGroup at 20 options, and that one IS a real Meta limit.
+  //
+  // This comment used to justify the cap by saying "the roster TEXT still lists
+  // everyone". That was FALSE for every class over 40 children — 166 of them in ICT
+  // production — because rosterText() was itself cutting the list at 40. The coach was
+  // shown one unexplained truncation and a hint about a different one.
+  //
+  // rosterText() now packs to the TextBody budget, which makes the claim true again
+  // for every class in the deployment: the list IS complete, so the cap costs a second
+  // pass to remove the 21st child rather than hiding that child. Where the budget
+  // genuinely runs out, the roster carries its OWN sentence saying so — the hint
+  // below is about the checkboxes only, and the two must never be conflated.
   const options = students.slice(0, REMOVE_OPTION_CAP).map((st) => ({
     id: st.studentId,
     title: `${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`.slice(0, 30),

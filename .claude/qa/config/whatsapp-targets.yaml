@@ -12,10 +12,26 @@
 #   (operator, bd-2748). `all` mode mutates the driver account's real state, so runners
 #   should use a test/throwaway number they're fine resetting — that's advice, not a gate.
 
-default_profile: niete
+default_profile: niete-sandbox
 
 profiles:
-  # DEFAULT E2E TARGET = STAGING (923222482222 / "Rumi Staging Niete").
+  # DEFAULT E2E TARGET = SANDBOX (923025502255). Since 2026-09-09 the flow is sandbox -> staging -> main:
+  # work lands on `sandbox` and deploys to the sandbox environment, so that is the bot the suite
+  # drives by default. Its WhatsApp display name is "Digital Coach Updates" (a saved contact may show
+  # another name, e.g. "rumi sandbox") — searching WhatsApp for "Rumi" will not find it; open it by
+  # number. Own Supabase project `olvritwoqujtjvwfulbh` (creds: keys/niete-sandbox.env), Axiom
+  # dataset `rumi-sandbox`. Test accounts were copied over from staging, so the same driver works.
+  niete-sandbox:
+    tenant: NIETE (ICT / Islamabad) — SANDBOX
+    env: sandbox
+    number: "923025502255"
+    method: chrome
+    test_driver: prompt   # RUNTIME: ask the runner for THEIR OWN linked WhatsApp number (digits, no +). Not hardcoded (bd-2748).
+    notes: "sandbox — DEFAULT e2e target since 2026-09-09; deploys from the `sandbox` branch; OWN DB olvritwoqujtjvwfulbh; logs to Axiom dataset rumi-sandbox"
+
+  # STAGING (923222482222 / "Rumi Staging Niete") — since 2026-09-09 cut from `main`, so it runs
+  # main-equivalent code: a regression check of what is promoted, NOT where new work shows up.
+  # (Everything below this line about staging being current was true until the 2026-09-08 freeze.)
   # Re-verified live 2026-08-07: staging code is now CURRENT — menu (Teacher Training present,
   # no Reading Assessment), /training native Flow, and the templated /certificate handler all
   # MATCH prod. The 2026-08-05 "older code" drift (AI cert fallback, 62-vs-20 exam caption,
@@ -41,7 +57,7 @@ profiles:
     number: "923222482222"
     method: chrome        # native Training Flow needs the desktop Chrome-MCP route
     test_driver: prompt   # RUNTIME: ask the runner for THEIR OWN linked WhatsApp number (digits, no +). Not hardcoded (bd-2748). Drives every in-scope scenario; the number never restricts the run.
-    notes: "staging — DEFAULT e2e target; code verified current 2026-08-07; OWN DB rpqkekcfvumypldbejhp (isolated from prod); logs to Axiom env=staging"
+    notes: "staging — main-equivalent since 2026-09-09 (run with --env staging for a promotion regression check); OWN DB rpqkekcfvumypldbejhp (isolated from prod); logs to Axiom env=staging"
 
   # PROD — explicit target only; stateful scenarios mutate real training progress.
   niete-prod:

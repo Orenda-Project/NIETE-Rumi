@@ -95,7 +95,8 @@ describe('transcript-quiz-flow.json', () => {
     expect(footer).toBeDefined();
     expect(footer['on-click-action'].name).toBe('data_exchange');
     expect(footer['on-click-action'].payload.step).toBe('action');
-    expect(footer['on-click-action'].payload.action).toBe('${form.tq_action}');
+    expect(footer['on-click-action'].payload.tq_action).toBe('${form.tq_action}');
+    expect(footer['on-click-action'].payload.action).toBeUndefined(); // reserved: the client drops it
   });
 
   test('DONE is terminal, has no NavigationList, and closes with a complete Footer', () => {
@@ -172,5 +173,63 @@ describe('transcript-quiz-flow.json', () => {
         if (typeof node.label === 'string') expect(node.label).toMatch(BINDING);
       }
     }
+  });
+
+  // `version` is the Flow JSON SCHEMA version, not a version of our content, and
+  // raising it raises the minimum WhatsApp build that can render the Flow. Bumping
+  // it to 7.1 for a content change published cleanly — Meta accepted it, zero
+  // validation errors — and then answered "Something went wrong" on a real handset,
+  // on a payload that matched the contract exactly. Nothing in this repo is above
+  // 7.0; do not lead the fleet on a schema version to ship a copy change.
+  test('the Flow JSON schema version stays at one this deployment has proven', () => {
+    expect(flow.version).toBe('7.0');
+  });
+});
+
+// `action`, `screen`, `flow_token` and `data` are the top-level fields of every
+// data_exchange request. A payload key named after one of them is dropped by the
+// client before the request is built: on 10 Sep the LESSON submit arrived as
+// {step, session_id, quiz_id} — the teacher's choice, sent as `action`, was
+// absent, not empty. quiz-flow.json and status-flow.json already carry their
+// choice as `_action` for exactly this reason. Guard the whole file.
+describe('no data_exchange payload uses a request-level field name as a key', () => {
+  const RESERVED = ['action', 'screen', 'flow_token', 'data', 'version'];
+  const payloads = [];
+  const walk = (n, where) => {
+    if (Array.isArray(n)) return n.forEach((v, i) => walk(v, `${where}[${i}]`));
+    if (n && typeof n === 'object') {
+      const a = n['on-click-action'];
+      if (a && a.name === 'data_exchange' && a.payload) payloads.push({ where, keys: Object.keys(a.payload) });
+      Object.entries(n).forEach(([k, v]) => walk(v, `${where}.${k}`));
+    }
+  };
+  const flow = JSON.parse(fs.readFileSync(FLOW_PATH, 'utf8'));
+  flow.screens.forEach((s) => walk(s.layout, s.id));
+
+  test('the walk found the LESSON footer (the guard is not vacuous)', () => {
+    expect(payloads.some((p) => p.where.startsWith('LESSON.') && p.keys.includes('step'))).toBe(true);
+  });
+
+  test('no payload carries a reserved key', () => {
+    const offenders = payloads.filter((p) => p.keys.some((k) => RESERVED.includes(k)));
+    expect(offenders).toEqual([]);
+  });
+
+  test('the LESSON chooser ships its choice as tq_action', () => {
+    const lesson = payloads.find((p) => p.where.startsWith('LESSON.') && p.keys.includes('step'));
+    expect(lesson.keys).toContain('tq_action');
+  });
+});
+
+// DONE's completion must carry a discriminator, or the chat side cannot tell it
+// from an attendance completion (see tests/quiz/transcript-quiz-completion.test.js).
+describe('DONE completes with its kind', () => {
+  const flow = JSON.parse(fs.readFileSync(FLOW_PATH, 'utf8'));
+  const done = flow.screens.find((s) => s.id === 'DONE');
+  test('declares kind and ships it as tq_action in the complete payload', () => {
+    expect(done.data.kind).toMatchObject({ type: 'string' });
+    const footer = done.layout.children.find((c) => c.type === 'Footer');
+    expect(footer['on-click-action'].name).toBe('complete');
+    expect(footer['on-click-action'].payload).toEqual({ tq_action: '${data.kind}' });
   });
 });

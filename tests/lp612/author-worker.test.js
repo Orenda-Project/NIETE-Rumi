@@ -245,6 +245,65 @@ describe('the happy path', () => {
  * longer `authoring` — and the serving path re-decides her into a cache hit off the row that
  * was just marked ready.
  */
+/**
+ * A WAITER WITH NO PHONE COLLECTS THE LESSON HERSELF.
+ *
+ * The portal parks its teachers on this same waiter list — the row is the only record of who is
+ * owed a lesson, so leaving them off it would mean a teacher whose three-minute render finished
+ * has nothing to poll against. But this loop must not try to SEND to them.
+ *
+ * Two distinct harms if it does, and the second is the one that reaches other people. First, the
+ * obvious: `deliverRender({ phone: undefined })` throws, and a lesson that was authored perfectly
+ * well is counted in `deliveryFailures` and logged as lost. Second, and worse — this loop shares
+ * ONE deadline across every waiter (`SEND_TOTAL_BUDGET_MS`, deliberately, so a pile-up cannot
+ * push the job past its SQS visibility window). Every doomed attempt spends retry budget that
+ * belongs to the real WhatsApp waiters queued behind it. One portal teacher on a popular lesson
+ * could shorten the retries of the teachers who actually need them, during exactly the rate-limit
+ * conditions those retries exist for.
+ */
+describe('a waiter who collects the lesson herself is not a failed delivery', () => {
+  const MIXED = [
+    { user_id: 'u1', phone: '923001111111', surface: 'whatsapp' },
+    { user_id: 'u2', phone: null, surface: 'portal' },
+    { user_id: 'u3', phone: '923003333333', surface: 'whatsapp' },
+  ];
+
+  test('the phone waiters are sent to and the portal waiter is skipped', async () => {
+    seed({ waiters: MIXED });
+    mockRpc.mockImplementation(() => Promise.resolve({ data: MIXED, error: null }));
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('ready');
+    // Two sends, not three, and specifically the two that have somewhere to go.
+    expect(mockDeliverRender).toHaveBeenCalledTimes(2);
+    expect(mockDeliverRender.mock.calls.map((c) => c[0].phone))
+      .toEqual(['923001111111', '923003333333']);
+    // Never handed to Meta as `undefined`.
+    expect(mockDeliverRender.mock.calls.some((c) => !c[0].phone)).toBe(false);
+  });
+
+  test('skipping her is not counted as a delivery failure', async () => {
+    seed({ waiters: MIXED });
+    mockRpc.mockImplementation(() => Promise.resolve({ data: MIXED, error: null }));
+
+    await Worker.process(JOB);
+
+    // The render completed and nothing failed. If the skip were implemented by letting the send
+    // throw, this would read 1 — and the row would look like a lesson went missing.
+    //
+    // Asserted on the STRUCTURED event, not the log line: this is the record a query actually
+    // reads when someone asks how much of the feature the portal is serving.
+    const done = mockLogEvent.mock.calls.find((c) => c[0] === 'lp612.deliver.completed');
+    expect(done).toBeTruthy();
+    expect(done[1].deliveryFailures).toBe(0);
+    expect(done[1].delivered).toBe(2);
+    // Counted, not merely ignored: `delivered + deliveryFailures` no longer accounts for every
+    // waiter once the portal is live, so the missing one has to be nameable.
+    expect(done[1].selfServe).toBe(1);
+  });
+});
+
 describe('the audience is whoever is waiting WHEN IT FINISHES', () => {
   const ONE = [{ user_id: 'u1', phone: '923001111111' }];
   const LATE = { user_id: 'u9', phone: '923009999999' };

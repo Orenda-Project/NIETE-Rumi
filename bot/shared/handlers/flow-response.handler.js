@@ -545,9 +545,9 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     // read the persisted first_name back for the greeting when the payload dropped it.
     if (!firstName) {
       try {
-        const { data: existing } = await supabase.from('users').select('first_name, name, country').eq('id', userId).single();
+        const { data: existing } = await supabase.from('users').select('name, country').eq('id', userId).single();
         if (existing) {
-          firstName = existing.first_name || firstName;
+          firstName = existing.name || firstName;
         }
       } catch (_) { /* greeting falls back to the payload value */ }
     }
@@ -563,8 +563,10 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        ...(setIf(firstName) ? { first_name: firstName } : {}),
-        ...(setIf(fullName) ? { name: fullName } : {}),
+        // bd-60092: ONE name column, and the FULLEST value wins. The Flow's
+        // full-name screen is authoritative; the first-name field is the
+        // fallback for a payload that only carried one.
+        ...(setIf(fullName) || setIf(firstName) ? { name: fullName || firstName } : {}),
         ...(setIf(country) ? { country } : {}),
         ...(setIf(region) ? { region } : {}),
         ...(setIf(resolvedOrg) ? { organization: resolvedOrg } : {}),
@@ -924,6 +926,27 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
  *   handled, whatever the action was. The caller uses this only to know it should
  *   not fall through to the generic ack.
  */
+/**
+ * Acknowledge a /quiz Flow completion in the CHAT — by logging only.
+ *
+ * Every way the Flow ends has already sent the teacher the message that
+ * matters: `make` sends tqMaking as generation is enqueued, `report` sends the
+ * report, `link` resends the link, and `wait` closed a lesson that had nothing
+ * to tap. A chat line here would be the same sentence twice — the remark
+ * branch's rule, ONE message, not two. What this branch prevents is the generic
+ * "Thanks for your response! Type /menu…" — or, worse, the attendance rule
+ * claiming an empty completion, which is what a Done tap produced on 10 Sep.
+ *
+ * @returns {Promise<boolean>} always true — recognised and handled.
+ */
+async function handleTranscriptQuizFlowCompletion(responseJson, from) {
+  const action = String((responseJson && responseJson.tq_action) || 'done');
+  logToFile('📝 Transcript quiz flow completion', {
+    from, action, language: (responseJson && responseJson.language) || null,
+  });
+  return true;
+}
+
 async function handleStatusFlowCompletion(responseJson, from, user) {
   const action = (responseJson && responseJson.status_action) || 'done';
 
@@ -1079,6 +1102,7 @@ module.exports = {
   handleTeacherTrainingFlow,
   handleObserveVisitFlow,
   handleStatusFlowCompletion,
+  handleTranscriptQuizFlowCompletion,
   mapLevelToPassageType,
   READING_ASSESSMENT_FLOW_ID,
   REGISTRATION_FLOW_ID

@@ -31,10 +31,10 @@ const voice = require('../../bot/shared/services/voice-attendance.service');
 
 // The roster as production actually held it when this failed.
 const STAFF = [
-  { id: 'u1', first_name: 'ZZTEST Ayesha', last_name: 'Khan' },
-  { id: 'u2', first_name: 'ZZTEST Bilal', last_name: 'Ahmed' },
-  { id: 'u3', first_name: 'ZZTEST Muhammad Usman', last_name: null },
-  { id: 'u4', first_name: 'ZZTEST Sana', last_name: 'Iqbal' },
+  { id: 'u1', name: 'ZZTEST Ayesha Khan' },
+  { id: 'u2', name: 'ZZTEST Bilal Ahmed' },
+  { id: 'u3', name: 'ZZTEST Muhammad Usman' },
+  { id: 'u4', name: 'ZZTEST Sana Iqbal' },
 ];
 
 describe('the production failure, directly', () => {
@@ -67,7 +67,7 @@ describe('what the fold must NOT do', () => {
   });
 
   it('refuses when the fold lands on two people', () => {
-    const twoSanas = [...STAFF, { id: 'u5', first_name: 'Sana', last_name: 'Yousaf' }];
+    const twoSanas = [...STAFF, { id: 'u5', name: 'Sana Yousaf' }];
     expect(voice.matchPerson('ثنا', twoSanas)).toBeNull();
   });
 

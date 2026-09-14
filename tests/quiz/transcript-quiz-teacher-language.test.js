@@ -56,7 +56,7 @@ const PHONE = '923001234567';
 const UID = 'u-1';
 
 /** An ENGLISH-reading teacher. Everything else about her lesson is Urdu. */
-const TEACHER = { id: UID, phone_number: PHONE, preferred_language: 'en', first_name: 'Rifat', last_name: 'Noor', grades_taught: ['4'] };
+const TEACHER = { id: UID, phone_number: PHONE, preferred_language: 'en', name: 'Rifat Noor', grades_taught: ['4'] };
 const DIGEST = {
   topic: 'Fractions', topic_as_taught: 'کسریں', subject: 'maths', grade_band: '3-5',
   language_of_instruction: 'ur', confidence: 0.9,

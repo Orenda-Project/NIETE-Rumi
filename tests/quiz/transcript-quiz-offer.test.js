@@ -39,7 +39,7 @@ const SESSION = {
   id: SID, user_id: UID, status: 'completed', observation_type: null,
   transcript_text: 'x'.repeat(3000), transcript_language: 'ur', created_at: '2026-09-05T05:00:00Z',
   analysis_data: { topic: 'Fractions', subject: 'Maths' },
-  users: { phone_number: '923001234567', preferred_language: 'ur', first_name: 'Rifat', grades_taught: ['4'] },
+  users: { phone_number: '923001234567', preferred_language: 'ur', name: 'Rifat', grades_taught: ['4'] },
 };
 const GOOD_DIGEST = {
   digest: {

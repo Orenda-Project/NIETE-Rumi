@@ -224,6 +224,40 @@ describe('renderLessonPlan — warnings are not failures', () => {
     expect(out.warnings.some((w) => /soft target/.test(w))).toBe(true);
     expect(fs.existsSync(out.pdfPath)).toBe(true);
   });
+
+  /**
+   * bd-a8veu.22. The warning is the ONLY length pressure below the hard cap, and until now it
+   * was addressed to nobody: `warnings` is not read on the success path, and the sentence itself
+   * said "Allowed — completeness beats page count", which tells the author not to bother. Four
+   * sandbox renders on 2026-09-12 came out at exactly the hard cap — 7 pages each, all four.
+   *
+   * So it has to carry a code the ladder recognises (`PAGE TARGET:`, priced like `PAGE COUNT:` —
+   * one revision round, then deliver) and it has to read as an instruction. What it must NOT do
+   * is become a `problem`: over the target still renders, and the lesson is still delivered.
+   */
+  it('states the soft-target overrun as a PAGE TARGET defect the author can act on', async () => {
+    const soft = WARN_PAGES.teach + 1;
+    mockPdfPages = soft + 1;
+    mockProbe = makeProbe({
+      pagesByPart: { teach: soft, support: 1 },
+      pages: Array.from({ length: soft + 1 }, (_, i) => ({
+        id: `p-${i}`, contentBottomPx: 900, footTopPx: 1000, overflowPx: 0, overflowingSections: [],
+        lastElement: 'd', contentHeight: 1, boxHeight: 1, lastPaintedPx: 1, innerBottomPx: 1,
+      })),
+    });
+
+    const out = await renderLessonPlan({ lpDoc: CLEAN_DOC, lang: 'en', stem: 's', outDir });
+    const w = out.warnings.find((x) => /soft target/.test(x));
+
+    expect(w).toMatch(/^PAGE TARGET: /);
+    expect(w).toContain(`teach runs to ${soft} pages`);
+    expect(w).toContain(`the soft target is ${WARN_PAGES.teach}`);
+    expect(w).toContain(`hard cap ${MAX_PAGES.teach}`);
+    // The line that was telling the author the opposite of what the operator wants.
+    expect(w).not.toMatch(/completeness beats page count/);
+    // And it is still a warning, not a defect: the lesson renders and ships.
+    expect(fs.existsSync(out.pdfPath)).toBe(true);
+  });
 });
 
 describe('the Linux/Railway chromium channel (vendor divergence)', () => {

@@ -29,7 +29,7 @@ async function _resolveSessionLanguage(coachingSessionId) {
   try {
     const { data } = await supabase
       .from('coaching_sessions')
-      .select('users(preferred_language), transcript_language')
+      .select('users(name, preferred_language), transcript_language')
       .eq('id', coachingSessionId)
       .maybeSingle();
     return data?.users?.preferred_language || data?.transcript_language || 'en';

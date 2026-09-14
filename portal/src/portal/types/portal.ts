@@ -14,9 +14,25 @@ export interface User {
   role?: string | null;
 }
 
+/**
+ * What she has completed, and where she is up to.
+ *
+ * Deliberately no total. A teacher is scoped to certain levels by her
+ * programme AND is not expected to finish everything inside that scope, so
+ * any denominator states a target that does not exist — and makes real
+ * progress read as permanent incompleteness.
+ */
+export interface TrainingProgressSummary {
+  modulesCompleted: number;
+  /** The level she is furthest into, or null before she has started. */
+  currentLevel: string | null;
+}
+
 export interface DashboardStats {
-  totalLessonPlans: number;
   totalCoachingSessions: number;
+  /** Exam papers she has asked the generator for. */
+  totalAssessments: number;
+  training: TrainingProgressSummary;
 }
 
 export interface LessonPlan {
@@ -35,42 +51,113 @@ export interface CoachingSession {
   date: string;
   duration: number;
   overallScore: number;
-  maxScore: number;
-  percentage: number;
+  /** null until the session has been scored — never a stand-in zero. */
+  maxScore: number | null;
+  percentage: number | null;
+  /** The framework she was actually scored on: 'fico' for every NIETE region. */
+  framework?: string | null;
 }
 
-export interface GoalScore {
-  goal: string;
-  points: number;
-  max_points: number;
-  percentage: number;
+/**
+ * One indicator inside a domain, with the quote from her own lesson that
+ * justifies its score. This is the most useful thing in the payload and has
+ * never been visible on any surface.
+ */
+export interface BreakdownIndicator {
+  id: string | null;
+  name: string | null;
+  score: number | null;
+  evidence: string | null;
+  evidence_summary: string | null;
+  /**
+   * FICO gates seven Section F indicators on the subject, so a maths lesson is
+   * scored out of 42 and a literacy one out of 44. `false` means the question
+   * was never asked — not a mark she lost.
+   */
+  applicable: boolean;
 }
 
-export interface CriterionScore {
-  criterion: string;
-  points: number;
-  max_points: number;
-  percentage: number;
+/** One scored domain. `key` is the printed rubric's section letter (B/C/D/F). */
+export interface BreakdownGroup {
+  key: string;
+  domainKey: string;
+  name: string;
+  score: number;
+  max: number;
+  pct: number;
+  indicators: BreakdownIndicator[];
+}
+
+/**
+ * The framework-correct score breakdown, built by the BOT.
+ *
+ * The portal names no framework and no domain: it renders what comes back, so
+ * a sixth framework never requires a portal change. Groups arrive
+ * strongest-first, so the weakest is last and is the one worth opening.
+ */
+export interface ScoreBreakdown {
+  framework: string | null;
+  language: string;
+  overall: number | null;
+  marks: number | null;
+  max: number | null;
+  groups: BreakdownGroup[];
+}
+
+/** A question Rumi asked her, and her own answer. Read-only on the portal. */
+export interface ReflectionEntry {
+  question: string | null;
+  answer: string | null;
+  language: string | null;
+  asked_at: string | null;
+  answered_at: string | null;
+}
+
+export interface PrioritizedAction {
+  action?: string | null;
+  commitment?: string | null;
+  language?: string | null;
+  /** Her yes/no, when she answered it on WhatsApp. */
+  teacher_response?: string | null;
 }
 
 export interface AnalysisData {
   overall_score: {
     points: number;
-    max_points: number;
-    percentage: number;
+    max_points: number | null;
+    percentage: number | null;
   };
-  goal_scores: GoalScore[];
-  criterion_scores: CriterionScore[];
+  executive_summary?: string | null;
   strengths: string[];
   growth_opportunities: string[];
   recommendations: string[];
+  notable_moments?: unknown[];
+  /** `{ status: 'lp_absent' }` when she attached no plan — honest, not a gap. */
+  lp_fidelity?: { status?: string } | null;
+  photo_analysis?: unknown;
 }
 
 export interface SessionDetail extends CoachingSession {
-  audioUrl?: string;
+  status?: string;
+  /** HER lesson recording. Present on 100% of sessions, never served before. */
+  lessonAudioUrl?: string | null;
+  /** The coach's spoken feedback — what the "Session Recording" player used to play. */
+  debriefAudioUrl?: string | null;
+  /** Legacy alias, now pointing at her lesson. */
+  audioUrl?: string | null;
   transcript?: string;
+  transcriptLanguage?: string | null;
+  reportUrl?: string | null;
+  /** 897 of 914 stored reports are png, despite the column name. */
+  reportFormat?: 'png' | 'pdf';
+  reportPdfUrl?: string | null;
+  lessonPlanUrl?: string | null;
+  hasLessonPlan?: boolean;
+  photoUrls?: string[];
+  breakdown?: ScoreBreakdown | null;
+  reflection?: ReflectionEntry[];
+  prioritizedAction?: PrioritizedAction | null;
   analysisData: AnalysisData;
-  reportPdfUrl?: string;
 }
 
 export interface ScoreTrend {
@@ -83,15 +170,19 @@ export interface GoalBreakdown {
   name: string;
   score: number;
   maxScore: number;
+  /** Averaged ACROSS sessions, not read off the latest one. */
   percentage: number;
+  /** How many sessions this domain was scored in. */
+  sessions?: number;
 }
 
 export interface AnalyticsInsights {
   totalSessions: number;
   averageScore: number;
   improvement: number;
-  bestGoalArea: string;
-  focusArea: string;
+  /** null until something has been scored — never a guess. */
+  bestGoalArea: string | null;
+  focusArea: string | null;
 }
 
 export interface CoachingAnalytics {

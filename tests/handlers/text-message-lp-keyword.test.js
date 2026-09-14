@@ -81,6 +81,19 @@ describe('LP intercept — behaviour', () => {
     // IS the artefact name, which is the receptionist doctrine, and a teacher who types one word
     // wants the menu. This sat in `quiet` from before bd-hgwfo settled the regex.
     'lesson', 'lessons',
+    // bd-mww73: the SLASH-PREFIXED phrase, pinned. `/lp` was already here; the phrase form was
+    // not — and it is the one teachers actually type. lp-intent.js's own comment records that
+    // 111 of the 153 production bare commands were literally "/lesson plan". Settled by the
+    // operator 2026-09-14: slash plus space opens the card. E2E scenario L08 had been asserting
+    // the opposite.
+    //
+    // Yes, this duplicates bot/tests/lp-v8/lp-intent.test.js:28 — on purpose, and the duplication
+    // is the point. CI runs root `npm test` only (tests/jest.config.js, testMatch
+    // `<rootDir>/tests/**`); `bot/package.json` declares no test script, so nothing under
+    // bot/tests/ gates a PR. The matcher's own suite is the fuller one and stays the place to
+    // extend; these five are the CI-enforced floor, and they fail if the leading `\/?\s*` in
+    // BARE is ever narrowed away.
+    '/lesson plan', '/lesson plans', '/ lesson plan', '/lessonplan', '/lesson-plan',
   ];
   test.each(fires)('fires on %p', (t) => expect(isLessonPlanRequest(t)).toBe(true));
 

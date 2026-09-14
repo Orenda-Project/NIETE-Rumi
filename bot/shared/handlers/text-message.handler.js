@@ -1,4 +1,5 @@
 const WhatsAppService = require('../services/whatsapp.service');
+const { firstNameOf } = require('../utils/person-name');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const OpenAIService = require('../services/openai.service');
@@ -193,6 +194,7 @@ async function tryCurriculumLessonPlanServe(from, topic, user, language) {
  */
 
 const { evaluateHomeworkTrigger } = require('./homework-trigger');
+const { evaluateCoachingTrigger } = require('./coaching-trigger');
 const {
   parseCertificateCommand,
   deliverCertificateByCode,
@@ -1971,7 +1973,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           logToFile('📝 Registration flow re-opened from /register for an already-registered user (details update)', {
             userId: user?.id,
             phoneNumber: from,
-            currentFirstName: user?.first_name || null,
+            currentFirstName: user?.name || null,
           });
         } else {
           logToFile('📝 Registration flow sent from /register command', { userId: user?.id, phoneNumber: from });
@@ -1989,7 +1991,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Legacy path (no REGISTRATION_FLOW_ID, or the Flow send failed): a completed
     // account has nothing to recover, so confirm and stop here.
     if (isAlreadyRegistered) {
-      const known = user.first_name || 'there';
+      const known = firstNameOf(user) || 'there';
       await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
       return;
     }
@@ -2256,6 +2258,41 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // COACHING hot trigger — "coaching" / "/coaching" (any case, stray
+  // whitespace tolerated).
+  //
+  // bd-60080 (DC tracker row 84): there was no interceptor here at all —
+  // only the tapped ice-breaker chip and the numeric menu choice reached
+  // _handleClassroomCoachingChoice. A typed /coaching fell through every
+  // check above to general chat, which always includes the teacher's own
+  // conversation history (getResponseWithFormat pulls it unconditionally).
+  // Her FIRST /coaching in a clean chat got a plausible-looking reply; every
+  // /coaching AFTER that had her own earlier classroom-audio transcript still
+  // in context, so the model answered as if continuing that recording —
+  // feedback, no ask for a new one — until she typed "I didn't send a
+  // recording". Routing the command here, before intent detection can ever
+  // see that history, closes the gap regardless of what came before it in
+  // the chat. Same door as the ice-breaker chip and the /menu row — no
+  // second coaching entry point, no new session state.
+  // ============================================================
+  {
+    const coachDecision = evaluateCoachingTrigger({ messageBody });
+    if (coachDecision.match) {
+      typingController.stop();
+      if (user) {
+        await FeatureIntroService.sendFirstUseIntroIfNeeded(user.id, from, 'ai_coaching', responseLanguage);
+        await MenuService._handleClassroomCoachingChoice(user.id, sessionId, from, responseLanguage);
+        logToFile('🎓 Coaching hot trigger matched', { userId: user.id });
+        return;
+      }
+      await WhatsAppService.sendMessage(from, ({
+        ur: 'براہ کرم پہلے رجسٹریشن مکمل کریں۔ /register ٹائپ کریں۔',
+      })[responseLanguage] || 'Please complete registration first. Type /register to get started.');
+      return;
+    }
+  }
+
+  // ============================================================
   // ATTENDANCE — a TYPED answer to the tap-or-voice question.
   //
   // Checked before the keyword block and before anything else can claim the message.
@@ -2461,7 +2498,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // messaged in the last 30 days. See shared/utils/registration-status.js.
     if (isRegistered(user)) {
       // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${firstNameOf(user) || 'there'}! Type /menu to see what I can help you with.`);
       return;
     }
 
@@ -2947,7 +2984,7 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  */
 async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null, prebuiltLpCtx = undefined) {
   // Get firstName from user if registered
-  const firstName = user?.first_name || null;
+  const firstName = user?.name || null;
 
   // ============================================================
   // STUDENT MODE — THE ONE GATE (PLAN_R5 D8)
@@ -3166,6 +3203,7 @@ module.exports = {
   handleTextMessage,
   parseStyleFromButtonId,
   evaluateHomeworkTrigger, // exported for trigger unit tests
+  evaluateCoachingTrigger, // exported for trigger unit tests
   tryCurriculumLessonPlanServe, // exported for intercept unit tests
   handleLessonPlanRequest, // exported for the Oxbridge-picker "Generate NIETE LP" tap
   isSelectVideoButton, // video-library broadcast "Select Video" button

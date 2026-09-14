@@ -239,11 +239,11 @@ async function resolveTeacherName(userId) {
   if (!userId) return null;
   const data = await readWithFallback(async (db) => {
     const res = await db
-      .from('users').select('first_name, last_name').eq('id', userId).maybeSingle();
+      .from('users').select('name').eq('id', userId).maybeSingle();
     return res.data;
   });
   if (!data) return null;
-  return [data.first_name, data.last_name].filter(Boolean).join(' ') || null;
+  return data.name || null;
 }
 
 // ---------------------------------------------------------------- internals
@@ -253,11 +253,11 @@ async function teacherNames(ids) {
   const map = new Map();
   if (!unique.length) return map;
   const data = await readWithFallback(async (db) => {
-    const res = await db.from('users').select('id, first_name, last_name').in('id', unique);
+    const res = await db.from('users').select('id, name').in('id', unique);
     return res.data;
   });
   (data || []).forEach((u) => {
-    map.set(u.id, [u.first_name, u.last_name].filter(Boolean).join(' '));
+    map.set(u.id, u.name);
   });
   return map;
 }

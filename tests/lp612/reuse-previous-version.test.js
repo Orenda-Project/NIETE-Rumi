@@ -109,12 +109,28 @@ const SEGMENT = {
   is_religious: false,
 };
 
-/** A stored document, of the shape the worker uploaded beside the v9.1 PDF. */
+/**
+ * A stored document, of the shape the worker uploaded beside the v9.1 PDF.
+ *
+ * `one_screen` carries the six cued paragraphs bd-uu4lr requires, because since bd-jpfww that is
+ * a PRECONDITION OF REUSE and not merely a lint nicety: this lane now refuses a stored body the
+ * renderer's own gate would fail, so a one-line fixture here would be testing the refusal path
+ * while claiming to test the hit. The refusal has its own suite — `one-screen-reuse-gate.test.js`.
+ */
+const ONE_SCREEN = [
+  '*Objective* Students name the five branches of chemistry and give one example of each.',
+  '*Warm-up* Ask what a chemist actually does all day; take three answers onto the board.',
+  '*Worked example* Sort "rusting iron" together — physical or inorganic — and say why.',
+  '*Practice* In pairs, sort six everyday examples into the branches, then swap and check.',
+  '*Misconception* Organic does not mean natural. Name two organics made only in a lab.',
+  '*Exit* Each student writes one branch and one example of it on a slip before leaving.',
+].join('\n\n');
+
 const STORED_DOC = {
   lesson_id: 'grade_9_chemistry.c01.p007-008',
   schema_version: '2.0',
   template_version: 'v9.1',
-  one_screen: 'Branches of chemistry, in one screen.',
+  one_screen: ONE_SCREEN,
   materials: ['blackboard'],
   objectives: ['name the branches'],
   sections: [{ id: 'introduction', minutes: 5, blocks: [] }],
@@ -170,7 +186,10 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => { delete process.env.LP_612_TEMPLATE_FALLBACK; });
+afterEach(() => {
+  delete process.env.LP_612_TEMPLATE_FALLBACK;
+  delete process.env.LP_612_TEMPLATE_VERSION;
+});
 
 // ── 1 · the lineage is data, and it has an off switch ───────────────────────
 
@@ -199,6 +218,57 @@ describe('previousTemplateVersions', () => {
 
   test('the lineage lists only versions today\'s renderer accepts, newest first', () => {
     expect(Flags.TEMPLATE_VERSION_LINEAGE[0]).toBe(Flags.DEFAULT_TEMPLATE_VERSION);
+  });
+
+  /**
+   * bd-m1k16 — THE ENV CAN NAME A VERSION THE LINEAGE HAS NEVER HEARD OF, AND THAT KILLS REUSE
+   * SILENTLY.
+   *
+   * The test above pins the lineage against `DEFAULT_TEMPLATE_VERSION`, but the default is not
+   * what gets served: `templateVersion()` reads `LP_612_TEMPLATE_VERSION`, and prod, staging and
+   * sandbox all SET it — the code default is deliberately kept one step ahead of the variable
+   * (see `tests/lp612/flags.test.js`). So the version a teacher's lesson is actually keyed on is
+   * an env string, and nothing until now checked that string against the lineage.
+   *
+   * When it is absent, `previousTemplateVersions` returns `[]` by design — *"an unknown version
+   * claims no ancestry rather than guessing one"* — and the worker's `if (!tried.length) return
+   * null` (lp612-author.worker.js) drops straight through to the LLM. Every already-cached lesson
+   * is written again from scratch: minutes and dollars a segment, for a document already stored
+   * as `lp612/{tv}/{lang}/{segment}.lp.json`.
+   *
+   * That is exactly what sandbox was doing. `LP_612_TEMPLATE_VERSION` was moved to v9.4 for the
+   * page fixes in 7b37d4b7 while this lineage still ended at v9.3, so the bump that was supposed
+   * to cost zero model calls was re-authoring the corpus instead — and it fed the ten-minute
+   * generation the operator reported.
+   *
+   * The assertion is on the SERVED version, not on a literal, so the next bump-by-variable
+   * reddens here rather than on a teacher's invoice.
+   */
+  test('the version the env actually serves is one the lineage knows, with the head behind it', () => {
+    process.env.LP_612_TEMPLATE_VERSION = 'v9.5';
+    const tv = Flags.templateVersion();
+
+    expect(Flags.TEMPLATE_VERSION_LINEAGE).toContain(tv);
+    expect(Flags.previousTemplateVersions(tv)[0]).toBe('v9.4');
+  });
+
+  test('the head leads the lineage, and every older version re-renders behind it', () => {
+    // Every bump so far has been a PRESENTATION change — v9.4 the page review, v9.5 the move
+    // colours and the number line, v9.6 (bd-ir1aq) the model-answers section leaving Reference.
+    // No schema key has moved, which is the precondition this list encodes for keeping the older
+    // entries rather than dropping them: a v9.1 document still renders under today's renderer.
+    //
+    // The literal is deliberately not spelled here. This was pinned to v9.5, and before that to
+    // v9.4, and each bump reddened it for no reason of its own — the version number is a release
+    // note, not an invariant. What IS the invariant, and what actually protects the spend, is the
+    // shape: the head is whatever the config serves, its ancestry is the WHOLE tail, and a bump
+    // that forgets its lineage entry returns [] and re-authors the corpus instead of re-rendering.
+    const head = Flags.DEFAULT_TEMPLATE_VERSION;
+    expect(Flags.TEMPLATE_VERSION_LINEAGE[0]).toBe(head);
+    expect(Flags.previousTemplateVersions(head)).toEqual(Flags.TEMPLATE_VERSION_LINEAGE.slice(1));
+    // v9.3 keeps its own named assertion: it is the version the stored corpus is actually made of,
+    // so losing its ancestry would be a real regression rather than a bump.
+    expect(Flags.previousTemplateVersions('v9.3')).toEqual(['v9.2', 'v9.1']);
   });
 });
 

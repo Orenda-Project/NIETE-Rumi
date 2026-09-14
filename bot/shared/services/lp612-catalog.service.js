@@ -30,6 +30,7 @@ const { pagedRows } = require('../utils/postgrest-paged');
 const { clip, cps, TITLE_CAP, DESC_CAP, META_CAP, PAGE_SIZE, MORE_ROW_ID } =
   require('./lp-v8-catalog.service');
 const { isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE } = require('../config/lp612-flags');
+const { compareSubjects } = require('../config/lp612-subject-order');
 // The language REGISTRY, not a local map. `languageTitle` is each language's name
 // in its own script ('اردو', 'English') and is the same string the language picker
 // shows her, so a book tagged by language reads exactly like the language she
@@ -234,8 +235,13 @@ async function buildSubjectItems(grade) {
     bySubject.set(r.subject, e);
   }
 
+  // CORE BEFORE ELECTIVE, not alphabetical (bd-y5vx3). Alphabetical opened grade 9 on
+  // `Biology, Chemistry, Computer Science, English, …` — the elective science papers ahead of
+  // every compulsory subject, and English sixth. A NavigationList is read from the top, so the
+  // sort order IS a ranking; the declared one lives in `config/lp612-subject-order.js` and falls
+  // back to alphabetical for anything it does not name, so nothing can drop off the menu.
   return [...bySubject.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => compareSubjects(a[0], b[0]))
     .slice(0, PAGE_SIZE)
     .map(([subject, e]) => {
       const n = (v) => (e.rtl ? urD(v) : String(v));

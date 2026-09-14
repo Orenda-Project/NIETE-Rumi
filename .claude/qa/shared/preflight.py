@@ -11,7 +11,7 @@ This writes a run.json that already carries what the artifact masthead prints AN
 run_efficiency.py gates on, then hands back the exact payload to load wa-drive. Complying
 is now less work than skipping.
 
-    preflight.py <run-id> --mode all --driver 923… --target 923… [--env staging]
+    preflight.py <run-id> --mode all --driver 923… --target 923… [--env sandbox|staging|prod]
     preflight.py <run-dir> --mark-wa-drive-loaded      # after the load returns "wa-drive ready"
     preflight.py <run-dir> --finish                    # dump waits.jsonl reminder + cost gate
 
@@ -189,8 +189,8 @@ def main(argv):
     run = first
     mode = _arg(argv, "--mode", "all")
     driver = _arg(argv, "--driver")
-    target = _arg(argv, "--target", "923222482222")
-    env = _arg(argv, "--env", "staging")
+    target = _arg(argv, "--target", "923025502255")   # sandbox bot (default env since 2026-09-09)
+    env = _arg(argv, "--env", "sandbox")
     if not driver:
         print("--driver is required: the runner's OWN linked WhatsApp number, never a "
               "hardcoded one (bd-2748).", file=sys.stderr)

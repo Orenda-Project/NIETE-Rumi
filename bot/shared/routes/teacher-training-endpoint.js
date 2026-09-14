@@ -584,7 +584,7 @@ async function buildTrainingHome(userId, opts = {}) {
   if (!teacher) return errorScreen('We could not find your training profile. Please contact NIETE support.');
   if (!catalog || catalog.length === 0) {
     return errorScreen(
-      `No training assigned yet, ${teacher.first_name || 'teacher'}. ` +
+      `No training assigned yet, ${teacher.name || 'teacher'}. ` +
       'Please contact your NIETE program lead to enrol you.'
     );
   }
@@ -697,7 +697,7 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
  */
 async function loadModulesWithProgress(userId, levelId) {
   const [{ data: courses }, { data: modules }, { data: progressRows }, unlockLogic] = await Promise.all([
-    supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index'),
+    supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index').order('id'),
     supabase.from('training_modules').select('id, course_id, title, order_index').eq('is_active', true),
     supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
     // bd-43477 — whether these modules sequence at all is the vendor's call.
@@ -706,11 +706,20 @@ async function loadModulesWithProgress(userId, levelId) {
   const doneIds = new Set((progressRows || []).map(r => r.module_id));
   const courseById = new Map((courses || []).map(c => [c.id, c]));
   const levelModules = (modules || []).filter(m => courseById.has(m.course_id));
+  // bd-u2td8 — a TOTAL order, not just a sort key. Six active courses carry
+  // duplicate module order_index values and two carry nothing else: all 14
+  // modules of each Beacon House "AI Literacy" course sit at order_index 1.
+  // Two course pairs tie inside a level as well. Array.prototype.sort is
+  // stable, so a tie here faithfully preserved whatever arbitrary order the
+  // query plan happened to return — and the module marked `next` moved with
+  // it. Every one of those courses is module_unlock_logic='chain', so this
+  // decides what unlocks. Ids are the last resort: meaningless, but total.
   levelModules.sort((a, b) => {
     const ca = courseById.get(a.course_id).order_index;
     const cb = courseById.get(b.course_id).order_index;
     if (ca !== cb) return ca - cb;
-    return (a.order_index || 0) - (b.order_index || 0);
+    if (a.course_id !== b.course_id) return a.course_id - b.course_id;
+    return ((a.order_index || 0) - (b.order_index || 0)) || (a.id - b.id);
   });
   return annotateModuleLocks(levelModules.map(m => ({
     id: m.id,
@@ -887,7 +896,7 @@ async function checkModuleUnlocked(userId, moduleId) {
 async function loadTeacher(userId) {
   const { data, error } = await supabase
     .from('users')
-    .select('id, first_name, last_name, name, phone_number, teacher_uuid, training_bands, training_bands_updated_at, school_name')
+    .select('id, name, phone_number, teacher_uuid, training_bands, training_bands_updated_at, school_name')
     .eq('id', userId)
     .single();
   if (error) {
@@ -1305,7 +1314,7 @@ async function assertCanStartExamForLevel(userId, levelId) {
 
 async function loadCoursesWithProgress(userId, levelId) {
   const [{ data: courses }, { data: progressRows }, { data: modules }] = await Promise.all([
-    supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index'),
+    supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index').order('id'),
     supabase.from('teacher_training_progress').select('module_id').eq('user_id', userId),
     supabase.from('training_modules').select('id, course_id').eq('is_active', true),
   ]);
@@ -1438,7 +1447,7 @@ async function loadGrandQuizState(userId, levelId) {
 // ─── Presentation helpers ──────────────────────────────────────────────────
 
 function teacherSubtitle(t) {
-  const name = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.phone_number;
+  const name = t.name || `${t.name || ''} ${t.name || ''}`.trim() || t.phone_number;
   const school = t.school_name ? ` · ${t.school_name}` : '';
   return `${name}${school}`;
 }
@@ -1632,7 +1641,7 @@ async function buildMyCertificates(userId, teacher) {
     );
   }
   const name = (certs[0] && certs[0].teacher_name_snapshot)
-    || (teacher && teacher.first_name)
+    || (teacher && teacher.name)
     || 'Teacher';
   logToFile('🏆 MY_CERTIFICATES response snapshot', { userId, count: certs.length });
   return {
@@ -1745,6 +1754,10 @@ module.exports = {
   // it so the "exactly one unpassed module is open" contract can be asserted
   // without a DB fixture.
   annotateModuleLocks,
+  // bd-u2td8 — exported for the same reason annotateModuleLocks is: the module
+  // SEQUENCE is a rule worth pinning, and it cannot be tested through the Flow
+  // handler without standing up the whole screen.
+  loadModulesWithProgress,
   // bd-43482 — the LEVEL axis, exported so "BH subjects are parallel but
   // NIETE/Oxbridge ladders are not" is assertable without a DB.
   isLevelChainLocked,

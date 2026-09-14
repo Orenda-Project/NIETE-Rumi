@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { isPortalTarget } from "@/lib/runtime";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,7 +15,6 @@ import PortalRoot from "./portal/pages/PortalRoot";
 import PortalPasswordReset from "./portal/pages/PortalPasswordReset";
 import PortalPasswordResetVerify from "./portal/pages/PortalPasswordResetVerify";
 import PortalDashboard from "./portal/pages/PortalDashboard";
-import PortalLessonPlans from "./portal/pages/PortalLessonPlans";
 import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
 import PortalTraining from "./portal/pages/PortalTraining";
@@ -78,7 +77,19 @@ const App = () => {
           <Route path="/portal/reset-password" element={<PortalPasswordReset />} />
           <Route path="/portal/reset-password/verify" element={<PortalPasswordResetVerify />} />
           <Route path="/portal/dashboard" element={<PortalDashboard />} />
-            <Route path="/portal/lesson-plans" element={<PortalLessonPlans />} />
+            {/* bd-60078 — My Plans is retired. It listed a teacher's own
+                Gamma-generated plans, and custom generation is off, so the page
+                could only ever show older work with no way to make more.
+
+                REDIRECTED rather than deleted: the path is in browser history
+                and on saved links, and a 404 for something that worked
+                yesterday reads as the portal being broken. Curriculum is the
+                lesson plans she can actually still use. `replace` so the back
+                button does not bounce her straight back here. */}
+            <Route
+              path="/portal/lesson-plans"
+              element={<Navigate to="/portal/curriculum" replace />}
+            />
             <Route path="/portal/classes" element={<PortalClasses />} />
             <Route path="/portal/curriculum" element={<PortalCurriculum />} />
             <Route path="/portal/training" element={<PortalTraining />} />

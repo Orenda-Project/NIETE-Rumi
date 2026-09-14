@@ -103,7 +103,7 @@ beforeAll(() => {
     require('../../bot/shared/routes/teacher-training-endpoint'));
 });
 
-const TEACHER = { id: 'u1', first_name: 'Aisha', last_name: 'Malik', name: 'Aisha Malik', phone_number: '1', school_name: 'NIETE' };
+const TEACHER = { id: 'u1', name: 'Aisha Malik', phone_number: '1', school_name: 'NIETE' };
 
 function enrolment({ vendors }) {
   return {

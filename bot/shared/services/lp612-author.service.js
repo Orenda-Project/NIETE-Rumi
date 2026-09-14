@@ -816,13 +816,30 @@ function languageDirective(want, medium) {
 // moves the budget from line 890 of the system prompt to line 1 of the user turn, and adds the
 // countable the model was never given — but the honest prior is that it moves page counts a
 // little, and the delivery policy above is what actually removes the failure class.
+// bd-a8veu.22 — THE CARD AIMS AT THE SOFT TARGET, NOT AT THE CAP.
+//
+// Until 2026-09-12 this read `pageCapsFor(lang).max` and stated the HARD caps as the aim, then
+// told the author "completeness beats page count". Both halves pointed the same way: write to the
+// cap. The renderer has carried a soft target one page under each cap since the caps existed
+// (`WARN_PAGES`), and nothing had ever shown it to the author — so the only length pressure in the
+// system fired AT the cap and pushed documents back TO the cap. Four sandbox renders on
+// 2026-09-12, four subjects across two grades, all came out at exactly 4 teach + 3 support = 7
+// pages. The operator: *"all of them are 7 pages long"*.
+//
+// The cap is still stated, because it is a real boundary and an author aiming blind at a number it
+// cannot see needs to know where the edge is — but it is stated AS the edge. The honest-terms
+// paragraph stays untouched: it is what stops the model cutting real pedagogy to clear a number,
+// and the own-goal PR #597 removed is still an own-goal.
 function budgetCard(lang) {
-  const caps = pageCapsFor(lang).max;
+  const { max: caps, warn: aim } = pageCapsFor(lang);
   return [
     '## YOUR PAGE BUDGET FOR THIS LESSON — read this before you write anything',
     '',
-    `This lesson is laid out on A4 and MEASURED after you write it. For this render the caps are `
-      + `**TEACH ≤ ${caps.teach} pages, SUPPORT ≤ ${caps.support} pages**.`,
+    `This lesson is laid out on A4 and MEASURED after you write it. AIM FOR `
+      + `**TEACH ${aim.teach} pages, SUPPORT ${aim.support} pages**. The hard cap, where the render `
+      + `fails, is one sheet further out: TEACH ≤ ${caps.teach} pages, SUPPORT ≤ ${caps.support} pages. `
+      + `A lesson that lands between the aim and the cap is delivered — and it costs a revision round, `
+      + `so aim at the aim.`,
     '',
     'You cannot count pages — you never see the layout. These you CAN count, and they are what',
     'the paper is actually spent on. Measured over 62 rendered lessons, the ones that FIT carry:',
@@ -834,10 +851,13 @@ function budgetCard(lang) {
     '  · the whole lp_doc — a lesson that fits is roughly 7,700 tokens of JSON, and about 8,300',
     '    at the long end. Past that you are writing paper this lesson does not have.',
     '',
-    'Those are AIMS taken from lessons that fit, not gates: nothing above is checked, and no',
-    'count of items has ever been the difference between a lesson that fits and one that does',
-    'not. Write the COMPLETE lesson — completeness beats page count, and cutting a required',
-    'property to save space fails the whole document.',
+    'Those are AIMS taken from lessons that fit THE CAP, not gates: nothing above is checked, and',
+    'no count of items has ever been the difference between a lesson that fits and one that does',
+    'not. You are aiming one sheet tighter than that, so spend every countable at its low end —',
+    '2 model answers, 3 homework items, 6 answerables — and write the COMPLETE lesson at that',
+    'size. Cutting a required property to save space fails the whole document; a page is saved by',
+    'dropping a WHOLE block, or moving it to the other part, never by shortening the words inside',
+    'one.',
     '',
     'And the honest terms, so you aim rather than fear: the pages are measured after rendering,',
     'a lesson over the cap is STILL DELIVERED to the teacher, and if it runs long it costs one',
@@ -1250,6 +1270,99 @@ function targetedRevisionPreamble(allowedPointers) {
   );
 }
 
+/** Any page defect at all — the trigger for the repair block. */
+const PAGE_DEFECT = /PAGE (COUNT|TARGET)/;
+/**
+ * The part the renderer NAMED. It always writes the part as the token right after the code
+ * (`render_lp.js:609`, `:617`, `:652`), and the cap loop iterates `Object.entries(CAPS.max)`, so
+ * the only two values that can appear here are `teach` and `support`. The two whole-PDF guards
+ * (`:1009`, `:1014`) name no part — they match PAGE_DEFECT and not this.
+ */
+const PAGE_DEFECT_PART = /PAGE (?:COUNT|TARGET):\s*(teach|support)\b/i;
+
+/**
+ * The repair instruction for a page defect — ADDRESSED TO THE PART THAT IS ACTUALLY OVER.
+ *
+ * bd-a8veu.13. Until now this block was one paragraph, written for the support page, and it went
+ * out whatever the renderer had refused: card count, and "drop exam_bank questions and
+ * model_answers entries". Every object it named lives on the SUPPORT page. A TEACH over-cap
+ * therefore got five rounds of advice it could not act on — sandbox 2026-09-12, correlationId
+ * lp612:grade_6_geography.c04.p063-064:2598108b carried `teach needs 7 pages, cap is 4` through
+ * every round and shipped at 10 PDF pages. The instruction was not ignored; it was unactionable.
+ *
+ * It was stale a second way: bd-a8veu.10 moved `page2.mistakes` into the end of Development and
+ * `page2.differentiation` into the end of the section that carries the practice, so both now cost
+ * TEACH pages — while this block went on listing them as support-page cuts.
+ *
+ * A defect that names no part gets BOTH clauses. An unattributable number may narrow nothing.
+ */
+function pageCountRepair(render) {
+  const defects = render || [];
+  if (!defects.some((d) => PAGE_DEFECT.test(d))) return '';
+
+  const parts = new Set();
+  for (const d of defects) {
+    const m = PAGE_DEFECT_PART.exec(d);
+    if (m) parts.add(m[1].toLowerCase());
+  }
+  const teach = parts.size === 0 || parts.has('teach');
+  const support = parts.size === 0 || parts.has('support');
+
+  // MEASURED, not guessed: page2 held 658 words across 6 A4 pages — about 110 words a page. Both
+  // parts are built from BOXES with fixed chrome at the body floor the renderer enforces, so
+  // pages are spent on box count and barely at all on prose length. The first render-gated run
+  // proved it: told only "it is too long", the model shortened sentences and moved 6 pages to 5.
+  // bd-a8veu.22: a `PAGE TARGET` needs this theory too, or it is the same "make it shorter".
+  let out = '\n\nHOW TO FIX A PAGE-COUNT ERROR: a page comes back only when a WHOLE BLOCK or a '
+    + 'WHOLE CARD leaves the document — shortening the prose inside one reflows the text and '
+    + 'removes nothing. And cut in the part the defect NAMES above: the two parts print '
+    + 'separately, so a cut in the other one leaves this number exactly where it was. ';
+
+  if (teach) {
+    out += 'TEACH IS OVER (the teaching flow). Its pages are built from sections[] — every block '
+      + 'inside every section prints there, in order — so the cut is whole blocks out of the '
+      + 'tallest sections the defect lists above, keeping at least one block in every section. '
+      // The lever the model reached for for five rounds. Naming it is the counter-pressure.
+      + 'Nothing on the support page costs a teach page: deleting exam_bank items or '
+      + 'model_answers entries will NOT move this number, so do not spend the round there. '
+      // bd-a8veu.10 moved both of these into the flow. They are teach-page cuts now.
+      + 'Two page2 groups now print INSIDE the flow and cost teach pages — page2.mistakes at the '
+      + 'end of Development and page2.differentiation at the end of the section that carries the '
+      + 'practice; moving either back to the reference page is a real cut. A practice block of 3 '
+      + 'or more items breaks item by item, so it is the one place a partial cut is possible; '
+      + 'every other block is all-or-nothing. ';
+  }
+
+  if (support) {
+    out += 'SUPPORT IS OVER (the reference page), and its pages are spent on CARD COUNT, not on '
+      + 'word count — each exam_bank item and model_answers entry is a box with its own heading '
+      + 'and padding. Shortening sentences will NOT remove a page. REMOVE WHOLE ITEMS instead, '
+      + 'fewest-value first — drop exam_bank questions and model_answers entries until the part '
+      + 'fits, and keep the ones that carry the lesson. ';
+  }
+
+  // The first valid end-to-end run obeyed the instruction above and then deleted a REQUIRED key
+  // out of page2.differentiation, so the document died on schema instead of page count. Lists are
+  // where dropping an entry is free; an OBJECT with required keys is a broken document. Saying
+  // what to cut without saying what is structural is what cost that run.
+  out += 'NEVER REMOVE A REQUIRED PROPERTY to save space: cut only from LISTS — an array of '
+    + 'blocks, items or rows, where dropping an entry leaves the document valid. '
+    + 'page2.differentiation must keep stuck, barrier and early; every other required field '
+    + 'stays. Shorten those in place if you must, but a missing required property fails the whole '
+    + 'document and wastes the round. '
+    // The diagram is the FIRST thing a length instruction reaches for — it is the biggest single
+    // object on the page and the easiest to justify dropping. It is also the thing §4b makes
+    // mandatory, and the thing the corpus proves does not survive five rounds of "make it
+    // shorter". Naming it is the counter-pressure.
+    + 'AND DO NOT REMOVE A DIAGRAM: the visual contract in §4b is a floor, the page count is '
+    + 'not — a lesson that comes in one page over with its figures intact is served, and a '
+    + 'lesson that fits by dropping its figures is not. If a figure is genuinely too tall, '
+    + 'make it smaller (a `flow` with direction "lr" instead of "tb", fewer branches, shorter '
+    + 'labels) rather than deleting it.';
+
+  return out;
+}
+
 function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false, stableFirst = false }) {
   // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
   // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
@@ -1296,37 +1409,9 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted =
     // and from WHICH part of the document.
     '\n\n=== PAGE / LAYOUT ERRORS (the rendered page refused these) ===\n'
       + ((gates.render || []).join('\n') || '(none)') +
-    // MEASURED, not guessed: page2 held 658 words across 6 A4 pages — about 110 words a page.
-    // The support page is built from CARDS, each with fixed chrome at the 18px body floor the
-    // renderer enforces, so pages are spent on CARD COUNT and barely at all on prose length.
-    // The first render-gated run proved the point: told only "it is too long", the model
-    // shortened sentences and moved 6 pages to 5. It has to be told to delete whole items.
-    ((gates.render || []).some((d) => /PAGE COUNT/.test(d))
-      ? '\n\nHOW TO FIX A PAGE-COUNT ERROR: pages are spent on CARD COUNT, not on word count — '
-        + 'each exam_bank item, model_answers entry, mistakes row and differentiation row is a '
-        + 'box with its own heading and padding. Shortening sentences will NOT remove a page. '
-        + 'REMOVE WHOLE ITEMS instead, fewest-value first — drop exam_bank questions and '
-        + 'model_answers entries until the part fits, and keep the ones that carry the lesson. '
-        // The first valid end-to-end run obeyed the instruction above and then deleted a
-        // REQUIRED key out of page2.differentiation, so the document died on schema instead of
-        // page count. exam_bank and model_answers are LISTS, where dropping an entry is free;
-        // differentiation and the coaching corner are OBJECTS with required keys, where dropping
-        // one is a broken document. Saying what to cut without saying what is structural is what
-        // cost that run.
-        + 'NEVER REMOVE A REQUIRED PROPERTY to save space: cut only from the LISTS (exam_bank, '
-        + 'model_answers, mistakes rows). page2.differentiation must keep stuck, barrier and '
-        + 'early; every other required field stays. Shorten those in place if you must, but a '
-        + 'missing required property fails the whole document and wastes the round. '
-        // The diagram is the FIRST thing a length instruction reaches for — it is the biggest
-        // single object on the page and the easiest to justify dropping. It is also the thing
-        // §4b makes mandatory, and the thing the corpus proves does not survive five rounds of
-        // "make it shorter". Naming it is the counter-pressure.
-        + 'AND DO NOT REMOVE A DIAGRAM: the visual contract in §4b is a floor, the page count is '
-        + 'not — a lesson that comes in one page over with its figures intact is served, and a '
-        + 'lesson that fits by dropping its figures is not. If a figure is genuinely too tall, '
-        + 'make it smaller (a `flow` with direction "lr" instead of "tb", fewer branches, shorter '
-        + 'labels) rather than deleting it.'
-      : '') +
+    // Addressed to the part the renderer named — see pageCountRepair, and bd-a8veu.13 for the
+    // five rounds of support-page advice a teach over-cap used to get.
+    pageCountRepair(gates.render) +
     '\n\n=== LINT WARNINGS ===\n' + (warns.join('\n') || '(none)');
   // Flag OFF: byte-for-byte the prompt this function has always returned.
   if (!stableFirst) {
@@ -1701,6 +1786,50 @@ const blockingFails = (g) => gateFails(g).filter((d) => !isAdvisory(d));
 const blockingCost = (g) => blockingFails(g).length;
 
 /**
+ * THE ONE CLASS OF DEFECT THAT IS NEVER DELIVERED, HOWEVER LONG THE TEACHER HAS WAITED.
+ *
+ * Everything else this lane ships when the rounds run out makes a lesson WORSE — a page over
+ * cap, a diagram under a legibility floor, a missing worked example. `RELIGIOUS_MARKS` makes it
+ * OFFENSIVE, and it reached a teacher on production: the 2026-09-14 survey of the 70 live `v9.6`
+ * rows found one lesson carrying five of them, delivered, including
+ *
+ *   RELIGIOUS_MARKS: /page2/board_final/diagram/steps/1/lines/0 names the Prophet ("محمد") with
+ *   no honorific after it: "سیّد ولی محمد". Write "محمد ﷺ" …
+ *
+ * It shipped because `lint_clean` is RECORDED on the render row and never CONSULTED — there is
+ * no lint gate anywhere between `authorLessonPlan` and the send. The ladder simply ran out of
+ * patience (`STALE_ROUNDS`, four unchanging rounds) and handed the document back, and the worker
+ * rendered, uploaded and sent what it was given.
+ *
+ * `lint_lp.js`'s own rule already says this must not happen, in the message it emits: *"no
+ * Islamiat or سیرت lesson is served on demand, and --auto-send must be able to refuse it"*
+ * (brief §4c.1), and every one of its findings ends with the standing hold — *"Automated checks
+ * do NOT clear religious content: the native-speaker review remains a hard hold before any
+ * teacher delivery"* (gate G5c). Nothing in this lane could refuse. Now it can.
+ *
+ * TWO CONSEQUENCES, and they are the operator's instruction in her own words — a lesson failing
+ * this *"gets re-authored rather than delivered"*:
+ *
+ *   • RE-AUTHORED. Neither early exit may abandon the climb while this code is present. The
+ *     stale guard is the one that actually fired on prod, and "four rounds have not shifted it"
+ *     is a reason to keep trying here, not to stop. The page-count budget is guarded for the
+ *     same reason even though `isPageCountOnly` already excludes it — a predicate that is only
+ *     correct as long as nobody edits the other one is not a guarantee.
+ *   • RATHER THAN DELIVERED. If it is still there when the budget is genuinely spent, the run
+ *     FAILS. The worker's existing error path then refuses the lesson exactly as it already does
+ *     for `TRUNCATION`, and an operator sees a named failure instead of a teacher seeing the
+ *     document.
+ *
+ * SCOPED TO ONE CODE, DELIBERATELY. This is not a re-opening of the never-fail policy (bd-vjk68,
+ * bd-oak77.14): PAGE COUNT, FIGURE, OVERFLOW and every other finding keep today's behaviour to
+ * the letter. Matching is on the lint's own `CODE: message` shape, like `isAdvisory`, so it
+ * cannot catch the word "religious" inside someone's prose.
+ */
+const NEVER_DELIVER_CODES = ['RELIGIOUS_MARKS'];
+const isNeverDeliverable = (d) => NEVER_DELIVER_CODES.some((c) => String(d).startsWith(`${c}:`));
+const hasNeverDeliverable = (g) => gateFails(g).some(isNeverDeliverable);
+
+/**
  * Did this candidate even reach lint/render? See `runGates`: a schema failure short-circuits,
  * so `g.schema` is non-empty ONLY on that path — a schema-valid document always has `schema: []`
  * (its findings, if any, live in `lint`/`render` instead).
@@ -1848,7 +1977,19 @@ const PAGE_COUNT_ROUND_BUDGET = 1;
  * ship) and `OVERFLOW on ...` (content clipped off the bottom of a page). Both are broken
  * documents, not long ones, and neither may ever be delivered under this policy.
  */
-const isPageCountDefect = (d) => String(d).startsWith('PAGE COUNT:');
+/**
+ * `PAGE TARGET:` is the SOFT target — bd-a8veu.22 — and it is priced here, deliberately, as the
+ * same kind of thing as the hard cap: one revision round, then deliver. It is a weaker finding
+ * (the render SUCCEEDED; the document is whole and would have shipped untouched), so it can never
+ * warrant more patience than the cap breach does, and the budget above is already 1.
+ *
+ * Being matched by `isPageCountDefect` is what gives it all four of the behaviours it needs, none
+ * of which had to be written twice: it is page-count-only, so `PAGE_COUNT_ROUND_BUDGET` caps it
+ * at one round; the "HOW TO FIX A PAGE-COUNT ERROR" theory rides into the revision prompt with
+ * it; `isDeliverableRenderDefect` lets a candidate carrying only this one be sent to a teacher;
+ * and `TRUNCATION`/`OVERFLOW` stay exactly as excluded as they were.
+ */
+const isPageCountDefect = (d) => /^PAGE (COUNT|TARGET):/.test(String(d));
 
 /** True when the ONLY things standing between this document and a teacher are page counts. */
 /**
@@ -2130,7 +2271,11 @@ async function authorLessonPlan({
     // rather than aspirational. Note it is checked BEFORE the stale guard on purpose: a
     // page-count-only ladder is the exact shape that used to reach `stale >= 4`, four rounds
     // and ~four minutes later.
-    if (isPageCountOnly(gates) && pageOnlyRounds >= PAGE_COUNT_ROUND_BUDGET) {
+    // NEVER_DELIVER_CODES: neither exit below may abandon the climb while one is present. See the
+    // block above — a defect that will not be delivered is a defect worth spending the whole
+    // budget on, and stopping early only buys an earlier refusal.
+    const neverDeliver = hasNeverDeliverable(gates);
+    if (!neverDeliver && isPageCountOnly(gates) && pageOnlyRounds >= PAGE_COUNT_ROUND_BUDGET) {
       logToFile('lp612 author ladder stopped — page count only, budget spent', {
         correlationId, segmentId: segment.segment_id, roundsUsed: spent, of: maxRounds,
         pageOnlyRounds, blockingFails: blockingFails(gates).slice(0, 5),
@@ -2146,7 +2291,7 @@ async function authorLessonPlan({
       break;
     }
     if (isPageCountOnly(gates)) pageOnlyRounds += 1;
-    if (stale >= STALE_ROUNDS) {
+    if (!neverDeliver && stale >= STALE_ROUNDS) {
       logToFile('lp612 author ladder stopped — no blocking progress', {
         correlationId, segmentId: segment.segment_id, roundsUsed: spent, of: maxRounds,
         staleRounds: stale, blocking: blockingCost(gates),
@@ -2328,6 +2473,44 @@ async function authorLessonPlan({
   }
 
   const fails = gateFails(gates);
+
+  // ▶ THE REFUSAL. The budget is spent and the document still names the Prophet without an
+  //   honorific (or carries religious content it never flagged for review). See
+  //   NEVER_DELIVER_CODES: this is the one defect the never-fail policy does not cover, and the
+  //   worker's existing error path refuses it exactly as it already refuses `TRUNCATION`.
+  //   Thrown rather than returned BECAUSE the return value is not gated anywhere downstream —
+  //   `lint_clean` is written to the render row and never read, so a flag on the result would
+  //   change nothing and the lesson would send.
+  if (fails.some(isNeverDeliverable)) {
+    const refused = fails.filter(isNeverDeliverable);
+    logToFile('lp612 author refused — religious content not cleared', {
+      correlationId, segmentId: segment.segment_id, model: chosenModel,
+      rounds: spent, of: maxRounds, fails: refused.slice(0, 5),
+    });
+    logEvent('lp612.author.refused', {
+      correlationId: correlationId || null,
+      segmentId: segment.segment_id || null,
+      lang: language,
+      model: chosenModel,
+      family,
+      tier,
+      rounds: spent,
+      outcome: 'refused',
+      reason: 'religious_marks',
+      elapsedMs: Date.now() - startedAt,
+      failCount: fails.length,
+      fails: refused.slice(0, 4),
+      tokens: usage.total_tokens,
+      calls: usage.calls,
+      costUsd: usage.cost_usd,
+    });
+    throw fail(
+      'LP612_RELIGIOUS_MARKS',
+      `lesson not delivered: religious content still uncleared after ${spent} round(s) — ${refused[0]}`,
+      { fails, rounds: spent, lpDoc: doc },
+    );
+  }
+
   logToFile('lp612 author finished', {
     correlationId, segmentId: segment.segment_id, model: chosenModel,
     family, tier,

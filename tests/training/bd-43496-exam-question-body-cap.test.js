@@ -75,7 +75,7 @@ const MSQ_FLOW = '1583240000000000';
  * is what pushes the rendering past 1024.
  */
 function seed({ questionLen = 400, optionLen = 200, nOptions = 4, correct = '2' } = {}) {
-  tableStates.users = { rows: [{ id: UID, first_name: 'Fatima', phone_number: PHONE }] };
+  tableStates.users = { rows: [{ id: UID, name: 'Fatima', phone_number: PHONE }] };
   tableStates.teacher_training_assignments = { rows: [{ user_id: UID, program_id: 'p1', is_active: true }] };
   tableStates.training_program_scopes = { rows: [{ program_id: 'p1', vendor_id: VENDOR, level_ids: null }] };
   tableStates.training_vendors = { rows: [{ id: VENDOR, key: 'TALEEMABAD', name: 'NIETE', unlock_logic: 'chain', level_unlock_logic: 'chain', module_unlock_logic: 'chain', has_grand_quiz: true, passing_pct: 80, module_passing_pct: 100, exam_question_cap: null, shuffle_options: false }] };

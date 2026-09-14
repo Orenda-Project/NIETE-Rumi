@@ -44,7 +44,7 @@ describe('GET /api/portal/hcp/teachers/:id/training', () => {
   });
 
   it('returns weak-indicator-matched modules for a teacher with weak areas', async () => {
-    tableStates.users = { rows: [{ id: 't-1', first_name: 'Aisha', region: 'ICT' }] };
+    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha', region: 'ICT' }] };
     tableStates.coaching_sessions = {
       rows: [
         { id: 's-1', user_id: 't-1', analysis_data: { overall_score: 0.4, indicators: [
@@ -74,7 +74,7 @@ describe('GET /api/portal/hcp/teachers/:id/training', () => {
   });
 
   it('returns all active modules when the teacher has no weak indicators', async () => {
-    tableStates.users = { rows: [{ id: 't-2', first_name: 'Bilal', region: 'ICT' }] };
+    tableStates.users = { rows: [{ id: 't-2', name: 'Bilal', region: 'ICT' }] };
     tableStates.coaching_sessions = { rows: [] };
     tableStates.training_modules = {
       rows: [

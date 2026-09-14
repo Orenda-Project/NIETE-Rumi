@@ -181,7 +181,7 @@ function sessionRow(language) {
   return {
     id: SID, user_id: 'u-1', transcript_text: 'lesson '.repeat(400), transcript_language: language,
     created_at: '2026-09-06T05:00:00Z', analysis_data: { topic: 'x', subject: 'x' },
-    users: { phone_number: '923001234567', preferred_language: language, first_name: 'Rifat', last_name: 'Noor' },
+    users: { phone_number: '923001234567', preferred_language: language, name: 'Rifat Noor' },
   };
 }
 

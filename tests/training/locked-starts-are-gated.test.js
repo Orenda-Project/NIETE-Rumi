@@ -140,7 +140,7 @@ afterEach(() => jest.resetModules());
  * `attempts` seeds grand-quiz history.
  */
 function seed({ done = [], attempts = [], hasExam = true } = {}) {
-  tableStates.users = { rows: [{ id: UID, first_name: 'A', phone_number: '92300' }] };
+  tableStates.users = { rows: [{ id: UID, name: 'A', phone_number: '92300' }] };
   tableStates.teacher_training_assignments = { rows: [{ user_id: UID, program_id: 'p1', is_active: true }] };
   tableStates.training_program_scopes = { rows: [{ program_id: 'p1', vendor_id: VENDOR, level_ids: [LEVEL] }] };
   tableStates.training_vendors = {

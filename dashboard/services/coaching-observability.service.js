@@ -65,8 +65,8 @@ async function getCoachingSessions(dbClient, page = 1, limit = 10, statusFilter 
       cs.created_at,
       cs.completed_at,
       u.id as user_id,
-      u.first_name,
-      u.last_name,
+      u.name,
+      u.name,
       u.phone_number,
       u.school_name
     FROM coaching_sessions cs
@@ -111,8 +111,7 @@ async function getCoachingSessions(dbClient, page = 1, limit = 10, statusFilter 
       completed_at: row.completed_at,
       users: {
         id: row.user_id,
-        first_name: row.first_name,
-        last_name: row.last_name,
+        name: row.name,
         phone_number: row.phone_number,
         school_name: row.school_name
       }

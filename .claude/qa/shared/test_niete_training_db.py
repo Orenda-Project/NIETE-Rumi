@@ -22,8 +22,26 @@ def test_known_refs_are_pinned_per_env():
 
 
 def test_default_env_follows_targets_yaml_default_profile():
-    # whatsapp-targets.yaml default_profile: niete -> env: staging
-    assert t._default_env() == "staging"
+    # whatsapp-targets.yaml default_profile: niete-sandbox -> env: sandbox (the landing
+    # branch's environment since the sandbox -> staging -> main flow of 2026-09-09).
+    assert t._default_env() == "sandbox"
+
+
+def test_sandbox_is_a_known_env_with_its_own_ref_and_creds_file():
+    """bd-yd11o: the suite drives the SANDBOX bot now. Its Supabase project is distinct from
+    staging's and prod's, and its creds live in keys/niete-sandbox.env — never the staging file."""
+    assert t.ENV_REFS["sandbox"] == "olvritwoqujtjvwfulbh"
+    names = [os.path.basename(p) for p in t._env_candidates("sandbox")]
+    assert "niete-sandbox.env" in names, names
+    assert ".env.sandbox" in names, names
+    assert "niete-staging.env" not in names, names
+    t._assert_ref("sandbox", "https://olvritwoqujtjvwfulbh.supabase.co")   # no raise
+    try:
+        t._assert_ref("sandbox", "https://rpqkekcfvumypldbejhp.supabase.co")  # staging creds under --env sandbox
+    except SystemExit as e:
+        assert "staging" in str(e).lower() or "rpqkekcfvumypldbejhp" in str(e)
+        return
+    raise AssertionError("expected SystemExit when sandbox env resolves staging creds")
 
 
 def test_ref_guard_accepts_matching_ref():

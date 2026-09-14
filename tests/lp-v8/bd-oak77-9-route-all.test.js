@@ -87,7 +87,7 @@ jest.mock('../../bot/shared/handlers/lesson-plan-v2.handler', () => jest.fn());
 const FLOW_ID = '1565529551677911';
 const cps = (s) => [...String(s || '')].length;
 const typing = () => ({ stop: jest.fn() });
-const user = { id: 'u-1', first_name: 'Haroon', grade: '9' };
+const user = { id: 'u-1', name: 'Haroon', grade: '9' };
 
 const RegionFeatures = require('../../bot/shared/services/region-features.service');
 const handleCurriculumLessonPlan = require('../../bot/shared/handlers/lesson-plan-v2.handler');

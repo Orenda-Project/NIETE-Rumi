@@ -183,7 +183,12 @@ describe('the religious hold, reached via a lp612_serve-shaped request', () => {
 describe('the Urdu caption', () => {
   test('isolates {subject} and {pages} so «صفحات 7-8» cannot paint «8-7»', () => {
     const caption = Serving.buildCaption(SEGMENT, 'ur');
-    expect(caption).toContain(`${LRI}Chemistry${PDI}`);
+    // bd-63dea: the subject inside an Urdu caption is now the Urdu name — SEGMENT.subject is
+    // 'Chemistry' and the caption says کیمیا. What this test is about is unchanged: whatever the
+    // subject reads, it arrives WRAPPED in the isolates, and so do the pages. Asserting on the
+    // translated token keeps both halves honest — if the name map ever stopped firing, the
+    // English word would still be isolated and this test would still pass, so it names کیمیا.
+    expect(caption).toContain(`${LRI}کیمیا${PDI}`);
     expect(caption).toContain(`${LRI}7-8${PDI}`);
   });
 

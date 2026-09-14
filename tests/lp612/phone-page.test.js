@@ -135,10 +135,21 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
     expect(foot).toBeTruthy();
     expect(foot[0]).not.toMatch(/justify-content:\s*space-between/);
     expect(foot[0]).toMatch(/display:\s*block/);
-    // and the right half may no longer refuse to wrap
+    // and the right half is a BLOCK in the stack, not a column beside the left one
     const fr = html.match(/\.foot \.fr\{[^}]*\}/);
     expect(fr).toBeTruthy();
-    expect(fr[0]).not.toMatch(/white-space:\s*nowrap/);
+    expect(fr[0]).not.toMatch(/float:/);
+    expect(fr[0]).not.toMatch(/display:\s*inline/);
+    // `nowrap` INVERTED here, and the inversion is the point of the v9.5 fix (2026-09-13,
+    // operator: "footer to take no more than 2 lines pls"). In the two-column row this test was
+    // written against, a nowrap half could not give way to its neighbour, so a long chapter title
+    // pushed the row to 188px — nowrap was the cause. On stacked blocks each half owns the full
+    // 478px column, and nowrap means it has exactly ONE line box whatever string it holds, which
+    // is the only structural way to promise two lines for content of unknown length. So the guard
+    // keeps its real subject — the footer must not grow vertically — and page-furniture-trim.test.js
+    // asserts the clamp itself, with the overflow+ellipsis that keeps it from running off the edge.
+    expect(fr[0]).toMatch(/white-space:\s*nowrap/);
+    expect(fr[0]).toMatch(/overflow:\s*hidden/);
   });
 
   test('multi-column card grids collapse to ONE column', () => {
@@ -159,12 +170,16 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
     //            ~110px and printed the chapter line down five lines while stealing width from
     //            the title. The same pathology the h-meta comment records at 794px.
     //   .p2head  the support page's masthead — eight lines of wrapped meta beside the title.
-    //   .nxt     next period / not going, two ~230px cards. Worst in Urdu.
     //   .se      support / extend, the same shape.
     // A grep-only list is how three of these shipped past the first pass; the assertion is
-    // therefore "no rule in the emitted sheet lays two equal columns", not a list of four names.
+    // therefore "no rule in the emitted sheet lays two equal columns", not a list of names.
+    //
+    // `.nxt` was the fourth — next period / not going, two ~230px cards, worst in Urdu. It left
+    // this list in bd-a8veu.20 with the section it styled: the support page no longer paints
+    // Next period / Not going today, so there is no `.nxt` rule in the sheet to collapse. A name
+    // that no longer exists cannot be asserted on; the rule it named is gone, not widened.
     const html = built('en');
-    for (const sel of ['.hero', '.p2head', '.nxt', '.se']) {
+    for (const sel of ['.hero', '.p2head', '.se']) {
       const rule = html.match(new RegExp(`\\${sel}\\{[^}]*\\}`));
       expect(rule).toBeTruthy();
       expect(rule[0]).toMatch(/display:\s*block/);
@@ -176,27 +191,32 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
 
   test('the Urdu sheet collapses the same pairs — Urdu wraps harder, not less', () => {
     const html = built('ur');
-    for (const sel of ['.hero', '.p2head', '.nxt', '.se', '.split', '.secrow']) {
+    for (const sel of ['.hero', '.p2head', '.se', '.split', '.secrow']) { // `.nxt` — see above
       expect(html.match(new RegExp(`\\${sel}\\{[^}]*\\}`))[0]).toMatch(/display:\s*block/);
     }
     expect(html.match(/\.grid3\{[^}]*\}/)[0]).toMatch(/grid-template-columns:\s*1fr\s*;/);
   });
 
   test('a grid row carries exactly ONE card, so the packer can break between them', () => {
-    // The fixture has 3 `mistakes` and 5 `model_answers`. On A4 those were 1 grid3 row and 3
-    // grid2 rows; a break may never fall inside a row, so each card must now be its own row.
+    // The fixture has 3 `mistakes` and a homework key. On A4 those were 1 grid3 row and a
+    // handful of grid2 rows; a break may never fall inside a row, so each card must now be its
+    // own row.
     const d = doc();
     const html = buildHtml(d, { lang: 'en', docDir: path.dirname(FIXTURE) }).html;
     // count the class in the class LIST — decorate() appends the spacing rung, so what is
     // emitted is `<div data-atom class="grid3 sp-2">`.
     const body = html.slice(html.indexOf('</style>'));
     const rows = (cls) => (body.match(new RegExp(`class="${cls}[\\s"]`, 'g')) || []).length;
-    expect(rows('grid2')).toBe(d.page2.model_answers.length + d.page2.homework_key.length);
-    // + 1 for section D (differentiation), which is a HAND-WRITTEN `<div class="grid3">` holding
-    // its three fixed cards rather than a gridRows() call. On the phone page its column rule
-    // stacks them, so it reads correctly — it is simply one atom the packer cannot break inside.
-    // Measured cost: zero. Neither corpus produced an OVERFLOW or an over-cap part from it.
-    expect(rows('grid3')).toBe(d.page2.mistakes.length + 1);
+    // bd-ir1aq: the homework key is the ONLY grid2 left. The fixture still carries
+    // `model_answers`, and the renderer now ignores it wherever it appears — which is exactly
+    // the subject of tests/lp612/page2-answer-keys-optional.test.js.
+    expect(rows('grid2')).toBe(d.page2.homework_key.length);
+    // Differentiation used to be the ONE exception: a hand-written `<div class="grid3">` holding
+    // all three fixed cards in a single unbreakable atom. bd-a8veu.10 moved it into the flow and
+    // split it the same way as everything else — one card, one row, one atom — so the exception
+    // is gone and the rule in this test's own title now holds without a footnote.
+    const DIFF_CARDS = 3; // stuck / barrier / early
+    expect(rows('grid3')).toBe(d.page2.mistakes.length + DIFF_CARDS);
   });
 
   test('two consecutive half sections are NOT paired into a side-by-side band', () => {
@@ -261,22 +281,38 @@ describe('v9.3 — the renderer prints what it laid out', () => {
     expect(src).not.toMatch(/const A4 = \{ w: \d+, h: \d+ \};/);
   });
 
-  test('the page caps are UNCHANGED by this lane', () => {
-    // A page-format change that also moved the caps would leave nobody able to say which did
-    // what. At 520x2000 the worst of the 62 documents is EN 6/6 against 7/6 — headroom, measured.
+  test('the page caps are the ones the operator asked for', () => {
+    // This guard was written for the phone-page lane, where the point was that a page-FORMAT
+    // change had not also moved the caps — otherwise nobody could say which did what. That lane
+    // is long shipped, and the caps have since moved deliberately: the operator's v9.3 PDF review
+    // opened on *"its 10 pages long"* (bd-a8veu.1), and 7/6 was the ceiling that let it be.
+    //
+    // So the assertion keeps its job — the caps are a decision, not a drift, and a change to them
+    // reddens this — but it now pins the DECIDED values instead of the superseded ones.
     const { MAX_PAGES, MAX_PAGES_UR } = require(path.join(VENDOR, 'render_lp'));
-    expect(MAX_PAGES).toEqual({ teach: 7, support: 6 });
-    expect(MAX_PAGES_UR).toEqual({ teach: 9, support: 7 });
+    expect(MAX_PAGES).toEqual({ teach: 4, support: 3 });
+    expect(MAX_PAGES_UR).toEqual({ teach: 5, support: 4 });
   });
 });
 
-describe('v9.3 — a cached lesson re-renders, it does not re-author', () => {
-  test('the template version is v9.3 and v9.2 is the first fallback', () => {
+describe('a cached lesson re-renders, it does not re-author', () => {
+  // Was pinned to v9.3 as the head, then v9.4 (bd-m1k16), then v9.5, now v9.6 (bd-ir1aq). Four
+  // bumps, four times this test went red for no reason of its own — so it is now written as what
+  // its own comment always claimed it was about: the SHAPE. The head is whatever the config says;
+  // what matters is that it LEADS the lineage and that everything older re-renders behind it. A
+  // literal at the front asserts the release note, not the invariant.
+  //
+  // v9.3 keeps its own named assertion because it is the version whose stored documents the corpus
+  // is actually made of — losing it would be a real regression, not a bump.
+  test('the current version leads the lineage and v9.3 re-renders behind it', () => {
     const flags = require('../../bot/shared/config/lp612-flags');
-    expect(flags.DEFAULT_TEMPLATE_VERSION).toBe('v9.3');
-    expect(flags.TEMPLATE_VERSION_LINEAGE).toEqual(['v9.3', 'v9.2', 'v9.1']);
-    // every v9.2 and v9.1 PDF in the cache has its `.lp.json` beside it, so the bump costs
-    // 0 model calls — 07_font proved the path live on staging (PROOF.md there).
+    const lineage = flags.TEMPLATE_VERSION_LINEAGE;
+    expect(lineage[0]).toBe(flags.DEFAULT_TEMPLATE_VERSION);
+    expect(lineage).toContain('v9.3');
+    // every older PDF in the cache has its `.lp.json` beside it, so the bump costs 0 model calls —
+    // 07_font proved the path live on staging (PROOF.md there). That is only true while the head's
+    // ancestry is the WHOLE tail; a bump that forgets the lineage entry returns [] and re-authors.
+    expect(flags.previousTemplateVersions(flags.DEFAULT_TEMPLATE_VERSION)).toEqual(lineage.slice(1));
     expect(flags.previousTemplateVersions('v9.3')).toEqual(['v9.2', 'v9.1']);
   });
 });

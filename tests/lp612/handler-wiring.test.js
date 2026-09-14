@@ -65,7 +65,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
-const USER = { id: 'u1', phone_number: '923001234567', first_name: 'Ayesha', preferred_language: 'en' };
+const USER = { id: 'u1', phone_number: '923001234567', name: 'Ayesha', preferred_language: 'en' };
 
 let handler;
 beforeEach(() => {
