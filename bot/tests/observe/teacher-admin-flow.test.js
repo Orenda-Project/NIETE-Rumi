@@ -342,13 +342,14 @@ describe('Waheed 3 — picking a school does not commit the coach to adding', ()
 });
 
 describe('the new TEACHER_ACTION screen', () => {
-  it('exists, and offers exactly the two actions', () => {
+  it('exists, and offers exactly the three actions', () => {
     const scr = flowScreen('TEACHER_ACTION');
     expect(scr).toBeTruthy();
     const radio = scr.layout.children
       .find((c) => c.type === 'Form').children
       .find((c) => c.type === 'RadioButtonsGroup');
-    expect(radio['data-source'].map((o) => o.id)).toEqual(['add', 'remove']);
+    // bd-60096 added 'edit'. Order is the menu order a coach reads.
+    expect(radio['data-source'].map((o) => o.id)).toEqual(['add', 'remove', 'edit']);
     expect(radio.required).toBe(true);
   });
 
