@@ -519,21 +519,28 @@ router.post('/training/certificate-pdf', requireInternalKey, async (req, res) =>
  * bot-only dependency, and the throw gets swallowed.
  * ------------------------------------------------------------------------- */
 
-/** Shape one class for the portal: codes for logic, labels for display. */
+/**
+ * Shape one class for the portal: codes for logic, labels for display.
+ *
+ * `display` comes from the class-manager endpoint's classDisplay, NOT a second
+ * copy here. The first version of this function built its own string and was
+ * therefore never taught about shifts — so a morning and an evening class of the
+ * same grade and section rendered identically in the portal, indistinguishable.
+ * Two display builders is the same mistake as two writers.
+ */
 function presentClass(row, who) {
-  const {
-    gradeLabelFor, subjectLabelFor,
-  } = require('../config/ux-strings');
+  const { gradeLabelFor, subjectLabelFor } = require('../config/ux-strings');
+  const { classDisplay } = require('./class-manager-endpoint');
 
-  const gradeLabel = gradeLabelFor(row.gradeCode, who);
   return {
     classId: row.classId,
     gradeCode: row.gradeCode,
-    gradeLabel: gradeLabel || row.gradeCode,
+    gradeLabel: gradeLabelFor(row.gradeCode, who) || row.gradeCode,
     section: row.section,
+    shiftCode: row.shiftCode || 'morning',
     sessionCode: row.sessionCode,
     isClassTeacher: row.isClassTeacher,
-    display: row.section && gradeLabel ? `${gradeLabel} - ${row.section}` : (gradeLabel || row.gradeCode),
+    display: classDisplay(row.gradeCode, row.section, who, row.shiftCode),
     subjects: (row.subjectCodes || []).map((code) => ({
       code,
       label: subjectLabelFor(code, who) || code,
@@ -743,6 +750,117 @@ router.post('/classes/create', requireInternalKey, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/internal/classes/students/list
+ *
+ * The children on a class roster. Gated on the caller being assigned to the class —
+ * a roster is not public. Answers an empty list rather than 403 for anyone else,
+ * because the portal renders a list either way.
+ *
+ * Body   { userId, classId }
+ * Ok     200 { success: true, students: [...] }
+ */
+router.post('/classes/students/list', requireInternalKey, async (req, res) => {
+  const { userId, classId } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const students = await ClassService.listStudents({ classId, teacherUserId: userId });
+    return res.json({ success: true, students });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/list failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to load the roster' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/students/add
+ *
+ * Add a whole register from one pasted block. Reports duplicates and anything the
+ * paste cap dropped, so the caller can tell the teacher rather than leave her
+ * wondering where her students went.
+ *
+ * Body   { userId, classId, rawText }
+ * Errors 400 (missing input / no_names), 403 (not_assigned)
+ * Ok     201 { success: true, added, duplicates, dropped }
+ */
+router.post('/classes/students/add', requireInternalKey, async (req, res) => {
+  const { userId, classId, rawText } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.addStudents({ classId, teacherUserId: userId, rawText });
+
+    if (result.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'not_assigned' });
+    }
+    if (result.error === 'no_names') {
+      return res.status(400).json({ success: false, error: 'no_names' });
+    }
+    if (result.error) {
+      // Part-way failures carry what DID land; saying "failed" would make her
+      // re-paste children who are already on the roster.
+      logToFile('❌ Internal classes/students/add partially failed', {
+        userId, classId, added: result.added, error: result.error,
+      }, 'error');
+      return res.status(502).json({
+        success: false, error: result.error, added: result.added || 0,
+      });
+    }
+
+    logToFile('🏫 Roster updated via internal API', {
+      userId, classId, added: result.added, duplicates: result.duplicates, dropped: result.dropped,
+    });
+    return res.status(201).json({
+      success: true,
+      added: result.added,
+      duplicates: result.duplicates,
+      dropped: result.dropped,
+    });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/add failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to add students' });
+  }
+});
+
+/**
+ * POST /api/internal/classes/students/remove
+ *
+ * Take a child off the roster. SOFT — the enrollment is closed, the child and the
+ * attendance history that references her both survive. Any teacher on the class may
+ * do it, because the roster is the class's rather than hers.
+ *
+ * Body   { userId, classId, studentId }
+ * Errors 400, 403 (not_assigned)
+ * Ok     200 { success: true, removed }
+ */
+router.post('/classes/students/remove', requireInternalKey, async (req, res) => {
+  const { userId, classId, studentId } = req.body || {};
+  if (!userId || !classId || !studentId) {
+    return res.status(400).json({ success: false, error: 'userId, classId and studentId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.removeStudent({ classId, teacherUserId: userId, studentId });
+
+    if (result.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'not_assigned' });
+    }
+    if (result.error) {
+      logToFile('❌ Internal classes/students/remove failed', { userId, classId, error: result.error }, 'error');
+      return res.status(502).json({ success: false, error: result.error });
+    }
+    return res.json({ success: true, removed: Boolean(result.removed) });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/remove failed', { userId, classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to remove the student' });
+  }
+});
+
 // ─── v8 lesson-plan catalogue ───────────────────────────────────────────────
 //
 // The portal used to answer "which lesson plans exist?" from its own Supabase
@@ -845,75 +963,268 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   return res.json({ success: true, available: true, ...hit });
 }));
 
+// ─── assessment generator ───────────────────────────────────────────────────
+//
+// The portal's Assessment Generator tab has been rendering a real form against
+// a route that does not exist: POST /api/portal/assessment/generate answered
+// 404 on production while GET /api/portal/config reported
+// assessmentGenerator: true. The routes were razed with the old UG_EG
+// generator and the September rebuild went WhatsApp-Flow-only, but the flag
+// that lights the tab is shared between both surfaces and stayed on.
+//
+// These six endpoints give the portal the BOT's pipeline. Nothing here
+// generates anything itself: the model call, the renderer, the storage and the
+// question rules are the same modules the WhatsApp Flow uses, reached the same
+// way training rules, certificates and the LP catalogue already are.
+//
+// The portal holds no assessment logic and reads no assessment table — asserted
+// by a test, the same way the LP catalogue is.
 
 /** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
-function bandsRoute(name, handler) {
+function assessmentRoute(name, handler) {
   return async (req, res) => {
     try {
-      const Bands = require('../services/training/band-selection.service');
-      return await handler(Bands, req, res);
+      const Browse = require('../services/assessment/assessment-browse.service');
+      return await handler(Browse, req, res);
     } catch (error) {
-      logToFile('❌ Internal bands API failed', { route: name, error: error?.message }, 'error');
-      return res.status(500).json({ success: false, error: 'Band lookup failed' });
+      logToFile('❌ Internal assessment API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Assessment lookup failed' });
     }
   };
 }
 
 /**
- * POST /api/internal/training/bands/state
- * Body { userId } → { success, options, selected, can_change, ... }
+ * POST /api/internal/assessment/options
+ * Body { grade?, subject? } → { success, grades, subjects?, types?, maxQuestions, ... }
  *
- * The read half. Pure logic plus one users row — but it is served from here
- * anyway, so the portal has ONE way to reach bands rather than a read it does
- * itself and a write it delegates. Two paths to one feature is how they drift.
+ * One call for everything the form needs to draw itself. `maxQuestions` ships
+ * from here on purpose (S6): the dead portal panel hardcoded MAX_COUNT = 20
+ * against the bot's MAX_QUESTIONS = 25, so a teacher on the portal was silently
+ * capped five questions lower than the same teacher on WhatsApp. A form that
+ * reads the cap cannot disagree with the validator that enforces it.
  */
-router.post('/training/bands/state', requireInternalKey, bandsRoute('state', async (Bands, req, res) => {
-  const userId = String((req.body || {}).userId || '').trim();
-  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+router.post('/assessment/options', requireInternalKey, assessmentRoute('options', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
 
-  const supabase = require('../config/supabase');
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('training_bands, training_bands_updated_at')
-    .eq('id', userId)
-    .single();
-  if (error) throw error;
+  const grades = await Browse.listGrades();
+  const out = { success: true, grades };
 
-  const gate = Bands.canChangeBands(user || {});
-  return res.json({
-    success: true,
-    options: Bands.BANDS.map((b) => ({ id: b.key, title: b.label })),
-    selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
-    can_change: gate.allowed,
-    is_first_selection: gate.isFirstSelection,
-    hours_remaining: gate.hoursRemaining,
-    notice: gate.allowed
-      ? (gate.isFirstSelection ? null : Bands.changeWarning())
-      : gate.message,
-  });
+  if (grade !== null) out.subjects = await Browse.listSubjects(grade);
+  if (grade !== null && subject) Object.assign(out, Browse.questionOptions(subject, grade));
+  else {
+    // The cap is not conditional on having picked a subject — the form needs it
+    // to validate the count field before anything else is chosen.
+    const QuestionTypes = require('../services/assessment/question-types');
+    out.maxQuestions = QuestionTypes.MAX_QUESTIONS;
+    out.defaultQuestions = QuestionTypes.DEFAULT_QUESTIONS;
+  }
+
+  return res.json(out);
 }));
 
 /**
- * POST /api/internal/training/bands/apply
- * Body { userId, bands } → { success, unchanged, programs } | { ok:false, reason }
- *
- * The write. `applyBandSelection` already returns a structured verdict rather
- * than throwing, so the reason travels intact and the portal can keep mapping
- * cooldown → 429 exactly as it did.
+ * POST /api/internal/assessment/chapters
+ * Body { grade, subject } → { success, chapters: [...] }
  */
-router.post('/training/bands/apply', requireInternalKey, bandsRoute('apply', async (Bands, req, res) => {
+router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapters', async (Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+
+  const chapters = await Browse.listChapters(grade, subject);
+  return res.json({ success: true, chapters });
+}));
+
+/**
+ * POST /api/internal/assessment/create
+ * Body { userId, grade, subject, chapterNumber|pageRanges, ... } → 202 { success, requestId }
+ *
+ * 202, not 200: the paper does not exist yet. Generation is a queued job that
+ * runs about a minute, and the caller polls /status.
+ *
+ * `userId` comes from the PORTAL'S SESSION, never from a browser. It is a body
+ * field here because this is a server-to-server call behind a shared secret —
+ * the same rule the certificates and LP clients follow.
+ */
+router.post('/assessment/create', requireInternalKey, assessmentRoute('create', async (Browse, req, res) => {
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapterNumber = num(body.chapterNumber);
+  const pageRanges = body.pageRanges ? String(body.pageRanges).trim() : null;
+  const questionCount = num(body.questionCount);
+
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (chapterNumber === null && !pageRanges) {
+    return res.status(400).json({ success: false, error: 'chapterNumber or pageRanges is required' });
+  }
+
+  // The cap is enforced HERE as well as offered by /options. A form that reads
+  // the cap is a convenience; a server that enforces it is the actual rule, and
+  // the request row's own CHECK allows up to 60.
+  const QuestionTypes = require('../services/assessment/question-types');
+  const parsed = QuestionTypes.parseQuestionCount(
+    questionCount === null ? QuestionTypes.DEFAULT_QUESTIONS : questionCount);
+  if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.message });
+
+  const book = await Browse.bookFor(grade, subject);
+  if (!book) {
+    return res.status(400).json({ success: false, error: 'We do not have that book yet.' });
+  }
+
+  const types = (Array.isArray(body.questionTypes) && body.questionTypes.length)
+    ? QuestionTypes.withCounts(body.questionTypes, parsed.count, subject, grade)
+    : QuestionTypes.defaultMix(subject, grade, parsed.count);
+
+  // She picked a chapter, not pages — but the row should still say which pages
+  // it covers, so a request is readable later without re-reading a contents
+  // page that a re-import can change underneath it.
+  let pages = pageRanges;
+  if (!pages && chapterNumber !== null) {
+    const chapters = await Browse.listChapters(grade, subject);
+    const c = chapters.find((x) => x.chapter_number === chapterNumber);
+    pages = (c && c.page_start != null && c.page_end != null)
+      ? `${c.page_start}-${c.page_end}` : null;
+  }
+
+  const AssessmentRequest = require('../services/assessment/assessment-request.service');
+  const { requestId } = await AssessmentRequest.createAndQueue({
+    userId,
+    surface: 'portal',
+    grade,
+    subject,
+    textbookId: book.id,
+    chapterNumber,
+    pageRanges: pages,
+    contentSource: body.contentSource || 'unseen',
+    questionCount: parsed.count,
+    questionTypes: types,
+    includeAnswerKey: !!body.includeAnswerKey,
+    answerLines: body.answerLines !== false,
+    outputFormat: body.outputFormat || 'pdf',
+  });
+
+  return res.status(202).json({ success: true, requestId });
+}));
+
+/**
+ * POST /api/internal/assessment/status
+ * Body { requestId, userId } → { success, status, paperId?, errorCode? }
+ *
+ * "Not ready" is a 200, not a 404 — the same rule the LP endpoints follow, so
+ * the page can tell STILL WORKING from WE ARE BROKEN. A failed paper returns
+ * its error code, so she can be told which real thing went wrong (no content on
+ * those pages, the model returned nothing usable, the render died) rather than
+ * a generic apology.
+ */
+router.post('/assessment/status', requireInternalKey, assessmentRoute('status', async (Browse, req, res) => {
+  const body = req.body || {};
+  const requestId = String(body.requestId || '').trim();
+  const userId = String(body.userId || '').trim();
+  if (!requestId) return res.status(400).json({ success: false, error: 'requestId is required' });
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const state = await Browse.requestStatus(requestId, userId);
+  return res.json({ success: true, ...state });
+}));
+
+/**
+ * POST /api/internal/assessment/download
+ * Body { paperId, userId, artifact? } → { success, available, url?, filename? }
+ *
+ * `available: false` with a 200 covers four situations a caller should treat
+ * identically: not hers, does not exist, not finished, or an answer key whose
+ * location was never recorded (every paper before V1.4.2). None of them says
+ * which — ownership is checked in the query, so someone else's paper is
+ * indistinguishable from a missing one.
+ */
+router.post('/assessment/download', requireInternalKey, assessmentRoute('download', async (Browse, req, res) => {
+  const body = req.body || {};
+  const paperId = String(body.paperId || '').trim();
+  const userId = String(body.userId || '').trim();
+  const artifact = body.artifact === 'answer_key' ? 'answer_key' : 'paper';
+  if (!paperId) return res.status(400).json({ success: false, error: 'paperId is required' });
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const hit = await Browse.paperDownloadUrl(paperId, userId, artifact);
+  return res.json({ success: true, ...hit });
+}));
+
+/**
+ * POST /api/internal/assessment/papers
+ * Body { userId, page?, pageSize?, grade?, subject? } → { success, papers, total, page }
+ *
+ * Her papers, newest first, filterable on the same two axes she chose when
+ * making one. A teacher accumulates papers across a term, so this is browsing
+ * rather than a recent-items strip.
+ */
+router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', async (Browse, req, res) => {
   const body = req.body || {};
   const userId = String(body.userId || '').trim();
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
 
-  const raw = body.bands;
-  const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
-  const result = await Bands.applyBandSelection(userId, selection);
+  const out = await Browse.listPapers(userId, {
+    page: num(body.page) || 1,
+    pageSize: num(body.pageSize) || 10,
+    grade: num(body.grade),
+    subject: body.subject ? String(body.subject).trim() : null,
+  });
+  return res.json({ success: true, ...out });
+}));
 
-  // 200 with ok:false — the refusal is an ANSWER about her request (a cooldown,
-  // an empty selection), not a server fault. The portal turns it into the right
-  // status; a 4xx here would be indistinguishable from a broken internal call.
-  return res.json({ success: true, result });
+// ─── coaching ───────────────────────────────────────────────────────────────
+//
+// The portal's coaching screens built their own score breakdown from six
+// hardcoded OECD goal names reading scores.goal1_total…goal5_total. Every
+// NIETE region is configured for FICO and a FICO session contains none of
+// those keys, so five bars rendered zero under labels her framework has never
+// used — silently, because each read carried a `|| 0`.
+//
+// The bot already dispatches five frameworks through one adapter to render her
+// report image. This exposes the same thing, one level deeper (indicators and
+// their evidence quotes, which a browser has room for and a 1080px image does
+// not). The portal holds NO framework logic and never names a domain.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function coachingRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Breakdown = require('../services/coaching/coaching-breakdown.service');
+      return await handler(Breakdown, req, res);
+    } catch (error) {
+      logToFile('❌ Internal coaching API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Coaching breakdown failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/coaching/breakdown
+ * Body { analysisData, language? } → { success, breakdown }
+ *
+ * `breakdown: null` is a real answer with a 200 — the session exists but has
+ * not been scored yet. A caller must be able to tell that from "scored zero",
+ * which is exactly the distinction the portal's `|| 0` destroyed.
+ *
+ * The ANALYSIS is passed in rather than the session id being looked up here:
+ * the portal has already fetched the row (and checked that it is hers) before
+ * it calls, so a second read would be a second chance to get ownership wrong.
+ */
+router.post('/coaching/breakdown', requireInternalKey, coachingRoute('breakdown', async (Breakdown, req, res) => {
+  const body = req.body || {};
+  const analysisData = body.analysisData;
+  if (!analysisData || typeof analysisData !== 'object') {
+    return res.status(400).json({ success: false, error: 'analysisData is required' });
+  }
+  const language = typeof body.language === 'string' ? body.language : 'en';
+  return res.json({ success: true, breakdown: Breakdown.buildBreakdown(analysisData, language) });
 }));
 
 // ─── lesson plans, grades 6-12 ──────────────────────────────────────────────
@@ -1148,5 +1459,142 @@ router.post('/lp612/mine', requireInternalKey, lp612Route('mine', async (Browse,
     })),
   });
 }));
+
+// ─── training bands, language, capstone ─────────────────────────────────────
+//
+// THE BUG THESE CLOSE. Saving your grades in Teacher Training answered 500:
+//
+//   POST /training/bands
+//   Error: Cannot find module 'dotenv'
+//   Require stack:
+//     /app/bot/shared/config/supabase.js
+//     /app/bot/shared/services/training/band-selection.service.js
+//     /app/dashboard/routes/portal.routes.js
+//
+// Not a missing dependency — `dashboard/package.json` declares dotenv and
+// @supabase/supabase-js and both are installed. Node resolves from the
+// REQUIRING FILE'S directory, so a file under /app/bot/ searches
+// /app/bot/node_modules then /app/node_modules, and never
+// /app/dashboard/node_modules where they live. The portal service builds with
+// `npm install` at the repo ROOT, whose package.json declares four packages
+// and not these; bot/ is never installed on that service at all.
+//
+// This is the same trap `dashboard/services/certificates.service.js` documents
+// in its own docblock — "not a style choice; module resolution forces it" —
+// and the same one the lesson-plan enqueue fell into, where a swallowed
+// require degraded silently for two days.
+//
+// THREE routes were affected, not the one reported: the bands save, the
+// language change, and the capstone (staging-only today, so it would have
+// broken on promotion). All three do a DATABASE WRITE through the bot, which
+// is what drags the Supabase client — and dotenv — into the portal's process.
+
+/** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
+function bandsRoute(name, handler) {
+  return async (req, res) => {
+    try {
+      const Bands = require('../services/training/band-selection.service');
+      return await handler(Bands, req, res);
+    } catch (error) {
+      logToFile('❌ Internal bands API failed', { route: name, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Band lookup failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/training/bands/state
+ * Body { userId } → { success, options, selected, can_change, ... }
+ *
+ * The read half. Pure logic plus one users row — but it is served from here
+ * anyway, so the portal has ONE way to reach bands rather than a read it does
+ * itself and a write it delegates. Two paths to one feature is how they drift.
+ */
+router.post('/training/bands/state', requireInternalKey, bandsRoute('state', async (Bands, req, res) => {
+  const userId = String((req.body || {}).userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const supabase = require('../config/supabase');
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('training_bands, training_bands_updated_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+
+  const gate = Bands.canChangeBands(user || {});
+  return res.json({
+    success: true,
+    options: Bands.BANDS.map((b) => ({ id: b.key, title: b.label })),
+    selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
+    can_change: gate.allowed,
+    is_first_selection: gate.isFirstSelection,
+    hours_remaining: gate.hoursRemaining,
+    notice: gate.allowed
+      ? (gate.isFirstSelection ? null : Bands.changeWarning())
+      : gate.message,
+  });
+}));
+
+/**
+ * POST /api/internal/training/bands/apply
+ * Body { userId, bands } → { success, unchanged, programs } | { ok:false, reason }
+ *
+ * The write. `applyBandSelection` already returns a structured verdict rather
+ * than throwing, so the reason travels intact and the portal can keep mapping
+ * cooldown → 429 exactly as it did.
+ */
+router.post('/training/bands/apply', requireInternalKey, bandsRoute('apply', async (Bands, req, res) => {
+  const body = req.body || {};
+  const userId = String(body.userId || '').trim();
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+  const raw = body.bands;
+  const selection = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const result = await Bands.applyBandSelection(userId, selection);
+
+  // 200 with ok:false — the refusal is an ANSWER about her request (a cooldown,
+  // an empty selection), not a server fault. The portal turns it into the right
+  // status; a 4xx here would be indistinguishable from a broken internal call.
+  return res.json({ success: true, result });
+}));
+
+/**
+ * POST /api/internal/me/language
+ * Body { userId, language } → { success, applied }
+ *
+ * ONE WRITER, and it is `setUserLanguage`. A direct `users.preferred_language`
+ * update from the portal would be a SECOND writer: it sets no lock and
+ * invalidates neither Redis key, so the 24-hour cache keeps serving the old
+ * language and a later classroom recording overwrites her choice. The portal
+ * route says as much in its own comment; this endpoint is what lets it keep
+ * that promise without loading the bot's Supabase client into its process.
+ */
+router.post('/me/language', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const userId = String(body.userId || '').trim();
+    const language = String(body.language || '').trim();
+    if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+
+    const { isOffered, LANGUAGE_OFFER } = require('../config/languages');
+    // Rejected, not clamped. A clamp would silently store English when she
+    // asked for something else; on an explicit choice she deserves to be told.
+    if (!isOffered(language)) {
+      return res.status(400).json({
+        success: false,
+        error: 'not_offered',
+        offered: LANGUAGE_OFFER,
+      });
+    }
+
+    const { setUserLanguage } = require('../utils/language-cache');
+    const applied = await setUserLanguage(userId, language, true);
+    return res.json({ success: true, applied: applied === true });
+  } catch (error) {
+    logToFile('❌ Internal language API failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not save that language' });
+  }
+});
 
 module.exports = router;
