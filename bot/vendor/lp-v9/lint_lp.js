@@ -1069,9 +1069,40 @@ const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
 const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
-// Latin script has no place in a sacred name on an Urdu religious page — a transliteration is a
-// de-pointing by another route, and §4c.5 bans that outright.
-const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|PBUH|SAW|SAWW|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu|RA\b)/;
+// §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
+// transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
+// in any medium — an English book prints "ﷺ" or "(peace be upon him)", never "(PBUH)".
+const ABBREV_RE = /\b(PBUH|SAW|SAWW|RA)\b/;
+// A TRANSLITERATION, by contrast, is only wrong where the book prints the Urdu. On an Urdu
+// religious page Latin script is a de-pointing by another route; in a Grade 6 ENGLISH lesson
+// "Hazrat Muhammad" and "Khadijah radiallahu anha" are what the page itself prints, and forcing
+// them into Urdu script is the defect, not the fix (bd-b8ypq). `provenance.medium` decides.
+const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu)/;
+// Reverence does not depend on script, so the English lane keeps its own honorific rule: rule 1
+// cannot see these mentions at all, because PROPHET_RE holds only Urdu-script tokens.
+const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
+const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم|\(?\s*peace\s+be\s+upon\s+him\s*\)?)/i;
+// A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
+// the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
+// two on an English page — the NAME keeps the Latin spelling the English book prints, the
+// SALUTATION is the ligature — and this carries the same split to companions: "Khadijah رضی اللہ
+// عنہا", never "Khadijah radiallahu anha" and never "Khadijah (may Allah be pleased with her)".
+//
+// This is a ban on the WRITTEN-OUT-IN-LATIN salutation, not a demand that a name carry one. Rule 3
+// deliberately refuses to keep a corpus of companion names — bare "علی"/"عمر" are ordinary words —
+// and a Latin list would be worse, so a bare "Khadijah" is still the native-speaker reviewer's
+// call. What IS decidable without a name list is that a salutation was typed in the wrong script.
+//
+// Transliterations vary more than the Urdu does: radi/radhi/razi/radiya, alayhi/alaihi,
+// rahmat/rahimah. The Urdu forms these should have been are COMPANION_HON's set, quoted back to
+// the author in the message.
+const COMPANION_SALUT_LATIN_RE = new RegExp([
+  "r[ae][dz]h?i(?:y|ya)?\\s*-?\\s*all?ah[ui]?\\s*-?\\s*['’]?anh(?:uma|um|un|u|a)",  // رضی اللہ عنہ
+  "r[ae]h(?:mat|imah)u?ll?ah(?:i)?(?:\\s*-?\\s*(?:alay|alai)h[ie]?)?",                   // رحمہ اللہ
+  "(?:alay|alai)h[ia]?s?\\s*-?\\s*(?:as[\\s-])?sal[ae]{1,2}m",                           // علیہ السلام
+  "karr?am\\s*-?\\s*all?ah[ui]?\\s*-?\\s*wajh",                                          // کرم اللہ وجہہ
+  "may\\s+Allah\\s+be\\s+pleased\\s+with\\s+(?:him|her|them)",                           // the translation
+].map((s) => `\\b(?:${s})`).join("|"), "i");
 // Attributed prophetic SPEECH: a Prophet token, a speech verb, and a quoted span. That is a
 // hadith, and a hadith without its source is the "content that has him speak" the operator ruled
 // out. A source is a book-and-number, a page cite, or a named collection.
@@ -1539,11 +1570,36 @@ function religiousMarks(doc, ctx) {
     }
   }
 
-  // 2 — no sacred name in Latin script. A transliteration is a de-pointing by another route.
+  // 2 — abbreviation is refused in EITHER medium; transliteration only where the book prints the
+  //     Urdu. `provenance.medium` is the language of INSTRUCTION (lp_doc.v2 schema, enum en|ur);
+  //     a document that somehow lacks it gets the stricter Urdu branch.
+  const medium = (doc.provenance && doc.provenance.medium) || "ur";
   for (const { at, s } of strings) {
-    const t = TRANSLIT_RE.exec(s);
-    if (t) {
-      fail("RELIGIOUS_MARKS", `${at || "/"} writes a sacred name or honorific in Latin script ("${t[0]}"): "${s.slice(0, 70)}". These are set in Urdu/Arabic script as the book prints them — اللہ، نبی کریم ﷺ، رضی اللہ عنہ (brief §4c.5). ${HOLD}`);
+    const a = ABBREV_RE.exec(s);
+    if (a) {
+      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write it out — ﷺ, رضی اللہ عنہ, or "peace be upon him" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      continue;
+    }
+    // Before the medium split, because it does not depend on it: a salutation belongs to the
+    // companion, not to the sentence around it, so it is set in Urdu script whatever the page is.
+    const c = COMPANION_SALUT_LATIN_RE.exec(s);
+    if (c) {
+      fail("RELIGIOUS_MARKS", `${at || "/"} writes a companion's salutation in Latin script ("${c[0]}"): "${s.slice(0, 70)}". The NAME keeps the spelling the book prints, but the salutation is set in Urdu — "Khadijah رضی اللہ عنہا", not "Khadijah ${c[0]}". Use رضی اللہ عنہ / عنہا / عنہم، علیہ السلام، رحمہ اللہ (brief §4c.5). ${HOLD}`);
+      continue;
+    }
+    if (medium === "ur") {
+      const t = TRANSLIT_RE.exec(s);
+      if (t) {
+        fail("RELIGIOUS_MARKS", `${at || "/"} writes a sacred name or honorific in Latin script ("${t[0]}"): "${s.slice(0, 70)}". These are set in Urdu/Arabic script as the book prints them — اللہ، نبی کریم ﷺ، رضی اللہ عنہ (brief §4c.5). ${HOLD}`);
+      }
+      continue;
+    }
+    // English medium: the Latin spelling is the book's own and stays. The honorific still does not.
+    TRANSLIT_PROPHET_RE.lastIndex = 0;
+    let m;
+    while ((m = TRANSLIT_PROPHET_RE.exec(s))) {
+      if (TRANSLIT_HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — an English lesson keeps the spelling the book prints, but never drops the honorific (brief §4c.5). ${HOLD}`);
     }
   }
 
