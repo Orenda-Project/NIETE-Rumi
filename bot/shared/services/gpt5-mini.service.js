@@ -1796,7 +1796,9 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
     if (analysisData.domains) enhancedAnalysis.domains = analysisData.domains;
     if (analysisData.scores) enhancedAnalysis.scores = analysisData.scores;
     // Preserve framework-native optional fields the enhance prompt doesn't know about.
-    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity']) {
+    // bd-cbe2d: photo_mode / photo_count_analysed record which photo channel actually ran — without
+    // them here a completed session reads null and the rollout watch cannot split by mode.
+    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity', 'photo_mode', 'photo_count_analysed']) {
       if (analysisData[key] !== undefined && enhancedAnalysis[key] === undefined) {
         enhancedAnalysis[key] = analysisData[key];
       }
