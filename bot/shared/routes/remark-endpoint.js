@@ -75,7 +75,7 @@ function anchorOptions(indicator, language) {
  * "undefined" to a principal reads as a broken product.
  */
 function teacherLabel(teacher, language) {
-  const name = (teacher.first_name || '').trim();
+  const name = (teacher.name || '').trim();
   if (name) return name;
   const tail = String(teacher.phone_number || '').slice(-4);
   return tail
@@ -86,7 +86,7 @@ function teacherLabel(teacher, language) {
 async function loadUser(userId) {
   const { data, error } = await db()
     .from('users')
-    .select('id, first_name, phone_number, preferred_language, role, school_id')
+    .select('id, phone_number, preferred_language, role, school_id, name')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(`remark-endpoint: user lookup failed — ${error.message}`);

@@ -105,7 +105,7 @@ async function submitRemark({ remark, formLanguage = 'en' }, deps) {
     narrative = await generateNarrative({
       scores,
       comment: remark.comment_text || '',
-      teacherName: (teacher && teacher.first_name) || 'Teacher',
+      teacherName: (teacher && teacher.name) || 'Teacher',
       language,
     });
     await markNarrative(remark.id, {

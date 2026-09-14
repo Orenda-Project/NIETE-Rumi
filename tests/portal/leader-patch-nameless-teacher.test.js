@@ -41,8 +41,6 @@ const { getPatchTeachers, PATCH_TEACHERS_SQL } = require('../../dashboard/servic
 /** The reported row: first_name '', a last name, no `name`. */
 const NAMELESS = {
   teacher_ext_id: '923495021455',
-  first_name: '',
-  last_name: null,
   name: null,
   phone: '923495021455',
   role: 'teacher',
@@ -59,8 +57,6 @@ const NAMELESS = {
 /** The measured majority: a multi-word `name` beside a one-word first_name. */
 const NAMED = {
   teacher_ext_id: '923001234567',
-  first_name: 'Irene',
-  last_name: null,
   name: 'Irene Khan',
   phone: '923001234567',
   role: 'teacher',
@@ -75,15 +71,17 @@ const NAMED = {
 };
 
 /** first + last, no `name` — the 26 rows for which concatenation is needed. */
+// bd-60092: post-backfill, this person's whole name lives on `name` — V1.4.3
+// rebuilt it from the split columns before they were dropped.
 const FIRST_LAST = {
   ...NAMED, teacher_ext_id: '923007777777', phone: '923007777777',
-  rumi_user_id: 'u-fl', first_name: 'Asad', last_name: 'Amanat Ali', name: null,
+  rumi_user_id: 'u-fl', name: 'Asad Amanat Ali',
 };
 
 /** A principal with nothing at all — the label must say which role. */
 const NAMELESS_PRINCIPAL = {
   ...NAMELESS, teacher_ext_id: '923338889999', phone: '923338889999',
-  rumi_user_id: 'u-principal', role: 'principal', last_name: null,
+  rumi_user_id: 'u-principal', role: 'principal',
 };
 
 function fakeQuery(rows) {
@@ -96,10 +94,13 @@ function fakeQuery(rows) {
 const byId = (list, id) => list.find((t) => t.rumiUserId === id);
 
 describe('the SQL hands JS everything the name chain needs', () => {
-  test('it selects name and last_name, not first_name alone', () => {
-    expect(PATCH_TEACHERS_SQL).toMatch(/u\.last_name/);
+  // bd-60092: `name` is the ONLY name column. The split columns were dropped —
+  // they bought nothing a split cannot compute and cost three writers
+  // disagreeing about what `name` meant.
+  test('it selects u.name, and no longer the dropped split columns', () => {
     expect(PATCH_TEACHERS_SQL).toMatch(/u\.name/);
-    expect(PATCH_TEACHERS_SQL).not.toMatch(/u\.first_name\s+AS\s+teacher_name/i);
+    expect(PATCH_TEACHERS_SQL).not.toMatch(/u\.first_name/);
+    expect(PATCH_TEACHERS_SQL).not.toMatch(/u\.last_name/);
   });
 });
 
@@ -134,13 +135,17 @@ describe('a teacher with no first name is still findable', () => {
 });
 
 describe('the measured chain is preserved, not replaced', () => {
-  test('users.name leads — a one-word first_name never beats a multi-word name', async () => {
+  test('users.name is what the row is named by', async () => {
     const out = await getPatchTeachers(fakeQuery([NAMED]), 'coach-1');
     expect(byId(out, 'u-named').name).toBe('Irene Khan');
     expect(byId(out, 'u-named').hasName).toBe(true);
   });
 
-  test('first + last is still the fallback when there is no name column', async () => {
+  // bd-60092 supersedes the old first+last fallback: the 43 rows on prod whose
+  // name could only be rebuilt from the split columns are backfilled by
+  // V1.4.3 BEFORE the columns are dropped, so by the time this code runs there
+  // is nothing left for a fallback to rescue.
+  test('a whole name on `name` is returned as-is', async () => {
     const out = await getPatchTeachers(fakeQuery([FIRST_LAST]), 'coach-1');
     expect(byId(out, 'u-fl').name).toBe('Asad Amanat Ali');
     expect(byId(out, 'u-fl').hasName).toBe(true);

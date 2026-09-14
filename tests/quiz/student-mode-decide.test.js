@@ -63,7 +63,7 @@ describe('decide() — a registered teacher is a teacher, always', () => {
  */
 describe('decide() — teacher signals are weighed before anything about children', () => {
   const UNREGISTERED_TEACHER = {
-    id: 'u-t1', first_name: 'Amina',
+    id: 'u-t1', name: 'Amina',
     registration_completed: false, registration_state: 'unregistered',
   };
   const LIVE_SIGNALS = {
@@ -115,7 +115,7 @@ describe('decide() — teacher signals are weighed before anything about childre
 
   test('a whitespace-only first_name is not a name', () => {
     expect(SM.decide({
-      user: { id: 'u2', first_name: '   ' },
+      user: { id: 'u2', name: '   ' },
       students: [CHILD_ROW], lastSessionAt: daysAgo(1), now: NOW, flag: true,
     })).toEqual({ mode: 'student', reason: 'active_student_recent_quiz' });
   });
@@ -123,7 +123,7 @@ describe('decide() — teacher signals are weighed before anything about childre
   test('a bare users row with a child row and a recent quiz is STILL a student', () => {
     // The fix must not swallow the feature it protects.
     expect(SM.decide({
-      user: { id: 'u-child', first_name: null, registration_completed: false },
+      user: { id: 'u-child', name: null, registration_completed: false },
       teacherSignals: {
         registered: false, hasName: false, ownsQuizzes: false, hasCoaching: false, usedFeatures: false,
       },

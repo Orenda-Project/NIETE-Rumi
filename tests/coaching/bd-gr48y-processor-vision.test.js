@@ -64,7 +64,7 @@ function baseSession(photos) {
     id: SID, user_id: 'u1', observation_type: 'self_observation',
     transcript_text: 't', transcript_language: 'en',
     classroom_photos: photos,
-    users: { phone_number: '92300', first_name: 'A', last_name: 'B' },
+    users: { phone_number: '92300', name: 'A B' },
   };
 }
 

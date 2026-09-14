@@ -70,7 +70,7 @@ const fid = (id) => String(id).replace(/\./g, '_');
 async function loadSession(sessionId) {
   const { data: session, error } = await supabase
     .from('coaching_sessions')
-    .select('*, users!inner(phone_number, first_name, preferred_language)')
+    .select('*, users!inner(name, phone_number, preferred_language)')
     .eq('id', sessionId)
     .single();
   if (error || !session) {

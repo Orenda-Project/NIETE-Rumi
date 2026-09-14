@@ -22,6 +22,7 @@
 
 require('dotenv').config();
 const supabase = require('../shared/config/supabase');
+const { firstNameOf } = require('../shared/utils/person-name');
 const { logToFile } = require('../shared/utils/logger');
 const WhatsAppService = require('../shared/services/whatsapp.service');
 const CoachingJobQueueService = require('../shared/services/coaching/coaching-job-queue.service');
@@ -123,12 +124,7 @@ async function processStaleCoachingSessions() {
   // Query sessions in conducting_conversation status
   const { data: staleSessions, error } = await supabase
     .from('coaching_sessions')
-    .select(`
-      id, user_id, status, conversation_state,
-      transcript_text, analysis_data, lesson_plan_text,
-      reminder_sent_at, created_at,
-      users!inner(first_name, phone_number)
-    `)
+    .select(`id, user_id, status, conversation_state, transcript_text, analysis_data, lesson_plan_text, reminder_sent_at, created_at, users!inner(name, phone_number)`)
     .eq('status', 'conducting_conversation')
     .order('created_at', { ascending: true });
 
@@ -316,14 +312,14 @@ async function sendSessionReminder(session) {
     let reminderText;
 
     if (context.subject) {
-      reminderText = `Hi ${session.users.first_name}! 👋\n\n` +
+      reminderText = `Hi ${firstNameOf(session.users) || 'there'}! 👋\n\n` +
         `You have an incomplete coaching session for your ${context.subject} lesson` +
         (questionsAnswered > 0
           ? ` (${questionsAnswered}/3 reflections completed).\n\n`
           : `.\n\n`) +
         `Ready to continue? I just have ${questionsRemaining} more question${questionsRemaining > 1 ? 's' : ''} for you!`;
     } else {
-      reminderText = `Hi ${session.users.first_name}! 👋\n\n` +
+      reminderText = `Hi ${firstNameOf(session.users) || 'there'}! 👋\n\n` +
         `You started a coaching session but didn't finish the reflective conversation.\n\n` +
         (questionsAnswered > 0
           ? `✅ Progress: ${questionsAnswered}/3 questions answered\n\n`
@@ -408,9 +404,9 @@ async function autoCompleteSession(session) {
 
     // 3. Notify user
     const notificationText = questionsAnswered > 0
-      ? `Hi ${session.users.first_name}! I noticed you didn't get back to complete your coaching session. ` +
+      ? `Hi ${firstNameOf(session.users) || 'there'}! I noticed you didn't get back to complete your coaching session. ` +
         `No worries - I'm generating your report now based on the ${questionsAnswered} reflection${questionsAnswered > 1 ? 's' : ''} you provided. 📊`
-      : `Hi ${session.users.first_name}! Since you didn't continue the reflective conversation, ` +
+      : `Hi ${firstNameOf(session.users) || 'there'}! Since you didn't continue the reflective conversation, ` +
         `I'm generating your coaching report based on the classroom audio analysis. 📊`;
 
     await WhatsAppService.sendMessage(session.users.phone_number, notificationText);
@@ -445,7 +441,7 @@ if (require.main === module) {
 async function processStuckInitiatedSessions() {
   const { data: stuck } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, status, created_at, audio_id, users!inner(phone_number, first_name)')
+    .select('id, user_id, status, created_at, audio_id, users!inner(phone_number, name)')
     .eq('status', 'initiated')
     .order('created_at', { ascending: true })
     .limit(50);
@@ -469,7 +465,7 @@ async function processStuckInitiatedSessions() {
         });
         await WhatsAppService.sendMessage(
           session.users.phone_number,
-          `Hi ${session.users.first_name || ''}! I've gone ahead and started analysing your classroom recording — your report is on the way. 📊`,
+          `Hi ${firstNameOf(session.users) || 'there'}! I've gone ahead and started analysing your classroom recording — your report is on the way. 📊`,
         );
         confirmed += 1;
         logToFile('🔄 Stuck confirmation-gate session auto-proceeded', { sessionId: session.id, reason: decision.reason });
@@ -729,17 +725,17 @@ async function resolveMidFlightRecipient(session) {
   const isObservation = session.observation_type === 'leader_observation'
     && !!session.observer_user_id && session.observer_user_id !== session.user_id;
   if (!isObservation) {
-    return { phone: u.phone_number, name: u.first_name, lang: observeLang(u), isObservation: false };
+    return { phone: u.phone_number, name: u.name, lang: observeLang(u), isObservation: false };
   }
   const { data: coach } = await supabase
-    .from('users').select('phone_number, first_name, preferred_language')
+    .from('users').select('phone_number, preferred_language, name')
     .eq('id', session.observer_user_id).maybeSingle();
   if (!coach || !coach.phone_number) {
     logToFile('⚠️ mid-flight watchdog: could not resolve the coach — staying silent', {
       sessionId: session.id, observerUserId: session.observer_user_id }, 'error');
     return { phone: null, name: null, lang: observeLang(null), isObservation: true };
   }
-  return { phone: coach.phone_number, name: coach.first_name, lang: observeLang(coach), isObservation: true };
+  return { phone: coach.phone_number, name: coach.name, lang: observeLang(coach), isObservation: true };
 }
 
 async function processStuckMidFlightSessions() {
@@ -754,7 +750,7 @@ async function processStuckMidFlightSessions() {
   // Load math: 25 rows x ~200 bytes x 4 ticks/hr x replicas — kilobytes, not MB.
   const { data: stuck } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, status, created_at, updated_at, audio_id, observation_type, observer_user_id, watchdog:analysis_data->watchdog, users!inner(phone_number, first_name, preferred_language)')
+    .select('id, user_id, status, created_at, updated_at, audio_id, observation_type, observer_user_id, watchdog:analysis_data->watchdog, users!inner(name, phone_number, preferred_language), name')
     .in('status', ['transcribing', 'transcription_complete', 'analyzing', 'analysis_started', 'analysis_complete', 'generating_report'])
     .lt('updated_at', staleBefore)
     .order('updated_at', { ascending: true })
@@ -858,7 +854,7 @@ async function processStuckPhotoGateSessions() {
   const cutoff = new Date(Date.now() - PHOTO_GATE_THRESHOLD_MS).toISOString();
   const { data: stuck, error } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, observer_user_id, observation_type, status, created_at, updated_at, transcript_text, conversation_state, users!inner(phone_number, first_name)')
+    .select('id, user_id, observer_user_id, observation_type, status, created_at, updated_at, transcript_text, conversation_state, users!inner(phone_number, name)')
     .in('status', PHOTO_GATE_STATUSES)
     .lt('updated_at', cutoff);
   if (error) {
@@ -914,13 +910,13 @@ async function processStuckPhotoGateSessions() {
       // Observer identity: on a bound leader observation, session.users is the
       // TEACHER — every message and job callback must reach the COACH.
       let notifyPhone = session.users.phone_number;
-      let notifyName = session.users.first_name;
+      let notifyName = session.users.name;
       if (session.observation_type === 'leader_observation'
           && session.observer_user_id && session.observer_user_id !== session.user_id) {
         const { data: coach } = await supabase
-          .from('users').select('phone_number, first_name')
+          .from('users').select('phone_number, name')
           .eq('id', session.observer_user_id).single();
-        if (coach && coach.phone_number) { notifyPhone = coach.phone_number; notifyName = coach.first_name; }
+        if (coach && coach.phone_number) { notifyPhone = coach.phone_number; notifyName = coach.name; }
         else {
           logToFile('⚠️ photo-gate: could not resolve the coach — advancing silently', {
             sessionId: session.id, observerUserId: session.observer_user_id });

@@ -192,7 +192,7 @@ describe('GET /api/portal/hcp/teachers/:id/dc', () => {
   it('returns empty history when teacher exists but has no sessions', async () => {
     tableStates.users = {
       rows: [{
-        id: 't-1', first_name: 'A', last_name: 'B', phone_number: '92300111',
+        id: 't-1', name: 'A B', phone_number: '92300111',
         school_name: 'IMSG H-9', region: 'ICT', registration_completed: true,
       }],
     };
@@ -213,7 +213,7 @@ describe('GET /api/portal/hcp/teachers/:id/dc', () => {
   it('computes summary, session table, and RED/GREEN indicator split', async () => {
     tableStates.users = {
       rows: [{
-        id: 't-1', first_name: 'Aisha', last_name: 'Khan', phone_number: '92300111',
+        id: 't-1', name: 'Aisha Khan', phone_number: '92300111',
         school_name: 'IMSG H-9', region: 'ICT', registration_completed: true,
       }],
     };

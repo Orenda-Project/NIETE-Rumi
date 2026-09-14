@@ -50,7 +50,7 @@ async function resolveSelfTest({ phone, teacherUserId }) {
   try {
     const { data: teacher, error } = await supabase
       .from('users')
-      .select('id, first_name, last_name, phone_number')
+      .select('id, phone_number, name')
       .eq('id', teacherUserId)
       .maybeSingle();
     if (error || !teacher?.phone_number) return null;
@@ -71,7 +71,7 @@ async function resolveSelfTest({ phone, teacherUserId }) {
       logEvent('video_quiz.self_test_rows_retired', { userId: teacher.id, retired });
     }
 
-    const name = [teacher.first_name, teacher.last_name].filter(Boolean).join(' ') || null;
+    const name = teacher.name || null;
     return { userId: teacher.id, name };
   } catch (err) {
     logToFile('⚠️ teacher self-test lookup threw', { error: err.message });

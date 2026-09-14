@@ -106,7 +106,7 @@ afterEach(() => jest.resetModules());
  * order is 101, 102, 103, 201, 202, 203.
  */
 function seed({ doneModuleIds = [] } = {}) {
-  tableStates.users = { rows: [{ id: UID, first_name: 'Aisha', phone_number: '92300', school_name: 'X' }] };
+  tableStates.users = { rows: [{ id: UID, name: 'Aisha', phone_number: '92300', school_name: 'X' }] };
   tableStates.teacher_training_assignments = { rows: [{ user_id: UID, program_id: 'p1', is_active: true }] };
   tableStates.training_program_scopes = { rows: [{ program_id: 'p1', vendor_id: VENDOR, level_ids: [LEVEL] }] };
   tableStates.training_vendors = {

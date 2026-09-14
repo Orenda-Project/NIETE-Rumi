@@ -42,7 +42,7 @@ jest.mock('dotenv', () => ({ config: () => ({ parsed: {} }) }), { virtual: true 
 jest.mock('pdfkit', () => jest.fn(), { virtual: true });
 
 const PHONE = '923001234567';
-const USER = { id: 'u-1', first_name: 'Ayesha' };
+const USER = { id: 'u-1', name: 'Ayesha' };
 
 // The two attempts a Beacon House teacher ends up holding: English opened first,
 // Mathematics touched most recently. An answer she types now is for Mathematics.

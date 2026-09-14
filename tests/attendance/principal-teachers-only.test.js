@@ -84,9 +84,9 @@ function db({ user = {}, lists = [], staff = [], schools = [], teacherRecords = 
 
 const PRINCIPAL = { id: 'p1', role: 'principal', school_id: 'sch1' };
 const STAFF = [
-  { id: 'u1', first_name: 'Ayesha', last_name: 'Khan' },
-  { id: 'u2', first_name: 'Bilal', last_name: 'Ahmed' },
-  { id: 'u3', first_name: 'Sana', last_name: 'Iqbal' },
+  { id: 'u1', name: 'Ayesha Khan' },
+  { id: 'u2', name: 'Bilal Ahmed' },
+  { id: 'u3', name: 'Sana Iqbal' },
 ];
 const SCHOOLS = [{ id: 'sch1', name: 'GGPS Dhoke Ratta' }];
 

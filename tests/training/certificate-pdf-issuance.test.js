@@ -87,7 +87,7 @@ const params = { userId: 'user-1', programId: 'prog-1', levelId: 3, attemptId: '
 
 function seedFreshIssue() {
   tableStates.training_certificates = { rows: [] };
-  tableStates.users = { rows: [{ name: null, first_name: 'Amina', last_name: 'Khan' }] };
+  tableStates.users = { rows: [{ name: 'Amina Khan' }] };
   tableStates.training_levels = { rows: [{ name: 'Aspiring Teacher' }] };
 }
 

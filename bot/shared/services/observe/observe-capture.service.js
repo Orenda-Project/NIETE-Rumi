@@ -38,7 +38,7 @@ async function resolveBoundTeacherUserId(boundTeacher) {
       .from('users')
       .insert({
         phone_number: phone,
-        first_name: name ? name.split(/\s+/)[0] : null,
+        name: name ? name.split(/\s+/)[0] : null,
         name: name || null,
         role: 'teacher',
         preferred_language: boundTeacher.preferred_language || 'en',

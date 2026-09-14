@@ -10,7 +10,7 @@
  *
  * Interface (all methods return Promises):
  *   getTeachersBySchool(school_id)
- *       -> Array<{id, first_name, last_name, phone_number, role}>
+ *       -> Array<{id, name, phone_number, role}>
  *   saveAttendance({teacher_id, school_id, date, status, leave_type, marked_by_user_id})
  *       -> {id, teacher_id, school_id, date, status, leave_type, marked_by_user_id, marked_at}
  *   getAttendanceForTeacher(teacher_id, start_date, end_date)
@@ -100,7 +100,7 @@ class RealAttendanceRepository {
   async getTeachersBySchool(school_id) {
     const { data, error } = await this.supabase
       .from('users')
-      .select('id, first_name, last_name, phone_number, role, school_id')
+      .select('id, phone_number, role, school_id, name')
       .eq('school_id', school_id)
       .eq('role', 'teacher');
     if (error) throw error;

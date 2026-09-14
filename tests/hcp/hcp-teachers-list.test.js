@@ -174,19 +174,19 @@ describe('GET /api/portal/hcp/teachers', () => {
     tableStates.users = {
       rows: [
         {
-          id: 't-1', first_name: 'Aisha', last_name: 'Khan', phone_number: '92300111',
+          id: 't-1', name: 'Aisha Khan', phone_number: '92300111',
           school_name: 'IMSG H-9', region: 'ICT', registration_completed: true,
         },
         {
-          id: 't-2', first_name: 'Bilal', last_name: 'Ahmed', phone_number: '92300222',
+          id: 't-2', name: 'Bilal Ahmed', phone_number: '92300222',
           school_name: 'IMSB F-8', region: 'ICT', registration_completed: true,
         },
         {
-          id: 't-3', first_name: 'Chand', last_name: 'Bibi', phone_number: '92300333',
+          id: 't-3', name: 'Chand Bibi', phone_number: '92300333',
           school_name: 'IMSG G-6', region: 'ICT', registration_completed: false,
         },
         {
-          id: 't-4', first_name: 'Danish', last_name: 'Ali', phone_number: '92300444',
+          id: 't-4', name: 'Danish Ali', phone_number: '92300444',
           school_name: 'RWP-1', region: 'Rawalpindi', registration_completed: true,
         },
       ],
@@ -265,7 +265,7 @@ describe('GET /api/portal/hcp/teachers', () => {
     tableStates.users = {
       rows: [
         {
-          id: 't-new', first_name: 'Newby', last_name: 'Teacher', phone_number: '92300555',
+          id: 't-new', name: 'Newby Teacher', phone_number: '92300555',
           school_name: 'IMSG H-11', region: 'ICT', registration_completed: true,
         },
       ],
@@ -292,8 +292,8 @@ describe('GET /api/portal/hcp/teachers', () => {
   it('returns all regions when region query param is omitted', async () => {
     tableStates.users = {
       rows: [
-        { id: 't-1', first_name: 'A', region: 'ICT', registration_completed: true },
-        { id: 't-2', first_name: 'B', region: 'Rawalpindi', registration_completed: true },
+        { id: 't-1', name: 'A', region: 'ICT', registration_completed: true },
+        { id: 't-2', name: 'B', region: 'Rawalpindi', registration_completed: true },
       ],
     };
     tableStates.coaching_sessions = { rows: [] };
