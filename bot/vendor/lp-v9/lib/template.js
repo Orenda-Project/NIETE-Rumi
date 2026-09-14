@@ -21,7 +21,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
-const { rich, esc, display, displayChem, setRtlProse } = require("./rich");
+const { rich, esc, display, displayChem, setRtlProse, setUrduInline } = require("./rich");
 const { LABELS } = require("./overlay");
 const { fontCss, katexCss, REPO_ROOT } = require("./fonts");
 const { toV3 } = require("./migrate");
@@ -339,6 +339,21 @@ html,body{
   font-size:18px;
 }
 body{ background:#fff; }
+${!rtl && urduScript ? `
+/* bd-b8ypq — an ENGLISH page that quotes Urdu. bd-jdtdl reached the face above; these two rules
+   are its metrics. lib/rich.js wraps each Arabic run in .ar, so only the lines that actually
+   carry Nastaliq take the tall line box and the page keeps its 1.55 rhythm everywhere else —
+   lifting the whole page for one honorific costs ~50% of its vertical budget and overruns the
+   packer (render_lp.js:94-117).
+   2.05 is exactly what an RTL page uses, and the operator confirmed those render correctly.
+   Nastaliq's 99th-percentile glyph paints 1.944em, so 2.05 contains it; the ﷺ ligature alone
+   paints 3.190em — measured over every glyph in ../fonts/NotoNastaliqUrdu.ttf — which no
+   affordable line box holds, and which overflows even its own font's 2.50em content box. It is
+   drawn far larger than the script around it by design, so .61em still leaves ~1.95em of ink:
+   larger than the Latin beside it, and inside the run's own box. */
+.ar{ line-height:2.05; }
+.ar-lig{ font-size:0.61em; }
+` : ""}
 .page{ width:var(--page-w); height:var(--page-h); position:relative; background:#fff;
        page-break-after:always; overflow:hidden; }
 .page:last-child{ page-break-after:auto; }
@@ -2376,6 +2391,12 @@ function buildHtml(input, opts = {}) {
   // Every build sets the prose pipeline's direction for itself (see lib/rich.js
   // — buildHtml is synchronous, so two documents cannot interleave).
   setRtlProse(rtl);
+  /** bd-b8ypq — the face without its metrics. An RTL page is already wholly on the Nastaliq
+   *  branch (line-height 2.05, the taller .hero and .foot paddings) and renders correctly. An
+   *  LTR page carrying Urdu got the face from bd-jdtdl and none of that, so its Arabic runs
+   *  paint into a 1.55 line box and land on their neighbours. Only the runs that carry Arabic
+   *  are lifted — taking the whole page to 2.05 for one ﷺ costs ~50% of its vertical budget. */
+  setUrduInline(!rtl && urduScript);
   const L = LABELS[rtl ? "ur" : "en"];
   const warnings = [];
   const figureProblems = [];
