@@ -1943,6 +1943,15 @@ app.post('/webhook', async (req, res) => {
         } catch (ackErr) {
           logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
         }
+      } else if (flowType === 'student_quiz') {
+        // The child's /quiz Flow (bd-2yyry.13): the action already ran after the
+        // screen closed and the chat carries its result — log only.
+        try {
+          await FlowResponseHandler.handleStudentQuizFlowCompletion(responseJson, from);
+        } catch (sqErr) {
+          logToFile('❌ student quiz flow completion failed', { error: sqErr.message }, 'error');
+        }
+        return;
       } else if (flowType === 'transcript_quiz') {
         // /quiz. Every ending already sent its own chat message (tqMaking, the
         // report, the resent link), so this only logs. Without it a completion

@@ -549,6 +549,41 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 }
 
 /**
+ * The class rows for one share code, exactly as the report counts them — self
+ * tests and friends' sessions excluded, one attempt per child, finished only.
+ * Read by the child's /quiz (student-quiz.service.js) so their card and their
+ * class average agree with the teacher's report.
+ */
+async function loadClassRows(shareCodeId) {
+  const { data: sc } = await supabase
+    .from('quiz_share_codes')
+    .select('id, code, quiz_id, teacher_user_id, teacher_name, topic, language')
+    .eq('id', shareCodeId).maybeSingle();
+  if (!sc) return null;
+  const [{ data: sessions }, { data: quizRow }] = await Promise.all([
+    supabase.from('quiz_sessions')
+      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+              + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
+      .eq('share_code_id', shareCodeId)
+      .is('invited_by_student_id', null),
+    supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
+  ]);
+  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id));
+  const done = all.filter((s) => s.status === 'completed');
+  const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
+  const className = classHeading(classesTaught(done), language);
+  return {
+    shareCode: sc, quizRow: quizRow || null, language, className,
+    subject: (quizRow && quizRow.subject) || '',
+    rows: done.map((s) => ({
+      sessionId: s.id, studentId: s.student_id || null, name: s.student_name || '',
+      correct: s.correct_answers || 0, total: s.total_questions_answered || 0,
+      pct: s.mastery_percentage || 0, completedAt: s.completed_at || null, phone: s.parent_phone || null,
+    })),
+  };
+}
+
+/**
  * THE CHILD'S CLASS CARD (bd-2yyry.11, operator 14 Sep 2026).
  *
  * For every child who finished — one attempt per child, the same rows the
@@ -1352,6 +1387,7 @@ function buildGuidancePrompt({
 
 module.exports = {
   oneAttemptPerChild,
+  loadClassRows,
   sendClassCards,
   classCardsEnabled,
   CLASS_CARD_WINDOW_MS,

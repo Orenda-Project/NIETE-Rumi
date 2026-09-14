@@ -983,6 +983,38 @@ async function handleStudentVideosFlow(data) {
 // to the interactive list message, which stays live.
 // ============================================================
 
+// bd-2yyry.13 — the CHILD's /quiz Flow. Its own route, token, discriminator
+// (sq_action) and strings; the teacher's /transcript-quiz below is untouched.
+router.post('/student-quiz', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'student-quiz' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleStudentQuizFlow(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Student Quiz flow endpoint error', { endpoint: 'student-quiz', error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleStudentQuizFlow(data) {
+  const StudentQuizFlow = require('./student-quiz-flow-endpoint');
+  const { action, flow_token, screen, data: screenData } = data;
+  logToFile('Handling Student Quiz flow', { action, screen, hasFlowToken: !!flow_token, step: screenData && screenData.step });
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  if (action === 'INIT' || action === 'init') return await StudentQuizFlow.handleStudentQuizInit(flow_token);
+  if (action === 'data_exchange')             return await StudentQuizFlow.handleStudentQuizDataExchange(flow_token, screen, screenData);
+  if (action === 'BACK')                      return await StudentQuizFlow.handleStudentQuizBack(flow_token);
+  logToFile('Unknown student-quiz flow action', { action });
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
 router.post('/transcript-quiz', async (req, res) => {
   try {
     if (!FlowEncryptionService.isConfigured()) {

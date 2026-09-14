@@ -530,7 +530,7 @@ async function consumeJoinReply(phone, text) {
 }
 
 module.exports = {
-  mintCode, offerShare, handleShareButton, deliverClassLink,
+  mintCode, offerShare, handleShareButton, deliverClassLink, startForStudent,
   parseShareCode, beginFromCode, beginFromCodeLocked, consumeJoinReply, handleJoinFlowReply,
   SHARE_YES, SHARE_NO, JOIN_KEY, JOIN_LOCK_KEY, JOIN_LOCK_SECS, JOIN_FLOW_PREFIX, CODE_RX, randomCode, botNumber,
 };
