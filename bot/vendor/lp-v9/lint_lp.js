@@ -181,6 +181,57 @@ const MAX_ACTIVITIES = 7;
 // because the END of a structured lesson is what gets cut, MDPI 16:5:699). bd-uu4lr.
 const ONESCREEN_BEATS = 6;
 
+/**
+ * bd-jpfww — THE ONE-SCREEN SHAPE, AS A PREDICATE THE REUSE LANE CAN ALSO ASK.
+ *
+ * Gate 12b below used to be the only place this rule lived, and `lint()` is not on every road to
+ * a teacher. `lp612-author.worker.js` re-renders a STORED document when the template version
+ * moves (`reuseFromPreviousVersion`), and that lane runs BEFORE `authorLessonPlan` — no brief, no
+ * ladder, no gate. The row it writes says so: `lint_clean: null`, "we did not look".
+ *
+ * The shape rule landed on 2026-09-12, after v9.3, so every document stored at v9.3 or earlier is
+ * one unbroken paragraph. The v9.6 bump walked the lineage back to them and re-rendered them into
+ * v9.6 rows, and the operator read the result on her phone: *"the whatsapp text message wasnt
+ * formatted"*.
+ *
+ * So the rule is a function, asked from both roads, and gate 12b is one of its two callers. A
+ * second copy in the worker would be a rule that drifts; this cannot.
+ *
+ * Returns `[]` for a body that has the shape — and for an ABSENT or empty one, which is gate 12's
+ * fact to report (a word count of zero), not this one's. Each defect is `{ code, message }`,
+ * exactly the pair gate 12b fails with.
+ */
+function oneScreenShapeDefects(oneScreen) {
+  const out = [];
+  if (typeof oneScreen !== "string" || !oneScreen.trim()) return out;
+
+  if (/\*\*/.test(oneScreen)) {
+    out.push({
+      code: "ONESCREEN_BOLD",
+      message: "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.",
+    });
+  }
+  // A doubled-asterisk doc has already been told what is wrong; normalise so it does not also
+  // collect a cue failure for the same characters.
+  const blocks = oneScreen.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  if (blocks.length < ONESCREEN_BEATS) {
+    out.push({
+      code: "ONESCREEN_FORMAT",
+      message: `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`,
+    });
+  }
+  blocks.forEach((b, i) => {
+    if (!/^\*[^*\n]+\*/.test(b)) {
+      out.push({
+        code: "ONESCREEN_FORMAT",
+        message: `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`,
+      });
+    }
+  });
+  return out;
+}
+oneScreenShapeDefects.BEATS = ONESCREEN_BEATS;
+
 const PLACEHOLDERS = [
   { re: /\bTODO\b/i, name: "TODO" },
   { re: /\bFIXME\b/i, name: "FIXME" },
@@ -636,22 +687,12 @@ function lint(doc, docPath, opts = {}) {
   //   A cue is `*...*` at the head of a block and nothing more. It is teacher-
   //   facing prose in the lesson's own language, so an Urdu overlay writes Urdu
   //   cues; any English word list here would fire on every correct Urdu body.
-  if (full && typeof doc.one_screen === "string" && doc.one_screen.trim()) {
-    const raw = doc.one_screen;
-    if (/\*\*/.test(raw)) {
-      fail("ONESCREEN_BOLD", "one_screen uses **double asterisks**. WhatsApp bolds with *single* asterisks and prints a double one literally — the double form belongs to the PDF, not to the message.");
-    }
-    // A doubled-asterisk doc has already been told what is wrong; normalise so it
-    // does not also collect a cue failure for the same characters.
-    const blocks = raw.replace(/\*\*/g, "*").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
-    if (blocks.length < ONESCREEN_BEATS) {
-      fail("ONESCREEN_FORMAT", `one_screen is ${blocks.length} paragraph${blocks.length === 1 ? "" : "s"}; it needs ${ONESCREEN_BEATS}, one per beat — objective, warm-up, worked example, practice, misconception, exit — separated by a blank line, each opening with a *short bold cue*.`);
-    }
-    blocks.forEach((b, i) => {
-      if (!/^\*[^*\n]+\*/.test(b)) {
-        fail("ONESCREEN_FORMAT", `one_screen paragraph ${i + 1} does not open with a *cue*. Every paragraph opens with a short cue in single asterisks, and paragraphs are separated by a blank line.`);
-      }
-    });
+  //
+  //   The rule itself is `oneScreenShapeDefects` (bd-jpfww), because this gate is
+  //   NOT the only road to a teacher — the worker's template-bump reuse lane never
+  //   calls lint at all, and asks the same function instead.
+  if (full) {
+    for (const d of oneScreenShapeDefects(doc.one_screen)) fail(d.code, d.message);
   }
 
   // 13 — the Urdu toggle may not overwrite the book's own language
@@ -1028,9 +1069,40 @@ const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
 const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
-// Latin script has no place in a sacred name on an Urdu religious page — a transliteration is a
-// de-pointing by another route, and §4c.5 bans that outright.
-const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|PBUH|SAW|SAWW|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu|RA\b)/;
+// §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
+// transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
+// in any medium — an English book prints "ﷺ" or "(peace be upon him)", never "(PBUH)".
+const ABBREV_RE = /\b(PBUH|SAW|SAWW|RA)\b/;
+// A TRANSLITERATION, by contrast, is only wrong where the book prints the Urdu. On an Urdu
+// religious page Latin script is a de-pointing by another route; in a Grade 6 ENGLISH lesson
+// "Hazrat Muhammad" and "Khadijah radiallahu anha" are what the page itself prints, and forcing
+// them into Urdu script is the defect, not the fix (bd-b8ypq). `provenance.medium` decides.
+const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu)/;
+// Reverence does not depend on script, so the English lane keeps its own honorific rule: rule 1
+// cannot see these mentions at all, because PROPHET_RE holds only Urdu-script tokens.
+const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
+const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم|\(?\s*peace\s+be\s+upon\s+him\s*\)?)/i;
+// A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
+// the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
+// two on an English page — the NAME keeps the Latin spelling the English book prints, the
+// SALUTATION is the ligature — and this carries the same split to companions: "Khadijah رضی اللہ
+// عنہا", never "Khadijah radiallahu anha" and never "Khadijah (may Allah be pleased with her)".
+//
+// This is a ban on the WRITTEN-OUT-IN-LATIN salutation, not a demand that a name carry one. Rule 3
+// deliberately refuses to keep a corpus of companion names — bare "علی"/"عمر" are ordinary words —
+// and a Latin list would be worse, so a bare "Khadijah" is still the native-speaker reviewer's
+// call. What IS decidable without a name list is that a salutation was typed in the wrong script.
+//
+// Transliterations vary more than the Urdu does: radi/radhi/razi/radiya, alayhi/alaihi,
+// rahmat/rahimah. The Urdu forms these should have been are COMPANION_HON's set, quoted back to
+// the author in the message.
+const COMPANION_SALUT_LATIN_RE = new RegExp([
+  "r[ae][dz]h?i(?:y|ya)?\\s*-?\\s*all?ah[ui]?\\s*-?\\s*['’]?anh(?:uma|um|un|u|a)",  // رضی اللہ عنہ
+  "r[ae]h(?:mat|imah)u?ll?ah(?:i)?(?:\\s*-?\\s*(?:alay|alai)h[ie]?)?",                   // رحمہ اللہ
+  "(?:alay|alai)h[ia]?s?\\s*-?\\s*(?:as[\\s-])?sal[ae]{1,2}m",                           // علیہ السلام
+  "karr?am\\s*-?\\s*all?ah[ui]?\\s*-?\\s*wajh",                                          // کرم اللہ وجہہ
+  "may\\s+Allah\\s+be\\s+pleased\\s+with\\s+(?:him|her|them)",                           // the translation
+].map((s) => `\\b(?:${s})`).join("|"), "i");
 // Attributed prophetic SPEECH: a Prophet token, a speech verb, and a quoted span. That is a
 // hadith, and a hadith without its source is the "content that has him speak" the operator ruled
 // out. A source is a book-and-number, a page cite, or a named collection.
@@ -1328,6 +1400,15 @@ function v9Gates(doc, ctx) {
     for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of atomDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of specContractDefects(spec, where)) fail(d.code, d.msg);
+    // The lesson's own prose is the authority on which mirror/lens this lesson is about;
+    // the diagram's title and caption are excluded on purpose -- they are being checked.
+    const rayLesson = [
+      doc.slo && doc.slo.text_verbatim,
+      doc.sequence && doc.sequence.this,
+      doc.objectives && doc.objectives.outcome,
+      doc.objectives && doc.objectives.by_the_end,
+    ].filter(Boolean).join(" \u2014 ");
+    for (const { where, spec } of gSpecs) for (const d of rayDiagramDefects(spec, where, rayLesson)) fail(d.code, d.msg);
   }
 
   // ── LABELACT (render-law 24) ──────────────────────────────────────────────
@@ -1489,11 +1570,36 @@ function religiousMarks(doc, ctx) {
     }
   }
 
-  // 2 — no sacred name in Latin script. A transliteration is a de-pointing by another route.
+  // 2 — abbreviation is refused in EITHER medium; transliteration only where the book prints the
+  //     Urdu. `provenance.medium` is the language of INSTRUCTION (lp_doc.v2 schema, enum en|ur);
+  //     a document that somehow lacks it gets the stricter Urdu branch.
+  const medium = (doc.provenance && doc.provenance.medium) || "ur";
   for (const { at, s } of strings) {
-    const t = TRANSLIT_RE.exec(s);
-    if (t) {
-      fail("RELIGIOUS_MARKS", `${at || "/"} writes a sacred name or honorific in Latin script ("${t[0]}"): "${s.slice(0, 70)}". These are set in Urdu/Arabic script as the book prints them — اللہ، نبی کریم ﷺ، رضی اللہ عنہ (brief §4c.5). ${HOLD}`);
+    const a = ABBREV_RE.exec(s);
+    if (a) {
+      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write it out — ﷺ, رضی اللہ عنہ, or "peace be upon him" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      continue;
+    }
+    // Before the medium split, because it does not depend on it: a salutation belongs to the
+    // companion, not to the sentence around it, so it is set in Urdu script whatever the page is.
+    const c = COMPANION_SALUT_LATIN_RE.exec(s);
+    if (c) {
+      fail("RELIGIOUS_MARKS", `${at || "/"} writes a companion's salutation in Latin script ("${c[0]}"): "${s.slice(0, 70)}". The NAME keeps the spelling the book prints, but the salutation is set in Urdu — "Khadijah رضی اللہ عنہا", not "Khadijah ${c[0]}". Use رضی اللہ عنہ / عنہا / عنہم، علیہ السلام، رحمہ اللہ (brief §4c.5). ${HOLD}`);
+      continue;
+    }
+    if (medium === "ur") {
+      const t = TRANSLIT_RE.exec(s);
+      if (t) {
+        fail("RELIGIOUS_MARKS", `${at || "/"} writes a sacred name or honorific in Latin script ("${t[0]}"): "${s.slice(0, 70)}". These are set in Urdu/Arabic script as the book prints them — اللہ، نبی کریم ﷺ، رضی اللہ عنہ (brief §4c.5). ${HOLD}`);
+      }
+      continue;
+    }
+    // English medium: the Latin spelling is the book's own and stays. The honorific still does not.
+    TRANSLIT_PROPHET_RE.lastIndex = 0;
+    let m;
+    while ((m = TRANSLIT_PROPHET_RE.exec(s))) {
+      if (TRANSLIT_HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — an English lesson keeps the spelling the book prints, but never drops the honorific (brief §4c.5). ${HOLD}`);
     }
   }
 
@@ -1825,6 +1931,122 @@ function specContractDefects(spec, where) {
   return out;
 }
 
+/* ---------------------------------------------------------------------------
+   RAY_ELEMENT_* — a plane mirror is not a curved one (bd-jir5b)
+
+   Grade 10 Physics, Ch. 14 Optics, "Reflection of Light: Laws and Mirror Image
+   Formation". BOTH ray diagrams in a PLANE-mirror lesson shipped as CURVED
+   mirrors carrying a printed focal length -- `f = 30 cm` and `f = 25 cm`. A
+   plane mirror has no focal length; the picture contradicted its own lesson.
+
+   `ray_diagram.js` was never at fault. `plane_mirror` is in its `ELEMENTS` set,
+   `solve()` returns {v:-u, m:1} for it, and the `f = …` dimension is suppressed
+   by `if (!isPlane)`. Handed the right spec it draws the right picture.
+
+   The CONTRACT was the defect. `types_manifest.json` is the only machine-readable
+   description of a type the author ever sees, and for `ray_diagram` it listed four
+   elements -- none of them plane -- and made `f` required. For a plane-mirror lesson
+   it admitted no valid spec at all, so the author picked a curved mirror and invented
+   a focal length. Every required field was present, so SPEC_CONTRACT passed it.
+
+   That is the silent-default class named above, with one extra turn: the contract
+   did not merely permit the wrong picture, it REQUIRED one. The manifest is fixed
+   at source; these are the assertions that keep it fixed (rule 24(c)).
+
+   Lint, not a renderer throw, for the reason ATOM_UNKNOWN_ELEMENT gives: a defect
+   handed to the revision ladder is repaired next round, a refusal loses the lesson.
+--------------------------------------------------------------------------- */
+
+const RAY_TYPES = new Set(["ray_diagram", "optics", "lens", "mirror"]);
+/** Read from `ray_diagram.js`'s own ELEMENTS set — kept in step by ray-diagram-plane-mirror.test.js. */
+const RAY_ELEMENTS = new Set([
+  "convex_lens", "concave_lens", "concave_mirror", "convex_mirror", "plane_mirror",
+]);
+const RAY_CURVED_MIRRORS = new Set(["concave_mirror", "convex_mirror"]);
+
+const SAYS_PLANE = /\bplane\s+mirror/i;
+const SAYS_CURVED = /\b(concave|convex|spherical|curved)\s+mirror/i;
+
+/**
+ * @param spec    the diagram spec
+ * @param where   block or section id, for the message
+ * @param lesson  the lesson's own prose (SLO, sequence, objectives) — the authority on
+ *                which mirror this lesson is about. The diagram's own title and caption
+ *                are deliberately NOT included: they are the thing being checked.
+ */
+function rayDiagramDefects(spec, where, lesson) {
+  const out = [];
+  if (!spec || typeof spec !== "object") return out;
+  if (!RAY_TYPES.has(String(spec.type || "").trim().toLowerCase())) return out;
+
+  const el = String(spec.element == null ? "" : spec.element).trim();
+  const hasF = spec.f !== undefined && spec.f !== null && spec.f !== ""
+    && Number.isFinite(Number(spec.f)) && Math.abs(Number(spec.f)) > 0;
+
+  // R1 — an element the engine cannot draw. `render()` substitutes `convex_lens` and,
+  // with `f` defaulting to 20, prints a confident `f = 20 cm` under whatever caption
+  // the author wrote. Loud beats silent.
+  if (!RAY_ELEMENTS.has(el)) {
+    out.push({
+      code: "RAY_ELEMENT_UNKNOWN",
+      msg: `${where}: \`ray_diagram\` element ${JSON.stringify(el)} is not one this engine draws. `
+        + `It silently falls back to \`convex_lens\` with f = 20, so the page would carry a `
+        + `CONVERGING LENS under your caption. Use one of: `
+        + `${[...RAY_ELEMENTS].join(", ")}.`,
+    });
+    return out; // everything below reads a valid element
+  }
+
+  // R2 — a plane mirror has no focal length. Supplying one means the author has the
+  // wrong element in mind; `ray_diagram.js` ignores `f` here, so nothing else says so.
+  if (el === "plane_mirror" && hasF) {
+    out.push({
+      code: "RAY_PLANE_FOCAL",
+      msg: `${where}: \`ray_diagram\` gives element \`plane_mirror\` a focal length `
+        + `(\`f\`: ${JSON.stringify(spec.f)}). A plane mirror has no focal length -- the renderer `
+        + `drops \`f\` for this element, so the number is silently doing nothing. Remove \`f\`, `
+        + `or use \`concave_mirror\` / \`convex_mirror\` if the lesson really is about a curved one.`,
+    });
+  }
+
+  // R3 — a curved element with no usable `f`. `f` is no longer in the manifest's
+  // `required` list (it is meaningless for a plane mirror), so SPEC_CONTRACT no longer
+  // covers this; the default of 20 would otherwise be drawn as fact.
+  if (el !== "plane_mirror" && !hasF) {
+    out.push({
+      code: "RAY_MISSING_FOCAL",
+      msg: `${where}: \`ray_diagram\` element \`${el}\` needs a focal length \`f\`. Without one the `
+        + `renderer uses f = 20 ${spec.unit || "cm"} and prints it on a dimension line as though `
+        + `you had said so. Give the \`f\` the question uses.`,
+    });
+  }
+
+  // R4 — the element disagrees with the lesson it illustrates. This is the one that
+  // catches the shipped defect: a plane-mirror lesson drawn with a concave mirror.
+  const text = String(lesson || "");
+  if (text) {
+    const plane = SAYS_PLANE.test(text);
+    const curved = SAYS_CURVED.test(text);
+    if (plane && !curved && RAY_CURVED_MIRRORS.has(el)) {
+      out.push({
+        code: "RAY_ELEMENT_MISMATCH",
+        msg: `${where}: this lesson is about a PLANE MIRROR, but the \`ray_diagram\` draws `
+          + `\`${el}\` -- a curved mirror, with a focal point and a printed focal length the `
+          + `lesson never mentions. Use \`element: "plane_mirror"\` (and no \`f\`).`,
+      });
+    }
+    if (curved && !plane && el === "plane_mirror") {
+      out.push({
+        code: "RAY_ELEMENT_MISMATCH",
+        msg: `${where}: this lesson is about a CURVED mirror, but the \`ray_diagram\` draws `
+          + `\`plane_mirror\`, which has no focal point -- so the construction the lesson `
+          + `teaches cannot appear in the figure. Use \`concave_mirror\` or \`convex_mirror\` with an \`f\`.`,
+      });
+    }
+  }
+  return out;
+}
+
 function atomDefects(spec, where) {
   const out = [];
   if (!spec || typeof spec !== "object") return out;
@@ -2072,7 +2294,10 @@ function overlayDefects(doc, lang, opts = {}) {
 overlayDefects.targets = overlayTargets;
 overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects,
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects, rayDiagramDefects,
+  // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
+  // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
+  oneScreenShapeDefects, ONESCREEN_BEATS,
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,

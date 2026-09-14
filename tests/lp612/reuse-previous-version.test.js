@@ -109,12 +109,28 @@ const SEGMENT = {
   is_religious: false,
 };
 
-/** A stored document, of the shape the worker uploaded beside the v9.1 PDF. */
+/**
+ * A stored document, of the shape the worker uploaded beside the v9.1 PDF.
+ *
+ * `one_screen` carries the six cued paragraphs bd-uu4lr requires, because since bd-jpfww that is
+ * a PRECONDITION OF REUSE and not merely a lint nicety: this lane now refuses a stored body the
+ * renderer's own gate would fail, so a one-line fixture here would be testing the refusal path
+ * while claiming to test the hit. The refusal has its own suite — `one-screen-reuse-gate.test.js`.
+ */
+const ONE_SCREEN = [
+  '*Objective* Students name the five branches of chemistry and give one example of each.',
+  '*Warm-up* Ask what a chemist actually does all day; take three answers onto the board.',
+  '*Worked example* Sort "rusting iron" together — physical or inorganic — and say why.',
+  '*Practice* In pairs, sort six everyday examples into the branches, then swap and check.',
+  '*Misconception* Organic does not mean natural. Name two organics made only in a lab.',
+  '*Exit* Each student writes one branch and one example of it on a slip before leaving.',
+].join('\n\n');
+
 const STORED_DOC = {
   lesson_id: 'grade_9_chemistry.c01.p007-008',
   schema_version: '2.0',
   template_version: 'v9.1',
-  one_screen: 'Branches of chemistry, in one screen.',
+  one_screen: ONE_SCREEN,
   materials: ['blackboard'],
   objectives: ['name the branches'],
   sections: [{ id: 'introduction', minutes: 5, blocks: [] }],
