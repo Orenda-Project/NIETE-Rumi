@@ -122,7 +122,7 @@ const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
 
 const PHONE = '923002220000';
 const USER = {
-  id: 'u-teacher', phone_number: PHONE, first_name: 'Ayesha',
+  id: 'u-teacher', phone_number: PHONE, name: 'Ayesha',
   preferred_language: 'en', registration_completed: true, registration_state: 'completed',
 };
 

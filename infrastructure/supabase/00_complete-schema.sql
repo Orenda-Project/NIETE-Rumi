@@ -45,8 +45,6 @@ CREATE TABLE IF NOT EXISTS users (
     registration_completed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now(),
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
     school_name VARCHAR(200),
     subjects_taught JSONB DEFAULT '[]',
     source VARCHAR(50) DEFAULT 'direct',
@@ -2520,7 +2518,7 @@ $function$
 
 -- Function: get_portal_users
 CREATE OR REPLACE FUNCTION public.get_portal_users(p_portal_user_id uuid)
- RETURNS TABLE(id uuid, phone_number text, first_name text, school_name text)
+ RETURNS TABLE(id uuid, phone_number text, name text, school_name text)
  LANGUAGE plpgsql
 AS $function$
 BEGIN
@@ -2532,7 +2530,7 @@ BEGIN
   SELECT 
     u.id,
     u.phone_number::text,
-    u.first_name::text,
+    u.name::text,
     u.school_name::text
   FROM users u;
 END;
@@ -2541,7 +2539,7 @@ $function$
 
 -- Function: get_users_with_last_activity
 CREATE OR REPLACE FUNCTION public.get_users_with_last_activity(p_limit integer DEFAULT 100, p_offset integer DEFAULT 0)
- RETURNS TABLE(id uuid, phone_number text, name text, first_name text, last_name text, registration_completed boolean, registration_state text, registration_started_at timestamp with time zone, registration_completed_at timestamp with time zone, registration_state_updated_at timestamp with time zone, created_at timestamp with time zone, last_conversation_at timestamp with time zone)
+ RETURNS TABLE(id uuid, phone_number text, name text, registration_completed boolean, registration_state text, registration_started_at timestamp with time zone, registration_completed_at timestamp with time zone, registration_state_updated_at timestamp with time zone, created_at timestamp with time zone, last_conversation_at timestamp with time zone)
  LANGUAGE sql
  STABLE
 AS $function$
@@ -2549,8 +2547,6 @@ AS $function$
     u.id,
     u.phone_number,
     u.name,
-    u.first_name,
-    u.last_name,
     u.registration_completed,
     u.registration_state,
     u.registration_started_at,
@@ -2564,8 +2560,6 @@ AS $function$
     u.id,
     u.phone_number,
     u.name,
-    u.first_name,
-    u.last_name,
     u.registration_completed,
     u.registration_state,
     u.registration_started_at,

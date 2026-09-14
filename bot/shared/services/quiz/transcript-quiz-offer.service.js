@@ -46,7 +46,7 @@ const FEATURE_KEY = 'transcript_quiz';
 
 const SESSION_SELECT = 'id, user_id, status, observation_type, transcript_text, transcript_language, '
   + 'analysis_data, lesson_plan_excerpt, created_at, '
-  + 'users!inner(id, phone_number, preferred_language, first_name, last_name, grade, subject, grades_taught, subjects_taught)';
+  + 'users!inner(name, id, phone_number, preferred_language, grade, subject, grades_taught, subjects_taught)';
 
 function enabled() {
   return process.env.TRANSCRIPT_QUIZ_ENABLED === 'true';

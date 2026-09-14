@@ -31,7 +31,7 @@ async function _resolveSessionLanguage(coachingSessionId) {
   try {
     const { data } = await supabase
       .from('coaching_sessions')
-      .select('users(preferred_language), transcript_language')
+      .select('users(name, preferred_language), transcript_language')
       .eq('id', coachingSessionId)
       .maybeSingle();
     return data?.users?.preferred_language || data?.transcript_language || 'en';
@@ -54,7 +54,7 @@ class AnalysisProcessorService {
       // Get session data
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('*, users!inner(phone_number, first_name, last_name)')
+        .select('*, users!inner(name, phone_number)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -106,7 +106,7 @@ class AnalysisProcessorService {
       const metadata = {
         duration: session.audio_duration_seconds,
         language: session.transcript_language,
-        teacherFirstName: session.users.first_name,
+        teacherFirstName: session.users.name,
         priorFeedback: priorFeedbackText,
         lessonPlanExcerpt: session.lesson_plan_excerpt || null,
         lessonPlanStatus: session.lesson_plan_extraction_status || null,
@@ -388,7 +388,7 @@ class AnalysisProcessorService {
         try {
           const { data: session } = await supabase
             .from('coaching_sessions')
-            .select('users!inner(phone_number)')
+            .select('users!inner(name, phone_number)')
             .eq('id', coachingSessionId)
             .single();
           from = session?.users?.phone_number;

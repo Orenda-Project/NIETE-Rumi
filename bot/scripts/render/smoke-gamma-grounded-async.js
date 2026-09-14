@@ -87,7 +87,7 @@ const supabase = require('../../shared/config/supabase');
     .from('users').select('id, phone_number').eq('phone_number', USER_ID).maybeSingle();
   if (!userRow) {
     console.log(`\n❌ No users row for phone_number=${USER_ID}. Create a test user first, e.g.:`);
-    console.log(`   supabase.from('users').insert({ phone_number: '${USER_ID}', first_name: 'Smoke Test' })`);
+    console.log(`   supabase.from('users').insert({ phone_number: '${USER_ID}', name: 'Smoke Test' })`);
     process.exit(2);
   }
   const USER_DB_ID = userRow.id;

@@ -111,7 +111,7 @@ describe('bd-gfsja — report language comes from the teacher, not an inline Eng
     // even an Urdu-locked teacher's row arrived without it — and the old
     // `|| 'en'` floor made English win the whole candidate chain.
     const reportData = await renderedLanguageFor({
-      phone_number: '923016669553', first_name: 'Annie', last_name: null,
+      phone_number: '923016669553', name: 'Annie',
     });
     expect(reportData.language).toBe('ur');
     expect(reportData._heroInput.opts.language).toBe('ur');
@@ -119,7 +119,7 @@ describe('bd-gfsja — report language comes from the teacher, not an inline Eng
 
   it("preferred_language='ur' renders Urdu", async () => {
     const reportData = await renderedLanguageFor({
-      phone_number: '923016669553', first_name: 'Annie', preferred_language: 'ur',
+      phone_number: '923016669553', name: 'Annie', preferred_language: 'ur',
     });
     expect(reportData.language).toBe('ur');
     expect(reportData._heroInput.opts.language).toBe('ur');
@@ -127,7 +127,7 @@ describe('bd-gfsja — report language comes from the teacher, not an inline Eng
 
   it("an explicit preferred_language='en' is still honoured", async () => {
     const reportData = await renderedLanguageFor({
-      phone_number: '923001234567', first_name: 'Sana', preferred_language: 'en',
+      phone_number: '923001234567', name: 'Sana', preferred_language: 'en',
     });
     expect(reportData.language).toBe('en');
     expect(reportData._heroInput.opts.language).toBe('en');

@@ -66,7 +66,7 @@ const PHONE = '923449320536', WAMID = 'wamid.THEIR_TAP';
 
 /** One in-progress exam attempt on a single-answer question with key "2". */
 function seed({ correct = '2', optionLen = 20 } = {}) {
-  tableStates.users = { rows: [{ id: UID, first_name: 'F', phone_number: PHONE }] };
+  tableStates.users = { rows: [{ id: UID, name: 'F', phone_number: PHONE }] };
   tableStates.teacher_training_assignments = { rows: [{ user_id: UID, program_id: 'p1', is_active: true }] };
   tableStates.training_program_scopes = { rows: [{ program_id: 'p1', vendor_id: VENDOR, level_ids: null }] };
   tableStates.training_vendors = { rows: [{ id: VENDOR, key: 'TALEEMABAD', name: 'NIETE', unlock_logic: 'chain', level_unlock_logic: 'chain', has_grand_quiz: true, passing_pct: 80, module_passing_pct: 100, exam_question_cap: null, shuffle_options: false }] };

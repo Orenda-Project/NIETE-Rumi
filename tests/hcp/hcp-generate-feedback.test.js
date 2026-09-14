@@ -92,7 +92,7 @@ describe('POST /api/portal/hcp/generate-feedback', () => {
   });
 
   it('generates feedback and persists a delivery row', async () => {
-    tableStates.users = { rows: [{ id: 't-1', first_name: 'Aisha' }] };
+    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha' }] };
     tableStates.hcp_feedback_deliveries = { rows: [] };
     llmCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(sixBoxJson()) } }],
@@ -120,7 +120,7 @@ describe('POST /api/portal/hcp/generate-feedback', () => {
   });
 
   it('accepts urdu / roman_urdu languages', async () => {
-    tableStates.users = { rows: [{ id: 't-1', first_name: 'Aisha' }] };
+    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha' }] };
     tableStates.hcp_feedback_deliveries = { rows: [] };
     llmCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(sixBoxJson()) } }],
@@ -143,7 +143,7 @@ describe('POST /api/portal/hcp/generate-feedback', () => {
   });
 
   it('returns 502 when the LLM returns malformed JSON', async () => {
-    tableStates.users = { rows: [{ id: 't-1', first_name: 'Aisha' }] };
+    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha' }] };
     tableStates.hcp_feedback_deliveries = { rows: [] };
     llmCreate.mockResolvedValue({
       choices: [{ message: { content: 'this is not JSON at all' } }],
@@ -160,7 +160,7 @@ describe('POST /api/portal/hcp/generate-feedback', () => {
   });
 
   it('returns 502 when the LLM call throws', async () => {
-    tableStates.users = { rows: [{ id: 't-1', first_name: 'Aisha' }] };
+    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha' }] };
     tableStates.hcp_feedback_deliveries = { rows: [] };
     llmCreate.mockRejectedValue(new Error('network down'));
 

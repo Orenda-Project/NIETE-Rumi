@@ -21,9 +21,9 @@ function seedTables() {
   return {
     users: {
       rows: [
-        { id: PRINCIPAL, first_name: 'Sana', last_name: 'Iqbal', phone_number: '923003333333', role: 'principal', school_id: SCHOOL },
-        { id: TEACHER,  first_name: 'Aisha', last_name: 'Rehman', phone_number: '923001111111', role: 'teacher', school_id: SCHOOL },
-        { id: OUTSIDER, first_name: 'Zaid',  last_name: 'Ali',    phone_number: '923004444444', role: 'teacher', school_id: OTHER_SCHOOL },
+        { id: PRINCIPAL, name: 'Sana Iqbal', phone_number: '923003333333', role: 'principal', school_id: SCHOOL },
+        { id: TEACHER,  name: 'Aisha Rehman', phone_number: '923001111111', role: 'teacher', school_id: SCHOOL },
+        { id: OUTSIDER, name: 'Zaid Ali',    phone_number: '923004444444', role: 'teacher', school_id: OTHER_SCHOOL },
       ],
     },
     schools: {

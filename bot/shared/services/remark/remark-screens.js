@@ -61,8 +61,8 @@ const UI = {
  */
 function renderTeacherName(teacher, language = 'en') {
   const S = UI[lang(language)];
-  const name = teacher && typeof teacher.first_name === 'string' && teacher.first_name.trim();
-  if (name) return teacher.first_name.trim();
+  const name = teacher && typeof teacher.name === 'string' && (teacher.name || '').trim();
+  if (name) return (teacher.name || '').trim();
   const phone = teacher && teacher.phone_number;
   if (phone && String(phone).length >= 4) return S.teacher_unnamed(String(phone).slice(-4));
   return S.teacher_unknown;

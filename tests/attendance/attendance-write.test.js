@@ -176,9 +176,9 @@ describe('re-marking a day replaces it', () => {
 
 describe('markTeachers — the principal path, same shape', () => {
   const STAFF = [
-    { id: 't1', first_name: 'Rubina', last_name: 'Idress' },
-    { id: 't2', first_name: 'Ume', last_name: 'kulsoom' },
-    { id: 't3', first_name: null, last_name: null, phone_number: '923051686049' },
+    { id: 't1', name: 'Rubina Idress' },
+    { id: 't2', name: 'Ume kulsoom' },
+    { id: 't3', name: null, phone_number: '923051686049' },
   ];
 
   it('writes one row per teacher through the shared teacher table', async () => {

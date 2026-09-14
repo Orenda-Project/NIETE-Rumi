@@ -163,7 +163,6 @@ const REGISTRATION_FLOW_ID = '2010172012940869';
 const namedButFlagFalse = (over = {}) => ({
   id: 'user-uuid-oak776',
   phone_number: FROM,
-  first_name: 'Ayesha',
   name: 'Ayesha Bano',
   role: 'teacher',
   preferred_language: 'en',
@@ -208,20 +207,20 @@ describe('bd-oak77.6 — a name on the row means registered', () => {
   });
 
   test('an EMPTY-STRING first_name is not a name — 212 prod rows have one — so she is still unregistered', async () => {
-    await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse({ first_name: '', name: '' }));
+    await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse({ name: '' }));
 
     expect(sentTexts().some((t) => t.includes('already registered'))).toBe(false);
   });
 
   test('a genuinely unregistered user (no name, flag false) is unaffected', async () => {
-    await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse({ first_name: null, name: null }));
+    await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse({ name: null }));
 
     expect(sentTexts().some((t) => t.includes('already registered'))).toBe(false);
   });
 
   test('the flag alone still means registered, with no name on the row', async () => {
     await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse({
-      first_name: null, name: null, registration_completed: true,
+      name: null, registration_completed: true,
     }));
 
     expect(sentTexts().some((t) => t.includes('already registered'))).toBe(true);

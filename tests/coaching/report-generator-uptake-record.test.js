@@ -35,7 +35,7 @@ const ANALYSIS = {
 const mockSessionRow = {
   id: 'sess-1', user_id: 'user-1', status: 'analysis_complete', created_at: '2026-09-03T00:00:00Z',
   conversation_state: { questions: [] }, analysis_data: ANALYSIS, transcript_language: 'ur',
-  users: { phone_number: '10000000000', first_name: 'Sana', last_name: 'N', region: 'ICT', preferred_language: 'ur' },
+  users: { phone_number: '10000000000', name: 'Sana N', region: 'ICT', preferred_language: 'ur' },
 };
 jest.mock('../../bot/shared/config/supabase', () => {
   const makeChain = () => {

@@ -73,10 +73,10 @@ class QuizReportService {
       const noPlus = teacherPhone.startsWith('+') ? teacherPhone.slice(1) : teacherPhone;
       const { data: teacher } = await supabase
         .from('users')
-        .select('first_name, last_name')
+        .select('name')
         .eq('phone_number', noPlus)
         .single();
-      teacherName = teacher?.first_name || '';
+      teacherName = teacher?.name || '';
     } catch (_) { /* non-fatal */ }
 
     // build the structured insight (band classifier + cluster

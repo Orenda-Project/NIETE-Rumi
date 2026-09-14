@@ -18,10 +18,10 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 const voice = require('../../bot/shared/services/voice-attendance.service');
 
 const STAFF = [
-  { id: 'u1', first_name: 'Ayesha', last_name: 'Khan' },
-  { id: 'u2', first_name: 'Bilal', last_name: 'Ahmed' },
-  { id: 'u3', first_name: 'Sana', last_name: 'Iqbal' },
-  { id: 'u4', first_name: 'Muhammad', last_name: 'Usman' },
+  { id: 'u1', name: 'Ayesha Khan' },
+  { id: 'u2', name: 'Bilal Ahmed' },
+  { id: 'u3', name: 'Sana Iqbal' },
+  { id: 'u4', name: 'Muhammad Usman' },
 ];
 
 describe('matching a spoken name to the roster', () => {
@@ -52,8 +52,8 @@ describe('matching a spoken name to the roster', () => {
     // carries a "(test)" suffix on every name, which defeated whole-field matching
     // and made the feature untestable there.
     const suffixed = [
-      { id: 't1', first_name: 'Ayesha (test)', last_name: 'One' },
-      { id: 't2', first_name: 'Bilal (test)', last_name: 'Two' },
+      { id: 't1', name: 'Ayesha (test) One' },
+      { id: 't2', name: 'Bilal (test) Two' },
     ];
     expect(voice.matchPerson('Ayesha', suffixed)?.id).toBe('t1');
     expect(voice.matchPerson('Muhammad Usman', STAFF)?.id).toBe('u4');
@@ -64,8 +64,8 @@ describe('matching a spoken name to the roster', () => {
     // "test" is in all of them, so it identifies nobody. Six candidates is a
     // refusal for the same reason two are.
     const suffixed = [
-      { id: 't1', first_name: 'Ayesha (test)', last_name: 'One' },
-      { id: 't2', first_name: 'Bilal (test)', last_name: 'Two' },
+      { id: 't1', name: 'Ayesha (test) One' },
+      { id: 't2', name: 'Bilal (test) Two' },
     ];
     expect(voice.matchPerson('test', suffixed)).toBeNull();
   });
@@ -73,7 +73,7 @@ describe('matching a spoken name to the roster', () => {
   it('refuses an ambiguous first name instead of picking one', () => {
     // Two Sanas on staff: a wrong guess marks the wrong colleague absent, which is
     // the exact failure the typed-coordinates channel was deleted for.
-    const twoSanas = [...STAFF, { id: 'u5', first_name: 'Sana', last_name: 'Yousaf' }];
+    const twoSanas = [...STAFF, { id: 'u5', name: 'Sana Yousaf' }];
     expect(voice.matchPerson('Sana', twoSanas)).toBeNull();
     expect(voice.matchPerson('Sana Iqbal', twoSanas)?.id).toBe('u3');
   });

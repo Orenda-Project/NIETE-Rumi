@@ -115,11 +115,11 @@ const CHILD_PHONE = '923001110000';
 const TEACHER_PHONE = '923002220000';
 
 const CHILD_USER = {
-  id: 'u-child', phone_number: CHILD_PHONE, first_name: null,
+  id: 'u-child', phone_number: CHILD_PHONE, name: null,
   preferred_language: 'en', registration_completed: false, registration_state: null,
 };
 const TEACHER_USER = {
-  id: 'u-teacher', phone_number: TEACHER_PHONE, first_name: 'Ayesha',
+  id: 'u-teacher', phone_number: TEACHER_PHONE, name: 'Ayesha',
   preferred_language: 'en', registration_completed: true, registration_state: 'completed',
 };
 
@@ -228,7 +228,7 @@ describe('1 — the gate runs on free chat and its verdict reaches the prompt', 
     seedEmptyHandset();
     // Bare on every teacher signal too — a name alone is now decisive (test 5).
     await run(TEACHER_PHONE, 'how do I teach fractions?', {
-      ...TEACHER_USER, first_name: null, registration_completed: false, registration_state: null,
+      ...TEACHER_USER, name: null, registration_completed: false, registration_state: null,
     });
     expect(mockGetResponse).toHaveBeenCalledTimes(1);
     expect(personaArg()?.persona).toBeUndefined();
@@ -346,11 +346,11 @@ describe('4 — everything else short-circuits above the gate', () => {
 describe('5 — an unregistered TEACHER is never tutored', () => {
   const UNREG_PHONE = '923004440000';
   const UNREG_TEACHER = {
-    id: 'u-unreg', phone_number: UNREG_PHONE, first_name: 'Amina',
+    id: 'u-unreg', phone_number: UNREG_PHONE, name: 'Amina',
     preferred_language: 'en', registration_completed: false, registration_state: 'unregistered',
   };
   /** The same row with the name stripped — used to isolate the other signals. */
-  const NAMELESS = { ...UNREG_TEACHER, first_name: null };
+  const NAMELESS = { ...UNREG_TEACHER, name: null };
 
   test('the live shape: named, owns quizzes, has coaching, 5 child rows, a quiz today → teacher', () => {
     installFrom(mockFrom, {

@@ -181,8 +181,6 @@ const USERS_REQUIRED_COLUMNS = [
   'id',
   'phone_number',
   'name',
-  'first_name',
-  'last_name',
   'country',
   'region',
   'organization',

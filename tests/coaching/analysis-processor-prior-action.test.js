@@ -31,7 +31,7 @@ const AnalysisProcessor = require('../../bot/shared/services/coaching/analysis-p
 const SID = 'sess-ul-1';
 const PRIOR = { target: { indicator: 'C3', domain: 'high_leverage_practices', name: 'Effective Feedback' }, action: 'x', action_spec: { count_target: { specific_feedback_moves: 3, next_step_feedback: 1 } }, attempt: 1, angle: 'tell', target_status: 'open', session_id: 'sess-ul-0', created_at: '2026-09-01T00:00:00Z' };
 
-beforeEach(() => { jest.clearAllMocks(); global.__UL_SESSION = { id: SID, user_id: 'u1', transcript_text: 't', transcript_language: 'en', classroom_photos: [], users: { phone_number: '92300', first_name: 'A', last_name: 'B' } }; });
+beforeEach(() => { jest.clearAllMocks(); global.__UL_SESSION = { id: SID, user_id: 'u1', transcript_text: 't', transcript_language: 'en', classroom_photos: [], users: { phone_number: '92300', name: 'A B' } }; });
 afterEach(() => { delete process.env.UPTAKE_LOOP_ENABLED; });
 
 describe('metadata.priorAction into the scoring call', () => {

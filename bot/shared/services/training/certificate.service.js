@@ -100,10 +100,10 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
   }
 
   const [{ data: user }, { data: level }] = await Promise.all([
-    supabase.from('users').select('name, first_name, last_name').eq('id', userId).maybeSingle(),
+    supabase.from('users').select('name').eq('id', userId).maybeSingle(),
     supabase.from('training_levels').select('name').eq('id', levelId).maybeSingle(),
   ]);
-  const teacherName = user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Teacher';
+  const teacherName = user?.name || `${user?.name || ''} ${user?.name || ''}`.trim() || 'Teacher';
   const levelName = level?.name || 'Level';
   const code = generateCertificateCode();
   const issuedAt = new Date().toISOString();

@@ -43,7 +43,7 @@ const QUIZ = { id: QID, teacher_id: 'u-1', coaching_session_id: SID, topic: 'Ú©Ø
 const SESSION = {
   id: SID, user_id: 'u-1', transcript_text: 'x'.repeat(3000), transcript_language: 'ur', created_at: '2026-09-05T05:00:00Z',
   analysis_data: { topic: 'Fractions', subject: 'Maths' },
-  users: { phone_number: '923001234567', preferred_language: 'ur', first_name: 'Rifat', last_name: 'Noor' },
+  users: { phone_number: '923001234567', preferred_language: 'ur', name: 'Rifat Noor' },
 };
 
 function goodQuestion(i, slo = 'S1', level = 'recall') {
