@@ -79,6 +79,13 @@ $function$;
 -- 2. Drop the columns. CASCADE is deliberately NOT used: if something still
 --    depends on them, this migration must fail loudly rather than silently
 --    delete a view or an index nobody knew about.
+--
+-- destructive: reviewed — the data loss is zero and was measured before the
+-- drop. Of 14,574 users on 2026-09-14: both columns are already empty for the
+-- 5,494 with no name, redundant with `name` for the 9,037 who have one, and the
+-- 43 rows whose name could ONLY be rebuilt from these two are backfilled into
+-- `name` by V1.4.3, which runs first. Rollback (shape, not contents — and why
+-- that is sufficient): ROLLBACK_V1.4.4__drop_first_last_name_columns.sql
 ALTER TABLE users DROP COLUMN IF EXISTS first_name;
 ALTER TABLE users DROP COLUMN IF EXISTS last_name;
 
