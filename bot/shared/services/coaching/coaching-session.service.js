@@ -49,7 +49,7 @@ class CoachingSessionService {
       // Feature-based registration happens after first feature completion
       const { data: user, error: userError} = await supabase
         .from('users')
-        .select('name, first_name, last_name')
+        .select('name')
         .eq('id', userId)
         .single();
 

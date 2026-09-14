@@ -77,7 +77,7 @@ function makeSession() {
     observation_type: 'self_observation',
     transcript_text: 'transcript',
     transcript_language: 'en',
-    users: { phone_number: '923001234567', first_name: 'A', last_name: 'B' },
+    users: { phone_number: '923001234567', name: 'A B' },
   };
 }
 

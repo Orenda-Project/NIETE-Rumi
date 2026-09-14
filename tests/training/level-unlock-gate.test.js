@@ -109,7 +109,7 @@ afterEach(() => jest.resetModules());
  * `attempts` seeds exam history on L1, which is what unlocks L2.
  */
 function seed({ attempts = [], done = [] } = {}) {
-  tableStates.users = { rows: [{ id: UID, first_name: 'A', phone_number: '92300' }] };
+  tableStates.users = { rows: [{ id: UID, name: 'A', phone_number: '92300' }] };
   tableStates.teacher_training_assignments = { rows: [{ user_id: UID, program_id: 'p1', is_active: true }] };
   tableStates.training_program_scopes = { rows: [{ program_id: 'p1', vendor_id: VENDOR, level_ids: [L1, L2] }] };
   tableStates.training_vendors = {

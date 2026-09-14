@@ -225,7 +225,7 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
 
   // Persist name + country to the account NOW (the terminal payload loses them — bd-2480).
   await persistToUser(userId, {
-    first_name: fullName.split(/\s+/)[0] || fullName,
+    name: fullName.split(/\s+/)[0] || fullName,
     name: fullName,
     country,
   });

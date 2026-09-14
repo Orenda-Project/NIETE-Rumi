@@ -49,12 +49,12 @@ function isLeaderRole(role) {
  */
 function publicUserPayload(user, opts = {}) {
   const payload = {
-    firstName: user.first_name,
+    firstName: user.name,
     country: user.country || null,
     role: user.role || null,
   };
   if (opts.includeContact) {
-    payload.lastName = user.last_name;
+    payload.lastName = user.name;
     payload.phoneNumber = user.phone_number;
   }
   return payload;

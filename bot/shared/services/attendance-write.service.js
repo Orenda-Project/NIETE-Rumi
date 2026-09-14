@@ -36,16 +36,16 @@ async function loadStaffRoster(schoolId, principalUserId) {
   if (!schoolId) return [];
   const { data } = await supabase
     .from('users')
-    .select('id, first_name, last_name, phone_number')
+    .select('id, phone_number, name')
     .eq('school_id', schoolId)
     .eq('role', 'teacher')
-    .order('first_name');
+    .order('name');
   return (data || []).filter((u) => u.id !== principalUserId);
 }
 
 /** A migrated teacher may have no name; a blank row reads as a bug. */
 function personName(p) {
-  const name = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
+  const name = (p.name || '').trim();
   return name || p.student_name || p.phone_number || 'Unnamed';
 }
 
@@ -191,7 +191,7 @@ async function markStudents({
  * @param {string} p.principalUserId
  * @param {string} p.schoolId
  * @param {string} p.date            YYYY-MM-DD
- * @param {Array}  p.staff           [{ id, first_name, last_name, phone_number }]
+ * @param {Array}  p.staff           [{ id, name, phone_number }]
  * @param {string[]} p.absentIds
  * @param {string[]} p.leaveIds
  * @param {string} [p.leaveType]

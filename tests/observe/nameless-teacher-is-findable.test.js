@@ -37,15 +37,15 @@ const { buildWhoPayload } = require('../../bot/shared/services/observe/observe-w
 const PHONE = '923001234567';
 const TAIL = '4567';
 
-/** Her actual production row: first_name is '', everything else is null. */
+/** Her actual production row: no name at all. bd-60092 left `name` the only column. */
 const NAMELESS = {
   id: 'u-nameless', phone_number: PHONE,
-  first_name: '', last_name: null, name: null,
+  name: null,
   role: 'teacher', school_id: 's-1', training_bands: null, grades_taught: null,
 };
 const NAMED = {
   id: 'u-named', phone_number: '923009999999',
-  first_name: 'Irene', last_name: null, name: 'Irene Khan',
+  name: 'Irene Khan',
   role: 'teacher', school_id: 's-1', training_bands: null, grades_taught: null,
 };
 
@@ -78,8 +78,8 @@ describe('the name chain is EXTENDED, not replaced', () => {
   test('fullNameOf still returns null — we do not know her name and will not invent one', () => {
     expect(fullNameOf(NAMELESS)).toBeNull();
     // and the measured preference order is untouched
-    expect(fullNameOf({ first_name: 'Irene', last_name: null, name: 'Irene Khan' })).toBe('Irene Khan');
-    expect(fullNameOf({ first_name: 'Asad', last_name: 'Amanat Ali' })).toBe('Asad Amanat Ali');
+    expect(fullNameOf({ name: 'Irene Khan' })).toBe('Irene Khan');
+    expect(fullNameOf({ name: 'Asad Amanat Ali' })).toBe('Asad Amanat Ali');
   });
 
   test('shapePatchRow keeps `name` null and adds a non-empty display label', () => {

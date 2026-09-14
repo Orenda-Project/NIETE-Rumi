@@ -55,7 +55,7 @@ const QUIZ = {
 const SESSION = {
   id: SID, user_id: 'u-1', transcript_text: 'x'.repeat(3000), transcript_language: 'en',
   created_at: '2026-09-05T05:00:00Z', analysis_data: { topic: 'Fractions', subject: 'Maths' },
-  users: { phone_number: '923001234567', preferred_language: 'en', first_name: 'Rifat', last_name: 'Noor' },
+  users: { phone_number: '923001234567', preferred_language: 'en', name: 'Rifat Noor' },
 };
 const FRACTION = { type: 'fraction_bar', bars: [{ parts: 4, shaded: 3 }] };
 const LESSON_SUMMARY = 'The class read fraction bars together, shading parts and naming each one out loud.';

@@ -1972,7 +1972,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           logToFile('📝 Registration flow re-opened from /register for an already-registered user (details update)', {
             userId: user?.id,
             phoneNumber: from,
-            currentFirstName: user?.first_name || null,
+            currentFirstName: user?.name || null,
           });
         } else {
           logToFile('📝 Registration flow sent from /register command', { userId: user?.id, phoneNumber: from });
@@ -1990,7 +1990,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Legacy path (no REGISTRATION_FLOW_ID, or the Flow send failed): a completed
     // account has nothing to recover, so confirm and stop here.
     if (isAlreadyRegistered) {
-      const known = user.first_name || 'there';
+      const known = user.name || 'there';
       await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
       return;
     }
@@ -2497,7 +2497,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // messaged in the last 30 days. See shared/utils/registration-status.js.
     if (isRegistered(user)) {
       // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.name || 'there'}! Type /menu to see what I can help you with.`);
       return;
     }
 
@@ -2983,7 +2983,7 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  */
 async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null, prebuiltLpCtx = undefined) {
   // Get firstName from user if registered
-  const firstName = user?.first_name || null;
+  const firstName = user?.name || null;
 
   // ============================================================
   // STUDENT MODE — THE ONE GATE (PLAN_R5 D8)

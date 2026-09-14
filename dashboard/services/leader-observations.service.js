@@ -38,7 +38,7 @@ const UPCOMING_SQL = `
 const SESSIONS_SQL = `
   SELECT c.id, c.created_at, c.status, c.debrief_status, c.analysis_data,
          c.report_pdf_url, c.user_id, c.observer_user_id,
-         u.first_name AS teacher_first_name,
+         u.name AS teacher_first_name,
          os.teacher_name  AS sched_teacher_name,
          os.school_name   AS sched_school_name,
          os.school_ext_id AS sched_school_ext_id
@@ -92,7 +92,7 @@ function shapeSession(r) {
   // own name as the observed teacher.
   const selfOwned = r.user_id && r.observer_user_id && r.user_id === r.observer_user_id;
 
-  // bd-2670: identity in priority order. `users.first_name` alone left 78% of
+  // bd-2670: identity in priority order. `users.name` alone left 78% of
   // live rows reading "Unassigned", because most captures are ad-hoc and the
   // row ends up owned by the coach.
   //   1. the schedule the coach booked (also carries school + EMIS)

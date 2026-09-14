@@ -40,7 +40,7 @@ const DIGEST = {
   slos: [{ id: 'S1', statement: 'a', taught_level: 'recall' }],
 };
 const SESSION = { id: SID, created_at: '2026-09-05T05:00:00Z' };
-const USER = { preferred_language: 'ur', first_name: 'Rifat', last_name: 'Noor' };
+const USER = { preferred_language: 'ur', name: 'Rifat Noor' };
 const ROW = {
   external_id: `tq:${QID}:S1:1`, question_text: 'س', option_a: 'a', option_b: 'b', option_c: 'c',
   correct_option: 'A', explanation: null, distractor_misconceptions: null, option_feedback: { correct: 'ok', wrong: {} },

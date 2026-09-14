@@ -78,7 +78,7 @@ async function getActiveUsersToday() {
   // Step 3: Get user details
   const { data: users, error: userError } = await supabase
     .from('users')
-    .select('id, phone_number, first_name')
+    .select('id, phone_number, name')
     .in('id', userIds)
     .not('phone_number', 'is', null);
 
@@ -104,7 +104,7 @@ async function main() {
   const failures = [];
 
   for (const user of users) {
-    const displayName = user.first_name || 'Unknown';
+    const displayName = user.name || 'Unknown';
 
     try {
       await sendWhatsAppMessage(user.phone_number);
@@ -130,7 +130,7 @@ async function main() {
   if (failures.length > 0) {
     console.log('\n⚠️ Failed deliveries:');
     failures.forEach(f => {
-      console.log(`   - ${f.user.first_name || 'Unknown'} (${f.user.phone_number}): ${f.error}`);
+      console.log(`   - ${f.user.name || 'Unknown'} (${f.user.phone_number}): ${f.error}`);
     });
   }
 }

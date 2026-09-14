@@ -64,7 +64,7 @@ async function loadScores(remarkId) {
 async function processOne(row, reason) {
   const { data: teacher } = await supabase
     .from('users')
-    .select('id, first_name, phone_number, preferred_language')
+    .select('id, phone_number, preferred_language, name')
     .eq('id', row.teacher_id)
     .maybeSingle();
 
@@ -76,7 +76,7 @@ async function processOne(row, reason) {
     narrative = await generateRemarkNarrative({
       scores,
       comment: row.comment_text || '',
-      teacherName: (teacher && teacher.first_name) || 'Teacher',
+      teacherName: (teacher && teacher.name) || 'Teacher',
       language: resolveTeacherLanguage(teacher, 'en'),
     });
     await supabase.from('supervisor_remarks').update({

@@ -51,7 +51,7 @@ const UID = 'u1', VENDOR = 'v1', LEVEL = 3, QUIZ = 7;
 
 /** A fully-complete level whose exam bank holds `bank` questions. */
 function seed({ bank = 72, cap = 20, quizType = 'grand_quiz', passing = 80 } = {}) {
-  tableStates.users = { rows: [{ id: UID, first_name: 'A', phone_number: '92300' }] };
+  tableStates.users = { rows: [{ id: UID, name: 'A', phone_number: '92300' }] };
   tableStates.teacher_training_assignments = { rows: [{ user_id: UID, program_id: 'p1', is_active: true }] };
   tableStates.training_program_scopes = { rows: [{ program_id: 'p1', vendor_id: VENDOR, level_ids: null }] };
   tableStates.training_vendors = { rows: [{ id: VENDOR, key: 'V', name: 'V', unlock_logic: 'chain', has_grand_quiz: true, passing_pct: passing, module_passing_pct: 100, exam_question_cap: cap }] };

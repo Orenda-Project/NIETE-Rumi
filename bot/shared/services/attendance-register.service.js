@@ -55,7 +55,7 @@ const COLORS = {
 };
 
 function personName(p) {
-  const name = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
+  const name = (p.name || '').trim();
   return name || p.student_name || p.phone_number || 'Unnamed';
 }
 
@@ -96,7 +96,7 @@ function formatMonthlyFileName(name, month, year, subject = 'teacher') {
  * Everyone on the roster gets an entry even with no records at all, so a teacher who
  * joined mid-month appears as a row of blanks rather than vanishing from the register.
  *
- * @param {Array} people   [{ id, first_name, last_name }]
+ * @param {Array} people   [{ id, name }]
  * @param {Array} records  [{ teacher_id, date: 'YYYY-MM-DD', status }]
  */
 function buildMatrix(people, records) {

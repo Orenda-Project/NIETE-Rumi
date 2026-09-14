@@ -18,7 +18,7 @@ const { getOverall } = require('./coaching-frameworks.service');
 // users.school_id on 230 rows, which meant a leader could open a teacher the
 // schools say is not his — or be refused one that is.
 const MEMBERSHIP_SQL = `
-  SELECT u.id, u.first_name, u.phone_number
+  SELECT u.id, u.name, u.phone_number
   FROM leader_schools ls
   JOIN schools s
     ON ls.school_id = s.id OR 'niete:' || s.emis = ls.school_ext_id
@@ -71,7 +71,7 @@ async function getPatchTeacherDetail(query, leaderUserId, teacherUserId) {
   const counts = (countRows && countRows[0]) || {};
 
   return {
-    teacher: { rumiUserId: t.id, name: t.first_name, phone: t.phone_number, onRumi: true },
+    teacher: { rumiUserId: t.id, name: t.name, phone: t.phone_number, onRumi: true },
     stats: {
       coachingSessions: sessions.length,
       lessonPlans: Number(counts.lesson_plans) || 0,

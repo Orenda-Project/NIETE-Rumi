@@ -1207,7 +1207,7 @@ async function handleVoiceMessage(message, from, user = null) {
     logToFile('Step 6: Getting AI response (format-aware for voice)...');
 
     // Get firstName from user if registered
-    const firstName = user?.first_name || null;
+    const firstName = user?.name || null;
 
     // bd-njn7u: LP Q&A awareness — same tiers as the text path. She often
     // ASKS by voice about the lesson she was just sent; the reply must know

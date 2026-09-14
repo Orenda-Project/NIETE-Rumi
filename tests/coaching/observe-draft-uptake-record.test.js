@@ -17,7 +17,7 @@ const V1 = {
   focus_area: { domain: 'high_leverage_practices', indicator: 'C3', try_this_tomorrow: 'name the next step after each wrong answer' },
   uptake: { count: { specific_feedback_moves: 3, next_step_feedback: 1 }, evidence: 'q', moment: 'm' },
 };
-const mockSession = { id: 'obs-1', user_id: 'teacher-1', observer_user_id: 'coach-1', observation_type: 'leader_observation', analysis_data: JSON.parse(JSON.stringify(V1)), autofill_analysis_data: JSON.parse(JSON.stringify(V1)), users: { phone_number: '1', first_name: 'T', preferred_language: 'en' } };
+const mockSession = { id: 'obs-1', user_id: 'teacher-1', observer_user_id: 'coach-1', observation_type: 'leader_observation', analysis_data: JSON.parse(JSON.stringify(V1)), autofill_analysis_data: JSON.parse(JSON.stringify(V1)), users: { phone_number: '1', name: 'T', preferred_language: 'en' } };
 jest.mock('../../bot/shared/config/supabase', () => {
   const chain = {};
   ['select', 'eq'].forEach((m) => { chain[m] = jest.fn(() => chain); });

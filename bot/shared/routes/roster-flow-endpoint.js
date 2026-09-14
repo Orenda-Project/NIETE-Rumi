@@ -184,7 +184,7 @@ async function teachersFor(user, schoolId) {
   const phones = [...new Set((mapped || []).map((t) => t.teacher_phone_e164).filter(Boolean))];
   if (phones.length) {
     const { data: accounts } = await supabase
-      .from('users').select('id, phone_number, first_name, last_name').in('phone_number', phones);
+      .from('users').select('id, phone_number, name').in('phone_number', phones);
     const byPhone = new Map((accounts || []).map((u) => [u.phone_number, u]));
     for (const t of mapped || []) {
       const u = byPhone.get(t.teacher_phone_e164);
@@ -194,7 +194,7 @@ async function teachersFor(user, schoolId) {
 
   const { data: atSchool } = await supabase
     .from('users')
-    .select('id, first_name, last_name, role')
+    .select('id, role, name')
     .eq('school_id', schoolId)
     .limit(OPTION_CAP * 2);
   for (const u of atSchool || []) {
@@ -222,12 +222,12 @@ async function teachersFor(user, schoolId) {
 }
 
 function fullName(u) {
-  return [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+  return (u.name || '').trim();
 }
 
 async function handleRosterInit(userId) {
   const { data: user } = await supabase
-    .from('users').select('id, role, school_id, first_name').eq('id', userId).maybeSingle();
+    .from('users').select('id, role, school_id, name').eq('id', userId).maybeSingle();
 
   if (!user || !isSchoolLeader(user)) {
     return err('This is for coaches and school leaders.');

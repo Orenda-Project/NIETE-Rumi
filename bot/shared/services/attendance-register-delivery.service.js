@@ -42,7 +42,7 @@ async function loadSchool(schoolId) {
 
 async function loadPrincipal(userId) {
   const { data } = await supabase
-    .from('users').select('id, phone_number, first_name').eq('id', userId).maybeSingle();
+    .from('users').select('id, phone_number, name').eq('id', userId).maybeSingle();
   return data || null;
 }
 

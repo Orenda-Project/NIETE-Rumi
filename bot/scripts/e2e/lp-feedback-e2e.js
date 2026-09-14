@@ -101,13 +101,13 @@ function assert(cond, msg) {
   // ─── 0. Look up (or fail on) the test user UUID ─────────────────────────
   step(0, 'Resolve test user UUID');
   const { data: userRow } = await supabase
-    .from('users').select('id, first_name').eq('phone_number', TEST_PHONE).maybeSingle();
+    .from('users').select('id, name').eq('phone_number', TEST_PHONE).maybeSingle();
   if (!userRow) {
     console.error(`  ❌ No users row for phone_number=${TEST_PHONE}. Create one first.`);
     process.exit(2);
   }
   const USER_UUID = userRow.id;
-  console.log(`  User UUID: ${USER_UUID}  (name: ${userRow.first_name || '(none)'})`);
+  console.log(`  User UUID: ${USER_UUID}  (name: ${userRow.name || '(none)'})`);
 
   // Clean up any leftover feedback rows from prior smoke runs of this user
   await supabase.from('lp_feedback').delete().eq('user_id', USER_UUID);

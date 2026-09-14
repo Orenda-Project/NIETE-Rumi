@@ -42,7 +42,7 @@ describe('GET /api/portal/hcp/teachers/:id', () => {
   it('returns teacher detail with DC summary', async () => {
     tableStates.users = {
       rows: [{
-        id: 't-1', first_name: 'Aisha', last_name: 'Khan',
+        id: 't-1', name: 'Aisha Khan',
         phone_number: '92300111', school_name: 'IMSG H-9', region: 'ICT',
       }],
     };
@@ -74,7 +74,7 @@ describe('GET /api/portal/hcp/teachers/:id', () => {
 
   it('returns zero-session teacher without erroring', async () => {
     tableStates.users = {
-      rows: [{ id: 't-new', first_name: 'New', region: 'ICT' }],
+      rows: [{ id: 't-new', name: 'New', region: 'ICT' }],
     };
     tableStates.coaching_sessions = { rows: [] };
     tableStates.hcp_visit_schedules = { rows: [] };

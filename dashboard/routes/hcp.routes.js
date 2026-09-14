@@ -158,7 +158,7 @@ router.get('/teachers', requirePortalAuth, async (req, res) => {
 
     let teachersQuery = supabase
       .from('users')
-      .select('id, first_name, last_name, phone_number, school_name, region, registration_completed')
+      .select('id, phone_number, school_name, region, registration_completed, name')
       .eq('registration_completed', true);
 
     if (region) teachersQuery = teachersQuery.eq('region', region);
@@ -206,8 +206,7 @@ router.get('/teachers', requirePortalAuth, async (req, res) => {
 
       return {
         id: t.id,
-        first_name: t.first_name,
-        last_name: t.last_name,
+        name: t.name,
         phone_number: t.phone_number,
         school_name: t.school_name,
         region: t.region,
@@ -246,7 +245,7 @@ router.get('/teachers/:id/dc', requirePortalAuth, async (req, res) => {
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
-      .select('id, first_name, last_name, phone_number, school_name, region')
+      .select('id, phone_number, school_name, region, name')
       .eq('id', id)
       .maybeSingle();
     if (tErr) throw tErr;
@@ -371,7 +370,7 @@ router.get('/teachers/:id', requirePortalAuth, async (req, res) => {
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
-      .select('id, first_name, last_name, phone_number, school_name, region')
+      .select('id, phone_number, school_name, region, name')
       .eq('id', id)
       .maybeSingle();
     if (tErr) throw tErr;
@@ -442,7 +441,7 @@ router.get('/teachers/:id/training', requirePortalAuth, async (req, res) => {
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
-      .select('id, first_name, last_name, region')
+      .select('id, region, name')
       .eq('id', id)
       .maybeSingle();
     if (tErr) throw tErr;
@@ -488,7 +487,7 @@ router.get('/teachers/:id/coaching-plan', requirePortalAuth, async (req, res) =>
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
-      .select('id, first_name, last_name, region')
+      .select('id, region, name')
       .eq('id', id)
       .maybeSingle();
     if (tErr) throw tErr;

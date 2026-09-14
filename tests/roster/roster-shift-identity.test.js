@@ -82,7 +82,7 @@ function seed() {
       { code: 'evening', sort_order: 2, is_active: true },
     ],
     users: [
-      { id: TEACHER, first_name: 'Test', last_name: 'Teacher', role: 'teacher', school_id: SCHOOL },
+      { id: TEACHER, name: 'Test Teacher', role: 'teacher', school_id: SCHOOL },
     ],
     leader_teachers: [],
     subjects: [],
