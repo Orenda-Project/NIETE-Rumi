@@ -1,3 +1,14 @@
+/*
+ * VENDOR DIVERGENCE (bd-3emr5) - see SYNC.md 3.12.
+ *
+ * A verbatim copy of bot/shared/utils/tex-to-unicode.js. It is copied rather than required because
+ * this tree is hermetic: nothing under bot/vendor/lp-v9/ reaches into bot/shared/, which is what
+ * lets the whole engine be re-vendored - or pushed back up to lp_html/diagrams/ - as one unit.
+ *
+ * The two copies are held byte-identical below this header by
+ * tests/lp612/bd-3emr5-diagram-latex.test.js. Edit the shared file, then re-copy; never edit here.
+ */
+
 /**
  * TeX maths → readable Unicode, for message bodies.
  *
