@@ -564,8 +564,25 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
     ? `\nIMPORTANT - LP Fidelity: A lesson plan is linked. For Section B (especially B1, B2, B3), compare the planned LP objectives + steps against what was observed in the transcript.\n`
     : '';
 
-  const photoNote = photoAnalysis
-    ? `\nCLASSROOM PHOTOS: Visual evidence is available. Use it as supplementary context, but score primarily from audio-detectable signals (this rubric is audio-scoreable by design).\n`
+  // bd-8s2xb — the photo channel, per mode. `metadata.photo` = { mode, text, count } is set by the
+  // analysis processor from COACHING_PHOTO_MODE. Before this, the vision description arrived here
+  // as `photoAnalysis` and was DISCARDED: the prompt carried only the one-line notice below, so
+  // the scorer was told visual evidence existed and shown none of it (bd-drg79: 4,703 sessions).
+  // Mode 'note' — the default until the flag is flipped — reproduces that prompt byte-for-byte;
+  // callers that never set metadata.photo (tests, the main-bot port) get 'note' when a
+  // description exists, else nothing, exactly as before.
+  const photo = (metadata && metadata.photo) || { mode: photoAnalysis ? 'note' : 'off', text: photoAnalysis, count: 1 };
+  const photoCount = Math.max(1, Number(photo.count) || 1);
+  const photoText = photo.text || photoAnalysis || '';
+  const PHOTO_RULE = `\nCLASSROOM PHOTO${photoCount > 1 ? 'S' : ''} (${photoCount} submitted by the teacher during this lesson) — supplementary visual evidence.
+Use it only where an indicator has a visible component: the objective or task written on the board (B1, B3), a drawing, object or second representation (C2, F6), a problem written up (F5), phonics stages on the board (F8), differentiated worksheets or grouping (B6), students' written work (F10). Score primarily from the transcript — every rung is defined by a spoken moment; a photo confirms that something existed, it does not replace the quote. Never invent anything beyond what is visible. When a photo informs an indicator, start that indicator's evidence AND its evidence_summary with "Photo:".\n`;
+  const descBlock = photoText ? `\nPHOTO ANALYSIS (vision model, from the teacher's photo${photoCount > 1 ? 's' : ''}):\n${photoText}\n` : '';
+  const photoNote =
+      photo.mode === 'both'  ? PHOTO_RULE + descBlock + `(The photo${photoCount > 1 ? 's are' : ' is'} also attached to this message.)\n`
+    : photo.mode === 'image' ? PHOTO_RULE + `(The photo${photoCount > 1 ? 's are' : ' is'} attached to this message.)\n`
+    : photo.mode === 'text'  ? (photoText ? PHOTO_RULE + descBlock : '')
+    : (photo.mode === 'note' && photoText)
+      ? `\nCLASSROOM PHOTOS: Visual evidence is available. Use it as supplementary context, but score primarily from audio-detectable signals (this rubric is audio-scoreable by design).\n`
     : '';
 
   const sectionJsonBlocks = Object.entries(DOMAINS).map(([sectionKey, section]) => {
