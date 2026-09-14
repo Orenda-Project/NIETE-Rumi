@@ -318,7 +318,7 @@ router.post('/validate-token', tokenValidationLimiter, async (req, res) => {
     // Query user with this token
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, first_name, last_name, phone_number, portal_activated, portal_invite_expires_at')
+      .select('id, phone_number, portal_activated, portal_invite_expires_at, name')
       .eq('portal_invite_token', token)
       .single();
 
@@ -353,8 +353,8 @@ router.post('/validate-token', tokenValidationLimiter, async (req, res) => {
     res.json({
       success: true,
       user: {
-        firstName: user.first_name,
-        lastName: user.last_name,
+        firstName: user.name,
+        lastName: user.name,
         phoneNumber: user.phone_number
       }
     });
@@ -500,7 +500,7 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, first_name, portal_password_hash, portal_activated')
+      .select('id, portal_password_hash, portal_activated, name')
       .eq('phone_number', phoneNumber)
       .eq('portal_activated', true)
       .maybeSingle();
@@ -542,7 +542,7 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
       // Set new session data
       req.session.portalUserId = user.id;
       req.session.isPortalAuth = true;
-      req.session.portalUserName = user.first_name;
+      req.session.portalUserName = user.name;
 
       res.json({
         success: true,
@@ -738,7 +738,7 @@ router.post('/reset-password', async (req, res) => {
         portal_last_login: new Date().toISOString()
       })
       .eq('id', userId)
-      .select('id, first_name, country, role')
+      .select('id, country, role, name')
       .maybeSingle();
 
     if (error) {
@@ -783,7 +783,7 @@ router.post('/reset-password', async (req, res) => {
 
       req.session.portalUserId = user.id;
       req.session.isPortalAuth = true;
-      req.session.portalUserName = user.first_name;
+      req.session.portalUserName = user.name;
 
       res.json({
         success: true,

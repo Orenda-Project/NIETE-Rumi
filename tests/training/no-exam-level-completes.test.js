@@ -55,7 +55,7 @@ const UID='u1', VENDOR='v-ox', LEVEL=17;
 
 /** An all_modules vendor level with NO exam row at all. */
 function seed({ allDone = true, certified = false } = {}) {
-  tableStates.users={rows:[{id:UID,first_name:'A',phone_number:'92300'}]};
+  tableStates.users={rows:[{id:UID,name: 'A',phone_number:'92300'}]};
   tableStates.teacher_training_assignments={rows:[{user_id:UID,program_id:'p1',is_active:true}]};
   tableStates.training_program_scopes={rows:[{program_id:'p1',vendor_id:VENDOR,level_ids:null}]};
   tableStates.training_vendors={rows:[{id:VENDOR,key:'OXBRIDGE',name:'Oxbridge',unlock_logic:'all_modules',has_grand_quiz:false,passing_pct:70,module_passing_pct:70}]};

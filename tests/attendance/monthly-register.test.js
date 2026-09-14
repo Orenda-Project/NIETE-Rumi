@@ -16,9 +16,9 @@ const ExcelJS = require('exceljs');   // recording stub — see tests/__mocks__/
 const register = require('../../bot/shared/services/attendance-register.service');
 
 const STAFF = [
-  { id: 'u1', first_name: 'Ayesha', last_name: 'Khan' },
-  { id: 'u2', first_name: 'Bilal', last_name: 'Ahmed' },
-  { id: 'u3', first_name: 'Sana', last_name: 'Iqbal' },
+  { id: 'u1', name: 'Ayesha Khan' },
+  { id: 'u2', name: 'Bilal Ahmed' },
+  { id: 'u3', name: 'Sana Iqbal' },
 ];
 
 // August 2026: the 3rd is a Monday, the 8th a Saturday.
@@ -51,7 +51,7 @@ describe('the matrix', () => {
   });
 
   it('includes a person with no records at all', () => {
-    const m = register.buildMatrix([...STAFF, { id: 'u9', first_name: 'New', last_name: 'Joiner' }], RECORDS);
+    const m = register.buildMatrix([...STAFF, { id: 'u9', name: 'New Joiner' }], RECORDS);
     expect(m.u9).toBeDefined();
     expect(Object.keys(m.u9.days)).toEqual([]);
   });

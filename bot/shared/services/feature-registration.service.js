@@ -38,7 +38,7 @@ class FeatureRegistrationService {
       // Get user to check registration status
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('first_name, registration_completed, registration_pending_name')
+        .select('registration_completed, registration_pending_name, name')
         .eq('id', userId)
         .single();
 
@@ -48,8 +48,8 @@ class FeatureRegistrationService {
       }
 
       // Skip if already registered
-      if (user.first_name || user.registration_completed) {
-        logToFile('User already registered, skipping', { userId, firstName: user.first_name });
+      if (user.name || user.registration_completed) {
+        logToFile('User already registered, skipping', { userId, firstName: user.name });
         return false;
       }
 
@@ -234,12 +234,20 @@ class FeatureRegistrationService {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
+      // bd-60092: never shorten a name we already hold. This path asks "what
+      // should I call you?" and gets ONE word; the registration Flow asks for
+      // the full name. Whichever ran first, the fuller value must survive.
+      const { data: existingUser } = await supabase
+        .from('users').select('name').eq('id', userId).maybeSingle();
+      const existingName = String((existingUser && existingUser.name) || '').trim();
+      const keepExisting = existingName.split(/\s+/).filter(Boolean).length
+        > String(firstName).trim().split(/\s+/).filter(Boolean).length;
+
       // Update user with name, portal token, and clear pending flag
       const { error: updateError } = await supabase
         .from('users')
         .update({
-          first_name: firstName,
-          name: firstName, // Also update legacy name field
+          ...(keepExisting ? {} : { name: firstName }),
           registration_completed: true,
           registration_completed_at: new Date().toISOString(),
           registration_pending_name: false,

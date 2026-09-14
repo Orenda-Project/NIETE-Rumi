@@ -33,7 +33,7 @@ function isRegistered(user) {
     user
     && (user.registration_completed === true
       || user.registration_state === 'completed'
-      || user.first_name)
+      || user.name)
   );
 }
 

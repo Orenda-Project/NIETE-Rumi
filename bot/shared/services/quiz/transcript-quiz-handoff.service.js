@@ -46,12 +46,12 @@ async function load(quizId) {
 
   const [{ data: session }, { data: user }, { data: storedQs }] = await Promise.all([
     supabase.from('coaching_sessions').select('created_at').eq('id', quiz.coaching_session_id).maybeSingle(),
-    supabase.from('users').select('preferred_language, first_name, last_name').eq('id', quiz.teacher_id).maybeSingle(),
+    supabase.from('users').select('preferred_language, name').eq('id', quiz.teacher_id).maybeSingle(),
     supabase.from('quiz_questions').select(QUIZ_QUESTIONS_SELECT).eq('quiz_id', quizId).order('sort_order', { ascending: true }),
   ]);
 
   const teacherLang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
-  const teacherName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || null;
+  const teacherName = user?.name || null;
 
   return {
     quiz, session: session || {}, questions: null, qRows: storedQs || [],

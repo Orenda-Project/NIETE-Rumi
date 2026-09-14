@@ -53,10 +53,10 @@ async function listSchoolTeachers(principal) {
   if (!principal || !principal.school_id) return [];
   const { data, error } = await db()
     .from('users')
-    .select('id, first_name, phone_number, preferred_language')
+    .select('id, phone_number, preferred_language, name')
     .eq('school_id', principal.school_id)
     .eq('role', 'teacher')
-    .order('first_name', { ascending: true });
+    .order('name', { ascending: true });
   if (error) throw new Error(`remark-cycle: listSchoolTeachers failed — ${error.message}`);
   return data || [];
 }

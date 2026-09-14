@@ -50,7 +50,7 @@ class PasswordResetService {
       // Check if user exists and has activated portal
       const { data: users, error: userError } = await supabase
         .from('users')
-        .select('id, first_name, portal_activated, preferred_language')
+        .select('id, portal_activated, preferred_language, name')
         .eq('phone_number', phoneNumber);
 
       // Extract first user from array (or null if empty)
@@ -116,7 +116,7 @@ class PasswordResetService {
           {
             phoneNumber,
             code,
-            firstName: user.first_name,
+            firstName: user.name,
             language: userLanguage
           },
           {

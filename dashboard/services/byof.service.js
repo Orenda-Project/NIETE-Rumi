@@ -115,7 +115,7 @@ async function getSessionById(sessionId) {
       .from('byof_sessions')
       .select(`
         *,
-        user:dashboard_users(id, username, email)
+        user:dashboard_users(name, id, username, email)
       `)
       .eq('id', sessionId)
       .single();
@@ -193,7 +193,7 @@ async function getAllSessions(status = null) {
       .from('byof_sessions')
       .select(`
         *,
-        user:dashboard_users(id, username, email)
+        user:dashboard_users(name, id, username, email)
       `)
       .order('updated_at', { ascending: false });
 
@@ -742,7 +742,7 @@ async function getPlanWithReporter(planId) {
         *,
         session:byof_sessions(
           *,
-          user:dashboard_users(id, username, email, phone_number)
+          user:dashboard_users(name, id, username, email, phone_number)
         )
       `)
       .eq('id', planId)
@@ -1005,7 +1005,7 @@ async function getRecentActivity(limit = 10) {
       .from('byof_sessions')
       .select(`
         id, title, type, status, created_at, updated_at,
-        user:dashboard_users(id, username)
+        user:dashboard_users(name, id, username)
       `)
       .order('updated_at', { ascending: false })
       .limit(limit);
@@ -1020,7 +1020,7 @@ async function getRecentActivity(limit = 10) {
       .from('byof_approval_log')
       .select(`
         id, action, reason, created_at,
-        user:dashboard_users(id, username),
+        user:dashboard_users(name, id, username),
         plan:byof_plans(id, summary)
       `)
       .order('created_at', { ascending: false })
@@ -1084,7 +1084,7 @@ async function searchSessions(filters = {}) {
       .from('byof_sessions')
       .select(`
         *,
-        user:dashboard_users(id, username, email)
+        user:dashboard_users(name, id, username, email)
       `)
       .order('updated_at', { ascending: false });
 
@@ -1130,7 +1130,7 @@ async function getCompletedPlans(limit = 20) {
       .from('byof_plans')
       .select(`
         *,
-        session:byof_sessions(id, title, type, user:dashboard_users(id, username))
+        session:byof_sessions(id, title, type, user:dashboard_users(name, id, username))
       `)
       .eq('status', 'production_live')
       .order('completed_at', { ascending: false })
@@ -1158,7 +1158,7 @@ async function getPendingApprovals() {
       .from('byof_plans')
       .select(`
         *,
-        session:byof_sessions(id, title, type, status, user:dashboard_users(id, username))
+        session:byof_sessions(id, title, type, status, user:dashboard_users(name, id, username))
       `)
       .eq('status', 'draft')
       .order('created_at', { ascending: true });
@@ -1191,7 +1191,7 @@ async function getSessionsByDateRange(startDate, endDate) {
       .from('byof_sessions')
       .select(`
         *,
-        user:dashboard_users(id, username)
+        user:dashboard_users(name, id, username)
       `)
       .gte('created_at', startDate)
       .lte('created_at', endDate)
@@ -1265,7 +1265,7 @@ async function getApprovalLog(planId = null, limit = 50) {
       .from('byof_approval_log')
       .select(`
         *,
-        user:dashboard_users(id, username),
+        user:dashboard_users(name, id, username),
         plan:byof_plans(id, summary, session:byof_sessions(id, title))
       `)
       .order('created_at', { ascending: false })

@@ -1,4 +1,5 @@
 const WhatsAppService = require('../services/whatsapp.service');
+const { firstNameOf } = require('../utils/person-name');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const OpenAIService = require('../services/openai.service');
@@ -1939,7 +1940,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           logToFile('📝 Registration flow re-opened from /register for an already-registered user (details update)', {
             userId: user?.id,
             phoneNumber: from,
-            currentFirstName: user?.first_name || null,
+            currentFirstName: user?.name || null,
           });
         } else {
           logToFile('📝 Registration flow sent from /register command', { userId: user?.id, phoneNumber: from });
@@ -1957,7 +1958,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Legacy path (no REGISTRATION_FLOW_ID, or the Flow send failed): a completed
     // account has nothing to recover, so confirm and stop here.
     if (isAlreadyRegistered) {
-      const known = user.first_name || 'there';
+      const known = firstNameOf(user) || 'there';
       await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
       return;
     }
@@ -2428,7 +2429,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // See shared/utils/registration-status.js for why the flag alone is not the test.
     if (isRegistered(user)) {
       // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${firstNameOf(user) || 'there'}! Type /menu to see what I can help you with.`);
       return;
     }
 
@@ -3072,7 +3073,7 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  */
 async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null) {
   // Get firstName from user if registered
-  const firstName = user?.first_name || null;
+  const firstName = user?.name || null;
 
   // ============================================================
   // STUDENT MODE — THE ONE GATE

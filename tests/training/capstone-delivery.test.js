@@ -108,7 +108,7 @@ function seed({
   inProgressAttempt = null,
   storedAnswers = [],
 } = {}) {
-  tableStates.users = { rows: [{ id: USER, phone_number: PHONE, first_name: 'Saira' }] };
+  tableStates.users = { rows: [{ id: USER, phone_number: PHONE, name: 'Saira' }] };
   tableStates.training_modules = {
     rows: [
       { id: 101, course_id: 7, is_active: true },

@@ -66,14 +66,14 @@ function requirePortalAuth(req, res, next) {
 }
 
 /**
- * Loads the authenticated user's {id, role, school_id, first_name, phone_number}
+ * Loads the authenticated user's {id, role, school_id, name, phone_number}
  * onto req.portalUser. All downstream role/school checks read from this.
  */
 async function loadPortalUser(req, res, next) {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, first_name, last_name, phone_number, role, school_id')
+      .select('id, phone_number, role, school_id, name')
       .eq('id', req.session.portalUserId)
       .maybeSingle();
     if (error) throw error;
@@ -144,7 +144,7 @@ async function loadSchool(schoolId) {
  *     school: { id, name, region },
  *     date: 'YYYY-MM-DD',
  *     teachers: [
- *       { id, first_name, last_name, phone_number, today: { status, leave_type } | null }
+ *       { id, name, phone_number, today: { status, leave_type } | null }
  *     ]
  *   }
  */
@@ -163,8 +163,7 @@ router.get('/school', requirePortalAuth, loadPortalUser, requirePrincipal, async
     const marksByTeacher = new Map(todayRecs.map((r) => [r.teacher_id, r]));
     const enriched = teachers.map((t) => ({
       id: t.id,
-      first_name: t.first_name,
-      last_name: t.last_name,
+      name: t.name,
       phone_number: t.phone_number,
       today: marksByTeacher.has(t.id)
         ? { status: marksByTeacher.get(t.id).status, leave_type: marksByTeacher.get(t.id).leave_type }

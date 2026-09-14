@@ -92,7 +92,7 @@ function seed({
   tableStates.training_certificates = {
     rows: certExists ? [{ user_id: USER, level_id: LEVEL, certificate_code: 'OLD' }] : [],
   };
-  tableStates.users = { rows: [{ id: USER, first_name: 'Saira' }] };
+  tableStates.users = { rows: [{ id: USER, name: 'Saira' }] };
 }
 
 beforeEach(() => {

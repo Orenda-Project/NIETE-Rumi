@@ -386,7 +386,7 @@ async function processUntappedDelivery(sessionId, nowMs = Date.now()) {
   if (decision.action === 'skip') return decision;
 
   const foPhone = session.users && session.users.phone_number;
-  const foName = (session.users && session.users.first_name) || '';
+  const foName = (session.users && session.users.name) || '';
   // bd-dy7hs: the coach's own chase-up, in the COACH's language. `session.users`
   // is the observed TEACHER on a bound session, so reading it here told a
   // English-reading coach about her teacher in Urdu.
@@ -557,7 +557,7 @@ const MIN_DEBRIEF_CHARS_FOR_NOTES = 120;
 async function _loadSession(sessionId) {
   const { data: session, error } = await supabase
     .from('coaching_sessions')
-    .select('*, users(phone_number, first_name, preferred_language)')
+    .select('*, users(name, phone_number, preferred_language)')
     .eq('id', sessionId)
     .single();
   if (error || !session) {
@@ -652,7 +652,7 @@ async function processTeacherReport(sessionId, payload = {}) {
   const foPhone = payload.from && payload.phase !== 'teacher_tap'
     ? payload.from
     : (session.users && session.users.phone_number);
-  const foName = (session.users && session.users.first_name) || 'Afisa';
+  const foName = (session.users && session.users.name) || 'Afisa';
   // bd-dy7hs: two audiences, named. They are computed separately and stay
   // separate (spec 2.3) — the coach's acks ("preview sent", "queued") are hers,
   // only the teacher-bound artefacts follow the teacher.

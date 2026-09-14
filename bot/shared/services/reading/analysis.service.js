@@ -759,11 +759,11 @@ Generate a 3-4 sentence summary that:
       // Get user data for teacher name
       const { data: user } = await supabase
         .from('users')
-        .select('first_name, last_name')
+        .select('name')
         .eq('id', assessment.user_id)
         .single();
 
-      const teacherName = user ? `${user.first_name} ${user.last_name}`.trim() : 'Unknown';
+      const teacherName = user ? (user.name || '').trim() : 'Unknown';
 
       // Build report data
       const reportData = {
@@ -1013,7 +1013,7 @@ Output the complete enhanced summary (not just the new parts).`;
       // Fetch teacher's name from users table
       const { data: teacher } = await supabase
         .from('users')
-        .select('first_name, last_name')
+        .select('name')
         .eq('id', freshAssessment.user_id)
         .single();
 
@@ -1021,7 +1021,7 @@ Output the complete enhanced summary (not just the new parts).`;
         throw new Error('Teacher not found');
       }
 
-      const teacherName = teacher.first_name || 'Teacher';
+      const teacherName = teacher.name || 'Teacher';
 
       // Use assessment's language field for voice feedback
       // assessment.language is the actual language of the passage (e.g., 'ur' for Urdu)
@@ -1083,11 +1083,11 @@ Output the complete enhanced summary (not just the new parts).`;
       // Fetch teacher's name to address them properly (prevents [Recipient's Name] placeholder)
       const { data: teacher } = await supabase
         .from('users')
-        .select('first_name')
+        .select('name')
         .eq('id', assessment.user_id)
         .single();
 
-      const teacherName = teacher?.first_name || 'Teacher';
+      const teacherName = teacher?.name || 'Teacher';
 
       // Send completion message
       // Include teacher name in prompt so GPT addresses them properly
@@ -1337,11 +1337,11 @@ Output the complete enhanced summary (not just the new parts).`;
       // Get user data for teacher name
       const { data: user } = await supabase
         .from('users')
-        .select('first_name, last_name')
+        .select('name')
         .eq('id', assessment.user_id)
         .single();
 
-      const teacherName = user ? `${user.first_name} ${user.last_name}`.trim() : 'Unknown';
+      const teacherName = user ? (user.name || '').trim() : 'Unknown';
 
       // Build report data structure (same as generateReport)
       const reportData = {

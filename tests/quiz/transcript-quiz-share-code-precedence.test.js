@@ -102,7 +102,7 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logErr
 
 const CHILD_PHONE = '923001110000';
 const CHILD_USER = {
-  id: 'u-child', phone_number: CHILD_PHONE, first_name: null,
+  id: 'u-child', phone_number: CHILD_PHONE, name: null,
   preferred_language: 'en', registration_completed: false, registration_state: null,
 };
 

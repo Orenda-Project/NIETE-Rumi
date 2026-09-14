@@ -68,7 +68,7 @@ function buildRoster(teachers, progress, S, cycleName) {
     if (p.state === 'done') status = `✅ ${S.done}`;
     else if (p.state === 'in_progress') status = `▶️ ${S.in_progress(p.answered || 0)}`;
     else status = `⬜ ${S.not_started}`;
-    return `${i + 1}. ${t.first_name} — ${status}`;
+    return `${i + 1}. ${t.name} — ${status}`;
   });
   return `${S.header(cycleName)}\n\n${lines.join('\n')}`;
 }
