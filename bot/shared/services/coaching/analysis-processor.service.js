@@ -151,12 +151,14 @@ class AnalysisProcessorService {
           const wantImages = PHOTO_MODE === 'image' || PHOTO_MODE === 'both';
           const parts = [];
           const images = [];
-          for (const p of photos) {
+          for (const [photoIndex, p] of photos.entries()) {
             let buf;
             try {
               buf = await downloadFromR2(extractKeyFromUrl(p.url));
               const text = await processClassroomPhoto(buf, p.mime_type || 'image/jpeg', frameworkKey);
-              if (text) parts.push(text);
+              // bd-1mcpe: keep the photo's ORIGINAL position — the report captions each framed photo
+              // from "Classroom photo N", so a skipped photo must not renumber the ones after it.
+              if (text) parts.push({ n: photoIndex + 1, text });
             } catch (perr) {
               logToFile('[photo-vision] one photo failed (non-blocking)', { coachingSessionId, error: perr.message });
               continue;
@@ -171,7 +173,7 @@ class AnalysisProcessorService {
             }
           }
           const text = parts.length
-            ? parts.map((t, i) => `Classroom photo ${i + 1} (submitted by the teacher): ${t}`).join('\n\n')
+            ? parts.map(({ n, text: t }) => `Classroom photo ${n} (submitted by the teacher): ${t}`).join('\n\n')
             : null;
           metadata.photoAnalysis = text; // persisted as analysis_data.photo_analysis (unchanged contract)
           let effective = PHOTO_MODE;
