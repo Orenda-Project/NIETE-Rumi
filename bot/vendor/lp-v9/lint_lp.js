@@ -2231,7 +2231,45 @@ const OVERLAY_SKIP_KEYS = new Set([
   ...MACHINE_KEYS,
 ]);
 /** Subtrees that are citation metadata or a third party's own text, not our instructions. */
-const OVERLAY_SKIP_ROOTS = ["/provenance", "/video", "/revisions", "/ur_overlay"];
+// VENDOR DIVERGENCE (bd-x3dn6) — `/provenance` used to sit in this list wholesale. See below.
+const OVERLAY_SKIP_ROOTS = ["/video", "/revisions", "/ur_overlay"];
+
+/**
+ * bd-x3dn6 — `/provenance` is MIXED, and skipping it whole left English on an Urdu page.
+ *
+ * Most of the block is citation: a publisher's name, a curriculum's name, an edition, the source
+ * quality flags an operator wrote about the scan. Translating any of those produces a citation
+ * that does not match the book on the teacher's desk.
+ *
+ * `topic` is not citation. It is the lesson's TITLE — the largest type on page 1, the running
+ * header of every continued page, the page-2 head, and the PDF's own document title (four draw
+ * sites in `lib/template.js`, one pointer). On the first Urdu lessons this lane ever delivered
+ * (d04/d05/d06, 2026-09-05) «Rational and Irrational Numbers» headed a page that was otherwise
+ * 74% Urdu. `chapter` and `chapter_title` sit beside it in the footer and the hero for the same
+ * reason: they are the book's own words for the lesson, not a reference to the book.
+ *
+ * `subject` is deliberately NOT here. `SUBJECT_NAMES_UR` / `subjectNameFor()` already produce the
+ * Urdu subject name the WhatsApp caption prints (bd-63dea); a model translating it a second time
+ * is how the caption and the PDF header end up disagreeing about what the subject is called.
+ */
+const OVERLAY_PROVENANCE_KEYS = new Set(["topic", "chapter", "chapter_title"]);
+
+/**
+ * bd-8g1u7 — the display strings of a diagram spec, which are labels rather than prose.
+ *
+ * `isInstructionProse` wants >= 8 characters AND two runs of two-or-more Latin letters, which is
+ * right for instruction text and wrong for a figure label: a label is a short single word by
+ * nature. `Nucleus` fails on length, `p_photon` fails on word count, `p_e-` fails on both — so an
+ * Urdu physics lesson kept every English label in its figures. Inside a diagram `spec` only, these
+ * keys admit a single word as well.
+ *
+ * `isDiagramLabel` is what keeps notation out: a string carrying `_` or `^` is a symbol
+ * (`p_e-`, `v_max`, `x^2`), and a string with no run of three Latin letters is not a word. The
+ * machine fields a renderer PARSES rather than prints — tex, smiles, equation, formula — are not
+ * display keys at all, and stay frozen through `MACHINE_KEYS` and `frozenReason`.
+ */
+const DIAGRAM_DISPLAY_KEYS = new Set(["label", "labels", "text", "title", "caption", "note", "alt", "name"]);
+const isDiagramLabel = (s) => /[A-Za-z]{3,}/.test(s) && !/[_^]/.test(s);
 
 /**
  * At least HALF the instruction prose must carry an Urdu replacement.
@@ -2254,29 +2292,46 @@ function isInstructionProse(s) {
  * Every JSON Pointer in `doc` that the Urdu toggle is ALLOWED to replace and OUGHT to.
  * Exported through `overlayDefects.targets` so the count in the message and the count a test
  * asserts are the same computation, not two that can drift.
+ *
+ * VENDOR DIVERGENCE (bd-x3dn6, bd-8g1u7) — the per-field `/provenance` gate and the diagram
+ * display-key rule are ours; upstream carries neither. Recorded in SYNC.md §3.13.
  */
 function overlayTargets(doc) {
   const out = [];
   const esc = (k) => String(k).replace(/~/g, "~0").replace(/\//g, "~1");
-  const walk = (node, ptr) => {
+  // `spec` is true once the walk is inside a diagram spec; `dispKey` is the display key the
+  // current string hangs off, carried through arrays so `labels/0` still counts as a label.
+  const walk = (node, ptr, spec, dispKey) => {
     if (typeof node === "string") {
-      if (!isInstructionProse(node)) return;
-      if (OVERLAY_SKIP_ROOTS.some((r) => ptr === r || ptr.startsWith(r + "/"))) return;
+      const diagramLabel = spec && !!dispKey && isDiagramLabel(node);   // bd-8g1u7
+      if (!isInstructionProse(node) && !diagramLabel) return;
+      if (ptr.startsWith("/provenance/")) {                             // bd-x3dn6
+        const pk = ptr.slice("/provenance/".length);
+        if (!OVERLAY_PROVENANCE_KEYS.has(pk)) return;
+      } else if (OVERLAY_SKIP_ROOTS.some((r) => ptr === r || ptr.startsWith(r + "/"))) return;
       const key = ptr.slice(ptr.lastIndexOf("/") + 1);
-      if (OVERLAY_SKIP_KEYS.has(key)) return;
+      if (OVERLAY_SKIP_KEYS.has(key) && !diagramLabel) return;
       if (frozenReason(doc, ptr)) return;
       out.push(ptr);
       return;
     }
-    if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${ptr}/${i}`)); return; }
+    if (Array.isArray(node)) {
+      node.forEach((v, i) => walk(v, `${ptr}/${i}`, spec, dispKey));
+      return;
+    }
     if (node && typeof node === "object") {
       for (const [k, v] of Object.entries(node)) {
-        if (OVERLAY_SKIP_KEYS.has(k) && typeof v === "string") continue;
-        walk(v, `${ptr}/${esc(k)}`);
+        // A display key inside a spec bypasses the shortcut below — `name` is on the skip list
+        // for a brand and a font, and is also what several diagram types call their label.
+        const disp = spec && DIAGRAM_DISPLAY_KEYS.has(k) ? k : null;
+        if (OVERLAY_SKIP_KEYS.has(k) && typeof v === "string" && !disp) continue;
+        const childSpec = spec
+          || (k === "spec" && !!v && typeof v === "object" && !Array.isArray(v) && typeof v.type === "string");
+        walk(v, `${ptr}/${esc(k)}`, childSpec, disp);
       }
     }
   };
-  walk(doc, "");
+  walk(doc, "", false, null);
   return out;
 }
 
