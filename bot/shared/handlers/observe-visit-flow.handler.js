@@ -998,6 +998,86 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
     const _T = () => require('../services/observe/observe-teacher-admin.service');
     const _P = () => require('../services/observe/patch-resolver.service');
+    const _E = () => require('../services/observe/teacher-edit.service');
+
+    /**
+     * Every coach edit leaves a row in leader_roster_audit — the same table
+     * add/remove/move already write to, so the queue of "what did coaches do"
+     * stays one query. A Case-3 phone attempt is recorded here too: that IS the
+     * escalation queue, rather than a new table for a handful of rows.
+     */
+    /**
+     * The account on the destination number, WITH the counts the classifier
+     * needs. Returns null when the number is free.
+     *
+     * If any count query fails we return the row with NO counts block, which
+     * classifyTarget reads as TAKEN — "we could not read the history" is not
+     * "there is none", and an unnecessary escalation is far cheaper than a
+     * wrong merge.
+     */
+    const _loadTargetWithHistory = async (phone) => {
+      const supabase = require('../config/supabase');
+      const { data: row } = await supabase.from('users')
+        .select('id, name, phone_number').eq('phone_number', phone).maybeSingle();
+      if (!row) return null;
+      try {
+        const tables = [
+          ['certificates', 'training_certificates'],
+          ['attempts', 'training_assessment_attempts'],
+          ['progress', 'teacher_training_progress'],
+          ['coaching', 'coaching_sessions'],
+        ];
+        const counts = {};
+        for (const [key, table] of tables) {
+          const { count, error } = await supabase.from(table)
+            .select('id', { count: 'exact', head: true }).eq('user_id', row.id);
+          if (error) return row;            // no counts -> classified TAKEN
+          counts[key] = count || 0;
+        }
+        return { ...row, counts };
+      } catch (_) {
+        return row;                          // same: fail closed
+      }
+    };
+
+    const _editAudit = async (actorId, person, action, detail) => {
+      try {
+        const supabase = require('../config/supabase');
+        await supabase.from('leader_roster_audit').insert([{
+          action,
+          actor_user_id: actorId,
+          affected_leader_user_id: actorId,
+          teacher_ext_id: person && person.userId,
+          teacher_phone_e164: (person && person.phone) || null,
+          teacher_name: (person && person.name) || null,
+          detail: { via: 'observe_flow', ...(detail || {}) },
+        }]);
+      } catch (_) {
+        // An unwritten audit row must never fail the edit the coach just made.
+      }
+    };
+
+
+    /**
+     * The person the coach picked, resolved through HER OWN derived roster.
+     *
+     * Authorisation is the list itself: if she does not hold them, they are not
+     * in it and every edit step refuses. That is the same rule add/remove use,
+     * and it means no edit step needs its own permission check.
+     */
+    const _editPerson = async (leaderUserId, schoolExtId, pickedUserId) => {
+      if (!pickedUserId || pickedUserId === 'none') return null;
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, leaderUserId, schoolExtId).catch(() => []);
+      const p = people.find((x) => x.userId === pickedUserId);
+      if (!p) return null;
+      // The picker carries display fields only; the edit rules need the row.
+      const { data: row } = await supabase.from('users')
+        .select('id, name, phone_number, teacher_level, teacher_level_updated_at')
+        .eq('id', pickedUserId).maybeSingle();
+      return { ...p, row: row || null };
+    };
+
     const _tdone = (heading, body) => ({ screen: 'TEACHER_DONE', data: { heading, body } });
     const _refuse = (key) => _tdone(S_(_flowLang).flow_action_failed_heading, _T().refusalBody(_flowLang, key));
 
@@ -1061,7 +1141,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       // second copy that can drift.
       const next = picked === 'remove' ? 'teacher_remove_open'
         : picked === 'add' ? 'teacher_add_open'
-          : null;
+          : picked === 'edit' ? 'teacher_edit_open'
+            : null;
       if (!next) return _refuse('not_found');
       return handle(userId, 'data_exchange', screen,
         { ...screenData, step: next, school_ext_id: schoolExtId }, flowToken, user, opts);
@@ -1164,6 +1245,260 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           intro: `Pick the person to take off ${school.school_name}.`,
         },
       };
+    }
+
+    // ── EDIT ─────────────────────────────────────────────────────────────
+    // Same shape as remove: pick the person from the coach's OWN derived list,
+    // so she can only ever edit someone she actually holds. Authorisation is
+    // the list, not a later check.
+    if (step === 'teacher_edit_open') {
+      const A = _admin();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const school = mine.find((x) => x.school_ext_id === schoolExtId);
+      if (!school) return _refuse('not_my_school');
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const options = people.length
+        ? people.slice(0, A.LIST_CAP).map((p) => _opt(
+          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return {
+        screen: 'TEACHER_EDIT_PICK',
+        data: {
+          options,
+          school_ext_id: schoolExtId,
+          intro: `Pick the person to edit at ${school.school_name}.`,
+        },
+      };
+    }
+
+    // Which field. Named here rather than on the screen so the copy can carry
+    // what we already know about the person.
+    if (step === 'teacher_edit_field') {
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      if (!pickedUserId || pickedUserId === 'none') return _refuse('not_found');
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const person = people.find((p) => p.userId === pickedUserId);
+      if (!person) return _refuse('not_found');
+      return {
+        screen: 'TEACHER_EDIT_FIELD',
+        data: {
+          school_ext_id: schoolExtId,
+          teacher_ext_id: pickedUserId,
+          intro: `${person.name || 'This teacher'}${person.phone ? ` (${person.phone})` : ''}.\n\nWhat would you like to change?`,
+        },
+      };
+    }
+
+    // The chosen field opens its own screen. `field` (not `data`) is the payload
+    // key on purpose: a key literally named `data` collides with the decrypt
+    // destructure and arrives as 'data_exchange', which is what silently broke
+    // the remove path once.
+    if (step === 'teacher_edit_route') {
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const field = String((screenData && screenData.field) || '').trim();
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      if (field === 'name') {
+        return {
+          screen: 'TEACHER_EDIT_NAME',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `Currently: ${person.name || '(no name on record)'}.\n\nType the full name.`,
+          },
+        };
+      }
+      if (field === 'level') {
+        const E = _E();
+        const cur = (person.row && require('../utils/teacher-level').teacherLevelOf(person.row)) || [];
+        return {
+          screen: 'TEACHER_EDIT_LEVEL',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `${person.name || 'This teacher'} currently teaches ${cur.length ? cur.join(' + ') : 'no band on record'}.\n\nPick every band they teach.`,
+            options: [
+              _opt('PRIMARY', 'Primary (Grades 1-5)', '', ''),
+              _opt('MIDDLE', 'Middle (Grades 6-8)', '', ''),
+              _opt('HIGH', 'High (Grades 9-10)', '', ''),
+            ],
+          },
+        };
+      }
+      if (field === 'phone') {
+        return {
+          screen: 'TEACHER_EDIT_PHONE',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `${person.name || 'This teacher'} is on ${person.phone || '(no number)'}.\n\nType their NEW WhatsApp number. We check it before anything moves.`,
+          },
+        };
+      }
+      return _refuse('not_found');
+    }
+
+    // ── the writes ───────────────────────────────────────────────────────
+    // Each one RE-RESOLVES the person rather than trusting the payload: the
+    // confirm is a separate round trip and the roster can move between taps.
+
+    if (step === 'teacher_edit_name_commit') {
+      const E = _E();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const plan = E.planNameEdit(person.row || {}, screenData && screenData.name);
+      if (!plan.ok) return _refuse('name_required');
+      if (plan.unchanged) return _tdone('No change', `${plan.name} already has that name.`);
+
+      const supabase = require('../config/supabase');
+      const { error } = await supabase.from('users').update(plan.patch).eq('id', pickedUserId);
+      if (error) return _refuse('failed');
+      await _editAudit(userId, person, 'edit_name', { to: plan.name });
+      return _tdone('Saved', `Their name is now *${plan.name}*.`);
+    }
+
+    if (step === 'teacher_edit_level_commit') {
+      const E = _E();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const raw = screenData && screenData.bands;
+      const bands = Array.isArray(raw) ? raw : String(raw || '').split(',').filter(Boolean);
+      const plan = E.planLevelEdit(person.row || {}, bands);
+      if (!plan.ok) {
+        // The cooldown is the teacher's protection; say why rather than failing
+        // blankly, or the coach retries and thinks the feature is broken.
+        if (plan.reason === 'cooldown') {
+          return _tdone('Not yet',
+            `${person.name || 'This teacher'}'s level was changed recently. It can be changed again in about ${plan.hoursRemaining} hour(s).`);
+        }
+        return _refuse(plan.reason === 'empty_selection' ? 'name_required' : 'failed');
+      }
+      if (plan.unchanged) return _tdone('No change', `${person.name || 'They'} already teach ${plan.bands.join(' + ')}.`);
+
+      // applyBandSelection is the ONE writer: it also reconciles
+      // teacher_training_assignments, so the programmes follow the bands.
+      const { applyBandSelection } = require('../services/training/band-selection.service');
+      const res = await applyBandSelection(pickedUserId, plan.bands).catch(() => ({ ok: false }));
+      if (!res || !res.ok) {
+        if (res && res.reason === 'cooldown') {
+          return _tdone('Not yet', res.message || 'That level was changed too recently.');
+        }
+        return _refuse('failed');
+      }
+      await _editAudit(userId, person, 'edit_level', { to: plan.bands });
+      return _tdone('Saved', `${person.name || 'They'} now teach *${plan.bands.join(' + ')}*.`);
+    }
+
+    // READS ONLY. Classifies the destination number and tells the coach exactly
+    // what will happen before anything moves.
+    if (step === 'teacher_edit_phone_check') {
+      const E = _E();
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const phone = T.normaliseTeacherPhone(screenData && screenData.phone);
+      if (!phone) return _refuse('invalid_phone');
+      if (person.row && phone === person.row.phone_number) {
+        return _tdone('No change', 'That is already their number.');
+      }
+
+      const target = await _loadTargetWithHistory(phone);
+      const verdict = E.classifyTarget(target);
+
+      if (verdict === E.CASE_TAKEN) {
+        // Refuse and record. 36.8% of accounts carry irreplaceable history, so
+        // this is a real teacher's record, not an empty slot.
+        await _editAudit(userId, person, 'edit_phone_escalated', {
+          to_phone: phone, reason: 'destination_has_history',
+        });
+        return _tdone('We cannot move that automatically',
+          'That number already belongs to someone with their own training records. '
+          + 'We have reported it to the Rumi team and it will be sorted shortly.');
+      }
+
+      const carried = verdict === E.CASE_SHELL ? (target && target.counts) || {} : {};
+      const note = verdict === E.CASE_SHELL
+        ? '\n\nThe new number has some recent activity; it will be kept.'
+        : '';
+      return {
+        screen: 'TEACHER_EDIT_PHONE_CONFIRM',
+        data: {
+          school_ext_id: schoolExtId,
+          teacher_ext_id: pickedUserId,
+          phone,
+          plan: `Moving *${person.name || 'this teacher'}* from ${person.phone || '(no number)'} to ${phone}.`
+            + `\n\nTheir training, certificates and visits move with them.${note}`,
+        },
+      };
+    }
+
+    if (step === 'teacher_edit_phone_commit') {
+      const E = _E();
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const phone = T.normaliseTeacherPhone(screenData && screenData.phone);
+      if (!phone) return _refuse('invalid_phone');
+
+      // RE-CLASSIFY. The confirm was a separate round trip; the destination can
+      // have acquired history since, and a stale verdict is how two teachers
+      // get fused.
+      const target = await _loadTargetWithHistory(phone);
+      const verdict = E.classifyTarget(target);
+      if (verdict === E.CASE_TAKEN) {
+        await _editAudit(userId, person, 'edit_phone_escalated', {
+          to_phone: phone, reason: 'destination_has_history_at_commit',
+        });
+        return _tdone('We cannot move that automatically',
+          'That number now belongs to someone with their own records. Reported to the Rumi team.');
+      }
+
+      const supabase = require('../config/supabase');
+      const oldPhone = person.row && person.row.phone_number;
+
+      // Retire the shell FIRST. Its phone must be free before the survivor can
+      // take it — phone_number is UNIQUE — and a soft delete keeps it
+      // recoverable if the classifier was ever wrong.
+      if (verdict === E.CASE_SHELL && target && target.id) {
+        const { error: rErr } = await supabase.from('users')
+          .update({ ...E.retireMergedPatch(userId), phone_number: `merged:${target.id}` })
+          .eq('id', target.id);
+        if (rErr) return _refuse('failed');
+      }
+
+      const { error } = await supabase.from('users')
+        .update({ phone_number: phone }).eq('id', pickedUserId);
+      if (error) return _refuse('failed');
+
+      // The roster and any booked visit key on the phone STRING, so they have
+      // to follow or she drops out of her coach's picker with no error.
+      await supabase.from('observation_schedules')
+        .update({ teacher_ext_id: phone }).eq('teacher_ext_id', oldPhone);
+
+      await _editAudit(userId, person, 'edit_phone', {
+        from_phone: oldPhone, to_phone: phone, case: verdict,
+        retired_user_id: verdict === E.CASE_SHELL && target ? target.id : null,
+      });
+      return _tdone('Moved',
+        `*${person.name || 'They'}* are now on ${phone}. Their history moved with them.`);
     }
 
     // READS ONLY — and where the coach learns a booked visit will go.
