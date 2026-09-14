@@ -15,15 +15,14 @@
  * @returns {{ body: string, buttons: Array<{id: string, title: string}> }}
  */
 function buildPhotoPrompt(coachingSessionId, language = 'en') {
-  const isUrdu = language === 'ur';
-
+  // bd-8s2xb — strings live in the catalog (Rule 20), not an inline en/ur map.
+  const { resolveUx } = require('../../../config/ux-strings');
+  const ux = (key) => resolveUx(key, { language });
   return {
-    body: isUrdu
-      ? '📸 کیا آپ اپنی کلاس روم کی تصویر شیئر کرنا چاہیں گے؟ یہ تجزیے کو بہتر بنائے گی۔'
-      : '📸 Would you like to share a classroom photo? It helps improve the analysis.',
+    body: ux('coachingPhotoOffer'),
     buttons: [
-      { id: `photo_yes_${coachingSessionId}`, title: isUrdu ? 'ہاں' : 'Yes' },
-      { id: `photo_no_${coachingSessionId}`, title: isUrdu ? 'نہیں' : 'No' },
+      { id: `photo_yes_${coachingSessionId}`, title: ux('coachingPhotoOfferYes') },
+      { id: `photo_no_${coachingSessionId}`, title: ux('coachingPhotoOfferNo') },
     ],
   };
 }
