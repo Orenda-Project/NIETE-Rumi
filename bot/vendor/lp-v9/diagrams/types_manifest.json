@@ -1048,11 +1048,11 @@
       "for": "A lens or mirror construction SOLVED from the thin-lens/mirror equation -- F, 2F, the three standard rays, and the real or virtual image where it actually falls.",
       "required": [
         "element",
-        "f",
         "u",
         "hObject"
       ],
       "optional": [
+        "f",
         "showRays",
         "labels",
         "unit"
@@ -1069,10 +1069,17 @@
         "ray_diagram_ur.png"
       ],
       "limits": [
-        "element is convex_lens | concave_lens | concave_mirror | convex_mirror.",
+        "element is convex_lens | concave_lens | concave_mirror | convex_mirror | plane_mirror. `f` is REQUIRED for the four curved/lens elements and MUST BE OMITTED for plane_mirror, which has no focal length -- for a plane mirror give only u and hObject and the engine solves the image at v = -u, same size, erect, virtual.",
+        "Match the element to the lesson: a plane-mirror lesson drawn with a concave_mirror prints a focal length the lesson never mentions, and is rejected (RAY_ELEMENT_MISMATCH).",
         "The image position, size and nature are COMPUTED -- you give the object, not the answer. u inside f gives the virtual case, and it draws that correctly.",
         "It is the type that runs closest to the 13.5px floor (13.6px measured at full width): do not shrink its column."
-      ]
+      ],
+      "minimal_spec_plane_mirror": {
+        "type": "ray_diagram",
+        "element": "plane_mirror",
+        "u": 30,
+        "hObject": 12
+      }
     },
     {
       "type": "timeline",
