@@ -335,13 +335,24 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         && typeof framework.buildAnalysisPrompt === 'function'
         && typeof framework.computeScores === 'function');
 
+      // bd-8s2xb — image modes ('image' | 'both') attach the teacher's classroom photos to THIS
+      // call as image parts. Never log the base64 (a 3-photo session is ~400KB of it).
+      const photoImages = (metadata.photo && ['image', 'both'].includes(metadata.photo.mode) && Array.isArray(metadata.photo.images))
+        ? metadata.photo.images.filter((im) => im && im.base64)
+        : [];
+      const { photo: _photoForLog, ...metadataForLog } = metadata;
       logToFile('Starting GPT-5 mini pedagogical analysis', {
         transcriptLength: transcript.length,
         hasLessonPlan: hasLessonPlanData,
         framework: (framework && framework.name) || 'oecd',
-        metadata
+        photoMode: (metadata.photo && metadata.photo.mode) || (metadata.photoAnalysis ? 'note' : 'off'),
+        photoImages: photoImages.length,
+        metadata: metadataForLog
       });
 
+      const userPrompt = useFrameworkModule
+        ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, metadata.photoAnalysis || null)
+        : this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured);
       const messages = [
         {
           role: 'system',
@@ -349,9 +360,17 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         },
         {
           role: 'user',
-          content: useFrameworkModule
-            ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, metadata.photoAnalysis || null)
-            : this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured)
+          // The fidelity fallback (_generateFidelityAssessment, gpt-4o-mini) builds its own plain
+          // user message and must never receive the images — only the scoring call does.
+          content: photoImages.length
+            ? [
+                { type: 'text', text: userPrompt },
+                ...photoImages.map((im) => ({
+                  type: 'image_url',
+                  image_url: { url: `data:${im.mime || 'image/jpeg'};base64,${im.base64}`, detail: 'low' },
+                })),
+              ]
+            : userPrompt
         }
       ];
 
