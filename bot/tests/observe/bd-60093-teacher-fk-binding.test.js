@@ -17,9 +17,9 @@ const { mayBind, simplifyName } = require('../../shared/services/observe/teacher
 
 describe('bd-60093 · simplifyName', () => {
   it('strips honorifics, which account for most benign name differences', () => {
-    expect(simplifyName('Ms Talat Sultana')).toBe('talat sultana');
-    expect(simplifyName('Mrs. Farhat Zareen')).toBe('farhat zareen');
-    expect(simplifyName('  NIGHÀT  ')).toBe('nighàt');
+    expect(simplifyName('Ms Amina Farooq')).toBe('amina farooq');
+    expect(simplifyName('Mrs. Sana Iqbal')).toBe('sana iqbal');
+    expect(simplifyName('  ZÀRA  ')).toBe('zàra');
   });
 
   it('is empty for a missing name rather than throwing', () => {
@@ -32,45 +32,45 @@ describe('bd-60093 · simplifyName', () => {
 describe('bd-60093 · mayBind', () => {
   // ── the 2,037 rows that simply agree ────────────────────────────────
   it('binds on an exact name match', () => {
-    expect(mayBind('Sadia Kanwal', 'Sadia Kanwal')).toBe(true);
+    expect(mayBind('Hina Aslam', 'Hina Aslam')).toBe(true);
   });
 
   it('ignores case and surrounding space', () => {
-    expect(mayBind('  sadia kanwal ', 'Sadia Kanwal')).toBe(true);
+    expect(mayBind('  hina aslam ', 'Hina Aslam')).toBe(true);
   });
 
   // ── the 8 rows where only the first token agrees ────────────────────
-  it('binds through an honorific on one side only (Ms Talat Sultana)', () => {
-    expect(mayBind('Talat Sultana', 'Ms Talat Sultana')).toBe(true);
+  it('binds through an honorific on one side only (Ms Amina Farooq)', () => {
+    expect(mayBind('Amina Farooq', 'Ms Amina Farooq')).toBe(true);
   });
 
   // ── spelling drift in the FIRST token: abstain, on purpose ──────────
   it('REFUSES a one-letter variant of the first name, and that is correct', () => {
-    // Production rows: 'Syyidha'/'Syyidah', 'Imarana'/'Imrana',
-    // 'Rubina'/'Robina', 'Nighat'/'Nighàt'. These are almost certainly the same
+    // Production rows: 'Sameera'/'Sameerah', 'Farida'/'Fareeda',
+    // a one-letter variant of the first name. These are almost certainly the same
     // person — but "almost certainly" is what an edit-distance rule buys, and a
     // wrong FK is silent. All 6 such rows are `done` or `cancelled`, so nothing
     // a coach is waiting on is affected; they stay NULL and keep their
     // teacher_name. Revisit only if a live booking ever lands here.
-    expect(mayBind('Syyidha Nargis Parveen', 'Syyidah Nargis Parveen')).toBe(false);
-    expect(mayBind('Imarana Qureshi', 'Imrana Qureshi')).toBe(false);
+    expect(mayBind('Sameera Noor Bano', 'Sameerah Noor Bano')).toBe(false);
+    expect(mayBind('Farida Qadir', 'Fareeda Qadir')).toBe(false);
   });
 
   // ── the abstentions: 47 rows we deliberately leave NULL ─────────────
   it('REFUSES when the schedule carries the placeholder "Teacher"', () => {
-    // Production row 923365242423: sched 'Teacher', user 'Madiha Sehrish'.
+    // A real production row pairs the placeholder 'Teacher' with a named account.
     // A placeholder is not corroboration, and this is exactly the shape a
     // recycled SIM would present.
-    expect(mayBind('Teacher', 'Madiha Sehrish')).toBe(false);
+    expect(mayBind('Teacher', 'Nadia Rehman')).toBe(false);
   });
 
   it('REFUSES when the names are simply different people', () => {
-    expect(mayBind('Ayesha Bibi', 'Muhammad Qasim Khan')).toBe(false);
+    expect(mayBind('Rabia Yousuf', 'Bilal Haider')).toBe(false);
   });
 
   it('REFUSES when either side is blank — silence is not agreement', () => {
-    expect(mayBind('', 'Sadia Kanwal')).toBe(false);
-    expect(mayBind('Sadia Kanwal', '')).toBe(false);
+    expect(mayBind('', 'Hina Aslam')).toBe(false);
+    expect(mayBind('Hina Aslam', '')).toBe(false);
     expect(mayBind(null, null)).toBe(false);
   });
 
@@ -78,6 +78,6 @@ describe('bd-60093 · mayBind', () => {
     // Two real teachers can share a first name; the SQL binds on first-token
     // agreement, so this documents the known limit of that rule rather than
     // pretending it is airtight. Corroboration is by name AND a unique phone.
-    expect(mayBind('Ayesha Khan', 'Ayesha Siddiqui')).toBe(true);
+    expect(mayBind('Rabia Khan', 'Rabia Siddiqui')).toBe(true);
   });
 });

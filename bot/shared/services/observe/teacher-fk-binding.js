@@ -1,5 +1,5 @@
 /**
- * bd-60093 — may this observation_schedules row be bound to this user?
+ * May this observation_schedules row be bound to this user?
  *
  * `teacher_ext_id` holds a phone number, and a phone number identifies a person
  * TODAY. Resolving it to a user is therefore a guess about the past: if the
@@ -26,7 +26,7 @@ const HONORIFIC = /^(ms|mr|mrs|miss|madam|sir)\.?\s+/i;
  * The name, reduced to the part worth comparing.
  *
  * Honorifics are the single biggest source of benign disagreement in the data
- * ('Ms Talat Sultana' vs 'Talat Sultana'), so they come off before comparison.
+ * ('Ms Amina Farooq' vs 'Amina Farooq'), so they come off before comparison.
  * Case and surrounding whitespace go the same way. Nothing else is normalised:
  * stripping punctuation or collapsing diacritics would start merging names that
  * are genuinely different, which is the failure this whole module exists to

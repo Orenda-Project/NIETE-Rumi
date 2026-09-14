@@ -1,4 +1,4 @@
--- bd-60093 — give observation_schedules a real teacher foreign key.
+-- Give observation_schedules a real teacher foreign key.
 --
 -- WHY
 --   `teacher_ext_id` holds a PHONE NUMBER used as an identity key, and
@@ -25,8 +25,8 @@
 --     `name:test-*` fixtures                         12
 --     phone with no user account                      1
 --
---   The single orphan is 923335637735 "Muhammad Qasim Khan", a DONE visit on
---   2026-08-28 whose account no longer exists. It is history, not breakage: the
+--   The single orphan is a DONE visit from 2026-08-28 whose teacher account no
+--   longer exists. It is history, not breakage: the
 --   row keeps its teacher_ext_id and teacher_name and simply carries no FK.
 --   Only 2 unresolvable rows are `upcoming`, and both are test fixtures — no
 --   coach is waiting on anything this migration leaves null.
@@ -55,8 +55,8 @@
 --   abstain. Of the 14 that differ, 6 are the placeholder 'Teacher' against a
 --   real name (refused deliberately — a placeholder is not corroboration, and it
 --   is exactly the shape a recycled SIM would present) and 6 are one-letter
---   spelling drift in the FIRST name ('Syyidha'/'Syyidah', 'Imarana'/'Imrana',
---   'Rubina'/'Robina', 'Nighat'/'Nighàt'). Those six are almost certainly the
+--   spelling drift in the FIRST name (a single transposed or doubled letter).
+--   Those six are almost certainly the
 --   same person, but "almost certainly" is what an edit-distance rule buys and a
 --   wrong FK is silent — they stay NULL and keep their teacher_name. Every one
 --   of the 14 is `done` or `cancelled`; no live booking is affected.
@@ -75,7 +75,7 @@ ALTER TABLE observation_schedules
 
 COMMENT ON COLUMN observation_schedules.teacher_user_id IS
   'The teacher, by identity rather than by handset. Supersedes teacher_ext_id '
-  '(a phone string), which survives a SIM change only by accident. bd-60093.';
+  '(a phone string), which survives a SIM change only by accident.';
 
 -- --------------------------------------------------------- 2. candidate pairs
 -- Resolve the phone to a user, then demand the names corroborate. `simplify`
