@@ -20,6 +20,26 @@
  *     no honorific rule at all once the script mandate stopped forcing the name into Urdu.
  *
  * Red-first: on this branch's base, test 1 reports RELIGIOUS_MARKS and test 5 does not.
+ *
+ * ── THE HOUSE STYLE FOR A COMPANION, added after the operator read the first fix's behaviour ──
+ *
+ * The fix above left companions entirely unconstrained on an English page: "Khadijah radiallahu
+ * anha" and "Khadijah (may Allah be pleased with her)" both passed, because COMPANION_RE keys on
+ * the literal "حضرت <name>" and cannot see a Latin name at all. Shown that table the operator
+ * ruled: "for companions the salutation should be in urdu script as well".
+ *
+ * So the English lane splits the two halves of the phrase, which is exactly what the ﷺ row already
+ * does for the Prophet: the NAME keeps the Latin spelling the English book prints, and the
+ * SALUTATION is set in Urdu/Arabic script. "Khadijah رضی اللہ عنہا" — not "Khadijah radiallahu
+ * anha", and not "Khadijah (may Allah be pleased with her)".
+ *
+ * This is a ban on the transliterated salutation, NOT a demand that every companion name carry one.
+ * Demanding it would need a corpus of Latin companion names, which is the false-positive machine
+ * rule 3 was written to avoid — a bare "Khadijah" in an English lesson is still the reviewer's call.
+ *
+ * The PROPHET's spelled-out "(peace be upon him)" is deliberately left passing. The operator asked
+ * about companions and quoted the ﷺ row approvingly; making the same argument for the Prophet is a
+ * one-line change she can call for separately, so it is pinned by a test rather than assumed.
  */
 
 const fs = require('fs');
@@ -47,10 +67,10 @@ const fails = (doc) => (lint(doc).fails || []).map(String);
 const codes = (doc) => fails(doc).map((e) => e.split(/[\s:]/)[0]);
 
 describe('RELIGIOUS_MARKS — Latin script is correct on an English-medium lesson', () => {
-  it('does not rewrite Hazrat Muhammad ﷺ / Khadijah radiallahu anha into Urdu script', () => {
+  it('does not rewrite the NAMES — Hazrat Muhammad, Khadijah — into Urdu script', () => {
     const got = codes(docSaying(
       'Write the order on the board: Hazrat Muhammad صلى الله عليه وسلم was known for honesty, '
-      + 'and married Khadijah radiallahu anha at the age of 25.'));
+      + 'and married Khadijah رضی اللہ عنہا at the age of 25.'));
     expect(got).not.toContain('RELIGIOUS_MARKS');
   });
 
@@ -80,5 +100,53 @@ describe('RELIGIOUS_MARKS — Latin script is correct on an English-medium lesso
   it('leaves a non-religious English lesson alone', () => {
     const d = JSON.parse(raw);
     expect(codes(d)).not.toContain('RELIGIOUS_MARKS');
+  });
+});
+
+describe("RELIGIOUS_MARKS — a companion's SALUTATION is Urdu script even on an English page", () => {
+  it('accepts the Latin name carrying the Urdu salutation', () => {
+    for (const t of [
+      'He married Khadijah رضی اللہ عنہا at the age of twenty-five.',
+      'Abu Bakr رضی اللہ عنہ led the first hajj.',
+      'Ask the class what Umar رضی اللہ عنہ did when he heard the news.',
+    ]) expect(codes(docSaying(t))).not.toContain('RELIGIOUS_MARKS');
+  });
+
+  it('refuses a TRANSLITERATED companion salutation', () => {
+    for (const t of [
+      'He married Khadijah radiallahu anha at the age of twenty-five.',
+      'He married Khadijah radi Allahu anha at the age of twenty-five.',
+      'He married Khadijah raziallahu anha at the age of twenty-five.',
+      'Abu Bakr rehmatullah alayh is buried beside him.',
+      'Ask about Hazrat Isa alayhis salam in the same unit.',
+    ]) expect(codes(docSaying(t))).toContain('RELIGIOUS_MARKS');
+  });
+
+  it('refuses the salutation TRANSLATED into English — it is a salutation, not prose', () => {
+    for (const t of [
+      'He married Khadijah (may Allah be pleased with her) at the age of twenty-five.',
+      'Abu Bakr, may Allah be pleased with him, led the first hajj.',
+    ]) expect(codes(docSaying(t))).toContain('RELIGIOUS_MARKS');
+  });
+
+  it("leaves the PROPHET's spelled-out honorific alone — the operator ruled on companions only", () => {
+    // Deliberately NOT changed here. "Hazrat Muhammad (peace be upon him)" passes today, the
+    // operator quoted the ﷺ row approvingly without asking for this one, and tightening it is a
+    // one-line change she can call for separately. Pinned so the decision is visible, not implied.
+    expect(codes(docSaying('Hazrat Muhammad (peace be upon him) was known for honesty.')))
+      .not.toContain('RELIGIOUS_MARKS');
+  });
+
+  it('does not DEMAND a salutation after a bare Latin companion name', () => {
+    // Rule 3's whole design is to avoid a corpus of names and the false positives it brings. A bare
+    // "Khadijah" on an English page is still the native-speaker reviewer's call, not the gate's.
+    expect(codes(docSaying('He married Khadijah at the age of twenty-five.')))
+      .not.toContain('RELIGIOUS_MARKS');
+  });
+
+  it('leaves ordinary English prose that merely mentions Allah alone', () => {
+    // `Allah` in Latin script is what an English book prints, and rule 2 keeps allowing it on `en`.
+    expect(codes(docSaying('The lesson opens with the meaning of the word Allah.')))
+      .not.toContain('RELIGIOUS_MARKS');
   });
 });
