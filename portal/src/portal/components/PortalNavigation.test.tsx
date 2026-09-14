@@ -4,8 +4,13 @@ import { MemoryRouter } from "react-router-dom";
 
 // bd-2434 (NIETE port of bd-2389/2390): the nav is role-gated. A leader gets
 // the leader nav (My Patch / Teachers) and the SAME NIETE logo/branding; a
-// teacher's nav is unchanged (Dashboard / Curriculum / My Plans / …).
-// Leader-family only — teachers never see the leader nav.
+// teacher gets Dashboard / Curriculum / Training / My Classes / Coaching /
+// Analytics. Leader-family only — teachers never see the leader nav.
+//
+// bd-60078: "My Plans" is GONE from both. It listed a teacher's own
+// Gamma-generated lesson plans and presentations, and custom generation is
+// off — so the entry point goes with it rather than leading to a page that
+// can only ever show her older work and no way to make more.
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 import { useAuth } from "../hooks/useAuth";
@@ -25,16 +30,25 @@ describe("PortalNavigation role gating", () => {
     renderNav({ firstName: "Noor", role: "coach" });
     expect(screen.queryAllByText("My Patch").length).toBeGreaterThan(0);
     expect(screen.queryAllByText("Teachers").length).toBeGreaterThan(0);
-    expect(screen.queryByText("My Plans")).toBeNull();
     expect(screen.queryByText("Coaching")).toBeNull();
     expect(screen.queryByText("Curriculum")).toBeNull();
   });
 
-  it("a teacher sees today's nav unchanged (Dashboard, My Plans), not the leader nav", () => {
+  it("a teacher sees the teacher nav, not the leader nav", () => {
     renderNav({ firstName: "Ayesha", role: "teacher" });
     expect(screen.queryAllByText("Dashboard").length).toBeGreaterThan(0);
-    expect(screen.queryAllByText("My Plans").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Curriculum").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Coaching").length).toBeGreaterThan(0);
     expect(screen.queryByText("My Patch")).toBeNull();
+  });
+
+  // bd-60078 — custom lesson-plan generation is off, so the entry point to a
+  // teacher's own generated plans goes too. Checked for BOTH roles and in the
+  // mobile overflow tray as well as the desktop rail, because the item was
+  // never in MOBILE_PRIMARY and so only ever rendered in those two places.
+  it("nobody sees My Plans — custom generation is off", () => {
+    renderNav({ firstName: "Ayesha", role: "teacher" });
+    expect(screen.queryByText("My Plans")).toBeNull();
   });
 
   it("a user with no role is treated as a teacher (leader nav hidden)", () => {
@@ -65,6 +79,30 @@ describe("PortalNavigation role gating", () => {
 //
 // These assert on the rendered element rather than a screenshot, because the
 // defect is structural — what classes the name carries relative to its sibling.
+// bd-2563: the mobile tab bar's overflow tab is labelled "Other", not "More".
+// The label appears in three places that must agree — the visible tab text, the
+// button's aria-label (what a screen reader announces), and the title of the
+// sheet it opens. Changing one and missing another is the obvious failure, so
+// all three are asserted.
+describe("PortalNavigation — the mobile overflow tab (bd-2563)", () => {
+  it("labels the overflow tab 'Other'", () => {
+    renderNav({ firstName: "Ayesha", role: "teacher" });
+    expect(screen.getByTestId("mobile-nav-more")).toHaveTextContent("Other");
+  });
+
+  it("announces 'Other' to a screen reader", () => {
+    renderNav({ firstName: "Ayesha", role: "teacher" });
+    expect(screen.getByTestId("mobile-nav-more")).toHaveAttribute("aria-label", "Other");
+  });
+
+  it("no longer says 'More' anywhere in the overflow control", () => {
+    renderNav({ firstName: "Ayesha", role: "teacher" });
+    const tab = screen.getByTestId("mobile-nav-more");
+    expect(tab).not.toHaveTextContent("More");
+    expect(tab.getAttribute("aria-label")).not.toBe("More");
+  });
+});
+
 describe("PortalNavigation — the signed-in name (bd-2558)", () => {
   /** The desktop header's name element. */
   function nameEl(text: string) {

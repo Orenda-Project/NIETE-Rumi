@@ -95,6 +95,46 @@ function fullNameOf(r = {}) {
 }
 
 /**
+ * The LAST step of that chain: a label for the 513 who carry no name at all.
+ *
+ * `fullNameOf` returning null is correct — we do not know what she is called,
+ * and inventing a name is worse than showing none. But null then reached the
+ * pickers as an EMPTY ROW TITLE, and an empty title is not "no name shown", it
+ * is a person her coach cannot read, cannot search for and cannot tap. Reported
+ * from the field as observations "not showing in the data": both sessions
+ * existed, both reports were delivered, and the teacher was a blank line.
+ * Measured 2026-09-07: 57 people with a school, 210 rows.
+ *
+ * So this is a LABEL, deliberately not a name:
+ *   1. her real name, whenever the chain above resolves one;
+ *   2. her role plus the last four digits of her phone. The coach already holds
+ *      her number, it is unique inside a school, and the visit Flow already
+ *      prints the full number on the second line of the same row — so this adds
+ *      no exposure the coach did not already have. Four digits only; the whole
+ *      number never appears here.
+ *   3. her role plus the school, when there is no phone (a roster import can
+ *      leave one out);
+ *   4. role alone, said plainly, so the row is never blank.
+ *
+ * `name` itself is deliberately left null. `call-tools.repo.findRoster` reads
+ * `name` and reads it ALOUD on a voice call, and never selects a phone on
+ * purpose — so digits must not reach that field. This value travels on its own
+ * property, and only the visual surfaces read it.
+ *
+ * Accepts EITHER shape: a raw `users` row or an already-shaped patch person.
+ */
+function displayNameOf(r = {}) {
+  const real = fullNameOf(r);
+  if (real) return real;
+  const role = (r.isPrincipal || r.role === 'principal') ? 'Principal' : 'Teacher';
+  const phone = _norm(r.phone == null ? r.phone_number : r.phone).replace(/\D/g, '');
+  if (phone.length >= 4) return `${role} \u2026${phone.slice(-4)}`;
+  const school = _norm(r.schoolName == null ? r.school_name : r.schoolName);
+  if (school) return `${role} \u00b7 ${school}`;
+  return `${role} (name not on file)`;
+}
+
+/**
  * One database row -> one person in the patch.
  *
  * `isPrincipal` is not cosmetic. 354 principals arrive in patches that never
@@ -106,6 +146,8 @@ function shapePatchRow(r = {}) {
   return {
     userId: r.user_id || r.id || null,
     name: fullNameOf(r),
+    // Never empty. See displayNameOf — this is what the pickers render.
+    displayName: displayNameOf(r),
     phone: r.phone_number || null,
     role: r.role || null,
     isPrincipal,
@@ -137,7 +179,8 @@ function dedupePatch(rows = []) {
   }
   return [...byPerson.values()].sort((a, b) => {
     if (a.isPrincipal !== b.isPrincipal) return a.isPrincipal ? 1 : -1;
-    return String(a.name || '').localeCompare(String(b.name || ''));
+    return String(a.displayName || a.name || '')
+      .localeCompare(String(b.displayName || b.name || ''));
   });
 }
 
@@ -230,7 +273,9 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
 function toLeaderSourceRow(p = {}) {
   return {
     teacher_ext_id: p.phone || null,
-    teacher_name: p.name || null,
+    // The LABEL, not the name: a person with no name on file must still be a
+    // readable, tappable row for her coach rather than a blank title.
+    teacher_name: p.displayName || displayNameOf(p) || null,
     teacher_phone_e164: p.phone || null,
     school_ext_id: p.emis ? `niete:${p.emis}` : null,
     level: p.band ? String(p.band).toUpperCase() : null,
@@ -246,6 +291,7 @@ module.exports = {
   bandOf,
   shapePatchRow,
   fullNameOf,
+  displayNameOf,
   dedupePatch,
   listPatch,
 };
