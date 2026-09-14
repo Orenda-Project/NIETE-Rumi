@@ -28,6 +28,7 @@
  */
 
 const { logToFile } = require('../utils/logger');
+const { teacherLevelOf } = require('../utils/teacher-level');
 const supabase = require('../config/supabase');
 const {
   applyBandSelection,
@@ -104,7 +105,7 @@ function buildBandSetupPrompt(userId, teacher) {
  */
 async function buildBandPicker(userId, teacher, opts = {}) {
   const gate = canChangeBands(teacher);
-  const current = Array.isArray(teacher && teacher.training_bands) ? teacher.training_bands : [];
+  const current = teacherLevelOf(teacher);
   const hasTraining = Boolean(opts.hasTraining);
 
   // A teacher inside the cooldown gets the REASON and a way back — never the
@@ -521,7 +522,7 @@ function bandLabels(keys) {
 
 /** Same, read off a teacher row. */
 function bandSummary(teacher) {
-  const keys = Array.isArray(teacher && teacher.training_bands) ? teacher.training_bands : [];
+  const keys = teacherLevelOf(teacher);
   const labels = keys
     .map(k => (BANDS.find(b => b.key === String(k).toUpperCase()) || {}).label)
     .filter(Boolean);
@@ -896,7 +897,7 @@ async function checkModuleUnlocked(userId, moduleId) {
 async function loadTeacher(userId) {
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, phone_number, teacher_uuid, training_bands, training_bands_updated_at, school_name')
+    .select('id, name, phone_number, teacher_uuid, teacher_level, teacher_level_updated_at, school_name')
     .eq('id', userId)
     .single();
   if (error) {
