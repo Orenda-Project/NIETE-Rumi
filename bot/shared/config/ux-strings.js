@@ -1272,6 +1272,11 @@ const UX_STRINGS = {
   vqClassYours: { en: 'your score', ur: 'آپ کا اسکور' },
   vqClassOthers: { en: '{n} more in the class', ur: 'کلاس کے {n} اور بچے' },
   vqClassFinished: { en: '{n} finished', ur: '\u200F{n} نے مکمل کیا' },
+  // The one-line caption under the card, sent to the child. Names nobody.
+  vqClassCardCaption: {
+    en: '📊 Class results for *{topic}* — find yourself on the card.',
+    ur: '\u200F📊 *{topic}* کے کلاس نتائج — کارڈ پر خود کو تلاش کریں۔',
+  },
   vqBadgeMastered: { en: 'Brilliant!', ur: 'زبردست!' },
   vqBadgeDeveloping: { en: 'Nicely done', ur: 'بہت اچھا' },
   vqBadgeNeedsPractice: { en: 'Good effort', ur: 'اچھی کوشش' },
