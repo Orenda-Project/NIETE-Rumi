@@ -1082,6 +1082,27 @@ const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|Sallallahu|Rasool
 // cannot see these mentions at all, because PROPHET_RE holds only Urdu-script tokens.
 const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
 const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم|\(?\s*peace\s+be\s+upon\s+him\s*\)?)/i;
+// A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
+// the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
+// two on an English page — the NAME keeps the Latin spelling the English book prints, the
+// SALUTATION is the ligature — and this carries the same split to companions: "Khadijah رضی اللہ
+// عنہا", never "Khadijah radiallahu anha" and never "Khadijah (may Allah be pleased with her)".
+//
+// This is a ban on the WRITTEN-OUT-IN-LATIN salutation, not a demand that a name carry one. Rule 3
+// deliberately refuses to keep a corpus of companion names — bare "علی"/"عمر" are ordinary words —
+// and a Latin list would be worse, so a bare "Khadijah" is still the native-speaker reviewer's
+// call. What IS decidable without a name list is that a salutation was typed in the wrong script.
+//
+// Transliterations vary more than the Urdu does: radi/radhi/razi/radiya, alayhi/alaihi,
+// rahmat/rahimah. The Urdu forms these should have been are COMPANION_HON's set, quoted back to
+// the author in the message.
+const COMPANION_SALUT_LATIN_RE = new RegExp([
+  "r[ae][dz]h?i(?:y|ya)?\\s*-?\\s*all?ah[ui]?\\s*-?\\s*['’]?anh(?:uma|um|un|u|a)",  // رضی اللہ عنہ
+  "r[ae]h(?:mat|imah)u?ll?ah(?:i)?(?:\\s*-?\\s*(?:alay|alai)h[ie]?)?",                   // رحمہ اللہ
+  "(?:alay|alai)h[ia]?s?\\s*-?\\s*(?:as[\\s-])?sal[ae]{1,2}m",                           // علیہ السلام
+  "karr?am\\s*-?\\s*all?ah[ui]?\\s*-?\\s*wajh",                                          // کرم اللہ وجہہ
+  "may\\s+Allah\\s+be\\s+pleased\\s+with\\s+(?:him|her|them)",                           // the translation
+].map((s) => `\\b(?:${s})`).join("|"), "i");
 // Attributed prophetic SPEECH: a Prophet token, a speech verb, and a quoted span. That is a
 // hadith, and a hadith without its source is the "content that has him speak" the operator ruled
 // out. A source is a book-and-number, a page cite, or a named collection.
@@ -1557,6 +1578,13 @@ function religiousMarks(doc, ctx) {
     const a = ABBREV_RE.exec(s);
     if (a) {
       fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write it out — ﷺ, رضی اللہ عنہ, or "peace be upon him" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      continue;
+    }
+    // Before the medium split, because it does not depend on it: a salutation belongs to the
+    // companion, not to the sentence around it, so it is set in Urdu script whatever the page is.
+    const c = COMPANION_SALUT_LATIN_RE.exec(s);
+    if (c) {
+      fail("RELIGIOUS_MARKS", `${at || "/"} writes a companion's salutation in Latin script ("${c[0]}"): "${s.slice(0, 70)}". The NAME keeps the spelling the book prints, but the salutation is set in Urdu — "Khadijah رضی اللہ عنہا", not "Khadijah ${c[0]}". Use رضی اللہ عنہ / عنہا / عنہم، علیہ السلام، رحمہ اللہ (brief §4c.5). ${HOLD}`);
       continue;
     }
     if (medium === "ur") {
