@@ -137,7 +137,9 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
       const buffer = await Gen.renderPdf({
         quiz, questions: Gen.withFigureSvgs(qRows, questions, language), digest, teacherName,
         grade: quiz.grade || meta.grade || null,
-        lessonSummary: meta.lesson_summary || '',
+        // bd-2yyry.7 — the authored one-liner when the quiz has one; the
+        // template's own cap covers older quizzes.
+        lessonSummary: meta.lesson_summary_short || meta.lesson_summary || '',
         // D1: one language for the whole document, and it is the quiz's.
         language, contentLanguage: language,
         date: formatLessonDate(session.created_at, language, { year: true }), link,
