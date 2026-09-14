@@ -1,7 +1,7 @@
 const { getClient } = require('./llm-client');
 const { jsonrepair } = require('jsonrepair');
 const { OPENAI_API_KEY } = require('../utils/constants');
-const { logToFile } = require('../utils/logger');
+const { logToFile, logWarn } = require('../utils/logger');
 const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const supabase = require('../config/supabase');
 const {
@@ -376,12 +376,38 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
 
       const startTime = Date.now();
 
-      const response = await this.openai.chat.completions.create({
+      const scoringRequest = {
         model: 'gpt-5-mini-2025-08-07',
         messages,
         // Note: GPT-5 mini only supports default temperature (1), custom values not allowed
         max_completion_tokens: 16000
-      });
+      };
+      let response;
+      try {
+        response = await this.openai.chat.completions.create(scoringRequest);
+      } catch (callError) {
+        if (!photoImages.length) throw callError;
+        // bd-cbe2d — the photos must never fail a teacher's session. A provider can reject the image
+        // parts (moderation on a photo of children, a bad encode, a size limit), and SQS would
+        // redeliver the same images. Retry ONCE without them, on the text-channel prompt, and record
+        // the downgrade on metadata.photo — the processor persists metadata.photo.mode after this call.
+        const fallbackMode = metadata.photo.text ? 'text' : 'off';
+        logWarn('⚠️ Scoring call with classroom photos rejected — retrying once without images', {
+          error: callError.message,
+          status: callError.status,
+          photoImages: photoImages.length,
+          fallbackMode,
+        });
+        metadata.photo = { ...metadata.photo, mode: fallbackMode, images: [] };
+        const textPrompt = useFrameworkModule
+          ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, metadata.photoAnalysis || null)
+          : this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured);
+        // A fresh request: the rejected one is left exactly as it was sent.
+        response = await this.openai.chat.completions.create({
+          ...scoringRequest,
+          messages: [messages[0], { role: 'user', content: textPrompt }],
+        });
+      }
 
       const duration = Date.now() - startTime;
       const rawContent = response.choices[0].message.content;
