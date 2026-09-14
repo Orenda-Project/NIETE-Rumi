@@ -254,11 +254,12 @@ async function tryChildVideoMenu(from, language) {
       phone: from, shareCodeId: lastSession.share_code_id,
       studentId: known[0].id, language: language || 'en',
     });
+    const { resolveUx } = require('../config/ux-strings');
     await WhatsAppService.sendFlow(from, {
       flowId: STUDENT_VIDEOS_FLOW_ID,
-      header: '🎬 More Videos',
-      body: 'Pick a class, subject and topic — I will send the video to your chat.',
-      buttonText: 'Browse',
+      header: resolveUx('vqMoreFlowHeader', { language: language || 'en' }),
+      body: resolveUx('vqMoreFlowBody', { language: language || 'en' }),
+      buttonText: resolveUx('vqMoreFlowButton', { language: language || 'en' }),
       flowToken,
     });
     return true;
@@ -3005,7 +3006,12 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
   // except a proven child, so the else-branch below is today's behaviour and
   // stays that way if the module fails, the flag is off, or the DB is down.
   // ============================================================
-  const studentVerdict = await StudentMode.personaFor({ from, user, messageBody });
+  // bd-2yyry.1 — the verdict is decided once at the door (student-ingress.js)
+  // and attached to the users row; personaFor() remains only for a caller
+  // that arrives without it.
+  const studentVerdict = user && user.persona !== undefined
+    ? { persona: user.persona === 'student' ? 'student' : null, language: user.personaLanguage || null, studentClass: user.personaClass || null }
+    : await StudentMode.personaFor({ from, user, messageBody });
   const isStudent = studentVerdict.persona === 'student';
   // Her quiz was written in one language and she answered fifteen questions in
   // it; that is the language she reads, whatever the users row created by her
@@ -3209,4 +3215,5 @@ module.exports = {
   isSelectVideoButton, // video-library broadcast "Select Video" button
   isVideoCommand, // exported for unit tests
   tryChildVideoMenu, // exported for unit tests
+  handleGeneralConversation, // the child tutor path, called directly by student-ingress.js
 };
