@@ -49,7 +49,7 @@ async function main() {
     console.log(`${CLR.r}identity lookup FAILED${CLR.x}: ${err.message}`);
   }
   console.log(`recognised user      : ${yn(!!user)}` + (user
-    ? ` ${CLR.d}(${user.first_name || user.name || '?'}, role=${user.role || '—'}, `
+    ? ` ${CLR.d}(${user.name || '?'}, role=${user.role || '—'}, `
       + `grade=${user.grade || (user.grades_taught || []).join('/') || '—'})${CLR.x}` : ''));
   if (!user) {
     console.log(`\n${CLR.y}This number is not in users.phone_number — a call would greet her as a `

@@ -28,7 +28,7 @@ async function fetchUser(waId) {
   return readWithFallback(async (db) => {
     const { data, error } = await db
       .from('users')
-      .select('id, first_name, last_name, name, school_name, grades_taught, subjects_taught, '
+      .select('id, name, school_name, grades_taught, subjects_taught'
         + 'grade, subject, preferred_language, role, region, organization')
       .eq('phone_number', waId)
       .maybeSingle();
@@ -182,7 +182,7 @@ async function fetchObservedSessions(userId) {
     const names = new Map();
     if (teacherIds.length) {
       const { data: teachers } = await db
-        .from('users').select('id, first_name, last_name, school_name').in('id', teacherIds);
+        .from('users').select('id, school_name, name').in('id', teacherIds);
       (teachers || []).forEach((t) => names.set(t.id, t));
     }
 
@@ -190,7 +190,7 @@ async function fetchObservedSessions(userId) {
       const t = names.get(row.user_id) || {};
       const focus = row.analysis_data && row.analysis_data.focus_area;
       return {
-        teacherName: [t.first_name, t.last_name].filter(Boolean).join(' ') || null,
+        teacherName: t.name || null,
         schoolName: t.school_name || null,
         when: row.completed_at || row.created_at,
         focus: (typeof focus === 'string' ? focus : (focus && focus.title)) || null,

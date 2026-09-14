@@ -149,12 +149,12 @@ async function buildCallContext({ from, deps = {} }) {
 
   // ---- identity (never truncated away) ----
   if (user) {
-    const name = user.first_name || user.name || 'this teacher';
+    const name = user.name || 'this teacher';
     const grades = [].concat(user.grades_taught || user.grade || []).filter(Boolean).join(', ');
     const subjects = [].concat(user.subjects_taught || user.subject || []).filter(Boolean).join(', ');
     parts.push([
       '## WHO SHE IS',
-      `Name: ${name}${user.last_name ? ` ${user.last_name}` : ''}`,
+      `Name: ${name}`,
       user.school_name ? `School: ${user.school_name}` : null,
       grades ? `Grades: ${grades}` : null,
       subjects ? `Subjects: ${subjects}` : null,
