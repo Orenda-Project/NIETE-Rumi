@@ -1298,6 +1298,8 @@ If you want a second and third hue, use `var(--amber)` and `var(--leaf)` against
 
 // ray_diagram — SOLVED from the lens/mirror equation; give f, u, hObject
 {"type":"ray_diagram","element":"convex_lens","f":20,"u":60,"hObject":14}
+// a PLANE mirror has no focal length: give u and hObject, and OMIT f
+{"type":"ray_diagram","element":"plane_mirror","u":30,"hObject":12}
 // element: convex_lens | concave_lens | concave_mirror | convex_mirror
 
 // free_body — forces scaled by magnitude; angle in degrees, 90 = up
@@ -1375,7 +1377,7 @@ one is silently dropped and you will get a confident wrong picture.
 | `numberline` | `from` · `to` | `step` · `minorStep` · `labelFormat` · `labelEvery` · `denominator` · `points` · `arcs` · `intervals` · `ticks` · `urduDigits` |
 | `panels` | `panels` | `columns` |
 | `punnett` | `p1` · `p2` | `trait` · `traits` · `labels` · `showParents` · `showRatio` · `colorByPhenotype` · `cellSize` |
-| `ray_diagram` | `element` · `f` · `u` · `hObject` | `showRays` · `labels` · `unit` |
+| `ray_diagram` | `element` · `u` · `hObject` | `f` (required for every element EXCEPT plane_mirror, which has none) · `showRays` · `labels` · `unit` |
 | `timeline` | `events` | `orientation` · `eras` |
 
 **What each type will not do, and the shapes that bite.** These are the engine's own
@@ -1458,7 +1460,8 @@ confident wrong picture, so read the row for any type you are about to emit.
   - A dihybrid ("RrYy") gives a 4x4 grid -- readable, but it is the practical ceiling at a 750px column.
   - trait.dominantName / recessiveName may be Urdu; the allele letters stay Latin.
 - **`ray_diagram`**
-  - element is convex_lens | concave_lens | concave_mirror | convex_mirror.
+  - element is convex_lens | concave_lens | concave_mirror | convex_mirror | plane_mirror. `f` is REQUIRED for the four curved/lens elements and MUST BE OMITTED for plane_mirror, which has no focal length -- for a plane mirror give only u and hObject and the engine solves the image at v = -u, same size, erect, virtual.
+  - Match the element to the lesson: a plane-mirror lesson drawn with a concave_mirror prints a focal length the lesson never mentions, and is rejected (RAY_ELEMENT_MISMATCH).
   - The image position, size and nature are COMPUTED -- you give the object, not the answer. u inside f gives the virtual case, and it draws that correctly.
   - It is the type that runs closest to the 13.5px floor (13.6px measured at full width): do not shrink its column.
 - **`timeline`**
