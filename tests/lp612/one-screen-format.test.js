@@ -169,6 +169,71 @@ describe('one_screen carries a shape, not just a word count', () => {
   });
 });
 
+/**
+ * bd-lafr9 — and its maths is READ, not typeset.
+ *
+ * `buildBody` converts TeX to Unicode on the way out (`bot/shared/utils/tex-to-unicode.js`, and
+ * `tests/lp612/bd-lafr9-onescreen-latex.test.js` drives that path), which is what repairs the
+ * stored backlog: every render cached before the fix still holds the TeX it was authored with.
+ * This gate is the other half — it stops NEW documents being written that way, so the converter
+ * stays a safety net instead of the only thing between an author's habit and a teacher's screen.
+ *
+ * Deliberately NOT in `oneScreenShapeDefects`: that predicate is also the worker's reuse-rejection
+ * rule, and a rejection there re-authors the document at real cost. A stored body with TeX in it
+ * now converts correctly at send time and must keep riding the cache.
+ */
+describe('bd-lafr9 — one_screen may not carry TeX source', () => {
+  // A correctly shaped body whose maths is written the way a teacher reads it.
+  const UNICODE_MATHS = GOOD.replace(
+    'Work out three times two plus four times five, which is twenty six.',
+    'Work out 3 × 2 + 4 × 5, which is 26.',
+  );
+
+  test('Unicode maths passes — this is what the author should write', () => {
+    expect(hasFail(run(withOneScreen(UNICODE_MATHS)), 'ONESCREEN_TEX')).toBe(false);
+  });
+
+  test('a dollar-delimited span FAILS', () => {
+    // The exact string a Grade 6 teacher received (grade_6_mathematics.c02.p040-041).
+    const tex = GOOD.replace('Worked example one on page 24', 'Solve$-6 \\times \\square = -540$');
+    expect(hasFail(run(withOneScreen(tex)), 'ONESCREEN_TEX')).toBe(true);
+  });
+
+  test('a backslash command FAILS even with no dollars around it', () => {
+    const tex = GOOD.replace('three times two', 'three \\times two');
+    expect(hasFail(run(withOneScreen(tex)), 'ONESCREEN_TEX')).toBe(true);
+  });
+
+  test('the message quotes the offending TeX and names the character to write instead', () => {
+    const tex = GOOD.replace('Worked example one on page 24', 'Solve$\\sqrt{2} \\cdot \\sqrt{8} = 4$');
+    const msg = run(withOneScreen(tex)).fails.find((f) => f.startsWith('ONESCREEN_TEX:'));
+    expect(msg).toMatch(/√/);
+    expect(msg).toMatch(/WhatsApp/i);
+  });
+
+  test('an Urdu body is judged on its maths, not its script', () => {
+    const urdu = [
+      '*آج کا سبق* دو ۲×۲ میٹرکس کو ضرب دینا، جماعت نہم کی ریاضی کی کتاب کے صفحہ چوبیس سے۔ سبق کے اختتام پر طلبہ دو میٹرکس ضرب دے سکیں گے۔',
+      '*پہلے ایک وارم اپ* $4x(x+y)$ کو حل کریں۔ یہی ایک سطر پورے قاعدے کا خلاصہ ہے، اس لیے یہیں سے آغاز کریں اور اسے نہ چھوڑیں۔',
+      '*تختۂ سیاہ پر کر کے دکھائیں* صفحہ چوبیس کی پہلی مثال، پوری جماعت کے سامنے۔ پہلے ترتیب دیکھیں، پھر ہر خانے کا پتہ بلند آواز میں کہیں، اس کے بعد لکھیں۔',
+      '*پھر وہ خود مشق کریں* چار میں سے دو خانے خالی رکھ کر رہنمائی والی مشق، پھر تین انفرادی سوالات۔ اختتام تختے والے چار نمبر کے سوال پر کریں۔',
+      '*اس غلطی پر نظر رکھیں* عام غلطی یہ ہے کہ طلبہ ملتے جلتے خانوں کو ضرب دے دیتے ہیں، جیسا جمع میں کیا تھا۔ غلطی ہونے سے پہلے اس کا ذکر کر دیں۔',
+      '*جانے سے پہلے* ایک سوال کا اخراجی پرچہ۔ گھر کا کام چار سوالات ہیں، جن میں دو کثیر الانتخابی ہیں، اور ان سب کے جواب حوالہ جاتی حصے میں مکمل درج ہیں۔',
+    ].join('\n\n');
+    expect(hasFail(run(withOneScreen(urdu)), 'ONESCREEN_TEX')).toBe(true);
+  });
+
+  test('the shipped fixture carries no TeX', () => {
+    expect(hasFail(run(load()), 'ONESCREEN_TEX')).toBe(false);
+  });
+
+  test('a doc with no one_screen at all is not newly broken by this rule', () => {
+    const d = load();
+    delete d.one_screen;
+    expect(hasFail(run(d), 'ONESCREEN_TEX')).toBe(false);
+  });
+});
+
 describe('the schemas describe the shape', () => {
   test.each([
     ['lp_doc.schema.json', 3.0],
@@ -208,5 +273,24 @@ describe('all four briefs teach the shape', () => {
     const line = briefSrc(f).split('\n').find((l) => l.includes('"one_screen":'));
     expect(line).toBeTruthy();
     expect(line).toMatch(/\*/);
+  });
+
+  /**
+   * bd-lafr9 — the brief has to teach the Unicode-maths rule, not just the gate.
+   *
+   * A lint fail does not block delivery (`lp612-author.service.js` records `lintClean: false` and
+   * carries the fails into the render row); what it does is drive an author REPAIR ROUND. So a gate
+   * the brief never mentions costs a real LLM call every time an author writes the TeX they were
+   * never told to avoid. Naming the rule up front is what makes `ONESCREEN_TEX` cheap.
+   */
+  test.each(BRIEFS)('%s tells the author to write maths as Unicode, not TeX', (f) => {
+    const para = briefSrc(f).split('\n\n').find((p) => p.includes('ONESCREEN_TEX'));
+    expect(para).toBeTruthy();
+    // It must show the characters to write, not merely forbid the ones not to.
+    expect(para).toMatch(/×/);
+    expect(para).toMatch(/√/);
+    // And it must name what is banned, in the form an author would otherwise type.
+    expect(para).toMatch(/\\times/);
+    expect(para).toMatch(/dollar/i);
   });
 });
