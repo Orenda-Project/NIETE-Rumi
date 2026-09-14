@@ -196,14 +196,14 @@ describe('resolveBackfillRole — Option B, not a blanket teacher default', () =
     // 9,081 of 9,281 rows are role=NULL and ALL are registration_state='unregistered'.
     // Blanket-teacher would take the teacher count 114 → ~9,195 and corrupt every metric.
     expect(resolveBackfillRole({
-      role: null, registration_completed: false, teacher_uuid: null, levels: null,
+      role: null, registration_completed: false, teacher_uuid: null, teacher_level: null,
     })).toBe('unregistered');
   });
 
   it.each([
     ['registration_completed', { registration_completed: true }],
     ['teacher_uuid present', { teacher_uuid: 'abc-123' }],
-    ['levels present', { levels: ['Grade Five'] }],
+    ['teacher_level present', { teacher_level: ['PRIMARY'] }],
     ['training progress', { has_training_progress: true }],
   ])('labels "teacher" on positive evidence: %s', (_label, evidence) => {
     expect(resolveBackfillRole({ role: null, ...evidence })).toBe('teacher');
@@ -215,7 +215,7 @@ describe('resolveBackfillRole — Option B, not a blanket teacher default', () =
     expect(resolveBackfillRole({ role: 'teacher' })).toBe('teacher');
   });
 
-  it('treats an empty levels array as no evidence', () => {
-    expect(resolveBackfillRole({ role: null, levels: [] })).toBe('unregistered');
+  it('treats an empty teacher_level array as no evidence', () => {
+    expect(resolveBackfillRole({ role: null, teacher_level: [] })).toBe('unregistered');
   });
 });

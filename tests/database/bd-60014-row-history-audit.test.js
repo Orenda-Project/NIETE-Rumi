@@ -73,9 +73,10 @@ t('a jsonb column compares by value, not identity', () => {
 });
 
 t('an array column compares by value', () => {
-  eq(diffWatched('users', { id: 'u', levels: ['L1'] }, { id: 'u', levels: ['L1'] }), null);
-  eq(diffWatched('users', { id: 'u', levels: ['L1'] }, { id: 'u', levels: ['L1','L2'] })
-     .changed_cols, ['levels']);
+  // bd-60095: users.levels is dropped; teacher_level is the watched array now.
+  eq(diffWatched('users', { id: 'u', teacher_level: ['PRIMARY'] }, { id: 'u', teacher_level: ['PRIMARY'] }), null);
+  eq(diffWatched('users', { id: 'u', teacher_level: ['PRIMARY'] }, { id: 'u', teacher_level: ['PRIMARY','MIDDLE'] })
+     .changed_cols, ['teacher_level']);
 });
 
 // ── coaching_sessions: four state machines, 63 columns, 902 MB ───────────────

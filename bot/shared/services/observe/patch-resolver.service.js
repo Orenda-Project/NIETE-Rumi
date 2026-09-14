@@ -27,18 +27,20 @@
 'use strict';
 
 /** Only these two roles are ever in a patch. Not coaches, not unregistered. */
+const { teacherLevelOf, primaryBandOf } = require('../../utils/teacher-level');
+
 const PATCH_ROLES = new Set(['teacher', 'principal']);
 
 // ── band ───────────────────────────────────────────────────────────────
 
 /**
- * The teaching band, from `users` rather than the old `leader_teachers.level`.
+ * The teaching band, from `users.teacher_level` and nowhere else (bd-60095).
  *
- * `training_bands` covers 2,492 of the 2,540 people whose only band used to be
- * the roster column, so it is the primary source and `grades_taught` the
- * fallback. The 48 with neither return null: the old column held 33 spellings
- * including 'PRIMAYR' and 'Parimary', and guessing a band is how a lesson plan
- * gets built for the wrong grade.
+ * This used to read `training_bands` and FALL BACK to `grades_taught`, and it
+ * returned only the FIRST band — so a teacher teaching MIDDLE and HIGH was
+ * silently handled as MIDDLE. Both are fixed: one column, and the caller can
+ * see every band. Returning null when unknown is deliberate and unchanged —
+ * guessing a band is how a lesson plan gets built for the wrong grade.
  */
 const BAND_TOKENS = new Map([
   ['early_years', 'early_years'], ['earlyyears', 'early_years'], ['early', 'early_years'],
@@ -54,12 +56,16 @@ function _band(token) {
 }
 
 function bandOf(user = {}) {
-  const bands = Array.isArray(user.training_bands) ? user.training_bands : [];
-  for (const b of bands) {
-    const hit = _band(b);
-    if (hit) return hit;
-  }
-  return _band(user.grades_taught);
+  // Lowercased for the coach-facing picker, which has always rendered it that
+  // way; primaryBandOf() decides WHICH band by canonical order rather than by
+  // however the array happened to be stored.
+  const band = primaryBandOf(user);
+  return band ? band.toLowerCase() : null;
+}
+
+/** Every band this person teaches — prefer this where a list is acceptable. */
+function bandsOf(user = {}) {
+  return teacherLevelOf(user);
 }
 
 // ── shaping ────────────────────────────────────────────────────────────
@@ -201,8 +207,7 @@ const PATCH_SQL = `
          u.name,
          u.name,
          u.role,
-         u.training_bands,
-         u.grades_taught,
+         u.teacher_level,
          s.id            AS school_id,
          s.name          AS school_name,
          s.emis
@@ -249,7 +254,7 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
 
   const { data: people } = await supabase
     .from('users')
-    .select('id, phone_number, name, role, school_id, training_bands, grades_taught')
+    .select('id, phone_number, name, role, school_id, teacher_level')
     .in('school_id', [...byId.keys()])
     .in('role', [...PATCH_ROLES]);
 
@@ -289,6 +294,7 @@ module.exports = {
   toLeaderSourceRow,
   PATCH_SQL,
   bandOf,
+  bandsOf,
   shapePatchRow,
   fullNameOf,
   displayNameOf,

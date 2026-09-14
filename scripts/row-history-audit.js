@@ -10,10 +10,13 @@
 
 const WATCHED = {
   users: [
-    'phone_number', 'first_name', 'last_name', 'name', 'preferred_language',
+    // first_name/last_name went with bd-60092 (users.name is the only name);
+    // levels/grade/training_bands with bd-60095 (users.teacher_level is the only
+    // level). Watching a dropped column silently records nothing.
+    'phone_number', 'name', 'preferred_language',
     'language_locked', 'registration_state', 'registration_completed', 'role',
     'region', 'country', 'organization', 'school_id', 'school_name', 'teacher_uuid',
-    'grade', 'subject', 'grades_taught', 'subjects_taught', 'levels', 'training_bands',
+    'subject', 'grades_taught', 'subjects_taught', 'teacher_level',
     'is_test_user', 'portal_activated',
   ],
   // conversation_state was REMOVED after measuring production: 43% of rows but

@@ -171,9 +171,12 @@ t('all 14 tables are audited', () => {
   eq(Object.keys(WATCHED).length, 14);
 });
 
-t('59 columns are watched in total', () => {
+t('55 columns are watched in total', () => {
   // 60 minus coaching_sessions.conversation_state, dropped on production evidence.
-  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 59);
+  // 59 -> 55: bd-60092 dropped users.first_name/last_name and bd-60095
+  // dropped users.levels/grade while renaming training_bands to
+  // teacher_level. Watching a dropped column silently records nothing.
+  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 55);
 });
 
 t('the 9 roster/config tables are all registered', () => {
