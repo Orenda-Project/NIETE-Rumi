@@ -32,6 +32,8 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 // Additive semantic-event channel (feature.action.result). Every prose line below is untouched.
 const { logEvent } = require('../utils/structured-logger');
+// The outbound TeX→Unicode pass for the WhatsApp body (bd-lafr9). See buildBody.
+const { texToUnicode } = require('../utils/tex-to-unicode');
 const WhatsAppService = require('./whatsapp.service');
 // NB: the queue is required LAZILY, inside enqueue() — see the note there.
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
@@ -587,11 +589,17 @@ async function findRender(segmentId, lang, tv) {
  *
  * Returns '' when there is nothing to say. Renders cached before this shipped
  * carry no stored `one_screen`, and an empty message is worse than none.
+ *
+ * The TeX pass (bd-lafr9) happens HERE, at the last hop before the handset, and
+ * not at authoring time: the stored `one_screen` on every render cached before
+ * today still holds its TeX, so a fix upstream would leave 44% of maths lessons
+ * shipping `$-6 \times \square = -540$` until every render was regenerated.
+ * Converting on the way out repairs the backlog and the new writes together.
  */
 function buildBody({ oneScreen, segment }) {
   const yt = segment && segment.yt;
   const parts = [];
-  if (oneScreen && String(oneScreen).trim()) parts.push(String(oneScreen).trim());
+  if (oneScreen && String(oneScreen).trim()) parts.push(texToUnicode(String(oneScreen).trim()));
   // `yt.url`, never `yt` — the swarm writes a slot for every segment it
   // considered and only a resolved one carries a url. A truthy urlless object
   // would put a lone emoji on its own line.
