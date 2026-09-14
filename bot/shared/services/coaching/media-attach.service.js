@@ -114,9 +114,9 @@ async function teacherNamesFor(candidates, coachUserId) {
   const ownerIds = [...new Set(candidates.map((c) => c.user_id).filter((id) => id && id !== coachUserId))];
   try {
     if (ownerIds.length) {
-      const { data } = await supabase.from('users').select('id, name, first_name').in('id', ownerIds);
+      const { data } = await supabase.from('users').select('id, name').in('id', ownerIds);
       const byUser = new Map();
-      for (const u of data || []) byUser.set(u.id, String(u.name || u.first_name || '').trim() || null);
+      for (const u of data || []) byUser.set(u.id, String(u.name || '').trim() || null);
       for (const c of candidates) if (byUser.get(c.user_id)) bySession.set(c.id, byUser.get(c.user_id));
     }
   } catch (_) { /* name only */ }

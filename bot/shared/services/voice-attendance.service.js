@@ -116,7 +116,7 @@ function normalise(value) {
 }
 
 function personName(p) {
-  const name = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
+  const name = (p.name || '').trim();
   return name || p.student_name || p.phone_number || 'Unnamed';
 }
 

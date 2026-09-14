@@ -92,7 +92,7 @@ function wire() {
     quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [{
       id: QID, teacher_id: 'u-1', coaching_session_id: SID, topic: DIGEST.topic, subject: 'science', language: 'en', status: 'generating', meta: { digest: DIGEST, grade: '7', step: 'author' },
     }] }),
-    coaching_sessions: { data: [{ id: SID, user_id: 'u-1', transcript_text: 'lesson '.repeat(400), transcript_language: 'en', created_at: '2026-09-07T04:00:00Z', analysis_data: {}, users: { phone_number: '923001234567', preferred_language: 'en', first_name: 'A', last_name: 'B' } }] },
+    coaching_sessions: { data: [{ id: SID, user_id: 'u-1', transcript_text: 'lesson '.repeat(400), transcript_language: 'en', created_at: '2026-09-07T04:00:00Z', analysis_data: {}, users: { phone_number: '923001234567', preferred_language: 'en', name: 'A B' } }] },
     quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
     users: { data: [{ phone_number: '923001234567', preferred_language: 'en' }] },
   });
@@ -285,7 +285,7 @@ function wireUr() {
     quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [{
       id: QID, teacher_id: 'u-1', coaching_session_id: SID, topic: DIGEST_UR.topic, subject: 'sst', language: 'ur', status: 'generating', meta: { digest: DIGEST_UR, grade: '7', step: 'author' },
     }] }),
-    coaching_sessions: { data: [{ id: SID, user_id: 'u-1', transcript_text: 'سبق '.repeat(400), transcript_language: 'ur', created_at: '2026-09-07T04:00:00Z', analysis_data: {}, users: { phone_number: '923001234567', preferred_language: 'ur', first_name: 'A', last_name: 'B' } }] },
+    coaching_sessions: { data: [{ id: SID, user_id: 'u-1', transcript_text: 'سبق '.repeat(400), transcript_language: 'ur', created_at: '2026-09-07T04:00:00Z', analysis_data: {}, users: { phone_number: '923001234567', preferred_language: 'ur', name: 'A B' } }] },
     quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
     users: { data: [{ phone_number: '923001234567', preferred_language: 'ur' }] },
   });

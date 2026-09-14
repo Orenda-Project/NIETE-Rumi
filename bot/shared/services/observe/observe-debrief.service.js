@@ -750,7 +750,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
 
   const { data: session, error } = await supabase
     .from('coaching_sessions')
-    .select('*, users(phone_number, preferred_language)')
+    .select('*, users(name, phone_number, preferred_language)')
     .eq('id', sessionId)
     .single();
   if (error || !session) {
@@ -849,7 +849,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
     try {
       const { buildCoachFeedbackPromptI18n } = require('./observe-coach-feedback');
       const prompt = _fbLang !== 'sw' ? buildCoachFeedbackPromptI18n(transcript, {
-        foName: session.users && session.users.first_name,
+        foName: session.users && session.users.name,
       }, _fbLang) : buildCoachFeedbackPrompt(transcript, {
         guide: observerDebrief.guide_snapshot || null,
         diarization,

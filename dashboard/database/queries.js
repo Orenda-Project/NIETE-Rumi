@@ -101,8 +101,8 @@ async function getAllUsers(dbClient, limit = 100, offset = 0) {
       u.id,
       u.phone_number,
       u.name,
-      u.first_name,
-      u.last_name,
+      u.name,
+      u.name,
       u.registration_completed,
       u.registration_state,
       u.registration_started_at,
@@ -1554,7 +1554,7 @@ async function batchQueryUsers(userIds, country) {
 
       let query = supabase
         .from('users')
-        .select('id, phone_number, first_name, last_name, name, last_message_at')
+        .select('id, phone_number, name, last_message_at')
         .eq('registration_completed', true)
         .not('phone_number', 'is', null)
         .in('id', batch);
@@ -1579,7 +1579,7 @@ async function batchQueryUsers(userIds, country) {
  * @param {Object} filters - Filter options
  * @param {string} filters.activity - 'all', '24h', '7d', or '30d'
  * @param {string} filters.country - 'all', '92' (Pakistan), or '94' (Sri Lanka)
- * @returns {Promise<Array>} Array of user objects with id, phone_number, first_name, last_name, name
+ * @returns {Promise<Array>} Array of user objects with id, phone_number, name
  */
 async function getUsersForBroadcast(filters = {}) {
   const startTime = Date.now();
@@ -1596,7 +1596,7 @@ async function getUsersForBroadcast(filters = {}) {
 
     const { data, error } = await supabase
       .from('users')
-      .select('id, phone_number, first_name, last_name, name, last_message_at')
+      .select('id, phone_number, name, last_message_at')
       .in('id', userIds)
       .eq('registration_completed', true)
       .not('phone_number', 'is', null);
@@ -1638,7 +1638,7 @@ async function getUsersForBroadcast(filters = {}) {
       } else {
         let query = supabase
           .from('users')
-          .select('id, phone_number, first_name, last_name, name, last_message_at')
+          .select('id, phone_number, name, last_message_at')
           .eq('registration_completed', true)
           .not('phone_number', 'is', null)
           .in('id', userIds);
@@ -1655,7 +1655,7 @@ async function getUsersForBroadcast(filters = {}) {
       // No user ID filter (all users)
       let query = supabase
         .from('users')
-        .select('id, phone_number, first_name, last_name, name, last_message_at')
+        .select('id, phone_number, name, last_message_at')
         .eq('registration_completed', true)
         .not('phone_number', 'is', null);
 

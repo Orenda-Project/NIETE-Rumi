@@ -97,9 +97,9 @@ describe('MockAttendanceRepository', () => {
   function seedRepo() {
     return new MockAttendanceRepository({
       teachers: [
-        { id: T1, first_name: 'Aisha', last_name: 'Rehman', phone_number: '923001111111', role: 'teacher', school_id: SCHOOL },
-        { id: T2, first_name: 'Bilal', last_name: 'Khan', phone_number: '923002222222', role: 'teacher', school_id: SCHOOL },
-        { id: PRINCIPAL, first_name: 'Sana', last_name: 'Iqbal', phone_number: '923003333333', role: 'principal', school_id: SCHOOL },
+        { id: T1, name: 'Aisha Rehman', phone_number: '923001111111', role: 'teacher', school_id: SCHOOL },
+        { id: T2, name: 'Bilal Khan', phone_number: '923002222222', role: 'teacher', school_id: SCHOOL },
+        { id: PRINCIPAL, name: 'Sana Iqbal', phone_number: '923003333333', role: 'principal', school_id: SCHOOL },
       ],
       records: [],
     });

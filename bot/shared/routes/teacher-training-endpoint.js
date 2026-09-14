@@ -584,7 +584,7 @@ async function buildTrainingHome(userId, opts = {}) {
   if (!teacher) return errorScreen('We could not find your training profile. Please contact NIETE support.');
   if (!catalog || catalog.length === 0) {
     return errorScreen(
-      `No training assigned yet, ${teacher.first_name || 'teacher'}. ` +
+      `No training assigned yet, ${teacher.name || 'teacher'}. ` +
       'Please contact your NIETE program lead to enrol you.'
     );
   }
@@ -896,7 +896,7 @@ async function checkModuleUnlocked(userId, moduleId) {
 async function loadTeacher(userId) {
   const { data, error } = await supabase
     .from('users')
-    .select('id, first_name, last_name, name, phone_number, teacher_uuid, training_bands, training_bands_updated_at, school_name')
+    .select('id, name, phone_number, teacher_uuid, training_bands, training_bands_updated_at, school_name')
     .eq('id', userId)
     .single();
   if (error) {
@@ -1447,7 +1447,7 @@ async function loadGrandQuizState(userId, levelId) {
 // ─── Presentation helpers ──────────────────────────────────────────────────
 
 function teacherSubtitle(t) {
-  const name = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.phone_number;
+  const name = t.name || `${t.name || ''} ${t.name || ''}`.trim() || t.phone_number;
   const school = t.school_name ? ` · ${t.school_name}` : '';
   return `${name}${school}`;
 }
@@ -1641,7 +1641,7 @@ async function buildMyCertificates(userId, teacher) {
     );
   }
   const name = (certs[0] && certs[0].teacher_name_snapshot)
-    || (teacher && teacher.first_name)
+    || (teacher && teacher.name)
     || 'Teacher';
   logToFile('🏆 MY_CERTIFICATES response snapshot', { userId, count: certs.length });
   return {

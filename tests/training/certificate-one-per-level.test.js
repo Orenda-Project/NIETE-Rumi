@@ -127,7 +127,7 @@ beforeEach(() => {
   }), { virtual: true });
   ({ issueCertificate } = require('../../bot/shared/services/training/certificate.service'));
 
-  tableStates.users = { rows: [{ name: 'Aisha Khan', first_name: 'Aisha', last_name: 'Khan' }] };
+  tableStates.users = { rows: [{ name: 'Aisha Khan' }] };
   tableStates.training_levels = { rows: [{ name: 'English' }] };
 });
 

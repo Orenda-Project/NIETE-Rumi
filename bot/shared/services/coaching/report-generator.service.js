@@ -70,7 +70,7 @@ class ReportGeneratorService {
       // Get complete session data
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('*, users!inner(phone_number, first_name, last_name, preferred_language)')
+        .select('*, users!inner(name, phone_number, preferred_language)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -83,10 +83,7 @@ class ReportGeneratorService {
       // Filter Boolean protects against a null last_name concatenating literally
       // as "First null" and against both names being null (renders as empty
       // string that hero-report.service.js maps to 'Teacher' fallback).
-      const teacherName = [session.users.first_name, session.users.last_name]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
+      const teacherName = (session.users.name || '').trim();
       const isRetry = payload.attempt && payload.attempt > 1;
 
       // bd-3b0co: resolve the teacher-facing output language ONCE, through the SAME
@@ -211,7 +208,7 @@ class ReportGeneratorService {
           .order('created_at', { ascending: false })
           .limit(1);
         const priorActionForCard = priorSessionsForCard?.[0]?.prioritized_action || null;
-        const teacherFirstNameForCard = session.users?.first_name || 'Teacher';
+        const teacherFirstNameForCard = session.users?.name || 'Teacher';
         precomputedCommitment = await generateCommitmentCard(
           enhancedAnalysis,
           session.conversation_state,
@@ -264,11 +261,11 @@ class ReportGeneratorService {
           coachingSessionId,
           reportResult.png,
           reportResult.caption || '',
-          session.users.first_name,
+          session.users.name,
           session.created_at
         );
       } else {
-        await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.first_name, session.created_at);
+        await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
       }
 
       // Generate and send voice debrief (optional, won't fail entire process)
@@ -305,7 +302,7 @@ class ReportGeneratorService {
         const cardRegion = session.users?.region || '';
         const cardCopy = getCoachingCardCopy(cardLanguage, cardRegion);
 
-        const teacherFirstName = session.users?.first_name || 'Teacher';
+        const teacherFirstName = session.users?.name || 'Teacher';
 
         // Reuse the commitment-card content already computed for the hero PNG.
         // If pre-computation failed (precomputedCommitment is null), do a fresh
@@ -1564,7 +1561,7 @@ class ReportGeneratorService {
         try {
           const { data: session } = await supabase
             .from('coaching_sessions')
-            .select('users!inner(phone_number)')
+            .select('users!inner(name, phone_number)')
             .eq('id', coachingSessionId)
             .single();
           from = session?.users?.phone_number;

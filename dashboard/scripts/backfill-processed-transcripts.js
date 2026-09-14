@@ -54,14 +54,7 @@ function parseArgs() {
 async function fetchSessions(options) {
   let query = supabase
     .from('coaching_sessions')
-    .select(`
-      id,
-      transcript_text,
-      audio_duration_seconds,
-      analysis_data,
-      created_at,
-      users!inner(first_name, last_name, school_name)
-    `)
+    .select(`id, transcript_text, audio_duration_seconds, analysis_data, created_at, users!inner(name, school_name)`)
     .not('transcript_text', 'is', null)
     .order('created_at', { ascending: false });
 
@@ -104,7 +97,7 @@ async function processSession(session, index, total) {
   }
 
   // Format metadata
-  const teacherName = `${session.users.first_name || ''} ${session.users.last_name || ''}`.trim() || 'Unknown';
+  const teacherName = `${session.users.name || ''} ${session.users.name || ''}`.trim() || 'Unknown';
   const schoolName = session.users.school_name || 'N/A';
 
   let duration = 'N/A';

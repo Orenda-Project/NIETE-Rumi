@@ -48,7 +48,7 @@ const { handleVoiceLessonPlanRequest } = require('../../bot/shared/handlers/voic
 const { resolveUx } = require('../../bot/shared/config/ux-strings');
 
 const FLOW_ID = '1565529551677911';
-const user = { id: 'u-1', first_name: 'Haroon', grade: '9' };
+const user = { id: 'u-1', name: 'Haroon', grade: '9' };
 const ROUTE_ENV = ['LP_612_ENABLED', 'LP_612_ROUTE_ALL'];
 
 beforeEach(() => {

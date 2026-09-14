@@ -139,7 +139,7 @@ describe('CLASS — the entry screen', () => {
     // (bd-43520), so this screen is classes and only classes.
     db({
       user: PRINCIPAL,
-      staff: [{ id: 'x', first_name: 'Sana' }],
+      staff: [{ id: 'x', name: 'Sana' }],
       lists: [{ id: 'l1', class_name: 'Grade 5', section: 'C', class_id: null }],
       rosters: { l1: [] },
     });
@@ -150,7 +150,7 @@ describe('CLASS — the entry screen', () => {
   });
 
   it('sends a principal to their own date screen, not to this one', async () => {
-    db({ user: PRINCIPAL, staff: [{ id: 'x', first_name: 'Sana' }], schools: [{ id: 'sch1', name: 'GGPS' }] });
+    db({ user: PRINCIPAL, staff: [{ id: 'x', name: 'Sana' }], schools: [{ id: 'sch1', name: 'GGPS' }] });
     const res = await marking.handleMarkingInit('p1:teacher:sch1');
     expect(res.screen).toBe('STAFF_DATE');
   });

@@ -41,7 +41,7 @@ describe('GET /api/portal/hcp/teachers/:id/coaching-plan', () => {
   });
 
   it('returns per-weak-indicator action plan', async () => {
-    tableStates.users = { rows: [{ id: 't-1', first_name: 'Aisha', region: 'ICT' }] };
+    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha', region: 'ICT' }] };
     tableStates.coaching_sessions = {
       rows: [{
         id: 's-1', user_id: 't-1',
@@ -72,7 +72,7 @@ describe('GET /api/portal/hcp/teachers/:id/coaching-plan', () => {
   });
 
   it('handles indicators with no matching actions gracefully', async () => {
-    tableStates.users = { rows: [{ id: 't-1', first_name: 'A', region: 'ICT' }] };
+    tableStates.users = { rows: [{ id: 't-1', name: 'A', region: 'ICT' }] };
     tableStates.coaching_sessions = {
       rows: [{ id: 's-1', user_id: 't-1', analysis_data: { indicators: [
         { code: 'UNKNOWN-CODE', score: 0.2 },
