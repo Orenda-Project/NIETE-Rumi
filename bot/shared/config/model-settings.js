@@ -120,19 +120,35 @@ async function refresh() {
   return inFlight;
 }
 
+/**
+ * Every outcome stamps the cache, including the bad ones.
+ *
+ * This is the whole of bd-dsr9l. Stamping only on success left the cache null after a failure,
+ * so `isStale()` stayed true and `configForRequest()` started another read on EVERY call: a
+ * database that was down got one query per image message. The single-flight guard did not
+ * help, because it dedupes concurrent calls and an image queue is sequential.
+ *
+ * A failure therefore backs off for the same TTL as a success, and carries the last good
+ * config forward rather than dropping to empty. The back-off is temporary, so a blip at boot
+ * does not freeze the settings for the life of the process.
+ */
+function stamp(cfg) { cache = { at: Date.now(), cfg }; }
+
 async function readIntoCache() {
   try {
     const supabase = client();
-    if (!supabase) return currentConfig();
+    if (!supabase) { stamp(currentConfig()); return currentConfig(); }
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
     if (error) throw new Error(error.message || 'settings lookup failed');
-    cache = { at: Date.now(), cfg: buildConfig(data) };
+    stamp(buildConfig(data));
   } catch (err) {
-    // Keep the last good answer. Only if we have never had one do we serve the empty config,
-    // and the empty config is today's behaviour, so this is quiet on purpose.
+    // Read BEFORE stamping: stamp() always sets the cache, so asking afterwards would report
+    // "we had one" every time and the log line would say nothing.
+    const hadPrevious = !!cache;
+    stamp(currentConfig());
     logToFile('model settings: could not read app_settings, serving the last good config', {
       error: err?.message,
-      hadPrevious: !!cache,
+      hadPrevious,
     });
   }
   return currentConfig();
