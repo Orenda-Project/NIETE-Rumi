@@ -111,7 +111,7 @@ function todaysModel(job, ctx = {}) {
  *   2  rollout       a stable slice of teachers, per job
  *   3  per language  beats region, because it is the finer fact
  *   4  per region    this deployment is one region today, kept for symmetry with the main bot
- *   5  per job       the job's own env var, which already exists
+ *   5  per job       a settings row, else the job's own env var, which already exists
  *   6  platform      LLM_MODEL, which already exists
  *
  * `cfg` is PASSED IN, never read here: this runs on every request and must stay synchronous,
@@ -123,6 +123,12 @@ function resolveModelForJob(job, ctx = {}) {
   let source = 'today';
 
   const pick = (m, why) => { if (isModel(m)) { model = m; source = why; return true; } return false; };
+
+  // 5: per job. The header calls the job's own env var this level, and on a laptop it is. On
+  // Railway it is not: changing a variable there restarts the service, which is a deploy by
+  // another name and is the thing this table exists to avoid. A settings row moves one job
+  // now. The env var stays exactly as it is and still decides when no row is written.
+  pick(cfg.perJob && cfg.perJob[job], 'per-job');
 
   if (ctx.region) pick(cfg.perRegion && cfg.perRegion[ctx.region], 'per-region');
 
