@@ -569,6 +569,16 @@ class SQSCoachingWorker {
         await TranscriptQuizGenerate.process(p.quizId || body.groupId, p);
         break;
       }
+      // bd-2yyry.8 — the videos offer for a child who never answered the
+      // friend invite. The handler re-reads the invite key and is a no-op when
+      // the invite was answered meanwhile, so redelivery is harmless.
+      case 'quiz_child_videos_offer': {
+        const Invite = require('../shared/services/quiz/video-quiz-invite.service');
+        const p = (body && body.payload) ? body.payload : (payload || {});
+        if (p.phone) await Invite.offerVideosIfUnanswered(p.phone);
+        break;
+      }
+
       case 'quiz_nudge_teacher': {
         const p = (body && body.payload) ? body.payload : (payload || {});
         const quizId = p.quizId || body.groupId;

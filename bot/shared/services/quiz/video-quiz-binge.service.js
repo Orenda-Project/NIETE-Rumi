@@ -16,6 +16,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const ChildFlowToken = require('./child-flow-token');
+const { resolveUx } = require('../../config/ux-strings');
 
 const MORE_YES = 'vq_more_yes';
 const MORE_NO = 'vq_more_no';
@@ -23,42 +24,18 @@ const MORE_TTL_SECS = 60 * 60;
 const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const MORE_KEY = (phone) => `videoquiz:${stripPlus(phone)}:more`;
 
-function moreStrings(language) {
-  const map = {
-    en: {
-      body: 'Want to watch more videos and take more quizzes?',
-      yes: 'Watch more', no: 'No thanks',
-      declined: "No problem! You can always watch more videos and take quizzes anytime — just send /video and I'll show you the menu.",
-      unavailable: "Sorry — picking more videos isn't available right now. Send /video in a bit and I'll show you the menu.",
-    },
-    ur: {
-      body: 'کیا آپ مزید ویڈیوز دیکھنا اور مزید کوئز کرنا چاہیں گی؟',
-      yes: 'مزید دیکھیں', no: 'ابھی نہیں',
-      declined: 'کوئی بات نہیں! آپ کسی بھی وقت /video بھیج کر مزید ویڈیوز اور کوئز دیکھ سکتی ہیں۔',
-      unavailable: 'معذرت — ابھی مزید ویڈیوز دستیاب نہیں ہیں۔ تھوڑی دیر میں /video بھیجیں۔',
-    },
-  };
-  return map[language] || map.en;
-}
-
-/**
- * Offer the binge round after a child declines the friend-invite.
- *
- * Skipped without studentId/shareCodeId, same reasoning as offerInvite: with
- * no student to attribute the next round to, offering it is a promise we
- * cannot keep (the teacher's report would never see this child's next quiz).
- */
 async function offerMore({ phone, studentId, shareCodeId, language = 'en',
                            sessionId = null, quizId = null }) {
   if (!studentId || !shareCodeId) return false;
   await redisService.set(MORE_KEY(phone), { studentId, shareCodeId, language, sessionId, quizId },
     MORE_TTL_SECS);
-  const t = moreStrings(language);
+  // In the quiz language, from the catalog (bd-2yyry.9): the inline map this
+  // replaced addressed the child in the feminine.
   await WhatsAppService.sendInteractiveButtons(phone, {
-    body: t.body,
+    body: resolveUx('vqMoreAsk', { language }),
     buttons: [
-      { id: MORE_YES, title: t.yes },
-      { id: MORE_NO, title: t.no },
+      { id: MORE_YES, title: resolveUx('vqMoreYes', { language }) },   // ≤ 20 code points, asserted in tests
+      { id: MORE_NO, title: resolveUx('vqMoreNo', { language }) },
     ],
   });
   // Binge is only ever offered after an invite decline, which
@@ -82,10 +59,10 @@ async function handleMoreButton(buttonId, phone) {
     sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
   });
 
-  const t = moreStrings(ctx.language);
+  const language = ctx.language;
 
   if (buttonId === MORE_NO) {
-    await WhatsAppService.sendMessage(phone, t.declined);
+    await WhatsAppService.sendMessage(phone, resolveUx('vqMoreDeclined', { language }));
     return true;
   }
 
@@ -93,7 +70,7 @@ async function handleMoreButton(buttonId, phone) {
   if (!STUDENT_VIDEOS_FLOW_ID) {
     logToFile('⚠️ video-quiz-binge: STUDENT_VIDEOS_FLOW_ID not configured', { phone });
     logEvent('video_quiz.binge_unavailable', { reason: 'flow_not_configured' });
-    await WhatsAppService.sendMessage(phone, t.unavailable);
+    await WhatsAppService.sendMessage(phone, resolveUx('vqMoreUnavailable', { language }));
     return true;
   }
 
@@ -102,9 +79,9 @@ async function handleMoreButton(buttonId, phone) {
   });
   const sent = await WhatsAppService.sendFlow(phone, {
     flowId: STUDENT_VIDEOS_FLOW_ID,
-    header: '🎬 More Videos',
-    body: 'Pick a class, subject and topic — I will send the video to your chat.',
-    buttonText: 'Browse',
+    header: resolveUx('vqMoreFlowHeader', { language }),     // ≤ 60 code points
+    body: resolveUx('vqMoreFlowBody', { language }),
+    buttonText: resolveUx('vqMoreFlowButton', { language }), // ≤ 20 code points
     flowToken,
   });
   if (sent) {

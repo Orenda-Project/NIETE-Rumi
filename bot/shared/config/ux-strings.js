@@ -1372,6 +1372,31 @@ const UX_STRINGS = {
   vqInviteYes: { en: 'Invite a friend', ur: 'دوست کو بھیجیں' },
   vqInviteNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
 
+  // ─── the watch-more offer after the invite (bd-2yyry.8 / .9) ───────────
+  // Read by CHILDREN, in the quiz language. Gender-neutral by construction:
+  // the verb agrees with the noun (ویڈیوز دیکھنی ہیں) or is an imperative
+  // (بھیجیں، چنیں) — never with the addressee.
+  vqMoreAsk: {
+    en: 'Want to watch more videos and take more quizzes?',
+    ur: 'مزید ویڈیوز دیکھنی ہیں اور مزید quiz کرنے ہیں؟',
+  },
+  vqMoreYes: { en: 'Watch more', ur: 'مزید دیکھیں' },
+  vqMoreNo: { en: 'No thanks', ur: 'ابھی نہیں' },
+  vqMoreDeclined: {
+    en: 'No problem! You can watch more videos and take quizzes anytime — send /video and I’ll show you the menu.',
+    ur: 'کوئی بات نہیں! کسی بھی وقت /video بھیج کر مزید ویڈیوز اور quiz حاصل کریں۔',
+  },
+  vqMoreUnavailable: {
+    en: 'Sorry — picking more videos isn’t available right now. Send /video in a bit and I’ll show you the menu.',
+    ur: 'معذرت — ابھی مزید ویڈیوز دستیاب نہیں۔ تھوڑی دیر میں /video بھیجیں۔',
+  },
+  vqMoreFlowHeader: { en: '🎬 More videos', ur: '🎬 مزید ویڈیوز' },
+  vqMoreFlowBody: {
+    en: 'Pick a class, subject and topic — I will send the video to your chat.',
+    ur: 'جماعت، مضمون اور موضوع چنیں — ویڈیو آپ کی chat میں بھیج دی جائے گی۔',
+  },
+  vqMoreFlowButton: { en: 'Browse', ur: 'دیکھیں' },
+
   // ─── the child's scorecard image ────────────────────────────────────────
   // These are painted INTO a 540x400 card, not sent as a message, so they are
   // held to a badge's width rather than a message's. The vqTier* lines above

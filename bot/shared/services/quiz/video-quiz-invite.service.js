@@ -26,6 +26,14 @@ const { logEvent } = require('../../utils/structured-logger');
 const INVITE_YES = 'vq_invite_yes';
 const INVITE_NO = 'vq_invite_no';
 const INVITE_TTL_SECS = 60 * 60;
+/**
+ * bd-2yyry.8 — how long an unanswered invite waits before the videos offer
+ * arrives anyway. Prod, 6–14 Sep 2026: 3,013 of 6,674 invites were never
+ * answered, and the videos offer only ever followed a NO — so those children,
+ * and the 1,521 who said YES, never saw it (4,534 of 6,674, 68%).
+ */
+const VIDEOS_AFTER_SILENCE_SECS = 600;
+const VIDEOS_JOB = 'quiz_child_videos_offer';
 const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const INVITE_KEY = (phone) => `videoquiz:${stripPlus(phone)}:invite`;
 
@@ -62,6 +70,53 @@ async function offerInvite({ phone, studentId, shareCodeId, language = 'en',
   });
   // The invite is only ever offered on a share_link session.
   logEvent('video_quiz.offer_shown', { kind: 'invite', sessionId, quizId, source: 'share_link', language });
+
+  // The videos offer must reach this child whether they answer or not. A tap
+  // offers it at once (handleInviteButton); silence offers it after
+  // VIDEOS_AFTER_SILENCE_SECS through a delayed quiz-queue job that checks the
+  // invite is STILL unanswered before it sends. Non-fatal: a queue hiccup
+  // costs one offer, never the quiz.
+  try {
+    const SQSQueueService = require('../queue/sqs-queue.service');
+    await SQSQueueService.queueJob(shareCodeId, VIDEOS_JOB, { phone, shareCodeId }, {
+      delaySeconds: VIDEOS_AFTER_SILENCE_SECS,
+      deduplicationId: `${shareCodeId}-${VIDEOS_JOB}-${stripPlus(phone)}-${Date.now()}`,
+    });
+  } catch (err) {
+    logToFile('⚠️ video-quiz-invite: could not queue the delayed videos offer', { error: err.message });
+  }
+  return true;
+}
+
+/**
+ * The videos offer for THIS child, from the invite's own context. Every exit
+ * of the invite — yes, no, could-not-mint, and the silence job — ends here.
+ */
+async function offerVideosFor(phone, ctx) {
+  const Binge = require('./video-quiz-binge.service');
+  return Binge.offerMore({
+    phone, studentId: ctx.studentId, shareCodeId: ctx.shareCodeId, language: ctx.language,
+    sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
+  }).catch((err) => {
+    logToFile('⚠️ video-quiz-invite: offerMore threw', { error: err.message });
+    return false;
+  });
+}
+
+/**
+ * The delayed job's handler. If the invite is still sitting unanswered, it is
+ * consumed here — so a late tap on the invite buttons is a quiet no-op rather
+ * than a second videos offer — and the child is offered videos.
+ */
+async function offerVideosIfUnanswered(phone) {
+  const ctx = await redisService.get(INVITE_KEY(phone));
+  if (!ctx) return false;
+  await redisService.delete(INVITE_KEY(phone));
+  logEvent('video_quiz.offer_answered', {
+    kind: 'invite', choice: 'ignored', studentId: ctx.studentId, shareCodeId: ctx.shareCodeId,
+    sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
+  });
+  await offerVideosFor(phone, ctx);
   return true;
 }
 
@@ -85,13 +140,7 @@ async function handleInviteButton(buttonId, phone) {
     // bd-2475 — a decline chains into "want to watch more?" rather than
     // dead-ending the conversation. Same student/share-code so the next
     // round still attributes to this teacher's report.
-    const Binge = require('./video-quiz-binge.service');
-    await Binge.offerMore({
-      phone, studentId: ctx.studentId, shareCodeId: ctx.shareCodeId, language: ctx.language,
-      sessionId: ctx.sessionId ?? null, quizId: ctx.quizId ?? null,
-    }).catch((err) => {
-      logToFile('⚠️ video-quiz-invite: offerMore threw', { error: err.message });
-    });
+    await offerVideosFor(phone, ctx);
     return true;
   }
 
@@ -101,7 +150,7 @@ async function handleInviteButton(buttonId, phone) {
     .select('id, quiz_id, video_id, teacher_user_id, teacher_name, topic, language')
     .eq('id', ctx.shareCodeId)
     .maybeSingle();
-  if (!parent) return true;
+  if (!parent) { await offerVideosFor(phone, ctx); return true; }
 
   const { data: me } = await supabase
     .from('students').select('student_name').eq('id', ctx.studentId).maybeSingle();
@@ -130,6 +179,7 @@ async function handleInviteButton(buttonId, phone) {
   if (!minted) {
     await WhatsAppService.sendMessage(phone,
       "Sorry — I couldn't make that link just now. Try again in a moment.");
+    await offerVideosFor(phone, ctx);
     return true;
   }
 
@@ -143,6 +193,9 @@ async function handleInviteButton(buttonId, phone) {
   logEvent('video_quiz.friend_invited', {
     inviterStudentId: ctx.studentId, shareCodeId: parent.id, code: minted.code,
   });
+  // bd-2yyry.8 — a YES used to end here; the child who invited a friend never
+  // heard about the videos. The offer follows the forwardable message.
+  await offerVideosFor(phone, ctx);
   return true;
 }
 
@@ -234,5 +287,6 @@ async function notifyInviter(session) {
 
 module.exports = {
   offerInvite, handleInviteButton, resolveInvite, buildComparison,
-  notifyInviter, firstName, INVITE_YES, INVITE_NO, INVITE_KEY,
+  notifyInviter, offerVideosIfUnanswered, firstName,
+  INVITE_YES, INVITE_NO, INVITE_KEY, VIDEOS_JOB, VIDEOS_AFTER_SILENCE_SECS,
 };
