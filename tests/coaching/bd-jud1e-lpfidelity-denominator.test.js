@@ -99,11 +99,18 @@ describe('applyLpFidelity keeps the applicable-aware denominator', () => {
     expect(handBuilt.scores.overall_max_marks).toBe(C.maxMarks);
   });
 
-  test('a domain the analysis omitted still carries its declared max', () => {
+  // The rule for a domain the analysis never emitted belongs to computeScores and
+  // has differed between rubric revisions. What must never differ is the two
+  // functions' answer: the whole defect was applyLpFidelity reporting a
+  // denominator computeScores had not chosen. So assert the agreement, on the one
+  // input shape where the rule itself is in play. The concrete values are pinned
+  // by the cases above, so this cannot pass vacuously.
+  test('never disagrees with computeScores about the denominator', () => {
     const partial = { framework: 'fico', domains: { [B_KEY]: { indicators: rows('B', DOMS[B_KEY].indicatorCount, PER) } } };
     fico.computeScores(partial);
+    const chosenByComputeScores = partial.scores.overall_max_marks;
     fico.applyLpFidelity(partial, { status: 'ok', fidelity_pct: 100 });
-    expect(partial.scores.overall_max_marks).toBe(C.maxMarks);
+    expect(partial.scores.overall_max_marks).toBe(chosenByComputeScores);
     expect(partial.scores.overall_marks).toBe(B_MAX);
   });
 });
