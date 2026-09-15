@@ -352,19 +352,13 @@
                 "helper-text": "${data.count_hint}"
               },
               {
-                "type": "OptIn",
-                "name": "pick_types",
-                "label": "Choose question types myself"
-              },
-              {
                 "type": "Footer",
                 "label": "Continue",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "content_source": "${form.content_source}",
-                    "question_count": "${form.question_count}",
-                    "pick_types": "${form.pick_types}"
+                    "question_count": "${form.question_count}"
                   }
                 }
               }

@@ -123,7 +123,7 @@ describe('the CONFIRM screen is driven by the flag, end to end', () => {
 
   test('flag OFF: the screen offers PDF only', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '10', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'seen', question_count: '10' }, 'u1:assessment-gen:1');
     expect(res.screen).toBe('CONFIRM');
     expect(res.data.formats.map((f) => f.id)).toEqual(['pdf']);
   });
@@ -131,7 +131,7 @@ describe('the CONFIRM screen is driven by the flag, end to end', () => {
   test('flag ON: the screen offers both, PDF first', async () => {
     mockFlag.mockResolvedValue(true);
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '10', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'seen', question_count: '10' }, 'u1:assessment-gen:1');
     expect(res.data.formats.map((f) => f.id)).toEqual(['pdf', 'docx']);
   });
 
@@ -141,7 +141,7 @@ describe('the CONFIRM screen is driven by the flag, end to end', () => {
     // client would render an empty list — the same silent shape as the
     // NavigationList cap.
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '10', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'seen', question_count: '10' }, 'u1:assessment-gen:1');
     expect(Array.isArray(res.data.formats)).toBe(true);
     expect(typeof res.data.formats.then).toBe('undefined');
   });
