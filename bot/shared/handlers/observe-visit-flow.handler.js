@@ -370,8 +370,12 @@ async function menuScreen(userId, opts = {}) {
       // would hide it behind a label that promises something else.
       id: 'manage_teachers',
       'main-content': {
+        // "Add" is also how a teacher is MOVED between schools, and a row
+        // that does not say so hides the action the coach came for. Flow
+        // NavigationList metadata caps at 80. This branch has no Edit screen,
+        // so the row names only what it can actually do here.
         title: 'Add or remove a teacher',
-        metadata: 'By WhatsApp number',
+        metadata: 'Add, move or remove - by WhatsApp number',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
@@ -1038,11 +1042,17 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (!school) return _refuse('not_my_school');
       // Composed server-side: Flow prints a ${data.x} reference inside a
       // sentence verbatim, so the school name has to arrive already in it.
+      //
+      // The sentence used to name two actions while the screen offered three,
+      // and it never said that adding a teacher who already belongs to another
+      // school MOVES them. A coach reported the move as impossible while the
+      // roster audit shows it working; the gap was the words, not the feature.
+      // Catalogue copy, so it follows the coach's language.
       return {
         screen: 'TEACHER_ACTION',
         data: {
           school_ext_id: schoolExtId,
-          intro: `${school.school_name}\n\nWould you like to add a teacher to this school, or remove one?`,
+          intro: S_(_flowLang).teacher_action_intro.replace('{school}', school.school_name),
         },
       };
     }
