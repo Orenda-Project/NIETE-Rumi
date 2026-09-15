@@ -173,12 +173,13 @@ t('all 15 tables are audited', () => {
 });
 
 t('70 columns are watched in total', () => {
-  // 60 minus coaching_sessions.conversation_state (dropped on production evidence),
-  // plus 15 from bd-a21ks: classes (7), and the identity/reason columns that let one
+  // 60 minus coaching_sessions.conversation_state, dropped on production evidence.
+  // 59 -> 55: bd-60092 dropped users.first_name/last_name and bd-60095
+  // dropped users.levels/grade while renaming training_bands to
+  // teacher_level. Watching a dropped column silently records nothing.
+  // 55 -> 70: bd-a21ks adds classes (7) and the identity/reason columns that let one
   // class's history be read from the ledger alone (class_enrollments +2, students +2,
   // student_lists +2, class_teachers +2).
-  // users then lost five columns the table no longer has (first_name, last_name,
-  // levels, grade, training_bands) and gained teacher_level, the renamed level (V1.4.8).
   eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 70);
 });
 
