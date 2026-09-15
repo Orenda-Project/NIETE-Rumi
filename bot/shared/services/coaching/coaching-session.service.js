@@ -15,6 +15,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const WhatsAppService = require('../whatsapp.service');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const { getUserLanguage } = require('../../utils/language-cache');
 
 class CoachingSessionService {
   /**
@@ -89,14 +90,24 @@ class CoachingSessionService {
         status: coachingSession.status
       });
 
-      // Send confirmation message with buttons
-      const confirmationMessage = `I detected a ${Math.round(audioDuration / 60)}-minute audio recording.\n\nIs this classroom audio you'd like me to analyze using research-based pedagogical frameworks?`;
+      // Send confirmation message with buttons, in the teacher's own language.
+      // The button IDS are parsed by the webhook router and must not change —
+      // only the titles are translated. Translating an id is the classic version
+      // of this mistake and it breaks the tap silently.
+      const language = await getUserLanguage(userId);
+      const minutes = Math.round(audioDuration / 60);
 
       await WhatsAppService.sendInteractiveButtons(from, {
-        body: confirmationMessage,
+        body: getCoachingMessage('coaching_confirmAudio', language).replace('{minutes}', String(minutes)),
         buttons: [
-          { id: `coaching_confirm_${coachingSession.id}`, title: 'Yes, Analyze' },
-          { id: `coaching_cancel_${coachingSession.id}`, title: 'No' }
+          {
+            id: `coaching_confirm_${coachingSession.id}`,
+            title: getCoachingMessage('coaching_confirmYes', language),
+          },
+          {
+            id: `coaching_cancel_${coachingSession.id}`,
+            title: getCoachingMessage('coaching_confirmNo', language),
+          }
         ]
       });
 

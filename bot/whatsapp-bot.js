@@ -1042,53 +1042,13 @@ app.post('/webhook', async (req, res) => {
         const { handleAddAnotherPhotoTap } = require('./shared/services/coaching/classroom-photo/add-another.service');
         await handleAddAnotherPhotoTap({ sessionId, from, user });
       }
-      // Stale session reminder buttons - Continue coaching
+      // Stale session reminder buttons - Continue coaching.
+      // The body lives in continue-coaching.service so it can be executed by a
+      // test; this branch only dispatches.
       else if (buttonId.startsWith('coaching_continue_')) {
         const sessionId = buttonId.replace('coaching_continue_', '');
-        logToFile('🔄 User clicked Continue on stale session reminder', { sessionId, from });
-
-        // Fetch session to determine where to resume
-        const { data: session } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state, transcript_text, analysis_data')
-          .eq('id', sessionId)
-          .single();
-
-        if (session) {
-          const questionsAnswered = session.conversation_state?.questions_answered || 0;
-          const nextQuestionNumber = questionsAnswered + 1;
-
-          logToFile('📊 Resuming coaching session', {
-            sessionId,
-            questionsAnswered,
-            nextQuestionNumber
-          });
-
-          if (nextQuestionNumber > 3) {
-            // All questions already answered, go to report
-            const CoachingJobQueueService = require('./shared/services/coaching/coaching-job-queue.service');
-            await CoachingJobQueueService.queueReport(sessionId, { from });
-            await WhatsAppService.sendMessage(from,
-              "Great! All your reflections are recorded. Generating your coaching report now..."
-            );
-          } else {
-            // Resume reflective conversation from next question
-            const ReflectiveConversationService = require('./shared/services/coaching/reflective-conversation.service');
-            await ReflectiveConversationService.conductReflectiveConversation(
-              sessionId,
-              from,
-              nextQuestionNumber
-            );
-
-            // Clear reminder_sent_at since user re-engaged
-            await supabase
-              .from('coaching_sessions')
-              .update({ reminder_sent_at: null })
-              .eq('id', sessionId);
-          }
-        } else {
-          await WhatsAppService.sendMessage(from, 'Sorry, I could not find that coaching session.');
-        }
+        const { handleContinueCoachingTap } = require('./shared/services/coaching/continue-coaching.service');
+        await handleContinueCoachingTap({ sessionId, from, user });
       }
       // Stale session reminder buttons - Finish and get partial report
       else if (buttonId.startsWith('coaching_finish_')) {

@@ -21,11 +21,21 @@ const { PEDAGOGICAL_ANALYSIS_MEDIA_ID } = require('../../utils/constants');
 const { selectFrameworkWithReason } = require('./frameworks/framework-selector');
 const { getCoachingMessage } = require('../../config/coaching-messages');
 const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
+const { clampLanguage } = require('../../config/ux-strings');
+const { offerDefaultLanguage } = require('../../config/languages');
 
 /**
  * Look up the teacher's preferred language for a coaching session.
- * Falls back to 'en' if the session/user can't be read — we'd rather
- * ship the English message than throw mid-pipeline.
+ *
+ * The transcript language used to sit here as candidate 2, which meant a
+ * teacher who had never chosen was walked through her session in whatever
+ * language the transcriber attached to her lesson. A recording is evidence
+ * about a classroom, never a statement about which language to address her in.
+ *
+ * The floor is the language the deployment offers FIRST, not the emergency
+ * floor: this path only runs when we have a session in hand, so "nothing can be
+ * determined" is not the situation. Total by construction — an unreadable row
+ * still returns something renderable rather than throwing mid-pipeline.
  */
 async function _resolveSessionLanguage(coachingSessionId) {
   try {
@@ -34,9 +44,9 @@ async function _resolveSessionLanguage(coachingSessionId) {
       .select('users(name, preferred_language), transcript_language')
       .eq('id', coachingSessionId)
       .maybeSingle();
-    return data?.users?.preferred_language || data?.transcript_language || 'en';
+    return clampLanguage(data?.users?.preferred_language || offerDefaultLanguage());
   } catch (_err) {
-    return 'en';
+    return offerDefaultLanguage();
   }
 }
 
@@ -102,10 +112,27 @@ class AnalysisProcessorService {
         });
       }
 
+      // The language the analysis is WRITTEN in is the teacher's, resolved
+      // through the one coaching resolver (preference → clamp). What the
+      // transcriber HEARD travels beside it as context the prompt may quote, and
+      // is never allowed to choose the language she is addressed in.
+      const CoachingHelpersService = require('./coaching-helpers.service');
+      const outputLanguage = await CoachingHelpersService.determineOutputLanguage(
+        session.user_id,
+        coachingSessionId,
+        session.transcript_language,
+      );
+      logToFile('🈯 analysis output language resolved', {
+        coachingSessionId,
+        outputLanguage,
+        transcriptLanguage: session.transcript_language || null,
+      });
+
       // Run GPT-5 mini analysis with prior feedback
       const metadata = {
         duration: session.audio_duration_seconds,
-        language: session.transcript_language,
+        language: outputLanguage,
+        transcriptLanguage: session.transcript_language || null,
         teacherFirstName: session.users.name,
         priorFeedback: priorFeedbackText,
         lessonPlanExcerpt: session.lesson_plan_excerpt || null,
@@ -206,7 +233,10 @@ class AnalysisProcessorService {
       // allSettled (NOT all) keeps the corpus extraction NON-BLOCKING — if it rejects, the
       // critical-path analysis persist still proceeds and the report falls back gracefully
       // (the rest of the coaching flow doesn't depend on the corpus being present).
-      const langCode = session.transcript_language || metadata.language || 'en';
+      // The corpus is quoted back to the teacher in the reflective question, so
+      // it is written in HER language. The verbatim words she spoke are still
+      // verbatim — that is a property of the quote, not of the prompt.
+      const langCode = outputLanguage;
 
       // LP fidelity (FICO Section B) — a SEPARATE gpt-5.6-luna call sharing the transcript, run in the
       // same allSettled so it is NON-BLOCKING (a fidelity failure never fails the coaching job). Flag-gated
@@ -454,5 +484,9 @@ class AnalysisProcessorService {
     }
   }
 }
+
+// Exposed so the language resolver can be driven directly by a test rather than
+// through the whole analysis job. Not part of the service's public surface.
+AnalysisProcessorService._resolveSessionLanguage = _resolveSessionLanguage;
 
 module.exports = AnalysisProcessorService;
