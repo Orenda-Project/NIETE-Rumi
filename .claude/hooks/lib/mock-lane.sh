@@ -15,15 +15,41 @@
 #
 # A PUSH keeps the chrome lane for everything (the code is deployed; that is what chrome tests).
 
-E2E_MOCK_FEATURES_DEFAULT="menu,language,status,lesson-plan,coaching,training"   # phase 2 added lesson-plan + coaching (media, worker); training = its text + certificates surface
+# The mock lane's features are DERIVED, not hardcoded: a feature is covered iff its driver
+# (.claude/qa/shared/features/<feature>.cjs) carries a `@mock-lane` marker — meaning it drives via the
+# mock API, not the browser DOM. Add a mock-capable driver with the marker and the feature runs on the
+# mock lane automatically; there is no list to maintain. E2E_MOCK_FEATURES overrides for a one-off.
+# The fallback below is used only if the drivers dir can't be resolved (e.g. the inline copy in
+# .githooks/post-commit, which cannot read the tree).
+E2E_MOCK_FEATURES_DEFAULT="menu,language,status,lesson-plan,coaching,training,registration"
 
-e2e_mock_features() { printf '%s' "${E2E_MOCK_FEATURES:-$E2E_MOCK_FEATURES_DEFAULT}"; }
+e2e_mock_features() {
+  if [ -n "${E2E_MOCK_FEATURES:-}" ]; then printf '%s' "$E2E_MOCK_FEATURES"; return; fi
+  local dir; dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../qa/shared/features" 2>/dev/null && pwd)"
+  [ -n "$dir" ] || { printf '%s' "$E2E_MOCK_FEATURES_DEFAULT"; return; }
+  local out="" f
+  for f in "$dir"/*.cjs; do
+    [ -e "$f" ] || continue
+    head -5 "$f" | grep -qE '^//[[:space:]]*@mock-lane' || continue
+    out="${out:+$out,}$(basename "$f" .cjs)"
+  done
+  [ -n "$out" ] && printf '%s' "$out" || printf '%s' "$E2E_MOCK_FEATURES_DEFAULT"
+}
 
 # Chrome lane PAUSED by default (operator, 2026-09-15): the mock lane is LAYER 1 and the sole
 # auto-run for a commit. When paused, a commit drives ONLY the mock lane and the chrome-only features
 # (registration / observe / attendance) are NOT auto-nudged. Chrome is layer 2, to be wired later.
 # Re-enable the chrome lane with E2E_CHROME_ON=1. Returns 0 (paused) unless explicitly enabled.
 e2e_chrome_paused() { [ "${E2E_CHROME_ON:-0}" != "1" ]; }
+
+# Does <feature> have ANY driver at all? A touched feature with no driver (e.g. a brand-new feature,
+# or observe/attendance today) cannot run on the mock lane — its Gherkin spec is auto-authored by
+# Phase 1, but a mock driver must be written. e2e_needs_driver names those so the gap is visible
+# rather than silently skipped.
+e2e_needs_driver() {
+  local dir; dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../qa/shared/features" 2>/dev/null && pwd)"
+  [ -n "$dir" ] && [ ! -f "$dir/$1.cjs" ]
+}
 
 # e2e_split_lanes "<csv of features>"  → sets E2E_LANE_MOCK and E2E_LANE_CHROME (csv, may be empty)
 e2e_split_lanes() {

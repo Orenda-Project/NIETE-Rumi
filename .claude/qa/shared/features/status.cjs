@@ -1,3 +1,4 @@
+// @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
 /* status.feature — 8 @e2e scenarios (4 added 2026-09-08, PR #801 sync, bd-q25il).
  *
  * SURFACE CONTRACT since PR #801 (2026-09-08):

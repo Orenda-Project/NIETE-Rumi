@@ -110,6 +110,10 @@ REL_SYNC=".claude/.e2e-pending/git-$SHA.sync.json"
   if [ -n "${E2E_LANE_CHROME:-}" ]; then
     if [ "${E2E_CHROME_ON:-0}" != "1" ]; then
       echo "│ (chrome lane PAUSED — $E2E_LANE_CHROME not auto-run; mock is layer 1. Set E2E_CHROME_ON=1 to enable)"
+      if type e2e_needs_driver >/dev/null 2>&1; then
+        NODRV=""; for _cf in $(printf '%s' "$E2E_LANE_CHROME" | tr ',' ' '); do e2e_needs_driver "$_cf" && NODRV="${NODRV:+$NODRV,}$_cf"; done
+        [ -n "$NODRV" ] && echo "│ ⚠ NO MOCK DRIVER for: $NODRV — the spec is auto-authored, but scaffold it: python3 .claude/qa/shared/scaffold-driver.py <feature> (fill in the interactions), then it runs on mock"
+      fi
     else
       echo "│ Then WhatsApp Web (deployed build) →  $CMDS"
     fi

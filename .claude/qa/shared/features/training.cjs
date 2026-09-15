@@ -1,3 +1,4 @@
+// @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
 /* training.feature — the runnable @e2e scenarios in one process.
  *
  * Excluded by tag (matching the /niete-e2e default subset):

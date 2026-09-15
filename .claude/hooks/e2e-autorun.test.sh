@@ -831,11 +831,11 @@ except Exception: print("NO-BLOCK")'
 cat > "$LPENDING" <<JSON
 {"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
  "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
- "commands":["/niete-e2e menu","/niete-e2e registration"],"features":["menu","registration"],"fallback":false,"unmapped":[]}
+ "commands":["/niete-e2e menu","/niete-e2e observe"],"features":["menu","observe"],"fallback":false,"unmapped":[]}
 JSON
 LR=$(stop_reason_full)
 has "mixed: orders the mock lane for menu"         "$LR" "commit-e2e.sh $LSHA --features menu" yes
-has "mixed: keeps chrome for registration"         "$LR" "/niete-e2e registration"             yes
+has "mixed: keeps chrome for observe"         "$LR" "/niete-e2e observe"             yes
 has "mixed: does not send menu to chrome"          "$LR" "/niete-e2e menu"                     no
 has "mixed: says the mock lane tests THIS commit"  "$LR" "tests THIS commit"                    yes
 has "mixed: chrome half still carries the warning" "$LR" "CANNOT TEST WHAT WAS JUST COMMITTED"  yes
@@ -879,16 +879,16 @@ unset E2E_CHROME_ON
 cat > "$LPENDING" <<JSON
 {"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
  "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
- "commands":["/niete-e2e menu","/niete-e2e registration"],"features":["menu","registration"],"fallback":false,"unmapped":[]}
+ "commands":["/niete-e2e menu","/niete-e2e observe"],"features":["menu","observe"],"fallback":false,"unmapped":[]}
 JSON
 LR=$(stop_reason_full)
 has "paused: mock lane still ordered for menu" "$LR" "commit-e2e.sh $LSHA --features menu" yes
-has "paused: chrome DROPPED for registration"  "$LR" "/niete-e2e registration"             no
+has "paused: chrome DROPPED for observe"  "$LR" "/niete-e2e observe"             no
 # a commit that touched ONLY a chrome-only feature has nothing to run when chrome is paused → NO-BLOCK
 cat > "$LPENDING" <<JSON
 {"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
  "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
- "commands":["/niete-e2e registration"],"features":["registration"],"fallback":false,"unmapped":[]}
+ "commands":["/niete-e2e observe"],"features":["observe"],"fallback":false,"unmapped":[]}
 JSON
 LR=$(stop_reason_full)
 has "paused: chrome-only commit does not wedge the turn" "$LR" "NO-BLOCK" yes

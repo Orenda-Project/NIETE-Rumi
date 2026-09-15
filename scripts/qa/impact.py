@@ -116,10 +116,30 @@ def ledger_rows_added(repo, rng):
     return out
 
 
+def ledger_misses(repo, rng):
+    """{feature: cassette_misses} for runs.jsonl rows ADDED in the range with misses > 0. A mock-lane
+    run that could not replay a vendor answer records it here; the PR comment turns it into an @-mention
+    so the cassette owner records/updates the fixture."""
+    r = _git(repo, "diff", rng, "--", LEDGER)
+    out = {}
+    for line in r.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        try:
+            row = json.loads(line[1:])
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("feature"):
+            m = row.get("cassette_misses") or 0
+            if m:
+                out[row["feature"]] = max(out.get(row["feature"], 0), int(m))
+    return out
+
+
 def _empty(base, head, error=""):
     return {"base": base, "head": head, "range": None, "error": error, "paths": [],
             "features": [], "commands": [], "fallback": False, "unmapped": [],
-            "full_suite": None, "per_feature": {},
+            "full_suite": None, "per_feature": {}, "cassette_misses": {},
             "verdict": {"spec_freshness": "n/a", "e2e_proof": "n/a"}}
 
 
@@ -160,7 +180,8 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
 
     res = _empty(base, head)
     res.update({"range": rng, "paths": paths, "features": seld["features"], "commands": seld["commands"],
-                "fallback": seld["fallback"], "unmapped": seld["unmapped"], "full_suite": seld["full_suite"]})
+                "fallback": seld["fallback"], "unmapped": seld["unmapped"], "full_suite": seld["full_suite"],
+                "cassette_misses": ledger_misses(repo, rng)})
     for f in brief["features"]:
         name = f["feature"]
         spec_changed = "%s/%s.feature" % (SPEC_DIR.replace(os.sep, "/"), name) in paths
@@ -246,6 +267,19 @@ def render_markdown(res, freshness="warn", proof="warn"):
         L += ["> ⚠️ Unmapped in-scope files pulled in the SAFE subset: %s — add them to `feature-map.yaml`." % ", ".join("`%s`" % u for u in res["unmapped"]), ""]
     if res["full_suite"]:
         L += ["> This range targets a promotion branch: the map asks for `%s` (the whole suite)." % res["full_suite"], ""]
+    misses = res.get("cassette_misses") or {}
+    if misses:
+        owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mahnoor").strip()
+        owner = owner if owner.startswith("@") else "@" + owner
+        total = sum(misses.values())
+        per = ", ".join("`%s` (%d)" % (f, n) for f, n in sorted(misses.items()))
+        L += ["### 📼 Cassettes missing — %s please record" % owner,
+              "The mock lane could not replay **%d vendor call(s)** — no recorded cassette for: %s." % (total, per),
+              "Record/update them once (needs `keys/niete-record.env` with real vendor keys), then commit the fixtures:",
+              "```",
+              "bash .claude/qa/shared/commit-e2e.sh %s --features %s --record-missing" % (res["head"][:12], ",".join(sorted(misses))),
+              "```",
+              "Commit the new `.claude/qa/fixtures/cassettes/*.json` + `runs.jsonl`; this check clears when the misses reach 0.", ""]
     return "\n".join(L)
 
 

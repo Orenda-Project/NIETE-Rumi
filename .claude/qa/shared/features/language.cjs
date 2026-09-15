@@ -1,3 +1,4 @@
+// @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
 /* language.feature — the runnable @e2e subset in one process (added for the 2026-09-02 pre-merge run).
  * WRITES users.preferred_language on the driver via the bot itself (one-writer rule) and ends on the
  * driver's pre-run language, read from the DB at the start. Excluded here: @wip/@draft, @config-gated

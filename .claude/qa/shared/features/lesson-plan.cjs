@@ -1,3 +1,4 @@
+// @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
 /* lesson-plan.feature — 10 @e2e scenarios in one process. */
 // Fixtures live in the tracked fixtures tree, NOT a results dir: results are untracked (this PR
 // gitignores them) and 2026-08-26-all is EMPTY on a fresh checkout — every upload then fails with

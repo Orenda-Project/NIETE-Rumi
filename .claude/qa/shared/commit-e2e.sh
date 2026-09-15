@@ -16,7 +16,11 @@
 set -uo pipefail
 QA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$QA/../../.." && pwd)"
-MOCK_FEATURES="${E2E_MOCK_FEATURES:-menu,language,status,lesson-plan,coaching,training}"
+# The mock lane's features are DERIVED from the `@mock-lane` marker each mock-capable driver carries
+# (lib/mock-lane.sh). Source the same resolver the hooks use instead of a second hardcoded list, so
+# adding a marked driver enrols the feature everywhere at once. E2E_MOCK_FEATURES still overrides.
+. "$ROOT/.claude/hooks/lib/mock-lane.sh" 2>/dev/null || true
+MOCK_FEATURES="$(type e2e_mock_features >/dev/null 2>&1 && e2e_mock_features || echo "menu,language,status,lesson-plan,coaching,training,registration")"
 
 REF="HEAD"; FORCE=""; RECORD="" RECORD_MODE=""
 while [ $# -gt 0 ]; do case "$1" in

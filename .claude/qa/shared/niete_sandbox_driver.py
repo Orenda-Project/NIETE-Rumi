@@ -121,16 +121,35 @@ def cmd_reset_state(creds, a):
     return 0
 
 
+def cmd_unregister(creds, a):
+    """Clear the driver's registration (first_name=NULL, registration_completed=false) so /register
+    opens the Flow. The registration feature's precondition — an UNREGISTERED driver — which the mock
+    lane otherwise ensures away. Registration re-registers on completion; run-suite restores the driver
+    with `ensure` afterwards so later features still see a registered account. Sandbox driver only."""
+    row = lookup(creds, a.phone)
+    if not row:
+        print("driver %s does not exist — nothing to unregister" % a.phone); return 0
+    if not row.get("first_name") and not row.get("registration_completed"):
+        print("driver %s already unregistered" % a.phone); return 0
+    if not a.yes_write:
+        print("DRY RUN: would UNREGISTER driver %s (first_name=NULL) so /register opens the Flow" % a.phone); return 0
+    _write_users(creds, "PATCH", "users?phone_number=eq." + a.phone,
+                 {"first_name": None, "registration_completed": False, "registration_state": None,
+                  "conversation_state": None})
+    print("driver %s UNREGISTERED (first_name cleared) — /register now opens the Flow" % a.phone)
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("lookup", "ensure", "reset-state"):
+    for name in ("lookup", "ensure", "reset-state", "unregister"):
         sp = sub.add_parser(name)
         sp.add_argument("--phone", required=True)
         sp.add_argument("--yes-write", action="store_true")
     a = p.parse_args(argv)
     creds = t._creds(ENV)
-    return {"lookup": cmd_lookup, "ensure": cmd_ensure, "reset-state": cmd_reset_state}[a.cmd](creds, a)
+    return {"lookup": cmd_lookup, "ensure": cmd_ensure, "reset-state": cmd_reset_state, "unregister": cmd_unregister}[a.cmd](creds, a)
 
 
 if __name__ == "__main__":

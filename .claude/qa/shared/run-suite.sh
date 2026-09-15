@@ -207,6 +207,15 @@ for f in $FEATURES; do
       run_feature menu
       # M03 taps Classroom Coaching and leaves AWAITING_CLASSROOM_AUDIO, which swallows every free text after it
       reset_state after-menu;;
+    registration)
+      if [ "$METHOD" = mock ]; then
+        # Registration needs an UNREGISTERED driver (first_name null) so /register opens the Flow — the
+        # mock lane otherwise ensures the driver registered. Un-register before, re-register after so
+        # later features still see a registered account. Sandbox driver only. (operator 2026-09-15)
+        python3 "$QA/niete_sandbox_driver.py" unregister --phone "$DRIVER" --yes-write >>"$LOG" 2>&1 || true
+        run_feature registration
+        python3 "$QA/niete_sandbox_driver.py" ensure --phone "$DRIVER" --yes-write >>"$LOG" 2>&1 || true
+      else run_feature registration; fi;;
     *) run_feature "$f";;
   esac
 done

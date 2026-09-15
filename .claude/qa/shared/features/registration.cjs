@@ -1,3 +1,4 @@
+// NOT @mock-lane yet — this driver is mock-CAPABLE (api.fresh, no browser DOM) and run-suite has an un-register seed, but the bot caches the teacher's registration at stack startup and the stack is shared across features, so R01/R03/R06 see the cached 'registered' state. Re-add the @mock-lane marker once the bot's user cache is invalidated on the unregister (or registration gets its own stack).
 /* registration.feature — 13 @e2e scenarios across four Flow screens, one process.
  * Precondition: the driver must be UNREGISTERED (first_name null) so /register opens the Flow.
  * Scenario order is deliberate — it walks the Flow once and harvests several scenarios per pass. */
@@ -114,18 +115,22 @@ exports.run = async ({ api, rec, sleep }) => {
   s = t();
   if (orgDetails) { await api.flowType('E2E Org'); await api.flowClick('Complete Registration', { settleMs: 1500 }); }
   api.closeFlow();
-  const greet = await api.ev(`(async()=>{
-    const wa=window.__wa; wa.restore();
-    const t0=Date.now();
-    while(Date.now()-t0 < 90000){
-      const last=wa.readLast(1)[0];
-      if(last && !last.mine && /registering|شکریہ|all set|portal/i.test(last.txt))
-        return JSON.stringify({ok:true,waitedMs:Date.now()-t0,txt:last.txt});
-      await new Promise(r=>setTimeout(r,700));
+  // Poll the replies for the registration confirmation. Mock-capable: api.fresh() reads the mock
+  // outbox on the mock lane and the WhatsApp Web transcript on chrome — the same helper lesson-plan
+  // uses on both lanes. (Was a browser-only api.ev/window.__wa read, which never ran on the mock lane.)
+  const GREET = /registering|شکریہ|all set|portal/i;
+  const gt0 = Date.now();
+  const g = { ok: false, waitedMs: 0, txt: '' };
+  while (Date.now() - gt0 < 90000) {
+    for (const rr of await api.fresh()) {
+      const txt = rr.txt || '';
+      if (txt) g.txt = txt;
+      if (GREET.test(txt)) { g.ok = true; g.txt = txt; break; }
     }
-    return JSON.stringify({ok:false,waitedMs:Date.now()-t0,txt:(wa.readLast(1)[0]||{}).txt||''});
-  })()`);
-  const g = JSON.parse(greet);
+    if (g.ok) break;
+    await sleep(700);
+  }
+  g.waitedMs = Date.now() - gt0;
   const hasLink = /portal\/setup\//.test(g.txt || '');
   const nameInGreeting = /Mahnoor/.test(g.txt || '');
   rec('R03', 'Completing the Flow registers the teacher', ...V(g.ok && hasLink,
