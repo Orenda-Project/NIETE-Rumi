@@ -282,6 +282,33 @@ describe('/roster endpoint — the class-teacher picker on the saved-roster view
     for (const t of res.data.teachers) expect([...t.title].length).toBeLessThanOrEqual(30);
   });
 
+  // bd-3e0v5: on real phones a payload key named `action` never arrives (the Flow envelope
+  // owns it — prod logged screenDataKeys: [] for every ROSTER_VIEW submit), so the choice
+  // travels as `next_step`. These drive the endpoint with exactly what the Flow now posts.
+  it('bd-3e0v5: next_step=teacher (the key the published Flow posts) opens the class-teacher picker', async () => {
+    boot();
+    await endpoint.handleRosterDataExchange('u1', 'SCHOOL_STATUS', { next_action: 'open:cls-1' });
+    const res = await endpoint.handleRosterDataExchange('u1', 'ROSTER_VIEW', { next_step: 'teacher' });
+    expect(res.screen).toBe('CLASS_TEACHER');
+    expect(res.data.teachers.map((t) => t.id)).toEqual(expect.arrayContaining([TEACHER, 'none']));
+  });
+
+  it('bd-3e0v5: next_step=details opens the class-details form', async () => {
+    boot();
+    await endpoint.handleRosterDataExchange('u1', 'SCHOOL_STATUS', { next_action: 'open:cls-1' });
+    const res = await endpoint.handleRosterDataExchange('u1', 'ROSTER_VIEW', { next_step: 'details' });
+    expect(res.screen).toBe('CLASS_DETAILS');
+  });
+
+  it('bd-3e0v5: next_step=edit, and a submit whose data arrived empty, both open the editor', async () => {
+    boot();
+    await endpoint.handleRosterDataExchange('u1', 'SCHOOL_STATUS', { next_action: 'open:cls-1' });
+    expect((await endpoint.handleRosterDataExchange('u1', 'ROSTER_VIEW', { next_step: 'edit' })).screen).toBe('ROSTER_EDIT');
+    boot();
+    await endpoint.handleRosterDataExchange('u1', 'SCHOOL_STATUS', { next_action: 'open:cls-1' });
+    expect((await endpoint.handleRosterDataExchange('u1', 'ROSTER_VIEW', {})).screen).toBe('ROSTER_EDIT');
+  });
+
   it('the old published Flow still opens the editor — a ROSTER_VIEW submit with action=edit (or none) is unchanged', async () => {
     boot();
     await endpoint.handleRosterDataExchange('u1', 'SCHOOL_STATUS', { next_action: 'open:cls-1' });
@@ -353,14 +380,14 @@ describe('roster Flow asset — the CLASS_TEACHER screen', () => {
     return out;
   };
 
-  it('ROSTER_VIEW carries a data-bound action group and routes to CLASS_TEACHER', () => {
-    const group = fields('ROSTER_VIEW').find((f) => f.name === 'action');
+  it('ROSTER_VIEW carries a data-bound next_step group (never `action`, bd-3e0v5) and routes to CLASS_TEACHER', () => {
+    const group = fields('ROSTER_VIEW').find((f) => f.name === 'next_step');
     expect(group).toBeTruthy();
     expect(group.type).toBe('RadioButtonsGroup');
     expect(group.required).toBe(true);
     expect(group['data-source']).toBe('${data.actions}');
     const footer = fields('ROSTER_VIEW').find((f) => f.type === 'Footer');
-    expect(footer['on-click-action'].payload.action).toBe('${form.action}');
+    expect(footer['on-click-action'].payload.next_step).toBe('${form.next_step}');
     expect(FLOW.routing_model.ROSTER_VIEW).toEqual(expect.arrayContaining(['ROSTER_EDIT', 'CLASS_TEACHER']));
     expect(FLOW.routing_model.CLASS_TEACHER).toEqual(['SAVED']);
   });
