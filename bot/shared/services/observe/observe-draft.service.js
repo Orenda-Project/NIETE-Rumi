@@ -20,6 +20,9 @@ const { getObservePack } = require('./observe-framework');   // FEAT-093 bd-52 �
 const { logToFile } = require('../../utils/logger');
 const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 
+/** Statuses past which an observation is closed and must not be reopened. */
+const TERMINAL_STATUSES = ['cancelled', 'abandoned'];
+
 // D15 — full text stays in analysis_data regardless of what the form shows.
 // bd-2217: was 300, which visibly cut every Evidence note mid-sentence (Warda +
 // Mubashar, ICT, 2026-07-21). The Flow's TextArea declares no max-chars, so
@@ -560,10 +563,23 @@ async function applyObserverEdits(sessionId, edits) {
     }
   }
 
-  const { error } = await supabase.from('coaching_sessions')
+  // The predicate closes the window the endpoint's read cannot: a cancel that
+  // lands between the load and this write must not be overwritten by a form
+  // that was already open. Both guards are needed — the read stops the common
+  // case, the predicate stops the race.
+  const { data: written, error } = await supabase.from('coaching_sessions')
     .update(patch)
-    .eq('id', sessionId);
+    .eq('id', sessionId)
+    .not('status', 'in', `(${TERMINAL_STATUSES.join(',')})`)
+    .select('id');
   if (error) throw new Error(`observe: failed to persist v2 edits: ${error.message}`);
+  if (!written || !written.length) {
+    // Nothing matched: the observation went terminal under us. Say so rather
+    // than reporting a successful edit — a caller that believes this succeeded
+    // sends the teacher a report that was cancelled.
+    logToFile('🚫 observe: observer edits refused — observation is terminal', { sessionId });
+    return { refused: 'terminal' };
+  }
 
   logToFile('📝 observe: observer edits applied (v2)', { sessionId, ...summary });
   return summary;
