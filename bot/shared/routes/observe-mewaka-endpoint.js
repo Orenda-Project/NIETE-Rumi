@@ -16,6 +16,7 @@
 
 const supabase = require('../config/supabase');
 const redisService = require('../services/cache/railway-redis.service');
+const { observeStrings } = require('../services/observe/observe-strings');
 const ObserveDraft = require('../services/observe/observe-draft.service');
 const { logToFile } = require('../utils/logger');
 
@@ -38,6 +39,12 @@ const nextScreen = (screenId) => {
   const i = screens.indexOf(screenId);
   return i >= 0 && i < screens.length - 1 ? screens[i + 1] : 'SUCCESS';
 };
+
+/**
+ * Statuses past which an observation is closed. A stale Flow submit must not
+ * reopen one. Kept beside the two guards that read it so they cannot drift.
+ */
+const TERMINAL_STATUSES = ['cancelled', 'abandoned'];
 
 function errorResponse(message) {
   return { data: { error: { message } } };
@@ -79,6 +86,21 @@ async function loadSessionFromToken(flowToken) {
   if (session.observation_type !== 'leader_observation') return { error: 'Not a leader observation' };
   const owner = session.observer_user_id || session.user_id;
   if (owner !== userId) return { error: 'Not your observation' };
+  // A terminal observation is not editable. The review Flow is already sitting
+  // in the coach's chat when she cancels, so without this the stale form still
+  // submits, the row is promoted, and the teacher receives a report the coach
+  // explicitly cancelled — while her cancel showed a SUCCESS screen. Prod, 15
+  // Sep 2026: 113 cancelled leader observations, 103 still awaiting a debrief
+  // and armed, none of them reachable from the menu, so a revival is invisible
+  // until the report lands.
+  if (TERMINAL_STATUSES.includes(session.status)) {
+    let lang = 'en';
+    try {
+      const { languageFor } = require('../services/observe/observe-language');
+      lang = await languageFor('coach', session);
+    } catch (_) { /* the refusal must never depend on a language lookup */ }
+    return { error: observeStrings(lang).flow_terminal_refused };
+  }
   return { session, sessionId, userId };
 }
 
@@ -141,7 +163,18 @@ async function handleObserveMewakaRequest(decrypted) {
       const merged = await bufferEdits(sessionId, data);
 
       if (currentScreen === packScreens().last) {
-        await ObserveDraft.applyObserverEdits(sessionId, merged);
+        const applied = await ObserveDraft.applyObserverEdits(sessionId, merged);
+        if (applied && applied.refused) {
+          // Went terminal between the load above and the write. Do not reach
+          // SUCCESS: the SUCCESS screen's extension_message_response is what
+          // starts the teacher-report chain.
+          let lang = 'en';
+          try {
+            const { languageFor } = require('../services/observe/observe-language');
+            lang = await languageFor('coach', session);
+          } catch (_) { /* the refusal must never depend on a language lookup */ }
+          return errorResponse(observeStrings(lang).flow_terminal_refused);
+        }
         await redisService.delete(editsKey(sessionId));
         return {
           screen: 'SUCCESS',

@@ -46,6 +46,8 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn(async () => ({})),
   sendFlow: jest.fn(async () => ({})),
   sendInteractiveMessage: jest.fn(async () => ({})),
+  // The capture ack now carries Okay / Cancel buttons.
+  sendInteractiveButtons: jest.fn(async () => ({})),
 }));
 jest.mock('../../shared/services/observe/observe-state.service', () => {
   const state = { current: null };
