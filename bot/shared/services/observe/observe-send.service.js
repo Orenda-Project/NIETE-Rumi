@@ -20,6 +20,7 @@ const supabase = require('../../config/supabase');
 const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { languageFor, clampToMarket } = require('./observe-language');
+const { metaErrorCodeOf, RE_ENGAGEMENT_ERROR_CODE } = require('../../config/meta-messaging-window');
 const { logToFile } = require('../../utils/logger');
 
 const BTN = {
@@ -609,12 +610,30 @@ async function _extractNotes(session, foName, notesLang) {
 
 // Send the report package (image + companion) to one destination.
 // Sends are CHECKED — sendImageFromBuffer/sendMessage return false on failure.
+//
+// The failure must arrive at the caller WITH the reason. Both senders catch the
+// Graph error, log it and answer `false`, so the Meta error code was available
+// and then thrown away one frame below the only code that could act on it —
+// which is how a re-engagement refusal (131047, remedy: send the invite
+// template) became indistinguishable from an invalid parameter (remedy: tell
+// the coach it failed). Each send now reports its error through the senders'
+// `onError` seam and the thrown Error carries the code.
 async function _sendPackage(dest, pngBuffer, caption, companionText) {
-  const sentImg = await WhatsAppService.sendImageFromBuffer(dest, pngBuffer, caption);
-  if (sentImg === false) throw new Error('observe send: report image send failed');
+  let lastError = null;
+  const capture = { onError: (err) => { lastError = err; } };
+
+  const fail = (message) => {
+    const err = new Error(message);
+    err.cause = lastError;
+    err.metaErrorCode = metaErrorCodeOf(lastError);
+    return err;
+  };
+
+  const sentImg = await WhatsAppService.sendImageFromBuffer(dest, pngBuffer, caption, 'image/png', capture);
+  if (sentImg === false) throw fail('observe send: report image send failed');
   if (companionText) {
-    const sentTxt = await WhatsAppService.sendMessage(dest, companionText);
-    if (sentTxt === false) throw new Error('observe send: companion send failed');
+    const sentTxt = await WhatsAppService.sendMessage(dest, companionText, capture);
+    if (sentTxt === false) throw fail('observe send: companion send failed');
   }
 }
 
@@ -634,14 +653,72 @@ async function _sendPackage(dest, pngBuffer, caption, companionText) {
  * NEITHER the coach nor the teacher heard anything again (R17/18). Record the
  * failure and tell the coach so it's visible + one-tap retryable via /observe.
  */
+/**
+ * A window that closed between our check and Meta's answer is not a failure —
+ * it is the cold-teacher path arriving late, and it already has a remedy.
+ *
+ * Our check cuts a few minutes inside Meta's 24 hours, but Meta measures from
+ * its own clock and against its own record of her last inbound, so the two can
+ * disagree at the edge. When they do, Meta answers 131047 and the report is
+ * refused. Recording that as `send_failed` leaves the coach with a dead end and
+ * the teacher with nothing, while the invite template she would have been sent a
+ * minute earlier still works. So: flag the window closed for the next send,
+ * send the template, and hand the delivery to the untapped planner that already
+ * owns "invite sent, waiting for her tap".
+ *
+ * Not on the teacher_tap path: she has just tapped, so the window is open by
+ * definition, and answering a tap with another invite is a loop.
+ */
+async function _handleWindowClosedMidSend(sessionId, foPhone, S, delivery, foName, err) {
+  logToFile('📨 observe send: window closed mid-send — falling back to the invite template', {
+    sessionId, metaErrorCode: err && err.metaErrorCode,
+  });
+  // Next send for this teacher skips the free path instead of re-learning this.
+  try {
+    const metaWindowCache = require('../quiz/meta-window-cache.service');
+    await metaWindowCache.markWindowClosed(delivery.teacher_phone);
+  } catch (cacheErr) {
+    logToFile('⚠️ observe send: could not flag the closed window (non-fatal)', {
+      sessionId, error: cacheErr.message,
+    });
+  }
+
+  try {
+    await _sendReportTemplate(delivery, foName, sessionId);
+  } catch (tplErr) {
+    // The template is the last route in. If it fails too, this IS a failure.
+    return false;
+  }
+  await mergeTeacherDelivery(sessionId, {
+    status: 'awaiting_teacher_tap',
+    template_sent_at: new Date().toISOString(),
+  });
+  await WhatsAppService.sendMessage(foPhone, S.send_template_queued_fo).catch(() => {});
+  return true;
+}
+
 async function _handleDeliverFailure(sessionId, foPhone, S, path, err, meta = {}) {
+  // Read the code BEFORE filing this as a failure. A 131047 on the direct path
+  // means the window closed between our check and the send; the report is not
+  // lost, it just needs the invite route instead.
+  if (path === 'direct'
+      && err && err.metaErrorCode === RE_ENGAGEMENT_ERROR_CODE
+      && meta.delivery && meta.delivery.teacher_phone) {
+    const recovered = await _handleWindowClosedMidSend(
+      sessionId, foPhone, S, meta.delivery, meta.foName || '', err);
+    if (recovered) return;
+    // Template also refused — fall through and record the failure honestly.
+  }
+
   logToFile('❌ observe send: teacher delivery failed', {
     sessionId, path, template: meta.tpl && meta.tpl.name,
+    metaErrorCode: err && err.metaErrorCode,
     error: err && err.message, stack: err && err.stack,
   });
   await mergeTeacherDelivery(sessionId, {
     status: 'send_failed',
     last_error: err && err.message,
+    meta_error_code: (err && err.metaErrorCode) || null,
     failed_at: new Date().toISOString(),
   }).catch(() => {});
   await WhatsAppService.sendMessage(foPhone, S.send_failed_fo).catch(() => {});
@@ -668,6 +745,17 @@ async function processTeacherReport(sessionId, payload = {}) {
   }
 
   const phase = payload.phase || 'preview';
+
+  // The invite is already out with this teacher; the untapped planner owns what
+  // happens next (one nudge, then it stops and tells the coach). A redelivery
+  // of the deliver job must not put a second invite in front of her — which the
+  // queue does routinely, and which the window-closed fallback below now makes
+  // reachable on a path that previously dead-ended at send_failed. teacher_tap
+  // is exempt by definition: that phase exists to serve the tap on that invite.
+  if (phase === 'deliver' && delivery.status === 'awaiting_teacher_tap' && delivery.template_sent_at) {
+    logToFile('🔭 observe send: invite already sent — the untapped planner owns this one', { sessionId });
+    return;
+  }
 
   if (phase === 'preview') {
     const { buildCompanionText } = require('./observe-teacher-report');
@@ -774,7 +862,10 @@ async function processTeacherReport(sessionId, payload = {}) {
       const png = await downloadFromR2(delivery.report_key);
       await _sendPackage(delivery.teacher_phone, png, delivery.caption || '', delivery.companion_text);
     } catch (sendErr) {
-      await _handleDeliverFailure(sessionId, foPhone, S, 'direct', sendErr);
+      // `phase` decides whether the window-closed fallback is even available:
+      // on a teacher_tap the window is open by definition.
+      await _handleDeliverFailure(sessionId, foPhone, S,
+        phase === 'deliver' ? 'direct' : 'direct_tap', sendErr, { delivery, foName });
       return;
     }
     // bd-2675: the tap is the event that closes the loop — it stops every
