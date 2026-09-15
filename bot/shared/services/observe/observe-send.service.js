@@ -418,6 +418,140 @@ async function processUntappedDelivery(sessionId, nowMs = Date.now()) {
   return decision;
 }
 
+/**
+ * The COACH's phone, resolved from `observer_user_id` and nowhere else.
+ *
+ * `session.users` on a bound observation is the OBSERVED TEACHER. Reading it to
+ * decide who to message is how a teacher ends up receiving a chase-up about
+ * herself, in someone else's language, about work she did not do. When the
+ * coach cannot be resolved we go silent rather than message the wrong person —
+ * the same call the mid-flight watchdog and the photo-gate sweep already make.
+ */
+async function _resolveCoach(session) {
+  const observerId = session && session.observer_user_id;
+  if (!observerId) return null;
+  const { data: coach, error } = await supabase
+    .from('users')
+    .select('id, name, phone_number, preferred_language')
+    .eq('id', observerId)
+    .maybeSingle();
+  if (error || !coach || !coach.phone_number) {
+    logToFile('⚠️ observe send: could not resolve the coach — staying silent', {
+      sessionId: session && session.id, observerUserId: observerId,
+    }, 'error');
+    return null;
+  }
+  return coach;
+}
+
+/**
+ * Claim this row for this tick, or lose the race.
+ *
+ * Fifteen-minute ticks across several replicas classify the same row at the
+ * same moment, so without a claim the coach gets the same reminder once per
+ * replica. The claim IS the state write, compare-and-set on `updated_at`: the
+ * replica whose write matches the `updated_at` it read wins, and every other
+ * replica's write matches nothing and returns zero rows. PostgREST answers an
+ * unmatched filter with an empty result rather than an error, so the row count
+ * is the thing to check — not `error`.
+ *
+ * The claim is written BEFORE the message. A crash between the two costs one
+ * unsent reminder; the other order costs a duplicate on every later tick.
+ */
+async function _claimDelivery(sessionId, seenUpdatedAt, patch) {
+  const { data: row, error } = await supabase
+    .from('coaching_sessions')
+    .select('analysis_data')
+    .eq('id', sessionId)
+    .single();
+  if (error || !row) throw new Error(`undelivered claim: load failed: ${error && error.message}`);
+  const analysis = row.analysis_data || {};
+  const merged = {
+    ...analysis,
+    teacher_delivery: { ...(analysis.teacher_delivery || {}), ...patch },
+  };
+
+  let q = supabase.from('coaching_sessions').update({ analysis_data: merged }).eq('id', sessionId);
+  // A row read without an updated_at cannot be claimed safely, so it is not
+  // claimed at all rather than claimed unguarded.
+  if (!seenUpdatedAt) return { won: false };
+  q = q.eq('updated_at', seenUpdatedAt);
+  const { data: claimed, error: upErr } = await q.select('id');
+  if (upErr) throw new Error(`undelivered claim: update failed: ${upErr.message}`);
+  return { won: Array.isArray(claimed) ? claimed.length > 0 : !!claimed };
+}
+
+/**
+ * Act on ONE finished observation whose report never reached the teacher.
+ *
+ * The planner decides (observe-undelivered.service); this resolves the coach,
+ * claims the row and sends — or, past the age ceiling, closes it and says
+ * nothing to anyone. Called by the recovery sweep.
+ */
+async function processUndeliveredDelivery(sessionId, nowMs = Date.now()) {
+  const { classifyUndelivered } = require('./observe-undelivered.service');
+  const session = await _loadSession(sessionId);
+  const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
+
+  const decision = classifyUndelivered({
+    deliveryStatus: delivery.status,
+    sessionStatus: session.status,
+    // When the report became available. `updated_at` is the last time anything
+    // touched the row, which on a finished-and-abandoned observation IS the
+    // moment it stopped moving.
+    finishedAt: session.updated_at || session.created_at,
+    reminded_at: delivery.reminded_at,
+    reminder_count: delivery.reminder_count,
+    gave_up_at: delivery.gave_up_at,
+  }, nowMs);
+  if (decision.action === 'skip') return decision;
+
+  const silent = decision.action === 'expire';
+  // Resolve the recipient BEFORE writing anything: a reminder we cannot deliver
+  // should leave the row untouched so a later tick can try again once the
+  // coach's record is fixed. An expire messages nobody, so it needs no coach.
+  let coach = null;
+  if (!silent) {
+    coach = await _resolveCoach(session);
+    if (!coach) return { action: 'skip', reason: 'coach_unresolved' };
+  }
+
+  const iso = new Date(nowMs).toISOString();
+  const patch = decision.action === 'remind'
+    ? { reminded_at: iso, reminder_count: Number(delivery.reminder_count || 0) + 1 }
+    : { gave_up_at: iso, gave_up_reason: decision.reason };
+
+  const { won } = await _claimDelivery(sessionId, session.updated_at, patch);
+  if (!won) {
+    logToFile('🤝 observe send: another replica claimed this undelivered report first', { sessionId });
+    return { action: 'skip', reason: 'lost_race' };
+  }
+
+  if (silent) {
+    logToFile('🕰️ observe send: expired an unsent report, nobody messaged', {
+      sessionId, reason: decision.reason,
+    });
+    return decision;
+  }
+
+  const lang = await languageFor('coach', session);
+  const S = observeStrings(lang);
+  const name = delivery.teacher_name
+    || (session.users && session.users.name)
+    || S.send_undelivered_unnamed_teacher
+    || '';
+  const key = decision.action === 'remind'
+    ? 'send_undelivered_reminder_fo'
+    : 'send_undelivered_gave_up_fo';
+  await WhatsAppService.sendMessage(coach.phone_number, (S[key] || '').replace('{name}', name))
+    .catch(() => {});
+  logToFile(decision.action === 'remind'
+    ? '📨 observe send: reminded a coach about an unsent report'
+    : '🛑 observe send: stopped reminding about an unsent report',
+  { sessionId, reason: decision.reason });
+  return decision;
+}
+
 /** "Baadaye" — the session resurfaces as an unsent-report row in /observe. */
 async function handleSendLater(sessionId, from, user) {
   const lang = observeLang(user);
@@ -827,6 +961,7 @@ module.exports = {
   handleSendCancel,
   processTeacherReport,
   processUntappedDelivery,
+  processUndeliveredDelivery,
   clampToMarket,
   DETAILS_TEXT_STATES,
 };
