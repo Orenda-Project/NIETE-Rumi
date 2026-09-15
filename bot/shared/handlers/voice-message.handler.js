@@ -1115,7 +1115,11 @@ async function handleVoiceMessage(message, from, user = null) {
       typingController.stop();
 
       if (user && sessionId) {
-        await MenuService.sendMenu(from, user.id, sessionId, 'en', user);
+        // The teacher's own preference, not the literal 'en' that used to sit
+        // here. sendMenu resolves it again from her row, so this is the
+        // caller's best guess and no longer the deciding vote.
+        await MenuService.sendMenu(from, user.id, sessionId,
+          user.preferred_language || detectedLanguage, user);
       } else {
         await WhatsAppService.sendMessage(from, "Please complete registration first.");
       }

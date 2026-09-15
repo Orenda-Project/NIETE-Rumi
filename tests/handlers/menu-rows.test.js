@@ -66,15 +66,22 @@ describe('row 122 — the list is built per role, not hardcoded', () => {
   });
 
   it('no stray hardcoded menu_ row survives in the list payload', () => {
-    const start = WA.indexOf("title: 'My Features'");
+    // Anchored on the section title's catalog call, not on the English literal
+    // that used to sit there: the chrome moved into ux-strings so the menu is
+    // no longer built as English for a 99%-Urdu cohort.
+    const start = WA.indexOf("resolveUx('menuSectionTitle'");
     expect(start).toBeGreaterThan(-1);
     const block = WA.slice(start, start + 1200);
     expect(block).not.toMatch(/id:\s*'menu_[a-z_]+'/);
   });
 
-  it('the menu carries the user through to the row builder', () => {
+  it('the menu carries the user AND her language through to the row builder', () => {
     expect(WA).toMatch(/sendFeatureMenuListFallback\s*\(\s*to\s*,\s*user/);
-    expect(MENU).toMatch(/sendFeatureMenuCarousel\(from,\s*user\)/);
+    // Matched on the first two arguments, never the whole call: the language
+    // argument landing here is exactly the kind of signature change that turned
+    // four unrelated assertions red the last time this was anchored literally.
+    expect(MENU).toMatch(/sendFeatureMenuCarousel\(\s*from\s*,\s*user/);
+    expect(MENU).toMatch(/resolvedLanguage/);
   });
 });
 
