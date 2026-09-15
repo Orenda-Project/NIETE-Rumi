@@ -138,6 +138,42 @@ const UX_STRINGS = {
     ur: 'اسے کھولنے میں مسئلہ آ گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
 
+  // ─── short-recording length guidance ──────────────────────────────────────
+  // Sent BEFORE the chat answer, never instead of it: a recording that is too
+  // short for an analysis still gets answered. The wording says so explicitly,
+  // because the rule fires on a heuristic and the teacher may simply have been
+  // talking to the bot.
+  //
+  // Four keys, not two, because on the unprobed path the duration is genuinely
+  // unknown — WhatsApp sends none and ffprobe runs only on large files — and
+  // copy that names a length it does not have is the failure being fixed here.
+  //
+  // {min} is interpolated from the routing constant, so the number in the copy
+  // and the number in the branch cannot drift. Both placeholders are wrapped in
+  // U+2066 … U+2069 in the Urdu: a bare digit run after an Urdu word is
+  // re-ordered by the bidi algorithm, and a catalog string isolates the
+  // placeholder because the value's direction is unknowable at authoring time.
+  //
+  // The Urdu is impersonal throughout — «درکار ہیں», «بات کرنی تھی» — so the
+  // addressee's gender never appears. Bodies are 150-250 code points against a
+  // 1,024 cap; there is no header, footer or button, so nothing goes near 60/20.
+  coachingRecordingTooShort: {
+    en: 'That recording is about {minutes} minutes long. For a full teaching analysis I need at least {min} minutes of the lesson — send a longer one and I will analyse it. If you only meant to chat, carry on; my answer is below.',
+    ur: 'یہ ریکارڈنگ تقریباً \u2066{minutes}\u2069 منٹ کی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں — لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا۔ اگر صرف بات کرنی تھی تو نیچے جواب حاضر ہے۔',
+  },
+  coachingRecordingTooShortUnknownLength: {
+    en: 'For a full teaching analysis I need at least {min} minutes of the lesson. If that recording was shorter, send a longer one and I will analyse it. If you only meant to chat, carry on; my answer is below.',
+    ur: 'مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں۔ اگر یہ ریکارڈنگ اس سے مختصر تھی تو لمبی بھیجیں، تجزیہ ہو جائے گا۔ اگر صرف بات کرنی تھی تو نیچے جواب حاضر ہے۔',
+  },
+  coachingRecordingLooksShort: {
+    en: 'This sounds like a classroom recording, but it is about {minutes} minutes. A full teaching analysis needs at least {min} minutes of the lesson. Send a longer recording and I will analyse it — or if you only meant to chat, just carry on.',
+    ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے، مگر تقریباً \u2066{minutes}\u2069 منٹ کی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں۔ لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
+  },
+  coachingRecordingLooksShortUnknownLength: {
+    en: 'This sounds like a classroom recording. A full teaching analysis needs at least {min} minutes of the lesson, so send a longer one and I will analyse it — or if you only meant to chat, just carry on.',
+    ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں، اس لیے لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
+  },
+
   // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's
