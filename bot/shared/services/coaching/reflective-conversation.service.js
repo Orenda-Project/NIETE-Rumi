@@ -161,8 +161,20 @@ class ReflectiveConversationService {
         clampLanguage(languageCode),
       );
 
-      // Send voice question to teacher
-      await WhatsAppService.sendAudio(from, voiceBuffer, TEMP_DIR);
+      // Send voice question to teacher. The question goes out ONLY as this voice
+      // note, and sendAudio reports a failed send by returning false, not by
+      // throwing — so a failure used to leave the teacher with nothing to answer
+      // while the log below said the question was sent. Send it as text instead.
+      const voiceSent = await WhatsAppService.sendAudio(from, voiceBuffer, TEMP_DIR);
+      let delivery = 'voice';
+      if (voiceSent === false) {
+        logToFile('❌ Reflective question voice note not delivered — sending it as text', {
+          coachingSessionId,
+          questionNumber,
+        }, 'error');
+        const textSent = await WhatsAppService.sendMessage(from, question);
+        delivery = textSent === false ? 'none' : 'text';
+      }
 
       // Update conversation state - STORE THE QUESTION
       const existingQuestions = session.conversation_state.questions || [];
@@ -198,7 +210,14 @@ class ReflectiveConversationService {
       await CoachingSessionService.updateConversationState(coachingSessionId, updatedState);
       await CoachingSessionService.updateStatus(coachingSessionId, 'conducting_conversation');
 
-      logToFile('✅ Reflective question sent', { coachingSessionId, questionNumber });
+      if (delivery === 'none') {
+        logToFile('❌ Reflective question not delivered (voice and text both failed)', {
+          coachingSessionId,
+          questionNumber,
+        }, 'error');
+      } else {
+        logToFile('✅ Reflective question sent', { coachingSessionId, questionNumber, delivery });
+      }
     } catch (error) {
       logToFile('❌ Error in conductReflectiveConversation', {
         error: error.message,
@@ -357,7 +376,16 @@ class ReflectiveConversationService {
 
           try {
             const voiceBuffer = await ElevenLabsService.generateSpeechForLanguage(spokenForm, languageCode);
-            await WhatsAppService.sendAudio(from, voiceBuffer, TEMP_DIR);
+            // Same contract as the question above: a failed send returns false
+            // rather than throwing, so the catch below never saw it and the
+            // teacher was left without her closing acknowledgement.
+            const closerSent = await WhatsAppService.sendAudio(from, voiceBuffer, TEMP_DIR);
+            if (closerSent === false) {
+              logToFile('❌ Reflection closer voice note not delivered — sending it as text', {
+                coachingSessionId,
+              }, 'error');
+              await WhatsAppService.sendMessage(from, closingText);
+            }
           } catch (voiceError) {
             // Fallback to text if voice fails
             logToFile('⚠️  Voice generation failed for reflection closer, sending text', { error: voiceError.message });

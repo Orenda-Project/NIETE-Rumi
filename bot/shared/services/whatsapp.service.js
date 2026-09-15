@@ -515,7 +515,10 @@ class WhatsAppService {
       const ext = isOgg ? 'ogg' : 'mp3';
       const contentType = isOgg ? 'audio/ogg' : 'audio/mpeg';
 
-      // Save audio to temp file
+      // Save audio to temp file. Every other sender here creates its temp dir
+      // first; this one did not, so on a worker where the directory had never
+      // been made the write threw ENOENT and the voice note was never uploaded.
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
       const audioPath = path.join(tempDir, `audio_${Date.now()}.${ext}`);
       fs.writeFileSync(audioPath, audioBuffer);
 
