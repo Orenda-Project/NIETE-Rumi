@@ -5,8 +5,17 @@ const { WHATSAPP_TOKEN, PHONE_NUMBER_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { downloadFromR2, downloadMedia, extractKeyFromUrl } = require('../storage/r2');
 const { getOfferedLanguages } = require('../config/languages');
-const { resolveUx } = require('../config/ux-strings');
+const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { featureMenuRows } = require('../config/role-features');
+
+/**
+ * WhatsApp Cloud API limits this module has to respect, measured in CODE
+ * POINTS. Named here because both were previously implicit: the list had no
+ * row guard at all, and the button title was clipped with `.substring`, which
+ * counts UTF-16 units.
+ */
+const MAX_LIST_ROWS = 10;      // total across ALL sections, not per section
+const MAX_BUTTON_TITLE = 20;   // reply-button title
 
 // Prefer ASSET_BASE_URL; fall back to legacy ASSETS_BASE_URL. Empty when
 // neither is set — the carousel template builder below guards against that.
@@ -1149,7 +1158,11 @@ class WhatsAppService {
         type: 'reply',
         reply: {
           id: btn.id,
-          title: btn.title.substring(0, 20) // WhatsApp button title max 20 chars
+          // Code points, not UTF-16 units. `.substring(0, 20)` counts units, so
+          // a title whose 20th code point is astral (an emoji, or any character
+          // outside the BMP) is cut mid-surrogate — it passes locally and is
+          // mangled or rejected at Meta. Meta counts code points.
+          title: [...btn.title].slice(0, MAX_BUTTON_TITLE).join('')
         }
       }));
 
@@ -1678,10 +1691,10 @@ class WhatsAppService {
                 text: resolveUx('languagePickerFooter', { language: currentLanguage })
               },
               action: {
-                button: 'Languages',
+                button: resolveUx('languagePickerButton', { language: currentLanguage }),
                 sections: [
                   {
-                    title: 'Available Languages',
+                    title: resolveUx('languagePickerSectionTitle', { language: currentLanguage }),
                     // Built from the language registry so this list and the
                     // /settings dropdown cannot drift apart. It used to be ten
                     // hardcoded rows — eight of them languages ICT does not
@@ -2115,8 +2128,8 @@ class WhatsAppService {
    *
    * @returns {Promise<boolean>} true if the menu was delivered
    */
-  static async sendFeatureMenuCarousel(to, user = null) {
-    return await this.sendFeatureMenuListFallback(to, user);
+  static async sendFeatureMenuCarousel(to, user = null, language = undefined) {
+    return await this.sendFeatureMenuListFallback(to, user, language);
   }
 
   /**
@@ -2126,10 +2139,41 @@ class WhatsAppService {
    *
    * `user` is optional: omitted, featureMenuRows falls back to the DC-only
    * default, so no caller can accidentally cost a teacher her menu.
+   *
+   * `language` is the teacher's resolved preference. Before it existed, every
+   * string here was an English literal and the builder had no language argument
+   * to give its rows: 9,205 sends in nine days, 1,060 of them logged as `ur`,
+   * all 9,205 delivered in English to a cohort that is 99.0% Urdu. Omitted, it
+   * falls back to `user.preferred_language` and then to the floor, so a caller
+   * that forgets it still serves her own language rather than English.
    */
-  static async sendFeatureMenuListFallback(to, user = null) {
+  static async sendFeatureMenuListFallback(to, user = null, language = undefined) {
     try {
-      logToFile('Sending feature menu list fallback', { to });
+      const lang = clampLanguage(language || user?.preferred_language);
+      logToFile('Sending feature menu list fallback', { to, language: lang });
+
+      const rows = featureMenuRows(user, {
+        // presence-based gating: no published observe Flow, no HITL row
+        observeEnabled: Boolean(process.env.OBSERVE_MEWAKA_FLOW_ID),
+      }).map((row) => ({
+        id: row.id, // never translated — the reply router matches on this
+        title: resolveUx(row.titleKey, { language: lang }),
+        description: resolveUx(row.descriptionKey, { language: lang }),
+      }));
+
+      // WhatsApp's hard cap is 10 rows TOTAL across all sections, and it
+      // rejects the whole message — the teacher receives nothing. The builder
+      // is role-aware, so it is exactly the thing that grows to 11 rows one
+      // day. Refuse loudly here rather than let Meta refuse silently.
+      if (rows.length > MAX_LIST_ROWS) {
+        logToFile('❌ Feature menu refused — too many rows for a WhatsApp list', {
+          to,
+          rows: rows.length,
+          max: MAX_LIST_ROWS,
+          ids: rows.map((r) => r.id),
+        }, 'error');
+        return false;
+      }
 
       const payload = {
         messaging_product: 'whatsapp',
@@ -2140,23 +2184,25 @@ class WhatsAppService {
           type: 'list',
           header: {
             type: 'text',
-            text: "Here's what I can do!"
+            text: resolveUx('menuHeader', { language: lang })
           },
           body: {
-            text: "I'm your NIETE Teaching Assistant. I can help you with lesson plans, classroom coaching, reading assessments, and more. Choose a feature to get started:"
+            // Names no features on purpose. The old body listed the inventory
+            // and became the place the inventory went stale — it advertised
+            // reading assessment for weeks after the row was removed, and
+            // while the feature could not start at all. The rows are the
+            // inventory.
+            text: resolveUx('menuBody', { language: lang })
           },
           footer: {
-            text: 'Tap to see options'
+            text: resolveUx('menuFooter', { language: lang })
           },
           action: {
-            button: 'View Features',
+            button: resolveUx('menuButton', { language: lang }),
             sections: [
               {
-                title: 'My Features',
-                rows: featureMenuRows(user, {
-                  // presence-based gating: no published observe Flow, no HITL row
-                  observeEnabled: Boolean(process.env.OBSERVE_MEWAKA_FLOW_ID),
-                }),
+                title: resolveUx('menuSectionTitle', { language: lang }),
+                rows,
               }
             ]
           }
@@ -2178,13 +2224,16 @@ class WhatsAppService {
       const data = await response.json();
 
       if (!response.ok) {
+        // error, not the default info: a rejected send means the teacher
+        // received NOTHING — she typed /menu and the bot went silent — and at
+        // info level that never reaches error monitoring.
         logToFile('❌ Feature menu list fallback failed', {
           to,
           error: data.error?.message || 'Unknown error',
           errorCode: data.error?.code,
           errorDetails: JSON.stringify(data.error),
           status: response.status
-        });
+        }, 'error');
         return false;
       }
 

@@ -73,27 +73,43 @@ function canObserve(user) {
  * The main-menu rows, in a stable order. Training / Lesson Plans / Ask
  * Anything are unchanged for everyone; only the two role-shaped rows move.
  *
- * Copy is pinned here rather than at the send site so the caps below are
- * enforced in one place. WhatsApp list rows: title 24, description 72.
+ * This module owns the ROLE RULE and the row IDS. It does NOT own the copy:
+ * each row names its catalog keys and the send site resolves them in the
+ * teacher's language. The copy used to sit here as English literals, which is
+ * how 9,205 menu sends in nine days went out in English to a cohort that is
+ * 99.0% Urdu — the builder had no language argument to give them. Moving the
+ * copy to a per-language map HERE would only relocate the problem: a map
+ * outside the designated catalog is invisible to resolveUx, to the field-cap
+ * check and to the language audit that guards it.
+ *
+ * The ids are never translated. WhatsApp list rows stay tappable forever and
+ * the reply router matches on the id.
+ *
+ * Caps live with the copy (catalog): row title 24 code points, description 72.
+ *
+ * Still pure — no IO, and the one require is a static in-process catalog. That
+ * matters because this file is consulted on the audio hot path, where a
+ * failure would park a teacher's recording rather than return a 403.
  *
  * @param {object|null} user
  * @param {{observeEnabled?: boolean}} [opts] observeEnabled — the market has a
  *   published observe Flow (OBSERVE_MEWAKA_FLOW_ID). Presence-based gating,
  *   per the NIETE architecture rule: no Flow, no row.
+ * @returns {Array<{id: string, titleKey: string, descriptionKey: string}>}
  */
 function featureMenuRows(user, opts = {}) {
   const rows = [
     // Training first: it is the thing teachers are actually being asked to do,
     // and it was once missing from this list entirely.
-    { id: 'menu_training', title: 'Teacher Training', description: 'Continue your training modules and exams' },
-    { id: 'menu_lesson_plan', title: 'Lesson Plans', description: 'Create detailed PDF lesson plans' },
+    { id: 'menu_training', titleKey: 'menuRowTrainingTitle', descriptionKey: 'menuRowTrainingDesc' },
+    { id: 'menu_lesson_plan', titleKey: 'menuRowLessonPlanTitle', descriptionKey: 'menuRowLessonPlanDesc' },
   ];
 
   if (canSelfCoach(user)) {
-    rows.push({ id: 'menu_coaching', title: 'Classroom Coaching', description: 'Get teaching feedback from recordings' });
+    rows.push({ id: 'menu_coaching', titleKey: 'menuRowCoachingTitle', descriptionKey: 'menuRowCoachingDesc' });
   }
   if (canObserve(user) && opts.observeEnabled === true) {
-    rows.push({ id: 'menu_observe', title: 'Observe a Teacher', description: 'Record and score a classroom visit' });
+    rows.push({ id: 'menu_observe', titleKey: 'menuRowObserveTitle', descriptionKey: 'menuRowObserveDesc' });
   }
 
   // Reading Assessment and AI Video Generation are NOT rows, by product
@@ -101,7 +117,7 @@ function featureMenuRows(user, opts = {}) {
   // menu.service still handles menu_reading / menu_video, because WhatsApp list
   // rows live in scrollback forever and an old tap must still land somewhere.
   // Do not "tidy" those handlers away because no row points at them.
-  rows.push({ id: 'menu_other', title: 'Ask Anything', description: 'General teaching questions' });
+  rows.push({ id: 'menu_other', titleKey: 'menuRowOtherTitle', descriptionKey: 'menuRowOtherDesc' });
   return rows;
 }
 
