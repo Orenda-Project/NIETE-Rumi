@@ -43,6 +43,36 @@ function attachDomainWhys(groups, domainWhys) {
 }
 
 /**
+ * Say why the subject-specific Section F row is absent.
+ *
+ * About three in ten recordings carry no signal at all about which subject was being
+ * taught. The subject-tagged rubric row is then correctly left out — and until now the
+ * page said nothing, so the teacher saw a Section F built from five indicators with no
+ * account of the sixth. Worse, when the model guessed, she was told in writing that her
+ * Urdu lesson was not a literacy lesson.
+ *
+ * Appended to the Section F row's existing "why" rather than replacing it, so the
+ * narrative's own diagnosis survives. Idempotent, and a no-op on any analysis that
+ * resolved a subject or predates `subject_resolution` entirely.
+ *
+ * Pure helper for the same reason attachDomainWhys is one: unit-testable without this
+ * service's R2/sharp/LLM dependency graph.
+ */
+function attachSubjectNote(groups, analysis, language) {
+  const resolution = analysis && analysis.subject_resolution;
+  if (!resolution || resolution.confidence !== 'none') return groups;
+  const { subjectUnconfirmedNote } = require('./narrative.service');
+  const note = subjectUnconfirmedNote(language);
+  for (const g of (groups || [])) {
+    if (!g || (g.domainKey || g.key) !== 'teacher_subject_knowledge') continue;
+    const existing = typeof g.why === 'string' ? g.why.trim() : '';
+    if (existing.includes(note)) continue;
+    g.why = existing ? `${existing} ${note}` : note;
+  }
+  return groups;
+}
+
+/**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
  * @param {object} opts - { teacherName, commitmentAction, language, brand }
@@ -85,6 +115,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
 
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
   attachDomainWhys(score.groups, narrative && narrative.domain_whys);
+  attachSubjectNote(score.groups, analysis, lang);
 
   // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
   // Non-fatal: the helper skips any broken photo and returns [] on failure.
@@ -123,4 +154,4 @@ async function generateHeroReport(session, analysis, opts = {}) {
   return { png, caption: buildReportCaption(vm) };
 }
 
-module.exports = { generateHeroReport, attachDomainWhys };
+module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote };

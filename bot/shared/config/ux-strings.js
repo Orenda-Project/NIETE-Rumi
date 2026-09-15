@@ -91,6 +91,20 @@ const LP612_ETA = Object.freeze({
 });
 
 const UX_STRINGS = {
+  // ─── the report explains an absent Section F row ──────────────────────────
+  // About three in ten recordings carry no signal at all about which subject was
+  // being taught — no lesson plan, no corpus selection, no recent download. The
+  // subject-tagged rubric row is then correctly left out, and until now the report
+  // said nothing, so a teacher saw a five-row Section F with no account of the
+  // sixth. "We could not confirm the subject" and "your lesson was not a literacy
+  // lesson" are different statements and only the first is true (Rule 24d).
+  // Both variants render as a report why-line (not a WhatsApp field): en 73 code
+  // points, ur 84. Impersonal in both, so neither carries a gendered verb stem.
+  reportSubjectUnconfirmed: {
+    en: 'Subject not confirmed — the language/subject-specific row was not scored.',
+    ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
+  },
+
   // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's
