@@ -20,14 +20,38 @@ Run dir holds one <feature>.json per driven feature: {"results":[{"id","verdict"
 import argparse, json, os, sys
 
 
-def classify(run_dir, known, only=None):
-    """Return (regressions, expected, fixed) lists of (feature, id, verdict).
+def load_known(path):
+    """The known-findings config as {feature: {id: reason}}, minus `_`-prefixed doc keys. A missing or
+    malformed file means an empty set — every FAIL is then regression-eligible (fail loud, not open)."""
+    try:
+        return {k: v for k, v in json.load(open(path)).items() if not k.startswith("_")}
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def classify_results(feature, results, known):
+    """(regressions, expected, fixed) for ONE feature's results list — the single home for the rule so
+    the runner's ledger row and the run-dir gate cannot disagree.
 
     regressions: a FAIL whose id is NOT a listed known finding — the commit broke it.
     expected:    a FAIL whose id IS a listed known finding — fine, documented.
     fixed:       a listed known finding that now PASSES — good news; remove it from the list.
     BLOCKED and SKIP are ignored entirely (never a regression signal).
     """
+    listed = known.get(feature, {})
+    regressions, expected, fixed = [], [], []
+    for r in results or []:
+        sid, verdict = r.get("id"), (r.get("verdict") or "").upper()
+        if verdict == "FAIL":
+            (expected if sid in listed else regressions).append((feature, sid, verdict))
+        elif verdict == "PASS" and sid in listed:
+            fixed.append((feature, sid, verdict))
+    return regressions, expected, fixed
+
+
+def classify(run_dir, known, only=None):
+    """Return (regressions, expected, fixed) lists of (feature, id, verdict) across a run dir's
+    per-feature <feature>.json files."""
     regressions, expected, fixed = [], [], []
     for fn in sorted(os.listdir(run_dir)):
         if not fn.endswith(".json") or fn.endswith(".stdout.json"):
@@ -41,13 +65,8 @@ def classify(run_dir, known, only=None):
             continue
         if not isinstance(data, dict) or "results" not in data:
             continue
-        listed = known.get(feature, {})
-        for r in data.get("results", []):
-            sid, verdict = r.get("id"), (r.get("verdict") or "").upper()
-            if verdict == "FAIL":
-                (expected if sid in listed else regressions).append((feature, sid, verdict))
-            elif verdict == "PASS" and sid in listed:
-                fixed.append((feature, sid, verdict))
+        rg, ex, fx = classify_results(feature, data.get("results", []), known)
+        regressions += rg; expected += ex; fixed += fx
     return regressions, expected, fixed
 
 
@@ -59,10 +78,7 @@ def main(argv=None):
     ap.add_argument("--features", default="")
     a = ap.parse_args(argv)
 
-    try:
-        known = {k: v for k, v in json.load(open(a.config)).items() if not k.startswith("_")}
-    except FileNotFoundError:
-        known = {}
+    known = load_known(a.config)
     only = [f for f in a.features.split(",") if f] or None
 
     regressions, expected, fixed = classify(a.run_dir, known, only)

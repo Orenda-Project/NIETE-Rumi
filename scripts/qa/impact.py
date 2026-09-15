@@ -137,6 +137,25 @@ def ledger_misses(repo, rng):
     return {f: m for f, m in latest.items() if m}
 
 
+def ledger_regression(repo, rng):
+    """{feature: regression dict} from the MOST RECENT row per feature that carries the known-findings
+    verdict (ledger_row.py stamps `regression` = {gate, new_failures, known, fixed}). Rows without it
+    (chrome runs, rows written before this field) contribute nothing, so the report simply falls back
+    to the raw status for those. Last row wins, matching ledger_rows_added."""
+    r = _git(repo, "diff", rng, "--", LEDGER)
+    out = {}
+    for line in r.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        try:
+            row = json.loads(line[1:])
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("feature") and isinstance(row.get("regression"), dict):
+            out[row["feature"]] = row["regression"]
+    return out
+
+
 def _empty(base, head, error=""):
     return {"base": base, "head": head, "range": None, "error": error, "paths": [],
             "features": [], "commands": [], "fallback": False, "unmapped": [],
@@ -178,6 +197,7 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
     brief = ss.build_brief(seld, os.path.join(repo, SPEC_DIR), lambda p: "", repo=repo, rev_range=rng)
     tr = trailers(repo, rng, pr_body)
     proof = ledger_rows_added(repo, rng)
+    regr = ledger_regression(repo, rng)
 
     res = _empty(base, head)
     res.update({"range": rng, "paths": paths, "features": seld["features"], "commands": seld["commands"],
@@ -200,6 +220,7 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "scenario_count": f["scenario_count"], "spec_status": status, "spec_reason": reason,
             "changed_files": [c["path"] for c in f["changed_files"]],
             "e2e_proof": proof.get(name, "missing"),
+            "regression": regr.get(name),
         }
     pf = res["per_feature"]
     if pf:
@@ -223,6 +244,37 @@ def exit_code(res, freshness="warn", proof="warn"):
 def _icon(status):
     return {"synced": "✅", "none-needed": "✅", "only-shared": "➖", "stale": "❌",
             "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜"}.get(status, "")
+
+
+def _cassette_owner():
+    owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mah-noor1").strip()
+    return owner if owner.startswith("@") else "@" + owner
+
+
+def _regression_note(reg):
+    """One line reconciling a raw run status against the known-findings gate. '' when the row carries
+    no verdict (a chrome run, or a row written before the field existed) — the report then shows the
+    raw status alone, as before. A CRITICAL run is CLEAN when its only FAILs are documented findings."""
+    if not reg:
+        return ""
+    if reg.get("gate") == "fail":
+        return "❌ NEW REGRESSION: %s" % ", ".join(reg.get("new_failures") or ["?"])
+    note = "✅ no new regressions"
+    if reg.get("known"):
+        note += " (%d known: %s)" % (len(reg["known"]), ", ".join(reg["known"]))
+    if reg.get("fixed"):
+        note += " · ✓ now fixed: %s" % ", ".join(reg["fixed"])
+    return note
+
+
+def regressed_features(res):
+    """Features whose most recent recorded run has a NEW regression (unlisted FAIL)."""
+    return [n for n in res.get("features", [])
+            if (res["per_feature"].get(n, {}).get("regression") or {}).get("gate") == "fail"]
+
+
+def _any_regression_verdict(res):
+    return any(res["per_feature"].get(n, {}).get("regression") for n in res.get("features", []))
 
 
 def mock_feature_set():
@@ -317,10 +369,25 @@ def render_markdown(res, freshness="warn", proof="warn"):
             spec += " — _%s_" % f["spec_reason"]
         if f["spec_status"] == "stale":
             spec += " — `%s.feature` unchanged" % name
-        L.append("| **%s** (%d scenarios) | %s | %s | %s %s |" % (
-            name, f["scenario_count"], via, spec, _icon(f["e2e_proof"]), f["e2e_proof"]))
+        proof_cell = "%s %s" % (_icon(f["e2e_proof"]), f["e2e_proof"])
+        cm = (res.get("cassette_misses") or {}).get(name)
+        if cm:
+            proof_cell += "<br>📼 %d missing — %s record" % (cm, _cassette_owner())
+        note = _regression_note(f.get("regression"))
+        if note:
+            proof_cell += "<br>%s" % note
+        L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (
+            name, f["scenario_count"], via, spec, proof_cell))
     L += ["", "**Spec freshness: %s** (mode: %s) · **E2E proof: %s** (mode: %s)" % (
         v["spec_freshness"], freshness, v["e2e_proof"], proof), ""]
+    regressed = regressed_features(res)
+    if regressed:
+        L += ["**❌ New regressions in %s** — a scenario broke that is not a documented known finding "
+              "(see the E2E column). This is separate from a run being CRITICAL: a CRITICAL run can still "
+              "be regression-clean." % ", ".join(regressed), ""]
+    elif _any_regression_verdict(res):
+        L += ["**✅ No new regressions** — every recorded FAIL is a documented known finding, so a "
+              "CRITICAL status here is expected debt, not a break this range introduced.", ""]
     if v["spec_freshness"] == "stale":
         stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
         L += ["### Sync the specs first",
@@ -335,19 +402,6 @@ def render_markdown(res, freshness="warn", proof="warn"):
         L += ["> ⚠️ Unmapped in-scope files pulled in the SAFE subset: %s — add them to `feature-map.yaml`." % ", ".join("`%s`" % u for u in res["unmapped"]), ""]
     if res["full_suite"]:
         L += ["> This range targets a promotion branch: the map asks for `%s` (the whole suite)." % res["full_suite"], ""]
-    misses = res.get("cassette_misses") or {}
-    if misses:
-        owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mah-noor1").strip()
-        owner = owner if owner.startswith("@") else "@" + owner
-        total = sum(misses.values())
-        per = ", ".join("`%s` (%d)" % (f, n) for f, n in sorted(misses.items()))
-        L += ["### 📼 Cassettes missing — %s please record" % owner,
-              "The mock lane could not replay **%d vendor call(s)** — no recorded cassette for: %s." % (total, per),
-              "Record/update them once (needs `keys/niete-record.env` with real vendor keys), then commit the fixtures:",
-              "```",
-              "bash .claude/qa/shared/commit-e2e.sh %s --features %s --record-missing" % (res["head"][:12], ",".join(sorted(misses))),
-              "```",
-              "Commit the new `.claude/qa/fixtures/cassettes/*.json` + `runs.jsonl`; this check clears when the misses reach 0.", ""]
     return "\n".join(L)
 
 
@@ -362,6 +416,9 @@ def render_text(res, freshness="warn", proof="warn"):
     for name in res["features"]:
         f = res["per_feature"][name]
         extra = " (%s.feature unchanged)" % name if f["spec_status"] == "stale" else ""
+        cm = (res.get("cassette_misses") or {}).get(name)
+        if cm:
+            extra += " 📼%d missing" % cm
         L.append("│   %-13s spec: %-12s e2e: %s%s" % (name, f["spec_status"], f["e2e_proof"], extra))
     if v["spec_freshness"] == "stale":
         stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
@@ -385,12 +442,12 @@ def render_text(res, freshness="warn", proof="warn"):
             L.append("│ chrome lane (layer 2): " + "   ".join("/niete-e2e %s" % c for c in chrome))
     if not mock and not chrome:
         L.append("│ then: " + "   ".join(res["commands"]))
-    misses = res.get("cassette_misses") or {}
-    if misses:
-        owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mah-noor1").strip()
-        owner = owner if owner.startswith("@") else "@" + owner
-        L.append("│ 📼 cassettes missing (%s) — record: bash .claude/qa/shared/commit-e2e.sh %s --features %s --record-missing"
-                 % (owner, (res.get("head") or "HEAD")[:12], ",".join(sorted(misses))))
+    regressed = regressed_features(res)
+    if regressed:
+        L.append("│ ❌ NEW REGRESSIONS: " + ", ".join(
+            "%s(%s)" % (n, ",".join(res["per_feature"][n]["regression"]["new_failures"] or ["?"])) for n in regressed))
+    elif _any_regression_verdict(res):
+        L.append("│ ✅ no new regressions — recorded FAILs are all documented known findings")
     L.append("└ re-run any time: npm run qa:impact")
     return "\n".join(L)
 

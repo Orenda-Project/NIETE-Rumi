@@ -209,11 +209,14 @@ def test_cassette_misses_surface_the_record_mention():
     res = ci.analyse(r, base, head)
     assert res["cassette_misses"] == {"menu": 3}, res["cassette_misses"]
     md = ci.render_markdown(res, "warn", "warn")
-    for needle in ("Cassettes missing", "@mah-noor1", "--record-missing"):
-        assert needle in md, (needle, md)
-    # the CI log / pre-push terminal form must surface it too, not only the posted comment
+    # the mention lives IN the feature table row now — no verbose standalone section
+    assert "### 📼 Cassettes missing" not in md, "the standalone cassette section must be gone"
+    menu_row = next(l for l in md.splitlines() if l.startswith("| **menu**"))
+    assert "📼" in menu_row and "3" in menu_row and "@mah-noor1" in menu_row, menu_row
+    # the CI log / pre-push terminal form carries it inline on the feature line
     txt = ci.render_text(res, "warn", "warn")
-    assert "@mah-noor1" in txt and "--record-missing" in txt, txt
+    menu_line = next(l for l in txt.splitlines() if l.strip().startswith("menu") or " menu " in l)
+    assert "📼" in menu_line, menu_line
     shutil.rmtree(r)
 
 
@@ -233,6 +236,42 @@ def test_a_later_clean_run_clears_the_cassette_mention():
     res = ci.analyse(r, base, head)
     assert res["cassette_misses"] == {}, res["cassette_misses"]
     assert "Cassettes missing" not in ci.render_markdown(res, "warn", "warn")
+    shutil.rmtree(r)
+
+
+def test_regression_verdict_reconciles_a_critical_with_no_new_regressions():
+    """A recorded run can be CRITICAL yet have NO new regression — its only FAIL is a known finding.
+    The row carries regression.gate=pass; the report must say 'no new regressions' and name the known
+    finding, not present a bare ❌ CRITICAL that reads as a break."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 13, "passed": 11, "failed": 1, "blocked": 0, "skipped": 1},
+           "regression": {"gate": "pass", "new_failures": [], "known": ["M09"], "fixed": []}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["regression"]["gate"] == "pass", res["per_feature"]["menu"]
+    md = ci.render_markdown(res, "warn", "warn")
+    assert "no new regressions" in md.lower() and "M09" in md, md
+    txt = ci.render_text(res, "warn", "warn")
+    assert "no new regressions" in txt.lower(), txt
+    shutil.rmtree(r)
+
+
+def test_regression_verdict_flags_a_new_regression():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 13, "passed": 11, "failed": 1, "blocked": 0, "skipped": 1},
+           "regression": {"gate": "fail", "new_failures": ["M04"], "known": [], "fixed": []}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    for out in (ci.render_markdown(res, "warn", "warn"), ci.render_text(res, "warn", "warn")):
+        assert "REGRESSION" in out and "M04" in out, out
     shutil.rmtree(r)
 
 

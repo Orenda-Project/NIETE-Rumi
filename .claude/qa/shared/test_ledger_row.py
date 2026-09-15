@@ -124,6 +124,34 @@ def test_no_flow_activity_means_no_flows_field():
     assert "flows" not in _row(root, run)
 
 
+def _write_known(root, mapping):
+    cfg = os.path.join(root, ".claude", "qa", "config")
+    os.makedirs(cfg, exist_ok=True)
+    json.dump(mapping, open(os.path.join(cfg, "known-findings.json"), "w"))
+
+
+def test_row_stamps_no_regression_when_the_only_fail_is_a_known_finding():
+    # M09 FAILs but is documented, so there is NO new regression even though raw status is CRITICAL.
+    # The row carries that verdict so impact.py can say "no regressions" instead of a bare CRITICAL.
+    root, run = _fixture()
+    _write_known(root, {"menu": {"M09": "documented"}})
+    r = _row(root, run)
+    assert r["status"] == "CRITICAL", r["status"]           # raw health is unchanged
+    assert r["regression"]["gate"] == "pass", r["regression"]
+    assert r["regression"]["known"] == ["M09"], r["regression"]
+    assert r["regression"]["new_failures"] == [], r["regression"]
+    assert ledger.validate_run(r) == [], "regression key must not break the frozen schema"
+
+
+def test_row_flags_a_regression_for_an_unlisted_fail():
+    root, run = _fixture()
+    _write_known(root, {"menu": {}})                        # M09 not listed → a real regression
+    r = _row(root, run)
+    assert r["regression"]["gate"] == "fail", r["regression"]
+    assert r["regression"]["new_failures"] == ["M09"], r["regression"]
+    assert r["regression"]["known"] == [], r["regression"]
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

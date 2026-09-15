@@ -85,6 +85,23 @@ def build_row(a):
         "evidence_dir": os.path.relpath(a.run_dir, a.root).rstrip("/") + "/",
         "driver": a.driver, "trigger": a.trigger,
     }
+    # The known-findings regression verdict, stamped here so a reader (impact.py, a reviewer) can tell a
+    # CRITICAL that is only documented known findings from one that is a NEW break — without re-deriving
+    # it from the per-scenario evidence, which the committed ledger does not carry. Same rule as the
+    # run-dir gate (check_known_findings): only an unlisted FAIL regresses; BLOCKED/SKIP never do. Never
+    # allowed to break row building — a QA helper that can fail a commit gets switched off.
+    try:
+        import check_known_findings as kf  # noqa: E402  (same dir, already on sys.path)
+        known = kf.load_known(os.path.join(a.root, ".claude", "qa", "config", "known-findings.json"))
+        regs, exp, fixed = kf.classify_results(a.feature, res, known)
+        row["regression"] = {
+            "gate": "fail" if regs else "pass",
+            "new_failures": sorted(i for _, i, _ in regs),
+            "known": sorted(i for _, i, _ in exp),
+            "fixed": sorted(i for _, i, _ in fixed),
+        }
+    except Exception:
+        pass
     if a.commit:
         # The DEVELOPER tree's cleanliness, minus what the runner itself writes during a run (the ledger
         # append, results, pending markers) — otherwise the second feature's row always read dirty.
