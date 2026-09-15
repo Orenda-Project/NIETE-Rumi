@@ -12,14 +12,18 @@
  * @param {(key:string)=>Promise<Buffer>} deps.downloadFn - R2 download
  * @param {(url:string)=>string} [deps.extractKey] - url → R2 key
  * @param {(buf:Buffer)=>Promise<Buffer>} [deps.downscale] - optional resize
- * @returns {Promise<Array<{src:string, caption?:string}>>}
+ * @returns {Promise<Array<{src:string, index:number, caption?:string}>>}
  */
 async function buildClassroomPhotoVm(photos, deps = {}) {
   const { downloadFn, extractKey = (u) => u, downscale } = deps;
   if (!Array.isArray(photos) || !photos.length || typeof downloadFn !== 'function') return [];
 
   const out = [];
-  for (const p of photos.slice(0, 2)) {
+  // bd-1mcpe: each framed photo carries its ORIGINAL index in session.classroom_photos, so its
+  // caption (from "Classroom photo N") lands under the right picture even when an earlier photo
+  // failed to download and was skipped.
+  for (let index = 0; index < Math.min(photos.length, 2); index++) {
+    const p = photos[index];
     if (!p || !p.url) continue;
     try {
       let buf = await downloadFn(extractKey(p.url));
@@ -27,7 +31,7 @@ async function buildClassroomPhotoVm(photos, deps = {}) {
         try { buf = await downscale(buf); } catch { /* keep the original on downscale failure */ }
       }
       if (buf && buf.length) {
-        out.push({ src: `data:image/jpeg;base64,${buf.toString('base64')}`, ...(p.caption ? { caption: p.caption } : {}) });
+        out.push({ src: `data:image/jpeg;base64,${buf.toString('base64')}`, index, ...(p.caption ? { caption: p.caption } : {}) });
       }
     } catch {
       // Skip a broken/missing photo — never fail the report over a photo.
