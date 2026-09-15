@@ -5792,3 +5792,66 @@ ALTER TABLE public.user_feature_first_use
   ADD COLUMN IF NOT EXISTS intro_shown_count INTEGER NOT NULL DEFAULT 0;
 
 NOTIFY pgrst, 'reload schema';
+
+-- =============================================================================
+-- roster_class_timeline — one class's history from record_history, with the acting
+-- person resolved. Mirrors bot/database/migrations/row_history_actor.sql (the applied form).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.roster_class_timeline(p_class_id uuid)
+RETURNS TABLE (
+  changed_at   timestamptz,
+  txid         bigint,
+  table_name   text,
+  row_id       text,
+  op           text,
+  changed_cols text[],
+  old_vals     jsonb,
+  new_vals     jsonb,
+  actor        text,
+  actor_source text,
+  actor_name   text,
+  actor_role   text,
+  subject      text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH cid AS (SELECT p_class_id::text AS t),
+  keys AS (
+    SELECT 'classes'::text AS table_name, p_class_id::text AS row_id
+    UNION ALL SELECT 'class_teachers',    ct.id::text FROM class_teachers ct    WHERE ct.class_id = p_class_id
+    UNION ALL SELECT 'class_enrollments', ce.id::text FROM class_enrollments ce WHERE ce.class_id = p_class_id
+    UNION ALL SELECT 'student_lists',     sl.id::text FROM student_lists sl     WHERE sl.class_id = p_class_id
+    UNION ALL SELECT 'students',          ce.student_id::text FROM class_enrollments ce WHERE ce.class_id = p_class_id
+  ),
+  hits AS (
+    SELECT h.* FROM record_history h JOIN keys k ON k.table_name = h.table_name AND k.row_id = h.row_id
+    UNION
+    SELECT h.* FROM record_history h, cid
+     WHERE h.table_name IN ('class_teachers','class_enrollments','student_lists')
+       AND (h.new_vals ->> 'class_id' = cid.t OR h.old_vals ->> 'class_id' = cid.t)
+  )
+  SELECT
+    h.changed_at, h.txid, h.table_name, h.row_id, h.op, h.changed_cols, h.old_vals, h.new_vals,
+    h.actor, h.actor_source,
+    u.name AS actor_name, u.role AS actor_role,
+    CASE h.table_name
+      WHEN 'students'          THEN (SELECT s.student_name FROM students s WHERE s.id::text = h.row_id)
+      WHEN 'class_enrollments' THEN (SELECT s.student_name FROM class_enrollments ce JOIN students s ON s.id = ce.student_id WHERE ce.id::text = h.row_id)
+      WHEN 'class_teachers'    THEN (SELECT tu.name FROM class_teachers ct JOIN users tu ON tu.id = ct.teacher_user_id WHERE ct.id::text = h.row_id)
+      WHEN 'student_lists'     THEN (SELECT lu.name FROM student_lists sl JOIN users lu ON lu.id = sl.user_id WHERE sl.id::text = h.row_id)
+      ELSE NULL
+    END AS subject
+  FROM hits h
+  -- CASE, not AND: the planner may evaluate the cast before the regex guard and
+  -- fail on 'authenticator'. CASE guarantees the order.
+  LEFT JOIN users u
+    ON u.id = CASE WHEN h.actor ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                   THEN h.actor::uuid END
+  ORDER BY h.changed_at, h.id
+$$;
+
+REVOKE ALL ON FUNCTION public.roster_class_timeline(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.roster_class_timeline(uuid) TO service_role;
