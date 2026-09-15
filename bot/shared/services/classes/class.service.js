@@ -1215,10 +1215,78 @@ async function applyRosterEdits({
   return result || {};
 }
 
+// ---------------------------------------------------------------------------
+// handOverClass — a coach names the class teacher of a class that is already
+// saved, from the saved-roster view of /roster (bd-dz6qb.5 part b)
+// ---------------------------------------------------------------------------
+
+/**
+ * Hand a saved class to its teacher: her class_teachers row (is_class_teacher),
+ * her attendance mirror, the children repointed to her legacy list, the coach's
+ * fallback mirror retired — as ONE database call, or nothing. The SQL is
+ * bot/database/migrations/roster_hand_over_class.sql; it takes the same per-class
+ * advisory lock as the import and the edit, so a hand-over cannot interleave with
+ * either.
+ *
+ * WHY ONE CALL. importRoster already learned this the hard way (see above): four
+ * separate PostgREST writes are four chances to stop half-way, and a class with an
+ * assignment but no mirror is exactly the invisible-to-attendance state this repair
+ * exists to end.
+ *
+ * SCOPE. `schoolId` is the school the caller is working in; the function refuses a
+ * class at any other school ('wrong_school'), so a class id that arrived in a Flow
+ * payload cannot reach another school's roster. A leader cannot be made a class
+ * teacher ('not_a_teacher').
+ *
+ * LEDGER. `actorUserId` is REQUIRED and is passed as `p_actor`: the function sets
+ * it into `app.actor` for the transaction so the row-history triggers stamp every
+ * changed row with the real person. No actor, no write.
+ *
+ * @returns {Promise<{classId?, teacherUserId?, listId?, listAdopted?, repointed?,
+ *   retiredMirrors?, previousClassTeacherUserId?, alreadyClassTeacher?, label?, error?}>}
+ */
+async function handOverClass({ classId, schoolId = null, teacherUserId, actorUserId } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+  if (!actorUserId) return { error: 'missing_actor' };
+
+  const { data: result, error: rpcErr } = await supabase.rpc('roster_hand_over_class', {
+    p_class_id: classId,
+    p_school_id: schoolId,
+    p_teacher_user_id: teacherUserId,
+    p_actor: actorUserId,
+  });
+
+  if (rpcErr) {
+    const locked = rpcErr.code === '55P03' || /lock timeout/i.test(rpcErr.message || '');
+    logToFile('⚠️ ClassService.handOverClass: refused', {
+      classId, teacherUserId, code: rpcErr.code, error: rpcErr.message, locked,
+    }, 'error');
+    return { error: locked ? 'save_in_progress' : 'update_failed' };
+  }
+
+  const out = result || {};
+  if (out.error) return { error: out.error };
+  return {
+    classId: out.class_id,
+    teacherUserId: out.teacher_user_id,
+    assignmentId: out.assignment_id,
+    alreadyClassTeacher: out.already_class_teacher === true,
+    previousClassTeacherUserId: out.previous_class_teacher_user_id || null,
+    listId: out.list_id,
+    listAdopted: out.list_adopted === true,
+    listAdoptedFromClassId: out.list_adopted_from_class_id || null,
+    repointed: Number(out.repointed) || 0,
+    retiredMirrors: Number(out.retired_mirrors) || 0,
+    label: out.label,
+  };
+}
+
 module.exports = {
   createClass,
   importRoster,
   applyRosterEdits,
+  handOverClass,
   assignTeacher,
   updateAssignment,
   leaveClass,

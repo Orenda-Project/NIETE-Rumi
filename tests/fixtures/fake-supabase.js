@@ -363,6 +363,87 @@ function createFakeSupabase(seed = {}, opts = {}) {
     return { updated, moved, added, removed, replay: false };
   }
 
+  /**
+   * In-memory twin of bot/database/migrations/roster_hand_over_class.sql — same
+   * observable contract: scope checks, the role moves, her list is linked-or-
+   * adopted-or-written, the children follow it, the fallback mirrors retire.
+   */
+  const LEADER_ROLES = ['school_leader', 'supervisor', 'coach', 'principal', 'aeo'];
+  function rosterHandOverClass({ p_class_id, p_school_id = null, p_teacher_user_id, p_actor }) {
+    if (!p_class_id || !p_teacher_user_id || !p_actor) {
+      throw new Error('roster_hand_over_class: p_class_id, p_teacher_user_id and p_actor are required');
+    }
+    const cls = table('classes').find((c) => c.id === p_class_id && c.is_active !== false);
+    if (!cls) return { error: 'unknown_class' };
+    if (p_school_id && cls.school_id !== p_school_id) return { error: 'wrong_school' };
+    const teacher = table('users').find((u) => u.id === p_teacher_user_id);
+    if (!teacher) return { error: 'unknown_teacher' };
+    if (LEADER_ROLES.includes(teacher.role)) return { error: 'not_a_teacher' };
+    const grade = table('grade_levels').find((g) => g.code === cls.grade_code);
+    if (!grade || grade.ordinal === undefined || grade.ordinal === null) return { error: 'unknown_grade' };
+
+    let label = grade.ordinal === 0 ? 'Early Years' : `Grade ${grade.ordinal}`;
+    if (cls.section) label += ` - ${cls.section}`;
+    const shift = cls.shift_code || 'morning';
+    if (shift !== 'morning') label += ` (${shift})`;
+
+    const cts = table('class_teachers');
+    const prevRow = cts.find((r) => r.class_id === p_class_id && r.is_active && r.is_class_teacher
+      && r.teacher_user_id !== p_teacher_user_id);
+    const prev = prevRow ? prevRow.teacher_user_id : null;
+    if (prevRow) prevRow.is_class_teacher = false;
+    let mine = cts.find((r) => r.class_id === p_class_id && r.teacher_user_id === p_teacher_user_id && r.is_active);
+    let already = false;
+    if (!mine) {
+      mine = { id: nextId('class_teachers'), class_id: p_class_id, teacher_user_id: p_teacher_user_id,
+        is_class_teacher: true, assigned_on: new Date().toISOString().slice(0, 10), is_active: true };
+      cts.push(mine);
+    } else if (mine.is_class_teacher) {
+      already = true;
+    } else {
+      mine.is_class_teacher = true;
+    }
+
+    const lists = table('student_lists');
+    let list = lists.find((l) => l.user_id === p_teacher_user_id && l.class_id === p_class_id && l.is_active);
+    let adopted = false; let adoptedFrom = null;
+    if (!list) {
+      list = lists.find((l) => l.user_id === p_teacher_user_id && l.is_active
+        && l.academic_year === cls.session_code
+        && String(l.class_name || '').toLowerCase() === label.toLowerCase());
+      if (list) { adoptedFrom = list.class_id || null; list.class_id = p_class_id; adopted = true; } else {
+        list = { id: nextId('student_lists'), user_id: p_teacher_user_id, class_name: label, section: cls.section || null,
+          academic_year: cls.session_code, class_id: p_class_id, is_active: true, student_count: 0 };
+        lists.push(list);
+      }
+    }
+
+    let repointed = 0;
+    const enrolled = table('class_enrollments').filter((e) => e.class_id === p_class_id && e.is_active).map((e) => e.student_id);
+    for (const s of table('students')) {
+      if (enrolled.includes(s.id) && s.list_id !== list.id) { s.list_id = list.id; repointed += 1; }
+    }
+
+    let retired = 0;
+    for (const l of lists) {
+      if (l.class_id !== p_class_id || !l.is_active || l.id === list.id) continue;
+      const owner = table('users').find((u) => u.id === l.user_id);
+      if (!owner) continue;
+      if (LEADER_ROLES.includes(owner.role) || (prev && owner.id === prev)) { l.is_active = false; retired += 1; }
+    }
+    for (const l of lists) {
+      if (l.id === list.id || l.class_id === p_class_id) {
+        l.student_count = table('students').filter((s) => s.list_id === l.id && s.is_active !== false).length;
+      }
+    }
+    return {
+      class_id: p_class_id, teacher_user_id: p_teacher_user_id, assignment_id: mine.id,
+      already_class_teacher: already, previous_class_teacher_user_id: prev,
+      list_id: list.id, list_adopted: adopted, list_adopted_from_class_id: adoptedFrom,
+      repointed, retired_mirrors: retired, label,
+    };
+  }
+
   return {
     from: (name) => builder(name),
     async rpc(name, args) {
@@ -370,6 +451,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
       if (rpcFailures[name]) return { data: null, error: rpcFailures[name] };
       if (name === 'roster_import_students') return { data: rosterImportStudents(args || {}), error: null };
       if (name === 'roster_apply_edits') return { data: rosterApplyEdits(args || {}), error: null };
+      if (name === 'roster_hand_over_class') return { data: rosterHandOverClass(args || {}), error: null };
       return { data: null, error: { code: 'PGRST202', message: `unknown rpc ${name}` } };
     },
     /** Test helpers — not part of the Supabase surface. */

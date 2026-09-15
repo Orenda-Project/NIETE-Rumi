@@ -1772,16 +1772,16 @@ app.post('/webhook', async (req, res) => {
           responseFields: Object.keys(responseJson)
         });
       } else if (flowType === 'roster') {
-        // The Flow already showed the saved count on its own terminal screen; this
-        // is the chat breadcrumb so the coach can see it later in the thread.
-        const cls = responseJson.roster_class || 'That class';
-        const n = responseJson.roster_count;
-        await WhatsAppService.sendMessage(
-          from,
-          n
-            ? `📋 ${cls} saved — ${n} students on the roster. Send /roster again for the next class.`
-            : `📋 ${cls} saved. Send /roster again for the next class.`
-        );
+        // The Flow already showed the result on its own terminal screen; this is
+        // the chat breadcrumb so the coach can see it later in the thread.
+        //
+        // Keyed off roster_action, not a fixed "saved": the same terminal screen
+        // now closes a scan, a correction, a hand-over to a class teacher and an
+        // untouched view, and the one line the coach can scroll back to has to
+        // say which. The sentences live in roster-ack.js, next to the list of
+        // actions the endpoint emits, and a test pins the two together.
+        const { rosterAckText } = require('./shared/utils/roster-ack');
+        await WhatsAppService.sendMessage(from, rosterAckText(responseJson));
       } else if (flowType === 'remark') {
         // Supervisor Remark (bd-2712). The endpoint already did every write
         // before the Flow closed, so this branch ONLY acknowledges — it must not
