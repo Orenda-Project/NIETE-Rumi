@@ -15,6 +15,41 @@ const {
  * Handles pedagogical analysis for classroom coaching using GPT-5 mini
  * with 90% prompt caching for cost optimization
  */
+// What the script may say about lesson-plan adherence. The figure is named ONLY
+// when code supplied one, and the sentence quotes it verbatim — the model is not
+// asked to pick a number out of the observation dump, which is how it came to
+// speak a separate model's near-constant estimate while the card showed the
+// measurement. A plan the grader judged to be a different lesson is described as
+// that, not as a low score she earned.
+function voiceFidelityRule(d) {
+  const data = d || {};
+  if (data.sectionBNotAssessed) {
+    return 'LESSON PLAN: this lesson was NOT measured against a lesson plan. Do NOT state any '
+      + 'lesson-plan percentage or fidelity figure, do NOT describe the plan as followed or not '
+      + 'followed, and do NOT mention a lesson plan at all. Speak only about what happened in the '
+      + 'lesson itself.';
+  }
+  if (data.lessonMismatch) {
+    return 'LESSON PLAN: the plan attached to this recording appears to be for a different lesson, '
+      + 'so adherence to it could not be judged. Do NOT state any lesson-plan percentage or '
+      + 'fidelity figure and do NOT describe the plan as poorly followed — if you mention it at '
+      + 'all, say only that the attached plan did not match the lesson taught.';
+  }
+  if (data.fidelityScore == null) {
+    return 'LESSON PLAN: no lesson-plan adherence figure is available for this lesson. Do NOT state '
+      + 'any lesson-plan percentage or fidelity figure, and do NOT describe the plan as followed or '
+      + 'not followed.';
+  }
+  const pct = data.fidelityScore;
+  const band = data.fidelityBand
+    ? `, which counts as ${data.fidelityBand} adherence`
+    : '';
+  return `LESSON PLAN: she carried out ${pct}% of the moves her lesson plan prescribed${band}. `
+    + `Reference this once, in either the strength or the growth portion. If you state a figure it `
+    + `MUST be exactly ${pct}% — never any other percentage from the observation data, and never a `
+    + `figure you have worked out yourself.`;
+}
+
 class GPT5MiniService {
   // Static LLM client (shared across all calls)
   // Uses llm-client.js for provider-agnostic routing
@@ -455,7 +490,17 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         analysisWithMarks.topic = lessonPlanStructured.topic || analysisWithMarks.topic;
       }
 
-      if (hasLessonPlanData) {
+      // A framework that measures plan adherence itself does not want a second,
+      // weaker opinion on the same thing sitting in the analysis: the estimate
+      // below is one model's guess at whole-plan adherence, it reads 85 on the
+      // overwhelming majority of sessions, and while it existed the voice note
+      // quoted it instead of the measurement the report card shows. Nothing a
+      // teacher sees on such a framework's report reads the field.
+      const frameworkMeasuresFidelity = useFrameworkModule
+        && typeof framework.applyLpFidelity === 'function';
+      if (frameworkMeasuresFidelity) {
+        delete analysisWithMarks.fidelity_to_lesson_plan;
+      } else if (hasLessonPlanData) {
         if (analysisWithMarks.fidelity_to_lesson_plan) {
           const fidelity = analysisWithMarks.fidelity_to_lesson_plan;
           analysisWithMarks.fidelity_analysis = {
@@ -1697,8 +1742,7 @@ STRUCTURE (90 seconds total):
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
-If "hasLessonPlan" is true in the observation data, explicitly reference how closely the teacher followed their plan (use the fidelityScore if provided) either in the strength or growth portion.
-${observationData && observationData.sectionBNotAssessed ? 'LESSON PLAN: this lesson was NOT measured against a lesson plan. Do NOT state any lesson-plan percentage or fidelity figure, do NOT describe the plan as followed or not followed, and do NOT mention a lesson plan at all. Speak only about what happened in the lesson itself.' : ''}
+${voiceFidelityRule(observationData)}
 
 TONE:
 - Warm, respectful, mentor-like
