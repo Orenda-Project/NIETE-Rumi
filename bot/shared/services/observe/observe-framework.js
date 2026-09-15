@@ -172,12 +172,26 @@ const FICO_TITLES_UR = {
   teacher_subject_knowledge:'استاد کا مضمون سے متعلق علم',
 };
 
+// The option id that means "this indicator does not apply to this lesson".
+// Non-numeric on purpose: `scaleBounds` filters to finite numbers.
+const NOT_APPLICABLE_ID = 'na';
+
 // FICO score scale is 1-4 (id '1'..'4'), NOT 0-3. Officer-facing English.
+//
+// The fifth entry is not a rating. The scorer abstains on a subject-gated row —
+// `applicable: false`, null score — and those rows leave both sides of the total,
+// so the form needs a way to say the same thing: without it an excluded row was
+// served pre-set to the bottom rung with nothing marking it, and an observer who
+// disagreed had no way to record "this one does not apply". Its id is
+// deliberately non-numeric so the rating clamp, which derives its bounds from the
+// numeric ids, still reads 1-4. Titles are measured in code points against the
+// field cap.
 const FICO_SCALE_OPTIONS = [
   { id: '1', title: '1 · Not Observed / Emerging' },
   { id: '2', title: '2 · Developing' },
   { id: '3', title: '3 · Proficient / Effective' },
   { id: '4', title: '4 · Highly Effective' },
+  { id: NOT_APPLICABLE_ID, title: 'N/A · not applicable here' },
 ];
 
 let _ficoDomainsCache = null;
@@ -248,4 +262,4 @@ function getObservePack() {
   };
 }
 
-module.exports = { getObservePack, OBSERVE_FRAMEWORK_KEYS };
+module.exports = { getObservePack, OBSERVE_FRAMEWORK_KEYS, NOT_APPLICABLE_ID };

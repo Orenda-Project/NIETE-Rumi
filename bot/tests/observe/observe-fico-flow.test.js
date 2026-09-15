@@ -61,10 +61,22 @@ describe('observe-fico-flow.json — FICO V3 (37 indicators, B/C/D/F)', () => {
     expect(names.has('fid_e_1')).toBe(true);
   });
 
-  test('rating options are the FICO 1-4 scale (never 0-3)', () => {
+  test('rating options are the FICO 1-4 scale (never 0-3), plus a non-numeric N/A', () => {
+    // The four RATING rungs and their order are the contract. The fifth entry is
+    // not a rating — it is the coach saying the indicator does not apply, which
+    // is the same statement the scorer makes when it abstains. Its id stays
+    // non-numeric so the rating clamp, which derives its bounds from the numeric
+    // ids, still reads 1-4.
+    //
+    // This list is the declared `__example__` — a sample payload, not a
+    // constraint. Every rating radio on the published Flow reads `${data.scale}`,
+    // an array the endpoint supplies at runtime, so adding an option needs no
+    // republish. Verified against the live asset, not assumed.
     domainScreens.forEach(s => {
-      const scale = s.data.scale.__example__;
-      expect(scale.map(o => o.id)).toEqual(['1', '2', '3', '4']);
+      const ids = s.data.scale.__example__.map(o => o.id);
+      expect(ids.slice(0, 4)).toEqual(['1', '2', '3', '4']);
+      expect(ids.filter(id => Number.isFinite(Number(id)))).toEqual(['1', '2', '3', '4']);
+      expect(ids).toContain('na');
     });
   });
 

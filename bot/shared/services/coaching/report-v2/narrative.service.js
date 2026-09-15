@@ -180,6 +180,14 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName }
   const domainScoresBlock = (isFico && a.domains && typeof a.domains === 'object')
     ? Object.keys(FICO_DOMAIN_LABELS).filter((k) => a.domains[k]).map((k) => {
         const d = a.domains[k];
+        // A section that was not assessed has no diagnosis to write. Handing the
+        // model the legacy proxy score and its "lowest indicators" under a prompt
+        // that REQUIRES one concrete missing element is exactly the mechanism that
+        // told non-maths teachers their lesson lacked maths. Code writes this line;
+        // the model is told not to.
+        if (d.assessed === false) {
+          return `- ${k} (${FICO_DOMAIN_LABELS[k]}): NOT ASSESSED — this section was not measured for this lesson, so it is not part of the score. Do NOT diagnose it, do NOT name anything missing from it, and omit it from "domain_whys" entirely.`;
+        }
         // Section B may be DERIVED from the measured LP-fidelity engine (P4.1/D27):
         // ground its "why" in the actual missed moves, not the legacy proxy indicators.
         if (k === 'lesson_plan_fidelity' && d.fidelity_derived) {

@@ -16,7 +16,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
-const { getObservePack } = require('./observe-framework');   // FEAT-093 bd-52 — market rubric by config
+const { getObservePack, NOT_APPLICABLE_ID } = require('./observe-framework');   // FEAT-093 bd-52 — market rubric by config
 const { logToFile } = require('../../utils/logger');
 
 // D15 — full text stays in analysis_data regardless of what the form shows.
@@ -62,6 +62,12 @@ const scaleBounds = () => {
   const ids = scaleOptions().map(o => Number(o.id)).filter(Number.isFinite);
   return { min: Math.min(...ids), max: Math.max(...ids) };
 };
+
+// Whether the active pack offers "not applicable" as a choice. Only the pack that
+// carries it can serve it or accept it back, so every other framework's prefill
+// and merge stay byte-identical.
+const hasNotApplicableOption = () =>
+  scaleOptions().some(o => o && o.id === NOT_APPLICABLE_ID);
 
 // bd-59: HOTS indicator ids are NUMBERS (7); mewaka's are strings ("C3.7").
 // String() first, or every non-mewaka pack crashes on .replace.
@@ -250,19 +256,25 @@ function composeMoveBlocks(lp) {
 // the most common one (plan linked, recording not adjudicable). Wrong copy
 // here rewrites every field report: coaches described an LP-linking failure
 // and a whole fix cycle chased the wrong layer.
+//
+// Each state keeps its own first clause — what actually happened — and they now
+// share a corrected second clause: with nothing measured, Section B is NOT
+// scored and leaves the total. The old sentences said it kept a standard AI
+// assessment, which the scorer no longer does.
 function fidelityFallbackCopy(lp) {
+  const consequence = ' Section B is not scored for this observation and is left out of the '
+    + 'total — the teacher\'s report says so too. Continue to the next section.';
   if (lp && lp.status === 'ok' && lp.fidelity_pct == null) {
     return 'The lesson plan was linked, but the recording could not be matched to it move-by-move, '
-      + 'so there are no per-move ratings to review. Section B keeps its standard AI assessment — '
-      + 'continue to the next section.';
+      + 'so there are no per-move ratings to review.' + consequence;
   }
   if (lp && lp.status === 'fidelity_unavailable') {
     return 'The lesson plan was received, but the move-by-move check could not run for this '
-      + 'observation. Section B keeps its standard AI assessment — continue to the next section.';
+      + 'observation.' + consequence;
   }
   // lp_absent, or no fidelity blob at all: no plan ever reached this observation.
-  return 'No usable lesson plan was linked for this observation, so Section B was scored by the '
-    + 'AI assessment. Nothing to review here — continue to the next section.';
+  return 'No lesson plan was provided for this observation, so there was nothing to check the '
+    + 'lesson against.' + consequence;
 }
 
 function buildScreenPrefill(analysis, domainKey) {
@@ -323,9 +335,19 @@ function buildScreenPrefill(analysis, domainKey) {
   spec.indicators.forEach(specInd => {
     const f = fid(specInd.id);
     const ind = byId[specInd.id] || {};
-    const score = Number.isFinite(Number(ind.score)) && ind.score !== null && ind.score !== undefined
-      ? Math.max(SMIN, Math.min(SMAX, Number(ind.score))) : SMIN;
-    data[`s_${f}`] = String(score);
+    // A row the scorer excluded has a null score, so the finite-number guard below
+    // fails and it used to fall to the floor — the coach saw a subject-gated
+    // indicator pre-set to the bottom rung on a lesson in another subject, with
+    // nothing saying it had been left out of the score. Show her what the scorer
+    // actually did.
+    const excluded = byId[specInd.id] && byId[specInd.id].applicable === false;
+    if (excluded && hasNotApplicableOption()) {
+      data[`s_${f}`] = NOT_APPLICABLE_ID;
+    } else {
+      const score = Number.isFinite(Number(ind.score)) && ind.score !== null && ind.score !== undefined
+        ? Math.max(SMIN, Math.min(SMAX, Number(ind.score))) : SMIN;
+      data[`s_${f}`] = String(score);
+    }
     // The form shows the ≤500-char evidence_summary (the whole gist,
     // fits Meta's 600-char TextArea); the FULL evidence stays in analysis_data
     // and flows to the teacher's report. evidence_sw keeps MEWAKA/TZ unchanged.
@@ -414,14 +436,14 @@ async function onAnalysisReady(sessionId, from) {
  * analysis, recompute scores, stamp the annotation summary, persist.
  * v1 (autofill_analysis_data) is never touched here.
  */
-async function applyObserverEdits(sessionId, edits) {
-  const session = await loadSession(sessionId);
-  const v1 = session.autofill_analysis_data || session.analysis_data;
-  const v2 = JSON.parse(JSON.stringify(session.analysis_data));
-
+// The pure half of applyObserverEdits: merge the submitted field map into `v2`,
+// grounding "did this change?" in `v1` (the pre-edit analysis). Extracted so the
+// merge rules can be tested against the real functions with no database.
+function applyObserverEditsToAnalysis(v2, v1, edits) {
   let rescored = 0;
   let textChanged = 0;
   const { min: SMIN, max: SMAX } = scaleBounds(); // 1-4 for FICO, 0-3 for mewaka/hots
+  const naOffered = hasNotApplicableOption();
   const v1ById = {};
   Object.values((v1 || {}).domains || {}).forEach(d =>
     (d.indicators || []).forEach(ind => { v1ById[ind.id] = ind; }));
@@ -430,10 +452,25 @@ async function applyObserverEdits(sessionId, edits) {
     (d.indicators || []).forEach(ind => {
       const f = fid(ind.id);
       const orig = v1ById[ind.id] || {};
-      if (edits[`r_${f}`] !== undefined && edits[`r_${f}`] !== null && edits[`r_${f}`] !== '') {
-        const newScore = Math.max(SMIN, Math.min(SMAX, parseInt(edits[`r_${f}`], 10) || SMIN));
-        if (newScore !== Number(orig.score)) rescored += 1;
-        ind.score = newScore;
+      const submitted = edits[`r_${f}`];
+      if (submitted !== undefined && submitted !== null && submitted !== '') {
+        if (naOffered && String(submitted) === NOT_APPLICABLE_ID) {
+          // She is saying the indicator does not apply. That is the same statement
+          // the scorer makes when it abstains, so it has to be written the same
+          // way — a score alone would leave the row inside the denominator.
+          if (orig.applicable !== false) rescored += 1;
+          ind.applicable = false;
+          ind.score = null;
+        } else {
+          const newScore = Math.max(SMIN, Math.min(SMAX, parseInt(submitted, 10) || SMIN));
+          if (newScore !== Number(orig.score) || orig.applicable === false) rescored += 1;
+          ind.score = newScore;
+          // A number is a rating, and a rating only means something on a row that
+          // counts. Without this her correction to a row the scorer wrongly
+          // excluded was accepted and then dropped again by the scorer, and her
+          // teacher's total did not move.
+          if (naOffered) ind.applicable = true;
+        }
       }
       for (const [prefix, field] of [['ev_', 'evidence_sw'], ['imp_', 'improvement_sw']]) {
         const val = edits[`${prefix}${f}`];
@@ -445,6 +482,16 @@ async function applyObserverEdits(sessionId, edits) {
       }
     });
   });
+
+  return { rescored, textChanged };
+}
+
+async function applyObserverEdits(sessionId, edits) {
+  const session = await loadSession(sessionId);
+  const v1 = session.autofill_analysis_data || session.analysis_data;
+  const v2 = JSON.parse(JSON.stringify(session.analysis_data));
+
+  const { rescored, textChanged } = applyObserverEditsToAnalysis(v2, v1, edits);
 
   // bd-c5zs1 (v4): the coach's per-move verdict/evidence edits update the
   // MEASUREMENT itself — re-run the fidelity scorer on the corrected rows
@@ -508,7 +555,8 @@ function reapplyFidelitySectionB(v2, sessionId) {
 }
 
 module.exports = {
-  onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB,
+  onAnalysisReady, buildScreenPrefill, applyObserverEdits, applyObserverEditsToAnalysis,
+  scaleBoundsForTest: scaleBounds, reapplyFidelitySectionB,
   composeFidelitySummary, composeMoveBlocks, composeEditableFidelity, rescoreFidelityFromEdits,
   clipWords, MAX_MOVE_SLOTS, FIDELITY_VERDICT_OPTIONS, SCALE_OPTIONS_BY_LANG,
 };
