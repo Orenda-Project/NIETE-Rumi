@@ -10,7 +10,6 @@
  * The portal used to enqueue by requiring the bot's queue service directly:
  *
  *     require('../../bot/shared/services/lesson-plan-queue.service')
-const { teacherLevelOf } = require('../utils/teacher-level');
  *
  * That throws inside the dashboard process. The queue driver does
  * `require('aws-sdk')` (the v2 SDK, a dependency of bot/) and the dashboard
@@ -33,6 +32,9 @@ const { teacherLevelOf } = require('../utils/teacher-level');
 const express = require('express');
 const { logToFile } = require('../utils/logger');
 const { clampLanguage } = require('../config/ux-strings');
+// Out of the doc comment above, where #913 first put it: inside /* */ this line never ran and
+// POST /training/bands/state threw "teacherLevelOf is not defined" for every teacher (15 Sep 2026).
+const { teacherLevelOf } = require('../utils/teacher-level');
 
 const router = express.Router();
 
