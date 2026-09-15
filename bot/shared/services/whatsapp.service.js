@@ -84,7 +84,7 @@ class WhatsAppService {
    * @param {string} message - Message text
    * @returns {Promise<boolean>}
    */
-  static async sendMessage(to, message) {
+  static async sendMessage(to, message, opts = {}) {
     try {
       // Remove emotion tags from text messages (they're only for voice)
       const cleanMessage = this._removeEmotionTags(message);
@@ -109,14 +109,45 @@ class WhatsAppService {
       const data = await response.json();
       if (!response.ok) {
         logToFile('❌ Error sending WhatsApp message', { responseData: data });
+        // Shaped like an axios rejection so one reader handles both transports:
+        // sendMessage is on fetch, the image senders are on axios.
+        WhatsAppService._reportSendError(opts, Object.assign(
+          new Error((data && data.error && data.error.message) || `WhatsApp send failed (${response.status})`),
+          { response: { status: response.status, data } },
+        ));
         return false;
       }
       logToFile('✅ WhatsApp message sent', { messageId: data?.messages?.[0]?.id });
       return true;
     } catch (error) {
       logToFile('❌ Exception sending WhatsApp message', { error: error.message });
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
+  }
+
+  /**
+   * Hand a send failure to a caller that asked for it, and never let that
+   * callback change what the send did. Callers that do not pass `onError` are
+   * byte-for-byte unaffected: the boolean return contract is untouched.
+   */
+  static _reportSendError(opts, error) {
+    const onError = opts && opts.onError;
+    if (typeof onError !== 'function') return;
+    try {
+      onError(error);
+    } catch (_) {
+      // A caller's error handler must never be able to break the send path.
+    }
+  }
+
+  /**
+   * The Meta error code inside a send failure, or null. One definition, in
+   * config/meta-messaging-window.js — this is the convenience alias for
+   * callers that already hold the service.
+   */
+  static metaErrorCodeOf(error) {
+    return require('../config/meta-messaging-window').metaErrorCodeOf(error);
   }
 
   /**
@@ -974,7 +1005,7 @@ class WhatsAppService {
    * @param {string} caption - Optional caption
    * @returns {Promise<boolean>}
    */
-  static async sendImage(to, mediaIdOrPath, caption = '') {
+  static async sendImage(to, mediaIdOrPath, caption = '', opts = {}) {
     const path = require('path');
 
     try {
@@ -1043,6 +1074,12 @@ class WhatsAppService {
         error: error.message,
         errorDetails: error.response?.data
       });
+      // The return stays a boolean for every existing caller. `onError` is the
+      // opt-in seam for a caller that needs to ACT on which error this was —
+      // a Meta re-engagement refusal has a different remedy from an invalid
+      // parameter, and the code that distinguishes them was being logged and
+      // then discarded here.
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
   }
@@ -1214,7 +1251,7 @@ class WhatsAppService {
    * @param {string} [mimeType]
    * @returns {Promise<boolean|object>}
    */
-  static async sendImageFromBuffer(to, imageBuffer, caption = '', mimeType = 'image/png') {
+  static async sendImageFromBuffer(to, imageBuffer, caption = '', mimeType = 'image/png', opts = {}) {
     try {
       if (!imageBuffer || !imageBuffer.length) {
         logToFile('❌ sendImageFromBuffer: empty buffer', { to });
@@ -1232,12 +1269,13 @@ class WhatsAppService {
       );
       const mediaId = uploadResp.data.id;
       logToFile('Image buffer uploaded to WhatsApp', { mediaId, bytes: imageBuffer.length });
-      return await WhatsAppService.sendImage(to, mediaId, caption);
+      return await WhatsAppService.sendImage(to, mediaId, caption, opts);
     } catch (error) {
       logToFile('❌ Error in sendImageFromBuffer', {
         error: error.message,
         errorDetails: error.response?.data,
       });
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
   }
