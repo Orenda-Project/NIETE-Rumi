@@ -21,12 +21,14 @@ const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { languageFor, clampToMarket } = require('./observe-language');
 const { metaErrorCodeOf, RE_ENGAGEMENT_ERROR_CODE } = require('../../config/meta-messaging-window');
+const { teacherOf, coachOf, isBound } = require('./observe-people');
 const { logToFile } = require('../../utils/logger');
 
 const BTN = {
   start: 'observe_send_start_',
   later: 'observe_send_later_',
   confirm: 'observe_send_confirm_',
+  other: 'observe_send_other_',
   cancel: 'observe_send_cancel_',
 };
 const TEMPLATE_PAYLOAD_PREFIX = 'observe_report_';
@@ -125,13 +127,17 @@ function buildSendChoiceButtons(sessionId, S) {
 }
 
 function buildSendConfirmButtons(sessionId, S) {
-  // bd-dy7hs: send or cancel. The third, language-flipping button is gone —
-  // the report is already in the teacher's own language by the time she sees it.
+  // Send, someone else, or cancel. A bound session now resolves its own
+  // recipient, so the middle button is the escape hatch for the 9% of sends
+  // that legitimately go elsewhere — a deliberate act instead of the default
+  // every coach had to walk through. WhatsApp allows three buttons; every
+  // title is inside the 20-code-point cap.
   return {
     body: S.send_confirm_body,
     buttons: [
-      { id: `${BTN.confirm}${sessionId}`, title: S.btn_send_now },
-      { id: `${BTN.cancel}${sessionId}`, title: S.btn_send_cancel },
+      { id: `${BTN.confirm}${sessionId}`, title: String(S.btn_send_now).slice(0, 20) },
+      { id: `${BTN.other}${sessionId}`, title: String(S.btn_send_other).slice(0, 20) },
+      { id: `${BTN.cancel}${sessionId}`, title: String(S.btn_send_cancel).slice(0, 20) },
     ],
   };
 }
@@ -202,6 +208,42 @@ async function startSendFlow(sessionId, from, user) {
     return;
   }
 
+  // The observation already knows whose lesson it was. 665 of 665 report sends
+  // since 7 Sep were on a bound session, and 665 of 665 already carried that
+  // teacher's phone on her users row — yet the coach was asked every time, and
+  // 9% of those answers went to the wrong person, in 54 of 60 cases to someone
+  // the roster she was shown could not even have offered. So when the session
+  // is bound and the teacher has a phone on file, go straight to preview and
+  // confirm, exactly as a pick would.
+  const boundTeacher = await teacherOf(session);
+  if (isBound(session) && boundTeacher && boundTeacher.phone) {
+    const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
+    try {
+      const { upsertTeacher } = require('./observe-roster');
+      const picked = { name: boundTeacher.name || '', phone: boundTeacher.phone };
+      // The roster starts learning correct pairs instead of whatever was typed.
+      await upsertTeacher(user, picked);
+      await mergeTeacherDelivery(sessionId, {
+        teacher_name: picked.name,
+        teacher_phone: picked.phone,
+        status: 'previewing',
+      });
+      await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
+      await WhatsAppService.sendMessage(
+        from, S.send_preview_coming.replace('{name}', picked.name).replace('{phone}', `+${picked.phone}`));
+      await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
+      logToFile('📤 observe send: bound teacher carried — no pick asked', {
+        sessionId, observerId: user.id, recipientSource: 'session_binding',
+      });
+      return;
+    } catch (err) {
+      // Never dead-end a coach standing in a school: fall through to the pick.
+      logToFile('⚠️ observe send: bound carry failed — falling back to the pick', {
+        sessionId, observerId: user.id, error: err.message,
+      });
+    }
+  }
+
   // bd-43: offer the officer their known teachers first (name+phone learned
   // from past deliveries) — picking one skips typing details entirely. The
   // list is snapshotted into the state so a tap can never resolve against a
@@ -213,10 +255,38 @@ async function startSendFlow(sessionId, from, user) {
     // global index into this snapshot, so pagination can never mis-resolve.
     await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers });
     await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(teachers, S));
+    logToFile('📤 observe send: roster pick offered', {
+      sessionId, observerId: user.id, rosterSize: teachers.length, bound: isBound(session),
+    });
     return;
   }
   await ObserveState.setState(user.id, 'awaiting_teacher_details', { sessionId });
   await WhatsAppService.sendMessage(from, S.send_ask_details);
+  logToFile('📤 observe send: details asked (empty roster)', {
+    sessionId, observerId: user.id, bound: isBound(session),
+  });
+}
+
+/**
+ * "Someone else" on the confirm — hand the coach the roster pick for the SAME
+ * session. Nothing is unwound: the delivery row is rewritten by whichever
+ * recipient she then chooses.
+ */
+async function handleSendOther(sessionId, from, user) {
+  const S = observeStrings(observeLang(user));
+  const { getRoster } = require('./observe-roster');
+  const teachers = await getRoster(user).catch(() => []);
+  if (!teachers.length) {
+    await ObserveState.setState(user.id, 'awaiting_teacher_details', { sessionId });
+    await WhatsAppService.sendMessage(from, S.send_ask_details);
+    logToFile('📤 observe send: someone-else chosen, details asked', { sessionId, observerId: user.id });
+    return;
+  }
+  await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers });
+  await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(teachers, S));
+  logToFile('📤 observe send: someone-else chosen, roster pick offered', {
+    sessionId, observerId: user.id, rosterSize: teachers.length,
+  });
 }
 
 /**
@@ -348,6 +418,9 @@ async function handleTeacherPick(user, from, listId) {
     await WhatsAppService.sendMessage(
       from, S.send_preview_coming.replace('{name}', picked.name).replace('{phone}', `+${picked.phone}`));
     await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
+    logToFile('🎯 observe send: recipient chosen from the roster', {
+      sessionId, observerId: user.id, recipientSource: 'roster_pick',
+    });
   } catch (err) {
     logToFile('❌ observe send: teacher pick failed', { sessionId, error: err.message });
     await WhatsAppService.sendMessage(from, S.debrief_load_error);
@@ -386,11 +459,13 @@ async function processUntappedDelivery(sessionId, nowMs = Date.now()) {
   const decision = classifyUntappedDelivery(delivery, nowMs);
   if (decision.action === 'skip') return decision;
 
-  const foPhone = session.users && session.users.phone_number;
-  const foName = (session.users && session.users.name) || '';
-  // bd-dy7hs: the coach's own chase-up, in the COACH's language. `session.users`
-  // is the observed TEACHER on a bound session, so reading it here told a
-  // English-reading coach about her teacher in Urdu.
+  // The coach's own chase-up, to the COACH and in the COACH's language.
+  // `session.users` is the observed TEACHER on a bound session: the language
+  // half of that was fixed earlier, the identity half sent 238 nudge and
+  // give-up messages to the teacher instead of the coach.
+  const coach = await coachOf(session);
+  const foPhone = coach && coach.phone;
+  const foName = (coach && coach.name) || '';
   const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
   const name = delivery.teacher_name || '';
@@ -860,10 +935,16 @@ async function _handleDeliverFailure(sessionId, foPhone, S, path, err, meta = {}
 
 async function processTeacherReport(sessionId, payload = {}) {
   const session = await _loadSession(sessionId);
+  // `session.users` is joined off user_id, which on a bound observation is the
+  // TEACHER — 98% of finished observations are bound. Reading it here sent the
+  // coach's own confirmations to her teacher, addressed with the teacher's
+  // name, and put the teacher's name in the report's "From" line. Resolve the
+  // audience by name instead.
+  const coach = await coachOf(session);
   const foPhone = payload.from && payload.phase !== 'teacher_tap'
     ? payload.from
-    : (session.users && session.users.phone_number);
-  const foName = (session.users && session.users.name) || 'Afisa';
+    : (coach && coach.phone) || null;
+  const foName = (coach && coach.name) || 'Afisa';
   // bd-dy7hs: two audiences, named. They are computed separately and stay
   // separate (spec 2.3) — the coach's acks ("preview sent", "queued") are hers,
   // only the teacher-bound artefacts follow the teacher.
@@ -1036,6 +1117,7 @@ module.exports = {
   buildTeacherPickPayload,
   buildTeacherManagePayload,
   handleTeacherPick,
+  handleSendOther,
   handleTeacherManage,
   handleTeacherManageButton,
   TEMPLATE_PAYLOAD_PREFIX,
