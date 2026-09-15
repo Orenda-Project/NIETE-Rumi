@@ -25,14 +25,16 @@ const RENDERER = process.env.HTML_TO_PDF_UNDER_TEST
   || path.join(__dirname, '..', '..', 'bot', 'shared', 'utils', 'html-to-pdf.js');
 
 // A stand-in for sqs-worker.js: load the renderer, then own SIGTERM with a drain.
-// playwright-core is a bot-only dependency the root CI job does not install, and
-// nothing here launches a browser, so the child gets an inert stand-in for it —
-// the signal handlers under test are registered at module load either way.
+// The root CI job installs only root dependencies, so neither playwright-core
+// nor the logger's pino exists there, and nothing here launches a browser or
+// ships a log. The child gets inert stand-ins for both — the signal handlers
+// under test are registered at module load either way.
 const CHILD = `
   const Module = require('module');
   const load = Module._load;
   Module._load = function (request, ...rest) {
     if (request === 'playwright-core') return { chromium: { launch: async () => { throw new Error('no browser in this test'); } } };
+    if (/(^|\\/)logger$/.test(request)) return { logToFile() {} };
     return load.call(this, request, ...rest);
   };
   require(${JSON.stringify(RENDERER)});
