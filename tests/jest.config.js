@@ -9,7 +9,13 @@ module.exports = {
     '/node_modules/',
     '/dist/',
     '/build/',
+    '/\\.claude/qa/results/',
   ],
+  // The mock E2E lane checks the commit under test out INSIDE the repo for the life of a run
+  // (.claude/qa/results/<run>/src — see bot/scripts/e2e/local-stack.sh). Without this, Jest's haste
+  // map sees every tests/__mocks__ stub twice while a run is in flight and 61 suites fail on
+  // "duplicate module" for reasons that have nothing to do with the code.
+  modulePathIgnorePatterns: ['<rootDir>/\\.claude/qa/results/'],
   // Force module resolution to root node_modules so Jest mocks work
   // even when bot/node_modules exists (dual-install scenario)
   moduleNameMapper: {

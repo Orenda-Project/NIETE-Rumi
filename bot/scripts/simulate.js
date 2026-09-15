@@ -12,16 +12,19 @@ const readline = require('readline');
 
 const SIMULATOR_PHONE = '15550001234';
 const SIMULATOR_NAME = 'Simulator User';
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || 'simulator-phone-id';
+// Read at call time, not load time: the E2E mock server sets PHONE_NUMBER_ID after this module
+// is required, and the webhook's cross-WABA guard drops any payload whose id does not match.
+const phoneNumberId = () => process.env.PHONE_NUMBER_ID || 'simulator-phone-id';
 
-/**
- * Create a WhatsApp webhook payload from a text message.
- */
-function simulateMessage(text, options = {}) {
+// The bot de-duplicates on message id in-process. Two messages built in the same millisecond
+// (M04 sends /menu twice back to back) used to share `sim_<ms>` and the second was dropped.
+let _seq = 0;
+const nextId = () => `sim_${Date.now()}_${++_seq}`;
+
+/** Wrap one message object in a full Cloud API webhook envelope. */
+function wrapInWebhook(message, options = {}) {
   const from = options.from || SIMULATOR_PHONE;
   const name = options.name || SIMULATOR_NAME;
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-
   return {
     object: 'whatsapp_business_account',
     entry: [
@@ -33,7 +36,7 @@ function simulateMessage(text, options = {}) {
               messaging_product: 'whatsapp',
               metadata: {
                 display_phone_number: process.env.PHONE_NUMBER || '+1 555 0100',
-                phone_number_id: PHONE_NUMBER_ID,
+                phone_number_id: phoneNumberId(),
               },
               contacts: [
                 {
@@ -44,10 +47,9 @@ function simulateMessage(text, options = {}) {
               messages: [
                 {
                   from,
-                  id: `sim_${Date.now()}`,
-                  timestamp,
-                  text: { body: text },
-                  type: 'text',
+                  id: nextId(),
+                  timestamp: Math.floor(Date.now() / 1000).toString(),
+                  ...message,
                 },
               ],
             },
@@ -57,6 +59,53 @@ function simulateMessage(text, options = {}) {
       },
     ],
   };
+}
+
+/**
+ * Create a WhatsApp webhook payload from a text message.
+ */
+function simulateMessage(text, options = {}) {
+  return wrapInWebhook({ type: 'text', text: { body: text } }, options);
+}
+
+/** A tap on a reply button — what Meta sends when the teacher presses one. */
+function buttonReply(id, title, options = {}) {
+  return wrapInWebhook({ type: 'interactive', interactive: { type: 'button_reply', button_reply: { id, title } } }, options);
+}
+
+/** A pick from an interactive list — the handler routes on the row ID. */
+function listReply(id, title, options = {}) {
+  return wrapInWebhook({ type: 'interactive', interactive: { type: 'list_reply', list_reply: { id, title } } }, options);
+}
+
+/**
+ * The message Meta sends when a Flow COMPLETES: an interactive nfm_reply whose `name` is
+ * `flow_<flowId>` (the handler strips the prefix) and whose `response_json` is a STRING —
+ * the completion payload (navigate Flows: the complete action's payload; endpoint Flows: the
+ * endpoint's extension_message_response.params).
+ */
+function flowReply(flowId, responseJson, options = {}) {
+  const body = typeof responseJson === 'string' ? responseJson : JSON.stringify(responseJson || {});
+  return wrapInWebhook({ type: 'interactive', interactive: { type: 'nfm_reply', nfm_reply: { name: `flow_${flowId}`, body: 'Sent', response_json: body } } }, options);
+}
+
+/**
+ * A media message the teacher sent — `kind` is document | image | audio | video, `mediaId` is the id
+ * the (mock) Graph API will serve the bytes under. Carries exactly the fields the handlers read:
+ * document → id, mime_type, filename, file_size · image → id, mime_type, caption · audio → id,
+ * mime_type, voice (a WhatsApp voice note).
+ */
+function mediaMessage(kind, mediaId, meta = {}, options = {}) {
+  const base = { id: mediaId, mime_type: meta.mime || 'application/octet-stream' };
+  let media;
+  switch (kind) {
+    case 'document': media = { ...base, filename: meta.filename || 'file', file_size: meta.size || 0 }; break;
+    case 'image': media = { ...base, ...(meta.caption ? { caption: meta.caption } : {}), sha256: meta.sha256 || 'mock' }; break;
+    case 'audio': media = { ...base, voice: meta.voice !== false }; break;
+    case 'video': media = { ...base, ...(meta.caption ? { caption: meta.caption } : {}) }; break;
+    default: throw new Error('mediaMessage: unknown kind ' + kind);
+  }
+  return wrapInWebhook({ type: kind, [kind]: media }, options);
 }
 
 /**
@@ -159,6 +208,11 @@ if (require.main === module) {
 
 module.exports = {
   simulateMessage,
+  buttonReply,
+  listReply,
+  mediaMessage,
+  flowReply,
+  wrapInWebhook,
   isQuitCommand,
   postToWebhook,
   createSimulator,

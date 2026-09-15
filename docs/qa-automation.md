@@ -25,7 +25,10 @@ developer changes bot code
 │ 3. SYNC THE GHERKIN   /sync-specs --brief …  (skill: gherkin-spec-sync,             │
 │    authors via gherkin-test-cases; adds / updates / tags @obsolete — never deletes) │
 │ 4. GATE               validate_specs.py  (+ check-all-mode-counts.py)              │
-│ 5. DRIVE              /niete-e2e <features>  against staging, linked WhatsApp Web  │
+│ 5. DRIVE   mock lane: commit-e2e.sh <sha> — the bot FROM THIS COMMIT, no browser     │
+│            (menu · language · status · lesson-plan · coaching · training)  ·  chrome:  │
+│            /niete-e2e <features> against                                              │
+│            staging over linked WhatsApp Web, for everything else                      │
 │ 6. RECORD             .claude/qa/ledgers/runs.jsonl  (+ results/, gitignored)      │
 └────────────────────────────────────────────────────────────────────────────────────┘
         │  push — any branch
@@ -84,8 +87,9 @@ you change any part of this.
 ```
 ┌ QA · commit 3f2a9c1d7e0b touched: menu
 │ Gherkin: sync needed first →  /sync-specs --brief .claude/.e2e-pending/git-3f2a9c1d7e0b.sync.json
-│ Then the targeted E2E →  /niete-e2e menu
-│ Open Claude Code in this clone: it announces this at start and holds the turn until
+│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/shared/commit-e2e.sh <sha> --features menu
+│ Then the targeted E2E (WhatsApp Web, after deploy) →  /niete-e2e menu
+│ Open Claude Code in this clone: it announces this at start and holds the turn once until
 │ it is driven or cleared. Off: QA_HOOKS_OFF=1 · Quiet: QA_HOOKS_QUIET=1
 └ marker: .claude/.e2e-pending/git-3f2a9c1d7e0b.json
 ```
@@ -130,9 +134,14 @@ Nothing server-side enforces either verdict.
   a `# OBSOLETE <date> (<bead>): <why>` line and raised as an explicit ask.
 - **Author through the skill, never free-hand.** `gherkin-spec-sync` decides what the
   diff means for coverage; `gherkin-test-cases` decides how a scenario is written.
-- **A commit-triggered run cannot test the commit.** Nothing deploys from a commit, so
-  the run exercises the build that is already live. It is a regression check and must be
-  reported as one; only a run after the `develop` deploy tests the change.
+- **A commit-triggered run on the WhatsApp Web lane cannot test the commit.** Nothing deploys
+  from a commit, so that run exercises the build that is already live. It is a regression check
+  and must be reported as one; only a run after the `develop` deploy tests the change on Meta.
+  **The mock lane exists for exactly this gap**: `bash .claude/qa/shared/commit-e2e.sh <sha>`
+  starts the bot from a detached worktree at that commit behind a local mock Graph API and drives
+  the same feature scripts (menu · language · status · lesson-plan · coaching · training) — see
+  [docs/e2e-mock-lane.md](e2e-mock-lane.md). Its ledger rows carry `method: mock`, the
+  `commit_sha`, and the cassette misses that make a verdict untrustworthy.
 - **Never on production users.** `/niete-e2e` targets staging by default; prod is an
   explicit, per-action opt-in.
 

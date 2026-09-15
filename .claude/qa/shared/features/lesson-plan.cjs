@@ -1,3 +1,4 @@
+// @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
 /* lesson-plan.feature — 10 @e2e scenarios in one process. */
 // Fixtures live in the tracked fixtures tree, NOT a results dir: results are untracked (this PR
 // gitignores them) and 2026-08-26-all is EMPTY on a fresh checkout — every upload then fails with
@@ -81,6 +82,7 @@ exports.run = async ({ api, rec, sleep }) => {
   await api.sendWait('/menu');
   await api.openList('View Features');
   await api.pickRowAndWait('Ask Anything');
+  api.resetConversation();   // clean history → the open-chat prompt is deterministic → cassette replays
   r = await api.sendWait('make me a lesson plan for grade 4 science on the water cycle', 120000);
   const freeform = /objectives?:|5[- ]step|starter|plenary/i.test(r.txt || '') && (r.txt || '').length > 400;
   const nudge = /\(1-4\)|کلاس روم آڈیو|classroom recording audio/i.test(r.txt || '');
@@ -89,8 +91,22 @@ exports.run = async ({ api, rec, sleep }) => {
            { generatedFreeform: freeform, stateNudge: nudge, len: (r.txt || '').length,
              reply: (r.txt || '').slice(0, 140) }), t() - s);
 
+  // Wait on the fresh-inbound reader both drivers expose (freshReset/fresh) — the page-eval loops this
+  // replaces read the WhatsApp Web DOM, which the mock lane does not have (MOCK_NO_PAGE).
+  const waitFresh = async (pred, timeoutMs, stepMs = 1500) => {
+    const t0 = Date.now(); const seen = [];
+    while (Date.now() - t0 < timeoutMs) {
+      for (const r of await api.fresh()) seen.push(r);
+      const hit = seen.find(pred);
+      if (hit) return { ok: true, waitedMs: Date.now() - t0, hit, seen };
+      await new Promise((r) => setTimeout(r, stepMs));
+    }
+    return { ok: false, waitedMs: Date.now() - t0, last: (seen[seen.length - 1] || {}).txt || '' };
+  };
+
   // L01 + L10 — open the Pick-Class Flow and complete it for Grade 1 English Ch1 Day 1
   s = t();
+  await api.freshReset();
   await api.sendWait('/lp');
   const op = await openLP();
   const first = op.ok ? await api.flowProbe() : { text: '' };
@@ -109,19 +125,11 @@ exports.run = async ({ api, rec, sleep }) => {
     api.closeFlow();
     if (!delivered) {
       // the Flow hands back to chat; the PDF arrives as a document message
-      const w = await api.ev(`(async()=>{
-        const wa=window.__wa; wa.restore();
-        const t0=Date.now();
-        while(Date.now()-t0 < 120000){
-          const rows=wa.readLast(4);
-          const pdf = rows.find(x=>!x.mine && /\\.pdf/i.test(x.txt||''));
-          const ack = rows.find(x=>!x.mine && /(سبق کا منصوبہ|Sending your lesson plan)/i.test(x.txt||''));
-          if(pdf) return JSON.stringify({ok:true,waitedMs:Date.now()-t0,pdf:pdf.txt.slice(0,120),ack:!!ack});
-          await new Promise(r=>setTimeout(r,1500));
-        }
-        return JSON.stringify({ok:false,waitedMs:Date.now()-t0,last:(wa.readLast(1)[0]||{}).txt||''});
-      })()`);
-      delivered = JSON.parse(w);
+      const w = await waitFresh((x) => x.pdf || x.doc, 120000);
+      delivered = w.ok
+        ? { ok: true, waitedMs: w.waitedMs, pdf: (w.hit.txt || '').slice(0, 120),
+            ack: w.seen.some((x) => /(سبق کا منصوبہ|Sending your lesson plan)/i.test(x.txt || '')) }
+        : w;
     }
   }
   rec('L01', 'Completing the Pick Class Flow delivers the lesson-plan PDF',
@@ -141,6 +149,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // The 150s wait stays: a cold secondary-grade render genuinely took 151s.
   s = t();
   await api.resetFlow();
+  await api.freshReset();
   await api.sendWait('/lp');
   const op3 = await openLP();
   let pk = null;
@@ -150,21 +159,24 @@ exports.run = async ({ api, rec, sleep }) => {
       if (!c3.ok) break;
     }
     api.closeFlow();
-    const w3 = await api.ev(`(async()=>{
-      const wa=window.__wa; wa.restore();
-      const t0=Date.now();
-      const PK = /grade[_\\s-]*6.*\\.pdf/i;
-      while(Date.now()-t0 < 150000){
-        const rows = wa.readLast(5).filter(x=>!x.mine);
-        const ox  = rows.find(x=>/oxbridge/i.test(x.txt||''));
-        if(ox) return JSON.stringify({ok:false,oxbridge:true,waitedMs:Date.now()-t0,txt:ox.txt.slice(0,130)});
-        const hit = rows.find(x=>PK.test(x.txt||''));
-        if(hit) return JSON.stringify({ok:true,oxbridge:false,waitedMs:Date.now()-t0,txt:hit.txt.slice(0,130)});
-        await new Promise(r=>setTimeout(r,2000));
-      }
-      return JSON.stringify({ok:false,oxbridge:false,waitedMs:Date.now()-t0,last:(wa.readLast(1)[0]||{}).txt||''});
-    })()`);
-    pk = JSON.parse(w3);
+    // Inverted assertion (bd-mww73): a secondary grade must deliver a PAKISTAN plan; "oxbridge" is the
+    // FAILURE. The provenance is the delivered DOCUMENT's own filename ("Grade 6 <subject> …pdf"), which
+    // arrives in media.filename — NOT in the message text — so match the filename of a doc/pdf message,
+    // the way L01 waits on x.pdf||x.doc. The old check tested x.txt and could never match a filename,
+    // so a correctly-delivered Pakistan plan always timed out. An "oxbridge" filename or reply is the fail.
+    const PKF = /grade[_\s-]*6.*\.pdf/i;
+    const fnameOf = (x) => (x && x.media && x.media.filename) || '';
+    const w3 = await waitFresh(
+      (x) => ((x.pdf || x.doc) && PKF.test(fnameOf(x))) || /oxbridge/i.test(fnameOf(x)) || /oxbridge/i.test(x.txt || ''),
+      150000, 2000);
+    if (w3.ok) {
+      const fn = fnameOf(w3.hit); const t3 = (w3.hit.txt || '');
+      pk = (/oxbridge/i.test(fn) || /oxbridge/i.test(t3))
+        ? { ok: false, oxbridge: true, waitedMs: w3.waitedMs, file: fn.slice(0, 130), txt: t3.slice(0, 130) }
+        : { ok: true, oxbridge: false, waitedMs: w3.waitedMs, file: fn.slice(0, 130) };
+    } else {
+      pk = { ok: false, oxbridge: false, waitedMs: w3.waitedMs, last: w3.last };
+    }
   }
   rec('L03', 'A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one',
       ...VF(op3, !!(pk && pk.ok), pk || {}), t() - s);

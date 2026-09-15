@@ -154,9 +154,124 @@ def test_markdown_report_carries_the_commands_and_the_verdicts():
     head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})
     res = ci.analyse(r, base, head)
     md = ci.render_markdown(res, freshness="warn", proof="warn")
-    for needle in ("/niete-e2e menu", "/sync-specs", "menu.feature", "stale", "Spec-Sync:"):
+    # menu is @mock-lane, so the drive step recommends the mock lane, not chrome's /niete-e2e.
+    for needle in ("commit-e2e.sh", "/sync-specs", "menu.feature", "stale", "Spec-Sync:"):
         assert needle in md, (needle, md)
     assert ci.COMMENT_MARKER in md
+    shutil.rmtree(r)
+
+
+def test_drive_recommendation_uses_the_mock_lane_for_a_mock_capable_feature():
+    """menu carries an @mock-lane driver, so the 'drive the E2E' step must recommend the mock lane
+    (commit-e2e.sh — layer 1, no browser), never chrome's `/niete-e2e` WhatsApp-Web run. Both the
+    markdown (PR comment) and the text (CI log) renderers must agree."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})
+    res = ci.analyse(r, base, head)
+    for out in (ci.render_markdown(res, "warn", "warn"), ci.render_text(res, "warn", "warn")):
+        assert "commit-e2e.sh %s --features menu" % head[:12] in out, out
+        assert "mock lane" in out.lower(), out
+    shutil.rmtree(r)
+
+
+def test_chrome_only_feature_is_noted_paused_not_driven_when_chrome_off():
+    """A feature with no @mock-lane driver (e.g. observe) is on the chrome lane — layer 2, paused.
+    The report notes it as paused and does NOT tell the developer to open a WhatsApp Web tab; with
+    E2E_CHROME_ON=1 the chrome command comes back."""
+    assert "observe" not in ci.mock_feature_set(), "observe must have no mock driver for this test"
+    res = {"features": ["observe"], "head": "abcdef012345", "commands": ["/niete-e2e observe"]}
+    saved = os.environ.pop("E2E_CHROME_ON", None)
+    try:
+        paused = "\n".join(ci._drive_block(res))
+        assert "paused" in paused.lower(), paused
+        assert "linked WhatsApp Web tab" not in paused, paused
+        os.environ["E2E_CHROME_ON"] = "1"
+        enabled = "\n".join(ci._drive_block(res))
+        assert "/niete-e2e observe" in enabled, enabled
+    finally:
+        os.environ.pop("E2E_CHROME_ON", None)
+        if saved is not None:
+            os.environ["E2E_CHROME_ON"] = saved
+
+
+def test_cassette_misses_surface_the_record_mention():
+    """A mock-lane run records missing cassettes under the NESTED `cassette.misses` (that is what
+    ledger_row.py writes). impact must read that nested field — a top-level `cassette_misses` never
+    exists — and turn it into the @-mention that asks the owner to record the fixtures."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 13, "passed": 11, "failed": 1, "blocked": 0, "skipped": 1},
+           "cassette": {"mode": "replay-strict", "misses": 3, "scenarios_affected": ["M08", "M09", "M12"]}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["cassette_misses"] == {"menu": 3}, res["cassette_misses"]
+    md = ci.render_markdown(res, "warn", "warn")
+    # the mention lives IN the feature table row now — no verbose standalone section
+    assert "### 📼 Cassettes missing" not in md, "the standalone cassette section must be gone"
+    menu_row = next(l for l in md.splitlines() if l.startswith("| **menu**"))
+    assert "📼" in menu_row and "3" in menu_row and "@mah-noor1" in menu_row, menu_row
+    # the CI log / pre-push terminal form carries it inline on the feature line
+    txt = ci.render_text(res, "warn", "warn")
+    menu_line = next(l for l in txt.splitlines() if l.strip().startswith("menu") or " menu " in l)
+    assert "📼" in menu_line, menu_line
+    shutil.rmtree(r)
+
+
+def test_a_later_clean_run_clears_the_cassette_mention():
+    """If a feature's MOST RECENT row has no misses, its cassettes were recorded since — don't nag.
+    (Same last-row-wins semantics as the e2e-proof status.)"""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    base_row = {"run_id": "a", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+                "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+                "summary": {"total": 1, "passed": 0, "failed": 0, "blocked": 0, "skipped": 0},
+                "cassette": {"misses": 3}}
+    clean = json.loads(json.dumps(base_row)); clean["run_id"] = "b"; clean["ts"] = "2026-09-15T01:00:00Z"
+    clean["status"] = "HEALTHY"; clean["cassette"] = {"misses": 0}
+    head = commit(r, "feat(menu)+runs",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(base_row) + "\n" + json.dumps(clean) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["cassette_misses"] == {}, res["cassette_misses"]
+    assert "Cassettes missing" not in ci.render_markdown(res, "warn", "warn")
+    shutil.rmtree(r)
+
+
+def test_regression_verdict_reconciles_a_critical_with_no_new_regressions():
+    """A recorded run can be CRITICAL yet have NO new regression — its only FAIL is a known finding.
+    The row carries regression.gate=pass; the report must say 'no new regressions' and name the known
+    finding, not present a bare ❌ CRITICAL that reads as a break."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 13, "passed": 11, "failed": 1, "blocked": 0, "skipped": 1},
+           "regression": {"gate": "pass", "new_failures": [], "known": ["M09"], "fixed": []}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["regression"]["gate"] == "pass", res["per_feature"]["menu"]
+    md = ci.render_markdown(res, "warn", "warn")
+    assert "no new regressions" in md.lower() and "M09" in md, md
+    txt = ci.render_text(res, "warn", "warn")
+    assert "no new regressions" in txt.lower(), txt
+    shutil.rmtree(r)
+
+
+def test_regression_verdict_flags_a_new_regression():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 13, "passed": 11, "failed": 1, "blocked": 0, "skipped": 1},
+           "regression": {"gate": "fail", "new_failures": ["M04"], "known": [], "fixed": []}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    for out in (ci.render_markdown(res, "warn", "warn"), ci.render_text(res, "warn", "warn")):
+        assert "REGRESSION" in out and "M04" in out, out
     shutil.rmtree(r)
 
 

@@ -44,7 +44,8 @@ out=$(banner); say "no markers → banner is silent" "$out" ""
 marker git-aaa111 false true
 out=$(banner)
 has "pending git marker is announced" "$out" "git-aaa111" yes
-has "…with the commands" "$out" "/niete-e2e menu" yes
+has "…with the mock lane for menu" "$out" "commit-e2e.sh git-aaa111 --features menu" yes
+has "…and menu off the WhatsApp Web line" "$out" "/niete-e2e menu" no
 has "…and the phase-1 brief" "$out" "git-aaa111.sync.json" yes
 has "…as additionalContext" "$out" "additionalContext" yes
 
@@ -52,7 +53,8 @@ echo "gitmarker — stop hook adopts a git-armed marker"
 out=$(stop)
 has "blocks the turn once for the git marker" "$out" '"decision": "block"' yes
 has "reason names the terminal commit" "$out" "git-aaa111" yes
-has "reason carries the run" "$out" "/niete-e2e menu" yes
+has "reason carries the run" "$out" "commit-e2e.sh" yes   # menu → the mock lane, pinned to the marker's sha
+has "reason pins the marker sha" "$out" "commit-e2e.sh git-aaa111 --features menu" yes
 has "reason carries phase 1" "$out" "/sync-specs --brief" yes
 say "git marker flipped to nudged" "$(field "$PEND/git-aaa111.json" nudged)" "True"
 out=$(stop); say "second stop is silent (nudged once)" "$out" ""
