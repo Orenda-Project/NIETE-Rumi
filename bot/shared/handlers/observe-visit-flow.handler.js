@@ -436,10 +436,12 @@ async function menuScreen(userId, opts = {}) {
       // would hide it behind a label that promises something else.
       id: 'manage_teachers',
       'main-content': {
-        // bd-60098: says all three, now that Edit exists. A menu that promises
-        // two of the three actions hides the one the coach came for.
+        // Names all four things the coach can actually do here — "add" is also
+        // how a teacher is moved between schools, and a row that does not say
+        // so hides the action she came for. Flow NavigationList metadata caps
+        // at 80; this is 25.
         title: 'Manage teachers',
-        metadata: 'Add, remove or edit',
+        metadata: 'Add, move, remove or edit',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
@@ -1170,11 +1172,17 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (!school) return _refuse('not_my_school');
       // Composed server-side: Flow prints a ${data.x} reference inside a
       // sentence verbatim, so the school name has to arrive already in it.
+      //
+      // The sentence used to name two actions while the screen offered three,
+      // and it never said that adding a teacher who already belongs to another
+      // school MOVES them. A coach reported the move as impossible while the
+      // roster audit shows it working; the gap was the words, not the feature.
+      // Catalogue copy, so it follows the coach's language.
       return {
         screen: 'TEACHER_ACTION',
         data: {
           school_ext_id: schoolExtId,
-          intro: `${school.school_name}\n\nWould you like to add a teacher to this school, or remove one?`,
+          intro: S_(_flowLang).teacher_action_intro.replace('{school}', school.school_name),
         },
       };
     }
@@ -1291,8 +1299,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
       const options = people.length
+        // displayName, not name. `name` is null for the 83 people on prod who
+        // carry none, and _opt turns null into the EMPTY STRING — a blank,
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_PICK',
@@ -1317,8 +1330,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
       const options = people.length
+        // displayName, not name. `name` is null for the 83 people on prod who
+        // carry none, and _opt turns null into the EMPTY STRING — a blank,
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_EDIT_PICK',

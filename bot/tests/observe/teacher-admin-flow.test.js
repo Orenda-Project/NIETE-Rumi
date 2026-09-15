@@ -122,7 +122,10 @@ describe('adding', () => {
   it('a KNOWN number goes straight to the account we found — no name asked', async () => {
     const res = await step('teacher_add_lookup', { school_ext_id: 'niete:916', phone: '03001234567' });
     expect(res.screen).toBe('TEACHER_CONFIRM');
-    expect(res.data.found_heading).toMatch(/found/i);
+    // The suite's shared plan is a MOVE, which now gets its own heading — the
+    // property here is that the coach lands on the matched account with a real
+    // heading, not that the heading uses one particular word.
+    expect(res.data.found_heading).toMatch(/another school/i);
     expect(res.data.found_details).toContain('Tahira Manzoor');
     expect(res.data.found_details).toContain('IMS(I-V) No.2 G-10/2');
     expect(TeacherAdmin.commitAdd).not.toHaveBeenCalled();
@@ -302,6 +305,55 @@ describe('Waheed 1 — the picker names the whole teacher', () => {
     expect(titles).toEqual(['Muhammad Kashif Rafique', 'Muhammad Farooq Bashir']);
     // The bug was every row reading the same. Distinctness is the property.
     expect(new Set(titles).size).toBe(titles.length);
+  });
+
+  // The 83 people on prod with no name at all — across 60 schools and 42
+  // coaches — were a BLANK row on these two screens while being a readable row
+  // on the scheduling list, because this is the only place that built the title
+  // from `name` instead of `displayName`. A blank title is not "no name shown":
+  // it is a person her coach cannot read, cannot identify and cannot tap. It
+  // also blocked the one feature that would fix it, since renaming goes through
+  // this same picker.
+  it('RED: a nameless person is a readable row on the REMOVE picker, never blank', async () => {
+    const P = require('../../shared/services/observe/patch-resolver.service');
+    P.listPatchViaSupabase.mockResolvedValueOnce([
+      { userId: 'u3', name: null, displayName: 'Teacher \u20267760', phone: '923335467760',
+        isPrincipal: false, roleLabel: '', band: 'primary', schoolName: 'IMCG, G-10/2', emis: '916' },
+    ]);
+    const res = await step('teacher_remove_open', { school_ext_id: 'niete:916' });
+    expect(res.data.options[0].title).toBe('Teacher \u20267760');
+    expect(res.data.options[0].id).toBe('u3');
+  });
+
+  it('RED: a nameless person is a readable row on the EDIT picker too', async () => {
+    const P = require('../../shared/services/observe/patch-resolver.service');
+    P.listPatchViaSupabase.mockResolvedValueOnce([
+      { userId: 'u4', name: '', displayName: 'Principal \u00b7 IMCG, G-10/2', phone: null,
+        isPrincipal: true, roleLabel: 'Principal', band: 'primary', schoolName: 'IMCG, G-10/2', emis: '916' },
+    ]);
+    const res = await step('teacher_edit_open', { school_ext_id: 'niete:916' });
+    expect(res.data.options[0].title).toBe('Principal \u00b7 IMCG, G-10/2');
+    expect(res.data.options[0].id).toBe('u4');
+  });
+
+  it('a person WITH a name still shows her own name, not a label', async () => {
+    const P = require('../../shared/services/observe/patch-resolver.service');
+    P.listPatchViaSupabase.mockResolvedValueOnce([
+      { userId: 'u1', name: 'Shamsa Kanwal', displayName: 'Shamsa Kanwal', phone: '923325702613',
+        isPrincipal: false, roleLabel: '', band: 'primary', schoolName: 'IMS I-10/2', emis: '291' },
+    ]);
+    const res = await step('teacher_remove_open', { school_ext_id: 'niete:916' });
+    expect(res.data.options[0].title).toBe('Shamsa Kanwal');
+  });
+
+  it('the row id stays the user id, so every downstream step still keys on it', async () => {
+    const P = require('../../shared/services/observe/patch-resolver.service');
+    P.listPatchViaSupabase.mockResolvedValueOnce([
+      { userId: 'u3', name: null, displayName: 'Teacher \u20267760', phone: '923335467760',
+        isPrincipal: false, roleLabel: '', band: 'primary', schoolName: 'IMCG, G-10/2', emis: '916' },
+    ]);
+    const res = await step('teacher_remove_open', { school_ext_id: 'niete:916' });
+    expect(res.data.options.map((o) => o.id)).toEqual(['u3']);
   });
 
   it('fullNameOf prefers the fullest column and never returns a bare first name', () => {
