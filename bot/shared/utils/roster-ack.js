@@ -21,6 +21,12 @@ const SENTENCES = {
   teacher_set: (cls, n) => (n
     ? `📋 ${cls} — class teacher set. The ${n} students are in their attendance list now.`
     : `📋 ${cls} — class teacher set.`),
+  details_changed: (cls, n) => (n
+    ? `📋 Class details changed — it is ${cls} now, ${n} students on the roster.`
+    : `📋 Class details changed — it is ${cls} now.`),
+  merged: (cls, n) => (n
+    ? `📋 Merged into ${cls} — ${n} students on that roster now. Nothing was deleted.`
+    : `📋 Merged into ${cls}. Nothing was deleted.`),
 };
 
 const ROSTER_ACTIONS = Object.freeze(Object.keys(SENTENCES));
