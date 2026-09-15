@@ -444,6 +444,92 @@ function createFakeSupabase(seed = {}, opts = {}) {
     };
   }
 
+  /** In-memory twin of bot/database/migrations/roster_change_class_details.sql. */
+  function rosterChangeClassDetails({ p_class_id, p_school_id = null, p_grade_code, p_section = null, p_shift_code = 'morning', p_actor, p_merge = false }) {
+    if (!p_class_id || !p_actor) throw new Error('roster_change_class_details: p_class_id and p_actor are required');
+    const classes = table('classes');
+    const cls = classes.find((c) => c.id === p_class_id && c.is_active !== false);
+    if (!cls) return { error: 'unknown_class' };
+    if (p_school_id && cls.school_id !== p_school_id) return { error: 'wrong_school' };
+    const grade = table('grade_levels').find((g) => g.code === p_grade_code && g.is_active !== false);
+    if (!grade) return { error: 'unknown_grade' };
+    const section = p_section ? String(p_section).trim().toUpperCase() : null;
+    if (section && !table('sections').some((x) => x.code === section && x.is_active !== false)) return { error: 'unknown_section' };
+    const shift = (p_shift_code && String(p_shift_code).trim()) || 'morning';
+    if (!table('shifts').some((x) => x.code === shift && x.is_active !== false)) return { error: 'unknown_shift' };
+    let label = grade.ordinal === 0 ? 'Early Years' : `Grade ${grade.ordinal}`;
+    if (section) label += ` - ${section}`;
+    if (shift !== 'morning') label += ` (${shift})`;
+    if (cls.grade_code === p_grade_code && (cls.section || '') === (section || '') && (cls.shift_code || 'morning') === shift) {
+      return { action: 'unchanged', class_id: p_class_id, label };
+    }
+    const enr = table('class_enrollments');
+    const active = (id) => enr.filter((e) => e.class_id === id && e.is_active);
+    const sourceCount = active(p_class_id).length;
+    const target = classes.find((c) => c.id !== p_class_id && c.is_active !== false && c.school_id === cls.school_id
+      && c.grade_code === p_grade_code && (c.section || '') === (section || '') && (c.shift_code || 'morning') === shift
+      && c.session_code === cls.session_code);
+    const lists = table('student_lists');
+    if (!target) {
+      cls.grade_code = p_grade_code; cls.section = section; cls.shift_code = shift;
+      let renamed = 0;
+      for (const l of lists) {
+        if (l.class_id !== p_class_id || !l.is_active) continue;
+        const clash = lists.some((o) => o.user_id === l.user_id && o.is_active && o.id !== l.id
+          && o.academic_year === l.academic_year && String(o.class_name).toLowerCase() === label.toLowerCase());
+        if (!clash) { l.class_name = label; l.section = section; renamed += 1; }
+      }
+      writes.push({ table: 'classes', op: 'update', patch: { grade_code: p_grade_code, section, shift_code: shift }, count: 1 });
+      return { action: 'renamed', class_id: p_class_id, label, mirrors_renamed: renamed, source_count: sourceCount };
+    }
+    const targetCount = active(target.id).length;
+    if (!p_merge) {
+      return { action: 'collision', class_id: p_class_id, existing_class_id: target.id, existing_label: label,
+        existing_count: targetCount, source_count: sourceCount };
+    }
+    let closed = 0; let moved = 0;
+    const inTarget = new Set(active(target.id).map((e) => e.student_id));
+    const rollsTaken = new Set(active(target.id).map((e) => e.roll_number).filter((r) => r !== null && r !== undefined));
+    for (const e of active(p_class_id)) {
+      if (inTarget.has(e.student_id)) {
+        e.is_active = false; e.left_on = new Date().toISOString().slice(0, 10); e.outcome = 'roster_correction'; closed += 1;
+      } else {
+        if (e.roll_number !== null && e.roll_number !== undefined && rollsTaken.has(e.roll_number)) e.roll_number = null;
+        e.class_id = target.id; moved += 1;
+      }
+    }
+    const cts = table('class_teachers');
+    const targetCt = cts.find((r) => r.class_id === target.id && r.is_active && r.is_class_teacher);
+    let targetList = lists.filter((l) => l.class_id === target.id && l.is_active)
+      .sort((a, b) => ((b.user_id === (targetCt && targetCt.teacher_user_id)) - (a.user_id === (targetCt && targetCt.teacher_user_id))))[0] || null;
+    if (!targetList) {
+      targetList = lists.find((l) => l.class_id === p_class_id && l.is_active) || null;
+      if (targetList) { targetList.class_id = target.id; targetList.class_name = label; targetList.section = section; }
+    }
+    const sourceListIds = new Set(lists.filter((l) => l.class_id === p_class_id).map((l) => l.id));
+    if (targetList) {
+      const targetKids = new Set(active(target.id).map((e) => e.student_id));
+      for (const st of table('students')) {
+        if (targetKids.has(st.id) && (st.list_id === null || st.list_id === undefined || sourceListIds.has(st.list_id))) st.list_id = targetList.id;
+      }
+    }
+    for (const l of lists) if (l.class_id === p_class_id && l.is_active && (!targetList || l.id !== targetList.id)) l.is_active = false;
+    for (const l of lists) if (l.class_id === p_class_id || l.class_id === target.id) l.student_count = table('students').filter((s) => s.list_id === l.id && s.is_active !== false).length;
+    let teachersMoved = 0;
+    for (const r of cts.filter((x) => x.class_id === p_class_id && x.is_active)) {
+      if (!cts.some((t) => t.class_id === target.id && t.teacher_user_id === r.teacher_user_id && t.is_active)) {
+        cts.push({ id: nextId('class_teachers'), class_id: target.id, teacher_user_id: r.teacher_user_id,
+          is_class_teacher: !targetCt && r.is_class_teacher, assigned_on: new Date().toISOString().slice(0, 10), is_active: true });
+        teachersMoved += 1;
+      }
+    }
+    for (const r of cts) if (r.class_id === p_class_id && r.is_active) { r.is_active = false; r.is_class_teacher = false; r.ended_on = new Date().toISOString().slice(0, 10); }
+    cls.is_active = false; cls.merged_into_class_id = target.id;
+    writes.push({ table: 'classes', op: 'update', patch: { is_active: false, merged_into_class_id: target.id }, count: 1 });
+    return { action: 'merged', class_id: p_class_id, target_class_id: target.id, label, moved, closed_duplicates: closed,
+      teachers_moved: teachersMoved, target_count: active(target.id).length, target_list_id: targetList ? targetList.id : null };
+  }
+
   return {
     from: (name) => builder(name),
     async rpc(name, args) {
@@ -452,6 +538,7 @@ function createFakeSupabase(seed = {}, opts = {}) {
       if (name === 'roster_import_students') return { data: rosterImportStudents(args || {}), error: null };
       if (name === 'roster_apply_edits') return { data: rosterApplyEdits(args || {}), error: null };
       if (name === 'roster_hand_over_class') return { data: rosterHandOverClass(args || {}), error: null };
+      if (name === 'roster_change_class_details') return { data: rosterChangeClassDetails(args || {}), error: null };
       return { data: null, error: { code: 'PGRST202', message: `unknown rpc ${name}` } };
     },
     /** Test helpers — not part of the Supabase surface. */

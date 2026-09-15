@@ -3,7 +3,8 @@
  * /roster Flow endpoint — SCHOOL → PHOTOS → CLASS → (WORKING) → REVIEW → SAVED,
  * with a search side-path off SCHOOL. A school already scanned shows SCHOOL_STATUS
  * first, and from there a saved class opens ROSTER_VIEW, which offers the
- * students editor (ROSTER_EDIT) and the class-teacher picker (CLASS_TEACHER).
+ * students editor (ROSTER_EDIT), the class-teacher picker (CLASS_TEACHER) and the
+ * class-details editor (CLASS_DETAILS → CLASS_MERGE when the target class exists).
  *
  * WHY THE SCREENS ARE IN THIS ORDER. Reading a register page takes about eight
  * seconds and Meta kills a data_exchange at roughly ten, so extraction cannot run
@@ -335,11 +336,20 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
     // editor, exactly as before.
     const action = String(screenData.action || 'edit');
     if (action === 'teacher') return toClassTeacherPicker(state);
+    if (action === 'details') return toClassDetails(state);
     return openRosterEditor(state);
   }
 
   if (screen === 'CLASS_TEACHER') {
     return saveClassTeacher(state, screenData);
+  }
+
+  if (screen === 'CLASS_DETAILS') {
+    return saveClassDetails(state, screenData);
+  }
+
+  if (screen === 'CLASS_MERGE') {
+    return resolveClassMerge(state, screenData);
   }
 
   if (screen === 'ROSTER_EDIT') {
@@ -611,9 +621,13 @@ async function schoolStatus(state) {
       nudge: 'A school is complete when every class of grades 1-5 has a roster.',
       actions: [
         opt('scan', 'Scan a new register'),
+        // The count alone, no unit: the worst case — "⚠ Grade 3-B (Evening) · 48" — is
+        // 26 code points, and "children" pushed "Grade 1-E (Evening) · 4 childr"
+        // through the 30-point cap (seen live on the sandbox). One format for every
+        // row; the coverage text above says "children" for all of them.
         ...cov.done.map((c) => opt(
           `open:${c.id}`,
-          `${c.hasTeacher ? '' : NO_TEACHER_MARK}${c.label} \u00b7 ${c.count} children`.slice(0, 30),
+          `${c.hasTeacher ? '' : NO_TEACHER_MARK}${c.label} \u00b7 ${c.count}`.slice(0, 30),
         )),
       ],
     },
@@ -724,7 +738,235 @@ function rosterViewActions(state) {
   return [
     opt('edit', 'Correct the students'),
     opt('teacher', teacher ? 'Change the class teacher' : 'Set the class teacher'),
+    opt('details', 'Change grade, section or shift'),
   ];
+}
+
+// ---------------------------------------------------------------------------
+// CLASS_DETAILS → (CLASS_MERGE) — grade / section / shift of a saved class
+// ---------------------------------------------------------------------------
+
+/**
+ * The details editor, pre-filled with the class as it is. The three pickers are
+ * the CLASS screen's, read from the same reference tables, so this offers exactly
+ * what a scan can produce. A class outside grades 1-5 keeps its own grade in the
+ * list, or the pre-fill would point at an option that is not there.
+ */
+async function toClassDetails(state) {
+  if (!state.viewRoster || !state.viewClass) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  const [{ data: grades }, sections, shifts] = await Promise.all([
+    supabase.from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal'),
+    listSeeded('sections'),
+    listSeeded('shifts'),
+  ]);
+  const gradeOpts = (grades || []).map((g) => opt(g.code, `Grade ${g.ordinal}`));
+  if (!gradeOpts.some((g) => g.id === state.viewClass.gradeCode)) {
+    const { data: own } = await supabase
+      .from('grade_levels').select('code, ordinal').eq('code', state.viewClass.gradeCode).maybeSingle();
+    gradeOpts.unshift(opt(state.viewClass.gradeCode, own ? `Grade ${own.ordinal}` : state.viewClass.gradeCode));
+  }
+  const n = state.viewRoster.length;
+  state.pendingDetails = null;
+  return {
+    screen: 'CLASS_DETAILS',
+    data: {
+      heading: `${state.viewClass.label} \u00b7 ${n} ${n === 1 ? 'child' : 'children'}`.slice(0, 80),
+      note: 'The children, their attendance history and the class teacher stay with the class.',
+      grades: gradeOpts,
+      sections: [...sections.map((c) => opt(c, c)), opt(NO_SECTION, 'No section')],
+      shifts: shifts.map((c) => opt(c, shiftTitle(c))),
+      grade_code: state.viewClass.gradeCode,
+      section: state.viewClass.section || NO_SECTION,
+      shift_code: state.viewClass.shiftCode || DEFAULT_SHIFT,
+    },
+  };
+}
+
+/** The identity the coach submitted, normalised the way the writer normalises it. */
+function detailsFrom(screenData) {
+  const rawSection = screenData.section;
+  const rawShift = screenData.shift_code;
+  return {
+    gradeCode: String(screenData.grade_code || ''),
+    section: rawSection && rawSection !== NO_SECTION ? String(rawSection).trim().toUpperCase() : null,
+    shiftCode: typeof rawShift === 'string' && rawShift.trim() ? rawShift.trim() : DEFAULT_SHIFT,
+  };
+}
+
+/** A coach-facing label for an identity, before the database has said anything. */
+async function labelForDetails(d) {
+  const { data: g } = await supabase
+    .from('grade_levels').select('code, ordinal').eq('code', d.gradeCode).maybeSingle();
+  return classLabel(g && g.ordinal, d.section, d.shiftCode);
+}
+
+function unchangedScreen(label, n, body) {
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `${label} unchanged`,
+      body,
+      roster_action: 'unchanged',
+      roster_class: label,
+      roster_count: String(n),
+    },
+  };
+}
+
+/**
+ * The submit. Same identity → nothing written. A free target → renamed in place.
+ * A target that exists → NOT merged: the coach is shown the existing class, its
+ * child count, and asked (CLASS_MERGE). The merge itself only happens from there.
+ */
+async function saveClassDetails(state, screenData) {
+  if (!state.viewRoster || !state.viewClass) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  const wanted = detailsFrom(screenData);
+  const cur = state.viewClass;
+  const label = cur.label;
+  const n = state.viewRoster.length;
+
+  if (wanted.gradeCode === cur.gradeCode
+      && (wanted.section || null) === (cur.section || null)
+      && wanted.shiftCode === (cur.shiftCode || DEFAULT_SHIFT)) {
+    return unchangedScreen(label, n, `Nothing was changed \u2014 ${label} stays as it is, ${n} children on the roster.`);
+  }
+
+  const res = await ClassService.changeClassDetails({
+    classId: cur.id,
+    schoolId: state.schoolId,
+    gradeCode: wanted.gradeCode,
+    section: wanted.section,
+    shiftCode: wanted.shiftCode,
+    actorUserId: state.user.id,
+    merge: false,
+  });
+  if (res.error) {
+    logToFile('[roster] class details refused', { classId: cur.id, wanted, error: res.error }, 'error');
+    return stop(`${DETAILS_FAILURES[res.error] || 'The class could not be changed.'} Nothing was changed.`);
+  }
+
+  const newLabel = await labelForDetails(wanted);
+
+  if (res.action === 'unchanged') {
+    return unchangedScreen(label, n, `Nothing was changed \u2014 ${label} stays as it is, ${n} children on the roster.`);
+  }
+
+  if (res.action === 'collision') {
+    // Never silently. Say which class, how many children, and ask.
+    state.pendingDetails = { wanted, existingClassId: res.existingClassId, existingCount: res.existingCount, newLabel };
+    const ec = res.existingCount || 0;
+    return {
+      screen: 'CLASS_MERGE',
+      data: {
+        heading: `${newLabel} already exists`,
+        body: `${newLabel} is already saved at this school with ${ec} ${ec === 1 ? 'child' : 'children'}. `
+          + `This class, ${label}, has ${n}.\n\n`
+          + 'Keep both and change nothing, or merge this class into the existing one: '
+          + `its ${n} children move across (a child already there is not doubled), and ${label} closes. Nothing is deleted.`,
+        decisions: [
+          opt('cancel', 'Keep both \u2014 change nothing'),
+          opt('merge', 'Merge into the existing class'),
+        ],
+      },
+    };
+  }
+
+  // renamed
+  logToFile('[roster] class details changed', {
+    classId: cur.id, from: { gradeCode: cur.gradeCode, section: cur.section, shiftCode: cur.shiftCode },
+    to: wanted, mirrorsRenamed: res.mirrorsRenamed, by: state.user.id,
+  });
+  await rosterStorage.putManifest({
+    schoolId: state.schoolId,
+    runId: `details-${cur.id}-${Date.now()}`,
+    manifest: {
+      action: 'change_details', saved_at: new Date().toISOString(),
+      school_id: state.schoolId, school_name: state.schoolName, class_id: cur.id,
+      from: { grade_code: cur.gradeCode, section: cur.section, shift_code: cur.shiftCode, label },
+      to: { grade_code: wanted.gradeCode, section: wanted.section, shift_code: wanted.shiftCode, label: newLabel },
+      edited_by_user_id: state.user.id, result: res,
+    },
+  });
+  state.viewClass = { ...cur, label: newLabel, gradeCode: wanted.gradeCode, section: wanted.section, shiftCode: wanted.shiftCode };
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `${newLabel} \u2014 details changed`,
+      body: `${label} is now ${newLabel}. The ${n} children, their attendance history and the class teacher stayed with it.${await coverageLine(state.schoolId)}`,
+      roster_action: 'details_changed',
+      roster_class: newLabel,
+      roster_count: String(n),
+    },
+  };
+}
+
+/** The coach's answer to the collision. Cancel writes nothing; merge writes once. */
+async function resolveClassMerge(state, screenData) {
+  const pend = state.pendingDetails;
+  if (!state.viewRoster || !state.viewClass || !pend) {
+    return stop('That session has expired, so nothing was merged. Close this and send /roster again to start again.');
+  }
+  const cur = state.viewClass;
+  const label = cur.label;
+  const n = state.viewRoster.length;
+  const decision = String(screenData.decision || 'cancel');
+  state.pendingDetails = null;
+
+  if (decision !== 'merge') {
+    return unchangedScreen(label, n, `Both classes were kept. Nothing was changed \u2014 ${label} stays as it is, ${n} children on the roster.`);
+  }
+
+  const res = await ClassService.changeClassDetails({
+    classId: cur.id,
+    schoolId: state.schoolId,
+    gradeCode: pend.wanted.gradeCode,
+    section: pend.wanted.section,
+    shiftCode: pend.wanted.shiftCode,
+    actorUserId: state.user.id,
+    merge: true,
+  });
+  if (res.error) {
+    logToFile('[roster] merge refused', { classId: cur.id, into: pend.existingClassId, error: res.error }, 'error');
+    return stop(`${DETAILS_FAILURES[res.error] || 'The classes could not be merged.'} Nothing was changed.`);
+  }
+  if (res.action !== 'merged') {
+    // The world moved between the question and the answer (the twin was closed,
+    // or this class was). Say so rather than pretend.
+    return stop('The other class changed while you were deciding, so nothing was merged. Send /roster again and open the class afresh.');
+  }
+
+  logToFile('[roster] classes merged', {
+    sourceClassId: cur.id, targetClassId: res.targetClassId, moved: res.moved,
+    closedDuplicates: res.closedDuplicates, teachersMoved: res.teachersMoved, by: state.user.id,
+  });
+  await rosterStorage.putManifest({
+    schoolId: state.schoolId,
+    runId: `merge-${cur.id}-${Date.now()}`,
+    manifest: {
+      action: 'merge_classes', saved_at: new Date().toISOString(),
+      school_id: state.schoolId, school_name: state.schoolName,
+      source_class_id: cur.id, source_label: label, target_class_id: res.targetClassId, target_label: pend.newLabel,
+      edited_by_user_id: state.user.id, result: res,
+    },
+  });
+  const tc = res.targetCount === null || res.targetCount === undefined ? (n + (pend.existingCount || 0) - res.closedDuplicates) : res.targetCount;
+  const dup = res.closedDuplicates
+    ? ` ${res.closedDuplicates} ${res.closedDuplicates === 1 ? 'child was' : 'children were'} already there and ${res.closedDuplicates === 1 ? 'was' : 'were'} not doubled.`
+    : '';
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `Merged into ${pend.newLabel}`,
+      body: `${res.moved} ${res.moved === 1 ? 'child' : 'children'} moved from ${label} into ${pend.newLabel}.${dup} ${pend.newLabel} now has ${tc} children. ${label} is closed, nothing was deleted.${await coverageLine(state.schoolId)}`,
+      roster_action: 'merged',
+      roster_class: pend.newLabel,
+      roster_count: String(tc),
+    },
+  };
 }
 
 /** The hand-over picker: the school's registered teachers, plus leave-as-is. */
@@ -1174,6 +1416,17 @@ const HAND_OVER_FAILURES = {
   unknown_teacher: 'That teacher has no account yet.',
   not_a_teacher: 'A coach or principal cannot be named as the class teacher.',
   unknown_grade: 'That class has a grade this school does not use.',
+  save_in_progress: 'This class is being saved right now — give it a minute and try again.',
+  missing_actor: 'Your account could not be read. Send /roster again.',
+};
+
+/** Class-details refusals a coach can read. */
+const DETAILS_FAILURES = {
+  unknown_class: 'That class is no longer active.',
+  wrong_school: 'That class is not at this school.',
+  unknown_grade: 'That grade is not one this school uses.',
+  unknown_section: 'That section is not set up for this school.',
+  unknown_shift: 'That shift is not one this school uses.',
   save_in_progress: 'This class is being saved right now — give it a minute and try again.',
   missing_actor: 'Your account could not be read. Send /roster again.',
 };
