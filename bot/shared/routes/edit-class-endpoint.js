@@ -253,8 +253,18 @@ async function handleEditClassDataExchange(flowToken, screen, screenData) {
   return handleEditClassInit(flowToken);
 }
 
+// The user part of "<userId>:<listId>" is the actor for every write this Flow makes —
+// the students insert/rename/soft-remove, the enrolment, the count sync — so
+// record_history names a person, not the connection role (bd-rbtpr). Wrapped at the
+// boundary; runAsActor ignores anything that is not a uuid, so a malformed token still
+// writes exactly as before, unattributed.
+const { runAsActor } = require('../utils/actor-context');
+
 module.exports = {
-  handleEditClassInit,
-  handleEditClassDataExchange,
+  handleEditClassInit: (flowToken) =>
+    runAsActor(parseToken(flowToken).userId, () => handleEditClassInit(flowToken)),
+  handleEditClassDataExchange: (flowToken, screen, screenData) =>
+    runAsActor(parseToken(flowToken).userId,
+      () => handleEditClassDataExchange(flowToken, screen, screenData)),
   parseToken,
 };
