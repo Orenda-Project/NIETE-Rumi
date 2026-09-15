@@ -75,7 +75,8 @@ function wire({ quiz = QUIZ, insertError = null } = {}) {
 
 describe('process — happy path', () => {
   test('authors, validates, stores 8 rows, renders the PDF, mints a code, sends three paced messages, marks sent', async () => {
-    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY,
+      extras: { lesson_summary_short: 'آپ نے آدھی روٹی سے کسر پڑھائی۔', checks_summary: 'یہ quiz جانچتا ہے کہ بچے کسر پہچان سکتے ہیں۔' } });
     wire();
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
@@ -106,6 +107,11 @@ describe('process — happy path', () => {
 
     const updates = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((u) => u[1]);
     expect(updates.some((u) => u.status === 'ready')).toBe(true);
+    // bd-2yyry.7 — the sheet's two authored one-liners land next to the summary.
+    const ready = updates.find((u) => u.status === 'ready');
+    expect(ready.meta.lesson_summary_short).toBe('آپ نے آدھی روٹی سے کسر پڑھائی۔');
+    expect(ready.meta.digest.checks_summary).toBe('یہ quiz جانچتا ہے کہ بچے کسر پہچان سکتے ہیں۔');
+    expect(ready.meta.digest.slos).toBeTruthy();       // the digest is extended, never replaced
     expect(updates[updates.length - 1].status).toBe('sent');
     expect(updates[updates.length - 1].meta.share_code).toBe('ABC234');
     // A nudge is scheduled for +3h.
@@ -233,8 +239,10 @@ describe('process — the PDF is written in the quiz language, whole', () => {
 
   test('every question carries its one-line "from your lesson" out of media.selected_because', async () => {
     const html = await runWithUrduQuizForEnglishTeacher();
-    expect(html).toMatch(/آپ کے سبق سے/);
-    expect(html).toMatch(/روٹی کے ٹکڑوں والے حصے سے لیا گیا/);
+    // Round 7: the per-question line is gone; the summary closes with the idea once.
+    expect(html).not.toMatch(/آپ کے سبق سے/);
+    expect(html).not.toMatch(/روٹی کے ٹکڑوں والے حصے سے لیا گیا/);
+    expect(html).toMatch(/نیچے دیا گیا ہر سوال اسی سبق سے لیا گیا ہے/);
   });
 });
 

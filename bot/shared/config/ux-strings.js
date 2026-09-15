@@ -1227,6 +1227,31 @@ const UX_STRINGS = {
   vqInviteYes: { en: 'Invite a friend', ur: 'دوست کو بھیجیں' },
   vqInviteNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
 
+  // ─── the watch-more offer after the invite (bd-2yyry.8 / .9) ───────────
+  // Read by CHILDREN, in the quiz language. Gender-neutral by construction:
+  // the verb agrees with the noun (ویڈیوز دیکھنی ہیں) or is an imperative
+  // (بھیجیں، چنیں) — never with the addressee.
+  vqMoreAsk: {
+    en: 'Want to watch more videos and take more quizzes?',
+    ur: 'مزید ویڈیوز دیکھنی ہیں اور مزید quiz کرنے ہیں؟',
+  },
+  vqMoreYes: { en: 'Watch more', ur: 'مزید دیکھیں' },
+  vqMoreNo: { en: 'No thanks', ur: 'ابھی نہیں' },
+  vqMoreDeclined: {
+    en: 'No problem! You can watch more videos and take quizzes anytime — send /video and I’ll show you the menu.',
+    ur: 'کوئی بات نہیں! کسی بھی وقت /video بھیج کر مزید ویڈیوز اور quiz حاصل کریں۔',
+  },
+  vqMoreUnavailable: {
+    en: 'Sorry — picking more videos isn’t available right now. Send /video in a bit and I’ll show you the menu.',
+    ur: 'معذرت — ابھی مزید ویڈیوز دستیاب نہیں۔ تھوڑی دیر میں /video بھیجیں۔',
+  },
+  vqMoreFlowHeader: { en: '🎬 More videos', ur: '🎬 مزید ویڈیوز' },
+  vqMoreFlowBody: {
+    en: 'Pick a class, subject and topic — I will send the video to your chat.',
+    ur: 'جماعت، مضمون اور موضوع چنیں — ویڈیو آپ کی chat میں بھیج دی جائے گی۔',
+  },
+  vqMoreFlowButton: { en: 'Browse', ur: 'دیکھیں' },
+
   // ─── the child's scorecard image ────────────────────────────────────────
   // These are painted INTO a 540x400 card, not sent as a message, so they are
   // held to a badge's width rather than a message's. The vqTier* lines above
@@ -1234,6 +1259,24 @@ const UX_STRINGS = {
   // fit on the card itself. Both sets say the same thing, so a child hears one
   // voice whether she reads the picture or the text under it.
   vqScorecardEyebrow: { en: 'QUIZ COMPLETE', ur: 'کوئز مکمل' },
+
+  // ─── the child's CLASS card (bd-2yyry.10) ───────────────────────────────
+  // Painted into the 540px card, never sent as a message. The child is "you"
+  // / آپ and is never described; the ordinal is built in code. An Urdu body
+  // that opens with a number carries the right-to-left mark.
+  vqClassEyebrow: { en: 'CLASS RESULTS', ur: 'کلاس کے نتائج' },
+  vqClassPlace: { en: 'You came {place} of {n}', ur: '\u200F{n} میں سے آپ کا {place} نمبر' },
+  vqClassPlaceTie: { en: 'You are joint {place} of {n}', ur: '\u200F{n} میں سے آپ مشترکہ {place} نمبر پر' },
+  vqClassYou: { en: 'you', ur: 'آپ' },
+  vqClassAvg: { en: 'class average', ur: 'کلاس کا اوسط' },
+  vqClassYours: { en: 'your score', ur: 'آپ کا اسکور' },
+  vqClassOthers: { en: '{n} more in the class', ur: 'کلاس کے {n} اور بچے' },
+  vqClassFinished: { en: '{n} finished', ur: '\u200F{n} نے مکمل کیا' },
+  // The one-line caption under the card, sent to the child. Names nobody.
+  vqClassCardCaption: {
+    en: '📊 Class results for *{topic}* — find yourself on the card.',
+    ur: '\u200F📊 *{topic}* کے کلاس نتائج — کارڈ پر خود کو تلاش کریں۔',
+  },
   vqBadgeMastered: { en: 'Brilliant!', ur: 'زبردست!' },
   vqBadgeDeveloping: { en: 'Nicely done', ur: 'بہت اچھا' },
   vqBadgeNeedsPractice: { en: 'Good effort', ur: 'اچھی کوشش' },
@@ -1588,6 +1631,85 @@ const STUDENT_TUTOR_STRINGS = {
   // The exact sentence the student prompt tells the model to use when a
   // message drifts off schoolwork — deliberately "a grown-up", not an
   // enumerated list, so it never has to name a teacher.
+  // ─── the child's own routes (student-ingress.js, bd-2yyry.1/.3) ─────────
+  // Read by CHILDREN in the quiz language. Imperatives only — never a verb
+  // that agrees with the addressee.
+  studentVoiceNotSupported: {
+    en: 'I can only read typed messages here — please type your question.',
+    ur: 'یہاں میں صرف لکھے ہوئے پیغام پڑھ سکتا ہوں — براہِ کرم اپنا سوال لکھ کر بھیجیں۔',
+  },
+  studentMediaNotSupported: {
+    en: 'I can’t open pictures or files here — please type your question instead.',
+    ur: 'یہاں تصویر یا فائل نہیں کھل سکتی — براہِ کرم اپنا سوال لکھ کر بھیجیں۔',
+  },
+  studentTeacherOnly: {
+    en: 'That one isn’t for students. You can send /video for videos, /quiz for your quizzes, or just ask me a school question.',
+    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے quiz کے لیے ⁦/quiz⁩ بھیجیں، یا سکول کا کوئی سوال پوچھیں۔',
+  },
+  studentQuizHint: {
+    en: 'Your quizzes come from the link your class shares. Ask a school question here, or send /video for videos.',
+    ur: 'آپ کے quiz کلاس کے link سے آتے ہیں۔ یہاں سکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
+  },
+  studentMenuBody: {
+    en: 'What would you like to do?',
+    ur: 'کیا کرنا ہے؟',
+  },
+  studentMenuVideos: { en: '🎬 Videos', ur: '🎬 ویڈیوز' },
+  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 Quiz' },
+  studentVideosUnavailable: {
+    en: 'Videos aren’t available right now — try /video again in a bit.',
+    ur: 'ابھی ویڈیوز دستیاب نہیں — تھوڑی دیر بعد ⁦/video⁩ دوبارہ بھیجیں۔',
+  },
+  // ─── the child's /quiz (student-quiz.service.js + its Flow, bd-2yyry.13) ──
+  // Read by CHILDREN in the quiz language. Imperatives; no verb agrees with
+  // the addressee. Buttons ≤ 20 code points, Flow header ≤ 60.
+  sqFlowHeader: { en: '📝 Your quizzes', ur: '📝 آپ کے quiz' },
+  sqFlowBody: {
+    en: 'Pick a quiz to try it again or see your class card.',
+    ur: 'کوئی quiz چنیں — دوبارہ کریں یا اپنا class card دیکھیں۔',
+  },
+  sqFlowButton: { en: 'Open', ur: 'کھولیں' },
+  sqScreenQuizzes: { en: 'Your quizzes', ur: 'آپ کے quiz' },
+  sqUntitled: { en: 'Quiz', ur: 'Quiz' },
+  sqRowScores: { en: '{latest} · best {best}', ur: '\u200F{latest} · بہترین {best}' },
+  sqYourLatest: { en: 'Your latest: {score}', ur: 'آپ کا تازہ ترین: {score}' },
+  sqYourBest: { en: 'Your best: {score}', ur: 'آپ کا بہترین: {score}' },
+  sqClassAverage: { en: 'Class average: {n}%', ur: 'کلاس کا اوسط: {n}%' },
+  sqActionsLabel: { en: 'What would you like to do?', ur: 'کیا کرنا ہے؟' },
+  sqActionRetry: { en: 'Try again', ur: 'دوبارہ کریں' },
+  sqActionRetryDesc: { en: 'Take this quiz once more', ur: 'یہ quiz ایک بار پھر کریں' },
+  sqActionCard: { en: 'See my class card', ur: 'میرا class card' },
+  sqActionCardDesc: { en: 'Where you stand in the class', ur: 'کلاس میں آپ کہاں ہیں' },
+  sqCta: { en: 'Continue', ur: 'آگے بڑھیں' },
+  sqClose: { en: 'Close', ur: 'بند کریں' },
+  sqDoneEmptyHeading: { en: 'No quizzes yet', ur: 'ابھی کوئی quiz نہیں' },
+  sqDoneEmptyBody: {
+    en: 'Your quizzes come from the link your class shares. When you have taken one, it will be here.',
+    ur: 'آپ کے quiz کلاس کے link سے آتے ہیں۔ ایک بار کرنے کے بعد وہ یہاں ملے گا۔',
+  },
+  sqDoneErrHeading: { en: 'Something went wrong', ur: 'کچھ گڑبڑ ہو گئی' },
+  sqDoneErrBody: { en: 'Please send ⁦/quiz⁩ again in a moment.', ur: 'تھوڑی دیر بعد ⁦/quiz⁩ دوبارہ بھیجیں۔' },
+  sqErrGeneric: { en: 'Something went wrong — try again.', ur: 'کچھ گڑبڑ ہو گئی — دوبارہ کوشش کریں۔' },
+  sqErrGone: { en: 'That quiz is no longer available.', ur: 'یہ quiz اب دستیاب نہیں۔' },
+  sqErrNothingToDo: { en: 'Nothing to do for that quiz yet.', ur: 'اس quiz کے لیے ابھی کچھ نہیں۔' },
+  sqNoQuizzes: {
+    en: 'No quizzes yet — they come from the link your class shares. Send ⁦/video⁩ for videos meanwhile.',
+    ur: 'ابھی کوئی quiz نہیں — وہ کلاس کے link سے آتے ہیں۔ فی الحال ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
+  },
+  sqFallbackBody: {
+    en: 'Your last quiz: *{topic}* — {score}.\nTry it again, or see your class card?',
+    ur: '\u200Fآپ کا آخری quiz: *{topic}* — {score}۔\nدوبارہ کریں، یا اپنا class card دیکھیں؟',
+  },
+  sqCodeExpired: {
+    en: 'That quiz link has closed — ask your class for a new one.',
+    ur: 'اس quiz کا link بند ہو چکا ہے — کلاس سے نیا link لیں۔',
+  },
+  sqInFlight: { en: 'Finish the quiz you are on first.', ur: 'پہلے جاری quiz مکمل کریں۔' },
+  sqRetryStarting: { en: 'Here it comes again — good luck!', ur: 'لیجیے، دوبارہ شروع — best of luck!' },
+  sqNoCardYet: {
+    en: 'No class card for that quiz yet — finish it first, and the card comes with the class results.',
+    ur: 'اس quiz کا class card ابھی نہیں — پہلے اسے مکمل کریں، card کلاس کے نتائج کے ساتھ آئے گا۔',
+  },
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
     ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',

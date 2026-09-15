@@ -242,13 +242,17 @@ describe('handleInviteButton — funnel + binge chain', () => {
     expect(shown[0]).toMatchObject({ kind: 'binge', sessionId: 'sess-1', quizId: 'qz1' });
   });
 
-  test('YES: offer_answered{kind:invite,choice:yes}', async () => {
-    stubSupabase({}); // no parent share code found -> early return, no mint
+  // bd-2yyry.8 (operator, 14 Sep 2026): a YES is followed by the videos offer
+  // too — it used to be shown only after a NO, and 68% of children never saw it.
+  test('YES: offer_answered{kind:invite,choice:yes} and then the binge offer is shown', async () => {
+    stubSupabase({}); // no parent share code found -> no mint, videos still offered
     await Invite.handleInviteButton(Invite.INVITE_YES, '923001234567');
 
     const answered = eventsNamed('video_quiz.offer_answered').filter((e) => e.kind === 'invite');
     expect(answered[0]).toMatchObject({ kind: 'invite', choice: 'yes' });
-    expect(eventsNamed('video_quiz.offer_shown').filter((e) => e.kind === 'binge')).toHaveLength(0);
+    const shown = eventsNamed('video_quiz.offer_shown').filter((e) => e.kind === 'binge');
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toMatchObject({ kind: 'binge', sessionId: 'sess-1', quizId: 'qz1' });
   });
 
   test('an old in-flight ctx without sessionId/quizId still answers cleanly', async () => {
