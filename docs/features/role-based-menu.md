@@ -158,11 +158,14 @@ Named, not fixed, so they are not mistaken for oversights:
 
 * **The 6h TTL becomes load-bearing for principals.** Tap DC at 09:00, send at
   16:30 → intent expired → parked. Today a teacher's expiry costs nothing.
-  Mitigation deferred: a *"this is my own lesson"* row on the binding list would
-  make every state-loss path recoverable, since the recording is already parked.
-* **`observe_bind_not_obs` still discards the recording**
-  (`observe-binding.service.js:154`) — tapping "Not an observation" drops it
-  rather than handing it to DC.
+  **Mitigation now shipped:** the binding list carries a *"My own lesson"* row
+  (`observe_bind_self_dc`, gated on `canSelfCoach`), so every state-loss path is
+  recoverable in one tap — the recording is already parked with its media id and
+  duration.
+* **`observe_bind_not_obs` no longer discards** for anyone who may self-coach —
+  it routes the parked recording to the same DC entry (which has its own Yes/No
+  confirm, so a recording that really was just a voice note still costs
+  nothing). For a coach, who has no DC entry, it still discards.
 * **`/menu` mid-flow clears the DC intent** (correct behaviour; compounds the
   TTL gap).
 * Row 122's recording is not recoverable — its 6h park TTL expired on 14 Sep.

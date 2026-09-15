@@ -24,6 +24,7 @@
 const redisService = require('../cache/railway-redis.service');
 const WhatsAppService = require('../whatsapp.service');
 const { observeStrings, observeLang } = require('./observe-strings');
+const { canSelfCoach } = require('../../config/role-features');
 const { logToFile } = require('../../utils/logger');
 
 const PARK_TTL_S = 6 * 3600;
@@ -127,6 +128,20 @@ async function buildBindingList(user, S) {
       });
     }
   } catch (_) { /* row simply absent */ }
+  // A leader who also teaches has no way to say "this one is mine" once the
+  // declared-coaching state has lapsed or was never declared. Measured over
+  // 7-15 Sep 2026: 16 parks with an expired declaration, 27 with none at all.
+  // The recording is ALREADY parked with its media id and duration, so this row
+  // recovers it in one tap. canSelfCoach, never the leader-role family: a coach
+  // must not be offered it (0 of 59 coach parks in the same window carried any
+  // coaching declaration).
+  if (canSelfCoach(user)) {
+    rows.push({
+      id: 'observe_bind_self_dc',
+      title: S.bind_row_self_dc.slice(0, 24),
+      description: S.bind_row_self_dc_desc.slice(0, 72),
+    });
+  }
   rows.push({
     id: 'observe_bind_not_obs',
     title: S.bind_row_not_obs.slice(0, 24),
@@ -150,6 +165,24 @@ async function buildBindingList(user, S) {
 async function handleBindingTap(listId, from, user) {
   const S = observeStrings(observeLang(user));
   const queue = await _readQueue(user.id);
+
+  // "My own lesson" and — for anyone who may self-coach — "not an observation"
+  // both hand the parked recording to the teacher-coaching entry instead of
+  // dropping it. That entry has its own Yes/No confirm, so a recording that
+  // really was just a voice note still costs nothing: she taps No. For a coach,
+  // who has no coaching entry at all, "not an observation" keeps discarding.
+  if (listId === 'observe_bind_self_dc'
+      || (listId === 'observe_bind_not_obs' && canSelfCoach(user))) {
+    if (!queue.length) {
+      await WhatsAppService.sendMessage(from, S.bind_expired);
+      return true;
+    }
+    const own = queue.shift();
+    await _writeQueue(user.id, queue);
+    await _coachOwnLesson(user, from, own);
+    if (queue.length) await _reask(user, from, S);
+    return true;
+  }
 
   if (listId === 'observe_bind_not_obs') {
     if (queue.length) { queue.shift(); await _writeQueue(user.id, queue); }
@@ -295,6 +328,24 @@ async function consumeParkedDebrief(user, from, sessionId) {
 module.exports = {
   parkAndAsk, buildBindingList, handleBindingTap, consumeParkedIfArmed, consumeParkedDebrief,
 };
+
+/**
+ * Hand one parked recording to the teacher-coaching entry. The head already
+ * carries the media id and the resolved duration, so nothing has to be stored
+ * and she never re-sends.
+ */
+async function _coachOwnLesson(user, from, head) {
+  const CoachingService = require('../coaching-orchestrator.service');
+  const { getOrCreateSession } = require('../../database/bot-helpers');
+  let chatSessionId = null;
+  try { chatSessionId = await getOrCreateSession(user.id); } catch (_) { /* the entry tolerates null */ }
+  await CoachingService.initiateCoachingSession(
+    user.id, chatSessionId, head.audioId, from, head.durationSeconds || null,
+  );
+  logToFile('🎓 observe-binding: parked recording routed to the leader\'s own coaching', {
+    userId: user.id, audioId: head.audioId, durationSeconds: head.durationSeconds || null,
+  });
+}
 
 async function _reask(user, from, S) {
   try {
