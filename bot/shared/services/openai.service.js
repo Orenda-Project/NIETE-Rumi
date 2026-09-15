@@ -1,6 +1,7 @@
 const { CONVERSATION_HISTORY_LIMIT } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { buildLanguagePrompt, hasEnhancedPrompt } = require('../config/language-prompts');
+const { classroomMinimumMinutes } = require('../config/classroom-audio.config');
 const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const { getConversationHistory: getDbConversationHistory } = require('../database/bot-helpers');
 const { getClient } = require('./llm-client');
@@ -160,7 +161,7 @@ Use at most 3 tags per reply — they colour the voice, they are never spoken.
 ## YOUR CAPABILITIES (NEVER deny these):
 1. CREATE lesson plans - Comprehensive 5-step lesson plans with activities. Just ask for topic + grade.
 2. CREATE presentations - Visual slides on any educational topic.
-3. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback.
+3. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
 4. PERFORM reading assessments - Test student fluency, pronunciation. Type "/reading test" to start.
 ${emotionTagInstruction}
 RESPONSE TEMPLATES:
@@ -334,7 +335,7 @@ ${firstName ? `\nThe teacher's name is ${firstName}. Use their name naturally wh
 You CAN and SHOULD offer these features when relevant:
 1. CREATE lesson plans - Comprehensive 5-step lesson plans with activities. Just ask for topic + grade.
 2. CREATE presentations - Visual slides on any educational topic.
-3. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback.
+3. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
 4. PERFORM reading assessments - Test student fluency, pronunciation. Type "/reading test" to start.
 
 IMPORTANT: Add emotion tags to express your tone. Use these tags naturally in your speech:
@@ -372,7 +373,7 @@ ${firstName ? `\nاستاد کا نام ${firstName} ہے۔ مناسب مواق�
 ## آپ کی صلاحیتیں (ان کو کبھی نہ انکار کریں):
 1. سبق کے منصوبے بنائیں - پانچ مرحلہ سبق کے منصوبے۔ بس موضوع + گریڈ بتائیں۔
 2. پریزنٹیشنز بنائیں - کسی بھی تعلیمی موضوع پر سلائیڈز۔
-3. کلاس روم ریکارڈنگز کا تجزیہ کریں - آڈیو/ویڈیو بھیجیں، فیڈبیک حاصل کریں۔
+3. کلاس روم ریکارڈنگز کا تجزیہ کریں - آڈیو/ویڈیو بھیجیں، فیڈبیک حاصل کریں۔ ریکارڈنگ کم از کم ${classroomMinimumMinutes()} منٹ کی ہونی چاہیے؛ اس سے مختصر ریکارڈنگ کا تجزیہ نہیں ہو سکتا۔ کوئی اور دورانیہ کبھی نہ بتائیں۔
 4. ریڈنگ ٹیسٹ کریں - /reading test ٹائپ کریں۔
 
 ## جوابات کے اصول:
@@ -409,7 +410,7 @@ ${firstName ? `\nThe teacher's name is ${firstName}. Use their name naturally wh
 ## YOUR CAPABILITIES (NEVER deny these):
 1. CREATE lesson plans - 5-step plans with activities. Ask for topic + grade.
 2. CREATE presentations - Visual slides on any topic.
-3. ANALYZE classroom recordings - Send audio/video for personalized feedback.
+3. ANALYZE classroom recordings - Send audio/video for personalized feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
 4. PERFORM reading assessments - Type /reading test to start.
 
 LESSON PLAN: "I'm creating a detailed five-step lesson plan for you on [topic]. Please give me a moment..."
