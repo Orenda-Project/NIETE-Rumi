@@ -29,6 +29,9 @@ const {
   fromNativeResponse,
   isCreditClassError,
 } = require('./anthropic-native-facade');
+// bd-8t362: one place to record what a call cost. No rate table: OpenRouter reports what it
+// actually charged, and the facade prices the direct lane. We record what the vendor says.
+const { recordModelCost } = require('../utils/model-cost');
 
 const PROVIDER = (process.env.LLM_PROVIDER || 'openrouter').toLowerCase();
 const DEFAULT_MODEL = process.env.LLM_MODEL || 'openai/gpt-4o';
@@ -205,11 +208,24 @@ function createLLMClient() {
 
   // Auto-prefix model names for OpenRouter (e.g. 'gpt-4o-mini' → 'openai/gpt-4o-mini')
   const originalCreate = client.chat.completions.create.bind(client.chat.completions);
-  client.chat.completions.create = (params, options) => {
+  client.chat.completions.create = async (params, options) => {
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
-    return originalCreate(params, options);
+    // bd-8t362. `usage: {include:true}` asks OpenRouter to attach what it ACTUALLY charged,
+    // margin included. That is the only honest number available here: a table of vendor list
+    // prices would be confidently wrong for a reseller, and 44 files were recording nothing
+    // at all. This is the one request field this change adds, and it is additive.
+    if (params.usage === undefined) params = { ...params, usage: { include: true } };
+
+    const startedAt = Date.now();
+    const response = await originalCreate(params, options);
+    try {
+      recordModelCost(params.model, response, startedAt);
+    } catch (_) {
+      // A costing failure must never become a teacher's problem.
+    }
+    return response;
   };
 
   return client;
