@@ -248,14 +248,18 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // question.
   const isFollowUp = Boolean(sc.report_sent_at) && !force;
 
-  // bd-2yyry.18 — a completion never sends the FIRST report. Every finish asks
-  // for a follow-up; before any report exists that call used to go straight
+  // bd-2yyry.18 — a completion never sends the teacher anything. Every finish
+  // asks for a follow-up; before any report existed that call went straight
   // through, so the first child to finish sent the teacher's report (measured
-  // 8–15 Sep 2026: median one child on it). The first report belongs to the
-  // scheduled job (12h after the first join, or 07:00 PKT) or to the teacher's
-  // own request; a late finisher gets their class card from sendLateClassCards.
-  if (reason === 'follow_up' && !sc.report_sent_at && !force) {
-    logEvent('video_quiz.report_suppressed', { shareCodeId, reason, why: 'before_first_report' });
+  // 8–15 Sep 2026: median one child on it), and after it one more follow-up
+  // could go. The operator's call (15 Sep 2026): no reminders to teachers —
+  // the teacher gets the scheduled report (12h after the first join, or 07:00
+  // PKT) and whatever they ask for from /quiz, nothing else. A late finisher
+  // gets their class card from sendLateClassCards, on the child's side only.
+  if (reason === 'follow_up' && !force) {
+    logEvent('video_quiz.report_suppressed', {
+      shareCodeId, reason, why: sc.report_sent_at ? 'followups_disabled' : 'before_first_report',
+    });
     return false;
   }
 
