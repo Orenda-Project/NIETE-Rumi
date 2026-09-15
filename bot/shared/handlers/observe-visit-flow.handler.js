@@ -885,7 +885,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (res.outcome === 'cancelled' || res.outcome === 'already') {
         return { screen: 'SUCCESS', data: _success(S.obs_cancelled_heading, S.obs_cancelled_body, { action: 'cancelled' }) };
       }
-      const body = res.outcome === 'too_late' ? S.cancel_too_late : S.flow_action_failed_body;
+      // 'raced' is the cancel that lost to the pipeline — the same thing the
+      // coach needs to hear as 'too_late', and never the generic failure copy
+      // (one fallback across distinct states misdirects every field report).
+      const body = ['too_late', 'raced'].includes(res.outcome)
+        ? S.cancel_too_late : S.flow_action_failed_body;
       return { screen: 'SUCCESS', data: _success(S.flow_action_failed_heading, body, { action: 'noop' }) };
     }
     if (step === 'schedule') return scheduleScreen(userId);

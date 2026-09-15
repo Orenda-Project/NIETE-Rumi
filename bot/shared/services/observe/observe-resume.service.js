@@ -248,11 +248,21 @@ async function cancelObservationCore(sessionId, user) {
   const d = s.analysis_data && s.analysis_data.teacher_delivery;
   if (d && ['sent', 'awaiting_teacher_tap'].includes(d.status)) return { outcome: 'too_late' };
   if (['cancelled', 'abandoned'].includes(s.status)) return { outcome: 'already' };
-  await supabase
+  const { data: written } = await supabase
     .from('coaching_sessions')
     .update({ status: 'cancelled' })
     .eq('id', sessionId)
-    .eq('status', s.status);   // CAS — a concurrent pipeline advance wins
+    .eq('status', s.status)    // CAS — a concurrent pipeline advance wins
+    .select('id');
+  if (!written || !written.length) {
+    // The CAS matched no row, so the cancel did NOT happen. Returning
+    // 'cancelled' here is how a coach came to see a SUCCESS screen for a cancel
+    // that never landed; the ack must describe the actual state.
+    logToFile('🏁 observe-resume: cancel lost the race — row already advanced', {
+      sessionId, coachId: user.id, readStatus: s.status,
+    });
+    return { outcome: 'raced' };
+  }
   logToFile('🗑 observe-resume: observation cancelled by coach', { sessionId, coachId: user.id });
   return { outcome: 'cancelled' };
 }
@@ -261,7 +271,10 @@ async function cancelObservation(sessionId, from, user) {
   const S = observeStrings(observeLang(user));
   const { outcome } = await cancelObservationCore(sessionId, user);
   const msg = { not_yours: S.debrief_not_yours, too_late: S.cancel_too_late,
-    already: S.cancel_ack, cancelled: S.cancel_ack }[outcome];
+    already: S.cancel_ack, cancelled: S.cancel_ack,
+    // Lost the race to the pipeline: the analysis had already moved on, which
+    // is the same thing the coach needs to hear as 'too_late'.
+    raced: S.cancel_too_late }[outcome];
   await WhatsAppService.sendMessage(from, msg);
 }
 

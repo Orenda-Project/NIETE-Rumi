@@ -18,7 +18,18 @@ let mockSessionRow = null;
 jest.mock('../../shared/config/supabase', () => ({
   from: jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
-    update: jest.fn((fields) => { mockUpdates.push(fields); return { eq: jest.fn().mockResolvedValue({ data: null, error: null }) }; }),
+    update: jest.fn((fields) => {
+      mockUpdates.push(fields);
+      // The write is .eq(id).not(status in terminal).select('id') — the double
+      // must chain all three and yield the matched row.
+      const tail = {
+        eq: jest.fn(() => tail),
+        not: jest.fn(() => tail),
+        select: jest.fn().mockResolvedValue({ data: [{ id: 'sess-1' }], error: null }),
+        then: (ok, bad) => Promise.resolve({ data: [{ id: 'sess-1' }], error: null }).then(ok, bad),
+      };
+      return tail;
+    }),
     eq: jest.fn().mockReturnThis(),
     single: jest.fn(() => Promise.resolve({ data: mockSessionRow, error: null })),
   })),
