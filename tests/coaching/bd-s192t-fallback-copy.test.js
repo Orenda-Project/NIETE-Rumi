@@ -37,12 +37,15 @@ describe("bd-s192t.4 — Section B fallback copy is honest per state", () => {
     expect(d.fid_fallback).toMatch(/could not/i);
   });
 
-  test('genuinely no plan (lp_absent, and missing blob): keeps the original copy', () => {
+  test('genuinely no plan (lp_absent, and missing blob): says no plan was provided', () => {
     for (const lp of [{ status: 'lp_absent' }, undefined]) {
       const d = build(lp);
       expect(d.no_fidelity).toBe(true);
-      expect(d.fid_fallback).toMatch(/No usable lesson plan was linked/);
-      expect(d.fid_fallback).toMatch(/AI assessment/);
+      expect(d.fid_fallback).toMatch(/No lesson plan was provided/);
+      // Section B is now EXCLUDED rather than scored by the proxy, so the copy
+      // that told the coach an AI assessment stood in is gone from every state.
+      expect(d.fid_fallback).not.toMatch(/AI assessment/i);
+      expect(d.fid_fallback).toMatch(/not scored/i);
     }
   });
 

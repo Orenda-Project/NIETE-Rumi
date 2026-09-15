@@ -40,6 +40,31 @@ const { coachRoleLabelForRegion } = require('../../config/region-config');
 function _languageFromSession(session) {
   return session?.users?.preferred_language || 'en'; // bd-3b0co: no transcript-language leak
 }
+
+// The voice prompt JSON-dumps the whole analysis, so a flag saying "do not
+// mention Section B" is not enough — the model can still read the legacy proxy
+// score and its ten indicators straight out of the dump. When the section was
+// not assessed it is REPLACED by the fact that it was not, and the separate
+// legacy whole-plan estimate goes with it. Returns a shallow projection; the
+// caller's analysis is never mutated, because it is the object that gets stored.
+function _projectAnalysisForVoice(analysis) {
+  const sectionB = analysis && analysis.domains && analysis.domains.lesson_plan_fidelity;
+  if (!sectionB || sectionB.assessed !== false) {
+    return { analysis, notAssessed: false };
+  }
+  const projected = {
+    ...analysis,
+    domains: {
+      ...analysis.domains,
+      lesson_plan_fidelity: {
+        assessed: false,
+        not_assessed_reason: sectionB.not_assessed_reason || 'lp_absent',
+      },
+    },
+  };
+  delete projected.fidelity_analysis;
+  return { analysis: projected, notAssessed: true };
+}
 const {
   CLASSROOM_MARKS_BASE,
   CLASSROOM_MARKS_WITH_LP
@@ -1451,12 +1476,17 @@ class ReportGeneratorService {
         session.transcript_language
       );
 
+      const voice = _projectAnalysisForVoice(enhancedAnalysis);
+
       const voiceScript = await GPT5MiniService.summarizeForVoiceDebrief(
         {
-          analysis: enhancedAnalysis,
+          analysis: voice.analysis,
           conversation: session.conversation_state,
-          hasLessonPlan: !!enhancedAnalysis.has_lesson_plan,
-          fidelityScore: enhancedAnalysis.fidelity_analysis?.score || null
+          // Nothing was measured against a plan, so as far as this script is
+          // concerned there is no plan to talk about following.
+          hasLessonPlan: voice.notAssessed ? false : !!enhancedAnalysis.has_lesson_plan,
+          fidelityScore: voice.notAssessed ? null : (enhancedAnalysis.fidelity_analysis?.score || null),
+          sectionBNotAssessed: voice.notAssessed
         },
         outputLanguage
       );

@@ -1698,6 +1698,7 @@ STRUCTURE (90 seconds total):
 4. Encouraging closing (10 seconds)
 
 If "hasLessonPlan" is true in the observation data, explicitly reference how closely the teacher followed their plan (use the fidelityScore if provided) either in the strength or growth portion.
+${observationData && observationData.sectionBNotAssessed ? 'LESSON PLAN: this lesson was NOT measured against a lesson plan. Do NOT state any lesson-plan percentage or fidelity figure, do NOT describe the plan as followed or not followed, and do NOT mention a lesson plan at all. Speak only about what happened in the lesson itself.' : ''}
 
 TONE:
 - Warm, respectful, mentor-like
