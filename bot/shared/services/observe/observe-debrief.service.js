@@ -91,7 +91,7 @@ async function listPendingDebriefs(observerUserId, opts = {}) {
   const offset = opts.offset || 0;
   const { data, error } = await supabase
     .from('coaching_sessions')
-    .select('id, created_at, analysis_data')
+    .select('id, created_at, user_id, observer_user_id, analysis_data')
     .eq('observer_user_id', observerUserId)
     .eq('observation_type', 'leader_observation')
     .eq('debrief_status', 'pending')
@@ -110,17 +110,70 @@ async function listPendingDebriefs(observerUserId, opts = {}) {
  */
 async function _withObservedTeacher(rows) {
   if (!rows.length) return rows;
+  let named = rows;
   try {
     const { data } = await supabase
       .from('observation_schedules')
       .select('session_id, teacher_name, school_name')
       .in('session_id', rows.map((r) => r.id));
-    if (!data || !data.length) return rows;
     const bySession = new Map();
-    for (const s of data) if (s.session_id && !bySession.has(s.session_id)) bySession.set(s.session_id, s);
+    for (const s of (data || [])) {
+      if (s.session_id && !bySession.has(s.session_id)) bySession.set(s.session_id, s);
+    }
+    if (bySession.size) {
+      named = rows.map((r) => {
+        const s = bySession.get(r.id);
+        return s ? { ...r, teacher_name: s.teacher_name, school_name: s.school_name } : r;
+      });
+    }
+  } catch (_) {
+    named = rows;
+  }
+  return _withUsersName(named);
+}
+
+/**
+ * Second source for the rows the schedule join missed.
+ *
+ * The schedule row is stamped only for a scheduled visit or one an ad-hoc
+ * "who did you observe?" answer attached, and the delivery blob's name is
+ * written only when a report is SENT — so at the pending stage a row with no
+ * schedule had nothing at all and rendered as the literal 'Observation'.
+ * Measured on prod, 15 Sep 2026, over 163 stage-B rows: 80 of them (49%) had
+ * no name, 53 of those were bound to a teacher, and 52 of the 53 were
+ * resolvable from that teacher's own users row. Reach 50% -> 82%.
+ *
+ * BOUND ONLY: user_id is the observed teacher when the coach picked her, and
+ * the observer when she did not, so a self-owned row is skipped rather than
+ * labelled with the coach's own name. The 27 unbound rows stay nameless — no
+ * read can name them; that needs the capture-time question answered.
+ *
+ * The label comes from the patch resolver's displayNameOf, which degrades to
+ * the role plus the LAST FOUR digits. The generic person-name helper falls back
+ * to a whole phone number, and `name` is read ALOUD on a voice call, so digits
+ * must never reach that field. `registration_pending_name` is a boolean flag on
+ * every users row and is never a name.
+ *
+ * ONE batched read for the whole list, never one per row, and read-only:
+ * nothing is written. A failure costs the name, not the list.
+ */
+async function _withUsersName(rows) {
+  const needed = [...new Set(rows
+    .filter((r) => !r.teacher_name && r.user_id && r.user_id !== r.observer_user_id)
+    .map((r) => r.user_id))];
+  if (!needed.length) return rows;
+  try {
+    const { displayNameOf } = require('./patch-resolver.service');
+    const { data } = await supabase
+      .from('users')
+      .select('id, name, phone_number, role')
+      .in('id', needed);
+    if (!data || !data.length) return rows;
+    const byId = new Map(data.map((u) => [u.id, u]));
     return rows.map((r) => {
-      const s = bySession.get(r.id);
-      return s ? { ...r, teacher_name: s.teacher_name, school_name: s.school_name } : r;
+      if (r.teacher_name || !byId.has(r.user_id)) return r;
+      const label = displayNameOf(byId.get(r.user_id));
+      return label ? { ...r, teacher_name: label } : r;
     });
   } catch (_) {
     return rows;
@@ -137,7 +190,7 @@ async function listUnsentReports(observerUserId, opts = {}) {
   const offset = opts.offset || 0;
   const { data, error } = await supabase
     .from('coaching_sessions')
-    .select('id, created_at, analysis_data')
+    .select('id, created_at, user_id, observer_user_id, analysis_data')
     .eq('observer_user_id', observerUserId)
     .eq('observation_type', 'leader_observation')
     .eq('debrief_status', 'done')
@@ -203,7 +256,7 @@ async function listUnfinished(observerUserId, opts = {}) {
   const limit = opts.limit == null ? MAX_PENDING_ROWS : opts.limit;
   const { data, error } = await supabase
     .from('coaching_sessions')
-    .select('id, status, created_at, updated_at, analysis_data')
+    .select('id, status, created_at, updated_at, user_id, observer_user_id, analysis_data')
     .eq('observer_user_id', observerUserId)
     .eq('observation_type', 'leader_observation')
     .eq('debrief_status', 'pending')
