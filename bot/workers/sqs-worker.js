@@ -1375,7 +1375,11 @@ async function runDebriefRetrySweep({ now = Date.now() } = {}) {
   }
 
   const scanned = (rows || []).length;
-  const eligible = selectDebriefsToRetry(rows || [], now);
+  // The reasons rows were refused ride back in this tally, so the tick's log
+  // line can say "8 skipped because the recording is gone" instead of a bare
+  // eligible:0 that reads identically to "nothing was stuck".
+  const reasons = {};
+  const eligible = selectDebriefsToRetry(rows || [], now, {}, reasons);
   let queued = 0;
   let skipped = 0;
   for (const row of eligible) {
@@ -1400,7 +1404,10 @@ async function runDebriefRetrySweep({ now = Date.now() } = {}) {
       logToFile('❌ debrief retry sweep: queue failed for one row', { sessionId: row.id, error: err.message }, 'error');
     }
   }
-  const summary = { scanned, eligible: eligible.length, queued, skipped };
+  const summary = {
+    scanned, eligible: eligible.length, queued, skipped,
+    mediaGone: Number(reasons.mediaGone) || 0,
+  };
   logToFile('🔁 debrief retry sweep', summary);
   return summary;
 }
