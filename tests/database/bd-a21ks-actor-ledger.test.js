@@ -154,7 +154,7 @@ describe('the Supabase client sends the actor', () => {
     let captured = null;
     jest.doMock('@supabase/supabase-js', () => ({
       createClient: jest.fn((url, key, opts) => { captured = opts; return { from: jest.fn(), rpc: jest.fn() }; }),
-    }));
+    }), { virtual: true }); // supabase-js is installed under bot/, not the repo root — same as tests/setup/migrate.test.js
     process.env.SUPABASE_URL = 'https://olvritwoqujtjvwfulbh.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
     require('../../bot/shared/config/supabase');
