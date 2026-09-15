@@ -100,8 +100,15 @@ describe('bd-gfsja — report language comes from the teacher, not an inline Eng
   it('the session load joins preferred_language (the column the resolver reads)', () => {
     // The exact select that feeds generatePDFReport's session object. Without
     // preferred_language here, every downstream read is undefined by construction.
+    //
+    // Anchored on `phone_number`, not on `first_name`. The original anchor went
+    // stale when the split name columns were dropped from the schema: the join
+    // stopped mentioning `first_name`, `find()` returned undefined, and the
+    // assertion failed on a service that was in fact correct. A guard that
+    // cannot tell "the column is missing" from "my anchor moved" reports the
+    // wrong thing, which is worse than not guarding.
     const joins = strippedSource().match(/users!inner\(([^)]*)\)/g) || [];
-    const mainJoin = joins.find((j) => j.includes('first_name'));
+    const mainJoin = joins.find((j) => j.includes('phone_number') && j.includes('name'));
     expect(mainJoin).toBeDefined();
     expect(mainJoin).toContain('preferred_language');
   });

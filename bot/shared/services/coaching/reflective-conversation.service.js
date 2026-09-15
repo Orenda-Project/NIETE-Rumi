@@ -19,6 +19,7 @@ const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
 const ElevenLabsService = require('../elevenlabs.service');
 const { getUserLanguage } = require('../../utils/language-cache');
+const { clampLanguage } = require('../../config/ux-strings');
 const { TEMP_DIR } = require('../../utils/constants');
 const { NUM_REFLECTIVE_QUESTIONS } = require('../../config/coaching-debrief.config');
 const { getCoachingMessage } = require('../../config/coaching-messages');
@@ -149,8 +150,16 @@ class ReflectiveConversationService {
         questionLength: question.length
       });
 
-      // Generate voice from question text
-      const voiceBuffer = await ElevenLabsService.generateSpeechForLanguage(question, languageCode);
+      // Generate voice from question text.
+      //
+      // Clamped at the call site, exactly as the chat reply path already does.
+      // The synthesiser's behaviour for a code it does not carry is to read the
+      // text in the ENGLISH voice, silently — so an unoffered label arriving here
+      // means an English voice reading Urdu, with no error row to notice.
+      const voiceBuffer = await ElevenLabsService.generateSpeechForLanguage(
+        question,
+        clampLanguage(languageCode),
+      );
 
       // Send voice question to teacher
       await WhatsAppService.sendAudio(from, voiceBuffer, TEMP_DIR);
@@ -258,27 +267,33 @@ class ReflectiveConversationService {
       // Count how many questions have been answered
       const questionsAnswered = questions.filter(q => q.answer !== null).length;
 
-      // Check if language changed and update immediately
-      let newConversationLanguage = session.conversation_state.conversation_language;
+      // The reflection's language is the TEACHER's decision, never the
+      // recogniser's guess.
+      //
+      // This used to overwrite the session's language with the detected label of
+      // whatever she had just said. Teachers here code-switch constantly — they
+      // keep pedagogical terms in English inside an Urdu sentence — so an Urdu
+      // answer came back labelled 'en' and flipped every later question AND its
+      // spoken voice into English. Measured on production: the flip fired on 139
+      // sessions and is still firing daily.
+      //
+      // Anchored instead to the language the session opened in, and failing that
+      // to her stored preference, clamped to what the deployment offers. The
+      // per-turn detection survives on `questions[n].language` above, which is
+      // telemetry: it is how "interface language vs lesson language" divergence
+      // stays visible without anything being rewritten.
+      const newConversationLanguage = clampLanguage(
+        session.conversation_state.conversation_language
+        || await getUserLanguage(session.user_id),
+      );
 
-      if (language && language !== session.conversation_state.conversation_language) {
-        logToFile('🔄 Language change detected in response', {
+      if (language && language !== newConversationLanguage) {
+        logToFile('🈺 Answer language differs from the conversation language (not flipping)', {
           coachingSessionId,
-          previousLanguage: session.conversation_state.conversation_language,
-          newLanguage: language,
+          detected: language,
+          keeping: newConversationLanguage,
           questionNumber
         });
-
-        // Update conversation language immediately (SESSION-SCOPED only —
-        // lives in coaching_sessions.conversation_state, resets next session).
-        newConversationLanguage = language;
-
-        // We deliberately do NOT persist this to the user's GLOBAL
-        // preferred_language. A teacher answering one reflective question in
-        // English — or code-switching mid-answer (very common in PK classrooms)
-        // — must not silently flip her saved language for ALL future coaching
-        // questions and reports. Global language changes only on an explicit
-        // /settings action. (Mirrors the main-bot fix bd-1745.)
       }
 
       // Update conversation state with new language if changed

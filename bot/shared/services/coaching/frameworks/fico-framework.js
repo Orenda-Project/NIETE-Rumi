@@ -538,13 +538,23 @@ SPECIAL INSTRUCTIONS:
 // REGISTERED language explicitly. This mirrors the report-v2 narrative
 // service's langRules(): Urdu → Nastaliq, gender-neutral, code-switch
 // pedagogical terms in English, RTL. Never hardcode a language.
-const LANG_NAME = { en: 'English', ur: 'Urdu' };
+const { getLanguage } = require('../../../config/languages');
+
+/**
+ * A language's English NAME, for the prompt's own prose. Read from the registry
+ * rather than restated as a second inline map — that duplication is how the
+ * report once rendered Urdu in the wrong script while the reply was correct.
+ */
+function languageName(code) {
+  const row = getLanguage(code);
+  return (row && row.languageDescription) || String(code);
+}
 
 function focusAreaLangDirective(language) {
   if (language === 'ur') {
     return `FOCUS-AREA LANGUAGE — write the four focus_area strings (title, rationale, try_this_tomorrow, lever_question) in URDU (Nastaliq), warm and natural. Text is right-to-left. Use gender-neutral phrasing (verbal nouns / impersonal constructions), never gendered second-person verb forms. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. open-ended questions, scaffolding, phonics, Bloom's). Keep "domain" and "indicator" as the EXACT English keys/ids listed above — do NOT translate them.`;
   }
-  const name = LANG_NAME[language] || 'English';
+  const name = languageName(language);
   return `FOCUS-AREA LANGUAGE — write the four focus_area strings (title, rationale, try_this_tomorrow, lever_question) in ${name}. Keep "domain" and "indicator" as the EXACT English keys/ids listed above — do NOT translate them.`;
 }
 
@@ -630,6 +640,7 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
     subjectConfidence,
     duration,
     language,
+    transcriptLanguage,
     teacherFirstName,
     priorFeedback
   } = metadata || {};
@@ -647,6 +658,14 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
     confidence,
     require('../subject-resolution').subjectGroupFor,
   );
+
+  // Two language needs, deliberately separate values. `language` is what the
+  // teacher-facing strings are WRITTEN in — her stored preference, resolved
+  // upstream through the one coaching resolver. The transcript label is what was
+  // HEARD in the room, and it is context for the model, never a directive about
+  // which language to address her in. One field doing both jobs is how a lesson
+  // labelled English steered an Urdu teacher's report into English.
+  const heardLanguage = transcriptLanguage || null;
 
   const lpFidelityNote = lessonPlanStructured
     ? `\nIMPORTANT - LP Fidelity: A lesson plan is linked. For Section B (especially B1, B2, B3), compare the planned LP objectives + steps against what was observed in the transcript.\n`
@@ -691,7 +710,7 @@ ${teacherFirstName ? `- Teacher's First Name: ${teacherFirstName}` : ''}
 ${grade ? `- Grade: ${grade}` : ''}
 ${namedSubject ? `- Subject: ${namedSubject}` : ''}
 ${duration ? `- Duration: ${Math.round(duration / 60)} minutes` : ''}
-${language ? `- Primary Language: ${language}` : ''}
+${heardLanguage ? `- Language spoken in the lesson: ${languageName(heardLanguage)}` : ''}
 
 ${priorFeedback ? `PRIOR FEEDBACK:\n${priorFeedback}\n` : ''}
 ${subjectBlock}${lpFidelityNote}${photoNote}
