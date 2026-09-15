@@ -31,12 +31,23 @@ const WATCHED = {
   // Roster and config: low churn, high blast radius. Nobody notices a wrong
   // roster row on the day; they notice when a child is missing from a register.
   app_settings: ['value'],
-  class_enrollments: ['is_active', 'class_id', 'student_id'],
-  students: ['student_name', 'father_name', 'roll_number', 'is_active', 'status', 'school_id'],
-  student_lists: ['is_active'],
+  // bd-a21ks widened the roster set so one class's history reads from the
+  // ledger ALONE: an INSERT records only watched columns, so without class_id
+  // and teacher_user_id a hand-over was {is_active, is_class_teacher} and nothing
+  // else; a roll move and a removal reason lived only on the live row.
+  class_enrollments: ['is_active', 'class_id', 'student_id', 'roll_number', 'outcome'],
+  students: ['student_name', 'father_name', 'roll_number', 'is_active', 'status', 'school_id',
+    'merged_into', 'admission_no'],
+  student_lists: ['is_active', 'class_id', 'user_id'],
   schools: ['name', 'emis', 'region', 'principal_user_id', 'is_active'],
   teacher_attendance_records: ['status', 'leave_type', 'school_id'],
-  class_teachers: ['is_active', 'is_class_teacher'],
+  class_teachers: ['is_active', 'is_class_teacher', 'class_id', 'teacher_user_id'],
+  // The class itself — grade/section/shift ARE its identity (unique on
+  // school+grade+section+shift+session), and the saved-roster edit screen
+  // (bd-tf3jg) mutates exactly those. Closed = is_active false; a merge is the
+  // same txid moving the enrolments (see roster_class_timeline).
+  classes: ['school_id', 'grade_code', 'section', 'shift_code', 'session_code', 'is_active',
+    'created_by_user_id'],
   teacher_training_assignments: ['is_active', 'assigned_by'],
   exam_check_sessions: ['status'],
 };
@@ -53,6 +64,7 @@ const KEY_COLUMN = {
   class_enrollments: 'id', students: 'id', student_lists: 'id', schools: 'id',
   teacher_attendance_records: 'id', class_teachers: 'id',
   teacher_training_assignments: 'id', exam_check_sessions: 'id',
+  classes: 'id',
 };
 
 /** The row key the trigger writes into record_history.row_id (always text). */
@@ -128,21 +140,33 @@ function diffWatched(table, oldRow, newRow) {
   return { changed_cols: changed, old_vals, new_vals };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Actor attribution, best-effort and explicit about which case it hit.
- * PostgREST sets request.jwt.claims; the bot/workers do not.
+ *
+ * Precedence, mirroring row_history_actor.sql:
+ *   1. a JWT subject                       — a real portal/dashboard user
+ *   2. app.actor set inside the transaction — an RPC stamping the uuid it was handed
+ *   3. the x-rumi-actor request header      — the bot acting for a coach, ONLY when
+ *      the JWT role is service_role and the value is uuid-shaped
+ *   4. session_user                         — the connection role ('authenticator'
+ *      for PostgREST, 'postgres' for SQL); recorded so it is never mistaken for a person
+ *
+ * Measured before this existed (NIETE prod, 2026-09-15): 188,963 of 189,013 rows
+ * were case 4 wearing case 1's label.
  */
-function attributeActor({ jwtClaims, appActor, sessionUser }) {
+function attributeActor({ jwtClaims, appActor, headerActor, sessionUser }) {
+  let claims = null;
   if (jwtClaims) {
-    let sub = null;
-    try {
-      sub = JSON.parse(jwtClaims).sub || null;
-    } catch (_) {
-      sub = null;
-    }
-    return { actor: sub || sessionUser || null, actor_source: 'postgrest' };
+    try { claims = JSON.parse(jwtClaims); } catch (_) { claims = {}; }
   }
+  if (claims && claims.sub) return { actor: claims.sub, actor_source: 'postgrest' };
   if (appActor) return { actor: appActor, actor_source: 'service_role' };
+  if (claims && claims.role === 'service_role' && typeof headerActor === 'string' && UUID_RE.test(headerActor)) {
+    return { actor: headerActor.toLowerCase(), actor_source: 'service_role' };
+  }
+  if (claims) return { actor: sessionUser || null, actor_source: 'postgrest' };
   return { actor: sessionUser || null, actor_source: 'sql' };
 }
 

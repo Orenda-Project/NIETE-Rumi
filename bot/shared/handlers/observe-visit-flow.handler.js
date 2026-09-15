@@ -1635,8 +1635,14 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   return v2 ? menuScreen(userId) : schoolsScreen(userId);
 }
 
+// The coach whose id is the flow token is the actor for every write this handler
+// makes — Manage Teachers' users rows included — so record_history names a person
+// rather than the connection role (bd-a21ks). Wrapped at the boundary; nothing
+// inside changes signature.
+const { runAsActor: _runAsActor } = require('../utils/actor-context');
+
 module.exports = {
-  handle,
+  handle: (userId, ...rest) => _runAsActor(userId, () => handle(userId, ...rest)),
   // bd-88krt — pure decisions, unit-tested
   filterTeachersByTerm,
   schoolOfTeacher,

@@ -1,7 +1,10 @@
 'use strict';
 /**
  * /roster Flow endpoint — SCHOOL → PHOTOS → CLASS → (WORKING) → REVIEW → SAVED,
- * with a search side-path off SCHOOL.
+ * with a search side-path off SCHOOL. A school already scanned shows SCHOOL_STATUS
+ * first, and from there a saved class opens ROSTER_VIEW, which offers the
+ * students editor (ROSTER_EDIT), the class-teacher picker (CLASS_TEACHER) and the
+ * class-details editor (CLASS_DETAILS → CLASS_MERGE when the target class exists).
  *
  * WHY THE SCREENS ARE IN THIS ORDER. Reading a register page takes about eight
  * seconds and Meta kills a data_exchange at roughly ten, so extraction cannot run
@@ -106,6 +109,10 @@ const NO_SECTION = 'none';
  */
 const TEACHER_SKIP_TITLE = 'Not listed \u2014 no attendance';
 const TEACHER_HELP = 'Without a class teacher, nobody can mark attendance for these children.';
+/** The hand-over picker's escape: leaving is a real answer, and it writes nothing. */
+const TEACHER_KEEP_TITLE = 'Not listed \u2014 leave as is';
+/** The mark a teacherless class carries in the status list (a Dropdown title is 30 code points). */
+const NO_TEACHER_MARK = '\u26a0 ';
 
 /** English, like every other label on this Flow, but keyed off the ONE label map. */
 const shiftTitle = (code) => (SHIFT_LABELS[code] && SHIFT_LABELS[code].en) || code;
@@ -171,7 +178,7 @@ async function schoolsFor(user) {
  * accounts by phone), then anyone whose account already says they are at this
  * school. A principal has no patch, so the second source is what serves them.
  */
-async function teachersFor(user, schoolId) {
+async function teachersFor(user, schoolId, skip = opt('none', TEACHER_SKIP_TITLE)) {
   const byId = new Map();
 
   const { data: mapped } = await supabase
@@ -208,17 +215,21 @@ async function teachersFor(user, schoolId) {
     .slice(0, OPTION_CAP - 1)
     .map(([id, name]) => opt(id, name));
 
-  // Always offer the way out, and NEVER make this field required: a real class
-  // teacher who has never registered cannot be offered at all, because
-  // class_teachers.teacher_user_id is a NOT NULL foreign key onto users. Requiring
-  // it would block a legitimate class.
+  // ALWAYS offer the way out. The Flow field is REQUIRED (rev 3 of the asset):
+  // WhatsApp prints "(Optional)" beside any non-required field, and coaches read
+  // the one choice that decides attendance as the one they could skip. Required
+  // means the coach must say something — and because class_teachers.teacher_user_id
+  // is a NOT NULL foreign key onto users, a real class teacher who has never
+  // registered still cannot be offered at all. This option is what keeps such a
+  // class saveable: it is the sayable "no", mapped to a null class teacher below.
   //
-  // But skipping must stop being FREE and SILENT. Across 373 saved scans a teacher
-  // was named 311 times and written 311 times — the assignment has never once been
+  // Skipping is not FREE or SILENT either. Across 373 saved scans a teacher was
+  // named 311 times and written 311 times — the assignment has never once been
   // refused. The 45 classes and 1,526 children sitting unreachable today are all
-  // classes where nobody touched an optional field, and two coaches are at 0% named
-  // across every run they have ever saved. So the option itself carries the cost.
-  return [...list, opt('none', TEACHER_SKIP_TITLE)];
+  // classes where nobody touched what was then an optional field, and two coaches
+  // are at 0% named across every run they have ever saved. So the option itself
+  // carries the cost.
+  return [...list, skip];
 }
 
 function fullName(u) {
@@ -320,7 +331,25 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
   }
 
   if (screen === 'ROSTER_VIEW') {
+    // The published asset before rev 3 posted `action: 'edit'` from its only
+    // button; a payload with no action at all is that same asset. Both open the
+    // editor, exactly as before.
+    const action = String(screenData.action || 'edit');
+    if (action === 'teacher') return toClassTeacherPicker(state);
+    if (action === 'details') return toClassDetails(state);
     return openRosterEditor(state);
+  }
+
+  if (screen === 'CLASS_TEACHER') {
+    return saveClassTeacher(state, screenData);
+  }
+
+  if (screen === 'CLASS_DETAILS') {
+    return saveClassDetails(state, screenData);
+  }
+
+  if (screen === 'CLASS_MERGE') {
+    return resolveClassMerge(state, screenData);
   }
 
   if (screen === 'ROSTER_EDIT') {
@@ -489,6 +518,30 @@ async function enrollmentCounts(classIds) {
 }
 
 /**
+ * The coach-facing class label: "Grade 3-B", "Grade 3-B (Evening)". Only a
+ * non-default shift is named — the same rule /class renders by — so twin classes
+ * that differ only by shift stay tellable apart on every list here.
+ */
+function classLabel(ordinal, section, shiftCode) {
+  const base = `Grade ${ordinal || '?'}${section ? `-${section}` : ''}`;
+  return shiftCode && shiftCode !== DEFAULT_SHIFT ? `${base} (${shiftTitle(shiftCode)})` : base;
+}
+
+/** Which of these classes has an active class teacher — one read, not one per class. */
+async function classTeacherIds(classIds) {
+  if (!classIds.length) return new Set();
+  const { data, error } = await supabase
+    .from('class_teachers').select('class_id')
+    .in('class_id', classIds).eq('is_active', true).eq('is_class_teacher', true)
+    .limit(CLASS_CAP);
+  if (error) {
+    logToFile('\u26a0\ufe0f roster coverage: class-teacher read failed', { error: error.message });
+    return new Set();
+  }
+  return new Set((data || []).map((r) => r.class_id));
+}
+
+/**
  * Which grades of 1-5 does this school have rosters for? The unit is the GRADE
  * (any section with children counts), because nothing tells us how many sections
  * a school runs — the status list shows each scanned class, so a coach who knows
@@ -496,7 +549,7 @@ async function enrollmentCounts(classIds) {
  */
 async function gradeCoverage(schoolId) {
   const { data: classes } = await supabase
-    .from('classes').select('id, grade_code, section, is_active')
+    .from('classes').select('id, grade_code, section, shift_code, session_code, is_active')
     .eq('school_id', schoolId).eq('is_active', true)
     .order('grade_code', { ascending: true }).order('section', { ascending: true })
     .limit(CLASS_CAP);
@@ -510,14 +563,19 @@ async function gradeCoverage(schoolId) {
   const { data: grades } = await supabase
     .from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal');
   const ordinalOf = new Map((grades || []).map((g) => [g.code, g.ordinal]));
+  const withTeacher = await classTeacherIds(ids);
 
   const done = (classes || [])
     .filter((c) => (counts.get(c.id) || 0) > 0)
     .map((c) => ({
       id: c.id,
       ordinal: ordinalOf.get(c.grade_code) || null,
-      label: `Grade ${ordinalOf.get(c.grade_code) || '?'}${c.section ? `-${c.section}` : ''}`,
+      label: classLabel(ordinalOf.get(c.grade_code), c.section, c.shift_code),
       count: counts.get(c.id) || 0,
+      // bd-dz6qb.5 (a): a class nobody is the class teacher of is invisible on
+      // /class and /attendance. The coach has to be able to SEE that here, or the
+      // only way to find the 19 such classes is to open every one.
+      hasTeacher: withTeacher.has(c.id),
     }))
     .sort((a, b) => (a.ordinal || 99) - (b.ordinal || 99) || a.label.localeCompare(b.label));
 
@@ -546,8 +604,14 @@ async function schoolStatus(state) {
   state.statusClasses = cov.done;
 
   const lines = [`Scanned ${cov.doneOrdinals.size} of 5 grades at this school.`, ''];
-  cov.done.forEach((c) => lines.push(`\u2714 ${c.label} — ${c.count} ${c.count === 1 ? 'child' : 'children'}`));
+  cov.done.forEach((c) => lines.push(
+    `\u2714 ${c.label} — ${c.count} ${c.count === 1 ? 'child' : 'children'}${c.hasTeacher ? '' : ' — no class teacher'}`,
+  ));
   cov.missingOrdinals.forEach((o) => lines.push(`\u2022 Grade ${o} — not yet scanned`));
+  const teacherless = cov.done.filter((c) => !c.hasTeacher).length;
+  if (teacherless) {
+    lines.push('', `${NO_TEACHER_MARK}${teacherless === 1 ? 'One class has' : `${teacherless} classes have`} no class teacher, so nobody can mark attendance there. Open the class to name one.`);
+  }
 
   return {
     screen: 'SCHOOL_STATUS',
@@ -557,26 +621,54 @@ async function schoolStatus(state) {
       nudge: 'A school is complete when every class of grades 1-5 has a roster.',
       actions: [
         opt('scan', 'Scan a new register'),
-        ...cov.done.map((c) => opt(`open:${c.id}`, `${c.label} \u00b7 ${c.count} children`.slice(0, 30))),
+        // The count alone, no unit: the worst case — "⚠ Grade 3-B (Evening) · 48" — is
+        // 26 code points, and "children" pushed "Grade 1-E (Evening) · 4 childr"
+        // through the 30-point cap (seen live on the sandbox). One format for every
+        // row; the coverage text above says "children" for all of them.
+        ...cov.done.map((c) => opt(
+          `open:${c.id}`,
+          `${c.hasTeacher ? '' : NO_TEACHER_MARK}${c.label} \u00b7 ${c.count}`.slice(0, 30),
+        )),
       ],
     },
   };
 }
 
-async function classLabelFor(state, classId) {
-  const hit = (state.statusClasses || []).find((c) => c.id === classId);
+async function classLabelFor(state, cls) {
+  const hit = (state.statusClasses || []).find((c) => c.id === cls.id);
   if (hit) return hit.label;
-  const { data: cls } = await supabase
-    .from('classes').select('grade_code, section').eq('id', classId).maybeSingle();
-  if (!cls) return 'This class';
   const { data: grades } = await supabase
     .from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal');
   const ord = new Map((grades || []).map((g) => [g.code, g.ordinal])).get(cls.grade_code);
-  return `Grade ${ord || '?'}${cls.section ? `-${cls.section}` : ''}`;
+  return classLabel(ord, cls.section, cls.shift_code);
+}
+
+/** The class teacher of a class — { id, name } — or null when nobody holds the role. */
+async function classTeacherOf(classId) {
+  const { data: rows } = await supabase
+    .from('class_teachers').select('teacher_user_id')
+    .eq('class_id', classId).eq('is_active', true).eq('is_class_teacher', true).limit(1);
+  const id = rows && rows[0] && rows[0].teacher_user_id;
+  if (!id) return null;
+  const { data: u } = await supabase.from('users').select('id, name').eq('id', id).maybeSingle();
+  return { id, name: (u && fullName(u)) || 'the class teacher' };
 }
 
 /** A saved roster, read back from the database — identities kept for the editor. */
 async function openRosterView(state, classId) {
+  // CONTAINMENT. The class id arrives in a Flow payload, and a Flow already on a
+  // handset can post back whatever it likes. The class must be at the school the
+  // coach is working in — the endpoint's own state, never the payload's word.
+  const { data: cls } = await supabase
+    .from('classes').select('id, school_id, grade_code, section, shift_code, session_code, is_active')
+    .eq('id', classId).maybeSingle();
+  if (!cls || !cls.is_active || cls.school_id !== state.schoolId) {
+    logToFile('\u26a0\ufe0f roster view: class refused — not at the chosen school', {
+      classId, schoolId: state.schoolId, found: Boolean(cls),
+    });
+    return stop('That class is not at this school. Close this and send /roster again.');
+  }
+
   const { data: enr } = await supabase
     .from('class_enrollments').select('student_id, roll_number')
     .eq('class_id', classId).eq('is_active', true)
@@ -607,16 +699,376 @@ async function openRosterView(state, classId) {
     .sort((a, b) => ((a.roll_number === null ? 999 : a.roll_number) - (b.roll_number === null ? 999 : b.roll_number))
       || a.student_name.localeCompare(b.student_name));
 
-  const label = await classLabelFor(state, classId);
-  state.viewClass = { id: classId, label };
+  const label = await classLabelFor(state, cls);
+  const teacher = await classTeacherOf(classId);
+  state.viewClass = {
+    id: classId,
+    label,
+    schoolId: cls.school_id,
+    gradeCode: cls.grade_code,
+    section: cls.section || null,
+    shiftCode: cls.shift_code || DEFAULT_SHIFT,
+    sessionCode: cls.session_code,
+    teacher,
+  };
   state.viewRoster = rows;
 
   return {
     screen: 'ROSTER_VIEW',
     data: {
       heading: `${label} \u00b7 ${rows.length} ${rows.length === 1 ? 'child' : 'children'}`,
-      note: 'Saved from a scanned register.',
+      // The one fact that decides whether these children have an attendance
+      // register at all, said first.
+      note: teacher
+        ? `Class teacher: ${teacher.name}.`
+        : 'No class teacher yet \u2014 nobody can mark attendance for these children.',
       roster_text: renderList(rows),
+      actions: rosterViewActions(state),
+    },
+  };
+}
+
+/**
+ * What a coach can do with a saved roster. A RadioButtonsGroup bound to data, so
+ * this list — not the published asset — decides what is offered. Titles are 30
+ * code points at most.
+ */
+function rosterViewActions(state) {
+  const teacher = state.viewClass && state.viewClass.teacher;
+  return [
+    opt('edit', 'Correct the students'),
+    opt('teacher', teacher ? 'Change the class teacher' : 'Set the class teacher'),
+    opt('details', 'Change grade, section or shift'),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// CLASS_DETAILS → (CLASS_MERGE) — grade / section / shift of a saved class
+// ---------------------------------------------------------------------------
+
+/**
+ * The details editor, pre-filled with the class as it is. The three pickers are
+ * the CLASS screen's, read from the same reference tables, so this offers exactly
+ * what a scan can produce. A class outside grades 1-5 keeps its own grade in the
+ * list, or the pre-fill would point at an option that is not there.
+ */
+async function toClassDetails(state) {
+  if (!state.viewRoster || !state.viewClass) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  const [{ data: grades }, sections, shifts] = await Promise.all([
+    supabase.from('grade_levels').select('code, ordinal').eq('band', 'primary').order('ordinal'),
+    listSeeded('sections'),
+    listSeeded('shifts'),
+  ]);
+  const gradeOpts = (grades || []).map((g) => opt(g.code, `Grade ${g.ordinal}`));
+  if (!gradeOpts.some((g) => g.id === state.viewClass.gradeCode)) {
+    const { data: own } = await supabase
+      .from('grade_levels').select('code, ordinal').eq('code', state.viewClass.gradeCode).maybeSingle();
+    gradeOpts.unshift(opt(state.viewClass.gradeCode, own ? `Grade ${own.ordinal}` : state.viewClass.gradeCode));
+  }
+  const n = state.viewRoster.length;
+  state.pendingDetails = null;
+  return {
+    screen: 'CLASS_DETAILS',
+    data: {
+      heading: `${state.viewClass.label} \u00b7 ${n} ${n === 1 ? 'child' : 'children'}`.slice(0, 80),
+      note: 'The children, their attendance history and the class teacher stay with the class.',
+      grades: gradeOpts,
+      sections: [...sections.map((c) => opt(c, c)), opt(NO_SECTION, 'No section')],
+      shifts: shifts.map((c) => opt(c, shiftTitle(c))),
+      grade_code: state.viewClass.gradeCode,
+      section: state.viewClass.section || NO_SECTION,
+      shift_code: state.viewClass.shiftCode || DEFAULT_SHIFT,
+    },
+  };
+}
+
+/** The identity the coach submitted, normalised the way the writer normalises it. */
+function detailsFrom(screenData) {
+  const rawSection = screenData.section;
+  const rawShift = screenData.shift_code;
+  return {
+    gradeCode: String(screenData.grade_code || ''),
+    section: rawSection && rawSection !== NO_SECTION ? String(rawSection).trim().toUpperCase() : null,
+    shiftCode: typeof rawShift === 'string' && rawShift.trim() ? rawShift.trim() : DEFAULT_SHIFT,
+  };
+}
+
+/** A coach-facing label for an identity, before the database has said anything. */
+async function labelForDetails(d) {
+  const { data: g } = await supabase
+    .from('grade_levels').select('code, ordinal').eq('code', d.gradeCode).maybeSingle();
+  return classLabel(g && g.ordinal, d.section, d.shiftCode);
+}
+
+function unchangedScreen(label, n, body) {
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `${label} unchanged`,
+      body,
+      roster_action: 'unchanged',
+      roster_class: label,
+      roster_count: String(n),
+    },
+  };
+}
+
+/**
+ * The submit. Same identity → nothing written. A free target → renamed in place.
+ * A target that exists → NOT merged: the coach is shown the existing class, its
+ * child count, and asked (CLASS_MERGE). The merge itself only happens from there.
+ */
+async function saveClassDetails(state, screenData) {
+  if (!state.viewRoster || !state.viewClass) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  const wanted = detailsFrom(screenData);
+  const cur = state.viewClass;
+  const label = cur.label;
+  const n = state.viewRoster.length;
+
+  if (wanted.gradeCode === cur.gradeCode
+      && (wanted.section || null) === (cur.section || null)
+      && wanted.shiftCode === (cur.shiftCode || DEFAULT_SHIFT)) {
+    return unchangedScreen(label, n, `Nothing was changed \u2014 ${label} stays as it is, ${n} children on the roster.`);
+  }
+
+  const res = await ClassService.changeClassDetails({
+    classId: cur.id,
+    schoolId: state.schoolId,
+    gradeCode: wanted.gradeCode,
+    section: wanted.section,
+    shiftCode: wanted.shiftCode,
+    actorUserId: state.user.id,
+    merge: false,
+  });
+  if (res.error) {
+    logToFile('[roster] class details refused', { classId: cur.id, wanted, error: res.error }, 'error');
+    return stop(`${DETAILS_FAILURES[res.error] || 'The class could not be changed.'} Nothing was changed.`);
+  }
+
+  const newLabel = await labelForDetails(wanted);
+
+  if (res.action === 'unchanged') {
+    return unchangedScreen(label, n, `Nothing was changed \u2014 ${label} stays as it is, ${n} children on the roster.`);
+  }
+
+  if (res.action === 'collision') {
+    // Never silently. Say which class, how many children, and ask.
+    state.pendingDetails = { wanted, existingClassId: res.existingClassId, existingCount: res.existingCount, newLabel };
+    const ec = res.existingCount || 0;
+    return {
+      screen: 'CLASS_MERGE',
+      data: {
+        heading: `${newLabel} already exists`,
+        body: `${newLabel} is already saved at this school with ${ec} ${ec === 1 ? 'child' : 'children'}. `
+          + `This class, ${label}, has ${n}.\n\n`
+          + 'Keep both and change nothing, or merge this class into the existing one: '
+          + `its ${n} children move across (a child already there is not doubled), and ${label} closes. Nothing is deleted.`,
+        decisions: [
+          opt('cancel', 'Keep both \u2014 change nothing'),
+          opt('merge', 'Merge into the existing class'),
+        ],
+      },
+    };
+  }
+
+  // renamed
+  logToFile('[roster] class details changed', {
+    classId: cur.id, from: { gradeCode: cur.gradeCode, section: cur.section, shiftCode: cur.shiftCode },
+    to: wanted, mirrorsRenamed: res.mirrorsRenamed, by: state.user.id,
+  });
+  await rosterStorage.putManifest({
+    schoolId: state.schoolId,
+    runId: `details-${cur.id}-${Date.now()}`,
+    manifest: {
+      action: 'change_details', saved_at: new Date().toISOString(),
+      school_id: state.schoolId, school_name: state.schoolName, class_id: cur.id,
+      from: { grade_code: cur.gradeCode, section: cur.section, shift_code: cur.shiftCode, label },
+      to: { grade_code: wanted.gradeCode, section: wanted.section, shift_code: wanted.shiftCode, label: newLabel },
+      edited_by_user_id: state.user.id, result: res,
+    },
+  });
+  state.viewClass = { ...cur, label: newLabel, gradeCode: wanted.gradeCode, section: wanted.section, shiftCode: wanted.shiftCode };
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `${newLabel} \u2014 details changed`,
+      body: `${label} is now ${newLabel}. The ${n} children, their attendance history and the class teacher stayed with it.${await coverageLine(state.schoolId)}`,
+      roster_action: 'details_changed',
+      roster_class: newLabel,
+      roster_count: String(n),
+    },
+  };
+}
+
+/** The coach's answer to the collision. Cancel writes nothing; merge writes once. */
+async function resolveClassMerge(state, screenData) {
+  const pend = state.pendingDetails;
+  if (!state.viewRoster || !state.viewClass || !pend) {
+    return stop('That session has expired, so nothing was merged. Close this and send /roster again to start again.');
+  }
+  const cur = state.viewClass;
+  const label = cur.label;
+  const n = state.viewRoster.length;
+  const decision = String(screenData.decision || 'cancel');
+  state.pendingDetails = null;
+
+  if (decision !== 'merge') {
+    return unchangedScreen(label, n, `Both classes were kept. Nothing was changed \u2014 ${label} stays as it is, ${n} children on the roster.`);
+  }
+
+  const res = await ClassService.changeClassDetails({
+    classId: cur.id,
+    schoolId: state.schoolId,
+    gradeCode: pend.wanted.gradeCode,
+    section: pend.wanted.section,
+    shiftCode: pend.wanted.shiftCode,
+    actorUserId: state.user.id,
+    merge: true,
+  });
+  if (res.error) {
+    logToFile('[roster] merge refused', { classId: cur.id, into: pend.existingClassId, error: res.error }, 'error');
+    return stop(`${DETAILS_FAILURES[res.error] || 'The classes could not be merged.'} Nothing was changed.`);
+  }
+  if (res.action !== 'merged') {
+    // The world moved between the question and the answer (the twin was closed,
+    // or this class was). Say so rather than pretend.
+    return stop('The other class changed while you were deciding, so nothing was merged. Send /roster again and open the class afresh.');
+  }
+
+  logToFile('[roster] classes merged', {
+    sourceClassId: cur.id, targetClassId: res.targetClassId, moved: res.moved,
+    closedDuplicates: res.closedDuplicates, teachersMoved: res.teachersMoved, by: state.user.id,
+  });
+  await rosterStorage.putManifest({
+    schoolId: state.schoolId,
+    runId: `merge-${cur.id}-${Date.now()}`,
+    manifest: {
+      action: 'merge_classes', saved_at: new Date().toISOString(),
+      school_id: state.schoolId, school_name: state.schoolName,
+      source_class_id: cur.id, source_label: label, target_class_id: res.targetClassId, target_label: pend.newLabel,
+      edited_by_user_id: state.user.id, result: res,
+    },
+  });
+  const tc = res.targetCount === null || res.targetCount === undefined ? (n + (pend.existingCount || 0) - res.closedDuplicates) : res.targetCount;
+  const dup = res.closedDuplicates
+    ? ` ${res.closedDuplicates} ${res.closedDuplicates === 1 ? 'child was' : 'children were'} already there and ${res.closedDuplicates === 1 ? 'was' : 'were'} not doubled.`
+    : '';
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `Merged into ${pend.newLabel}`,
+      body: `${res.moved} ${res.moved === 1 ? 'child' : 'children'} moved from ${label} into ${pend.newLabel}.${dup} ${pend.newLabel} now has ${tc} children. ${label} is closed, nothing was deleted.${await coverageLine(state.schoolId)}`,
+      roster_action: 'merged',
+      roster_class: pend.newLabel,
+      roster_count: String(tc),
+    },
+  };
+}
+
+/** The hand-over picker: the school's registered teachers, plus leave-as-is. */
+async function toClassTeacherPicker(state) {
+  if (!state.viewRoster || !state.viewClass) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  const teachers = await teachersFor(state.user, state.schoolId, opt('none', TEACHER_KEEP_TITLE))
+    .catch(() => [opt('none', TEACHER_KEEP_TITLE)]);
+  const current = state.viewClass.teacher;
+  const n = state.viewRoster.length;
+  return {
+    screen: 'CLASS_TEACHER',
+    data: {
+      heading: `${state.viewClass.label} \u00b7 ${n} ${n === 1 ? 'child' : 'children'}`.slice(0, 80),
+      current: current
+        ? `Class teacher today: ${current.name}. Choosing someone else hands the class over to them.`
+        : 'No class teacher yet. The teacher you name gets these children in their attendance list.',
+      teachers,
+      help: teachers.length > 1
+        ? 'Only teachers with an account are listed. Add a missing teacher first, then come back.'
+        : 'No registered teacher at this school yet. Add the teacher first, then come back.',
+    },
+  };
+}
+
+/** The hand-over itself, through the one writer. */
+async function saveClassTeacher(state, screenData) {
+  if (!state.viewRoster || !state.viewClass) {
+    return stop('That session has expired. Close this and send /roster again.');
+  }
+  const label = state.viewClass.label;
+  const n = state.viewRoster.length;
+  const picked = screenData.teacher_user_id;
+  if (!picked || picked === 'none') {
+    return {
+      screen: 'SAVED',
+      data: {
+        heading: `${label} unchanged`,
+        body: `No class teacher was set. Nothing was changed \u2014 ${n} children on the roster, as before.`,
+        roster_action: 'unchanged',
+        roster_class: label,
+        roster_count: String(n),
+      },
+    };
+  }
+
+  const res = await ClassService.handOverClass({
+    classId: state.viewClass.id,
+    schoolId: state.schoolId,
+    teacherUserId: picked,
+    actorUserId: state.user.id,
+  });
+  if (res.error) {
+    logToFile('[roster] hand-over failed', {
+      classId: state.viewClass.id, teacherUserId: picked, error: res.error,
+    }, 'error');
+    return stop(`${HAND_OVER_FAILURES[res.error] || 'The class teacher could not be set.'} Nothing was changed.`);
+  }
+
+  const { data: u } = await supabase.from('users').select('id, name').eq('id', picked).maybeSingle();
+  const name = (u && fullName(u)) || 'The teacher';
+  const previous = state.viewClass.teacher;
+  logToFile('[roster] class handed over', {
+    classId: state.viewClass.id,
+    teacherUserId: picked,
+    previousClassTeacherUserId: res.previousClassTeacherUserId,
+    repointed: res.repointed,
+    retiredMirrors: res.retiredMirrors,
+    listAdopted: res.listAdopted,
+    alreadyClassTeacher: res.alreadyClassTeacher,
+    by: state.user.id,
+  });
+  await rosterStorage.putManifest({
+    schoolId: state.schoolId,
+    runId: `handover-${state.viewClass.id}-${Date.now()}`,
+    manifest: {
+      action: 'hand_over',
+      saved_at: new Date().toISOString(),
+      school_id: state.schoolId,
+      school_name: state.schoolName,
+      class_id: state.viewClass.id,
+      class_label: label,
+      class_teacher_user_id: picked,
+      previous_class_teacher_user_id: res.previousClassTeacherUserId,
+      edited_by_user_id: state.user.id,
+      result: res,
+    },
+  });
+  state.viewClass.teacher = { id: picked, name };
+
+  const handed = res.alreadyClassTeacher
+    ? `${name} was already the class teacher of ${label}.`
+    : `${name} is now the class teacher of ${label}${previous && previous.id !== picked ? `, in place of ${previous.name}` : ''}.`;
+  return {
+    screen: 'SAVED',
+    data: {
+      heading: `${label} \u2014 class teacher set`,
+      body: `${handed} The ${n} ${n === 1 ? 'child is' : 'children are'} in their attendance list now.${await coverageLine(state.schoolId)}`,
+      roster_action: 'teacher_set',
+      roster_class: label,
+      roster_count: String(n),
     },
   };
 }
@@ -957,6 +1409,28 @@ async function saveRoster(state, screenData) {
   };
 }
 
+/** Hand-over refusals a coach can read. Everything else is our bug and says so plainly. */
+const HAND_OVER_FAILURES = {
+  unknown_class: 'That class is no longer active.',
+  wrong_school: 'That class is not at this school.',
+  unknown_teacher: 'That teacher has no account yet.',
+  not_a_teacher: 'A coach or principal cannot be named as the class teacher.',
+  unknown_grade: 'That class has a grade this school does not use.',
+  save_in_progress: 'This class is being saved right now — give it a minute and try again.',
+  missing_actor: 'Your account could not be read. Send /roster again.',
+};
+
+/** Class-details refusals a coach can read. */
+const DETAILS_FAILURES = {
+  unknown_class: 'That class is no longer active.',
+  wrong_school: 'That class is not at this school.',
+  unknown_grade: 'That grade is not one this school uses.',
+  unknown_section: 'That section is not set up for this school.',
+  unknown_shift: 'That shift is not one this school uses.',
+  save_in_progress: 'This class is being saved right now — give it a minute and try again.',
+  missing_actor: 'Your account could not be read. Send /roster again.',
+};
+
 /** ClassService returns error VALUES; these are the sentences for the ones a coach can see. */
 const IMPORT_FAILURES = {
   save_in_progress: 'This roster is already being saved — give it a minute, then check the class before scanning again.',
@@ -969,9 +1443,17 @@ const IMPORT_FAILURES = {
   insert_failed: 'A student could not be saved.',
 };
 
+// Every write beneath these two entry points — the scan save, the edit save, and
+// whatever the saved-roster screens gain next — is made ON BEHALF OF the coach
+// whose id is the flow token. runAsActor puts that id on each request so the
+// record_history trigger records a person, not the connection role (bd-a21ks).
+// Wrapped here, at the boundary, so no service signature has to change.
+const { runAsActor } = require('../utils/actor-context');
+
 module.exports = {
-  handleRosterInit,
-  handleRosterDataExchange,
+  handleRosterInit: (userId) => runAsActor(userId, () => handleRosterInit(userId)),
+  handleRosterDataExchange: (userId, screen, screenData) =>
+    runAsActor(userId, () => handleRosterDataExchange(userId, screen, screenData)),
   // Exported for tests — the save is where the idempotency contract lives, and
   // the edit save is where a coach's delete becomes a closed enrolment.
   saveRoster,
