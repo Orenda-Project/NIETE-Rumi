@@ -331,10 +331,13 @@ async function handleRosterDataExchange(userId, screen, screenData = {}) {
   }
 
   if (screen === 'ROSTER_VIEW') {
-    // The published asset before rev 3 posted `action: 'edit'` from its only
-    // button; a payload with no action at all is that same asset. Both open the
-    // editor, exactly as before.
-    const action = String(screenData.action || 'edit');
+    // The choice travels as `next_step`. It was first named `action`, and on real
+    // phones that key never arrived — the Flow envelope owns `action`, so every
+    // production submit logged screenDataKeys: [] and every option opened the editor
+    // (bd-3e0v5; the same collision broke /class in b2c13f3e). `action` is still read
+    // for a hand-built request, and a payload with neither is the pre-rev-3 asset,
+    // whose only button meant "edit": all of those open the editor, as before.
+    const action = String(screenData.next_step || screenData.action || 'edit');
     if (action === 'teacher') return toClassTeacherPicker(state);
     if (action === 'details') return toClassDetails(state);
     return openRosterEditor(state);
