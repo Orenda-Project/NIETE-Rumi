@@ -52,11 +52,50 @@ function _languageFromSession(session) {
 // not assessed it is REPLACED by the fact that it was not, and the separate
 // legacy whole-plan estimate goes with it. Returns a shallow projection; the
 // caller's analysis is never mutated, because it is the object that gets stored.
+// What the voice is allowed to say about lesson-plan adherence, taken from the
+// SAME measurement the report card shows. It used to read
+// `fidelity_analysis.score` — a separate model's estimate of whole-plan adherence
+// that sits at 85 on the overwhelming majority of sessions — so a teacher whose
+// card said 15 of 40 was told in her own language that she had followed about 85%
+// of her plan. Both halves of that complaint were these two fields on one session.
+//
+// The band travels with the number because the percentage comes from a single
+// temperature-0 call and carries real wobble; a band is the honest thing to say
+// out loud. A plan the grader judged to be a different lesson entirely is flagged
+// rather than spoken as a bad score.
+function _voiceFidelity(analysis, notAssessed) {
+  if (notAssessed) return { pct: null, band: null, lessonMismatch: false };
+  const lp = (analysis && analysis.lp_fidelity) || null;
+  const raw = lp ? Number(lp.fidelity_pct) : NaN;
+  const measured = !!lp && lp.status === 'ok' && lp.fidelity_pct != null && !Number.isNaN(raw);
+  return {
+    pct: measured ? raw : null,
+    band: measured ? (lp.band || null) : null,
+    lessonMismatch: !!(lp && lp.moderators && lp.moderators.note === 'lesson_mismatch'),
+  };
+}
+
 function _projectAnalysisForVoice(analysis) {
   const sectionB = analysis && analysis.domains && analysis.domains.lesson_plan_fidelity;
+  const measuresOwnFidelity = !!(analysis && analysis.lp_fidelity);
+
   if (!sectionB || sectionB.assessed !== false) {
+    // The legacy whole-plan estimate leaves the dump whenever a real measurement
+    // exists, measured or not. Suppressing the scalar we pass is not enough: the
+    // prompt serialises the entire analysis, so leaving the field in place lets
+    // the model read that number out and speak it against the card. Stored
+    // sessions still carry it, which is why this is not just "stop writing it".
+    if (measuresOwnFidelity && analysis.fidelity_analysis) {
+      const projected = { ...analysis };
+      delete projected.fidelity_analysis;
+      return { analysis: projected, notAssessed: false };
+    }
     return { analysis, notAssessed: false };
   }
+  // The legacy whole-plan estimate goes with the section: it is a separate model's
+  // guess at adherence, it reads 85 on the overwhelming majority of sessions, and
+  // it is exactly what the voice used to quote.
+  //
   const projected = {
     ...analysis,
     domains: {
@@ -1537,6 +1576,7 @@ class ReportGeneratorService {
       );
 
       const voice = _projectAnalysisForVoice(enhancedAnalysis);
+      const fidelity = _voiceFidelity(enhancedAnalysis, voice.notAssessed);
 
       const voiceScript = await GPT5MiniService.summarizeForVoiceDebrief(
         {
@@ -1545,7 +1585,9 @@ class ReportGeneratorService {
           // Nothing was measured against a plan, so as far as this script is
           // concerned there is no plan to talk about following.
           hasLessonPlan: voice.notAssessed ? false : !!enhancedAnalysis.has_lesson_plan,
-          fidelityScore: voice.notAssessed ? null : (enhancedAnalysis.fidelity_analysis?.score || null),
+          fidelityScore: fidelity.pct,
+          fidelityBand: fidelity.band,
+          lessonMismatch: fidelity.lessonMismatch,
           sectionBNotAssessed: voice.notAssessed
         },
         outputLanguage
@@ -1584,6 +1626,28 @@ class ReportGeneratorService {
           voice_debrief_duration_seconds: Math.round(voiceBuffer.length / 16000)
         })
         .eq('id', coachingSessionId);
+
+      // Record what she was actually TOLD. Only the audio URL was kept, so a
+      // question like "did the voice note quote the wrong figure?" could be
+      // answered for a handful of hand-transcribed debriefs and for nothing else —
+      // the last finding could prove only that the wrong number was supplied to
+      // the model, never that it was spoken aloud. A JSONB key, so no migration.
+      // Re-read at write time and merge, because this is a whole-blob write and
+      // the worker may have merged its own keys in since the analysis was built.
+      try {
+        const { data: fresh } = await supabase.from('coaching_sessions')
+          .select('analysis_data').eq('id', coachingSessionId).single();
+        const merged = { ...(fresh && fresh.analysis_data) || {}, voice_debrief_script: voiceScript };
+        await supabase.from('coaching_sessions')
+          .update({ analysis_data: merged })
+          .eq('id', coachingSessionId);
+      } catch (scriptErr) {
+        // Non-fatal: the teacher already has her voice note. Losing the record
+        // costs us the next investigation, not her debrief.
+        logToFile('voice debrief script not recorded (non-fatal)', {
+          coachingSessionId, error: scriptErr.message,
+        });
+      }
 
       // Send voice debrief
       await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('voiceSummaryReady', _languageFromSession(session)));
