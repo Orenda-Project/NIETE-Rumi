@@ -28,6 +28,7 @@ const WhatsAppService = require('../whatsapp.service');
 const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { isSchoolLeader } = require('./observe-gate');
+const { canSelfCoach } = require('../../config/role-features');
 const { logToFile } = require('../../utils/logger');
 
 const CLASSROOM_SECONDS = 900;       // same 15-min line the DC path draws
@@ -56,6 +57,30 @@ async function _resolveDuration(audioId, durationSeconds) {
     });
   }
   return { dur, fileSize };
+}
+
+/**
+ * Did this user just ask for HER OWN lesson to be coached?
+ *
+ * Row 122 (14 Sep 2026): a principal tapped /menu -> Classroom Coaching, was
+ * told "send your classroom recording", sent it, and got the binding list —
+ * because this router decided from role + duration + observe state alone and
+ * had no input for what she had actually asked for. menu.service has written
+ * that answer onto her users row since long before /observe existed; nothing
+ * read it.
+ *
+ * Pure, and free: getOrCreateUser does select('*'), so the column is already
+ * on the object in hand — no DB, no Redis, nothing added to the hot path.
+ * A malformed or expired state is simply NOT intent (never throws).
+ */
+function hasDeclaredDcIntent(user) {
+  const cs = user && user.conversation_state;
+  if (!cs || typeof cs !== 'object' || Array.isArray(cs)) return false;
+  if (cs.flow !== 'coaching' || cs.step !== 'AWAITING_CLASSROOM_AUDIO') return false;
+  const until = user.conversation_state_expires_at;
+  if (!until) return true;                       // nullable column — no deadline set
+  const ts = Date.parse(until);
+  return Number.isNaN(ts) ? false : ts > Date.now();
 }
 
 /**
@@ -132,9 +157,26 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
     return true;   // never fall through into teacher coaching on an error
   }
 
-  // Nothing armed (or the slot is mid-pipeline on ANOTHER observation — the
-  // multi-flight case). A classroom-length recording is parked and the coach
-  // is ASKED whose it is. bd-pkds0: this replaces the duration-gated wall.
+  // Nothing armed. Before treating this as an observation, honour what she
+  // ASKED for: a principal who tapped "Classroom Coaching" and was told to send
+  // her own recording gets teacher coaching, not the "whose observation is
+  // this?" list (row 122). Placement is the safety argument — teachers left at
+  // the role gate above, coaches fail canSelfCoach, and an ARMED observation is
+  // caught by the two branches above, which are the more specific declaration.
+  // So this reaches exactly the one case that was wrong, and the bd-tju8f
+  // invariant holds unchanged: an UNDECLARED school-leader classroom recording
+  // still never starts teacher coaching.
+  if (canSelfCoach(user) && hasDeclaredDcIntent(user)) {
+    logToFile('🎓 observe: leader declared her own coaching — falling through to DC', {
+      userId: user.id, audioId, dur,
+    });
+    return false;
+  }
+
+  // Nothing armed and nothing declared (or the slot is mid-pipeline on ANOTHER
+  // observation — the multi-flight case). A classroom-length recording is parked
+  // and the coach is ASKED whose it is. bd-pkds0: this replaces the
+  // duration-gated wall.
   if (looksLikeClassroom) {
     logToFile('🔭 observe: unbound leader recording — asking whose it is', {
       userId: user.id, audioId, dur, slotState: state && state.state,
@@ -147,4 +189,4 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
   return false;
 }
 
-module.exports = { routeLeaderAudio };
+module.exports = { routeLeaderAudio, hasDeclaredDcIntent };
