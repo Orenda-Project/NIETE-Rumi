@@ -52,18 +52,24 @@ exports.run = async ({ api, rec, sleep }) => {
       { reply: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs })), t() - s);
 
   // M08 — answers a teaching question
+  // Isolate each open-chat scenario: reset the conversation history (DB rows + the bot's in-process
+  // Map) so the LLM prompt does not fold in earlier scenarios' turns, which made the vendor cassette
+  // key drift every run (the M09/M08/M12 misses). With a clean baseline the prompt is deterministic.
+  api.resetConversation();
   s = t(); r = await api.sendWait('What are two quick classroom management strategies for a large class?', 120000);
   rec('M08', 'Ask Anything answers a teaching question',
       ...Object.values(V(r.ok && (r.txt || '').length > 60,
       { len: (r.txt || '').length, sample: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs })), t() - s);
 
   // M09 — gibberish handled gracefully
+  api.resetConversation();
   s = t(); r = await api.sendWait('asdfghjkl zxcvbnm qwerty', 120000);
   rec('M09', 'Gibberish input is handled gracefully',
       ...Object.values(V(r.ok && (r.txt || '').trim().length > 0 && !/error|exception|undefined/i.test(r.txt),
       { len: (r.txt || '').length, sample: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs })), t() - s);
 
   // M12 — capability question gets guidance, not a feature
+  api.resetConversation();
   s = t(); r = await api.sendWait('what can you do?', 120000);
   rec('M12', 'A capability question gets a guided answer, not a feature attempt',
       ...Object.values(V(r.ok && (r.txt || '').length > 40 && !r.btns.includes('View Features'),

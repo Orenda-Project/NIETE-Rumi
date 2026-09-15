@@ -46,20 +46,38 @@ def sessions(creds, uid, limit=15):
 
 
 
-def reset_conversations(creds, uid, yes_write=False):
-    """Delete the driver's `conversations` rows so the conversational voice/text reply LLM prompt
-    (openai.service loads the last 10 from `conversations`) starts from a fixed baseline. That block
-    accumulates across scenarios/runs and, like prior-feedback, makes the LLM request — and the TTS it
-    feeds — unique every run, defeating the e2e cassette. Test driver on the staging/sandbox DB only."""
+def _clear_history_cache(base_url, uid):
+    """POST {base}/clear-history/{uid} — clears openai.service's PROCESS-LEVEL conversationHistory Map.
+    getConversationHistory is cache-first (openai.service.js:28-66): the DB is read only on a cache
+    miss, so while the bot process is up, deleting DB rows alone leaves the stale turns replaying from
+    memory. This is the half the DB delete cannot reach; both are needed for a deterministic reset."""
+    import urllib.request
+    url = "%s/clear-history/%s" % (base_url.rstrip("/"), uid)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, data=b"", method="POST"), timeout=10) as r:
+            r.read()
+        print("cleared in-memory history cache: %s" % url)
+    except Exception as e:  # never fatal — a QA reset must not break the run
+        print("WARN: in-memory history-cache clear failed (%s): %s" % (url, e))
+
+
+def reset_conversations(creds, uid, yes_write=False, clear_cache_url=None):
+    """Reset the driver's conversation history so the conversational voice/text reply LLM prompt starts
+    from a fixed baseline. Two independent stores must be cleared (they are written by separate paths):
+    the `conversations` DB rows (openai.service loads the last 10 as `existingHistory`) AND the bot's
+    in-process history cache (the singleton Map). That history accumulates across scenarios/runs and,
+    like prior-feedback, makes the LLM request — and the TTS it feeds — unique every run, defeating the
+    e2e cassette. Pass --clear-cache-url to also clear the live process. Sandbox/staging DB only."""
     rows = _get(creds, "conversations", "user_id=eq.%s&select=id" % uid) or []
-    if not rows:
-        print("no conversation rows for driver — history block is already empty"); return
-    print(("would delete" if not yes_write else "deleting") + " %d conversation row(s)" % len(rows))
     if not yes_write:
+        print("would delete %d conversation row(s)%s" % (len(rows), " + clear in-memory cache" if clear_cache_url else ""))
         print("dry run — re-run with --yes-write"); return
-    _req("DELETE", "/rest/v1/conversations?user_id=eq.%s" % uid, creds, prefer="return=minimal")
+    if rows:
+        _req("DELETE", "/rest/v1/conversations?user_id=eq.%s" % uid, creds, prefer="return=minimal")
     left = _get(creds, "conversations", "user_id=eq.%s&select=id" % uid) or []
     print("deleted; conversation rows now: %d" % len(left))
+    if clear_cache_url:
+        _clear_history_cache(clear_cache_url, uid)
     if left: sys.exit(1)
 
 
@@ -69,6 +87,7 @@ def main():
     for c in ("list", "cancel-stuck", "reset-history", "reset-first-use", "reset-conversations"):
         p = sub.add_parser(c); p.add_argument("--env"); p.add_argument("--phone", required=True)
         if c in ("cancel-stuck", "reset-history", "reset-first-use", "reset-conversations"): p.add_argument("--yes-write", action="store_true")
+        if c == "reset-conversations": p.add_argument("--clear-cache-url", help="bot base URL; also POSTs /clear-history/<uid> to clear the in-process history Map")
     a = ap.parse_args()
     creds = _creds(a.env)
     uid = _user_id(creds, a.phone)
@@ -103,7 +122,7 @@ def main():
         return
 
     if a.cmd == "reset-conversations":
-        reset_conversations(creds, uid, a.yes_write); return
+        reset_conversations(creds, uid, a.yes_write, getattr(a, "clear_cache_url", None)); return
 
     if not stuck: print("nothing in flight for %s" % a.phone); return
     for r in stuck: print("would cancel" if not a.yes_write else "cancelling", r["id"][:8], r.get("status"), r["created_at"][:19])

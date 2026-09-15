@@ -279,6 +279,21 @@ function makeMockApi(opts) {
         return { ok: true, out, user };
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 200) }; }
     },
+    /** Reset the driver's conversation history to a clean baseline mid-run, so a history-folding
+     *  scenario (open chat / gibberish / "what can you do") builds a DETERMINISTIC prompt and its
+     *  vendor cassette replays. Clears BOTH stores the bot reads: the `conversations` DB rows and the
+     *  bot's in-process history Map (POST /clear-history/<uid>) — the DB alone is not enough because
+     *  getConversationHistory is cache-first. Call it right before the scenario. */
+    resetConversation() {
+      trace('resetConversation');
+      const botUrl = (opts.flows && opts.flows.botUrl) || process.env.E2E_BOT_URL || ('http://127.0.0.1:' + (process.env.E2E_BOT_PORT || 3100));
+      const args = [path.join(repo, '.claude/qa/shared/niete_coaching_db.py'), 'reset-conversations',
+        '--env', env, '--phone', driver, '--yes-write', '--clear-cache-url', botUrl];
+      try {
+        const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });
+        return { ok: true, out: out.trim().split('\n').slice(-2).join(' | ') };
+      } catch (e) { return { ok: false, err: String(e.message).slice(0, 200) }; }
+    },
     /** Attach a file the way the CDP driver does via Attach → <menu item>. The menu item picks the
      *  WhatsApp kind (Document / Photos & videos / Audio); the mock registers the bytes so the bot's
      *  downloadMedia() fetches them back through the Graph API, exactly as with Meta. */
