@@ -21,7 +21,8 @@ const { uploadLessonPlanBuffer, buildR2PublicUrl } = require('../../storage/r2')
 const { getCoachingMessage } = require('../../config/coaching-messages');
 
 /**
- * Look up the teacher's preferred language for a coaching session.
+ * Look up the language of whoever answers this session's lesson-plan step:
+ * the teacher on her own session, the observer on an observation.
  * Falls back to 'en' when the session/user is missing — we'd rather
  * ship the English message than throw mid-pipeline.
  */
@@ -29,9 +30,17 @@ async function _resolveSessionLanguage(coachingSessionId) {
   try {
     const { data } = await supabase
       .from('coaching_sessions')
-      .select('users(name, preferred_language), transcript_language')
+      .select('user_id, observer_user_id, users(name, preferred_language), transcript_language')
       .eq('id', coachingSessionId)
       .maybeSingle();
+    // On an observation the person answering these buttons is the OBSERVER, and
+    // the `users` join rides user_id — the observed teacher once one is bound.
+    // Reading it wrote to an English coach in the teacher's Urdu. The observe
+    // stack owns "whose language is this?"; ask it for the coach.
+    if (data?.observer_user_id) {
+      const { languageFor } = require('../observe/observe-language');
+      return await languageFor('coach', data);
+    }
     return data?.users?.preferred_language || data?.transcript_language || 'en';
   } catch (_err) {
     return 'en';
