@@ -122,7 +122,10 @@ describe('adding', () => {
   it('a KNOWN number goes straight to the account we found — no name asked', async () => {
     const res = await step('teacher_add_lookup', { school_ext_id: 'niete:916', phone: '03001234567' });
     expect(res.screen).toBe('TEACHER_CONFIRM');
-    expect(res.data.found_heading).toMatch(/found/i);
+    // The suite's shared plan is a MOVE, which now gets its own heading — the
+    // property here is that the coach lands on the matched account with a real
+    // heading, not that the heading uses one particular word.
+    expect(res.data.found_heading).toMatch(/another school/i);
     expect(res.data.found_details).toContain('Tahira Manzoor');
     expect(res.data.found_details).toContain('IMS(I-V) No.2 G-10/2');
     expect(TeacherAdmin.commitAdd).not.toHaveBeenCalled();
