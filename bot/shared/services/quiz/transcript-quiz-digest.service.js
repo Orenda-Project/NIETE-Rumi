@@ -195,7 +195,7 @@ function insideBand(grade, range) {
 function resolveGrade({ user, lpHint, digest }) {
   const range = gradeBandRange(digest?.grade_band);
   const taught = Array.isArray(user?.grades_taught) ? user.grades_taught.filter(Boolean) : [];
-  const profile = taught.length ? taught : (user?.grade ? [user.grade] : []);
+  const profile = taught;   // users.grade no longer exists (V1.4.5, 15 Sep 2026)
   if (profile.length) {
     if (!range) return { grade: String(profile[0]), source: 'profile' };
     const hit = profile.find((g) => insideBand(g, range));
