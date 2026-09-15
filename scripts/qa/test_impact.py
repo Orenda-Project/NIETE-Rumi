@@ -154,10 +154,44 @@ def test_markdown_report_carries_the_commands_and_the_verdicts():
     head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})
     res = ci.analyse(r, base, head)
     md = ci.render_markdown(res, freshness="warn", proof="warn")
-    for needle in ("/niete-e2e menu", "/sync-specs", "menu.feature", "stale", "Spec-Sync:"):
+    # menu is @mock-lane, so the drive step recommends the mock lane, not chrome's /niete-e2e.
+    for needle in ("commit-e2e.sh", "/sync-specs", "menu.feature", "stale", "Spec-Sync:"):
         assert needle in md, (needle, md)
     assert ci.COMMENT_MARKER in md
     shutil.rmtree(r)
+
+
+def test_drive_recommendation_uses_the_mock_lane_for_a_mock_capable_feature():
+    """menu carries an @mock-lane driver, so the 'drive the E2E' step must recommend the mock lane
+    (commit-e2e.sh — layer 1, no browser), never chrome's `/niete-e2e` WhatsApp-Web run. Both the
+    markdown (PR comment) and the text (CI log) renderers must agree."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})
+    res = ci.analyse(r, base, head)
+    for out in (ci.render_markdown(res, "warn", "warn"), ci.render_text(res, "warn", "warn")):
+        assert "commit-e2e.sh %s --features menu" % head[:12] in out, out
+        assert "mock lane" in out.lower(), out
+    shutil.rmtree(r)
+
+
+def test_chrome_only_feature_is_noted_paused_not_driven_when_chrome_off():
+    """A feature with no @mock-lane driver (e.g. observe) is on the chrome lane — layer 2, paused.
+    The report notes it as paused and does NOT tell the developer to open a WhatsApp Web tab; with
+    E2E_CHROME_ON=1 the chrome command comes back."""
+    assert "observe" not in ci.mock_feature_set(), "observe must have no mock driver for this test"
+    res = {"features": ["observe"], "head": "abcdef012345", "commands": ["/niete-e2e observe"]}
+    saved = os.environ.pop("E2E_CHROME_ON", None)
+    try:
+        paused = "\n".join(ci._drive_block(res))
+        assert "paused" in paused.lower(), paused
+        assert "linked WhatsApp Web tab" not in paused, paused
+        os.environ["E2E_CHROME_ON"] = "1"
+        enabled = "\n".join(ci._drive_block(res))
+        assert "/niete-e2e observe" in enabled, enabled
+    finally:
+        os.environ.pop("E2E_CHROME_ON", None)
+        if saved is not None:
+            os.environ["E2E_CHROME_ON"] = saved
 
 
 def test_unknown_range_is_reported_not_crashed():

@@ -224,6 +224,76 @@ def _icon(status):
             "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜"}.get(status, "")
 
 
+def mock_feature_set():
+    """Features enrolled in the mock lane (layer 1): those whose driver
+    .claude/qa/shared/features/<f>.cjs carries a `@mock-lane` marker in its first 5 lines. This mirrors
+    .claude/hooks/lib/mock-lane.sh exactly, so the pre-push report and the commit-time hooks cannot
+    disagree about which lane a feature is on. E2E_MOCK_FEATURES overrides for a one-off. ROOT is the
+    repo impact.py lives in, which is always the repo it analyses (`--repo .` from the checkout root)."""
+    override = os.environ.get("E2E_MOCK_FEATURES")
+    if override:
+        return {f.strip() for f in override.split(",") if f.strip()}
+    d = os.path.join(ROOT, ".claude", "qa", "shared", "features")
+    out = set()
+    try:
+        names = sorted(os.listdir(d))
+    except OSError:
+        return out
+    for fn in names:
+        if not fn.endswith(".cjs"):
+            continue
+        try:
+            with open(os.path.join(d, fn), encoding="utf-8") as fh:
+                head = [next(fh, "") for _ in range(5)]
+        except OSError:
+            continue
+        if any(re.match(r"^//\s*@mock-lane", ln) for ln in head):
+            out.add(fn[:-4])
+    return out
+
+
+def chrome_paused():
+    """The chrome lane (layer 2) is paused unless E2E_CHROME_ON=1 — same switch as mock-lane.sh."""
+    return os.environ.get("E2E_CHROME_ON", "0") != "1"
+
+
+def _drive_block(res):
+    """The 'how to drive the E2E' recommendation, lane-aware. Mock-capable features go to the mock
+    lane (layer 1: commit-e2e.sh, no browser, tests THIS commit). Chrome-only features are layer 2:
+    noted as paused (with the scaffold hint that would move them onto the mock lane) unless
+    E2E_CHROME_ON=1, in which case their `/niete-e2e` WhatsApp-Web commands are shown."""
+    feats = res.get("features") or []
+    mock_set = mock_feature_set()
+    mock = [f for f in feats if f in mock_set]
+    chrome = [f for f in feats if f not in mock_set]
+    head = (res.get("head") or "HEAD")[:12]
+    L = []
+    if mock:
+        L += ["### Then drive the targeted E2E — mock lane (layer 1)",
+              "Tests THIS commit, no browser, no WhatsApp number:",
+              "```",
+              "bash .claude/qa/shared/commit-e2e.sh %s --features %s" % (head, ",".join(mock)),
+              "```",
+              "It boots the bot from a detached worktree at this commit behind a mock Graph API, drives the",
+              "feature scripts, and appends `.claude/qa/ledgers/runs.jsonl` — the row this check reads as proof.",
+              "Vendors are cassette replay-strict: a miss fails loudly and names the scenario. Commit the",
+              "`runs.jsonl` row (and any new fixtures).", ""]
+    if chrome:
+        if chrome_paused():
+            L += ["> **Chrome lane (layer 2) is paused** — %s not auto-driven here (no `@mock-lane` driver yet)."
+                  % ", ".join("`%s`" % c for c in chrome),
+                  "> Scaffold a mock driver to move it onto layer 1: `python3 .claude/qa/shared/scaffold-driver.py <feature>`",
+                  "> (then fill in the interactions). Or set `E2E_CHROME_ON=1` to drive it on WhatsApp Web against staging.", ""]
+        else:
+            L += ["### Then drive the targeted E2E — chrome lane (layer 2)",
+                  "```"] + ["/niete-e2e %s" % c for c in chrome] + ["```",
+                  "Against staging, from a Claude Code session with a linked WhatsApp Web tab (`/niete-e2e` checks the",
+                  "preconditions). The run appends to `.claude/qa/ledgers/runs.jsonl`.", ""]
+    if not L:  # no features split either way — fall back to whatever the selector emitted
+        L += ["### Then drive the targeted E2E", "```"] + (res.get("commands") or []) + ["```", ""]
+    return L
+
+
 def render_markdown(res, freshness="warn", proof="warn"):
     L = [COMMENT_MARKER, "## QA impact — Gherkin sync + targeted E2E", ""]
     if res.get("error"):
@@ -259,10 +329,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
               "`python3 .claude/qa/shared/validate_specs.py --only %s`." % ",".join(stale), "",
               "If the change genuinely alters no teacher-visible behaviour, say so where this check can read it — a commit trailer",
               "or a line in the PR body:", "", "```", "Spec-Sync: %s=none-needed (<why>)" % ",".join(stale), "```", ""]
-    L += ["### Then drive the targeted E2E", "```"] + res["commands"] + ["```",
-          "Against staging, from a Claude Code session with a linked WhatsApp Web tab (`/niete-e2e` checks the",
-          "preconditions). The run appends to `.claude/qa/ledgers/runs.jsonl`; commit that file and this check",
-          "records the proof.", ""]
+    L += _drive_block(res)
     if res["fallback"]:
         L += ["> ⚠️ Unmapped in-scope files pulled in the SAFE subset: %s — add them to `feature-map.yaml`." % ", ".join("`%s`" % u for u in res["unmapped"]), ""]
     if res["full_suite"]:
@@ -301,7 +368,22 @@ def render_text(res, freshness="warn", proof="warn"):
         L.append("│   or declare it: commit trailer  Spec-Sync: %s=none-needed (<why>)" % ",".join(stale))
         if freshness == "block":
             L.append("│ QA_HOOKS_STRICT=1 is set: this push is BLOCKED until the specs are synced or declared.")
-    L.append("│ then: " + "   ".join(res["commands"]))
+    mock_set = mock_feature_set()
+    feats = res["features"]
+    mock = [f for f in feats if f in mock_set]
+    chrome = [f for f in feats if f not in mock_set]
+    head = (res.get("head") or "HEAD")[:12]
+    if mock:
+        L.append("│ mock lane (layer 1 — tests this commit, no browser):")
+        L.append("│   bash .claude/qa/shared/commit-e2e.sh %s --features %s" % (head, ",".join(mock)))
+    if chrome:
+        if chrome_paused():
+            L.append("│ chrome lane (layer 2) PAUSED — %s not auto-driven "
+                     "(scaffold-driver.py <feature> to move it onto mock, or E2E_CHROME_ON=1)" % ",".join(chrome))
+        else:
+            L.append("│ chrome lane (layer 2): " + "   ".join("/niete-e2e %s" % c for c in chrome))
+    if not mock and not chrome:
+        L.append("│ then: " + "   ".join(res["commands"]))
     L.append("└ re-run any time: npm run qa:impact")
     return "\n".join(L)
 
