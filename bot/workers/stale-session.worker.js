@@ -424,11 +424,45 @@ async function autoCompleteSession(session) {
   }
 }
 
+/**
+ * Read-only CLI: print what the undelivered sweep's first tick WOULD do.
+ *
+ *   node workers/stale-session.worker.js --dry-run-undelivered
+ *
+ * Writes nothing, sends nothing, and ignores the kill switch — the point is to
+ * read the plan before arming it, because the first real tick acts on a backlog
+ * that has never been swept.
+ */
+async function dryRunUndeliveredCli() {
+  console.log('============================================');
+  console.log('Undelivered observations — DRY RUN. No writes, no messages.');
+  console.log('============================================');
+  try {
+    const out = await dryRunUndeliveredReports();
+    console.log(JSON.stringify(out, null, 2));
+    if (out.queryFailed) console.error('one or more candidate reads FAILED — the tally is incomplete');
+    if (out.ceilingHit) console.error('page ceiling hit — more candidates than one tick can read');
+    process.exit(out.queryFailed ? 1 : 0);
+  } catch (error) {
+    console.error('dry run failed:', error.message);
+    process.exit(1);
+  }
+}
+
 // Gated — requiring this file as a library (e.g. from a test harness) does
 // NOT fire the stale-session sweep. To run the sweep manually, invoke the
 // exported `main` function.
 if (require.main === module) {
-  main();
+  if (process.argv.includes('--dry-run-undelivered')) {
+    // Deferred by one tick ON PURPOSE. This guard sits ABOVE the sweeps' own
+    // `const` declarations, so calling straight into the dry run reads them
+    // inside their temporal dead zone and dies with "Cannot access
+    // UNDELIVERED_MAX_PAGES before initialization". `main()` gets away with it
+    // only because its first `await` yields before it touches any of them.
+    setImmediate(dryRunUndeliveredCli);
+  } else {
+    main();
+  }
 }
 
 /**
@@ -666,6 +700,294 @@ async function runUntappedSweep(tally) {
   return tally;
 }
 
+// ── Undelivered observations ───────────────────────────────────────────
+//
+// Three delivery states are written and read by nothing: `awaiting_confirm`
+// (the coach saw the preview and tapped neither Send nor Cancel), `previewing`
+// (the render was queued and she left), and a finished observation with no
+// `teacher_delivery` key at all (she never opened the send flow). They are
+// sub-states of `analysis_data` on a session whose own `status` is already
+// terminal, and the only sweep that reads inside `teacher_delivery` narrows to
+// `awaiting_teacher_tap` in the query itself — so they are structurally
+// invisible, not missed by a filter.
+//
+// Measured read-only on production 15 Sep: of 2,499 finished coach
+// observations, 465 have no delivery record, 62 sit at `awaiting_confirm` and
+// 12 at `previewing`. 539 reports across 51 coaches, median age 14.4 days, and
+// 13-26 fresh ones every day.
+//
+// Explicitly NOT ours: `awaiting_observer_review` (its own owner, mid-fix) and
+// `awaiting_teacher_tap` (the untapped sweep). Two sweeps on one row is how a
+// coach gets told two contradictory things about one observation in one tick.
+
+const UNDELIVERED_SWEEP_LOCK = 'observe-undelivered-sweep';
+const UNDELIVERED_SWEEP_LOCK_TTL_SECONDS = 10 * 60;
+/** Rows per read. The candidate set is 539 today; the paging is the guarantee. */
+const UNDELIVERED_PAGE_SIZE = 200;
+/** 5,000 candidates per state. Past this the sweep says so rather than stopping. */
+const UNDELIVERED_MAX_PAGES = 25;
+const UNDELIVERED_FINISHED_STATUSES = ['completed', 'observer_review_complete'];
+
+/** Reports acted on in ONE tick. A backlog drains over ticks, never in one. */
+function undeliveredMaxPerTick() {
+  const n = Number(process.env.OBSERVE_UNDELIVERED_MAX_PER_TICK);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 25;
+}
+
+/**
+ * Silent expires allowed in ONE tick, counted SEPARATELY from the messages.
+ *
+ * 407 of today's 539 rows classify as expire. Those send nothing, so the
+ * message cap does not bound them — but 407 rows closed in one tick is one tick
+ * performing a migration, and if the classification is wrong there is no
+ * intermediate state at which anyone notices. Its own ceiling means the first
+ * real tick is small enough to read in the log before the next one runs.
+ */
+function undeliveredMaxExpirePerTick() {
+  const n = Number(process.env.OBSERVE_UNDELIVERED_MAX_EXPIRE_PER_TICK);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 50;
+}
+
+/**
+ * The three candidate reads, each narrow.
+ *
+ * `analysis_data` on an observation is the fattest JSONB in this database and
+ * pulling it whole for a page of rows is what OOM-wedged production on two
+ * consecutive nights: fat columns are TOAST-stored, so selecting one detoasts
+ * and ships the whole blob and memory cost is rows x blob. Each query here
+ * projects the slice it consumes plus the four scalars the planner and the CAS
+ * need — and nothing else, in particular no `users(...)` join the executor
+ * would only re-read anyway.
+ *
+ * Load math, against today's prod population:
+ *   3 queries x up to 200 rows x ~1.3 KB = 780 KB worst case per tick,
+ *   x1 replica (single-flight removes the multiplier) x4 ticks/hr = 3 MB/hour.
+ * Selecting `analysis_data` whole instead would be 539 x ~62 KB = 33 MB per
+ * tick, which is the wedge.
+ */
+async function readUndeliveredCandidates(tally) {
+  const PROJECTION = 'id, status, updated_at, created_at, observer_user_id, '
+    + 'teacher_delivery:analysis_data->teacher_delivery';
+  // One query per owned state. The no-record case has no status string to match
+  // on, so it cannot share a query with the other two.
+  const lanes = [
+    { name: 'awaiting_confirm', apply: (q) => q.eq('analysis_data->teacher_delivery->>status', 'awaiting_confirm') },
+    { name: 'previewing', apply: (q) => q.eq('analysis_data->teacher_delivery->>status', 'previewing') },
+    { name: 'no_record', apply: (q) => q.is('analysis_data->teacher_delivery', null) },
+  ];
+
+  const rows = [];
+  for (const lane of lanes) {
+    for (let page = 0; page < UNDELIVERED_MAX_PAGES; page += 1) {
+      const from = page * UNDELIVERED_PAGE_SIZE;
+      let q = supabase
+        .from('coaching_sessions')
+        .select(PROJECTION)
+        .eq('observation_type', 'leader_observation')
+        .in('status', UNDELIVERED_FINISHED_STATUSES);
+      q = lane.apply(q);
+      // Oldest first, then id — an unstable order re-reads one page forever and
+      // the tail of the backlog is never seen.
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await q
+        .order('updated_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + UNDELIVERED_PAGE_SIZE - 1);
+      if (error) {
+        logToFile('⚠️ undelivered sweep: query failed', { lane: lane.name, page, error: error.message });
+        tally.queryFailed = true;
+        break;
+      }
+      const batch = data || [];
+      rows.push(...batch);
+      tally.pages = (tally.pages || 0) + 1;
+      if (batch.length < UNDELIVERED_PAGE_SIZE) break;
+      if (page + 1 === UNDELIVERED_MAX_PAGES) {
+        // Never stop silently. A ceiling hit that logs nothing is six blind days.
+        logToFile('⚠️ undelivered sweep: page ceiling hit — more candidates than one tick can read', {
+          lane: lane.name, pages: UNDELIVERED_MAX_PAGES, read: rows.length,
+        });
+        tally.ceilingHit = true;
+      }
+    }
+  }
+  return rows;
+}
+
+/**
+ * Finished observations whose report never reached the teacher.
+ *
+ * Periodic-job contract, which this job meets:
+ *   J1 single-flight — one Redis lock, so six replicas send one set of messages
+ *   J2 per-tick cap, oldest first — plus a SEPARATE ceiling on silent expires
+ *   J3 narrow reads — the teacher_delivery slice, never the whole JSONB
+ *   J4 kill switch — OBSERVE_UNDELIVERED_SWEEP_OFF; UNSET = OFF (see below)
+ *   J5 idempotent, notify-once — reminded_at / gave_up_at on the row, CAS-claimed
+ *   J6 age ceiling — anything unchased past the ceiling is closed SILENTLY
+ *   J7 a per-tick log line, every tick, including the ticks that found nothing
+ *
+ * J4 defaults the OTHER WAY from its sibling, deliberately. The untapped sweep
+ * fails open because its failure mode is silence. This one's first tick acts on
+ * a 539-row backlog that has never been swept, 407 of which it would close, so
+ * its failure mode is a bulk write nobody asked for. It ships dark: the
+ * operator reads a dry-run tally of what the first tick WOULD do, then sets
+ * OBSERVE_UNDELIVERED_SWEEP_OFF=0 to arm it.
+ */
+async function processUndeliveredReports() {
+  const tally = {
+    total: 0, found: 0, scanned: 0, reminded: 0, gaveUp: 0, expired: 0,
+    skipped: 0, failed: 0, remaining: 0, pages: 0, expireCapped: 0,
+  };
+
+  const off = process.env.OBSERVE_UNDELIVERED_SWEEP_OFF;
+  const enabled = off !== undefined && String(off).trim() === '0';
+  if (!enabled) {
+    logToFile('🔔 undelivered sweep off', {
+      ...tally,
+      reason: off === undefined
+        ? 'not enabled (set OBSERVE_UNDELIVERED_SWEEP_OFF=0 to arm)'
+        : 'OBSERVE_UNDELIVERED_SWEEP_OFF is not 0',
+    });
+    return { ...tally, disabled: true };
+  }
+
+  // J1. Required lazily so this worker keeps loading in tests and one-shot runs
+  // that never reach the sweep.
+  const RedisService = require('../shared/services/cache/railway-redis.service');
+  const lockId = `${process.pid}-${Date.now()}`;
+  const gotLock = await RedisService.acquireLock(
+    UNDELIVERED_SWEEP_LOCK, lockId, UNDELIVERED_SWEEP_LOCK_TTL_SECONDS,
+  );
+  if (!gotLock) {
+    // acquireLock fails CLOSED when the cache is unreachable: no lock, no sweep.
+    // A reminder not sent this tick is sent next tick; one sent six times cannot
+    // be unsent. But it must never be silent.
+    logToFile('🔔 undelivered sweep skipped — lock held elsewhere or cache unreachable', tally);
+    return { ...tally, skippedLocked: true };
+  }
+
+  try {
+    return await runUndeliveredSweep(tally);
+  } finally {
+    await RedisService.releaseLock(UNDELIVERED_SWEEP_LOCK, lockId).catch(() => {});
+  }
+}
+
+async function runUndeliveredSweep(tally) {
+  const startedAt = Date.now();
+  const ObserveSend = require('../shared/services/observe/observe-send.service');
+  const { classifyUndelivered } = require('../shared/services/observe/observe-undelivered.service');
+
+  const rows = await readUndeliveredCandidates(tally);
+  tally.scanned = rows.length;
+
+  const candidateOf = (r) => ({
+    deliveryStatus: (r.teacher_delivery || {}).status,
+    sessionStatus: r.status,
+    finishedAt: r.updated_at || r.created_at,
+    reminded_at: (r.teacher_delivery || {}).reminded_at,
+    reminder_count: (r.teacher_delivery || {}).reminder_count,
+    gave_up_at: (r.teacher_delivery || {}).gave_up_at,
+  });
+
+  // The server narrowed; the planner still decides. If the JSON operators ever
+  // drift and stop filtering, this catches it rather than acting on wrong rows.
+  const actionable = rows.filter((r) => classifyUndelivered(candidateOf(r)).action !== 'skip');
+  tally.found = actionable.length;
+  tally.total = actionable.length;
+  tally.skipped = rows.length - actionable.length;
+
+  // J2. Oldest first, capped. The read is already ordered by updated_at.
+  const cap = undeliveredMaxPerTick();
+  const batch = actionable.slice(0, cap);
+  tally.remaining = actionable.length - batch.length;
+
+  const expireCap = undeliveredMaxExpirePerTick();
+  for (const row of batch) {
+    // The separate expire ceiling is enforced here rather than in the planner,
+    // because it is a property of this tick and not of the row.
+    if (tally.expired >= expireCap
+        && classifyUndelivered(candidateOf(row)).action === 'expire') {
+      tally.expireCapped += 1;
+      tally.remaining += 1;
+      continue;
+    }
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const decision = await ObserveSend.processUndeliveredDelivery(row.id);
+      if (decision.action === 'remind') tally.reminded += 1;
+      else if (decision.action === 'give_up') tally.gaveUp += 1;
+      else if (decision.action === 'expire') tally.expired += 1;
+      else tally.skipped += 1;
+    } catch (err) {
+      tally.failed += 1;
+      logToFile('⚠️ undelivered sweep: failed on one report', { sessionId: row.id, error: err.message });
+    }
+  }
+
+  // J7. EVERY tick, not only the ones with work — six days of seeing nothing
+  // must not look identical to six days of there being nothing to see. The
+  // actions are counted separately so a tick of 400 expires is never read as
+  // 400 messages.
+  logToFile('🔔 undelivered sweep done', { ...tally, ms: Date.now() - startedAt });
+  return tally;
+}
+
+/**
+ * Read-only: what the first tick WOULD do, per action, without doing any of it.
+ *
+ * The first tick on prod acts on a backlog that has never been swept, so the
+ * operator reads this before the sweep is armed. Runs whatever the kill switch
+ * says, because it writes nothing and sends nothing.
+ */
+async function dryRunUndeliveredReports(nowMs = Date.now()) {
+  const { classifyUndelivered } = require('../shared/services/observe/observe-undelivered.service');
+  const tally = { pages: 0 };
+  const rows = await readUndeliveredCandidates(tally);
+
+  const byAction = {};
+  const byState = {};
+  const remindCoaches = new Set();
+  const coaches = new Set();
+  for (const r of rows) {
+    const td = r.teacher_delivery || {};
+    const state = td.status || 'no_record';
+    byState[state] = (byState[state] || 0) + 1;
+    const { action, reason } = classifyUndelivered({
+      deliveryStatus: td.status,
+      sessionStatus: r.status,
+      finishedAt: r.updated_at || r.created_at,
+      reminded_at: td.reminded_at,
+      reminder_count: td.reminder_count,
+      gave_up_at: td.gave_up_at,
+    }, nowMs);
+    const key = action === 'skip' ? `skip/${reason}` : action;
+    byAction[key] = (byAction[key] || 0) + 1;
+    if (r.observer_user_id) coaches.add(r.observer_user_id);
+    if (action === 'remind' || action === 'give_up') remindCoaches.add(r.observer_user_id);
+  }
+
+  const messagesUncapped = (byAction.remind || 0) + (byAction.give_up || 0);
+  return {
+    scanned: rows.length,
+    byState,
+    byAction,
+    coachesInPopulation: coaches.size,
+    coachesWhoWouldBeMessaged: remindCoaches.size,
+    messagesIfUncapped: messagesUncapped,
+    messagesOnFirstTick: Math.min(messagesUncapped, undeliveredMaxPerTick()),
+    expiresIfUncapped: byAction.expire || 0,
+    expiresOnFirstTick: Math.min(byAction.expire || 0, undeliveredMaxExpirePerTick()),
+    caps: {
+      maxPerTick: undeliveredMaxPerTick(),
+      maxExpirePerTick: undeliveredMaxExpirePerTick(),
+    },
+    pages: tally.pages,
+    ceilingHit: !!tally.ceilingHit,
+    queryFailed: !!tally.queryFailed,
+  };
+}
+
 /**
  * Run every recovery sweep WITHOUT process.exit — for the always-on sqs-worker
  * to call on its interval (NIETE has no Railway Cron, so the standalone main()
@@ -681,6 +1003,12 @@ async function runRecovery() {
   } catch (err) {
     logToFile('⚠️ untapped sweep threw (non-blocking)', { error: err.message });
   }
+  let undelivered = { total: 0 };
+  try {
+    undelivered = await processUndeliveredReports();
+  } catch (err) {
+    logToFile('⚠️ undelivered sweep threw (non-blocking)', { error: err.message });
+  }
   let photoGate = { found: 0, advanced: 0 };
   try {
     photoGate = await processStuckPhotoGateSessions();
@@ -693,7 +1021,7 @@ async function runRecovery() {
   } catch (err) {
     logToFile('⚠️ mid-flight watchdog threw (non-blocking)', { error: err.message });
   }
-  return { coaching, stuckInitiated, untapped, photoGate, midFlight };
+  return { coaching, stuckInitiated, untapped, undelivered, photoGate, midFlight };
 }
 
 /**
@@ -960,6 +1288,11 @@ module.exports = {
   processStuckMidFlightSessions,
   processUntappedReports,
   untappedMaxPerTick,
+  processUndeliveredReports,
+  readUndeliveredCandidates,
+  dryRunUndeliveredReports,
+  undeliveredMaxPerTick,
+  undeliveredMaxExpirePerTick,
   // Resolved thresholds, exported so tests can assert the env overrides
   // and so a deploy can log what it actually picked up (a staging value silently
   // shipping to prod is the failure mode worth catching loudly).

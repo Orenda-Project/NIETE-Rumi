@@ -60,6 +60,13 @@ const STRINGS = {
     send_tapped_fo: '✅ {name} amefungua ripoti yake.',
     send_nudged_fo: '🔔 {name} bado hajafungua ripoti — nimemkumbusha mara moja.',
     send_gave_up_fo: '{name} hajafungua ripoti. Sitamsumbua tena — mwambie akufungulie, kisha tuma tena kutoka /observe.',
+    // The report was never SENT at all — a different situation from the one
+    // above, where it was sent and she has not opened it. The next step is the
+    // coach's own tap, so the copy points at it.
+    send_undelivered_reminder_fo:
+      '📨 Ripoti ya {name} iko tayari lakini haijatumwa bado. Andika /observe, chagua uchunguzi huo, na ubonyeze Tuma — inachukua mguso mmoja.',
+    send_undelivered_gave_up_fo:
+      'Ripoti ya {name} bado haijatumwa, kwa hivyo sitaikumbusha tena. Bado unaweza kuituma wakati wowote kutoka /observe.',
     // bd-88krt — Flow terminal-screen text (data-driven so a cancel never reads
     // "Observation scheduled")
     search_no_match: 'Hakuna kilicholingana — jaribu tena',
@@ -254,6 +261,11 @@ const STRINGS = {
     send_tapped_fo: '✅ {name} نے اپنی رپورٹ کھول لی ہے۔',
     send_nudged_fo: '🔔 {name} نے ابھی تک رپورٹ نہیں کھولی — ایک بار یاد دہانی بھیج دی ہے۔',
     send_gave_up_fo: '{name} نے رپورٹ نہیں کھولی۔ اب مزید یاد دہانی نہیں بھیجوں گی — انہیں بتا دیں، پھر /observe سے دوبارہ بھیج دیں۔',
+    // Gender-agnostic when addressing the coach (imperatives only).
+    send_undelivered_reminder_fo:
+      '📨 {name} کی رپورٹ تیار ہے مگر ابھی بھیجی نہیں گئی۔ /observe لکھیں، وہ مشاہدہ چنیں، اور بھیجیں پر ٹیپ کر دیں — ایک ٹیپ کا کام ہے۔',
+    send_undelivered_gave_up_fo:
+      '{name} کی رپورٹ ابھی تک نہیں بھیجی گئی، اس لیے اب یاد دہانی نہیں بھیجوں گی۔ /observe سے جب چاہیں بھیج سکتے ہیں۔',
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
     search_no_match: 'کچھ نہیں ملا — دوبارہ کوشش کریں',
     school_already_mine: 'پہلے سے آپ کی فہرست میں',
@@ -450,6 +462,12 @@ const STRINGS = {
     send_tapped_fo: '✅ {name} has opened the report.',
     send_nudged_fo: '🔔 {name} has not opened the report yet — I have sent one reminder.',
     send_gave_up_fo: '{name} has not opened the report. I will not send more reminders — have a word, then send it again from /observe.',
+    // The report was never SENT — distinct from the line above, where it was
+    // sent and she has not opened it. Different state, different next step.
+    send_undelivered_reminder_fo:
+      "📨 {name}'s report is ready but has not been sent yet. Open /observe, pick that observation, and tap Send — it is one tap.",
+    send_undelivered_gave_up_fo:
+      "{name}'s report still has not been sent, so I will stop reminding you about it. You can still send it any time from /observe.",
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
     search_no_match: 'No matches — try again',
     school_already_mine: 'Already in your list',
