@@ -103,34 +103,18 @@ describe('language writer — a successful write locks and invalidates', () => {
   });
 });
 
-describe('language lock reader — the reader that never existed', () => {
-  it('reports true for a teacher who explicitly chose', async () => {
-    const C = load({ row: { language_locked: true } });
-    await expect(C.isUserLanguageLocked('u1')).resolves.toBe(true);
+describe('language lock reader — deliberately absent', () => {
+  it('the module exports no reader that nothing calls', () => {
+    // One was written, exported and tested, and never called in production. A
+    // tested export with no caller reads as a live guard to the next person.
+    const C = load();
+    expect(C.isUserLanguageLocked).toBeUndefined();
   });
 
-  it('reports false for a teacher who never chose', async () => {
-    const C = load({ row: { language_locked: false } });
-    await expect(C.isUserLanguageLocked('u1')).resolves.toBe(false);
-  });
-
-  it('round-trips a write made through the writer', async () => {
+  it('the lock itself is still written and still readable from the row', async () => {
     const C = load({ row: { language_locked: false } });
     await C.setUserLanguage('u1', 'ur', true);
-    await expect(C.isUserLanguageLocked('u1')).resolves.toBe(true);
-  });
-
-  it('reads the cache when present, without hitting the database', async () => {
-    const C = load({ row: { language_locked: false }, redisGet: { 'user:language_locked:u1': 'true' } });
-    await expect(C.isUserLanguageLocked('u1')).resolves.toBe(true);
-  });
-
-  it('treats "cannot tell" as LOCKED, never as permission', async () => {
-    // A caller asking this is deciding whether it may overwrite her choice.
-    // Failing open would re-create the defect this reader exists to close.
-    const C = load({ row: null });
-    await expect(C.isUserLanguageLocked('u1')).resolves.toBe(true);
-    await expect(C.isUserLanguageLocked(null)).resolves.toBe(true);
+    expect(redisStore['user:language_locked:u1']).toBe('true');
   });
 });
 

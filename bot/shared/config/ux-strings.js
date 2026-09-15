@@ -105,6 +105,39 @@ const UX_STRINGS = {
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
 
+  // ─── /roster — the class-register command ─────────────────────────────────
+  // Every string on this command was an English literal, including all four
+  // Flow chrome fields, on a deployment where the leaders who use it read Urdu
+  // like everyone else. Measured in CODE POINTS against the WhatsApp caps:
+  // header 60, body 1024, footer 60, button 20. The Urdu is impersonal, so no
+  // gendered verb stem for the addressee appears.
+  rosterRoleRefusal: {
+    en: 'Building a class roster is for coaches and school leaders.',
+    ur: 'کلاس کی فہرست بنانے کی سہولت کوچز اور اسکول سربراہان کے لیے ہے۔',
+  },
+  rosterFlowHeader: {
+    en: 'Class roster',
+    ur: 'کلاس کی فہرست',
+  },
+  rosterFlowBody: {
+    en: 'Photograph a class register and I will turn it into a student list. '
+      + 'You get to check every name before anything is saved.',
+    ur: 'کلاس کے حاضری رجسٹر کی تصویر بھیجیں، اسے طلبہ کی فہرست میں بدل دیا جائے گا۔ '
+      + 'کچھ بھی محفوظ ہونے سے پہلے ہر نام آپ خود دیکھ سکیں گے۔',
+  },
+  rosterFlowFooter: {
+    en: 'About 2 minutes per class',
+    ur: 'ہر کلاس پر تقریباً دو منٹ',
+  },
+  rosterFlowButton: {
+    en: 'Start',
+    ur: 'شروع کریں',
+  },
+  rosterFlowFailed: {
+    en: 'Something went wrong opening that. Try again in a moment.',
+    ur: 'اسے کھولنے میں مسئلہ آ گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+
   // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's

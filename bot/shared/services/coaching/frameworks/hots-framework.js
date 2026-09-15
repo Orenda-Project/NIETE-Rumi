@@ -195,15 +195,36 @@ SCORING RULES:
 
 // ─── Analysis prompt builder ─────────────────────────────────────────
 
+const { getLanguage } = require('../../../config/languages');
+
+/**
+ * A language's English NAME, for the prompt's own prose. Read from the registry
+ * rather than restated as a second inline map — that duplication is how the
+ * report once rendered Urdu in the wrong script while the reply was correct.
+ */
+function languageName(code) {
+  const row = getLanguage(code);
+  return (row && row.languageDescription) || String(code);
+}
+
 function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAnalysis) {
   const {
     grade,
     subject,
     duration,
     language,
+    transcriptLanguage,
     teacherFirstName,
     priorFeedback
   } = metadata;
+
+  // Two language needs, deliberately separate values. `language` is what the
+  // teacher-facing strings are WRITTEN in — her stored preference, resolved
+  // upstream through the one coaching resolver. The transcript label is what was
+  // HEARD in the room, and it is context for the model, never a directive about
+  // which language to address her in. One field doing both jobs is how a lesson
+  // labelled English steered an Urdu teacher's report into English.
+  const heardLanguage = transcriptLanguage || null;
 
   return `Analyze this classroom transcript using the HOTS observation framework.
 
@@ -212,7 +233,7 @@ ${teacherFirstName ? `- Teacher's First Name: ${teacherFirstName}` : ''}
 ${grade ? `- Grade: ${grade}` : ''}
 ${subject ? `- Subject: ${subject}` : ''}
 ${duration ? `- Duration: ${Math.round(duration / 60)} minutes` : ''}
-${language ? `- Primary Language: ${language}` : ''}
+${heardLanguage ? `- Language spoken in the lesson: ${languageName(heardLanguage)}` : ''}
 
 ${priorFeedback ? `PRIOR FEEDBACK:\n${priorFeedback}\n` : ''}
 

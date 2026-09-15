@@ -31,14 +31,19 @@ const { uploadVoiceDebrief, uploadReportPDF, uploadReportImage } = require('../.
 const { TEMP_DIR } = require('../../utils/constants');
 const { getCoachingMessage } = require('../../config/coaching-messages');
 const { coachRoleLabelForRegion } = require('../../config/region-config');
+const { clampLanguage } = require('../../config/ux-strings');
+const { offerDefaultLanguage } = require('../../config/languages');
 
 /**
- * Resolve language directly from a session row already in memory. The
- * report-generator carries the session around (it already reads
- * `session.users?.preferred_language`); this just packages the read.
+ * The language the coaching STEP messages are sent in.
+ *
+ * No transcript-language leak: the recording never decides how she is
+ * addressed. The floor is the language the deployment offers FIRST rather than
+ * the emergency floor — we have a session in hand here, so "nothing can be
+ * determined" is not the situation, and English was wrong for almost everyone.
  */
 function _languageFromSession(session) {
-  return session?.users?.preferred_language || 'en'; // bd-3b0co: no transcript-language leak
+  return clampLanguage(session?.users?.preferred_language || offerDefaultLanguage());
 }
 
 // The voice prompt JSON-dumps the whole analysis, so a flag saying "do not
@@ -1773,5 +1778,9 @@ class ReportGeneratorService {
     }
   }
 }
+
+// Exposed so the step-message language resolver can be driven directly by a
+// test instead of through a whole report render. Not part of the public surface.
+ReportGeneratorService._languageFromSession = _languageFromSession;
 
 module.exports = ReportGeneratorService;

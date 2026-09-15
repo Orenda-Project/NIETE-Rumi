@@ -32,6 +32,7 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { offerDefaultLanguage } = require('../../config/languages');
 
 /**
  * What each observation framework's market actually serves. `fallback` is the
@@ -40,7 +41,12 @@ const { logToFile } = require('../../utils/logger');
  */
 const MARKET_LANGS = {
   mewaka: { offer: ['sw', 'en'], fallback: 'sw' },
-  fico:   { offer: ['ur', 'en'], fallback: 'en' },
+  // This deployment's fallback used to be English while the registry offers
+  // Urdu first — so the same teacher, with no stated preference, got her
+  // observation notes in English from the human-coach path and Urdu from every
+  // other one. The two floors are separate on purpose (first-offered vs the
+  // emergency floor); this is the first of the two, so it reads the registry's.
+  fico:   { offer: ['ur', 'en'], fallback: offerDefaultLanguage() },
   hots:   { offer: ['ur', 'en'], fallback: 'ur' },
 };
 
