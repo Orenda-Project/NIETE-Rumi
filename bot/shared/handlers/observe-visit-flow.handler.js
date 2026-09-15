@@ -1441,9 +1441,12 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         await _editAudit(userId, person, 'edit_phone_escalated', {
           to_phone: phone, reason: 'destination_has_history',
         });
-        return _tdone('We cannot move that automatically',
-          'That number already belongs to someone with their own training records. '
-          + 'We have reported it to the Rumi team and it will be sorted shortly.');
+        // Says nothing about WHY, deliberately. Earlier copy told the coach the
+        // number "belongs to someone with their own training records", which
+        // leaks another teacher's existence to anyone who types a number. The
+        // audit row above carries the real reason for us.
+        return _tdone('This will take a while',
+          'This one will be sorted shortly.');
       }
 
       const carried = verdict === E.CASE_SHELL ? (target && target.counts) || {} : {};
@@ -1482,8 +1485,10 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         await _editAudit(userId, person, 'edit_phone_escalated', {
           to_phone: phone, reason: 'destination_has_history_at_commit',
         });
-        return _tdone('We cannot move that automatically',
-          'That number now belongs to someone with their own records. Reported to the Rumi team.');
+        // Same copy as the check path — one consistent message, and neither
+        // version hints at who else that number reaches.
+        return _tdone('This will take a while',
+          'This one will be sorted shortly.');
       }
 
       const supabase = require('../config/supabase');
