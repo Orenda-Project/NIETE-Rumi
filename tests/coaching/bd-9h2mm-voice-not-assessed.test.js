@@ -121,10 +121,14 @@ describe('the voice note on a session with no measured fidelity', () => {
 
   test('a MEASURED session still gets its section, and the ban is not applied', async () => {
     const a = fullAnalysis();
-    fico.applyLpFidelity(a, { status: 'ok', fidelity_pct: 60, band: 'partial' });
+    // The blob has to be ON the analysis, not only passed to applyLpFidelity: it is
+    // where the measured figure the voice may quote comes from.
+    a.lp_fidelity = { status: 'ok', fidelity_pct: 60, band: 'partial' };
+    fico.applyLpFidelity(a, a.lp_fidelity);
     await ReportGenerator.generateAndSendVoiceDebrief(session, '923000000000', 'cs1', a);
     expect(arg().sectionBNotAssessed).toBe(false);
     expect(arg().analysis.domains.lesson_plan_fidelity.domain_score).toBe(Math.round(0.6 * B_MAX));
     expect(prompt()).not.toMatch(/do not state any lesson-plan percentage/i);
+    expect(prompt()).toMatch(/60/);
   });
 });
