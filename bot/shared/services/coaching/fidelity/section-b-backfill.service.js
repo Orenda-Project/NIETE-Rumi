@@ -208,7 +208,15 @@ async function backfillSession(sessionId, deps = {}) {
     // 2) recompute Section B against the NEW transcript
     const { resolveFidelitySources } = require('./fidelity-orchestrator');
     const { corpusKey, uploadedText, meta } = resolveFidelitySources(session);
-    const result = await compute({ corpusKey, uploadedText, transcript: t.transcript, meta });
+    const result = await compute({
+      corpusKey,
+      uploadedText,
+      transcript: t.transcript,
+      meta,
+      // bd-b3pop: the same inputs the live path and the late-LP recompute give the grader.
+      audioDurationSeconds: session.audio_duration_seconds,
+      photoEvidence: Array.isArray(analysis.photo_evidence) ? analysis.photo_evidence : [],
+    });
     if (!result) return { ...base, ok: false, reason: 'no_sources' };
     if (result.status !== 'ok') {
       log('[sectionb-backfill] grader non-ok — not written', { sessionId, status: result.status, error: result.error });

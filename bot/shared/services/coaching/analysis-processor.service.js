@@ -249,19 +249,33 @@ class AnalysisProcessorService {
       try {
         const photos = (Array.isArray(session.classroom_photos) ? session.classroom_photos : []).filter((p) => p && p.url);
         if (photos.length && PHOTO_MODE !== 'off') {
-          const { processClassroomPhoto } = require('./classroom-photo/photo-analysis.service');
+          const { processClassroomPhoto, analyzeClassroomPhotoV2 } = require('./classroom-photo/photo-analysis.service');
           const { downloadFromR2, extractKeyFromUrl } = require('../../storage/r2');
           const wantImages = PHOTO_MODE === 'image' || PHOTO_MODE === 'both';
           const parts = [];
           const images = [];
+          // bd-b3pop.15 / .17 (D34): COACHING_PHOTO_VISION=v2 reads every photo ONCE for both scorers — the FICO
+          // description and the fidelity evidence — and sets aside an upload that is not a classroom photo, so it
+          // reaches neither scorer. A photo whose v2 reading fails falls back to today's pass. Unset = today's pass.
+          const visionV2 = String(process.env.COACHING_PHOTO_VISION || '').trim().toLowerCase() === 'v2';
+          const evidence = [];
+          const rejected = [];
           for (const [photoIndex, p] of photos.entries()) {
             let buf;
             try {
               buf = await downloadFromR2(extractKeyFromUrl(p.url));
-              const text = await processClassroomPhoto(buf, p.mime_type || 'image/jpeg', frameworkKey);
+              const mime = p.mime_type || 'image/jpeg';
+              const read = visionV2 ? await analyzeClassroomPhotoV2(buf, mime) : null;
+              if (read && read.kind === 'not_a_classroom_photo') {
+                rejected.push({ n: photoIndex + 1, kind: read.kind, description: read.description });
+                logToFile('[photo-vision] not a classroom photo — kept away from both scorers', { coachingSessionId, photo: photoIndex + 1 });
+                continue;
+              }
+              const text = read && read.description ? read.description : await processClassroomPhoto(buf, mime, frameworkKey);
               // bd-1mcpe: keep the photo's ORIGINAL position — the report captions each framed photo
               // from "Classroom photo N", so a skipped photo must not renumber the ones after it.
               if (text) parts.push({ n: photoIndex + 1, text });
+              if (read && read.evidence) evidence.push({ n: photoIndex + 1, ...read.evidence });
             } catch (perr) {
               logToFile('[photo-vision] one photo failed (non-blocking)', { coachingSessionId, error: perr.message });
               continue;
@@ -282,10 +296,14 @@ class AnalysisProcessorService {
           let effective = PHOTO_MODE;
           if (wantImages && !images.length) effective = text ? 'text' : 'off';
           if ((effective === 'text' || effective === 'note') && !text) effective = 'off';
-          metadata.photo = { mode: effective, text, count: photos.length, images: wantImages ? images : [] };
+          metadata.photo = {
+            mode: effective, text, count: photos.length, images: wantImages ? images : [],
+            ...(visionV2 ? { vision: 'v2', evidence, rejected } : {}),
+          };
           logToFile('[photo-vision] photo channel', {
             coachingSessionId, flag: PHOTO_MODE, effectiveMode: effective,
             photos: photos.length, described: parts.length, images: images.length,
+            vision: visionV2 ? 'v2' : 'v1', evidence: evidence.length, rejected: rejected.length,
             bytes: images.reduce((a, b) => a + (b.bytes || 0), 0),
           });
         }
@@ -314,6 +332,10 @@ class AnalysisProcessorService {
             corpusKey,
             uploadedText,
             transcript: session.transcript_text,
+            // bd-b3pop: the recording's length for the pre-flight facts, and the vision pass's reading of the photos
+            // (the orchestrator hands it to the grader only under LP_FIDELITY_PHOTO=on).
+            audioDurationSeconds: session.audio_duration_seconds,
+            photoEvidence: (metadata.photo && metadata.photo.evidence) || [],
             meta: fidelityMeta,
           })
         : Promise.resolve(null);
@@ -411,6 +433,10 @@ class AnalysisProcessorService {
             // so the 48h watch can split score/citation rates by mode. Never the image bytes.
             photo_mode: metadata.photo.mode,
             photo_count_analysed: metadata.photo.count,
+            // bd-b3pop.15 / .17 (D34): only when the v2 pass ran — what it read for fidelity, and the uploads it set aside.
+            ...(metadata.photo.vision === 'v2'
+              ? { photo_vision: 'v2', photo_evidence: metadata.photo.evidence, photo_rejected: metadata.photo.rejected }
+              : {}),
             // What was decided about the subject, and on what evidence. Persisted so
             // the population is a column read rather than a regex over prose: how many
             // sessions we could not name a subject for is the number that decides

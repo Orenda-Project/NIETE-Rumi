@@ -55,7 +55,7 @@ async function defaultLoadSession(sessionId) {
   const supabase = require('../../../config/supabase');
   const { data } = await supabase
     .from('coaching_sessions')
-    .select('id, status, transcript_text, lesson_plan_structured, lesson_plan_text, analysis_data, observation_type')
+    .select('id, status, transcript_text, audio_duration_seconds, lesson_plan_structured, lesson_plan_text, analysis_data, observation_type')
     .eq('id', sessionId)
     .maybeSingle();
   return data || null;
@@ -115,7 +115,15 @@ async function recomputeFidelityForSession(sessionId, opts = {}) {
     }
 
     const { corpusKey, uploadedText, meta } = resolveFidelitySources(session);
-    const result = await compute({ corpusKey, uploadedText, transcript: session.transcript_text, meta });
+    const result = await compute({
+      corpusKey,
+      uploadedText,
+      transcript: session.transcript_text,
+      meta,
+      // bd-b3pop: a re-grade sees what the first grading saw — the recording's length and the stored photo reading.
+      audioDurationSeconds: session.audio_duration_seconds,
+      photoEvidence: Array.isArray(analysis.photo_evidence) ? analysis.photo_evidence : [],
+    });
     if (!result) return { recomputed: false, reason: 'no_sources' };
 
     if (result.status !== 'ok') {
