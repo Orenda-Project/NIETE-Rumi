@@ -73,6 +73,9 @@ const PALETTES = {
 };
 
 const MARKS_WORD = { sw: ' alama', en: ' marks', ur: ' نمبر', ar: ' درجة' };
+
+// Last resort only — the adapter supplies the localised wording with the row.
+const NOT_ASSESSED_FALLBACK = 'not assessed';
 const CHROME = {
   en: { celebrate: 'A celebration of your teaching', signature: 'The signature of your classroom', scores: 'Your scores · this lesson', classroom: 'From your classroom', moments: 'Moments worth remembering', strength: 'Your strength', horizon: 'Your next horizon', journey: (k) => `Your journey — ${k} lessons together`, trynext: 'One thing to try next class', made: (n) => `Made just for you, ${n}`, caption: (d, t) => `📋 Your coaching report${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}`,
     uptake_asked: 'Last time we asked', uptake_achieved: 'Done', uptake_partial: 'Getting there', uptake_not_seen: 'Not this time', uptake_not_applicable: 'Next time it applies', uptake_unknown: 'Not counted' },
@@ -183,12 +186,23 @@ function buildHeroReportHtml(vm) {
   // diagnosis text arrives already in the report language from the narrative.
   const whyLabel = lang === 'ur' ? 'کیوں' : (lang === 'ar' ? 'لماذا' : 'Why');
   const whyLine = (cls, text) => text ? `<div class="${cls}"><span class="why-l">${T(whyLabel)}:</span> ${T(text)}</div>` : '';
-  const scorecard = (vm.groups || []).map((g) => `
+  // A section that was not assessed has no fraction and no bar: there is one row
+  // renderer, and left to itself it prints the literal string "null/null" over a
+  // zero-width bar, which reads as a section she scored nothing on. The words go
+  // where the fraction would be, and the row keeps its why line explaining why
+  // there is no number.
+  const scorecard = (vm.groups || []).map((g) => (g.notAssessed
+    ? `
+    <div class="sc-row">
+      <div class="sc-h"><span class="sc-n">${T(g.name)}</span><span class="sc-s sc-na">${T(g.notAssessedWords || NOT_ASSESSED_FALLBACK)}</span></div>
+      ${whyLine('sc-why', g.why)}
+    </div>`
+    : `
     <div class="sc-row">
       <div class="sc-h"><span class="sc-n">${T(g.name)}</span><span class="sc-s">${g.score}/${g.max}</span></div>
       <div class="pbar"><div class="pfill" style="width:${g.pct}%;background:${g.pct >= 80 ? P.barHigh : g.pct >= 50 ? '#e0a52e' : '#dd7a5c'}"></div></div>
       ${whyLine('sc-why', g.why)}
-    </div>`).join('');
+    </div>`)).join('');
 
   return `<!doctype html><html dir="${dir}" lang="${lang}"><head><meta charset="utf-8"><style>${fontFaces()}
   *{margin:0;padding:0;box-sizing:border-box}
@@ -231,6 +245,9 @@ function buildHeroReportHtml(vm) {
   .sc-row{margin-bottom:12px}
   .sc-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
   .sc-n{font-size:13px;font-weight:700;color:${P.mid}}.sc-s{font-family:'Lexend';font-size:13px;font-weight:700;color:${P.deep}}
+  /* A not-assessed section: words, not a number, and lighter than a score so it
+     never reads as one. No bar is emitted for the row at all. */
+  .sc-s.sc-na{font-family:inherit;font-weight:600;color:${P.mid};opacity:.8}
   .pbar{height:8px;border-radius:5px;background:${P.barBg};overflow:hidden}.pfill{height:100%;border-radius:5px}
   /* bd-1t1wz: per-domain "why" diagnosis line */
   .sc-why{margin-top:5px;font-size:11.5px;color:${P.quiet};line-height:${RTL ? '1.8' : '1.45'}}

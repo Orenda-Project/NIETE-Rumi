@@ -33,6 +33,11 @@ const { logToFile } = require('../../../utils/logger');
 function attachDomainWhys(groups, domainWhys) {
   if (!domainWhys || typeof domainWhys !== 'object') return groups;
   for (const g of (groups || [])) {
+    // A not-assessed section already carries a why line written in code. The model
+    // must not be able to replace it: it is under a prompt that requires it to name
+    // one concrete missing element, and for a section that was never measured any
+    // sentence it produces is invented.
+    if (g.notAssessed) continue;
     const why = domainWhys[g.domainKey || g.key];
     if (why) g.why = why;
   }

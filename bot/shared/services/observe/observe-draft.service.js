@@ -253,19 +253,25 @@ function composeMoveBlocks(lp) {
 // the most common one (plan linked, recording not adjudicable). Wrong copy
 // here rewrites every field report: coaches described an LP-linking failure
 // and a whole fix cycle chased the wrong layer.
+//
+// Each state keeps its own first clause — what actually happened — and they now
+// share a corrected second clause: with nothing measured, Section B is NOT
+// scored and leaves the total. The old sentences said it kept a standard AI
+// assessment, which the scorer no longer does.
 function fidelityFallbackCopy(lp) {
+  const consequence = ' Section B is not scored for this observation and is left out of the '
+    + 'total — the teacher\'s report says so too. Continue to the next section.';
   if (lp && lp.status === 'ok' && lp.fidelity_pct == null) {
     return 'The lesson plan was linked, but the recording could not be matched to it move-by-move, '
-      + 'so there are no per-move ratings to review. Section B keeps its standard AI assessment — '
-      + 'continue to the next section.';
+      + 'so there are no per-move ratings to review.' + consequence;
   }
   if (lp && lp.status === 'fidelity_unavailable') {
     return 'The lesson plan was received, but the move-by-move check could not run for this '
-      + 'observation. Section B keeps its standard AI assessment — continue to the next section.';
+      + 'observation.' + consequence;
   }
   // lp_absent, or no fidelity blob at all: no plan ever reached this observation.
-  return 'No usable lesson plan was linked for this observation, so Section B was scored by the '
-    + 'AI assessment. Nothing to review here — continue to the next section.';
+  return 'No lesson plan was provided for this observation, so there was nothing to check the '
+    + 'lesson against.' + consequence;
 }
 
 function buildScreenPrefill(analysis, domainKey) {
