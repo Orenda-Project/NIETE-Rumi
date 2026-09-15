@@ -1103,7 +1103,7 @@ async function handleVoiceMessage(message, from, user = null) {
       typingController.stop();
 
       if (user && sessionId) {
-        await MenuService.sendMenu(from, user.id, sessionId);
+        await MenuService.sendMenu(from, user.id, sessionId, 'en', user);
       } else {
         await WhatsAppService.sendMessage(from, "Please complete registration first.");
       }
