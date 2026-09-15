@@ -211,12 +211,12 @@ function createLLMClient() {
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
-    // bd-8t362. `usage: {include:true}` asks OpenRouter to attach what it ACTUALLY charged,
-    // margin included. That is the only honest number available here: a table of vendor list
-    // prices would be confidently wrong for a reseller, and 44 files were recording nothing
-    // at all. This is the one request field this change adds, and it is additive.
-    if (params.usage === undefined) params = { ...params, usage: { include: true } };
-
+    // bd-8t362. NOTHING is added to the request. An earlier draft of this sent
+    // `usage: {include:true}` to ask OpenRouter for its accounting, until lp612-author's own
+    // note pointed out that `usage.cost` and `usage.prompt_tokens_details` are already on every
+    // OpenRouter response WITHOUT it, verified against the live API
+    // (11_cost/evidence/usage_flag.json). Changing a request for no benefit is exactly the
+    // risk this whole workstream exists to avoid, so this is logging only.
     const startedAt = Date.now();
     const response = await originalCreate(params, options);
     try {
@@ -317,8 +317,14 @@ function buildDirectLaneClient(directModel, ctx) {
   async function create(params) {
     const payload = { ...params, model: directModel };
     try {
+      const startedAt = Date.now();
       const msg = await getAnthropicDirectClient().messages.create(toNativeRequest(payload));
-      return fromNativeResponse(msg);
+      const mapped = fromNativeResponse(msg);
+      // bd-8t362: this lane never touched the OpenRouter wrapper, so lesson-plan authoring,
+      // the job with the largest spend here, recorded nothing while its own fallback did.
+      // The facade has already worked out a real price, cache multipliers and all.
+      recordModelCost(directModel, mapped, startedAt, { lane: 'anthropic-direct' });
+      return mapped;
     } catch (e) {
       if (!isCreditClassError(e)) throw e;
 
