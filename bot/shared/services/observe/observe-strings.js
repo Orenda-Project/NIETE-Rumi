@@ -104,6 +104,11 @@ const STRINGS = {
     // ONCE: the worker sweep retries by itself, so she must NOT re-record.
     debrief_processing_failed:
       'Sikuweza kuchakata rekodi hii ya debrief bado. Nitaendelea kujaribu tena mwenyewe — hakuna haja ya kurekodi upya. Kama hakuna kitu kitakachofika ndani ya saa moja, andika /observe na uchague debrief hiyo tena.',
+    // The OTHER failure state, which shared the message above until now: a
+    // WhatsApp media id that has expired. No retry can reach that recording, so
+    // promising one leaves the coach waiting instead of re-recording.
+    debrief_media_gone:
+      'Rekodi hii ya debrief haipatikani tena — WhatsApp huhifadhi rekodi kwa wiki kadhaa tu, na hii imepita muda huo. Tafadhali rekodi debrief tena na unitumie.',
     // bd-jrxo3 — nothing bound: start from the school, then re-send the recording.
     redirect_pick_teacher:
       'Tuanze na shule ili rekodi hii imfikie mwalimu sahihi. Chagua shule, kisha mwalimu — kisha nitumie rekodi tena.',
@@ -282,6 +287,9 @@ const STRINGS = {
     // bd-2kxxa.3 — gender-agnostic when addressing the coach (imperatives only).
     debrief_processing_failed:
       'ڈی بریف کی ریکارڈنگ ابھی پروسیس نہیں ہو سکی۔ میں خود بخود دوبارہ کوشش کرتی رہوں گی — دوبارہ ریکارڈ کرنے کی ضرورت نہیں۔ اگر ایک گھنٹے میں رائے نہ آئے تو /observe لکھ کر یہ ڈی بریف دوبارہ چنیں۔',
+    // Gender-agnostic when addressing the coach (imperatives only).
+    debrief_media_gone:
+      'ڈی بریف کی یہ ریکارڈنگ اب دستیاب نہیں ہے — واٹس ایپ ریکارڈنگ صرف چند ہفتوں تک رکھتا ہے، اور یہ اس سے پرانی ہو چکی ہے۔ براہِ کرم ڈی بریف دوبارہ ریکارڈ کر کے مجھے بھیج دیں۔',
     // bd-jrxo3 — gender-agnostic when addressing the coach (imperatives only).
     redirect_pick_teacher:
       'آئیے اسکول سے شروع کرتے ہیں تاکہ یہ ریکارڈنگ صحیح استاد تک پہنچے۔ پہلے اسکول چنیں، پھر استاد — اور اس کے بعد ریکارڈنگ دوبارہ بھیج دیں۔',
@@ -473,6 +481,10 @@ const STRINGS = {
     // ONCE: the worker sweep retries by itself, so she must NOT re-record.
     debrief_processing_failed:
       "I couldn't process this debrief recording yet. I'll keep retrying automatically — you don't need to re-record. If nothing arrives within an hour, open /observe and pick that debrief again.",
+    // The OTHER failure state. Say what is true: the recording is gone, and the
+    // only way forward is a new one.
+    debrief_media_gone:
+      "This debrief recording is no longer available — WhatsApp keeps a recording for only a few weeks, and this one is past that. Please record the debrief again and send it to me.",
     // bd-jrxo3 — the accepted cost is stated plainly: she sends it again.
     redirect_pick_teacher:
       "Let's start from the school so this reaches the right teacher. Pick the school, then the teacher — then send me the recording again.",
