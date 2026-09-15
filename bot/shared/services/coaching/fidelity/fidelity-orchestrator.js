@@ -99,7 +99,10 @@ async function computeLpFidelity(input = {}, deps = {}) {
     } catch (firstErr) {
       graded = await analyzeFidelity(moves, input.transcript, meta);
     }
-    const analysis = scoreFidelity(moves, graded.verdicts);
+    // The grader's moderators go IN so the scorer can check the note against the
+    // verdicts written beside it; the scorer's moderators come back out (below) as the
+    // single writer of that block on this path.
+    const analysis = scoreFidelity(moves, graded.verdicts, { moderators: graded.moderators });
 
     return {
       status: 'ok',
@@ -113,7 +116,9 @@ async function computeLpFidelity(input = {}, deps = {}) {
       ...analysis,
       narrative: graded.narrative || null,
       language_note: graded.language_note || null,
-      moderators: graded.moderators || null,
+      // NOT `graded.moderators` — the scorer returns that block with its own
+      // truncation_inconsistent finding folded in, and re-reading the grader's copy
+      // here would silently drop it. One writer.
       model: graded.model || null,
       graded_at: null, // stamped by the caller (Date.now unavailable here / keep deterministic)
     };

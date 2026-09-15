@@ -217,6 +217,9 @@ const STRINGS = {
   // FEAT-093 bd-53 — Urdu, authored natively (never machine-mirrored from sw/en).
   // Same trust rules: never a score to the teacher, warm and direct, second person.
   ur: {
+    fid_truncation_recheck:
+      'نوٹ: ریکارڈنگ سبق مکمل ہونے سے پہلے ختم ہوتی دکھائی دیتی ہے، اس لیے بعد کے مراحل کی '
+      + 'درست جانچ نہیں ہو سکی۔ نیچے جس درجہ بندی سے اختلاف ہو، براہ کرم اُس پر دوبارہ نظر ڈالیں۔',
     no_account: 'معاف کیجیے، آپ کا اکاؤنٹ نہیں ملا۔ براہ کرم پہلے رجسٹر کریں۔',
     capture_failed: 'معاف کیجیے — یہ مشاہدہ محفوظ کرتے وقت میری طرف سے مسئلہ ہوا۔ آپ کی ریکارڈنگ ضائع نہیں ہوئی۔ براہ کرم دوبارہ /observe لکھ کر بھیجیں۔',
     role_denied: 'یہ سہولت اسکول لیڈرز، سپروائزرز، کوچز اور پرنسپلز کے لیے ہے۔ اگر آپ کو یہ کردار ملنا چاہیے تو اپنی ٹیم سے رابطہ کریں۔',
@@ -381,6 +384,15 @@ const STRINGS = {
     companion_closing: 'ہمیں آپ کے کام پر فخر ہے۔ ہم ساتھ ہیں۔ 💛',
   },
   en: {
+    // ── Section B: the AI's own caveat contradicted its own verdicts ─────
+    // The grader wrote that the recording ended before the lesson did and then
+    // counted the later moves as misses anyway. The coach was in the room, so she
+    // is the instrument here: her per-move ratings re-run the same scorer. Says
+    // what happened and what to do, and asks nothing of the AI. Impersonal, so no
+    // gendered verb stem in either language.
+    fid_truncation_recheck:
+      'Note: the recording appears to end before the lesson did, so the later moves '
+      + 'could not be checked properly. Please re-check any rating below that you disagree with.',
     no_account: "Sorry, I couldn't find your account. Please send me any message first, then try /observe again.",
     capture_failed: "Sorry — something went wrong on my side while saving that observation. Your recording isn't lost. Please type /observe and send it again; if it keeps happening, tell the team.",
     role_denied:
