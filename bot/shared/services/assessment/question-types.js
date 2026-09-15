@@ -166,5 +166,46 @@ function parseQuestionCount(raw) {
   return { ok: true, count: n };
 }
 
+/**
+ * The most marks a paper may be asked to carry.
+ *
+ * This is a typo guard, not a product opinion. It has to sit ABOVE any paper a
+ * teacher could legitimately want, or it refuses real work: 25 questions (the
+ * question ceiling) at a generous 20 marks each is 500. So 500 never blocks a
+ * genuine request and still catches the keypad slip that turns 40 into 4000.
+ */
+const MAX_TOTAL_MARKS = 500;
+
+/**
+ * Read the marks budget she typed, which she is allowed not to type.
+ *
+ * The one real difference from parseQuestionCount: BLANK IS VALID. The question
+ * count is required and an empty box is a mistake; the budget is optional and an
+ * empty box is an answer — "no budget", the behaviour that existed before this
+ * field did. So empty returns ok with a null, and only a value she actually
+ * typed is held to the range.
+ *
+ * Out of range is REFUSED rather than clamped, for the same reason as the count:
+ * quietly turning 4000 into 500 hands her a paper she did not ask for and never
+ * mentions it.
+ */
+function parseTotalMarks(raw) {
+  const text = String(raw ?? '').trim();
+  const range = `Type a number between 1 and ${MAX_TOTAL_MARKS}, or leave it blank.`;
+
+  // Blank is a choice, not a mistake.
+  if (!text) return { ok: true, marks: null };
+
+  if (!/^\d+$/.test(text)) return { ok: false, message: range };
+
+  const n = Number(text);
+  if (!Number.isInteger(n) || n < 1) return { ok: false, message: range };
+  if (n > MAX_TOTAL_MARKS) {
+    return { ok: false, message: `A paper can carry up to ${MAX_TOTAL_MARKS} marks. ${range}` };
+  }
+  return { ok: true, marks: n };
+}
+
 module.exports = {
-  parseQuestionCount, MAX_QUESTIONS, DEFAULT_QUESTIONS, forSubject, categoryOf, withCounts, defaultMix, CATALOGUE };
+  parseQuestionCount, MAX_QUESTIONS, DEFAULT_QUESTIONS, forSubject, categoryOf, withCounts, defaultMix, CATALOGUE,
+  parseTotalMarks, MAX_TOTAL_MARKS };

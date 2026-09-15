@@ -154,7 +154,7 @@ async function _patchPaper(paperId, patch) {
 async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
-    questionTypes = [], contentSource = 'unseen', questionCount,
+    questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null,
     outputFormat = 'pdf', includeAnswerKey = false, answerLines = true,
   } = job;
 
@@ -179,7 +179,7 @@ async function buildPaper(job, user = {}) {
       grade, subject,
       pageContent: source.content,
       pageReference: source.pageReference,
-      contentSource, questionCount, questionTypes, includeAnswerKey,
+      contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey,
     });
 
     await _patchPaper(paperId, {

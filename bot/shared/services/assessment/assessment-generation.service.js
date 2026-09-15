@@ -151,7 +151,7 @@ function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [
  * listed separately because that is the shape of the tree the model returns.
  */
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
-                           contentSource, questionCount, questionTypes = [] }) {
+                           contentSource, questionCount, questionTypes = [], totalMarks = null }) {
   const plan = planCounts({ contentSource, questionCount, questionTypes });
   const objective = plan.questionTypes.filter((q) => q.category === 'objective');
   const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
@@ -171,6 +171,10 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
       + 'exercises on these pages (objective and subjective)');
   }
 
+  // Only when she set one. An always-present line about marks would change every
+  // prompt we have ever sent, including for the papers nobody budgeted.
+  const budget = Number(totalMarks) > 0 ? Number(totalMarks) : null;
+
   return `**Grade:** ${grade}
 **Subject:** ${subject}
 **Page Reference:** ${pageReference}
@@ -182,7 +186,8 @@ ${pageContent}
 
 **GENERATE THE FOLLOWING:**
 ${items.map((i) => `• ${i}`).join('\n')}
-• In total the paper must have exactly ${plan.total} questions — no more
+• In total the paper must have exactly ${plan.total} questions — no more${budget ? `
+• The whole paper must be worth ${budget} marks in total — allocate the marks across the questions so they add up to ${budget} and NEVER exceed it` : ''}
 
 **IMPORTANT NOTES:**
 • For SEEN questions: Extract questions exactly as they appear in the textbook
@@ -260,6 +265,97 @@ function countQuestions(examJson) {
 }
 
 /**
+ * What one question is worth, measured the way the paper prints it.
+ *
+ * A composite question (a Long Question with parts) carries marks on its
+ * sub-questions, and the renderer's totalMarks() prefers their sum over the
+ * parent's own number. Enforcement has to agree with the renderer, or we trim
+ * against one total and print another.
+ */
+function _marksOf(q) {
+  if (Array.isArray(q?.questions)) {
+    const subs = q.questions.reduce((s, sub) => s + (Number(sub?.marks) || 0), 0);
+    if (subs > 0) return subs;
+  }
+  return Number(q?.marks) || 0;
+}
+
+/** What the whole tree is worth. Same rule, every question. */
+function totalMarksOf(examJson) {
+  let sum = 0;
+  _walkQuestions(examJson, (q) => { sum += _marksOf(q); });
+  return sum;
+}
+
+/**
+ * Keep the paper inside the marks budget she asked for.
+ *
+ * The prompt states the budget; this makes it true when the model ignores it —
+ * the same job trimSeen does for the seen cap, and done the same way: walk in
+ * tree order, keep while there is room, drop the rest. Returns how many were
+ * removed.
+ *
+ * Two decisions worth stating, because both are load-bearing:
+ *
+ *   * We DROP whole questions rather than rescale marks. Marks are pedagogical:
+ *     a 5-mark essay rewritten to 2 marks misrepresents the work it demands and
+ *     silently edits a mark scheme she will grade against. Every question that
+ *     survives is exactly as the model wrote it.
+ *
+ *   * Dropping can leave her with fewer questions than she asked for, and that
+ *     is the intended trade. The marks total is the constraint imposed on her
+ *     from outside — the exam type, the school — while the question count is her
+ *     own preference, and is already soft downstream (trimSeen drops, and the
+ *     review screen lets her untick more). Overshooting marks is the failure she
+ *     cannot fix after the fact; a question short, she can see and regenerate.
+ *
+ * A budget of null/0 means she set none: nothing is touched, which is the
+ * behaviour that existed before this field did.
+ */
+function enforceMarksBudget(examJson, budget) {
+  const cap = Number(budget);
+  if (!Number.isFinite(cap) || cap <= 0) return 0;
+  if (totalMarksOf(examJson) <= cap) return 0;
+
+  let spent = 0;
+  let kept = 0;
+  let removed = 0;
+
+  const fits = (q) => {
+    const cost = _marksOf(q);
+    // The first question always survives. A single question worth more than the
+    // whole budget would otherwise empty the paper, and a paper slightly over
+    // budget beats a blank one.
+    if (kept === 0 || spent + cost <= cap) {
+      spent += cost;
+      kept += 1;
+      return true;
+    }
+    removed += 1;
+    return false;
+  };
+
+  const take = (list) => list.filter((q) => (q && typeof q === 'object' ? fits(q) : true));
+
+  for (const section of ['seen', 'unseen']) {
+    const branch = examJson?.[section];
+    if (!branch || typeof branch !== 'object') continue;
+    for (const category of Object.values(branch)) {
+      if (!category || typeof category !== 'object') continue;
+      for (const [type, entry] of Object.entries(category)) {
+        if (Array.isArray(entry)) category[type] = take(entry);
+        else if (entry && typeof entry === 'object') {
+          for (const [sub, list] of Object.entries(entry)) {
+            if (Array.isArray(list)) entry[sub] = take(list);
+          }
+        }
+      }
+    }
+  }
+  return removed;
+}
+
+/**
  * The model is told not to emit "image" keys, and sometimes emits them anyway.
  * Their value is a prompt for an image generator we did not port, so left in
  * place they render as a stray line of instructions on a child's exam paper.
@@ -274,7 +370,8 @@ function stripImageKeys(examJson) {
 
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
-          contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false } = args;
+          contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
+          totalMarks = null } = args;
 
   const key = canonical(subject) || 'eng';
   const model = URDU_MEDIUM.has(key) ? MODELS.urdu : MODELS.eng;
@@ -282,7 +379,7 @@ async function generateExam(args) {
 
   const messages = [
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes }) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks }) },
   ];
 
   logToFile('[assessment] generating', {
@@ -338,6 +435,15 @@ async function generateExam(args) {
     logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
   }
   const trimmed = removedSeen > 0 ? { seen: removedSeen } : {};
+
+  // Last, because it measures the paper that actually survived the seen cap.
+  const marksRemoved = enforceMarksBudget(examJson, totalMarks);
+  if (marksRemoved > 0) {
+    logToFile('[assessment] dropped questions to fit the marks budget', {
+      totalMarks, removed: marksRemoved, marksNow: totalMarksOf(examJson),
+    });
+  }
+
   const produced = countQuestions(examJson);
   if (produced === 0) {
     // Valid JSON with an empty tree. Rare, and worth its own code: retrying is
@@ -357,7 +463,7 @@ async function generateExam(args) {
     grade, subject: key, questionCount: produced, elapsedMs: Date.now() - startedAt, ...tokenData,
   });
 
-  return { examJson, questionCount: produced, tokenData, trimmed, plan, elapsedMs: Date.now() - startedAt };
+  return { examJson, questionCount: produced, tokenData, trimmed, plan, marksRemoved, elapsedMs: Date.now() - startedAt };
 }
 
 module.exports = {
@@ -366,6 +472,8 @@ module.exports = {
   buildUserPrompt,
   planCounts,
   trimSeen,
+  enforceMarksBudget,
+  totalMarksOf,
   countQuestions,
   stripImageKeys,
   MODELS,
