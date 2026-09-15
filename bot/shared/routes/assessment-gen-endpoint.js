@@ -765,8 +765,19 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     });
     await writeSession(flowToken, state);
 
-    const wantsTypes = data.pick_types === true || data.pick_types === 'true';
-    if (wantsTypes) {
+    // The CATEGORY decides whether she is asked, not an opt-in she has to find.
+    //
+    // `seen` lifts its questions out of the book, so each one already IS a type
+    // — asking her to choose is a question whose answer cannot be used, and
+    // planCounts() proves it by returning `questionTypes: []` for seen. Behind
+    // the old tick-box she could pick four types and have all four discarded.
+    //
+    // `unseen` and `both` have new questions to write, and nothing to inherit a
+    // type from. That makes the choice load-bearing, so it is a step rather than
+    // an opt-in: unticked, the common path fell through to our defaultMix()
+    // guess instead of the paper she wanted. TYPES refuses an empty selection.
+    const needsTypes = state.contentSource === 'unseen' || state.contentSource === 'both';
+    if (needsTypes) {
       return screen('TYPES', {
         summary: summaryOf(state),
         types: QuestionTypes.forSubject(state.subject, state.grade)
