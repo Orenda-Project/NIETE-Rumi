@@ -724,9 +724,9 @@ const SECTION_B_KEY = 'lesson_plan_fidelity';
 // Sum the overall from the sections as they now stand, honouring BOTH exclusion
 // rules: a section marked `assessed: false` leaves the total entirely, and every
 // other section contributes the applicable-aware `domain_max` computeScores
-// stamped on it. A section the analysis omitted still carries its declared max,
-// exactly as the flat constant did before, so a partial analysis cannot shrink
-// its own denominator into a flattering percentage.
+// stamped on it. It mirrors computeScores exactly, including how it treats a
+// section the analysis omitted — the two must never be able to disagree about a
+// denominator, which is the whole defect this function exists to close.
 //
 // This is the only arithmetic allowed to write scores.overall_max_marks besides
 // computeScores. It used to re-read the flat framework constant, which threw the
@@ -738,19 +738,19 @@ function recomputeOverall(analysis) {
   let overallMax = 0;
   for (const key of Object.keys(DOMAINS)) {
     const d = analysis.domains[key];
-    const declaredMax = DOMAINS[key].indicatorCount * SCALE_MAX;
-    if (!d) { overallMax += declaredMax; continue; }
+    if (!d) continue;
     if (d.assessed === false) continue;
     if (typeof d.domain_score === 'number') overallMarks += d.domain_score;
-    overallMax += typeof d.domain_max === 'number' ? d.domain_max : declaredMax;
+    overallMax += typeof d.domain_max === 'number'
+      ? d.domain_max
+      : DOMAINS[key].indicatorCount * SCALE_MAX;
   }
+  const maxMarks = overallMax || MAX_MARKS;
   analysis.scores = {
     ...(analysis.scores || {}),
     overall_marks: overallMarks,
-    overall_max_marks: overallMax,
-    overall_percentage: overallMax > 0
-      ? parseFloat(((overallMarks / overallMax) * 100).toFixed(1))
-      : 0,
+    overall_max_marks: maxMarks,
+    overall_percentage: parseFloat(((overallMarks / maxMarks) * 100).toFixed(1)),
   };
   return analysis;
 }
