@@ -3,6 +3,7 @@ const { generateCorrelationId, runWithCorrelation } = require('./shared/utils/st
 
 require('dotenv').config();
 const express = require('express');
+const { trackWebhookWork, installWebDrain } = require('./shared/utils/web-drain');
 const fs = require('fs');
 
 // Import Services
@@ -452,7 +453,8 @@ app.post('/webhook', async (req, res) => {
 
   // Wrap the entire request processing with correlation context
   // All console.log calls inside will automatically include correlationId
-  await runWithCorrelation(correlationId, async () => {
+  // Tracked, so a deploy's drain waits for this work and not just for the ack.
+  await trackWebhookWork(runWithCorrelation(correlationId, async () => {
     logToFile('=== INCOMING WEBHOOK ===', { correlationId });
 
     // Issue #58 FIX: Add button payload diagnostic logging
@@ -2323,7 +2325,7 @@ app.post('/webhook', async (req, res) => {
     });
     ack(); // Still send 200 to avoid retries
   }
-  }); // End of runWithCorrelation
+  })); // End of runWithCorrelation (tracked by web-drain)
 });
 
 /**
@@ -2775,20 +2777,11 @@ ${'='.repeat(70)}
 
 if (require.main === module) {
   const server = startServer();
-  // bd-gc7uc: graceful web drain. On a deploy SIGTERM, stop accepting new
-  // connections and let in-flight webhook handlers finish before exit, so a
-  // deploy never cuts a request mid-processing (e.g. a coaching audio being
-  // enqueued). Railway's healthcheck already routes NEW webhooks to the new
-  // container; this protects the old one's in-flight work. Hard-exit fallback so
-  // we never hang past Railway's kill window.
-  const gracefulWebShutdown = (signal) => {
-    logToFile(`🛑 ${signal} received — draining HTTP server`);
-    const force = setTimeout(() => { logToFile('⚠️ Web drain timeout — forcing exit'); process.exit(0); }, 25000);
-    if (typeof force.unref === 'function') force.unref();
-    server.close(() => { logToFile('✅ HTTP server drained, exiting'); process.exit(0); });
-  };
-  process.on('SIGTERM', () => gracefulWebShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulWebShutdown('SIGINT'));
+  // Graceful web drain. On a deploy SIGTERM, stop accepting connections and
+  // wait for in-flight webhook WORK to finish (the route acks before it works,
+  // so waiting for sockets alone exits mid-send). Bounded inside Railway's
+  // draining window — see shared/utils/web-drain.js.
+  installWebDrain({ server, log: logToFile });
 }
 
 module.exports = { app, startServer };
