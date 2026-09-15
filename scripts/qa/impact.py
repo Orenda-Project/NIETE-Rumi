@@ -269,7 +269,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
         L += ["> This range targets a promotion branch: the map asks for `%s` (the whole suite)." % res["full_suite"], ""]
     misses = res.get("cassette_misses") or {}
     if misses:
-        owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mahnoor").strip()
+        owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mah-noor1").strip()
         owner = owner if owner.startswith("@") else "@" + owner
         total = sum(misses.values())
         per = ", ".join("`%s` (%d)" % (f, n) for f, n in sorted(misses.items()))
