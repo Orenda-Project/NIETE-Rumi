@@ -1282,11 +1282,91 @@ async function handOverClass({ classId, schoolId = null, teacherUserId, actorUse
   };
 }
 
+// ---------------------------------------------------------------------------
+// changeClassDetails — grade / section / shift of a saved class, from the
+// saved-roster view of /roster, with the twin-class refuse-or-merge
+// ---------------------------------------------------------------------------
+
+/**
+ * Change a saved class's identity — grade, section, shift — as ONE database
+ * call: bot/database/migrations/roster_change_class_details.sql.
+ *
+ * Those three fields ARE the identity (classes is unique on school + grade +
+ * section + shift + session), so the outcome is one of:
+ *   'unchanged' — the same identity was submitted; nothing written.
+ *   'renamed'   — the target identity is free: the row is updated in place and
+ *                 children, attendance history and class_teachers follow, because
+ *                 they key on the class id. Legacy mirrors are renamed.
+ *   'collision' — an active class with that identity already exists. NOTHING is
+ *                 written; the caller gets `existingClassId`, `existingLabel`,
+ *                 `existingCount` and `sourceCount` to put on a screen and ASK.
+ *   'merged'    — only with `merge: true`: active enrolments move into the
+ *                 existing class (a child already there has her source enrolment
+ *                 closed as a roster_correction; a roll the target holds is
+ *                 dropped from the moved row), the source's teachers get a foothold
+ *                 on the target, its mirrors retire or one is re-linked, and the
+ *                 source is CLOSED with merged_into_class_id set. Nothing deleted.
+ *
+ * Never merge without the coach having seen the collision: the endpoint calls
+ * this twice, once without `merge` (to be told) and once with it (to act).
+ *
+ * `actorUserId` is REQUIRED and reaches the function as p_actor, which it sets
+ * into app.actor so the row-history ledger names the real person.
+ *
+ * @returns {Promise<{action?, classId?, label?, existingClassId?, existingLabel?,
+ *   existingCount?, sourceCount?, targetClassId?, moved?, closedDuplicates?,
+ *   teachersMoved?, targetCount?, mirrorsRenamed?, error?}>}
+ */
+async function changeClassDetails({
+  classId, schoolId = null, gradeCode, section = null, shiftCode = 'morning', actorUserId, merge = false,
+} = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!gradeCode) return { error: 'unknown_grade' };
+  if (!actorUserId) return { error: 'missing_actor' };
+
+  const { data: result, error: rpcErr } = await supabase.rpc('roster_change_class_details', {
+    p_class_id: classId,
+    p_school_id: schoolId,
+    p_grade_code: gradeCode,
+    p_section: normalizeSection(section),
+    p_shift_code: shiftCode || 'morning',
+    p_actor: actorUserId,
+    p_merge: merge === true,
+  });
+
+  if (rpcErr) {
+    const locked = rpcErr.code === '55P03' || /lock timeout/i.test(rpcErr.message || '');
+    logToFile('⚠️ ClassService.changeClassDetails: refused', {
+      classId, code: rpcErr.code, error: rpcErr.message, locked, merge,
+    }, 'error');
+    return { error: locked ? 'save_in_progress' : 'update_failed' };
+  }
+
+  const out = result || {};
+  if (out.error) return { error: out.error };
+  return {
+    action: out.action,
+    classId: out.class_id,
+    label: out.label,
+    existingClassId: out.existing_class_id || null,
+    existingLabel: out.existing_label || null,
+    existingCount: out.existing_count === undefined ? null : Number(out.existing_count),
+    sourceCount: out.source_count === undefined ? null : Number(out.source_count),
+    targetClassId: out.target_class_id || null,
+    moved: Number(out.moved) || 0,
+    closedDuplicates: Number(out.closed_duplicates) || 0,
+    teachersMoved: Number(out.teachers_moved) || 0,
+    targetCount: out.target_count === undefined ? null : Number(out.target_count),
+    mirrorsRenamed: Number(out.mirrors_renamed) || 0,
+  };
+}
+
 module.exports = {
   createClass,
   importRoster,
   applyRosterEdits,
   handOverClass,
+  changeClassDetails,
   assignTeacher,
   updateAssignment,
   leaveClass,
