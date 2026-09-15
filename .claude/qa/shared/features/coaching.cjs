@@ -256,9 +256,16 @@ exports.run = async ({ api, rec, sleep }) => {
   // The early-bail only makes sense under replay-strict: a missing cassette will NEVER arrive, so
   // waiting the whole budget is pure waste. In record/replay the calls go LIVE and legitimately take
   // time (Soniox on a 16-min file, then the LLM), so the pipeline WILL complete — never bail there.
-  const REPLAY_STRICT = String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
-  const STALL_MS = Number(process.env.COACHING_STALL_MS || 150000);
+  // The early-bail runs on the SEALED mock lane, where a stalled pipeline (missing cassette, or a
+  // report that only arrives via the ~13-min debrief sweep) will never complete. Gate on the LANE:
+  // E2E_METHOD reaches the driver process, but E2E_CASSETTE does NOT (it lives in the bot's env only),
+  // so the old `E2E_CASSETTE === replay-strict` check was ALWAYS false here and the bail never fired.
+  const SEALED = String(process.env.E2E_METHOD || '').toLowerCase() === 'mock'
+              || String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
+  const STALL_MS = Number(process.env.COACHING_STALL_MS || 90000);
   let lastMsgAt = Date.now();
+  let lastProgressAt = Date.now();   // advances ONLY on real progress — see the early-bail below
+  let prevSig = '';
   const asrLlmMisses = () => { try { const f = require('path').join(RUN_DIR, 'cassette-misses.jsonl'); if (!require('fs').existsSync(f)) return 0; return require('fs').readFileSync(f, 'utf8').trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch (_) { return {}; } }).filter(m => m.kind === 'asr' || m.kind === 'llm').length; } catch (_) { return 0; } };
 
   // The lesson-plan prompt is a LIST ("منتخب کریں" / "Select") with rows "نیا اپلوڈ کریں" (Upload new),
@@ -370,10 +377,17 @@ exports.run = async ({ api, rec, sleep }) => {
 
     if (!DEEP && obs.steps.length && obs.photoPrompt) break;   // COA04 is decided
     if (obs.commitment) break;
-    // Stuck before the reflective step (3/5) with the bot silent for STALL_MS → the transcription/LLM
-    // answer is not cassetted; stop now rather than burning the rest of the 20-min budget.
-    if (DEEP && REPLAY_STRICT && !obs.report && !obs.steps.includes('3') && Date.now() - lastMsgAt > STALL_MS) {
-      obs.stalled = { silentSec: Math.round((Date.now() - lastMsgAt) / 1000), atSteps: obs.steps.slice(), asrLlmMisses: asrLlmMisses() };
+    // Early-bail (fast commit gate): the DEEP pipeline is stuck when it makes NO forward progress —
+    // no new step, report, photo/LP prompt, reflective turn or commitment — for STALL_MS. That happens
+    // on a missing cassette OR when the report only arrives via the ~13-min debrief sweep. Stop now
+    // rather than burning the 20-min budget; the deep scenarios then record BLOCKED. Progress is a
+    // signature, so unrelated debrief nudges don't reset the timer — the old check keyed on lastMsgAt
+    // and "before step 3", so it never fired once step 3 (the reflective step) was reached.
+    const sig = obs.steps.length + '/' + (obs.report ? 1 : 0) + '/' + (obs.photoPrompt ? 1 : 0)
+              + '/' + (obs.lpPrompt ? 1 : 0) + '/' + (obs.reflectiveAnswers || 0) + '/' + (obs.commitment ? 1 : 0);
+    if (sig !== prevSig) { prevSig = sig; lastProgressAt = Date.now(); }
+    if (DEEP && SEALED && !obs.report && Date.now() - lastProgressAt > STALL_MS) {
+      obs.stalled = { silentSec: Math.round((Date.now() - lastProgressAt) / 1000), atSteps: obs.steps.slice(), asrLlmMisses: asrLlmMisses() };
       break;
     }
     await sleep(5000);

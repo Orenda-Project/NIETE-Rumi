@@ -213,6 +213,14 @@ done
 
 # ── 3. report scaffolding ──────────────────────────────────────────────────────────────────────
 python3 "$QA/build-per-scenario.py" "$RUN_DIR" >>"$LOG" 2>&1 || say "(build-per-scenario.py failed — write PER-SCENARIO.md by hand from the JSONs)"
+
+# ── 3b. mock-lane regression gate — the trustworthy signal for the commit gate. Separates a REAL
+# break (a scenario that is NOT a documented known finding fails/blocks) from the expected findings
+# in known-findings.json, so a red line here means THIS commit broke something. Informational; the
+# per-feature ledger rows still record every verdict.
+if [ "$METHOD" = mock ] && [ -f "$QA/check_known_findings.py" ]; then
+  say "$(python3 "$QA/check_known_findings.py" "$RUN_DIR" 2>&1)"
+fi
 T1=$(date +%s)
 say "=== suite end $(date -u +%FT%TZ) · wall $(( (T1-T0)/60 ))m$(( (T1-T0)%60 ))s · results: $RUN_DIR"
 say "next: python3 $QA/validate-run.py \"$RUN_DIR\" · python3 $QA/run_efficiency.py \"$RUN_DIR\" · then §3 of /niete-e2e"

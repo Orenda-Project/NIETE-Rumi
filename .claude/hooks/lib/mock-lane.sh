@@ -19,6 +19,12 @@ E2E_MOCK_FEATURES_DEFAULT="menu,language,status,lesson-plan,coaching,training"  
 
 e2e_mock_features() { printf '%s' "${E2E_MOCK_FEATURES:-$E2E_MOCK_FEATURES_DEFAULT}"; }
 
+# Chrome lane PAUSED by default (operator, 2026-09-15): the mock lane is LAYER 1 and the sole
+# auto-run for a commit. When paused, a commit drives ONLY the mock lane and the chrome-only features
+# (registration / observe / attendance) are NOT auto-nudged. Chrome is layer 2, to be wired later.
+# Re-enable the chrome lane with E2E_CHROME_ON=1. Returns 0 (paused) unless explicitly enabled.
+e2e_chrome_paused() { [ "${E2E_CHROME_ON:-0}" != "1" ]; }
+
 # e2e_split_lanes "<csv of features>"  → sets E2E_LANE_MOCK and E2E_LANE_CHROME (csv, may be empty)
 e2e_split_lanes() {
   local feats="$1" f mock="" chrome="" allow=",$(e2e_mock_features),"

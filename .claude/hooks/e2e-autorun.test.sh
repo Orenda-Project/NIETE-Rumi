@@ -32,6 +32,11 @@ SYNC=".claude/.e2e-pending/$SESSION.sync.json"
 G="git"; P="push"
 FAILED=0
 
+# The chrome lane is PAUSED by default now (mock is layer 1; operator 2026-09-15). Every existing
+# case below exercises the chrome-ENABLED path, so enable it for them; the paused default has its own
+# section ("chrome lane paused") at the end.
+export E2E_CHROME_ON=1
+
 # QUARANTINE real git-armed markers for the duration of the run. The Stop hook
 # adopts an un-nudged `git-<sha>.json` left by a terminal commit (.githooks/
 # post-commit), so a developer with pending QA work would see every "stays
@@ -868,6 +873,27 @@ JSON
 LR=$(stop_reason_full)
 has "push: chrome order kept"                      "$LR" "/niete-e2e menu"  yes
 has "push: no mock lane"                           "$LR" "commit-e2e.sh"    no
+
+# ── chrome lane PAUSED (default; operator 2026-09-15): a commit drives ONLY the mock lane ──
+unset E2E_CHROME_ON
+cat > "$LPENDING" <<JSON
+{"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
+ "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
+ "commands":["/niete-e2e menu","/niete-e2e registration"],"features":["menu","registration"],"fallback":false,"unmapped":[]}
+JSON
+LR=$(stop_reason_full)
+has "paused: mock lane still ordered for menu" "$LR" "commit-e2e.sh $LSHA --features menu" yes
+has "paused: chrome DROPPED for registration"  "$LR" "/niete-e2e registration"             no
+# a commit that touched ONLY a chrome-only feature has nothing to run when chrome is paused → NO-BLOCK
+cat > "$LPENDING" <<JSON
+{"session":"$LSESSION","repo":"NIETE-Rumi","branch":"feat-x","commit_sha":"$LSHA","trigger":"commit","mode":"execute",
+ "armed_at":"2026-09-08T00:00:00Z","nudged":false,"spec_sync":false,
+ "commands":["/niete-e2e registration"],"features":["registration"],"fallback":false,"unmapped":[]}
+JSON
+LR=$(stop_reason_full)
+has "paused: chrome-only commit does not wedge the turn" "$LR" "NO-BLOCK" yes
+export E2E_CHROME_ON=1
+rm -f "$LPENDING"
 rm -f "$LPENDING"
 
 # ─────────────────────────────────────────────────────────────────────────────

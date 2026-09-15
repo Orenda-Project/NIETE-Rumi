@@ -194,6 +194,9 @@ if [ "$TRIGGER" = "commit" ] && [ -n "$SHA" ] && type e2e_split_lanes >/dev/null
     CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
   fi
 fi
+# Chrome lane PAUSED (mock is layer 1; operator 2026-09-15): drop the chrome /niete-e2e nudge so a
+# commit drives ONLY the mock lane. Chrome-only features are not auto-run for now. E2E_CHROME_ON=1 re-enables.
+if e2e_chrome_paused 2>/dev/null; then CMDS=""; E2E_LANE_CHROME=""; fi
 
 # PHASE 1 — the Gherkin sync (bd-59809).
 #
@@ -334,6 +337,10 @@ installed dependencies are its only preconditions (docs/e2e-mock-lane.md). If it
 cannot start, say which precondition failed, plainly, and clear the marker.
 EOF
 fi
+
+# Chrome paused and nothing else to nudge: this commit touched only chrome-only features (no mock
+# lane for them) and no spec sync is pending. Don't wedge the turn — there is nothing to run now.
+if [ -z "$MOCK_BLOCK" ] && [ -z "$CMDS" ] && [ -z "$PHASE1" ]; then exit 0; fi
 
 read -r -d '' REASON <<EOF
 EXECUTE NOW — the E2E for $WHOSE has not

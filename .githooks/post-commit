@@ -107,7 +107,13 @@ REL_SYNC=".claude/.e2e-pending/git-$SHA.sync.json"
   if [ -n "${E2E_LANE_MOCK:-}" ]; then
     echo "│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/shared/commit-e2e.sh $SHA --features $E2E_LANE_MOCK"
   fi
-  [ -n "${E2E_LANE_CHROME:-}" ] && echo "│ Then WhatsApp Web (deployed build) →  $CMDS"
+  if [ -n "${E2E_LANE_CHROME:-}" ]; then
+    if [ "${E2E_CHROME_ON:-0}" != "1" ]; then
+      echo "│ (chrome lane PAUSED — $E2E_LANE_CHROME not auto-run; mock is layer 1. Set E2E_CHROME_ON=1 to enable)"
+    else
+      echo "│ Then WhatsApp Web (deployed build) →  $CMDS"
+    fi
+  fi
   echo "│ Open Claude Code in this clone: it announces this at start and holds the turn once until"
   echo "│ it is driven or cleared. Off: QA_HOOKS_OFF=1 · Quiet: QA_HOOKS_QUIET=1"
   echo "└ marker: .claude/.e2e-pending/git-$SHA.json"
