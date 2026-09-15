@@ -92,9 +92,24 @@ function buildObservationRecord({ leaderUserId, sessionId, teacher, today }) {
   if (!leaderUserId) throw new Error('observe-who: leaderUserId required');
   if (!sessionId) throw new Error('observe-who: sessionId required');
   if (!teacher) throw new Error('observe-who: teacher required');
+  // The FK, written beside the phone rather than instead of it (bd-60097).
+  // The backfill gave this table a real teacher_user_id, but nothing wrote it,
+  // so every booking since landed NULL — 22 upcoming visits on production one
+  // day later, invisible to any lookup by identity. Both columns are written
+  // until the readers move; dropping the text key here would orphan them.
+  //
+  // Either spelling: observe-who's stash carries `userId`, the patch resolver
+  // shapes rows with `user_id`, and a booking must not lose its FK because the
+  // caller used the other one. No id means NULL — a booking with an
+  // unresolvable teacher is still a booking, and the backfill can bind it
+  // later; inventing an id is the one outcome worse than a NULL.
+  const rawId = teacher.userId || teacher.user_id || null;
+  const teacherUserId = String(rawId == null ? '' : rawId).trim() || null;
+
   return {
     leader_user_id: leaderUserId,
     session_id: sessionId,
+    teacher_user_id: teacherUserId,
     teacher_ext_id: teacher.teacher_ext_id || null,
     teacher_name: teacher.teacher_name || teacher.name || null,
     school_ext_id: teacher.school_ext_id || null,
@@ -125,6 +140,12 @@ async function _withSchools(leaderUserId, teachers) {
       const p = byPhone.get(t.teacher_ext_id);
       return {
         ...t,
+        // Carry the resolved identity through, not just the school: this is the
+        // only point where the phone is already matched to a user, and the
+        // booking needs that id to write its FK (bd-60097). Resolving it again
+        // at insert time would be a second lookup that can disagree with this
+        // one.
+        userId: (p && p.userId) || t.userId || null,
         school_ext_id: p && p.emis ? `niete:${p.emis}` : null,
         school_name: (p && p.schoolName) || null,
       };
