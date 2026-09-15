@@ -58,6 +58,11 @@ npm run simulate          # CLI simulator (test without WhatsApp)
 4. **Background jobs go through the pluggable queue** — `QUEUE_DRIVER` selects SQS (default) or BullMQ/Redis
 5. **Feature gating is presence-based** — a feature is on iff its env keys are present
    (`bot/shared/config/feature-availability.js`); there is no `RUMI_TIER`
+6. **Branches: `sandbox` → cherry-pick → `staging` → plain merge → `main`** — work lands on
+   `sandbox` first, is cherry-picked to `staging` (the promotion gate, cut from `main`), and
+   `staging` reaches `main` as a plain merge. A PR into `main` from anything but `staging` is a
+   defect and CI fails it. Never back-merge `main` into `staging` to clear divergence.
+   `develop` is frozen since 2026-09-08 and deploys nowhere.
 
 ## Key Configuration Files
 

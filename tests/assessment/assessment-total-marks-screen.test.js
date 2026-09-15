@@ -41,8 +41,12 @@ const SESSION = {
   pageRanges: '34-41', questionTypes: [],
 };
 
+// `seen` because it is the category that goes straight to CONFIRM: types are
+// fixed by the book questions, so there is no TYPES screen in the way (bd-60100).
+// What is under test here is the marks budget, not the routing — an `unseen`
+// helper would stop at TYPES and assert nothing about the budget.
 const ask = (data) => exchange('u1', 'QUESTIONS',
-  { content_source: 'unseen', pick_types: false, ...data }, 'u1:assessment-gen:1');
+  { content_source: 'seen', ...data }, 'u1:assessment-gen:1');
 
 beforeEach(() => {
   mockRedis.get.mockResolvedValue({ ...SESSION });

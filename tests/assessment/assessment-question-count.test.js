@@ -95,7 +95,9 @@ describe('the QUESTIONS screen, end to end', () => {
 
   test('a number she typed carries through to CONFIRM', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '12', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'seen', question_count: '12' }, 'u1:assessment-gen:1');
+    // `seen` is the category that goes straight to CONFIRM; unseen/both stop at
+    // TYPES first. Either way the count she typed is what gets written.
     expect(res.screen).toBe('CONFIRM');
     const saved = mockRedis.set.mock.calls.at(-1)[1];
     expect(saved.questionCount).toBe(12);
@@ -103,7 +105,7 @@ describe('the QUESTIONS screen, end to end', () => {
 
   test('over the cap comes STRAIGHT BACK to the same screen with the reason', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '40', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'unseen', question_count: '40' }, 'u1:assessment-gen:1');
     expect(res.screen).toBe('QUESTIONS');
     expect(res.data.has_error).toBe(true);
     expect(res.data.error).toMatch(/25/);
@@ -112,21 +114,21 @@ describe('the QUESTIONS screen, end to end', () => {
   test('a refused count is NOT written to the session', async () => {
     // Otherwise she backs out, comes in again, and silently gets 40.
     await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '999', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'unseen', question_count: '999' }, 'u1:assessment-gen:1');
     const saved = mockRedis.set.mock.calls.at(-1)[1];
     expect(saved.questionCount).toBeUndefined();
   });
 
   test('junk is refused the same way, not coerced to a default', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: 'abc', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'unseen', question_count: 'abc' }, 'u1:assessment-gen:1');
     expect(res.screen).toBe('QUESTIONS');
     expect(res.data.has_error).toBe(true);
   });
 
   test('the screen tells her the range BEFORE she submits', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '0', pick_types: false }, 'u1:assessment-gen:1');
+      { content_source: 'unseen', question_count: '0' }, 'u1:assessment-gen:1');
     expect(res.data.count_hint).toMatch(/1 and 25/);
   });
 });
