@@ -2883,8 +2883,9 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  * @returns {Promise<void>}
  */
 async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null) {
-  // Get firstName from user if registered
-  const firstName = user?.name || null;
+  // The first word of users.name — the prompt says "use their name naturally",
+  // and a whole name there is how a teacher gets called "Muhammad Asif Khan".
+  const firstName = firstNameOf(user);
 
   // ============================================================
   // STUDENT MODE — THE ONE GATE
