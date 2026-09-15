@@ -176,7 +176,13 @@ async function wrap(kind, keyParts, fn, opts = {}) {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
       return deser(rec.value);
     }
-    if (strict()) throw _miss(kind, key);
+    if (strict()) {
+      // Diagnostic (opt-in): dump the EXACT normalised request that missed, so it can be diffed
+      // against the recorded cassette to see which token drifted. Off unless E2E_CASSETTE_MISS_DUMP.
+      const dd = process.env.E2E_CASSETTE_MISS_DUMP;
+      if (dd) { try { fs.mkdirSync(dd, { recursive: true }); fs.writeFileSync(path.join(dd, key + '.json'), JSON.stringify(requestForRecord(keyParts))); } catch (_) {} }
+      throw _miss(kind, key);
+    }
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
 
@@ -212,7 +218,13 @@ async function wrapBuffer(kind, keyParts, fn) {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
       return Buffer.from(rec.b64, 'base64');
     }
-    if (strict()) throw _miss(kind, key);
+    if (strict()) {
+      // Diagnostic (opt-in): dump the EXACT normalised request that missed, so it can be diffed
+      // against the recorded cassette to see which token drifted. Off unless E2E_CASSETTE_MISS_DUMP.
+      const dd = process.env.E2E_CASSETTE_MISS_DUMP;
+      if (dd) { try { fs.mkdirSync(dd, { recursive: true }); fs.writeFileSync(path.join(dd, key + '.json'), JSON.stringify(requestForRecord(keyParts))); } catch (_) {} }
+      throw _miss(kind, key);
+    }
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
   const t0 = Date.now();
