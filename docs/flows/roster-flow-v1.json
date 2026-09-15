@@ -386,7 +386,7 @@
               },
               {
                 "type": "RadioButtonsGroup",
-                "name": "action",
+                "name": "next_step",
                 "label": "What do you want to do?",
                 "required": true,
                 "data-source": "${data.actions}"
@@ -402,7 +402,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "ROSTER_VIEW",
-                    "action": "${form.action}"
+                    "next_step": "${form.next_step}"
                   }
                 }
               }
