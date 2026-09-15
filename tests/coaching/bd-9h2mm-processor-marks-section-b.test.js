@@ -6,7 +6,7 @@
  *
  * The call site only invoked applyLpFidelity when the fidelity blob came back
  * `status: 'ok'`. That is the branch where the section IS measured. On the
- * dominant case — `lp_absent`, 3,866 of 4,640 unmeasured sessions — the function
+ * dominant case — no plan at all, 3,866 of 4,640 unmeasured sessions — the function
  * was never called at all, so the section would keep its legacy proxy score and
  * stay inside the total no matter what the framework says. Defined is not live:
  * the exclusion has to be reachable from processAnalysis.
@@ -57,23 +57,34 @@ jest.mock('../../bot/shared/services/coaching/frameworks/framework-selector', ()
   })),
 }));
 
+// Numbers come from the framework's own constants, never a literal — the rubric
+// has already moved once and a hard-coded revision stops proving anything on the
+// other while still looking green.
+const C = fico.getScoringConstants();
+const SCALE = C.scaleMax;
+const DOMS = C.domains;
+const B_KEY = 'lesson_plan_fidelity';
+const B_MAX = DOMS[B_KEY].indicatorCount * SCALE;
+const PER = 1;
+const FULL_MARKS = C.totalIndicators * PER;
+const B_MARKS = DOMS[B_KEY].indicatorCount * PER;
+const EXCL_MAX = C.maxMarks - B_MAX;
+const EXCL_MARKS = FULL_MARKS - B_MARKS;
+
 const rows = (prefix, n, score) =>
   Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i + 1}`, score }));
 
-// The analyser's own output: Section B scored by the ten legacy proxy indicators
-// (20/40), C 36/48, D 21/28, F 16/32 — 93 of 148.
-const mockAnalyze = jest.fn(() => Promise.resolve({
-  analysis: fico.computeScores({
-    framework: 'fico',
-    domains: {
-      lesson_plan_fidelity: { indicators: rows('B', 10, 2) },
-      high_leverage_practices: { indicators: rows('C', 12, 3) },
-      student_engagement: { indicators: rows('D', 7, 3) },
-      teacher_subject_knowledge: { indicators: rows('F', 8, 2) },
-    },
-  }),
-  usage: { input_tokens: 1, output_tokens: 1, cached_tokens: 0, cost: 0 },
-}));
+// The analyser's own output: every section scored by the legacy proxy indicators.
+const mockAnalyze = jest.fn(() => {
+  const domains = {};
+  for (const [key, def] of Object.entries(DOMS)) {
+    domains[key] = { indicators: rows(def.key, def.indicatorCount, PER) };
+  }
+  return Promise.resolve({
+    analysis: fico.computeScores({ framework: 'fico', domains }),
+    usage: { input_tokens: 1, output_tokens: 1, cached_tokens: 0, cost: 0 },
+  });
+});
 jest.mock('../../bot/shared/services/gpt5-mini.service', () => ({
   analyzePedagogy: (...args) => mockAnalyze(...args),
   extractReflectiveCorpus: jest.fn(() => Promise.resolve(null)),
@@ -107,8 +118,8 @@ describe('processAnalysis marks Section B not-assessed when nothing was measured
     await AnalysisProcessor.processAnalysis(SID, { from: '92300' });
     expect(sectionB().assessed).toBe(false);
     expect(sectionB().not_assessed_reason).toBe('lp_absent');
-    expect(global.__PERSISTED.scores.overall_max_marks).toBe(108);
-    expect(global.__PERSISTED.scores.overall_marks).toBe(73);
+    expect(global.__PERSISTED.scores.overall_max_marks).toBe(EXCL_MAX);
+    expect(global.__PERSISTED.scores.overall_marks).toBe(EXCL_MARKS);
   });
 
   test('a fidelity engine failure reaches it too', async () => {
@@ -116,14 +127,14 @@ describe('processAnalysis marks Section B not-assessed when nothing was measured
     await AnalysisProcessor.processAnalysis(SID, { from: '92300' });
     expect(sectionB().assessed).toBe(false);
     expect(sectionB().not_assessed_reason).toBe('fidelity_unavailable');
-    expect(global.__PERSISTED.scores.overall_max_marks).toBe(108);
+    expect(global.__PERSISTED.scores.overall_max_marks).toBe(EXCL_MAX);
   });
 
   test('no fidelity result at all reaches it too', async () => {
     global.__FIDELITY = null;
     await AnalysisProcessor.processAnalysis(SID, { from: '92300' });
     expect(sectionB().assessed).toBe(false);
-    expect(global.__PERSISTED.scores.overall_max_marks).toBe(108);
+    expect(global.__PERSISTED.scores.overall_max_marks).toBe(EXCL_MAX);
   });
 
   test('a MEASURED session is derived from the measurement, as before', async () => {
@@ -131,7 +142,7 @@ describe('processAnalysis marks Section B not-assessed when nothing was measured
     await AnalysisProcessor.processAnalysis(SID, { from: '92300' });
     expect(sectionB().assessed).toBe(true);
     expect(sectionB().fidelity_derived).toBe(true);
-    expect(sectionB().domain_score).toBe(24);
-    expect(global.__PERSISTED.scores.overall_max_marks).toBe(148);
+    expect(sectionB().domain_score).toBe(Math.round(0.6 * B_MAX));
+    expect(global.__PERSISTED.scores.overall_max_marks).toBe(C.maxMarks);
   });
 });

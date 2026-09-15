@@ -48,20 +48,25 @@ const create = jest.fn().mockResolvedValue({
 });
 GPT5MiniService.openai = { chat: { completions: { create } } };
 
+const C = fico.getScoringConstants();
+const DOMS = C.domains;
+const B_MAX = DOMS.lesson_plan_fidelity.indicatorCount * C.scaleMax;
+const PER = 1;
+
 const rows = (prefix, n, score) =>
   Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i + 1}`, score, evidence: 'x' }));
 
 function fullAnalysis() {
+  const domains = {};
+  for (const [key, def] of Object.entries(DOMS)) {
+    domains[key] = { indicators: rows(def.key, def.indicatorCount, PER) };
+  }
   return fico.computeScores({
     framework: 'fico',
     has_lesson_plan: true,
+    // the separate legacy whole-plan estimate, which sat at 85 on 84.5% of sessions
     fidelity_analysis: { score: 85, max_score: 100, overall_commentary: 'Followed closely.' },
-    domains: {
-      lesson_plan_fidelity: { indicators: rows('B', 10, 3) },
-      high_leverage_practices: { indicators: rows('C', 12, 3) },
-      student_engagement: { indicators: rows('D', 7, 3) },
-      teacher_subject_knowledge: { indicators: rows('F', 8, 2) },
-    },
+    domains,
   });
 }
 
@@ -110,7 +115,7 @@ describe('the voice note on a session with no measured fidelity', () => {
   test('the caller is not mutated — the stored analysis keeps its own shape', async () => {
     const a = notAssessed();
     await ReportGenerator.generateAndSendVoiceDebrief(session, '923000000000', 'cs1', a);
-    expect(a.domains.lesson_plan_fidelity.domain_max).toBe(40);
+    expect(a.domains.lesson_plan_fidelity.domain_max).toBe(B_MAX);
     expect(a.fidelity_analysis.score).toBe(85);
   });
 
@@ -119,7 +124,7 @@ describe('the voice note on a session with no measured fidelity', () => {
     fico.applyLpFidelity(a, { status: 'ok', fidelity_pct: 60, band: 'partial' });
     await ReportGenerator.generateAndSendVoiceDebrief(session, '923000000000', 'cs1', a);
     expect(arg().sectionBNotAssessed).toBe(false);
-    expect(arg().analysis.domains.lesson_plan_fidelity.domain_score).toBe(24);
+    expect(arg().analysis.domains.lesson_plan_fidelity.domain_score).toBe(Math.round(0.6 * B_MAX));
     expect(prompt()).not.toMatch(/do not state any lesson-plan percentage/i);
   });
 });

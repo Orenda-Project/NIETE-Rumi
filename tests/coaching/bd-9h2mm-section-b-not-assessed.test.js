@@ -30,35 +30,48 @@ const { buildPrompt } = require('../../bot/shared/services/coaching/report-v2/na
 const { buildBreakdown } = require('../../bot/shared/services/coaching/coaching-breakdown.service');
 const { buildScreenPrefill } = require('../../bot/shared/services/observe/observe-draft.service');
 
+// Numbers come from the framework's own constants, never a literal: the rubric
+// has already moved once (37 indicators on a 1-4 scale to 26 on 0-2), and a test
+// that hard-codes one revision stops proving anything on the other while still
+// looking green.
+const C = fico.getScoringConstants();
+const SCALE = C.scaleMax;
+const DOMS = C.domains;
+const B_KEY = 'lesson_plan_fidelity';
+const B_MAX = DOMS[B_KEY].indicatorCount * SCALE;
+const PER = 1; // a valid rung on either rubric revision
+
 const rows = (prefix, n, score) =>
   Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i + 1}`, score }));
 
-// The proxy scores Section B 20/40; C 36/48, D 21/28, F 16/32. computeScores
-// makes that 93/148. With Section B excluded it is 73/108.
+// Every section scored by the proxy, every row at the same rung.
 function noPlanAnalysis() {
-  return fico.computeScores({
-    framework: 'fico',
-    domains: {
-      lesson_plan_fidelity: { indicators: rows('B', 10, 2) },
-      high_leverage_practices: { indicators: rows('C', 12, 3) },
-      student_engagement: { indicators: rows('D', 7, 3) },
-      teacher_subject_knowledge: { indicators: rows('F', 8, 2) },
-    },
-  });
+  const domains = {};
+  for (const [key, def] of Object.entries(DOMS)) {
+    domains[key] = { indicators: rows(def.key, def.indicatorCount, PER) };
+  }
+  return fico.computeScores({ framework: 'fico', domains });
 }
+
+const FULL_MARKS = C.totalIndicators * PER;   // every row at rung PER
+const B_MARKS = DOMS[B_KEY].indicatorCount * PER;
+const EXCL_MAX = C.maxMarks - B_MAX;
+const EXCL_MARKS = FULL_MARKS - B_MARKS;
+const EXCL_PCT = parseFloat(((EXCL_MARKS / EXCL_MAX) * 100).toFixed(1));
+const SCORED_SECTIONS = Object.keys(DOMS).length - 1;
 
 describe('the framework owns the exclusion', () => {
   test('THE BUG: no measured fidelity -> Section B leaves the total', () => {
     const a = noPlanAnalysis();
-    expect(a.scores.overall_max_marks).toBe(148); // before the exclusion
+    expect(a.scores.overall_max_marks).toBe(C.maxMarks); // before the exclusion
 
     fico.applyLpFidelity(a, { status: 'lp_absent' });
 
     expect(a.domains.lesson_plan_fidelity.assessed).toBe(false);
     expect(a.domains.lesson_plan_fidelity.not_assessed_reason).toBe('lp_absent');
-    expect(a.scores.overall_max_marks).toBe(108); // 148 - 40
-    expect(a.scores.overall_marks).toBe(73);      // 93 - 20
-    expect(a.scores.overall_percentage).toBe(67.6);
+    expect(a.scores.overall_max_marks).toBe(EXCL_MAX);
+    expect(a.scores.overall_marks).toBe(EXCL_MARKS);
+    expect(a.scores.overall_percentage).toBe(EXCL_PCT);
   });
 
   test('every not-measured state excludes, and records which one it was', () => {
@@ -73,7 +86,7 @@ describe('the framework owns the exclusion', () => {
       fico.applyLpFidelity(a, blob);
       expect(a.domains.lesson_plan_fidelity.assessed).toBe(false);
       expect(a.domains.lesson_plan_fidelity.not_assessed_reason).toBe(reason);
-      expect(a.scores.overall_max_marks).toBe(108);
+      expect(a.scores.overall_max_marks).toBe(EXCL_MAX);
     }
   });
 
@@ -82,8 +95,8 @@ describe('the framework owns the exclusion', () => {
     fico.applyLpFidelity(a, { status: 'lp_absent' });
     // The per-sector card downstream sums the legacy B indicators over domain_max;
     // nulling it would make that row vanish with no note.
-    expect(a.domains.lesson_plan_fidelity.domain_max).toBe(40);
-    expect(a.domains.lesson_plan_fidelity.domain_score).toBe(20);
+    expect(a.domains.lesson_plan_fidelity.domain_max).toBe(B_MAX);
+    expect(a.domains.lesson_plan_fidelity.domain_score).toBe(B_MARKS);
   });
 
   test('a MEASURED session is untouched by the exclusion', () => {
@@ -91,7 +104,7 @@ describe('the framework owns the exclusion', () => {
     fico.applyLpFidelity(a, { status: 'ok', fidelity_pct: 60, band: 'partial' });
     expect(a.domains.lesson_plan_fidelity.assessed).not.toBe(false);
     expect(a.domains.lesson_plan_fidelity.fidelity_derived).toBe(true);
-    expect(a.scores.overall_max_marks).toBe(148);
+    expect(a.scores.overall_max_marks).toBe(C.maxMarks);
   });
 
   test('re-running with a measured blob clears a previous not-assessed mark', () => {
@@ -100,13 +113,13 @@ describe('the framework owns the exclusion', () => {
     fico.applyLpFidelity(a, { status: 'ok', fidelity_pct: 60 });
     expect(a.domains.lesson_plan_fidelity.assessed).toBe(true);
     expect(a.domains.lesson_plan_fidelity.not_assessed_reason).toBeUndefined();
-    expect(a.scores.overall_max_marks).toBe(148);
+    expect(a.scores.overall_max_marks).toBe(C.maxMarks);
   });
 
   test('BACK-COMPAT LOCK: computeScores with no assessed flag is unchanged', () => {
     const a = noPlanAnalysis();
-    expect(a.scores.overall_max_marks).toBe(148);
-    expect(a.scores.overall_marks).toBe(93);
+    expect(a.scores.overall_max_marks).toBe(C.maxMarks);
+    expect(a.scores.overall_marks).toBe(FULL_MARKS);
   });
 });
 
@@ -135,35 +148,35 @@ describe('the report card', () => {
     }
   });
 
-  test('the headline reads the adjusted total, not 148', () => {
+  test('the headline reads the adjusted total, not the full rubric max', () => {
     const vm = buildScoreViewModel(excluded(), { framework: 'fico', language: 'en' });
-    expect(vm.max).toBe(108);
-    expect(vm.marks).toBe(73);
-    expect(vm.overall).toBe(68);
+    expect(vm.max).toBe(EXCL_MAX);
+    expect(vm.marks).toBe(EXCL_MARKS);
+    expect(vm.overall).toBe(Math.round(EXCL_PCT));
   });
 
   test('the template prints the words, not "null/null", and draws no bar for that row', () => {
     const groups = buildFicoGroups(excluded(), 'en');
     const html = buildHeroReportHtml({
       language: 'en', brand: 'niete', teacherName: 'Sana', topic: 'Fractions', date: '2026-09-15',
-      score: { overall: 68, marks: 73, max: 108 },
+      score: { overall: Math.round(EXCL_PCT), marks: EXCL_MARKS, max: EXCL_MAX },
       groups, narrative: { affirmation: 'x', moments: [] }, trend: [],
     });
     expect(html).not.toContain('null/null');
     expect(html).toContain('not assessed');
-    // one bar per SCORED section: three, not four
-    expect(html.match(/class="pbar"/g)).toHaveLength(3);
+    // one bar per SCORED section — the unscored one draws none
+    expect(html.match(/class="pbar"/g)).toHaveLength(SCORED_SECTIONS);
   });
 
   test('the ur template prints the Urdu words', () => {
     const groups = buildFicoGroups(excluded(), 'ur');
     const html = buildHeroReportHtml({
       language: 'ur', brand: 'niete', teacherName: 'ثناء', topic: 'اعداد', date: '2026-09-15',
-      score: { overall: 68, marks: 73, max: 108 },
+      score: { overall: Math.round(EXCL_PCT), marks: EXCL_MARKS, max: EXCL_MAX },
       groups, narrative: { affirmation: 'x', moments: [] }, trend: [],
     });
     expect(html).toContain('جانچ نہیں ہوئی');
-    expect(html.match(/class="pbar"/g)).toHaveLength(3);
+    expect(html.match(/class="pbar"/g)).toHaveLength(SCORED_SECTIONS);
   });
 
   test('the why line is written by code and says a plan was not provided', () => {
@@ -187,7 +200,7 @@ describe('the report card', () => {
     // the proxy's "lowest indicators" grounding is what invented the missing element
     const sectionBLine = prompt.split('\n').find((l) => l.startsWith('- lesson_plan_fidelity'));
     expect(sectionBLine).not.toMatch(/Lowest indicators/);
-    expect(sectionBLine).not.toMatch(/20\/40/);
+    expect(sectionBLine).not.toMatch(new RegExp(`${B_MARKS}/${B_MAX}`));
   });
 
   test('the model cannot overwrite the code-written why line', () => {
@@ -211,15 +224,15 @@ describe('the portal and app drill-down', () => {
     expect(b.pct).toBeNull();
     // the surface opens the LAST group by default — the weakest SCORED section
     expect(bd.groups[bd.groups.length - 1].domainKey).not.toBe('lesson_plan_fidelity');
-    expect(bd.overall).toBe(68);
-    expect(bd.max).toBe(108);
+    expect(bd.overall).toBe(Math.round(EXCL_PCT));
+    expect(bd.max).toBe(EXCL_MAX);
   });
 
   test('a measured session still ranks all four sections', () => {
     const a = noPlanAnalysis();
     fico.applyLpFidelity(a, { status: 'ok', fidelity_pct: 20 });
     const bd = buildBreakdown(a, 'en');
-    expect(bd.groups).toHaveLength(4);
+    expect(bd.groups).toHaveLength(Object.keys(DOMS).length);
     expect(bd.groups.every((g) => !g.notAssessed)).toBe(true);
   });
 });
