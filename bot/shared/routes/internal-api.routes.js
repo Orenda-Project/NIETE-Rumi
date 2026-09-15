@@ -10,6 +10,7 @@
  * The portal used to enqueue by requiring the bot's queue service directly:
  *
  *     require('../../bot/shared/services/lesson-plan-queue.service')
+const { teacherLevelOf } = require('../utils/teacher-level');
  *
  * That throws inside the dashboard process. The queue driver does
  * `require('aws-sdk')` (the v2 SDK, a dependency of bot/) and the dashboard
@@ -1517,7 +1518,7 @@ router.post('/training/bands/state', requireInternalKey, bandsRoute('state', asy
   const supabase = require('../config/supabase');
   const { data: user, error } = await supabase
     .from('users')
-    .select('training_bands, training_bands_updated_at')
+    .select('teacher_level, teacher_level_updated_at')
     .eq('id', userId)
     .single();
   if (error) throw error;
@@ -1526,7 +1527,7 @@ router.post('/training/bands/state', requireInternalKey, bandsRoute('state', asy
   return res.json({
     success: true,
     options: Bands.BANDS.map((b) => ({ id: b.key, title: b.label })),
-    selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
+    selected: teacherLevelOf(user),
     can_change: gate.allowed,
     is_first_selection: gate.isFirstSelection,
     hours_remaining: gate.hoursRemaining,

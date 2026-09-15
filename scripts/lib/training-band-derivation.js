@@ -4,13 +4,13 @@
  * WHY THIS EXISTS
  * Two vocabularies live in the users table and nothing translated between them:
  *
- *   users.training_bands ['PRIMARY','MIDDLE','HIGH']  bd-43478 — the teacher's
+ *   users.teacher_level  ['PRIMARY','MIDDLE','HIGH']  the teacher's
  *                                                     OWN choice, made on the bot
  *                                                     or portal. Highest priority.
  *                                                     TRAINING SCOPING ONLY: must
  *                                                     never gate lesson plans or
  *                                                     any other feature.
- *   users.levels        ['PRIMARY','MIDDLE','HIGH']   written only by the bulk
+ *   (users.levels was dropped by bd-60095 — it had no reader and disagreed
  *                                                     import (migrate-users.py),
  *                                                     read only by an offline migration
  *   users.grades_taught grade ids from the Flow       written at registration,
@@ -117,18 +117,15 @@ function tokenize(gradesTaught) {
 function deriveBands(user) {
   if (!user || typeof user !== 'object') return null;
 
-  // bd-43478 — users.training_bands is the teacher's OWN statement and outranks
-  // everything: it was chosen deliberately on the bot or portal, whereas levels
-  // came from an import and grades_taught is a one-time signup answer. This is
-  // the column the training path reads; users.levels is retained only for the
-  // role-backfill heuristics and legacy migrations (see migration V1.1.8).
-  const explicit = pickBands(user.training_bands);
+  // users.teacher_level is the teacher's OWN statement and outranks everything.
+  // Renamed from training_bands and now the ONLY band column: users.levels was
+  // dropped, so the middle rung of the old three-way fallback is gone with it.
+  const explicit = pickBands(user.teacher_level);
   if (explicit.length > 0) return explicit;
 
-  // users.levels is already a band array and outranks grades_taught: it came
-  // from the source system, whereas grades_taught is self-reported at signup.
-  const fromLevels = pickBands(user.levels);
-  if (fromLevels.length > 0) return fromLevels;
+  // grades_taught remains ONLY as the signup answer for a user who has never
+  // stated a level. It is a seed for the backfill, never a read-time fallback
+  // for the live band — teacherLevelOf() deliberately refuses to consult it.
 
   const bands = tokenize(user.grades_taught)
     .map(bandForGradeToken)

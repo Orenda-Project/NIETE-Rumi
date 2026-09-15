@@ -20,7 +20,8 @@
  * up both.
  *
  * ISOLATION (product decision)
- * The choice lands in users.training_bands, NOT users.levels. It is scoped to
+ * The choice lands in users.teacher_level (bd-60095 renamed it from
+ * training_bands; users.levels and users.grade are gone). It is scoped to
  * teacher training and must never gate lesson plans or any other feature — a
  * teacher picking "Middle" to reach the Beacon House training must not thereby
  * change their lesson-plan content. users.levels is left untouched so the
@@ -123,13 +124,13 @@ function bandsToPrograms(selection) {
  * Fails OPEN on an unparseable timestamp: a corrupt value must not lock a
  * teacher out of the only surface that can fix their access.
  *
- * @param {object} user row carrying training_bands_updated_at
+ * @param {object} user row carrying teacher_level_updated_at
  * @param {Date|number} [now] injectable clock for tests
  * @returns {{allowed: boolean, isFirstSelection: boolean, hoursRemaining: number, message: string|null}}
  */
 function canChangeBands(user, now = Date.now()) {
   const nowMs = now instanceof Date ? now.getTime() : Number(now);
-  const raw = user ? user.training_bands_updated_at : null;
+  const raw = user ? user.teacher_level_updated_at : null;
 
   if (!raw) {
     return { allowed: true, isFirstSelection: true, hoursRemaining: 0, message: null };
@@ -186,9 +187,9 @@ const SELF_SELECT_TAG = 'teacher_self_select';
  * The single write path behind both surfaces (bot Flow + portal), because both
  * read teacher_training_assignments -> training_program_scopes.
  *
- * Writes users.training_bands only — never users.levels (so the role-backfill
- * heuristics keep their meaning) and never grades_taught (the record of what
- * the teacher said at signup stays intact).
+ * Writes users.teacher_level only — never grades_taught, which keeps its own
+ * job as the finer signup record (grade_1..grade_10) that attendance setup
+ * reads to order the class dropdown.
  *
  * @param {string} userId
  * @param {string[]} selection band keys
@@ -208,7 +209,7 @@ async function applyBandSelection(userId, selection, now = Date.now()) {
 
   const { data: user, error: uErr } = await supabase
     .from('users')
-    .select('id, training_bands, training_bands_updated_at')
+    .select('id, teacher_level, teacher_level_updated_at')
     .eq('id', userId)
     .single();
   if (uErr || !user) {
@@ -281,12 +282,12 @@ async function applyBandSelection(userId, selection, now = Date.now()) {
   const stamp = new Date(now instanceof Date ? now.getTime() : now).toISOString();
   const { error: wErr } = await supabase
     .from('users')
-    .update({ training_bands: bands, training_bands_updated_at: stamp })
+    .update({ teacher_level: bands, teacher_level_updated_at: stamp })
     .eq('id', userId);
   if (wErr) {
     // Assignments are already correct, so the teacher can train; only the
     // cooldown stamp is missing. Surface it rather than claiming a clean save.
-    logToFile('⚠️ Band selection: assignments written but training_bands update failed', { userId, error: wErr.message });
+    logToFile('⚠️ Band selection: assignments written but teacher_level update failed', { userId, error: wErr.message });
   }
 
   logToFile('🎓 Band selection saved', { userId, bands, added: toAdd.length, dropped: toDrop.length });
