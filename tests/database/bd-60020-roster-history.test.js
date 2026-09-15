@@ -167,13 +167,17 @@ t('records an exam-check session status change', () => {
 
 // ── coverage: the batch is 14 tables, 60 columns ─────────────────────────────
 
-t('all 14 tables are audited', () => {
-  eq(Object.keys(WATCHED).length, 14);
+t('all 15 tables are audited', () => {
+  // 14 + classes (bd-a21ks).
+  eq(Object.keys(WATCHED).length, 15);
 });
 
-t('59 columns are watched in total', () => {
-  // 60 minus coaching_sessions.conversation_state, dropped on production evidence.
-  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 59);
+t('74 columns are watched in total', () => {
+  // 60 minus coaching_sessions.conversation_state (dropped on production evidence),
+  // plus 15 from bd-a21ks: classes (7), and the identity/reason columns that let one
+  // class's history be read from the ledger alone (class_enrollments +2, students +2,
+  // student_lists +2, class_teachers +2).
+  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 74);
 });
 
 t('the 9 roster/config tables are all registered', () => {

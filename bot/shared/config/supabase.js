@@ -17,6 +17,7 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
+const { actorFetch } = require('../utils/actor-context');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -53,6 +54,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
     autoRefreshToken: false,
     persistSession: false,
   },
+  // Every request made inside runAsActor(userId, ...) carries `x-rumi-actor`, so
+  // the record_history trigger can name the coach behind a service-role write.
+  // See bot/shared/utils/actor-context.js.
+  global: { fetch: actorFetch },
 });
 
 module.exports = supabase;
