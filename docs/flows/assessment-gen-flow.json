@@ -183,7 +183,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Which chapter?"
+                "text": "Which chapters?"
               },
               {
                 "type": "TextCaption",
@@ -195,12 +195,14 @@
                 "visible": "${data.has_error}"
               },
               {
-                "type": "Dropdown",
-                "name": "chapter",
-                "label": "Chapter",
+                "type": "CheckboxGroup",
+                "name": "chapters",
+                "label": "Chapters",
+                "description": "Tick every chapter the test should cover.",
                 "required": false,
                 "data-source": "${data.chapters}",
-                "visible": "${data.has_chapters}"
+                "visible": "${data.has_chapters}",
+                "max-selected-items": 6
               },
               {
                 "type": "OptIn",
@@ -213,7 +215,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "chapter": "${form.chapter}",
+                    "chapters": "${form.chapters}",
                     "use_pages": "${form.use_pages}"
                   }
                 }
