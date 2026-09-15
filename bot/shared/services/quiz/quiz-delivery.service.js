@@ -8,6 +8,7 @@ const WhatsAppService = require('../whatsapp.service');
 const redisService = require('../cache/railway-redis.service');
 const SQSQueueService = require('../queue');  //  Phase 8 producer side
 const { clampLanguage } = require('../../config/ux-strings');
+const { MESSAGE_WINDOW_MS } = require('../../config/meta-messaging-window');
 
 // Redis keys must use the same phone format the webhook delivers.
 // students.parent_phone is stored E.164 with + (e.g. +<country><number>) but Meta webhooks
@@ -377,8 +378,10 @@ class QuizDeliveryService {
 
   /**
    * Check if parent has an open 24h WhatsApp messaging window.
-   * If they messaged the bot within the last 23 hours (1h safety margin),
-   * we can send a free regular message instead of a paid template.
+   * If they messaged the bot inside Meta's 24-hour window (less a few minutes
+   * of clock skew), we can send a free regular message instead of a paid
+   * template. The window is one shared constant — see
+   * config/meta-messaging-window.js for why the margin is minutes, not an hour.
    *
    * @param {string} phone - Parent phone number (E.164, with leading +)
    * @returns {boolean} true if we can send free messages
@@ -423,8 +426,12 @@ class QuizDeliveryService {
 
       if (!user) return false;
 
-      // Check last activity within 23 hours (1h safety margin on 24h window)
-      const cutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString();
+      // Meta's window is 24 hours, less a few minutes of clock skew. This used
+      // to cut at 23h, an hour early, which classified an active teacher as
+      // cold: 5 of the 152 observe template sends in the week to 15 Sep went to
+      // a teacher whose last inbound was 23.05-23.92 hours earlier. Each cost a
+      // paid template and a message asserting something untrue about her.
+      const cutoff = new Date(Date.now() - MESSAGE_WINDOW_MS).toISOString();
 
       const { data: session } = await supabase
         .from('chat_sessions')
@@ -445,3 +452,6 @@ class QuizDeliveryService {
 }
 
 module.exports = QuizDeliveryService;
+// The window this service measures against, re-exported so a caller (and a
+// test) can assert against the same number rather than a second literal.
+module.exports.MESSAGE_WINDOW_MS = MESSAGE_WINDOW_MS;
