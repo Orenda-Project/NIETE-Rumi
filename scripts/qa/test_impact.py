@@ -194,6 +194,48 @@ def test_chrome_only_feature_is_noted_paused_not_driven_when_chrome_off():
             os.environ["E2E_CHROME_ON"] = saved
 
 
+def test_cassette_misses_surface_the_record_mention():
+    """A mock-lane run records missing cassettes under the NESTED `cassette.misses` (that is what
+    ledger_row.py writes). impact must read that nested field — a top-level `cassette_misses` never
+    exists — and turn it into the @-mention that asks the owner to record the fixtures."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 13, "passed": 11, "failed": 1, "blocked": 0, "skipped": 1},
+           "cassette": {"mode": "replay-strict", "misses": 3, "scenarios_affected": ["M08", "M09", "M12"]}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["cassette_misses"] == {"menu": 3}, res["cassette_misses"]
+    md = ci.render_markdown(res, "warn", "warn")
+    for needle in ("Cassettes missing", "@mah-noor1", "--record-missing"):
+        assert needle in md, (needle, md)
+    # the CI log / pre-push terminal form must surface it too, not only the posted comment
+    txt = ci.render_text(res, "warn", "warn")
+    assert "@mah-noor1" in txt and "--record-missing" in txt, txt
+    shutil.rmtree(r)
+
+
+def test_a_later_clean_run_clears_the_cassette_mention():
+    """If a feature's MOST RECENT row has no misses, its cassettes were recorded since — don't nag.
+    (Same last-row-wins semantics as the e2e-proof status.)"""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    base_row = {"run_id": "a", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+                "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+                "summary": {"total": 1, "passed": 0, "failed": 0, "blocked": 0, "skipped": 0},
+                "cassette": {"misses": 3}}
+    clean = json.loads(json.dumps(base_row)); clean["run_id"] = "b"; clean["ts"] = "2026-09-15T01:00:00Z"
+    clean["status"] = "HEALTHY"; clean["cassette"] = {"misses": 0}
+    head = commit(r, "feat(menu)+runs",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(base_row) + "\n" + json.dumps(clean) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["cassette_misses"] == {}, res["cassette_misses"]
+    assert "Cassettes missing" not in ci.render_markdown(res, "warn", "warn")
+    shutil.rmtree(r)
+
+
 def test_unknown_range_is_reported_not_crashed():
     r = make_repo()
     res = ci.analyse(r, "0" * 40, "0" * 40)

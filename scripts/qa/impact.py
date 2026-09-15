@@ -117,11 +117,14 @@ def ledger_rows_added(repo, rng):
 
 
 def ledger_misses(repo, rng):
-    """{feature: cassette_misses} for runs.jsonl rows ADDED in the range with misses > 0. A mock-lane
-    run that could not replay a vendor answer records it here; the PR comment turns it into an @-mention
-    so the cassette owner records/updates the fixture."""
+    """{feature: misses} for the MOST RECENT runs.jsonl row of each feature in the range whose latest
+    run still has missing cassettes. A mock-lane run that could not replay a vendor answer records the
+    count under the nested `cassette.misses` (see .claude/qa/shared/ledger_row.py — there is no
+    top-level `cassette_misses`); the PR comment turns it into an @-mention so the cassette owner
+    records/updates the fixture. Last row wins, matching ledger_rows_added: a later clean run (misses 0)
+    means the cassettes were recorded since, so the feature drops out and we do not nag."""
     r = _git(repo, "diff", rng, "--", LEDGER)
-    out = {}
+    latest = {}
     for line in r.stdout.splitlines():
         if not line.startswith("+") or line.startswith("+++"):
             continue
@@ -130,10 +133,8 @@ def ledger_misses(repo, rng):
         except ValueError:
             continue
         if isinstance(row, dict) and row.get("feature"):
-            m = row.get("cassette_misses") or 0
-            if m:
-                out[row["feature"]] = max(out.get(row["feature"], 0), int(m))
-    return out
+            latest[row["feature"]] = int((row.get("cassette") or {}).get("misses") or 0)
+    return {f: m for f, m in latest.items() if m}
 
 
 def _empty(base, head, error=""):
@@ -384,6 +385,12 @@ def render_text(res, freshness="warn", proof="warn"):
             L.append("│ chrome lane (layer 2): " + "   ".join("/niete-e2e %s" % c for c in chrome))
     if not mock and not chrome:
         L.append("│ then: " + "   ".join(res["commands"]))
+    misses = res.get("cassette_misses") or {}
+    if misses:
+        owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mah-noor1").strip()
+        owner = owner if owner.startswith("@") else "@" + owner
+        L.append("│ 📼 cassettes missing (%s) — record: bash .claude/qa/shared/commit-e2e.sh %s --features %s --record-missing"
+                 % (owner, (res.get("head") or "HEAD")[:12], ",".join(sorted(misses))))
     L.append("└ re-run any time: npm run qa:impact")
     return "\n".join(L)
 
