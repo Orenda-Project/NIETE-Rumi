@@ -10,8 +10,28 @@ const redisService = require('./cache/railway-redis.service');
 const LessonPlanningService = require('./lesson-planning.service');
 const { isFeatureRunnable } = require('../config/feature-availability');
 const { resolveUx } = require('../config/ux-strings');
+const { canSelfCoach, canObserve } = require('../config/role-features');
 
 const openai = getClient();
+
+/**
+ * Row 122 — the two role-shaped features say who they are for.
+ *
+ * A refused tap always NAMES the row that IS hers, because the reason she
+ * tapped the wrong one is that both used to be offered to everybody.
+ */
+const ROLE_REFUSAL = Object.freeze({
+  dc: Object.freeze({
+    en: 'Classroom Coaching gives feedback on your OWN lesson. To record a visit to another teacher, choose "Observe a Teacher" from /menu.',
+    ur: 'کلاس روم کوچنگ آپ کے اپنے سبق پر رائے کے لیے ہے۔ کسی اور استاد کے مشاہدے کے لیے /menu سے "Observe a Teacher" چنیں۔',
+  }),
+  observe: Object.freeze({
+    en: 'Observing a teacher is for coaches and principals. For feedback on your own lesson, choose "Classroom Coaching" from /menu.',
+    ur: 'کسی استاد کا مشاہدہ کوچز اور پرنسپل کے لیے ہے۔ اپنے سبق پر رائے کے لیے /menu سے "Classroom Coaching" چنیں۔',
+  }),
+});
+
+const refusal = (kind, language) => ROLE_REFUSAL[kind][language === 'ur' ? 'ur' : 'en'];
 
 // Menu selection state TTL (5 minutes)
 const MENU_STATE_TTL = 300;
@@ -29,7 +49,7 @@ class MenuService {
    * @param {string} sessionId - Current session ID
    * @param {string} language - User's language code (default: 'en')
    */
-  static async sendMenu(from, userId, sessionId, language = 'en') {
+  static async sendMenu(from, userId, sessionId, language = 'en', user = null) {
     try {
       logToFile('Sending feature menu carousel', { from, userId, language });
 
@@ -44,7 +64,7 @@ class MenuService {
       await redisService.set(stateKey, stateData, MENU_STATE_TTL);
 
       // Send carousel (falls back to list if template not approved)
-      const success = await WhatsAppService.sendFeatureMenuCarousel(from);
+      const success = await WhatsAppService.sendFeatureMenuCarousel(from, user);
 
       if (success) {
         // Store bot response in conversation history
@@ -127,8 +147,36 @@ class MenuService {
           break;
 
         case 'menu_coaching':
+          // Gated HERE, not only where the row is drawn: a WhatsApp list lives
+          // in scrollback forever, so a coach can tap yesterday's DC row today.
+          // Without this the row-gating is cosmetic and she is told to send a
+          // recording that observe-audio-router will then park (row 122).
+          if (!canSelfCoach(user)) {
+            logToFile('🚫 menu_coaching refused — this role does not self-coach', {
+              userId: user.id, role: user.role,
+            }, 'warn');
+            await WhatsAppService.sendMessage(from, refusal('dc', language));
+            break;
+          }
           await this._handleClassroomCoachingChoice(user.id, sessionId, from, language);
           break;
+
+        case 'menu_observe': {
+          // The HITL entry. It DELEGATES to the existing /observe door and adds
+          // nothing: onboarding, pending debriefs, the visit picker and
+          // add/remove-school all stay exactly as a coach has them today
+          // (operator, 2026-09-15: the flow itself is out of scope).
+          if (!canObserve(user)) {
+            logToFile('🚫 menu_observe refused — this role does not observe', {
+              userId: user.id, role: user.role,
+            }, 'warn');
+            await WhatsAppService.sendMessage(from, refusal('observe', language));
+            break;
+          }
+          const { handleObserveCommand } = require('../handlers/observe-command.handler');
+          await handleObserveCommand(user, from, '/observe');
+          break;
+        }
 
         case 'menu_reading': {
           // The Reading row was removed from the list, but a WhatsApp list lives

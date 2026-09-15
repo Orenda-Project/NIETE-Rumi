@@ -1568,7 +1568,10 @@ app.post('/webhook', async (req, res) => {
             user,
             from,
             buttonPayload,
-            user.language || 'en'
+            // Rule 20 (language protocol): `users` has NO `language` column, so the
+            // old `user.language` read was always undefined and every menu tap was
+            // handled in English — including for teachers who chose Urdu.
+            user.preferred_language || 'en'
           );
         } else {
           logToFile('⚠️ No user found for menu button', { buttonPayload, from });
@@ -2232,7 +2235,10 @@ app.post('/webhook', async (req, res) => {
             user,
             from,
             listId,
-            user.language || 'en'
+            // Rule 20 (language protocol): `users` has NO `language` column, so the
+            // old `user.language` read was always undefined and every menu tap was
+            // handled in English — including for teachers who chose Urdu.
+            user.preferred_language || 'en'
           );
         } else {
           logToFile('⚠️ No user found for menu list selection', { listId, from });
