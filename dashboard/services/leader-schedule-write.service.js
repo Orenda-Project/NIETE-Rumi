@@ -36,8 +36,8 @@ const PATCH_SQL = `
          COALESCE(
            NULLIF(btrim(u.name), ''),
            NULLIF(btrim(concat_ws(' ',
-             NULLIF(btrim(u.first_name), ''),
-             NULLIF(btrim(u.last_name), ''))), '')
+             NULLIF(btrim(u.name), ''),
+             NULLIF(btrim(u.name), ''))), '')
          )                    AS teacher_name,
          'niete:' || s.emis   AS school_ext_id,
          s.name               AS school_name

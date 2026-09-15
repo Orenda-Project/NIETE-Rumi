@@ -46,12 +46,12 @@ async function load(quizId) {
 
   const [{ data: session }, { data: user }, { data: storedQs }] = await Promise.all([
     supabase.from('coaching_sessions').select('created_at').eq('id', quiz.coaching_session_id).maybeSingle(),
-    supabase.from('users').select('preferred_language, first_name, last_name').eq('id', quiz.teacher_id).maybeSingle(),
+    supabase.from('users').select('preferred_language, name').eq('id', quiz.teacher_id).maybeSingle(),
     supabase.from('quiz_questions').select(QUIZ_QUESTIONS_SELECT).eq('quiz_id', quizId).order('sort_order', { ascending: true }),
   ]);
 
   const teacherLang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
-  const teacherName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || null;
+  const teacherName = user?.name || null;
 
   return {
     quiz, session: session || {}, questions: null, qRows: storedQs || [],
@@ -137,7 +137,9 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
       const buffer = await Gen.renderPdf({
         quiz, questions: Gen.withFigureSvgs(qRows, questions, language), digest, teacherName,
         grade: quiz.grade || meta.grade || null,
-        lessonSummary: meta.lesson_summary || '',
+        // bd-2yyry.7 — the authored one-liner when the quiz has one; the
+        // template's own cap covers older quizzes.
+        lessonSummary: meta.lesson_summary_short || meta.lesson_summary || '',
         // D1: one language for the whole document, and it is the quiz's.
         language, contentLanguage: language,
         date: formatLessonDate(session.created_at, language, { year: true }), link,

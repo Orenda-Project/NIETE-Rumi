@@ -40,7 +40,7 @@ async function handleLpListSelection(listId, from, deps = {}) {
         const supabase = require('../../../config/supabase');
         const { data } = await supabase
           .from('coaching_sessions')
-          .select('observation_type, observer_user_id, users:users(preferred_language)')
+          .select('observation_type, observer_user_id, users:users(name, preferred_language)')
           .eq('id', sid)
           .maybeSingle();
         // bd-9hzdn.3: in a leader observation the COACH is the one tapping —

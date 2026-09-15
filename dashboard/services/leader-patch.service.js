@@ -47,14 +47,12 @@ const PATCH_TEACHERS_SQL = `
     -- people reached the coach's list as a row with no name on it at all. Her
     -- counts were right; there was nothing to recognise her by, which reads
     -- exactly like "she is not in the data", and that is how it was reported.
-    u.first_name          AS first_name,
-    u.last_name           AS last_name,
     u.name                AS name,
     u.phone_number        AS phone,
     'niete:' || sch.emis  AS school_ext_id,
     u.role                AS role,
     u.id                  AS rumi_user_id,
-    u.first_name          AS rumi_first_name,
+    u.name          AS rumi_first_name,
     COALESCE(cc.n, 0)     AS coaching_sessions,
     COALESCE(obs.n, 0)    AS observations,
     COALESCE(lpc.plans, 0) AS lesson_plans,
@@ -99,7 +97,7 @@ const PATCH_TEACHERS_SQL = `
     LIMIT 1
   ) ls ON true
   WHERE lsch.leader_user_id = $1
-  ORDER BY u.id, u.first_name ASC
+  ORDER BY u.id, u.name ASC
 `;
 
 /** EMIS is the suffix of school_ext_id ('niete:509' → '509'). */

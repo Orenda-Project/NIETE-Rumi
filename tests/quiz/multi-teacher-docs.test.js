@@ -84,9 +84,9 @@ describe('the teacher PDF marks EVERY correct option on a multi-answer question'
     expect(html).not.toMatch(/CORRECT-C-MISCONCEPTION-MUST-NOT-APPEAR/);
   });
 
-  test('both wrong options DO print their misconception text', () => {
-    expect(html).toMatch(/even numbers past 2 are never prime/);
-    expect(html).toMatch(/divisible by 3, so not prime/);
+  test('neither wrong option prints its misconception text either (the lines were dropped, round 7)', () => {
+    expect(html).not.toMatch(/even numbers past 2 are never prime/);
+    expect(html).not.toMatch(/divisible by 3, so not prime/);
   });
 });
 

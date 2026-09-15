@@ -13,6 +13,7 @@ const { buildScoreViewModel } = require('./score-adapter.service');
 const { generateReportNarrative } = require('./narrative.service');
 const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.template');
 const { buildClassroomPhotoVm } = require('./classroom-photo-vm');
+const { applyPhotoCaptions } = require('./photo-note');
 const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
 const { resolveTarget } = require('../target-resolver');
@@ -133,6 +134,10 @@ async function generateHeroReport(session, analysis, opts = {}) {
       extractKey: extractKeyFromUrl,
       downscale: (buf) => sharp(buf).rotate().resize({ width: 720, withoutEnlargement: true }).jpeg({ quality: 72 }).toBuffer(),
     });
+    // bd-8s2xb → bd-1mcpe: a caption under EACH framed photo, from that photo's own vision
+    // description (first clause only — never the scorer's critique), matched by the photo's
+    // original index. Pure + non-fatal; no description → that frame renders exactly as before.
+    classroomPhotos = applyPhotoCaptions(classroomPhotos, analysis);
   } catch (e) {
     logToFile('hero-report: classroom photo strip failed (non-fatal)', { error: e.message });
   }

@@ -41,28 +41,28 @@ class QuizDeliveryService {
     // Look up teacher name. Same phone-format issue as:
     // users.phone_number is stored without the leading + for ~5932/5933
     // active rows. Try no-plus first (the common case) then fall back to +.
-    // Schema fix: column is `first_name`, not `name`.
+    // bd-60092: one name column — `name`.
     let teacherName = language === 'ur' ? 'آپ کے استاد' : 'Your teacher';
     try {
       const noPlus = teacherPhone.startsWith('+') ? teacherPhone.slice(1) : teacherPhone;
       const withPlus = teacherPhone.startsWith('+') ? teacherPhone : `+${teacherPhone}`;
       let { data: teacher } = await supabase
         .from('users')
-        .select('first_name, last_name')
+        .select('name')
         .eq('phone_number', noPlus)
         .single();
       if (!teacher) {
         const fallback = await supabase
           .from('users')
-          .select('first_name, last_name')
+          .select('name')
           .eq('phone_number', withPlus)
           .single();
         teacher = fallback.data;
       }
-      if (teacher?.first_name) {
-        teacherName = teacher.last_name
-          ? `${teacher.first_name} ${teacher.last_name}`.trim()
-          : teacher.first_name;
+      if (teacher?.name) {
+        teacherName = teacher.name
+          ? (teacher.name || '').trim()
+          : teacher.name;
       }
     } catch (e) {
       logToFile('⚠️ Could not fetch teacher name, using fallback', { error: e.message });

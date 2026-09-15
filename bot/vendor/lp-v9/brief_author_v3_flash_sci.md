@@ -1993,6 +1993,14 @@ field. The cue is teacher-facing prose in the lesson's own language — an Urdu 
 cues. `lint_lp.js` fails a wall (`ONESCREEN_FORMAT`) and fails the wrong asterisks
 (`ONESCREEN_BOLD`).
 
+And its **maths is read, not typeset**. WhatsApp cannot draw a radical or a fraction bar, so a
+`$...$` span or a `\times` lands on the handset as its own source — a Grade 6 teacher was receiving
+the literal `$-6 \times \square = -540$` ahead of the PDF that renders the same line correctly.
+Write the character the teacher already reads: `×` `÷` `·` `√` `²` `³` `₁` `≤` `≥` `π` `°` `∠`,
+`a/b` for a fraction, `x²` for a square, `√2` for a root. No dollar delimiters and no backslash
+commands anywhere in this field — `lint_lp.js` fails both (`ONESCREEN_TEX`). This is the message
+body only; the PDF typesets maths properly and `one_screen` never reaches the page.
+
 **Urdu costs roughly 1.5× the space of English** at the same content, because Nastaliq needs a
 unitless line-height ≥ 2.0. An `ur_overlay` does not change the word budget, but it does change the
 page count — an English plan packed to the cap will overflow in Urdu. Aim for ≤4 teach pages in

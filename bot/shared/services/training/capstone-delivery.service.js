@@ -336,7 +336,7 @@ async function routeTextAnswer(phoneNumber, text) {
   if (!trimmed || trimmed.startsWith('/')) return false;
 
   const { data: user } = await supabase
-    .from('users').select('id, first_name').eq('phone_number', phoneNumber).maybeSingle();
+    .from('users').select('id, name').eq('phone_number', phoneNumber).maybeSingle();
   if (!user) return false;
 
   // bd-5tn5d — NOT .maybeSingle(). A teacher can legitimately hold one open

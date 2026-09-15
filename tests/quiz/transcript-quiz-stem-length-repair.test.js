@@ -176,11 +176,11 @@ describe('the pipeline ships the quiz that a single over-long stem killed', () =
         data: [{
           id: SID, user_id: 'u-1', transcript_text: 'lesson '.repeat(400), transcript_language: 'ur',
           created_at: '2026-09-07T05:00:00Z', analysis_data: { topic: 'x', subject: 'x' },
-          users: { phone_number: '923001234567', preferred_language: 'en', first_name: 'Rifat', last_name: 'Noor' },
+          users: { phone_number: '923001234567', preferred_language: 'en', name: 'Rifat Noor' },
         }],
       },
       quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
-      users: { data: [{ phone_number: '923001234567', preferred_language: 'en', first_name: 'Rifat', last_name: 'Noor' }] },
+      users: { data: [{ phone_number: '923001234567', preferred_language: 'en', name: 'Rifat Noor' }] },
     });
   });
 

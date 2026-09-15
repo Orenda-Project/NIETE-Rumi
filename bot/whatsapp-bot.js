@@ -629,6 +629,16 @@ app.post('/webhook', async (req, res) => {
       logError('❌ User lookup failed — database unreachable', { phoneNumber: from, error: error.message });
     }
 
+    // WHO IS HOLDING THIS HANDSET — decided once, here, for every message type
+    // (bd-2yyry.1). A proven child is answered by StudentIngress.route() below;
+    // everyone else — and every failure — takes the ordinary dispatch.
+    const StudentIngress = require('./shared/services/student-ingress');
+    if (user) {
+      try { await StudentIngress.attach(user, from); } catch (err) {
+        logToFile('⚠️ student-ingress attach failed (non-fatal)', { error: err.message });
+      }
+    }
+
     // Track chat start for funnel analysis (for all message types)
     if (user) {
       try {
@@ -646,6 +656,11 @@ app.post('/webhook', async (req, res) => {
         logToFile('⚠️ Error tracking broadcast reply', { error: err.message });
       });
     }
+
+    // A child's message is routed here (bd-2yyry.3): a quiz code, an answer,
+    // /video, the child menu, a school question — and one short line for
+    // everything else. Returns false for every other handset.
+    if (await StudentIngress.route({ message, messageType, messageBody, from, user })) return;
 
     // Route to appropriate handler based on message type
     if (messageType === 'text' && messageBody) {
@@ -969,9 +984,8 @@ app.post('/webhook', async (req, res) => {
           .eq('id', user.id)
           .maybeSingle();
         const lang = userRow?.preferred_language || 'en';
-        const msg = lang === 'ur'
-          ? '📸 براہ کرم اپنی کلاس روم کی تصویر بھیجیں۔ میں اس کا تجزیہ کروں گا اور آپ کی رپورٹ میں شامل کروں گا۔'
-          : '📸 Please send your classroom photo now. I\'ll analyze it and include it in your report.';
+        // bd-8s2xb — board first; the scorer reads what is written on it (catalog string, Rule 20).
+        const msg = require('./shared/config/ux-strings').resolveUx('coachingPhotoSendNow', { language: lang });
         await WhatsAppService.sendMessage(from, msg);
       }
       // bd-u35ex: the classroom-photo collection (image-message.handler.js Phase 3)
@@ -1909,6 +1923,15 @@ app.post('/webhook', async (req, res) => {
         } catch (ackErr) {
           logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
         }
+      } else if (flowType === 'student_quiz') {
+        // The child's /quiz Flow (bd-2yyry.13): the action already ran after the
+        // screen closed and the chat carries its result — log only.
+        try {
+          await FlowResponseHandler.handleStudentQuizFlowCompletion(responseJson, from);
+        } catch (sqErr) {
+          logToFile('❌ student quiz flow completion failed', { error: sqErr.message }, 'error');
+        }
+        return;
       } else if (flowType === 'transcript_quiz') {
         // /quiz. Every ending already sent its own chat message (tqMaking, the
         // report, the resent link), so this only logs. Without it a completion

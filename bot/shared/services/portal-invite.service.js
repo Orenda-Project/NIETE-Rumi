@@ -200,7 +200,7 @@ Este enlace expira en 7 días. Haz clic en él para crear tu contraseña e inici
       // Query user with this token
       const { data: user, error: queryError } = await supabase
         .from('users')
-        .select('id, first_name, last_name, phone_number, portal_activated, portal_invite_expires_at')
+        .select('id, phone_number, portal_activated, portal_invite_expires_at, name')
         .eq('portal_invite_token', token)
         .single();
 
@@ -248,8 +248,8 @@ Este enlace expira en 7 días. Haz clic en él para crear tu contraseña e inici
         valid: true,
         user: {
           id: user.id,
-          firstName: user.first_name,
-          lastName: user.last_name,
+          firstName: user.name,
+          lastName: user.name,
           phoneNumber: user.phone_number
         }
       };

@@ -31,8 +31,8 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 const delivery = require('../../bot/shared/services/attendance-register-delivery.service');
 
 const STAFF = [
-  { id: 'u1', first_name: 'Ayesha', last_name: 'Khan' },
-  { id: 'u2', first_name: 'Bilal', last_name: 'Ahmed' },
+  { id: 'u1', name: 'Ayesha Khan' },
+  { id: 'u2', name: 'Bilal Ahmed' },
 ];
 
 let captured;

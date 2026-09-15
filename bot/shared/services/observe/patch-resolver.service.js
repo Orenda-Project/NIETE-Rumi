@@ -90,7 +90,7 @@ const _norm = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
  */
 function fullNameOf(r = {}) {
   return _norm(r.name)
-    || [_norm(r.first_name), _norm(r.last_name)].filter(Boolean).join(' ')
+    || [_norm(r.name), _norm(r.name)].filter(Boolean).join(' ')
     || null;
 }
 
@@ -197,8 +197,8 @@ function dedupePatch(rows = []) {
 const PATCH_SQL = `
   SELECT u.id            AS user_id,
          u.phone_number,
-         u.first_name,
-         u.last_name,
+         u.name,
+         u.name,
          u.name,
          u.role,
          u.training_bands,
@@ -249,7 +249,7 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
 
   const { data: people } = await supabase
     .from('users')
-    .select('id, phone_number, first_name, last_name, name, role, school_id, training_bands, grades_taught')
+    .select('id, phone_number, name, role, school_id, training_bands, grades_taught')
     .in('school_id', [...byId.keys()])
     .in('role', [...PATCH_ROLES]);
 

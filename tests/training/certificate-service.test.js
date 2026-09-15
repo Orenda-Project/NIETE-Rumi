@@ -118,7 +118,7 @@ describe('issueCertificate', () => {
 
   it('inserts a training_certificates row with snapshots and returns the code', async () => {
     tableStates.training_certificates = { rows: [] };
-    tableStates.users = { rows: [{ name: null, first_name: 'Amina', last_name: 'Khan' }] };
+    tableStates.users = { rows: [{ name: 'Amina Khan' }] };
     tableStates.training_levels = { rows: [{ name: 'Foundations' }] };
 
     const supabase = makeSupabase();

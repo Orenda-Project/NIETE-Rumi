@@ -914,7 +914,7 @@ app.get('/observability/api/users',
     if (userRole === 'super_admin' || !accessScope || accessScope.scope_type === 'all') {
       // Super admin or "all" scope: Use RLS-enforced direct query
       const result = await req.dbClient.query(`
-        SELECT id, phone_number, first_name, school_name, created_at,
+        SELECT id, phone_number, name, school_name, created_at,
                registration_completed, preferred_language
         FROM users
         ORDER BY created_at DESC
@@ -938,7 +938,7 @@ app.get('/observability/api/users',
         // Fallback to RLS-enforced query if MV fails
         console.warn('[Users API] Scoped MV failed, falling back to RLS:', scopeError.message);
         const result = await req.dbClient.query(`
-          SELECT id, phone_number, first_name, school_name, created_at,
+          SELECT id, phone_number, name, school_name, created_at,
                  registration_completed, preferred_language
           FROM users
           ORDER BY created_at DESC
@@ -1686,18 +1686,7 @@ app.get('/observability/proxy/transcript/:sessionId',
     // Phase 5/6: Also fetch analysis_data which contains slo_mastery and classroom_climate
     const { data: session, error } = await supabase
       .from('coaching_sessions')
-      .select(`
-        id,
-        transcript_text,
-        audio_url,
-        audio_duration_seconds,
-        tokens_raw,
-        silence_markers,
-        diarization_data,
-        analysis_data,
-        created_at,
-        users!inner(first_name, last_name, phone_number, school_name)
-      `)
+      .select(`id, transcript_text, audio_url, audio_duration_seconds, tokens_raw, silence_markers, diarization_data, analysis_data, created_at, users!inner(name, phone_number, school_name)`)
       .eq('id', sessionId)
       .single();
 
@@ -1710,7 +1699,7 @@ app.get('/observability/proxy/transcript/:sessionId',
     }
 
     // Format metadata
-    const teacherName = `${session.users.first_name || ''} ${session.users.last_name || ''}`.trim() || 'Unknown';
+    const teacherName = `${session.users.name || ''} ${session.users.name || ''}`.trim() || 'Unknown';
     const schoolName = session.users.school_name || 'N/A';
     const sessionDate = new Date(session.created_at).toLocaleString('en-US', {
       year: 'numeric',
@@ -2504,7 +2493,7 @@ app.post('/observability/api/admin/scope-preview',
     const registeredCount = parseInt(registeredResult.rows[0].total);
 
     // Get sample users for preview (limit 100)
-    const previewQuery = `SELECT phone_number, first_name, school_name, registration_completed FROM users WHERE ${whereClause} LIMIT 100`;
+    const previewQuery = `SELECT phone_number, name, school_name, registration_completed FROM users WHERE ${whereClause} LIMIT 100`;
     const result = await req.dbClient.query(previewQuery, params);
 
     res.json({
@@ -3109,7 +3098,7 @@ app.get('/observability/api/broadcast/search-users', requireAdmin, async (req, r
     // Search by phone OR name
     let query = supabase
       .from('users')
-      .select('id, phone_number, first_name, last_name, name')
+      .select('id, phone_number, name')
       .eq('registration_completed', true)
       .not('phone_number', 'is', null);
 
@@ -3120,8 +3109,6 @@ app.get('/observability/api/broadcast/search-users', requireAdmin, async (req, r
     } else {
       // Name search - use ilike for case-insensitive
       query = query.or(
-        `first_name.ilike.%${searchTerm}%,` +
-        `last_name.ilike.%${searchTerm}%,` +
         `name.ilike.%${searchTerm}%`
       );
     }
@@ -3135,8 +3122,8 @@ app.get('/observability/api/broadcast/search-users', requireAdmin, async (req, r
     // Map results with masked phone numbers
     const results = (users || []).map(user => ({
       id: user.id,
-      displayName: user.first_name
-        ? `${user.first_name} ${user.last_name || ''}`.trim()
+      displayName: user.name
+        ? `${user.name} ${user.name || ''}`.trim()
         : user.name || 'Unknown',
       phoneNumber: user.phone_number,
       phoneMasked: maskPhoneNumber(user.phone_number),
@@ -3191,7 +3178,7 @@ app.post('/observability/api/broadcast/dry-run', requireAdmin, async (req, res) 
 
       const { data, error } = await supabase
         .from('users')
-        .select('id, phone_number, first_name, last_name, name')
+        .select('id, phone_number, name')
         .in('id', userIds)
         .eq('registration_completed', true)
         .not('phone_number', 'is', null);
@@ -3209,7 +3196,7 @@ app.post('/observability/api/broadcast/dry-run', requireAdmin, async (req, res) 
 
     // Sample recipients (masked)
     const sampleRecipients = users.slice(0, 10).map(u => ({
-      name: u.first_name || u.name || 'Unknown',
+      name: u.name || 'Unknown',
       phone: broadcastService.maskPhoneNumber(u.phone_number),
       country: u.phone_number.startsWith('92') ? 'Pakistan' : 'Sri Lanka'
     }));
@@ -3295,7 +3282,7 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
 
       const { data, error } = await supabase
         .from('users')
-        .select('id, phone_number, first_name, last_name, name, last_message_at')
+        .select('id, phone_number, name, last_message_at')
         .in('id', userIds)
         .eq('registration_completed', true)
         .not('phone_number', 'is', null);

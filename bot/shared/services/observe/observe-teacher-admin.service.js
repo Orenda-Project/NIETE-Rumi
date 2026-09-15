@@ -78,14 +78,14 @@ function _supabaseDb() {
 
     async userByPhone(phone) {
       const { data } = await supabase.from('users')
-        .select('id, phone_number, first_name, role, school_id').eq('phone_number', phone).limit(1);
+        .select('id, phone_number, role, school_id, name').eq('phone_number', phone).limit(1);
       return (data && data[0]) || null;
     },
 
     async userById(userId) {
       if (!userId) return null;
       const { data } = await supabase.from('users')
-        .select('id, phone_number, first_name, role, school_id').eq('id', userId).limit(1);
+        .select('id, phone_number, role, school_id, name').eq('id', userId).limit(1);
       return (data && data[0]) || null;
     },
 
@@ -103,7 +103,7 @@ function _supabaseDb() {
 
     async createTeacher({ phone, name, schoolId, role }) {
       const { data, error } = await supabase.from('users')
-        .insert({ phone_number: phone, first_name: name, role: role || 'teacher', school_id: schoolId })
+        .insert({ phone_number: phone, name: name, role: role || 'teacher', school_id: schoolId })
         .select('id').limit(1);
       if (error) throw new Error(`createTeacher: ${error.message}`);
       return (data && data[0]) || null;
@@ -156,10 +156,10 @@ async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) 
 
   const u = await db.userByPhone(phone);
   if (!u) return { outcome: 'new', phone, toSchoolName: target.school_name, target };
-  if (u.role === 'coach') return { outcome: 'is_coach', phone, person: { name: u.first_name } };
+  if (u.role === 'coach') return { outcome: 'is_coach', phone, person: { name: u.name } };
 
   const person = {
-    userId: u.id, name: u.first_name, role: u.role, isPrincipal: u.role === 'principal',
+    userId: u.id, name: u.name, role: u.role, isPrincipal: u.role === 'principal',
   };
   if (u.school_id && u.school_id === target.school_id) {
     return { outcome: 'already_here', phone, person, toSchoolName: target.school_name, target };
@@ -316,14 +316,14 @@ async function commitRemoval({ actorLeaderUserId, schoolExtId, userId, reason },
   await db.writeAudit([_auditRow({
     action: 'remove', actor_user_id: actorLeaderUserId, affected_leader_user_id: actorLeaderUserId,
     teacher_ext_id: phone, teacher_phone_e164: phone,
-    teacher_name: (person && person.first_name) || null,
+    teacher_name: (person && person.name) || null,
     from_school_ext_id: schoolExtId, to_school_ext_id: null,
     detail: { via: 'observe_flow', reason: reason || null, visitsCancelled },
   })]);
 
   return {
     ok: true, visitsCancelled, schoolName: school.school_name,
-    name: (person && person.first_name) || null,
+    name: (person && person.name) || null,
   };
 }
 

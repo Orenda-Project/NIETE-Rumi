@@ -523,7 +523,7 @@ Return JSON with these fields:
     try {
       const { data, error } = await supabase
         .from('coaching_sessions')
-        .select('id, users:users(phone_number, preferred_language)')
+        .select('id, users:users(name, phone_number, preferred_language)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -557,7 +557,7 @@ Return JSON with these fields:
     try {
       const { data, error } = await supabase
         .from('coaching_sessions')
-        .select('id, lesson_plan_format, users:users(first_name, phone_number)')
+        .select('id, lesson_plan_format, users:users(name, phone_number)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -569,7 +569,7 @@ Return JSON with these fields:
         return;
       }
 
-      const teacherName = (data.users.first_name || 'Teacher').trim();
+      const teacherName = (data.users.name || 'Teacher').trim();
       const message = `⚠️ ${teacherName}, I got your lesson plan but couldn’t read the file. It looks like the document was saved under the wrong format (for example, a Word file renamed as PDF). Please resend it as the original Word/DOCX file, a proper PDF export, or clear page photos so I can include it in your report.`;
 
       if (process.env.OFFLINE_REPLAY === 'true') {

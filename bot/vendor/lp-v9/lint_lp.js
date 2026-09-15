@@ -695,6 +695,37 @@ function lint(doc, docPath, opts = {}) {
     for (const d of oneScreenShapeDefects(doc.one_screen)) fail(d.code, d.message);
   }
 
+  // 12c — …and its maths is READ, not typeset (bd-lafr9).
+  //
+  //   WhatsApp cannot typeset. A `$...$` span or a `\command` in this field lands on the
+  //   handset as its own source: 44% of maths lessons sent between 2026-09-01 and 2026-09-14
+  //   put a literal `$-6 \times \square = -540$` in front of a teacher, ahead of the PDF that
+  //   renders the same line correctly.
+  //
+  //   `buildBody` now converts on the way out (bot/shared/utils/tex-to-unicode.js), which is
+  //   what repairs the stored backlog — every render cached before today still holds its TeX.
+  //   This gate is the other half: it stops NEW documents being authored that way, so the
+  //   converter stays a safety net rather than the only thing standing between an author's
+  //   habit and a teacher's screen. Writing `×` and `√` here costs an author nothing.
+  //
+  //   Deliberately NOT in `oneScreenShapeDefects`: that predicate is also the worker's
+  //   reuse-rejection rule, and refusing reuse re-authors the document at a real cost. A
+  //   stored body with TeX in it is now converted correctly at send time and must keep
+  //   riding the cache.
+  //
+  //   Prose is left alone. Only the two things that cannot be read are named: a dollar-
+  //   delimited span, and a backslash followed by letters.
+  if (full && typeof doc.one_screen === "string" && doc.one_screen.trim()) {
+    const texSpan = /\$[^$\n]+\$/.exec(doc.one_screen);
+    if (texSpan) {
+      fail("ONESCREEN_TEX", `one_screen contains the TeX span ${JSON.stringify(texSpan[0])}. WhatsApp cannot typeset — write the maths as the Unicode a teacher already reads (× ÷ · √ ² ₁ ≤ π), with no dollar delimiters.`);
+    }
+    const command = /\\[a-zA-Z]+/.exec(doc.one_screen);
+    if (command) {
+      fail("ONESCREEN_TEX", `one_screen contains the TeX command "${command[0]}". WhatsApp prints it literally — write the character itself (\\times is ×, \\sqrt is √, \\frac{a}{b} is a/b).`);
+    }
+  }
+
   // 13 — the Urdu toggle may not overwrite the book's own language
   for (const ptr of Object.keys(doc.ur_overlay || {})) {
     const why = frozenReason(doc, ptr);
@@ -1069,9 +1100,40 @@ const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
 const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
-// Latin script has no place in a sacred name on an Urdu religious page — a transliteration is a
-// de-pointing by another route, and §4c.5 bans that outright.
-const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|PBUH|SAW|SAWW|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu|RA\b)/;
+// §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
+// transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
+// in any medium — an English book prints "ﷺ" or "(peace be upon him)", never "(PBUH)".
+const ABBREV_RE = /\b(PBUH|SAW|SAWW|RA)\b/;
+// A TRANSLITERATION, by contrast, is only wrong where the book prints the Urdu. On an Urdu
+// religious page Latin script is a de-pointing by another route; in a Grade 6 ENGLISH lesson
+// "Hazrat Muhammad" and "Khadijah radiallahu anha" are what the page itself prints, and forcing
+// them into Urdu script is the defect, not the fix (bd-b8ypq). `provenance.medium` decides.
+const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu)/;
+// Reverence does not depend on script, so the English lane keeps its own honorific rule: rule 1
+// cannot see these mentions at all, because PROPHET_RE holds only Urdu-script tokens.
+const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
+const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم|\(?\s*peace\s+be\s+upon\s+him\s*\)?)/i;
+// A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
+// the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
+// two on an English page — the NAME keeps the Latin spelling the English book prints, the
+// SALUTATION is the ligature — and this carries the same split to companions: "Khadijah رضی اللہ
+// عنہا", never "Khadijah radiallahu anha" and never "Khadijah (may Allah be pleased with her)".
+//
+// This is a ban on the WRITTEN-OUT-IN-LATIN salutation, not a demand that a name carry one. Rule 3
+// deliberately refuses to keep a corpus of companion names — bare "علی"/"عمر" are ordinary words —
+// and a Latin list would be worse, so a bare "Khadijah" is still the native-speaker reviewer's
+// call. What IS decidable without a name list is that a salutation was typed in the wrong script.
+//
+// Transliterations vary more than the Urdu does: radi/radhi/razi/radiya, alayhi/alaihi,
+// rahmat/rahimah. The Urdu forms these should have been are COMPANION_HON's set, quoted back to
+// the author in the message.
+const COMPANION_SALUT_LATIN_RE = new RegExp([
+  "r[ae][dz]h?i(?:y|ya)?\\s*-?\\s*all?ah[ui]?\\s*-?\\s*['’]?anh(?:uma|um|un|u|a)",  // رضی اللہ عنہ
+  "r[ae]h(?:mat|imah)u?ll?ah(?:i)?(?:\\s*-?\\s*(?:alay|alai)h[ie]?)?",                   // رحمہ اللہ
+  "(?:alay|alai)h[ia]?s?\\s*-?\\s*(?:as[\\s-])?sal[ae]{1,2}m",                           // علیہ السلام
+  "karr?am\\s*-?\\s*all?ah[ui]?\\s*-?\\s*wajh",                                          // کرم اللہ وجہہ
+  "may\\s+Allah\\s+be\\s+pleased\\s+with\\s+(?:him|her|them)",                           // the translation
+].map((s) => `\\b(?:${s})`).join("|"), "i");
 // Attributed prophetic SPEECH: a Prophet token, a speech verb, and a quoted span. That is a
 // hadith, and a hadith without its source is the "content that has him speak" the operator ruled
 // out. A source is a book-and-number, a page cite, or a named collection.
@@ -1539,11 +1601,36 @@ function religiousMarks(doc, ctx) {
     }
   }
 
-  // 2 — no sacred name in Latin script. A transliteration is a de-pointing by another route.
+  // 2 — abbreviation is refused in EITHER medium; transliteration only where the book prints the
+  //     Urdu. `provenance.medium` is the language of INSTRUCTION (lp_doc.v2 schema, enum en|ur);
+  //     a document that somehow lacks it gets the stricter Urdu branch.
+  const medium = (doc.provenance && doc.provenance.medium) || "ur";
   for (const { at, s } of strings) {
-    const t = TRANSLIT_RE.exec(s);
-    if (t) {
-      fail("RELIGIOUS_MARKS", `${at || "/"} writes a sacred name or honorific in Latin script ("${t[0]}"): "${s.slice(0, 70)}". These are set in Urdu/Arabic script as the book prints them — اللہ، نبی کریم ﷺ، رضی اللہ عنہ (brief §4c.5). ${HOLD}`);
+    const a = ABBREV_RE.exec(s);
+    if (a) {
+      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write it out — ﷺ, رضی اللہ عنہ, or "peace be upon him" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      continue;
+    }
+    // Before the medium split, because it does not depend on it: a salutation belongs to the
+    // companion, not to the sentence around it, so it is set in Urdu script whatever the page is.
+    const c = COMPANION_SALUT_LATIN_RE.exec(s);
+    if (c) {
+      fail("RELIGIOUS_MARKS", `${at || "/"} writes a companion's salutation in Latin script ("${c[0]}"): "${s.slice(0, 70)}". The NAME keeps the spelling the book prints, but the salutation is set in Urdu — "Khadijah رضی اللہ عنہا", not "Khadijah ${c[0]}". Use رضی اللہ عنہ / عنہا / عنہم، علیہ السلام، رحمہ اللہ (brief §4c.5). ${HOLD}`);
+      continue;
+    }
+    if (medium === "ur") {
+      const t = TRANSLIT_RE.exec(s);
+      if (t) {
+        fail("RELIGIOUS_MARKS", `${at || "/"} writes a sacred name or honorific in Latin script ("${t[0]}"): "${s.slice(0, 70)}". These are set in Urdu/Arabic script as the book prints them — اللہ، نبی کریم ﷺ، رضی اللہ عنہ (brief §4c.5). ${HOLD}`);
+      }
+      continue;
+    }
+    // English medium: the Latin spelling is the book's own and stays. The honorific still does not.
+    TRANSLIT_PROPHET_RE.lastIndex = 0;
+    let m;
+    while ((m = TRANSLIT_PROPHET_RE.exec(s))) {
+      if (TRANSLIT_HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — an English lesson keeps the spelling the book prints, but never drops the honorific (brief §4c.5). ${HOLD}`);
     }
   }
 
@@ -2144,7 +2231,45 @@ const OVERLAY_SKIP_KEYS = new Set([
   ...MACHINE_KEYS,
 ]);
 /** Subtrees that are citation metadata or a third party's own text, not our instructions. */
-const OVERLAY_SKIP_ROOTS = ["/provenance", "/video", "/revisions", "/ur_overlay"];
+// VENDOR DIVERGENCE (bd-x3dn6) — `/provenance` used to sit in this list wholesale. See below.
+const OVERLAY_SKIP_ROOTS = ["/video", "/revisions", "/ur_overlay"];
+
+/**
+ * bd-x3dn6 — `/provenance` is MIXED, and skipping it whole left English on an Urdu page.
+ *
+ * Most of the block is citation: a publisher's name, a curriculum's name, an edition, the source
+ * quality flags an operator wrote about the scan. Translating any of those produces a citation
+ * that does not match the book on the teacher's desk.
+ *
+ * `topic` is not citation. It is the lesson's TITLE — the largest type on page 1, the running
+ * header of every continued page, the page-2 head, and the PDF's own document title (four draw
+ * sites in `lib/template.js`, one pointer). On the first Urdu lessons this lane ever delivered
+ * (d04/d05/d06, 2026-09-05) «Rational and Irrational Numbers» headed a page that was otherwise
+ * 74% Urdu. `chapter` and `chapter_title` sit beside it in the footer and the hero for the same
+ * reason: they are the book's own words for the lesson, not a reference to the book.
+ *
+ * `subject` is deliberately NOT here. `SUBJECT_NAMES_UR` / `subjectNameFor()` already produce the
+ * Urdu subject name the WhatsApp caption prints (bd-63dea); a model translating it a second time
+ * is how the caption and the PDF header end up disagreeing about what the subject is called.
+ */
+const OVERLAY_PROVENANCE_KEYS = new Set(["topic", "chapter", "chapter_title"]);
+
+/**
+ * bd-8g1u7 — the display strings of a diagram spec, which are labels rather than prose.
+ *
+ * `isInstructionProse` wants >= 8 characters AND two runs of two-or-more Latin letters, which is
+ * right for instruction text and wrong for a figure label: a label is a short single word by
+ * nature. `Nucleus` fails on length, `p_photon` fails on word count, `p_e-` fails on both — so an
+ * Urdu physics lesson kept every English label in its figures. Inside a diagram `spec` only, these
+ * keys admit a single word as well.
+ *
+ * `isDiagramLabel` is what keeps notation out: a string carrying `_` or `^` is a symbol
+ * (`p_e-`, `v_max`, `x^2`), and a string with no run of three Latin letters is not a word. The
+ * machine fields a renderer PARSES rather than prints — tex, smiles, equation, formula — are not
+ * display keys at all, and stay frozen through `MACHINE_KEYS` and `frozenReason`.
+ */
+const DIAGRAM_DISPLAY_KEYS = new Set(["label", "labels", "text", "title", "caption", "note", "alt", "name"]);
+const isDiagramLabel = (s) => /[A-Za-z]{3,}/.test(s) && !/[_^]/.test(s);
 
 /**
  * At least HALF the instruction prose must carry an Urdu replacement.
@@ -2167,29 +2292,46 @@ function isInstructionProse(s) {
  * Every JSON Pointer in `doc` that the Urdu toggle is ALLOWED to replace and OUGHT to.
  * Exported through `overlayDefects.targets` so the count in the message and the count a test
  * asserts are the same computation, not two that can drift.
+ *
+ * VENDOR DIVERGENCE (bd-x3dn6, bd-8g1u7) — the per-field `/provenance` gate and the diagram
+ * display-key rule are ours; upstream carries neither. Recorded in SYNC.md §3.13.
  */
 function overlayTargets(doc) {
   const out = [];
   const esc = (k) => String(k).replace(/~/g, "~0").replace(/\//g, "~1");
-  const walk = (node, ptr) => {
+  // `spec` is true once the walk is inside a diagram spec; `dispKey` is the display key the
+  // current string hangs off, carried through arrays so `labels/0` still counts as a label.
+  const walk = (node, ptr, spec, dispKey) => {
     if (typeof node === "string") {
-      if (!isInstructionProse(node)) return;
-      if (OVERLAY_SKIP_ROOTS.some((r) => ptr === r || ptr.startsWith(r + "/"))) return;
+      const diagramLabel = spec && !!dispKey && isDiagramLabel(node);   // bd-8g1u7
+      if (!isInstructionProse(node) && !diagramLabel) return;
+      if (ptr.startsWith("/provenance/")) {                             // bd-x3dn6
+        const pk = ptr.slice("/provenance/".length);
+        if (!OVERLAY_PROVENANCE_KEYS.has(pk)) return;
+      } else if (OVERLAY_SKIP_ROOTS.some((r) => ptr === r || ptr.startsWith(r + "/"))) return;
       const key = ptr.slice(ptr.lastIndexOf("/") + 1);
-      if (OVERLAY_SKIP_KEYS.has(key)) return;
+      if (OVERLAY_SKIP_KEYS.has(key) && !diagramLabel) return;
       if (frozenReason(doc, ptr)) return;
       out.push(ptr);
       return;
     }
-    if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${ptr}/${i}`)); return; }
+    if (Array.isArray(node)) {
+      node.forEach((v, i) => walk(v, `${ptr}/${i}`, spec, dispKey));
+      return;
+    }
     if (node && typeof node === "object") {
       for (const [k, v] of Object.entries(node)) {
-        if (OVERLAY_SKIP_KEYS.has(k) && typeof v === "string") continue;
-        walk(v, `${ptr}/${esc(k)}`);
+        // A display key inside a spec bypasses the shortcut below — `name` is on the skip list
+        // for a brand and a font, and is also what several diagram types call their label.
+        const disp = spec && DIAGRAM_DISPLAY_KEYS.has(k) ? k : null;
+        if (OVERLAY_SKIP_KEYS.has(k) && typeof v === "string" && !disp) continue;
+        const childSpec = spec
+          || (k === "spec" && !!v && typeof v === "object" && !Array.isArray(v) && typeof v.type === "string");
+        walk(v, `${ptr}/${esc(k)}`, childSpec, disp);
       }
     }
   };
-  walk(doc, "");
+  walk(doc, "", false, null);
   return out;
 }
 

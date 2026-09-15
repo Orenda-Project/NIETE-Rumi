@@ -36,6 +36,9 @@ const STUDENT_VIDEOS_FLOW_ID = process.env.STUDENT_VIDEOS_FLOW_ID || '';
 // live results, generate report / resend link / make the quiz). Empty →
 // /quiz falls back to the interactive list message.
 const TRANSCRIPT_QUIZ_FLOW_ID = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
+// The CHILD's /quiz Flow (bd-2yyry.13) — a separate asset per WABA; unset = the
+// two-button fallback. Read at call time in student-quiz.service.js.
+const STUDENT_QUIZ_FLOW_ID = process.env.STUDENT_QUIZ_FLOW_ID || '';
 // WhatsApp Flow ID for the homework request flow (empty → /homework replies
 // that the feature is not configured).
 const HOMEWORK_FLOW_ID = process.env.HOMEWORK_FLOW_ID || '';
@@ -191,6 +194,7 @@ module.exports = {
   STATUS_FLOW_ID,
   STUDENT_VIDEOS_FLOW_ID,
   TRANSCRIPT_QUIZ_FLOW_ID,
+  STUDENT_QUIZ_FLOW_ID,
   HOMEWORK_FLOW_ID,
   EDIT_CLASS_FLOW_ID,
   CLASS_MANAGER_FLOW_ID,

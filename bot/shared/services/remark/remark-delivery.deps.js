@@ -92,7 +92,7 @@ function makeDeliveryDeps({ principal, teacherLabelFor }) {
     loadTeacher: async (teacherId) => {
       const { data, error } = await db()
         .from('users')
-        .select('id, first_name, phone_number, preferred_language')
+        .select('id, phone_number, preferred_language, name')
         .eq('id', teacherId)
         .maybeSingle();
       if (error) throw new Error(`remark-deps: loadTeacher failed — ${error.message}`);
@@ -134,7 +134,7 @@ function makeDeliveryDeps({ principal, teacherLabelFor }) {
         [{
           type: 'body',
           parameters: [
-            teacher.first_name || 'Teacher',
+            teacher.name || 'Teacher',
             narrative.opening, narrative.strengths, narrative.growth, narrative.action_plan,
           ].map((text) => ({ type: 'text', text: flattenParam(text) })),
         }],

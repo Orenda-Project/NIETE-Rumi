@@ -31,7 +31,7 @@ async function _resolveSessionLanguage(coachingSessionId) {
   try {
     const { data } = await supabase
       .from('coaching_sessions')
-      .select('users(preferred_language), transcript_language')
+      .select('users(name, preferred_language), transcript_language')
       .eq('id', coachingSessionId)
       .maybeSingle();
     return data?.users?.preferred_language || data?.transcript_language || 'en';
@@ -54,7 +54,7 @@ class AnalysisProcessorService {
       // Get session data
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('*, users!inner(phone_number, first_name, last_name)')
+        .select('*, users!inner(name, phone_number)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -106,7 +106,7 @@ class AnalysisProcessorService {
       const metadata = {
         duration: session.audio_duration_seconds,
         language: session.transcript_language,
-        teacherFirstName: session.users.first_name,
+        teacherFirstName: session.users.name,
         priorFeedback: priorFeedbackText,
         lessonPlanExcerpt: session.lesson_plan_excerpt || null,
         lessonPlanStatus: session.lesson_plan_extraction_status || null,
@@ -141,33 +141,62 @@ class AnalysisProcessorService {
         reason: frameworkSelectionReason,
       });
 
-      // bd-gr48y: run the vision pass on the teacher's classroom photos and feed the
-      // result INTO the analysis prompt, labelled so the model treats it as photo-sourced.
-      // Score stays audio-primary (the framework's photoNote frames it as supplementary
-      // context); a vision failure is non-blocking and never sinks the audio analysis.
+      // bd-gr48y → bd-8s2xb: the photo channel. Every submitted photo (was: the first two —
+      // the board shot is usually #3) gets the vision description; in the image modes it is
+      // ALSO downscaled and handed to the scoring call as an image part. The mode comes from
+      // COACHING_PHOTO_MODE:
+      //   note  (default) — today's prompt: description stored, scorer told photos exist, shown nothing
+      //   off   — no photo channel at all
+      //   text  — the description is inserted into the prompt
+      //   image — the photos are attached to the scoring call
+      //   both  — description inserted AND photos attached (the bd-drg79 target)
+      // Degrade, never fail: a photo that cannot be fetched/encoded is skipped; no usable image
+      // → 'text'; no description → 'off'. The EFFECTIVE mode is what gets persisted.
+      const PHOTO_MODE = String(process.env.COACHING_PHOTO_MODE || 'note').toLowerCase();
       metadata.photoAnalysis = null;
+      metadata.photo = { mode: 'off', text: null, count: 0, images: [] };
       try {
-        const photos = Array.isArray(session.classroom_photos) ? session.classroom_photos.slice(0, 2) : [];
-        if (photos.length) {
+        const photos = (Array.isArray(session.classroom_photos) ? session.classroom_photos : []).filter((p) => p && p.url);
+        if (photos.length && PHOTO_MODE !== 'off') {
           const { processClassroomPhoto } = require('./classroom-photo/photo-analysis.service');
           const { downloadFromR2, extractKeyFromUrl } = require('../../storage/r2');
+          const wantImages = PHOTO_MODE === 'image' || PHOTO_MODE === 'both';
           const parts = [];
-          for (const p of photos) {
-            if (!p || !p.url) continue;
+          const images = [];
+          for (const [photoIndex, p] of photos.entries()) {
+            let buf;
             try {
-              const buf = await downloadFromR2(extractKeyFromUrl(p.url));
+              buf = await downloadFromR2(extractKeyFromUrl(p.url));
               const text = await processClassroomPhoto(buf, p.mime_type || 'image/jpeg', frameworkKey);
-              if (text) parts.push(text);
+              // bd-1mcpe: keep the photo's ORIGINAL position — the report captions each framed photo
+              // from "Classroom photo N", so a skipped photo must not renumber the ones after it.
+              if (text) parts.push({ n: photoIndex + 1, text });
             } catch (perr) {
               logToFile('[photo-vision] one photo failed (non-blocking)', { coachingSessionId, error: perr.message });
+              continue;
+            }
+            if (wantImages) {
+              try {
+                const { encodeForScorer } = require('./classroom-photo/scorer-image.js');
+                images.push(await encodeForScorer(buf));
+              } catch (encErr) {
+                logToFile('[photo-vision] one photo could not be encoded for the scorer (non-blocking)', { coachingSessionId, error: encErr.message });
+              }
             }
           }
-          if (parts.length) {
-            metadata.photoAnalysis = parts
-              .map((t, i) => `Classroom photo ${i + 1} (submitted by the teacher): ${t}`)
-              .join('\n\n');
-            logToFile('[photo-vision] photo analysis attached to prompt', { coachingSessionId, photos: parts.length });
-          }
+          const text = parts.length
+            ? parts.map(({ n, text: t }) => `Classroom photo ${n} (submitted by the teacher): ${t}`).join('\n\n')
+            : null;
+          metadata.photoAnalysis = text; // persisted as analysis_data.photo_analysis (unchanged contract)
+          let effective = PHOTO_MODE;
+          if (wantImages && !images.length) effective = text ? 'text' : 'off';
+          if ((effective === 'text' || effective === 'note') && !text) effective = 'off';
+          metadata.photo = { mode: effective, text, count: photos.length, images: wantImages ? images : [] };
+          logToFile('[photo-vision] photo channel', {
+            coachingSessionId, flag: PHOTO_MODE, effectiveMode: effective,
+            photos: photos.length, described: parts.length, images: images.length,
+            bytes: images.reduce((a, b) => a + (b.bytes || 0), 0),
+          });
         }
       } catch (verr) {
         logToFile('[photo-vision] vision pass failed (non-blocking)', { coachingSessionId, error: verr.message });
@@ -276,6 +305,10 @@ class AnalysisProcessorService {
             // bd-gr48y: persist the photo read so report transformers can flag
             // photo-aware indicators (hasPhotoAnalysis) and the report can show it.
             ...(metadata.photoAnalysis ? { photo_analysis: metadata.photoAnalysis } : {}),
+            // bd-8s2xb: which photo channel actually RAN (not the flag) + how many were submitted,
+            // so the 48h watch can split score/citation rates by mode. Never the image bytes.
+            photo_mode: metadata.photo.mode,
+            photo_count_analysed: metadata.photo.count,
             // LP fidelity (FICO Section B) analysis blob — pct + band + per-move verdicts/evidence +
             // narrative + moderators. Only when the feature is on and a move-list resolved (D20).
             // bd-5knlj: non-ok statuses persist too — lp_absent vs
@@ -388,7 +421,7 @@ class AnalysisProcessorService {
         try {
           const { data: session } = await supabase
             .from('coaching_sessions')
-            .select('users!inner(phone_number)')
+            .select('users!inner(name, phone_number)')
             .eq('id', coachingSessionId)
             .single();
           from = session?.users?.phone_number;

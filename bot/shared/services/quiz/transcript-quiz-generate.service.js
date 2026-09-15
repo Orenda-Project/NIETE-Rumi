@@ -525,7 +525,7 @@ async function process(quizId, payload = {}) {
   const user = session.users || {};
   const phone = payload.phone || user.phone_number;
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
-  const teacherName = [user.first_name, user.last_name].filter(Boolean).join(' ') || null;
+  const teacherName = user.name || null;
   let meta = { ...(quiz.meta || {}) };
 
   // ── digest (already there when the offer path claimed the row; /quiz path lands here without one)
@@ -565,6 +565,7 @@ async function process(quizId, payload = {}) {
     let lastRewriteErrors = null;   // the complaint list the loop already rewrote
     let rewritten = null;           // the best failed-rewrite candidate for the salvage
     let lastLessonSummary = null;
+    let lastExtras = {};
     let readyLessonSummary = null;
     const attempts = [];
     const attemptsAllowed = maxAttempts();
@@ -581,6 +582,7 @@ async function process(quizId, payload = {}) {
         continue;
       }
       lastLessonSummary = out.lessonSummary;
+      lastExtras = out.extras || lastExtras;
       let v = validate(out.questions, {
         language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary, quizId,
       });
@@ -825,6 +827,10 @@ async function process(quizId, payload = {}) {
       question_count: rows.length,
       ready_at: new Date().toISOString(),
       ...(readyLessonSummary ? { lesson_summary: readyLessonSummary } : {}),
+      // bd-2yyry.7 — the sheet's two one-liners, authored alongside the summary.
+      ...(lastExtras.lesson_summary_short ? { lesson_summary_short: lastExtras.lesson_summary_short } : {}),
+      ...(lastExtras.checks_summary
+        ? { digest: { ...(meta.digest || {}), checks_summary: lastExtras.checks_summary } } : {}),
     };
     await updateQuiz(quizId, { status: 'ready', meta });
     logEvent('transcript_quiz.ready', { quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd });

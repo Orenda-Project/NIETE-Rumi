@@ -376,8 +376,8 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   let takerName = studentName;
   if (!takerName && source === 'video_solo' && userId) {
     const { data: user } = await supabase
-      .from('users').select('first_name, last_name').eq('id', userId).maybeSingle();
-    takerName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || null;
+      .from('users').select('name').eq('id', userId).maybeSingle();
+    takerName = user?.name || null;
   }
 
   const { data: session, error: sErr } = await supabase
@@ -929,6 +929,10 @@ async function finish(phone, state) {
     const report = require('./video-quiz-report.service');
     await report.maybeSendFollowUp(state.shareCodeId)
       .catch((err) => logToFile('⚠️ follow-up report failed', { error: err.message }));
+    // bd-2yyry.18 — once the teacher's report is out, a late finisher gets
+    // their class card now (their free-form window is open); nothing before it.
+    await report.sendLateClassCards(state.shareCodeId)
+      .catch((err) => logToFile('⚠️ late class card failed', { error: err.message }));
 
     // bd-2339 — if a friend sent them here, tell that friend how they did, then
     // offer them the same. Both are best-effort: a child's own quiz must never

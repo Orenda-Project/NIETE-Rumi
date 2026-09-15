@@ -1,4 +1,5 @@
 const WhatsAppService = require('../services/whatsapp.service');
+const { firstNameOf } = require('../utils/person-name');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const OpenAIService = require('../services/openai.service');
@@ -253,11 +254,12 @@ async function tryChildVideoMenu(from, language) {
       phone: from, shareCodeId: lastSession.share_code_id,
       studentId: known[0].id, language: language || 'en',
     });
+    const { resolveUx } = require('../config/ux-strings');
     await WhatsAppService.sendFlow(from, {
       flowId: STUDENT_VIDEOS_FLOW_ID,
-      header: '🎬 More Videos',
-      body: 'Pick a class, subject and topic — I will send the video to your chat.',
-      buttonText: 'Browse',
+      header: resolveUx('vqMoreFlowHeader', { language: language || 'en' }),
+      body: resolveUx('vqMoreFlowBody', { language: language || 'en' }),
+      buttonText: resolveUx('vqMoreFlowButton', { language: language || 'en' }),
       flowToken,
     });
     return true;
@@ -1972,7 +1974,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           logToFile('📝 Registration flow re-opened from /register for an already-registered user (details update)', {
             userId: user?.id,
             phoneNumber: from,
-            currentFirstName: user?.first_name || null,
+            currentFirstName: user?.name || null,
           });
         } else {
           logToFile('📝 Registration flow sent from /register command', { userId: user?.id, phoneNumber: from });
@@ -1990,7 +1992,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Legacy path (no REGISTRATION_FLOW_ID, or the Flow send failed): a completed
     // account has nothing to recover, so confirm and stop here.
     if (isAlreadyRegistered) {
-      const known = user.first_name || 'there';
+      const known = firstNameOf(user) || 'there';
       await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
       return;
     }
@@ -2497,7 +2499,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // messaged in the last 30 days. See shared/utils/registration-status.js.
     if (isRegistered(user)) {
       // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${user.first_name || 'there'}! Type /menu to see what I can help you with.`);
+      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${firstNameOf(user) || 'there'}! Type /menu to see what I can help you with.`);
       return;
     }
 
@@ -2983,7 +2985,7 @@ async function handlePresentationRequest(from, messageBody, user, sessionId, res
  */
 async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null, prebuiltLpCtx = undefined) {
   // Get firstName from user if registered
-  const firstName = user?.first_name || null;
+  const firstName = user?.name || null;
 
   // ============================================================
   // STUDENT MODE — THE ONE GATE (PLAN_R5 D8)
@@ -3004,7 +3006,12 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
   // except a proven child, so the else-branch below is today's behaviour and
   // stays that way if the module fails, the flag is off, or the DB is down.
   // ============================================================
-  const studentVerdict = await StudentMode.personaFor({ from, user, messageBody });
+  // bd-2yyry.1 — the verdict is decided once at the door (student-ingress.js)
+  // and attached to the users row; personaFor() remains only for a caller
+  // that arrives without it.
+  const studentVerdict = user && user.persona !== undefined
+    ? { persona: user.persona === 'student' ? 'student' : null, language: user.personaLanguage || null, studentClass: user.personaClass || null }
+    : await StudentMode.personaFor({ from, user, messageBody });
   const isStudent = studentVerdict.persona === 'student';
   // Her quiz was written in one language and she answered fifteen questions in
   // it; that is the language she reads, whatever the users row created by her
@@ -3208,4 +3215,5 @@ module.exports = {
   isSelectVideoButton, // video-library broadcast "Select Video" button
   isVideoCommand, // exported for unit tests
   tryChildVideoMenu, // exported for unit tests
+  handleGeneralConversation, // the child tutor path, called directly by student-ingress.js
 };

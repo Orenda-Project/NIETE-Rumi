@@ -88,10 +88,10 @@ function botNumber() {
 
 async function mintCode({ quizId, userId, videoId, language = 'en' }) {
   const { data: user } = await supabase
-    .from('users').select('first_name, last_name').eq('id', userId).maybeSingle();
+    .from('users').select('name').eq('id', userId).maybeSingle();
   // The fallback is read by CHILDREN in the quiz language ("*your teacher* نے…" was
   // what an Urdu child got when a teacher had no stored name).
-  const teacherName = [user?.first_name, user?.last_name].filter(Boolean).join(' ')
+  const teacherName = user?.name
     || resolveUx('tqYourTeacher', { language });
   const { data: quiz } = await supabase
     .from('quizzes').select('topic').eq('id', quizId).maybeSingle();
@@ -530,7 +530,7 @@ async function consumeJoinReply(phone, text) {
 }
 
 module.exports = {
-  mintCode, offerShare, handleShareButton, deliverClassLink,
+  mintCode, offerShare, handleShareButton, deliverClassLink, startForStudent,
   parseShareCode, beginFromCode, beginFromCodeLocked, consumeJoinReply, handleJoinFlowReply,
   SHARE_YES, SHARE_NO, JOIN_KEY, JOIN_LOCK_KEY, JOIN_LOCK_SECS, JOIN_FLOW_PREFIX, CODE_RX, randomCode, botNumber,
 };

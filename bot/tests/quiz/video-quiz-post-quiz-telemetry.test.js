@@ -39,6 +39,7 @@ jest.mock('../../shared/services/quiz/video-quiz-scorecard.service', () => ({
 }));
 jest.mock('../../shared/services/quiz/video-quiz-report.service', () => ({
   maybeSendFollowUp: jest.fn().mockResolvedValue(undefined),
+  sendLateClassCards: jest.fn().mockResolvedValue({ sent: 0 }),
   scheduleForShareCode: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -116,6 +117,24 @@ describe('finish() — share_link session', () => {
     const shown = eventsNamed('video_quiz.offer_shown').filter((e) => e.kind === 'invite');
     expect(shown).toHaveLength(1);
     expect(shown[0]).toMatchObject({ kind: 'invite', sessionId: 'sess-1', quizId: 'qz1', language: 'en' });
+  });
+
+  test('bd-2yyry.18 — a share-link finish asks for the late class card, after the follow-up check', async () => {
+    const Report = require('../../shared/services/quiz/video-quiz-report.service');
+    stubSupabase({
+      quizzes: { data: { topic: 'Numbers', grade: '3', subject: 'Maths' }, error: null },
+      quiz_sessions: {
+        data: {
+          quiz_id: 'qz1', student_name: 'Ali Khan', correct_answers: 5,
+          total_questions_answered: 5, mastery_percentage: 100, invited_by_student_id: null,
+        },
+        error: null,
+      },
+    });
+    await vq.finish('923001234567', state());
+    expect(Report.maybeSendFollowUp).toHaveBeenCalledWith('sc-1');
+    expect(Report.sendLateClassCards).toHaveBeenCalledWith('sc-1');
+    expect(Report.sendLateClassCards.mock.invocationCallOrder[0]).toBeGreaterThan(Report.maybeSendFollowUp.mock.invocationCallOrder[0]);
   });
 
   test('scorecard_sent reflects a failed image send (fallback path)', async () => {
@@ -242,13 +261,17 @@ describe('handleInviteButton — funnel + binge chain', () => {
     expect(shown[0]).toMatchObject({ kind: 'binge', sessionId: 'sess-1', quizId: 'qz1' });
   });
 
-  test('YES: offer_answered{kind:invite,choice:yes}', async () => {
-    stubSupabase({}); // no parent share code found -> early return, no mint
+  // bd-2yyry.8 (operator, 14 Sep 2026): a YES is followed by the videos offer
+  // too — it used to be shown only after a NO, and 68% of children never saw it.
+  test('YES: offer_answered{kind:invite,choice:yes} and then the binge offer is shown', async () => {
+    stubSupabase({}); // no parent share code found -> no mint, videos still offered
     await Invite.handleInviteButton(Invite.INVITE_YES, '923001234567');
 
     const answered = eventsNamed('video_quiz.offer_answered').filter((e) => e.kind === 'invite');
     expect(answered[0]).toMatchObject({ kind: 'invite', choice: 'yes' });
-    expect(eventsNamed('video_quiz.offer_shown').filter((e) => e.kind === 'binge')).toHaveLength(0);
+    const shown = eventsNamed('video_quiz.offer_shown').filter((e) => e.kind === 'binge');
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toMatchObject({ kind: 'binge', sessionId: 'sess-1', quizId: 'qz1' });
   });
 
   test('an old in-flight ctx without sessionId/quizId still answers cleanly', async () => {
