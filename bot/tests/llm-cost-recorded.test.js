@@ -51,10 +51,16 @@ describe('bd-8t362 — the shared client records what a call cost', () => {
 
   afterEach(() => { jest.resetModules(); });
 
-  it('asks OpenRouter to report what it charged', async () => {
+  it('changes nothing about the request', async () => {
+    // An earlier draft sent `usage: {include:true}` to ask OpenRouter for its accounting,
+    // until lp612-author's own note pointed out that cost is already on every response
+    // without it, verified against the live API. Changing a request for no benefit is the
+    // risk this workstream exists to avoid, so this asserts the request is untouched apart
+    // from the model prefix the wrapper was already applying.
     const { getClient } = load({ LLM_PROVIDER: 'openrouter' });
-    await getClient().chat.completions.create({ model: 'gpt-4o', messages: [] });
-    expect(created[0].usage).toEqual({ include: true });
+    const sent = { model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'hi' }] };
+    await getClient().chat.completions.create({ ...sent });
+    expect(created[0]).toEqual(sent);
   });
 
   it('still auto-prefixes the model, which this wrapper was already doing', async () => {
@@ -94,10 +100,22 @@ describe('bd-8t362 — the shared client records what a call cost', () => {
     expect(logged.find((l) => l.event === 'api.cost.incurred').payload.estimatedCostUsd).toBeNull();
   });
 
-  it('does not send the OpenRouter usage flag when talking to OpenAI directly', async () => {
+  it('leaves the direct-OpenAI provider path entirely alone', async () => {
     const { getClient } = load({ LLM_PROVIDER: 'openai', OPENAI_API_KEY: 'k' });
     await getClient().chat.completions.create({ model: 'gpt-4o', messages: [] });
-    expect(created[0].usage).toBeUndefined();
+    expect(created[0]).toEqual({ model: 'gpt-4o', messages: [] });
+  });
+
+  it('records the direct Anthropic lane, which bypassed this wrapper entirely', () => {
+    // That lane returns through the facade, which has already computed a real price. It was
+    // recording nothing while its own OpenRouter fallback recorded, so the job with the
+    // largest spend here was the one job invisible.
+    const src = require('fs').readFileSync(
+      path.join(__dirname, '../shared/services/llm-client.js'), 'utf8');
+    const lane = /function buildDirectLaneClient[\s\S]*?\n\}/.exec(src);
+    expect(lane).not.toBeNull();
+    expect(lane[0]).toMatch(/recordModelCost\(/);
+    expect(lane[0]).toMatch(/lane: 'anthropic-direct'/);
   });
 
   it('a recording failure cannot fail the call it is measuring', async () => {
