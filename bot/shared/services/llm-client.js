@@ -29,6 +29,9 @@ const {
   fromNativeResponse,
   isCreditClassError,
 } = require('./anthropic-native-facade');
+// bd-8t362: one place to record what a call cost. No rate table: OpenRouter reports what it
+// actually charged, and the facade prices the direct lane. We record what the vendor says.
+const { recordModelCost } = require('../utils/model-cost');
 
 const PROVIDER = (process.env.LLM_PROVIDER || 'openrouter').toLowerCase();
 const DEFAULT_MODEL = process.env.LLM_MODEL || 'openai/gpt-4o';
@@ -204,11 +207,24 @@ function createLLMClient() {
 
   // Auto-prefix model names for OpenRouter (e.g. 'gpt-4o-mini' → 'openai/gpt-4o-mini')
   const originalCreate = client.chat.completions.create.bind(client.chat.completions);
-  client.chat.completions.create = (params, options) => {
+  client.chat.completions.create = async (params, options) => {
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
-    return originalCreate(params, options);
+    // bd-8t362. NOTHING is added to the request. An earlier draft of this sent
+    // `usage: {include:true}` to ask OpenRouter for its accounting, until lp612-author's own
+    // note pointed out that `usage.cost` and `usage.prompt_tokens_details` are already on every
+    // OpenRouter response WITHOUT it, verified against the live API
+    // (11_cost/evidence/usage_flag.json). Changing a request for no benefit is exactly the
+    // risk this whole workstream exists to avoid, so this is logging only.
+    const startedAt = Date.now();
+    const response = await originalCreate(params, options);
+    try {
+      recordModelCost(params.model, response, startedAt);
+    } catch (_) {
+      // A costing failure must never become a teacher's problem.
+    }
+    return response;
   };
 
   return client;
@@ -301,8 +317,14 @@ function buildDirectLaneClient(directModel, ctx) {
   async function create(params) {
     const payload = { ...params, model: directModel };
     try {
+      const startedAt = Date.now();
       const msg = await getAnthropicDirectClient().messages.create(toNativeRequest(payload));
-      return fromNativeResponse(msg);
+      const mapped = fromNativeResponse(msg);
+      // bd-8t362: this lane never touched the OpenRouter wrapper, so lesson-plan authoring,
+      // the job with the largest spend here, recorded nothing while its own fallback did.
+      // The facade has already worked out a real price, cache multipliers and all.
+      recordModelCost(directModel, mapped, startedAt, { lane: 'anthropic-direct' });
+      return mapped;
     } catch (e) {
       if (!isCreditClassError(e)) throw e;
 
