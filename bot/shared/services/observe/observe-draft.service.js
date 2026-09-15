@@ -157,7 +157,7 @@ const FIDELITY_VERDICT_OPTIONS = [
 ];
 const VALID_FIDELITY_VERDICTS = new Set(FIDELITY_VERDICT_OPTIONS.map(o => o.id));
 
-function composeEditableFidelity(lp) {
+function composeEditableFidelity(lp, language) {
   if (!lp || lp.status !== 'ok' || lp.fidelity_pct == null) return null;
   const all = Array.isArray(lp.moves) ? lp.moves : [];
   if (!all.length) return null;
@@ -168,13 +168,24 @@ function composeEditableFidelity(lp) {
     'Below is each prescribed move, what the recording showed, and the credit the AI gave (✓ full · ◐ half · ✗ none · – not counted).',
     'Change any rating or evidence you disagree with — Section B recalculates from YOUR ratings.'
     + (all.length > MAX_MOVE_SLOTS ? ` (${all.length - MAX_MOVE_SLOTS} further moves are in the report and keep the AI's rating.)` : ''),
-  ].join('\n');
+  ];
+  // The grader said the recording stopped before the lesson did and then counted the
+  // later moves as misses anyway (fidelity-scorer's truncation_inconsistent). No score
+  // was changed for it — the coach was in the room, so she is the instrument: one line
+  // here, and her per-move radios below re-run the same scorer.
+  // Absent for a language that does not carry the string (sw has no editable Section B),
+  // which is a skipped sentence, never an "undefined" served to a coach.
+  if (lp.moderators && lp.moderators.truncation_inconsistent) {
+    const recheck = observeStrings(observeLang({ preferred_language: language })).fid_truncation_recheck;
+    if (recheck) header.push(recheck);
+  }
+  const headerText = header.join('\n');
   const slots = shown.map((m, i) => ({
     plan: clipWords(`${i + 1}/${all.length}${PHASE_LABEL[m.phase] ? ` · ${PHASE_LABEL[m.phase]}` : ''} — ${m.text}`, 260),
     verdict: VALID_FIDELITY_VERDICTS.has(m.verdict) ? m.verdict : 'not_adjudicable',
     evidence: clipWords(String(m.evidence || m.rationale || ''), PREFILL_TEXT_CAP),
   }));
-  return { header, slots };
+  return { header: headerText, slots };
 }
 
 /**
@@ -271,7 +282,7 @@ function fidelityFallbackCopy(lp) {
     + 'lesson against.' + consequence;
 }
 
-function buildScreenPrefill(analysis, domainKey) {
+function buildScreenPrefill(analysis, domainKey, language) {
   const { domains } = { domains: getObservePack().domains };
   const spec = domains[domainKey];
   const stored = ((analysis || {}).domains || {})[domainKey] || {};
@@ -309,7 +320,7 @@ function buildScreenPrefill(analysis, domainKey) {
   // editable evidence box, pre-filled from the scorer's own output.
   if (domainKey === 'lesson_plan_fidelity' && fidelityMode === 'editable') {
     const lpBlob = (analysis || {}).lp_fidelity;
-    const ed = composeEditableFidelity(lpBlob);
+    const ed = composeEditableFidelity(lpBlob, language);
     data.has_fidelity = !!ed;
     data.no_fidelity = !ed;
     data.fid_header = ed ? ed.header : '';
