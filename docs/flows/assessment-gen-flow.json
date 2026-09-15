@@ -183,7 +183,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Which chapter?"
+                "text": "Which chapters?"
               },
               {
                 "type": "TextCaption",
@@ -195,12 +195,14 @@
                 "visible": "${data.has_error}"
               },
               {
-                "type": "Dropdown",
-                "name": "chapter",
-                "label": "Chapter",
+                "type": "CheckboxGroup",
+                "name": "chapters",
+                "label": "Chapters",
+                "description": "Tick every chapter the test should cover.",
                 "required": false,
                 "data-source": "${data.chapters}",
-                "visible": "${data.has_chapters}"
+                "visible": "${data.has_chapters}",
+                "max-selected-items": 6
               },
               {
                 "type": "OptIn",
@@ -213,7 +215,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "chapter": "${form.chapter}",
+                    "chapters": "${form.chapters}",
                     "use_pages": "${form.use_pages}"
                   }
                 }
@@ -306,6 +308,10 @@
         "count_hint": {
           "type": "string",
           "__example__": "Between 1 and 25."
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "Optional — up to 500. Leave blank for no limit."
         }
       },
       "layout": {
@@ -352,9 +358,12 @@
                 "helper-text": "${data.count_hint}"
               },
               {
-                "type": "OptIn",
-                "name": "pick_types",
-                "label": "Choose question types myself"
+                "type": "TextInput",
+                "name": "total_marks",
+                "label": "Total marks (optional)",
+                "required": false,
+                "input-type": "number",
+                "helper-text": "${data.marks_hint}"
               },
               {
                 "type": "Footer",
@@ -364,7 +373,7 @@
                   "payload": {
                     "content_source": "${form.content_source}",
                     "question_count": "${form.question_count}",
-                    "pick_types": "${form.pick_types}"
+                    "total_marks": "${form.total_marks}"
                   }
                 }
               }
