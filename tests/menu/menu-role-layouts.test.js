@@ -336,6 +336,54 @@ describe('every id reaches its handler, with her language', () => {
     }
   });
 
+  test('a leader-only row tapped from scrollback by a teacher is refused, not opened', async () => {
+    // The row-122 class of defect, in the other direction: a row a role never
+    // sees today is still tappable from a message sent yesterday. The roster
+    // door owns the leader gate, so the tap cannot bypass it — and the refusal
+    // is in her language.
+    jest.resetModules();
+    // The earlier tests in this describe registered a STUB for the roster door
+    // via jest.doMock, and doMock registrations survive resetModules — only the
+    // module registry is cleared. Without this the "real door" below would be
+    // that stub, and the assertion would pass while testing nothing.
+    jest.dontMock('../../bot/shared/services/roster-entry.service');
+    const calls = [];
+    let said = [];
+    jest.doMock('../../bot/shared/services/whatsapp.service', () => ({
+      sendMessage: jest.fn(async (to, text) => { said.push(text); return true; }),
+      sendFlow: jest.fn(async (...a) => { calls.push(a); return true; }),
+      sendInteractiveMessage: jest.fn(), sendInteractiveButtons: jest.fn(),
+      sendFeatureMenuCarousel: jest.fn(), sendLanguageSelectionList: jest.fn(),
+    }));
+    jest.doMock('../../bot/shared/services/llm-client', () => ({ getClient: () => ({}) }));
+    jest.doMock('../../bot/shared/services/lesson-planning.service', () => ({}));
+    jest.doMock('../../bot/shared/database/bot-helpers', () => ({
+      storeConversation: jest.fn(), getOrCreateSession: jest.fn(async () => 's-1'),
+    }));
+    jest.doMock('../../bot/shared/services/conversation-state.service', () => ({
+      setState: jest.fn(), clearState: jest.fn(), getState: jest.fn(async () => null),
+    }));
+    jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
+      get: jest.fn(async () => null), set: jest.fn(), delete: jest.fn(), redis: null,
+    }));
+    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+    // The REAL roster door and the REAL leader gate — only the network is mocked.
+    const MenuService = require('../../bot/shared/services/menu.service');
+    const { resolveUx: rx } = require('../../bot/shared/config/ux-strings');
+
+    await MenuService.handleMenuButtonResponse(USER('teacher'), FROM, 'menu_roster', 'ur');
+
+    expect(calls).toHaveLength(0);
+    expect(said).toContain(rx('rosterLeadersOnly', { language: 'ur' }));
+    expect(said).not.toContain(rx('menuUnknownOption', { language: 'ur' }));
+
+    // And a principal, same tap, does get it.
+    said = [];
+    await MenuService.handleMenuButtonResponse(USER('principal'), FROM, 'menu_roster', 'ur');
+    expect(calls).toHaveLength(1);
+    expect(calls[0][1].flowToken).toBe('u-principal');
+  });
+
   test('a shut gate answers honestly instead of opening a Flow with no id', async () => {
     process.env.TRANSCRIPT_QUIZ_ENABLED = 'false';
     const { MenuService, spies } = load();
