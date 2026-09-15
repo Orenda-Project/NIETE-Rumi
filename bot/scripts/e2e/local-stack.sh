@@ -114,6 +114,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "E2E_CASSETTE=$cassette_mode"
     echo "E2E_CASSETTE_DIR=$cassette_dir"
     echo "E2E_CASSETTE_MISS_LOG=$run_dir/cassette-misses.jsonl"
+    # Feature flags the mock lane tests as SHIPPED, not inherited from whatever is (or isn't) in the
+    # local keys file. LP_612_ENABLED: the grade 6-12 Pakistan LP corpus is live (bd-mww73) and the
+    # sandbox DB is seeded; without this the bot falls to the Oxbridge fallback and lesson-plan/L03
+    # fails. Overridable for a dev testing the flag-off path: LP_612_ENABLED=false bash commit-e2e.sh …
+    echo "LP_612_ENABLED=${LP_612_ENABLED:-true}"
     echo "NODE_ENV=test"
     echo "QUEUE_DRIVER=bullmq"
     echo "REDIS_URL=redis://127.0.0.1:$redis_port"
