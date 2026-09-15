@@ -29,7 +29,7 @@ function router(fixtures) {
 }
 
 const IN_PATCH = {
-  member: [{ id: 'teach-1', first_name: 'Ayesha', phone_number: '923001234567' }],
+  member: [{ id: 'teach-1', name: 'Ayesha', phone_number: '923001234567' }],
   sessions: [
     { id: 's2', created_at: '2026-07-22T10:00:00Z', analysis_data: { scores: { overall_percentage: 48 } } },
     { id: 's1', created_at: '2026-07-10T10:00:00Z', analysis_data: { scores: { overall_percentage: 71 } } },
