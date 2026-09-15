@@ -119,11 +119,6 @@ function scoreFidelity(moves, verdicts, opts = {}) {
       verdict, evidence: v.evidence || '',
       evidence_translation: v.evidence_translation || '',
       rationale: v.rationale || '', counted: false, credit: null,
-      // bd-b3pop: the v2 grader's own working, ADDITIVE — absent from a v1 row, so today's blob is unchanged.
-      ...(typeof v.action_core === 'string' && v.action_core ? { action_core: v.action_core } : {}),
-      ...(Array.isArray(v.parts_present) ? { parts_present: v.parts_present } : {}),
-      ...(Array.isArray(v.parts_absent) ? { parts_absent: v.parts_absent } : {}),
-      ...(typeof v.content_as_prescribed === 'boolean' ? { content_as_prescribed: v.content_as_prescribed } : {}),
     };
 
     // time-on-task passthrough (from the grader, on the flagged move) — best-effort, never gates (D22)

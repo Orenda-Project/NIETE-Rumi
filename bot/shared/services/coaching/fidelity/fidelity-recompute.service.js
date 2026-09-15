@@ -123,6 +123,8 @@ async function recomputeFidelityForSession(sessionId, opts = {}) {
       // bd-b3pop: a re-grade sees what the first grading saw — the recording's length and the stored photo reading.
       audioDurationSeconds: session.audio_duration_seconds,
       photoEvidence: Array.isArray(analysis.photo_evidence) ? analysis.photo_evidence : [],
+      // Graded once whatever LP_FIDELITY_RUNS says: this runs inside the observer's webhook reply.
+      runs: 1,
     });
     if (!result) return { recomputed: false, reason: 'no_sources' };
 

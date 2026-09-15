@@ -1,13 +1,13 @@
 'use strict';
 /**
  * bd-b3pop.9 — the Section B backfill re-grades a re-transcribed observation with the recording's audio length and the
- * photo evidence the analysis already stored, the same inputs the live path and the late-LP recompute give the grader.
+ * photo evidence the analysis already stored, once — the same inputs the late-LP recompute gives the grader.
  */
 jest.mock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const { backfillSession } = require('../../../bot/shared/services/coaching/fidelity/section-b-backfill.service');
 
-test('the re-grade receives audio_duration_seconds and the stored photo evidence', async () => {
+test('the re-grade receives audio_duration_seconds, the stored photo evidence and one run', async () => {
   const session = {
     id: 'cs-9', status: 'completed', audio_url: 'r2://a.ogg', audio_duration_seconds: 1800, observation_type: 'coach',
     lesson_plan_structured: { _fidelity_ref: { lesson_id: 'g3_u_ch1_seg1', version_stamp: 'v8' } }, lesson_plan_text: null,
@@ -31,5 +31,5 @@ test('the re-grade receives audio_duration_seconds and the stored photo evidence
     dryRun: true,
   });
   expect(seen).toHaveLength(1);
-  expect(seen[0]).toMatchObject({ transcript: '[00:10] a\n\n[01:00] b', audioDurationSeconds: 1800, photoEvidence: [{ n: 2, kind: 'board', visible_text: 'y' }] });
+  expect(seen[0]).toMatchObject({ transcript: '[00:10] a\n\n[01:00] b', audioDurationSeconds: 1800, photoEvidence: [{ n: 2, kind: 'board', visible_text: 'y' }], runs: 1 });
 });

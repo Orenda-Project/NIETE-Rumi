@@ -12,22 +12,52 @@
  *
  * All collaborators are injectable (deps) for unit testing. Refs: bd-wmfsp.8, D19/D20/D22/D23.
  *
- * bd-b3pop (grader v2) adds, each behind a Railway variable whose unset state is today's behaviour:
- *   - pre-flight recording facts + plan anchors, always computed and persisted (telemetry; the v2 prompt reads them)
- *   - LP_FIDELITY_RUNS=N       N concurrent grader calls, the median run kept, every run's pct + the spread persisted
- *   - LP_FIDELITY_PHOTO=on     the vision pass's reading of the lesson photos handed to the grader (D34)
+ * bd-b3pop adds, each behind a Railway variable whose unset state is today's behaviour:
+ *   - LP_FIDELITY_RUNS=N    N concurrent gradings (odd, at most 5), the median scored run kept whole; every run's pct,
+ *                           the count requested and the spread persisted
+ *   - LP_FIDELITY_PHOTO=on  the vision pass's reading of the lesson photos handed to the grader (D34), with
+ *                           photo-credit-guard.js deciding in code what a photo alone can earn
+ * and, whatever the variables say, three pieces of telemetry on the blob: the recording facts (fidelity-preflight.js),
+ * how many prescribed moves the kept grading left unjudged, and on failure the grader's reason as `cause`.
  */
 const { normalisePhotoEvidence, countPhotoCited } = require('./grader-photo-evidence');
+const { guardPhotoCredit } = require('./photo-credit-guard');
+const { describeRecording } = require('./fidelity-preflight');
 
 const MAX_RUNS = 5;
+const PHOTO_ON = new Set(['on', 'true', '1']);
+const PHOTO_OFF = new Set(['', 'off', 'false', '0']);
+const warned = new Set();
 
-function fidelityRuns() {
-  const n = Math.floor(Number(process.env.LP_FIDELITY_RUNS));
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, MAX_RUNS) : 1;
+function log(message, detail) {
+  try { require('../../../utils/logger').logToFile(message, detail); } catch (_) { /* logging never fails a grading */ }
 }
 
-function photoEvidenceOn() {
-  return String(process.env.LP_FIDELITY_PHOTO || '').trim().toLowerCase() === 'on';
+function warnOnce(key, detail) {
+  if (warned.has(key)) return;
+  warned.add(key);
+  log(`[lp-fidelity] ${key}`, detail);
+}
+
+/** An odd number of runs between 1 and MAX_RUNS: an even count has no single middle run to keep. */
+function normaliseRuns(value) {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n % 2 === 0 ? n + 1 : n, MAX_RUNS);
+}
+
+function fidelityRuns() {
+  const raw = process.env.LP_FIDELITY_RUNS;
+  if (raw == null || String(raw).trim() === '') return 1;
+  const runs = normaliseRuns(raw);
+  if (String(runs) !== String(raw).trim()) warnOnce('LP_FIDELITY_RUNS adjusted', { value: raw, runs });
+  return runs;
+}
+
+function isPhotoEvidenceOn() {
+  const v = String(process.env.LP_FIDELITY_PHOTO || '').trim().toLowerCase();
+  if (!PHOTO_ON.has(v) && !PHOTO_OFF.has(v)) warnOnce('LP_FIDELITY_PHOTO not recognised, photo evidence stays off', { value: v });
+  return PHOTO_ON.has(v);
 }
 
 function isFidelityEnabled() {
@@ -70,8 +100,9 @@ function resolveFidelitySources(session) {
 /**
  * @param {object} input  { corpusKey?:{lesson_id,version_stamp,content_hash}, uploadedText?:string,
  *                          transcript:string, meta?:object, audioDurationSeconds?:number,
- *                          photoEvidence?:Array<object> }
- * @param {object} deps    { resolveMoveList, extractUploadedLp, analyzeFidelity, scoreFidelity, preflight } (optional)
+ *                          photoEvidence?:Array<object>, runs?:number }
+ *                        `runs` overrides LP_FIDELITY_RUNS (the late-LP recompute and the backfill grade once).
+ * @param {object} deps    { resolveMoveList, extractUploadedLp, analyzeFidelity, scoreFidelity } (optional)
  * @returns {Promise<null | {status:'ok'|'lp_absent'|'fidelity_unavailable', ...}>}
  */
 async function computeLpFidelity(input = {}, deps = {}) {
@@ -79,7 +110,6 @@ async function computeLpFidelity(input = {}, deps = {}) {
   const extractUploadedLp = deps.extractUploadedLp || require('./lp-upload-extractor').extractUploadedLp;
   const analyzeFidelity = deps.analyzeFidelity || require('./fidelity-analyzer').analyzeFidelity;
   const scoreFidelity = deps.scoreFidelity || require('./fidelity-scorer').scoreFidelity;
-  const { describeRecording, planAnchorHits } = deps.preflight || require('./fidelity-preflight');
 
   if (!input || !input.transcript) return null; // nothing to grade against
 
@@ -122,21 +152,20 @@ async function computeLpFidelity(input = {}, deps = {}) {
 
     if (!moves || !moves.length) return { status: 'lp_absent' };
 
-    // 3) pre-flight facts (bd-b3pop.5): computed and persisted on every graded blob; only the v2 prompt reads them,
-    // and nothing here changes a verdict (bd-b3pop.19 refuted a truncation rule built on them).
+    // 3) recording facts (bd-b3pop.5): telemetry on every graded blob. Nothing here changes a verdict — bd-b3pop.19
+    // refuted a truncation rule built on them.
     const recording = describeRecording(input.transcript, input.audioDurationSeconds);
-    const anchors = planAnchorHits(moves, input.transcript);
-    const graderOpts = { facts: { recording, anchors } };
-    // Photo evidence (bd-b3pop.15, D34) — the vision pass's reading of the lesson photos, only under LP_FIDELITY_PHOTO=on.
-    const photos = photoEvidenceOn() ? normalisePhotoEvidence(input.photoEvidence) : [];
-    if (photos.length) graderOpts.photoEvidence = photos;
+    // Photo evidence (bd-b3pop.15, D34): the vision pass's reading of the lesson photos, only under LP_FIDELITY_PHOTO.
+    const photos = isPhotoEvidenceOn() ? normalisePhotoEvidence(input.photoEvidence) : [];
+    const graderOpts = photos.length ? { photoEvidence: photos } : {};
+    const runsRequested = input.runs != null ? normaliseRuns(input.runs) : fidelityRuns();
 
-    // 4) grade + score — N runs, median kept (D23 / bd-5uloh). N=1 is today's single call plus one retry
-    // (bd-5knlj: 4 observations lost Section B to a single transient analyzer failure in a week).
+    // 4) grade + score — N runs, the median scored run kept (D23 / bd-5uloh). N=1 is today's single call plus one
+    // retry (bd-5knlj: 4 observations lost Section B to a single transient analyzer failure in a week).
     // The grader's moderators go IN so the scorer can check the note against the verdicts written beside
     // it; the scorer's moderators come back out (below) as the single writer of that block on this path.
     const { graded, analysis, runs, spread } = await gradeWithRuns(
-      { analyzeFidelity, scoreFidelity }, moves, input.transcript, meta, graderOpts, fidelityRuns(),
+      { analyzeFidelity, scoreFidelity }, { moves, transcript: input.transcript, meta, graderOpts, photos }, runsRequested,
     );
 
     return {
@@ -155,57 +184,82 @@ async function computeLpFidelity(input = {}, deps = {}) {
       // truncation_inconsistent finding folded in, and re-reading the grader's copy
       // here would silently drop it. One writer.
       model: graded.model || null,
-      // bd-b3pop — additive: every existing reader keys on status / fidelity_pct / moves and is unaffected.
-      prompt_version: graded.prompt_version || 'v1',
+      // bd-b3pop — additive: every existing reader keys on status / fidelity_pct / moves and is unaffected. The voice
+      // note and the debrief guide strip these (fidelity-telemetry.js).
       reasoning_effort: graded.reasoning_effort || null,
       recording,
-      anchors,
-      lesson_identity: graded.lesson_identity || null,
-      lesson_stretches: graded.lesson_stretches || null,
       runs,
+      runs_requested: runsRequested,
       spread,
-      photo_evidence: photos.length ? { count: photos.length, moves_cited: countPhotoCited(analysis.moves) } : null,
+      missing_verdicts: graded.missing_verdicts || 0,
+      photo_citations: photos.length ? { photos: photos.length, moves_cited: countPhotoCited(analysis.moves) } : null,
       graded_at: null, // stamped by the caller (Date.now unavailable here / keep deterministic)
     };
   } catch (e) {
     // never fail the coaching job — surface as a status the report can fall back on
-    return { status: 'fidelity_unavailable', error: e.code || e.message };
+    return { status: 'fidelity_unavailable', error: e.code || e.message, cause: e.reason || null };
   }
 }
 
 /**
  * bd-b3pop.12 (D23 / bd-5uloh) — grade N times and keep the median. Identical audio + plan re-graded moved
  * fidelity_pct by a mean 11.1 pts on prod; one call is one draw. N=1 reproduces today's call-then-retry exactly.
- * N>1: the calls run concurrently, each is scored, the (lower) median run is kept whole — its verdicts, evidence
- * and narrative stay one coherent grading, never a per-move blend. A failed call is skipped; if every call fails,
- * one last call is made and its error propagates (the caller turns it into fidelity_unavailable).
+ * N>1: the calls run concurrently and each answer is scored on its own, so an answer the scorer cannot read is skipped
+ * rather than fatal. The median of the runs that produced a percentage is kept whole — its verdicts, evidence and
+ * narrative stay one coherent grading, never a per-move blend — unless most runs produced none, in which case a run
+ * without one is kept. If every call fails, the first failure propagates (the caller turns it into fidelity_unavailable).
  * @returns {Promise<{graded:object, analysis:object, runs:Array<{pct:number|null, model:string|null}>, spread:number|null}>}
  */
-async function gradeWithRuns({ analyzeFidelity, scoreFidelity }, moves, transcript, meta, opts, n) {
-  const scoreRun = (g) => scoreFidelity(moves, g.verdicts, { moderators: g.moderators });
-  if (!(n > 1)) {
+async function gradeWithRuns({ analyzeFidelity, scoreFidelity }, { moves, transcript, meta, graderOpts, photos }, n) {
+  let answered;
+  if (n <= 1) {
     let graded;
     try {
-      graded = await analyzeFidelity(moves, transcript, meta, opts);
+      graded = await analyzeFidelity(moves, transcript, meta, graderOpts);
     } catch (firstErr) {
-      graded = await analyzeFidelity(moves, transcript, meta, opts);
+      log('[lp-fidelity] grading failed, retrying once', { reason: firstErr.reason || firstErr.code || null, error: firstErr.message });
+      graded = await analyzeFidelity(moves, transcript, meta, graderOpts);
     }
-    const analysis = scoreRun(graded);
-    return { graded, analysis, runs: [{ pct: analysis.fidelity_pct, model: graded.model || null }], spread: 0 };
+    answered = [graded];
+  } else {
+    const settled = await Promise.allSettled(Array.from({ length: n }, () => analyzeFidelity(moves, transcript, meta, graderOpts)));
+    answered = settled.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+    const failed = settled.filter((r) => r.status === 'rejected').map((r) => r.reason);
+    if (failed.length) {
+      log('[lp-fidelity] grading runs failed', { failed: failed.length, of: n, reasons: failed.map((e) => (e && (e.reason || e.code)) || null) });
+    }
+    if (!answered.length) throw failed[0];
   }
-  const settled = await Promise.allSettled(Array.from({ length: n }, () => analyzeFidelity(moves, transcript, meta, opts)));
-  let answered = settled.filter((r) => r.status === 'fulfilled').map((r) => r.value);
-  if (!answered.length) answered = [await analyzeFidelity(moves, transcript, meta, opts)];
+
+  const scored = [];
+  let scoreErr = null;
+  for (const graded of answered) {
+    try {
+      const { verdicts, guarded } = guardPhotoCredit(moves, graded.verdicts, photos);
+      const analysis = scoreFidelity(moves, verdicts, { moderators: graded.moderators });
+      for (const { move_id: id, before, reason } of guarded) {
+        const row = (analysis.moves || []).find((r) => r && r.move_id === id);
+        if (row) Object.assign(row, { photo_guard: reason, verdict_before_guard: before });
+      }
+      scored.push({ graded, analysis });
+    } catch (e) {
+      scoreErr = scoreErr || e;
+      log('[lp-fidelity] a grading could not be scored, skipped', { error: e.message });
+    }
+  }
+  if (!scored.length) throw scoreErr;
+
   const rank = (p) => (p == null ? -1 : p);
-  const scored = answered.map((g) => ({ graded: g, analysis: scoreRun(g) }))
-    .sort((a, b) => rank(a.analysis.fidelity_pct) - rank(b.analysis.fidelity_pct));
-  const pick = scored[Math.floor((scored.length - 1) / 2)];
-  const pcts = scored.map((x) => x.analysis.fidelity_pct).filter((p) => p != null);
+  scored.sort((a, b) => rank(a.analysis.fidelity_pct) - rank(b.analysis.fidelity_pct));
+  const withPct = scored.filter((x) => x.analysis.fidelity_pct != null);
+  const pool = withPct.length * 2 >= scored.length ? withPct : scored.filter((x) => x.analysis.fidelity_pct == null);
+  const pick = pool[Math.floor((pool.length - 1) / 2)];
+  const pcts = withPct.map((x) => x.analysis.fidelity_pct);
   return {
     graded: pick.graded,
     analysis: pick.analysis,
     runs: scored.map((x) => ({ pct: x.analysis.fidelity_pct, model: x.graded.model || null })),
-    spread: pcts.length ? Math.round((Math.max(...pcts) - Math.min(...pcts)) * 10) / 10 : null,
+    spread: pcts.length >= 2 ? Math.round((Math.max(...pcts) - Math.min(...pcts)) * 10) / 10 : null,
   };
 }
 
@@ -235,6 +289,5 @@ function fidelityPatch(lpFidelity) {
 }
 
 module.exports = {
-  computeLpFidelity, isFidelityEnabled, resolveFidelitySources, UPLOAD_TEXT_CAP, fidelityPatch, uploadTextHash,
-  gradeWithRuns, fidelityRuns, MAX_RUNS,
+  computeLpFidelity, isFidelityEnabled, isPhotoEvidenceOn, resolveFidelitySources, UPLOAD_TEXT_CAP, fidelityPatch, uploadTextHash,
 };

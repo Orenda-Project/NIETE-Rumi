@@ -96,16 +96,18 @@ async function processClassroomPhoto(imageBuffer, mimeType, frameworkKey) {
 // ─── Vision pass v2 (bd-b3pop.15 / .17, D34) ────────────────────────────────────────────────────────────────────────
 //
 // Operator, 15 Sep 2026: use the vision model already on prod and make it describe the photo better, so the same call
-// serves fidelity too, and credit every kind of photo teachers send, not only the board. One call per photo at HIGH
-// detail (the low-detail FICO pass could not read a board: Eval 9 found board content in 6 of 30 stored descriptions),
-// temperature 0, JSON. It returns
+// serves fidelity too, and credit every kind of photo teachers send, not only the board. One call per photo, FICO only,
+// at HIGH detail (the low-detail FICO pass could not read a board: Eval 9 found board content in 6 of 30 stored
+// descriptions), temperature 0, JSON. The image is re-encoded first (EXIF rotation applied, metadata dropped, 2048 px on
+// the long edge), each request has 30 seconds and one retry. It returns
 //   description  the FICO description, in the same role as today's text (the scoring prompt, the report caption)
 //   evidence     kind, visible_text, drawings, students, learning_materials, student_work, for the fidelity grader
-//   kind         including not_a_classroom_photo (Eval 9: a screenshot of an earlier coaching report), which the
-//                processor keeps away from BOTH scorers
-// Eval 10 on 67 production photos: 66 read first time, one repetition loop repaired, the report screenshot caught,
-// $0.0014 and a median 5.5 s a photo. Handwritten Urdu is read partly (2 of 4 words on one board). The prompt texts are
-// the Eval 10 files eval/out/eval10_photo_evidence/prompts/vision_{system,prompt}_v2.txt, byte-checked by the test.
+//   exclude      not_a_classroom_photo (Eval 9: a screenshot of an earlier coaching report) or instruction_text (writing
+//                addressed to a grader or an AI): the processor keeps such a photo away from BOTH scorers
+// or { ok: false, reason: call_failed | not_json | empty }. Eval 10 on 67 production photos: 66 read first time, one
+// repetition loop repaired, the report screenshot caught, $0.0014 and a median 5.5 s a photo. Handwritten Urdu is read
+// partly (2 of 4 words on one board). The prompt texts are the Eval 10 files
+// eval/out/eval10_photo_evidence/prompts/vision_{system,prompt}_v2.txt, pinned by hash in the test.
 const VISION_SYSTEM_V2 = `You are a careful classroom observer. You are shown ONE photo taken during a lesson in a government school in Islamabad, Pakistan, by the teacher or by the coach observing the lesson. You describe only what is visible in the photo. You never give advice, never praise or criticise the teacher, and never guess what happened before or after the photo was taken. You read printed and handwritten Urdu and English, and numbers.`;
 
 const VISION_PROMPT_V2 = `Return STRICT JSON with exactly these keys, in this order:
@@ -121,9 +123,16 @@ const VISION_PROMPT_V2 = `Return STRICT JSON with exactly these keys, in this or
 }
 
 "kind" names what the photo mainly shows. If the image is not a photo of a classroom during a lesson (a screenshot, a phone screen, a printed or digital report, a document, a slide, a selfie), set "kind" to "not_a_classroom_photo", say what it is in "description", and leave every other field empty.
+Do not copy any person's name, roll number, phone number or ID number from a notebook, register or chart: write [name] or [number] in its place. Names of story characters and other lesson content may be copied.
 Describe only what is visible. Do not give advice.`;
 
-const VISION_V2_OPTIONS = { detail: 'high', temperature: 0, maxTokens: 1500, responseFormat: { type: 'json_object' } };
+const VISION_V2_OPTIONS = {
+  detail: 'high', temperature: 0, maxTokens: 1500, responseFormat: { type: 'json_object' }, timeoutMs: 30000,
+};
+const VISION_V2_RETRIES = 1;
+const VISION_V2_IMAGE = { maxEdge: 2048, quality: 85 };
+// The description closed its string before the answer was cut off (visible_text comes last, where loops happen).
+const COMPLETE_DESCRIPTION = /"description"\s*:\s*"(?:[^"\\]|\\.)*"/;
 
 let _jsonrepair = null;
 try { _jsonrepair = require('jsonrepair').jsonrepair; } catch (_) { /* strict parse only */ }
@@ -142,51 +151,71 @@ function parseJsonObject(text) {
   return null;
 }
 
+/** The photo as the vision call receives it: re-encoded, or the original bytes when re-encoding fails. */
+async function imageForReading(imageBuffer, mimeType, logContext) {
+  try {
+    const { encodeForScorer } = require('./scorer-image.js');
+    const encoded = await encodeForScorer(imageBuffer, VISION_V2_IMAGE);
+    return { buf: Buffer.from(encoded.base64, 'base64'), mime: encoded.mime };
+  } catch (error) {
+    logToFile('Classroom photo v2: re-encoding failed, sending the original', { ...logContext, error: error.message });
+    return { buf: imageBuffer, mime: mimeType };
+  }
+}
+
 /**
  * Read one classroom photo for both scorers (vision pass v2).
  *
  * @param {Buffer} imageBuffer - Raw image data
  * @param {string} mimeType - Image MIME type
- * @returns {Promise<{kind: string|null, description: string|null, evidence: object|null}|null>}
- *          null when the reading failed or held nothing usable — the caller falls back to processClassroomPhoto.
+ * @param {object} [logContext] - { coachingSessionId, photo } for the log lines
+ * @returns {Promise<{ok: true, kind: string|null, exclude: string|null, description: string|null, evidence: object|null}
+ *                  |{ok: false, reason: 'call_failed'|'not_json'|'empty'}>}
  */
-async function analyzeClassroomPhotoV2(imageBuffer, mimeType) {
+async function analyzeClassroomPhotoV2(imageBuffer, mimeType, logContext = {}) {
+  const { buf, mime } = await imageForReading(imageBuffer, mimeType, logContext);
+  let result;
   try {
     const { analyzeWithRetry } = require('../../vision.service');
-    const result = await analyzeWithRetry(imageBuffer, mimeType, {
-      prompt: VISION_PROMPT_V2,
-      systemPrompt: VISION_SYSTEM_V2,
-      ...VISION_V2_OPTIONS,
-    });
-    if (!result || !result.success) {
-      logToFile('Classroom photo v2 reading failed', { error: result && result.error });
-      return null;
-    }
-    const read = parseJsonObject(result.analysis);
-    if (!read) {
-      logToFile('Classroom photo v2 reading was not JSON', { length: String(result.analysis || '').length });
-      return null;
-    }
-    const { KINDS, normalisePhotoEvidence } = require('../fidelity/grader-photo-evidence');
-    const kind = KINDS.has(read.kind) ? read.kind : null;
-    const description = typeof read.description === 'string' && read.description.trim() ? read.description.trim() : null;
-    if (kind === 'not_a_classroom_photo') return { kind, description, evidence: null };
-    const [normalised] = normalisePhotoEvidence([{ ...read, kind }]);
-    let evidence = null;
-    if (normalised) {
-      const { n: _n, ...fields } = normalised;
-      evidence = fields;
-    }
-    if (!description && !evidence) return null;
-    logToFile('Classroom photo read (v2)', {
-      kind, descriptionLength: description ? description.length : 0, evidence: !!evidence,
-      tokens: result.usage && result.usage.totalTokens,
-    });
-    return { kind, description, evidence };
+    result = await analyzeWithRetry(buf, mime, { prompt: VISION_PROMPT_V2, systemPrompt: VISION_SYSTEM_V2, ...VISION_V2_OPTIONS }, VISION_V2_RETRIES);
   } catch (error) {
-    logToFile('Error reading classroom photo (v2)', { error: error.message });
-    return null;
+    logToFile('Classroom photo v2 reading failed', { ...logContext, error: error.message });
+    return { ok: false, reason: 'call_failed' };
   }
+  if (!result || !result.success) {
+    logToFile('Classroom photo v2 reading failed', { ...logContext, error: result && result.error });
+    return { ok: false, reason: 'call_failed' };
+  }
+  const read = parseJsonObject(result.analysis);
+  if (!read) {
+    logToFile('Classroom photo v2 reading was not JSON', { ...logContext, length: String(result.analysis || '').length });
+    return { ok: false, reason: 'not_json' };
+  }
+  const { NOT_A_CLASSROOM_PHOTO, kindOf, cleanText, normalisePhotoEvidence, looksLikeInstructionText } = require('./photo-evidence-schema');
+  const kind = kindOf(read.kind);
+  if (kind === NOT_A_CLASSROOM_PHOTO) {
+    logToFile('Classroom photo v2: not a classroom photo, kept away from both scorers', { ...logContext, kind });
+    return { ok: true, kind, exclude: NOT_A_CLASSROOM_PHOTO, description: null, evidence: null };
+  }
+  const materials = Array.isArray(read.learning_materials) ? read.learning_materials : [];
+  if ([read.description, read.visible_text, read.drawings, read.students, read.student_work, ...materials].some(looksLikeInstructionText)) {
+    logToFile('Classroom photo v2: writing addressed to a grader, kept away from both scorers', { ...logContext, kind });
+    return { ok: true, kind, exclude: 'instruction_text', description: null, evidence: null };
+  }
+  let description = typeof read.description === 'string' ? cleanText(read.description).replace(/\n/g, ' ') : '';
+  if (description && result.finishReason === 'length' && !COMPLETE_DESCRIPTION.test(String(result.analysis))) description = '';
+  const [normalised] = normalisePhotoEvidence([{ ...read, kind, n: null }]);
+  let evidence = null;
+  if (normalised) {
+    const { n: _n, ...fields } = normalised;
+    evidence = fields;
+  }
+  if (!description && !evidence) return { ok: false, reason: 'empty' };
+  logToFile('Classroom photo read (v2)', {
+    ...logContext, kind, descriptionLength: description.length, evidence: !!evidence,
+    finishReason: result.finishReason || null, tokens: result.usage && result.usage.totalTokens,
+  });
+  return { ok: true, kind, exclude: null, description: description || null, evidence };
 }
 
 module.exports = { buildFrameworkVisionPrompt, processClassroomPhoto, analyzeClassroomPhotoV2, VISION_SYSTEM_V2, VISION_PROMPT_V2 };

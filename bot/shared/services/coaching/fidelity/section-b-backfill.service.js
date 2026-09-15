@@ -216,6 +216,8 @@ async function backfillSession(sessionId, deps = {}) {
       // bd-b3pop: the same inputs the live path and the late-LP recompute give the grader.
       audioDurationSeconds: session.audio_duration_seconds,
       photoEvidence: Array.isArray(analysis.photo_evidence) ? analysis.photo_evidence : [],
+      // Graded once whatever LP_FIDELITY_RUNS says: a backfill re-grades many sessions in one pass.
+      runs: 1,
     });
     if (!result) return { ...base, ok: false, reason: 'no_sources' };
     if (result.status !== 'ok') {

@@ -255,29 +255,57 @@ class AnalysisProcessorService {
           const parts = [];
           const images = [];
           // bd-b3pop.15 / .17 (D34): COACHING_PHOTO_VISION=v2 reads every photo ONCE for both scorers — the FICO
-          // description and the fidelity evidence — and sets aside an upload that is not a classroom photo, so it
-          // reaches neither scorer. A photo whose v2 reading fails falls back to today's pass. Unset = today's pass.
-          const visionV2 = String(process.env.COACHING_PHOTO_VISION || '').trim().toLowerCase() === 'v2';
+          // description and the fidelity evidence — on FICO sessions only, since the v2 description is written for FICO.
+          // Unset = today's pass. How each photo was read is recorded in photo_reads:
+          //   read            described from the v2 reading
+          //   excluded        not a classroom photo, or writing addressed to a grader: kept away from both scorers and
+          //                   not framed in the report
+          //   fallback_v1     the v2 answer was unusable, so today's pass described the photo
+          //   failed          the v2 call itself failed: no second call, and the photo is still attached in the image modes
+          //   skipped_budget  not started within PHOTO_READ_BUDGET_MS of the first reading
+          const visionV2 = frameworkKey === 'fico'
+            && String(process.env.COACHING_PHOTO_VISION || '').trim().toLowerCase() === 'v2';
+          const PHOTO_READ_BUDGET_MS = 90000;
           const evidence = [];
-          const rejected = [];
+          const reads = [];
+          const readingStartedAt = Date.now();
           for (const [photoIndex, p] of photos.entries()) {
+            // bd-1mcpe: keep the photo's ORIGINAL position — the report captions each framed photo
+            // from "Classroom photo N", so a skipped photo must not renumber the ones after it.
+            const n = photoIndex + 1;
+            if (visionV2 && Date.now() - readingStartedAt > PHOTO_READ_BUDGET_MS) {
+              reads.push({ n, status: 'skipped_budget' });
+              logToFile('[photo-vision] photo reading budget spent — photo skipped', { coachingSessionId, photo: n });
+              continue;
+            }
             let buf;
             try {
               buf = await downloadFromR2(extractKeyFromUrl(p.url));
               const mime = p.mime_type || 'image/jpeg';
-              const read = visionV2 ? await analyzeClassroomPhotoV2(buf, mime) : null;
-              if (read && read.kind === 'not_a_classroom_photo') {
-                rejected.push({ n: photoIndex + 1, kind: read.kind, description: read.description });
-                logToFile('[photo-vision] not a classroom photo — kept away from both scorers', { coachingSessionId, photo: photoIndex + 1 });
-                continue;
+              let text = null;
+              if (visionV2) {
+                const read = await analyzeClassroomPhotoV2(buf, mime, { coachingSessionId, photo: n });
+                if (read.ok && read.exclude) {
+                  reads.push({ n, status: 'excluded', kind: read.kind, reason: read.exclude });
+                  continue;
+                }
+                if (read.ok) {
+                  text = read.description || await processClassroomPhoto(buf, mime, frameworkKey);
+                  if (read.evidence) evidence.push({ n, ...read.evidence });
+                  reads.push({ n, status: 'read', kind: read.kind });
+                } else if (read.reason === 'call_failed') {
+                  reads.push({ n, status: 'failed', reason: read.reason });
+                } else {
+                  text = await processClassroomPhoto(buf, mime, frameworkKey);
+                  reads.push({ n, status: 'fallback_v1', reason: read.reason });
+                }
+              } else {
+                text = await processClassroomPhoto(buf, mime, frameworkKey);
               }
-              const text = read && read.description ? read.description : await processClassroomPhoto(buf, mime, frameworkKey);
-              // bd-1mcpe: keep the photo's ORIGINAL position — the report captions each framed photo
-              // from "Classroom photo N", so a skipped photo must not renumber the ones after it.
-              if (text) parts.push({ n: photoIndex + 1, text });
-              if (read && read.evidence) evidence.push({ n: photoIndex + 1, ...read.evidence });
+              if (text) parts.push({ n, text });
             } catch (perr) {
-              logToFile('[photo-vision] one photo failed (non-blocking)', { coachingSessionId, error: perr.message });
+              if (visionV2) reads.push({ n, status: 'failed', reason: 'error' });
+              logToFile('[photo-vision] one photo failed (non-blocking)', { coachingSessionId, photo: n, error: perr.message });
               continue;
             }
             if (wantImages) {
@@ -296,14 +324,17 @@ class AnalysisProcessorService {
           let effective = PHOTO_MODE;
           if (wantImages && !images.length) effective = text ? 'text' : 'off';
           if ((effective === 'text' || effective === 'note') && !text) effective = 'off';
+          // count = the photos the scoring prompt is told about ("N submitted by the teacher"); an excluded or skipped
+          // photo is not one of them. submitted = every photo sent, persisted as photo_count_analysed (unchanged).
+          const setAside = reads.filter((r) => r.status === 'excluded' || r.status === 'skipped_budget').length;
           metadata.photo = {
-            mode: effective, text, count: photos.length, images: wantImages ? images : [],
-            ...(visionV2 ? { vision: 'v2', evidence, rejected } : {}),
+            mode: effective, text, count: photos.length - setAside, submitted: photos.length, images: wantImages ? images : [],
+            ...(visionV2 ? { vision: 'v2', evidence, reads } : {}),
           };
           logToFile('[photo-vision] photo channel', {
             coachingSessionId, flag: PHOTO_MODE, effectiveMode: effective,
             photos: photos.length, described: parts.length, images: images.length,
-            vision: visionV2 ? 'v2' : 'v1', evidence: evidence.length, rejected: rejected.length,
+            vision: visionV2 ? 'v2' : 'v1', evidence: evidence.length, reads: reads.map((r) => r.status),
             bytes: images.reduce((a, b) => a + (b.bytes || 0), 0),
           });
         }
@@ -333,7 +364,7 @@ class AnalysisProcessorService {
             uploadedText,
             transcript: session.transcript_text,
             // bd-b3pop: the recording's length for the pre-flight facts, and the vision pass's reading of the photos
-            // (the orchestrator hands it to the grader only under LP_FIDELITY_PHOTO=on).
+            // (the orchestrator hands it to the grader only under LP_FIDELITY_PHOTO).
             audioDurationSeconds: session.audio_duration_seconds,
             photoEvidence: (metadata.photo && metadata.photo.evidence) || [],
             meta: fidelityMeta,
@@ -432,10 +463,15 @@ class AnalysisProcessorService {
             // bd-8s2xb: which photo channel actually RAN (not the flag) + how many were submitted,
             // so the 48h watch can split score/citation rates by mode. Never the image bytes.
             photo_mode: metadata.photo.mode,
-            photo_count_analysed: metadata.photo.count,
-            // bd-b3pop.15 / .17 (D34): only when the v2 pass ran — what it read for fidelity, and the uploads it set aside.
+            photo_count_analysed: metadata.photo.submitted != null ? metadata.photo.submitted : metadata.photo.count,
+            // bd-b3pop.15 / .17 (D34): only when the v2 pass ran — how each photo was read; and, only while the grader may
+            // use it (LP_FIDELITY_PHOTO), the fidelity evidence the late-LP recompute and the backfill re-read.
             ...(metadata.photo.vision === 'v2'
-              ? { photo_vision: 'v2', photo_evidence: metadata.photo.evidence, photo_rejected: metadata.photo.rejected }
+              ? {
+                photo_vision: 'v2',
+                photo_reads: metadata.photo.reads,
+                ...(require('./fidelity/fidelity-orchestrator').isPhotoEvidenceOn() ? { photo_evidence: metadata.photo.evidence } : {}),
+              }
               : {}),
             // What was decided about the subject, and on what evidence. Persisted so
             // the population is a column read rather than a regex over prose: how many
