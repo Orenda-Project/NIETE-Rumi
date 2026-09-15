@@ -375,7 +375,12 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       const photoImages = (metadata.photo && ['image', 'both'].includes(metadata.photo.mode) && Array.isArray(metadata.photo.images))
         ? metadata.photo.images.filter((im) => im && im.base64)
         : [];
-      const { photo: _photoForLog, ...metadataForLog } = metadata;
+      // bd-b3pop: the log records the job's shape, not its words — no image bytes, no photo descriptions (a vision
+      // reading can copy writing off a board), no teacher name and no prior feedback text.
+      const {
+        photo: _photoForLog, photoAnalysis: _photoAnalysisForLog, teacherFirstName: _teacherNameForLog,
+        priorFeedback: _priorFeedbackForLog, ...metadataForLog
+      } = metadata;
       logToFile('Starting GPT-5 mini pedagogical analysis', {
         transcriptLength: transcript.length,
         hasLessonPlan: hasLessonPlanData,
