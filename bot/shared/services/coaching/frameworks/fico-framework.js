@@ -40,6 +40,14 @@
  * Section B is the FALLBACK path only. Whenever a lesson plan is linked and the fidelity engine
  * returns a usable score, applyLpFidelity() overrides Section B with the measured
  * executed-over-prescribed figure and these seven indicators are not what the teacher is scored on.
+ *
+ * Section F's subject-specific indicators are tagged by subject, and only the tagged
+ * rows matching THIS lesson's subject apply; the rest carry `applicable: false,
+ * score: null` and leave the total entirely, both sides of the ratio. Nothing in the
+ * literacy descriptors is language-specific, so an Urdu lesson is a literacy lesson.
+ * Row ids are never written down outside the rubric — subjectTaggedRows() reads them
+ * off DOMAINS, because this revision and the stable one number them differently and a
+ * hardcoded table would aim a subject at the wrong indicator.
  */
 
 // ─── Section definitions (verbatim from the ICT sheet) ───────────────
@@ -545,10 +553,75 @@ function buildUptakeSchema(prior) {
   "uptake": { "count": { ${keys} }, "evidence": "<quote each counted moment, in order>", "moment": "<where in the lesson the first counted moment happened, a short phrase, or empty>" }`;
 }
 
+/**
+ * The subject-tagged Section F rows, READ OFF THIS RUBRIC.
+ *
+ * Which indicator belongs to which subject is rubric data, and it moves between rubric
+ * revisions: this one tags one row per subject (F5 math / F6 science / F7 literacy),
+ * while the revision on the unstable branch tags two or three each (F4-F5 / F6-F7 /
+ * F8-F10) and spells the tag `subject` rather than `subjectGroup`. A hardcoded
+ * subject→row table is therefore correct for exactly one revision and silently wrong
+ * for the next — which for an Urdu lesson would mean scoring it on a SCIENCE indicator.
+ *
+ * So it is derived, and both tag shapes and both spellings of "math" are read.
+ *
+ * @returns {{math: string[], science: string[], literacy: string[]}}
+ */
+function subjectTaggedRows() {
+  const NORMALISE = { math: 'math', maths: 'math', science: 'science', literacy: 'literacy', language: 'literacy' };
+  const rows = { math: [], science: [], literacy: [] };
+  for (const section of Object.values(DOMAINS)) {
+    for (const ind of section.indicators || []) {
+      const raw = ind.subjectGroup || ind.subject;
+      const group = NORMALISE[String(raw || '').toLowerCase()];
+      if (group) rows[group].push(ind.id);
+    }
+  }
+  return rows;
+}
+
+/**
+ * The per-session half of the SUBJECT-CONDITIONAL rule.
+ *
+ * The cached system prompt states the DEFAULT: "if you cannot tell the subject, mark
+ * all three of F5/F6/F7 non-applicable". That is right when we know nothing, and it is
+ * what a lesson with no plan on the row still gets. When the subject IS known the rule
+ * inverts — exactly one row applies and it is SCORED — and saying so per session is the
+ * whole point: the model was previously left to infer the subject from the transcript,
+ * which cannot distinguish "this lesson's content is the solar system" from "this is
+ * Urdu chapter 8, whose text is about the solar system".
+ *
+ * Returns '' at confidence 'none' so the prompt is byte-identical to today's.
+ *
+ * @param {string|null} subject canonical code
+ * @param {string} confidence 'high' | 'medium' | 'none'
+ * @param {function} fRowFor subject → Section F indicator id, or null
+ */
+function subjectRule(subject, confidence, groupFor) {
+  if (!subject || (confidence !== 'high' && confidence !== 'medium')) return '';
+  const tagged = subjectTaggedRows();
+  const all = [...tagged.math, ...tagged.science, ...tagged.literacy];
+  if (!all.length) return '';
+  const group = groupFor(subject);
+  const mine = group ? tagged[group] || [] : [];
+  const others = all.filter((r) => !mine.includes(r));
+  const list = (ids) => (ids.length > 1 ? `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]}` : ids[0]);
+  const qualifier = confidence === 'medium'
+    ? ' This subject comes from the lesson plan on file and is NOT confirmed for this particular lesson: if the transcript plainly contradicts it, follow the transcript and say so in the evidence.'
+    : '';
+  if (!mine.length) {
+    return `\nSUBJECT FOR THIS LESSON — OVERRIDES THE SUBJECT-CONDITIONAL DEFAULT:
+This lesson's subject is ${subject}. The rubric has no subject-specific row for it, so ALL of ${list(all)} are "applicable": false with "score": null and evidence naming the subject. This is a rubric gap, not a shortcoming of the lesson — never describe it as something missing.${qualifier}\n`;
+  }
+  return `\nSUBJECT FOR THIS LESSON — OVERRIDES THE SUBJECT-CONDITIONAL DEFAULT:
+This lesson's subject is ${subject}, so of the subject-tagged rows (${list(all)}) exactly ${mine.length > 1 ? 'these apply' : 'one applies'}: ${list(mine)}. Score ${mine.length > 1 ? 'them' : mine[0]} against the level descriptors on the transcript evidence — ${mine.length > 1 ? 'they ARE' : 'it IS'} scored, and "applicable" is true. ${list(others)} ${others.length > 1 ? 'are' : 'is'} "applicable": false with "score": null. Do NOT mark them all non-applicable: the subject is given, so there is nothing to be unsure about.${qualifier}\n`;
+}
+
 function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAnalysis) {
   const {
     grade,
     subject,
+    subjectConfidence,
     duration,
     language,
     transcriptLanguage,
@@ -566,6 +639,20 @@ function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAn
   // which language to address her in. One field doing both jobs is how a lesson
   // labelled English steered an Urdu teacher's report into English.
   const heardLanguage = transcriptLanguage || null;
+
+  // A supplied subject is always NAMED — that context line predates this change and
+  // callers that pass a bare `subject` keep it. What the confidence gates is the
+  // inverted RULE: only a resolved high/medium subject is allowed to promote a
+  // Section F row from excluded to scored. With no confidence the model gets the
+  // subject as context and keeps today's default rule, and with no subject at all the
+  // prompt is byte-identical to what it was before this change.
+  const confidence = subjectConfidence === 'high' || subjectConfidence === 'medium' ? subjectConfidence : 'none';
+  const namedSubject = subject || null;
+  const subjectBlock = subjectRule(
+    namedSubject,
+    confidence,
+    require('../subject-resolution').subjectGroupFor,
+  );
 
   const lpFidelityNote = lessonPlanStructured
     ? `\nIMPORTANT - LP Fidelity: A lesson plan is linked. For Section B (especially B1, B2, B3), compare the planned LP objectives + steps against what was observed in the transcript.\n`
@@ -608,12 +695,12 @@ ${indicatorRows}
 LESSON CONTEXT:
 ${teacherFirstName ? `- Teacher's First Name: ${teacherFirstName}` : ''}
 ${grade ? `- Grade: ${grade}` : ''}
-${subject ? `- Subject: ${subject}` : ''}
+${namedSubject ? `- Subject: ${namedSubject}` : ''}
 ${duration ? `- Duration: ${Math.round(duration / 60)} minutes` : ''}
 ${heardLanguage ? `- Language spoken in the lesson: ${languageName(heardLanguage)}` : ''}
 
 ${priorFeedback ? `PRIOR FEEDBACK:\n${priorFeedback}\n` : ''}${priorActionBlock}
-${lpFidelityNote}${photoNote}
+${subjectBlock}${lpFidelityNote}${photoNote}
 CLASSROOM TRANSCRIPT:
 ${transcript}
 
@@ -848,6 +935,7 @@ module.exports = {
   getSystemPrompt,
   buildAnalysisPrompt,
   buildPriorActionBlock,
+  subjectTaggedRows,
   computeScores,
   applyLpFidelity,
   getPerformanceBand,
