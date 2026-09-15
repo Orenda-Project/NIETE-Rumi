@@ -5325,6 +5325,459 @@ COMMENT ON COLUMN quizzes.meta IS
   'Transcript-quiz state that is not a column: the lesson digest (SLOs, taught level, key terms), resolved grade + source, model + cost, share code, PDF R2 key, offer/decline/nudge timestamps.';
 
 
+-- =============================================================================
+-- /roster hand-over: name the class teacher of a saved class from the roster view
+-- Mirrors bot/database/migrations/roster_hand_over_class.sql (the applied form).
+-- Kept here so the canonical schema stays complete; both are idempotent.
+-- =============================================================================
+
+-- roster_hand_over_class — a coach names the class teacher of a class that is
+-- already saved, from the saved-roster view of /roster.
+--
+-- WHY THIS EXISTS. A scan where the coach chose "Not listed" writes no
+-- class_teachers row, and /class and /attendance list only classes a teacher is
+-- assigned to — so the class is invisible to everyone. Measured on production
+-- (15 Sep 2026): 19 such classes, 727 children. The only repair was to
+-- photograph the register again. This function is the repair without the photo.
+--
+-- WHAT ONE HAND-OVER IS — all of it, or none of it, in ONE transaction:
+--   1. her class_teachers row, is_class_teacher = true (the previous holder of
+--      the role, if any, keeps their assignment but loses the flag: the partial
+--      unique index allows one prime-responsible teacher per class);
+--   2. her legacy attendance mirror (student_lists) — ADOPTED when she already
+--      has an active list of the same name in the same year (the unique index
+--      on (user_id, lower(class_name), academic_year) WHERE is_active would
+--      otherwise refuse the insert), else written, and linked by class_id;
+--   3. every child actively enrolled in the class repointed to HER list
+--      (students.list_id is a single FK; attendance reads exactly that);
+--   4. the fallback mirrors retired: the coach's/principal's (any leader role),
+--      and the outgoing class teacher's. Attendance history keys on list_id and
+--      the rows are deactivated, never deleted.
+--
+-- SCOPE. The class must be active and, when p_school_id is given, belong to
+-- that school — the caller passes the school it is currently working in, so a
+-- class id that arrived in a Flow payload cannot reach another school's roster.
+-- The teacher must be a users row that is not a leader: a coach cannot be made
+-- a class teacher through here.
+--
+-- LOCK. The SAME per-class advisory key as roster_import_students and
+-- roster_apply_edits, so a hand-over cannot interleave with a save or an edit
+-- of the same class.
+--
+-- LEDGER. `p_actor` is the acting user. It is set into `app.actor` for this
+-- transaction so the row-history triggers (record_history.actor) attribute every
+-- row this function changes to a real person rather than to the service role.
+-- No audit table of its own: the ledger is record_history.
+--
+-- Errors are VALUES ('unknown_class', 'wrong_school', 'unknown_teacher',
+-- 'not_a_teacher', 'unknown_grade') — the caller is a Flow endpoint that turns
+-- them into a sentence on a screen.
+
+CREATE OR REPLACE FUNCTION public.roster_hand_over_class(
+  p_class_id uuid,
+  p_school_id uuid,
+  p_teacher_user_id uuid,
+  p_actor uuid
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_class classes%ROWTYPE;
+  v_ordinal int;
+  v_label text;
+  v_role text;
+  v_prev uuid;
+  v_assignment uuid;
+  v_list uuid;
+  v_adopted boolean := false;
+  v_adopted_from uuid;
+  v_repointed int := 0;
+  v_retired int := 0;
+  v_already boolean := false;
+BEGIN
+  IF p_class_id IS NULL OR p_teacher_user_id IS NULL OR p_actor IS NULL THEN
+    RAISE EXCEPTION 'roster_hand_over_class: p_class_id, p_teacher_user_id and p_actor are required';
+  END IF;
+
+  -- Who is doing this, for the row-history ledger (transaction-local).
+  PERFORM set_config('app.actor', p_actor::text, true);
+
+  PERFORM set_config('lock_timeout', '5000', true);
+  PERFORM pg_advisory_xact_lock(hashtextextended('roster_import:' || p_class_id::text, 0));
+
+  SELECT * INTO v_class FROM classes WHERE id = p_class_id AND is_active;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('error', 'unknown_class');
+  END IF;
+  IF p_school_id IS NOT NULL AND v_class.school_id <> p_school_id THEN
+    RETURN jsonb_build_object('error', 'wrong_school');
+  END IF;
+
+  SELECT role INTO v_role FROM users WHERE id = p_teacher_user_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('error', 'unknown_teacher');
+  END IF;
+  IF v_role IN ('school_leader', 'supervisor', 'coach', 'principal', 'aeo') THEN
+    RETURN jsonb_build_object('error', 'not_a_teacher');
+  END IF;
+
+  SELECT ordinal INTO v_ordinal FROM grade_levels WHERE code = v_class.grade_code;
+  IF v_ordinal IS NULL THEN
+    RETURN jsonb_build_object('error', 'unknown_grade');
+  END IF;
+
+  -- The legacy list name, exactly as ClassService.mirrorLabel writes it.
+  v_label := CASE WHEN v_ordinal = 0 THEN 'Early Years' ELSE 'Grade ' || v_ordinal END;
+  IF v_class.section IS NOT NULL THEN v_label := v_label || ' - ' || v_class.section; END IF;
+  IF v_class.shift_code <> 'morning' THEN v_label := v_label || ' (' || v_class.shift_code || ')'; END IF;
+
+  -- 1. The role. Whoever held it before keeps their assignment, loses the flag.
+  SELECT teacher_user_id INTO v_prev FROM class_teachers
+  WHERE class_id = p_class_id AND is_active AND is_class_teacher
+    AND teacher_user_id <> p_teacher_user_id
+  LIMIT 1;
+  IF v_prev IS NOT NULL THEN
+    UPDATE class_teachers SET is_class_teacher = false, updated_at = now()
+    WHERE class_id = p_class_id AND teacher_user_id = v_prev AND is_active;
+  END IF;
+
+  SELECT id, is_class_teacher INTO v_assignment, v_already FROM class_teachers
+  WHERE class_id = p_class_id AND teacher_user_id = p_teacher_user_id AND is_active
+  LIMIT 1;
+  IF v_assignment IS NULL THEN
+    INSERT INTO class_teachers (class_id, teacher_user_id, is_class_teacher, assigned_on, is_active)
+    VALUES (p_class_id, p_teacher_user_id, true, current_date, true)
+    RETURNING id INTO v_assignment;
+    v_already := false;
+  ELSIF NOT v_already THEN
+    UPDATE class_teachers SET is_class_teacher = true, updated_at = now() WHERE id = v_assignment;
+  END IF;
+
+  -- 2. Her mirror: linked already → same-name list adopted → else written.
+  SELECT id INTO v_list FROM student_lists
+  WHERE user_id = p_teacher_user_id AND class_id = p_class_id AND is_active
+  ORDER BY created_at LIMIT 1;
+  IF v_list IS NULL THEN
+    SELECT id, class_id INTO v_list, v_adopted_from FROM student_lists
+    WHERE user_id = p_teacher_user_id AND is_active
+      AND academic_year = v_class.session_code
+      AND lower(class_name) = lower(v_label)
+    ORDER BY created_at LIMIT 1;
+    IF v_list IS NOT NULL THEN
+      UPDATE student_lists SET class_id = p_class_id, updated_at = now() WHERE id = v_list;
+      v_adopted := true;
+    ELSE
+      INSERT INTO student_lists (user_id, class_name, section, academic_year, class_id, is_active)
+      VALUES (p_teacher_user_id, v_label, v_class.section, v_class.session_code, p_class_id, true)
+      RETURNING id INTO v_list;
+    END IF;
+  END IF;
+
+  -- 3. The children follow her list.
+  UPDATE students s
+  SET list_id = v_list, updated_at = now()
+  FROM class_enrollments e
+  WHERE e.class_id = p_class_id AND e.is_active AND e.student_id = s.id
+    AND s.list_id IS DISTINCT FROM v_list;
+  GET DIAGNOSTICS v_repointed = ROW_COUNT;
+
+  -- 4. The fallback mirrors retire: any leader's, and the outgoing class teacher's.
+  UPDATE student_lists l
+  SET is_active = false, updated_at = now()
+  FROM users u
+  WHERE l.class_id = p_class_id AND l.is_active AND l.id <> v_list
+    AND u.id = l.user_id
+    AND (u.role IN ('school_leader', 'supervisor', 'coach', 'principal', 'aeo')
+         OR (v_prev IS NOT NULL AND u.id = v_prev));
+  GET DIAGNOSTICS v_retired = ROW_COUNT;
+
+  -- Counts from truth, on every list this touched.
+  UPDATE student_lists l
+  SET student_count = (SELECT count(*) FROM students WHERE list_id = l.id AND is_active),
+      updated_at = now()
+  WHERE l.id = v_list OR l.class_id = p_class_id;
+
+  RETURN jsonb_build_object(
+    'class_id', p_class_id,
+    'teacher_user_id', p_teacher_user_id,
+    'assignment_id', v_assignment,
+    'already_class_teacher', v_already,
+    'previous_class_teacher_user_id', v_prev,
+    'list_id', v_list,
+    'list_adopted', v_adopted,
+    'list_adopted_from_class_id', v_adopted_from,
+    'repointed', v_repointed,
+    'retired_mirrors', v_retired,
+    'label', v_label);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.roster_hand_over_class(uuid, uuid, uuid, uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.roster_hand_over_class(uuid, uuid, uuid, uuid)
+  TO service_role;
+
+
+-- =============================================================================
+-- /roster change class details: grade / section / shift edit with the twin-class
+-- refuse-or-merge. Mirrors bot/database/migrations/roster_change_class_details.sql
+-- (the applied form). Adds classes.merged_into_class_id (nullable, no index).
+-- =============================================================================
+
+-- roster_change_class_details — a coach changes a saved class's grade, section
+-- or shift from the saved-roster view of /roster, with the twin-class
+-- refuse-or-merge.
+--
+-- WHY. Grade, section and shift ARE the class identity: classes is unique on
+-- (school, grade, COALESCE(section,''), shift, session) WHERE is_active. A change
+-- is therefore one of two things:
+--
+--   RENAME IN PLACE — the target identity is free. The row is updated and nothing
+--   else moves, because children (class_enrollments), attendance history (via the
+--   legacy list's class_id) and class_teachers all key on the class id. The legacy
+--   mirrors' class_name is renamed to match, where the owner's unique name index
+--   allows it.
+--
+--   COLLISION — an active class with the target identity already exists (13 such
+--   twins are known on production: the same class scanned twice under two
+--   spellings). This is NEVER merged silently. Without p_merge the function writes
+--   nothing and answers 'collision' with the existing class id, its child count and
+--   this class's count, so the screen can name it and ask. With p_merge it moves
+--   every ACTIVE enrolment of the source into the existing class (a child already
+--   in the target has her source enrolment CLOSED as a roster_correction — she is
+--   the same child scanned twice, and closing is what the edit screen would do), a
+--   roll the target already holds is dropped from the moved row rather than
+--   refusing the child, the source's teachers keep a foothold on the target (never
+--   as class teacher when the target has one), the source's mirrors are retired
+--   (or, when the target has none, ONE of them is re-linked so attendance keeps a
+--   list), and the source class is CLOSED with a reason: is_active = false and
+--   merged_into_class_id = the target. Nothing is deleted anywhere.
+--
+-- SCHEMA (rule 15, live schema read on the sandbox before writing this): classes
+-- has no column that can say "this class was folded into that one". The ledger
+-- records who and when, but not into what — and a merged class with no pointer is
+-- the twin problem in a new shape. ONE nullable column, no index, same pattern as
+-- students.merged_into: merged_into_class_id.
+--
+-- LOCK. The SAME per-class advisory key as roster_import_students /
+-- roster_apply_edits / roster_hand_over_class, taken on BOTH classes in id order
+-- when merging so two coaches merging twins into each other cannot deadlock.
+--
+-- LEDGER. p_actor is the acting user, set into app.actor for the transaction so
+-- record_history attributes every row this function changes to a real person.
+--
+-- Errors are VALUES: unknown_class, wrong_school, unknown_grade, unknown_section,
+-- unknown_shift, missing_actor.
+
+ALTER TABLE public.classes
+  ADD COLUMN IF NOT EXISTS merged_into_class_id uuid REFERENCES public.classes(id);
+COMMENT ON COLUMN public.classes.merged_into_class_id IS
+  'Set when this class was closed by folding it into another (twin-class merge from /roster). '
+  'is_active is false on such a row; its enrolments moved to the class named here. Never deleted.';
+
+CREATE OR REPLACE FUNCTION public.roster_change_class_details(
+  p_class_id uuid,
+  p_school_id uuid,
+  p_grade_code text,
+  p_section text,
+  p_shift_code text,
+  p_actor uuid,
+  p_merge boolean DEFAULT false
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_class classes%ROWTYPE;
+  v_target classes%ROWTYPE;
+  v_section text;
+  v_shift text;
+  v_ordinal int;
+  v_label text;
+  v_target_label text;
+  v_source_count int;
+  v_target_count int;
+  v_mirrors int := 0;
+  v_moved int := 0;
+  v_closed int := 0;
+  v_teachers int := 0;
+  v_target_list uuid;
+  v_target_ct uuid;
+  v_first uuid;
+  v_second uuid;
+BEGIN
+  IF p_class_id IS NULL OR p_actor IS NULL THEN
+    RAISE EXCEPTION 'roster_change_class_details: p_class_id and p_actor are required';
+  END IF;
+
+  PERFORM set_config('app.actor', p_actor::text, true);
+  PERFORM set_config('lock_timeout', '5000', true);
+  PERFORM pg_advisory_xact_lock(hashtextextended('roster_import:' || p_class_id::text, 0));
+
+  SELECT * INTO v_class FROM classes WHERE id = p_class_id AND is_active;
+  IF NOT FOUND THEN RETURN jsonb_build_object('error', 'unknown_class'); END IF;
+  IF p_school_id IS NOT NULL AND v_class.school_id <> p_school_id THEN
+    RETURN jsonb_build_object('error', 'wrong_school');
+  END IF;
+
+  -- Vocabulary, exactly as createClass checks it: seeded grade, seeded section
+  -- (normalised: upper, trimmed, NULL when blank), seeded shift.
+  SELECT ordinal INTO v_ordinal FROM grade_levels WHERE code = p_grade_code AND is_active;
+  IF v_ordinal IS NULL THEN RETURN jsonb_build_object('error', 'unknown_grade'); END IF;
+  v_section := nullif(upper(btrim(coalesce(p_section, ''))), '');
+  IF v_section IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sections WHERE code = v_section AND is_active) THEN
+    RETURN jsonb_build_object('error', 'unknown_section');
+  END IF;
+  v_shift := coalesce(nullif(btrim(coalesce(p_shift_code, '')), ''), 'morning');
+  IF NOT EXISTS (SELECT 1 FROM shifts WHERE code = v_shift AND is_active) THEN
+    RETURN jsonb_build_object('error', 'unknown_shift');
+  END IF;
+
+  v_label := CASE WHEN v_ordinal = 0 THEN 'Early Years' ELSE 'Grade ' || v_ordinal END;
+  IF v_section IS NOT NULL THEN v_label := v_label || ' - ' || v_section; END IF;
+  IF v_shift <> 'morning' THEN v_label := v_label || ' (' || v_shift || ')'; END IF;
+
+  IF v_class.grade_code = p_grade_code
+     AND coalesce(v_class.section, '') = coalesce(v_section, '')
+     AND v_class.shift_code = v_shift THEN
+    RETURN jsonb_build_object('action', 'unchanged', 'class_id', p_class_id, 'label', v_label);
+  END IF;
+
+  SELECT count(*) INTO v_source_count FROM class_enrollments WHERE class_id = p_class_id AND is_active;
+
+  SELECT * INTO v_target FROM classes
+  WHERE school_id = v_class.school_id AND grade_code = p_grade_code
+    AND coalesce(section, '') = coalesce(v_section, '')
+    AND shift_code = v_shift AND session_code = v_class.session_code
+    AND is_active AND id <> p_class_id
+  LIMIT 1;
+
+  -- ---------------------------------------------------------------- rename
+  IF v_target.id IS NULL THEN
+    UPDATE classes
+    SET grade_code = p_grade_code, section = v_section, shift_code = v_shift, updated_at = now()
+    WHERE id = p_class_id;
+
+    -- The legacy lists follow the name, unless the owner already has an active
+    -- list of that name in that year (the unique index would refuse it).
+    UPDATE student_lists l
+    SET class_name = v_label, section = v_section, updated_at = now()
+    WHERE l.class_id = p_class_id AND l.is_active
+      AND NOT EXISTS (SELECT 1 FROM student_lists o
+                      WHERE o.user_id = l.user_id AND o.is_active AND o.id <> l.id
+                        AND o.academic_year = l.academic_year
+                        AND lower(o.class_name) = lower(v_label));
+    GET DIAGNOSTICS v_mirrors = ROW_COUNT;
+
+    RETURN jsonb_build_object('action', 'renamed', 'class_id', p_class_id, 'label', v_label,
+      'mirrors_renamed', v_mirrors, 'source_count', v_source_count);
+  END IF;
+
+  -- ------------------------------------------------------------- collision
+  SELECT count(*) INTO v_target_count FROM class_enrollments WHERE class_id = v_target.id AND is_active;
+  v_target_label := v_label;
+
+  IF NOT p_merge THEN
+    RETURN jsonb_build_object('action', 'collision', 'class_id', p_class_id,
+      'existing_class_id', v_target.id, 'existing_label', v_target_label,
+      'existing_count', v_target_count, 'source_count', v_source_count);
+  END IF;
+
+  -- ----------------------------------------------------------------- merge
+  -- Both classes locked, smaller id first, so two merges cannot deadlock.
+  IF v_target.id < p_class_id THEN v_first := v_target.id; v_second := p_class_id;
+  ELSE v_first := p_class_id; v_second := v_target.id; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('roster_import:' || v_first::text, 0));
+  PERFORM pg_advisory_xact_lock(hashtextextended('roster_import:' || v_second::text, 0));
+
+  -- A child already in the target: her source enrolment closes. She was scanned
+  -- twice; closing is the correction, and it says so.
+  UPDATE class_enrollments s
+  SET is_active = false, left_on = current_date, outcome = 'roster_correction', updated_at = now()
+  WHERE s.class_id = p_class_id AND s.is_active
+    AND EXISTS (SELECT 1 FROM class_enrollments t
+                WHERE t.class_id = v_target.id AND t.student_id = s.student_id AND t.is_active);
+  GET DIAGNOSTICS v_closed = ROW_COUNT;
+
+  -- Everyone else moves. A roll the target already holds is dropped, not the child.
+  UPDATE class_enrollments s
+  SET class_id = v_target.id,
+      roll_number = CASE WHEN s.roll_number IS NOT NULL AND EXISTS (
+                      SELECT 1 FROM class_enrollments t
+                      WHERE t.class_id = v_target.id AND t.is_active AND t.roll_number = s.roll_number)
+                    THEN NULL ELSE s.roll_number END,
+      updated_at = now()
+  WHERE s.class_id = p_class_id AND s.is_active;
+  GET DIAGNOSTICS v_moved = ROW_COUNT;
+
+  -- The target's attendance list: its class teacher's, else any active one, else
+  -- ONE of the source's is re-linked so the children keep a register.
+  SELECT teacher_user_id INTO v_target_ct FROM class_teachers
+  WHERE class_id = v_target.id AND is_active AND is_class_teacher LIMIT 1;
+  SELECT id INTO v_target_list FROM student_lists
+  WHERE class_id = v_target.id AND is_active
+  ORDER BY (user_id = v_target_ct) DESC NULLS LAST, created_at
+  LIMIT 1;
+  IF v_target_list IS NULL THEN
+    SELECT id INTO v_target_list FROM student_lists
+    WHERE class_id = p_class_id AND is_active ORDER BY created_at LIMIT 1;
+    IF v_target_list IS NOT NULL THEN
+      UPDATE student_lists SET class_id = v_target.id, class_name = v_target_label, section = v_section, updated_at = now()
+      WHERE id = v_target_list;
+    END IF;
+  END IF;
+
+  -- The source's children follow the target's list; the source's other mirrors retire.
+  IF v_target_list IS NOT NULL THEN
+    UPDATE students st
+    SET list_id = v_target_list, updated_at = now()
+    FROM class_enrollments e
+    WHERE e.class_id = v_target.id AND e.is_active AND e.student_id = st.id
+      AND (st.list_id IS NULL OR st.list_id IN (SELECT id FROM student_lists WHERE class_id = p_class_id));
+  END IF;
+  UPDATE student_lists SET is_active = false, updated_at = now()
+  WHERE class_id = p_class_id AND is_active AND id IS DISTINCT FROM v_target_list;
+  UPDATE student_lists l
+  SET student_count = (SELECT count(*) FROM students WHERE list_id = l.id AND is_active), updated_at = now()
+  WHERE l.class_id IN (p_class_id, v_target.id) OR l.id = v_target_list;
+
+  -- Teachers: a foothold on the target for each, never the class-teacher role
+  -- when the target already has one; the source assignments close.
+  INSERT INTO class_teachers (class_id, teacher_user_id, is_class_teacher, assigned_on, is_active)
+  SELECT v_target.id, s.teacher_user_id,
+         (v_target_ct IS NULL AND s.is_class_teacher), current_date, true
+  FROM class_teachers s
+  WHERE s.class_id = p_class_id AND s.is_active
+    AND NOT EXISTS (SELECT 1 FROM class_teachers t
+                    WHERE t.class_id = v_target.id AND t.teacher_user_id = s.teacher_user_id AND t.is_active);
+  GET DIAGNOSTICS v_teachers = ROW_COUNT;
+  UPDATE class_teachers
+  SET is_active = false, is_class_teacher = false, ended_on = current_date, updated_at = now()
+  WHERE class_id = p_class_id AND is_active;
+
+  -- The source closes, and says where it went.
+  UPDATE classes
+  SET is_active = false, merged_into_class_id = v_target.id, updated_at = now()
+  WHERE id = p_class_id;
+
+  SELECT count(*) INTO v_target_count FROM class_enrollments WHERE class_id = v_target.id AND is_active;
+
+  RETURN jsonb_build_object('action', 'merged', 'class_id', p_class_id,
+    'target_class_id', v_target.id, 'label', v_target_label,
+    'moved', v_moved, 'closed_duplicates', v_closed, 'teachers_moved', v_teachers,
+    'target_count', v_target_count, 'target_list_id', v_target_list);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.roster_change_class_details(uuid, uuid, text, text, text, uuid, boolean)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.roster_change_class_details(uuid, uuid, text, text, text, uuid, boolean)
+  TO service_role;
+
+
 -- And the cache reload LAST, per infrastructure/CLAUDE.md: the NOTIFY several hundred lines above
 -- predates this DDL, so without one here a fresh bootstrap would create the column and leave
 -- PostgREST unable to see it — which is a 400 on the first insert, not an obvious schema error.
@@ -5339,3 +5792,66 @@ ALTER TABLE public.user_feature_first_use
   ADD COLUMN IF NOT EXISTS intro_shown_count INTEGER NOT NULL DEFAULT 0;
 
 NOTIFY pgrst, 'reload schema';
+
+-- =============================================================================
+-- roster_class_timeline — one class's history from record_history, with the acting
+-- person resolved. Mirrors bot/database/migrations/row_history_actor.sql (the applied form).
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.roster_class_timeline(p_class_id uuid)
+RETURNS TABLE (
+  changed_at   timestamptz,
+  txid         bigint,
+  table_name   text,
+  row_id       text,
+  op           text,
+  changed_cols text[],
+  old_vals     jsonb,
+  new_vals     jsonb,
+  actor        text,
+  actor_source text,
+  actor_name   text,
+  actor_role   text,
+  subject      text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH cid AS (SELECT p_class_id::text AS t),
+  keys AS (
+    SELECT 'classes'::text AS table_name, p_class_id::text AS row_id
+    UNION ALL SELECT 'class_teachers',    ct.id::text FROM class_teachers ct    WHERE ct.class_id = p_class_id
+    UNION ALL SELECT 'class_enrollments', ce.id::text FROM class_enrollments ce WHERE ce.class_id = p_class_id
+    UNION ALL SELECT 'student_lists',     sl.id::text FROM student_lists sl     WHERE sl.class_id = p_class_id
+    UNION ALL SELECT 'students',          ce.student_id::text FROM class_enrollments ce WHERE ce.class_id = p_class_id
+  ),
+  hits AS (
+    SELECT h.* FROM record_history h JOIN keys k ON k.table_name = h.table_name AND k.row_id = h.row_id
+    UNION
+    SELECT h.* FROM record_history h, cid
+     WHERE h.table_name IN ('class_teachers','class_enrollments','student_lists')
+       AND (h.new_vals ->> 'class_id' = cid.t OR h.old_vals ->> 'class_id' = cid.t)
+  )
+  SELECT
+    h.changed_at, h.txid, h.table_name, h.row_id, h.op, h.changed_cols, h.old_vals, h.new_vals,
+    h.actor, h.actor_source,
+    u.name AS actor_name, u.role AS actor_role,
+    CASE h.table_name
+      WHEN 'students'          THEN (SELECT s.student_name FROM students s WHERE s.id::text = h.row_id)
+      WHEN 'class_enrollments' THEN (SELECT s.student_name FROM class_enrollments ce JOIN students s ON s.id = ce.student_id WHERE ce.id::text = h.row_id)
+      WHEN 'class_teachers'    THEN (SELECT tu.name FROM class_teachers ct JOIN users tu ON tu.id = ct.teacher_user_id WHERE ct.id::text = h.row_id)
+      WHEN 'student_lists'     THEN (SELECT lu.name FROM student_lists sl JOIN users lu ON lu.id = sl.user_id WHERE sl.id::text = h.row_id)
+      ELSE NULL
+    END AS subject
+  FROM hits h
+  -- CASE, not AND: the planner may evaluate the cast before the regex guard and
+  -- fail on 'authenticator'. CASE guarantees the order.
+  LEFT JOIN users u
+    ON u.id = CASE WHEN h.actor ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                   THEN h.actor::uuid END
+  ORDER BY h.changed_at, h.id
+$$;
+
+REVOKE ALL ON FUNCTION public.roster_class_timeline(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.roster_class_timeline(uuid) TO service_role;

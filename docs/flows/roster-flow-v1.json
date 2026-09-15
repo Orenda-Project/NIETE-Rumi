@@ -1,5 +1,5 @@
 {
-  "_comment": "WhatsApp Flow — /roster (rev 2). A coach or principal photographs a school's attendance register; a vision model extracts the class roster; the coach reviews and corrects the WHOLE list in one editable screen, then saves. Rev 2 makes the CLASS screen carry the WHOLE class identity: shift is asked (it was never asked and always defaulted to morning) and section is required (a blank submit and 'A' were two different classes). `version` is Meta's Flow JSON schema version, not this asset's revision — it stays 7.0.",
+  "_comment": "WhatsApp Flow — /roster (rev 3). A coach or principal photographs a school's attendance register; a vision model extracts the class roster; the coach reviews and corrects the WHOLE list in one editable screen, then saves. Rev 2 makes the CLASS screen carry the WHOLE class identity: shift is asked (it was never asked and always defaulted to morning) and section is required (a blank submit and 'A' were two different classes). `version` is Meta's Flow JSON schema version, not this asset's revision — it stays 7.0.",
   "_instructions": [
     "1. Registered via bot/scripts/setup/flow-configs.js → 'Roster'. Resulting Flow ID goes to ROSTER_FLOW_ID.",
     "2. Endpoint (data_api_version 3.0, encrypted): POST /api/flows/roster.",
@@ -16,8 +16,10 @@
     "THE COMPLETION PAYLOAD IS FLAT. The discriminators go straight into the `complete` payload, which is the shape observe-visit-v2, remark, training-msq and exam-checker all use and all of whose acks work. The first version nested them under an `extension_message_response` whose `properties` were declared `{}`; nothing arrived, flow-type-detector answered 'unknown', and the coach got the catch-all reply after a successful save.",
     "Dropdown chrome is Latin-only (the Urdu-script list-chrome defect): Meta's list/dropdown secondary text fails on Urdu script. Student names live in TextArea and TextBody, which are not list chrome.",
     "A CLASS IS (school, grade, SECTION, SHIFT, session). This screen used to send three of the five. The other two came from server-side defaults the coach never saw, so an evening class — or a class the teacher had registered with no section — became a SECOND row: the coach's row held the children, the teacher's row held nobody. Measured before rev 2: of 11,647 children created by a scan, 100% of their active enrolments were in a morning class, and not one scanned child was in any of the 22 evening classes. The shift options and the section options are both read from their own reference tables, which is what keeps this picker identical to the one the teacher's own class screen offers; if the two lists ever diverge the bug returns.",
-    "The class-teacher field stays OPTIONAL on purpose: class_teachers.teacher_user_id is a NOT NULL foreign key onto users, so a real class teacher who has never registered cannot be offered at all, and requiring the field would block a legitimate class. What changed is that skipping is no longer silent — the option itself and the field's helper text both say that without a class teacher nobody can mark these children's attendance.",
-    "Meta refuses `helper-text` on a Dropdown (INVALID_PROPERTY_KEY on upload — verified against the validator, not assumed), so the class-teacher warning is a TextCaption directly beneath that field rather than the field's own helper text. Also: the underscore keys in this file (_comment, _instructions, _notes) are documentation and are NOT valid Flow JSON — bot/scripts/setup/meta-api.js strips METADATA_KEYS before upload. A hand-rolled curl upload of this file verbatim is rejected."
+    "The class-teacher field is REQUIRED (rev 3). WhatsApp prints '(Optional)' beside any required:false field and has no blank-but-not-optional setting, so the one choice that decides whether anyone can mark these children's attendance read as the one a coach could skip — and coaches read it exactly that way. Required means the coach must say something. The sayable 'no' is the explicit escape option 'Not listed — no attendance' (id none), which the endpoint maps to a null class teacher: class_teachers.teacher_user_id is a NOT NULL foreign key onto users, so a real class teacher who has never registered still cannot be offered, and the escape keeps such a class saveable. The option title and the TextCaption beneath the field both say what skipping costs.",
+    "Meta refuses `helper-text` on a Dropdown (INVALID_PROPERTY_KEY on upload — verified against the validator, not assumed), so the class-teacher warning is a TextCaption directly beneath that field rather than the field's own helper text. Also: the underscore keys in this file (_comment, _instructions, _notes) are documentation and are NOT valid Flow JSON — bot/scripts/setup/meta-api.js strips METADATA_KEYS before upload. A hand-rolled curl upload of this file verbatim is rejected.",
+    "THE SAVED-ROSTER VIEW OFFERS MORE THAN ONE ACTION (rev 3). A screen has one Footer, so the choice is a RadioButtonsGroup bound to data.actions — the endpoint decides what is offered — and the Footer posts the chosen id. The assets published before rev 3 post `action: 'edit'` from their only button, which the endpoint still routes to the editor. CLASS_TEACHER is the hand-over picker: a class saved with 'Not listed' has no class_teachers row and is invisible on /class and /attendance (19 classes / 727 children on prod, 15 Sep); naming the teacher here writes the assignment, the attendance mirror and the children's list link together, in one database call, without photographing the register again. The status screen marks such a class with ⚠ so the coach can find it.",
+    "CLASS_DETAILS edits the class IDENTITY — grade, section, shift — and CLASS_MERGE is the twin-class question. Those three fields are what makes a class unique (with school and session), so a change either renames the row in place (children, attendance history and class_teachers key on the class id and follow) or lands on a class that already exists. That case is NEVER merged silently: the endpoint answers CLASS_MERGE naming the existing class and its child count, and the coach chooses 'Keep both' (nothing written) or 'Merge into the existing class' (active enrolments move, a child already there is not doubled, the source class is closed with merged_into_class_id set; nothing is deleted). The three pickers are the CLASS screen's, read from the same reference tables, pre-filled through init-values."
   ],
   "version": "7.0",
   "data_api_version": "3.0",
@@ -53,9 +55,21 @@
       "ROSTER_VIEW"
     ],
     "ROSTER_VIEW": [
-      "ROSTER_EDIT"
+      "ROSTER_EDIT",
+      "CLASS_TEACHER",
+      "CLASS_DETAILS"
     ],
     "ROSTER_EDIT": [
+      "SAVED"
+    ],
+    "CLASS_TEACHER": [
+      "SAVED"
+    ],
+    "CLASS_DETAILS": [
+      "SAVED",
+      "CLASS_MERGE"
+    ],
+    "CLASS_MERGE": [
       "SAVED"
     ]
   },
@@ -316,11 +330,39 @@
         },
         "note": {
           "type": "string",
-          "__example__": "Saved 31 Aug · class teacher named"
+          "__example__": "No class teacher yet — nobody can mark attendance for these children."
         },
         "roster_text": {
           "type": "string",
           "__example__": "1. Ayesha Bilal / Bilal Ahmed\n2. Fatima Noor / Noor Muhammad"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "edit",
+              "title": "Correct the students"
+            },
+            {
+              "id": "teacher",
+              "title": "Set the class teacher"
+            },
+            {
+              "id": "details",
+              "title": "Change grade, section or shift"
+            }
+          ]
         }
       },
       "layout": {
@@ -343,17 +385,24 @@
                 "text": "${data.roster_text}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "action",
+                "label": "What do you want to do?",
+                "required": true,
+                "data-source": "${data.actions}"
+              },
+              {
                 "type": "TextCaption",
                 "text": "Just checking? Close this window — nothing is changed."
               },
               {
                 "type": "Footer",
-                "label": "Edit this roster",
+                "label": "Continue",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "screen": "ROSTER_VIEW",
-                    "action": "edit"
+                    "action": "${form.action}"
                   }
                 }
               }
@@ -562,6 +611,312 @@
       }
     },
     {
+      "id": "CLASS_TEACHER",
+      "title": "Class teacher",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 3-B · 48 children"
+        },
+        "current": {
+          "type": "string",
+          "__example__": "No class teacher yet. The teacher you name gets these children in their attendance list."
+        },
+        "teachers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "none",
+              "title": "Not listed — leave as is"
+            }
+          ]
+        },
+        "help": {
+          "type": "string",
+          "__example__": "Only teachers with an account are listed. Add a missing teacher first, then come back."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_teacher_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.current}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "teacher_user_id",
+                "label": "Class teacher",
+                "required": true,
+                "data-source": "${data.teachers}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.help}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASS_TEACHER",
+                    "teacher_user_id": "${form.teacher_user_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CLASS_DETAILS",
+      "title": "Class details",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 3-B · 48 children"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "The children, their attendance history and the class teacher stay with the class."
+        },
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "grade_3",
+              "title": "Grade 3"
+            }
+          ]
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "B",
+              "title": "B"
+            },
+            {
+              "id": "none",
+              "title": "No section"
+            }
+          ]
+        },
+        "shifts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "morning",
+              "title": "Morning"
+            },
+            {
+              "id": "evening",
+              "title": "Evening"
+            }
+          ]
+        },
+        "grade_code": {
+          "type": "string",
+          "__example__": "grade_3"
+        },
+        "section": {
+          "type": "string",
+          "__example__": "B"
+        },
+        "shift_code": {
+          "type": "string",
+          "__example__": "morning"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_details_form",
+            "init-values": {
+              "grade_code": "${data.grade_code}",
+              "section": "${data.section}",
+              "shift_code": "${data.shift_code}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.note}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "grade_code",
+                "label": "Grade",
+                "required": true,
+                "data-source": "${data.grades}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "section",
+                "label": "Section",
+                "required": true,
+                "data-source": "${data.sections}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "shift_code",
+                "label": "Shift",
+                "required": true,
+                "data-source": "${data.shifts}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASS_DETAILS",
+                    "grade_code": "${form.grade_code}",
+                    "section": "${form.section}",
+                    "shift_code": "${form.shift_code}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CLASS_MERGE",
+      "title": "This class exists",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 3-B already exists"
+        },
+        "body": {
+          "type": "string",
+          "__example__": "Grade 3-B is already saved at this school with 20 children. This class, Grade 3-A, has 16."
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "cancel",
+              "title": "Keep both — change nothing"
+            },
+            {
+              "id": "merge",
+              "title": "Merge into the existing class"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_merge_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.body}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "decision",
+                "label": "What do you want to do?",
+                "required": true,
+                "data-source": "${data.decisions}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASS_MERGE",
+                    "decision": "${form.decision}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "PHOTOS",
       "title": "Photograph the register",
       "data": {
@@ -756,7 +1111,7 @@
                 "type": "Dropdown",
                 "name": "teacher_user_id",
                 "label": "Class teacher",
-                "required": false,
+                "required": true,
                 "data-source": "${data.teachers}"
               },
               {
