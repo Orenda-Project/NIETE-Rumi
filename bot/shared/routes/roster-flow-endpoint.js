@@ -973,9 +973,17 @@ const IMPORT_FAILURES = {
   insert_failed: 'A student could not be saved.',
 };
 
+// Every write beneath these two entry points — the scan save, the edit save, and
+// whatever the saved-roster screens gain next — is made ON BEHALF OF the coach
+// whose id is the flow token. runAsActor puts that id on each request so the
+// record_history trigger records a person, not the connection role (bd-a21ks).
+// Wrapped here, at the boundary, so no service signature has to change.
+const { runAsActor } = require('../utils/actor-context');
+
 module.exports = {
-  handleRosterInit,
-  handleRosterDataExchange,
+  handleRosterInit: (userId) => runAsActor(userId, () => handleRosterInit(userId)),
+  handleRosterDataExchange: (userId, screen, screenData) =>
+    runAsActor(userId, () => handleRosterDataExchange(userId, screen, screenData)),
   // Exported for tests — the save is where the idempotency contract lives, and
   // the edit save is where a coach's delete becomes a closed enrolment.
   saveRoster,

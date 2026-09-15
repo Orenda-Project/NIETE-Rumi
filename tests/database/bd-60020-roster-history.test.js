@@ -167,16 +167,20 @@ t('records an exam-check session status change', () => {
 
 // ── coverage: the batch is 14 tables, 60 columns ─────────────────────────────
 
-t('all 14 tables are audited', () => {
-  eq(Object.keys(WATCHED).length, 14);
+t('all 15 tables are audited', () => {
+  // 14 + classes (bd-a21ks).
+  eq(Object.keys(WATCHED).length, 15);
 });
 
-t('55 columns are watched in total', () => {
+t('70 columns are watched in total', () => {
   // 60 minus coaching_sessions.conversation_state, dropped on production evidence.
   // 59 -> 55: bd-60092 dropped users.first_name/last_name and bd-60095
   // dropped users.levels/grade while renaming training_bands to
   // teacher_level. Watching a dropped column silently records nothing.
-  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 55);
+  // 55 -> 70: bd-a21ks adds classes (7) and the identity/reason columns that let one
+  // class's history be read from the ledger alone (class_enrollments +2, students +2,
+  // student_lists +2, class_teachers +2).
+  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 70);
 });
 
 t('the 9 roster/config tables are all registered', () => {
