@@ -180,3 +180,86 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     And no feature is started
     # HelperAgentService.getEscapePathMessage('AWAITING_MENU_CHOICE') — "📋 Please choose an
     # option (1-4) from the menu above.\n\nOr type /menu to see the menu again."
+  # ═══════ ROLE-BASED ROWS (row 122, 2026-09-15) · DC and HITL by persona ═══════
+  # The four rows above are the TEACHER menu and remain exactly that. Two of the
+  # features are role-shaped and the menu used to say so nowhere: DC is "coach ME
+  # on MY lesson", HITL (/observe) is "I observed SOMEONE ELSE". A role='principal'
+  # teacher therefore tapped Classroom Coaching, was told to send her recording,
+  # and got the observe binding list — "Whose observation is this?" — because
+  # observe-audio-router intercepts a leader's audio on role alone. Her recording
+  # was parked and never analysed (DC review sheet row 122, Asifa Ayub, 14 Sep).
+  #
+  # Contract (bot/shared/config/role-features.js):
+  #   teacher    → Classroom Coaching only
+  #   principal  → BOTH (in ICT a principal also teaches)
+  #   coach      → Observe a Teacher only
+  #   unknown    → Classroom Coaching only (never grant HITL by accident)
+  # The HITL row additionally requires OBSERVE_MEWAKA_FLOW_ID — presence-based.
+
+  @e2e @menu @role @P1
+  Scenario: A principal sees BOTH Classroom Coaching and Observe a Teacher
+    Given the NIETE bot chat is open
+    And my role is "principal"
+    When I send "/menu"
+    And I open the "View Features" list
+    Then the feature list shows exactly these rows:
+      | Teacher Training   |
+      | Lesson Plans       |
+      | Classroom Coaching |
+      | Observe a Teacher  |
+      | Ask Anything       |
+
+  @e2e @menu @role @P1
+  Scenario: A coach sees Observe a Teacher and NOT Classroom Coaching
+    Given the NIETE bot chat is open
+    And my role is "coach"
+    When I send "/menu"
+    And I open the "View Features" list
+    Then the feature list shows exactly these rows:
+      | Teacher Training  |
+      | Lesson Plans      |
+      | Observe a Teacher |
+      | Ask Anything      |
+    # A coach observes; she does not have her own class to be coached on.
+
+  @e2e @menu @role @P1
+  Scenario: A teacher still sees Classroom Coaching and no observe row
+    Given the NIETE bot chat is open
+    And my role is "teacher"
+    When I send "/menu"
+    And I open the "View Features" list
+    Then the feature list shows exactly the 4 ICT rows
+    And the feature list does NOT show "Observe a Teacher"
+
+  @e2e @menu @role @negative @P2
+  Scenario: A coach tapping a Classroom Coaching row from old scrollback is refused
+    Given the NIETE bot chat is open
+    And my role is "coach"
+    And an older "/menu" message is still in my chat history
+    When I scroll back and tap the "Classroom Coaching" row on that old message
+    Then the bot does NOT ask me to send a classroom recording
+    And the bot reply names "Observe a Teacher" as the row that is mine
+    # A WhatsApp list lives in scrollback forever, so hiding the row is not enough
+    # — the tap is gated where it LANDS (menu.service.js, case 'menu_coaching').
+    # Without this she is told to send a recording that is then parked: row 122's
+    # ending, reached by a different door.
+
+  @e2e @menu @role @negative @P3
+  Scenario: A teacher tapping a stray Observe row is refused and redirected
+    Given the NIETE bot chat is open
+    And my role is "teacher"
+    When I tap an "Observe a Teacher" row from an older message
+    Then the observe flow does not start
+    And the bot reply names "Classroom Coaching" as the row that is mine
+
+  @e2e @menu @role @language @P2
+  Scenario: The refusal is in the teacher's own language
+    Given the NIETE bot chat is open
+    And my role is "coach"
+    And my preferred language is Urdu
+    When I tap the "Classroom Coaching" row
+    Then the bot reply is in Urdu
+    # Found while building row 122: BOTH menu dispatch sites read `user.language`,
+    # and `users` has NO such column (prod: "column users.language does not
+    # exist"). Every menu tap had been handled in English for every Urdu teacher.
+    # Now reads preferred_language (whatsapp-bot.js, both dispatch sites).

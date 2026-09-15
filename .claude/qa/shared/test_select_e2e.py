@@ -368,7 +368,7 @@ def _git_fixture(tmp):
     g("remote", "add", "origin", bare)
     g("push", "-q", "origin", "HEAD:develop")
     g("branch", "-M", "develop")
-    g("branch", "--set-upstream-to=origin/develop")
+    g("branch", "--set-upstream-to=origin/develop")  # branch-guard-allow: fixture asserts the fallback chain
     return work, g
 
 

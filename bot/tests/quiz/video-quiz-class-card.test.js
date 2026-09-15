@@ -110,13 +110,13 @@ describe('bd-2yyry.11 — the class card goes to the children when the report go
     expect(logEvent).toHaveBeenCalledWith('video_quiz.class_card_sent', expect.objectContaining({ shareCodeId: SC, studentId: 'st-1' }));
   });
 
-  test('follow-up report: only the children who have no card yet get one', async () => {
+  test('a second report the teacher asked for: only the children who have no card yet get one', async () => {
     stubSupabase({
       quiz_share_codes: [shareCode({ report_sent_at: iso(3 * H) })], users: [teacher],
       quizzes: quizzes({ class_cards: { [SC]: ['st-1'] } }),
       quiz_sessions: [child('s1', 'st-1', '923111111111', 6, 4 * H), child('s2', 'st-2', '923222222222', 8, 1 * H)],
     });
-    expect(await report.generate(SC, { reason: 'follow_up' })).toBe(true);
+    expect(await report.generate(SC, { reason: 'requested', force: true })).toBe(true);
     expect(WhatsAppService.sendImageFromBuffer.mock.calls.map((c) => c[0])).toEqual(['923222222222']);
   });
 

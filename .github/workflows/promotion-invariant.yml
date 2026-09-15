@@ -1,0 +1,80 @@
+# Did anything reach `main` without going through `staging`?
+#
+# `main-source-branch.yml` already refuses a PR into `main` whose head is not
+# `staging`. That check runs BEFORE the merge, on the pull request — so it is
+# advisory the moment anyone with admin rights turns branch protection off,
+# merges, and turns it back on. `enforce_admins` does not stop that: it governs
+# pushes and merges, not edits to the protection settings themselves.
+#
+# That is not hypothetical. Between 2026-09-14 and 2026-09-15 three PRs
+# (#886, #931, #928) merged into `main` from non-`staging` heads. All three
+# recorded `main only accepts staging: failure` and merged anyway. Nobody
+# noticed until someone audited the branch graph four days later.
+#
+# So this job checks the RESULT instead of the permission. It runs after the
+# push has landed and asks the only question that matters:
+#
+#     does `main` carry any non-merge commit that `staging` does not have?
+#
+# A permission can be toggled off. A commit graph cannot be quietly rewritten
+# under branch protection, so this cannot be bypassed the same way — it can only
+# be ignored, and an ignored red run is still a record.
+#
+# WHY `--no-merges`, and why the obvious version of this check is WRONG:
+#
+#   The tempting invariant is `rev-list staging..main == 0`. It is unachievable.
+#   Every `staging -> main` promotion merge creates a merge commit ON main that
+#   staging does not have, so that count goes UP BY ONE PER RELEASE, for ever,
+#   while nothing is wrong. Someone acting on it does an unnecessary back-merge
+#   (this happened on 2026-09-11). `--no-merges` excludes exactly those promotion
+#   merges and leaves the thing we actually care about: original work.
+name: Promotion invariant
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# No `paths:` filter, deliberately. A required status check with a paths filter
+# NEVER REPORTS on a PR that does not match it, and GitHub then holds the PR as
+# "expected — waiting for status" for ever. This job must be safe to mark
+# required, so it always runs.
+
+jobs:
+  staging-is-the-only-door:
+    name: main carries nothing that skipped staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the whole graph; a shallow clone cannot answer this
+
+      - name: Compare main against staging
+        run: |
+          set -euo pipefail
+          git fetch origin staging --quiet
+
+          COUNT=$(git rev-list --count --no-merges origin/staging..origin/main)
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "OK — main carries no original commit that staging lacks."
+            echo "(Promotion merge commits are excluded by --no-merges and are expected.)"
+            exit 0
+          fi
+
+          echo "::error::$COUNT commit(s) reached main without going through staging."
+          echo ""
+          echo "The commits:"
+          git log --no-merges --format='  %h  %an  %ad  %s' --date=short \
+            origin/staging..origin/main
+          echo ""
+          echo "The promotion path is:  sandbox -> staging -> main"
+          echo ""
+          echo "Find out what skipped the ladder, and why."
+          echo ""
+          echo "Do NOT clear this by back-merging main into staging. That reconciles"
+          echo "the graph and HIDES the bypass, so the next one is just as invisible"
+          echo "— this repo's own CLAUDE.md says so. Between 2026-09-03 and 09-15,"
+          echo "48 of 57 PRs into main came from a non-staging head, and repeated"
+          echo "back-merges kept this very number near zero the whole time."
+          exit 1

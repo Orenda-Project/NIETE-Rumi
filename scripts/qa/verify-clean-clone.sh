@@ -41,7 +41,7 @@ git -C "$C" config user.email dev@example.org; git -C "$C" config user.name "Ano
 git -C "$C" checkout -q -b develop 2>/dev/null || git -C "$C" checkout -q develop
 git -C "$C" remote set-url origin https://github.com/Orenda-Project/NIETE-Rumi.git
 git -C "$C" branch -f origin-develop-marker >/dev/null 2>&1
-git -C "$C" update-ref refs/remotes/origin/develop HEAD
+git -C "$C" update-ref refs/remotes/origin/develop HEAD  # branch-guard-allow: fixture builds a throwaway clone
 say "selector works without PyYAML (scrubbed HOME)" "$(cd "$C" && HOME=$HOME python3 -c "import sys; sys.path.insert(0, \".claude/qa/shared\"); import select_e2e as se; m=se.load_map(\".claude/qa/config/feature-map.yaml\", \".claude/qa/agents\"); print(len(se.select([\"bot/shared/services/menu.service.js\"], m, se.load_feature_order(\".claude/qa/agents\")).features))" 2>/dev/null)" "1"
 say "no hooksPath before install" "$(git -C "$C" config --get core.hooksPath)" ""
 for f in .claude/qa/config/feature-map.yaml .claude/qa/shared/select_e2e.py .claude/qa/shared/spec_sync.py \
@@ -132,7 +132,7 @@ say "block mode now passes" "$rc" "0"
 
 echo "6 · pre-push to develop"
 HEAD=$(git -C "$C" rev-parse HEAD)
-out=$(cd "$C" && printf 'refs/heads/develop %s refs/heads/develop %s\n' "$HEAD" "$BASE" | bash .githooks/pre-push origin x 2>&1); rc=$?
+out=$(cd "$C" && printf 'refs/heads/develop %s refs/heads/develop %s\n' "$HEAD" "$BASE" | bash .githooks/pre-push origin x 2>&1); rc=$?  # branch-guard-allow: synthetic ref fed to the pre-push hook
 say "advisory exit 0" "$rc" "0"; has "reports the features" "$out" "menu" yes
 
 echo "7 · the QA test suites, inside the clone"

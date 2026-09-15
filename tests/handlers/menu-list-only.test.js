@@ -26,12 +26,21 @@ const path = require('path');
 
 const WA = fs.readFileSync(path.join(__dirname, '../../bot/shared/services/whatsapp.service.js'), 'utf8');
 
-/** The body of sendFeatureMenuCarousel, which is what MenuService calls. */
-function carouselFn() {
-  const start = WA.indexOf('static async sendFeatureMenuCarousel(to)');
+/**
+ * The body of sendFeatureMenuCarousel, which is what MenuService calls.
+ *
+ * Matched on the NAME, not on a full signature literal: row 122 added a `user`
+ * parameter so the rows can be chosen by role, and an exact-signature anchor
+ * turned this whole suite red for a reason that has nothing to do with what it
+ * guards.
+ */
+function fnBody(name) {
+  const start = WA.search(new RegExp(`static async ${name}\\s*\\(`));
   expect(start).toBeGreaterThan(-1);
   return WA.slice(start, WA.indexOf('\n  static ', start + 10));
 }
+
+const carouselFn = () => fnBody('sendFeatureMenuCarousel');
 
 describe('bd-2507 — the menu entry point sends the list, not the template', () => {
   it('does not build the template payload before sending', () => {
@@ -44,12 +53,18 @@ describe('bd-2507 — the menu entry point sends the list, not the template', ()
   });
 
   it('the list rows are still the bd-2504 set, Training first', () => {
-    const start = WA.indexOf("title: 'My Features'");
-    const block = WA.slice(start, WA.indexOf(']', WA.indexOf('rows: [', start)) + 1);
-    const ids = [...block.matchAll(/id:\s*'(menu_[a-z_]+)'/g)].map(m => m[1]);
-    expect(ids[0]).toBe('menu_training');
-    expect(ids).not.toContain('menu_reading');
-    expect(ids).not.toContain('menu_video');
+    // Row 122: the rows are now built per role by config/role-features rather
+    // than sitting as a literal here, so ask the builder. The bd-2504
+    // guarantee is asserted for EVERY role, which is stronger than the single
+    // hardcoded list this used to read.
+    const { featureMenuRows } = require('../../bot/shared/config/role-features');
+    for (const role of ['teacher', 'principal', 'coach', null]) {
+      const ids = featureMenuRows(role && { id: 'u', role }, { observeEnabled: true })
+        .map((r) => r.id);
+      expect(ids[0]).toBe('menu_training');
+      expect(ids).not.toContain('menu_reading');
+      expect(ids).not.toContain('menu_video');
+    }
   });
 
   it('still returns a boolean so MenuService can tell success from failure', () => {
@@ -58,10 +73,9 @@ describe('bd-2507 — the menu entry point sends the list, not the template', ()
     //
     // The booleans now live in the list function, and the entry point returns
     // its value — so assert the contract, not where the literals sit.
-    expect(carouselFn()).toMatch(/return\s+await\s+this\.sendFeatureMenuListFallback\(to\)/);
+    expect(carouselFn()).toMatch(/return\s+await\s+this\.sendFeatureMenuListFallback\(to\b/);
 
-    const listStart = WA.indexOf('static async sendFeatureMenuListFallback(to)');
-    const listFn = WA.slice(listStart, WA.indexOf('\n  static ', listStart + 10));
+    const listFn = fnBody('sendFeatureMenuListFallback');
     expect(listFn).toMatch(/return\s+true/);
     expect(listFn).toMatch(/return\s+false/);
   });

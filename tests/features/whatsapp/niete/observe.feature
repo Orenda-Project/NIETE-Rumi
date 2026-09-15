@@ -335,3 +335,73 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # ⚠ LIVE BUG: framework scores out of 148 but
     # report-transformers/fico-report-transformer.js:30,107 hardcodes 104 (stale
     # V2; header comment still says "26 indicators/104"). Expected to FAIL until fixed.
+
+  # ══════ MENU ENTRY + the principal who also teaches (row 122, 2026-09-15) ══════
+  # /observe gained a second door: the "Observe a Teacher" row on /menu, shown to
+  # the roles that may observe. The row DELEGATES to handleObserveCommand(user,
+  # from, '/observe') and changes nothing about the flow — onboarding, pending
+  # debriefs, the visit picker and add/remove-school behave for a principal
+  # exactly as they do for a coach.
+  #
+  # The other half is the bug the row exposed. observe-audio-router decided what
+  # a leader's audio meant from role + duration + observe state ALONE, so a
+  # principal who asked for HER OWN lesson to be coached had that request taken
+  # from DC and turned into "Whose observation is this?" — her recording parked,
+  # never analysed (row 122, Asifa Ayub, 14 Sep 2026; 544 users on the role
+  # family; zero leader self-DC sessions in production since 2026-08-24).
+
+  @e2e @observe @menu @config-gated @P1
+  Scenario: The Observe a Teacher menu row opens the same /observe entry
+    Given the NIETE bot chat is open
+    And my role is "coach"
+    When I send "/menu"
+    And I open the "View Features" list
+    And I tap the "Observe a Teacher" row
+    Then I get the same entry I would get from sending "/observe"
+    # Delegation, not a second implementation — menu.service.js case 'menu_observe'.
+
+  @e2e @observe @coaching @config-gated @P1
+  Scenario: A principal's OWN lesson recording reaches Digital Coach, not the binding list
+    Given the NIETE bot chat is open
+    And my role is "principal"
+    And I have not started an observation
+    When I tap "Classroom Coaching" on /menu
+    And the bot asks me to send my classroom recording
+    And I send a classroom recording longer than 15 minutes
+    Then the bot does NOT ask "Whose observation is this?"
+    And the recording is analysed as MY OWN lesson
+    # Row 122. observe-audio-router now honours the declared DC intent
+    # (conversation_state flow='coaching', step='AWAITING_CLASSROOM_AUDIO'),
+    # in a branch placed after the armed-state checks and before park().
+
+  @e2e @observe @config-gated @P1
+  Scenario: A principal who HAS started an observation still captures it as an observation
+    Given the NIETE bot chat is open
+    And my role is "principal"
+    And I have started an observation via "/observe" and picked a teacher
+    When I send a classroom recording longer than 15 minutes
+    Then it is captured as an OBSERVATION of that teacher, not as my own lesson
+    # An armed observation is the more specific declaration and wins over a
+    # stale DC intent — the two armed-state branches return above the new one.
+
+  @e2e @observe @config-gated @P2
+  Scenario: A leader recording with nothing declared is still asked whose it is
+    Given the NIETE bot chat is open
+    And my role is "coach"
+    And I have not started an observation
+    When I send a classroom recording longer than 15 minutes
+    Then the bot asks "Whose observation is this?"
+    # bd-tju8f's invariant, unchanged: an UNDECLARED school-leader classroom
+    # recording never starts teacher coaching. This is the scenario that must
+    # keep passing — it is what row 122's fix was carefully placed NOT to break.
+
+  @e2e @observe @edge @config-gated @P3
+  Scenario: A coach never reaches her own Digital Coach, even after tapping an old DC row
+    Given the NIETE bot chat is open
+    And my role is "coach"
+    And I tapped a "Classroom Coaching" row from older scrollback and was refused
+    When I send a classroom recording longer than 15 minutes
+    Then the bot asks "Whose observation is this?"
+    # canSelfCoach is false for a coach, so a DC intent can never be declared by
+    # one — the refusal above does not write the state, and the router would
+    # ignore it if it somehow existed.

@@ -93,12 +93,44 @@ async function subjectsOnOffer(grade) {
     .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
 }
 
+/**
+ * The chapters she picked, as an array, whatever shape the session is in.
+ *
+ * She used to be able to pick exactly one, so a session written before the
+ * CheckboxGroup carries scalar `chapterNumber`/`chapterTitle`. Those sessions
+ * are still in Redis when this deploys and must keep working, so the scalar is
+ * read as a list of one rather than migrated or ignored.
+ */
+function chaptersOf(state) {
+  const nums = Array.isArray(state.chapterNumbers)
+    ? state.chapterNumbers
+    : (state.chapterNumber != null ? [state.chapterNumber] : []);
+  const titles = Array.isArray(state.chapterTitles)
+    ? state.chapterTitles
+    : (state.chapterTitle != null ? [state.chapterTitle] : []);
+  return nums
+    .map(Number)
+    .filter((n) => Number.isFinite(n))
+    .map((n, i) => ({ number: n, title: titles[i] != null ? titles[i] : null }));
+}
+
 function summaryOf(state) {
+  const chapters = chaptersOf(state);
+  // "Chapter 2 · The Thirsty Crow" for one — unchanged, it is the common case
+  // and she has read it a hundred times. "Chapters 2, 3" for several: the
+  // titles are dropped there because four of them do not fit a Flow caption,
+  // and a truncated title reads worse than none.
+  const chapterLine = chapters.length === 1
+    ? `Chapter ${chapters[0].number}${chapters[0].title ? ` · ${chapters[0].title}` : ''}`
+    : (chapters.length > 1
+      ? `Chapters ${chapters.map((c) => c.number).join(', ')}`
+      : null);
+
   return [
     state.grade ? `Grade ${state.grade}` : null,
     SUBJECT_TITLE[state.subject] || state.subject,
-    state.chapterTitle ? `Chapter ${state.chapterNumber} · ${state.chapterTitle}` : null,
-    (!state.chapterNumber && state.pageRanges) ? `Pages ${state.pageRanges}` : null,
+    chapterLine,
+    (chapters.length === 0 && state.pageRanges) ? `Pages ${state.pageRanges}` : null,
   ].filter(Boolean).join(' · ');
 }
 
@@ -186,18 +218,31 @@ function totalsOf(items, selected) {
 }
 
 /**
+ * The running total she reads while ticking questions.
+ *
+ * When she asked for a marks budget it shows the target beside the actual — the
+ * paper is generated to fit, but she can untick and re-tick her way back over
+ * it, and "18 marks" alone does not tell her whether that is over or under what
+ * she asked for. Without a budget the line is exactly what it always was.
+ */
+function summaryLine(count, marks, budget = null) {
+  const head = `${count} question${count === 1 ? '' : 's'} · ${marks} marks`;
+  return Number(budget) > 0 ? `${head} of ${budget}` : head;
+}
+
+/**
  * One page of the tick list.
  *
  * `selected` is the running answer for the WHOLE paper and lives in the session,
  * not in the form: the form only knows the twenty rows on screen, so trusting it
  * alone would drop every question she never scrolled to.
  */
-function keepScreen({ items, selected, page, error = '' }) {
+function keepScreen({ items, selected, page, error = '', totalMarks = null }) {
   const view = Selection.pageOf(items, page);
   const keep = new Set(selected);
   const t = totalsOf(items, selected);
   return screen('KEEP', {
-    summary: `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`,
+    summary: summaryLine(t.count, t.marks, totalMarks),
     progress: view.total > view.items.length
       ? `Questions ${view.from}-${view.to} of ${view.total}` : '',
     questions: view.items.map((q) => ({
@@ -228,14 +273,14 @@ function reviewError(message) {
  * guard enforces it), so the rebuild button lives on PICK_DONE next door rather
  * than under the list.
  */
-function pickScreen({ items, selected, screenId = 'PICK', error = '' }) {
+function pickScreen({ items, selected, screenId = 'PICK', error = '', totalMarks = null }) {
   const { kept, count, marks } = totalsOf(items, selected);
   // A RadioButtonsGroup, not a NavigationList. The list has to share its screen
   // with a Footer so "Done editing" is a real button and not a row that reads
   // like a fifth question — and a NavigationList cannot share a screen with
   // anything. Radio titles also get 30 characters to the NavigationList's 20.
   return screen(screenId, {
-    summary: `${count} question${count === 1 ? '' : 's'} · ${marks} marks`,
+    summary: summaryLine(count, marks, totalMarks),
     questions: kept.map((q) => ({
       id: q.id,
       title: Selection.optionTitle(q),
@@ -246,9 +291,9 @@ function pickScreen({ items, selected, screenId = 'PICK', error = '' }) {
   });
 }
 
-function pickDoneScreen({ items, selected, error = '' }) {
+function pickDoneScreen({ items, selected, error = '', totalMarks = null }) {
   const t = totalsOf(items, selected);
-  const summary = `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`;
+  const summary = summaryLine(t.count, t.marks, totalMarks);
   return screen('PICK_DONE', {
     summary,
     note: 'Nothing to fix? Just rebuild.',
@@ -353,7 +398,7 @@ async function loadItems(state, flowToken, userId) {
   return { items, code, paperId, owner };
 }
 
-async function openReview(userId, paperId, flowToken) {
+async function openReview(userId, paperId, flowToken, totalMarks = null) {
   const { items, code } = await revision().listQuestions({ paperId, userId });
   if (!items) {
     return reviewError(code === 'NOT_READY'
@@ -361,8 +406,8 @@ async function openReview(userId, paperId, flowToken) {
       : "I couldn't find that paper. Send /assessment to make a new one.");
   }
   const selected = items.filter((q) => q.selected).map((q) => q.id);
-  await writeSession(flowToken, { userId, paperId, page: 0, selected });
-  return keepScreen({ items, selected, page: 0 });
+  await writeSession(flowToken, { userId, paperId, page: 0, selected, totalMarks });
+  return keepScreen({ items, selected, page: 0, totalMarks });
 }
 
 /**
@@ -608,7 +653,12 @@ async function handleInit(userId, flowToken) {
   // A review token means she already has a paper and wants to trim it. Checked
   // before anything else, because every screen below assumes a fresh request.
   const reviewPaperId = paperIdFromToken(flowToken);
-  if (reviewPaperId) return openReview(userId, reviewPaperId, flowToken);
+  if (reviewPaperId) {
+    // The budget she set when the paper was made, so the review screen can show
+    // her total against her target rather than on its own.
+    const prior = await readSession(flowToken);
+    return openReview(userId, reviewPaperId, flowToken, prior.totalMarks ?? null);
+  }
 
   await writeSession(flowToken, { userId });
   const grades = await gradesOnOffer();
@@ -659,7 +709,11 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       });
     }
 
-    Object.assign(state, { grade, subject, chapterNumber: null, chapterTitle: null, pageRanges: null });
+    Object.assign(state, {
+      grade, subject,
+      chapterNumbers: null, chapterTitles: null,
+      chapterNumber: null, chapterTitle: null, pageRanges: null,
+    });
     await writeSession(flowToken, state);
 
     let chapters = [];
@@ -704,18 +758,36 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       });
     }
 
-    const chapterNumber = Number(data.chapter);
-    if (!chapterNumber) {
+    // A CheckboxGroup sends an array of the ids it was drawn with — which are
+    // strings, because a Flow data-source id always is. `data.chapter` is read
+    // too: a client mid-session on the previous, single-select screen is still
+    // posting the old key, and refusing it would strand her.
+    const picked = Array.isArray(data.chapters)
+      ? data.chapters
+      : (data.chapters != null ? [data.chapters] : (data.chapter != null ? [data.chapter] : []));
+    const chapterNumbers = [...new Set(
+      picked.map(Number).filter((n) => Number.isFinite(n) && n > 0),
+    )].sort((a, b) => a - b);
+
+    if (chapterNumbers.length === 0) {
       return screen('COVERAGE', {
         summary: summaryOf(state), has_chapters: true,
         chapters: await chapterOptions(state),
-        error: 'Please choose a chapter, or tick the box to type page numbers.',
+        error: 'Please choose at least one chapter, or tick the box to type page numbers.',
       });
     }
 
     const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
-    const chosen = chapters.find((c) => c.chapterNumber === chapterNumber);
-    Object.assign(state, { chapterNumber, chapterTitle: chosen ? chosen.title : null, pageRanges: null });
+    const chapterTitles = chapterNumbers.map((n) => {
+      const chosen = chapters.find((c) => c.chapterNumber === n);
+      return chosen ? chosen.title : null;
+    });
+    // The scalar keys are cleared, not left behind: a stale `chapterNumber`
+    // from an earlier pass through this screen would outrank the array in
+    // `chaptersOf` on the next read and quietly narrow her paper to one chapter.
+    Object.assign(state, {
+      chapterNumbers, chapterTitles, chapterNumber: null, chapterTitle: null, pageRanges: null,
+    });
     await writeSession(flowToken, state);
     return questionsScreen(state);
   }
@@ -741,7 +813,10 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
         error: 'Try something like 4-14, or 4, 9, 12.',
       });
     }
-    Object.assign(state, { pageRanges, chapterNumber: null, chapterTitle: null });
+    Object.assign(state, {
+      pageRanges, chapterNumbers: null, chapterTitles: null,
+      chapterNumber: null, chapterTitle: null,
+    });
     await writeSession(flowToken, state);
     return questionsScreen(state);
   }
@@ -759,14 +834,36 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       return questionsScreen(state, parsed.message);
     }
 
+    // The marks budget beside it. Optional, so a blank box is an answer ("no
+    // budget") and not a refusal — but a number she DID type is held to its
+    // range and bounced back the same way the count is, rather than clamped.
+    const budget = QuestionTypes.parseTotalMarks(data.total_marks);
+    if (!budget.ok) {
+      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
+      await writeSession(flowToken, state);
+      return questionsScreen(state, budget.message);
+    }
+
     Object.assign(state, {
       contentSource: String(data.content_source || 'unseen'),
       questionCount: parsed.count,
+      totalMarks: budget.marks,
     });
     await writeSession(flowToken, state);
 
-    const wantsTypes = data.pick_types === true || data.pick_types === 'true';
-    if (wantsTypes) {
+    // The CATEGORY decides whether she is asked, not an opt-in she has to find.
+    //
+    // `seen` lifts its questions out of the book, so each one already IS a type
+    // — asking her to choose is a question whose answer cannot be used, and
+    // planCounts() proves it by returning `questionTypes: []` for seen. Behind
+    // the old tick-box she could pick four types and have all four discarded.
+    //
+    // `unseen` and `both` have new questions to write, and nothing to inherit a
+    // type from. That makes the choice load-bearing, so it is a step rather than
+    // an opt-in: unticked, the common path fell through to our defaultMix()
+    // guess instead of the paper she wanted. TYPES refuses an empty selection.
+    const needsTypes = state.contentSource === 'unseen' || state.contentSource === 'both';
+    if (needsTypes) {
       return screen('TYPES', {
         summary: summaryOf(state),
         types: QuestionTypes.forSubject(state.subject, state.grade)
@@ -940,6 +1037,7 @@ function questionsScreen(state, error = '') {
   return screen('QUESTIONS', {
     summary: summaryOf(state),
     count_hint: `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
+    marks_hint: `Optional — up to ${QuestionTypes.MAX_TOTAL_MARKS}. Leave blank for no limit.`,
     error,
   });
 }
@@ -973,17 +1071,25 @@ async function confirmScreen(state) {
  * and the generator works from the chapter number regardless.
  */
 async function chapterPageRange(state) {
+  const picked = chaptersOf(state);
+  if (picked.length === 0) return null;
   try {
     const chapters = await BookContent.listChapters({
       grade: state.grade, subject: state.subject,
     });
-    const c = chapters.find((x) => x.chapterNumber === Number(state.chapterNumber));
-    return (c && c.pageStart != null && c.pageEnd != null)
-      ? `${c.pageStart}-${c.pageEnd}` : null;
+    // One range per chapter, in the order she picked them, joined the way
+    // parsePageRanges already reads: "15-27, 28-40". A chapter the contents
+    // page never paginated contributes nothing rather than sinking the rest —
+    // the same best-effort rule as before, now applied per chapter.
+    const ranges = picked
+      .map((p) => chapters.find((x) => x.chapterNumber === p.number))
+      .filter((c) => c && c.pageStart != null && c.pageEnd != null)
+      .map((c) => `${c.pageStart}-${c.pageEnd}`);
+    return ranges.length ? ranges.join(', ') : null;
   } catch (err) {
     logToFile('[assessment-flow] could not resolve chapter pages', {
       grade: state.grade, subject: state.subject,
-      chapter: state.chapterNumber, error: err.message,
+      chapters: picked.map((p) => p.number), error: err.message,
     });
     return null;
   }
@@ -991,12 +1097,27 @@ async function chapterPageRange(state) {
 
 async function submit(state) {
   const book = await bookFacts(state);
+  const chapters = chaptersOf(state);
 
-  // She chose a chapter, not pages — but the row should still say which pages
+  // She chose chapters, not pages — but the row should still say which pages
   // it covers, so a request is readable later without re-reading the contents
   // page (which can change under a re-import).
   const pageRanges = state.pageRanges
-    || (state.chapterNumber != null ? await chapterPageRange(state) : null);
+    || (chapters.length ? await chapterPageRange(state) : null);
+
+  // `assessment_requests.chapter_number` is an INTEGER and stays one: a single
+  // chapter still names itself there, which is what every existing reader
+  // (the browse service, the revision service, the orchestrator's job) expects.
+  //
+  // For SEVERAL chapters there is no scalar that is honest. Storing the first
+  // would be actively wrong — the orchestrator branches on `chapterNumber !=
+  // null` and would call loadChapterContent() for that one chapter, silently
+  // dropping the rest of her paper. So multi-chapter coverage is carried by
+  // `page_ranges`, the column that already exists for "which pages", already
+  // holds a comma-joined list, and already routes to loadPageRangeContent().
+  // No migration: a chapter IS its pages, and the CHECK constraint
+  // (chapter_number IS NOT NULL OR page_ranges IS NOT NULL) is satisfied.
+  const single = chapters.length === 1 ? chapters[0].number : null;
 
   const types = (state.pickedTypes && state.pickedTypes.length)
     ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
@@ -1015,10 +1136,14 @@ async function submit(state) {
     grade: state.grade,
     subject: state.subject,
     textbookId: book.id,
-    chapterNumber: state.chapterNumber || null,
+    chapterNumber: single,
+    // Carried so the worker and the logs can say what she actually picked,
+    // even though the content is loaded from the unioned page ranges.
+    chapterNumbers: chapters.length ? chapters.map((c) => c.number) : null,
     pageRanges,
     contentSource: state.contentSource || 'unseen',
     questionCount: state.questionCount || 20,
+    totalMarks: state.totalMarks ?? null,
     questionTypes: types,
     includeAnswerKey: !!state.answerKey,
     answerLines: state.answerLines !== false,
