@@ -390,6 +390,129 @@ const UX_STRINGS = {
     ur: 'السلام علیکم! میں آپ کی NIETE ٹیچنگ اسسٹنٹ ہوں۔\n\nمیں ان کاموں میں مدد کر سکتی ہوں:\n📚 لیسن پلان\n🎓 کلاس روم کوچنگ\n📗 ٹیچر ٹریننگ\n\nپوری فہرست کے لیے /menu ٹائپ کریں، یا بتائیں کیا چاہیے۔',
   },
 
+  /**
+   * The four feature doors extracted out of text-message.handler. Their copy
+   * used to sit inline beside the Flow send — an unreviewed per-language map
+   * each, inside a 3,300-line handler no test can boot, so none of it was ever
+   * measured against a cap or checked for a missing language.
+   *
+   * Caps: header 60 code points, body 1024, Flow button 20.
+   */
+  assessmentFlowHeader: {
+    en: '📝 New assessment',
+    ur: '📝 نیا پرچہ',
+  },
+
+  assessmentFlowBody: {
+    en: 'Build a paper for your class — pick the grade, subject and chapter.',
+    ur: 'اپنی جماعت کے لیے پرچہ بنائیں — جماعت، مضمون اور سبق منتخب کریں۔',
+  },
+
+  assessmentFlowButton: {
+    en: 'Start',
+    ur: 'شروع کریں',
+  },
+
+  assessmentNotReady: {
+    en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
+    ur: 'پرچہ بنانے والا حصہ آپ کے لیے تیار کیا جا رہا ہے۔ جیسے ہی چالو ہوا، میں بتا دوں گی۔',
+  },
+
+  studentVideosHeader: {
+    en: '🎬 Student Videos',
+    ur: '🎬 طلبہ کی ویڈیوز',
+  },
+
+  studentVideosBody: {
+    en: 'Pick a class, subject and topic — I will send the video to your chat.',
+    ur: 'اپنی کلاس، مضمون اور موضوع چنیں — میں ویڈیو آپ کی چیٹ میں بھیج دوں گی۔',
+  },
+
+  studentVideosButton: {
+    en: 'Browse',
+    ur: 'تلاش کریں',
+  },
+
+  classesNotAvailable: {
+    en: 'Classes are not available on this number yet. Please try again later.',
+    ur: 'اس نمبر پر کلاسیں ابھی دستیاب نہیں ہیں۔ براہ کرم بعد میں کوشش کریں۔',
+  },
+
+  attendanceNotAvailable: {
+    en: 'Attendance is not available on this number yet. Please try again later.',
+    ur: 'اس نمبر پر حاضری ابھی دستیاب نہیں ہے۔ براہ کرم بعد میں کوشش کریں۔',
+  },
+
+  attendanceHeader: {
+    en: '📋 Attendance',
+    ur: '📋 حاضری',
+  },
+
+  attendanceBodyTeachers: {
+    en: "Mark your school's teachers — pick the day, then tap whoever is away.",
+    ur: 'اپنے اسکول کے اساتذہ کی حاضری لگائیں — دن چنیں، پھر غیر حاضر افراد پر دبائیں۔',
+  },
+
+  attendanceBodyStudents: {
+    en: 'Mark your class for today.',
+    ur: 'آج اپنی کلاس کی حاضری لگائیں۔',
+  },
+
+  attendanceBodyPickClass: {
+    en: 'Pick the class and the day, then tap whoever is away.',
+    ur: 'کلاس اور دن چنیں، پھر غیر حاضر افراد پر دبائیں۔',
+  },
+
+  attendanceMarkButton: {
+    en: 'Mark attendance',
+    ur: 'حاضری لگائیں',
+  },
+
+  attendanceChooseClass: {
+    en: 'Choose class',
+    ur: 'کلاس چنیں',
+  },
+
+  attendanceYourClasses: {
+    en: 'Your classes',
+    ur: 'آپ کی کلاسیں',
+  },
+
+  attendanceShowingFirst: {
+    en: 'Showing your first {count} classes.',
+    ur: 'آپ کی پہلی {count} کلاسیں دکھائی جا رہی ہیں۔',
+  },
+
+  attendanceClassesHeader: {
+    en: '🏫 Your classes',
+    ur: '🏫 آپ کی کلاسیں',
+  },
+
+  attendanceClassesButton: {
+    en: 'Manage classes',
+    ur: 'کلاسیں سنبھالیں',
+  },
+
+  attendanceAddStudentsHeader: {
+    en: '📋 Add students',
+    ur: '📋 طلبہ شامل کریں',
+  },
+
+  attendanceAddStudentsButton: {
+    en: 'Add students',
+    ur: 'طلبہ شامل کریں',
+  },
+
+  attendanceSetUpClass: {
+    en: '{message} Send /class to set one up.',
+    ur: '{message} ایک بنانے کے لیے /class بھیجیں۔',
+  },
+
+  attendanceSomethingWrong: {
+    en: 'Sorry, something went wrong with attendance. Please try again.',
+    ur: 'معذرت، حاضری میں کچھ مسئلہ ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔',
+  },
+
   menuUnknownOption: {
     en: "I didn't recognise that option. Type /menu to see the list again.",
     ur: 'یہ آپشن پہچانا نہیں گیا۔ فہرست دوبارہ دیکھنے کے لیے /menu ٹائپ کریں۔',
