@@ -83,8 +83,8 @@ function canObserve(user) {
  */
 function featureMenuRows(user, opts = {}) {
   const rows = [
-    // bd-2504 — Training first: it is the thing NIETE teachers are actually
-    // being asked to do.
+    // Training first: it is the thing teachers are actually being asked to do,
+    // and it was once missing from this list entirely.
     { id: 'menu_training', title: 'Teacher Training', description: 'Continue your training modules and exams' },
     { id: 'menu_lesson_plan', title: 'Lesson Plans', description: 'Create detailed PDF lesson plans' },
   ];
@@ -96,8 +96,8 @@ function featureMenuRows(user, opts = {}) {
     rows.push({ id: 'menu_observe', title: 'Observe a Teacher', description: 'Record and score a classroom visit' });
   }
 
-  // bd-2504 — Reading Assessment and AI Video Generation are NOT rows, by
-  // operator decision. Their /readingtest and /video commands still work, and
+  // Reading Assessment and AI Video Generation are NOT rows, by product
+  // decision. Their /readingtest and /video commands still work, and
   // menu.service still handles menu_reading / menu_video, because WhatsApp list
   // rows live in scrollback forever and an old tap must still land somewhere.
   // Do not "tidy" those handlers away because no row points at them.
