@@ -43,6 +43,30 @@ function errorResponse(message) {
   return { data: { error: { message } } };
 }
 
+/**
+ * The coach's language, resolved ONLY when a screen actually needs it.
+ *
+ * The Section B review screen is English throughout except for one line: the note that
+ * the grader's own caveat contradicted its own verdicts, which appears on about 2.6% of
+ * observations. Resolving the coach's language costs a users read, and Meta's
+ * data_exchange window is not generous — so the read happens on the sessions that need
+ * the sentence and on no others.
+ *
+ * Total by construction: any failure returns undefined, and the line is then simply
+ * skipped rather than served in the wrong language or as "undefined".
+ */
+async function coachLanguageIfNeeded(session) {
+  const mods = ((session || {}).analysis_data || {}).lp_fidelity
+    && session.analysis_data.lp_fidelity.moderators;
+  if (!mods || !mods.truncation_inconsistent) return undefined;
+  try {
+    const { languageFor } = require('../services/observe/observe-language');
+    return await languageFor('coach', session);
+  } catch (_err) {
+    return undefined;
+  }
+}
+
 async function loadSessionFromToken(flowToken) {
   const [userId, sessionId] = String(flowToken || '').split(':');
   if (!userId || !sessionId) return { error: 'Invalid flow token' };
@@ -97,7 +121,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const first = packScreens().screens[0];
       return {
         screen: first,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first), await coachLanguageIfNeeded(session)),
       };
     }
 
@@ -107,7 +131,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const target = packScreens().screens.includes(screen) ? screen : packScreens().screens[0];
       return {
         screen: target,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target), await coachLanguageIfNeeded(session)),
       };
     }
 
@@ -133,7 +157,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const next = nextScreen(currentScreen);
       return {
         screen: next,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next), await coachLanguageIfNeeded(session)),
       };
     }
 
