@@ -295,8 +295,11 @@ describe('the CLASS screen asset carries the whole class identity', () => {
     );
   });
 
-  it('the class teacher stays OPTIONAL, and the consequence is on the screen', () => {
-    expect(byName('teacher_user_id').required).toBe(false);
+  it('the class teacher is REQUIRED (the escape option is the sayable "no"), and the consequence is on the screen', () => {
+    // Rev 3: required, so Meta stops printing "(Optional)" beside the one choice
+    // that decides attendance. The 'none' option keeps an unregistered teacher's
+    // class saveable — asserted in roster-class-teacher-required.test.js.
+    expect(byName('teacher_user_id').required).toBe(true);
     // Meta refuses `helper-text` on a Dropdown (INVALID_PROPERTY_KEY, from its own
     // validator), so the warning is a caption immediately beneath the field.
     expect(byName('teacher_user_id')['helper-text']).toBeUndefined();

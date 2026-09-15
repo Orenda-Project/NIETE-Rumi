@@ -208,16 +208,20 @@ async function teachersFor(user, schoolId) {
     .slice(0, OPTION_CAP - 1)
     .map(([id, name]) => opt(id, name));
 
-  // Always offer the way out, and NEVER make this field required: a real class
-  // teacher who has never registered cannot be offered at all, because
-  // class_teachers.teacher_user_id is a NOT NULL foreign key onto users. Requiring
-  // it would block a legitimate class.
+  // ALWAYS offer the way out. The Flow field is REQUIRED (rev 3 of the asset):
+  // WhatsApp prints "(Optional)" beside any non-required field, and coaches read
+  // the one choice that decides attendance as the one they could skip. Required
+  // means the coach must say something — and because class_teachers.teacher_user_id
+  // is a NOT NULL foreign key onto users, a real class teacher who has never
+  // registered still cannot be offered at all. This option is what keeps such a
+  // class saveable: it is the sayable "no", mapped to a null class teacher below.
   //
-  // But skipping must stop being FREE and SILENT. Across 373 saved scans a teacher
-  // was named 311 times and written 311 times — the assignment has never once been
+  // Skipping is not FREE or SILENT either. Across 373 saved scans a teacher was
+  // named 311 times and written 311 times — the assignment has never once been
   // refused. The 45 classes and 1,526 children sitting unreachable today are all
-  // classes where nobody touched an optional field, and two coaches are at 0% named
-  // across every run they have ever saved. So the option itself carries the cost.
+  // classes where nobody touched what was then an optional field, and two coaches
+  // are at 0% named across every run they have ever saved. So the option itself
+  // carries the cost.
   return [...list, opt('none', TEACHER_SKIP_TITLE)];
 }
 
