@@ -44,9 +44,13 @@ const MIN_SLOS = 2;
 /** The user_feature_first_use row that marks "this teacher has had the offer". */
 const FEATURE_KEY = 'transcript_quiz';
 
+// Only columns the users table still has. `grade` was dropped by migration V1.4.5
+// (15 Sep 2026) while this join still asked for it: PostgREST refused the whole
+// read and every quiz offer failed as "session not found" for seven hours. The
+// digest reads grades_taught / subjects_taught; nothing read grade or subject.
 const SESSION_SELECT = 'id, user_id, status, observation_type, transcript_text, transcript_language, '
   + 'analysis_data, lesson_plan_excerpt, created_at, '
-  + 'users!inner(name, id, phone_number, preferred_language, grade, subject, grades_taught, subjects_taught)';
+  + 'users!inner(name, id, phone_number, preferred_language, grades_taught, subjects_taught)';
 
 function enabled() {
   return process.env.TRANSCRIPT_QUIZ_ENABLED === 'true';
