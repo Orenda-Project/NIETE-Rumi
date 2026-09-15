@@ -1291,8 +1291,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
       const options = people.length
+        // displayName, not name. `name` is null for the 83 people on prod who
+        // carry none, and _opt turns null into the EMPTY STRING — a blank,
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_PICK',
@@ -1317,8 +1322,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
       const options = people.length
+        // displayName, not name. `name` is null for the 83 people on prod who
+        // carry none, and _opt turns null into the EMPTY STRING — a blank,
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_EDIT_PICK',
