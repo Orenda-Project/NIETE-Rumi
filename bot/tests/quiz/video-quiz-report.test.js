@@ -170,7 +170,7 @@ describe('bd-2334 / bd-mg9c7.145 — no duplicate, but one follow-up when the cl
     expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
   });
 
-  test('three more children finishing afterwards DOES earn one follow-up', async () => {
+  test('three more children finishing afterwards earns NO follow-up — no reminders to teachers (bd-2yyry.18, operator 15 Sep 2026)', async () => {
     const sentAt = '2026-07-28T02:00:00.000Z';
     const after = (min) => new Date(Date.parse(sentAt) + min * 60000).toISOString();
     stubSupabase({
@@ -192,13 +192,15 @@ describe('bd-2334 / bd-mg9c7.145 — no duplicate, but one follow-up when the cl
       ],
     });
     const sent = await report.generate(SHARE_CODE_ID, { reason: 'follow_up' });
-    expect(sent).toBe(true);
-    // A class of four renders the PDF path rather than the plain-text one, so
-    // the send channel is not the assertion — the rule is: it counted one child
-    // as already reported on and three as new, and let the follow-up through.
+    expect(sent).toBe(false);
+    // Until 15 Sep 2026 this earned one follow-up. The teacher now hears only the
+    // scheduled report and what they ask for; the late children get their class
+    // card from sendLateClassCards instead.
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
     const { logEvent } = require('../../shared/utils/structured-logger');
-    expect(logEvent).toHaveBeenCalledWith('video_quiz.report_followup',
-      expect.objectContaining({ reportedOn: 1, finishedSince: 3 }));
+    expect(logEvent).toHaveBeenCalledWith('video_quiz.report_suppressed',
+      expect.objectContaining({ reason: 'follow_up', why: 'followups_disabled' }));
+    expect(logEvent).not.toHaveBeenCalledWith('video_quiz.report_followup', expect.anything());
   });
 
   test('sending stamps report_sent_at so the next call is a no-op', async () => {
