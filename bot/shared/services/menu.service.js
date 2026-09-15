@@ -85,7 +85,12 @@ class MenuService {
       await redisService.set(stateKey, stateData, MENU_STATE_TTL);
 
       // Send carousel (falls back to list if template not approved)
-      const success = await WhatsAppService.sendFeatureMenuCarousel(from, user, resolvedLanguage);
+      // Resolve the gates HERE: one of them is a database row, and this method
+      // already does IO. The sender stays free of it.
+      const { menuGates } = require('../config/menu-gates');
+      const gates = await menuGates();
+      const success = await WhatsAppService.sendFeatureMenuCarousel(
+        from, user, resolvedLanguage, gates);
 
       if (success) {
         // Store bot response in conversation history
@@ -246,6 +251,79 @@ class MenuService {
           }
           break;
         }
+
+        // ── the rows added when /menu became the front door ────────────────
+        //
+        // Each one is wired to the SAME exported door its command calls — no
+        // second implementation — and each is gated by the SAME predicate that
+        // decides whether the row is drawn. A row can be hidden today and still
+        // be tapped tomorrow from scrollback, so a shut gate answers honestly
+        // rather than opening a Flow with `flowId: undefined`.
+        case 'menu_attendance': {
+          const { openAttendance } = require('./attendance-entry.service');
+          await openAttendance({ user, from, language, reason: 'menu' });
+          break;
+        }
+
+        case 'menu_classes': {
+          const { openClassManagerFlow } = require('./classes/class-entry.service');
+          await openClassManagerFlow({ from, user, language, reason: 'menu' });
+          break;
+        }
+
+        case 'menu_quiz': {
+          // The SAME predicate that decides whether the row is drawn
+          // (config/menu-gates), not a second reading of the two conditions.
+          // Two definitions of one gate is how a row and its tap end up
+          // disagreeing, and the tap is the half a teacher notices.
+          const { envMenuGates } = require('../config/menu-gates');
+          if (!envMenuGates().quizEnabled) {
+            logToFile('🚫 menu_quiz refused — the transcript quiz is not live here', {
+              userId: user.id,
+            }, 'warn');
+            await WhatsAppService.sendMessage(from,
+              resolveUx('featureNotAvailableHere', { language: clampLanguage(language) }));
+            break;
+          }
+          const TranscriptQuizList = require('./quiz/transcript-quiz-list.service');
+          await TranscriptQuizList.showList(user, from, clampLanguage(language), 1);
+          break;
+        }
+
+        case 'menu_assessment': {
+          const { openAssessmentFlow } = require('./assessment-entry.service');
+          await openAssessmentFlow({ from, userId: user.id, language, reason: 'menu' });
+          break;
+        }
+
+        case 'menu_videos': {
+          const { openStudentVideosFlow } = require('./student-videos-entry.service');
+          const opened = await openStudentVideosFlow({
+            from, userId: user.id, language, reason: 'menu',
+          });
+          if (!opened) {
+            // The door is deliberately silent when no library is provisioned —
+            // its command falls through to generation. A TAP has nothing to fall
+            // through to, so it gets the honest line here.
+            await WhatsAppService.sendMessage(from,
+              resolveUx('featureNotAvailableHere', { language: clampLanguage(language) }));
+          }
+          break;
+        }
+
+        case 'menu_roster': {
+          const { openRosterFlow } = require('./roster-entry.service');
+          const outcome = await openRosterFlow({ from, user, language, reason: 'menu' });
+          if (outcome === 'no_flow' || outcome === 'send_failed') {
+            await WhatsAppService.sendMessage(from,
+              resolveUx('featureNotAvailableHere', { language: clampLanguage(language) }));
+          }
+          break;
+        }
+
+        case 'menu_language':
+          await WhatsAppService.sendLanguageSelectionList(from, clampLanguage(language));
+          break;
 
         case 'menu_video':
           // Trigger video generation flow

@@ -513,6 +513,113 @@ const UX_STRINGS = {
     ur: 'معذرت، حاضری میں کچھ مسئلہ ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔',
   },
 
+  /**
+   * The rows added when the menu became the front door for every live feature.
+   * Ordered by measured seven-day demand, per the approved design: roster 814,
+   * attendance 1,771, classes 843, assessment 294, quiz 121, videos 100.
+   *
+   * Row caps: title 24 code points, description 72.
+   */
+  menuRowAttendanceTitle: {
+    en: 'Attendance',
+    ur: 'حاضری',
+  },
+
+  menuRowAttendanceDesc: {
+    en: "Mark today's roll call for your class",
+    ur: 'آج اپنی کلاس کی حاضری لگائیں',
+  },
+
+  /** A principal's attendance is STAFF attendance — the router already knows. */
+  menuRowStaffAttendanceTitle: {
+    en: 'Staff Attendance',
+    ur: 'عملے کی حاضری',
+  },
+
+  menuRowStaffAttendanceDesc: {
+    en: "Mark today's teacher attendance",
+    ur: 'آج اساتذہ کی حاضری لگائیں',
+  },
+
+  menuRowClassesTitle: {
+    en: 'My Classes',
+    ur: 'میری کلاسیں',
+  },
+
+  menuRowClassesDesc: {
+    en: 'See the classes you teach, or add one',
+    ur: 'آپ کی کلاسیں دیکھیں یا نئی شامل کریں',
+  },
+
+  menuRowQuizTitle: {
+    en: 'Quiz My Class',
+    ur: 'کلاس کا کوئز',
+  },
+
+  menuRowQuizDesc: {
+    en: 'Make a quiz from a lesson you recorded',
+    ur: 'ریکارڈ کیے سبق سے کوئز بنائیں',
+  },
+
+  menuRowAssessmentTitle: {
+    en: 'Test Paper',
+    ur: 'پرچہ بنائیں',
+  },
+
+  menuRowAssessmentDesc: {
+    en: 'Build a paper for your grade and chapter',
+    ur: 'اپنی جماعت اور سبق کا پرچہ تیار کریں',
+  },
+
+  menuRowVideosTitle: {
+    en: 'Student Videos',
+    ur: 'طلبہ کی ویڈیوز',
+  },
+
+  menuRowVideosDesc: {
+    en: 'Send a ready-made lesson video to your class',
+    ur: 'تیار سبق ویڈیو اپنی کلاس کو بھیجیں',
+  },
+
+  menuRowLanguageTitle: {
+    en: 'Change Language',
+    ur: 'زبان تبدیل کریں',
+  },
+
+  menuRowLanguageDesc: {
+    en: 'Switch between Urdu and English',
+    ur: 'اردو اور انگریزی میں تبدیل کریں',
+  },
+
+  menuRowRosterTitle: {
+    en: 'Class Roster',
+    ur: 'کلاس رجسٹر',
+  },
+
+  menuRowRosterDesc: {
+    en: 'Photograph a register to build a student list',
+    ur: 'رجسٹر کی تصویر سے طلبہ کی فہرست بنائیں',
+  },
+
+  /**
+   * A scrollback tap on a row this deployment cannot serve. WhatsApp keeps list
+   * rows tappable forever, so every row that can be hidden by a presence gate
+   * needs an honest answer for the day after it is hidden — the alternative is
+   * a Flow send with `flowId: undefined`, which is exactly what cost reading
+   * assessment 57 failures in 20 days.
+   */
+  featureNotAvailableHere: {
+    en: 'That one is not switched on here yet. Type /menu to see what is ready now.',
+    ur: 'یہ سہولت یہاں ابھی چالو نہیں ہے۔ جو ابھی دستیاب ہے دیکھنے کے لیے /menu ٹائپ کریں۔',
+  },
+
+  // The class-roster door's copy is defined ONCE, further up this file
+  // (rosterRoleRefusal + rosterFlowHeader/Body/Footer/Button + rosterFlowFailed).
+  // Two PRs extracted /roster in parallel and each brought its own catalogue
+  // block; a second definition here would be a duplicate object key, where the
+  // later one silently wins and the earlier one is dead. Merge resolution
+  // 2026-09-15: one definition, and roster-entry.service reads rosterRoleRefusal.
+
   menuUnknownOption: {
     en: "I didn't recognise that option. Type /menu to see the list again.",
     ur: 'یہ آپشن پہچانا نہیں گیا۔ فہرست دوبارہ دیکھنے کے لیے /menu ٹائپ کریں۔',
