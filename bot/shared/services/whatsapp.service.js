@@ -6,6 +6,7 @@ const { logToFile } = require('../utils/logger');
 const { downloadFromR2, downloadMedia, extractKeyFromUrl } = require('../storage/r2');
 const { getOfferedLanguages } = require('../config/languages');
 const { resolveUx } = require('../config/ux-strings');
+const { featureMenuRows } = require('../config/role-features');
 
 // Prefer ASSET_BASE_URL; fall back to legacy ASSETS_BASE_URL. Empty when
 // neither is set — the carousel template builder below guards against that.
@@ -2124,11 +2125,19 @@ class WhatsAppService {
    *
    * @returns {Promise<boolean>} true if the menu was delivered
    */
-  static async sendFeatureMenuCarousel(to) {
-    return await this.sendFeatureMenuListFallback(to);
+  static async sendFeatureMenuCarousel(to, user = null) {
+    return await this.sendFeatureMenuListFallback(to, user);
   }
 
-  static async sendFeatureMenuListFallback(to) {
+  /**
+   * Row 122 — the rows are chosen by role. DC ("coach ME") and HITL ("I
+   * observed SOMEONE") are role-shaped and the menu used to say so nowhere, so
+   * a principal tapped Classroom Coaching and got the observe binding list.
+   *
+   * `user` is optional: omitted, featureMenuRows falls back to the DC-only
+   * default, so no caller can accidentally cost a teacher her menu.
+   */
+  static async sendFeatureMenuListFallback(to, user = null) {
     try {
       logToFile('Sending feature menu list fallback', { to });
 
@@ -2154,35 +2163,10 @@ class WhatsAppService {
             sections: [
               {
                 title: 'My Features',
-                rows: [
-                  // bd-2504 — Training first: it is the thing NIETE teachers are
-                  // actually being asked to do, and it was missing entirely.
-                  {
-                    id: 'menu_training',
-                    title: 'Teacher Training',
-                    description: 'Continue your training modules and exams'
-                  },
-                  {
-                    id: 'menu_lesson_plan',
-                    title: 'Lesson Plans',
-                    description: 'Create detailed PDF lesson plans'
-                  },
-                  {
-                    id: 'menu_coaching',
-                    title: 'Classroom Coaching',
-                    description: 'Get teaching feedback from recordings'
-                  },
-                  // bd-2504 — Reading Assessment and AI Video Generation removed
-                  // from the menu by operator decision. Their /readingtest and
-                  // /video commands still work, and menu.service still handles
-                  // menu_reading / menu_video, because WhatsApp list rows live in
-                  // scrollback forever and an old tap must still land somewhere.
-                  {
-                    id: 'menu_other',
-                    title: 'Ask Anything',
-                    description: 'General teaching questions'
-                  }
-                ]
+                rows: featureMenuRows(user, {
+                  // presence-based gating: no published observe Flow, no HITL row
+                  observeEnabled: Boolean(process.env.OBSERVE_MEWAKA_FLOW_ID),
+                }),
               }
             ]
           }
