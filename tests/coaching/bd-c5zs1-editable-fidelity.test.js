@@ -117,7 +117,9 @@ describe("buildScreenPrefill 'editable' — v4 keys, legacy B keys retired", () 
     const d = buildScreenPrefill({ framework: 'fico', lp_fidelity: { status: 'lp_absent' }, domains: {} }, 'lesson_plan_fidelity');
     expect(d.has_fidelity).toBe(false);
     expect(d.no_fidelity).toBe(true);
-    expect(d.fid_fallback).toMatch(/AI assessment/);
+    // Section B is no longer scored when nothing was measured, so the copy says
+    // that rather than claiming a standard AI assessment stood in.
+    expect(d.fid_fallback).toMatch(/not scored/i);
     expect(d.fr_1).toBe('not_adjudicable');
     expect(d.mv_1_v).toBe(false);
   });

@@ -698,6 +698,18 @@ function computeScores(analysis) {
       domain.domain_score = domainScore;
       domain.domain_max = countedIndicators * SCALE_MAX;
       domain.indicators_applicable = countedIndicators;
+
+      // A whole SECTION can leave the total the same way a single indicator can.
+      // Section B measures how closely a lesson followed its written plan; with no
+      // plan to compare against there is nothing to measure, so the section is not
+      // scored rather than guessed at from the transcript. `assessed === false` is
+      // the ONLY thing that removes a section; an absent flag means assessed, so
+      // every session scored before this change keeps exactly the totals it was
+      // reported with. Its own domain_score / domain_max stay stamped, because the
+      // readers below the report sum this section's indicators directly and would
+      // otherwise lose the row with no note.
+      if (domain.assessed === false) continue;
+
       overallMarks += domainScore;
       overallMax += countedIndicators * SCALE_MAX;
     }
@@ -728,36 +740,75 @@ function computeScores(analysis) {
 // recordings keep the proxy untouched.
 const SECTION_B_KEY = 'lesson_plan_fidelity';
 
+// Sum the overall from the sections as they now stand, honouring BOTH exclusion
+// rules: a section marked `assessed: false` leaves the total entirely, and every
+// other section contributes the applicable-aware `domain_max` computeScores
+// stamped on it. A section the analysis omitted still carries its declared max,
+// exactly as the flat constant did before, so a partial analysis cannot shrink
+// its own denominator into a flattering percentage.
+//
+// This is the only arithmetic allowed to write scores.overall_max_marks besides
+// computeScores. It used to re-read the flat framework constant, which threw the
+// applicable-aware denominator away on every measured session — the exclusion
+// removed the inapplicable rows from the numerator only, so the teacher lost the
+// marks and kept the full divisor.
+function recomputeOverall(analysis) {
+  let overallMarks = 0;
+  let overallMax = 0;
+  for (const key of Object.keys(DOMAINS)) {
+    const d = analysis.domains[key];
+    const declaredMax = DOMAINS[key].indicatorCount * SCALE_MAX;
+    if (!d) { overallMax += declaredMax; continue; }
+    if (d.assessed === false) continue;
+    if (typeof d.domain_score === 'number') overallMarks += d.domain_score;
+    overallMax += typeof d.domain_max === 'number' ? d.domain_max : declaredMax;
+  }
+  analysis.scores = {
+    ...(analysis.scores || {}),
+    overall_marks: overallMarks,
+    overall_max_marks: overallMax,
+    overall_percentage: overallMax > 0
+      ? parseFloat(((overallMarks / overallMax) * 100).toFixed(1))
+      : 0,
+  };
+  return analysis;
+}
+
 function applyLpFidelity(analysis, lpFidelity) {
   if (!analysis || !analysis.domains) return analysis;
-  if (!lpFidelity || lpFidelity.status !== 'ok') return analysis;
-
-  const pct = Number(lpFidelity.fidelity_pct);
-  if (lpFidelity.fidelity_pct == null || Number.isNaN(pct)) return analysis; // unusable → proxy stands
 
   const sectionB = analysis.domains[SECTION_B_KEY];
+  const pct = lpFidelity ? Number(lpFidelity.fidelity_pct) : NaN;
+  const measured = !!lpFidelity
+    && lpFidelity.status === 'ok'
+    && lpFidelity.fidelity_pct != null
+    && !Number.isNaN(pct);
+
+  if (!measured) {
+    // Nothing was measured, so Section B is not scored. Before this, the ten
+    // legacy B indicators — an LLM guess at plan fidelity from the transcript
+    // alone — stood in for the measurement on 47.4% of sessions, and one of them
+    // credited a quarter of those teachers for following a plan they never
+    // supplied. Which state we were in is recorded, because the surfaces have to
+    // say what actually happened rather than share one sentence.
+    if (!sectionB) return analysis;
+    sectionB.assessed = false;
+    sectionB.not_assessed_reason = (lpFidelity && lpFidelity.status) || 'lp_absent';
+    return recomputeOverall(analysis);
+  }
+
   if (!sectionB) return analysis; // not a FICO analysis / no Section B — no-op
 
   const maxB = DOMAINS[SECTION_B_KEY].indicatorCount * SCALE_MAX; // 40
+  sectionB.assessed = true;
+  delete sectionB.not_assessed_reason;
   sectionB.domain_score = Math.round((pct / 100) * maxB);
   sectionB.domain_max = maxB;
   sectionB.fidelity_derived = true;
   sectionB.fidelity_pct = pct;
   if (lpFidelity.band) sectionB.fidelity_band = lpFidelity.band;
 
-  // Recompute overall from the (now fidelity-derived) domain_scores. C/D/F are unchanged.
-  let overallMarks = 0;
-  for (const key of Object.keys(DOMAINS)) {
-    const d = analysis.domains[key];
-    if (d && typeof d.domain_score === 'number') overallMarks += d.domain_score;
-  }
-  analysis.scores = {
-    ...(analysis.scores || {}),
-    overall_marks: overallMarks,
-    overall_max_marks: MAX_MARKS,
-    overall_percentage: parseFloat(((overallMarks / MAX_MARKS) * 100).toFixed(1)),
-  };
-  return analysis;
+  return recomputeOverall(analysis);
 }
 
 // ─── Performance bands (per sheet's Interpretation Guide) ────────────

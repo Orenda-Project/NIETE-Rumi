@@ -38,7 +38,14 @@ const { logToFile } = require('../../utils/logger');
  * group, so a trainer cross-referencing the printed rubric still can.
  */
 function byStrength(groups) {
-  return [...groups].sort((a, b) => (b.pct || 0) - (a.pct || 0));
+  // A not-assessed section has no percentage, so it cannot be ranked. Left in the
+  // sort its null reads as 0 and it lands LAST — the slot the page opens by
+  // default and calls the weakest area, which would make the section that was
+  // never measured the thing the teacher is told to work on. It is ordered ahead
+  // of the scored sections instead, where it carries no judgement either way.
+  const scored = groups.filter((g) => !g.notAssessed);
+  const unscored = groups.filter((g) => g.notAssessed);
+  return [...unscored, ...scored.sort((a, b) => (b.pct || 0) - (a.pct || 0))];
 }
 
 /**
@@ -152,6 +159,8 @@ function buildBreakdown(analysisData, language = 'en') {
     overall,
     marks: vm.marks ?? (sumMax > 0 ? sumScore : null),
     max: vm.max ?? (sumMax > 0 ? sumMax : null),
+    // notAssessed / notAssessedWords / why travel with the group via the spread
+    // below, so the surface can print the words instead of a bar.
     // Strongest first. The caller opens the last one.
     groups: byStrength(groups).map((g) => ({
       ...g,
