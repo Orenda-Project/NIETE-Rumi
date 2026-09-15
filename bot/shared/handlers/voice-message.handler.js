@@ -1,3 +1,4 @@
+const { firstNameOf } = require('../utils/person-name');
 const path = require('path');
 const fs = require('fs');
 const WhatsAppService = require('../services/whatsapp.service');
@@ -1262,8 +1263,8 @@ async function handleVoiceMessage(message, from, user = null) {
     // Step 6: Get AI response with format-aware prompting (voice format, detected language)
     logToFile('Step 6: Getting AI response (format-aware for voice)...');
 
-    // Get firstName from user if registered
-    const firstName = user?.name || null;
+    // The first word of users.name, as on the text path.
+    const firstName = firstNameOf(user);
 
     // bd-njn7u: LP Q&A awareness — same tiers as the text path. She often
     // ASKS by voice about the lesson she was just sent; the reply must know
