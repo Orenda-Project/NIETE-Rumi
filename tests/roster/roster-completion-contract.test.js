@@ -73,8 +73,12 @@ describe('/roster completion ack', () => {
 
   it('every key the bot reads off the reply is one the payload actually sends', () => {
     const payload = Object.keys(completePayload(terminal.layout));
+    // The branch hands the whole reply to roster-ack.js, which is where the keys
+    // are read now — so both are scanned, and the branch must still make the call.
+    expect(rosterAckBranch()).toMatch(/rosterAckText\(responseJson\)/);
+    const ackSrc = fs.readFileSync(path.join(ROOT, 'bot/shared/utils/roster-ack.js'), 'utf8');
     const read = [...new Set(
-      [...rosterAckBranch().matchAll(/responseJson\.(\w+)/g)].map((m) => m[1]),
+      [...(rosterAckBranch() + ackSrc).matchAll(/responseJson\.(\w+)/g)].map((m) => m[1]),
     )];
     expect(read.length).toBeGreaterThan(0);
     expect(read.filter((k) => !payload.includes(k))).toEqual([]);
