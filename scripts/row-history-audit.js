@@ -38,8 +38,10 @@ const WATCHED = {
   // and teacher_user_id a hand-over was {is_active, is_class_teacher} and nothing
   // else; a roll move and a removal reason lived only on the live row.
   class_enrollments: ['is_active', 'class_id', 'student_id', 'roll_number', 'outcome'],
+  // list_id (bd-rbtpr): a hand-over repoints each child onto the class teacher's
+  // attendance list, and that UPDATE used to leave no row at all.
   students: ['student_name', 'father_name', 'roll_number', 'is_active', 'status', 'school_id',
-    'merged_into', 'admission_no'],
+    'merged_into', 'admission_no', 'list_id'],
   student_lists: ['is_active', 'class_id', 'user_id'],
   schools: ['name', 'emis', 'region', 'principal_user_id', 'is_active'],
   teacher_attendance_records: ['status', 'leave_type', 'school_id'],

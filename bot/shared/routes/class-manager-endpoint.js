@@ -681,10 +681,19 @@ async function handleClassManagerBack(userId, screen) {
   return await handleClassesInit(userId);
 }
 
+// Every write beneath these entry points — createClass, the attendance mirror,
+// assignTeacher, the roster's adds and removals — is made ON BEHALF OF the user whose
+// id is the flow token. runAsActor puts that id on each request so record_history
+// names a person, not the connection role (bd-rbtpr; same boundary wrap as /roster in
+// bd-a21ks). A non-uuid token sets no actor and the write proceeds as before.
+const { runAsActor } = require('../utils/actor-context');
+
 module.exports = {
-  handleClassesInit,
-  handleClassManagerDataExchange,
-  handleClassManagerBack,
+  handleClassesInit: (userId) => runAsActor(userId, () => handleClassesInit(userId)),
+  handleClassManagerDataExchange: (userId, screen, screenData) =>
+    runAsActor(userId, () => handleClassManagerDataExchange(userId, screen, screenData)),
+  handleClassManagerBack: (userId, screen) =>
+    runAsActor(userId, () => handleClassManagerBack(userId, screen)),
   // Exported for tests.
   NO_STUDENTS_OPTION,
   normalizeSubjectSelection,
