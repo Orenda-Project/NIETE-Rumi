@@ -21,10 +21,20 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const RENDERER = path.join(__dirname, '..', '..', 'bot', 'shared', 'utils', 'html-to-pdf.js');
+const RENDERER = process.env.HTML_TO_PDF_UNDER_TEST
+  || path.join(__dirname, '..', '..', 'bot', 'shared', 'utils', 'html-to-pdf.js');
 
 // A stand-in for sqs-worker.js: load the renderer, then own SIGTERM with a drain.
+// playwright-core is a bot-only dependency the root CI job does not install, and
+// nothing here launches a browser, so the child gets an inert stand-in for it —
+// the signal handlers under test are registered at module load either way.
 const CHILD = `
+  const Module = require('module');
+  const load = Module._load;
+  Module._load = function (request, ...rest) {
+    if (request === 'playwright-core') return { chromium: { launch: async () => { throw new Error('no browser in this test'); } } };
+    return load.call(this, request, ...rest);
+  };
   require(${JSON.stringify(RENDERER)});
   process.on('SIGTERM', async () => {
     process.stdout.write('DRAIN_STARTED\\n');
