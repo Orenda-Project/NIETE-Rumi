@@ -248,3 +248,63 @@ describe('a typed /coaching command reaches the same coaching door (bd-60080)', 
     expect(calls.coaching).toHaveLength(0);
   });
 });
+
+describe('the STEM of the command reaches the same door', () => {
+  // The whole-message matcher above catches "/coaching" exactly. Production
+  // shows teachers type the stem and then keep going. Nine days of inbound
+  // text on the live deployment (role='user'):
+  //
+  //   content ilike '/coaching'   1,463
+  //   content ilike '/coach%'     1,573   (+110, +7.5%)
+  //   content ilike 'coach%'        197   (no slash at all)
+  //
+  // and the no-slash bucket is not prose that merely mentions coaching — a
+  // 60-row sample is "Coaching report plz", "Coaching class 1 urdu",
+  // "Coaching about lesson", "Coach". Every one of them wants the coaching
+  // door and got the general LLM instead.
+  //
+  // Matching the stem is also the bd-qfoqd lesson: `/^\/observe\b/i` matched
+  // ZERO of 54 real leader attempts in 30 days because they all carried a
+  // tail. A command matcher that requires the whole message to be the command
+  // is a matcher for the way engineers type, not teachers.
+
+  test('"/coach" — the short form, 89 sends in 9 days', async () => {
+    await tap('/coach');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('"/coaching report" — the command with a tail', async () => {
+    await tap('/coaching report');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('"/coaching math grade 4" — a longer tail', async () => {
+    await tap('/coaching math grade 4');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('"Coaching report plz" — verbatim from production, no slash', async () => {
+    await tap('Coaching report plz');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('the Urdu stem «کوچنگ رپورٹ» reaches it too', async () => {
+    await tap('کوچنگ رپورٹ');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('bare Urdu «کوچنگ» still matches — the widening loses nothing', async () => {
+    await tap('کوچنگ');
+    expect(calls.coaching).toHaveLength(1);
+  });
+
+  test('"coaches meeting at 3" is NOT eaten — the word boundary holds', async () => {
+    await tap('coaches meeting at 3');
+    expect(calls.coaching).toHaveLength(0);
+  });
+
+  test('"my coaching report" is NOT eaten — the stem is anchored at the start', async () => {
+    await tap('my coaching report');
+    expect(calls.coaching).toHaveLength(0);
+  });
+});

@@ -2262,7 +2262,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // COACHING hot trigger — "coaching" / "/coaching" (any case, stray
   // whitespace tolerated).
   //
-  // bd-60080 (DC tracker row 84): there was no interceptor here at all —
+  // There was no interceptor here at all —
   // only the tapped ice-breaker chip and the numeric menu choice reached
   // _handleClassroomCoachingChoice. A typed /coaching fell through every
   // check above to general chat, which always includes the teacher's own
