@@ -18,6 +18,7 @@
 const WhatsAppService = require('../whatsapp.service');
 const supabase = require('../../config/supabase');
 const { observeStrings, observeLang } = require('./observe-strings');
+const { isTerminalStatus } = require('../coaching/session-terminal');
 const { logToFile } = require('../../utils/logger');
 const ObserveState = require('./observe-state.service');
 const GPT5MiniService = require('../gpt5-mini.service');
@@ -483,6 +484,12 @@ async function startDebrief(sessionId, from, user) {
       sessionId, requester: user.id, owner: session.observer_user_id,
     });
     await WhatsAppService.sendMessage(from, S.debrief_not_yours);
+    return;
+  }
+  if (isTerminalStatus(session.status)) {
+    const { resolveUx } = require('../../config/ux-strings');
+    await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language: lang }));
+    logToFile('🚫 observe debrief: refused — the observation is over', { sessionId, status: session.status });
     return;
   }
   if (session.debrief_status && session.debrief_status !== 'pending') {

@@ -16,6 +16,8 @@
  */
 const { logToFile } = require('../../../utils/logger');
 const { REVIEW_SUBMITTED_STATUSES } = require('../fidelity/fidelity-recompute.service');
+const { resolveUx } = require('../../../config/ux-strings');
+const { isTerminalStatus } = require('../session-terminal');
 
 const LP_ID_RE = /^lp_(select|upload|none)_/;
 
@@ -85,9 +87,15 @@ async function handleLpListSelection(listId, from, deps = {}) {
   // review was submitted. Check FIRST — a submitted session gets an honest reply
   // and NO write; the old path wrote the ref, said "linked", then the recompute
   // refused silently (review_submitted) and nothing changed.
-  let status = null;
+  // Read the status for EVERY row id, not only "link this LP": "No lesson plan"
+  // and "Upload new" both walk the session forward too.
+  const status = await sessionStatus(sessionId);
+  if (isTerminalStatus(status)) {
+    logToFile('[lp-list] tap after the observation was cancelled — not linking', { sessionId, status });
+    await sendMessage(from, resolveUx('coachingSessionCancelled', { language: lang }));
+    return true;
+  }
   if (listId.startsWith('lp_select_')) {
-    status = await sessionStatus(sessionId);
     if (REVIEW_SUBMITTED_STATUSES.includes(status)) {
       logToFile('[lp-list] late tap after review submitted — not linking', { sessionId, status });
       await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));

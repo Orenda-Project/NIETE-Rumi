@@ -195,7 +195,17 @@ describe('bd-wwcgf defect 2 · onAnalysisReady sends the editable form to the OB
         _table: table,
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        update: jest.fn(() => ({ eq: jest.fn(async () => ({ data: null, error: null })) })),
+        // The review-arming write is predicated on a non-terminal status and asks
+        // for the rows it matched, so the double has to chain .not(...).select(...).
+        update: jest.fn(() => {
+          const tail = {
+            eq: jest.fn(() => tail),
+            not: jest.fn(() => tail),
+            select: jest.fn(async () => ({ data: [{ id: 'obs-sess-1' }], error: null })),
+            then: (ok, ko) => Promise.resolve({ data: [{ id: 'obs-sess-1' }], error: null }).then(ok, ko),
+          };
+          return tail;
+        }),
         single: jest.fn(async () => (table === 'coaching_sessions'
           ? {
               data: {

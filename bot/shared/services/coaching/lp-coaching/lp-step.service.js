@@ -22,6 +22,8 @@
 
 const supabase = require('../../../config/supabase');
 const { logToFile } = require('../../../utils/logger');
+const { resolveUx } = require('../../../config/ux-strings');
+const { isTerminalStatus } = require('../session-terminal');
 
 async function _recentLpsFor(ownerUserId) {
   try {
@@ -52,7 +54,7 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
 
   const { data: session } = await supabase
     .from('coaching_sessions')
-    .select('conversation_state, user_id, observation_type')
+    .select('status, conversation_state, user_id, observation_type')
     .eq('id', sessionId)
     .maybeSingle();
 
@@ -62,6 +64,15 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
     .eq('id', tapperUserId)
     .maybeSingle();
   const lang = (userRow && userRow.preferred_language) || 'en';
+
+  // A cancelled observation must not be walked forward by a button that was
+  // already in the chat when it was cancelled. Say what happened rather than
+  // going silent: the tap came from a message that still looks live.
+  if (isTerminalStatus(session && session.status)) {
+    await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language: lang }));
+    logToFile('🚫 LP step refused — the observation is over', { sessionId, status: session.status });
+    return false;
+  }
 
   const recents = await _recentLpsFor((session && session.user_id) || tapperUserId);
   const lpPrompt = buildLPSelectionList(sessionId, recents, lang, userRow && userRow.region,
