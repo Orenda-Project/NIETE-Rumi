@@ -2,7 +2,8 @@
  * row-history-audit — the decision logic behind the record_history trigger,
  * extracted so it can be tested without a live database.
  *
- * The SQL in bot/database/migrations/row_history_audit.sql is the thing that
+ * The SQL in bot/database/migrations/row_history_audit.sql (users trigger
+ * re-created by infrastructure/supabase/migrations/V1.4.8) is the thing that
  * actually runs. These functions mirror its semantics exactly so the rules can
  * be pinned by tests: which columns are watched, when a write records nothing,
  * and how the actor is attributed. If you change one, change the other.
@@ -10,10 +11,14 @@
 
 const WATCHED = {
   users: [
-    'phone_number', 'first_name', 'last_name', 'name', 'preferred_language',
+    // first_name/last_name went with V1.4.4 (users.name is the only name);
+    // levels/grade/training_bands with V1.4.5 (users.teacher_level is the only
+    // level). Watching a dropped column silently records nothing — V1.4.8
+    // re-created the trigger with this list.
+    'phone_number', 'name', 'preferred_language',
     'language_locked', 'registration_state', 'registration_completed', 'role',
     'region', 'country', 'organization', 'school_id', 'school_name', 'teacher_uuid',
-    'grade', 'subject', 'grades_taught', 'subjects_taught', 'levels', 'training_bands',
+    'subject', 'grades_taught', 'subjects_taught', 'teacher_level',
     'is_test_user', 'portal_activated',
   ],
   // conversation_state was REMOVED after measuring production: 43% of rows but
