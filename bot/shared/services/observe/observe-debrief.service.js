@@ -561,6 +561,10 @@ async function startDebriefFromAudio(user, from, audioId, observeState, opts = {
       feedback: null,
       attempts: 0,
       transcription_error: null,
+      // Must be cleared with the rest, or the class becomes a tombstone: the
+      // coach who is told to re-record does so, the fresh recording lands on a
+      // row still marked media_gone, and the retry planner refuses it forever.
+      error_class: null,
       failed_at: null,
       failure_notified_at: null,
     });
@@ -691,11 +695,19 @@ function tempExtensionFor(mime) {
  * into the unhandled throw this exists to remove.
  */
 async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err, S) {
+  const { classifyTranscriptionFailure, ERROR_CLASS } = require('./debrief-retry-sweep');
   const now = new Date().toISOString();
   const attempts = (Number(observerDebrief.attempts) || 0) + 1;
   const alreadyNotified = !!observerDebrief.failure_notified_at;
+  // Classify HERE, because this is the only place that still holds the failing
+  // request. `transcription_error` alone was recorded for weeks and read by
+  // nothing, so a dead WhatsApp media id was retried exactly like a provider
+  // outage and the coach was told the same thing about both.
+  const errorClass = classifyTranscriptionFailure(err);
+  const mediaGone = errorClass === ERROR_CLASS.MEDIA_GONE;
   const patch = {
     transcription_error: String((err && err.message) || err).slice(0, 500),
+    error_class: errorClass,
     failed_at: now,
     attempts,
   };
@@ -704,7 +716,7 @@ async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err
   // Class N: a terminal-for-this-attempt failure logs at error level so the
   // monitor sees it — the old path logged nothing at all from here.
   logToFile('❌ observe debrief: transcription failed — recorded for the retry sweep', {
-    sessionId, attempts, error: patch.transcription_error, notify: !alreadyNotified,
+    sessionId, attempts, errorClass, error: patch.transcription_error, notify: !alreadyNotified,
   }, 'error');
 
   let persisted = false;
@@ -719,8 +731,13 @@ async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err
   // Notify-once. Merge FIRST so the flag is durable before the send: a send
   // after an unpersisted flag would repeat on the next attempt.
   if (!alreadyNotified && persisted && from) {
+    // The copy names the ACTUAL state. One shared fallback across two different
+    // states sent a whole fix cycle at the wrong layer: a coach promised
+    // "I'll keep retrying automatically" about a recording that no retry can
+    // ever reach waits instead of re-recording, and reports it as a hang.
     try {
-      await WhatsAppService.sendMessage(from, S.debrief_processing_failed);
+      await WhatsAppService.sendMessage(from,
+        mediaGone ? S.debrief_media_gone : S.debrief_processing_failed);
     } catch (sendErr) {
       logToFile('⚠️ observe debrief: failure notice send threw', { sessionId, error: sendErr.message });
     }
