@@ -1,0 +1,63 @@
+# `staging` may never receive `main`.
+#
+# The companion to main-source-branch.yml, and it exists because that guard alone
+# turned out not to be enough. The promotion path is one-way:
+#
+#     sandbox  -> cherry-pick ->  staging  -> plain merge ->  main
+#
+# `staging` is cut from `main`, which is what makes `staging -> main` a plain
+# merge. Merging `main` back into `staging` does not repair that relationship, it
+# conceals a break in it: after a back-merge `staging..main` reads empty again, so
+# every dashboard and every gate says the branches are in sync while work that
+# never passed through `staging` is already live in production.
+#
+# That is not hypothetical. Between 2026-09-03 and 2026-09-15, 48 of 54 pull
+# requests into `main` came from somewhere other than `staging`; the
+# `main only accepts staging` check failed on them and they were merged anyway,
+# and the resulting divergence was cleared by back-merging `main` into `staging`.
+# The branches looked healthy the whole time.
+#
+# So this check is deliberately narrow: it fails one thing, a PR whose head is
+# `main`, and says nothing about any other source. Cherry-picks arrive on
+# ordinary branch names and must keep working.
+#
+# ADVISORY UNTIL REQUIRED. Adding a workflow does not block anything on its own.
+# Until somebody adds "staging only rejects main" to staging's required status
+# checks in branch protection, this reports and does not enforce. That wiring is
+# a deliberate, separate decision — the same one still outstanding for
+# `main only accepts staging`, which has been failing correctly and blocking
+# nothing for two weeks.
+#
+# If a back-merge is ever genuinely the right answer, the honest move is to say
+# so out loud in the PR and have an admin override a failing check, not to make
+# the check quieter.
+name: PR source branch (staging)
+
+on:
+  pull_request:
+    branches: [staging]
+
+jobs:
+  source-branch:
+    name: staging only rejects main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the head branch
+        # Passed through env rather than interpolated into the script: a branch
+        # name is attacker-controllable text and `${{ }}` inside `run` is a
+        # script-injection sink. Same reasoning as main-source-branch.yml.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" = "main" ]; then
+            echo "::error::A PR from 'main' into 'staging' is a back-merge, and it hides a broken promotion rather than fixing one."
+            echo ""
+            echo "The promotion path is one-way:  sandbox -> staging -> main"
+            echo ""
+            echo "If 'main' has commits 'staging' does not, something reached production"
+            echo "without passing the gate. Find that work and land it on 'sandbox', then"
+            echo "cherry-pick it to 'staging' like anything else. Do not paper over the"
+            echo "divergence by merging 'main' backwards."
+            exit 1
+          fi
+          echo "Head branch is '$HEAD_REF', not 'main'. OK."
