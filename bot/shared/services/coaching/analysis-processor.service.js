@@ -251,20 +251,28 @@ class AnalysisProcessorService {
       // executed÷prescribed fidelity (→/40) instead of the 10 legacy B indicators, and the overall
       // is recomputed. Applied here (post-settle, pre-persist) so a fidelity failure leaves the
       // legacy proxy intact. applyLpFidelity self-guards on status/pct and is a no-op otherwise.
-      if (analysisResult.analysis && analysisResult.analysis.framework === 'fico'
-          && lpFidelity && lpFidelity.status === 'ok') {
+      // Called for EVERY fico analysis, not only the measured ones. The status gate
+      // used to sit here, which meant the other branch — no plan, or the engine did
+      // not run — never reached the framework at all, and Section B silently kept a
+      // score that was never a measurement. applyLpFidelity owns both outcomes now:
+      // measured, or marked not-assessed and out of the total.
+      if (analysisResult.analysis && analysisResult.analysis.framework === 'fico') {
         try {
           framework.applyLpFidelity(analysisResult.analysis, lpFidelity);
-          logToFile('[lp-fidelity] Section B derived from measured fidelity', {
+          const measured = !!lpFidelity && lpFidelity.status === 'ok' && lpFidelity.fidelity_pct != null;
+          logToFile(measured
+            ? '[lp-fidelity] Section B derived from measured fidelity'
+            : '[lp-fidelity] Section B NOT assessed — excluded from the total', {
             coachingSessionId,
-            fidelity_pct: lpFidelity.fidelity_pct,
+            not_assessed_reason: measured ? undefined : ((lpFidelity && lpFidelity.status) || 'lp_absent'),
+            fidelity_pct: lpFidelity && lpFidelity.fidelity_pct,
             section_b_marks: analysisResult.analysis.domains
               && analysisResult.analysis.domains.lesson_plan_fidelity
               && analysisResult.analysis.domains.lesson_plan_fidelity.domain_score,
             overall_marks: analysisResult.analysis.scores && analysisResult.analysis.scores.overall_marks,
           });
         } catch (fbErr) {
-          logToFile('[lp-fidelity] Section B override failed (non-blocking, proxy stands)', {
+          logToFile('[lp-fidelity] Section B resolution failed (non-blocking, proxy stands)', {
             coachingSessionId, error: fbErr.message,
           });
         }
