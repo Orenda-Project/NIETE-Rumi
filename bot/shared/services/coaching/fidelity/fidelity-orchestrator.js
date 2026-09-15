@@ -32,7 +32,20 @@ function resolveFidelitySources(session) {
   const s = session || {};
   const fidelityRef = s.lesson_plan_structured && s.lesson_plan_structured._fidelity_ref;
   if (fidelityRef) {
-    return { corpusKey: fidelityRef, uploadedText: null, meta: { lesson_id: fidelityRef.lesson_id } };
+    // The subject/grade the corpus key encodes travel with the key. Refs written
+    // before the linker carried them hold only `lesson_id`, which encodes both — so
+    // derive rather than read, and the 3,437 sessions already in the older shape
+    // behave identically to a new one.
+    const { parseCorpusLessonId, canonicalSubject } = require('../subject-resolution');
+    const parsed = parseCorpusLessonId(fidelityRef.lesson_id);
+    const subject = canonicalSubject(fidelityRef.subject) || (parsed && parsed.subject) || null;
+    const grade = fidelityRef.grade != null && fidelityRef.grade !== ''
+      ? String(fidelityRef.grade)
+      : (parsed && parsed.grade) || null;
+    const meta = { lesson_id: fidelityRef.lesson_id };
+    if (subject) meta.subject = subject;
+    if (grade) meta.grade = grade;
+    return { corpusKey: fidelityRef, uploadedText: null, meta };
   }
   return { corpusKey: null, uploadedText: s.lesson_plan_text || null, meta: {} };
 }
