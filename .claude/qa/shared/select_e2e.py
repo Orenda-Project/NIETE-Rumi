@@ -571,7 +571,7 @@ def changed_files(repo_dir, rev_range=None, pushed=False):
         return [l for l in r.stdout.splitlines() if l.strip()]
 
     ranges = [rev_range] if rev_range else ["@{upstream}...HEAD",
-                                            "origin/develop...HEAD",
+                                            "origin/sandbox...HEAD",
                                             "origin/main...HEAD"]
     for rng in ranges:
         r = git("diff", "--name-only", rng)

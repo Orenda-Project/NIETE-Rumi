@@ -47,7 +47,7 @@ list_of_maps:
     branches: [main]
     command: /niete-e2e all
   - repo_match: other
-    branches: [develop, main]
+    branches: [develop, main]   # branch-guard-allow: arbitrary sample text for the YAML parser test
 path/with.dots/**: "*"
 """
     got = yl.safe_load(doc)

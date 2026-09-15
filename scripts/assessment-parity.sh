@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The assessment feature's files must be IDENTICAL on main and develop.
+# The assessment feature's files must be IDENTICAL on main and sandbox.
 #
 # Why: main and develop diverged by 554 files in Aug–Sep 2026, so assessment fixes
 # were hand-merged across them — and four of them landed on one side only
@@ -7,10 +7,10 @@
 # jszip devDependency on main not develop). Each was found by a teacher or by
 # inspection days later. A fix is not done until this passes.
 #
-#   bash scripts/assessment-parity.sh            # compares origin/main..origin/develop
+#   bash scripts/assessment-parity.sh            # compares origin/main..origin/sandbox
 #   bash scripts/assessment-parity.sh HEAD develop
 set -euo pipefail
-A="${1:-origin/main}"; B="${2:-origin/develop}"
+A="${1:-origin/main}"; B="${2:-origin/sandbox}"
 PATHS=(
   bot/shared/services/assessment
   bot/shared/routes/assessment-gen-endpoint.js
