@@ -162,4 +162,4 @@ async function getPatchTeachers(query, leaderUserId) {
   return (rows || []).map(shapeTeacher);
 }
 
-module.exports = { getPatchTeachers, PATCH_TEACHERS_SQL };
+module.exports = { getPatchTeachers, PATCH_TEACHERS_SQL, TERMINAL };
