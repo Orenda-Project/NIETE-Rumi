@@ -69,6 +69,12 @@ async function getBrowser() {
 
       const launchOptions = {
         headless: true,
+        // The process owns shutdown (the worker drains in-flight jobs for up to
+        // ten minutes after SIGTERM). Playwright's defaults would close this
+        // browser on the signal, under a render that is still running.
+        handleSIGTERM: false,
+        handleSIGINT: false,
+        handleSIGHUP: false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -249,11 +255,19 @@ async function closeBrowser() {
   }
 }
 
-// Cleanup on process exit
+// Cleanup on process exit.
+//
+// No SIGTERM/SIGINT handlers here, on purpose. This module is loaded inside the
+// web server and the SQS worker, and each of them owns its shutdown: the worker
+// drains for 30 seconds (up to ten minutes for a lesson being authored). A
+// handler here that closed the browser and called process.exit() fired alongside
+// theirs and ended the process within milliseconds, so no drain ever ran on a
+// replica that had rendered anything — the in-flight job was killed and waited
+// out its SQS visibility timeout. The browser is a child process; it goes when
+// the process exits. A standalone script that never registers its own handler
+// still exits on Ctrl-C or SIGTERM, because Node's default does that.
 process.on('exit', () => {
   if (_browser) _browser.close().catch(() => {});
 });
-process.on('SIGINT', () => closeBrowser().finally(() => process.exit()));
-process.on('SIGTERM', () => closeBrowser().finally(() => process.exit()));
 
 module.exports = { htmlToPdf, htmlToImage, closeBrowser, ensureFontsLoaded };
