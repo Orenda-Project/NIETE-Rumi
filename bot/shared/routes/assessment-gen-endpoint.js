@@ -218,18 +218,31 @@ function totalsOf(items, selected) {
 }
 
 /**
+ * The running total she reads while ticking questions.
+ *
+ * When she asked for a marks budget it shows the target beside the actual — the
+ * paper is generated to fit, but she can untick and re-tick her way back over
+ * it, and "18 marks" alone does not tell her whether that is over or under what
+ * she asked for. Without a budget the line is exactly what it always was.
+ */
+function summaryLine(count, marks, budget = null) {
+  const head = `${count} question${count === 1 ? '' : 's'} · ${marks} marks`;
+  return Number(budget) > 0 ? `${head} of ${budget}` : head;
+}
+
+/**
  * One page of the tick list.
  *
  * `selected` is the running answer for the WHOLE paper and lives in the session,
  * not in the form: the form only knows the twenty rows on screen, so trusting it
  * alone would drop every question she never scrolled to.
  */
-function keepScreen({ items, selected, page, error = '' }) {
+function keepScreen({ items, selected, page, error = '', totalMarks = null }) {
   const view = Selection.pageOf(items, page);
   const keep = new Set(selected);
   const t = totalsOf(items, selected);
   return screen('KEEP', {
-    summary: `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`,
+    summary: summaryLine(t.count, t.marks, totalMarks),
     progress: view.total > view.items.length
       ? `Questions ${view.from}-${view.to} of ${view.total}` : '',
     questions: view.items.map((q) => ({
@@ -260,14 +273,14 @@ function reviewError(message) {
  * guard enforces it), so the rebuild button lives on PICK_DONE next door rather
  * than under the list.
  */
-function pickScreen({ items, selected, screenId = 'PICK', error = '' }) {
+function pickScreen({ items, selected, screenId = 'PICK', error = '', totalMarks = null }) {
   const { kept, count, marks } = totalsOf(items, selected);
   // A RadioButtonsGroup, not a NavigationList. The list has to share its screen
   // with a Footer so "Done editing" is a real button and not a row that reads
   // like a fifth question — and a NavigationList cannot share a screen with
   // anything. Radio titles also get 30 characters to the NavigationList's 20.
   return screen(screenId, {
-    summary: `${count} question${count === 1 ? '' : 's'} · ${marks} marks`,
+    summary: summaryLine(count, marks, totalMarks),
     questions: kept.map((q) => ({
       id: q.id,
       title: Selection.optionTitle(q),
@@ -278,9 +291,9 @@ function pickScreen({ items, selected, screenId = 'PICK', error = '' }) {
   });
 }
 
-function pickDoneScreen({ items, selected, error = '' }) {
+function pickDoneScreen({ items, selected, error = '', totalMarks = null }) {
   const t = totalsOf(items, selected);
-  const summary = `${t.count} question${t.count === 1 ? '' : 's'} · ${t.marks} marks`;
+  const summary = summaryLine(t.count, t.marks, totalMarks);
   return screen('PICK_DONE', {
     summary,
     note: 'Nothing to fix? Just rebuild.',
@@ -385,7 +398,7 @@ async function loadItems(state, flowToken, userId) {
   return { items, code, paperId, owner };
 }
 
-async function openReview(userId, paperId, flowToken) {
+async function openReview(userId, paperId, flowToken, totalMarks = null) {
   const { items, code } = await revision().listQuestions({ paperId, userId });
   if (!items) {
     return reviewError(code === 'NOT_READY'
@@ -393,8 +406,8 @@ async function openReview(userId, paperId, flowToken) {
       : "I couldn't find that paper. Send /assessment to make a new one.");
   }
   const selected = items.filter((q) => q.selected).map((q) => q.id);
-  await writeSession(flowToken, { userId, paperId, page: 0, selected });
-  return keepScreen({ items, selected, page: 0 });
+  await writeSession(flowToken, { userId, paperId, page: 0, selected, totalMarks });
+  return keepScreen({ items, selected, page: 0, totalMarks });
 }
 
 /**
@@ -640,7 +653,12 @@ async function handleInit(userId, flowToken) {
   // A review token means she already has a paper and wants to trim it. Checked
   // before anything else, because every screen below assumes a fresh request.
   const reviewPaperId = paperIdFromToken(flowToken);
-  if (reviewPaperId) return openReview(userId, reviewPaperId, flowToken);
+  if (reviewPaperId) {
+    // The budget she set when the paper was made, so the review screen can show
+    // her total against her target rather than on its own.
+    const prior = await readSession(flowToken);
+    return openReview(userId, reviewPaperId, flowToken, prior.totalMarks ?? null);
+  }
 
   await writeSession(flowToken, { userId });
   const grades = await gradesOnOffer();
@@ -816,9 +834,20 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       return questionsScreen(state, parsed.message);
     }
 
+    // The marks budget beside it. Optional, so a blank box is an answer ("no
+    // budget") and not a refusal — but a number she DID type is held to its
+    // range and bounced back the same way the count is, rather than clamped.
+    const budget = QuestionTypes.parseTotalMarks(data.total_marks);
+    if (!budget.ok) {
+      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
+      await writeSession(flowToken, state);
+      return questionsScreen(state, budget.message);
+    }
+
     Object.assign(state, {
       contentSource: String(data.content_source || 'unseen'),
       questionCount: parsed.count,
+      totalMarks: budget.marks,
     });
     await writeSession(flowToken, state);
 
@@ -1008,6 +1037,7 @@ function questionsScreen(state, error = '') {
   return screen('QUESTIONS', {
     summary: summaryOf(state),
     count_hint: `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
+    marks_hint: `Optional — up to ${QuestionTypes.MAX_TOTAL_MARKS}. Leave blank for no limit.`,
     error,
   });
 }
@@ -1113,6 +1143,7 @@ async function submit(state) {
     pageRanges,
     contentSource: state.contentSource || 'unseen',
     questionCount: state.questionCount || 20,
+    totalMarks: state.totalMarks ?? null,
     questionTypes: types,
     includeAnswerKey: !!state.answerKey,
     answerLines: state.answerLines !== false,

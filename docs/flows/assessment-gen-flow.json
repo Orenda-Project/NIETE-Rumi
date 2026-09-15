@@ -308,6 +308,10 @@
         "count_hint": {
           "type": "string",
           "__example__": "Between 1 and 25."
+        },
+        "marks_hint": {
+          "type": "string",
+          "__example__": "Optional — up to 500. Leave blank for no limit."
         }
       },
       "layout": {
@@ -354,13 +358,22 @@
                 "helper-text": "${data.count_hint}"
               },
               {
+                "type": "TextInput",
+                "name": "total_marks",
+                "label": "Total marks (optional)",
+                "required": false,
+                "input-type": "number",
+                "helper-text": "${data.marks_hint}"
+              },
+              {
                 "type": "Footer",
                 "label": "Continue",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
                     "content_source": "${form.content_source}",
-                    "question_count": "${form.question_count}"
+                    "question_count": "${form.question_count}",
+                    "total_marks": "${form.total_marks}"
                   }
                 }
               }
