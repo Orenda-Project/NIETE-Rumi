@@ -1798,7 +1798,11 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
     // Preserve framework-native optional fields the enhance prompt doesn't know about.
     // bd-cbe2d: photo_mode / photo_count_analysed record which photo channel actually ran — without
     // them here a completed session reads null and the rollout watch cannot split by mode.
-    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity', 'photo_mode', 'photo_count_analysed']) {
+    // `subject_resolution` is on this list for the same reason reflective_corpus is
+    // re-attached above: the enhance output schema has no such key and the report
+    // generator overwrites analysis_data with this object, so without it the report
+    // loses the one field that explains an absent Section F row.
+    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity', 'photo_mode', 'photo_count_analysed', 'subject_resolution']) {
       if (analysisData[key] !== undefined && enhancedAnalysis[key] === undefined) {
         enhancedAnalysis[key] = analysisData[key];
       }

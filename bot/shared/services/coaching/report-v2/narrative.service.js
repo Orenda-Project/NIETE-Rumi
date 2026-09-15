@@ -305,4 +305,29 @@ async function generateReportNarrative(analysis, opts = {}) {
   }
 }
 
-module.exports = { generateReportNarrative, buildPrompt, LANG_NAME, fixCodeswitch };
+/**
+ * The one line that explains an absent Section F row.
+ *
+ * Emitted in CODE, never asked of the narrative model: a model told to mention
+ * something complies most of the time and freestyles the rest, and the whole point of
+ * this line is that it says the same true thing every time (Rule 24c).
+ *
+ * It is report CONTENT in the report's language — a diagnosis line beside
+ * `domain_whys`, not template chrome — so it lives in the shared catalogue, whose
+ * offer for this market (en/ur) covers it with no gaps. It carries no Latin run and
+ * no digits, so the template's existing why-line renderer handles its bidi and
+ * line-height unchanged.
+ *
+ * Total on a render path: any language collapses to the catalogue floor, never throws.
+ *
+ * @param {string} language
+ * @returns {string}
+ */
+function subjectUnconfirmedNote(language) {
+  const { resolveUx } = require('../../../config/ux-strings');
+  return resolveUx('reportSubjectUnconfirmed', { language });
+}
+
+module.exports = {
+  generateReportNarrative, buildPrompt, LANG_NAME, fixCodeswitch, subjectUnconfirmedNote,
+};

@@ -41,6 +41,45 @@ async function _resolveSessionLanguage(coachingSessionId) {
 
 class AnalysisProcessorService {
   /**
+   * Resolve this lesson's subject, consulting recent lesson-plan downloads only
+   * when the plan signals on the row itself miss.
+   *
+   * The downloads read is deliberately last and deliberately narrow: it covers
+   * about 15% of sessions, it is a statement about which plan she fetched rather
+   * than about this lesson, and it must never be able to fail the coaching job —
+   * a query error simply leaves the chain at "not confirmed".
+   *
+   * @param {object} session coaching_sessions row
+   * @returns {Promise<object>} see subject-resolution.resolveLessonSubject
+   */
+  static async resolveSessionSubject(session) {
+    const { resolveLessonSubject, DOWNLOAD_WINDOW_HOURS } = require('./subject-resolution');
+
+    const fromRow = resolveLessonSubject(session);
+    if (fromRow.confidence !== 'none' || fromRow.source !== 'no_signal') return fromRow;
+    if (!session || !session.user_id) return fromRow;
+
+    let downloads = null;
+    try {
+      const since = new Date(Date.now() - DOWNLOAD_WINDOW_HOURS * 3600 * 1000).toISOString();
+      const { data } = await supabase
+        .from('niete_lp_downloads')
+        .select('subject, grade, created_at')
+        .eq('user_id', session.user_id)
+        .eq('status', 'sent')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      downloads = data || null;
+    } catch (err) {
+      logToFile('[subject] recent-download lookup failed (non-blocking)', { error: err.message });
+      return fromRow;
+    }
+    if (!downloads || !downloads.length) return fromRow;
+    return resolveLessonSubject(session, { downloads });
+  }
+
+  /**
    * Process analysis job (called by background worker)
    * @param {string} coachingSessionId - Coaching session UUID
    * @param {object} payload - Job payload
@@ -101,6 +140,26 @@ class AnalysisProcessorService {
         });
       }
 
+      // Which subject was this lesson? FICO's Section F tags F5/F6/F7 by subject and
+      // at most one applies, but nothing here ever passed one: the object below
+      // carried `lessonPlanSubject` while every framework's prompt builder
+      // destructures `subject`, so the `- Subject:` line never emitted and the
+      // subject-conditional rule ran on the model's own reading of the transcript.
+      // A Grade-1 Urdu lesson was told in writing that it was not a literacy lesson
+      // while "Urdu" sat on the row, correctly extracted, unread.
+      //
+      // The resolver reports a CONFIDENCE, not a subject: the plan signals cover
+      // about half of sessions, and on the rest the honest output is "not confirmed"
+      // — which the report then says, instead of implying a subject she did not teach.
+      const subjectResolution = await this.resolveSessionSubject(session);
+      logToFile('[subject] resolved', {
+        coachingSessionId,
+        code: subjectResolution.code,
+        confidence: subjectResolution.confidence,
+        source: subjectResolution.source,
+        group: subjectResolution.group,
+      });
+
       // Run GPT-5 mini analysis with prior feedback
       const metadata = {
         duration: session.audio_duration_seconds,
@@ -110,7 +169,12 @@ class AnalysisProcessorService {
         lessonPlanExcerpt: session.lesson_plan_excerpt || null,
         lessonPlanStatus: session.lesson_plan_extraction_status || null,
         lessonPlanSubject: session.lesson_plan_structured?.subject || null,
-        lessonPlanTopic: session.lesson_plan_structured?.topic || null
+        lessonPlanTopic: session.lesson_plan_structured?.topic || null,
+        // Additive: every framework's buildAnalysisPrompt destructures only the keys
+        // it names, so oecd/hots/teach/mewaka are unaffected by these three.
+        subject: subjectResolution.code,
+        grade: subjectResolution.grade,
+        subjectConfidence: subjectResolution.confidence,
       };
 
       logToFile('Analysis metadata', metadata);
@@ -297,6 +361,14 @@ class AnalysisProcessorService {
             // so the 48h watch can split score/citation rates by mode. Never the image bytes.
             photo_mode: metadata.photo.mode,
             photo_count_analysed: metadata.photo.count,
+            // What was decided about the subject, and on what evidence. Persisted so
+            // the population is a column read rather than a regex over prose: how many
+            // sessions we could not name a subject for is the number that decides
+            // whether capturing it at submission is worth building.
+            subject_resolution: {
+              ...subjectResolution,
+              subject_unconfirmed: subjectResolution.confidence === 'none',
+            },
             // LP fidelity (FICO Section B) analysis blob — pct + band + per-move verdicts/evidence +
             // narrative + moderators. Only when the feature is on and a move-list resolved (D20).
             // bd-5knlj: non-ok statuses persist too — lp_absent vs

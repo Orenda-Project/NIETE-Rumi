@@ -10,6 +10,7 @@
 
 const supabase = require('../../../config/supabase');
 const { logToFile } = require('../../../utils/logger');
+const { parseCorpusLessonId } = require('../subject-resolution');
 
 /**
  * Parse the LP selection button ID to determine action and LP id.
@@ -53,7 +54,20 @@ async function resolveCorpusRef(assetId, client = supabase) {
     .eq('id', assetId)
     .maybeSingle();
   if (error || !data || !data.lesson_id) return null;
-  return { lesson_id: data.lesson_id, version_stamp: data.version_stamp, content_hash: data.content_hash };
+  // The ref is the ONLY thing a corpus-linked session carries where the plan's
+  // structure would otherwise be: `lesson_plan_structured` is REPLACED by
+  // `{_fidelity_ref: …}`, so every consumer reading `lesson_plan_structured.subject`
+  // read null on the corpus path. The subject is not a new fact to fetch — the
+  // lesson_id encodes it — it just has to be carried forward here.
+  // niete_lp_assets holds no subject/grade column, so nothing is added to the query.
+  const parsed = parseCorpusLessonId(data.lesson_id);
+  return {
+    lesson_id: data.lesson_id,
+    version_stamp: data.version_stamp,
+    content_hash: data.content_hash,
+    subject: parsed ? parsed.subject : null,
+    grade: parsed ? parsed.grade : null,
+  };
 }
 
 /**
