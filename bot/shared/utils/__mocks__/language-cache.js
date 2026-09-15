@@ -8,16 +8,11 @@
 
 const getUserLanguage = jest.fn().mockResolvedValue('en');
 const setUserLanguage = jest.fn().mockResolvedValue(true);
-// Defaults to LOCKED, matching the real module's conservative direction: a caller
-// asking this question is deciding whether it may overwrite a teacher's choice,
-// and an unconfigured mock must not read as permission.
-const isUserLanguageLocked = jest.fn().mockResolvedValue(true);
 const clearUserLanguageCache = jest.fn().mockResolvedValue(true);
 
 module.exports = {
   getUserLanguage,
   setUserLanguage,
-  isUserLanguageLocked,
   clearUserLanguageCache,
   // Derived, not restated. The real module's VALID_LANGUAGES is the CANONICAL
   // recognition set, which is deliberately BROADER than the two languages we

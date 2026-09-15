@@ -162,10 +162,15 @@ class ElevenLabsService {
     const voiceConfig = VOICE_MODELS[languageCode];
 
     if (!voiceConfig) {
+      // level 'error', not the default info. This fallback reads the text in the
+      // English voice whatever language the text is in — an Urdu question spoken
+      // by an English voice — and it succeeds, so nothing downstream fails and no
+      // error row appears. A silent fallback is a regression mask: it is exactly
+      // the shape of failure that gets a broken path certified healthy.
       logToFile('⚠️  Unsupported language code, falling back to English', {
         requestedLanguage: languageCode,
         fallbackLanguage: 'en'
-      });
+      }, 'error');
       return this.generateSpeech(text);
     }
 

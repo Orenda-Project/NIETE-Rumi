@@ -219,55 +219,17 @@ async function setUserLanguage(userId, languageCode, lockLanguage = true) {
  */
 
 /**
- * Has this teacher explicitly chosen her language?
+ * There is deliberately NO `isUserLanguageLocked()` reader here.
  *
- * The lock column existed and the writer set it, but nothing ever READ it — so
- * an explicit choice made in /settings or /language carried no weight, and the
- * coaching-audio path could overwrite it. This is that missing reader.
+ * One was written and exported as "the missing reader", and nothing in
+ * production ever called it — the readers that actually shipped take
+ * `language_locked` straight off the users row they already hold. It was tested
+ * dead code, which is worse than untested dead code: the suite reported it as
+ * covered, so it read as a live guard.
  *
- * On any failure it reports LOCKED. That is the conservative direction: a caller
- * asking this question is deciding whether it may overwrite her preference, and
- * "I could not tell" must never become "go ahead".
- *
- * @param {string} userId
- * @returns {Promise<boolean>}
+ * The lock itself is unchanged. It is still written by the one writer below and
+ * still read, from the row, by the response-language resolver and the portal.
  */
-async function isUserLanguageLocked(userId) {
-  if (!userId) return true;
-
-  const lockCacheKey = `user:language_locked:${userId}`;
-  try {
-    const cached = await redisService.get(lockCacheKey);
-    if (cached === 'true') return true;
-    if (cached === 'false') return false;
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('language_locked')
-      .eq('id', userId)
-      .single();
-
-    // No row is just as much "cannot tell" as an error is — an absent user
-    // cannot have consented to an overwrite.
-    if (error || !data) {
-      logToFile('⚠️  Could not read language lock — treating as locked', {
-        userId,
-        error: error?.message || 'no row'
-      });
-      return true;
-    }
-
-    const locked = data.language_locked === true;
-    await redisService.set(lockCacheKey, locked.toString(), CACHE_TTL);
-    return locked;
-  } catch (error) {
-    logToFile('⚠️  Error reading language lock — treating as locked', {
-      userId,
-      error: error.message
-    });
-    return true;
-  }
-}
 
 /**
  * Clear user's language cache
@@ -407,7 +369,6 @@ async function getLanguageStats() {
 module.exports = {
   getUserLanguage,
   setUserLanguage,
-  isUserLanguageLocked,
   clearUserLanguageCache,
   prefetchLanguages,
   getLanguageStats,
