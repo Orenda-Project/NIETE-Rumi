@@ -39,6 +39,7 @@ jest.mock('../../shared/services/quiz/video-quiz-scorecard.service', () => ({
 }));
 jest.mock('../../shared/services/quiz/video-quiz-report.service', () => ({
   maybeSendFollowUp: jest.fn().mockResolvedValue(undefined),
+  sendLateClassCards: jest.fn().mockResolvedValue({ sent: 0 }),
   scheduleForShareCode: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -116,6 +117,24 @@ describe('finish() — share_link session', () => {
     const shown = eventsNamed('video_quiz.offer_shown').filter((e) => e.kind === 'invite');
     expect(shown).toHaveLength(1);
     expect(shown[0]).toMatchObject({ kind: 'invite', sessionId: 'sess-1', quizId: 'qz1', language: 'en' });
+  });
+
+  test('bd-2yyry.18 — a share-link finish asks for the late class card, after the follow-up check', async () => {
+    const Report = require('../../shared/services/quiz/video-quiz-report.service');
+    stubSupabase({
+      quizzes: { data: { topic: 'Numbers', grade: '3', subject: 'Maths' }, error: null },
+      quiz_sessions: {
+        data: {
+          quiz_id: 'qz1', student_name: 'Ali Khan', correct_answers: 5,
+          total_questions_answered: 5, mastery_percentage: 100, invited_by_student_id: null,
+        },
+        error: null,
+      },
+    });
+    await vq.finish('923001234567', state());
+    expect(Report.maybeSendFollowUp).toHaveBeenCalledWith('sc-1');
+    expect(Report.sendLateClassCards).toHaveBeenCalledWith('sc-1');
+    expect(Report.sendLateClassCards.mock.invocationCallOrder[0]).toBeGreaterThan(Report.maybeSendFollowUp.mock.invocationCallOrder[0]);
   });
 
   test('scorecard_sent reflects a failed image send (fallback path)', async () => {

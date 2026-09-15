@@ -24,6 +24,7 @@ jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }
 jest.mock('../../shared/services/quiz/video-quiz-render.service', () => ({ build: jest.fn(() => ({})) }));
 jest.mock('../../shared/services/quiz/video-quiz-sender.service', () => ({ sendPhase: jest.fn().mockResolvedValue(true) }));
 jest.mock('../../shared/services/quiz/video-quiz-report.service', () => ({
+  sendLateClassCards: jest.fn().mockResolvedValue({ sent: 0 }),
   maybeSendFollowUp: jest.fn().mockResolvedValue(false),
 }));
 jest.mock('../../shared/services/quiz/video-quiz-invite.service', () => ({
