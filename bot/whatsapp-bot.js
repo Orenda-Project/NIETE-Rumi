@@ -839,6 +839,7 @@ app.post('/webhook', async (req, res) => {
           if (parsed.action === 'start') await ObserveSend.startSendFlow(parsed.sessionId, from, user);
           else if (parsed.action === 'later') await ObserveSend.handleSendLater(parsed.sessionId, from, user);
           else if (parsed.action === 'confirm') await ObserveSend.handleSendConfirm(parsed.sessionId, from, user);
+          else if (parsed.action === 'other') await ObserveSend.handleSendOther(parsed.sessionId, from, user);
           else if (parsed.action === 'cancel') await ObserveSend.handleSendCancel(parsed.sessionId, from, user);
         } else {
           logToFile('⚠️ observe send button without user/parse', { buttonId, hasUser: !!user });
