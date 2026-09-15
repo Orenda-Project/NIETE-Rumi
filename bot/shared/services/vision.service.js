@@ -134,6 +134,13 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
     language = 'en',
     userId,
     context = {},
+    // bd-b3pop.15 — the coaching photo pass sets these; every other caller leaves them out and sends today's request.
+    systemPrompt: systemPromptOverride,
+    temperature,
+    maxTokens,
+    responseFormat,
+    // A per-request time budget with no SDK-level retries: analyzeWithRetry owns the retries.
+    timeoutMs,
   } = options;
 
   // Resolved ONCE per call and then reused, so the request, the result and both log lines
@@ -159,9 +166,11 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
   try {
     const base64Image = imageBuffer.toString('base64');
     const dataUrl = `data:${mimeType};base64,${base64Image}`;
-    const systemPrompt = buildSystemPrompt(language, context);
+    const systemPrompt = typeof systemPromptOverride === 'string' && systemPromptOverride
+      ? systemPromptOverride
+      : buildSystemPrompt(language, context);
 
-    const response = await openai.chat.completions.create({
+    const request = {
       model: analysisModel,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -176,9 +185,13 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
           ],
         },
       ],
-      max_tokens: CONFIG.maxTokens,
-      temperature: 0.7,
-    });
+      max_tokens: Number.isInteger(maxTokens) && maxTokens > 0 ? maxTokens : CONFIG.maxTokens,
+      temperature: typeof temperature === 'number' ? temperature : 0.7,
+    };
+    if (responseFormat) request.response_format = responseFormat;
+    const response = Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? await openai.chat.completions.create(request, { timeout: timeoutMs, maxRetries: 0 })
+      : await openai.chat.completions.create(request);
 
     const result = {
       success: true,
@@ -190,6 +203,8 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
       },
       model: analysisModel,
       detail,
+      // bd-b3pop.15: the coaching photo pass reads a JSON answer and needs to know when the token cap cut it off.
+      finishReason: (response.choices[0] && response.choices[0].finish_reason) || null,
     };
 
     logEvent('vision.analysis.completed', {

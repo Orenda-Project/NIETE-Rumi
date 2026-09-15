@@ -45,7 +45,8 @@ function _highConfidenceSubjectFlags(analysis) {
 // data block so no prompt-following failure can leak them.
 function _redactScores(analysis) {
   if (!analysis || typeof analysis !== 'object') return {};
-  const clone = JSON.parse(JSON.stringify(analysis));
+  // bd-b3pop: the grading's runs, spread and photo readings are telemetry, never guide material.
+  const clone = require('../coaching/fidelity/fidelity-telemetry').stripFidelityTelemetry(JSON.parse(JSON.stringify(analysis)));
   delete clone.scores;
   // Review fixes: performance_band is a score-derived verdict label (no
   // digit regex would catch it downstream); observer_edit_summary carries
