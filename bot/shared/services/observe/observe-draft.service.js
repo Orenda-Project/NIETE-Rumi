@@ -16,6 +16,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
+const { languageFor } = require('./observe-language');
 const { getObservePack } = require('./observe-framework');   // FEAT-093 bd-52 — market rubric by config
 const { logToFile } = require('../../utils/logger');
 
@@ -363,7 +364,9 @@ function buildScreenPrefill(analysis, domainKey, language) {
 async function onAnalysisReady(sessionId, from) {
   const session = await loadSession(sessionId);
   const observerId = session.observer_user_id || session.user_id;
-  const lang = observeLang(session.users);
+  // The form is read by the OBSERVER (the recipient resolved below). session.users
+  // is the observed teacher once one is bound, so it is not the reader's language.
+  const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
 
   const update = { status: 'awaiting_observer_review', debrief_status: session.debrief_status || 'pending' };
