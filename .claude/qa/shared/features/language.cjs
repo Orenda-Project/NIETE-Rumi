@@ -45,6 +45,7 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // LANG22 — bare "language" does not open the picker
   s = t();
+  api.resetConversation();   // clean history -> deterministic open-chat cassette
   r = await api.sendWait('language', 120000);
   rec('LANG22', 'A bare "language" (no slash) does not open the picker',
       ...V(r.ok && !r.btns.includes('Languages') && !hasHeader(r.txt), { btns: r.btns, reply: r.txt.slice(0, 100) }), t() - s);
@@ -55,6 +56,7 @@ exports.run = async ({ api, rec, sleep }) => {
   r = await api.pickRowAndWait('English');
   const dbEn = api.db('lookup');
   await enterAskAnything(api);
+  api.resetConversation();   // clean history -> deterministic open-chat cassette
   const hiEn = await api.sendWait('hello', 120000);
   rec('LANG02', 'Selecting English confirms in English and persists the choice, locked',
       ...V(r.txt.includes(CONFIRM_EN) && field(dbEn.user, 'preferred_language') === 'en' && field(dbEn.user, 'language_locked') === 'true' && hiEn.ok && latinOnly(hiEn.txt),
@@ -67,6 +69,7 @@ exports.run = async ({ api, rec, sleep }) => {
   r = await api.pickRowAndWait('اردو');
   const dbUr = api.db('lookup');
   await enterAskAnything(api);
+  api.resetConversation();   // clean history -> deterministic open-chat cassette
   const hiUr = await api.sendWait('hello', 120000);
   rec('LANG03', 'Selecting Urdu confirms IN Urdu and persists the choice, locked',
       ...V(UR.test(r.txt) && field(dbUr.user, 'preferred_language') === 'ur' && field(dbUr.user, 'language_locked') === 'true' && hiUr.ok && UR.test(hiUr.txt),
@@ -75,6 +78,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // LANG10 — Ask Anything in Urdu answers in Urdu
   s = t();
   await enterAskAnything(api);
+  api.resetConversation();   // clean history → the open-chat prompt is deterministic → cassette replays
   r = await api.sendWait('بڑی کلاس کو سنبھالنے کے دو آسان طریقے بتائیں', 120000);
   rec('LANG10', 'Ask Anything answers an Urdu account in Urdu', ...V(r.ok && UR.test(r.txt) && r.txt.length > 40 && !/\(1-4\)/.test(r.txt), { reply: r.txt.slice(0, 100), len: r.txt.length }), t() - s);
 
@@ -114,6 +118,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // LANG12 — NL lesson-plan request answered in Urdu
   s = t();
   await enterAskAnything(api);
+  api.resetConversation();   // clean history → the open-chat prompt is deterministic → cassette replays
   r = await api.sendWait('گریڈ 4 سائنس پانی کے چکر پر سبق کا منصوبہ بنا دیں', 120000);
   rec('LANG12', 'Lesson Plans via the natural-language path answers in the chosen language',
       ...V(r.ok && UR.test(r.txt) && !/\(1-4\)/.test(r.txt), { reply: r.txt.slice(0, 120), urdu: UR.test(r.txt), nudge: /\(1-4\)/.test(r.txt) }), t() - s);

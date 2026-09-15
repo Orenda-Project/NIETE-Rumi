@@ -82,6 +82,7 @@ exports.run = async ({ api, rec, sleep }) => {
   await api.sendWait('/menu');
   await api.openList('View Features');
   await api.pickRowAndWait('Ask Anything');
+  api.resetConversation();   // clean history → the open-chat prompt is deterministic → cassette replays
   r = await api.sendWait('make me a lesson plan for grade 4 science on the water cycle', 120000);
   const freeform = /objectives?:|5[- ]step|starter|plenary/i.test(r.txt || '') && (r.txt || '').length > 400;
   const nudge = /\(1-4\)|کلاس روم آڈیو|classroom recording audio/i.test(r.txt || '');

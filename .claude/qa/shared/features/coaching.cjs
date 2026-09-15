@@ -86,6 +86,7 @@ exports.run = async ({ api, rec, sleep }) => {
   if (FIRSTUSE) {
     const AUDIO_ASK = /send me an audio recording of your class|audio recording of your class/i;
     const CONTAMINATED = /Step \d\/5|Analyzing your teaching|Generating your comprehensive|Transcribing/i;
+    api.resetConversation();   // clean history → the intro-reply prompt is deterministic → cassette replays
     const intro = await api.sendWait('Can you give me feedback on my teaching?', 60000);
     const btns = (intro.btns || []);
     const introTxt = intro.txt || '';
