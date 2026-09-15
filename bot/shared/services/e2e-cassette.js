@@ -80,6 +80,16 @@ const VOLATILE = [
   [/\b\d{4}-\d{2}-\d{2}\b/g, '<date>'],
   [/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, '<date>'],   // M/D/YYYY — toLocaleDateString('en-US', numeric); the coaching prior-feedback date
   [/\b\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM|am|pm)?\b/g, '<time>'],
+  // Relative-time labels the bot builds FROM THE CLOCK and writes into prompts: lp-context.agoLabel
+  // ("13h ago" / "45m ago" / "3d ago"), context.service._getTimeAgo ("2 hours ago" / "yesterday" /
+  // "just now"), call-context.agoLabel ("in 3 days" / "today" / "tomorrow"). Unlike the absolute
+  // formats above, these carry no fixed date VOLATILE could pin — they drift between the record run
+  // and the replay seconds/hours later (13h→14h, just now→5m ago, today→yesterday), so a fixture
+  // recorded moments earlier misses. They are context metadata, not the substance of the answer being
+  // replayed, so fold them to one token. (Longest unit alternatives first so "minutes" beats "min".)
+  [/\b\d+\s*(?:minutes|minute|mins|min|hours|hour|hrs|hr|days|day|weeks|week|months|month|years|year|m|h|d|w)\s+ago\b/gi, '<reltime>'],
+  [/\bin\s+\d+\s*(?:minutes|minute|hours|hour|days|day|weeks|week|months|month|years|year|m|h|d|w)\b/gi, '<reltime>'],
+  [/\b(?:just now|yesterday|tomorrow|today)\b/gi, '<reltime>'],
 ];
 function normaliseForKey(v) {
   if (typeof v === 'string') return VOLATILE.reduce((acc, [re, rep]) => acc.replace(re, rep), v);
