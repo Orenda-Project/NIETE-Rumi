@@ -125,11 +125,33 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And with the flag unset the session records photo_mode "note" and the scoring prompt is unchanged from before
     And any indicator the photo informed carries evidence starting "Photo:" — in the coach's editable draft as well
     And the coaching report shows a "From your photo: …" caption under EACH framed photo, taken from that photo's own description, ending at a full stop and never showing the critique half
+    And with COACHING_PHOTO_VISION=v2 each photo is read once, at high detail, for both the classroom-quality scores and the lesson-plan section, and the session records photo_vision "v2" with one photo_evidence entry per classroom photo, numbered by its position
     # coaching classroom-photo sub-flow; photo receipt image-message.handler.js:87-208
     # (Redis setNX dedup, MAX 3 → LP step). bd-8s2xb: analysis-processor analyses ALL
     # photos (was 2), attaches them to the gpt-5-mini scoring call in image/both mode
     # (fico-framework photo rule + gpt5-mini.service image parts), persists the EFFECTIVE
     # mode in analysis_data, and hero-report applies photo-note.js captions per framed photo by original index (bd-1mcpe).
+    # bd-b3pop (D34): COACHING_PHOTO_VISION=v2 → photo-analysis.service analyzeClassroomPhotoV2 — one gpt-4.1-mini call
+    # per photo (detail high, temperature 0, JSON) returns the FICO description plus kind / visible_text / drawings /
+    # students / learning_materials / student_work. A photo whose v2 reading fails falls back to today's pass for that
+    # photo. Unset = today's pass exactly.
+
+  @e2e @wip @draft @config-gated @content-driven @P2
+  Scenario: A lesson-plan move is credited from what a classroom photo shows
+    Given the NIETE bot chat is open
+    And the runtime has COACHING_PHOTO_VISION=v2 and LP_FIDELITY_PHOTO=on
+    And I link a lesson plan to my classroom recording
+    When I send classroom photos of any kind — the board, a student's notebook, pupils working in pairs — and the analysis finishes
+    Then the lesson-plan section can credit a move from a photo, and that move's evidence starts "[photo N]" where N is the photo's position
+    And a notebook or pair-work photo can earn that credit, not only a board photo
+    And no move scored "not done" cites a photo as its evidence
+    And the coach's editable draft shows the same "[photo N]" evidence for that move
+    # bd-b3pop.15 (D34): analysis-processor hands photo_evidence to computeLpFidelity; the orchestrator gives it to the
+    # grader only under LP_FIDELITY_PHOTO=on (grader-photo-evidence.js: a photo only adds credit, absence from a photo
+    # is never evidence, the content must belong to this lesson's plan); lp_fidelity.photo_evidence = {count, moves_cited}.
+    # Eval 10 (30 prod sessions): the grader model decides whether the evidence counts — gemini-3.8-flash moves on it,
+    # gpt-5.6-luna stays inside its run-to-run noise. @content-driven: which move a photo credits depends on the lesson;
+    # assert the contract (a "[photo N]" citation on a credited move), never a specific move or score.
 
   # ── EDGE ──
   @e2e @wip @draft @edge @P2
@@ -183,6 +205,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot cancels the session and tells me nothing will be analysed
     # coaching-session.service.js handleConfirmation:110 — cancel → status cancelled,
     # localized exitedNoAudio. (Counterpart to the "Yes, Analyze" pipeline scenario.)
+
+  @e2e @wip @draft @config-gated @negative @P2
+  Scenario: A screenshot sent as a classroom photo is kept out of both scorers
+    Given the NIETE bot chat is open
+    And the runtime has COACHING_PHOTO_VISION=v2
+    And the coaching pipeline has asked whether I want to add photos
+    When I send a board photo and then a screenshot of a phone screen
+    Then the analysis still completes and the report arrives
+    And nothing in the classroom-quality evidence or the lesson-plan section cites the screenshot
+    And the report shows no "From your photo" caption under the screenshot
+    And the session records the screenshot as set aside (photo_rejected, kind not_a_classroom_photo) while the board photo is still read
+    # bd-b3pop.17: analysis-processor skips a not_a_classroom_photo reading — no FICO description, no image part, no
+    # fidelity evidence — and records photo_rejected. Eval 9 found a teacher's upload that was a screenshot of an earlier
+    # coaching report; the Eval 10 v2 prompt classified that image not_a_classroom_photo.
 
   @e2e @wip @draft @negative @P2
   Scenario: A non-lesson-plan document is rejected, not silently analysed
