@@ -390,8 +390,10 @@ async function menuScreen(userId, opts = {}) {
       // would hide it behind a label that promises something else.
       id: 'manage_teachers',
       'main-content': {
-        title: 'Add or remove a teacher',
-        metadata: 'By WhatsApp number',
+        // bd-60098: says all three, now that Edit exists. A menu that promises
+        // two of the three actions hides the one the coach came for.
+        title: 'Manage teachers',
+        metadata: 'Add, remove or edit',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
