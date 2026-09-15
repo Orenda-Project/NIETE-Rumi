@@ -66,9 +66,10 @@ async function createAndQueue(spec) {
   const {
     userId, surface = 'whatsapp',
     grade, subject, textbookId,
-    chapterNumber = null, pageRanges = null,
+    chapterNumber = null, chapterNumbers = null, pageRanges = null,
     contentSource = 'unseen',
     questionCount,
+    totalMarks = null,
     questionTypes = [],
     includeAnswerKey = false,
     answerLines = true,
@@ -89,7 +90,10 @@ async function createAndQueue(spec) {
       grade_code: `grade_${grade}`,
       subject_code: subject,
       textbook_id: textbookId,
-      chapter_number: chapterNumber,
+      // INTEGER column. A multi-chapter request names no single chapter and
+      // records its coverage in page_ranges instead; the CHECK constraint
+      // (chapter_number IS NOT NULL OR page_ranges IS NOT NULL) still holds.
+      chapter_number: Array.isArray(chapterNumber) ? null : chapterNumber,
       page_ranges: pageRanges,
       content_source: contentSource,
       question_count: questionCount,
@@ -116,9 +120,11 @@ async function createAndQueue(spec) {
     grade,
     subject,
     chapterNumber,
+    chapterNumbers,
     pageRanges,
     contentSource,
     questionCount,
+    totalMarks,
     questionTypes,
     includeAnswerKey: !!includeAnswerKey,
     answerLines: answerLines !== false,
@@ -128,7 +134,7 @@ async function createAndQueue(spec) {
 
   logToFile('[assessment] queued', {
     userId, requestId: request.id, surface,
-    grade, subject, chapter: chapterNumber,
+    grade, subject, chapter: chapterNumber, chapters: chapterNumbers,
   });
 
   return { requestId: request.id };

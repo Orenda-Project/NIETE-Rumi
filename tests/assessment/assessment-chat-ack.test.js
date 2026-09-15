@@ -361,7 +361,7 @@ describe('the completion payload must actually CARRY the tag (bd-60029)', () => 
     });
     const res = await Endpoint2.handleAssessmentGenDataExchange(
       'user-1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '10', pick_types: false },
+      { content_source: 'seen', question_count: '10' },
       'user-1:assessment-gen:1');
 
     expect(res.screen).toBe('CONFIRM');
