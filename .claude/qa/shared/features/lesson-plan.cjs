@@ -158,16 +158,21 @@ exports.run = async ({ api, rec, sleep }) => {
       if (!c3.ok) break;
     }
     api.closeFlow();
-    // Inverted assertion (bd-mww73): a secondary grade must deliver a PAKISTAN plan (filename
-    // grade_6_..pdf); "oxbridge" is now the FAILURE. Mock-lane implementation of sandbox's check —
-    // waitFresh instead of a browser eval, but the same verdict shape, and it sets `pk` (used below).
+    // Inverted assertion (bd-mww73): a secondary grade must deliver a PAKISTAN plan; "oxbridge" is the
+    // FAILURE. The provenance is the delivered DOCUMENT's own filename ("Grade 6 <subject> …pdf"), which
+    // arrives in media.filename — NOT in the message text — so match the filename of a doc/pdf message,
+    // the way L01 waits on x.pdf||x.doc. The old check tested x.txt and could never match a filename,
+    // so a correctly-delivered Pakistan plan always timed out. An "oxbridge" filename or reply is the fail.
     const PKF = /grade[_\s-]*6.*\.pdf/i;
-    const w3 = await waitFresh((x) => PKF.test(x.txt || '') || /oxbridge/i.test(x.txt || ''), 150000, 2000);
+    const fnameOf = (x) => (x && x.media && x.media.filename) || '';
+    const w3 = await waitFresh(
+      (x) => ((x.pdf || x.doc) && PKF.test(fnameOf(x))) || /oxbridge/i.test(fnameOf(x)) || /oxbridge/i.test(x.txt || ''),
+      150000, 2000);
     if (w3.ok) {
-      const t3 = (w3.hit.txt || '');
-      pk = /oxbridge/i.test(t3)
-        ? { ok: false, oxbridge: true, waitedMs: w3.waitedMs, txt: t3.slice(0, 130) }
-        : { ok: true, oxbridge: false, waitedMs: w3.waitedMs, txt: t3.slice(0, 130) };
+      const fn = fnameOf(w3.hit); const t3 = (w3.hit.txt || '');
+      pk = (/oxbridge/i.test(fn) || /oxbridge/i.test(t3))
+        ? { ok: false, oxbridge: true, waitedMs: w3.waitedMs, file: fn.slice(0, 130), txt: t3.slice(0, 130) }
+        : { ok: true, oxbridge: false, waitedMs: w3.waitedMs, file: fn.slice(0, 130) };
     } else {
       pk = { ok: false, oxbridge: false, waitedMs: w3.waitedMs, last: w3.last };
     }
