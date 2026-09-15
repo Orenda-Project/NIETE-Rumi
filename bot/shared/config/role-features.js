@@ -70,62 +70,127 @@ function canObserve(user) {
 }
 
 /**
- * The main-menu rows, in a stable order. Training / Lesson Plans / Ask
- * Anything are unchanged for everyone; only the two role-shaped rows move.
+ * The main-menu rows: one layout per role shape, ordered by MEASURED demand.
  *
- * This module owns the ROLE RULE and the row IDS. It does NOT own the copy:
- * each row names its catalog keys and the send site resolves them in the
- * teacher's language. The copy used to sit here as English literals, which is
- * how 9,205 menu sends in nine days went out in English to a cohort that is
- * 99.0% Urdu — the builder had no language argument to give them. Moving the
- * copy to a per-language map HERE would only relocate the problem: a map
- * outside the designated catalog is invisible to resolveUx, to the field-cap
- * check and to the language audit that guards it.
+ * The menu used to offer five rows out of the deployment's fourteen live
+ * features. The nine it left out were reachable only by typing a command nobody
+ * had been told about — and the seven-day usage says teachers found them anyway
+ * and in what proportion: attendance 1,771, classes 843, roster 814, assessment
+ * 294, quiz 121, videos 100, language 14. That is a lower bound on demand for
+ * every one of them, so it is what the order is built from. Lesson plans (4,467
+ * menu taps) lead the teacher layout; a leader's layout leads with the thing
+ * only they can do.
  *
- * The ids are never translated. WhatsApp list rows stay tappable forever and
- * the reply router matches on the id.
+ * Training was pinned FIRST by an earlier decision, when it was the only thing
+ * teachers were being asked to do and the menu had omitted it entirely. The
+ * approved design supersedes that with demand order — 500 training taps against
+ * 4,467 for lesson plans — and training keeps a row in every layout.
  *
- * Caps live with the copy (catalog): row title 24 code points, description 72.
+ * WhatsApp's cap is 10 rows TOTAL across all sections and it rejects the whole
+ * message, so somebody's feature does not make it: a principal's layout drops
+ * quiz, classes and videos for the roster and staff attendance, which is what
+ * their own usage says they do.
  *
- * Still pure — no IO, and the one require is a static in-process catalog. That
- * matters because this file is consulted on the audio hot path, where a
- * failure would park a teacher's recording rather than return a 403.
+ * TWO features have no row, by decision, and the reasons are different:
+ *   · Reading assessment — it cannot run here at all. Its command, its handler
+ *     and its keyword all answer honestly instead.
+ *   · /settings — SETTINGS_FLOW_ID is unset, so the surface answers "not
+ *     available yet". /language is the live language door and has the row.
  *
+ * This module owns the ROLE RULE, the row IDS and the ORDER. It does not own the
+ * copy: each row names its catalog keys and the send site resolves them in the
+ * teacher's language. A per-language map here would sit outside the designated
+ * catalog, invisible to resolveUx, to the field-cap check and to the audit.
+ *
+ * Still pure — no IO, and the requires are static in-process config. This is
+ * consulted on the audio hot path, where a failure parks a recording.
+ */
+
+/** WhatsApp's hard cap on TOTAL rows in one list. */
+const MAX_MENU_ROWS = 10;
+
+/**
+ * Every row this build can emit. `gate` names the key in `opts` that must be
+ * true for the row to appear; a row with no gate is always available.
+ *
+ * The ids are never translated and never reused: the reply router matches on
+ * them, and WhatsApp keeps a list row tappable forever.
+ */
+const ROW = Object.freeze({
+  training: { id: 'menu_training', titleKey: 'menuRowTrainingTitle', descriptionKey: 'menuRowTrainingDesc', gate: 'trainingEnabled' },
+  lessonPlan: { id: 'menu_lesson_plan', titleKey: 'menuRowLessonPlanTitle', descriptionKey: 'menuRowLessonPlanDesc', gate: 'lessonPlanEnabled' },
+  coaching: { id: 'menu_coaching', titleKey: 'menuRowCoachingTitle', descriptionKey: 'menuRowCoachingDesc' },
+  observe: { id: 'menu_observe', titleKey: 'menuRowObserveTitle', descriptionKey: 'menuRowObserveDesc', gate: 'observeEnabled' },
+  attendance: { id: 'menu_attendance', titleKey: 'menuRowAttendanceTitle', descriptionKey: 'menuRowAttendanceDesc' },
+  staffAttendance: { id: 'menu_attendance', titleKey: 'menuRowStaffAttendanceTitle', descriptionKey: 'menuRowStaffAttendanceDesc' },
+  classes: { id: 'menu_classes', titleKey: 'menuRowClassesTitle', descriptionKey: 'menuRowClassesDesc', gate: 'classesEnabled' },
+  quiz: { id: 'menu_quiz', titleKey: 'menuRowQuizTitle', descriptionKey: 'menuRowQuizDesc', gate: 'quizEnabled' },
+  assessment: { id: 'menu_assessment', titleKey: 'menuRowAssessmentTitle', descriptionKey: 'menuRowAssessmentDesc', gate: 'assessmentEnabled' },
+  videos: { id: 'menu_videos', titleKey: 'menuRowVideosTitle', descriptionKey: 'menuRowVideosDesc', gate: 'videosEnabled' },
+  roster: { id: 'menu_roster', titleKey: 'menuRowRosterTitle', descriptionKey: 'menuRowRosterDesc', gate: 'rosterEnabled' },
+  language: { id: 'menu_language', titleKey: 'menuRowLanguageTitle', descriptionKey: 'menuRowLanguageDesc' },
+  other: { id: 'menu_other', titleKey: 'menuRowOtherTitle', descriptionKey: 'menuRowOtherDesc' },
+});
+
+/**
+ * One ordered layout per role shape. Ten rows is the cap, not a target.
+ *
+ * `teacher`   — canSelfCoach && !canObserve (and every unknown role)
+ * `principal` — canSelfCoach && canObserve: she teaches AND she observes
+ * `coach`     — canObserve && !canSelfCoach
+ */
+const LAYOUTS = Object.freeze({
+  teacher: Object.freeze([
+    ROW.lessonPlan, ROW.coaching, ROW.training, ROW.attendance, ROW.classes,
+    ROW.quiz, ROW.assessment, ROW.videos, ROW.language, ROW.other,
+  ]),
+  principal: Object.freeze([
+    ROW.observe, ROW.lessonPlan, ROW.coaching, ROW.training, ROW.roster,
+    ROW.staffAttendance, ROW.assessment, ROW.language, ROW.other,
+  ]),
+  coach: Object.freeze([
+    ROW.observe, ROW.roster, ROW.lessonPlan, ROW.training, ROW.assessment,
+    ROW.language, ROW.other,
+  ]),
+});
+
+/** Which layout this user gets. Unknown roles take the teacher shape. */
+function layoutFor(user) {
+  const dc = canSelfCoach(user);
+  const observe = canObserve(user);
+  if (dc && observe) return 'principal';
+  if (observe) return 'coach';
+  return 'teacher';
+}
+
+/**
  * @param {object|null} user
- * @param {{observeEnabled?: boolean}} [opts] observeEnabled — the market has a
- *   published observe Flow (OBSERVE_MEWAKA_FLOW_ID). Presence-based gating,
- *   per the NIETE architecture rule: no Flow, no row.
+ * @param {object} [opts] one boolean per gate above. A gate that is absent is
+ *   treated as CLOSED for every row that declares one — presence-based gating,
+ *   per the architecture rule: no Flow, no row. `coaching`, `attendance`,
+ *   `language` and `other` declare none, because they need no Flow to start.
  * @returns {Array<{id: string, titleKey: string, descriptionKey: string}>}
  */
 function featureMenuRows(user, opts = {}) {
-  const rows = [
-    // bd-2504 — Training first: it is the thing NIETE teachers are actually
-    // being asked to do.
-    { id: 'menu_training', titleKey: 'menuRowTrainingTitle', descriptionKey: 'menuRowTrainingDesc' },
-    { id: 'menu_lesson_plan', titleKey: 'menuRowLessonPlanTitle', descriptionKey: 'menuRowLessonPlanDesc' },
-  ];
+  const rows = LAYOUTS[layoutFor(user)]
+    .filter((row) => !row.gate || opts[row.gate] === true)
+    .map(({ id, titleKey, descriptionKey }) => ({ id, titleKey, descriptionKey }));
 
-  if (canSelfCoach(user)) {
-    rows.push({ id: 'menu_coaching', titleKey: 'menuRowCoachingTitle', descriptionKey: 'menuRowCoachingDesc' });
-  }
-  if (canObserve(user) && opts.observeEnabled === true) {
-    rows.push({ id: 'menu_observe', titleKey: 'menuRowObserveTitle', descriptionKey: 'menuRowObserveDesc' });
-  }
-
-  // bd-2504 — Reading Assessment and AI Video Generation are NOT rows, by
-  // operator decision. Their /readingtest and /video commands still work, and
-  // menu.service still handles menu_reading / menu_video, because WhatsApp list
-  // rows live in scrollback forever and an old tap must still land somewhere.
-  // Do not "tidy" those handlers away because no row points at them.
-  rows.push({ id: 'menu_other', titleKey: 'menuRowOtherTitle', descriptionKey: 'menuRowOtherDesc' });
-  return rows;
+  // Belt and braces for a cap Meta enforces by rejecting the whole message. The
+  // send site refuses and logs at error if this is ever exceeded; trimming here
+  // keeps the builder's own contract true.
+  return rows.slice(0, MAX_MENU_ROWS);
 }
 
 module.exports = {
   ROLE_FEATURES,
   DEFAULT_FEATURES,
+  MAX_MENU_ROWS,
+  ROW,
+  LAYOUTS,
   featuresFor,
   canSelfCoach,
   canObserve,
+  layoutFor,
   featureMenuRows,
 };

@@ -7,6 +7,7 @@ const { downloadFromR2, downloadMedia, extractKeyFromUrl } = require('../storage
 const { getOfferedLanguages } = require('../config/languages');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { featureMenuRows } = require('../config/role-features');
+const { envMenuGates } = require('../config/menu-gates');
 
 /**
  * WhatsApp Cloud API limits this module has to respect, measured in CODE
@@ -2138,8 +2139,8 @@ class WhatsAppService {
    *
    * @returns {Promise<boolean>} true if the menu was delivered
    */
-  static async sendFeatureMenuCarousel(to, user = null, language = undefined) {
-    return await this.sendFeatureMenuListFallback(to, user, language);
+  static async sendFeatureMenuCarousel(to, user = null, language = undefined, gates = undefined) {
+    return await this.sendFeatureMenuListFallback(to, user, language, gates);
   }
 
   /**
@@ -2157,15 +2158,16 @@ class WhatsAppService {
    * falls back to `user.preferred_language` and then to the floor, so a caller
    * that forgets it still serves her own language rather than English.
    */
-  static async sendFeatureMenuListFallback(to, user = null, language = undefined) {
+  static async sendFeatureMenuListFallback(to, user = null, language = undefined, gates = undefined) {
     try {
       const lang = clampLanguage(language || user?.preferred_language);
       logToFile('Sending feature menu list fallback', { to, language: lang });
 
-      const rows = featureMenuRows(user, {
-        // presence-based gating: no published observe Flow, no HITL row
-        observeEnabled: Boolean(process.env.OBSERVE_MEWAKA_FLOW_ID),
-      }).map((row) => ({
+      // Presence-based gating: a row appears only when the feature behind it can
+      // actually START. `gates` is passed by sendMenu, which also resolves the
+      // one gate that lives in the database; without it we fall back to the
+      // env-only floor, which can only ever show FEWER rows.
+      const rows = featureMenuRows(user, gates || envMenuGates()).map((row) => ({
         id: row.id, // never translated — the reply router matches on this
         title: resolveUx(row.titleKey, { language: lang }),
         description: resolveUx(row.descriptionKey, { language: lang }),

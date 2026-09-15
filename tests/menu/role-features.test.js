@@ -60,7 +60,19 @@ describe('role-features — the capability table', () => {
 
 describe('featureMenuRows — what each role is offered', () => {
   const ids = (user, opts) => featureMenuRows(user, opts).map((r) => r.id);
-  const ON = { observeEnabled: true };
+  // Every row is presence-gated now, not just the observe one: a row appears
+  // only when the feature behind it can actually start. ON is "this deployment
+  // has everything published", which is what production runs.
+  const ON = {
+    observeEnabled: true,
+    trainingEnabled: true,
+    lessonPlanEnabled: true,
+    rosterEnabled: true,
+    classesEnabled: true,
+    quizEnabled: true,
+    assessmentEnabled: true,
+    videosEnabled: true,
+  };
 
   test('teacher: DC, no HITL', () => {
     expect(ids(u('teacher'), ON)).toContain('menu_coaching');
@@ -81,6 +93,22 @@ describe('featureMenuRows — what each role is offered', () => {
     for (const role of ['teacher', 'principal', 'coach', null]) {
       expect(ids(u(role), ON)).toEqual(
         expect.arrayContaining(['menu_training', 'menu_lesson_plan', 'menu_other']));
+    }
+  });
+
+  test('a row whose feature cannot start here is not offered to anyone', () => {
+    // The reading-assessment lesson, generalised: it stayed on the menu for
+    // twenty days after it stopped being able to run — 57 attempts, 57
+    // failures. Nothing is offered that cannot start.
+    for (const role of ['teacher', 'principal', 'coach', null]) {
+      const shut = ids(u(role), {});
+      for (const gated of ['menu_observe', 'menu_roster', 'menu_classes',
+        'menu_quiz', 'menu_assessment', 'menu_videos', 'menu_training',
+        'menu_lesson_plan']) {
+        expect(shut).not.toContain(gated);
+      }
+      // And she is still left with a usable menu.
+      expect(shut).toContain('menu_other');
     }
   });
 
