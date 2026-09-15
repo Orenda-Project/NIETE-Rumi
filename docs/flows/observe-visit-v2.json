@@ -1777,7 +1777,7 @@
     },
     {
       "id": "TEACHER_ACTION",
-      "title": "Add, remove or edit",
+      "title": "Manage teachers",
       "refresh_on_back": true,
       "data": {
         "intro": {

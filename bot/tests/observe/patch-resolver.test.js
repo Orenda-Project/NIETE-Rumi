@@ -88,7 +88,7 @@ describe('bandOf · the band comes from users now, not the roster row', () => {
   });
 
   it('falls back to grades_taught when training_bands is empty', () => {
-    expect(bandOf({ training_bands: [], grades_taught: 'MIDDLE' })).toBe('middle');
+    expect(bandOf({ teacher_level: [], grades_taught: 'MIDDLE' })).toBe('middle');
   });
 
   it('returns null rather than guessing — 48 teachers genuinely have neither', () => {
@@ -155,20 +155,25 @@ function fakeSupabase(tables, spy = {}) {
 
 const TABLES = () => ({
   leader_schools: [
-    { leader_user_id: 'c1', school_ext_id: 'niete:409', school_id: null },
-    { leader_user_id: 'c1', school_ext_id: 'niete:203', school_id: null },
-    { leader_user_id: 'c2', school_ext_id: 'niete:999', school_id: null },
+    // bd-60098: holdings resolve by school_id now, not by parsing the ext_id.
+    // These carried school_id: null because the old resolver split the text and
+    // matched on emis — which disagreed with PATCH_SQL in the same file and
+    // silently emptied a coach's roster. Production and staging are both
+    // backfilled (482/487 and 436/441; the rest are test:* fixtures).
+    { leader_user_id: 'c1', school_ext_id: 'niete:409', school_id: 's409' },
+    { leader_user_id: 'c1', school_ext_id: 'niete:203', school_id: 's203' },
+    { leader_user_id: 'c2', school_ext_id: 'niete:999', school_id: 's999' },
   ],
   schools: [
     { id: 's409', name: 'IMSB (VI-X), Rawal Dam', emis: '409' },
     { id: 's203', name: 'IMS (I-V) G-6/1-1', emis: '203' },
   ],
   users: [
-    { id: 'u1', phone_number: '923001111111', first_name: 'Tahira', role: 'teacher', school_id: 's409', training_bands: ['PRIMARY'] },
-    { id: 'u2', phone_number: '923002222222', first_name: 'Nasir', role: 'principal', school_id: 's409', training_bands: [] },
-    { id: 'u3', phone_number: '923003333333', first_name: 'Bushra', role: 'teacher', school_id: 's203', training_bands: ['MIDDLE'] },
-    { id: 'u4', phone_number: '923004444444', first_name: 'Someone Else', role: 'teacher', school_id: 'sOTHER', training_bands: [] },
-    { id: 'u5', phone_number: '923005555555', first_name: 'A Coach', role: 'coach', school_id: 's409', training_bands: [] },
+    { id: 'u1', phone_number: '923001111111', name: 'Tahira', role: 'teacher', school_id: 's409', teacher_level: ['PRIMARY'] },
+    { id: 'u2', phone_number: '923002222222', name: 'Nasir', role: 'principal', school_id: 's409', teacher_level: [] },
+    { id: 'u3', phone_number: '923003333333', name: 'Bushra', role: 'teacher', school_id: 's203', teacher_level: ['MIDDLE'] },
+    { id: 'u4', phone_number: '923004444444', name: 'Someone Else', role: 'teacher', school_id: 'sOTHER', teacher_level: [] },
+    { id: 'u5', phone_number: '923005555555', name: 'A Coach', role: 'coach', school_id: 's409', teacher_level: [] },
   ],
 });
 
