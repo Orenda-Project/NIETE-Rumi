@@ -248,6 +248,21 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // question.
   const isFollowUp = Boolean(sc.report_sent_at) && !force;
 
+  // bd-2yyry.18 — a completion never sends the teacher anything. Every finish
+  // asks for a follow-up; before any report existed that call went straight
+  // through, so the first child to finish sent the teacher's report (measured
+  // 8–15 Sep 2026: median one child on it), and after it one more follow-up
+  // could go. The operator's call (15 Sep 2026): no reminders to teachers —
+  // the teacher gets the scheduled report (12h after the first join, or 07:00
+  // PKT) and whatever they ask for from /quiz, nothing else. A late finisher
+  // gets their class card from sendLateClassCards, on the child's side only.
+  if (reason === 'follow_up' && !force) {
+    logEvent('video_quiz.report_suppressed', {
+      shareCodeId, reason, why: sc.report_sent_at ? 'followups_disabled' : 'before_first_report',
+    });
+    return false;
+  }
+
   const { data: teacher } = await supabase
     .from('users').select('phone_number, preferred_language')
     .eq('id', sc.teacher_user_id).maybeSingle();
@@ -679,6 +694,36 @@ async function sendClassCards({ shareCode, quizRow, done, reason, language, clas
     }
   }
   return { sent: sentIds.length, skipped };
+}
+
+/**
+ * bd-2yyry.18 — the class card for a child who finished AFTER the teacher's
+ * report. Called on every share-link completion: once a report has gone out,
+ * every finished child without a card gets one now (the child has just
+ * answered, so the free-form window is open); before the first report,
+ * nothing — the card rides with that report. Never a message to the teacher.
+ */
+async function sendLateClassCards(shareCodeId) {
+  if (!classCardsEnabled()) return { sent: 0, skipped: 0, why: 'flag_off' };
+  const { data: sc } = await supabase
+    .from('quiz_share_codes')
+    .select('id, code, quiz_id, teacher_user_id, teacher_name, topic, language, report_sent_at')
+    .eq('id', shareCodeId).maybeSingle();
+  if (!sc) return { sent: 0, skipped: 0, why: 'no_share_code' };
+  if (!sc.report_sent_at) return { sent: 0, skipped: 0, why: 'no_report_yet' };
+  const [{ data: sessions }, { data: quizRow }] = await Promise.all([
+    supabase.from('quiz_sessions')
+      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+              + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
+      .eq('share_code_id', shareCodeId)
+      .is('invited_by_student_id', null),
+    supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
+  ]);
+  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id));
+  const done = all.filter((s) => s.status === 'completed');
+  const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
+  const className = classHeading(classesTaught(done), language);
+  return sendClassCards({ shareCode: sc, quizRow: quizRow || null, done, reason: 'late', language, className });
 }
 
 /**
@@ -1389,6 +1434,7 @@ module.exports = {
   oneAttemptPerChild,
   loadClassRows,
   sendClassCards,
+  sendLateClassCards,
   classCardsEnabled,
   CLASS_CARD_WINDOW_MS,
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,

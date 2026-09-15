@@ -8,6 +8,52 @@
  * next to the insert made the guard read action/person/to/user_id as columns of
  * `users` — whichever table the surrounding code had queried last.
  */
+/**
+ * The audit actions the Manage-teachers flow writes.
+ *
+ * `leader_roster_audit.action` carries a CHECK constraint. These four were
+ * added to the code and NOT to the constraint, so every edit raised 23514 and
+ * wrote nothing for a day — silently, because the writer below used to swallow
+ * its errors whole. V1.4.7 widened the constraint; a test pins this list
+ * against that migration so the two can never drift apart again.
+ */
+const ROSTER_AUDIT_ACTIONS = Object.freeze([
+  'edit_name', 'edit_level', 'edit_phone', 'edit_phone_escalated',
+]);
+
+/**
+ * Write one audit row. Never throws; returns whether the row landed.
+ *
+ * The rule an audit writer has to satisfy is narrow: a failed audit must not
+ * fail the edit the coach just made — she did the work, the work succeeded, and
+ * losing our record of it is our problem, not hers. The original honoured that
+ * with `catch (_) {}`, which also made a table rejecting every row look exactly
+ * like a table accepting them.
+ *
+ * So: still no throw, but a refusal is LOUD in the logs and visible in the
+ * return value. Note the supabase client RESOLVES with `{ error }` rather than
+ * rejecting — the old try/catch could not have caught a constraint violation
+ * even in principle.
+ */
+async function writeRosterAudit(supabase, row, log) {
+  const report = (why, extra) => {
+    try {
+      (log || logToFile)('roster audit row REJECTED - the edit stands, the record does not', {
+        why, action: row && row.action, actor_user_id: row && row.actor_user_id, ...extra,
+      }, 'error');
+    } catch (_) { /* a broken logger must not break the edit either */ }
+    return false;
+  };
+
+  try {
+    const { error } = await supabase.from('leader_roster_audit').insert([row]) || {};
+    if (error) return report('insert_rejected', { code: error.code, message: error.message });
+    return true;
+  } catch (e) {
+    return report('insert_threw', { message: e && e.message });
+  }
+}
+
 function buildEditAuditRow(actorId, person, action, detail) {
   return {
     action,
@@ -1063,13 +1109,9 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     };
 
     const _editAudit = async (actorId, person, action, detail) => {
-      try {
-        const supabase = require('../config/supabase');
-        await supabase.from('leader_roster_audit')
-          .insert([buildEditAuditRow(actorId, person, action, detail)]);
-      } catch (_) {
-        // An unwritten audit row must never fail the edit the coach just made.
-      }
+      const supabase = require('../config/supabase');
+      return writeRosterAudit(
+        supabase, buildEditAuditRow(actorId, person, action, detail));
     };
 
 
@@ -1441,9 +1483,12 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         await _editAudit(userId, person, 'edit_phone_escalated', {
           to_phone: phone, reason: 'destination_has_history',
         });
-        return _tdone('We cannot move that automatically',
-          'That number already belongs to someone with their own training records. '
-          + 'We have reported it to the Rumi team and it will be sorted shortly.');
+        // Says nothing about WHY, deliberately. Earlier copy told the coach the
+        // number "belongs to someone with their own training records", which
+        // leaks another teacher's existence to anyone who types a number. The
+        // audit row above carries the real reason for us.
+        return _tdone('Please wait while we fix your data',
+          'This change will take some time, please check back later.');
       }
 
       const carried = verdict === E.CASE_SHELL ? (target && target.counts) || {} : {};
@@ -1482,8 +1527,10 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         await _editAudit(userId, person, 'edit_phone_escalated', {
           to_phone: phone, reason: 'destination_has_history_at_commit',
         });
-        return _tdone('We cannot move that automatically',
-          'That number now belongs to someone with their own records. Reported to the Rumi team.');
+        // Same copy as the check path — one consistent message, and neither
+        // version hints at who else that number reaches.
+        return _tdone('Please wait while we fix your data',
+          'This change will take some time, please check back later.');
       }
 
       const supabase = require('../config/supabase');
@@ -1596,6 +1643,8 @@ module.exports = {
   visitActionTarget,
   visitSummary,
   TEACHER_MATCH_CAP,
+  writeRosterAudit,
+  ROSTER_AUDIT_ACTIONS,
   // exported for tests / reuse:
   schoolItem,
   teacherItem,
