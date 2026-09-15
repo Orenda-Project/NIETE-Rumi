@@ -37,14 +37,16 @@ const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // 
 const { promptAction } = require('../config/conversational-components'); // bd-oak77.13: the one ice-breaker map
 const { isLp612RouteAll, lp612ServesGrade } = require('../config/lp612-flags'); // bd-oak77.4: the cutover switch
 const Lp612EditRouter = require('../services/lp612-edit-router.service'); // bd-33oc2: 6-12 lesson follow-ups
+// The three attendance/class Flow ids this file used to send are gone: their
+// doors own them now, and they read process.env at CALL time rather than at
+// module load, so clearing one in Railway degrades honestly on the next message
+// instead of on the next restart (the training-entry doctrine).
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID, OPENAI_API_KEY,
-  ATTENDANCE_SETUP_FLOW_ID, ATTENDANCE_MARKING_FLOW_ID, EDIT_CLASS_FLOW_ID,
-  CLASS_MANAGER_FLOW_ID } = require('../utils/constants');
+  ATTENDANCE_SETUP_FLOW_ID } = require('../utils/constants');
 const AttendanceRouter = require('../services/attendance-router.service');
 // PLAN_R5 D8 — who is holding this handset. Consulted at exactly one call
 // site, in handleGeneralConversation, and nowhere else in this file.
 const StudentMode = require('../services/student-mode.service');
-const VoiceAttendance = require('../services/voice-attendance.service');
 const { getClient } = require('../services/llm-client');
 
 const openai = getClient();
@@ -211,18 +213,10 @@ function isSelectVideoButton({ buttonId, buttonPayload, buttonText } = {}) {
   );
 }
 
-// bd-2486 (ported from PK) — the /video command, extended to match a bare
-// "video" (no slash). A trimmed message equal to just "video" used to fall
-// all the way through to intent detection, which routes intent.type===
-// 'video' to the legacy AI VideoOrchestrator with the literal word "Video"
-// as a nonsense topic — confirmed via a real Axiom trace (2026-08-04, PK).
-// Exact-match only (never startsWith/contains), so "make me a video on
-// photosynthesis" still falls through to AI video generation as intended.
-// Pure / side-effect-free so it is unit-testable.
-function isVideoCommand(trimmedMessage) {
-  const t = String(trimmedMessage || '').trim();
-  return t === '/video' || t.startsWith('/video ') || t.toLowerCase() === 'video';
-}
+// The /video command matcher lives in handlers/video-command.js — extracted so
+// it can be tested without this module's dependency graph, and widened there to
+// match the plural (`/videos`), which used to fall through to the chat LLM.
+const { isVideoCommand } = require('./video-command');
 
 /**
  * bd-2475 (ported from PK) — /video's promise to a binge-declining child
@@ -1109,31 +1103,18 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       return;
     }
 
-    // One switch, shared with the portal, fail-closed. An absent row means off,
-    // so shipping the code does not ship the feature.
-    const { isAssessmentGeneratorEnabled } = require('../config/feature-flags');
-    const { ASSESSMENT_GEN_FLOW_ID } = require('../utils/constants');
-    const live = await isAssessmentGeneratorEnabled();
-
-    if (live && ASSESSMENT_GEN_FLOW_ID) {
-      typingController.stop();
-      const responseLanguage = await getUserLanguage(user.id) || 'en';
-      await WhatsAppService.sendFlow(from, {
-        flowId: ASSESSMENT_GEN_FLOW_ID,
-        header: '📝 New assessment',
-        body: ({
-          ur: 'اپنی جماعت کے لیے پرچہ بنائیں — جماعت، مضمون اور سبق منتخب کریں۔',
-        })[responseLanguage] || 'Build a paper for your class — pick the grade, subject and chapter.',
-        buttonText: ({ ur: 'شروع کریں' })[responseLanguage] || 'Start',
-        flowToken: `${user.id}:assessment-gen:${Date.now()}`,
-      });
-      logToFile('📝 sent assessment flow', { userId: user.id });
-      return;
-    }
-
+    // One door, in assessment-entry.service: both gates (the presence of
+    // ASSESSMENT_GEN_FLOW_ID and the shared fail-closed DB switch), the copy and
+    // the honest fallback live there, so a menu row opens exactly what this
+    // command opens.
     typingController.stop();
-    await WhatsAppService.sendMessage(from,
-      "We're getting the assessment generator ready for you. I'll tell you the moment it's live.");
+    const { openAssessmentFlow } = require('../services/assessment-entry.service');
+    await openAssessmentFlow({
+      from,
+      userId: user.id,
+      language: await getUserLanguage(user.id),
+      reason: 'command',
+    });
     return;
   }
 
@@ -1269,25 +1250,18 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       return;
     }
 
-    // Presence-gated: when STUDENT_VIDEOS_FLOW_ID is set, /video opens the
-    // pre-made Student Video Library picker. When it is empty, /video falls
-    // through to the runtime video generator below.
-    const STUDENT_VIDEOS_FLOW_ID = process.env.STUDENT_VIDEOS_FLOW_ID || '';
-    if (STUDENT_VIDEOS_FLOW_ID) {
+    // One door, in student-videos-entry.service. It returns false when no
+    // library is provisioned for this deployment, and says nothing — /video then
+    // falls through to runtime generation below, which is the existing contract.
+    const { openStudentVideosFlow } = require('../services/student-videos-entry.service');
+    const libraryOpened = await openStudentVideosFlow({
+      from,
+      userId: user?.id,
+      language: responseLanguage,
+      reason: 'command',
+    });
+    if (libraryOpened) {
       typingController.stop();
-      const flowToken = `${user?.id || 'anon'}:student-videos:${Date.now()}`;
-      await WhatsAppService.sendFlow(from, {
-        flowId: STUDENT_VIDEOS_FLOW_ID,
-        header: '🎬 Student Videos',
-        body: ({
-          ur: 'اپنی کلاس، مضمون اور موضوع چنیں — میں ویڈیو آپ کی چیٹ میں بھیج دوں گا۔',
-        })[responseLanguage] || 'Pick a class, subject and topic — I will send the video to your chat.',
-        buttonText: ({
-          ur: 'تلاش کریں',
-        })[responseLanguage] || 'Browse',
-        flowToken,
-      });
-      logToFile('🎬 Sent student videos flow (/video)', { userId: user?.id });
       return;
     }
 
@@ -2082,41 +2056,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       return;
     }
 
-    if (!CLASS_MANAGER_FLOW_ID) {
-      await WhatsAppService.sendMessage(from,
-        'Classes are not available on this number yet. Please try again later.');
-      typingController.stop();
-      return;
-    }
-
-    // A class needs a school (classes.school_id is NOT NULL), and roughly one in
-    // eight teachers has none on file. Opening a Flow that cannot succeed is the
-    // dead-end pattern that has already cost this deployment once — so answer in
-    // chat instead, and say what would fix it.
-    const { data: schoolRow } = await supabase
-      .from('users')
-      .select('school_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (!schoolRow || !schoolRow.school_id) {
-      logToFile('🏫 /classes: no school on file — answering in chat, not opening the Flow', {
-        userId: user.id,
-      });
-      await WhatsAppService.sendMessage(from, resolveUx('classNoSchool', { user }));
-      typingController.stop();
-      return;
-    }
-
-    await WhatsAppService.sendFlow(from, {
-      flowId: CLASS_MANAGER_FLOW_ID,
-      header: resolveUx('classFlowHeader', { user }),
-      body: resolveUx('classFlowBody', { user }),
-      buttonText: resolveUx('classFlowButton', { user }),
-      // The endpoint reads flow_token AS the user id — same convention as the
-      // attendance Flows. Do not make this a composite token.
-      flowToken: user.id,
-    });
+    // One door, in classes/class-entry.service — including the rule that made it
+    // worth extracting: a class needs a school, roughly one teacher in eight has
+    // none on file, and opening a Flow that cannot succeed is the dead-end this
+    // deployment has already paid for once.
+    const { openClassManagerFlow } = require('../services/classes/class-entry.service');
+    await openClassManagerFlow({ from, user, language: responseLanguage, reason: 'command' });
     typingController.stop();
     return;
   }
@@ -2279,45 +2224,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         userId: user.id, typed, action: decision.action,
       });
 
-      if (decision.action === 'AWAIT_VOICE') {
-        await VoiceAttendance.arm(user.id, { subject: decision.subject, targetId: decision.targetId });
-        await WhatsAppService.sendMessage(from, decision.message);
-        return;
-      }
-      if (decision.action === 'ASK_CLASS_FOR_VOICE' || decision.action === 'ASK_CLASS_FOR_VOICE_LIST') {
-        // Typed "voice" with several classes: fall through to the same picker the
-        // tapped answer gets, rather than arming a wait with no roster behind it.
-        if (decision.buttons) {
-          await WhatsAppService.sendInteractiveButtons(from, { body: decision.message, buttons: decision.buttons });
-        } else {
-          await WhatsAppService.sendInteractiveMessage(from, {
-            body: { text: decision.message },
-            action: { button: 'Choose class', sections: [{ title: 'Your classes', rows: decision.rows }] },
-          });
-        }
-        return;
-      }
-      if (decision.action === 'OPEN_REGISTER' && ATTENDANCE_MARKING_FLOW_ID) {
-        await WhatsAppService.sendFlow(from, {
-          flowId: ATTENDANCE_MARKING_FLOW_ID,
-          header: '📋 Attendance',
-          body: 'Pick the class and the day, then tap whoever is away.',
-          buttonText: 'Mark attendance',
-          flowToken: decision.flowToken,
-        });
-        return;
-      }
-      if (decision.action === 'MARK_TEACHERS' && ATTENDANCE_MARKING_FLOW_ID) {
-        await WhatsAppService.sendFlow(from, {
-          flowId: ATTENDANCE_MARKING_FLOW_ID,
-          header: '📋 Attendance',
-          body: "Mark your school's teachers — pick the day, then tap whoever is away.",
-          buttonText: 'Mark attendance',
-          flowToken: decision.flowToken,
-        });
-        return;
-      }
-      await WhatsAppService.sendMessage(from, decision.message || 'Sorry, something went wrong.');
+      // The SAME switch the keyword path uses (attendance-entry.respondToDecision).
+      // These two used to be separate copies and had already drifted: this one
+      // handled five of the planner's ten actions and sent a different body for
+      // OPEN_REGISTER, so a typed answer that produced EMPTY_CLASS or
+      // SEND_CLASS_MANAGER got "something went wrong" while the tapped answer
+      // opened the right Flow.
+      const { respondToDecision } = require('../services/attendance-entry.service');
+      await respondToDecision(decision, { user, from, language: responseLanguage });
       return;
     }
     // Not an answer. The question is now closed; carry on to whatever they DID ask.
@@ -2333,115 +2247,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (user?.id && AttendanceRouter.detect(messageBody).detected) {
     typingController.stop();
-    try {
-      const decision = await AttendanceRouter.route(user.id);
-      logToFile('📋 Attendance routed', { userId: user.id, action: decision.action });
-
-      switch (decision.action) {
-        // A principal is asked how they want to mark before anything opens. Both
-        // options are named in the body as well as on the buttons — reply buttons
-        // render below the fold on some clients.
-        case 'ASK_METHOD':
-          // Remember that it is open, so a typed answer is understood as well as a
-          // tapped one (checked above, before anything else claims the message).
-          await AttendanceRouter.openMethodQuestion(user.id);
-          await WhatsAppService.sendInteractiveButtons(from, {
-            body: decision.message,
-            buttons: decision.buttons,
-          });
-          break;
-
-        // Voice leaves the Flow behind: a Flow cannot receive a voice note, so we
-        // arm the wait and hand the conversation back to chat. The arm lives in
-        // conversation state (Postgres), not Redis — a restart mid-roll-call would
-        // otherwise drop it, and the NIETE Redis has no persistent volume.
-        case 'AWAIT_VOICE':
-          await VoiceAttendance.arm(user.id, { subject: decision.subject, targetId: decision.targetId });
-          await WhatsAppService.sendMessage(from, decision.message);
-          break;
-
-        // A teacher choosing voice with several classes is asked which one first: the
-        // roster has to be in hand before spoken names can be matched to anybody.
-        case 'ASK_CLASS_FOR_VOICE':
-          await WhatsAppService.sendInteractiveButtons(from, {
-            body: decision.message,
-            buttons: decision.buttons,
-          });
-          break;
-
-        case 'ASK_CLASS_FOR_VOICE_LIST':
-          await WhatsAppService.sendInteractiveMessage(from, {
-            body: { text: decision.message },
-            action: { button: 'Choose class', sections: [{ title: 'Your classes', rows: decision.rows }] },
-          });
-          if (decision.truncated) {
-            await WhatsAppService.sendMessage(from, `Showing your first ${AttendanceRouter.MAX_ROWS} classes.`);
-          }
-          break;
-
-        // One Flow, opened with the bare user id; it picks the class and
-        // the date. MARK_* carry an explicit target — a principal always, and a tap
-        // on a picker button already delivered to a handset.
-        case 'OPEN_REGISTER':
-        case 'MARK_TEACHERS':
-        case 'MARK_STUDENTS':
-          if (!ATTENDANCE_MARKING_FLOW_ID) {
-            await WhatsAppService.sendMessage(from, 'Attendance is not available on this number yet. Please try again later.');
-            break;
-          }
-          await WhatsAppService.sendFlow(from, {
-            flowId: ATTENDANCE_MARKING_FLOW_ID,
-            header: '📋 Attendance',
-            body: decision.action === 'MARK_TEACHERS'
-              ? "Mark your school's teachers — pick the day, then tap whoever is away."
-              : 'Mark your class for today.',
-            buttonText: 'Mark attendance',
-            flowToken: decision.flowToken,
-          });
-          break;
-
-        // /class owns class creation now (bd-2724). Same flowToken convention as
-        // the /class command itself: the bare user id.
-        case 'SEND_CLASS_MANAGER':
-          if (!CLASS_MANAGER_FLOW_ID) {
-            await WhatsAppService.sendMessage(from, `${decision.message} Send /class to set one up.`);
-            break;
-          }
-          await WhatsAppService.sendFlow(from, {
-            flowId: CLASS_MANAGER_FLOW_ID,
-            header: '🏫 Your classes',
-            body: decision.message,
-            buttonText: 'Manage classes',
-            flowToken: user.id,
-          });
-          break;
-
-        case 'EMPTY_CLASS':
-          if (!EDIT_CLASS_FLOW_ID) {
-            await WhatsAppService.sendMessage(from, decision.message);
-            break;
-          }
-          await WhatsAppService.sendFlow(from, {
-            flowId: EDIT_CLASS_FLOW_ID,
-            header: '📋 Add students',
-            body: decision.message,
-            buttonText: 'Add students',
-            flowToken: `${user.id}:${decision.listId}`,
-          });
-          break;
-
-        case 'NO_SCHOOL':
-        case 'ERROR':
-        default:
-          await WhatsAppService.sendMessage(from, decision.message || 'Sorry, something went wrong.');
-          break;
-      }
-      return;
-    } catch (error) {
-      logToFile('Error routing attendance', { error: error.message, userId: user?.id });
-      await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with attendance. Please try again.');
-      return;
-    }
+    // One door, in attendance-entry.service: it plans through the router and
+    // then runs the ONE decision switch, the same one the typed-answer path
+    // above now uses. Any other surface — a menu row, for instance — reaches
+    // attendance by calling this rather than rebuilding ten Flow sends.
+    const { openAttendance } = require('../services/attendance-entry.service');
+    await openAttendance({ user, from, language: responseLanguage, reason: 'keyword' });
+    return;
   }
 
   // ============================================================

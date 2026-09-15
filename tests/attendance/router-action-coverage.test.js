@@ -31,10 +31,17 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '../..');
 const ROUTER = path.join(ROOT, 'bot/shared/services/attendance-router.service.js');
 
-/** The two places router output is turned into WhatsApp messages. */
+/**
+ * The two places router output is turned into WhatsApp messages.
+ *
+ * The text side used to be TWO switches inside text-message.handler — one for
+ * the keyword and one for a typed answer to the tap-or-voice question — and they
+ * had drifted: the typed one handled five of the ten actions. Both now call the
+ * single switch in attendance-entry.service, which is what this asserts against.
+ */
 const CONSUMERS = [
   ['bot/whatsapp-bot.js', 'handleAttendanceTap'],
-  ['bot/shared/handlers/text-message.handler.js', 'attendance switch'],
+  ['bot/shared/services/attendance-entry.service.js', 'the one decision switch'],
 ];
 
 /**
