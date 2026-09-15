@@ -1359,6 +1359,7 @@ async function runDebriefRetrySweep({ now = Date.now() } = {}) {
     .from('coaching_sessions')
     .select('id, debrief_status, created_at, observer_debrief:analysis_data->observer_debrief')
     .eq('debrief_status', 'pending')
+    .not('status', 'in', require('../shared/services/coaching/session-terminal').TERMINAL_IN_FILTER)
     .not('observer_user_id', 'is', null)
     .not('analysis_data->observer_debrief->>audio_id', 'is', null)
     .is('analysis_data->observer_debrief->>transcript', null)

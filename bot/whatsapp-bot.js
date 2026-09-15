@@ -917,45 +917,12 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('photo_no_')) {
         const sessionId = buttonId.replace('photo_no_', '');
         logToFile('📸 User declined classroom photo — advancing to LP prompt', { sessionId, from });
-
-        // Update conversation state past AWAITING_PHOTO.
-        // bd-3ipd2: MERGE, don't replace — a bare { current_state } drops any
-        // fields already on conversation_state (e.g. a race-held classroom_photos).
-        // bd-9hzdn.3: also read user_id — the recent-LP menu must show the LPs of the
-        // session OWNER (the observed teacher in /observe), not the tapper (the coach).
-        const { data: noSession } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state, user_id')
-          .eq('id', sessionId)
-          .maybeSingle();
-
-        // Send the same LP prompt the OECD/HOTS pre-photo-prompt flow used.
-        // Language = the TAPPER's preference (teacher flow: the teacher; observe: the coach).
-        // Recents = the session OWNER's LPs (identical in the teacher flow; the teacher's in observe).
-        const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language, region')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(noSession?.user_id || user.id), lang, userRow?.region);
-        // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
-        // sendInteractiveMessage returns false (it does not throw) when it refuses
-        // a payload, so committing first parked sessions at a step the user was
-        // never shown, with no sweeper to recover them.
-        const lpSent = await __sendLpPrompt(WhatsAppService, from, lpPrompt);
-        if (lpSent) {
-          await supabase
-            .from('coaching_sessions')
-            .update({
-              conversation_state: { ...(noSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
-              status: 'awaiting_lesson_plan'
-            })
-            .eq('id', sessionId);
-        } else {
-          logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
-        }
+        // One owner for landing on the lesson-plan step: it merges conversation_state,
+        // takes recents from the session OWNER and language from the TAPPER, sends before
+        // it commits, and refuses a session that has already been cancelled.
+        const { advanceToLessonPlanStep } = require('./shared/services/coaching/lp-coaching/lp-step.service');
+        await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
+      }
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
         logToFile('📸 User will send classroom photo', { sessionId, from });
@@ -1001,42 +968,12 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('photo_done_')) {
         const sessionId = buttonId.replace('photo_done_', '');
         logToFile('📸 User done adding classroom photos — advancing to LP prompt', { sessionId, from });
-
-        // Advance to the SAME lesson-plan step the skip-photo path uses (photo_no),
-        // which is the flow that works (R49). PRESERVE the existing conversation_state
-        // (it holds the uploaded classroom_photos) — only move current_state forward.
-        // bd-9hzdn.3: read user_id too — recents come from the session OWNER (the
-        // observed teacher in /observe), language from the tapper.
-        const { data: doneSession } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state, user_id')
-          .eq('id', sessionId)
-          .maybeSingle();
-
-        const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language, region')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(doneSession?.user_id || user.id), lang, userRow?.region);
-        // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
-        // sendInteractiveMessage returns false (it does not throw) when it refuses
-        // a payload, so committing first parked sessions at a step the user was
-        // never shown, with no sweeper to recover them.
-        const lpSent = await __sendLpPrompt(WhatsAppService, from, lpPrompt);
-        if (lpSent) {
-          await supabase
-            .from('coaching_sessions')
-            .update({
-              conversation_state: { ...(doneSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
-              status: 'awaiting_lesson_plan'
-            })
-            .eq('id', sessionId);
-        } else {
-          logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
-        }
+        // One owner for landing on the lesson-plan step: it merges conversation_state,
+        // takes recents from the session OWNER and language from the TAPPER, sends before
+        // it commits, and refuses a session that has already been cancelled.
+        const { advanceToLessonPlanStep } = require('./shared/services/coaching/lp-coaching/lp-step.service');
+        await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
+      }
       }
       // bd-u35ex / bd-pzs9a: "Add another" — keep collecting. The whole tap lives in
       // add-another.service so it can be executed by a test; this branch only dispatches.

@@ -44,7 +44,7 @@ const nextScreen = (screenId) => {
  * Statuses past which an observation is closed. A stale Flow submit must not
  * reopen one. Kept beside the two guards that read it so they cannot drift.
  */
-const TERMINAL_STATUSES = ['cancelled', 'abandoned'];
+const { TERMINAL_STATUSES } = require('../services/coaching/session-terminal');
 
 function errorResponse(message) {
   return { data: { error: { message } } };
