@@ -76,7 +76,13 @@ jest.mock('../../shared/config/supabase', () => ({
         limit: async () => ({ data: [], error: null }),
         maybeSingle: async () => {
           const row = col === 'id' ? db.usersById[val] : db.usersByPhone[val];
-          return { data: row ? { preferred_language: row } : null, error: null };
+          if (!row) return { data: null, error: null };
+          // The identity resolver reads name + phone off the same row, so the
+          // double answers WHO as well as which language.
+          const id = col === 'id' ? val : (val === TEACHER_PHONE ? TEACHER_ID : COACH_ID);
+          const phone = id === TEACHER_ID ? TEACHER_PHONE : COACH_PHONE;
+          const name = id === TEACHER_ID ? 'Najma Kousar' : 'Misbah Iqbal';
+          return { data: { id, name, phone_number: phone, preferred_language: row }, error: null };
         },
         single: async () => ({ data: null, error: { message: 'not found' } }),
       };
@@ -176,13 +182,16 @@ describe('bd-dy7hs — the teacher\'s own language decides her report', () => {
 });
 
 describe('bd-dy7hs — the toggle is gone, not merely hidden', () => {
-  it('offers send and cancel only — even when a caller still passes a language', () => {
+  it('offers send, someone-else and cancel — never a language button, whatever a caller passes', () => {
     const S = observeStrings('en');
     for (const legacyArg of [undefined, 'en', 'ur']) {
       const p = ObserveSend.buildSendConfirmButtons(SID, S, legacyArg);
+      // The escape hatch for a report that genuinely goes to somebody else is
+      // NOT a language toggle: it changes the recipient, never the rendering.
       expect(p.buttons.map((b) => b.id)).toEqual([
-        `observe_send_confirm_${SID}`, `observe_send_cancel_${SID}`,
+        `observe_send_confirm_${SID}`, `observe_send_other_${SID}`, `observe_send_cancel_${SID}`,
       ]);
+      expect(p.buttons.map((b) => b.id).some((id) => id.includes('_lang_'))).toBe(false);
     }
   });
 
