@@ -172,12 +172,14 @@ t('all 15 tables are audited', () => {
   eq(Object.keys(WATCHED).length, 15);
 });
 
-t('74 columns are watched in total', () => {
+t('70 columns are watched in total', () => {
   // 60 minus coaching_sessions.conversation_state (dropped on production evidence),
   // plus 15 from bd-a21ks: classes (7), and the identity/reason columns that let one
   // class's history be read from the ledger alone (class_enrollments +2, students +2,
   // student_lists +2, class_teachers +2).
-  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 74);
+  // users then lost five columns the table no longer has (first_name, last_name,
+  // levels, grade, training_bands) and gained teacher_level, the renamed level (V1.4.8).
+  eq(Object.values(WATCHED).reduce((n, c) => n + c.length, 0), 70);
 });
 
 t('the 9 roster/config tables are all registered', () => {
