@@ -9,7 +9,7 @@ const redisService = require('./cache/railway-redis.service');
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
 const LessonPlanningService = require('./lesson-planning.service');
 const { isFeatureRunnable } = require('../config/feature-availability');
-const { resolveUx } = require('../config/ux-strings');
+const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { canSelfCoach, canObserve } = require('../config/role-features');
 
 const openai = getClient();
@@ -31,7 +31,11 @@ const ROLE_REFUSAL = Object.freeze({
   }),
 });
 
-const refusal = (kind, language) => ROLE_REFUSAL[kind][language === 'ur' ? 'ur' : 'en'];
+// ONE clamp for the whole repo — clampLanguage intersects with LANGUAGE_OFFER
+// and floors anything else, so a hand-rolled ur/en ternary here would be a
+// second source of truth for what we serve (tests/setup/language-single-source).
+const refusal = (kind, language) => ROLE_REFUSAL[kind][clampLanguage(language)]
+  || ROLE_REFUSAL[kind].en;
 
 // Menu selection state TTL (5 minutes)
 const MENU_STATE_TTL = 300;
