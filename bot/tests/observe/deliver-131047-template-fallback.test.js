@@ -32,23 +32,34 @@ const TEACHER = '923001234567';
 let mockRow;
 let mockUpdates;
 
-jest.mock('../../shared/config/supabase', () => {
-  const chain = {
-    from: jest.fn(() => chain),
-    select: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
-    order: jest.fn(() => chain),
-    limit: jest.fn(() => chain),
-    single: jest.fn(async () => ({ data: mockRow, error: null })),
-    maybeSingle: jest.fn(async () => ({ data: mockRow, error: null })),
-    update: jest.fn((payload) => {
-      mockUpdates.push(payload);
-      if (payload.analysis_data) mockRow = { ...mockRow, analysis_data: payload.analysis_data };
-      return { eq: jest.fn(async () => ({ error: null })) };
-    }),
-  };
-  return chain;
-});
+// Table-aware ON PURPOSE. A flat double that answered every read with the
+// session row left the coach with no resolvable preference, so the language of
+// her message fell to the market floor — and that floor is exactly the kind of
+// thing another branch changes underneath you. The coach's preference is stated
+// here, so this suite asserts the FALLBACK and never accidentally asserts
+// whichever way the language resolver happens to lean in the tree it runs on.
+jest.mock('../../shared/config/supabase', () => ({
+  from: jest.fn((table) => {
+    const chain = {
+      select: jest.fn(() => chain),
+      eq: jest.fn(() => chain),
+      order: jest.fn(() => chain),
+      limit: jest.fn(() => chain),
+      single: jest.fn(async () => (table === 'users'
+        ? { data: global.__mockCoachRow, error: null }
+        : { data: mockRow, error: null })),
+      maybeSingle: jest.fn(async () => (table === 'users'
+        ? { data: global.__mockCoachRow, error: null }
+        : { data: mockRow, error: null })),
+      update: jest.fn((payload) => {
+        mockUpdates.push(payload);
+        if (payload.analysis_data) mockRow = { ...mockRow, analysis_data: payload.analysis_data };
+        return { eq: jest.fn(async () => ({ error: null })) };
+      }),
+    };
+    return chain;
+  }),
+}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const mockSend = {
@@ -120,6 +131,9 @@ describe('a 131047 on the direct path falls back to the invite template', () => 
           teacher_name: 'Ms Khadija',
         },
       },
+    };
+    global.__mockCoachRow = {
+      id: 'coach-uuid-1', phone_number: COACH, name: 'Coach', preferred_language: 'en',
     };
     ObserveSend = require('../../shared/services/observe/observe-send.service');
   });
