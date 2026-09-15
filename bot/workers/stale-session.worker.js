@@ -572,6 +572,7 @@ async function readUntappedCandidates(tally) {
       .from('coaching_sessions')
       .select('id, teacher_delivery:analysis_data->teacher_delivery')
       .eq('observation_type', 'leader_observation')
+      .not('status', 'in', require('../shared/services/coaching/session-terminal').TERMINAL_IN_FILTER)
       .not('analysis_data->teacher_delivery', 'is', null)
       .eq('analysis_data->teacher_delivery->>status', 'awaiting_teacher_tap')
       .is('analysis_data->teacher_delivery->>tapped_at', null)
@@ -1287,6 +1288,7 @@ module.exports = {
   processStuckPhotoGateSessions,
   processStuckMidFlightSessions,
   processUntappedReports,
+  readUntappedCandidates,
   untappedMaxPerTick,
   processUndeliveredReports,
   readUndeliveredCandidates,
