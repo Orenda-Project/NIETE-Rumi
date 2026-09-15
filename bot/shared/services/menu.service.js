@@ -9,8 +9,9 @@ const redisService = require('./cache/railway-redis.service');
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
 const LessonPlanningService = require('./lesson-planning.service');
 const { isFeatureRunnable } = require('../config/feature-availability');
-const { resolveUx } = require('../config/ux-strings');
+const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { canSelfCoach, canObserve } = require('../config/role-features');
+const { getUserLanguage } = require('../utils/language-cache');
 
 const openai = getClient();
 
@@ -51,20 +52,36 @@ class MenuService {
    */
   static async sendMenu(from, userId, sessionId, language = 'en', user = null) {
     try {
-      logToFile('Sending feature menu carousel', { from, userId, language });
+      // The language is resolved HERE, not trusted from the argument. Four of
+      // the five call sites pass the literal 'en' — including the /menu command
+      // itself — so 9,205 sends in nine days were built as English for a cohort
+      // that is 99.0% Urdu. Fixing it at five call sites means the sixth one
+      // written next month is English again; fixing it here means it cannot be.
+      //
+      // Order: the teacher's own row first (already in hand at every call site,
+      // so no IO and no failure mode), then the cache/DB read when a caller has
+      // no user object, then whatever the caller asked for.
+      const resolvedLanguage = clampLanguage(
+        user?.preferred_language
+        || (userId ? await getUserLanguage(userId) : null)
+        || language,
+      );
+      logToFile('Sending feature menu carousel', {
+        from, userId, language: resolvedLanguage, requested: language,
+      });
 
       // Store state in Redis for button handling
       const stateKey = `user:${userId}:awaiting_menu_selection`;
       const stateData = {
         sessionId,
         from,
-        language,
+        language: resolvedLanguage,
         askedAt: new Date().toISOString()
       };
       await redisService.set(stateKey, stateData, MENU_STATE_TTL);
 
       // Send carousel (falls back to list if template not approved)
-      const success = await WhatsAppService.sendFeatureMenuCarousel(from, user);
+      const success = await WhatsAppService.sendFeatureMenuCarousel(from, user, resolvedLanguage);
 
       if (success) {
         // Store bot response in conversation history
@@ -79,7 +96,7 @@ class MenuService {
         logToFile('✅ Feature menu sent successfully', { from });
       } else {
         // If both carousel and fallback failed, send simple text
-        await this._sendTextMenuFallback(from, userId, sessionId, language);
+        await this._sendTextMenuFallback(from, userId, sessionId, resolvedLanguage);
       }
     } catch (error) {
       logToFile('❌ Error sending menu', {
@@ -236,8 +253,12 @@ class MenuService {
           break;
 
         default:
+          // A tap on a row this build no longer emits. WhatsApp keeps list rows
+          // tappable forever, so this is a live surface — and it was the last
+          // English literal left in the dispatch.
           logToFile('Unknown menu button ID', { buttonId });
-          await WhatsAppService.sendMessage(from, "I didn't recognize that option. Type /menu to try again.");
+          await WhatsAppService.sendMessage(from,
+            resolveUx('menuUnknownOption', { language: clampLanguage(language) }));
       }
     } catch (error) {
       logToFile('❌ Error handling menu button response', {
@@ -245,7 +266,8 @@ class MenuService {
         buttonId,
         userId: user?.id
       });
-      await WhatsAppService.sendMessage(from, "Something went wrong. Please type /menu to try again.");
+      await WhatsAppService.sendMessage(from,
+        resolveUx('menuError', { language: clampLanguage(language) }));
     }
   }
 
@@ -264,25 +286,15 @@ class MenuService {
    * @private
    */
   static async _sendTextMenuFallback(from, userId, sessionId, language) {
-    // Menu messages in all 9 supported languages
-    const menuMessages = {
-      en: "Hi! I'm your NIETE Teaching Assistant!\n\nI can help you with:\n📚 Lesson Plans & Presentations\n🎓 Classroom Coaching\n📖 Reading Assessments\n🎬 AI Video Creation\n\nJust tell me what you need!",
-      ur: "السلام علیکم! میں NIETE ہوں، آپ کی ٹیچنگ اسسٹنٹ!\n\nمیں آپ کی مدد کر سکتی ہوں:\n📚 لیسن پلانز اور پریزنٹیشنز\n🎓 کلاس روم کوچنگ\n📖 ریڈنگ ٹیسٹ\n🎬 AI ویڈیوز\n\nبتائیں، کیا چاہیے؟",
-      ar: "مرحباً! أنا رومي، مساعدتك التعليمية!\n\nيمكنني مساعدتك في:\n📚 خطط الدروس والعروض التقديمية\n🎓 التدريب الصفي\n📖 تقييم القراءة\n🎬 إنشاء فيديو بالذكاء الاصطناعي\n\nأخبرني بما تحتاج!",
-      es: "¡Hola! Soy tu Asistente de Enseñanza de NIETE.\n\nPuedo ayudarte con:\n📚 Planes de Lección y Presentaciones\n🎓 Coaching de Aula\n📖 Evaluación de Lectura\n🎬 Creación de Videos con IA\n\n¡Dime qué necesitas!",
-      'bal-PK': "سلام! من NIETE آں، شما ءِ تدریسی معاون!\n\nمن شما ءِ کمک کن کیا:\n📚 سبق ءِ منصوبہ\n🎓 کلاس روم کوچنگ\n📖 پڑھائی ءِ ٹیسٹ\n🎬 AI ویڈیو\n\nبگوشیت چہ چیز چاہیت؟",
-      'sd-PK': "سلام! مان رومي آهيان، توهان جي تدريسي معاون!\n\nمان توهان جي مدد ڪري سگهان ٿي:\n📚 سبق جو منصوبو\n🎓 ڪلاس روم ڪوچنگ\n📖 پڙهائي جو ٽيسٽ\n🎬 AI ويڊيو\n\nٻڌايو، ڇا گهرجي؟",
-      'ps-PK': "سلام! زه رومي یم، ستاسو د تدریس معاون!\n\nزه تاسو سره مرسته کولی شم:\n📚 د درس پلان\n🎓 صنفي کوچنګ\n📖 د لوستلو ازموینه\n🎬 AI ویډیو\n\nراته ووایئ څه غواړئ!",
-      'pa-PK': "سلام! میں NIETE آں، تہاڈی ٹیچنگ اسسٹنٹ!\n\nمیں تہاڈی مدد کر سکدی آں:\n📚 سبق دے منصوبے\n🎓 کلاس روم کوچنگ\n📖 پڑھائی دا ٹیسٹ\n🎬 AI ویڈیو\n\nدسو، کی چاہیدا اے؟",
-      'ta-LK': "வணக்கம்! நான் ரூமி, உங்கள் கற்பித்தல் உதவியாளர்!\n\nநான் உங்களுக்கு உதவ முடியும்:\n📚 பாட திட்டங்கள்\n🎓 வகுப்பறை பயிற்சி\n📖 வாசிப்பு மதிப்பீடு\n🎬 AI வீடியோ\n\nஎன்ன வேண்டும் என்று சொல்லுங்கள்!"
-    };
-
-    // Get message in user's language, fallback to English
-    const fallbackMenu = menuMessages[language] || menuMessages.en;
+    // One catalog key, not a nine-language inline map. Seven of those languages
+    // are not in LANGUAGE_OFFER and could never be selected, and all nine
+    // advertised reading assessment and AI video creation — neither of which
+    // can start on this deployment.
+    const fallbackMenu = resolveUx('menuTextFallback', { language: clampLanguage(language) });
 
     await WhatsAppService.sendMessage(from, fallbackMenu);
     await storeConversation(userId, 'assistant', fallbackMenu, 'text', sessionId);
-    logToFile('Sent text menu fallback', { from, language });
+    logToFile('Sent text menu fallback', { from, language: clampLanguage(language) });
   }
 
   /**

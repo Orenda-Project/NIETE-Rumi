@@ -34,7 +34,11 @@ describe('1 — backwards compatibility: no 4th arg is untouched', () => {
     const prompt = openaiService._getFormatAwareSystemPrompt('text', 'en', 'Ayesha');
     expect(prompt).toContain('NIETE Teaching Assistant');
     expect(prompt).toContain('CREATE lesson plans');
-    expect(prompt).toContain('/reading test');
+    // Was '/reading test'. Reading assessment cannot run on this deployment and
+    // no longer appears in any prompt, so the marker is now the capability that
+    // replaced it in the same list — still teacher-only, still not the student
+    // persona.
+    expect(prompt).toContain('/training');
     expect(prompt).toContain(RELIGIOUS_REVERENCE_RULES);
   });
 });

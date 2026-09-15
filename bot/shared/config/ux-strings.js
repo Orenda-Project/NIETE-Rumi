@@ -282,6 +282,148 @@ const UX_STRINGS = {
   },
 
   /**
+   * The /language picker's button and section title. Unlike its header, body
+   * and footer above, these two are language-KEYED rather than bilingual: the
+   * button cap is 20 code points, and a bilingual "Languages / زبانیں" lands
+   * exactly on it, i.e. one word from the 131009 rejection that took this
+   * command down before. The bilingual chrome above still makes the screen
+   * readable whichever language she is trying to leave.
+   */
+  languagePickerButton: {
+    en: 'Languages',
+    ur: 'زبانیں',
+  },
+
+  languagePickerSectionTitle: {
+    en: 'Available Languages',
+    ur: 'دستیاب زبانیں',
+  },
+
+  /**
+   * The /menu front door — 7,209 sends a week, every one of them in English
+   * until now, to a cohort that is 99.0% Urdu.
+   *
+   * The body deliberately NAMES NO FEATURES. The old one listed the inventory
+   * ("lesson plans, classroom coaching, reading assessments, and more"), which
+   * made it a second place the inventory had to be maintained — and it is the
+   * place that went stale: it kept advertising reading assessment for weeks
+   * after the row was removed and while the feature could not start at all.
+   * The rows are the inventory.
+   *
+   * Caps, measured in code points: header 60, body 1024, footer 60, button 20,
+   * section title 24.
+   */
+  menuHeader: {
+    en: "Here's what I can do",
+    ur: 'میں یہ سب کر سکتی ہوں',
+  },
+
+  menuBody: {
+    en: "I'm your NIETE Teaching Assistant. Pick what you'd like to do — I'll take you straight there.",
+    ur: 'میں آپ کی NIETE ٹیچنگ اسسٹنٹ ہوں۔ جو کرنا چاہیں چنیں — میں سیدھا وہیں لے جاؤں گی۔',
+  },
+
+  menuFooter: {
+    en: 'Tap to choose',
+    ur: 'چننے کے لیے دبائیں',
+  },
+
+  menuButton: {
+    en: 'See what I do',
+    ur: 'فہرست دیکھیں',
+  },
+
+  menuSectionTitle: {
+    en: 'My features',
+    ur: 'میری خدمات',
+  },
+
+  /**
+   * One row's copy, one pair of keys. The row IDS live in config/role-features
+   * with the role rule; the COPY lives here, because a per-language map in a
+   * config module is an unreviewed map outside the catalog — invisible to the
+   * cap check and to the language audit that guards it.
+   *
+   * Row caps: title 24 code points, description 72.
+   */
+  menuRowTrainingTitle: {
+    en: 'Teacher Training',
+    ur: 'ٹیچر ٹریننگ',
+  },
+
+  menuRowTrainingDesc: {
+    en: 'Continue your training modules and exams',
+    ur: 'اپنے ٹریننگ ماڈیول اور امتحان جاری رکھیں',
+  },
+
+  menuRowLessonPlanTitle: {
+    en: 'Lesson Plans',
+    ur: 'لیسن پلان',
+  },
+
+  menuRowLessonPlanDesc: {
+    en: 'Create detailed PDF lesson plans',
+    ur: 'تفصیلی PDF لیسن پلان بنائیں',
+  },
+
+  menuRowCoachingTitle: {
+    en: 'Classroom Coaching',
+    ur: 'کلاس روم کوچنگ',
+  },
+
+  menuRowCoachingDesc: {
+    en: 'Get teaching feedback from recordings',
+    ur: 'ریکارڈنگ سے تدریس پر رائے حاصل کریں',
+  },
+
+  menuRowObserveTitle: {
+    en: 'Observe a Teacher',
+    ur: 'استاد کا مشاہدہ',
+  },
+
+  menuRowObserveDesc: {
+    en: 'Record and score a classroom visit',
+    ur: 'کلاس کے دورے کو ریکارڈ اور اسکور کریں',
+  },
+
+  menuRowOtherTitle: {
+    en: 'Ask Anything',
+    ur: 'کچھ بھی پوچھیں',
+  },
+
+  menuRowOtherDesc: {
+    en: 'General teaching questions',
+    ur: 'تدریس کے بارے میں کوئی بھی سوال',
+  },
+
+  /**
+   * A tap on a row this build no longer emits. WhatsApp keeps list rows
+   * tappable forever, so this is a live surface, not a theoretical one — and it
+   * was the one English literal left in the dispatch.
+   */
+  /**
+   * The ultimate text fallback, sent when the interactive list itself could not
+   * be delivered. It used to be a nine-language inline map — seven of those
+   * languages are not offered on this deployment and could never be selected,
+   * and all nine advertised reading assessment and AI video creation, neither
+   * of which can start here. Same three features as the rows, same honesty.
+   */
+  menuTextFallback: {
+    en: "Hi! I'm your NIETE Teaching Assistant.\n\nI can help you with:\n📚 Lesson plans\n🎓 Classroom coaching\n📗 Teacher training\n\nType /menu for the full list, or just tell me what you need.",
+    ur: 'السلام علیکم! میں آپ کی NIETE ٹیچنگ اسسٹنٹ ہوں۔\n\nمیں ان کاموں میں مدد کر سکتی ہوں:\n📚 لیسن پلان\n🎓 کلاس روم کوچنگ\n📗 ٹیچر ٹریننگ\n\nپوری فہرست کے لیے /menu ٹائپ کریں، یا بتائیں کیا چاہیے۔',
+  },
+
+  menuUnknownOption: {
+    en: "I didn't recognise that option. Type /menu to see the list again.",
+    ur: 'یہ آپشن پہچانا نہیں گیا۔ فہرست دوبارہ دیکھنے کے لیے /menu ٹائپ کریں۔',
+  },
+
+  menuError: {
+    en: 'Something went wrong there. Type /menu to try again.',
+    ur: 'کچھ مسئلہ ہو گیا۔ دوبارہ کوشش کے لیے /menu ٹائپ کریں۔',
+  },
+
+  /**
    * LP v8 delivery (K-5 corpus, staging feedback round 1). The ack
    * exists because presign + Meta's document fetch take several seconds AFTER
    * the Flow has already closed — that silence read as a failed request on the

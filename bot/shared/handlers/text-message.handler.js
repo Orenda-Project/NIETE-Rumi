@@ -1923,7 +1923,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // message; storing it again put every `/menu` into history twice. In
       // production 2,302 of 3,253 consecutive `/menu` pairs landed under 2s apart
       // (~460ms), which also duplicated the turn in the AI's context window.
-      await MenuService.sendMenu(from, user.id, sessionId, 'en', user);
+      await MenuService.sendMenu(from, user.id, sessionId, responseLanguage, user);
     } else {
       const fallbackMsg = "Please complete registration first. Type /register to get started.";
       await WhatsAppService.sendMessage(from, fallbackMsg);
@@ -2631,7 +2631,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     if (messageBody.toLowerCase() === '/menu') {
       logToFile('📋 User requesting menu from classroom audio state');
       typingController.stop();
-      await MenuService.sendMenu(from, user.id, sessionId, 'en', user);
+      await MenuService.sendMenu(from, user.id, sessionId, responseLanguage, user);
       return;
     }
 
@@ -2651,7 +2651,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     if (messageBody.toLowerCase() === '/menu') {
       logToFile('📋 User requesting menu from video topic state');
       typingController.stop();
-      await MenuService.sendMenu(from, user.id, sessionId, 'en', user);
+      await MenuService.sendMenu(from, user.id, sessionId, responseLanguage, user);
       return;
     }
 

@@ -10,6 +10,8 @@
  */
 
 const { logToFile } = require('../utils/logger');
+const { isFeatureRunnable } = require('../config/feature-availability');
+const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const WhatsAppService = require('./whatsapp.service');
 const FeatureIntroService = require('./feature-intro.service');
 const { FEATURE_VIDEO_URLS, CONSENT_BUTTON_LABELS } = require('../constants/feature-videos');
@@ -28,6 +30,10 @@ const redisService = require('./cache/railway-redis.service');
 // promised Gamma generation ("I'll create a detailed 5-step lesson plan"),
 // retired in bd-2540. The lesson-plan door is the catalogue Flow
 // (lp-browse-entry.service).
+
+/** The honest line per feature this deployment may not be able to run. */
+const NOT_AVAILABLE_COPY = Object.freeze({ reading: 'readingNotAvailable' });
+
 const FEATURE_KEYWORDS = {
   reading: {
     high: [
@@ -173,6 +179,28 @@ class FeatureKeywordDetectorService {
         userId
       });
 
+      // A keyword for a feature this deployment cannot start gets the honest
+      // answer, not a promo video and a command that refuses. Reading
+      // assessment has no Flow on this WABA and failed 57 of 57 attempts
+      // before its row was removed; six teachers a week still ask for it,
+      // having been told by four other surfaces that it exists. This is the
+      // same sentence /reading test and the menu_reading tap already give her,
+      // so there is one answer for the feature, not three.
+      if (!isFeatureRunnable(detected.feature)) {
+        logToFile('🚫 Feature keyword for a feature that cannot run here', {
+          feature: detected.feature, userId,
+        }, 'warn');
+        // Explicit map, not `${feature}NotAvailable`: resolveUx throws on an
+        // unknown key, and a gate added to FEATURE_GATES later must not turn a
+        // teacher's ordinary message into a 500. No copy, no claim — fall
+        // through and let the normal answer stand.
+        const key = NOT_AVAILABLE_COPY[detected.feature];
+        if (!key) return false;
+        await WhatsAppService.sendMessage(phoneNumber,
+          resolveUx(key, { language: clampLanguage(language) }));
+        return true; // handled — do not also offer a video for it
+      }
+
       // Check if user has already seen this feature's video
       const hasSeenVideo = await FeatureIntroService.hasSeenIntroVideo(userId, detected.feature);
 
@@ -299,12 +327,6 @@ class FeatureKeywordDetectorService {
 
         // Send follow-up with command
         const followUpMessages = {
-          reading: {
-            en: "To start a reading assessment, type: /reading test",
-            ur: "ریڈنگ اسیسمنٹ شروع کرنے کے لیے ٹائپ کریں: /reading test",
-            ar: "لبدء تقييم القراءة، اكتب: /reading test",
-            es: "Para comenzar una evaluación de lectura, escribe: /reading test"
-          },
           coaching: {
             en: "To get coaching feedback, just send me an audio recording of your class!",
             ur: "کوچنگ فیڈبیک کے لیے، مجھے اپنی کلاس کی آڈیو ریکارڈنگ بھیجیں!",
@@ -327,12 +349,6 @@ class FeatureKeywordDetectorService {
         logToFile('⏭️ User skipped keyword video', { feature: detectedFeature, userId });
 
         const textExplanations = {
-          reading: {
-            en: "No problem! To assess reading fluency, type /reading test - I'll guide your student through reading a passage and analyze their fluency, accuracy, and comprehension.",
-            ur: "کوئی بات نہیں! ریڈنگ فلوئنسی جانچنے کے لیے /reading test ٹائپ کریں - میں آپ کے طالب علم کو ایک متن پڑھنے میں رہنمائی کروں گی۔",
-            ar: "لا مشكلة! لتقييم طلاقة القراءة، اكتب /reading test - سأرشد طالبك خلال قراءة نص وأحلل طلاقته ودقته وفهمه.",
-            es: "¡No hay problema! Para evaluar la fluidez lectora, escribe /reading test - guiaré a tu estudiante a través de la lectura de un pasaje."
-          },
           coaching: {
             en: "No problem! Just send me an audio recording of your class (up to 20 minutes), and I'll analyze your teaching and provide personalized feedback.",
             ur: "کوئی بات نہیں! مجھے اپنی کلاس کی آڈیو ریکارڈنگ بھیجیں (20 منٹ تک)، میں آپ کی تدریس کا تجزیہ کر کے فیڈبیک دوں گی۔",
