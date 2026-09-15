@@ -6,8 +6,8 @@
  * gone out that path had no timing guard, so the FIRST child to finish sent
  * the teacher's report — measured on production 8–15 Sep 2026: median one
  * child on the report, 970 of 1,059 reports sent that way. A follow-up
- * before the first report is now suppressed; the scheduled job and the
- * teacher's own request still send.
+ * is now never sent (operator, 15 Sep 2026: no reminders to teachers); the
+ * scheduled job and the teacher's own request still send.
  */
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => ({
@@ -113,14 +113,18 @@ describe('bd-2yyry.18 — a completion never sends the first report', () => {
     expect(teacherGotSomething()).toBe(true);
   });
 
-  test('after the first report a follow-up still obeys the once-and-material rule', async () => {
+  test('after the first report a follow-up never sends either — no reminders to teachers (operator, 15 Sep 2026)', async () => {
     stubSupabase({
       quiz_share_codes: [shareCode({ report_sent_at: iso(3 * H) })], users: [teacher],
       quizzes: [{ ...quizzes[0], meta: { class_cards: { [SC]: ['st-1'] } } }],
-      quiz_sessions: [child('s1', 'st-1', '923111111111', 6, 4 * H), child('s2', 'st-2', '923222222222', 8, 1 * H)],
+      quiz_sessions: [child('s1', 'st-1', '923111111111', 6, 4 * H), child('s2', 'st-2', '923222222222', 8, 1 * H),
+        child('s3', 'st-3', '923333333333', 8, 1 * H), child('s4', 'st-4', '923444444444', 8, 1 * H)],
     });
-    // one new child on a class of one = "half again as many" → a follow-up is material
-    expect(await report.generate(SC, { reason: 'follow_up' })).toBe(true);
-    expect(teacherGotSomething()).toBe(true);
+    // three new children used to be "material" — the teacher still hears nothing
+    expect(await report.generate(SC, { reason: 'follow_up' })).toBe(false);
+    expect(teacherGotSomething()).toBe(false);
+    expect(WhatsAppService.sendImageFromBuffer).not.toHaveBeenCalled();
+    expect(logEvent).toHaveBeenCalledWith('video_quiz.report_suppressed',
+      expect.objectContaining({ shareCodeId: SC, reason: 'follow_up', why: 'followups_disabled' }));
   });
 });
