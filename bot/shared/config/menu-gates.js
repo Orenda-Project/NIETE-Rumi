@@ -27,10 +27,12 @@ const isSet = (v) => typeof v === 'string' && v.trim() !== '';
 /** Env-only gates. Pure. */
 function envMenuGates(env = process.env) {
   return {
-    // Training and lesson plans have Flow ids of their own; they were always
-    // rows, and they stay rows only while their Flow exists.
+    // Training genuinely cannot start without its Flow — its door says
+    // "being prepared" and nothing else happens. Lesson plans deliberately have
+    // NO gate: that door falls back to asking for a topic in chat and still
+    // produces a plan, so gating it on PAKISTAN_LP_FLOW_ID would hide a row
+    // that works. "Has an env var" is not the test; "cannot start without it" is.
     trainingEnabled: isSet(env.TEACHER_TRAINING_FLOW_ID),
-    lessonPlanEnabled: isSet(env.PAKISTAN_LP_FLOW_ID),
     observeEnabled: isSet(env.OBSERVE_MEWAKA_FLOW_ID),
     rosterEnabled: isSet(env.ROSTER_FLOW_ID),
     classesEnabled: isSet(env.CLASS_MANAGER_FLOW_ID),

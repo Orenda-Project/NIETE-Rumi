@@ -103,12 +103,14 @@ describe('featureMenuRows — what each role is offered', () => {
     for (const role of ['teacher', 'principal', 'coach', null]) {
       const shut = ids(u(role), {});
       for (const gated of ['menu_observe', 'menu_roster', 'menu_classes',
-        'menu_quiz', 'menu_assessment', 'menu_videos', 'menu_training',
-        'menu_lesson_plan']) {
+        'menu_quiz', 'menu_assessment', 'menu_videos', 'menu_training']) {
         expect(shut).not.toContain(gated);
       }
-      // And she is still left with a usable menu.
+      // And she is still left with a usable menu. Lesson plans are NOT gated:
+      // that door falls back to asking for a topic in chat and still produces a
+      // plan, so gating it would hide a row that works.
       expect(shut).toContain('menu_other');
+      expect(shut).toContain('menu_lesson_plan');
     }
   });
 

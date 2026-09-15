@@ -166,7 +166,6 @@ describe('presence gating — a row that appears can be started', () => {
     ['TRANSCRIPT_QUIZ_FLOW_ID', 'menu_quiz', 'teacher'],
     ['OBSERVE_MEWAKA_FLOW_ID', 'menu_observe', 'principal'],
     ['TEACHER_TRAINING_FLOW_ID', 'menu_training', 'teacher'],
-    ['PAKISTAN_LP_FLOW_ID', 'menu_lesson_plan', 'teacher'],
   ])('unset %s removes %s', (envKey, rowId, role) => {
     expect(featureMenuRows(USER(role), gatesOn()).map((r) => r.id)).toContain(rowId);
     delete process.env[envKey];
@@ -183,11 +182,25 @@ describe('presence gating — a row that appears can be started', () => {
     expect(featureMenuRows(USER('teacher'), closed).map((r) => r.id)).not.toContain('menu_assessment');
   });
 
+  test('lesson plans are NOT gated on their Flow id — that door works without it', () => {
+    // `_handleLessonPlanningChoice` falls back to asking for a topic in chat and
+    // still produces a plan, so a gate here would hide a row that works. The
+    // test for a gate is "cannot start without it", not "has an env var".
+    delete process.env.PAKISTAN_LP_FLOW_ID;
+    expect(featureMenuRows(USER('teacher'), gatesOn()).map((r) => r.id))
+      .toContain('menu_lesson_plan');
+    expect(envMenuGates()).not.toHaveProperty('lessonPlanEnabled');
+  });
+
   test('every gate shut still leaves a usable menu, never an empty list', () => {
     for (const role of ['teacher', 'principal', 'coach']) {
       const rows = featureMenuRows(USER(role), {});
       expect(rows.length).toBeGreaterThan(0);
       expect(rows.map((r) => r.id)).toContain('menu_other');
+      // And the ungated doors survive: lesson plans, language, ask anything —
+      // plus coaching and attendance for the roles that have them.
+      expect(rows.map((r) => r.id)).toContain('menu_lesson_plan');
+      expect(rows.map((r) => r.id)).toContain('menu_language');
     }
   });
 });

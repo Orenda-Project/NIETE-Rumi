@@ -111,14 +111,25 @@ const MAX_MENU_ROWS = 10;
 
 /**
  * Every row this build can emit. `gate` names the key in `opts` that must be
- * true for the row to appear; a row with no gate is always available.
+ * true for the row to appear; a row with no gate is always available BECAUSE ITS
+ * FEATURE CAN START WITHOUT A FLOW — that is the test for whether a gate
+ * belongs here, not "does it have an env var".
+ *
+ * Coaching is audio-driven. Attendance routes through the database. Lesson plans
+ * fall back to asking for a topic in chat. /language and Ask Anything are pure
+ * chat. None of them needs a published Flow to answer her.
  *
  * The ids are never translated and never reused: the reply router matches on
  * them, and WhatsApp keeps a list row tappable forever.
  */
 const ROW = Object.freeze({
   training: { id: 'menu_training', titleKey: 'menuRowTrainingTitle', descriptionKey: 'menuRowTrainingDesc', gate: 'trainingEnabled' },
-  lessonPlan: { id: 'menu_lesson_plan', titleKey: 'menuRowLessonPlanTitle', descriptionKey: 'menuRowLessonPlanDesc', gate: 'lessonPlanEnabled' },
+  // NO gate, deliberately. `_handleLessonPlanningChoice` falls back to asking
+  // for a topic in chat when PAKISTAN_LP_FLOW_ID is unset, and that path still
+  // produces a lesson plan — so the feature CAN start without the Flow, and a
+  // gate here would hide a row that works. The test asserts this explicitly so
+  // nobody "completes" the gate table later.
+  lessonPlan: { id: 'menu_lesson_plan', titleKey: 'menuRowLessonPlanTitle', descriptionKey: 'menuRowLessonPlanDesc' },
   coaching: { id: 'menu_coaching', titleKey: 'menuRowCoachingTitle', descriptionKey: 'menuRowCoachingDesc' },
   observe: { id: 'menu_observe', titleKey: 'menuRowObserveTitle', descriptionKey: 'menuRowObserveDesc', gate: 'observeEnabled' },
   attendance: { id: 'menu_attendance', titleKey: 'menuRowAttendanceTitle', descriptionKey: 'menuRowAttendanceDesc' },
