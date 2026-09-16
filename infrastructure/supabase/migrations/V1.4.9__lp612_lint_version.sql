@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- V1.4.1 — a cached lesson's lint verdict says WHICH RULESET produced it.
+-- V1.4.9 — a cached lesson's lint verdict says WHICH RULESET produced it.
 --
 -- bd-2cbwr. One text column, and the first that is deliberately NULLABLE WITH NO DEFAULT.
 --
@@ -85,6 +85,24 @@
 -- `unstamped` — stale, loud, and still served — rather than failing the lookup. That guard is
 -- deliberately NOT a licence to skip the migration: it converts a total outage into one lost stamp
 -- and a loud event, so the ordering above is a requirement and not a landmine.
+--
+-- NUMBERED V1.4.9, NOT V1.4.1, AND IT MUST NOT BE RENUMBERED BACK (bd-n2ikd). This file was
+-- written as V1.4.1 on a branch cut before V1.4.1..V1.4.8 landed, and `V1.4.1` is already taken
+-- on sandbox, staging and main by `V1.4.1__enrollment_roster_correction.sql` — a DIFFERENT
+-- migration. `extractVersion()` in infrastructure/scripts/migrate.js reads the version from the
+-- FILENAME and nothing else, so under the old name every environment that had already run the
+-- roster correction would record 1.4.1 as applied and SKIP this file in silence. Not an error, not
+-- a warning — the column would simply never appear, and the guards described above would quietly
+-- report every row as `unstamped` forever. V1.4.9 is the next free number above V1.4.8.
+-- Guarded by tests/setup/migration-version-uniqueness.test.js.
+--
+-- PRODUCTION ALREADY HAS THE COLUMN, applied by hand on 2026-09-16 on Amena's instruction, before
+-- this renumber. It was applied as raw DDL through the `exec_sql(query TEXT)` RPC, which does NOT
+-- touch `schema_versions` — so production's ledger has no row for this migration under EITHER
+-- number, and re-running it through migrate.js is a harmless no-op: the DDL is
+-- ADD COLUMN IF NOT EXISTS. Verified after the fact through the PostgREST OpenAPI document:
+-- `lint_version` is text, carries this file's COMMENT, and 0 of 1234 rows hold a value — no
+-- default was fabricated, exactly as intended above. STAGING IS STILL UNAPPLIED.
 --
 -- Assert `information_schema`, never the `schema_versions` ledger — it is behind on staging
 -- (bd-7i0hs).
