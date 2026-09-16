@@ -209,7 +209,8 @@ describe('C — a repair never trades the lesson\'s pictures for its chrome', ()
   test('THE RED TEST — a crop that cannot be staged stops the write entirely', async () => {
     downloadFromR2.mockRejectedValue(Object.assign(new Error('NoSuchKey'), { name: 'NoSuchKey' }));
 
-    const res = await repairRow(row(), docWithFigure(), { correlationId: 'c1' });
+    const res = await repairRow(row(), docWithFigure(),
+      { correlationId: 'c1', keys: backfillKeysFor(row()) });
 
     expect(res.repaired).toBe(false);
     expect(res.reason).toBe(BACKFILL_SKIPPED.FIGURES_MISSING);
@@ -219,7 +220,8 @@ describe('C — a repair never trades the lesson\'s pictures for its chrome', ()
   test('and the row it refused is named, so the summary can be acted on', async () => {
     downloadFromR2.mockRejectedValue(Object.assign(new Error('NoSuchKey'), { name: 'NoSuchKey' }));
 
-    const res = await repairRow(row(), docWithFigure(), { correlationId: 'c1' });
+    const res = await repairRow(row(), docWithFigure(),
+      { correlationId: 'c1', keys: backfillKeysFor(row()) });
 
     expect(res.missing).toEqual([FIG_REF]);
   });
@@ -232,7 +234,8 @@ describe('C — a repair never trades the lesson\'s pictures for its chrome', ()
       return { pdfPath: BASE, pageCount: 5, warnings: [] };
     });
 
-    const res = await repairRow(row(), docWithFigure(), { correlationId: 'c1' });
+    const res = await repairRow(row(), docWithFigure(),
+      { correlationId: 'c1', keys: backfillKeysFor(row()) });
 
     expect(cropVisibleAtRenderTime).toBe(true);
     expect(res.repaired).toBe(true);

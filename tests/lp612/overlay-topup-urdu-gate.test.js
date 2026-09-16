@@ -34,6 +34,25 @@
  *     one layer up.
  *
  * Red-first on bd-vrt20-backfill-run-driver: the top-up tests throw OVERLAY_NOT_URDU at 37.1%.
+ *
+ * ── SECTION D: THE RECONCILIATION WITH bd-y478d ──────────────────────────────
+ *
+ * bd-y478d fixed the SAME gate, on a branch that never reached sandbox (bd-9a2sf), with a
+ * different rule: score the delta with ALL-LATIN parentheticals discounted. Its own closing note
+ * warned "DO NOT simply move GATE 1 onto the merge", because a wholly-English 5-string delta
+ * merged into a 91-string Urdu base scores 0.68 and would pass. That warning is answered by the
+ * categorical check above — but it left one case that neither fix alone decides correctly, and
+ * `overlay-urdu-gate.test.js` case B3 pins it:
+ *
+ *   «باب 10 · Chemical Equilibrium»   Urdu line, bare Latin term of record   must ACCEPT
+ *   «Chapter 7 (وراثت)»                English line, Urdu in the brackets     must REJECT
+ *
+ * Both are about 38% Urdu by letter, so NO threshold separates them and gloss-stripping does not
+ * either — bd-y478d's rule keeps an Urdu parenthetical, so the impostor survives it. What
+ * separates them is WHERE the Urdu sits: a translation carries it in the line and its glosses in
+ * brackets, an English answer dressed up does the reverse. So the categorical check strips EVERY
+ * parenthetical, Latin and Urdu both, and requires Urdu in what is left. Stripping Urdu can only
+ * make a check stricter, which is why it belongs there and not in the floor.
  */
 
 const fs = require('fs');
@@ -198,5 +217,61 @@ describe('the floor has not moved, and the authoring path is untouched', () => {
     await expect(overlayLessonPlan({
       lpDoc: d, segment: SEGMENT, targets: TOPUP, baseOverlay: englishBase,
     })).rejects.toMatchObject({ code: 'OVERLAY_NOT_URDU' });
+  });
+});
+
+describe('D — the reconciliation: position decides what a share cannot', () => {
+  /** Urdu sentence, bare Latin term of record. This is the production shape (bd-idneu, 8 rows). */
+  const URDU_BODY = {
+    '/provenance/chapter': 'باب 10 · Chemical Equilibrium',
+    '/provenance/topic': 'حالتِ توازن اور Le Chatelier Principle کا اطلاق',
+  };
+
+  /** English sentence, the Urdu tucked into a gloss. The impostor bd-y478d's B3 refuses. */
+  const ENGLISH_BODY = {
+    '/provenance/chapter': 'Chapter 10 (کیمیائی توازن)',
+    '/provenance/topic': 'Equilibrium and Le Chatelier (توازن اور اطلاق)',
+  };
+
+  test('THE PREMISE — no threshold could tell these two apart, and the impostor scores HIGHER', () => {
+    // If this ever stops being true the categorical rule is over-engineering and should go.
+    // Measured: the genuine translation 0.371, the impostor 0.439. Any floor that admits the
+    // first admits the second, and any floor that refuses the second refuses the first.
+    const genuine = shareOf(Object.values(URDU_BODY));
+    const impostor = shareOf(Object.values(ENGLISH_BODY));
+    expect(genuine).toBeLessThan(0.5);
+    expect(impostor).toBeLessThan(0.5);
+    expect(impostor).toBeGreaterThan(genuine);
+  });
+
+  test('the Urdu-bodied delta is ACCEPTED', async () => {
+    const d = doc();
+    create.mockResolvedValue(reply(URDU_BODY));
+
+    const out = await overlayLessonPlan({
+      lpDoc: d, segment: SEGMENT, targets: TOPUP, baseOverlay: storedOverlay(d),
+    });
+
+    expect(out.overlay['/provenance/chapter']).toBe(URDU_BODY['/provenance/chapter']);
+  });
+
+  test('the English-bodied delta is REFUSED, though it carries real Urdu letters', async () => {
+    // bd-y478d's rule alone accepts this: its parentheticals contain Urdu, so nothing is
+    // discounted, and the merge carries the floor. Only the positional check refuses it.
+    const d = doc();
+    create.mockResolvedValue(reply(ENGLISH_BODY));
+
+    await expect(overlayLessonPlan({
+      lpDoc: d, segment: SEGMENT, targets: TOPUP, baseOverlay: storedOverlay(d),
+    })).rejects.toMatchObject({ code: 'OVERLAY_NOT_URDU', patchUrduShare: 0 });
+  });
+
+  test('and the refusal says WHY — the Urdu was all inside brackets', async () => {
+    const d = doc();
+    create.mockResolvedValue(reply(ENGLISH_BODY));
+
+    await expect(overlayLessonPlan({
+      lpDoc: d, segment: SEGMENT, targets: TOPUP, baseOverlay: storedOverlay(d),
+    })).rejects.toThrow(/outside brackets/i);
   });
 });
