@@ -10,6 +10,7 @@
     "start:stale-worker": "node workers/stale-session.worker.js",
     "start:bigquery-export": "node workers/attendance-bigquery-export.worker.js",
     "test:jest": "jest",
+    "check:syntax": "node scripts/check-syntax.js",
     "dev": "node whatsapp-bot.js",
     "dev:dashboard": "node dashboard/index.js",
     "dev:worker": "node workers/sqs-worker.js",
