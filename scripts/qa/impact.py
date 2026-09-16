@@ -405,7 +405,14 @@ def render_markdown(res, freshness="warn", proof="warn"):
               "`python3 .claude/qa/shared/validate_specs.py --only %s`." % ",".join(stale), "",
               "If the change genuinely alters no teacher-visible behaviour, say so where this check can read it — a commit trailer",
               "or a line in the PR body:", "", "```", "Spec-Sync: %s=none-needed (<why>)" % ",".join(stale), "```", ""]
-    L += _drive_block(res)
+    # The how-to-drive block is a fix instruction: show it ONLY when something is actionable — a stale
+    # spec, an un-recorded E2E run, or missing cassettes. On a fully-green range the developer already
+    # drove it (that is what "recorded" means), so the block is noise — collapse it to one line.
+    actionable = v["spec_freshness"] == "stale" or v.get("e2e_proof") == "missing" or bool(res.get("cassette_misses"))
+    if actionable:
+        L += _drive_block(res)
+    else:
+        L += ["✅ Nothing to drive — specs synced and the E2E run is recorded for this range.", ""]
     if res["fallback"]:
         L += ["> ⚠️ Unmapped in-scope files pulled in the SAFE subset: %s — add them to `feature-map.yaml`." % ", ".join("`%s`" % u for u in res["unmapped"]), ""]
     if res["full_suite"]:
