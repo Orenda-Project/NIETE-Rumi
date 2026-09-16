@@ -44,6 +44,12 @@ function buildQuestionPrompt(questionNumber, corpus, profile, firstName = '') {
   //      to English words (jam→jumm, main→meinn). Write the language ENTIRELY in its own script.
   //   2. Bare inline digits ("43", "8") → the voice renders them as gibberish ("alaran"). Spell
   //      every number as a word. (Hard-won voicenote lessons.)
+  // The corpus quotes an Urdu lesson's words back, and the model then answered an
+  // ENGLISH teacher in Roman Urdu — Urdu written in Latin letters. Latin script hides
+  // it from the script-purity rule below, so English says it outright.
+  const englishOnlyBlock = (language === 'English') ? `
+- WRITE IN ENGLISH, NOT ROMAN URDU. Every word you write outside a quotation mark is English. Do NOT write Urdu (or any other language) in Roman/Latin letters — not "aap", "bachon", "kya try karna chahengi". The lesson may have been taught in another language; the question is still English. ONLY a direct quote of what the teacher or a child actually said keeps its original words, inside single quotes.` : '';
+
   const ttsBlock = (script && script !== 'Latin') ? `
 - SCRIPT PURITY (this is read aloud — critical): write the ${language} text ENTIRELY in ${script}. Do NOT transliterate ${language} words into Roman/Latin letters — it breaks the voice. ONLY genuine English terms stay in Latin (see next rule).
 - NUMBERS AS WORDS: never write a bare digit (43, 8, 5) inline — the voice reads bare digits as gibberish. Spell every number as a word in ${language} (or as the English number word if it sits inside an English phrase). e.g. a "43 + 29" problem becomes the spelled-out ${language} form, not the digits.` : '';
@@ -57,7 +63,7 @@ ${beat}
 ═══ NAME-SKEPTICISM ═══ Use a child's name ONLY if the moment's named_student is set. NEVER invent a name. If null, refer to "a student"/"the class" naturally in ${language}.
 
 ═══ LANGUAGE CRAFT (principle-driven — works for ANY language, never hardcoded) ═══
-- Write in ${language} (${script}), DEAD-SIMPLE staff-room register a 10-year-old can read.${ttsBlock}
+- Write in ${language} (${script}), DEAD-SIMPLE staff-room register a 10-year-old can read.${ttsBlock}${englishOnlyBlock}
 ${buildCoachingVoice({ language, firstName })}
 - NATURAL-REGISTER PRINCIPLE: the everyday register a teacher in ${region} actually speaks — NOT bookish, classical, archaic, or borrowed from another country's variant.${avoid_hint}
 - GENDER-NEUTRALITY PRINCIPLE: the question must NEVER require knowing the teacher's gender. ${gender_hint}

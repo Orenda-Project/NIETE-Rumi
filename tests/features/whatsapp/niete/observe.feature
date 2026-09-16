@@ -327,6 +327,31 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-send.service.js _handleDeliverFailure (bd-2411): status send_failed,
     # tell the coach, one-tap retry via /observe. No silent drop.
 
+  @e2e @wip @draft @negative @config-gated @P1
+  Scenario: A cancelled observation stays cancelled whichever old button is tapped
+    Given I cancelled an observation after its recording was accepted
+    And the photo "Yes", "Continue", "Get Report Now" and lesson-plan buttons from before the cancel are still in my chat
+    When I tap any of them
+    Then the bot tells me the session was cancelled and the recording is saved
+    And the observation is not advanced, not re-opened and no report is queued
+    # session-terminal.js (bd-87p7s → bd-n9832): the incident was photo_yes_ reviving a
+    # cancelled observation that its sibling "No" had refused. Six paths now share one
+    # guard; a status read precedes every write and the write itself excludes
+    # cancelled/abandoned. Copy: ux-strings coachingSessionCancelled.
+
+  @e2e @wip @draft @negative @config-gated @P1
+  Scenario: Reopening a cancelled observation's form names the real reason, once
+    Given I cancelled an observation whose FICO form had already been sent to me
+    When I open that form from the old message
+    Then the Flow does not save anything
+    And my chat receives "This observation was cancelled, so the form can no longer be submitted." in my language
+    And opening it again within a few minutes does not repeat the sentence
+    # observe-mewaka-endpoint.js (bd-rw4so): the refusal is now logged
+    # ("observe-form: endpoint refused — the observation is over") and the catalogue sentence
+    # observeStrings(lang).flow_terminal_refused is sent to the chat, send-once via a 300 s
+    # Redis key. The Flow itself still shows Meta's generic "Something went wrong" until the
+    # Flow JSON gains a terminal REFUSED screen and is re-published (scheduled on bd-rw4so).
+
   @e2e @wip @known-fail @config-gated @P2
   Scenario: The FICO report total reflects the real 148-point maximum
     Given a completed FICO observation (37 indicators, scale 1–4, max 148)

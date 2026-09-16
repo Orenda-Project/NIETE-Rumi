@@ -917,79 +917,21 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('photo_no_')) {
         const sessionId = buttonId.replace('photo_no_', '');
         logToFile('📸 User declined classroom photo — advancing to LP prompt', { sessionId, from });
-
-        // Update conversation state past AWAITING_PHOTO.
-        // bd-3ipd2: MERGE, don't replace — a bare { current_state } drops any
-        // fields already on conversation_state (e.g. a race-held classroom_photos).
-        // bd-9hzdn.3: also read user_id — the recent-LP menu must show the LPs of the
-        // session OWNER (the observed teacher in /observe), not the tapper (the coach).
-        const { data: noSession } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state, user_id')
-          .eq('id', sessionId)
-          .maybeSingle();
-
-        // Send the same LP prompt the OECD/HOTS pre-photo-prompt flow used.
-        // Language = the TAPPER's preference (teacher flow: the teacher; observe: the coach).
-        // Recents = the session OWNER's LPs (identical in the teacher flow; the teacher's in observe).
-        const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language, region')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(noSession?.user_id || user.id), lang, userRow?.region);
-        // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
-        // sendInteractiveMessage returns false (it does not throw) when it refuses
-        // a payload, so committing first parked sessions at a step the user was
-        // never shown, with no sweeper to recover them.
-        const lpSent = await __sendLpPrompt(WhatsAppService, from, lpPrompt);
-        if (lpSent) {
-          await supabase
-            .from('coaching_sessions')
-            .update({
-              conversation_state: { ...(noSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
-              status: 'awaiting_lesson_plan'
-            })
-            .eq('id', sessionId);
-        } else {
-          logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
-        }
+        // One owner for landing on the lesson-plan step: it merges conversation_state,
+        // takes recents from the session OWNER and language from the TAPPER, sends before
+        // it commits, and refuses a session that has already been cancelled.
+        const { advanceToLessonPlanStep } = require('./shared/services/coaching/lp-coaching/lp-step.service');
+        await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
-        logToFile('📸 User will send classroom photo', { sessionId, from });
-
-        // bd-3ipd2: MERGE conversation_state (don't clobber existing fields).
-        const { data: yesSession } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state')
-          .eq('id', sessionId)
-          .maybeSingle();
-        await supabase
-          .from('coaching_sessions')
-          .update({
-            conversation_state: { ...(yesSession?.conversation_state || {}), current_state: 'AWAITING_CLASSROOM_PHOTO' },
-            status: 'awaiting_classroom_photo'
-          })
-          .eq('id', sessionId);
-        // R165: the tap names the observation — remember it so the
-        // photo that follows binds HERE, not to the coach's newest session.
-        try {
-          await require('./shared/services/coaching/media-target.service').setTarget(user.id, sessionId, 'photo');
-        } catch (targetErr) {
-          logToFile('⚠️ media-target: could not record photo target (non-fatal)', { sessionId, error: targetErr.message });
-        }
-
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        // bd-8s2xb — board first; the scorer reads what is written on it (catalog string, Rule 20).
-        const msg = require('./shared/config/ux-strings').resolveUx('coachingPhotoSendNow', { language: lang });
-        await WhatsAppService.sendMessage(from, msg);
+        // One owner for landing on the classroom-photo step: it merges
+        // conversation_state, takes the language from the TAPPER, re-points the
+        // media target at this observation, and REFUSES a session that has
+        // already been cancelled. This write used to sit here inline with no
+        // status read, which is how "Yes" revived a cancelled observation while
+        // its sibling "No" on the same message correctly refused (bd-n9832).
+        const { advanceToClassroomPhotoStep } = require('./shared/services/coaching/classroom-photo/photo-yes.service');
+        await advanceToClassroomPhotoStep({ sessionId, from, tapperUserId: user && user.id });
       }
       // bd-u35ex: the classroom-photo collection (image-message.handler.js Phase 3)
       // sends "Add another / Done" buttons (photo_more_ / photo_done_) after each
@@ -1001,42 +943,11 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('photo_done_')) {
         const sessionId = buttonId.replace('photo_done_', '');
         logToFile('📸 User done adding classroom photos — advancing to LP prompt', { sessionId, from });
-
-        // Advance to the SAME lesson-plan step the skip-photo path uses (photo_no),
-        // which is the flow that works (R49). PRESERVE the existing conversation_state
-        // (it holds the uploaded classroom_photos) — only move current_state forward.
-        // bd-9hzdn.3: read user_id too — recents come from the session OWNER (the
-        // observed teacher in /observe), language from the tapper.
-        const { data: doneSession } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state, user_id')
-          .eq('id', sessionId)
-          .maybeSingle();
-
-        const { buildLPSelectionList } = require('./shared/services/coaching/lp-coaching/lp-selection-list.service');
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language, region')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        const lpPrompt = buildLPSelectionList(sessionId, await __recentFidelityLps(doneSession?.user_id || user.id), lang, userRow?.region);
-        // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
-        // sendInteractiveMessage returns false (it does not throw) when it refuses
-        // a payload, so committing first parked sessions at a step the user was
-        // never shown, with no sweeper to recover them.
-        const lpSent = await __sendLpPrompt(WhatsAppService, from, lpPrompt);
-        if (lpSent) {
-          await supabase
-            .from('coaching_sessions')
-            .update({
-              conversation_state: { ...(doneSession?.conversation_state || {}), current_state: 'AWAITING_LESSON_PLAN' },
-              status: 'awaiting_lesson_plan'
-            })
-            .eq('id', sessionId);
-        } else {
-          logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, from });
-        }
+        // One owner for landing on the lesson-plan step: it merges conversation_state,
+        // takes recents from the session OWNER and language from the TAPPER, sends before
+        // it commits, and refuses a session that has already been cancelled.
+        const { advanceToLessonPlanStep } = require('./shared/services/coaching/lp-coaching/lp-step.service');
+        await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
       }
       // bd-u35ex / bd-pzs9a: "Add another" — keep collecting. The whole tap lives in
       // add-another.service so it can be executed by a test; this branch only dispatches.
@@ -1056,48 +967,12 @@ app.post('/webhook', async (req, res) => {
       // Stale session reminder buttons - Finish and get partial report
       else if (buttonId.startsWith('coaching_finish_')) {
         const sessionId = buttonId.replace('coaching_finish_', '');
-        logToFile('📊 User clicked Finish on stale session reminder', { sessionId, from });
-
-        // Fetch session to get progress
-        const { data: session } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state')
-          .eq('id', sessionId)
-          .single();
-
-        if (session) {
-          const questionsAnswered = session.conversation_state?.questions_answered || 0;
-
-          // Update state to mark as user-requested early completion
-          await supabase
-            .from('coaching_sessions')
-            .update({
-              status: 'generating_report',
-              conversation_state: {
-                ...session.conversation_state,
-                current_state: 'USER_REQUESTED_EARLY_COMPLETION',
-                early_completion_at: new Date().toISOString(),
-                questions_at_completion: questionsAnswered
-              }
-            })
-            .eq('id', sessionId);
-
-          // Queue report generation with partial flag
-          const CoachingJobQueueService = require('./shared/services/coaching/coaching-job-queue.service');
-          await CoachingJobQueueService.queueReport(sessionId, {
-            from,
-            partial: questionsAnswered < 3,
-            userRequestedEarly: true
-          });
-
-          const progressMsg = questionsAnswered > 0
-            ? `Got it! I'll generate your report based on the ${questionsAnswered} reflection${questionsAnswered > 1 ? 's' : ''} you provided. 📊`
-            : `Got it! I'll generate your report based on your classroom audio analysis. 📊`;
-
-          await WhatsAppService.sendMessage(from, progressMsg);
-        } else {
-          await WhatsAppService.sendMessage(from, 'Sorry, I could not find that coaching session.');
-        }
+        // The body lives in finish-early.service so it can be executed by a test
+        // and so the status write goes through the shared terminal guard. This
+        // button is the TWIN of coaching_continue_ on the very same reminder
+        // message, and only the twin was guarded (bd-n9832).
+        const { handleFinishCoachingTap } = require('./shared/services/coaching/finish-early.service');
+        await handleFinishCoachingTap({ sessionId, from, user });
       }
       // Vocabulary comprehension button answers
       else if (buttonId.startsWith('vocab_answer_')) {

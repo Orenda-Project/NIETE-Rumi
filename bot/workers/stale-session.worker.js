@@ -572,6 +572,7 @@ async function readUntappedCandidates(tally) {
       .from('coaching_sessions')
       .select('id, teacher_delivery:analysis_data->teacher_delivery')
       .eq('observation_type', 'leader_observation')
+      .not('status', 'in', require('../shared/services/coaching/session-terminal').TERMINAL_IN_FILTER)
       .not('analysis_data->teacher_delivery', 'is', null)
       .eq('analysis_data->teacher_delivery->>status', 'awaiting_teacher_tap')
       .is('analysis_data->teacher_delivery->>tapped_at', null)
@@ -1193,6 +1194,10 @@ async function processStuckPhotoGateSessions() {
   const now = Date.now();
   // bd-5knlj: per-session threshold — leader observations wait hours, not minutes.
   const { gateThresholdFor } = require('../shared/services/coaching/photo-gate-sweep');
+  // bd-gc1ge — the notification copy is DATA, not a literal (Rule 20).
+  const { resolveUx } = require('../shared/config/ux-strings');
+  const { observeLang } = require('../shared/services/observe/observe-strings');
+  const { formatLessonDate } = require('../shared/services/quiz/transcript-quiz-language');
   const eligible = (stuck || [])
     .filter((s) => shouldAutoAdvancePhotoGate(s, now, gateThresholdFor(s)))
     .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));   // oldest first
@@ -1237,15 +1242,21 @@ async function processStuckPhotoGateSessions() {
 
       // Observer identity: on a bound leader observation, session.users is the
       // TEACHER — every message and job callback must reach the COACH.
+      //
+      // bd-gc1ge: carry the whole notified PERSON rather than a bare name, so
+      // the greeting's name and its language cannot be read off two different
+      // people — the exact shape of the bug bd-04m67 fixed elsewhere.
       let notifyPhone = session.users.phone_number;
-      let notifyName = session.users.name;
+      let notifyUser = session.users;
+      let notifyRole = 'teacher';
       if (session.observation_type === 'leader_observation'
           && session.observer_user_id && session.observer_user_id !== session.user_id) {
         const { data: coach } = await supabase
-          .from('users').select('phone_number, name')
+          .from('users').select('phone_number, name, preferred_language')
           .eq('id', session.observer_user_id).single();
-        if (coach && coach.phone_number) { notifyPhone = coach.phone_number; notifyName = coach.name; }
-        else {
+        if (coach && coach.phone_number) {
+          notifyPhone = coach.phone_number; notifyUser = coach; notifyRole = 'coach';
+        } else {
           logToFile('⚠️ photo-gate: could not resolve the coach — advancing silently', {
             sessionId: session.id, observerUserId: session.observer_user_id });
           notifyPhone = null;   // better silent than the wrong person
@@ -1258,19 +1269,46 @@ async function processStuckPhotoGateSessions() {
         skipReflection: true,
       });
 
+      // bd-gc1ge — this one line carried three defects: `${notifyName}` printed
+      // the literal "null" for the 6,282 prod users with no name (and "Hi !" for
+      // the 117 with ''), the copy was hardcoded English to a population that is
+      // 3,045-of-3,209 Urdu, and the date was en-GB regardless of language.
+      //
+      // The language is the NOTIFIED person's own, via the same resolver
+      // resolveMidFlightRecipient uses for this file's other sweep. Deliberately
+      // NOT languageFor(): that resolves through the OBSERVE_FRAMEWORK pack,
+      // which falls back to 'mewaka' when the var is unset on a worker service —
+      // and mewaka's market default is SWAHILI, which is not a language any ICT
+      // teacher reads.
+      const notifyLang = notifyPhone ? observeLang(notifyUser) : null;
+      // Null for a nameless person BY DESIGN (person-name.js), which is why the
+      // catalogue carries a separate no-name SENTENCE rather than a blank slot.
+      const notifyFirstName = notifyPhone ? firstNameOf(notifyUser) : null;
+
       if (notifyPhone && !alreadyNotified) {
-        const dated = ageMs > 24 * 3600 * 1000
-          ? ` from your class on ${new Date(session.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-          : ' from your class recording';
-        await WhatsAppService.sendMessage(
-          notifyPhone,
-          `Hi ${notifyName}! I'm putting together your coaching report${dated} now. 📊`
-        );
+        const dated = ageMs > 24 * 3600 * 1000;
+        const key = `coachingPhotoGateAdvancing${dated ? 'Dated' : ''}${notifyFirstName ? '' : 'NoName'}`;
+        const params = {};
+        if (notifyFirstName) params.name = notifyFirstName;
+        // Localised with the sentence — formatLessonDate is the helper the
+        // teacher PDF, the quiz offer and the report footer already share, and
+        // it is PKT-anchored rather than container-local.
+        if (dated) params.date = formatLessonDate(session.created_at, notifyLang);
+        await WhatsAppService.sendMessage(notifyPhone, resolveUx(key, { language: notifyLang, params }));
       }
 
       advanced++;
       logToFile('✅ Photo-gate session auto-advanced → report', {
-        sessionId: session.id, wasStatus: session.status, notified: !!(notifyPhone && !alreadyNotified) });
+        sessionId: session.id,
+        wasStatus: session.status,
+        notified: !!(notifyPhone && !alreadyNotified),
+        // bd-gc1ge — why "Hi null!" survived to a teacher unseen: this line
+        // recorded THAT a message went out and nothing about whether it could
+        // be addressed. `hasName` is the missing fact. The name and phone are
+        // deliberately NOT logged — this file logs ids only.
+        recipient: notifyRole,
+        hasName: notifyPhone ? !!notifyFirstName : null,
+        lang: notifyLang });
     } catch (err) {
       logToFile('❌ Failed to auto-advance photo-gate session', { sessionId: session.id, error: err.message }, 'error');
     }
@@ -1287,6 +1325,7 @@ module.exports = {
   processStuckPhotoGateSessions,
   processStuckMidFlightSessions,
   processUntappedReports,
+  readUntappedCandidates,
   untappedMaxPerTick,
   processUndeliveredReports,
   readUndeliveredCandidates,

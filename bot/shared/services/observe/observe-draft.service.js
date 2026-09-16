@@ -16,12 +16,12 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
+const { languageFor } = require('./observe-language');
 const { getObservePack } = require('./observe-framework');   // FEAT-093 bd-52 — market rubric by config
 const { logToFile } = require('../../utils/logger');
 const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 
-/** Statuses past which an observation is closed and must not be reopened. */
-const TERMINAL_STATUSES = ['cancelled', 'abandoned'];
+const { TERMINAL_STATUSES, TERMINAL_IN_FILTER, isTerminalStatus } = require('../coaching/session-terminal');
 
 // D15 — full text stays in analysis_data regardless of what the form shows.
 // bd-2217: was 300, which visibly cut every Evidence note mid-sentence (Warda +
@@ -375,15 +375,39 @@ function buildScreenPrefill(analysis, domainKey, language) {
 async function onAnalysisReady(sessionId, from) {
   const session = await loadSession(sessionId);
   const observerId = session.observer_user_id || session.user_id;
-  const lang = observeLang(session.users);
+  // The form is read by the OBSERVER (the recipient resolved below). session.users
+  // is the observed teacher once one is bound, so it is not the reader's language.
+  const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
+
+  // The analysis job outlives a cancel: it was queued before it and lands after.
+  if (isTerminalStatus(session.status)) {
+    logToFile('🚫 observe: analysis ready but the observation is over — not re-armed', {
+      sessionId, status: session.status,
+    });
+    return;
+  }
 
   const update = { status: 'awaiting_observer_review', debrief_status: session.debrief_status || 'pending' };
   if (!session.autofill_analysis_data) {
     update.autofill_analysis_data = session.analysis_data; // freeze v1 exactly once
   }
-  const { error: upErr } = await supabase.from('coaching_sessions').update(update).eq('id', sessionId);
+  // The predicate closes the window the read above cannot: a cancel that lands
+  // between them must not be overwritten by a job that was already running.
+  const { data: armed, error: upErr } = await supabase.from('coaching_sessions')
+    .update(update)
+    .eq('id', sessionId)
+    .not('status', 'in', TERMINAL_IN_FILTER)
+    .select('id');
   if (upErr) logToFile('⚠️ observe: failed to persist review status/freeze', { sessionId, error: upErr.message });
+  // Refuse ONLY on an explicit "no rows matched". Anything else — an error, or a
+  // client that does not hand back a list — leaves the send alone: the read above
+  // already caught the ordinary cancel, and a coach must not lose her form to an
+  // ambiguous write result.
+  if (!upErr && Array.isArray(armed) && armed.length === 0) {
+    logToFile('🚫 observe: observation went terminal while the analysis ran — not re-armed', { sessionId });
+    return;
+  }
 
   // Review fix: never clobber a live debrief-recording state (the FO
   // may be mid-debrief for ANOTHER session when this analysis completes).

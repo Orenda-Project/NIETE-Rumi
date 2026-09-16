@@ -116,6 +116,21 @@ function parseSendButtonId(buttonId) {
   return null;
 }
 
+/**
+ * The preview line names the teacher and her number. A roster row can legitimately
+ * have no name (a number the coach typed), and `_person` normalises an empty name
+ * to null — so "{name} ({phone})" left "Got it —  (+9933…)" with the gap still in
+ * it, in every language. Fill the template, then close any gap the empty name left.
+ */
+function fillPreviewComing(S, name, phone) {
+  return S.send_preview_coming
+    .replace('{name}', String(name || '').trim())
+    .replace('{phone}', `+${phone}`)
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/(—|-)\s+\(/, '$1 (')
+    .replace(/\s+([.,۔])/g, '$1');
+}
+
 function buildSendChoiceButtons(sessionId, S) {
   return {
     body: S.send_choice_body,
@@ -230,7 +245,7 @@ async function startSendFlow(sessionId, from, user) {
       });
       await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
       await WhatsAppService.sendMessage(
-        from, S.send_preview_coming.replace('{name}', picked.name).replace('{phone}', `+${picked.phone}`));
+        from, fillPreviewComing(S, picked.name, picked.phone));
       await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
       logToFile('📤 observe send: bound teacher carried — no pick asked', {
         sessionId, observerId: user.id, recipientSource: 'session_binding',
@@ -416,7 +431,7 @@ async function handleTeacherPick(user, from, listId) {
     });
     await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
     await WhatsAppService.sendMessage(
-      from, S.send_preview_coming.replace('{name}', picked.name).replace('{phone}', `+${picked.phone}`));
+      from, fillPreviewComing(S, picked.name, picked.phone));
     await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
     logToFile('🎯 observe send: recipient chosen from the roster', {
       sessionId, observerId: user.id, recipientSource: 'roster_pick',
@@ -666,7 +681,7 @@ async function handleTeacherDetailsText(user, from, text, observeState) {
     });
     await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
     await WhatsAppService.sendMessage(
-      from, S.send_preview_coming.replace('{name}', parsed.name).replace('{phone}', `+${parsed.phone}`));
+      from, fillPreviewComing(S, parsed.name, parsed.phone));
     await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
   } catch (err) {
     logToFile('❌ observe send: details capture failed', { sessionId, error: err.message });
@@ -1120,6 +1135,7 @@ async function processTeacherReport(sessionId, payload = {}) {
 }
 
 module.exports = {
+  fillPreviewComing,
   reportTemplateConfig,
   listKnownTeachers,
   buildTeacherPickPayload,

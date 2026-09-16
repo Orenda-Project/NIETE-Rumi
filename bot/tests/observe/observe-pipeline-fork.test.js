@@ -41,14 +41,23 @@ const AnalysisProcessor = require('../../shared/services/coaching/analysis-proce
 
 const SESSION_ID = 'sess-observe-1';
 
-/** Chainable supabase stub: .from().select().eq().single() and .from().update().eq() */
+/**
+ * Chainable supabase stub: .from().select().eq().single() and
+ * .from().update().eq().not().select() — bd-n9832 predicated the analysis
+ * completion write away from the terminal statuses (a cancel that lands while
+ * the analysis runs must not reopen the session), so the double has to carry
+ * .not() and answer the trailing .select() with the rows it matched.
+ */
 function stubSupabase(sessionRow) {
   const chain = {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
     update: jest.fn(() => chain),
+    not: jest.fn(() => chain),
     single: jest.fn(async () => ({ data: sessionRow, error: null })),
-    then: undefined,
+    // A write that matched answers with a list, as PostgREST does. Awaiting the
+    // chain must therefore resolve, not hand back the chain object.
+    then: (ok, ko) => Promise.resolve({ data: [{ id: SESSION_ID }], error: null }).then(ok, ko),
   };
   supabase.from = jest.fn(() => chain);
   return chain;

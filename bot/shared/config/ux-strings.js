@@ -290,6 +290,57 @@ const UX_STRINGS = {
     ur: 'آپ کے کوچ اسے آپ کے ساتھ بالمشافہ آگے بڑھائیں گے۔',
   },
 
+  // Shown when a tap arrives for a session that has already been cancelled or
+  // abandoned — a button sent before the cancel is still live in the chat, and
+  // silence there reads as a broken bot. Names the actual state, and says the
+  // recording is not lost, because that is the first thing a coach asks.
+  // A tap on a coaching button whose session row no longer exists at all (not
+  // cancelled — gone). Distinct from coachingSessionCancelled: that one names a
+  // state the coach can act on; this one says the thing is simply not there.
+  coachingSessionNotFound: {
+    en: 'Sorry, I could not find that coaching session.',
+    ur: 'معذرت، مجھے وہ کوچنگ سیشن نہیں ملا۔',
+  },
+  coachingSessionCancelled: {
+    en: '\u{1F6AB} This session was cancelled, so it cannot continue. The recording is saved.',
+    ur: '\u{1F6AB} یہ سیشن منسوخ ہو چکا ہے، اس لیے یہ آگے نہیں بڑھ سکتا۔ ریکارڈنگ محفوظ ہے۔',
+  },
+
+  // ─── photo-gate auto-advance: "your report is being made" (bd-gc1ge) ──────
+  // Sent by the stale-session worker when a session parked at the photo /
+  // lesson-plan gate is swept forward to a report. It was ONE English literal
+  // with the name interpolated raw:
+  //   `Hi ${notifyName}! I'm putting together your coaching report${dated} now.`
+  // which greeted the 6,282 prod users with `name IS NULL` as "Hi null!" and
+  // the 117 with `name = ''` as "Hi !", in English, to a notified population
+  // that is 3,045-of-3,209 Urdu.
+  //
+  // FOUR keys, not one with an optional placeholder: resolveUx throws on a
+  // missing param, and a person with no name needs a different SENTENCE rather
+  // than a hole where a name goes — `firstNameOf` returns null by design, so
+  // swapping in the helper alone would only turn "Hi null!" into "Hi !".
+  //
+  // The Urdu is impersonal ("تیار کی جا رہی ہے"), so it carries no gendered verb
+  // stem for the addressee — this reaches both teachers and coaches. {name} and
+  // {date} are bidi-isolated (LRI…PDI) because a Latin name or an ASCII day
+  // number inside Urdu otherwise reorders the line. Report bodies, not WhatsApp
+  // chrome, so the 1,024 cap applies: longest variant en 96 / ur 104 code points.
+  coachingPhotoGateAdvancing: {
+    en: "Hi {name}! I'm putting together your coaching report from your class recording now. \u{1F4CA}",
+    ur: '⁦{name}⁩، آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
+  },
+  coachingPhotoGateAdvancingNoName: {
+    en: "I'm putting together your coaching report from your class recording now. \u{1F4CA}",
+    ur: 'آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
+  },
+  coachingPhotoGateAdvancingDated: {
+    en: "Hi {name}! I'm putting together your coaching report from your class on {date} now. \u{1F4CA}",
+    ur: '⁦{name}⁩، ⁦{date}⁩ کو ہوئی آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
+  },
+  coachingPhotoGateAdvancingDatedNoName: {
+    en: "I'm putting together your coaching report from your class on {date} now. \u{1F4CA}",
+    ur: '⁦{date}⁩ کو ہوئی آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
+  },
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
   settingsSaved: {
