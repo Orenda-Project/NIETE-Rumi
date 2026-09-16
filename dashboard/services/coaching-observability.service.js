@@ -66,7 +66,6 @@ async function getCoachingSessions(dbClient, page = 1, limit = 10, statusFilter 
       cs.completed_at,
       u.id as user_id,
       u.name,
-      u.name,
       u.phone_number,
       u.school_name
     FROM coaching_sessions cs
