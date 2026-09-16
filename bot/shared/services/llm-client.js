@@ -184,6 +184,47 @@ let _anthropicDirectClient = null;
  * Create a new LLM client configured for the current provider.
  * For OpenRouter, wraps chat.completions.create to auto-prefix model names.
  */
+
+/**
+ * OpenAI is the floor. bd-4uw7n.
+ *
+ * The brief asked for OpenAI to stay behind whatever else we run, and it existed nowhere as a
+ * general property: the direct-Anthropic lane retries the SAME model by a different route,
+ * which covers a route failing and not a supplier failing.
+ *
+ * A prefix map rather than a per-job setting, on purpose. The fallback answers "this supplier
+ * cannot serve us right now", which is a fact about the supplier and not about the job. A
+ * per-job table would be nine places to forget to update.
+ */
+const VENDOR_FALLBACK_MODEL = process.env.LLM_FALLBACK_MODEL || 'openai/gpt-4o';
+
+function fallbackFor(model) {
+  const id = String(model || '');
+  // OpenAI is the floor, so it has nothing behind it. Returning a fallback here would let a
+  // failing OpenAI call retry itself forever.
+  if (!id || id.startsWith('openai/')) return null;
+  if (id === VENDOR_FALLBACK_MODEL) return null;
+  return VENDOR_FALLBACK_MODEL;
+}
+
+/**
+ * The two failures a SECOND SUPPLIER can actually answer.
+ *
+ * Deliberately not "any error". A 400 is our own bad request and retrying it elsewhere just
+ * breaks twice, more slowly. A timeout is already the SDK's retry budget. What a different
+ * supplier genuinely fixes is: this account cannot spend, or this supplier is down.
+ */
+function isSupplierUnusableError(e) {
+  if (!e) return false;
+  const status = e.status != null ? e.status : e.statusCode;
+  if (status === 401 || status === 402 || status === 429) return true;   // cannot spend
+  if (status === 502 || status === 503 || status === 504) return true;   // supplier is down
+  return false;
+}
+
+/** One switch, no deploy. A vendor swap changes what a teacher gets; it must be stoppable. */
+const fallbackDisabled = () => String(process.env.LLM_FALLBACK_OFF || '').trim() === '1';
+
 function createLLMClient() {
   if (PROVIDER === 'openai') {
     // Direct OpenAI — no baseURL override
@@ -219,12 +260,47 @@ function createLLMClient() {
     // (11_cost/evidence/usage_flag.json). Changing a request for no benefit is exactly the
     // risk this whole workstream exists to avoid, so this is logging only.
     const startedAt = Date.now();
-    const response = await originalCreate(params, options);
+    let response;
     try {
-      recordModelCost(params.model, response, startedAt);
-    } catch (_) {
-      // A costing failure must never become a teacher's problem.
+      response = await originalCreate(params, options);
+    } catch (primaryErr) {
+      const to = fallbackDisabled() ? null : fallbackFor(params.model);
+      if (!to || !isSupplierUnusableError(primaryErr)) throw primaryErr;
+
+      const status = primaryErr.status != null ? primaryErr.status : primaryErr.statusCode;
+      const reason = String(primaryErr.message || 'unknown').slice(0, 300);
+      // Two channels, matching the direct lane: a queryable name for a watcher or an Axiom
+      // query, and the human sentence beside it in the same correlation trace. Required at
+      // call time because llm-client is required by almost everything and a top-level require
+      // of the loggers has broken the circular-deps suite before.
+      // eslint-disable-next-line global-require
+      const { logEvent } = require('../utils/structured-logger');
+      // eslint-disable-next-line global-require
+      const { logToFile } = require('../utils/logger');
+      logEvent('llm.vendor_fallback', {
+        from: params.model, to, status: status == null ? null : status, reason,
+      });
+      logToFile('llm-client: supplier unusable, falling back to OpenAI',
+        { from: params.model, to, status: status == null ? null : status, reason }, 'warn');
+
+      try {
+        response = await originalCreate({ ...params, model: to }, options);
+      } catch (fallbackErr) {
+        // BOTH SUPPLIERS FAILED. Whoever reads this needs the FIRST failure as much as the
+        // second: "OpenAI is down" on its own sends the next engineer to the wrong supplier.
+        fallbackErr.cause = fallbackErr.cause || primaryErr;
+        fallbackErr.message = `${fallbackErr.message} (after ${params.model} was unusable: ${reason})`;
+        throw fallbackErr;
+      }
+      // An answer from the fallback must never be mistaken for one from the model that was
+      // asked for, or the whole point of running a different model becomes unmeasurable.
+      if (response && typeof response === 'object') {
+        response.usage = { ...(response.usage || {}), provider_fallback: true, provider_fallback_to: to };
+      }
+      recordModelCost(to, response, startedAt, { fallbackFrom: params.model });
+      return response;
     }
+    recordModelCost(params.model, response, startedAt);
     return response;
   };
 

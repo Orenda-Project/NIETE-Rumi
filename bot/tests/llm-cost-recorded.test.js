@@ -45,7 +45,7 @@ describe('bd-8t362 — the shared client records what a call cost', () => {
       logEvent: (event, payload) => logged.push({ event, payload }),
       logToFile: () => {},
       logger: { info() {}, warn() {}, error() {} },
-    }), { virtual: true });
+    }));
     return require('../shared/services/llm-client');
   };
 
