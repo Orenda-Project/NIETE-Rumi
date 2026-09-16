@@ -37,14 +37,34 @@ function interceptor() {
   return SRC.slice(anchor, SRC.indexOf('PAUSE-AND-RESUME', anchor));
 }
 
+/**
+ * bd-60106 MOVED THE DECISION, NOT THE GUARANTEE. The slash-command check used
+ * to be an inline `trimmedMessage.startsWith('/')` in the interceptor; it now
+ * lives in the pure planner `coaching/reflective-answer-routing`, which the
+ * interceptor calls. So the two contracts below follow it there — and because
+ * the planner is bootable, the escape is now covered BEHAVIOURALLY as well
+ * (`tests/coaching/bd-60106-late-reflective-answer.test.js`), which is stronger
+ * than the source contract this file could manage. The remaining source
+ * contracts stay, because what they pin — the session actually being ENDED, and
+ * free text still reaching the coach — is still handler-side.
+ */
+const {
+  planReflectiveTextRouting,
+  ACTIONS,
+} = require('../../bot/shared/services/coaching/reflective-answer-routing');
+
 describe('bd-2508 — a slash command escapes coaching', () => {
-  it('the interceptor checks for a slash command', () => {
-    expect(interceptor()).toMatch(/startsWith\('\/'\)/);
+  it('a slash command is recognised as an escape, not as a reflective answer', () => {
+    const open = { id: 's1', status: 'conducting_conversation' };
+    expect(planReflectiveTextRouting(open, '/menu').action)
+      .toBe(ACTIONS.END_SESSION_AND_FALL_THROUGH);
+    expect(planReflectiveTextRouting(open, 'my honest reflection').action)
+      .toBe(ACTIONS.RECORD_ANSWER);
   });
 
-  it('it checks BEFORE routing the message to the coach', () => {
+  it('the interceptor asks the planner BEFORE routing the message to the coach', () => {
     const b = interceptor();
-    const guard = b.indexOf("startsWith('/')");
+    const guard = b.indexOf('planReflectiveTextRouting');
     const route = b.indexOf('handleReflectiveResponse');
     // Both must EXIST first — indexOf returns -1 when absent, and -1 is less
     // than any real index, so a naive ordering assertion passes vacuously.
