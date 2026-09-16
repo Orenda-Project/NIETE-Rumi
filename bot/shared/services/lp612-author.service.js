@@ -2636,6 +2636,33 @@ function urduShare(text) {
 }
 
 /**
+ * The same text with its ALL-LATIN parentheticals removed — for SCORING only, never for output.
+ *
+ * bd-y478d: `OVERLAY_MIN_URDU` was set for a whole document, where ninety-odd strings of Urdu
+ * prose drown the handful of English terms of record the language protocol asks for. bd-idneu
+ * then pointed the same gate at a THREE-STRING delta — a chapter, a chapter title and a topic
+ * line — which is precisely the set a science lesson glosses, because that is how a Pakistani
+ * science textbook writes an examinable term: Urdu first, the English beside it in brackets.
+ * Measured on the real model output for `grade_10_biology.c07`, correct teacher-ready Urdu scored
+ * 0.452 and was refused with an error saying it was English.
+ *
+ * Lowering the threshold would have admitted a genuinely English overlay of four Urdu words and
+ * left no number a reviewer could defend. Discounting the glosses instead separates the two cases
+ * outright: the biology delta scores 1.000, a wholly English delta still scores 0.000.
+ *
+ * A parenthetical containing ANY Urdu is left in place and still counted. Urdu inside brackets is
+ * the lesson, not a term of record, and discarding it would re-open the hole this gate exists to
+ * close. Wrapping an English "translation" entirely in brackets strips to nothing, and nothing
+ * scores 0 — so this is a discount, not a bypass.
+ */
+function stripLatinGlosses(text) {
+  return String(text || '').replace(
+    /[(（][^()（）]*[)）]/g,
+    (m) => (new RegExp(URDU_RE.source).test(m) ? m : ' '),
+  );
+}
+
+/**
  * The pass's system prompt. Deliberately SHORT — this is a translation job on strings that have
  * already passed every pedagogical gate, so none of the ~95KB author brief applies, and paying
  * for it again on every Urdu lesson would be most of the cost this bead exists to remove.
@@ -2785,13 +2812,17 @@ async function overlayLessonPlan({
 
   // GATE 1 — is it Urdu at all? Measured over the overlay's own text, because the DOCUMENT is
   // English by construction and would drown the signal.
+  // Scored with all-Latin parentheticals discounted (bd-y478d): the English terms of record the
+  // language protocol REQUIRES must not count as evidence that the translation is English. On a
+  // whole document this changes almost nothing; on a three-string delta it is the whole verdict.
   const joined = Object.values(kept).join(' ');
-  const share = urduShare(joined);
+  const share = urduShare(stripLatinGlosses(joined));
   if (share < OVERLAY_MIN_URDU) {
     throw fail('OVERLAY_NOT_URDU',
-      `the overlay is not Urdu — ${(share * 100).toFixed(1)}% of its letters are Urdu script, `
-      + `and at least ${OVERLAY_MIN_URDU * 100}% is required. An English "translation" renders as `
-      + `the same English page with the row claiming it worked.`,
+      `the overlay is not Urdu — ${(share * 100).toFixed(1)}% of its letters are Urdu script `
+      + `once English terms of record in brackets are discounted, and at least `
+      + `${OVERLAY_MIN_URDU * 100}% is required. An English "translation" renders as the same `
+      + `English page with the row claiming it worked.`,
       { urduShare: share });
   }
 

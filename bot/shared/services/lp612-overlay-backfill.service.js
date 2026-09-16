@@ -36,15 +36,11 @@
  * decision than a repair pass is allowed to take.
  */
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-
 const supabase = require('../config/supabase');
-const { downloadFromR2, uploadBuffer } = require('../storage/r2');
-const { renderLessonPlan } = require('./lp612-render.service');
+const { downloadFromR2 } = require('../storage/r2');
 const Serving = require('./lp612-serving.service');
-const { topUpOverlay, missingOverlayPointers } = require('./lp612-overlay-topup.service');
+const { missingOverlayPointers } = require('./lp612-overlay-topup.service');
+const { repairRow } = require('./lp612-overlay-repair.service');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 
@@ -158,55 +154,6 @@ async function readStoredDoc(docKey) {
   }
 }
 
-/** Everything the overlay pass wants for context, taken from the document being repaired. */
-function segmentFor(row, lpDoc) {
-  const p = (lpDoc && lpDoc.provenance) || {};
-  return {
-    segment_id: row.segment_id,
-    subject: p.subject,
-    grade: p.grade,
-    topic: p.topic,
-    language: p.medium,
-  };
-}
-
-/** Repair one row, all the way back onto its own objects. Throws; the caller records and moves on. */
-async function repairRow(row, lpDoc, { model, correlationId }) {
-  const { pdfKey, docKey } = backfillKeysFor(row);
-
-  const up = await topUpOverlay({
-    lpDoc, segment: segmentFor(row, lpDoc), model, correlationId,
-  });
-  if (!up.toppedUp) return { repaired: false, reason: up.reason };
-
-  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), `lp612-backfill-${row.segment_id}-`));
-  try {
-    const rendered = await renderLessonPlan({
-      lpDoc: up.doc,
-      lang: row.lang,
-      stem: row.segment_id,
-      outDir,
-      correlationId,
-      segmentId: row.segment_id,
-      phase: 'backfill',
-    });
-
-    // Document first — see the header. A crash between these two writes must leave the repaired
-    // document under a stale PDF, never a repaired PDF over a stale document.
-    await uploadBuffer(Buffer.from(JSON.stringify(up.doc), 'utf8'), docKey, 'application/json');
-    await uploadBuffer(fs.readFileSync(rendered.pdfPath), pdfKey, 'application/pdf');
-
-    const { error } = await supabase.from(RENDERS)
-      .update({ page_count: rendered.pageCount, updated_at: new Date().toISOString() })
-      .eq('id', row.id);
-    if (error) throw new Error(`row ${row.id}: patch failed after upload — ${error.message}`);
-
-    return { repaired: true, added: up.added, pageCount: rendered.pageCount, usage: up.usage };
-  } finally {
-    try { fs.rmSync(outDir, { recursive: true, force: true }); } catch { /* temp dir */ }
-  }
-}
-
 /**
  * Walk the cached Urdu renders and repair the ones missing the pointers bd-x3dn6 added.
  *
@@ -235,6 +182,11 @@ async function backfillUrduOverlays({
     scanned: 0,
     wouldRepair: 0,
     repaired: 0,
+    // Of the repaired, how many went back over a page cap or with a degraded render (bd-0t9ce).
+    // They ARE repaired — the product delivers them — but a run that cannot report how many is a
+    // run nobody can judge.
+    overCap: 0,
+    degraded: 0,
     skipped: {},
     failed: [],
     aborted: false,
@@ -259,13 +211,23 @@ async function backfillUrduOverlays({
       }
 
       summary.wouldRepair += 1;
-      summary.rows.push({
-        segmentId: row.segment_id, action: 'repair', missing: verdict.missing,
-      });
+      const entry = { segmentId: row.segment_id, action: 'repair', missing: verdict.missing };
+      summary.rows.push(entry);
 
       if (!dryRun) {
-        const res = await repairRow(row, lpDoc, { model, correlationId });
-        if (res.repaired) summary.repaired += 1; else skip(res.reason);
+        const res = await repairRow(row, lpDoc, { model, correlationId, keys: backfillKeysFor(row) });
+        if (res.repaired) {
+          summary.repaired += 1;
+          // bd-0t9ce: a repair that ships an over-cap or degraded lesson says so on its own row.
+          // The caps moved on 2026-09-11 for a reason, and a pass that silently refills them would
+          // be unreadable from its own summary. Counted too, so the answer is one number, not a scan.
+          if (res.overCap) { entry.overCap = true; summary.overCap += 1; }
+          if (res.degraded) {
+            entry.degraded = true;
+            entry.degradedBy = res.degradedBy;
+            summary.degraded += 1;
+          }
+        } else skip(res.reason);
       }
       consecutive = 0;
     } catch (e) {

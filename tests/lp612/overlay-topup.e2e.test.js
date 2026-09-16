@@ -163,6 +163,32 @@ describe('the topped-up document is one the renderer will accept', () => {
     expect(html).toContain(UR_TOPIC);
     expect(html).not.toContain(doc().provenance.topic);
   });
+
+  test('a SCIENCE delta that glosses its terms in Latin brackets reaches the teacher — bd-y478d', async () => {
+    // The canary's real refusal. Every Latin run here is a gloss of the Urdu term beside it, which
+    // is how a Pakistani science textbook writes an examinable term — and what §7b asks for. Scored
+    // whole, three such strings are 45.2% Urdu letters and gate 1 called them an English page.
+    const stored = storedDoc();
+    const missing = missingOverlayPointers(stored);
+    const UR_TOPIC = 'قانون علیحدگی (Law of Segregation) اور دو ہائبرڈ تراکیب (Dihybrid Cross)';
+    create.mockResolvedValue(reply({
+      ...Object.fromEntries(missing.map((p) => [p, 'باب ۷ — وراثت (Inheritance)'])),
+      '/provenance/topic': UR_TOPIC,
+    }));
+
+    const out = await topUpOverlay({ lpDoc: stored, segment: SEGMENT });
+
+    expect(out.toppedUp).toBe(true);
+    expect(out.added.sort()).toEqual([...missing].sort());
+
+    // The teacher's side: the Urdu term AND its English gloss both survive to the page. Stripping
+    // is a scoring rule — it must never reach the text the renderer draws.
+    const { doc: applied, errors } = applyOverlay(out.doc, 'ur');
+    expect(errors).toEqual([]);
+    const { html } = buildHtml(applied, { docDir: path.dirname(BASE), lang: 'ur' });
+    expect(html).toContain(UR_TOPIC);
+    expect(html).toContain('Law of Segregation');
+  });
 });
 
 describe('the pass refuses the cases where topping up is the wrong operation', () => {
