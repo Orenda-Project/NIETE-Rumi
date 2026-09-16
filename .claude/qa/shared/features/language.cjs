@@ -16,7 +16,7 @@ const hasFooter = t => /change anytime/.test(t) && /کسی بھی وقت تبد�
 const CONFIRM_EN = 'Language set to English. I will now respond in English.';
 // Free text is swallowed by awaiting_menu_selection (left by any /menu) and by coaching AWAITING_CLASSROOM_AUDIO. Enter Ask
 // Anything first so a free-text reply is an AI answer, not the "choose an option (1-4)" nudge (contaminated LANG10/12 on pass 4).
-const enterAskAnything = async (api) => { await api.sendWait('/menu'); await api.openList('View Features'); await api.pickRowAndWait('Ask Anything'); };
+const enterAskAnything = async (api) => { await api.sendWait('/menu'); await api.openList('See what I do'); await api.pickRowAndWait('Ask Anything'); };
 
 exports.run = async ({ api, rec, sleep }) => {
   const t = () => Date.now();
@@ -85,7 +85,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // LANG14 — /menu on an Urdu account (@known-issue: renders English)
   s = t();
   r = await api.sendWait('/menu');
-  const menuList = r.btns.length ? await api.openList(r.btns.find(b => /View Features|فیچرز/.test(b)) || r.btns[0]) : { rows: [], all: '' };
+  const menuList = r.btns.length ? await api.openList(r.btns.find(b => /See what I do|فہرست دیکھیں/.test(b)) || r.btns[0]) : { rows: [], all: '' };
   const menuEnglish = latinOnly(r.txt) && latinOnly(menuList.all);
   rec('LANG14', '/menu renders English on an Urdu account (@known-issue — PASS here means the leak persists)',
       ...V(menuEnglish, { card: r.txt.slice(0, 80), opener: r.btns, rows: menuList.rows, allEnglish: menuEnglish }), t() - s);

@@ -23,26 +23,26 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # ═══════════════════════════ POSITIVE (happy path) ═══════════════════════════
 
   @e2e @menu @copy @P1
-  Scenario: /menu renders the card and exactly the 4 ICT feature rows
+  Scenario: /menu renders the role-aware feature card for a teacher
     Given the NIETE bot chat is open
     When I send "/menu"
-    Then the message header is "Here's what I can do!"
-    And the list opener button is labelled "View Features"
-    When I open the "View Features" list
-    Then the feature list shows exactly these rows:
-      | Teacher Training   |
+    Then the message header is "Here's what I can do"
+    And the list opener button is labelled "See what I do"
+    When I open the "See what I do" list
+    Then the feature list includes these teacher rows:
       | Lesson Plans       |
       | Classroom Coaching |
+      | Teacher Training   |
       | Ask Anything       |
-    # MERGED 2026-08-19: was two scenarios ("shows exactly the 4 ICT feature rows"
-    # + "header + opener use the expected copy") repeating the same /menu trigger and
-    # state. Consolidated per the anti-redundancy rule — one flow, both assertions.
-    # Carries @copy because the header/opener lines are exact strings: a fail on those
-    # two Then steps is a copy change, not a structural bug. Check WHICH step failed
-    # before filing — the row list is the structural contract, the copy is not.
-    # Verified live on PROD (2026-08-04): header "Here's what I can do!", opener
-    # "View Features" (whatsapp.service.js:1881,1890); exactly these 4 rows
-    # (whatsapp.service.js:1897-1921).
+    # UPDATED 2026-09-16 (78406d1e "menu: role-aware layouts, and every row reaches a
+    # door"): the menu is now role-aware. Button "View Features" -> "See what I do",
+    # the header dropped its "!", and the TEACHER layout offers up to ten rows —
+    # lesson plans, coaching, training, attendance, my classes, quiz, test paper,
+    # student videos, change language, ask anything — ordered by seven-day usage.
+    # The exact set is role- AND config-gated (a feature with no Flow has no row), so
+    # this asserts the CORE teacher rows are PRESENT, not an exact list — the copy
+    # (header/opener) is exact, the full row list is not. Source of truth:
+    # bot/shared/config/role-features.js + ux-strings.js menuRow*Title / menuButton.
 
   # ═══════════════════════════════ EDGE cases ══════════════════════════════════
 
@@ -50,7 +50,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   Scenario: /menu is case-insensitive
     Given the NIETE bot chat is open
     When I send "/MENU"
-    Then the "View Features" menu is shown with the 4 ICT rows
+    Then the "See what I do" menu is shown with the core teacher rows
     # text-message.handler.js:1495 matches messageBody.toLowerCase() === '/menu',
     # so "/MENU" / "/Menu" open the menu too.
 
@@ -59,7 +59,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Given the NIETE bot chat is open
     And I am mid-way through a feature (e.g. after choosing Classroom Coaching)
     When I send "/menu"
-    Then the "View Features" menu is shown again with the 4 ICT rows
+    Then the "See what I do" menu is shown again with the core teacher rows
     # /menu is a universal re-entry/escape from any state — the bot's own copy
     # tells teachers to "type /menu" to leave a flow (text-message.handler.js:1259;
     # escape handling at :1495, :2195, :2215). Observed live 2026-08-04.
@@ -68,7 +68,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   Scenario: Sending /menu repeatedly is idempotent
     Given the NIETE bot chat is open
     When I send "/menu" twice in a row
-    Then each send returns a fresh "View Features" menu with no error
+    Then each send returns a fresh "See what I do" menu with no error
     # Observed live 2026-08-04: repeated /menu just re-sends the list; the
     # awaiting_menu_selection state is overwritten each time (menu.service.js:35-42).
 
@@ -76,7 +76,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   Scenario: /menu with surrounding whitespace still opens the menu (client trims)
     Given the NIETE bot chat is open
     When I send " /menu " with leading and trailing spaces
-    Then the "View Features" menu is shown with the 4 ICT rows
+    Then the "See what I do" menu is shown with the core teacher rows
     # Verified live on PROD (2026-08-04): WhatsApp Web TRIMS leading/trailing
     # whitespace before sending, so the bot receives "/menu" and opens the menu.
     # NB a latent server gap remains — text-message.handler.js:1495 matches the
@@ -89,7 +89,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   Scenario: A bare "menu" (no slash) does not open the interactive menu
     Given the NIETE bot chat is open
     When I send "menu"
-    Then the bot does NOT show the "View Features" list (it replies conversationally)
+    Then the bot does NOT show the "See what I do" list (it replies conversationally)
     # Only "/menu" — or the exact WhatsApp ice-breaker "show menu - see all features
     # i can help with" (text-message.handler.js:386) — opens the list. Bare "menu"
     # falls through to the AI/general handler.
@@ -100,7 +100,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   Scenario: The Ask Anything menu row opens general help
     Given the NIETE bot chat is open
     When I send "/menu"
-    And I open the "View Features" list
+    And I open the "See what I do" list
     And I tap the "Ask Anything" row
     Then the bot replies with "How can I help you today?"
     # Verified live on PROD (2026-08-04): menu.service.js:391 (_handleOtherChoice)
@@ -139,8 +139,9 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # A non-activated teacher instead gets a /portal/setup/<token> link
     # (portal-invite.service.js:62).
 
-  @e2e @config-gated @P3
+  @obsolete @config-gated @P3
   Scenario: /settings degrades gracefully when the Settings Flow is not configured
+    # OBSOLETE 2026-09-16 (operator): removed from the E2E lane — its precondition (SETTINGS_FLOW_ID unset) cannot be met on any reachable env here, so it only ever SKIPped; the degrade path stays covered by unit tests. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open
     When I send "/settings"
     Then the bot reply contains "not available"
@@ -201,7 +202,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Given the NIETE bot chat is open
     And my role is "principal"
     When I send "/menu"
-    And I open the "View Features" list
+    And I open the "See what I do" list
     Then the feature list shows exactly these rows:
       | Teacher Training   |
       | Lesson Plans       |
@@ -214,7 +215,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Given the NIETE bot chat is open
     And my role is "coach"
     When I send "/menu"
-    And I open the "View Features" list
+    And I open the "See what I do" list
     Then the feature list shows exactly these rows:
       | Teacher Training  |
       | Lesson Plans      |
@@ -227,8 +228,8 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Given the NIETE bot chat is open
     And my role is "teacher"
     When I send "/menu"
-    And I open the "View Features" list
-    Then the feature list shows exactly the 4 ICT rows
+    And I open the "See what I do" list
+    Then the feature list shows the core teacher rows
     And the feature list does NOT show "Observe a Teacher"
 
   @e2e @menu @role @negative @P2

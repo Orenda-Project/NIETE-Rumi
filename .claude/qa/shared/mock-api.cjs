@@ -294,6 +294,24 @@ function makeMockApi(opts) {
         return { ok: true, out: out.trim().split('\n').slice(-2).join(' | ') };
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 200) }; }
     },
+    /** Set the driver's mutable identity on the sandbox DB so a role- or persona-based suite can drive
+     *  every layout on the ONE shared driver. The bot reads these fresh per message (getOrCreateUser /
+     *  preferred_language), so the change takes on the next send. The HARNESS snapshots the driver
+     *  before the feature and restores it after (feature-runner), so a driver never has to clean up —
+     *  call setUser/setRole freely. Generic: any column, e.g. {role,preferred_language,language_locked}. */
+    async setUser(patch) {
+      trace('setUser ' + Object.keys(patch || {}).join(','));
+      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
+      try {
+        const res = await fetch(`${url}/rest/v1/users?phone_number=eq.${driver}`, { method: 'PATCH',
+          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(patch) });
+        await new Promise((r) => setTimeout(r, 400));   // let the write settle before the next inbound message
+        return { ok: res.ok, status: res.status };
+      } catch (e) { return { ok: false, err: String(e.message).slice(0, 120) }; }
+    },
+    async setRole(role) { return this.setUser({ role }); },
     /** Attach a file the way the CDP driver does via Attach → <menu item>. The menu item picks the
      *  WhatsApp kind (Document / Photos & videos / Audio); the mock registers the bytes so the bot's
      *  downloadMedia() fetches them back through the Graph API, exactly as with Meta. */

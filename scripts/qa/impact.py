@@ -358,7 +358,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
         return "\n".join(L)
     v = res["verdict"]
     L += ["Range `%s`" % res["range"], "",
-          "| Feature | Pulled in by | Gherkin spec | E2E run recorded |", "|---|---|---|---|"]
+          "| Feature | Pulled in by | Gherkin spec | E2E run recorded | Cassette |", "|---|---|---|---|---|"]
     for name in res["features"]:
         f = res["per_feature"][name]
         via = "shared file only" if f["only_shared"] else ", ".join("`%s`" % os.path.basename(p) for p in f["changed_files"][:3])
@@ -369,15 +369,23 @@ def render_markdown(res, freshness="warn", proof="warn"):
             spec += " — _%s_" % f["spec_reason"]
         if f["spec_status"] == "stale":
             spec += " — `%s.feature` unchanged" % name
+        # E2E-run cell answers only "did the mock run for this commit" (+ any regression note).
         proof_cell = "%s %s" % (_icon(f["e2e_proof"]), f["e2e_proof"])
-        cm = (res.get("cassette_misses") or {}).get(name)
-        if cm:
-            proof_cell += "<br>📼 %d missing — %s record" % (cm, _cassette_owner())
         note = _regression_note(f.get("regression"))
         if note:
             proof_cell += "<br>%s" % note
-        L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (
-            name, f["scenario_count"], via, spec, proof_cell))
+        # Cassette is its OWN column: a miss is a fixture-recording gap, not the run failing, so it
+        # never sits in the E2E cell (where it read like a CRITICAL break). ✅ recorded once a run
+        # landed and every vendor answer replayed; — when no run recorded (nothing to say yet).
+        cm = (res.get("cassette_misses") or {}).get(name)
+        if cm:
+            cassette_cell = "📼 %d missing — %s record" % (cm, _cassette_owner())
+        elif f["e2e_proof"] != "missing":
+            cassette_cell = "✅ recorded"
+        else:
+            cassette_cell = "—"
+        L.append("| **%s** (%d scenarios) | %s | %s | %s | %s |" % (
+            name, f["scenario_count"], via, spec, proof_cell, cassette_cell))
     L += ["", "**Spec freshness: %s** (mode: %s) · **E2E proof: %s** (mode: %s)" % (
         v["spec_freshness"], freshness, v["e2e_proof"], proof), ""]
     regressed = regressed_features(res)
@@ -397,7 +405,14 @@ def render_markdown(res, freshness="warn", proof="warn"):
               "`python3 .claude/qa/shared/validate_specs.py --only %s`." % ",".join(stale), "",
               "If the change genuinely alters no teacher-visible behaviour, say so where this check can read it — a commit trailer",
               "or a line in the PR body:", "", "```", "Spec-Sync: %s=none-needed (<why>)" % ",".join(stale), "```", ""]
-    L += _drive_block(res)
+    # The how-to-drive block is a fix instruction: show it ONLY when something is actionable — a stale
+    # spec, an un-recorded E2E run, or missing cassettes. On a fully-green range the developer already
+    # drove it (that is what "recorded" means), so the block is noise — collapse it to one line.
+    actionable = v["spec_freshness"] == "stale" or v.get("e2e_proof") == "missing" or bool(res.get("cassette_misses"))
+    if actionable:
+        L += _drive_block(res)
+    else:
+        L += ["✅ Nothing to drive — specs synced and the E2E run is recorded for this range.", ""]
     if res["fallback"]:
         L += ["> ⚠️ Unmapped in-scope files pulled in the SAFE subset: %s — add them to `feature-map.yaml`." % ", ".join("`%s`" % u for u in res["unmapped"]), ""]
     if res["full_suite"]:
