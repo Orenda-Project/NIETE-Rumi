@@ -264,6 +264,11 @@ function createLLMClient() {
   client.chat.completions.create = async (params, options) => {
     const fallbackModel = params.fallbackModel || null;
     if (params.fallbackModel) { params = { ...params }; delete params.fallbackModel; }
+    // The job rides in beside the fallback and is stripped the same way. Spend without it is
+    // one undifferentiated total: you can see the platform got more expensive and not which
+    // feature did it, which is the only question worth asking about cost per child. bd-9b58p.
+    const job = params.job || null;
+    if (params.job) { params = { ...params }; delete params.job; }
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
@@ -294,7 +299,10 @@ function createLLMClient() {
       logEvent('llm.vendor_fallback', {
         from: params.model, to, status: status == null ? null : status, reason,
       });
-      logToFile('llm-client: supplier unusable, falling back to OpenAI',
+      // Says WHICH supplier, because it is no longer always OpenAI: bd-4uw7n froze a fallback
+      // per job, so this lands on Gemini for roster extraction and transcript quizzes. A
+      // hardcoded vendor name here sends whoever is on call to the wrong supplier's status page.
+      logToFile(`llm-client: supplier unusable, falling back to ${to}`,
         { from: params.model, to, status: status == null ? null : status, reason }, 'warn');
 
       try {
@@ -311,10 +319,10 @@ function createLLMClient() {
       if (response && typeof response === 'object') {
         response.usage = { ...(response.usage || {}), provider_fallback: true, provider_fallback_to: to };
       }
-      recordModelCost(to, response, startedAt, { fallbackFrom: params.model });
+      recordModelCost(to, response, startedAt, { fallbackFrom: params.model, job });
       return response;
     }
-    recordModelCost(params.model, response, startedAt);
+    recordModelCost(params.model, response, startedAt, { job });
     return response;
   };
 
@@ -402,7 +410,7 @@ function buildDirectLaneClient(directModel, ctx) {
       // bd-8t362: this lane never touched the OpenRouter wrapper, so lesson-plan authoring,
       // the job with the largest spend here, recorded nothing while its own fallback did.
       // The facade has already worked out a real price, cache multipliers and all.
-      recordModelCost(directModel, mapped, startedAt, { lane: 'anthropic-direct' });
+      recordModelCost(directModel, mapped, startedAt, { lane: 'anthropic-direct', job: context.job || null });
       return mapped;
     } catch (e) {
       if (!isCreditClassError(e)) throw e;
@@ -498,12 +506,18 @@ function getClientForModel(model, ctx) {
   // bd-4uw7n: a caller that names its job gets the ladder armed with THAT job's frozen
   // fallback. One that does not keeps today's behaviour.
   const fallbackModel = resolveJobFallback(ctx && ctx.job);
-  if (!fallbackModel) return { client: getClient(), model: id };
+  const job = (ctx && ctx.job) || null;
+  // Nothing to wrap: no job named AND no fallback to arm. Behaves exactly as before.
+  if (!fallbackModel && !job) return { client: getClient(), model: id };
   const base = getClient();
   return {
     model: id,
     client: { chat: { completions: {
-      create: (params, options) => base.chat.completions.create({ ...params, fallbackModel }, options),
+      // A job whose frozen fallback is null (lp.author, lp.fidelity, hcp.feedback) still gets
+      // wrapped, because it still needs its spend attributed. `fallbackModel: null` arms
+      // nothing -- the wrapper already treats a null `to` as "no net" and rethrows.
+      create: (params, options) => base.chat.completions.create(
+        { ...params, fallbackModel, job }, options),
     } } },
   };
 }
