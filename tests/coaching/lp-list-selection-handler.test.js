@@ -146,7 +146,7 @@ describe('late re-selection is honest (bd-2kxxa.4)', () => {
     };
   }
 
-  it.each(['observer_review_complete', 'completed', 'cancelled'])(
+  it.each(['observer_review_complete', 'completed'])(
     'T1 status=%s: linker NOT called, honest reply, "linked" NOT sent',
     async (status) => {
       const { deps, calls } = build(status);
@@ -157,6 +157,20 @@ describe('late re-selection is honest (bd-2kxxa.4)', () => {
       expect(calls.sent).toEqual(['lessonPlan_review_submitted']);
     },
   );
+
+  // A CANCELLED session is a different state from a submitted review, and since
+  // bd-87p7s/bd-n9832 it is named as such (Rule 24(d)): the tap is refused with the
+  // catalogue's cancelled sentence, not the review-submitted one, and nothing is
+  // linked, recomputed or queued.
+  it('T1 status=cancelled: linker NOT called, the CANCELLED sentence, "linked" NOT sent', async () => {
+    const { resolveUx } = require('../../bot/shared/config/ux-strings');
+    const { deps, calls } = build('cancelled');
+    expect(await handleLpListSelection(TAP, '92300', deps)).toBe(true);
+    expect(calls.linked).toBe(0);
+    expect(calls.recomputed).toBe(0);
+    expect(calls.queued).toBe(0);
+    expect(calls.sent).toEqual([resolveUx('coachingSessionCancelled', { language: 'en' })]);
+  });
 
   it('T2 status=awaiting_observer_review: links, says "linked" only AFTER the linker, recomputes', async () => {
     const { deps, calls } = build('awaiting_observer_review');

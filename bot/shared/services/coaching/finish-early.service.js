@@ -43,7 +43,7 @@ async function handleFinishCoachingTap({ sessionId, from, user }) {
     .maybeSingle();
 
   if (!session) {
-    await WhatsAppService.sendMessage(from, 'Sorry, I could not find that coaching session.');
+    await WhatsAppService.sendMessage(from, resolveUx('coachingSessionNotFound', { language: lang }));
     return false;
   }
 

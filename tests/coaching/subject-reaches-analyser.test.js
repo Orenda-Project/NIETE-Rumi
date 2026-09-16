@@ -20,7 +20,8 @@ jest.mock('../../bot/shared/config/supabase', () => {
     const builder = {
       select: jest.fn(() => builder),
       update: jest.fn((patch) => { persisted.push(patch); return builder; }),
-      eq: jest.fn(() => builder),
+      eq: jest.fn(() => builder), not: jest.fn(() => builder), // .not: the terminal guard's predicate (bd-n9832)
+      
       gte: jest.fn(() => builder),
       in: jest.fn(() => builder),
       order: jest.fn(() => builder),
