@@ -1554,7 +1554,7 @@ async function batchQueryUsers(userIds, country) {
 
       let query = supabase
         .from('users')
-        .select('id, phone_number, name, last_message_at')
+        .select('id, phone_number, name, last_message_at, preferred_language')
         .eq('registration_completed', true)
         .not('phone_number', 'is', null)
         .in('id', batch);
@@ -1594,11 +1594,20 @@ async function getUsersForBroadcast(filters = {}) {
       return [];
     }
 
+    // bd-ikkpf: NO registration_completed filter here, deliberately.
+    // The flag records completion of the in-bot registration Flow — on NIETE
+    // production it is true for 472 of 15,006 teachers, while 0 teachers lack a
+    // phone number. It is a product-funnel signal, not reachability and not
+    // consent, so re-filtering on it silently discards most of a cohort the
+    // operator chose by id: it cut the Grades 6-12 LP broadcast from 498
+    // teachers to 19, and the count-equality check in index.js then rejected the
+    // send outright. Filter mode below KEEPS the flag — there it is the
+    // operator's stated intent. The phone_number check stays: a row with no
+    // phone cannot be sent to.
     const { data, error } = await supabase
       .from('users')
-      .select('id, phone_number, name, last_message_at')
+      .select('id, phone_number, name, last_message_at, preferred_language')
       .in('id', userIds)
-      .eq('registration_completed', true)
       .not('phone_number', 'is', null);
 
     if (error) throw new Error(`Search mode user lookup failed: ${error.message}`);
@@ -1638,7 +1647,7 @@ async function getUsersForBroadcast(filters = {}) {
       } else {
         let query = supabase
           .from('users')
-          .select('id, phone_number, name, last_message_at')
+          .select('id, phone_number, name, last_message_at, preferred_language')
           .eq('registration_completed', true)
           .not('phone_number', 'is', null)
           .in('id', userIds);
@@ -1655,7 +1664,7 @@ async function getUsersForBroadcast(filters = {}) {
       // No user ID filter (all users)
       let query = supabase
         .from('users')
-        .select('id, phone_number, name, last_message_at')
+        .select('id, phone_number, name, last_message_at, preferred_language')
         .eq('registration_completed', true)
         .not('phone_number', 'is', null);
 
@@ -1864,7 +1873,11 @@ async function updateBroadcastMessage(broadcastId, userId, updates) {
 async function getPendingBroadcastMessages(broadcastId) {
   const { data, error } = await supabase
     .from('broadcast_messages')
-    .select('id, user_id, phone_number')
+    // bd-1zyqf: the embed reads the teacher's language as it is NOW, on the
+    // resume, not as it was when the broadcast was enqueued. Teacher-addressed
+    // text always reads the current preference at send time. Rides the existing
+    // broadcast_messages.user_id -> users.id FK, so no migration.
+    .select('id, user_id, phone_number, users(preferred_language)')
     .eq('broadcast_id', broadcastId)
     .eq('status', 'pending');
 
