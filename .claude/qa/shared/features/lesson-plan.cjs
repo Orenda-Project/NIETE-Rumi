@@ -80,7 +80,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // and refuse to score a nudge as a fallback.
   s = t();
   await api.sendWait('/menu');
-  await api.openList('View Features');
+  await api.openList('See what I do');
   await api.pickRowAndWait('Ask Anything');
   api.resetConversation();   // clean history → the open-chat prompt is deterministic → cassette replays
   r = await api.sendWait('make me a lesson plan for grade 4 science on the water cycle', 120000);

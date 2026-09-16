@@ -181,7 +181,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // ══ COA01 — the menu row asks for a classroom recording ═══════════════════
   s = t();
   await api.sendWait('/menu');
-  await api.openList('View Features');
+  await api.openList('See what I do');
   const row = await api.pickRowAndWait('Classroom Coaching');
   const rowTxt = row.txt || '';
   rec('COA01', 'The Classroom Coaching menu row asks for a classroom recording',
