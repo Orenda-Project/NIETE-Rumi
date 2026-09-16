@@ -924,38 +924,14 @@ app.post('/webhook', async (req, res) => {
         await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
-        logToFile('📸 User will send classroom photo', { sessionId, from });
-
-        // bd-3ipd2: MERGE conversation_state (don't clobber existing fields).
-        const { data: yesSession } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state')
-          .eq('id', sessionId)
-          .maybeSingle();
-        await supabase
-          .from('coaching_sessions')
-          .update({
-            conversation_state: { ...(yesSession?.conversation_state || {}), current_state: 'AWAITING_CLASSROOM_PHOTO' },
-            status: 'awaiting_classroom_photo'
-          })
-          .eq('id', sessionId);
-        // R165: the tap names the observation — remember it so the
-        // photo that follows binds HERE, not to the coach's newest session.
-        try {
-          await require('./shared/services/coaching/media-target.service').setTarget(user.id, sessionId, 'photo');
-        } catch (targetErr) {
-          logToFile('⚠️ media-target: could not record photo target (non-fatal)', { sessionId, error: targetErr.message });
-        }
-
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('preferred_language')
-          .eq('id', user.id)
-          .maybeSingle();
-        const lang = userRow?.preferred_language || 'en';
-        // bd-8s2xb — board first; the scorer reads what is written on it (catalog string, Rule 20).
-        const msg = require('./shared/config/ux-strings').resolveUx('coachingPhotoSendNow', { language: lang });
-        await WhatsAppService.sendMessage(from, msg);
+        // One owner for landing on the classroom-photo step: it merges
+        // conversation_state, takes the language from the TAPPER, re-points the
+        // media target at this observation, and REFUSES a session that has
+        // already been cancelled. This write used to sit here inline with no
+        // status read, which is how "Yes" revived a cancelled observation while
+        // its sibling "No" on the same message correctly refused (bd-n9832).
+        const { advanceToClassroomPhotoStep } = require('./shared/services/coaching/classroom-photo/photo-yes.service');
+        await advanceToClassroomPhotoStep({ sessionId, from, tapperUserId: user && user.id });
       }
       // bd-u35ex: the classroom-photo collection (image-message.handler.js Phase 3)
       // sends "Add another / Done" buttons (photo_more_ / photo_done_) after each
@@ -991,48 +967,12 @@ app.post('/webhook', async (req, res) => {
       // Stale session reminder buttons - Finish and get partial report
       else if (buttonId.startsWith('coaching_finish_')) {
         const sessionId = buttonId.replace('coaching_finish_', '');
-        logToFile('📊 User clicked Finish on stale session reminder', { sessionId, from });
-
-        // Fetch session to get progress
-        const { data: session } = await supabase
-          .from('coaching_sessions')
-          .select('conversation_state')
-          .eq('id', sessionId)
-          .single();
-
-        if (session) {
-          const questionsAnswered = session.conversation_state?.questions_answered || 0;
-
-          // Update state to mark as user-requested early completion
-          await supabase
-            .from('coaching_sessions')
-            .update({
-              status: 'generating_report',
-              conversation_state: {
-                ...session.conversation_state,
-                current_state: 'USER_REQUESTED_EARLY_COMPLETION',
-                early_completion_at: new Date().toISOString(),
-                questions_at_completion: questionsAnswered
-              }
-            })
-            .eq('id', sessionId);
-
-          // Queue report generation with partial flag
-          const CoachingJobQueueService = require('./shared/services/coaching/coaching-job-queue.service');
-          await CoachingJobQueueService.queueReport(sessionId, {
-            from,
-            partial: questionsAnswered < 3,
-            userRequestedEarly: true
-          });
-
-          const progressMsg = questionsAnswered > 0
-            ? `Got it! I'll generate your report based on the ${questionsAnswered} reflection${questionsAnswered > 1 ? 's' : ''} you provided. 📊`
-            : `Got it! I'll generate your report based on your classroom audio analysis. 📊`;
-
-          await WhatsAppService.sendMessage(from, progressMsg);
-        } else {
-          await WhatsAppService.sendMessage(from, 'Sorry, I could not find that coaching session.');
-        }
+        // The body lives in finish-early.service so it can be executed by a test
+        // and so the status write goes through the shared terminal guard. This
+        // button is the TWIN of coaching_continue_ on the very same reminder
+        // message, and only the twin was guarded (bd-n9832).
+        const { handleFinishCoachingTap } = require('./shared/services/coaching/finish-early.service');
+        await handleFinishCoachingTap({ sessionId, from, user });
       }
       // Vocabulary comprehension button answers
       else if (buttonId.startsWith('vocab_answer_')) {

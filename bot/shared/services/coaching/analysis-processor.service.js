@@ -451,7 +451,11 @@ class AnalysisProcessorService {
       // Update database — merge reflective_corpus into analysis_data when present.
       // Also persist the framework provenance (which key + why it was chosen)
       // so downstream analytics can audit selection paths without re-computing.
-      await supabase
+      // bd-n9832: the analysis job outlives a cancel. observe's arming write
+      // got this predicate in #1008; the ordinary coaching analysis write did
+      // not, so a cancelled session was reopened at 'analysis_complete'.
+      const { TERMINAL_IN_FILTER } = require('./session-terminal');
+      const { data: analysisArmed } = await supabase
         .from('coaching_sessions')
         .update({
           analysis_data: {
@@ -496,7 +500,16 @@ class AnalysisProcessorService {
           framework: frameworkKey,
           framework_selection_reason: frameworkSelectionReason,
         })
-        .eq('id', coachingSessionId);
+        .eq('id', coachingSessionId)
+        .not('status', 'in', TERMINAL_IN_FILTER)
+        .select('id');
+      // Refuse only on an explicit "no rows matched" (#1008's rule): an error,
+      // or a client that hands back no list, must not cost a live session its
+      // analysis.
+      if (Array.isArray(analysisArmed) && analysisArmed.length === 0) {
+        logToFile('🚫 analysis finished but the session is over — not reopened', { coachingSessionId });
+        return;
+      }
 
       // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16/bd-19) — leader
       // observations NEVER auto-flow to the reflective conversation or the teacher
