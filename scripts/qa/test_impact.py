@@ -283,6 +283,52 @@ def test_unknown_range_is_reported_not_crashed():
     shutil.rmtree(r)
 
 
+def test_cassette_status_is_a_separate_column_from_the_e2e_run():
+    """A cassette miss is a fixture-RECORDING gap, not the run failing, so it must not live in the
+    'E2E run recorded' cell (where it reads like the mock run itself broke). It gets its own
+    'Cassette' column; the E2E cell answers only 'did the mock run for this commit'."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 13, "passed": 11, "failed": 1, "blocked": 0, "skipped": 1},
+           "cassette": {"mode": "replay-strict", "misses": 2, "scenarios_affected": ["M08", "M09"]}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    md = ci.render_markdown(res, "warn", "warn")
+    header = next(l for l in md.splitlines() if l.startswith("| Feature |"))
+    assert "Cassette" in header, header
+    menu_row = next(l for l in md.splitlines() if l.startswith("| **menu**"))
+    cells = [c.strip() for c in menu_row.split("|")]
+    # cells: ['', feature, pulled-in-by, gherkin, e2e-run, cassette, '']
+    assert len(cells) >= 7, cells
+    e2e_cell, cassette_cell = cells[4], cells[5]
+    assert "📼" not in e2e_cell, "E2E-run cell must not carry the cassette miss: %r" % e2e_cell
+    assert "📼" in cassette_cell and "2" in cassette_cell and "@mah-noor1" in cassette_cell, cassette_cell
+    shutil.rmtree(r)
+
+
+def test_cassette_column_shows_recorded_when_a_run_has_no_misses():
+    """When the mock run recorded and every cassette replayed, the Cassette column says so (✅),
+    it is not left blank — so a reader can tell 'recorded & complete' from 'never ran'."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "y", "ts": "2026-09-15T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "HEALTHY",
+           "summary": {"total": 18, "passed": 18, "failed": 0, "blocked": 0, "skipped": 0},
+           "cassette": {"mode": "replay-strict", "misses": 0}}
+    head = commit(r, "feat(menu)+clean",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    md = ci.render_markdown(res, "warn", "warn")
+    menu_row = next(l for l in md.splitlines() if l.startswith("| **menu**"))
+    cells = [c.strip() for c in menu_row.split("|")]
+    assert "📼" not in cells[5], cells[5]
+    assert "✅" in cells[5], "a recorded-and-complete run should show ✅ in the Cassette column: %r" % cells[5]
+    shutil.rmtree(r)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
