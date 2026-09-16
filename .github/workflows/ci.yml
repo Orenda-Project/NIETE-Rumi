@@ -18,8 +18,15 @@ name: CI
 # guards under `tests/setup/`. Re-record with `npm run test:baseline:update` if so.
 on:
   push:
+    # `develop` was retired 2026-09-09 and deploys nowhere. Do not re-add it:
+    # branch-guard fails on a retired branch name ANYWHERE in this list, not
+    # only in first position.
     branches: [main, staging, sandbox]
   pull_request:
+    # Same list as the push trigger above, and it must stay that way: a PR
+    # whose BASE branch is missing here never runs `lint` or `test`, and
+    # `lint` is a REQUIRED check on staging — so the PR sits blocked for
+    # ever on a check that can never report.
     branches: [main, staging, sandbox]
   workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
