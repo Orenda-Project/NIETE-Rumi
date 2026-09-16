@@ -210,6 +210,54 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # coaching-session.service.js handleConfirmation:110 — cancel → status cancelled,
     # localized exitedNoAudio. (Counterpart to the "Yes, Analyze" pipeline scenario.)
 
+  @e2e @wip @draft @negative @P1
+  Scenario: A button left behind by a cancelled coaching session is refused on every tap
+    Given the NIETE bot chat is open
+    And I declined analysis, so my coaching session is cancelled
+    And the earlier "Yes" photo prompt, "Continue" and "Get Report Now" buttons are still visible in the chat
+    When I tap any one of those old buttons
+    Then the bot replies "🚫 This session was cancelled, so it cannot continue. The recording is saved."
+    And the session stays cancelled — no photo step opens, nothing is written, no report is queued
+    # session-terminal.js refuseTapIfTerminal / updateIfNotTerminal (bd-87p7s, bd-n9832):
+    # ONE owner for every tap that used to revive a cancelled session — photo_yes_,
+    # coaching_confirm_, coaching_continue_, coaching_finish_, the LP list pick and the
+    # LP step. Before, "Yes" on the photo prompt re-opened a cancelled observation
+    # while its sibling "No" refused. Copy: ux-strings coachingSessionCancelled.
+
+  @e2e @wip @draft @negative @P2
+  Scenario: The reflective question still arrives as text when its voice note cannot be sent
+    Given the NIETE bot chat is open
+    And my coaching analysis has reached the reflective step (3/5)
+    When the voice note carrying the question fails to send
+    Then the same question arrives in the chat as a text message
+    And the session waits for my answer exactly as it would after the voice note
+    # reflective-conversation.service.js (bd-dsx0c): sendAudio's false return used to be
+    # ignored, so a failed voice note left the teacher waiting for a question that never
+    # came. Now: voice → on false, the question text → delivery recorded as voice/text/none.
+
+  @e2e @wip @draft @content-driven @P2
+  Scenario: An English-account teacher's reflective question is written in English
+    Given the NIETE bot chat is open
+    And my account language is English
+    When my coaching analysis reaches the reflective step (3/5)
+    Then the question is written in English, even when the recording is in Urdu
+    # reflective-questions/question-prompt.js englishOnlyBlock (bd-g851l): the prompt used
+    # to let the transcript's language leak into the question; for language === 'English'
+    # it now instructs English regardless of what was spoken in class.
+
+  @e2e @wip @draft @negative @P2
+  Scenario: The report-preparation greeting never calls a teacher "null"
+    Given the NIETE bot chat is open
+    And my account has no saved name
+    When my coaching report starts being prepared from my recording
+    Then the bot says "I'm putting together your coaching report from your class recording now. 📊"
+    And a teacher WITH a saved name is greeted "Hi <name>! …" in the same sentence
+    And either form is in the teacher's own language
+    # stale-session.worker.js + coaching + remark surfaces (bd-gc1ge): the greeting was a
+    # raw `Hi ${session.users.name}!`, which read "Hi null!" for every nameless account
+    # (6,282 on prod) and "Hi !" for the 117 blank ones — and always in English. Copy:
+    # ux-strings photoGateGreeting / photoGateGreetingNameless (+ dated variants).
+
   @e2e @wip @draft @config-gated @negative @P2
   Scenario: A screenshot sent as a classroom photo is kept out of both scorers
     Given the NIETE bot chat is open

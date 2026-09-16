@@ -294,6 +294,30 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # photo-prompt.service.js:17-28, lp-selection-list.service.js:34-79. "Yes, Analyze" /
     # "Long Lesson Detected" / report-delivery chrome are English. @slow: full pipeline is 10+ min.
 
+  @e2e @wip @draft @language @config-gated @P1
+  Scenario: A coach reads the observation flow in the COACH's language, not the observed teacher's
+    Given the NIETE bot chat is open as a COACH whose language is English
+    And I am observing a teacher whose account language is Urdu
+    When I drive the observation from recording through debrief to the finished report
+    Then every line addressed to me — the lesson-plan acknowledgement, the draft-form wrapper, the praise line, the coach card and the report chrome — is in English
+    And the report the TEACHER receives is in Urdu
+    # observe stack languageFor('coach', session) reads observer_user_id (bd-6cttp, bd-f24d4).
+    # On a bound observation the session's user_id is the TEACHER, so five coach-facing
+    # surfaces used to follow the teacher's language. A teacher's own coaching session
+    # still follows the teacher. Needs an Urdu teacher + an English coach; BLOCKED (state)
+    # on the shared English driver.
+
+  @e2e @wip @draft @language @negative @P2
+  Scenario: A refusal for a cancelled session is worded in my language
+    Given the NIETE bot chat is open
+    And my account language is Urdu
+    And a coaching session of mine was cancelled but its old buttons are still in the chat
+    When I tap one of those buttons
+    Then the bot replies "🚫 یہ سیشن منسوخ ہو چکا ہے، اس لیے یہ آگے نہیں بڑھ سکتا۔ ریکارڈنگ محفوظ ہے۔"
+    # ux-strings coachingSessionCancelled resolved per preferred_language (bd-rw4so). The
+    # confirm-tap refusal used to select the session without its users join, so
+    # preferred_language was always undefined and the sentence floored to English.
+
   # ═══════════════ F. DESIGN-DECISION CONTRACTS (guard-style, from OPS-118) ══════════════
 
   @e2e @language @P2
