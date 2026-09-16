@@ -30,4 +30,70 @@ function isTerminalStatus(status) {
   return TERMINAL_STATUSES.includes(String(status || ''));
 }
 
-module.exports = { TERMINAL_STATUSES, TERMINAL_IN_FILTER, isTerminalStatus };
+/**
+ * Refuse a tap that arrives for an observation that is already over.
+ *
+ * Every late-tap path had its own copy of "read the status, send a sentence,
+ * log, stop" — and the two that did NOT have a copy are exactly the two that
+ * revived a cancelled observation (`photo_yes_`, `coaching_finish_`). One
+ * owner now holds it, so a new tap handler gets the behaviour by calling this
+ * rather than by remembering to re-implement it.
+ *
+ * Requires are lazy on purpose: this module is a leaf that the WhatsApp and
+ * supabase graphs themselves reach, and a top-level require here would close a
+ * cycle.
+ *
+ * @param {{ sessionId: string, from: string, language?: string, tap: string }} args
+ * @returns {Promise<boolean>} true when the tap was refused and nothing was written
+ */
+async function refuseTapIfTerminal({ sessionId, from, language, tap }) {
+  const supabase = require('../../config/supabase');
+  const { data } = await supabase
+    .from('coaching_sessions')
+    .select('status')
+    .eq('id', sessionId)
+    .maybeSingle();
+  if (!data || !isTerminalStatus(data.status)) return false;
+
+  const WhatsAppService = require('../whatsapp.service');
+  const { resolveUx, clampLanguage } = require('../../config/ux-strings');
+  const { logToFile } = require('../../utils/logger');
+  // clampLanguage is the catalog's own floor (Rule 20) — never an inline || 'en'.
+  await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language: clampLanguage(language) }));
+  logToFile(`\u{1F6AB} ${tap} refused \u2014 the observation is over`, { sessionId, status: data.status });
+  return true;
+}
+
+/**
+ * Write to a session ONLY while it is not terminal, in one statement, so an
+ * in-process check and the write cannot drift apart across an await.
+ *
+ * The refusal rule is #1008's, deliberately: refuse only on an explicit "no
+ * rows matched". An error, or a client that does not hand back a list, counts
+ * as applied — the caller's own read already catches the ordinary cancel, and a
+ * coach must not lose her session to an ambiguous write result.
+ *
+ * @param {string} sessionId
+ * @param {object} fields
+ * @returns {Promise<{applied: boolean, ambiguous: boolean, error: string|null}>}
+ */
+async function updateIfNotTerminal(sessionId, fields) {
+  const supabase = require('../../config/supabase');
+  const { data, error } = await supabase
+    .from('coaching_sessions')
+    .update(fields)
+    .eq('id', sessionId)
+    .not('status', 'in', TERMINAL_IN_FILTER)
+    .select('id');
+  if (error) return { applied: true, ambiguous: true, error: error.message };
+  if (Array.isArray(data) && data.length === 0) return { applied: false, ambiguous: false, error: null };
+  return { applied: true, ambiguous: !Array.isArray(data), error: null };
+}
+
+module.exports = {
+  TERMINAL_STATUSES,
+  TERMINAL_IN_FILTER,
+  isTerminalStatus,
+  refuseTapIfTerminal,
+  updateIfNotTerminal,
+};

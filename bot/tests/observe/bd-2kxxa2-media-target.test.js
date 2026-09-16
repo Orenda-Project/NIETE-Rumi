@@ -433,9 +433,16 @@ describe('whatsapp-bot.js wiring (source)', () => {
     return src.slice(s, e);
   };
 
-  test('photo_yes_<sid> records a photo target', () => {
+  test('photo_yes_<sid> dispatches to the guarded photo-step owner', () => {
     const block = slice(SRC, "buttonId.startsWith('photo_yes_')", "buttonId.startsWith('photo_done_')");
-    expect(block).toMatch(/setTarget\(\s*user\.id\s*,\s*sessionId\s*,\s*'photo'\s*\)/);
+    // bd-n9832: the tap no longer writes the status, or records the target,
+    // inline here — the whole body moved into photo-yes.service so the write is
+    // terminal-guarded AND the branch is executable by a test. The target
+    // behaviour is asserted against the REAL service in
+    // tests/observe/bd-n9832-cancelled-stays-cancelled-taps.test.js, because a
+    // source-text assertion cannot tell whether the code actually runs.
+    expect(block).toMatch(/advanceToClassroomPhotoStep\(\s*\{[^}]*sessionId/);
+    expect(block).not.toMatch(/status:\s*'awaiting_classroom_photo'/);
   });
 
   test('lessonplan_yes_<sid> (buttons prompt) records an lp target', () => {
