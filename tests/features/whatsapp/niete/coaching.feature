@@ -104,6 +104,22 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # was 3). The question is delivered as a voice note (ElevenLabs); after one answer
     # → contextual acknowledgement → queue report.
 
+  @e2e @wip @draft @P2
+  Scenario: A report built without the reflection never claims a total of three questions
+    Given the NIETE bot chat is open
+    And my coaching analysis has reached the reflective step (3/5)
+    When I ask for the report instead of answering the question
+    Then the report note says it is based on the classroom audio alone
+    And no part of the report offers a reflection total of three
+    # buildPartialNote in report-transformers/_shared.js — the note the FICO, HOTS
+    # and TEACH transformers render, i.e. the one a teacher here actually reads —
+    # plus oecd-report-transformer.js's own copy, both now read reflectionProgress,
+    # so the denominator is NUM_REFLECTIVE_QUESTIONS. Both hardcoded "/3" for two
+    # months after the debrief was cut to one question, so a teacher who had
+    # answered the only question she would ever be asked was told her report
+    # covered "1/3 reflective responses" and that "full insights require completing
+    # all reflection questions".
+
   @e2e @content-driven @P2
   Scenario: Coaching feedback is delivered as a branded hero-report image
     Given the NIETE bot chat is open
