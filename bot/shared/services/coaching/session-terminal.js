@@ -81,7 +81,7 @@ async function updateIfNotTerminal(sessionId, fields) {
   const supabase = require('../../config/supabase');
   const { data, error } = await supabase
     .from('coaching_sessions')
-    .update(fields)
+    .update({ ...fields })
     .eq('id', sessionId)
     .not('status', 'in', TERMINAL_IN_FILTER)
     .select('id');

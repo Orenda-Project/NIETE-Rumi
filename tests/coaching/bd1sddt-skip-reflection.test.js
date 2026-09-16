@@ -20,7 +20,8 @@ jest.mock('../../bot/shared/config/supabase', () => {
   const builder = {
     select: jest.fn(() => builder),
     update: jest.fn(() => builder),
-    eq: jest.fn(() => builder),
+    eq: jest.fn(() => builder), not: jest.fn(() => builder), // .not: the terminal guard's predicate (bd-n9832)
+    
     single: jest.fn(() => Promise.resolve({ data: global.__BD1SDDT_SESSION, error: null })),
     maybeSingle: jest.fn(() => Promise.resolve({ data: { users: { preferred_language: 'en' } }, error: null })),
     then: (resolve) => resolve({ data: null, error: null }),

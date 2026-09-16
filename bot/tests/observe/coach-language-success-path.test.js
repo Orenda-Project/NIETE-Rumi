@@ -96,7 +96,7 @@ describe('the debrief success path', () => {
       sendMessage: jest.fn(async (to, text) => { sent.push({ kind: 'text', to, text }); return true; }),
       sendImageFromBuffer: jest.fn(async (to, buf, caption) => { sent.push({ kind: 'image', to, caption }); return true; }),
       sendInteractiveButtons: jest.fn(async (to, p) => { sent.push({ kind: 'buttons', to, p }); return true; }),
-      downloadMedia: jest.fn(async () => Buffer.from('audio')),
+      downloadMedia: jest.fn(async () => Buffer.from('fake audio data')),
     }));
     jest.doMock('../../shared/services/observe/observe-coach-card', () => ({
       renderCoachCard: jest.fn(async (fb, opts) => { cardCalls.push(opts); return Buffer.from('png'); }),
