@@ -114,6 +114,25 @@
               <div id="content-warnings" class="mt-2 hidden">
                 <p class="text-sm text-amber-600"></p>
               </div>
+
+              <div class="mt-4">
+                <label for="templateName" class="block text-sm font-medium text-gray-700 mb-2">
+                  Approved template name <span class="font-normal text-gray-500">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="templateName"
+                  name="templateName"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
+                  placeholder="leave blank to submit the message above as a new template"
+                />
+                <p class="text-sm text-gray-500 mt-1">
+                  Name a template already approved on the WhatsApp account to send that
+                  instead. Each teacher receives it in their own language, for every
+                  language the template is approved in. <strong>It sends immediately</strong> —
+                  there is no approval wait. The message above is still recorded in the audit log.
+                </p>
+              </div>
             </div>
 
             <!-- Preview -->
@@ -908,7 +927,12 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      if (!confirm('Are you sure you want to submit this broadcast for approval?')) {
+      const templateNameValue = document.getElementById('templateName').value.trim();
+      const confirmMessage = templateNameValue
+        ? `This sends IMMEDIATELY using the approved template "${templateNameValue}" — there is no approval step. Continue?`
+        : 'Are you sure you want to submit this broadcast for approval?';
+
+      if (!confirm(confirmMessage)) {
         return;
       }
 
@@ -920,7 +944,8 @@
         const requestBody = {
           message: messageInput.value,
           recipientMode: currentRecipientMode,
-          adminPassword: document.getElementById('adminPassword').value
+          adminPassword: document.getElementById('adminPassword').value,
+          templateName: document.getElementById('templateName').value
         };
 
         if (currentRecipientMode === 'filter') {
