@@ -17,12 +17,14 @@ const path = require('path');
 describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
   let attempts;
   let logged;
+  let sentParams;
   let failWith;
 
   const load = (env = {}) => {
     jest.resetModules();
     attempts = [];
     logged = [];
+    sentParams = [];
     failWith = null;
     Object.assign(process.env, {
       OPENROUTER_API_KEY: 'k', LLM_PROVIDER: 'openrouter',
@@ -32,6 +34,7 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
       constructor() {
         this.chat = { completions: { create: async (params) => {
           attempts.push(params.model);
+          sentParams.push(params);
           if (failWith && attempts.length === 1) throw failWith;
           return { model: params.model, usage: { prompt_tokens: 1, completion_tokens: 1 },
                    choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }] };
@@ -57,7 +60,7 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
   it('falls back to OpenAI when the account cannot spend', async () => {
     const { getClient } = load();
     failWith = err(402, 'insufficient credits');
-    const res = await getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [] });
+    const res = await getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [], fallbackModel: 'openai/gpt-4o' });
     expect(attempts).toEqual(['anthropic/claude-sonnet-5', 'openai/gpt-4o']);
     expect(res.usage.provider_fallback).toBe(true);
   });
@@ -65,22 +68,52 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
   it('falls back when the supplier is down', async () => {
     const { getClient } = load();
     failWith = err(503, 'upstream unavailable');
-    await getClient().chat.completions.create({ model: 'google/gemini-2.5-flash', messages: [] });
+    await getClient().chat.completions.create({ model: 'google/gemini-2.5-flash', messages: [], fallbackModel: 'openai/gpt-4o' });
     expect(attempts[1]).toBe('openai/gpt-4o');
+  });
+
+  it('never lets fallbackModel reach the vendor', async () => {
+    // It is our own field, not an API one. OpenRouter rejecting an unknown key would turn a
+    // safety net into an outage, so it is stripped before the request goes out.
+    const { getClient } = load();
+    await getClient().chat.completions.create({
+      model: 'anthropic/claude-sonnet-5', messages: [], fallbackModel: 'openai/gpt-4o',
+    });
+    expect(sentParams[0].fallbackModel).toBeUndefined();
+    expect(Object.keys(sentParams[0]).sort()).toEqual(['messages', 'model']);
+  });
+
+  it('arms from the job when a caller names one', () => {
+    const { getClientForModel } = load();
+    const { client } = getClientForModel('anthropic/claude-opus-5', { job: 'quiz.transcript' });
+    expect(client).toBeDefined();
+    // quiz.transcript's frozen fallback is the Google model it runs today, NOT gpt-4o
+    const { fallbackForJob } = require('../shared/config/model-registry');
+    expect(fallbackForJob('quiz.transcript')).toBe('google/gemini-2.5-flash');
+  });
+
+  it('does not arm at all when the caller names no job', async () => {
+    // getClient() alone keeps today's behaviour. The ladder needs a job, because the fallback
+    // is a fact about the job and there is nothing honest to guess.
+    const { getClient } = load();
+    failWith = err(503, 'upstream unavailable');
+    await expect(getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [] }))
+      .rejects.toThrow('upstream unavailable');
+    expect(attempts).toEqual(['anthropic/claude-sonnet-5']);
   });
 
   it('does NOT fall back on our own bad request', async () => {
     const { getClient } = load();
     failWith = err(400, 'invalid parameter');
-    await expect(getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [] }))
+    await expect(getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [], fallbackModel: 'openai/gpt-4o' }))
       .rejects.toThrow('invalid parameter');
     expect(attempts).toEqual(['anthropic/claude-sonnet-5']);
   });
 
-  it('never falls back from OpenAI to itself, which would be a loop', async () => {
+  it('never falls back to the model that just failed, which would be a loop', async () => {
     const { getClient } = load();
     failWith = err(503);
-    await expect(getClient().chat.completions.create({ model: 'openai/gpt-4o', messages: [] }))
+    await expect(getClient().chat.completions.create({ model: 'openai/gpt-4o', messages: [], fallbackModel: 'openai/gpt-4o' }))
       .rejects.toThrow();
     expect(attempts).toEqual(['openai/gpt-4o']);
   });
@@ -88,7 +121,7 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
   it('says so in a queryable event, because a silent vendor swap is worse than none', async () => {
     const { getClient } = load();
     failWith = err(402, 'insufficient credits');
-    await getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [] });
+    await getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [], fallbackModel: 'openai/gpt-4o' });
     const hit = logged.find((l) => l.event === 'llm.vendor_fallback');
     expect(hit).toBeDefined();
     expect(hit.payload.from).toBe('anthropic/claude-sonnet-5');
@@ -99,7 +132,7 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
   it('can be switched off without a deploy', async () => {
     const { getClient } = load({ LLM_FALLBACK_OFF: '1' });
     failWith = err(503);
-    await expect(getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [] }))
+    await expect(getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [], fallbackModel: 'openai/gpt-4o' }))
       .rejects.toThrow();
     expect(attempts).toEqual(['anthropic/claude-sonnet-5']);
   });
@@ -127,7 +160,7 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
     const { getClient } = require('../shared/services/llm-client');
     // Whoever reads this needs the FIRST failure as much as the second: "OpenAI is down" alone
     // sends the next engineer to the wrong supplier.
-    await expect(getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [] }))
+    await expect(getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [], fallbackModel: 'openai/gpt-4o' }))
       .rejects.toThrow(/no credit/);
     expect(attempts).toEqual(['anthropic/claude-sonnet-5', 'openai/gpt-4o']);
   });
@@ -135,7 +168,7 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
   it('records the cost of the attempt that actually answered', async () => {
     const { getClient } = load();
     failWith = err(402);
-    await getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [] });
+    await getClient().chat.completions.create({ model: 'anthropic/claude-sonnet-5', messages: [], fallbackModel: 'openai/gpt-4o' });
     const costs = logged.filter((l) => l.event === 'api.cost.incurred');
     expect(costs.length).toBe(1);
     expect(costs[0].payload.model).toBe('openai/gpt-4o');
