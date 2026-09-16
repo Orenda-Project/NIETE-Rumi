@@ -449,7 +449,17 @@ function buildDirectLaneClient(directModel, ctx) {
       // reported it as credit-funded would make the whole point of this lane unmeasurable, and
       // would tell the operator his balance was draining when it was not.
       if (res && typeof res === 'object') {
-        res.usage = { ...(res.usage || {}), provider_fallback: true, provider_fallback_to: to };
+        // bd-4uw7n: keep the DEEPER answer. getClient() is now wrapped, so this call can
+        // itself have fallen through to OpenAI. Stamping `to` unconditionally would relabel a
+        // lesson OpenAI wrote as one Claude wrote, which is exactly the reporting this lane's
+        // own comment says must never happen.
+        const already = res.usage && res.usage.provider_fallback_to;
+        res.usage = {
+          ...(res.usage || {}),
+          provider_fallback: true,
+          provider_fallback_to: already || to,
+          ...(already ? { provider_fallback_via: to } : {}),
+        };
       }
       return res;
     }

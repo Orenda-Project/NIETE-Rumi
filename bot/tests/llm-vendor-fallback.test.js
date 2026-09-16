@@ -141,3 +141,31 @@ describe('bd-4uw7n — OpenAI stays behind the other vendors', () => {
     expect(costs[0].payload.model).toBe('openai/gpt-4o');
   });
 });
+
+/**
+ * bd-4uw7n, found in review — the two ladders meet, and the deeper one must win the label.
+ *
+ * The direct-Anthropic lane's own fallback calls getClient(), which is now the WRAPPED client.
+ * So a call can descend three tiers: direct Anthropic, then the same model via OpenRouter, then
+ * OpenAI. That is good, and it was accidental rather than designed, so it needs pinning.
+ *
+ * What is NOT good is what the direct lane does afterwards. It stamps
+ * `provider_fallback_to: <the OpenRouter Anthropic model>` onto the response unconditionally,
+ * which overwrites the wrapper's own stamp. A lesson actually authored by OpenAI would be
+ * reported as authored by Claude. That lane's own comment says why that matters: "THE LESSON
+ * MUST SAY WHERE IT WAS AUTHORED... would make the whole point of this lane unmeasurable".
+ */
+describe('bd-4uw7n — when both ladders fire, the answer still says who wrote it', () => {
+  it('does not let the outer lane relabel an answer the inner ladder got from OpenAI', () => {
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../shared/services/llm-client.js'), 'utf8');
+    const lane = /function buildDirectLaneClient[\s\S]*?\n\}/.exec(src)[0];
+    // The stamp must not be unconditional: a fallback_to already on the response is the
+    // deeper, truer one and has to survive. So the lane has to READ what is there before it
+    // writes, and prefer it.
+    expect(lane).toMatch(/res\.usage\.provider_fallback_to/);
+    expect(lane).toMatch(/provider_fallback_to:\s*already\s*\|\|\s*to/);
+    // and the route it went through is still recorded, just not as the author
+    expect(lane).toMatch(/provider_fallback_via/);
+  });
+});
