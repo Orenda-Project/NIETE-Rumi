@@ -55,7 +55,7 @@ Measured over four consecutive runs. Node v22.23.1, Jest 29.7.0.
 |---|---|
 | Total suites | 415 |
 | Total tests | 4,784 |
-| Stable failing suites | **30** |
+| Stable failing suites | **27** |
 | Flaky failing suites | **4** (listed below, not gating) |
 | Failing tests | 91–93 (varies with the flaky ones) |
 | Suites that fail to *load* | **0** |
@@ -68,7 +68,7 @@ they made the real backlog look twice its size.
 
 ### Stable failures — fail on every run
 
-**Conformance guards (14).** These audit the repo, not behaviour: schema ↔ code
+**Conformance guards (13).** These audit the repo, not behaviour: schema ↔ code
 drift, circular requires, unresolved requires, hardcoded brand names and URLs,
 `.env.template` completeness, internal ticket refs in shipped source, markdown link
 integrity. They fail because the codebase moved and the allowlists were not
@@ -83,7 +83,6 @@ tests/setup/flow-config-conformance.test.js
 tests/setup/link-integrity.test.js
 tests/setup/no-hardcoded-bot-name.test.js
 tests/setup/no-hardcoded-brand-urls.test.js
-tests/setup/no-undefined-whatsapp-methods.test.js
 tests/setup/schema-completeness.test.js
 tests/setup/source-hygiene.test.js
 tests/setup/table-usage-conformance.test.js
@@ -92,7 +91,7 @@ tests/setup/validate-flows.test.js
 tests/unit/sprint-1/taleemabad-strip.test.js
 ```
 
-**Behavioural failures (16).** These assert things about shipped behaviour that no
+**Behavioural failures (14).** These assert things about shipped behaviour that no
 longer hold. Each one is a real finding, not harness debt.
 
 ```
@@ -100,11 +99,9 @@ tests/assessment-gen/portal-assessment-endpoint.test.js
 tests/coaching/bd-h9gnk-midflight-watchdog.test.js
 tests/coaching/document-audio-routing.test.js
 tests/coaching/fico-framework-ict.test.js
-tests/coaching/fico-framework.test.js
 tests/coaching/framework-registry.test.js
 tests/coaching/lp-coaching-link.test.js
 tests/coaching/reflective-v12-question-chain.test.js
-tests/handlers/text-message-lp-keyword.test.js
 tests/observe/bd-5n1a2-resolve-teacher-empty-school.test.js
 tests/quiz/lp-shelf.test.js
 tests/student-videos/student-videos-flow.test.js
@@ -127,10 +124,25 @@ The highest-signal four, if you are picking one up:
 - `training/portal-level-unlock-logic` — the portal returns `locked` where the bot
   returns `not_started` for an `all_modules` vendor.
 
-Two of these assert by **reading source files and regex-matching them**
-(`bd-h9gnk`'s worker-wiring case, `text-message-lp-keyword`). Those break on any
-behaviour-preserving refactor. Convert them to behavioural assertions when you next
-touch that code.
+One of these asserts by **reading a source file and regex-matching it**
+(`bd-h9gnk`'s worker-wiring case). Those break on any behaviour-preserving refactor.
+Convert them to behavioural assertions when you next touch that code.
+`text-message-lp-keyword` was the other, and it is green again — see the note below.
+
+**Three suites left this list on 2026-09-16 (bd-kkjj9).** `coaching/fico-framework`,
+`handlers/text-message-lp-keyword` and `setup/no-undefined-whatsapp-methods` pass on
+pristine `origin/sandbox` and were deleted from the snapshot along with 93 offenders
+and 23 accepted test failures that no longer occur. Nobody announced the fixes, which
+is the point of computing the baseline rather than reading it: a snapshot that is
+stale in the *shrinking* direction quietly hands back gating the repo had already
+earned.
+
+**What did NOT go in.** Five suites are red on pristine `origin/sandbox` and are
+deliberately absent from the snapshot, so the gate stays red until they are fixed:
+`coaching/observe-draft-uptake-record`, `config/ux-strings`, `lp612/direct-lane-native`,
+`setup/language-single-source`, `whatsapp/send-image-from-url`. Each was traced to the
+commit that caused it and filed separately. Admitting them would have been exactly the
+"a red suite is not a licence to add to it" move the gate exists to refuse.
 
 ### Flaky — pass or fail depending on the run
 
@@ -274,7 +286,7 @@ The fix is to fold them into `00_complete-schema.sql`, not to broaden `SCHEMA_PA
 widening it would teach the guard to accept functions a fresh install never receives,
 which is the opposite of what it is for.
 
-**Known-failing is not the same as acceptable.** The 30 above are debt with a
+**Known-failing is not the same as acceptable.** The 27 above are debt with a
 deadline, not a new normal. The rule is that the snapshot may only ever **shrink**.
 
 ---
@@ -311,9 +323,12 @@ diff, not in the pass/fail.
 Improvements are reported and never gate: fewer offenders, fewer failing tests, or a
 suite going green are all clean.
 
-The snapshot is [`tests/baseline.snapshot.json`](baseline.snapshot.json) — 30 failing
-suites, matching the counts recorded above (the flaky three are pruned from it by
-`--update`, so a flaky suite can never be baked in as an accepted failure). Its own logic is covered by
+The snapshot is [`tests/baseline.snapshot.json`](baseline.snapshot.json) — **25 failing
+suites, 49 accepted test failures, 1,014 offenders** as re-pinned on 2026-09-16
+(the flaky ones are pruned from it by `--update`, so a flaky suite can never be baked
+in as an accepted failure). It holds fewer suites than the 27 listed above because the
+flaky pruning and the per-run sample differ; the lists above are the narrative, the
+snapshot is the gate. Its own logic is covered by
 [`tests/setup/baseline-gate.test.js`](setup/baseline-gate.test.js), including a test
 that pins the offender-level case specifically.
 
