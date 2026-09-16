@@ -250,13 +250,42 @@ describe('every string comes from the catalog and fits WhatsApp\'s limits', () =
     for (const lang of ['en', 'ur']) expect(cps(UX_STRINGS[key][lang])).toBeLessThanOrEqual(1024);
   });
 
-  test('no inline language ternary was added to the service', () => {
+  /**
+   * EVERY file the survey lives in, discovered — not one path spelled out (bd-2dpco).
+   *
+   * The guard below used to name `lp612-feedback.service.js` alone. That was correct while the
+   * survey was one file; the moment it was split it would have gone on passing while covering a
+   * third of the code, which is the quietest way a guard dies. Globbing the prefix means a future
+   * split is covered the day it lands, and a rename that escapes the prefix fails the count
+   * assertion rather than silently emptying the list.
+   */
+  const SERVICE_DIR = require('path').resolve(__dirname, '../../bot/shared/services');
+  const surveyFiles = require('fs')
+    .readdirSync(SERVICE_DIR)
+    .filter((f) => /^lp612-feedback.*\.js$/.test(f))
+    .sort();
+
+  test('the glob finds every file the survey lives in', () => {
+    expect(surveyFiles.length).toBeGreaterThan(0);
+    expect(surveyFiles).toContain('lp612-feedback.service.js');
+  });
+
+  test.each(surveyFiles)('%s stays inside the 300-line limit', (f) => {
+    // Root rules — 300 lines, and "splits > abstractions". A survey that schedules, sends,
+    // handles two different taps and consumes a free-text window is four jobs; it reads as one
+    // file only until someone has to change one of them.
+    const lines = require('fs').readFileSync(require('path').join(SERVICE_DIR, f), 'utf8')
+      .split('\n').length;
+    expect(lines).toBeLessThanOrEqual(300);
+  });
+
+  test.each(surveyFiles)('%s carries no inline language ternary', (f) => {
     // Root CLAUDE.md rule 20 — one catalog, one writer. The two older survey services carry
     // inline `language === 'ur' ? … : …` maps and this one deliberately does not; copying the
     // pattern in for Q2 would put five new strings outside the code-point gate.
     // Comment lines are stripped first: the file's own header NAMES the anti-pattern in prose.
     const code = require('fs')
-      .readFileSync(require.resolve('../../bot/shared/services/lp612-feedback.service.js'), 'utf8')
+      .readFileSync(require('path').join(SERVICE_DIR, f), 'utf8')
       .split('\n')
       .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))
       .join('\n');
