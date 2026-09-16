@@ -10,6 +10,7 @@
 
 const axios = require('axios');
 const queries = require('../database/queries');
+const { isOffered, DEFAULT_LANGUAGE } = require('../../bot/shared/config/languages');
 
 // Environment configuration
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -160,6 +161,64 @@ function maskPhoneNumber(phone) {
 }
 
 /**
+ * The language codes this service puts on the wire.
+ *
+ * DELIBERATELY the registry's offer codes ('en'/'ur'), NOT templateCodeFor() —
+ * which maps 'en' to 'en_US' because that is how the BOT's own templates were
+ * approved on its account. createBroadcastTemplate() below registers this
+ * service's templates as 'en', and Meta hard-fails a send whose language does
+ * not match an approved variant instead of falling back. Creation and send must
+ * therefore agree, so both read TEMPLATE_LANGUAGE_DEFAULT.
+ *
+ * Before trusting these codes for a template created OUT OF BAND on the WABA
+ * (i.e. one this service did not create), confirm its approved variants —
+ * `bot/scripts/audit/template-language-matrix.js` per account.
+ */
+const TEMPLATE_LANGUAGE_DEFAULT = DEFAULT_LANGUAGE;
+const DEFAULT_TEMPLATE_LANGUAGES = [TEMPLATE_LANGUAGE_DEFAULT];
+
+/**
+ * Pick the language a single send goes out in (bd-1zyqf).
+ *
+ * Two constraints, in this order:
+ *   1. The teacher's own preference, clamped to the language offer. Anything
+ *      outside it — null, '', 'fr', a number — floors to DEFAULT_LANGUAGE.
+ *   2. What the template actually HAS. Asking Meta for a variant a template was
+ *      never approved in fails the send outright (error 132001), so a ur teacher
+ *      in an English-only broadcast gets English rather than nothing.
+ *
+ * Lives here, inside the sender, rather than at the call sites: enforcement a
+ * caller can forget is not enforcement, and this service has four of them.
+ *
+ * @param {string} preferredLanguage - users.preferred_language, as stored
+ * @param {string[]} availableLanguages - variants the template is approved in
+ * @returns {string} a language code that is both offered and available
+ */
+function resolveTemplateLanguage(preferredLanguage, availableLanguages) {
+  const available = (Array.isArray(availableLanguages) ? availableLanguages : []).filter(isOffered);
+  const pool = available.length > 0 ? available : DEFAULT_TEMPLATE_LANGUAGES;
+  const wanted = isOffered(preferredLanguage) ? preferredLanguage : TEMPLATE_LANGUAGE_DEFAULT;
+
+  return pool.includes(wanted) ? wanted : pool[0];
+}
+
+/**
+ * Read a recipient's stored language off either a users row or a
+ * broadcast_messages row carrying a PostgREST embed of one.
+ *
+ * The embed shape is normalised defensively: a to-one relationship comes back
+ * as an object, but the same relationship resolves as a single-element array
+ * when PostgREST cannot prove the cardinality.
+ */
+function recipientLanguage(row) {
+  if (!row) return null;
+  if (row.preferred_language) return row.preferred_language;
+
+  const embedded = Array.isArray(row.users) ? row.users[0] : row.users;
+  return embedded?.preferred_language ?? null;
+}
+
+/**
  * Create a broadcast template dynamically via Meta API
  *
  * @param {string} broadcastId - Unique broadcast identifier
@@ -172,7 +231,10 @@ async function createBroadcastTemplate(broadcastId, messageContent) {
 
   const templatePayload = {
     name: templateName,
-    language: 'en',
+    // Same constant the send reads — see TEMPLATE_LANGUAGE_DEFAULT. If these two
+    // ever drift, Meta rejects every send with "template name does not exist in
+    // the language".
+    language: TEMPLATE_LANGUAGE_DEFAULT,
     category: 'MARKETING',
     components: [
       {
@@ -247,9 +309,15 @@ async function checkTemplateStatus(templateId) {
  *
  * @param {string} phoneNumber - Recipient phone number (with country code)
  * @param {string} templateName - Approved template name
+ * @param {Object} [options]
+ * @param {string} [options.preferredLanguage] - the recipient's own language
+ * @param {string[]} [options.availableLanguages] - variants this template has
  * @returns {Object} WhatsApp API response
  */
-async function sendTemplateMessage(phoneNumber, templateName) {
+async function sendTemplateMessage(phoneNumber, templateName, options = {}) {
+  const { preferredLanguage = null, availableLanguages = null } = options;
+  const languageCode = resolveTemplateLanguage(preferredLanguage, availableLanguages);
+
   try {
     const response = await axios.post(
       `https://graph.facebook.com/${API_VERSION}/${PHONE_NUMBER_ID}/messages`,
@@ -259,7 +327,7 @@ async function sendTemplateMessage(phoneNumber, templateName) {
         type: 'template',
         template: {
           name: templateName,
-          language: { code: 'en' }
+          language: { code: languageCode }
         }
       },
       {
@@ -487,7 +555,10 @@ async function executeBroadcast(broadcastId) {
 
     for (const user of users) {
       try {
-        const response = await sendTemplateMessage(user.phone_number, broadcast.template_name);
+        const response = await sendTemplateMessage(user.phone_number, broadcast.template_name, {
+          preferredLanguage: recipientLanguage(user),
+          availableLanguages: broadcast.filters?.templateLanguages
+        });
 
         // Update message record
         await queries.updateBroadcastMessage(broadcastId, user.id, {
@@ -561,7 +632,9 @@ async function resumeInterruptedBroadcasts() {
 
       if (pending.length > 0) {
         // Resume sending
-        await resumeBroadcast(broadcast.id, broadcast.template_name, pending);
+        await resumeBroadcast(broadcast.id, broadcast.template_name, pending, {
+          availableLanguages: broadcast.filters?.templateLanguages
+        });
       } else {
         // All messages sent, mark complete
         await queries.updateBroadcastLog(broadcast.id, {
@@ -582,8 +655,17 @@ async function resumeInterruptedBroadcasts() {
 
 /**
  * Resume a broadcast with pending messages
+ *
+ * @param {Object} [options]
+ * @param {string[]} [options.availableLanguages] - variants the template has
+ *
+ * Each message's language is read from the recipient's row here, at send time —
+ * not from anything frozen into broadcast_messages when the broadcast was
+ * enqueued. A teacher who switched language while the broadcast was interrupted
+ * gets the language they hold now.
  */
-async function resumeBroadcast(broadcastId, templateName, pendingMessages) {
+async function resumeBroadcast(broadcastId, templateName, pendingMessages, options = {}) {
+  const { availableLanguages = null } = options;
   console.log(`[Broadcast ${broadcastId}] Resuming with ${pendingMessages.length} pending messages`);
 
   let sentCount = 0;
@@ -591,7 +673,10 @@ async function resumeBroadcast(broadcastId, templateName, pendingMessages) {
 
   for (const msg of pendingMessages) {
     try {
-      const response = await sendTemplateMessage(msg.phone_number, templateName);
+      const response = await sendTemplateMessage(msg.phone_number, templateName, {
+        preferredLanguage: recipientLanguage(msg),
+        availableLanguages
+      });
 
       await queries.updateBroadcastMessage(broadcastId, msg.user_id, {
         status: 'sent',
@@ -638,6 +723,10 @@ module.exports = {
   checkTemplateStatus,
   startTemplatePolling,
   cancelTemplatePolling,
+
+  // Language (bd-1zyqf)
+  TEMPLATE_LANGUAGE_DEFAULT,
+  resolveTemplateLanguage,
 
   // Message sending
   sendTemplateMessage,
