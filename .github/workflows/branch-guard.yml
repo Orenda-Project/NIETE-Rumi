@@ -60,7 +60,14 @@ jobs:
             '.claude/qa/shared'
           )
 
-          PATTERN='origin/develop|branches: *\[ *develop|--base +develop|refs/heads/develop'
+          # `branches: *\[ *develop` only ever matched `develop` in FIRST position.
+          # `[main, develop]` and `[main, staging, sandbox, develop]` walked straight
+          # past it, which is how ci.yml, data-standards.yml, logger-level.yml and
+          # syntax.yml all kept a dead trigger while this guard reported green.
+          # `\[[^]]*\bdevelop\b` looks anywhere inside the bracket, and the `[^]]`
+          # stops it leaking past the closing bracket into a trailing comment -
+          # `branches: [staging]  # `develop` was retired` must NOT match.
+          PATTERN='origin/develop|branches: *\[[^]]*\bdevelop\b|--base +develop|refs/heads/develop'
 
           # grep exits 1 when it finds nothing, which is this job's SUCCESS case.
           # GitHub runs `run:` blocks as `bash -e`, so a plain assignment from
