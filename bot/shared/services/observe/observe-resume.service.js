@@ -22,6 +22,8 @@
 const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { observeStrings, observeLang } = require('./observe-strings');
+const { resolveUx } = require('../../config/ux-strings');
+const { isTerminalStatus } = require('../coaching/session-terminal');
 const { logToFile, logError } = require('../../utils/logger');
 
 const MAX_RETRIES = 2;
@@ -113,6 +115,7 @@ async function sendForm(sessionId, from, user) {
   const S = observeStrings(observeLang(user));
   const s = await _loadOwn(sessionId, user);
   if (!s) { await WhatsAppService.sendMessage(from, S.debrief_not_yours); return; }
+  if (isTerminalStatus(s.status)) return _refuseTerminal(s, from, user, 'form');
   const OBSERVE_MEWAKA_FLOW_ID = process.env.OBSERVE_MEWAKA_FLOW_ID || '';
   if (!OBSERVE_MEWAKA_FLOW_ID) { await WhatsAppService.sendMessage(from, S.flow_fallback); return; }
   await WhatsAppService.sendFlow(from, {
@@ -190,11 +193,18 @@ async function _resumeRetry(s, from, user, S) {
   ]);
 }
 
+/** One refusal for a tap that arrives after the observation is over. */
+async function _refuseTerminal(s, from, user, tap) {
+  await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language: observeLang(user) }));
+  logToFile('🚫 observe-resume: tap refused — the observation is over', { sessionId: s.id, status: s.status, tap });
+}
+
 /** The [run it again] tap — CAS off the read status so a double-tap queues once. */
 async function runRetry(sessionId, from, user) {
   const S = observeStrings(observeLang(user));
   const s = await _loadOwn(sessionId, user);
   if (!s) { await WhatsAppService.sendMessage(from, S.debrief_not_yours); return; }
+  if (isTerminalStatus(s.status)) return _refuseTerminal(s, from, user, 'retry');
   const plan = _retryPlan(s);
   if (!plan.ok) return _refuseRetry(s, from, S, plan);
 
@@ -247,12 +257,22 @@ async function cancelObservationCore(sessionId, user) {
 
   const d = s.analysis_data && s.analysis_data.teacher_delivery;
   if (d && ['sent', 'awaiting_teacher_tap'].includes(d.status)) return { outcome: 'too_late' };
-  if (['cancelled', 'abandoned'].includes(s.status)) return { outcome: 'already' };
-  await supabase
+  if (isTerminalStatus(s.status)) return { outcome: 'already' };
+  const { data: written } = await supabase
     .from('coaching_sessions')
     .update({ status: 'cancelled' })
     .eq('id', sessionId)
-    .eq('status', s.status);   // CAS — a concurrent pipeline advance wins
+    .eq('status', s.status)    // CAS — a concurrent pipeline advance wins
+    .select('id');
+  if (!written || !written.length) {
+    // The CAS matched no row, so the cancel did NOT happen. Returning
+    // 'cancelled' here is how a coach came to see a SUCCESS screen for a cancel
+    // that never landed; the ack must describe the actual state.
+    logToFile('🏁 observe-resume: cancel lost the race — row already advanced', {
+      sessionId, coachId: user.id, readStatus: s.status,
+    });
+    return { outcome: 'raced' };
+  }
   logToFile('🗑 observe-resume: observation cancelled by coach', { sessionId, coachId: user.id });
   return { outcome: 'cancelled' };
 }
@@ -261,7 +281,10 @@ async function cancelObservation(sessionId, from, user) {
   const S = observeStrings(observeLang(user));
   const { outcome } = await cancelObservationCore(sessionId, user);
   const msg = { not_yours: S.debrief_not_yours, too_late: S.cancel_too_late,
-    already: S.cancel_ack, cancelled: S.cancel_ack }[outcome];
+    already: S.cancel_ack, cancelled: S.cancel_ack,
+    // Lost the race to the pipeline: the analysis had already moved on, which
+    // is the same thing the coach needs to hear as 'too_late'.
+    raced: S.cancel_too_late }[outcome];
   await WhatsAppService.sendMessage(from, msg);
 }
 

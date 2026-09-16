@@ -26,6 +26,13 @@ class CoachingHelpersService {
    * @returns {Promise<string>} Encouraging message
    */
   static async generateEncouragingMessage(firstName, durationSeconds) {
+    // bd-gc1ge — `firstName` arrives as `session.users.name`, which is NULL for
+    // 6,282 of 15,552 prod users. Taken raw it reached the teacher as
+    // "Transcription complete, null!" on the fallback path AND the model as
+    // "Teacher's name: null" on the success path, which the model then echoed
+    // back as her name. Normalised once here, so both callers are covered —
+    // transcription-processor and the coaching-orchestrator pass-through.
+    const name = String(firstName == null ? '' : firstName).trim();
     try {
       const durationMinutes = Math.round(durationSeconds / 60);
       const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -39,7 +46,10 @@ class CoachingHelpersService {
           },
           {
             role: 'user',
-            content: `Teacher's name: ${firstName}\nLesson duration: ${durationMinutes} minutes\n\nGenerate an encouraging message.`
+            content: `${name
+              ? `Teacher's name: ${name}\n`
+              : 'The teacher\'s name is not on record — greet the teacher warmly without using a name, and do not invent one.\n'
+            }Lesson duration: ${durationMinutes} minutes\n\nGenerate an encouraging message.`
           }
         ],
         max_tokens: 100,
@@ -54,7 +64,11 @@ class CoachingHelpersService {
 
       // Fallback message if LLM call fails
       const durationMinutes = Math.round(durationSeconds / 60);
-      return `✅ Transcription complete, ${firstName}! You taught for ${durationMinutes} minutes - that's great stamina! 💪`;
+      // A nameless teacher gets the same sentence without the greeting slot —
+      // not "complete, !", which is what a bare helper swap would leave.
+      return name
+        ? `✅ Transcription complete, ${name}! You taught for ${durationMinutes} minutes - that's great stamina! 💪`
+        : `✅ Transcription complete! You taught for ${durationMinutes} minutes - that's great stamina! 💪`;
     }
   }
 

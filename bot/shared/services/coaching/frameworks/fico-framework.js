@@ -16,11 +16,20 @@
  *   3 = Proficient / Effective
  *   4 = Highly Effective
  *
- * Section F (Teacher Subject Knowledge) contains 10 indicators of which only
- * the subject-relevant rows apply per lesson (F1-F3 general; F4-F5 Mathematics;
- * F6-F7 Science; F8-F10 Literacy). Non-applicable rows are scored 1 with
- * evidence noting the subject mismatch — this keeps the total denominator
- * stable at 104 per the sheet's Scoring Summary tab.
+ * Section F (Teacher Subject Knowledge) tags three of its indicators by subject —
+ * F5 MATHEMATICS, F6 SCIENCE, F7 LITERACY/LANGUAGE — and at most ONE of them applies
+ * to any lesson; F1-F4 and F8 apply to every subject. Nothing in F7's descriptors is
+ * language-specific (phonics, fluency, vocabulary, comprehension, writing), so an
+ * Urdu lesson maps to F7.
+ *
+ * A non-applicable row carries `applicable: false, score: null` and LEAVES THE TOTAL
+ * ENTIRELY — both sides of the ratio. It is not a low mark and it is never described
+ * to the teacher as something her lesson was missing. The denominator therefore moves
+ * with the lesson; it is not a constant.
+ *
+ * (This header previously stated an F-row→subject mapping, a floor-to-1 rule and a
+ * fixed denominator of 104 that the code below already contradicted. Anyone reading it
+ * to answer "does Urdu map to F7?" got the wrong answer.)
  */
 
 // ─── Section definitions (verbatim from the ICT sheet) ───────────────
@@ -529,13 +538,23 @@ SPECIAL INSTRUCTIONS:
 // REGISTERED language explicitly. This mirrors the report-v2 narrative
 // service's langRules(): Urdu → Nastaliq, gender-neutral, code-switch
 // pedagogical terms in English, RTL. Never hardcode a language.
-const LANG_NAME = { en: 'English', ur: 'Urdu' };
+const { getLanguage } = require('../../../config/languages');
+
+/**
+ * A language's English NAME, for the prompt's own prose. Read from the registry
+ * rather than restated as a second inline map — that duplication is how the
+ * report once rendered Urdu in the wrong script while the reply was correct.
+ */
+function languageName(code) {
+  const row = getLanguage(code);
+  return (row && row.languageDescription) || String(code);
+}
 
 function focusAreaLangDirective(language) {
   if (language === 'ur') {
     return `FOCUS-AREA LANGUAGE — write the four focus_area strings (title, rationale, try_this_tomorrow, lever_question) in URDU (Nastaliq), warm and natural. Text is right-to-left. Use gender-neutral phrasing (verbal nouns / impersonal constructions), never gendered second-person verb forms. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. open-ended questions, scaffolding, phonics, Bloom's). Keep "domain" and "indicator" as the EXACT English keys/ids listed above — do NOT translate them.`;
   }
-  const name = LANG_NAME[language] || 'English';
+  const name = languageName(language);
   return `FOCUS-AREA LANGUAGE — write the four focus_area strings (title, rationale, try_this_tomorrow, lever_question) in ${name}. Keep "domain" and "indicator" as the EXACT English keys/ids listed above — do NOT translate them.`;
 }
 
@@ -550,15 +569,103 @@ function buildIndicatorJsonRow(ind) {
   return `        { "id": "${ind.id}", "name": "${ind.name.replace(/"/g, '\\"')}", "score": <1-4, or null if not applicable>, "applicable": <true|false>, "evidence": "Detailed description + Quote: \\\"...\\\"", "evidence_summary": "<= 500 chars: the move + its effect on students + one short quote — the gist a reviewer needs to sanity-check the score", "timestamp": "exact time" }`;
 }
 
+/**
+ * The subject-tagged Section F rows, READ OFF THIS RUBRIC.
+ *
+ * Which indicator belongs to which subject is rubric data, and it moves between rubric
+ * revisions: this one tags one row per subject (F5 math / F6 science / F7 literacy),
+ * while the revision on the unstable branch tags two or three each (F4-F5 / F6-F7 /
+ * F8-F10) and spells the tag `subject` rather than `subjectGroup`. A hardcoded
+ * subject→row table is therefore correct for exactly one revision and silently wrong
+ * for the next — which for an Urdu lesson would mean scoring it on a SCIENCE indicator.
+ *
+ * So it is derived, and both tag shapes and both spellings of "math" are read.
+ *
+ * @returns {{math: string[], science: string[], literacy: string[]}}
+ */
+function subjectTaggedRows() {
+  const NORMALISE = { math: 'math', maths: 'math', science: 'science', literacy: 'literacy', language: 'literacy' };
+  const rows = { math: [], science: [], literacy: [] };
+  for (const section of Object.values(DOMAINS)) {
+    for (const ind of section.indicators || []) {
+      const raw = ind.subjectGroup || ind.subject;
+      const group = NORMALISE[String(raw || '').toLowerCase()];
+      if (group) rows[group].push(ind.id);
+    }
+  }
+  return rows;
+}
+
+/**
+ * The per-session half of the SUBJECT-CONDITIONAL rule.
+ *
+ * The cached system prompt states the DEFAULT: "if you cannot tell the subject, mark
+ * all three of F5/F6/F7 non-applicable". That is right when we know nothing, and it is
+ * what a lesson with no plan on the row still gets. When the subject IS known the rule
+ * inverts — exactly one row applies and it is SCORED — and saying so per session is the
+ * whole point: the model was previously left to infer the subject from the transcript,
+ * which cannot distinguish "this lesson's content is the solar system" from "this is
+ * Urdu chapter 8, whose text is about the solar system".
+ *
+ * Returns '' at confidence 'none' so the prompt is byte-identical to today's.
+ *
+ * @param {string|null} subject canonical code
+ * @param {string} confidence 'high' | 'medium' | 'none'
+ * @param {function} fRowFor subject → Section F indicator id, or null
+ */
+function subjectRule(subject, confidence, groupFor) {
+  if (!subject || (confidence !== 'high' && confidence !== 'medium')) return '';
+  const tagged = subjectTaggedRows();
+  const all = [...tagged.math, ...tagged.science, ...tagged.literacy];
+  if (!all.length) return '';
+  const group = groupFor(subject);
+  const mine = group ? tagged[group] || [] : [];
+  const others = all.filter((r) => !mine.includes(r));
+  const list = (ids) => (ids.length > 1 ? `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]}` : ids[0]);
+  const qualifier = confidence === 'medium'
+    ? ' This subject comes from the lesson plan on file and is NOT confirmed for this particular lesson: if the transcript plainly contradicts it, follow the transcript and say so in the evidence.'
+    : '';
+  if (!mine.length) {
+    return `\nSUBJECT FOR THIS LESSON — OVERRIDES THE SUBJECT-CONDITIONAL DEFAULT:
+This lesson's subject is ${subject}. The rubric has no subject-specific row for it, so ALL of ${list(all)} are "applicable": false with "score": null and evidence naming the subject. This is a rubric gap, not a shortcoming of the lesson — never describe it as something missing.${qualifier}\n`;
+  }
+  return `\nSUBJECT FOR THIS LESSON — OVERRIDES THE SUBJECT-CONDITIONAL DEFAULT:
+This lesson's subject is ${subject}, so of the subject-tagged rows (${list(all)}) exactly ${mine.length > 1 ? 'these apply' : 'one applies'}: ${list(mine)}. Score ${mine.length > 1 ? 'them' : mine[0]} against the level descriptors on the transcript evidence — ${mine.length > 1 ? 'they ARE' : 'it IS'} scored, and "applicable" is true. ${list(others)} ${others.length > 1 ? 'are' : 'is'} "applicable": false with "score": null. Do NOT mark them all non-applicable: the subject is given, so there is nothing to be unsure about.${qualifier}\n`;
+}
+
 function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAnalysis) {
   const {
     grade,
     subject,
+    subjectConfidence,
     duration,
     language,
+    transcriptLanguage,
     teacherFirstName,
     priorFeedback
   } = metadata || {};
+
+  // A supplied subject is always NAMED — that context line predates this change and
+  // callers that pass a bare `subject` keep it. What the confidence gates is the
+  // inverted RULE: only a resolved high/medium subject is allowed to promote a
+  // Section F row from excluded to scored. With no confidence the model gets the
+  // subject as context and keeps today's default rule, and with no subject at all the
+  // prompt is byte-identical to what it was before this change.
+  const confidence = subjectConfidence === 'high' || subjectConfidence === 'medium' ? subjectConfidence : 'none';
+  const namedSubject = subject || null;
+  const subjectBlock = subjectRule(
+    namedSubject,
+    confidence,
+    require('../subject-resolution').subjectGroupFor,
+  );
+
+  // Two language needs, deliberately separate values. `language` is what the
+  // teacher-facing strings are WRITTEN in — her stored preference, resolved
+  // upstream through the one coaching resolver. The transcript label is what was
+  // HEARD in the room, and it is context for the model, never a directive about
+  // which language to address her in. One field doing both jobs is how a lesson
+  // labelled English steered an Urdu teacher's report into English.
+  const heardLanguage = transcriptLanguage || null;
 
   const lpFidelityNote = lessonPlanStructured
     ? `\nIMPORTANT - LP Fidelity: A lesson plan is linked. For Section B (especially B1, B2, B3), compare the planned LP objectives + steps against what was observed in the transcript.\n`
@@ -601,12 +708,12 @@ ${indicatorRows}
 LESSON CONTEXT:
 ${teacherFirstName ? `- Teacher's First Name: ${teacherFirstName}` : ''}
 ${grade ? `- Grade: ${grade}` : ''}
-${subject ? `- Subject: ${subject}` : ''}
+${namedSubject ? `- Subject: ${namedSubject}` : ''}
 ${duration ? `- Duration: ${Math.round(duration / 60)} minutes` : ''}
-${language ? `- Primary Language: ${language}` : ''}
+${heardLanguage ? `- Language spoken in the lesson: ${languageName(heardLanguage)}` : ''}
 
 ${priorFeedback ? `PRIOR FEEDBACK:\n${priorFeedback}\n` : ''}
-${lpFidelityNote}${photoNote}
+${subjectBlock}${lpFidelityNote}${photoNote}
 CLASSROOM TRANSCRIPT:
 ${transcript}
 
@@ -698,6 +805,18 @@ function computeScores(analysis) {
       domain.domain_score = domainScore;
       domain.domain_max = countedIndicators * SCALE_MAX;
       domain.indicators_applicable = countedIndicators;
+
+      // A whole SECTION can leave the total the same way a single indicator can.
+      // Section B measures how closely a lesson followed its written plan; with no
+      // plan to compare against there is nothing to measure, so the section is not
+      // scored rather than guessed at from the transcript. `assessed === false` is
+      // the ONLY thing that removes a section; an absent flag means assessed, so
+      // every session scored before this change keeps exactly the totals it was
+      // reported with. Its own domain_score / domain_max stay stamped, because the
+      // readers below the report sum this section's indicators directly and would
+      // otherwise lose the row with no note.
+      if (domain.assessed === false) continue;
+
       overallMarks += domainScore;
       overallMax += countedIndicators * SCALE_MAX;
     }
@@ -728,36 +847,75 @@ function computeScores(analysis) {
 // recordings keep the proxy untouched.
 const SECTION_B_KEY = 'lesson_plan_fidelity';
 
+// Sum the overall from the sections as they now stand, honouring BOTH exclusion
+// rules: a section marked `assessed: false` leaves the total entirely, and every
+// other section contributes the applicable-aware `domain_max` computeScores
+// stamped on it. A section the analysis omitted still carries its declared max,
+// exactly as the flat constant did before, so a partial analysis cannot shrink
+// its own denominator into a flattering percentage.
+//
+// This is the only arithmetic allowed to write scores.overall_max_marks besides
+// computeScores. It used to re-read the flat framework constant, which threw the
+// applicable-aware denominator away on every measured session — the exclusion
+// removed the inapplicable rows from the numerator only, so the teacher lost the
+// marks and kept the full divisor.
+function recomputeOverall(analysis) {
+  let overallMarks = 0;
+  let overallMax = 0;
+  for (const key of Object.keys(DOMAINS)) {
+    const d = analysis.domains[key];
+    const declaredMax = DOMAINS[key].indicatorCount * SCALE_MAX;
+    if (!d) { overallMax += declaredMax; continue; }
+    if (d.assessed === false) continue;
+    if (typeof d.domain_score === 'number') overallMarks += d.domain_score;
+    overallMax += typeof d.domain_max === 'number' ? d.domain_max : declaredMax;
+  }
+  analysis.scores = {
+    ...(analysis.scores || {}),
+    overall_marks: overallMarks,
+    overall_max_marks: overallMax,
+    overall_percentage: overallMax > 0
+      ? parseFloat(((overallMarks / overallMax) * 100).toFixed(1))
+      : 0,
+  };
+  return analysis;
+}
+
 function applyLpFidelity(analysis, lpFidelity) {
   if (!analysis || !analysis.domains) return analysis;
-  if (!lpFidelity || lpFidelity.status !== 'ok') return analysis;
-
-  const pct = Number(lpFidelity.fidelity_pct);
-  if (lpFidelity.fidelity_pct == null || Number.isNaN(pct)) return analysis; // unusable → proxy stands
 
   const sectionB = analysis.domains[SECTION_B_KEY];
+  const pct = lpFidelity ? Number(lpFidelity.fidelity_pct) : NaN;
+  const measured = !!lpFidelity
+    && lpFidelity.status === 'ok'
+    && lpFidelity.fidelity_pct != null
+    && !Number.isNaN(pct);
+
+  if (!measured) {
+    // Nothing was measured, so Section B is not scored. Before this, the ten
+    // legacy B indicators — an LLM guess at plan fidelity from the transcript
+    // alone — stood in for the measurement on 47.4% of sessions, and one of them
+    // credited a quarter of those teachers for following a plan they never
+    // supplied. Which state we were in is recorded, because the surfaces have to
+    // say what actually happened rather than share one sentence.
+    if (!sectionB) return analysis;
+    sectionB.assessed = false;
+    sectionB.not_assessed_reason = (lpFidelity && lpFidelity.status) || 'lp_absent';
+    return recomputeOverall(analysis);
+  }
+
   if (!sectionB) return analysis; // not a FICO analysis / no Section B — no-op
 
   const maxB = DOMAINS[SECTION_B_KEY].indicatorCount * SCALE_MAX; // 40
+  sectionB.assessed = true;
+  delete sectionB.not_assessed_reason;
   sectionB.domain_score = Math.round((pct / 100) * maxB);
   sectionB.domain_max = maxB;
   sectionB.fidelity_derived = true;
   sectionB.fidelity_pct = pct;
   if (lpFidelity.band) sectionB.fidelity_band = lpFidelity.band;
 
-  // Recompute overall from the (now fidelity-derived) domain_scores. C/D/F are unchanged.
-  let overallMarks = 0;
-  for (const key of Object.keys(DOMAINS)) {
-    const d = analysis.domains[key];
-    if (d && typeof d.domain_score === 'number') overallMarks += d.domain_score;
-  }
-  analysis.scores = {
-    ...(analysis.scores || {}),
-    overall_marks: overallMarks,
-    overall_max_marks: MAX_MARKS,
-    overall_percentage: parseFloat(((overallMarks / MAX_MARKS) * 100).toFixed(1)),
-  };
-  return analysis;
+  return recomputeOverall(analysis);
 }
 
 // ─── Performance bands (per sheet's Interpretation Guide) ────────────
@@ -792,6 +950,7 @@ module.exports = {
 
   getSystemPrompt,
   buildAnalysisPrompt,
+  subjectTaggedRows,
   computeScores,
   applyLpFidelity,
   getPerformanceBand,

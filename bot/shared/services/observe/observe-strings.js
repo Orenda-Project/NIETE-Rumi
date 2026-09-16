@@ -60,6 +60,13 @@ const STRINGS = {
     send_tapped_fo: '✅ {name} amefungua ripoti yake.',
     send_nudged_fo: '🔔 {name} bado hajafungua ripoti — nimemkumbusha mara moja.',
     send_gave_up_fo: '{name} hajafungua ripoti. Sitamsumbua tena — mwambie akufungulie, kisha tuma tena kutoka /observe.',
+    // The report was never SENT at all — a different situation from the one
+    // above, where it was sent and she has not opened it. The next step is the
+    // coach's own tap, so the copy points at it.
+    send_undelivered_reminder_fo:
+      '📨 Ripoti ya {name} iko tayari lakini haijatumwa bado. Andika /observe, chagua uchunguzi huo, na ubonyeze Tuma — inachukua mguso mmoja.',
+    send_undelivered_gave_up_fo:
+      'Ripoti ya {name} bado haijatumwa, kwa hivyo sitaikumbusha tena. Bado unaweza kuituma wakati wowote kutoka /observe.',
     // bd-88krt — Flow terminal-screen text (data-driven so a cancel never reads
     // "Observation scheduled")
     search_no_match: 'Hakuna kilicholingana — jaribu tena',
@@ -104,6 +111,11 @@ const STRINGS = {
     // ONCE: the worker sweep retries by itself, so she must NOT re-record.
     debrief_processing_failed:
       'Sikuweza kuchakata rekodi hii ya debrief bado. Nitaendelea kujaribu tena mwenyewe — hakuna haja ya kurekodi upya. Kama hakuna kitu kitakachofika ndani ya saa moja, andika /observe na uchague debrief hiyo tena.',
+    // The OTHER failure state, which shared the message above until now: a
+    // WhatsApp media id that has expired. No retry can reach that recording, so
+    // promising one leaves the coach waiting instead of re-recording.
+    debrief_media_gone:
+      'Rekodi hii ya debrief haipatikani tena — WhatsApp huhifadhi rekodi kwa wiki kadhaa tu, na hii imepita muda huo. Tafadhali rekodi debrief tena na unitumie.',
     // bd-jrxo3 — nothing bound: start from the school, then re-send the recording.
     redirect_pick_teacher:
       'Tuanze na shule ili rekodi hii imfikie mwalimu sahihi. Chagua shule, kisha mwalimu — kisha nitumie rekodi tena.',
@@ -116,6 +128,9 @@ const STRINGS = {
     bind_row_other_desc: 'Chagua shule na mwalimu mwenyewe',
     bind_row_debrief: '🎙 Hii ni debrief',
     bind_row_debrief_desc: 'Iunganishe na uchunguzi unaosubiri',
+    bind_row_self_dc: 'Somo langu mwenyewe',
+    bind_row_self_dc_desc: 'Nipate maoni ya ufundishaji wangu',
+    flow_terminal_refused: 'Uchunguzi huu ulighairiwa, kwa hivyo fomu hii haiwezi kutumwa.',
     bind_row_not_obs: 'Si uchunguzi',
     bind_row_not_obs_desc: 'Endelea kama ujumbe wa kawaida',
     bind_ack: '✅ Imeunganishwa na uchunguzi wa {name} — uchambuzi umeanza.',
@@ -196,6 +211,7 @@ const STRINGS = {
       'Hii hapo juu ndiyo ripoti kamili atakayopokea mwalimu — ripoti rasmi ya MEWAKA pamoja na kumbukumbu za debrief yenu. Je, nitume sasa?',
     btn_send_now: 'Tuma sasa',
     btn_send_cancel: 'Ghairi',
+    btn_send_other: 'Mtu mwingine',
     send_delivering: '📨 Natuma ripoti kwa mwalimu sasa. Nitakujulisha ikifika.',
     send_cancel_ack: 'Sawa — sijatuma chochote. Ukibadili mawazo, andika /observe na uchague uchunguzi huo.',
     send_already_sent: '✅ Ripoti ya uchunguzi huo imeshatumwa kwa mwalimu.',
@@ -217,6 +233,9 @@ const STRINGS = {
   // FEAT-093 bd-53 — Urdu, authored natively (never machine-mirrored from sw/en).
   // Same trust rules: never a score to the teacher, warm and direct, second person.
   ur: {
+    fid_truncation_recheck:
+      'نوٹ: ریکارڈنگ سبق مکمل ہونے سے پہلے ختم ہوتی دکھائی دیتی ہے، اس لیے بعد کے مراحل کی '
+      + 'درست جانچ نہیں ہو سکی۔ نیچے جس درجہ بندی سے اختلاف ہو، براہ کرم اُس پر دوبارہ نظر ڈالیں۔',
     no_account: 'معاف کیجیے، آپ کا اکاؤنٹ نہیں ملا۔ براہ کرم پہلے رجسٹر کریں۔',
     capture_failed: 'معاف کیجیے — یہ مشاہدہ محفوظ کرتے وقت میری طرف سے مسئلہ ہوا۔ آپ کی ریکارڈنگ ضائع نہیں ہوئی۔ براہ کرم دوبارہ /observe لکھ کر بھیجیں۔',
     role_denied: 'یہ سہولت اسکول لیڈرز، سپروائزرز، کوچز اور پرنسپلز کے لیے ہے۔ اگر آپ کو یہ کردار ملنا چاہیے تو اپنی ٹیم سے رابطہ کریں۔',
@@ -246,6 +265,11 @@ const STRINGS = {
     send_tapped_fo: '✅ {name} نے اپنی رپورٹ کھول لی ہے۔',
     send_nudged_fo: '🔔 {name} نے ابھی تک رپورٹ نہیں کھولی — ایک بار یاد دہانی بھیج دی ہے۔',
     send_gave_up_fo: '{name} نے رپورٹ نہیں کھولی۔ اب مزید یاد دہانی نہیں بھیجوں گی — انہیں بتا دیں، پھر /observe سے دوبارہ بھیج دیں۔',
+    // Gender-agnostic when addressing the coach (imperatives only).
+    send_undelivered_reminder_fo:
+      '📨 {name} کی رپورٹ تیار ہے مگر ابھی بھیجی نہیں گئی۔ /observe لکھیں، وہ مشاہدہ چنیں، اور بھیجیں پر ٹیپ کر دیں — ایک ٹیپ کا کام ہے۔',
+    send_undelivered_gave_up_fo:
+      '{name} کی رپورٹ ابھی تک نہیں بھیجی گئی، اس لیے اب یاد دہانی نہیں بھیجوں گی۔ /observe سے جب چاہیں بھیج سکتے ہیں۔',
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
     search_no_match: 'کچھ نہیں ملا — دوبارہ کوشش کریں',
     school_already_mine: 'پہلے سے آپ کی فہرست میں',
@@ -282,6 +306,9 @@ const STRINGS = {
     // bd-2kxxa.3 — gender-agnostic when addressing the coach (imperatives only).
     debrief_processing_failed:
       'ڈی بریف کی ریکارڈنگ ابھی پروسیس نہیں ہو سکی۔ میں خود بخود دوبارہ کوشش کرتی رہوں گی — دوبارہ ریکارڈ کرنے کی ضرورت نہیں۔ اگر ایک گھنٹے میں رائے نہ آئے تو /observe لکھ کر یہ ڈی بریف دوبارہ چنیں۔',
+    // Gender-agnostic when addressing the coach (imperatives only).
+    debrief_media_gone:
+      'ڈی بریف کی یہ ریکارڈنگ اب دستیاب نہیں ہے — واٹس ایپ ریکارڈنگ صرف چند ہفتوں تک رکھتا ہے، اور یہ اس سے پرانی ہو چکی ہے۔ براہِ کرم ڈی بریف دوبارہ ریکارڈ کر کے مجھے بھیج دیں۔',
     // bd-jrxo3 — gender-agnostic when addressing the coach (imperatives only).
     redirect_pick_teacher:
       'آئیے اسکول سے شروع کرتے ہیں تاکہ یہ ریکارڈنگ صحیح استاد تک پہنچے۔ پہلے اسکول چنیں، پھر استاد — اور اس کے بعد ریکارڈنگ دوبارہ بھیج دیں۔',
@@ -294,6 +321,9 @@ const STRINGS = {
     bind_row_other_desc: 'اسکول اور استاد خود چنیں',
     bind_row_debrief: '🎙 یہ ڈی بریف ہے',
     bind_row_debrief_desc: 'کسی منتظر مشاہدے سے جوڑیں',
+    bind_row_self_dc: 'میرا اپنا سبق',
+    bind_row_self_dc_desc: 'اپنی تدریس پر رائے لیں',
+    flow_terminal_refused: 'یہ مشاہدہ منسوخ ہو چکا ہے، اس لیے اب یہ فارم جمع نہیں ہو سکتا۔',
     bind_row_not_obs: 'یہ مشاہدہ نہیں',
     bind_row_not_obs_desc: 'عام پیغام کے طور پر جاری رکھیں',
     bind_ack: '✅ {name} کے مشاہدے سے جوڑ دیا — تجزیہ شروع ہے۔',
@@ -366,6 +396,7 @@ const STRINGS = {
     send_confirm_body: 'اوپر بالکل وہی رپورٹ ہے جو استاد کو ملے گی — سرکاری رپورٹ مع آپ کی ڈی بریف کے نکات۔ ابھی بھیج دوں؟',
     btn_send_now: 'ابھی بھیجیں',
     btn_send_cancel: 'منسوخ',
+    btn_send_other: 'کسی اور کو بھیجیں',
     send_delivering: '📨 رپورٹ بھیجی جا رہی ہے — پہنچتے ہی بتاؤں گی۔',
     send_cancel_ack: 'ٹھیک ہے، نہیں بھیجی۔ تفصیلات محفوظ ہیں — جب چاہیں /observe سے دوبارہ۔',
     send_already_sent: 'یہ رپورٹ پہلے ہی بھیجی جا چکی ہے۔ ✅',
@@ -381,6 +412,15 @@ const STRINGS = {
     companion_closing: 'ہمیں آپ کے کام پر فخر ہے۔ ہم ساتھ ہیں۔ 💛',
   },
   en: {
+    // ── Section B: the AI's own caveat contradicted its own verdicts ─────
+    // The grader wrote that the recording ended before the lesson did and then
+    // counted the later moves as misses anyway. The coach was in the room, so she
+    // is the instrument here: her per-move ratings re-run the same scorer. Says
+    // what happened and what to do, and asks nothing of the AI. Impersonal, so no
+    // gendered verb stem in either language.
+    fid_truncation_recheck:
+      'Note: the recording appears to end before the lesson did, so the later moves '
+      + 'could not be checked properly. Please re-check any rating below that you disagree with.',
     no_account: "Sorry, I couldn't find your account. Please send me any message first, then try /observe again.",
     capture_failed: "Sorry — something went wrong on my side while saving that observation. Your recording isn't lost. Please type /observe and send it again; if it keeps happening, tell the team.",
     role_denied:
@@ -430,6 +470,12 @@ const STRINGS = {
     send_tapped_fo: '✅ {name} has opened the report.',
     send_nudged_fo: '🔔 {name} has not opened the report yet — I have sent one reminder.',
     send_gave_up_fo: '{name} has not opened the report. I will not send more reminders — have a word, then send it again from /observe.',
+    // The report was never SENT — distinct from the line above, where it was
+    // sent and she has not opened it. Different state, different next step.
+    send_undelivered_reminder_fo:
+      "📨 {name}'s report is ready but has not been sent yet. Open /observe, pick that observation, and tap Send — it is one tap.",
+    send_undelivered_gave_up_fo:
+      "{name}'s report still has not been sent, so I will stop reminding you about it. You can still send it any time from /observe.",
     // bd-88krt — Flow terminal-screen text (per-language, never hardcoded)
     search_no_match: 'No matches — try again',
     school_already_mine: 'Already in your list',
@@ -473,6 +519,10 @@ const STRINGS = {
     // ONCE: the worker sweep retries by itself, so she must NOT re-record.
     debrief_processing_failed:
       "I couldn't process this debrief recording yet. I'll keep retrying automatically — you don't need to re-record. If nothing arrives within an hour, open /observe and pick that debrief again.",
+    // The OTHER failure state. Say what is true: the recording is gone, and the
+    // only way forward is a new one.
+    debrief_media_gone:
+      "This debrief recording is no longer available — WhatsApp keeps a recording for only a few weeks, and this one is past that. Please record the debrief again and send it to me.",
     // bd-jrxo3 — the accepted cost is stated plainly: she sends it again.
     redirect_pick_teacher:
       "Let's start from the school so this reaches the right teacher. Pick the school, then the teacher — then send me the recording again.",
@@ -485,6 +535,9 @@ const STRINGS = {
     bind_row_other_desc: 'Pick the school and teacher yourself',
     bind_row_debrief: '🎙 This is a debrief',
     bind_row_debrief_desc: 'Attach it to a waiting observation',
+    bind_row_self_dc: 'My own lesson',
+    bind_row_self_dc_desc: 'Get feedback on my own teaching',
+    flow_terminal_refused: 'This observation was cancelled, so the form can no longer be submitted.',
     bind_row_not_obs: 'Not an observation',
     bind_row_not_obs_desc: 'Continue as a normal message',
     bind_ack: '✅ Attached to {name}\'s observation — analysis has started.',
@@ -569,6 +622,7 @@ const STRINGS = {
       'Above is the exact report the teacher will receive — the official FICO report plus your debrief notes. Send it now?',
     btn_send_now: 'Send now',
     btn_send_cancel: 'Cancel',
+    btn_send_other: 'Someone else',
     send_delivering: '📨 Sending the report to the teacher now. I\'ll confirm once it lands.',
     send_cancel_ack: "Okay — nothing was sent. If you change your mind, type /observe and pick that observation.",
     send_already_sent: '✅ That observation\'s report has already been sent to the teacher.',

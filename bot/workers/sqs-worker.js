@@ -54,6 +54,48 @@ const POLL_INTERVAL_MS = parseInt(process.env.SQS_POLL_INTERVAL || '100'); // Sh
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = parseInt(process.env.GRACEFUL_SHUTDOWN_TIMEOUT || '30000');
 
 /**
+ * Keep a long job's SQS message invisible for as long as the job is ACTUALLY
+ * running, then stop the instant it settles.
+ *
+ * A single up-front extendJobTimeout() is a bet on a number. When the bet loses,
+ * the message goes visible mid-run, a second worker claims the same session and
+ * restarts it from zero — which the teacher reads as the pipeline walking
+ * backwards ("Step 1/5" again) and we pay for twice.
+ *
+ * The ceiling is deliberately BELOW the mid-flight watchdog's 45-minute
+ * staleness bar, so a genuinely hung job still becomes visible again and the
+ * watchdog stays the outer backstop rather than being out-waited by a heartbeat.
+ *
+ * The finally lives here, not at each call site, so it cannot be forgotten on
+ * one arm of the switch.
+ */
+const HEARTBEAT_INTERVAL_MS = 60 * 1000;
+const HEARTBEAT_EXTEND_SECONDS = 900;
+const HEARTBEAT_CEILING_MS = 40 * 60 * 1000;
+
+async function withVisibilityHeartbeat(receiptHandle, sessionId, jobType, run) {
+  const heartbeat = startVisibilityHeartbeat({
+    extend: (seconds) => SQSQueueService.extendJobTimeout(receiptHandle, seconds),
+    intervalMs: HEARTBEAT_INTERVAL_MS,
+    extendSeconds: HEARTBEAT_EXTEND_SECONDS,
+    ceilingMs: HEARTBEAT_CEILING_MS,
+    // A visibility blip is not a reason to abandon a report the teacher is
+    // waiting for, so this is reported and swallowed rather than thrown.
+    onExtendError: (err) => logToFile('visibility heartbeat: extend failed, continuing', {
+      sessionId, jobType, error: err.message,
+    }),
+    onCeilingReached: () => logToFile('visibility heartbeat: ceiling reached, no longer extending', {
+      sessionId, jobType,
+    }),
+  });
+  try {
+    return await run();
+  } finally {
+    heartbeat.stop();
+  }
+}
+
+/**
  * SQS Coaching Worker Class
  * Processes coaching jobs from AWS SQS queue
  */
@@ -338,16 +380,34 @@ class SQSCoachingWorker {
 
     switch (jobType) {
       case 'transcription':
-        // Check if we need more time (transcription can be long)
-        // Extend timeout to 20 minutes if audio is > 10 minutes
-        if (payload.duration && payload.duration > 600) {
-          await SQSQueueService.extendJobTimeout(receiptHandle, 1200); // 20 min
-        }
-        await CoachingService.processTranscription(sessionId, payload);
+        // This extension used to be gated on `payload.duration > 600`, which NO
+        // producer sets — all five callers queue `{ from, audioId }` only — so the
+        // branch never ran and every transcription lived on the queue's bare 900s
+        // window. Measured over the nine days to 15 Sep: 28 transcription jobs
+        // were redelivered in the 880-990s band, each one replaying
+        // "Step 1/5: Transcribing" and, past 15,000 characters, "Long Lesson
+        // Detected" — 12 teachers were told that twice.
+        //
+        // A classroom recording is >= 15 minutes by definition (the classroom
+        // audio threshold is what routed it to this job in the first place), so
+        // the condition never had anything to decide: extend unconditionally and
+        // heartbeat for the tail.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 1200); // 20 min
+        await withVisibilityHeartbeat(receiptHandle, sessionId, 'transcription',
+          () => CoachingService.processTranscription(sessionId, payload));
         break;
 
       case 'analysis':
-        await CoachingService.processAnalysis(sessionId, payload);
+        // The only long-running job in this switch with no extension at all,
+        // while its twelve siblings all have one. p50 is ~2 min but the tail is
+        // long: photo vision, prior-session compression, and an 11k-output-token
+        // model call. 230 sessions ran analysis more than once in the nine days
+        // to 15 Sep, 158 of those gaps inside the 880-990s band — the teacher
+        // stalls on "Step 2/5", sees the earlier steps again when the second
+        // worker restarts from zero, and we pay for the analysis twice.
+        await SQSQueueService.extendJobTimeout(receiptHandle, 900); // 15 min
+        await withVisibilityHeartbeat(receiptHandle, sessionId, 'analysis',
+          () => CoachingService.processAnalysis(sessionId, payload));
         break;
 
       case 'observe_debrief':
@@ -1303,6 +1363,7 @@ async function runDebriefRetrySweep({ now = Date.now() } = {}) {
     .from('coaching_sessions')
     .select('id, debrief_status, created_at, observer_debrief:analysis_data->observer_debrief')
     .eq('debrief_status', 'pending')
+    .not('status', 'in', require('../shared/services/coaching/session-terminal').TERMINAL_IN_FILTER)
     .not('observer_user_id', 'is', null)
     .not('analysis_data->observer_debrief->>audio_id', 'is', null)
     .is('analysis_data->observer_debrief->>transcript', null)
@@ -1315,7 +1376,11 @@ async function runDebriefRetrySweep({ now = Date.now() } = {}) {
   }
 
   const scanned = (rows || []).length;
-  const eligible = selectDebriefsToRetry(rows || [], now);
+  // The reasons rows were refused ride back in this tally, so the tick's log
+  // line can say "8 skipped because the recording is gone" instead of a bare
+  // eligible:0 that reads identically to "nothing was stuck".
+  const reasons = {};
+  const eligible = selectDebriefsToRetry(rows || [], now, {}, reasons);
   let queued = 0;
   let skipped = 0;
   for (const row of eligible) {
@@ -1340,7 +1405,10 @@ async function runDebriefRetrySweep({ now = Date.now() } = {}) {
       logToFile('❌ debrief retry sweep: queue failed for one row', { sessionId: row.id, error: err.message }, 'error');
     }
   }
-  const summary = { scanned, eligible: eligible.length, queued, skipped };
+  const summary = {
+    scanned, eligible: eligible.length, queued, skipped,
+    mediaGone: Number(reasons.mediaGone) || 0,
+  };
   logToFile('🔁 debrief retry sweep', summary);
   return summary;
 }

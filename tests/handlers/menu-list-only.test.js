@@ -52,18 +52,24 @@ describe('bd-2507 — the menu entry point sends the list, not the template', ()
     expect(carouselFn()).toMatch(/sendFeatureMenuList|interactive/);
   });
 
-  it('the list rows are still the bd-2504 set, Training first', () => {
+  it('the two features that must never get a row still do not have one', () => {
     // Row 122: the rows are now built per role by config/role-features rather
     // than sitting as a literal here, so ask the builder. The bd-2504
     // guarantee is asserted for EVERY role, which is stronger than the single
     // hardcoded list this used to read.
     const { featureMenuRows } = require('../../bot/shared/config/role-features');
     for (const role of ['teacher', 'principal', 'coach', null]) {
-      const ids = featureMenuRows(role && { id: 'u', role }, { observeEnabled: true })
-        .map((r) => r.id);
-      expect(ids[0]).toBe('menu_training');
+      const ids = featureMenuRows(role && { id: 'u', role }, {
+        observeEnabled: true, trainingEnabled: true, lessonPlanEnabled: true,
+        rosterEnabled: true, classesEnabled: true, quizEnabled: true,
+        assessmentEnabled: true, videosEnabled: true,
+      }).map((r) => r.id);
+      // Reading assessment cannot run here; the AI video GENERATOR stays
+      // command-only. `menu_videos` — the pre-made library — is a different id
+      // with its own door, and it does get a row.
       expect(ids).not.toContain('menu_reading');
       expect(ids).not.toContain('menu_video');
+      expect(ids).toContain('menu_training');
     }
   });
 

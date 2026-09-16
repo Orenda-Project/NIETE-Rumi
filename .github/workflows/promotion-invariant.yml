@@ -1,0 +1,174 @@
+# Does `main` carry anything that `staging` does not?
+#
+# `main-source-branch.yml` already refuses a PR into `main` whose head is not
+# `staging`. That check runs BEFORE the merge, on the pull request — so it is
+# advisory the moment anyone with admin rights turns branch protection off,
+# merges, and turns it back on. `enforce_admins` does not stop that: it governs
+# pushes and merges, not edits to the protection settings themselves.
+#
+# That is not hypothetical. Between 2026-09-03 and 2026-09-15, 48 of 57 PRs into
+# `main` came from a non-`staging` head. Each recorded
+# `main only accepts staging: failure` and merged anyway. Nobody noticed until
+# someone audited the branch graph days later.
+#
+# So this job checks the RESULT instead of the permission. It runs after the
+# push has landed. A permission can be toggled off; a commit graph cannot be
+# quietly rewritten under branch protection, so this can only be ignored, and an
+# ignored red run is still a record.
+#
+#
+# WHY THIS COUNTS CONTENT AND NOT COMMITS
+#
+# We got this check wrong three times, each time by counting the wrong thing:
+#
+#   1. `rev-list staging..main` — unachievable. Every promotion merge leaves a
+#      merge commit on `main` that `staging` lacks, so the count rises by one
+#      per release, for ever, while nothing is wrong. Someone acted on it and
+#      did a pointless back-merge (2026-09-11).
+#
+#   2. `rev-list --no-merges staging..main` — drops those merge commits, but
+#      still counts SHAs. Work applied to both branches separately lands as two
+#      commits with identical content and different SHAs, and both get counted
+#      for ever, because nothing will ever make those SHAs match. Read 8 on
+#      2026-09-16.
+#
+#   3. `git cherry staging main` — compares patch-ids rather than SHAs, which
+#      removes most of that noise. Still wrong: a patch-id is derived from the
+#      diff, so the same change applied over different surrounding code hashes
+#      differently. Read 2 on 2026-09-16, and both were false — one commit added
+#      a behaviour and the next reverted it, so the pair was a net no-op and
+#      `staging`'s copy of the file was already byte-identical to `main`'s.
+#
+# The question was never "how many commits". It is "is there any CONTENT on
+# `main` that `staging` does not have", and only the trees can answer that.
+#
+# `git merge-tree --write-tree staging main` runs a real three-way merge that
+# touches no working tree, no index and no ref - it only writes the resulting
+# tree object and prints its id. If the tree it produces is
+# identical to `staging`'s own tree, `main` contributed nothing — every change
+# `main` made since the merge base is already on `staging`. That is the
+# invariant, exactly, and it is immune to SHAs, cherry-picks, squashes, rebases,
+# reverts and merge commits alike.
+#
+# It also gets the awkward case right. A file `staging` deliberately deleted or
+# rewrote, which `main` still carries unchanged from the merge base, is NOT a
+# bypass: `main` never changed it, so the merge keeps `staging`'s decision and
+# the trees match. A plain `git diff staging main` reports that exact case as
+# though `main` were ahead — on 2026-09-16 it flagged 84 files that way, all of
+# them `staging`'s own forward work. That is why it is not used here.
+name: Promotion invariant
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# No `paths:` filter, deliberately. A required status check with a paths filter
+# NEVER REPORTS on a PR that does not match it, and GitHub then holds the PR as
+# "expected — waiting for status" for ever. This job must be safe to mark
+# required, so it always runs.
+
+jobs:
+  staging-is-the-only-door:
+    name: main carries nothing that skipped staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the whole graph; a shallow clone cannot answer this
+
+      - name: Does main carry content that staging does not have?
+        # Explicit, because the whole script depends on it: GitHub's default is
+        # `bash --noprofile --norc -eo pipefail`, so `-e` IS on even though the
+        # script only sets `-uo pipefail`. Every command below that may exit
+        # non-zero is inside an `if` condition for exactly that reason. Verify
+        # changes with `bash -eo pipefail`, not plain `bash`.
+        shell: bash
+        run: |
+          set -uo pipefail
+          git fetch origin staging main --quiet
+
+          # `--write-tree` needs git >= 2.38. Say so rather than failing with a
+          # message about a bypass that did not happen.
+          if ! git merge-tree --write-tree HEAD HEAD >/dev/null 2>&1; then
+            echo "::error::git $(git --version | awk '{print $3}') has no 'merge-tree --write-tree'; this job needs >= 2.38."
+            exit 1
+          fi
+
+          # Both refs must resolve before anything is measured. Without this the
+          # rev-parse below prints nothing, the comparison runs on empty strings,
+          # and the job reports a merge conflict that did not happen - sending the
+          # reader after a bypass instead of after the CI problem that is actually
+          # in front of them.
+          for ref in origin/staging origin/main; do
+            if ! git rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then
+              echo "::error::$ref did not resolve in this checkout, so the invariant was not evaluated."
+              echo "That is a CI problem, not a bypass: this job needs actions/checkout"
+              echo "with fetch-depth: 0 and a fetch of both branches."
+              exit 1
+            fi
+          done
+
+          STAGING_TREE=$(git rev-parse "origin/staging^{tree}")   # quoted: zsh eats ^{...}
+
+          if OUT=$(git merge-tree --write-tree origin/staging origin/main 2>&1); then
+            CONFLICTED=no
+          else
+            CONFLICTED=yes
+          fi
+          MERGED=$(printf '%s\n' "$OUT" | head -1)
+
+          if [ "$CONFLICTED" = yes ]; then
+            echo "::error::main and staging no longer merge cleanly."
+            echo ""
+            echo "Under the intended model this cannot happen: staging is cut from main"
+            echo "and nothing else lands on main, so the two can only ever fast-forward."
+            echo "A conflict means main was edited directly, in a way that clashes with"
+            echo "work on staging. The next promotion will hit the same conflict."
+            echo ""
+            printf '%s\n' "$OUT" | sed -n '2,40p' | sed 's/^/  /'
+            exit 1
+          fi
+
+          # Never compare two empty strings and call it a pass.
+          case "$MERGED" in
+            [0-9a-f]*) : ;;
+            *) echo "::error::merge-tree produced no tree, so nothing was verified."
+               printf '%s\n' "$OUT" | head -5 | sed 's/^/  /'
+               exit 1 ;;
+          esac
+
+          if [ "$MERGED" = "$STAGING_TREE" ]; then
+            echo "OK - staging already contains every change main has."
+            echo "(Merging main into staging would produce staging's exact tree: ${STAGING_TREE:0:12})"
+            exit 0
+          fi
+
+          echo "::error::main carries content that staging does not have."
+          echo ""
+          echo "What staging would gain if main were merged into it:"
+          git diff --stat "$STAGING_TREE" "$MERGED" | sed 's/^/  /'
+          echo ""
+
+          NEWFILES=$(git diff --diff-filter=A --name-only "$STAGING_TREE" "$MERGED")
+          if [ -n "$NEWFILES" ]; then
+            echo "  files that exist on main and not on staging at all:"
+            printf '%s\n' "$NEWFILES" | sed 's/^/    /'
+            echo ""
+          fi
+
+          echo "  commits on main whose content is not on staging (best guess - use the"
+          echo "  file list above as the authority, patch-ids can mislead):"
+          git cherry origin/staging origin/main | while read -r mark sha; do
+            [ "${mark:-}" = "+" ] && git log -1 --format='    %h  %an  %ad  %s' --date=short "$sha"
+          done
+          echo ""
+          echo "The promotion path is:  sandbox -> staging -> main"
+          echo ""
+          echo "Get that content onto staging - cherry-pick it there - so staging is"
+          echo "once again a superset of main and the next promotion is a plain merge."
+          echo ""
+          echo "Do NOT clear this by back-merging main into staging. That reconciles the"
+          echo "graph and HIDES the bypass, so the next one is just as invisible - this"
+          echo "repo's own CLAUDE.md says so."
+          exit 1

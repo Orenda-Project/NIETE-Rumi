@@ -91,6 +91,89 @@ const LP612_ETA = Object.freeze({
 });
 
 const UX_STRINGS = {
+  // ─── the report explains an absent Section F row ──────────────────────────
+  // About three in ten recordings carry no signal at all about which subject was
+  // being taught — no lesson plan, no corpus selection, no recent download. The
+  // subject-tagged rubric row is then correctly left out, and until now the report
+  // said nothing, so a teacher saw a five-row Section F with no account of the
+  // sixth. "We could not confirm the subject" and "your lesson was not a literacy
+  // lesson" are different statements and only the first is true (Rule 24d).
+  // Both variants render as a report why-line (not a WhatsApp field): en 73 code
+  // points, ur 84. Impersonal in both, so neither carries a gendered verb stem.
+  reportSubjectUnconfirmed: {
+    en: 'Subject not confirmed — the language/subject-specific row was not scored.',
+    ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
+  },
+
+  // ─── /roster — the class-register command ─────────────────────────────────
+  // Every string on this command was an English literal, including all four
+  // Flow chrome fields, on a deployment where the leaders who use it read Urdu
+  // like everyone else. Measured in CODE POINTS against the WhatsApp caps:
+  // header 60, body 1024, footer 60, button 20. The Urdu is impersonal, so no
+  // gendered verb stem for the addressee appears.
+  rosterRoleRefusal: {
+    en: 'Building a class roster is for coaches and school leaders.',
+    ur: 'کلاس کی فہرست بنانے کی سہولت کوچز اور اسکول سربراہان کے لیے ہے۔',
+  },
+  rosterFlowHeader: {
+    en: 'Class roster',
+    ur: 'کلاس کی فہرست',
+  },
+  rosterFlowBody: {
+    en: 'Photograph a class register and I will turn it into a student list. '
+      + 'You get to check every name before anything is saved.',
+    ur: 'کلاس کے حاضری رجسٹر کی تصویر بھیجیں، اسے طلبہ کی فہرست میں بدل دیا جائے گا۔ '
+      + 'کچھ بھی محفوظ ہونے سے پہلے ہر نام آپ خود دیکھ سکیں گے۔',
+  },
+  rosterFlowFooter: {
+    en: 'About 2 minutes per class',
+    ur: 'ہر کلاس پر تقریباً دو منٹ',
+  },
+  rosterFlowButton: {
+    en: 'Start',
+    ur: 'شروع کریں',
+  },
+  rosterFlowFailed: {
+    en: 'Something went wrong opening that. Try again in a moment.',
+    ur: 'اسے کھولنے میں مسئلہ آ گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+
+  // ─── short-recording length guidance ──────────────────────────────────────
+  // Sent BEFORE the chat answer, never instead of it: a recording that is too
+  // short for an analysis still gets answered. The wording says so explicitly,
+  // because the rule fires on a heuristic and the teacher may simply have been
+  // talking to the bot.
+  //
+  // Four keys, not two, because on the unprobed path the duration is genuinely
+  // unknown — WhatsApp sends none and ffprobe runs only on large files — and
+  // copy that names a length it does not have is the failure being fixed here.
+  //
+  // {min} is interpolated from the routing constant, so the number in the copy
+  // and the number in the branch cannot drift. Both placeholders are wrapped in
+  // U+2066 … U+2069 in the Urdu: a bare digit run after an Urdu word is
+  // re-ordered by the bidi algorithm, and a catalog string isolates the
+  // placeholder because the value's direction is unknowable at authoring time.
+  //
+  // The Urdu is impersonal throughout — «درکار ہیں», «بات کرنی تھی» — so the
+  // addressee's gender never appears. Bodies are 150-250 code points against a
+  // 1,024 cap; there is no header, footer or button, so nothing goes near 60/20.
+  coachingRecordingTooShort: {
+    en: 'That recording is about {minutes} minutes long. For a full teaching analysis I need at least {min} minutes of the lesson — send a longer one and I will analyse it. If you only meant to chat, carry on; my answer is below.',
+    ur: 'یہ ریکارڈنگ تقریباً \u2066{minutes}\u2069 منٹ کی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں — لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا۔ اگر صرف بات کرنی تھی تو نیچے جواب حاضر ہے۔',
+  },
+  coachingRecordingTooShortUnknownLength: {
+    en: 'For a full teaching analysis I need at least {min} minutes of the lesson. If that recording was shorter, send a longer one and I will analyse it. If you only meant to chat, carry on; my answer is below.',
+    ur: 'مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں۔ اگر یہ ریکارڈنگ اس سے مختصر تھی تو لمبی بھیجیں، تجزیہ ہو جائے گا۔ اگر صرف بات کرنی تھی تو نیچے جواب حاضر ہے۔',
+  },
+  coachingRecordingLooksShort: {
+    en: 'This sounds like a classroom recording, but it is about {minutes} minutes. A full teaching analysis needs at least {min} minutes of the lesson. Send a longer recording and I will analyse it — or if you only meant to chat, just carry on.',
+    ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے، مگر تقریباً \u2066{minutes}\u2069 منٹ کی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں۔ لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
+  },
+  coachingRecordingLooksShortUnknownLength: {
+    en: 'This sounds like a classroom recording. A full teaching analysis needs at least {min} minutes of the lesson, so send a longer one and I will analyse it — or if you only meant to chat, just carry on.',
+    ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں، اس لیے لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
+  },
+
   // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's
@@ -127,6 +210,57 @@ const UX_STRINGS = {
   photoAddAnotherClosed: {
     en: '\u{1F4F8} This coaching session has already moved past the photo step, so another photo cannot be added to it.',
     ur: '\u{1F4F8} یہ کوچنگ سیشن تصویر والے مرحلے سے آگے بڑھ چکا ہے، اس لیے اس میں مزید تصویر شامل نہیں ہو سکتی۔',
+  },
+  // Shown when a tap arrives for a session that has already been cancelled or
+  // abandoned — a button sent before the cancel is still live in the chat, and
+  // silence there reads as a broken bot. Names the actual state, and says the
+  // recording is not lost, because that is the first thing a coach asks.
+  // A tap on a coaching button whose session row no longer exists at all (not
+  // cancelled — gone). Distinct from coachingSessionCancelled: that one names a
+  // state the coach can act on; this one says the thing is simply not there.
+  coachingSessionNotFound: {
+    en: 'Sorry, I could not find that coaching session.',
+    ur: 'معذرت، مجھے وہ کوچنگ سیشن نہیں ملا۔',
+  },
+  coachingSessionCancelled: {
+    en: '\u{1F6AB} This session was cancelled, so it cannot continue. The recording is saved.',
+    ur: '\u{1F6AB} یہ سیشن منسوخ ہو چکا ہے، اس لیے یہ آگے نہیں بڑھ سکتا۔ ریکارڈنگ محفوظ ہے۔',
+  },
+
+  // ─── photo-gate auto-advance: "your report is being made" (bd-gc1ge) ──────
+  // Sent by the stale-session worker when a session parked at the photo /
+  // lesson-plan gate is swept forward to a report. It was ONE English literal
+  // with the name interpolated raw:
+  //   `Hi ${notifyName}! I'm putting together your coaching report${dated} now.`
+  // which greeted the 6,282 prod users with `name IS NULL` as "Hi null!" and
+  // the 117 with `name = ''` as "Hi !", in English, to a notified population
+  // that is 3,045-of-3,209 Urdu.
+  //
+  // FOUR keys, not one with an optional placeholder: resolveUx throws on a
+  // missing param, and a person with no name needs a different SENTENCE rather
+  // than a hole where a name goes — `firstNameOf` returns null by design, so
+  // swapping in the helper alone would only turn "Hi null!" into "Hi !".
+  //
+  // The Urdu is impersonal ("تیار کی جا رہی ہے"), so it carries no gendered verb
+  // stem for the addressee — this reaches both teachers and coaches. {name} and
+  // {date} are bidi-isolated (LRI…PDI) because a Latin name or an ASCII day
+  // number inside Urdu otherwise reorders the line. Report bodies, not WhatsApp
+  // chrome, so the 1,024 cap applies: longest variant en 96 / ur 104 code points.
+  coachingPhotoGateAdvancing: {
+    en: "Hi {name}! I'm putting together your coaching report from your class recording now. \u{1F4CA}",
+    ur: '⁦{name}⁩، آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
+  },
+  coachingPhotoGateAdvancingNoName: {
+    en: "I'm putting together your coaching report from your class recording now. \u{1F4CA}",
+    ur: 'آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
+  },
+  coachingPhotoGateAdvancingDated: {
+    en: "Hi {name}! I'm putting together your coaching report from your class on {date} now. \u{1F4CA}",
+    ur: '⁦{name}⁩، ⁦{date}⁩ کو ہوئی آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
+  },
+  coachingPhotoGateAdvancingDatedNoName: {
+    en: "I'm putting together your coaching report from your class on {date} now. \u{1F4CA}",
+    ur: '⁦{date}⁩ کو ہوئی آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
   },
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
@@ -173,6 +307,378 @@ const UX_STRINGS = {
   languagePickerBody: {
     en: 'Choose your preferred language. I will respond in this language for all conversations.\n\nاپنی پسندیدہ زبان منتخب کریں۔ میں اسی زبان میں جواب دوں گی۔',
     ur: 'اپنی پسندیدہ زبان منتخب کریں۔ میں اسی زبان میں جواب دوں گی۔\n\nChoose your preferred language. I will respond in this language.',
+  },
+
+  /**
+   * The /language picker's button and section title. Unlike its header, body
+   * and footer above, these two are language-KEYED rather than bilingual: the
+   * button cap is 20 code points, and a bilingual "Languages / زبانیں" lands
+   * exactly on it, i.e. one word from the 131009 rejection that took this
+   * command down before. The bilingual chrome above still makes the screen
+   * readable whichever language she is trying to leave.
+   */
+  languagePickerButton: {
+    en: 'Languages',
+    ur: 'زبانیں',
+  },
+
+  languagePickerSectionTitle: {
+    en: 'Available Languages',
+    ur: 'دستیاب زبانیں',
+  },
+
+  /**
+   * The /menu front door — 7,209 sends a week, every one of them in English
+   * until now, to a cohort that is 99.0% Urdu.
+   *
+   * The body deliberately NAMES NO FEATURES. The old one listed the inventory
+   * ("lesson plans, classroom coaching, reading assessments, and more"), which
+   * made it a second place the inventory had to be maintained — and it is the
+   * place that went stale: it kept advertising reading assessment for weeks
+   * after the row was removed and while the feature could not start at all.
+   * The rows are the inventory.
+   *
+   * Caps, measured in code points: header 60, body 1024, footer 60, button 20,
+   * section title 24.
+   */
+  menuHeader: {
+    en: "Here's what I can do",
+    ur: 'میں یہ سب کر سکتی ہوں',
+  },
+
+  menuBody: {
+    en: "I'm your NIETE Teaching Assistant. Pick what you'd like to do — I'll take you straight there.",
+    ur: 'میں آپ کی NIETE ٹیچنگ اسسٹنٹ ہوں۔ جو کرنا چاہیں چنیں — میں سیدھا وہیں لے جاؤں گی۔',
+  },
+
+  menuFooter: {
+    en: 'Tap to choose',
+    ur: 'چننے کے لیے دبائیں',
+  },
+
+  menuButton: {
+    en: 'See what I do',
+    ur: 'فہرست دیکھیں',
+  },
+
+  menuSectionTitle: {
+    en: 'My features',
+    ur: 'میری خدمات',
+  },
+
+  /**
+   * One row's copy, one pair of keys. The row IDS live in config/role-features
+   * with the role rule; the COPY lives here, because a per-language map in a
+   * config module is an unreviewed map outside the catalog — invisible to the
+   * cap check and to the language audit that guards it.
+   *
+   * Row caps: title 24 code points, description 72.
+   */
+  menuRowTrainingTitle: {
+    en: 'Teacher Training',
+    ur: 'ٹیچر ٹریننگ',
+  },
+
+  menuRowTrainingDesc: {
+    en: 'Continue your training modules and exams',
+    ur: 'اپنے ٹریننگ ماڈیول اور امتحان جاری رکھیں',
+  },
+
+  menuRowLessonPlanTitle: {
+    en: 'Lesson Plans',
+    ur: 'لیسن پلان',
+  },
+
+  menuRowLessonPlanDesc: {
+    en: 'Create detailed PDF lesson plans',
+    ur: 'تفصیلی PDF لیسن پلان بنائیں',
+  },
+
+  menuRowCoachingTitle: {
+    en: 'Classroom Coaching',
+    ur: 'کلاس روم کوچنگ',
+  },
+
+  menuRowCoachingDesc: {
+    en: 'Get teaching feedback from recordings',
+    ur: 'ریکارڈنگ سے تدریس پر رائے حاصل کریں',
+  },
+
+  menuRowObserveTitle: {
+    en: 'Observe a Teacher',
+    ur: 'استاد کا مشاہدہ',
+  },
+
+  menuRowObserveDesc: {
+    en: 'Record and score a classroom visit',
+    ur: 'کلاس کے دورے کو ریکارڈ اور اسکور کریں',
+  },
+
+  menuRowOtherTitle: {
+    en: 'Ask Anything',
+    ur: 'کچھ بھی پوچھیں',
+  },
+
+  menuRowOtherDesc: {
+    en: 'General teaching questions',
+    ur: 'تدریس کے بارے میں کوئی بھی سوال',
+  },
+
+  /**
+   * A tap on a row this build no longer emits. WhatsApp keeps list rows
+   * tappable forever, so this is a live surface, not a theoretical one — and it
+   * was the one English literal left in the dispatch.
+   */
+  /**
+   * The ultimate text fallback, sent when the interactive list itself could not
+   * be delivered. It used to be a nine-language inline map — seven of those
+   * languages are not offered on this deployment and could never be selected,
+   * and all nine advertised reading assessment and AI video creation, neither
+   * of which can start here. Same three features as the rows, same honesty.
+   */
+  menuTextFallback: {
+    en: "Hi! I'm your NIETE Teaching Assistant.\n\nI can help you with:\n📚 Lesson plans\n🎓 Classroom coaching\n📗 Teacher training\n\nType /menu for the full list, or just tell me what you need.",
+    ur: 'السلام علیکم! میں آپ کی NIETE ٹیچنگ اسسٹنٹ ہوں۔\n\nمیں ان کاموں میں مدد کر سکتی ہوں:\n📚 لیسن پلان\n🎓 کلاس روم کوچنگ\n📗 ٹیچر ٹریننگ\n\nپوری فہرست کے لیے /menu ٹائپ کریں، یا بتائیں کیا چاہیے۔',
+  },
+
+  /**
+   * The four feature doors extracted out of text-message.handler. Their copy
+   * used to sit inline beside the Flow send — an unreviewed per-language map
+   * each, inside a 3,300-line handler no test can boot, so none of it was ever
+   * measured against a cap or checked for a missing language.
+   *
+   * Caps: header 60 code points, body 1024, Flow button 20.
+   */
+  assessmentFlowHeader: {
+    en: '📝 New assessment',
+    ur: '📝 نیا پرچہ',
+  },
+
+  assessmentFlowBody: {
+    en: 'Build a paper for your class — pick the grade, subject and chapter.',
+    ur: 'اپنی جماعت کے لیے پرچہ بنائیں — جماعت، مضمون اور سبق منتخب کریں۔',
+  },
+
+  assessmentFlowButton: {
+    en: 'Start',
+    ur: 'شروع کریں',
+  },
+
+  assessmentNotReady: {
+    en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
+    ur: 'پرچہ بنانے والا حصہ آپ کے لیے تیار کیا جا رہا ہے۔ جیسے ہی چالو ہوا، میں بتا دوں گی۔',
+  },
+
+  studentVideosHeader: {
+    en: '🎬 Student Videos',
+    ur: '🎬 طلبہ کی ویڈیوز',
+  },
+
+  studentVideosBody: {
+    en: 'Pick a class, subject and topic — I will send the video to your chat.',
+    ur: 'اپنی کلاس، مضمون اور موضوع چنیں — میں ویڈیو آپ کی چیٹ میں بھیج دوں گی۔',
+  },
+
+  studentVideosButton: {
+    en: 'Browse',
+    ur: 'تلاش کریں',
+  },
+
+  classesNotAvailable: {
+    en: 'Classes are not available on this number yet. Please try again later.',
+    ur: 'اس نمبر پر کلاسیں ابھی دستیاب نہیں ہیں۔ براہ کرم بعد میں کوشش کریں۔',
+  },
+
+  attendanceNotAvailable: {
+    en: 'Attendance is not available on this number yet. Please try again later.',
+    ur: 'اس نمبر پر حاضری ابھی دستیاب نہیں ہے۔ براہ کرم بعد میں کوشش کریں۔',
+  },
+
+  attendanceHeader: {
+    en: '📋 Attendance',
+    ur: '📋 حاضری',
+  },
+
+  attendanceBodyTeachers: {
+    en: "Mark your school's teachers — pick the day, then tap whoever is away.",
+    ur: 'اپنے اسکول کے اساتذہ کی حاضری لگائیں — دن چنیں، پھر غیر حاضر افراد پر دبائیں۔',
+  },
+
+  attendanceBodyStudents: {
+    en: 'Mark your class for today.',
+    ur: 'آج اپنی کلاس کی حاضری لگائیں۔',
+  },
+
+  attendanceBodyPickClass: {
+    en: 'Pick the class and the day, then tap whoever is away.',
+    ur: 'کلاس اور دن چنیں، پھر غیر حاضر افراد پر دبائیں۔',
+  },
+
+  attendanceMarkButton: {
+    en: 'Mark attendance',
+    ur: 'حاضری لگائیں',
+  },
+
+  attendanceChooseClass: {
+    en: 'Choose class',
+    ur: 'کلاس چنیں',
+  },
+
+  attendanceYourClasses: {
+    en: 'Your classes',
+    ur: 'آپ کی کلاسیں',
+  },
+
+  attendanceShowingFirst: {
+    en: 'Showing your first {count} classes.',
+    ur: 'آپ کی پہلی {count} کلاسیں دکھائی جا رہی ہیں۔',
+  },
+
+  attendanceClassesHeader: {
+    en: '🏫 Your classes',
+    ur: '🏫 آپ کی کلاسیں',
+  },
+
+  attendanceClassesButton: {
+    en: 'Manage classes',
+    ur: 'کلاسیں سنبھالیں',
+  },
+
+  attendanceAddStudentsHeader: {
+    en: '📋 Add students',
+    ur: '📋 طلبہ شامل کریں',
+  },
+
+  attendanceAddStudentsButton: {
+    en: 'Add students',
+    ur: 'طلبہ شامل کریں',
+  },
+
+  attendanceSetUpClass: {
+    en: '{message} Send /class to set one up.',
+    ur: '{message} ایک بنانے کے لیے /class بھیجیں۔',
+  },
+
+  attendanceSomethingWrong: {
+    en: 'Sorry, something went wrong with attendance. Please try again.',
+    ur: 'معذرت، حاضری میں کچھ مسئلہ ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔',
+  },
+
+  /**
+   * The rows added when the menu became the front door for every live feature.
+   * Ordered by measured seven-day demand, per the approved design: roster 814,
+   * attendance 1,771, classes 843, assessment 294, quiz 121, videos 100.
+   *
+   * Row caps: title 24 code points, description 72.
+   */
+  menuRowAttendanceTitle: {
+    en: 'Attendance',
+    ur: 'حاضری',
+  },
+
+  menuRowAttendanceDesc: {
+    en: "Mark today's roll call for your class",
+    ur: 'آج اپنی کلاس کی حاضری لگائیں',
+  },
+
+  /** A principal's attendance is STAFF attendance — the router already knows. */
+  menuRowStaffAttendanceTitle: {
+    en: 'Staff Attendance',
+    ur: 'عملے کی حاضری',
+  },
+
+  menuRowStaffAttendanceDesc: {
+    en: "Mark today's teacher attendance",
+    ur: 'آج اساتذہ کی حاضری لگائیں',
+  },
+
+  menuRowClassesTitle: {
+    en: 'My Classes',
+    ur: 'میری کلاسیں',
+  },
+
+  menuRowClassesDesc: {
+    en: 'See the classes you teach, or add one',
+    ur: 'آپ کی کلاسیں دیکھیں یا نئی شامل کریں',
+  },
+
+  menuRowQuizTitle: {
+    en: 'Quiz My Class',
+    ur: 'کلاس کا کوئز',
+  },
+
+  menuRowQuizDesc: {
+    en: 'Make a quiz from a lesson you recorded',
+    ur: 'ریکارڈ کیے سبق سے کوئز بنائیں',
+  },
+
+  menuRowAssessmentTitle: {
+    en: 'Test Paper',
+    ur: 'پرچہ بنائیں',
+  },
+
+  menuRowAssessmentDesc: {
+    en: 'Build a paper for your grade and chapter',
+    ur: 'اپنی جماعت اور سبق کا پرچہ تیار کریں',
+  },
+
+  menuRowVideosTitle: {
+    en: 'Student Videos',
+    ur: 'طلبہ کی ویڈیوز',
+  },
+
+  menuRowVideosDesc: {
+    en: 'Send a ready-made lesson video to your class',
+    ur: 'تیار سبق ویڈیو اپنی کلاس کو بھیجیں',
+  },
+
+  menuRowLanguageTitle: {
+    en: 'Change Language',
+    ur: 'زبان تبدیل کریں',
+  },
+
+  menuRowLanguageDesc: {
+    en: 'Switch between Urdu and English',
+    ur: 'اردو اور انگریزی میں تبدیل کریں',
+  },
+
+  menuRowRosterTitle: {
+    en: 'Class Roster',
+    ur: 'کلاس رجسٹر',
+  },
+
+  menuRowRosterDesc: {
+    en: 'Photograph a register to build a student list',
+    ur: 'رجسٹر کی تصویر سے طلبہ کی فہرست بنائیں',
+  },
+
+  /**
+   * A scrollback tap on a row this deployment cannot serve. WhatsApp keeps list
+   * rows tappable forever, so every row that can be hidden by a presence gate
+   * needs an honest answer for the day after it is hidden — the alternative is
+   * a Flow send with `flowId: undefined`, which is exactly what cost reading
+   * assessment 57 failures in 20 days.
+   */
+  featureNotAvailableHere: {
+    en: 'That one is not switched on here yet. Type /menu to see what is ready now.',
+    ur: 'یہ سہولت یہاں ابھی چالو نہیں ہے۔ جو ابھی دستیاب ہے دیکھنے کے لیے /menu ٹائپ کریں۔',
+  },
+
+  // The class-roster door's copy is defined ONCE, further up this file
+  // (rosterRoleRefusal + rosterFlowHeader/Body/Footer/Button + rosterFlowFailed).
+  // Two PRs extracted /roster in parallel and each brought its own catalogue
+  // block; a second definition here would be a duplicate object key, where the
+  // later one silently wins and the earlier one is dead. Merge resolution
+  // 2026-09-15: one definition, and roster-entry.service reads rosterRoleRefusal.
+
+  menuUnknownOption: {
+    en: "I didn't recognise that option. Type /menu to see the list again.",
+    ur: 'یہ آپشن پہچانا نہیں گیا۔ فہرست دوبارہ دیکھنے کے لیے /menu ٹائپ کریں۔',
+  },
+
+  menuError: {
+    en: 'Something went wrong there. Type /menu to try again.',
+    ur: 'کچھ مسئلہ ہو گیا۔ دوبارہ کوشش کے لیے /menu ٹائپ کریں۔',
   },
 
   /**

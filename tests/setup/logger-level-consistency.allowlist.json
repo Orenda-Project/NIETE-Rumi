@@ -1891,12 +1891,6 @@
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1968,
-    "snippet": "logToFile('❌ Feature menu list fallback failed', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/whatsapp.service.js",
     "line": 1984,
     "snippet": "logToFile('❌ Feature menu list fallback exception', {",
     "occurrence": 0

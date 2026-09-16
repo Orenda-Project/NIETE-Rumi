@@ -16,8 +16,11 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
+const { languageFor } = require('./observe-language');
 const { getObservePack } = require('./observe-framework');   // FEAT-093 bd-52 — market rubric by config
 const { logToFile } = require('../../utils/logger');
+
+const { TERMINAL_STATUSES, TERMINAL_IN_FILTER, isTerminalStatus } = require('../coaching/session-terminal');
 
 // D15 — full text stays in analysis_data regardless of what the form shows.
 // bd-2217: was 300, which visibly cut every Evidence note mid-sentence (Warda +
@@ -157,7 +160,7 @@ const FIDELITY_VERDICT_OPTIONS = [
 ];
 const VALID_FIDELITY_VERDICTS = new Set(FIDELITY_VERDICT_OPTIONS.map(o => o.id));
 
-function composeEditableFidelity(lp) {
+function composeEditableFidelity(lp, language) {
   if (!lp || lp.status !== 'ok' || lp.fidelity_pct == null) return null;
   const all = Array.isArray(lp.moves) ? lp.moves : [];
   if (!all.length) return null;
@@ -168,13 +171,24 @@ function composeEditableFidelity(lp) {
     'Below is each prescribed move, what the recording showed, and the credit the AI gave (✓ full · ◐ half · ✗ none · – not counted).',
     'Change any rating or evidence you disagree with — Section B recalculates from YOUR ratings.'
     + (all.length > MAX_MOVE_SLOTS ? ` (${all.length - MAX_MOVE_SLOTS} further moves are in the report and keep the AI's rating.)` : ''),
-  ].join('\n');
+  ];
+  // The grader said the recording stopped before the lesson did and then counted the
+  // later moves as misses anyway (fidelity-scorer's truncation_inconsistent). No score
+  // was changed for it — the coach was in the room, so she is the instrument: one line
+  // here, and her per-move radios below re-run the same scorer.
+  // Absent for a language that does not carry the string (sw has no editable Section B),
+  // which is a skipped sentence, never an "undefined" served to a coach.
+  if (lp.moderators && lp.moderators.truncation_inconsistent) {
+    const recheck = observeStrings(observeLang({ preferred_language: language })).fid_truncation_recheck;
+    if (recheck) header.push(recheck);
+  }
+  const headerText = header.join('\n');
   const slots = shown.map((m, i) => ({
     plan: clipWords(`${i + 1}/${all.length}${PHASE_LABEL[m.phase] ? ` · ${PHASE_LABEL[m.phase]}` : ''} — ${m.text}`, 260),
     verdict: VALID_FIDELITY_VERDICTS.has(m.verdict) ? m.verdict : 'not_adjudicable',
     evidence: clipWords(String(m.evidence || m.rationale || ''), PREFILL_TEXT_CAP),
   }));
-  return { header, slots };
+  return { header: headerText, slots };
 }
 
 /**
@@ -250,22 +264,28 @@ function composeMoveBlocks(lp) {
 // the most common one (plan linked, recording not adjudicable). Wrong copy
 // here rewrites every field report: coaches described an LP-linking failure
 // and a whole fix cycle chased the wrong layer.
+//
+// Each state keeps its own first clause — what actually happened — and they now
+// share a corrected second clause: with nothing measured, Section B is NOT
+// scored and leaves the total. The old sentences said it kept a standard AI
+// assessment, which the scorer no longer does.
 function fidelityFallbackCopy(lp) {
+  const consequence = ' Section B is not scored for this observation and is left out of the '
+    + 'total — the teacher\'s report says so too. Continue to the next section.';
   if (lp && lp.status === 'ok' && lp.fidelity_pct == null) {
     return 'The lesson plan was linked, but the recording could not be matched to it move-by-move, '
-      + 'so there are no per-move ratings to review. Section B keeps its standard AI assessment — '
-      + 'continue to the next section.';
+      + 'so there are no per-move ratings to review.' + consequence;
   }
   if (lp && lp.status === 'fidelity_unavailable') {
     return 'The lesson plan was received, but the move-by-move check could not run for this '
-      + 'observation. Section B keeps its standard AI assessment — continue to the next section.';
+      + 'observation.' + consequence;
   }
   // lp_absent, or no fidelity blob at all: no plan ever reached this observation.
-  return 'No usable lesson plan was linked for this observation, so Section B was scored by the '
-    + 'AI assessment. Nothing to review here — continue to the next section.';
+  return 'No lesson plan was provided for this observation, so there was nothing to check the '
+    + 'lesson against.' + consequence;
 }
 
-function buildScreenPrefill(analysis, domainKey) {
+function buildScreenPrefill(analysis, domainKey, language) {
   const { domains } = { domains: getObservePack().domains };
   const spec = domains[domainKey];
   const stored = ((analysis || {}).domains || {})[domainKey] || {};
@@ -303,7 +323,7 @@ function buildScreenPrefill(analysis, domainKey) {
   // editable evidence box, pre-filled from the scorer's own output.
   if (domainKey === 'lesson_plan_fidelity' && fidelityMode === 'editable') {
     const lpBlob = (analysis || {}).lp_fidelity;
-    const ed = composeEditableFidelity(lpBlob);
+    const ed = composeEditableFidelity(lpBlob, language);
     data.has_fidelity = !!ed;
     data.no_fidelity = !ed;
     data.fid_header = ed ? ed.header : '';
@@ -343,15 +363,39 @@ function buildScreenPrefill(analysis, domainKey) {
 async function onAnalysisReady(sessionId, from) {
   const session = await loadSession(sessionId);
   const observerId = session.observer_user_id || session.user_id;
-  const lang = observeLang(session.users);
+  // The form is read by the OBSERVER (the recipient resolved below). session.users
+  // is the observed teacher once one is bound, so it is not the reader's language.
+  const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
+
+  // The analysis job outlives a cancel: it was queued before it and lands after.
+  if (isTerminalStatus(session.status)) {
+    logToFile('🚫 observe: analysis ready but the observation is over — not re-armed', {
+      sessionId, status: session.status,
+    });
+    return;
+  }
 
   const update = { status: 'awaiting_observer_review', debrief_status: session.debrief_status || 'pending' };
   if (!session.autofill_analysis_data) {
     update.autofill_analysis_data = session.analysis_data; // freeze v1 exactly once
   }
-  const { error: upErr } = await supabase.from('coaching_sessions').update(update).eq('id', sessionId);
+  // The predicate closes the window the read above cannot: a cancel that lands
+  // between them must not be overwritten by a job that was already running.
+  const { data: armed, error: upErr } = await supabase.from('coaching_sessions')
+    .update(update)
+    .eq('id', sessionId)
+    .not('status', 'in', TERMINAL_IN_FILTER)
+    .select('id');
   if (upErr) logToFile('⚠️ observe: failed to persist review status/freeze', { sessionId, error: upErr.message });
+  // Refuse ONLY on an explicit "no rows matched". Anything else — an error, or a
+  // client that does not hand back a list — leaves the send alone: the read above
+  // already caught the ordinary cancel, and a coach must not lose her form to an
+  // ambiguous write result.
+  if (!upErr && Array.isArray(armed) && armed.length === 0) {
+    logToFile('🚫 observe: observation went terminal while the analysis ran — not re-armed', { sessionId });
+    return;
+  }
 
   // Review fix: never clobber a live debrief-recording state (the FO
   // may be mid-debrief for ANOTHER session when this analysis completes).
@@ -479,10 +523,23 @@ async function applyObserverEdits(sessionId, edits) {
   const freshDebrief = freshRow && freshRow.analysis_data && freshRow.analysis_data.observer_debrief;
   if (freshDebrief) v2.observer_debrief = freshDebrief;
 
-  const { error } = await supabase.from('coaching_sessions')
+  // The predicate closes the window the endpoint's read cannot: a cancel that
+  // lands between the load and this write must not be overwritten by a form
+  // that was already open. Both guards are needed — the read stops the common
+  // case, the predicate stops the race.
+  const { data: written, error } = await supabase.from('coaching_sessions')
     .update({ analysis_data: v2, status: 'observer_review_complete' })
-    .eq('id', sessionId);
+    .eq('id', sessionId)
+    .not('status', 'in', `(${TERMINAL_STATUSES.join(',')})`)
+    .select('id');
   if (error) throw new Error(`observe: failed to persist v2 edits: ${error.message}`);
+  if (!written || !written.length) {
+    // Nothing matched: the observation went terminal under us. Say so rather
+    // than reporting a successful edit — a caller that believes this succeeded
+    // sends the teacher a report that was cancelled.
+    logToFile('🚫 observe: observer edits refused — observation is terminal', { sessionId });
+    return { refused: 'terminal' };
+  }
 
   logToFile('📝 observe: observer edits applied (v2)', { sessionId, ...summary });
   return summary;

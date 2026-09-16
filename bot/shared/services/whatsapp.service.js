@@ -5,8 +5,18 @@ const { WHATSAPP_TOKEN, PHONE_NUMBER_ID } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 const { downloadFromR2, downloadMedia, extractKeyFromUrl } = require('../storage/r2');
 const { getOfferedLanguages } = require('../config/languages');
-const { resolveUx } = require('../config/ux-strings');
+const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { featureMenuRows } = require('../config/role-features');
+const { envMenuGates } = require('../config/menu-gates');
+
+/**
+ * WhatsApp Cloud API limits this module has to respect, measured in CODE
+ * POINTS. Named here because both were previously implicit: the list had no
+ * row guard at all, and the button title was clipped with `.substring`, which
+ * counts UTF-16 units.
+ */
+const MAX_LIST_ROWS = 10;      // total across ALL sections, not per section
+const MAX_BUTTON_TITLE = 20;   // reply-button title
 
 // Prefer ASSET_BASE_URL; fall back to legacy ASSETS_BASE_URL. Empty when
 // neither is set — the carousel template builder below guards against that.
@@ -37,7 +47,7 @@ class WhatsAppService {
    * @param {string} message - Message text
    * @returns {Promise<boolean>}
    */
-  static async sendMessage(to, message) {
+  static async sendMessage(to, message, opts = {}) {
     try {
       // Remove emotion tags from text messages (they're only for voice)
       const cleanMessage = this._removeEmotionTags(message);
@@ -62,14 +72,45 @@ class WhatsAppService {
       const data = await response.json();
       if (!response.ok) {
         logToFile('❌ Error sending WhatsApp message', { responseData: data });
+        // Shaped like an axios rejection so one reader handles both transports:
+        // sendMessage is on fetch, the image senders are on axios.
+        WhatsAppService._reportSendError(opts, Object.assign(
+          new Error((data && data.error && data.error.message) || `WhatsApp send failed (${response.status})`),
+          { response: { status: response.status, data } },
+        ));
         return false;
       }
       logToFile('✅ WhatsApp message sent', { messageId: data?.messages?.[0]?.id });
       return true;
     } catch (error) {
       logToFile('❌ Exception sending WhatsApp message', { error: error.message });
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
+  }
+
+  /**
+   * Hand a send failure to a caller that asked for it, and never let that
+   * callback change what the send did. Callers that do not pass `onError` are
+   * byte-for-byte unaffected: the boolean return contract is untouched.
+   */
+  static _reportSendError(opts, error) {
+    const onError = opts && opts.onError;
+    if (typeof onError !== 'function') return;
+    try {
+      onError(error);
+    } catch (_) {
+      // A caller's error handler must never be able to break the send path.
+    }
+  }
+
+  /**
+   * The Meta error code inside a send failure, or null. One definition, in
+   * config/meta-messaging-window.js — this is the convenience alias for
+   * callers that already hold the service.
+   */
+  static metaErrorCodeOf(error) {
+    return require('../config/meta-messaging-window').metaErrorCodeOf(error);
   }
 
   /**
@@ -433,7 +474,10 @@ class WhatsAppService {
       const ext = isOgg ? 'ogg' : 'mp3';
       const contentType = isOgg ? 'audio/ogg' : 'audio/mpeg';
 
-      // Save audio to temp file
+      // Save audio to temp file. Every other sender here creates its temp dir
+      // first; this one did not, so on a worker where the directory had never
+      // been made the write threw ENOENT and the voice note was never uploaded.
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
       const audioPath = path.join(tempDir, `audio_${Date.now()}.${ext}`);
       fs.writeFileSync(audioPath, audioBuffer);
 
@@ -927,7 +971,7 @@ class WhatsAppService {
    * @param {string} caption - Optional caption
    * @returns {Promise<boolean>}
    */
-  static async sendImage(to, mediaIdOrPath, caption = '') {
+  static async sendImage(to, mediaIdOrPath, caption = '', opts = {}) {
     const path = require('path');
 
     try {
@@ -996,6 +1040,12 @@ class WhatsAppService {
         error: error.message,
         errorDetails: error.response?.data
       });
+      // The return stays a boolean for every existing caller. `onError` is the
+      // opt-in seam for a caller that needs to ACT on which error this was —
+      // a Meta re-engagement refusal has a different remedy from an invalid
+      // parameter, and the code that distinguishes them was being logged and
+      // then discarded here.
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
   }
@@ -1112,7 +1162,11 @@ class WhatsAppService {
         type: 'reply',
         reply: {
           id: btn.id,
-          title: btn.title.substring(0, 20) // WhatsApp button title max 20 chars
+          // Code points, not UTF-16 units. `.substring(0, 20)` counts units, so
+          // a title whose 20th code point is astral (an emoji, or any character
+          // outside the BMP) is cut mid-surrogate — it passes locally and is
+          // mangled or rejected at Meta. Meta counts code points.
+          title: [...btn.title].slice(0, MAX_BUTTON_TITLE).join('')
         }
       }));
 
@@ -1163,7 +1217,7 @@ class WhatsAppService {
    * @param {string} [mimeType]
    * @returns {Promise<boolean|object>}
    */
-  static async sendImageFromBuffer(to, imageBuffer, caption = '', mimeType = 'image/png') {
+  static async sendImageFromBuffer(to, imageBuffer, caption = '', mimeType = 'image/png', opts = {}) {
     try {
       if (!imageBuffer || !imageBuffer.length) {
         logToFile('❌ sendImageFromBuffer: empty buffer', { to });
@@ -1181,12 +1235,13 @@ class WhatsAppService {
       );
       const mediaId = uploadResp.data.id;
       logToFile('Image buffer uploaded to WhatsApp', { mediaId, bytes: imageBuffer.length });
-      return await WhatsAppService.sendImage(to, mediaId, caption);
+      return await WhatsAppService.sendImage(to, mediaId, caption, opts);
     } catch (error) {
       logToFile('❌ Error in sendImageFromBuffer', {
         error: error.message,
         errorDetails: error.response?.data,
       });
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
   }
@@ -1640,10 +1695,10 @@ class WhatsAppService {
                 text: resolveUx('languagePickerFooter', { language: currentLanguage })
               },
               action: {
-                button: 'Languages',
+                button: resolveUx('languagePickerButton', { language: currentLanguage }),
                 sections: [
                   {
-                    title: 'Available Languages',
+                    title: resolveUx('languagePickerSectionTitle', { language: currentLanguage }),
                     // Built from the language registry so this list and the
                     // /settings dropdown cannot drift apart. It used to be ten
                     // hardcoded rows — eight of them languages ICT does not
@@ -2077,8 +2132,8 @@ class WhatsAppService {
    *
    * @returns {Promise<boolean>} true if the menu was delivered
    */
-  static async sendFeatureMenuCarousel(to, user = null) {
-    return await this.sendFeatureMenuListFallback(to, user);
+  static async sendFeatureMenuCarousel(to, user = null, language = undefined, gates = undefined) {
+    return await this.sendFeatureMenuListFallback(to, user, language, gates);
   }
 
   /**
@@ -2088,10 +2143,42 @@ class WhatsAppService {
    *
    * `user` is optional: omitted, featureMenuRows falls back to the DC-only
    * default, so no caller can accidentally cost a teacher her menu.
+   *
+   * `language` is the teacher's resolved preference. Before it existed, every
+   * string here was an English literal and the builder had no language argument
+   * to give its rows: 9,205 sends in nine days, 1,060 of them logged as `ur`,
+   * all 9,205 delivered in English to a cohort that is 99.0% Urdu. Omitted, it
+   * falls back to `user.preferred_language` and then to the floor, so a caller
+   * that forgets it still serves her own language rather than English.
    */
-  static async sendFeatureMenuListFallback(to, user = null) {
+  static async sendFeatureMenuListFallback(to, user = null, language = undefined, gates = undefined) {
     try {
-      logToFile('Sending feature menu list fallback', { to });
+      const lang = clampLanguage(language || user?.preferred_language);
+      logToFile('Sending feature menu list fallback', { to, language: lang });
+
+      // Presence-based gating: a row appears only when the feature behind it can
+      // actually START. `gates` is passed by sendMenu, which also resolves the
+      // one gate that lives in the database; without it we fall back to the
+      // env-only floor, which can only ever show FEWER rows.
+      const rows = featureMenuRows(user, gates || envMenuGates()).map((row) => ({
+        id: row.id, // never translated — the reply router matches on this
+        title: resolveUx(row.titleKey, { language: lang }),
+        description: resolveUx(row.descriptionKey, { language: lang }),
+      }));
+
+      // WhatsApp's hard cap is 10 rows TOTAL across all sections, and it
+      // rejects the whole message — the teacher receives nothing. The builder
+      // is role-aware, so it is exactly the thing that grows to 11 rows one
+      // day. Refuse loudly here rather than let Meta refuse silently.
+      if (rows.length > MAX_LIST_ROWS) {
+        logToFile('❌ Feature menu refused — too many rows for a WhatsApp list', {
+          to,
+          rows: rows.length,
+          max: MAX_LIST_ROWS,
+          ids: rows.map((r) => r.id),
+        }, 'error');
+        return false;
+      }
 
       const payload = {
         messaging_product: 'whatsapp',
@@ -2102,23 +2189,25 @@ class WhatsAppService {
           type: 'list',
           header: {
             type: 'text',
-            text: "Here's what I can do!"
+            text: resolveUx('menuHeader', { language: lang })
           },
           body: {
-            text: "I'm your NIETE Teaching Assistant. I can help you with lesson plans, classroom coaching, reading assessments, and more. Choose a feature to get started:"
+            // Names no features on purpose. The old body listed the inventory
+            // and became the place the inventory went stale — it advertised
+            // reading assessment for weeks after the row was removed, and
+            // while the feature could not start at all. The rows are the
+            // inventory.
+            text: resolveUx('menuBody', { language: lang })
           },
           footer: {
-            text: 'Tap to see options'
+            text: resolveUx('menuFooter', { language: lang })
           },
           action: {
-            button: 'View Features',
+            button: resolveUx('menuButton', { language: lang }),
             sections: [
               {
-                title: 'My Features',
-                rows: featureMenuRows(user, {
-                  // presence-based gating: no published observe Flow, no HITL row
-                  observeEnabled: Boolean(process.env.OBSERVE_MEWAKA_FLOW_ID),
-                }),
+                title: resolveUx('menuSectionTitle', { language: lang }),
+                rows,
               }
             ]
           }
@@ -2140,13 +2229,16 @@ class WhatsAppService {
       const data = await response.json();
 
       if (!response.ok) {
+        // error, not the default info: a rejected send means the teacher
+        // received NOTHING — she typed /menu and the bot went silent — and at
+        // info level that never reaches error monitoring.
         logToFile('❌ Feature menu list fallback failed', {
           to,
           error: data.error?.message || 'Unknown error',
           errorCode: data.error?.code,
           errorDetails: JSON.stringify(data.error),
           status: response.status
-        });
+        }, 'error');
         return false;
       }
 

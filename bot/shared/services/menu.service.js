@@ -11,6 +11,7 @@ const LessonPlanningService = require('./lesson-planning.service');
 const { isFeatureRunnable } = require('../config/feature-availability');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { canSelfCoach, canObserve } = require('../config/role-features');
+const { getUserLanguage } = require('../utils/language-cache');
 
 const openai = getClient();
 
@@ -55,20 +56,41 @@ class MenuService {
    */
   static async sendMenu(from, userId, sessionId, language = 'en', user = null) {
     try {
-      logToFile('Sending feature menu carousel', { from, userId, language });
+      // The language is resolved HERE, not trusted from the argument. Four of
+      // the five call sites pass the literal 'en' — including the /menu command
+      // itself — so 9,205 sends in nine days were built as English for a cohort
+      // that is 99.0% Urdu. Fixing it at five call sites means the sixth one
+      // written next month is English again; fixing it here means it cannot be.
+      //
+      // Order: the teacher's own row first (already in hand at every call site,
+      // so no IO and no failure mode), then the cache/DB read when a caller has
+      // no user object, then whatever the caller asked for.
+      const resolvedLanguage = clampLanguage(
+        user?.preferred_language
+        || (userId ? await getUserLanguage(userId) : null)
+        || language,
+      );
+      logToFile('Sending feature menu carousel', {
+        from, userId, language: resolvedLanguage, requested: language,
+      });
 
       // Store state in Redis for button handling
       const stateKey = `user:${userId}:awaiting_menu_selection`;
       const stateData = {
         sessionId,
         from,
-        language,
+        language: resolvedLanguage,
         askedAt: new Date().toISOString()
       };
       await redisService.set(stateKey, stateData, MENU_STATE_TTL);
 
       // Send carousel (falls back to list if template not approved)
-      const success = await WhatsAppService.sendFeatureMenuCarousel(from, user);
+      // Resolve the gates HERE: one of them is a database row, and this method
+      // already does IO. The sender stays free of it.
+      const { menuGates } = require('../config/menu-gates');
+      const gates = await menuGates();
+      const success = await WhatsAppService.sendFeatureMenuCarousel(
+        from, user, resolvedLanguage, gates);
 
       if (success) {
         // Store bot response in conversation history
@@ -83,7 +105,7 @@ class MenuService {
         logToFile('✅ Feature menu sent successfully', { from });
       } else {
         // If both carousel and fallback failed, send simple text
-        await this._sendTextMenuFallback(from, userId, sessionId, language);
+        await this._sendTextMenuFallback(from, userId, sessionId, resolvedLanguage);
       }
     } catch (error) {
       logToFile('❌ Error sending menu', {
@@ -230,6 +252,79 @@ class MenuService {
           break;
         }
 
+        // ── the rows added when /menu became the front door ────────────────
+        //
+        // Each one is wired to the SAME exported door its command calls — no
+        // second implementation — and each is gated by the SAME predicate that
+        // decides whether the row is drawn. A row can be hidden today and still
+        // be tapped tomorrow from scrollback, so a shut gate answers honestly
+        // rather than opening a Flow with `flowId: undefined`.
+        case 'menu_attendance': {
+          const { openAttendance } = require('./attendance-entry.service');
+          await openAttendance({ user, from, language, reason: 'menu' });
+          break;
+        }
+
+        case 'menu_classes': {
+          const { openClassManagerFlow } = require('./classes/class-entry.service');
+          await openClassManagerFlow({ from, user, language, reason: 'menu' });
+          break;
+        }
+
+        case 'menu_quiz': {
+          // The SAME predicate that decides whether the row is drawn
+          // (config/menu-gates), not a second reading of the two conditions.
+          // Two definitions of one gate is how a row and its tap end up
+          // disagreeing, and the tap is the half a teacher notices.
+          const { envMenuGates } = require('../config/menu-gates');
+          if (!envMenuGates().quizEnabled) {
+            logToFile('🚫 menu_quiz refused — the transcript quiz is not live here', {
+              userId: user.id,
+            }, 'warn');
+            await WhatsAppService.sendMessage(from,
+              resolveUx('featureNotAvailableHere', { language: clampLanguage(language) }));
+            break;
+          }
+          const TranscriptQuizList = require('./quiz/transcript-quiz-list.service');
+          await TranscriptQuizList.showList(user, from, clampLanguage(language), 1);
+          break;
+        }
+
+        case 'menu_assessment': {
+          const { openAssessmentFlow } = require('./assessment-entry.service');
+          await openAssessmentFlow({ from, userId: user.id, language, reason: 'menu' });
+          break;
+        }
+
+        case 'menu_videos': {
+          const { openStudentVideosFlow } = require('./student-videos-entry.service');
+          const opened = await openStudentVideosFlow({
+            from, userId: user.id, language, reason: 'menu',
+          });
+          if (!opened) {
+            // The door is deliberately silent when no library is provisioned —
+            // its command falls through to generation. A TAP has nothing to fall
+            // through to, so it gets the honest line here.
+            await WhatsAppService.sendMessage(from,
+              resolveUx('featureNotAvailableHere', { language: clampLanguage(language) }));
+          }
+          break;
+        }
+
+        case 'menu_roster': {
+          const { openRosterFlow } = require('./roster-entry.service');
+          const outcome = await openRosterFlow({ from, user, language, reason: 'menu' });
+          if (outcome === 'no_flow' || outcome === 'send_failed') {
+            await WhatsAppService.sendMessage(from,
+              resolveUx('featureNotAvailableHere', { language: clampLanguage(language) }));
+          }
+          break;
+        }
+
+        case 'menu_language':
+          await WhatsAppService.sendLanguageSelectionList(from, clampLanguage(language));
+          break;
+
         case 'menu_video':
           // Trigger video generation flow
           await this._handleMediaLibraryChoice(user.id, sessionId, from, language);
@@ -240,8 +335,12 @@ class MenuService {
           break;
 
         default:
+          // A tap on a row this build no longer emits. WhatsApp keeps list rows
+          // tappable forever, so this is a live surface — and it was the last
+          // English literal left in the dispatch.
           logToFile('Unknown menu button ID', { buttonId });
-          await WhatsAppService.sendMessage(from, "I didn't recognize that option. Type /menu to try again.");
+          await WhatsAppService.sendMessage(from,
+            resolveUx('menuUnknownOption', { language: clampLanguage(language) }));
       }
     } catch (error) {
       logToFile('❌ Error handling menu button response', {
@@ -249,7 +348,8 @@ class MenuService {
         buttonId,
         userId: user?.id
       });
-      await WhatsAppService.sendMessage(from, "Something went wrong. Please type /menu to try again.");
+      await WhatsAppService.sendMessage(from,
+        resolveUx('menuError', { language: clampLanguage(language) }));
     }
   }
 
@@ -268,25 +368,15 @@ class MenuService {
    * @private
    */
   static async _sendTextMenuFallback(from, userId, sessionId, language) {
-    // Menu messages in all 9 supported languages
-    const menuMessages = {
-      en: "Hi! I'm your NIETE Teaching Assistant!\n\nI can help you with:\n📚 Lesson Plans & Presentations\n🎓 Classroom Coaching\n📖 Reading Assessments\n🎬 AI Video Creation\n\nJust tell me what you need!",
-      ur: "السلام علیکم! میں NIETE ہوں، آپ کی ٹیچنگ اسسٹنٹ!\n\nمیں آپ کی مدد کر سکتی ہوں:\n📚 لیسن پلانز اور پریزنٹیشنز\n🎓 کلاس روم کوچنگ\n📖 ریڈنگ ٹیسٹ\n🎬 AI ویڈیوز\n\nبتائیں، کیا چاہیے؟",
-      ar: "مرحباً! أنا رومي، مساعدتك التعليمية!\n\nيمكنني مساعدتك في:\n📚 خطط الدروس والعروض التقديمية\n🎓 التدريب الصفي\n📖 تقييم القراءة\n🎬 إنشاء فيديو بالذكاء الاصطناعي\n\nأخبرني بما تحتاج!",
-      es: "¡Hola! Soy tu Asistente de Enseñanza de NIETE.\n\nPuedo ayudarte con:\n📚 Planes de Lección y Presentaciones\n🎓 Coaching de Aula\n📖 Evaluación de Lectura\n🎬 Creación de Videos con IA\n\n¡Dime qué necesitas!",
-      'bal-PK': "سلام! من NIETE آں، شما ءِ تدریسی معاون!\n\nمن شما ءِ کمک کن کیا:\n📚 سبق ءِ منصوبہ\n🎓 کلاس روم کوچنگ\n📖 پڑھائی ءِ ٹیسٹ\n🎬 AI ویڈیو\n\nبگوشیت چہ چیز چاہیت؟",
-      'sd-PK': "سلام! مان رومي آهيان، توهان جي تدريسي معاون!\n\nمان توهان جي مدد ڪري سگهان ٿي:\n📚 سبق جو منصوبو\n🎓 ڪلاس روم ڪوچنگ\n📖 پڙهائي جو ٽيسٽ\n🎬 AI ويڊيو\n\nٻڌايو، ڇا گهرجي؟",
-      'ps-PK': "سلام! زه رومي یم، ستاسو د تدریس معاون!\n\nزه تاسو سره مرسته کولی شم:\n📚 د درس پلان\n🎓 صنفي کوچنګ\n📖 د لوستلو ازموینه\n🎬 AI ویډیو\n\nراته ووایئ څه غواړئ!",
-      'pa-PK': "سلام! میں NIETE آں، تہاڈی ٹیچنگ اسسٹنٹ!\n\nمیں تہاڈی مدد کر سکدی آں:\n📚 سبق دے منصوبے\n🎓 کلاس روم کوچنگ\n📖 پڑھائی دا ٹیسٹ\n🎬 AI ویڈیو\n\nدسو، کی چاہیدا اے؟",
-      'ta-LK': "வணக்கம்! நான் ரூமி, உங்கள் கற்பித்தல் உதவியாளர்!\n\nநான் உங்களுக்கு உதவ முடியும்:\n📚 பாட திட்டங்கள்\n🎓 வகுப்பறை பயிற்சி\n📖 வாசிப்பு மதிப்பீடு\n🎬 AI வீடியோ\n\nஎன்ன வேண்டும் என்று சொல்லுங்கள்!"
-    };
-
-    // Get message in user's language, fallback to English
-    const fallbackMenu = menuMessages[language] || menuMessages.en;
+    // One catalog key, not a nine-language inline map. Seven of those languages
+    // are not in LANGUAGE_OFFER and could never be selected, and all nine
+    // advertised reading assessment and AI video creation — neither of which
+    // can start on this deployment.
+    const fallbackMenu = resolveUx('menuTextFallback', { language: clampLanguage(language) });
 
     await WhatsAppService.sendMessage(from, fallbackMenu);
     await storeConversation(userId, 'assistant', fallbackMenu, 'text', sessionId);
-    logToFile('Sent text menu fallback', { from, language });
+    logToFile('Sent text menu fallback', { from, language: clampLanguage(language) });
   }
 
   /**

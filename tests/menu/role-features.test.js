@@ -60,7 +60,19 @@ describe('role-features — the capability table', () => {
 
 describe('featureMenuRows — what each role is offered', () => {
   const ids = (user, opts) => featureMenuRows(user, opts).map((r) => r.id);
-  const ON = { observeEnabled: true };
+  // Every row is presence-gated now, not just the observe one: a row appears
+  // only when the feature behind it can actually start. ON is "this deployment
+  // has everything published", which is what production runs.
+  const ON = {
+    observeEnabled: true,
+    trainingEnabled: true,
+    lessonPlanEnabled: true,
+    rosterEnabled: true,
+    classesEnabled: true,
+    quizEnabled: true,
+    assessmentEnabled: true,
+    videosEnabled: true,
+  };
 
   test('teacher: DC, no HITL', () => {
     expect(ids(u('teacher'), ON)).toContain('menu_coaching');
@@ -84,6 +96,24 @@ describe('featureMenuRows — what each role is offered', () => {
     }
   });
 
+  test('a row whose feature cannot start here is not offered to anyone', () => {
+    // The reading-assessment lesson, generalised: it stayed on the menu for
+    // twenty days after it stopped being able to run — 57 attempts, 57
+    // failures. Nothing is offered that cannot start.
+    for (const role of ['teacher', 'principal', 'coach', null]) {
+      const shut = ids(u(role), {});
+      for (const gated of ['menu_observe', 'menu_roster', 'menu_classes',
+        'menu_quiz', 'menu_assessment', 'menu_videos', 'menu_training']) {
+        expect(shut).not.toContain(gated);
+      }
+      // And she is still left with a usable menu. Lesson plans are NOT gated:
+      // that door falls back to asking for a topic in chat and still produces a
+      // plan, so gating it would hide a row that works.
+      expect(shut).toContain('menu_other');
+      expect(shut).toContain('menu_lesson_plan');
+    }
+  });
+
   test('HITL row is absent when the market has no observe Flow (presence-based gating)', () => {
     expect(ids(u('principal'), { observeEnabled: false })).not.toContain('menu_observe');
     expect(ids(u('coach'), { observeEnabled: false })).not.toContain('menu_observe');
@@ -93,14 +123,26 @@ describe('featureMenuRows — what each role is offered', () => {
     expect(ids(u('coach'), { observeEnabled: false })).not.toContain('menu_coaching');
   });
 
-  test('every row carries a title and description within WhatsApp list caps', () => {
+  test('every row carries catalog keys whose copy fits the list caps, in EVERY offered language', () => {
+    // The rows carry KEYS now, not copy: a per-language map in this config
+    // module would sit outside the catalog, where neither resolveUx nor the
+    // field-cap check can see it. So resolve each key and measure the result —
+    // which also makes the cap check cover Urdu rather than English alone.
+    const { resolveUx } = require('../../bot/shared/config/ux-strings');
+    const { LANGUAGE_OFFER } = require('../../bot/shared/config/languages');
+    expect(LANGUAGE_OFFER.length).toBeGreaterThan(1);
+
     for (const r of featureMenuRows(u('principal'), ON)) {
-      // Class I: CODE POINTS, not UTF-16 units — they diverge on non-Latin
-      // scripts and emoji, which is how a string passes locally and is rejected
-      // at the API boundary (#131009), killing the WHOLE message.
-      expect([...r.title].length).toBeGreaterThan(0);
-      expect([...r.title].length).toBeLessThanOrEqual(24);
-      expect([...r.description].length).toBeLessThanOrEqual(72);
+      for (const language of LANGUAGE_OFFER) {
+        const title = resolveUx(r.titleKey, { language });
+        const description = resolveUx(r.descriptionKey, { language });
+        // Class I: CODE POINTS, not UTF-16 units — they diverge on non-Latin
+        // scripts and emoji, which is how a string passes locally and is rejected
+        // at the API boundary (#131009), killing the WHOLE message.
+        expect([...title].length).toBeGreaterThan(0);
+        expect([...title].length).toBeLessThanOrEqual(24);
+        expect([...description].length).toBeLessThanOrEqual(72);
+      }
     }
   });
 

@@ -24,6 +24,9 @@ const VOICE_HANDLER = read('bot/shared/handlers/voice-message.handler.js');
 const TEXT_HANDLER = read('bot/shared/handlers/text-message.handler.js');
 const BOT = read('bot/whatsapp-bot.js');
 const ENDPOINT = read('bot/shared/routes/attendance-marking-endpoint.js');
+// The text side's decision switch lives here now — one door for the keyword and
+// for a typed answer, which used to be two drifted copies in the handler.
+const ATT_ENTRY = read('bot/shared/services/attendance-entry.service.js');
 
 describe('the voice note reaches attendance at all', () => {
   it('voice-message.handler has an attendance branch again', () => {
@@ -84,7 +87,7 @@ describe('the endpoint answers the voice token', () => {
 describe('both consumers arm the wait before asking for the note', () => {
   // AWAIT_VOICE is not an informational action: it has a side effect, and a consumer
   // that only printed its message would ask for a voice note it then ignored.
-  [['bot/shared/handlers/text-message.handler.js', TEXT_HANDLER],
+  [['bot/shared/services/attendance-entry.service.js', ATT_ENTRY],
     ['bot/whatsapp-bot.js', BOT]].forEach(([label, src]) => {
     it(`${label} arms it`, () => {
       expect(src).toContain('AWAIT_VOICE');
@@ -111,24 +114,38 @@ describe('the copy a principal actually reads', () => {
 
     const decision = await router.route('p1');
 
-    // The class copy hangs off OPEN_REGISTER in both consumers; confirm that first,
-    // so this test fails loudly if the copy is ever moved somewhere else.
-    [TEXT_HANDLER, BOT].forEach((src) => {
-      const classCopyAt = src.indexOf('Mark your class for today.');
-      expect(classCopyAt).toBeGreaterThan(-1);
-      expect(src.slice(0, classCopyAt)).toContain("'OPEN_REGISTER'");
-    });
+    // The class copy is a canary: confirm the route it hangs off before asserting
+    // the route itself, so this fails loudly if the copy ever moves again. On the
+    // text side the copy is now a catalog key, so the canary is the key's branch.
+    const classCopyAt = BOT.indexOf('Mark your class for today.');
+    expect(classCopyAt).toBeGreaterThan(-1);
+    expect(BOT.slice(0, classCopyAt)).toContain("'OPEN_REGISTER'");
+
+    const studentKeyAt = ATT_ENTRY.indexOf('attendanceBodyStudents');
+    expect(studentKeyAt).toBeGreaterThan(-1);
+    // It is chosen only when the action is NOT the staff one.
+    expect(ATT_ENTRY.slice(0, studentKeyAt)).toContain("'MARK_TEACHERS'");
 
     expect(decision.action).not.toBe('OPEN_REGISTER');
   });
 
   it('and the staff preamble says what happens next, not "your class"', () => {
-    [TEXT_HANDLER, BOT].forEach((src) => {
-      const branch = src.slice(src.indexOf("decision.action === 'MARK_TEACHERS'"));
-      const teacherCopy = branch.slice(0, branch.indexOf(': '));
-      expect(teacherCopy).toMatch(/teachers/i);
-      expect(teacherCopy).not.toMatch(/your class/i);
-    });
+    const branch = BOT.slice(BOT.indexOf("decision.action === 'MARK_TEACHERS'"));
+    const teacherCopy = branch.slice(0, branch.indexOf(': '));
+    expect(teacherCopy).toMatch(/teachers/i);
+    expect(teacherCopy).not.toMatch(/your class/i);
+
+    // The text side reads it from the catalog, so assert the copy itself — in
+    // EVERY offered language, which the source scrape could never do.
+    const { resolveUx } = require('../../bot/shared/config/ux-strings');
+    const { LANGUAGE_OFFER } = require('../../bot/shared/config/languages');
+    expect(LANGUAGE_OFFER.length).toBeGreaterThan(1);
+    for (const language of LANGUAGE_OFFER) {
+      const staff = resolveUx('attendanceBodyTeachers', { language });
+      expect(staff).not.toMatch(/your class/i);
+      expect(staff.length).toBeGreaterThan(0);
+    }
+    expect(resolveUx('attendanceBodyTeachers', { language: 'en' })).toMatch(/teachers/i);
   });
 
   it('names both options in the AWAIT_VOICE prompt, with an example to copy', () => {

@@ -76,7 +76,13 @@ jest.mock('../../shared/config/supabase', () => ({
         limit: async () => ({ data: [], error: null }),
         maybeSingle: async () => {
           const row = col === 'id' ? db.usersById[val] : db.usersByPhone[val];
-          return { data: row ? { preferred_language: row } : null, error: null };
+          if (!row) return { data: null, error: null };
+          // The identity resolver reads name + phone off the same row, so the
+          // double answers WHO as well as which language.
+          const id = col === 'id' ? val : (val === TEACHER_PHONE ? TEACHER_ID : COACH_ID);
+          const phone = id === TEACHER_ID ? TEACHER_PHONE : COACH_PHONE;
+          const name = id === TEACHER_ID ? 'Najma Kousar' : 'Misbah Iqbal';
+          return { data: { id, name, phone_number: phone, preferred_language: row }, error: null };
         },
         single: async () => ({ data: null, error: { message: 'not found' } }),
       };
@@ -105,6 +111,7 @@ const GPT5MiniService = require('../../shared/services/gpt5-mini.service');
 const { generateHeroReport } = require('../../shared/services/coaching/report-v2/hero-report.service');
 const ObserveSend = require('../../shared/services/observe/observe-send.service');
 const { observeStrings } = require('../../shared/services/observe/observe-strings');
+const { marketDefault } = require('../../shared/services/observe/observe-language');
 
 const SID = 'sess-dy7hs';
 
@@ -150,14 +157,18 @@ describe('bd-dy7hs — the teacher\'s own language decides her report', () => {
   });
 
   it('never leaks the coach\'s language into a teacher who has no account', async () => {
-    // The coach reads Urdu. A teacher with no row must get the MARKET default
-    // (en on fico) — not the language of the person standing next to her.
+    // A teacher with no row must get the MARKET default — not the language of
+    // the person standing next to her. The coach is deliberately set to a
+    // language that is NOT the market default (the fico floor is the registry's
+    // first offer, Urdu), so this still proves whose language was used.
     db.session = boundSession();
-    db.usersById = { [COACH_ID]: 'ur' };
+    db.usersById = { [COACH_ID]: 'en' };
 
     await ObserveSend.processTeacherReport(SID, { phase: 'preview', from: COACH_PHONE });
 
     expect(generateHeroReport).toHaveBeenCalledWith(
+      expect.anything(), expect.anything(), expect.objectContaining({ language: marketDefault() }));
+    expect(generateHeroReport).not.toHaveBeenCalledWith(
       expect.anything(), expect.anything(), expect.objectContaining({ language: 'en' }));
   });
 
@@ -176,13 +187,16 @@ describe('bd-dy7hs — the teacher\'s own language decides her report', () => {
 });
 
 describe('bd-dy7hs — the toggle is gone, not merely hidden', () => {
-  it('offers send and cancel only — even when a caller still passes a language', () => {
+  it('offers send, someone-else and cancel — never a language button, whatever a caller passes', () => {
     const S = observeStrings('en');
     for (const legacyArg of [undefined, 'en', 'ur']) {
       const p = ObserveSend.buildSendConfirmButtons(SID, S, legacyArg);
+      // The escape hatch for a report that genuinely goes to somebody else is
+      // NOT a language toggle: it changes the recipient, never the rendering.
       expect(p.buttons.map((b) => b.id)).toEqual([
-        `observe_send_confirm_${SID}`, `observe_send_cancel_${SID}`,
+        `observe_send_confirm_${SID}`, `observe_send_other_${SID}`, `observe_send_cancel_${SID}`,
       ]);
+      expect(p.buttons.map((b) => b.id).some((id) => id.includes('_lang_'))).toBe(false);
     }
   });
 

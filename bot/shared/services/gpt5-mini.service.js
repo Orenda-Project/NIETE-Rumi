@@ -15,6 +15,41 @@ const {
  * Handles pedagogical analysis for classroom coaching using GPT-5 mini
  * with 90% prompt caching for cost optimization
  */
+// What the script may say about lesson-plan adherence. The figure is named ONLY
+// when code supplied one, and the sentence quotes it verbatim — the model is not
+// asked to pick a number out of the observation dump, which is how it came to
+// speak a separate model's near-constant estimate while the card showed the
+// measurement. A plan the grader judged to be a different lesson is described as
+// that, not as a low score she earned.
+function voiceFidelityRule(d) {
+  const data = d || {};
+  if (data.sectionBNotAssessed) {
+    return 'LESSON PLAN: this lesson was NOT measured against a lesson plan. Do NOT state any '
+      + 'lesson-plan percentage or fidelity figure, do NOT describe the plan as followed or not '
+      + 'followed, and do NOT mention a lesson plan at all. Speak only about what happened in the '
+      + 'lesson itself.';
+  }
+  if (data.lessonMismatch) {
+    return 'LESSON PLAN: the plan attached to this recording appears to be for a different lesson, '
+      + 'so adherence to it could not be judged. Do NOT state any lesson-plan percentage or '
+      + 'fidelity figure and do NOT describe the plan as poorly followed — if you mention it at '
+      + 'all, say only that the attached plan did not match the lesson taught.';
+  }
+  if (data.fidelityScore == null) {
+    return 'LESSON PLAN: no lesson-plan adherence figure is available for this lesson. Do NOT state '
+      + 'any lesson-plan percentage or fidelity figure, and do NOT describe the plan as followed or '
+      + 'not followed.';
+  }
+  const pct = data.fidelityScore;
+  const band = data.fidelityBand
+    ? `, which counts as ${data.fidelityBand} adherence`
+    : '';
+  return `LESSON PLAN: she carried out ${pct}% of the moves her lesson plan prescribed${band}. `
+    + `Reference this once, in either the strength or the growth portion. If you state a figure it `
+    + `MUST be exactly ${pct}% — never any other percentage from the observation data, and never a `
+    + `figure you have worked out yourself.`;
+}
+
 class GPT5MiniService {
   // Static LLM client (shared across all calls)
   // Uses llm-client.js for provider-agnostic routing
@@ -455,7 +490,17 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         analysisWithMarks.topic = lessonPlanStructured.topic || analysisWithMarks.topic;
       }
 
-      if (hasLessonPlanData) {
+      // A framework that measures plan adherence itself does not want a second,
+      // weaker opinion on the same thing sitting in the analysis: the estimate
+      // below is one model's guess at whole-plan adherence, it reads 85 on the
+      // overwhelming majority of sessions, and while it existed the voice note
+      // quoted it instead of the measurement the report card shows. Nothing a
+      // teacher sees on such a framework's report reads the field.
+      const frameworkMeasuresFidelity = useFrameworkModule
+        && typeof framework.applyLpFidelity === 'function';
+      if (frameworkMeasuresFidelity) {
+        delete analysisWithMarks.fidelity_to_lesson_plan;
+      } else if (hasLessonPlanData) {
         if (analysisWithMarks.fidelity_to_lesson_plan) {
           const fidelity = analysisWithMarks.fidelity_to_lesson_plan;
           analysisWithMarks.fidelity_analysis = {
@@ -768,7 +813,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     let { question, model_used } = await generate(baseSys);
     let violations = validateQuestion(question, corpus, firstName, profile);
     if (violations.length) {
-      const fixSys = `${baseSys}\n\n═══ FIX THESE PROBLEMS ═══\nYour previous attempt violated: ${violations.join(', ')}. Rewrite the question: ≤65 words, NO honorifics, NO raw MM:SS times, NO "Q1/Q2" meta, ONLY child names from the corpus, write ENTIRELY in ${profile.script}, spell every number as a word. If 'judgemental_language': REMOVE every evaluative label about the class or teacher (غلط/غلطی/بے ترتیب/wrong/error/chaotic/struggling/confused/failed/misconception) — describe ONLY what was observably said or done, in warm neutral language; a word is allowed only inside a direct quote of what someone actually said.`;
+      const fixSys = `${baseSys}\n\n═══ FIX THESE PROBLEMS ═══\nYour previous attempt violated: ${violations.join(', ')}. Rewrite the question: ≤65 words, NO honorifics, NO raw MM:SS times, NO "Q1/Q2" meta, ONLY child names from the corpus, write ENTIRELY in ${profile.script}, spell every number as a word. If 'judgemental_language': REMOVE every evaluative label about the class or teacher (غلط/غلطی/بے ترتیب/wrong/error/chaotic/struggling/confused/failed/misconception) — describe ONLY what was observably said or done, in warm neutral language; a word is allowed only inside a direct quote of what someone actually said.${violations.includes('wrong_language') ? ` If 'wrong_language': write the whole question in plain ${profile.language} — not Roman Urdu, not any other language in Latin letters. Only a direct quote of what someone said keeps its original words.` : ''}`;
       const retry = await generate(fixSys);
       const retryViolations = validateQuestion(retry.question, corpus, firstName, profile);
       if (!retryViolations.length) {
@@ -1697,7 +1742,7 @@ STRUCTURE (90 seconds total):
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
-If "hasLessonPlan" is true in the observation data, explicitly reference how closely the teacher followed their plan (use the fidelityScore if provided) either in the strength or growth portion.
+${voiceFidelityRule(observationData)}
 
 TONE:
 - Warm, respectful, mentor-like
@@ -1798,7 +1843,11 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
     // Preserve framework-native optional fields the enhance prompt doesn't know about.
     // bd-cbe2d: photo_mode / photo_count_analysed record which photo channel actually ran — without
     // them here a completed session reads null and the rollout watch cannot split by mode.
-    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity', 'photo_mode', 'photo_count_analysed']) {
+    // `subject_resolution` is on this list for the same reason reflective_corpus is
+    // re-attached above: the enhance output schema has no such key and the report
+    // generator overwrites analysis_data with this object, so without it the report
+    // loses the one field that explains an absent Section F row.
+    for (const key of ['areas', 'photo_analysis', 'subject', 'topic', 'lp_fidelity', 'photo_mode', 'photo_count_analysed', 'subject_resolution']) {
       if (analysisData[key] !== undefined && enhancedAnalysis[key] === undefined) {
         enhancedAnalysis[key] = analysisData[key];
       }

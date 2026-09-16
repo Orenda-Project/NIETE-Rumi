@@ -32,7 +32,16 @@ jest.mock('../../shared/config/supabase', () => ({
         }),
       }),
     }),
-    update: (payload) => { mockStore.captured = payload; return { eq: () => Promise.resolve({ error: null }) }; },
+    update: (payload) => {
+      mockStore.captured = payload;
+      const tail = {
+        eq: () => tail,
+        not: () => tail,
+        select: () => Promise.resolve({ data: [{ id: 'sess-1' }], error: null }),
+        then: (ok, bad) => Promise.resolve({ data: [{ id: 'sess-1' }], error: null }).then(ok, bad),
+      };
+      return tail;
+    },
   }),
 }));
 

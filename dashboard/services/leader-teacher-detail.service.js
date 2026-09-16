@@ -11,6 +11,13 @@
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
+// bd-2671's TERMINAL, imported rather than respelled. A leader observation never
+// reaches status='completed' — the coach submits her review and observer_review_complete
+// IS the end state — so this service's own `status = 'completed'` filter hid 629 of
+// 2,625 observations (24%) from the very drawer the teacher list links to. Every one of
+// those 629 carries analysis_data; they were not degraded, they were absent. Two
+// spellings of "finished" is how they diverged, so there is one.
+const { TERMINAL } = require('./leader-patch.service');
 
 // Membership + identity in one shot. Empty result ⇒ not in this leader's patch.
 // Membership is DERIVED: she is in this leader's patch iff her school is one
@@ -32,7 +39,7 @@ const MEMBERSHIP_SQL = `
 const SESSIONS_SQL = `
   SELECT id, created_at, analysis_data
   FROM coaching_sessions
-  WHERE user_id = $1 AND status = 'completed' AND analysis_data IS NOT NULL
+  WHERE user_id = $1 AND status IN ${TERMINAL} AND analysis_data IS NOT NULL
   ORDER BY created_at DESC
 `;
 

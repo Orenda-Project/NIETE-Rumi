@@ -69,21 +69,36 @@ describe('applyLpFidelity — FICO Section B from measured fidelity (P4.1 / D27)
     expect(lo.domains.lesson_plan_fidelity.domain_score).toBe(0);
   });
 
-  test('NO override when fidelity unusable — legacy Section B (the proxy) stands', () => {
-    // status ok but fidelity_pct null (recording unusable → coreDen 0)
+  // The legacy proxy no longer STANDS IN for a measurement that did not happen.
+  // It was an LLM guess at plan fidelity from the transcript alone, it scored
+  // 47.4% of sessions, and one of its ten indicators credited a quarter of those
+  // teachers for following a plan they never supplied. When nothing was measured
+  // the section is not scored and leaves the total; its own proxy numbers stay on
+  // the row for the readers that sum this section's indicators directly.
+  test('fidelity unusable (ok, pct null) → Section B is not scored and leaves the total', () => {
     const a = baseAnalysis();
     fico.applyLpFidelity(a, { status: 'ok', fidelity_pct: null, band: null });
-    expect(a.domains.lesson_plan_fidelity.domain_score).toBe(20); // unchanged
+    expect(a.domains.lesson_plan_fidelity.assessed).toBe(false);
+    expect(a.domains.lesson_plan_fidelity.not_assessed_reason).toBe('ok');
+    expect(a.domains.lesson_plan_fidelity.domain_score).toBe(20); // row unchanged
     expect(a.domains.lesson_plan_fidelity.fidelity_derived).toBeFalsy();
-    expect(a.scores.overall_marks).toBe(93);
+    expect(a.scores.overall_marks).toBe(73);        // 93 - 20
+    expect(a.scores.overall_max_marks).toBe(108);   // 148 - 40
   });
 
-  test('NO override when fidelity absent / unavailable', () => {
-    for (const blob of [null, undefined, { status: 'lp_absent' }, { status: 'fidelity_unavailable' }]) {
+  test('fidelity absent / unavailable → same, with the reason recorded', () => {
+    for (const [blob, reason] of [
+      [null, 'lp_absent'], [undefined, 'lp_absent'],
+      [{ status: 'lp_absent' }, 'lp_absent'],
+      [{ status: 'fidelity_unavailable' }, 'fidelity_unavailable'],
+    ]) {
       const a = baseAnalysis();
       fico.applyLpFidelity(a, blob);
+      expect(a.domains.lesson_plan_fidelity.assessed).toBe(false);
+      expect(a.domains.lesson_plan_fidelity.not_assessed_reason).toBe(reason);
       expect(a.domains.lesson_plan_fidelity.domain_score).toBe(20);
-      expect(a.scores.overall_marks).toBe(93);
+      expect(a.scores.overall_marks).toBe(73);
+      expect(a.scores.overall_max_marks).toBe(108);
     }
   });
 

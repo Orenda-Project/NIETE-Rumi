@@ -92,6 +92,9 @@ describe('the handler wiring', () => {
   const ROOT = path.resolve(__dirname, '../..');
   const TEXT = fs.readFileSync(path.join(ROOT, 'bot/shared/handlers/text-message.handler.js'), 'utf8');
   const BOT = fs.readFileSync(path.join(ROOT, 'bot/whatsapp-bot.js'), 'utf8');
+  // The decision switch moved out of the handler into the one door both text
+  // paths now call.
+  const ENTRY = fs.readFileSync(path.join(ROOT, 'bot/shared/services/attendance-entry.service.js'), 'utf8');
 
   it('the text handler consults the open question before anything else claims the message', () => {
     const typedAt = TEXT.indexOf('readTypedMethod');
@@ -101,8 +104,14 @@ describe('the handler wiring', () => {
   });
 
   it('asking the question opens it', () => {
-    const askBranch = TEXT.slice(TEXT.indexOf("case 'ASK_METHOD':"));
+    const askBranch = ENTRY.slice(ENTRY.indexOf("case 'ASK_METHOD':"));
     expect(askBranch.slice(0, 400)).toContain('openMethodQuestion');
+  });
+
+  it('the handler reaches that switch rather than keeping its own', () => {
+    expect(TEXT).toContain('respondToDecision');
+    expect(TEXT).toContain('openAttendance');
+    expect(TEXT).not.toMatch(/switch\s*\(\s*decision\.action\s*\)/);
   });
 
   it('a tap closes it too, so a later typed word is not read as an answer', () => {

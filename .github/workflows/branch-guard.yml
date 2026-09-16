@@ -1,0 +1,96 @@
+# Does any tooling still point at a branch we retired?
+#
+# `develop` was frozen on 2026-09-08 and locked read-only on 2026-09-09. The
+# branch model is now `sandbox -> staging -> main`. But the branch NAME was
+# hardcoded in about a dozen places, and they went stale one at a time, silently:
+#
+#   ci.yml                  `branches: [main, develop]` — so `lint`, a REQUIRED
+#                           check on staging, never ran on a promotion PR and
+#                           those PRs sat BLOCKED for ever on a check that could
+#                           never report.
+#   android-staging.yml     `branches: [develop]` — the Android staging build
+#                           simply stopped firing. Nobody noticed for days.
+#   package.json qa:impact  `--base origin/develop` — impact analysis diffed
+#                           every change against a frozen branch.
+#   select_e2e.py           `origin/develop...HEAD` in the fallback chain — the
+#                           E2E selector picked the wrong features to run.
+#
+# Each was found by hand, late, by a different person. This job is the cheap
+# thing that finds the next one immediately. It is a lint, not a policy: it
+# fails on a stale reference in TOOLING, where a branch name changes behaviour.
+#
+# A deliberate reference to `develop` is still legal — a test fixture that
+# creates a fake ref, a comment about history. Mark the line:
+#
+#     # branch-guard-allow: <why>
+#
+# Prose in docs and CLAUDE.md is not scanned. Those describe history, and
+# rewriting history out of a changelog is worse than leaving it.
+name: Branch names
+
+on:
+  pull_request:
+  push:
+    branches: [main, staging, sandbox]
+  workflow_dispatch:
+
+# No `paths:` filter — see promotion-invariant.yml for why that matters if this
+# is ever marked required.
+
+jobs:
+  no-stale-branch-refs:
+    name: tooling points at a live branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan tooling for references to retired branches
+        # Explicit: GitHub's default is `bash -eo pipefail`, which is why the
+        # grep pipeline below sits in an `if` condition. Verify changes with
+        # `bash -eo pipefail`, not plain `bash`.
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # Where a branch name CHANGES BEHAVIOUR. Docs are deliberately absent.
+          PATHS=(
+            '.github/workflows'
+            'scripts'
+            'package.json'
+            '.claude/qa/shared'
+          )
+
+          PATTERN='origin/develop|branches: *\[ *develop|--base +develop|refs/heads/develop'
+
+          # grep exits 1 when it finds nothing, which is this job's SUCCESS case.
+          # GitHub runs `run:` blocks as `bash -e`, so a plain assignment from
+          # that pipeline ends the step immediately, with no output and no
+          # explanation - the job goes red precisely when everything is fine.
+          #
+          # The pipeline therefore lives in the `if` CONDITION: a command tested
+          # by `if` is exempt from `-e`, and its exit status is already the
+          # answer we want. A trailing `|| true` would also work, and is what
+          # this file shipped with in #949 - but `tests/setup/
+          # ci-workflow-no-silent-masks.test.js` keeps ALLOWED_MASKS empty on
+          # purpose (a mask in a guard usually hides the very failure the guard
+          # exists to catch), so that mask quietly reddened a conformance test
+          # for a week. This shape needs no mask at all.
+          if HITS=$(grep -rnE "$PATTERN" "${PATHS[@]}" 2>/dev/null \
+                    | grep -v 'branch-guard-allow' \
+                    | grep -v '^\.github/workflows/branch-guard\.yml:'); then
+            echo "::error::Tooling still points at the retired 'develop' branch."
+            echo ""
+            echo "$HITS" | sed 's/^/  /'
+            echo ""
+            echo "The branch model is: sandbox -> staging -> main."
+            echo "'develop' is frozen and locked; anything keyed on it silently stops working."
+            echo ""
+            echo "Point it at the branch that now does that job — usually 'sandbox' for"
+            echo "work-in-progress and 'staging' for pre-release. If the reference is"
+            echo "deliberate (a test fixture, a historical note), append to that line:"
+            echo ""
+            echo "    # branch-guard-allow: <why>"
+            exit 1
+          fi
+
+          echo "OK — no tooling references a retired branch."

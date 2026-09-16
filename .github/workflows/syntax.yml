@@ -1,0 +1,55 @@
+# Every tracked JS file under bot/ must PARSE.
+#
+# Why this workflow exists, and why it is separate from ci.yml:
+#
+# PR #1008 merged a stray `}` into bot/whatsapp-bot.js. Railway BUILT it fine —
+# a build installs dependencies and never loads the entry file — then the
+# container exited at startup, failed its healthcheck 11/11 times, and Railway
+# kept the PREVIOUS deployment serving. Staging's bot ran a stale build for
+# hours while its sqs-workers took the new code, so the two halves of staging
+# disagreed and nothing anywhere went red.
+#
+# It is its own workflow, not a job inside ci.yml, for two reasons:
+#   1. ci.yml has been `disabled_manually` before (see its header). A guard that
+#      dies when an unrelated workflow is disabled is not a guard.
+#   2. It must be CHEAP so it can be a required check on every PR: no npm
+#      install, no services, no secrets — it only compiles source text. The full
+#      run is a couple of seconds.
+#
+# This is deliberately narrow. It catches "node cannot parse this file" and
+# nothing else — not a bad require path, not a missing export. That one class is
+# exactly what reached staging and exactly what no other gate covered.
+name: Syntax
+
+on:
+  push:
+    branches: [main, staging, sandbox, develop]
+  pull_request:
+    branches: [main, staging, sandbox, develop]
+  workflow_dispatch:
+
+# A superseded run tells you nothing useful; cancel it and keep the latest.
+concurrency:
+  group: syntax-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    # Job name is the status-check context. Keep it stable — it is (or should be)
+    # a REQUIRED check in branch protection for `staging` and `main`, and
+    # renaming it silently turns the requirement into one that never reports.
+    name: syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No `npm ci`. The checker uses only node builtins, on purpose: a gate that
+      # needs a dependency tree can be broken by the dependency tree.
+      - name: Parse every tracked .js under bot/
+        run: node bot/scripts/check-syntax.js

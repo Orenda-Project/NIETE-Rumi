@@ -65,6 +65,12 @@ function validateQuestion(question, corpus = {}, firstName = '', profile = {}) {
     if (/\d/.test(q)) v.push('inline_digit');       // bare digit -> "alaran" gibberish in TTS
   }
 
+  // English is a Latin script, so the gates above never run for it, and nothing
+  // checked that an "English" question was English. The miss that reaches teachers
+  // is Roman Urdu: English asked for, Urdu written in Latin letters. Quoted words
+  // are stripped first — quoting what a child actually said stays allowed.
+  if (profile.language === 'English' && _isRomanUrdu(q)) v.push('wrong_language');
+
   return v;
 }
 
@@ -86,6 +92,29 @@ function _isRomanized(q) {
   const total = latin + nativeScript;
   if (total === 0) return false;
   return nativeScript / total < 0.4; // <40% native-script letters => Roman, not its own script
+}
+
+// Function words that carry Urdu grammar when it is written in Latin letters. None of
+// them is an ordinary English word; ambiguous ones (to, par, main, ek) are left out.
+const ROMAN_URDU_MARKERS = new Set([
+  'aap', 'aapne', 'aapko', 'mujhe', 'ne', 'ka', 'ki', 'ke', 'ko', 'se', 'mein', 'hai', 'hain',
+  'tha', 'thi', 'the', 'aur', 'kya', 'kaise', 'kyun', 'jab', 'phir', 'bhi', 'nahi', 'uske',
+  'unhon', 'bachon', 'bachay', 'bachhon', 'sakte', 'sakti', 'chahengi', 'chahenge', 'karna',
+  'kiya', 'kaha', 'diya', 'diye', 'wala', 'wali', 'liye', 'agli', 'baar', 'soch', 'shuru',
+  'kareeb', 'baad', 'beech', 'dono', 'kuch', 'raha', 'rahi', 'hota', 'hoti', 'sawal', 'poocha',
+  'pucha', 'badli',
+]);
+
+/**
+ * For the English profile: is this question Urdu written in Latin letters? Counts Urdu
+ * function words outside quotes. A genuine English question with an Urdu quote has none
+ * left once the quote is stripped; a Roman-Urdu question is full of them.
+ */
+function _isRomanUrdu(q) {
+  const words = _stripQuotes(q).toLowerCase().match(/[a-z]+/g) || [];
+  if (!words.length) return false;
+  const hits = words.filter((w) => ROMAN_URDU_MARKERS.has(w)).length;
+  return hits >= 4 && hits / words.length >= 0.12;
 }
 
 // _allowedNames / _containsInventedName were removed — the invented-name gate moved to the

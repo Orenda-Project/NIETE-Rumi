@@ -885,7 +885,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (res.outcome === 'cancelled' || res.outcome === 'already') {
         return { screen: 'SUCCESS', data: _success(S.obs_cancelled_heading, S.obs_cancelled_body, { action: 'cancelled' }) };
       }
-      const body = res.outcome === 'too_late' ? S.cancel_too_late : S.flow_action_failed_body;
+      // 'raced' is the cancel that lost to the pipeline — the same thing the
+      // coach needs to hear as 'too_late', and never the generic failure copy
+      // (one fallback across distinct states misdirects every field report).
+      const body = ['too_late', 'raced'].includes(res.outcome)
+        ? S.cancel_too_late : S.flow_action_failed_body;
       return { screen: 'SUCCESS', data: _success(S.flow_action_failed_heading, body, { action: 'noop' }) };
     }
     if (step === 'schedule') return scheduleScreen(userId);
@@ -1291,8 +1295,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
       const options = people.length
+        // displayName, not name. `name` is null for the 83 people on prod who
+        // carry none, and _opt turns null into the EMPTY STRING — a blank,
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_PICK',
@@ -1317,8 +1326,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
       const options = people.length
+        // displayName, not name. `name` is null for the 83 people on prod who
+        // carry none, and _opt turns null into the EMPTY STRING — a blank,
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_EDIT_PICK',

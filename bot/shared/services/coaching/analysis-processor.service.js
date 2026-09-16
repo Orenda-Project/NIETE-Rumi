@@ -20,11 +20,21 @@ const CoachingSessionService = require('./coaching-session.service');
 const { PEDAGOGICAL_ANALYSIS_MEDIA_ID } = require('../../utils/constants');
 const { selectFrameworkWithReason } = require('./frameworks/framework-selector');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const { clampLanguage } = require('../../config/ux-strings');
+const { offerDefaultLanguage } = require('../../config/languages');
 
 /**
  * Look up the teacher's preferred language for a coaching session.
- * Falls back to 'en' if the session/user can't be read — we'd rather
- * ship the English message than throw mid-pipeline.
+ *
+ * The transcript language used to sit here as candidate 2, which meant a
+ * teacher who had never chosen was walked through her session in whatever
+ * language the transcriber attached to her lesson. A recording is evidence
+ * about a classroom, never a statement about which language to address her in.
+ *
+ * The floor is the language the deployment offers FIRST, not the emergency
+ * floor: this path only runs when we have a session in hand, so "nothing can be
+ * determined" is not the situation. Total by construction — an unreadable row
+ * still returns something renderable rather than throwing mid-pipeline.
  */
 async function _resolveSessionLanguage(coachingSessionId) {
   try {
@@ -33,13 +43,52 @@ async function _resolveSessionLanguage(coachingSessionId) {
       .select('users(name, preferred_language), transcript_language')
       .eq('id', coachingSessionId)
       .maybeSingle();
-    return data?.users?.preferred_language || data?.transcript_language || 'en';
+    return clampLanguage(data?.users?.preferred_language || offerDefaultLanguage());
   } catch (_err) {
-    return 'en';
+    return offerDefaultLanguage();
   }
 }
 
 class AnalysisProcessorService {
+  /**
+   * Resolve this lesson's subject, consulting recent lesson-plan downloads only
+   * when the plan signals on the row itself miss.
+   *
+   * The downloads read is deliberately last and deliberately narrow: it covers
+   * about 15% of sessions, it is a statement about which plan she fetched rather
+   * than about this lesson, and it must never be able to fail the coaching job —
+   * a query error simply leaves the chain at "not confirmed".
+   *
+   * @param {object} session coaching_sessions row
+   * @returns {Promise<object>} see subject-resolution.resolveLessonSubject
+   */
+  static async resolveSessionSubject(session) {
+    const { resolveLessonSubject, DOWNLOAD_WINDOW_HOURS } = require('./subject-resolution');
+
+    const fromRow = resolveLessonSubject(session);
+    if (fromRow.confidence !== 'none' || fromRow.source !== 'no_signal') return fromRow;
+    if (!session || !session.user_id) return fromRow;
+
+    let downloads = null;
+    try {
+      const since = new Date(Date.now() - DOWNLOAD_WINDOW_HOURS * 3600 * 1000).toISOString();
+      const { data } = await supabase
+        .from('niete_lp_downloads')
+        .select('subject, grade, created_at')
+        .eq('user_id', session.user_id)
+        .eq('status', 'sent')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      downloads = data || null;
+    } catch (err) {
+      logToFile('[subject] recent-download lookup failed (non-blocking)', { error: err.message });
+      return fromRow;
+    }
+    if (!downloads || !downloads.length) return fromRow;
+    return resolveLessonSubject(session, { downloads });
+  }
+
   /**
    * Process analysis job (called by background worker)
    * @param {string} coachingSessionId - Coaching session UUID
@@ -101,16 +150,58 @@ class AnalysisProcessorService {
         });
       }
 
+      // Which subject was this lesson? FICO's Section F tags F5/F6/F7 by subject and
+      // at most one applies, but nothing here ever passed one: the object below
+      // carried `lessonPlanSubject` while every framework's prompt builder
+      // destructures `subject`, so the `- Subject:` line never emitted and the
+      // subject-conditional rule ran on the model's own reading of the transcript.
+      // A Grade-1 Urdu lesson was told in writing that it was not a literacy lesson
+      // while "Urdu" sat on the row, correctly extracted, unread.
+      //
+      // The resolver reports a CONFIDENCE, not a subject: the plan signals cover
+      // about half of sessions, and on the rest the honest output is "not confirmed"
+      // — which the report then says, instead of implying a subject she did not teach.
+      const subjectResolution = await this.resolveSessionSubject(session);
+      logToFile('[subject] resolved', {
+        coachingSessionId,
+        code: subjectResolution.code,
+        confidence: subjectResolution.confidence,
+        source: subjectResolution.source,
+        group: subjectResolution.group,
+      });
+
+      // The language the analysis is WRITTEN in is the teacher's, resolved
+      // through the one coaching resolver (preference → clamp). What the
+      // transcriber HEARD travels beside it as context the prompt may quote, and
+      // is never allowed to choose the language she is addressed in.
+      const CoachingHelpersService = require('./coaching-helpers.service');
+      const outputLanguage = await CoachingHelpersService.determineOutputLanguage(
+        session.user_id,
+        coachingSessionId,
+        session.transcript_language,
+      );
+      logToFile('🈯 analysis output language resolved', {
+        coachingSessionId,
+        outputLanguage,
+        transcriptLanguage: session.transcript_language || null,
+      });
+
       // Run GPT-5 mini analysis with prior feedback
       const metadata = {
         duration: session.audio_duration_seconds,
-        language: session.transcript_language,
+        language: outputLanguage,
+        transcriptLanguage: session.transcript_language || null,
         teacherFirstName: session.users.name,
         priorFeedback: priorFeedbackText,
         lessonPlanExcerpt: session.lesson_plan_excerpt || null,
         lessonPlanStatus: session.lesson_plan_extraction_status || null,
         lessonPlanSubject: session.lesson_plan_structured?.subject || null,
-        lessonPlanTopic: session.lesson_plan_structured?.topic || null
+        lessonPlanTopic: session.lesson_plan_structured?.topic || null,
+        // Additive: every framework's buildAnalysisPrompt destructures only the keys
+        // it names, so oecd/hots/teach/mewaka are unaffected by these three.
+        subject: subjectResolution.code,
+        grade: subjectResolution.grade,
+        subjectConfidence: subjectResolution.confidence,
       };
 
       logToFile('Analysis metadata', metadata);
@@ -194,7 +285,10 @@ class AnalysisProcessorService {
       // allSettled (NOT all) keeps the corpus extraction NON-BLOCKING — if it rejects, the
       // critical-path analysis persist still proceeds and the report falls back gracefully
       // (the rest of the coaching flow doesn't depend on the corpus being present).
-      const langCode = session.transcript_language || metadata.language || 'en';
+      // The corpus is quoted back to the teacher in the reflective question, so
+      // it is written in HER language. The verbatim words she spoke are still
+      // verbatim — that is a property of the quote, not of the prompt.
+      const langCode = outputLanguage;
 
       // LP fidelity (FICO Section B) — a SEPARATE gpt-5.6-luna call sharing the transcript, run in the
       // same allSettled so it is NON-BLOCKING (a fidelity failure never fails the coaching job). Flag-gated
@@ -239,20 +333,28 @@ class AnalysisProcessorService {
       // executed÷prescribed fidelity (→/40) instead of the 10 legacy B indicators, and the overall
       // is recomputed. Applied here (post-settle, pre-persist) so a fidelity failure leaves the
       // legacy proxy intact. applyLpFidelity self-guards on status/pct and is a no-op otherwise.
-      if (analysisResult.analysis && analysisResult.analysis.framework === 'fico'
-          && lpFidelity && lpFidelity.status === 'ok') {
+      // Called for EVERY fico analysis, not only the measured ones. The status gate
+      // used to sit here, which meant the other branch — no plan, or the engine did
+      // not run — never reached the framework at all, and Section B silently kept a
+      // score that was never a measurement. applyLpFidelity owns both outcomes now:
+      // measured, or marked not-assessed and out of the total.
+      if (analysisResult.analysis && analysisResult.analysis.framework === 'fico') {
         try {
           framework.applyLpFidelity(analysisResult.analysis, lpFidelity);
-          logToFile('[lp-fidelity] Section B derived from measured fidelity', {
+          const measured = !!lpFidelity && lpFidelity.status === 'ok' && lpFidelity.fidelity_pct != null;
+          logToFile(measured
+            ? '[lp-fidelity] Section B derived from measured fidelity'
+            : '[lp-fidelity] Section B NOT assessed — excluded from the total', {
             coachingSessionId,
-            fidelity_pct: lpFidelity.fidelity_pct,
+            not_assessed_reason: measured ? undefined : ((lpFidelity && lpFidelity.status) || 'lp_absent'),
+            fidelity_pct: lpFidelity && lpFidelity.fidelity_pct,
             section_b_marks: analysisResult.analysis.domains
               && analysisResult.analysis.domains.lesson_plan_fidelity
               && analysisResult.analysis.domains.lesson_plan_fidelity.domain_score,
             overall_marks: analysisResult.analysis.scores && analysisResult.analysis.scores.overall_marks,
           });
         } catch (fbErr) {
-          logToFile('[lp-fidelity] Section B override failed (non-blocking, proxy stands)', {
+          logToFile('[lp-fidelity] Section B resolution failed (non-blocking, proxy stands)', {
             coachingSessionId, error: fbErr.message,
           });
         }
@@ -284,7 +386,11 @@ class AnalysisProcessorService {
       // Update database — merge reflective_corpus into analysis_data when present.
       // Also persist the framework provenance (which key + why it was chosen)
       // so downstream analytics can audit selection paths without re-computing.
-      await supabase
+      // bd-n9832: the analysis job outlives a cancel. observe's arming write
+      // got this predicate in #1008; the ordinary coaching analysis write did
+      // not, so a cancelled session was reopened at 'analysis_complete'.
+      const { TERMINAL_IN_FILTER } = require('./session-terminal');
+      const { data: analysisArmed } = await supabase
         .from('coaching_sessions')
         .update({
           analysis_data: {
@@ -297,6 +403,14 @@ class AnalysisProcessorService {
             // so the 48h watch can split score/citation rates by mode. Never the image bytes.
             photo_mode: metadata.photo.mode,
             photo_count_analysed: metadata.photo.count,
+            // What was decided about the subject, and on what evidence. Persisted so
+            // the population is a column read rather than a regex over prose: how many
+            // sessions we could not name a subject for is the number that decides
+            // whether capturing it at submission is worth building.
+            subject_resolution: {
+              ...subjectResolution,
+              subject_unconfirmed: subjectResolution.confidence === 'none',
+            },
             // LP fidelity (FICO Section B) analysis blob — pct + band + per-move verdicts/evidence +
             // narrative + moderators. Only when the feature is on and a move-list resolved (D20).
             // bd-5knlj: non-ok statuses persist too — lp_absent vs
@@ -312,7 +426,16 @@ class AnalysisProcessorService {
           framework: frameworkKey,
           framework_selection_reason: frameworkSelectionReason,
         })
-        .eq('id', coachingSessionId);
+        .eq('id', coachingSessionId)
+        .not('status', 'in', TERMINAL_IN_FILTER)
+        .select('id');
+      // Refuse only on an explicit "no rows matched" (#1008's rule): an error,
+      // or a client that hands back no list, must not cost a live session its
+      // analysis.
+      if (Array.isArray(analysisArmed) && analysisArmed.length === 0) {
+        logToFile('🚫 analysis finished but the session is over — not reopened', { coachingSessionId });
+        return;
+      }
 
       // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16/bd-19) — leader
       // observations NEVER auto-flow to the reflective conversation or the teacher
@@ -434,5 +557,9 @@ class AnalysisProcessorService {
     }
   }
 }
+
+// Exposed so the language resolver can be driven directly by a test rather than
+// through the whole analysis job. Not part of the service's public surface.
+AnalysisProcessorService._resolveSessionLanguage = _resolveSessionLanguage;
 
 module.exports = AnalysisProcessorService;

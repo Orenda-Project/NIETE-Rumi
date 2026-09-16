@@ -449,11 +449,11 @@
           <% users.forEach(user => { %>
             <div class="chat-item" data-user-id="<%= user.id %>">
               <div class="chat-item-avatar">
-                <%= (user.first_name || user.name || user.phone_number || 'U').charAt(0).toUpperCase() %>
+                <%= (user.name || user.phone_number || 'U').charAt(0).toUpperCase() %>
               </div>
               <div class="chat-item-content">
                 <div class="chat-item-name">
-                  <%= user.first_name ? (user.first_name + ' ' + (user.last_name || '')) : (user.name || user.phone_number || 'Unknown User') %>
+                  <%= user.name || user.phone_number || 'Unknown User' %>
                   <% if (user.registration_state) { %>
                     <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; background: <%= user.registration_state === 'completed' ? '#10b981' : user.registration_state === 'flow_sent' ? '#f59e0b' : user.registration_state === 'invited' ? '#3b82f6' : '#6b7280' %>; color: white; font-weight: 500;">
                       <%= user.registration_state === 'completed' ? '✓ Registered' : user.registration_state === 'flow_sent' ? '📋 Form Sent' : user.registration_state === 'invited' ? '📨 Invited' : user.registration_state %>
@@ -534,12 +534,8 @@
 
       filteredUsers = allUsers.filter(user => {
         const name = (user.name || '').toLowerCase();
-        const firstName = (user.first_name || '').toLowerCase();
-        const lastName = (user.last_name || '').toLowerCase();
         const phone = (user.phone_number || '').toLowerCase();
         return name.includes(searchTerm) ||
-               firstName.includes(searchTerm) ||
-               lastName.includes(searchTerm) ||
                phone.includes(searchTerm);
       });
       renderChatList();
@@ -553,7 +549,7 @@
       }
 
       container.innerHTML = filteredUsers.map(user => {
-        const displayName = user.first_name ? `${user.first_name} ${user.last_name || ''}` : (user.name || user.phone_number || 'Unknown User');
+        const displayName = user.name || user.phone_number || 'Unknown User';
         const registrationBadge = user.registration_state ?
           `<span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; background: ${
             user.registration_state === 'completed' ? '#10b981' :
@@ -573,7 +569,7 @@
         return `
           <div class="chat-item ${currentUserId === user.id ? 'active' : ''}" data-user-id="${user.id}">
             <div class="chat-item-avatar">
-              ${(user.first_name || user.name || user.phone_number || 'U').charAt(0).toUpperCase()}
+              ${(user.name || user.phone_number || 'U').charAt(0).toUpperCase()}
             </div>
             <div class="chat-item-content">
               <div class="chat-item-name">
@@ -643,7 +639,7 @@
       const { user, conversations, coachingSessions, lessonPlans, videoRequests, readingSessions } = data;
 
       // Render header
-      const displayName = user.first_name ? `${user.first_name} ${user.last_name || ''}` : (user.name || user.phone_number || 'Unknown User');
+      const displayName = user.name || user.phone_number || 'Unknown User';
       const registrationBadge = user.registration_state ?
         `<span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; background: ${
           user.registration_state === 'completed' ? '#10b981' :
@@ -662,7 +658,7 @@
 
       document.getElementById('chatHeader').innerHTML = `
         <div class="chat-messages-header-avatar">
-          ${(user.first_name || user.name || user.phone_number || 'U').charAt(0).toUpperCase()}
+          ${(user.name || user.phone_number || 'U').charAt(0).toUpperCase()}
         </div>
         <div class="chat-messages-header-info">
           <h3>${displayName}${registrationBadge}</h3>
@@ -734,7 +730,7 @@
         timeline.push({
           type: 'registration_completed',
           timestamp: new Date(user.registration_completed_at),
-          data: { firstName: user.first_name, lastName: user.last_name }
+          data: { name: user.name }
         });
       }
 
@@ -931,7 +927,7 @@
 
     function renderRegistrationCompleted(timestamp, data) {
       const time = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const name = data.firstName ? `${data.firstName} ${data.lastName || ''}`.trim() : 'User';
+      const name = data.name || 'User';
       return `
         <div class="message-date" style="margin: 16px 0;">
           <span style="background: #D1FAE5; color: #065F46; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">

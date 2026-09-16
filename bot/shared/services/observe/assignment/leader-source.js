@@ -81,7 +81,18 @@ async function _schools(leaderUserId) {
 async function _teachers(leaderUserId, schoolExtId = null) {
   try {
     const people = await listPatchViaSupabase(supabase, leaderUserId, schoolExtId);
-    return people.map(toLeaderSourceRow);
+    // A leader is never her own coachee. The patch is derived from her schools,
+    // so a principal who teaches at her own school lands in her own patch — the
+    // picker then offers her her own name and she can bind her own recording to
+    // herself. Measured 15 Sep 2026: 27 stored roster rows across 21 leaders
+    // name the leader as her own coachee, and one reported principal used
+    // exactly that as a workaround. It produced an observation of himself owing
+    // himself a debrief instead of a coaching report. Suppressed here only —
+    // the roster admin screens and the portal read the derivation directly, and
+    // "may I remove myself from my own roster view" is a different question.
+    return people
+      .filter((p) => !p || String(p.userId || '') !== String(leaderUserId))
+      .map(toLeaderSourceRow);
   } catch (error) {
     logToFile('leader-source: _teachers error', { error: error.message });
     return [];
