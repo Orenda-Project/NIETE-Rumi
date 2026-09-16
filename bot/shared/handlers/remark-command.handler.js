@@ -61,14 +61,20 @@ function strings(user) {
  * The progress marks come from the score rows themselves — this is the
  * session-free resume made visible ("Bilal — 3/5 answered").
  */
-function buildRoster(teachers, progress, S, cycleName) {
+function buildRoster(teachers, progress, S, cycleName, language = 'en') {
+  // bd-gc1ge — the Flow screens in this feature have always rendered a teacher
+  // through renderTeacherName (phone tail, then a generic label, in en or ur);
+  // only this plain-text roster interpolated `t.name` raw, so a principal with
+  // a nameless teacher on her roster read "1. null — ⬜ Not started".
+  // 6,282 of 15,552 prod users have `name IS NULL`.
+  const { renderTeacherName } = require('../services/remark/remark-screens');
   const lines = teachers.map((t, i) => {
     const p = progress[t.id] || {};
     let status;
     if (p.state === 'done') status = `✅ ${S.done}`;
     else if (p.state === 'in_progress') status = `▶️ ${S.in_progress(p.answered || 0)}`;
     else status = `⬜ ${S.not_started}`;
-    return `${i + 1}. ${t.name} — ${status}`;
+    return `${i + 1}. ${renderTeacherName(t, language)} — ${status}`;
   });
   return `${S.header(cycleName)}\n\n${lines.join('\n')}`;
 }
@@ -172,7 +178,8 @@ async function handleRemarkCommand(user, from, messageBody, deps = {}) {
     // never happened. That is how a totally silent /remark read as healthy in
     // Axiom for four days. Trust the return value, and log the failure at
     // ERROR so it reaches the error-level monitor.
-    const delivered = await sendMessage(from, buildRoster(teachers, progress || {}, S, cycle.name));
+    const delivered = await sendMessage(from,
+      buildRoster(teachers, progress || {}, S, cycle.name, user.preferred_language));
     if (delivered === false) {
       logError('❌ /remark: roster send FAILED — principal got nothing', {
         userId: user.id, cycleId: cycle.id, teachers: teachers.length,
