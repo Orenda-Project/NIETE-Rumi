@@ -158,21 +158,29 @@ beforeEach(() => {
 afterEach(() => { delete process.env.PORTAL_ASSESSMENTS_TEST_ENABLE; jest.resetModules(); });
 
 describe('bd-qd1p3 — the level-exam submit must not mistake two programmes for none', () => {
-  it('a teacher on TWO active programmes is not told she has none', async () => {
+  it('a teacher on TWO active programmes sits the exam and it is graded', async () => {
     seed(2);
-    const { payload } = await invoke({
+    const { statusCode, payload } = await invoke({
       method: 'post', path: SUBMIT, userId: 'user-1', params: { id: '1' },
       body: { answers: [{ question_id: 201, selected_option: '1' }] },
     });
+    // Asserting the WHOLE journey, not just the absence of one error string.
+    // A bare not.toMatch() would also pass if the handler died further down,
+    // which is exactly how a fix gets credited for something it did not do.
+    expect(statusCode).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.attempt).toBeTruthy();
     expect(String((payload && payload.error) || '')).not.toMatch(NOT_ENROLLED);
   });
 
-  it('a teacher on ONE programme is unaffected (regression guard)', async () => {
+  it('a teacher on ONE programme is byte-for-byte unaffected (regression guard)', async () => {
     seed(1);
-    const { payload } = await invoke({
+    const { statusCode, payload } = await invoke({
       method: 'post', path: SUBMIT, userId: 'user-1', params: { id: '1' },
       body: { answers: [{ question_id: 201, selected_option: '1' }] },
     });
+    expect(statusCode).toBe(200);
+    expect(payload.success).toBe(true);
     expect(String((payload && payload.error) || '')).not.toMatch(NOT_ENROLLED);
   });
 
@@ -196,7 +204,10 @@ describe('bd-qd1p3 — every single-row read of teacher_training_assignments is 
     const path = require('path');
     const src = fs.readFileSync(path.join(__dirname, '../../dashboard/routes/portal.routes.js'), 'utf8');
     const offenders = [];
-    const re = /from\(\s*'teacher_training_assignments'\s*\)([\s\S]{0,400}?)(maybeSingle|single)\s*\(/g;
+    // 900 chars, not 400: the reads in this file carry long explanatory
+    // comments between .from() and .maybeSingle(), and a window that ends
+    // before the terminator silently stops guarding.
+    const re = /from\(\s*'teacher_training_assignments'\s*\)([\s\S]{0,900}?)(maybeSingle|single)\s*\(/g;
     let m;
     while ((m = re.exec(src)) !== null) {
       if (!/\.limit\(/.test(m[1])) {
