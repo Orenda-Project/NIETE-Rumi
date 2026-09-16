@@ -11,6 +11,8 @@ const { injectLpContext } = require('../services/lp-context.service'); // bd-njn
 const redisService = require('../services/cache/railway-redis.service');
 const redis = redisService.redis; // Get Redis instance
 const CoachingService = require('../services/coaching-orchestrator.service');
+const { planReflectiveTextRouting, ACTIONS: REFLECTIVE_ACTIONS } =
+  require('../services/coaching/reflective-answer-routing');
 const ConversationState = require('../services/conversation-state.service');
 const MenuService = require('../services/menu.service');
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
@@ -1606,23 +1608,45 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         .single();
 
       if (activeCoaching) {
-        // a slash command ENDS the conversation and falls through.
+        // ONE call decides what this message is, and it deliberately has no
+        // clock. The branch that used to live here asked whether `updated_at`
+        // was more than an hour old and, if so, threw the teacher's answer away
+        // and sent her a stuck-session notice offering a numbered
+        // "try again / start fresh" choice instead.
         //
-        // conducting_conversation was the only waiting state with no way out.
-        // The bot's own escape-path map tells teachers to "type /menu" to leave
-        // AWAITING_MENU_CHOICE / VIDEO_TOPIC / LESSON_PLAN / CLASSROOM_AUDIO —
-        // but CONDUCTING_CONVERSATION was never added to it, and this block
-        // swallowed the very command that map recommends. One teacher was held
-        // for 269 hours.
+        // A BEFORE-UPDATE trigger bumps `updated_at` on every write to the row,
+        // and the last write before her answer is the one that ASKED her the
+        // question — so that condition read "she took more than an hour to
+        // reflect", which is the behaviour a debrief is meant to produce. It
+        // also wrote no state, so the next message hit the same branch again,
+        // forever, and the numbered choice it offered was read by a handler
+        // gated on a Redis key this branch never set, sitting after this
+        // branch's own `return`.
+        // Found live: a teacher answered 94 minutes late, then typed 1, 1, 1, 2
+        // and got the same message five times; her answer was never recorded.
+        // 507 answers from 343 teachers went the same way in six weeks.
         //
-        // Exempting the command is NOT enough on its own: the session would
-        // stay open and recapture the next free-text message, so the teacher
-        // escapes and is immediately caught again. The session has to end.
-        //
-        // Answers already given are preserved — they live in
-        // conversation_state.questions and are written as each one arrives, so
-        // ending the session discards nothing the teacher said.
-        if (trimmedMessage.startsWith('/')) {
+        // Genuinely abandoned sessions are owned elsewhere and always were: the
+        // 2h reminder + 12h auto-complete in workers/stale-session.worker.js,
+        // plus coaching-stale-recovery and photo-gate-sweep for the states
+        // before this one.
+        const plan = planReflectiveTextRouting(activeCoaching, trimmedMessage);
+
+        if (plan.action === REFLECTIVE_ACTIONS.END_SESSION_AND_FALL_THROUGH) {
+          // conducting_conversation was the only waiting state with no way
+          // out. The bot's own escape-path map tells teachers to "type
+          // /menu" to leave AWAITING_MENU_CHOICE / VIDEO_TOPIC / LESSON_PLAN /
+          // CLASSROOM_AUDIO, but CONDUCTING_CONVERSATION was never added to it
+          // and this block swallowed the very command that map recommends. One
+          // teacher was held for 269 hours.
+          //
+          // Exempting the command is NOT enough on its own: the session would
+          // stay open and recapture the next free-text message, so the teacher
+          // escapes and is immediately caught again. The session has to end.
+          //
+          // Answers already given are preserved — they live in
+          // conversation_state.questions and are written as each one arrives,
+          // so ending the session discards nothing the teacher said.
           logToFile('🎓 Slash command during coaching — ending the session and continuing', {
             coachingSessionId: activeCoaching.id,
             command: trimmedMessage.split(/\s+/)[0],
@@ -1634,51 +1658,36 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           // Deliberately no extra chat message: the command's own reply lands
           // immediately after this and a preamble in front of it is noise.
           // Fall through — do NOT return — so the command runs normally.
-        } else {
-
-        // Check if session is stuck (no update in last hour)
-        const lastUpdate = new Date(activeCoaching.updated_at);
-        const now = new Date();
-        const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
-
-        if (hoursSinceUpdate > 1) {
-          logToFile('⚠️  Stuck coaching session detected', {
+        } else if (plan.action === REFLECTIVE_ACTIONS.RECORD_ANSWER) {
+          // Log how long she took. The swallowed answers were invisible
+          // precisely because nothing measured this, so a six-week regression
+          // across 343 teachers left no signal to alert on.
+          const askedQuestion = (activeCoaching.conversation_state?.questions || [])
+            .filter((q) => !q.answer && q.asked_at)
+            .pop();
+          const askedAtMs = Date.parse(askedQuestion?.asked_at || '');
+          logToFile('🎓 Active coaching session detected - routing as reflective response', {
             coachingSessionId: activeCoaching.id,
-            lastUpdate: activeCoaching.updated_at,
-            hoursSinceUpdate: hoursSinceUpdate.toFixed(2),
-            conversationState: activeCoaching.conversation_state?.current_state
+            reason: plan.reason,
+            questionNumber: askedQuestion?.question_number ?? null,
+            minutesToAnswer: Number.isNaN(askedAtMs)
+              ? null
+              : Math.round((Date.now() - askedAtMs) / 60000),
           });
 
-          // Offer recovery options
+          // Stop typing indicator
           typingController.stop();
-          await WhatsAppService.sendMessage(
+
+          // Route to coaching service
+          await CoachingService.handleReflectiveResponse(
+            activeCoaching.id,
             from,
-            "⚠️ I noticed your previous coaching session didn't complete properly.\n\n" +
-            "Would you like to:\n" +
-            "1️⃣ *Try again* - I'll re-analyze your lesson\n" +
-            "2️⃣ *Start fresh* - Begin a new coaching session\n\n" +
-            "Reply with *1* or *2*"
+            messageBody,
+            'text',
+            responseLanguage
           );
-          return;
-        }
 
-        logToFile('🎓 Active coaching session detected - routing as reflective response', {
-          coachingSessionId: activeCoaching.id
-        });
-
-        // Stop typing indicator
-        typingController.stop();
-
-        // Route to coaching service
-        await CoachingService.handleReflectiveResponse(
-          activeCoaching.id,
-          from,
-          messageBody,
-          'text',
-          responseLanguage
-        );
-
-        return; // Exit early - coaching flow handled
+          return; // Exit early - coaching flow handled
         }
       }
     } catch (error) {

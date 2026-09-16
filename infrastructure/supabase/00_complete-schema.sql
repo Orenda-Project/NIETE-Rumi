@@ -5264,6 +5264,35 @@ CREATE INDEX IF NOT EXISTS idx_lp_feedback_lp612_segment
   ON lp_feedback (lp612_segment_id, created_at DESC)
   WHERE lp612_segment_id IS NOT NULL;
 
+-- Survey Q2 — what she DID with the lesson. Mirrors
+-- bot/database/migrations/add_lp_feedback_used_in_class.sql (bd-vw0aj); lives here too because
+-- `npm run bootstrap:db` applies THIS file and never reads that directory, so without these lines
+-- a fresh clone runs code that writes a column its database does not have (the bd-pfest class).
+-- One line on purpose: tests/setup/column-completeness.test.js matches
+-- `ALTER TABLE <t> ADD COLUMN` on a single line, so a wrapped one is invisible to it and the
+-- column reads as missing from the schema even though it is right here.
+ALTER TABLE lp_feedback ADD COLUMN IF NOT EXISTS used_in_class TEXT;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'lp_feedback_used_in_class_chk'
+  ) THEN
+    ALTER TABLE lp_feedback
+      ADD CONSTRAINT lp_feedback_used_in_class_chk
+      CHECK (used_in_class IS NULL OR used_in_class IN ('taught', 'planned', 'not_yet'));
+  END IF;
+END $$;
+
+COMMENT ON COLUMN lp_feedback.used_in_class IS
+  'Survey Q2: taught | planned | not_yet. Asked on a thumbs-up in BOTH lanes — the voicenote '
+  'bundle (bd-vw0aj) and the PDF-only 6-12 lane (bd-b708h). NULL = she tapped a thumbs-down, or '
+  'has not answered yet. The only column separating "an artefact was produced" from "a lesson was '
+  'taught", and the only delivery signal the 6-12 lane has at all.';
+
+NOTIFY pgrst, 'reload schema';
+
+
 -- =============================================================================
 -- Transcript quiz (post-coaching quiz written from the lesson recording).
 -- Additive reconcile on `quizzes`: the coaching session a quiz was written

@@ -50,7 +50,28 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Oxbridge is only the fallback when the flag is off or a grade's books are not yet segmented — an
     # Oxbridge reply for a secondary grade is now the FAILURE the driver reports (oxbridge:true).
 
+  @e2e @P1
+  Scenario: Rating a 6-12 lesson plan useful asks whether I taught it
+    Given the NIETE bot chat is open
+    And a lesson plan from the Pakistan 6-12 corpus has just been delivered to the chat
+    When the feedback survey arrives and I tap 👍
+    Then the bot asks whether I got to use it in class
+    And it offers exactly three replies — "Taught it today", "Planning to", "Not yet"
+    And tapping one of them is acknowledged with a short thank-you that ends the survey
+    # bd-b708h. Before this, 👍 ended the survey on a bare thank-you, so lp_feedback.used_in_class
+    # was NULL on every 6-12 row — and it is the only signal this lane has that a PDF became a
+    # lesson (a render row is a cache miss, not a delivery).
+
   # ─────────────────────── Business rules / valid variations ───────────────────────
+
+  @e2e @i18n @P2
+  Scenario: The use question is asked in my language, not the document's
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And an English 6-12 lesson plan has just been delivered to the chat
+    When I tap 👍 on the feedback survey
+    Then both the question and all three replies are in Urdu
+    # The document's language and the bot's voice are separate territories: ordering an English
+    # plan does not switch an Urdu-preference teacher into being spoken to in English.
 
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
@@ -69,6 +90,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the spoken reply does not promise a lesson plan it will not deliver
 
   # ─────────────────────────────── Negative ───────────────────────────────
+
+  @e2e @negative @P2
+  Scenario: A thumbs-down asks why, and never asks whether I taught it
+    Given the NIETE bot chat is open
+    And a lesson plan from the Pakistan 6-12 corpus has just been delivered to the chat
+    When the feedback survey arrives and I tap 👎
+    Then the bot asks me to say what was wrong, in my own words
+    And it does not ask whether I got to use it in class
+    # Asking a teacher who has just said the plan was no use whether she taught it reads as not
+    # listening — the reason window is the only follow-up on this branch.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message

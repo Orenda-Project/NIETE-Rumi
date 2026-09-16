@@ -3954,11 +3954,18 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
     // with different fixes, and the caller can only act on the first if we say
     // it. Running the specific check first keeps the 400 contract the frontend
     // already branches on; the gate below would deny anyway.
+    // .limit(1) is load-bearing: a teacher who picked two bands holds two
+    // active assignments, and PostgREST answers an unbounded .maybeSingle()
+    // with PGRST116 and data:null. Only `data` is read here, so without the
+    // bound that null reads as "not enrolled" and she is refused her own exam.
+    // 787 teachers on production hold two. The same read 70 lines down, and
+    // the two in the capstone and module-quiz handlers, already carry it.
     const { data: enrolment } = await supabase
       .from('teacher_training_assignments')
       .select('program_id')
       .eq('user_id', userId)
       .eq('is_active', true)
+      .limit(1)
       .maybeSingle();
     if (!enrolment) {
       return res.status(400).json({ success: false, error: 'No active training program assignment' });
