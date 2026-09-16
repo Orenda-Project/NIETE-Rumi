@@ -36,6 +36,14 @@ jest.mock('../../shared/services/coaching/transcription-processor.service', () =
   transcribeWithDiarization: jest.fn(),
 }));
 
+// The coach's language is clamped to the market's offer, and the default
+// observe pack is MEWAKA (sw/en) — this deployment is fico (ur/en).
+process.env.OBSERVE_FRAMEWORK = 'fico';
+
+// The coach's own users row. Her language comes from HERE now, not from the
+// session's `users` join, which rides user_id (the observed teacher).
+const mockCoach = { row: { id: 'fo-uuid-1', preferred_language: 'en' } };
+
 const mockDb = { row: null };
 const mockSingle = jest.fn(() => Promise.resolve(
   mockDb.row ? { data: mockDb.row, error: null } : { data: null, error: { message: 'not found' } }));
@@ -44,15 +52,20 @@ const mockUpdate = jest.fn((patch) => {
   if (mockDb.row) mockDb.row = { ...mockDb.row, ...patch };
   return { eq: mockUpdateEq };
 });
-function mockMakeChain() {
+function mockMakeChain(table) {
   const chain = {};
   for (const m of ['select', 'eq', 'neq', 'order']) chain[m] = jest.fn(() => chain);
   chain.single = mockSingle;
+  chain.maybeSingle = () => Promise.resolve(table === 'users'
+    ? { data: mockCoach.row, error: null }
+    : { data: mockDb.row, error: null });
   chain.limit = jest.fn().mockResolvedValue({ data: [], error: null });
   chain.update = mockUpdate;
   return chain;
 }
-jest.mock('../../shared/config/supabase', () => ({ from: jest.fn(() => mockMakeChain()) }));
+jest.mock('../../shared/config/supabase', () => ({
+  from: jest.fn((table) => mockMakeChain(table)),
+}));
 
 const WhatsAppService = require('../../shared/services/whatsapp.service');
 const TranscriptionProcessorService = require('../../shared/services/coaching/transcription-processor.service');
@@ -65,6 +78,8 @@ const {
 const SID = 'sess-media-gone-1';
 const FROM = '923001234567';
 const GUIDE = { intro: 'x', steps: [], outro: 'x' };
+
+beforeEach(() => { mockCoach.row = { id: 'fo-uuid-1', preferred_language: 'en' }; });
 
 const sessionRow = (debriefOver = {}, userOver = {}) => ({
   id: SID,
@@ -167,7 +182,8 @@ describe('what the coach is told names the actual state', () => {
   });
 
   test('an Urdu coach reads the re-record copy in Urdu, not the English floor', async () => {
-    mockDb.row = sessionRow({}, { preferred_language: 'ur' });
+    mockDb.row = sessionRow();
+    mockCoach.row = { ...mockCoach.row, preferred_language: 'ur' };
     WhatsAppService.downloadMedia.mockRejectedValueOnce(httpError(400, MEDIA_URL));
     await processDebriefRecording(SID, { from: FROM, audioId: 'wamid.AUDIO-1' });
     const [, text] = WhatsAppService.sendMessage.mock.calls[0];

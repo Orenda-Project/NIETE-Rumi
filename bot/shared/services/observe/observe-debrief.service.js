@@ -19,6 +19,7 @@ const WhatsAppService = require('../whatsapp.service');
 const supabase = require('../../config/supabase');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { isTerminalStatus } = require('../coaching/session-terminal');
+const { languageFor } = require('./observe-language');
 const { logToFile } = require('../../utils/logger');
 const ObserveState = require('./observe-state.service');
 const GPT5MiniService = require('../gpt5-mini.service');
@@ -861,10 +862,13 @@ async function processDebriefRecording(sessionId, payload = {}) {
   }
 
   const from = payload.from || (session.users && session.users.phone_number);
-  // bd-y7jr8: this used to be `preferred_language === 'sw' ? 'sw' : 'en'`, which
-  // collapsed URDU into English — an Urdu coach got the English strings pack
-  // while the model wrote Urdu prose. That is why her card had English headings.
-  const lang = observeLang(session.users);
+  // Everything this function says goes to the COACH: the praise line, the card
+  // and its caption, the send prompt and its buttons, and every failure notice.
+  // `session.users` rides `user_id`, which is the observed TEACHER once one is
+  // bound — reading it wrote to an English coach in the teacher's Urdu, and made
+  // the send flow mixed-language end to end. The teacher's own artefacts are
+  // resolved separately, for her, in observe-send.
+  const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
   const observerDebrief = (session.analysis_data && session.analysis_data.observer_debrief) || {};
 
@@ -948,7 +952,8 @@ async function processDebriefRecording(sessionId, payload = {}) {
     }
 
     let feedback;
-    const _fbLang = observeLang(session.users);
+    // The feedback is written FOR the coach, so it is written in her language.
+    const _fbLang = lang;
     try {
       const { buildCoachFeedbackPromptI18n } = require('./observe-coach-feedback');
       const prompt = _fbLang !== 'sw' ? buildCoachFeedbackPromptI18n(transcript, {

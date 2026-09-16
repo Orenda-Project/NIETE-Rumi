@@ -47,6 +47,14 @@ jest.mock('../../shared/services/coaching/transcription-processor.service', () =
 
 // Stateful row mock — the REAL PostgREST contract: an update()'s analysis_data
 // is what the next select() reads back, so attempts accumulate across calls.
+// The coach's language is clamped to the market's offer, and the default
+// observe pack is MEWAKA (sw/en) — this deployment is fico (ur/en).
+process.env.OBSERVE_FRAMEWORK = 'fico';
+
+// The coach's own users row. Her language comes from HERE now, not from the
+// session's `users` join, which rides user_id (the observed teacher).
+const mockCoach = { row: { id: 'fo-uuid-1', preferred_language: 'en' } };
+
 const mockDb = { row: null };
 const mockSingle = jest.fn(() => Promise.resolve(
   mockDb.row ? { data: mockDb.row, error: null } : { data: null, error: { message: 'not found' } }));
@@ -55,16 +63,19 @@ const mockUpdate = jest.fn((patch) => {
   if (mockDb.row) mockDb.row = { ...mockDb.row, ...patch };
   return { eq: mockUpdateEq };
 });
-function mockMakeChain() {
+function mockMakeChain(table) {
   const chain = {};
   for (const m of ['select', 'eq', 'neq', 'order']) chain[m] = jest.fn(() => chain);
   chain.single = mockSingle;
+  chain.maybeSingle = () => Promise.resolve(table === 'users'
+    ? { data: mockCoach.row, error: null }
+    : { data: mockDb.row, error: null });
   chain.limit = jest.fn().mockResolvedValue({ data: [], error: null });
   chain.update = mockUpdate;
   return chain;
 }
 jest.mock('../../shared/config/supabase', () => ({
-  from: jest.fn(() => mockMakeChain()),
+  from: jest.fn((table) => mockMakeChain(table)),
 }));
 
 const WhatsAppService = require('../../shared/services/whatsapp.service');
