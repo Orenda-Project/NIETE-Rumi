@@ -186,25 +186,34 @@ let _anthropicDirectClient = null;
  */
 
 /**
- * OpenAI is the floor. bd-4uw7n.
+ * What a job falls back to. bd-4uw7n.
  *
- * The brief asked for OpenAI to stay behind whatever else we run, and it existed nowhere as a
- * general property: the direct-Anthropic lane retries the SAME model by a different route,
- * which covers a route failing and not a supplier failing.
+ * REPLACED A BLANKET `openai/gpt-4o`, and the reason is the point. A fallback answers "this
+ * supplier cannot serve us right now", which IS a fact about the supplier, so that half was
+ * fine. But WHAT to fall back to is entirely a fact about the job, and the blanket version got
+ * that wrong: roster extraction runs a model chosen for being cheap and would have failed over
+ * to roughly 17x the price; transcript quizzes would have swapped the model their pipeline was
+ * validated against; lesson-plan authoring would have landed on something no rubric has been
+ * run against. One of them only worked by luck, because gpt-4o happens to do vision.
  *
- * A prefix map rather than a per-job setting, on purpose. The fallback answers "this supplier
- * cannot serve us right now", which is a fact about the supplier and not about the job. A
- * per-job table would be nine places to forget to update.
+ * The registry now records, per job and frozen, the model that job already works with. Move a
+ * job to Anthropic and its fallback still names what it used to run.
+ *
+ * SO THE LADDER NEEDS THE JOB, and getClient() does not know it. That is why this arms only
+ * when a caller passes one, through getClientForModel(model, { job }). Everything else keeps
+ * today's behaviour and fails. A narrow correct fallback beats a broad wrong one: the broad
+ * one would quietly answer a teacher with a model nobody checked.
  */
-const VENDOR_FALLBACK_MODEL = process.env.LLM_FALLBACK_MODEL || 'openai/gpt-4o';
-
-function fallbackFor(model) {
-  const id = String(model || '');
-  // OpenAI is the floor, so it has nothing behind it. Returning a fallback here would let a
-  // failing OpenAI call retry itself forever.
-  if (!id || id.startsWith('openai/')) return null;
-  if (id === VENDOR_FALLBACK_MODEL) return null;
-  return VENDOR_FALLBACK_MODEL;
+function resolveJobFallback(job) {
+  if (!job) return null;
+  try {
+    // eslint-disable-next-line global-require
+    const { fallbackForJob } = require('../config/model-registry');
+    return fallbackForJob(job);
+  } catch (_) {
+    // An unknown job means no fallback, never a guessed one.
+    return null;
+  }
 }
 
 /**
@@ -249,7 +258,12 @@ function createLLMClient() {
 
   // Auto-prefix model names for OpenRouter (e.g. 'gpt-4o-mini' → 'openai/gpt-4o-mini')
   const originalCreate = client.chat.completions.create.bind(client.chat.completions);
+  // `fallbackModel` is resolved by the caller from the JOB and handed in; it is never derived
+  // from the model being called, because after a switch that would just name another Anthropic
+  // model. It is stripped before the request goes out.
   client.chat.completions.create = async (params, options) => {
+    const fallbackModel = params.fallbackModel || null;
+    if (params.fallbackModel) { params = { ...params }; delete params.fallbackModel; }
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
@@ -264,8 +278,8 @@ function createLLMClient() {
     try {
       response = await originalCreate(params, options);
     } catch (primaryErr) {
-      const to = fallbackDisabled() ? null : fallbackFor(params.model);
-      if (!to || !isSupplierUnusableError(primaryErr)) throw primaryErr;
+      const to = fallbackDisabled() ? null : fallbackModel;
+      if (!to || to === params.model || !isSupplierUnusableError(primaryErr)) throw primaryErr;
 
       const status = primaryErr.status != null ? primaryErr.status : primaryErr.statusCode;
       const reason = String(primaryErr.message || 'unknown').slice(0, 300);
@@ -481,7 +495,17 @@ function getClientForModel(model, ctx) {
     assertFallbackUsable(directModel);
     return { client: buildDirectLaneClient(directModel, ctx), model: directModel };
   }
-  return { client: getClient(), model: id };
+  // bd-4uw7n: a caller that names its job gets the ladder armed with THAT job's frozen
+  // fallback. One that does not keeps today's behaviour.
+  const fallbackModel = resolveJobFallback(ctx && ctx.job);
+  if (!fallbackModel) return { client: getClient(), model: id };
+  const base = getClient();
+  return {
+    model: id,
+    client: { chat: { completions: {
+      create: (params, options) => base.chat.completions.create({ ...params, fallbackModel }, options),
+    } } },
+  };
 }
 
 /**
