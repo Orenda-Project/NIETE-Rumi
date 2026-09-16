@@ -883,7 +883,6 @@ app.post('/webhook', async (req, res) => {
         // it commits, and refuses a session that has already been cancelled.
         const { advanceToLessonPlanStep } = require('./shared/services/coaching/lp-coaching/lp-step.service');
         await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
-      }
       } else if (buttonId.startsWith('photo_yes_')) {
         const sessionId = buttonId.replace('photo_yes_', '');
         logToFile('📸 User will send classroom photo', { sessionId, from });
@@ -934,7 +933,6 @@ app.post('/webhook', async (req, res) => {
         // it commits, and refuses a session that has already been cancelled.
         const { advanceToLessonPlanStep } = require('./shared/services/coaching/lp-coaching/lp-step.service');
         await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
-      }
       }
       // bd-u35ex / bd-pzs9a: "Add another" — keep collecting. The whole tap lives in
       // add-another.service so it can be executed by a test; this branch only dispatches.
