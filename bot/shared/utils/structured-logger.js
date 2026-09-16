@@ -187,6 +187,15 @@ const AXIOM_CORE_FIELDS = new Set([
   'correlationId', 'phone', 'userId', 'sessionId',
   // Error info
   'err',
+  // The semantic event name. Without it every one of the 260 logEvent() call sites lands with
+  // event=null and is findable only by matching the free-text `msg`. bd-9b58p.
+  'event',
+  // What a model call cost and what it bought. These are the columns a spend query actually
+  // touches: filter on `event`, sum `estimatedCostUsd`, group by `model` and `job`. Left in
+  // data_json they are still delivered but not summable, and `sum()` answers 0 — which reads
+  // as a cheap call rather than a missing one. Tokens are kept so a price discovered later
+  // can be applied to calls already made.
+  'model', 'job', 'estimatedCostUsd', 'tokensIn', 'tokensOut', 'durationMs',
 ]);
 
 /**
@@ -510,4 +519,8 @@ module.exports = {
   getCurrentCorrelationId, // Get current correlation ID from context
   originalConsole,         // In case you need unmodified console
   axiomBatcher,            // For manual flush if needed
+  // Exported so a test can assert WHICH fields survive into Axiom columns. The allowlist is
+  // the difference between a cost number you can sum and one buried in a JSON string.
+  normalizeForAxiom,
+  AXIOM_CORE_FIELDS,
 };
