@@ -59,6 +59,20 @@ describe('model spend is attributed to a job (bd-9b58p)', () => {
     expect(CREATED[0].fallbackModel).toBeUndefined();
   });
 
+  test('...and neither does a NULL fallback, which truthiness would have left behind', async () => {
+    // The case the test above cannot see. lp.author carries `fallbackModel: null`, and a
+    // `if (params.fallbackModel)` strip is false for null -- so the key survived onto the
+    // request. An unknown field on every lesson-plan authoring call, the largest spender
+    // here, against a file whose own comment promises NOTHING is added to the request.
+    // Both keys are therefore stripped on presence, not truthiness.
+    const { client, model } = getClientForModel('anthropic/claude-sonnet-4', { job: 'lp.author' });
+    await client.chat.completions.create({ model, messages: [] });
+
+    expect(CREATED).toHaveLength(1);
+    expect(Object.keys(CREATED[0])).not.toContain('fallbackModel');
+    expect(Object.keys(CREATED[0])).not.toContain('job');
+  });
+
   test('a caller that names no job behaves exactly as before', async () => {
     const { client, model } = getClientForModel('google/gemini-2.5-flash');
     await client.chat.completions.create({ model, messages: [] });

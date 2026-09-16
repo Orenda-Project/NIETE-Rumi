@@ -261,13 +261,20 @@ function createLLMClient() {
   // from the model being called, because after a switch that would just name another Anthropic
   // model. It is stripped before the request goes out.
   client.chat.completions.create = async (params, options) => {
+    // The job rides in beside the fallback: spend without it is one undifferentiated total,
+    // and "which feature" is the only question worth asking about cost per child. bd-9b58p.
+    //
+    // BOTH are stripped on KEY PRESENCE, never on truthiness. A job whose frozen fallback is
+    // null (lp.author, lp.fidelity, hcp.feedback) arrives carrying `fallbackModel: null`, and
+    // a falsy check leaves that on the request -- which would put an unknown field on every
+    // lesson-plan authoring call, the largest spender here. NOTHING is added to the request.
     const fallbackModel = params.fallbackModel || null;
-    if (params.fallbackModel) { params = { ...params }; delete params.fallbackModel; }
-    // The job rides in beside the fallback and is stripped the same way. Spend without it is
-    // one undifferentiated total: you can see the platform got more expensive and not which
-    // feature did it, which is the only question worth asking about cost per child. bd-9b58p.
     const job = params.job || null;
-    if (params.job) { params = { ...params }; delete params.job; }
+    if ('fallbackModel' in params || 'job' in params) {
+      params = { ...params };
+      delete params.fallbackModel;
+      delete params.job;
+    }
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
