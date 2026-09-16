@@ -305,6 +305,71 @@ async function checkTemplateStatus(templateId) {
 }
 
 /**
+ * The languages a template ACTUALLY has, approved, on this WABA — per Meta.
+ *
+ * bd-x4njf: a broadcast can run against a template approved out of band (the
+ * lp612 launch template is approved in both `en` and `ur`), and the send must
+ * know its real variant list. That list is FETCHED rather than declared by the
+ * operator: a wrong list is undetectable until the send, where Meta hard-fails
+ * every message with error 132001 ("template name does not exist in the
+ * language") instead of falling back to another variant.
+ *
+ * This is also the approval gate. A PENDING or REJECTED variant is not
+ * sendable, so it must never reach the pool resolveTemplateLanguage picks from.
+ *
+ * @param {string} templateName - name of a template already on the WABA
+ * @returns {Promise<string[]>} approved, offered language codes, default first
+ * @throws if the template has no approved variant in an offered language
+ */
+async function getApprovedTemplateLanguages(templateName) {
+  let templates;
+
+  try {
+    const response = await axios.get(
+      `https://graph.facebook.com/${API_VERSION}/${WABA_ID}/message_templates`,
+      {
+        headers: {
+          'Authorization': `Bearer ${WHATSAPP_TOKEN}`
+        },
+        params: {
+          name: templateName,
+          fields: 'name,language,status',
+          limit: 100
+        }
+      }
+    );
+    templates = response.data?.data || [];
+  } catch (error) {
+    const errorMessage = error.response?.data?.error?.message || error.message;
+    console.error(`[Broadcast] Template language lookup failed:`, errorMessage);
+    throw new Error(`Failed to look up template ${templateName}: ${errorMessage}`);
+  }
+
+  // Meta's `name` parameter is a match, not a guaranteed exact one, so the exact
+  // name is re-checked here. Sending `foo_v2` when the operator asked for `foo`
+  // is a mistake that is only visible on the teacher's handset.
+  const approved = templates
+    .filter((t) => t?.name === templateName && t?.status === 'APPROVED')
+    .map((t) => t?.language)
+    .filter(isOffered);
+
+  const unique = [...new Set(approved)];
+
+  if (unique.length === 0) {
+    throw new Error(
+      `Template ${templateName} has no approved variant in an offered language — nothing can be sent with it`
+    );
+  }
+
+  // Default language first, so resolveTemplateLanguage's `pool[0]` fallback is
+  // deterministic instead of dependent on the order Meta happened to return.
+  return unique.sort(
+    (a, b) =>
+      (a === TEMPLATE_LANGUAGE_DEFAULT ? -1 : 0) - (b === TEMPLATE_LANGUAGE_DEFAULT ? -1 : 0)
+  );
+}
+
+/**
  * Send a template message to a single user
  *
  * @param {string} phoneNumber - Recipient phone number (with country code)
@@ -721,6 +786,7 @@ module.exports = {
   // Template operations
   createBroadcastTemplate,
   checkTemplateStatus,
+  getApprovedTemplateLanguages,
   startTemplatePolling,
   cancelTemplatePolling,
 
