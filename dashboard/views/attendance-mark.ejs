@@ -235,7 +235,7 @@
       document.getElementById('mark-date').textContent = state.date || '—';
       document.getElementById('teacher-count').textContent = state.teachers.length;
       document.getElementById('user-chip').textContent =
-        state.user ? `${state.user.first_name || 'Principal'} · ${state.user.role}` : '—';
+        state.user ? `${state.user.name || 'Principal'} · ${state.user.role}` : '—';
 
       const list = document.getElementById('teacher-list');
       if (state.teachers.length === 0) {
@@ -265,7 +265,7 @@
           return `
             <div class="teacher-row">
               <div class="teacher-info">
-                <div class="name">${(t.first_name || '') + ' ' + (t.last_name || '')} ${todayBadge}</div>
+                <div class="name">${t.name || t.phone_number || ''} ${todayBadge}</div>
                 <div class="phone">${t.phone_number || ''}</div>
               </div>
               <div class="status-group">
@@ -371,7 +371,7 @@
       // Load user
       const meRes = await api('GET', '/api/portal/attendance/me');
       if (meRes.ok) {
-        state.user = { first_name: null, role: 'principal' }; // /me doesn't return name — cheap placeholder
+        state.user = { name: null, role: 'principal' }; // /me doesn't return name — cheap placeholder
       }
       document.getElementById('login-view').style.display = 'none';
       document.getElementById('mark-view').style.display = 'block';
