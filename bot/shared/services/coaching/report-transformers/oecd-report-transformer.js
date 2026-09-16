@@ -14,6 +14,7 @@ const {
   CLASSROOM_MARKS_WITH_LP,
 } = require('../../../constants/scoring.constants');
 const { coachRoleLabelForRegion } = require('../../../config/region-config');
+const { reflectionProgress } = require('../reflection-progress');
 
 /**
  * Transform OECD analysis into generic report data.
@@ -334,11 +335,11 @@ function transformOECDToReportData(session, teacherName, enhancedAnalysis, hasPr
     const questionsCompleted = session._questionsAtCompletion || 0;
     if (session._isAutoCompleted) {
       partialReportNote = questionsCompleted > 0
-        ? `Note: This report includes ${questionsCompleted}/3 reflective responses. The session was auto-completed after 12 hours of inactivity. Full insights require completing all reflection questions.`
+        ? `Note: This report includes ${progress.label} reflective responses. The session was auto-completed after 12 hours of inactivity. Full insights require completing all reflection questions.`
         : `Note: This report is based on classroom audio analysis only. The reflective conversation was not completed (auto-completed after 12 hours of inactivity).`;
     } else if (session._isUserRequestedEarly) {
       partialReportNote = questionsCompleted > 0
-        ? `Note: This report includes ${questionsCompleted}/3 reflective responses. You requested early completion. Full insights require completing all reflection questions.`
+        ? `Note: This report includes ${progress.label} reflective responses. You requested early completion. Full insights require completing all reflection questions.`
         : `Note: This report is based on classroom audio analysis only. The reflective conversation was skipped at your request.`;
     }
 

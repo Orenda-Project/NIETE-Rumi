@@ -5,6 +5,7 @@
  */
 
 const { logToFile } = require('../../../utils/logger');
+const { reflectionProgress } = require('../reflection-progress');
 
 /**
  * Format a date string to a readable format.
@@ -98,17 +99,22 @@ function extractFidelity(analysis) {
 function buildPartialNote(session) {
   if (!session._isPartialReport) return null;
 
-  const questionsCompleted = session._questionsAtCompletion || 0;
+  // The denominator is NUM_REFLECTIVE_QUESTIONS, not a literal 3. This helper is
+  // what the FICO / HOTS / TEACH transformers call, so it is the caption a
+  // teacher actually reads — it went on claiming a third of a debrief was done
+  // for months after the debrief was cut to one question.
+  const progress = reflectionProgress(session._questionsAtCompletion);
+  const questionsCompleted = progress.answered;
 
   if (session._isAutoCompleted) {
     return questionsCompleted > 0
-      ? `Note: This report includes ${questionsCompleted}/3 reflective responses. The session was auto-completed after 12 hours of inactivity. Full insights require completing all reflection questions.`
+      ? `Note: This report includes ${progress.label} reflective responses. The session was auto-completed after 12 hours of inactivity. Full insights require completing all reflection questions.`
       : `Note: This report is based on classroom audio analysis only. The reflective conversation was not completed (auto-completed after 12 hours of inactivity).`;
   }
 
   if (session._isUserRequestedEarly) {
     return questionsCompleted > 0
-      ? `Note: This report includes ${questionsCompleted}/3 reflective responses. You requested early completion. Full insights require completing all reflection questions.`
+      ? `Note: This report includes ${progress.label} reflective responses. You requested early completion. Full insights require completing all reflection questions.`
       : `Note: This report is based on classroom audio analysis only. The reflective conversation was skipped at your request.`;
   }
 
