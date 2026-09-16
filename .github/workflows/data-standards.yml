@@ -48,7 +48,10 @@ name: data-standards
 
 on:
   push:
-    branches: [main, develop]
+    # `develop` was retired 2026-09-09 and deploys nowhere. Do not re-add it:
+    # branch-guard fails on a retired branch name ANYWHERE in this list, not
+    # only in first position.
+    branches: [main, staging, sandbox]
   pull_request:
 
 permissions:
