@@ -116,4 +116,69 @@ exports.run = async ({ api, rec, sleep }) => {
       ...Object.values(V(head(r.txt) === "Here's what I can do" &&
                          includesCore(esc.rows),
       { header: head(r.txt), rows: esc.rows, botWaitMs: r.waitedMs })), t() - s);
+
+  // ═══════════════ ROLE-AWARE scenarios (M14–M19) ═══════════════
+  // The menu is role-aware (78406d1e). The bot reads user.role FRESH per message (getOrCreateUser),
+  // so a sandbox-DB role write takes effect on the next send — the mock lane can drive every role.
+  // Row taps from scrollback are forged with api.injectList (caps.rawInject). The shared driver is
+  // restored to teacher/English at the end.
+  const SB_URL = process.env.NIETE_SANDBOX_SUPABASE_URL, SB_KEY = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
+  const DRIVER = process.env.E2E_DRIVER || '923000000001';
+  const hasRole = !!(SB_URL && SB_KEY);
+  const patchUser = async (body) => {
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/users?phone_number=eq.${DRIVER}`, { method: 'PATCH',
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(body) });
+      await sleep(400);   // let the write settle before the next inbound message
+      return { ok: res.ok, status: res.status };
+    } catch (e) { return { ok: false, err: String(e.message).slice(0, 80) }; }
+  };
+  const openRows = async () => { await api.sendWait('/menu'); const l = await api.openList('See what I do'); await api.closeDialog(); return l.rows || []; };
+  const roleRec = (id, name, cond, ev) => rec(id, name, ...Object.values(V(cond, ev)), 0);
+  const roleBlocked = (id, name) => rec(id, name, 'BLOCKED', { reason: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*) in the driver env to switch role' }, 0);
+
+  if (hasRole) {
+    await patchUser({ role: 'principal' });
+    const p = await openRows();
+    roleRec('M14', 'A principal sees BOTH Classroom Coaching and Observe a Teacher',
+        p.includes('Classroom Coaching') && p.includes('Observe a Teacher'), { role: 'principal', rows: p });
+
+    await patchUser({ role: 'coach' });
+    const c = await openRows();
+    roleRec('M15', 'A coach sees Observe a Teacher and NOT Classroom Coaching',
+        c.includes('Observe a Teacher') && !c.includes('Classroom Coaching'), { role: 'coach', rows: c });
+
+    await patchUser({ role: 'teacher' });
+    const te = await openRows();
+    roleRec('M16', 'A teacher still sees Classroom Coaching and no observe row',
+        te.includes('Classroom Coaching') && !te.includes('Observe a Teacher'), { role: 'teacher', rows: te });
+
+    await patchUser({ role: 'coach' });
+    const r17 = await api.injectList('menu_coaching', 'Classroom Coaching');
+    roleRec('M17', 'A coach tapping a Classroom Coaching row from old scrollback is refused',
+        r17.ok && !/recording|ریکارڈنگ/i.test(r17.txt || '') && /Observe a Teacher|Observe/i.test(r17.txt || ''),
+        { role: 'coach', reply: (r17.txt || '').slice(0, 140) });
+
+    await patchUser({ role: 'teacher' });
+    const r18 = await api.injectList('menu_observe', 'Observe a Teacher');
+    roleRec('M18', 'A teacher tapping a stray Observe row is refused and redirected',
+        r18.ok && /Classroom Coaching|Coaching/i.test(r18.txt || '') && !/observation (started|form)|Step \d/i.test(r18.txt || ''),
+        { role: 'teacher', reply: (r18.txt || '').slice(0, 140) });
+
+    await patchUser({ role: 'coach', preferred_language: 'ur', language_locked: true });
+    const r19 = await api.injectList('menu_coaching', 'Classroom Coaching');
+    roleRec('M19', "The role-refusal is in the tapping user's own language (Urdu)",
+        r19.ok && /[؀-ۿ]/.test(r19.txt || ''), { role: 'coach', urdu: /[؀-ۿ]/.test(r19.txt || ''), reply: (r19.txt || '').slice(0, 140) });
+
+    // Restore the shared driver so the next feature/run starts clean.
+    await patchUser({ role: 'teacher', preferred_language: 'en', language_locked: false });
+  } else {
+    for (const [id, name] of [['M14', 'A principal sees BOTH Classroom Coaching and Observe a Teacher'],
+      ['M15', 'A coach sees Observe a Teacher and NOT Classroom Coaching'],
+      ['M16', 'A teacher still sees Classroom Coaching and no observe row'],
+      ['M17', 'A coach tapping a Classroom Coaching row from old scrollback is refused'],
+      ['M18', 'A teacher tapping a stray Observe row is refused and redirected'],
+      ['M19', "The role-refusal is in the tapping user's own language (Urdu)"]]) roleBlocked(id, name);
+  }
 };
