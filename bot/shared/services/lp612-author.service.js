@@ -2713,16 +2713,30 @@ function buildOverlayPrompt({ lpDoc, segment, targets }) {
  * @param {object}  args.segment  for subject/grade/topic context and telemetry only
  * @param {string} [args.model]
  * @param {string} [args.correlationId]
+ * @param {string[]} [args.targets]      a SUBSET of the offered pointers to translate. Defaults to
+ *          all of them, which is the authoring case. bd-idneu passes a delta here: the three
+ *          pointers bd-x3dn6 newly offered, on a document whose other 89 were translated months
+ *          ago. Asking for all 92 again is most of the cost that bead exists to avoid, and it
+ *          would re-roll strings a teacher has already read.
+ * @param {object} [args.baseOverlay]    the overlay ALREADY on the document, which the new keys
+ *          merge onto before GATE 2 measures coverage. Without it a three-pointer top-up reads as
+ *          3/92 coverage and is refused as too thin — the gate would be measuring this CALL when
+ *          the thing it exists to protect is the DELIVERED DOCUMENT.
  * @returns {Promise<{overlay:object, usage:object, model:string, coverage:number,
  *                    targets:number, elapsedMs:number}>}
+ *          `overlay` is what THIS call produced — the caller merges. Returning the merge would
+ *          hide which strings are new, and the top-up's whole audit trail is that list.
  * @throws  Error with .code in {'OVERLAY_NO_TARGETS','OVERLAY_LLM_FAILED','OVERLAY_UNPARSEABLE',
  *          'OVERLAY_NOT_URDU','OVERLAY_TOO_THIN'} — the CALLER decides what that costs, and the
  *          answer is always "this lesson is delivered in English", never "this lesson is lost".
  */
-async function overlayLessonPlan({ lpDoc, segment, model, correlationId } = {}) {
+async function overlayLessonPlan({
+  lpDoc, segment, model, correlationId, targets: targetsIn, baseOverlay,
+} = {}) {
   const startedAt = Date.now();
   const seg = segment || {};
-  const targets = overlayDefects.targets(lpDoc);
+  const base = (baseOverlay && typeof baseOverlay === 'object') ? baseOverlay : {};
+  const targets = Array.isArray(targetsIn) ? targetsIn : overlayDefects.targets(lpDoc);
   if (!targets.length) {
     throw fail('OVERLAY_NO_TARGETS',
       'this document carries no overlayable instruction string — nothing to translate');
@@ -2783,7 +2797,18 @@ async function overlayLessonPlan({ lpDoc, segment, model, correlationId } = {}) 
 
   // GATE 2 — coverage, from the linter's own function at expected:true. One computation, so the
   // gate the pass answers to and the gate that measures the delivered document cannot disagree.
-  probe.ur_overlay = kept;
+  //
+  // MEASURED ON THE MERGE, NOT ON THIS CALL. `base` is empty in the authoring case, so this is
+  // unchanged there. On a top-up (bd-idneu) it is the 89 strings already on the document, and
+  // without them the gate would read 3/92 and refuse a document that is about to render fully
+  // Urdu. What this gate protects is the page the teacher receives, which is the merge.
+  //
+  // The merge is sanitized again because a BASE pointer can have gone stale — the document it was
+  // written against is months old — and the renderer refuses the whole lesson on one bad pointer.
+  // Base wins a collision, matching the caller's own merge rule: a translation already in front of
+  // teachers is not re-rolled by a pass that was asked for something else.
+  probe.ur_overlay = { ...kept, ...base };
+  sanitizeOverlay(probe);
   const defects = overlayDefects(probe, 'ur', { expected: true });
   const coverage = targets.length ? Object.keys(kept).length / targets.length : 0;
   if (defects.length) {
