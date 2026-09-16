@@ -354,6 +354,7 @@ const FOUND = {
   en: {
     heading_found: "We found this teacher's account",
     heading_new: 'No account on this number yet',
+    heading_move: 'This teacher is at another school',
     name: 'Name', school: 'School', no_school: 'not set',
     to: 'Adding them to *{to}*.',
     already: 'They are already at *{to}*. Nothing to change.',
@@ -362,6 +363,7 @@ const FOUND = {
   ur: {
     heading_found: 'یہ اکاؤنٹ مل گیا',
     heading_new: 'اس نمبر پر کوئی اکاؤنٹ نہیں',
+    heading_move: 'یہ استاد کسی اور اسکول میں ہیں',
     name: 'نام', school: 'اسکول', no_school: 'درج نہیں',
     to: 'انہیں *{to}* میں شامل کیا جا رہا ہے۔',
     already: 'وہ پہلے ہی *{to}* میں ہیں۔ کچھ تبدیل کرنے کی ضرورت نہیں۔',
@@ -397,8 +399,15 @@ function foundAccountScreen(lang, plan = {}, schoolExtId = '') {
     ? t.already.replace('{to}', String(plan.toSchoolName || ''))
     : t.to.replace('{to}', String(plan.toSchoolName || ''));
 
+  // Name the move at the point of commitment. The old school is already on the
+  // details line, so the move was inferable; saying it outright is what the
+  // coach who reported "there is no way to transfer a teacher" needed to read.
+  const heading = isNew ? t.heading_new
+    : (plan.outcome === 'move' && t.heading_move) ? t.heading_move
+      : t.heading_found;
+
   return {
-    found_heading: isNew ? t.heading_new : t.heading_found,
+    found_heading: heading,
     found_details: details,
     plan: tail,
     school_ext_id: schoolExtId,
