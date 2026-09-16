@@ -142,7 +142,7 @@
         </div>
         <div>
           <a href="/observability/users?userId=<%= video.user_id %>" class="text-indigo-600 hover:text-indigo-800 font-medium">
-            <%= video.users.first_name ? `${video.users.first_name} ${video.users.last_name || ''}`.trim() : video.users.phone_number %>
+            <%= video.users.name || video.users.phone_number %>
           </a>
           <p class="text-gray-500 text-sm"><%= video.users.phone_number %></p>
         </div>
