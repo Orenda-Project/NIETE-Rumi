@@ -78,6 +78,12 @@ jobs:
           fetch-depth: 0          # the whole graph; a shallow clone cannot answer this
 
       - name: Does main carry content that staging does not have?
+        # Explicit, because the whole script depends on it: GitHub's default is
+        # `bash --noprofile --norc -eo pipefail`, so `-e` IS on even though the
+        # script only sets `-uo pipefail`. Every command below that may exit
+        # non-zero is inside an `if` condition for exactly that reason. Verify
+        # changes with `bash -eo pipefail`, not plain `bash`.
+        shell: bash
         run: |
           set -uo pipefail
           git fetch origin staging main --quiet
