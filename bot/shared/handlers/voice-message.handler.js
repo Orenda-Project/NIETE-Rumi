@@ -761,6 +761,14 @@ async function handleVoiceMessage(message, from, user = null) {
       }
     }
 
+    // What the classroom-detection pass below managed to learn about this audio.
+    // Read again after transcription by the short-recording guidance, which needs
+    // the duration AND the transcript, so it cannot live inside that block.
+    // `seconds` stays 0 unless something actually measured the bytes: WhatsApp
+    // reports no duration at all, and ffprobe runs only above the large-file
+    // line, so a non-zero value here always means "somebody probed this".
+    const classroomAudio = { seconds: 0, fileSize: 0 };
+
     // CLASSROOM COACHING DETECTION: Check audio duration before processing
     try {
       const audioMetadata = await WhatsAppService.getMediaInfo(audioId);
@@ -813,6 +821,9 @@ async function handleVoiceMessage(message, from, user = null) {
           }
         }
       }
+
+      classroomAudio.seconds = audioDurationRounded;
+      classroomAudio.fileSize = audioMetadata?.file_size || 0;
 
       if (audioDurationRounded >= CLASSROOM_AUDIO_THRESHOLD) {
         logToFile('🎓 CLASSROOM AUDIO DETECTED (15+ minutes)', {
@@ -1104,7 +1115,11 @@ async function handleVoiceMessage(message, from, user = null) {
       typingController.stop();
 
       if (user && sessionId) {
-        await MenuService.sendMenu(from, user.id, sessionId, 'en', user);
+        // The teacher's own preference, not the literal 'en' that used to sit
+        // here. sendMenu resolves it again from her row, so this is the
+        // caller's best guess and no longer the deciding vote.
+        await MenuService.sendMenu(from, user.id, sessionId,
+          user.preferred_language || detectedLanguage, user);
       } else {
         await WhatsAppService.sendMessage(from, "Please complete registration first.");
       }
@@ -1175,6 +1190,47 @@ async function handleVoiceMessage(message, from, user = null) {
       await ConversationState.clearState(user.id, { flow: 'video' });
 
       return; // Exit early
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // SHORT-RECORDING GUIDANCE — before the chat answer, never instead of it.
+    //
+    // Placed here because it is the first point where BOTH signals exist: the
+    // probed duration from the detection pass above, and the transcript. On a
+    // file under the large-file line nothing probed the bytes, so the transcript
+    // is the only signal there is.
+    //
+    // Non-blocking by construction: a failure here must never cost her the
+    // answer to the question she actually asked.
+    // ════════════════════════════════════════════════════════════════════════
+    try {
+      const {
+        classifyShortRecording, guidanceCopyFor,
+      } = require('../services/coaching/short-recording-guidance');
+      const decision = classifyShortRecording({
+        user,
+        durationSeconds: classroomAudio.seconds,
+        transcriptChars: [...transcription].length,
+      });
+      const copy = guidanceCopyFor({ tier: decision.tier, durationSeconds: classroomAudio.seconds });
+      if (copy) {
+        await WhatsAppService.sendMessage(
+          from,
+          resolveUx(copy.key, { language: detectedLanguage, params: copy.params }),
+        );
+        logToFile('📏 short-recording length guidance sent', {
+          userId: user?.id,
+          tier: decision.tier,
+          reason: decision.reason,
+          probedSeconds: classroomAudio.seconds || null,
+          transcriptChars: [...transcription].length,
+          language: detectedLanguage,
+        });
+      }
+    } catch (guidanceErr) {
+      logToFile('⚠️ short-recording guidance failed (non-blocking)', {
+        error: guidanceErr.message, userId: user?.id,
+      });
     }
 
     // Step 5: Detect intent from transcription

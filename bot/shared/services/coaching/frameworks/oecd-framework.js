@@ -228,16 +228,37 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
 
 // ─── Analysis prompt builder ─────────────────────────────────────────
 
+const { getLanguage } = require('../../../config/languages');
+
+/**
+ * A language's English NAME, for the prompt's own prose. Read from the registry
+ * rather than restated as a second inline map — that duplication is how the
+ * report once rendered Urdu in the wrong script while the reply was correct.
+ */
+function languageName(code) {
+  const row = getLanguage(code);
+  return (row && row.languageDescription) || String(code);
+}
+
 function buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, photoAnalysis) {
   const {
     grade,
     subject,
     duration,
     language,
+    transcriptLanguage,
     teacherFirstName,
     priorFeedback,
     lessonPlanExcerpt
   } = metadata;
+
+  // Two language needs, deliberately separate values. `language` is what the
+  // teacher-facing strings are WRITTEN in — her stored preference, resolved
+  // upstream through the one coaching resolver. The transcript label is what was
+  // HEARD in the room, and it is context for the model, never a directive about
+  // which language to address her in. One field doing both jobs is how a lesson
+  // labelled English steered an Urdu teacher's report into English.
+  const heardLanguage = transcriptLanguage || null;
 
   const lessonPlanStructuredBlock = lessonPlanStructured
     ? `LESSON PLAN SUMMARY (plain language — do NOT mention JSON or the phrase "metadata"):
@@ -279,7 +300,7 @@ ${subject ? `- Subject: ${subject}` : ''}
 ${metadata.lessonPlanSubject ? `- Lesson Plan Subject: ${metadata.lessonPlanSubject}` : ''}
 ${metadata.lessonPlanTopic ? `- Lesson Plan Topic: ${metadata.lessonPlanTopic}` : ''}
 ${duration ? `- Duration: ${Math.round(duration / 60)} minutes` : ''}
-${language ? `- Primary Language: ${language}` : ''}
+${heardLanguage ? `- Language spoken in the lesson: ${languageName(heardLanguage)}` : ''}
 
 ${priorFeedback ? `PRIOR FEEDBACK FROM PREVIOUS OBSERVATION(S):\n${priorFeedback}\n\nWhen scoring "incorporation_of_feedback":\n1. Your evidence MUST start with "In your observation on [actual date]," where you extract the ACTUAL DATE from the prior feedback shown above (format like "11/10/2025"). DO NOT write "[DATE]" as a placeholder - use the real date from the "Observation [DATE]:" line above.\n2. Assess whether the teacher addressed those specific growth areas\n3. Look for concrete evidence of improvement attempts\n4. Be specific about what was recommended and what was observed in this lesson\n` : 'PRIOR FEEDBACK: This is the first classroom observation. For "incorporation_of_feedback", score based on lesson plan quality and execution alignment.\n'}
 

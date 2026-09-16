@@ -32,7 +32,20 @@ function resolveFidelitySources(session) {
   const s = session || {};
   const fidelityRef = s.lesson_plan_structured && s.lesson_plan_structured._fidelity_ref;
   if (fidelityRef) {
-    return { corpusKey: fidelityRef, uploadedText: null, meta: { lesson_id: fidelityRef.lesson_id } };
+    // The subject/grade the corpus key encodes travel with the key. Refs written
+    // before the linker carried them hold only `lesson_id`, which encodes both — so
+    // derive rather than read, and the 3,437 sessions already in the older shape
+    // behave identically to a new one.
+    const { parseCorpusLessonId, canonicalSubject } = require('../subject-resolution');
+    const parsed = parseCorpusLessonId(fidelityRef.lesson_id);
+    const subject = canonicalSubject(fidelityRef.subject) || (parsed && parsed.subject) || null;
+    const grade = fidelityRef.grade != null && fidelityRef.grade !== ''
+      ? String(fidelityRef.grade)
+      : (parsed && parsed.grade) || null;
+    const meta = { lesson_id: fidelityRef.lesson_id };
+    if (subject) meta.subject = subject;
+    if (grade) meta.grade = grade;
+    return { corpusKey: fidelityRef, uploadedText: null, meta };
   }
   return { corpusKey: null, uploadedText: s.lesson_plan_text || null, meta: {} };
 }
@@ -99,7 +112,10 @@ async function computeLpFidelity(input = {}, deps = {}) {
     } catch (firstErr) {
       graded = await analyzeFidelity(moves, input.transcript, meta);
     }
-    const analysis = scoreFidelity(moves, graded.verdicts);
+    // The grader's moderators go IN so the scorer can check the note against the
+    // verdicts written beside it; the scorer's moderators come back out (below) as the
+    // single writer of that block on this path.
+    const analysis = scoreFidelity(moves, graded.verdicts, { moderators: graded.moderators });
 
     return {
       status: 'ok',
@@ -113,7 +129,9 @@ async function computeLpFidelity(input = {}, deps = {}) {
       ...analysis,
       narrative: graded.narrative || null,
       language_note: graded.language_note || null,
-      moderators: graded.moderators || null,
+      // NOT `graded.moderators` — the scorer returns that block with its own
+      // truncation_inconsistent finding folded in, and re-reading the grader's copy
+      // here would silently drop it. One writer.
       model: graded.model || null,
       graded_at: null, // stamped by the caller (Date.now unavailable here / keep deterministic)
     };

@@ -76,15 +76,27 @@ const COACHING_MESSAGES = {
     ur: 'اس مشاہدے کا جائزہ پہلے ہی جمع ہو چکا ہے، اس لیے اب اس کا سبق کا منصوبہ تبدیل نہیں کیا جا سکتا۔',
   },
   // Lesson-plan branch: document received, queued for processing
-  lessonPlan_received: en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
+  lessonPlan_received: {
+    ...en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
+    ur: '📄 سبق کا منصوبہ موصول ہو گیا! اسے پس منظر میں پڑھا جا رہا ہے اور تجزیے میں شامل کر دیا جائے گا۔',
+  },
   // Lesson-plan branch: the uploaded document doesn't look like a lesson plan
   // (e.g. a leave letter). We still analyse the recording; we just can't use
   // this file as a plan. (bd-2372 — Irum, ICT, DC-9.)
-  lessonPlan_notLessonPlan: en("📄 Thanks — but this file doesn't look like a lesson plan, so I won't reference it. I'll go ahead and analyse your classroom recording. If you meant to send a lesson plan, please resend it as a PDF, Word file, or clear page photos."),
+  lessonPlan_notLessonPlan: {
+    ...en("📄 Thanks — but this file doesn't look like a lesson plan, so I won't reference it. I'll go ahead and analyse your classroom recording. If you meant to send a lesson plan, please resend it as a PDF, Word file, or clear page photos."),
+    ur: '📄 شکریہ — مگر یہ فائل سبق کے منصوبے جیسی نہیں لگتی، اس لیے اس کا حوالہ نہیں دیا جائے گا۔ آپ کی کلاس روم ریکارڈنگ کا تجزیہ جاری رہے گا۔ اگر سبق کا منصوبہ بھیجنا تھا تو اسے دوبارہ بھیج دیں — PDF، Word فائل یا صفحات کی صاف تصویروں کی صورت میں۔',
+  },
   // Lesson-plan branch: legacy ack
-  lessonPlan_included: en("✅ Lesson plan received! I'll include this in my analysis."),
+  lessonPlan_included: {
+    ...en("✅ Lesson plan received! I'll include this in my analysis."),
+    ur: '✅ سبق کا منصوبہ موصول ہو گیا! اسے تجزیے میں شامل کر لیا جائے گا۔',
+  },
   // Recovery: teacher exited the coaching flow without sending audio
-  exitedNoAudio: en("No problem! If you'd like to analyze classroom audio in the future, just send me a recording."),
+  exitedNoAudio: {
+    ...en("No problem! If you'd like to analyze classroom audio in the future, just send me a recording."),
+    ur: 'کوئی بات نہیں! آئندہ کبھی کلاس روم آڈیو کا تجزیہ کروانا ہو تو صرف ریکارڈنگ بھیج دیں۔',
+  },
   // A new classroom recording arrived while an analysis is already running for
   // her — reassure, don't restart (bd-2376 — M. Salman, ICT, DC-5).
   // bd-0c80s: nothing re-queues a deferred recording — after the 30-minute
@@ -100,33 +112,98 @@ const COACHING_MESSAGES = {
     ur: '⏳ میں ابھی آپ کی پچھلی ریکارڈنگ کا تجزیہ کر رہی ہوں۔ اگر 30 منٹ میں رپورٹ نہ ملے تو براہِ کرم یہ ریکارڈنگ دوبارہ بھیج دیں۔',
   },
   // Step 1/5 — transcription kickoff
-  step1_transcribing: en("🔄 Step 1/5: Transcribing your classroom audio. This may take 30-60 seconds...hang in there!"),
+  step1_transcribing: {
+    ...en("🔄 Step 1/5: Transcribing your classroom audio. This may take 30-60 seconds...hang in there!"),
+    ur: '🔄 مرحلہ ۱ از ۵: آپ کی کلاس روم آڈیو کو تحریر میں منتقل کیا جا رہا ہے۔ اس میں تقریباً ایک منٹ لگ سکتا ہے — تھوڑا انتظار کریں!',
+  },
   // Step 2/5 — pedagogy analysis kickoff (templated; `${step}` resolved by caller via interpolation OR by passing the number 2 when constant)
-  step2_analyzing: en("🔄 Step 2/5: Analyzing your teaching using research-based pedagogical frameworks..."),
+  step2_analyzing: {
+    ...en("🔄 Step 2/5: Analyzing your teaching using research-based pedagogical frameworks..."),
+    ur: '🔄 مرحلہ ۲ از ۵: تحقیق پر مبنی تدریسی فریم ورک کے ذریعے آپ کی تدریس کا تجزیہ کیا جا رہا ہے...',
+  },
   // Step 3/5 — reflective conversation kickoff
-  step3_reflecting: en("🔄 Step 3/5: Let's reflect on your teaching together..."),
+  step3_reflecting: {
+    ...en("🔄 Step 3/5: Let's reflect on your teaching together..."),
+    ur: '🔄 مرحلہ ۳ از ۵: آئیے مل کر آپ کی تدریس پر غور کریں...',
+  },
   // Step 4/5 — report generation kickoff
-  step4_generatingReport: en("🔄 Step 4/5: Generating your comprehensive observation report with visualizations..."),
+  step4_generatingReport: {
+    ...en("🔄 Step 4/5: Generating your comprehensive observation report with visualizations..."),
+    ur: '🔄 مرحلہ ۴ از ۵: خاکوں کے ساتھ آپ کی مکمل مشاہدہ رپورٹ تیار کی جا رہی ہے...',
+  },
   // Step 5/5 — voice debrief generation kickoff
-  step5_voiceDebrief: en("🔄 Step 5/5: Creating your personalized voice debrief..."),
+  step5_voiceDebrief: {
+    ...en("🔄 Step 5/5: Creating your personalized voice debrief..."),
+    ur: '🔄 مرحلہ ۵ از ۵: آپ کے لیے آواز میں خصوصی خلاصہ تیار کیا جا رہا ہے...',
+  },
   // Final report delivery
-  reportReady: en("✅ Your Classroom Observation Report is ready! 📄"),
+  reportReady: {
+    ...en("✅ Your Classroom Observation Report is ready! 📄"),
+    ur: '✅ آپ کی کلاس روم مشاہدہ رپورٹ تیار ہے! 📄',
+  },
   // Voice summary delivery prefix
-  voiceSummaryReady: en("🎤 Here's your personalized voice summary:"),
+  voiceSummaryReady: {
+    ...en("🎤 Here's your personalized voice summary:"),
+    ur: '🎤 یہ آپ کے لیے آواز میں تیار کیا گیا خلاصہ ہے:',
+  },
   // Reflective conversation graceful close. bd-2414: Urdu translation so the
   // fallback closer isn't voiced in English (gender-neutral — no addressee-gendered
   // verb). The primary closer is now the contextual acknowledgement (voiced).
   reflectionsThanks: { ...en("Thank you for your thoughtful reflections! 🙏"), ur: "آپ کے سوچ بھرے جوابات کا شکریہ! 🙏" },
   // Retry path: analysis still running when report is requested
-  reportInProgress: en("🔄 I'm still processing your classroom analysis. I'll share your report as soon as it's ready."),
+  reportInProgress: {
+    ...en("🔄 I'm still processing your classroom analysis. I'll share your report as soon as it's ready."),
+    ur: '🔄 آپ کے کلاس روم تجزیے پر کام جاری ہے۔ رپورٹ تیار ہوتے ہی بھیج دی جائے گی۔',
+  },
   // Voice debrief fallback when generation fails post-PDF
-  voiceSummaryFallback: en("Note: Voice summary could not be generated, but your written report is complete! You can review it in the PDF above. 📄"),
+  voiceSummaryFallback: {
+    ...en("Note: Voice summary could not be generated, but your written report is complete! You can review it in the PDF above. 📄"),
+    ur: 'نوٹ: آواز کا خلاصہ تیار نہیں ہو سکا، مگر آپ کی تحریری رپورٹ مکمل ہے! اوپر دی گئی PDF میں اسے دیکھا جا سکتا ہے۔ 📄',
+  },
   // Long transcript warning (transcription pipeline)
-  longLessonDetected: en("⚠️ *Long Lesson Detected*\n\nYour lesson transcript is quite lengthy. The analysis may take a bit longer, but I'll make sure to provide comprehensive feedback!"),
+  longLessonDetected: {
+    ...en("⚠️ *Long Lesson Detected*\n\nYour lesson transcript is quite lengthy. The analysis may take a bit longer, but I'll make sure to provide comprehensive feedback!"),
+    ur: '⚠️ *طویل سبق*\n\nآپ کے سبق کی تحریر خاصی طویل ہے۔ تجزیے میں کچھ زیادہ وقت لگ سکتا ہے، مگر تفصیلی فیڈبیک ضرور دیا جائے گا!',
+  },
   // Agency follow-up: remind the teacher of their prior commitment.
   // {{action}} is substituted at the call site (kept distinct from
   // ${} JS interpolation so this string can be translated 1:1).
-  priorActionReminder: en('💡 *Quick reminder:* Last time, you committed to:\n\n_"{{action}}"_\n\nLet\'s see how it went in this session!'),
+  priorActionReminder: {
+    ...en('💡 *Quick reminder:* Last time, you committed to:\n\n_"{{action}}"_\n\nLet\'s see how it went in this session!'),
+    ur: '💡 *مختصر یاد دہانی:* پچھلی بار آپ نے یہ عہد کیا تھا:\n\n_"{{action}}"_\n\nآئیے دیکھیں اس بار کیا ہوا!',
+  },
+
+  // ── The classroom-audio confirmation ──────────────────────────────────────
+  // The most-sent message in the flow: every detected classroom recording is
+  // followed by it. It was built from English literals inline, with no language
+  // read anywhere on the path, on a deployment where almost every teacher reads
+  // Urdu.
+  //
+  // `{minutes}` is interpolated at the call site (kept distinct from ${} JS
+  // interpolation so the string can be translated 1:1). In the Urdu it is
+  // wrapped in U+2066 … U+2069 — a bare digit run after an Urdu word gets
+  // re-ordered by the bidi algorithm, and a catalog string isolates the
+  // placeholder because the value's direction is unknowable at authoring time.
+  //
+  // Caps, in CODE POINTS: bodies 141 (en) / 120 (ur) of 1024; button titles
+  // 12 (en) / 14 (ur) and 2 (en) / 4 (ur) of 20 — the button is the tightest
+  // field there is, and a monolingual→bilingual edit is a length change first.
+  coaching_confirmAudio: {
+    ...en("I detected a {minutes}-minute audio recording.\n\nIs this classroom audio you'd like me to analyze using research-based pedagogical frameworks?"),
+    ur: 'مجھے \u2066{minutes}\u2069 منٹ کی آڈیو ریکارڈنگ ملی ہے۔\n\nکیا یہ کلاس روم کی آڈیو ہے جس کا تجزیہ تدریسی فریم ورک کے مطابق کیا جائے؟',
+  },
+  coaching_confirmYes: { ...en('Yes, Analyze'), ur: 'جی، تجزیہ کریں' },
+  coaching_confirmNo: { ...en('No'), ur: 'نہیں' },
+
+  // ── The stale-session resume tap ──────────────────────────────────────────
+  coaching_continueAllAnswered: {
+    ...en('Great! All your reflections are recorded. Generating your coaching report now...'),
+    ur: 'بہت خوب! آپ کے تمام جوابات محفوظ ہو گئے ہیں۔ کوچنگ رپورٹ اب تیار کی جا رہی ہے...',
+  },
+  coaching_sessionNotFound: {
+    ...en('Sorry, I could not find that coaching session.'),
+    ur: 'معذرت، وہ کوچنگ سیشن نہیں مل سکا۔',
+  },
 };
 
 /**

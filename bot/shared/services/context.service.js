@@ -10,6 +10,7 @@
  */
 
 const supabase = require('../config/supabase');
+const { clampLanguage } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
 
 class ContextService {
@@ -353,8 +354,10 @@ When user asks to "change", "modify", or "redo" a feature:
    * @returns {string} Localized rate limit message
    */
   static getVideoRateLimitMessage(user, lastVideo, hoursRemaining) {
-    // Use locked language if set, otherwise preferred, otherwise English
-    const language = user.language_locked ? user.preferred_language : (user.preferred_language || 'en');
+    // One clamp, no lock branch. The branch that used to be here returned
+    // `user.preferred_language` down BOTH arms — the lock read decided nothing —
+    // and its English floor disagreed with the registry's.
+    const language = clampLanguage(user.preferred_language);
     const topic = lastVideo?.topic || 'your topic';
     const hoursAgo = lastVideo ? Math.floor((Date.now() - new Date(lastVideo.created_at)) / 3600000) : 0;
 

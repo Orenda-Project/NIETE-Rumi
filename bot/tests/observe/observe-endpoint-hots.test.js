@@ -33,7 +33,13 @@ jest.mock('../../shared/config/supabase', () => ({
     single: jest.fn(() => Promise.resolve({ data: mockSessionRow, error: null })),
     update: jest.fn((patch) => {
       mockUpdates.push(patch);
-      return { eq: jest.fn().mockResolvedValue({ data: null, error: null }) };
+      const tail = {
+        eq: jest.fn(() => tail),
+        not: jest.fn(() => tail),
+        select: jest.fn().mockResolvedValue({ data: [{ id: 'sess-1' }], error: null }),
+        then: (ok, bad) => Promise.resolve({ data: [{ id: 'sess-1' }], error: null }).then(ok, bad),
+      };
+      return tail;
     }),
   })),
 }));

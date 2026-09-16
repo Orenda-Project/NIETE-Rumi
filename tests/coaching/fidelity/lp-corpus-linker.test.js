@@ -23,7 +23,13 @@ describe('resolveCorpusRef', () => {
     const ref = await resolveCorpusRef('asset-uuid-1', c);
     expect(c.calls.table).toBe('niete_lp_assets');
     expect(c.calls.eq.id).toBe('asset-uuid-1');
-    expect(ref).toEqual({ lesson_id: 'grade_5_math_ch5_seg3', version_stamp: 'v8', content_hash: 'h' });
+    // The ref now also carries the subject/grade the lesson_id encodes — the corpus
+    // path replaces lesson_plan_structured with this stub, so anything reading
+    // `.subject` off that column read null on every corpus session until it did.
+    expect(ref).toEqual({
+      lesson_id: 'grade_5_math_ch5_seg3', version_stamp: 'v8', content_hash: 'h',
+      subject: 'maths', grade: '5',
+    });
   });
 
   test('a legacy lesson_plans id (no matching asset) → null → caller falls back', async () => {

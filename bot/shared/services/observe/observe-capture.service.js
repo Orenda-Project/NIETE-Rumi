@@ -118,7 +118,22 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // coaching — 4 coaches on 24 Aug). The next recording now gets the binding
   // prompt, which is the multi-flight entry point.
   await ObserveState.clearState(user.id);
-  await WhatsAppService.sendMessage(from, `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim());
+  // The ack carries a way out. /observe used to be the only door, so the
+  // declaration of intent was the confirm and a second one looked redundant;
+  // a recording can now also arrive through the binding picker and the menu,
+  // and a coach who sent the wrong one had nothing to tap.
+  //
+  // This is NOT a gate on the work — transcription is queued twenty lines
+  // above, so it saves the wrong report reaching a teacher, not the compute.
+  // Do not "optimise" it by moving the queue call without deciding that every
+  // observation should wait on a human tap first.
+  await WhatsAppService.sendInteractiveButtons(from, {
+    body: `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
+    buttons: [
+      { id: `observe_ok_${session.id}`, title: S.btn_ok_wait.slice(0, 20) },
+      { id: `observe_cancel_${session.id}`, title: S.btn_cancel_obs.slice(0, 20) },
+    ],
+  });
 
   // bd-2668: an UNBOUND capture records no teacher, so the pending-debrief list
   // can only show a date and the portal shows "Unassigned" (66 of 85 live

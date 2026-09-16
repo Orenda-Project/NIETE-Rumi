@@ -13,8 +13,10 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { isTerminalStatus, updateIfNotTerminal } = require('./session-terminal');
 const WhatsAppService = require('../whatsapp.service');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const { getUserLanguage } = require('../../utils/language-cache');
 
 class CoachingSessionService {
   /**
@@ -89,14 +91,24 @@ class CoachingSessionService {
         status: coachingSession.status
       });
 
-      // Send confirmation message with buttons
-      const confirmationMessage = `I detected a ${Math.round(audioDuration / 60)}-minute audio recording.\n\nIs this classroom audio you'd like me to analyze using research-based pedagogical frameworks?`;
+      // Send confirmation message with buttons, in the teacher's own language.
+      // The button IDS are parsed by the webhook router and must not change —
+      // only the titles are translated. Translating an id is the classic version
+      // of this mistake and it breaks the tap silently.
+      const language = await getUserLanguage(userId);
+      const minutes = Math.round(audioDuration / 60);
 
       await WhatsAppService.sendInteractiveButtons(from, {
-        body: confirmationMessage,
+        body: getCoachingMessage('coaching_confirmAudio', language).replace('{minutes}', String(minutes)),
         buttons: [
-          { id: `coaching_confirm_${coachingSession.id}`, title: 'Yes, Analyze' },
-          { id: `coaching_cancel_${coachingSession.id}`, title: 'No' }
+          {
+            id: `coaching_confirm_${coachingSession.id}`,
+            title: getCoachingMessage('coaching_confirmYes', language),
+          },
+          {
+            id: `coaching_cancel_${coachingSession.id}`,
+            title: getCoachingMessage('coaching_confirmNo', language),
+          }
         ]
       });
 
@@ -158,6 +170,19 @@ class CoachingSessionService {
         throw new Error('Coaching session not found');
       }
 
+      // bd-n9832: a confirm prompt sent before the session was cancelled is
+      // still tappable, and this arm wrote 'confirmed' without ever reading
+      // status — the same stale-button revival as the photo gate's "Yes".
+      if (isTerminalStatus(session.status)) {
+        const { resolveUx, clampLanguage } = require('../../config/ux-strings');
+        const lang = clampLanguage(session.users && session.users.preferred_language);
+        await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language: lang }));
+        logToFile('🚫 Coaching confirm refused — the session is over', {
+          coachingSessionId, status: session.status,
+        });
+        return { confirmed: false, session: null };
+      }
+
       // User confirmed - update status
       const { data: updatedSession, error: updateError } = await supabase
         .from('coaching_sessions')
@@ -203,15 +228,31 @@ class CoachingSessionService {
    */
   static async updateStatus(coachingSessionId, status, updates = {}) {
     try {
+      // bd-n9832 — THE shared status writer: the transcription, analysis,
+      // reflective and report jobs all move a session through here. Each of
+      // them was queued before a cancel could land and completes after it, so
+      // an unpredicated write here silently reopened a cancelled session (the
+      // class #1008 closed for the observe analysis arming only). Terminal-ward
+      // writes are exempt: a job must still be able to record a failure.
+      if (!isTerminalStatus(status)) {
+        const { applied } = await updateIfNotTerminal(coachingSessionId, { status, ...updates });
+        if (!applied) {
+          logToFile('🚫 Session status write refused — the session is over', { coachingSessionId, status });
+          return null;
+        }
+      } else {
+        const { error: termErr } = await supabase
+          .from('coaching_sessions')
+          .update({ status, ...updates })
+          .eq('id', coachingSessionId);
+        if (termErr) throw termErr;
+      }
+
       const { data: session, error } = await supabase
         .from('coaching_sessions')
-        .update({
-          status,
-          ...updates
-        })
+        .select('*')
         .eq('id', coachingSessionId)
-        .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         throw error;

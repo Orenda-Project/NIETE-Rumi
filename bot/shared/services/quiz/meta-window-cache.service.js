@@ -33,7 +33,12 @@
 const RailwayRedis = require('../cache/railway-redis.service');
 const { logToFile } = require('../../utils/logger');
 
-const TTL_SECONDS = 23 * 60 * 60;   // 23h — 1h safety margin on Meta's 24h window
+// The TTL and the window check MUST be the same number. When they were two
+// literals in two files, a cache TTL longer than the check's cutoff kept a
+// window closed after the check had already re-opened it.
+const { MESSAGE_WINDOW_MS } = require('../../config/meta-messaging-window');
+
+const TTL_SECONDS = Math.round(MESSAGE_WINDOW_MS / 1000);
 const KEY_PREFIX = 'meta_window_closed:';
 
 /**

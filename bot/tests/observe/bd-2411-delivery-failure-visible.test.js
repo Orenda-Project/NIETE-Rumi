@@ -77,8 +77,14 @@ describe('bd-2411 · teacher delivery failure is visible + recorded (not silent)
       && u.analysis_data.teacher_delivery.status === 'send_failed');
     expect(failWrite).toBeTruthy();
 
-    // coach told it failed (send_failed_fo), never left on the optimistic "sending now"
+    // coach told it failed (send_failed_fo), never left on the optimistic "sending now".
+    // Asserted against the catalogue entry rather than an English phrase: this
+    // session carries no resolvable observer preference, so the message comes
+    // out in the market default, and that floor is allowed to move.
+    const { observeStrings } = require('../../shared/services/observe/observe-strings');
+    const { marketDefault } = require('../../shared/services/observe/observe-language');
+    const expected = observeStrings(marketDefault()).send_failed_fo;
     const coachMsgs = mockSend.sendMessage.mock.calls.map(c => String(c[1]));
-    expect(coachMsgs.some(m => m.includes("couldn't be sent") || m.includes('try sending again'))).toBe(true);
+    expect(coachMsgs).toContain(expected);
   });
 });

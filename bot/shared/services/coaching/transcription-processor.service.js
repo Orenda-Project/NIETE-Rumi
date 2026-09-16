@@ -260,10 +260,16 @@ class TranscriptionProcessorService {
         });
       }
 
-      await supabase
-        .from('coaching_sessions')
-        .update(updateData)
-        .eq('id', coachingSessionId);
+      // bd-n9832: the transcription job outlives a cancel — it was queued
+      // before it and lands after. An unpredicated write here reopened the
+      // session AND then sent the photo gate, which is the very stale button
+      // that started the revival chain.
+      const { updateIfNotTerminal } = require('./session-terminal');
+      const { applied: transcriptApplied } = await updateIfNotTerminal(coachingSessionId, updateData);
+      if (!transcriptApplied) {
+        logToFile('🚫 transcription finished but the session is over — not reopened', { coachingSessionId });
+        return;
+      }
 
       // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16): leader observations
       // skip every teacher interstitial (encouraging message, agency reminder) — those

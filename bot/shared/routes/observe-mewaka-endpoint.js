@@ -16,6 +16,7 @@
 
 const supabase = require('../config/supabase');
 const redisService = require('../services/cache/railway-redis.service');
+const { observeStrings } = require('../services/observe/observe-strings');
 const ObserveDraft = require('../services/observe/observe-draft.service');
 const { logToFile } = require('../utils/logger');
 
@@ -39,8 +40,38 @@ const nextScreen = (screenId) => {
   return i >= 0 && i < screens.length - 1 ? screens[i + 1] : 'SUCCESS';
 };
 
+/**
+ * Statuses past which an observation is closed. A stale Flow submit must not
+ * reopen one. Kept beside the two guards that read it so they cannot drift.
+ */
+const { TERMINAL_STATUSES } = require('../services/coaching/session-terminal');
+
 function errorResponse(message) {
   return { data: { error: { message } } };
+}
+
+/**
+ * The coach's language, resolved ONLY when a screen actually needs it.
+ *
+ * The Section B review screen is English throughout except for one line: the note that
+ * the grader's own caveat contradicted its own verdicts, which appears on about 2.6% of
+ * observations. Resolving the coach's language costs a users read, and Meta's
+ * data_exchange window is not generous — so the read happens on the sessions that need
+ * the sentence and on no others.
+ *
+ * Total by construction: any failure returns undefined, and the line is then simply
+ * skipped rather than served in the wrong language or as "undefined".
+ */
+async function coachLanguageIfNeeded(session) {
+  const mods = ((session || {}).analysis_data || {}).lp_fidelity
+    && session.analysis_data.lp_fidelity.moderators;
+  if (!mods || !mods.truncation_inconsistent) return undefined;
+  try {
+    const { languageFor } = require('../services/observe/observe-language');
+    return await languageFor('coach', session);
+  } catch (_err) {
+    return undefined;
+  }
 }
 
 async function loadSessionFromToken(flowToken) {
@@ -55,6 +86,21 @@ async function loadSessionFromToken(flowToken) {
   if (session.observation_type !== 'leader_observation') return { error: 'Not a leader observation' };
   const owner = session.observer_user_id || session.user_id;
   if (owner !== userId) return { error: 'Not your observation' };
+  // A terminal observation is not editable. The review Flow is already sitting
+  // in the coach's chat when she cancels, so without this the stale form still
+  // submits, the row is promoted, and the teacher receives a report the coach
+  // explicitly cancelled — while her cancel showed a SUCCESS screen. Prod, 15
+  // Sep 2026: 113 cancelled leader observations, 103 still awaiting a debrief
+  // and armed, none of them reachable from the menu, so a revival is invisible
+  // until the report lands.
+  if (TERMINAL_STATUSES.includes(session.status)) {
+    let lang = 'en';
+    try {
+      const { languageFor } = require('../services/observe/observe-language');
+      lang = await languageFor('coach', session);
+    } catch (_) { /* the refusal must never depend on a language lookup */ }
+    return { error: observeStrings(lang).flow_terminal_refused };
+  }
   return { session, sessionId, userId };
 }
 
@@ -97,7 +143,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const first = packScreens().screens[0];
       return {
         screen: first,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first), await coachLanguageIfNeeded(session)),
       };
     }
 
@@ -107,7 +153,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const target = packScreens().screens.includes(screen) ? screen : packScreens().screens[0];
       return {
         screen: target,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target), await coachLanguageIfNeeded(session)),
       };
     }
 
@@ -117,7 +163,18 @@ async function handleObserveMewakaRequest(decrypted) {
       const merged = await bufferEdits(sessionId, data);
 
       if (currentScreen === packScreens().last) {
-        await ObserveDraft.applyObserverEdits(sessionId, merged);
+        const applied = await ObserveDraft.applyObserverEdits(sessionId, merged);
+        if (applied && applied.refused) {
+          // Went terminal between the load above and the write. Do not reach
+          // SUCCESS: the SUCCESS screen's extension_message_response is what
+          // starts the teacher-report chain.
+          let lang = 'en';
+          try {
+            const { languageFor } = require('../services/observe/observe-language');
+            lang = await languageFor('coach', session);
+          } catch (_) { /* the refusal must never depend on a language lookup */ }
+          return errorResponse(observeStrings(lang).flow_terminal_refused);
+        }
         await redisService.delete(editsKey(sessionId));
         return {
           screen: 'SUCCESS',
@@ -133,7 +190,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const next = nextScreen(currentScreen);
       return {
         screen: next,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next), await coachLanguageIfNeeded(session)),
       };
     }
 

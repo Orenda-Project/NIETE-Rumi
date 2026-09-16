@@ -28,15 +28,31 @@ const WA = fs.readFileSync(path.join(__dirname, '../../bot/shared/services/whats
 const { featureMenuRows } = require('../../bot/shared/config/role-features');
 
 const ROLES = ['teacher', 'principal', 'coach', null];
+// Every row is presence-gated now, so "the market has everything published" has
+// to be stated rather than assumed — the state production is actually in.
+const ALL_PUBLISHED = {
+  observeEnabled: true, trainingEnabled: true, lessonPlanEnabled: true,
+  rosterEnabled: true, classesEnabled: true, quizEnabled: true,
+  assessmentEnabled: true, videosEnabled: true,
+};
 const ids = (role) => featureMenuRows(role === null ? null : { id: 'u', role },
-  { observeEnabled: true }).map((r) => r.id);
+  ALL_PUBLISHED).map((r) => r.id);
 
 describe('bd-2504 — menu rows', () => {
-  it('offers Training, and offers it FIRST, to every role', () => {
-    for (const role of ROLES) {
-      expect(ids(role)).toContain('menu_training');
-      expect(ids(role)[0]).toBe('menu_training');
-    }
+  it('offers Training to every role', () => {
+    for (const role of ROLES) expect(ids(role)).toContain('menu_training');
+  });
+
+  it('is ordered by measured demand, which is why Training is no longer first', () => {
+    // Training was pinned first when it was the only thing teachers were being
+    // asked to do and the menu had omitted it entirely. The approved design
+    // supersedes that with demand order, measured over seven days on this
+    // deployment: 4,467 lesson-plan taps against 500 for training. Training
+    // keeps a row in every layout; it no longer leads.
+    expect(ids('teacher')[0]).toBe('menu_lesson_plan');
+    // A leader leads with the thing only a leader can do.
+    expect(ids('principal')[0]).toBe('menu_observe');
+    expect(ids('coach')[0]).toBe('menu_observe');
   });
 
   it('no longer offers Reading Assessment or AI Video Generation', () => {
@@ -50,9 +66,10 @@ describe('bd-2504 — menu rows', () => {
     for (const role of ROLES) {
       expect(ids(role)).toEqual(expect.arrayContaining(['menu_lesson_plan', 'menu_other']));
     }
-    // menu_coaching survives for the roles that may self-coach.
+    // menu_coaching survives for the roles that may self-coach — and only those.
     expect(ids('teacher')).toContain('menu_coaching');
     expect(ids('principal')).toContain('menu_coaching');
+    expect(ids('coach')).not.toContain('menu_coaching');
   });
 
   it("stays within WhatsApp's 10-row list cap for every role", () => {
@@ -66,15 +83,22 @@ describe('row 122 — the list is built per role, not hardcoded', () => {
   });
 
   it('no stray hardcoded menu_ row survives in the list payload', () => {
-    const start = WA.indexOf("title: 'My Features'");
+    // Anchored on the section title's catalog call, not on the English literal
+    // that used to sit there: the chrome moved into ux-strings so the menu is
+    // no longer built as English for a 99%-Urdu cohort.
+    const start = WA.indexOf("resolveUx('menuSectionTitle'");
     expect(start).toBeGreaterThan(-1);
     const block = WA.slice(start, start + 1200);
     expect(block).not.toMatch(/id:\s*'menu_[a-z_]+'/);
   });
 
-  it('the menu carries the user through to the row builder', () => {
+  it('the menu carries the user AND her language through to the row builder', () => {
     expect(WA).toMatch(/sendFeatureMenuListFallback\s*\(\s*to\s*,\s*user/);
-    expect(MENU).toMatch(/sendFeatureMenuCarousel\(from,\s*user\)/);
+    // Matched on the first two arguments, never the whole call: the language
+    // argument landing here is exactly the kind of signature change that turned
+    // four unrelated assertions red the last time this was anchored literally.
+    expect(MENU).toMatch(/sendFeatureMenuCarousel\(\s*from\s*,\s*user/);
+    expect(MENU).toMatch(/resolvedLanguage/);
   });
 });
 

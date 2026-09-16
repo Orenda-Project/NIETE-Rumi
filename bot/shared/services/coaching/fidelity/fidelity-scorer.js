@@ -43,12 +43,58 @@ const round = (n, d = 2) => {
   return Math.round(n * f) / f;
 };
 
+
+// ─── Did the grader say the recording stopped before the lesson did? ──────────
+//
+// There is no token for this state, so the grader invents one or writes prose. The
+// prompt documents exactly two note values — `lesson_mismatch` (796 prod sessions,
+// used cleanly) and `recording_unusable` (522) — and neither means "it ended early".
+// Alongside them prod carries `recording_ends_mid_lesson`, `recording_ends_during_
+// group_work` and `transcript_incomplete`: the model minting a name for something we
+// never named for it.
+//
+// The matcher is deliberately narrow. Its job is to find the grader contradicting its
+// OWN caveat, so a false positive costs a coach an unnecessary sentence while a loose
+// match on `recording_unusable`'s 522 sessions would drown the signal entirely. Prose
+// that DENIES truncation ("this is not a … recording-unusable case", "the recording
+// covers the full lesson") must not match, and does not: every pattern below requires
+// the recording to be said to STOP.
+const TRUNCATION_TOKENS = new Set([
+  'recording_truncated', 'recording_ends_mid_lesson', 'recording_ends_during_group_work',
+  'recording_incomplete', 'transcript_incomplete', 'transcript_truncated',
+]);
+
+// "…ends at [15:54] during…", "…ends at [17:37], before…", "…ends at approximately
+// 20:42 while students are still working", "the recording is readable but incomplete".
+const TRUNCATION_PROSE = [
+  /\brecording\b[^.]{0,80}\b(ends|ended|stops|stopped|cuts off|cut off|breaks off)\b/i,
+  /\b(recording|transcript)\b[^.]{0,60}\b(is|was)\b[^.]{0,40}\bincomplete\b/i,
+  /\b(ends|ended|stops|stopped)\b[^.]{0,60}\b(mid-?lesson|before the (announced|later)|while students)\b/i,
+];
+
+/**
+ * @param {*} note the grader's `moderators.note`
+ * @returns {boolean} true only when the note itself claims the recording ended early.
+ */
+function claimsTruncation(note) {
+  if (typeof note !== 'string') return false;
+  const text = note.trim();
+  if (!text) return false;
+  const token = text.toLowerCase().replace(/[\s-]+/g, '_');
+  if (TRUNCATION_TOKENS.has(token)) return true;
+  return TRUNCATION_PROSE.some((re) => re.test(text));
+}
+
 /**
  * @param {Array<object>} moves     prescribed move list (fidelity-moves-v1 objects, with tags)
  * @param {Array<object>} verdicts  grader output [{move_id, verdict, evidence, ...}]
+ * @param {object} [opts]
+ * @param {object} [opts.moderators] the grader's own moderators block, so its note can
+ *                 be checked against the verdicts it wrote beside it. Omit and the
+ *                 returned blob is byte-identical to what it was before this existed.
  * @returns {object} analysis blob (the D20 persist shape)
  */
-function scoreFidelity(moves, verdicts) {
+function scoreFidelity(moves, verdicts, opts = {}) {
   const vmap = {};
   for (const v of verdicts || []) vmap[v.move_id] = v;
 
@@ -122,9 +168,30 @@ function scoreFidelity(moves, verdicts) {
   ).length;
   const coverage = mustIntended ? round(coreDen / mustIntended, 2) : 0.0;
   const recordingUnusable = coreDen === 0 && mustIntended > 0;
-  const lowConfidence = recordingUnusable || coverage < 0.5;
+
+  // The grader's self-contradiction: its note says the recording stopped before the
+  // lesson did, AND it counted at least one move as a miss anyway. The verdict that
+  // covers this case already exists — not_adjudicable, "you genuinely cannot tell from
+  // this recording" — and the grader applies it correctly on some of these sessions and
+  // not others. The gap is determinism, not vocabulary.
+  //
+  // Asserted here in CODE rather than trusted to the prompt, because a model told to
+  // use a verdict complies most of the time. This also turns a population we can only
+  // find with a regex over prose into a column we can count.
+  //
+  // It changes NO credit and NO denominator. The remedy is the coach, who was in the
+  // room: her Section B screen says so and her per-move ratings re-run this same scorer.
+  const moderators = opts.moderators || null;
+  const countedMiss = rows.some((r) => r.counted && r.verdict === 'not_done');
+  const truncationInconsistent = !!(moderators && claimsTruncation(moderators.note) && countedMiss);
+
+  const lowConfidence = recordingUnusable || coverage < 0.5 || truncationInconsistent;
 
   return {
+    truncation_inconsistent: truncationInconsistent,
+    moderators: truncationInconsistent
+      ? { ...moderators, truncation_inconsistent: true }
+      : (moderators ? { ...moderators, truncation_inconsistent: false } : null),
     fidelity_pct: coreDen === 0 ? null : pct,
     band: coreDen ? band(pct) : null,
     executed_credit: round(coreNum, 2),
@@ -141,4 +208,4 @@ function scoreFidelity(moves, verdicts) {
   };
 }
 
-module.exports = { scoreFidelity, band, CREDIT, FULL_CREDIT };
+module.exports = { scoreFidelity, band, CREDIT, FULL_CREDIT, claimsTruncation };
