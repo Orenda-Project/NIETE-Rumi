@@ -85,7 +85,6 @@ async function getVideos(dbClient, {
       vr.completed_at,
       u.id as user_id,
       u.name,
-      u.name,
       u.phone_number,
       u.school_name
     FROM video_requests vr
@@ -235,7 +234,6 @@ async function getVideoById(dbClient, videoId) {
       vr.completed_at,
       u.id as user_id,
       u.name,
-      u.name,
       u.phone_number,
       u.school_name
     FROM video_requests vr
@@ -288,18 +286,17 @@ async function getUsersWithVideos(dbClient) {
     SELECT
       u.id,
       u.name,
-      u.name,
       u.phone_number,
       COUNT(vr.id) as video_count
     FROM users u
     INNER JOIN video_requests vr ON u.id = vr.user_id
-    GROUP BY u.id, u.name, u.name, u.phone_number
+    GROUP BY u.id, u.name, u.phone_number
     ORDER BY video_count DESC
   `);
 
   return result.rows.map(row => ({
     id: row.id,
-    name: `${row.name || ''} ${row.name || ''}`.trim() || row.phone_number,
+    name: (row.name || '').trim() || row.phone_number,
     phone: row.phone_number,
     count: parseInt(row.video_count)
   }));

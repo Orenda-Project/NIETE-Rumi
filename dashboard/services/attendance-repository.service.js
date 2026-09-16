@@ -246,7 +246,7 @@ class RealAttendanceRepository {
 
 class MockAttendanceRepository {
   constructor(seed = {}) {
-    this.teachers = seed.teachers || []; // {id, first_name, last_name, phone_number, role, school_id}
+    this.teachers = seed.teachers || []; // {id, name, phone_number, role, school_id}
     this.records = seed.records || [];   // {id, teacher_id, school_id, date, status, leave_type, marked_by_user_id, marked_at}
     this._nextId = 1;
   }
