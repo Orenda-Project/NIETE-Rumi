@@ -241,7 +241,11 @@ describe('bd-y7jr8 · the card language is passed, not guessed', () => {
     expect(src).not.toMatch(/preferred_language\)\s*===\s*'sw'\s*\?\s*'sw'\s*:\s*'en'/);
   });
 
-  it('resolves the coach language through observeLang, like the rest of the flow', () => {
-    expect(src).toMatch(/observeLang\(session\.users\)/);
+  // The audience is named at the call site now. `session.users` rides `user_id`,
+  // which is the observed TEACHER on a bound observation, so reading it wrote to
+  // the coach in the teacher's language across the whole success path.
+  it("resolves the coach language by naming the audience, not from the session's users join", () => {
+    expect(src).toMatch(/languageFor\('coach', session\)/);
+    expect(src).not.toMatch(/observeLang\(session\.users\)/);
   });
 });
