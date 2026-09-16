@@ -8,7 +8,7 @@
 # inspection days later. A fix is not done until this passes.
 #
 #   bash scripts/assessment-parity.sh            # compares origin/main..origin/sandbox
-#   bash scripts/assessment-parity.sh HEAD develop
+#   bash scripts/assessment-parity.sh HEAD origin/staging   # your tree vs the gate
 set -euo pipefail
 A="${1:-origin/main}"; B="${2:-origin/sandbox}"
 PATHS=(
