@@ -1594,11 +1594,20 @@ async function getUsersForBroadcast(filters = {}) {
       return [];
     }
 
+    // bd-ikkpf: NO registration_completed filter here, deliberately.
+    // The flag records completion of the in-bot registration Flow — on NIETE
+    // production it is true for 472 of 15,006 teachers, while 0 teachers lack a
+    // phone number. It is a product-funnel signal, not reachability and not
+    // consent, so re-filtering on it silently discards most of a cohort the
+    // operator chose by id: it cut the Grades 6-12 LP broadcast from 498
+    // teachers to 19, and the count-equality check in index.js then rejected the
+    // send outright. Filter mode below KEEPS the flag — there it is the
+    // operator's stated intent. The phone_number check stays: a row with no
+    // phone cannot be sent to.
     const { data, error } = await supabase
       .from('users')
       .select('id, phone_number, name, last_message_at')
       .in('id', userIds)
-      .eq('registration_completed', true)
       .not('phone_number', 'is', null);
 
     if (error) throw new Error(`Search mode user lookup failed: ${error.message}`);
