@@ -3096,10 +3096,13 @@ app.get('/observability/api/broadcast/search-users', requireAdmin, async (req, r
     const resultLimit = Math.min(parseInt(limit) || 20, 50);
 
     // Search by phone OR name
+    // bd-ikkpf: no registration_completed filter — with it the picker could not
+    // FIND 479 of the 498 Grades 6-12 LP teachers, so they could never be selected.
+    // The flag records completion of the in-bot registration Flow (true for 472 of
+    // 15,006 NIETE teachers), not reachability or consent.
     let query = supabase
       .from('users')
       .select('id, phone_number, name')
-      .eq('registration_completed', true)
       .not('phone_number', 'is', null);
 
     // Check if search looks like a phone number (starts with digits)
@@ -3176,11 +3179,13 @@ app.post('/observability/api/broadcast/dry-run', requireAdmin, async (req, res) 
         });
       }
 
+      // bd-ikkpf: no registration_completed filter — the flag records completion of
+      // the in-bot registration Flow (true for 472 of 15,006 NIETE teachers) and is
+      // not reachability or consent. phone_number NOT NULL is the real gate.
       const { data, error } = await supabase
         .from('users')
         .select('id, phone_number, name')
         .in('id', userIds)
-        .eq('registration_completed', true)
         .not('phone_number', 'is', null);
 
       if (error) throw new Error(`User lookup failed: ${error.message}`);
@@ -3280,11 +3285,13 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
         });
       }
 
+      // bd-ikkpf: no registration_completed filter — the flag records completion of
+      // the in-bot registration Flow (true for 472 of 15,006 NIETE teachers) and is
+      // not reachability or consent. phone_number NOT NULL is the real gate.
       const { data, error } = await supabase
         .from('users')
         .select('id, phone_number, name, last_message_at')
         .in('id', userIds)
-        .eq('registration_completed', true)
         .not('phone_number', 'is', null);
 
       if (error) throw new Error(`User lookup failed: ${error.message}`);
