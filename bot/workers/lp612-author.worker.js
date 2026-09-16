@@ -40,6 +40,7 @@ const { authorLessonPlan, overlayLessonPlan } = require('../shared/services/lp61
 // timeout recovery, the Urdu overlay fallback) and bd-vjk68 already recorded what happens when a
 // second copy of the rule quietly omits a clause.
 const { deliveryVerdict, degradedNotice } = require('../shared/services/lp612-render-policy.service');
+const { LP612_LINT_VERSION } = require('../shared/services/lp612-lint-staleness');
 const { renderLessonPlan } = require('../shared/services/lp612-render.service');
 // The caps the renderer gated on, read from the renderer itself so the over-cap event can never
 // quote a number the gate did not use (bd-vjk68). Never retyped here — see `pageCapsFor`.
@@ -1310,6 +1311,19 @@ async function process(payload) {
       // Recorded even on a clean run (as []), so "was this ever gated?" is
       // answerable from the row rather than only from a log that rolls off.
       lint_fails: authored.reusedFrom ? null : (authored.fails || []),
+      // bd-2cbwr. WHICH GATE SAID IT, not just what it said.
+      //
+      // The two columns above are a verdict with no provenance, and the gate moved twice in three
+      // days (bd-qzitp, bd-kpqu6) while every already-`ready` row kept serving under the old
+      // ruling. Neither change could ship a backfill because there was no way to NAME the
+      // population needing one. Stamped here, at the only moment the answer is known, so the
+      // serving path can tell a re-checked lesson from an un-re-checked one without re-linting on
+      // a path a teacher is waiting on.
+      //
+      // NULL on a reuse for exactly the reason the two columns above are NULL: no gate ran, and
+      // "we did not look" is a different fact from "we looked under an older ruling". The
+      // classifier keeps them apart off precisely this signature.
+      lint_version: authored.reusedFrom ? null : LP612_LINT_VERSION,
       // The lesson on one phone screen, STORED and not merely sent. Every
       // teacher after the first is served entirely from this row, and without
       // it she would get the file with no summary while the first got both.

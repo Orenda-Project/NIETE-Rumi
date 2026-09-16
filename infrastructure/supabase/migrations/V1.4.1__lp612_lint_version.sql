@@ -1,0 +1,99 @@
+-- ---------------------------------------------------------------------------
+-- V1.4.1 — a cached lesson's lint verdict says WHICH RULESET produced it.
+--
+-- bd-2cbwr. One text column, and the first that is deliberately NULLABLE WITH NO DEFAULT.
+--
+-- THE DEFECT IS NOT A WRONG VERDICT, IT IS AN UNDATED ONE. The lint gate — RELIGIOUS_MARKS above
+-- all, the mechanical half of brief section 4c — runs ONLY inside fresh authoring. The serving
+-- path answers a cache hit straight out of `r2_key` without going near a linter, so `lint_clean`
+-- and `lint_fails` on the row are whatever the gate said ON THE DAY THAT DOCUMENT WAS AUTHORED.
+--
+-- That was survivable while the gate stood still. It moved twice in three days:
+--   bd-qzitp (2026-09-14) — the first religious-marks correction.
+--   bd-kpqu6 (2026-09-16) — word boundaries on PROPHET_RE, Urdu-only scoping on the
+--     transliteration check, a detection/enforcement split, and the companion honorifics
+--     (bd-j335i). On the 6-12 corpus this moved real verdicts: all 15 flagged renders were false
+--     positives under the old gate and are clean under the new one.
+--
+-- Neither shipped with a backfill, and the reason is this column's absence: THERE WAS NO WAY TO
+-- NAME THE POPULATION THAT NEEDED ONE. Every `ready` row kept serving under a superseded ruling
+-- and nothing in the schema recorded which ruling that was. You cannot tell a cleared lesson from
+-- an un-re-checked one, so you cannot count them, re-check them, or put a number in front of
+-- anyone. The stamp makes staleness a QUERY instead of an archaeology exercise.
+--
+-- WHY THE ROW HAS TO CARRY IT, rather than the serving path re-linting on the fly. EVERY TEACHER
+-- AFTER THE FIRST IS SERVED FROM THIS ROW. Re-running the gate at serve time would mean fetching
+-- the stored `.lp.json` back out of R2 on a path a teacher is waiting on, to recompute a verdict
+-- we already wrote down at authoring time. The stamp answers the real question — is this verdict
+-- current? — for the cost of a column and no I/O at all.
+--
+-- WHAT IT IS NOT. It is not a gate. A stale stamp does NOT withhold the lesson: those documents
+-- are serving today, and holding one on a version mismatch would take a lesson off a teacher over
+-- bookkeeping. Brief section 4c / gate G5c is explicit that an automated check is not what CLEARS
+-- religious content — the native-speaker review is the hard hold. This column's job is to make the
+-- population findable and loud, never to arbitrate it.
+--
+-- ANTI-SPRAWL (rule 15), against the live schema:
+--   * `lint_clean` cannot hold it. Boolean, and it answers a different question — WHAT the gate
+--     said, not WHICH gate said it. A true judged in August and a true judged today are the same
+--     value and are not the same fact; that collapse IS the defect.
+--   * `lint_fails` cannot hold it. That column is the defect LIST. Smuggling a version marker in
+--     as a pseudo-entry would corrupt every consumer that reads it as findings, including the
+--     religious filter this bead exists to serve.
+--   * `model_used` cannot hold it. It already carries a second meaning (`reused:v9.1`, bd-oak77.12)
+--     and it names the AUTHOR, not the JUDGE. The two move independently — bd-kpqu6 changed the
+--     gate and touched no model.
+--   * `template_version` cannot hold it. It is the RENDERER generation and it leads the R2 key; it
+--     moves on layout changes that do not touch the gate, and the gate moves on rulings that do
+--     not touch layout. Either one standing in for the other reports the wrong population.
+--   * It cannot be computed. Nothing else in the schema witnesses which gate code ran; the only
+--     other route is `completed_at` against a hand-kept table of gate-change dates, which is a
+--     lookup table nobody will maintain and which silently lies across a deploy boundary.
+--   * NOT a boolean `lint_stale`. Staleness is relative to the ruleset running NOW, so a boolean
+--     would have to be rewritten across the whole table on every gate change — the exact backfill
+--     this column exists to make unnecessary. Store the fact, derive the judgement.
+--
+-- NULLABLE, NO DEFAULT — and this is the one place this migration departs from V1.3.7 / V1.3.8 /
+-- V1.4.0, which are all NOT NULL DEFAULT FALSE. Those are booleans whose false is TRUE of every
+-- existing row: nothing shipped before them was over-cap, over-time or degraded, because the code
+-- that could produce those states did not exist. Here the opposite holds. Every row on production
+-- today WAS judged, by a gate we can no longer name, so any default would be a fabricated
+-- provenance claim — a column asserting that thousands of documents were checked under a ruleset
+-- they predate. NULL means "unstamped", the honest answer, and the serving path treats it as
+-- stale rather than current precisely so the pre-migration backlog stays visible instead of
+-- reading as re-checked.
+--
+-- Dated rather than numbered (`2026-09-16`) so a row's value is legible in a query with no lookup
+-- table: `WHERE lint_version < '2026-09-16'` is the backlog, and it sorts correctly.
+--
+-- NULL ALSO MEANS SOMETHING ON A FRESH ROW, and the two are kept apart by the columns beside it.
+-- A REUSED render (bd-oak77.12) writes `lint_clean` and `lint_fails` as NULL because no gate ran
+-- at all, and writes this column NULL for the same reason — "we did not look" is a different fact
+-- from "we looked under an old ruling". `cachedLintStatus()` in
+-- bot/shared/services/lp612-lint-staleness.js distinguishes them (`never_looked` vs `unstamped`)
+-- off exactly that signature, so reused documents are not hidden inside the much larger and much
+-- more benign pre-migration backlog.
+--
+-- DEPLOYS DO NOT RUN MIGRATIONS ON NIETE (bd-tqkq9). This file must be applied BY HAND to staging
+-- AND to production BEFORE the code that writes the column ships. A merged column that does not
+-- exist is a total lp612 outage.
+--
+-- THE CODE DOES NOT DEPEND ON THIS FILE HAVING BEEN APPLIED FIRST, on either side. `patch()` in
+-- bot/workers/lp612-author.worker.js retries once without the unknown column on PGRST204 / 42703
+-- and emits `lp612.row.column_missing`; `findRender()` in lp612-serving.service.js probes for it
+-- and falls back to a select without it on 42703, so an unmigrated database reads every row as
+-- `unstamped` — stale, loud, and still served — rather than failing the lookup. That guard is
+-- deliberately NOT a licence to skip the migration: it converts a total outage into one lost stamp
+-- and a loud event, so the ordering above is a requirement and not a landmine.
+--
+-- Assert `information_schema`, never the `schema_versions` ledger — it is behind on staging
+-- (bd-7i0hs).
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE niete_lp612_renders
+  ADD COLUMN IF NOT EXISTS lint_version TEXT;
+
+COMMENT ON COLUMN niete_lp612_renders.lint_version IS
+  'The lint-gate ruleset that produced this row''s lint_clean/lint_fails, as a date string (e.g. ''2026-09-16''). The gate runs only inside fresh authoring, so a cached lesson serves under whatever ruling applied on its authoring day; this column is what makes "which cached lessons predate the current gate" a query rather than an archaeology exercise, after bd-qzitp and bd-kpqu6 both moved RELIGIOUS_MARKS verdicts with no way to name the population needing a backfill. NULLABLE ON PURPOSE, with no default: every pre-existing row WAS judged, by a gate we cannot name, so a default would fabricate a provenance claim. NULL reads as "unstamped" (stale, still served) — or, when lint_clean and lint_fails are also NULL, as a reused render the gate never ran on at all (bd-oak77.12). It is not a gate: a stale stamp flags the lesson and delivers it, because brief section 4c / G5c makes the native-speaker review the hard hold, not the automated check. Written by the lp612 author worker on every success patch; read by the serving path on every cache hit (lp612.cache.lint_stale).';
+
+NOTIFY pgrst, 'reload schema';

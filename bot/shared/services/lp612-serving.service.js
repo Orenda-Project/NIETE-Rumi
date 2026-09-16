@@ -45,6 +45,7 @@ const {
   isReligiousEnabled, templateVersion, authorTimeoutMs,
   heartbeatCeilingMs, queueAbandonMs, SQS_VISIBILITY_WINDOW_MS,
 } = require('../config/lp612-flags');
+const { LP612_LINT_VERSION, cachedLintStatus } = require('./lp612-lint-staleness');
 
 const RENDERS = 'niete_lp612_renders';
 const JOB_TYPE = 'lp612_author';
@@ -525,31 +526,47 @@ async function findRender(segmentId, lang, tv) {
   // nowhere else to come from — an unread column would tell the teacher who waited and none of the
   // ones who tapped later, about the identical file.
   const FIND_COLUMNS = 'id, status, r2_key, waiters, error_code, one_screen, started_at, picked_up_at, overlay_dropped, render_degraded';
-  // `picked_up_at` is here because the stranded/queued decision below is made from it. A column
-  // the lookup does not read cannot decide anything, and reading it as `undefined` would silently
-  // classify every live run as never-picked-up.
+
+  // THE OPTIONAL TIERS, PROBED MOST-COMPLETE-FIRST.
   //
-  // bd-oak77.11: and `checkpoint`, for exactly the same reason one level up. THE TAP PATH AND THE
-  // SWEEP MUST AGREE ABOUT WHAT A CORPSE IS (bd-w36m5) — if the sweep spares a row whose owner is
-  // still checkpointing and a tap does not, the tap restarts a run that is alive and the lesson is
-  // authored twice. It is only ever a payload on an `authoring` row: the terminal write NULLs it,
-  // so every cache hit reads it as null. Degrade-safe because this migration is hand-applied.
-  let { data, error } = await supabase
-    .from(RENDERS)
-    .select(`${FIND_COLUMNS}, checkpoint`)
-    .eq('segment_id', segmentId)
-    .eq('lang', lang)
-    .eq('template_version', tv)
-    .maybeSingle();
-  if (error && (error.code === '42703'
-      || /column .*does not exist|could not find the .* column/i.test(String(error.message || '')))) {
+  // `checkpoint` (bd-oak77.11) is read for the same reason `picked_up_at` is, one level up. THE
+  // TAP PATH AND THE SWEEP MUST AGREE ABOUT WHAT A CORPSE IS (bd-w36m5) — if the sweep spares a
+  // row whose owner is still checkpointing and a tap does not, the tap restarts a run that is
+  // alive and the lesson is authored twice. It is only ever a payload on an `authoring` row: the
+  // terminal write NULLs it, so every cache hit reads it as null.
+  //
+  // `lint_version` (bd-2cbwr) is read because a cache hit is answered straight out of `r2_key`
+  // without going near a linter, so this row IS the only record of which gate ruling cleared the
+  // document a teacher is about to receive. An unread column would report the entire pre-fix
+  // backlog as re-checked, which is the precise blindness that let bd-qzitp and bd-kpqu6 both ship
+  // without a backfill.
+  //
+  // A LADDER RATHER THAN A PAIR, because both migrations are hand-applied (bd-tqkq9) and therefore
+  // independently absent. Appending `lint_version` to the two-tier probe that stood here would
+  // have put it in BOTH rungs, so an unmigrated database fails every tier, `findRender` returns
+  // readFailed, and every teacher on every segment is told her lesson failed — a total lp612
+  // outage caused by a column that exists only to add a caveat. The floor rung names nothing
+  // optional and cannot 42703, so the worst case is a lost caveat, never a lost lesson.
+  const FIND_PROBES = [
+    `${FIND_COLUMNS}, checkpoint, lint_version`,
+    `${FIND_COLUMNS}, checkpoint`,
+    `${FIND_COLUMNS}, lint_version`,
+    FIND_COLUMNS,
+  ];
+  const isUnknownColumn = (e) => !!e && (e.code === '42703' || e.code === 'PGRST204'
+    || /column .*does not exist|could not find the .* column/i.test(String(e.message || '')));
+
+  let data = null;
+  let error = null;
+  for (const columns of FIND_PROBES) {
     ({ data, error } = await supabase
       .from(RENDERS)
-      .select(FIND_COLUMNS)
+      .select(columns)
       .eq('segment_id', segmentId)
       .eq('lang', lang)
       .eq('template_version', tv)
       .maybeSingle());
+    if (!isUnknownColumn(error)) break;
   }
   if (error) {
     logToFile('LP 6-12: render lookup failed', { segmentId, lang, tv, error: error.message });
@@ -1053,6 +1070,37 @@ async function requestLessonImpl({ segmentId, userId, phone, lang, uiLang, corre
   // treated as a miss — presigning `undefined` would fail at Meta with nothing
   // useful logged.
   if (existing && existing.status === 'ready' && existing.r2_key) {
+    // bd-2cbwr. THE VERDICT ON THIS ROW IS THE ONLY ONE THIS LESSON WILL EVER GET.
+    //
+    // The lint gate runs inside fresh authoring and nowhere else, so from here down the document
+    // is served on a ruling made on its authoring day — a ruling that moved twice in three days
+    // (bd-qzitp, bd-kpqu6) with no way to name the rows that needed re-checking. The stamp makes
+    // that population a query; this is where it is read.
+    //
+    // IT DOES NOT GATE. She gets the lesson either way, and that is deliberate: these documents
+    // are serving today, holding one on a version mismatch would take a lesson off a teacher over
+    // bookkeeping, and brief §4c/G5c is explicit that the automated check is not what CLEARS
+    // religious content — the native-speaker review is the hard hold. The event carries the doubt,
+    // and it is emitted BEFORE delivery so a send that then fails still leaves the record behind.
+    //
+    // A religious finding is announced even on a CURRENT stamp: staleness and violation are
+    // independent facts, and a document judged by today's gate and found wanting is going out
+    // under that finding regardless of how fresh the stamp is.
+    const lint = cachedLintStatus(existing);
+    if (lint.stale || lint.religiousFails.length > 0) {
+      logEvent('lp612.cache.lint_stale', {
+        renderId: existing.id,
+        segmentId,
+        lang: language,
+        tv,
+        correlationId,
+        reason: lint.reason,
+        stampedVersion: lint.stampedVersion,
+        currentVersion: LP612_LINT_VERSION,
+        religiousFails: lint.religiousFails,
+      });
+    }
+
     try {
       await deliverRender({
         phone,
