@@ -27,6 +27,8 @@ const { NUM_REFLECTIVE_QUESTIONS } = require('../../config/coaching-debrief.conf
 const { getCoachingMessage } = require('../../config/coaching-messages');
 const { getUserLanguage } = require('../../utils/language-cache');
 const { offerDefaultLanguage } = require('../../config/languages');
+const { resolveUx } = require('../../config/ux-strings');
+const { isTerminalStatus } = require('./session-terminal');
 
 /**
  * @param {object} opts
@@ -43,12 +45,19 @@ async function handleContinueCoachingTap({ sessionId, from, user = null }) {
 
   const { data: session } = await supabase
     .from('coaching_sessions')
-    .select('id, questions_answered:conversation_state->questions_answered')
+    .select('id, status, questions_answered:conversation_state->questions_answered')
     .eq('id', sessionId)
     .single();
 
   if (!session) {
     await WhatsAppService.sendMessage(from, getCoachingMessage('coaching_sessionNotFound', language));
+    return;
+  }
+
+  // A reminder sent before the cancel is still tappable.
+  if (isTerminalStatus(session.status)) {
+    await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language }));
+    logToFile('🚫 Continue refused — the session is over', { sessionId, status: session.status });
     return;
   }
 

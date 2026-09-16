@@ -211,6 +211,14 @@ const UX_STRINGS = {
     en: '\u{1F4F8} This coaching session has already moved past the photo step, so another photo cannot be added to it.',
     ur: '\u{1F4F8} یہ کوچنگ سیشن تصویر والے مرحلے سے آگے بڑھ چکا ہے، اس لیے اس میں مزید تصویر شامل نہیں ہو سکتی۔',
   },
+  // Shown when a tap arrives for a session that has already been cancelled or
+  // abandoned — a button sent before the cancel is still live in the chat, and
+  // silence there reads as a broken bot. Names the actual state, and says the
+  // recording is not lost, because that is the first thing a coach asks.
+  coachingSessionCancelled: {
+    en: '\u{1F6AB} This session was cancelled, so it cannot continue. The recording is saved.',
+    ur: '\u{1F6AB} یہ سیشن منسوخ ہو چکا ہے، اس لیے یہ آگے نہیں بڑھ سکتا۔ ریکارڈنگ محفوظ ہے۔',
+  },
   // Shown on the Settings SUCCESS screen. Previously English-only, so a teacher
   // who had just switched to Urdu was congratulated in English.
   settingsSaved: {

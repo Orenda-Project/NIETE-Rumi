@@ -19,6 +19,8 @@ const CoachingSessionService = require('./coaching-session.service');
 const CoachingJobQueueService = require('./coaching-job-queue.service');
 const { uploadLessonPlanBuffer, buildR2PublicUrl } = require('../../storage/r2');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const { resolveUx } = require('../../config/ux-strings');
+const { isTerminalStatus } = require('./session-terminal');
 
 /**
  * Look up the language of whoever answers this session's lesson-plan step:
@@ -63,6 +65,19 @@ class LessonPlanProcessorService {
         hasLessonPlan,
         hasDocument: !!documentId
       });
+
+      // The Yes/No buttons stay tappable after a cancel, and both arms write.
+      const { data: gate } = await supabase
+        .from('coaching_sessions')
+        .select('status')
+        .eq('id', coachingSessionId)
+        .maybeSingle();
+      if (isTerminalStatus(gate && gate.status)) {
+        const gateLang = await _resolveSessionLanguage(coachingSessionId);
+        await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language: gateLang }));
+        logToFile('🚫 Lesson-plan step refused — the session is over', { coachingSessionId, status: gate.status });
+        return;
+      }
 
       if (!hasLessonPlan) {
         // User doesn't have lesson plan - proceed immediately to analysis
