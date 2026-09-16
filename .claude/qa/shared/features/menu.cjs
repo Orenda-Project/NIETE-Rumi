@@ -1,7 +1,11 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
 /* menu.feature — all 13 @e2e scenarios, driven in one process.
  * Assertions mirror tests/features/whatsapp/niete/menu.feature. */
-const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Anything'];
+// The CORE teacher rows that must always be present. The menu is role-aware (78406d1e): a teacher's
+// full layout is up to ten rows, role- and config-gated, so assert these are INCLUDED, not an exact
+// list — matching menu.feature's "includes these teacher rows".
+const CORE = ['Lesson Plans', 'Classroom Coaching', 'Teacher Training', 'Ask Anything'];
+const includesCore = (rows) => CORE.every((x) => (rows || []).includes(x));
 const head = t => (t || '').split('\n')[0];
 const V = (cond, ev) => ({ verdict: cond ? 'PASS' : 'FAIL', evidence: ev });
 
@@ -13,8 +17,8 @@ exports.run = async ({ api, rec, sleep }) => {
   let r = await api.sendWait('/menu');
   const list = r.ok ? await api.openList('See what I do') : { rows: [] };
   await api.closeDialog();
-  const rowsOk = JSON.stringify(list.rows) === JSON.stringify(ROWS);
-  rec('M01', '/menu renders the card and exactly the 4 ICT feature rows',
+  const rowsOk = includesCore(list.rows);
+  rec('M01', '/menu renders the role-aware feature card for a teacher',
       (head(r.txt) === "Here's what I can do" && r.btns.includes('See what I do') && rowsOk) ? 'PASS' : 'FAIL',
       { header: head(r.txt), opener: r.btns, rows: list.rows, botWaitMs: r.waitedMs }, t() - s);
 
@@ -110,6 +114,6 @@ exports.run = async ({ api, rec, sleep }) => {
   await api.closeDialog();
   rec('M03', '/menu re-opens the menu from inside a feature flow (escape hatch)',
       ...Object.values(V(head(r.txt) === "Here's what I can do" &&
-                         JSON.stringify(esc.rows) === JSON.stringify(ROWS),
+                         includesCore(esc.rows),
       { header: head(r.txt), rows: esc.rows, botWaitMs: r.waitedMs })), t() - s);
 };
