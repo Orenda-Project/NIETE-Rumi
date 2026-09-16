@@ -183,6 +183,56 @@ let _anthropicDirectClient = null;
  * Create a new LLM client configured for the current provider.
  * For OpenRouter, wraps chat.completions.create to auto-prefix model names.
  */
+
+/**
+ * What a job falls back to. bd-4uw7n.
+ *
+ * REPLACED A BLANKET `openai/gpt-4o`, and the reason is the point. A fallback answers "this
+ * supplier cannot serve us right now", which IS a fact about the supplier, so that half was
+ * fine. But WHAT to fall back to is entirely a fact about the job, and the blanket version got
+ * that wrong: roster extraction runs a model chosen for being cheap and would have failed over
+ * to roughly 17x the price; transcript quizzes would have swapped the model their pipeline was
+ * validated against; lesson-plan authoring would have landed on something no rubric has been
+ * run against. One of them only worked by luck, because gpt-4o happens to do vision.
+ *
+ * The registry now records, per job and frozen, the model that job already works with. Move a
+ * job to Anthropic and its fallback still names what it used to run.
+ *
+ * SO THE LADDER NEEDS THE JOB, and getClient() does not know it. That is why this arms only
+ * when a caller passes one, through getClientForModel(model, { job }). Everything else keeps
+ * today's behaviour and fails. A narrow correct fallback beats a broad wrong one: the broad
+ * one would quietly answer a teacher with a model nobody checked.
+ */
+function resolveJobFallback(job) {
+  if (!job) return null;
+  try {
+    // eslint-disable-next-line global-require
+    const { fallbackForJob } = require('../config/model-registry');
+    return fallbackForJob(job);
+  } catch (_) {
+    // An unknown job means no fallback, never a guessed one.
+    return null;
+  }
+}
+
+/**
+ * The two failures a SECOND SUPPLIER can actually answer.
+ *
+ * Deliberately not "any error". A 400 is our own bad request and retrying it elsewhere just
+ * breaks twice, more slowly. A timeout is already the SDK's retry budget. What a different
+ * supplier genuinely fixes is: this account cannot spend, or this supplier is down.
+ */
+function isSupplierUnusableError(e) {
+  if (!e) return false;
+  const status = e.status != null ? e.status : e.statusCode;
+  if (status === 401 || status === 402 || status === 429) return true;   // cannot spend
+  if (status === 502 || status === 503 || status === 504) return true;   // supplier is down
+  return false;
+}
+
+/** One switch, no deploy. A vendor swap changes what a teacher gets; it must be stoppable. */
+const fallbackDisabled = () => String(process.env.LLM_FALLBACK_OFF || '').trim() === '1';
+
 function createLLMClient() {
   if (PROVIDER === 'openai') {
     // Direct OpenAI — no baseURL override
@@ -207,7 +257,12 @@ function createLLMClient() {
 
   // Auto-prefix model names for OpenRouter (e.g. 'gpt-4o-mini' → 'openai/gpt-4o-mini')
   const originalCreate = client.chat.completions.create.bind(client.chat.completions);
+  // `fallbackModel` is resolved by the caller from the JOB and handed in; it is never derived
+  // from the model being called, because after a switch that would just name another Anthropic
+  // model. It is stripped before the request goes out.
   client.chat.completions.create = async (params, options) => {
+    const fallbackModel = params.fallbackModel || null;
+    if (params.fallbackModel) { params = { ...params }; delete params.fallbackModel; }
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
@@ -218,12 +273,47 @@ function createLLMClient() {
     // (11_cost/evidence/usage_flag.json). Changing a request for no benefit is exactly the
     // risk this whole workstream exists to avoid, so this is logging only.
     const startedAt = Date.now();
-    const response = await originalCreate(params, options);
+    let response;
     try {
-      recordModelCost(params.model, response, startedAt);
-    } catch (_) {
-      // A costing failure must never become a teacher's problem.
+      response = await originalCreate(params, options);
+    } catch (primaryErr) {
+      const to = fallbackDisabled() ? null : fallbackModel;
+      if (!to || to === params.model || !isSupplierUnusableError(primaryErr)) throw primaryErr;
+
+      const status = primaryErr.status != null ? primaryErr.status : primaryErr.statusCode;
+      const reason = String(primaryErr.message || 'unknown').slice(0, 300);
+      // Two channels, matching the direct lane: a queryable name for a watcher or an Axiom
+      // query, and the human sentence beside it in the same correlation trace. Required at
+      // call time because llm-client is required by almost everything and a top-level require
+      // of the loggers has broken the circular-deps suite before.
+      // eslint-disable-next-line global-require
+      const { logEvent } = require('../utils/structured-logger');
+      // eslint-disable-next-line global-require
+      const { logToFile } = require('../utils/logger');
+      logEvent('llm.vendor_fallback', {
+        from: params.model, to, status: status == null ? null : status, reason,
+      });
+      logToFile('llm-client: supplier unusable, falling back to OpenAI',
+        { from: params.model, to, status: status == null ? null : status, reason }, 'warn');
+
+      try {
+        response = await originalCreate({ ...params, model: to }, options);
+      } catch (fallbackErr) {
+        // BOTH SUPPLIERS FAILED. Whoever reads this needs the FIRST failure as much as the
+        // second: "OpenAI is down" on its own sends the next engineer to the wrong supplier.
+        fallbackErr.cause = fallbackErr.cause || primaryErr;
+        fallbackErr.message = `${fallbackErr.message} (after ${params.model} was unusable: ${reason})`;
+        throw fallbackErr;
+      }
+      // An answer from the fallback must never be mistaken for one from the model that was
+      // asked for, or the whole point of running a different model becomes unmeasurable.
+      if (response && typeof response === 'object') {
+        response.usage = { ...(response.usage || {}), provider_fallback: true, provider_fallback_to: to };
+      }
+      recordModelCost(to, response, startedAt, { fallbackFrom: params.model });
+      return response;
     }
+    recordModelCost(params.model, response, startedAt);
     return response;
   };
 
@@ -373,7 +463,17 @@ function buildDirectLaneClient(directModel, ctx) {
       // reported it as credit-funded would make the whole point of this lane unmeasurable, and
       // would tell the operator his balance was draining when it was not.
       if (res && typeof res === 'object') {
-        res.usage = { ...(res.usage || {}), provider_fallback: true, provider_fallback_to: to };
+        // bd-4uw7n: keep the DEEPER answer. getClient() is now wrapped, so this call can
+        // itself have fallen through to OpenAI. Stamping `to` unconditionally would relabel a
+        // lesson OpenAI wrote as one Claude wrote, which is exactly the reporting this lane's
+        // own comment says must never happen.
+        const already = res.usage && res.usage.provider_fallback_to;
+        res.usage = {
+          ...(res.usage || {}),
+          provider_fallback: true,
+          provider_fallback_to: already || to,
+          ...(already ? { provider_fallback_via: to } : {}),
+        };
       }
       return res;
     }
@@ -406,7 +506,17 @@ function getClientForModel(model, ctx) {
     assertFallbackUsable(directModel);
     return { client: buildDirectLaneClient(directModel, ctx), model: directModel };
   }
-  return { client: getClient(), model: id };
+  // bd-4uw7n: a caller that names its job gets the ladder armed with THAT job's frozen
+  // fallback. One that does not keeps today's behaviour.
+  const fallbackModel = resolveJobFallback(ctx && ctx.job);
+  if (!fallbackModel) return { client: getClient(), model: id };
+  const base = getClient();
+  return {
+    model: id,
+    client: { chat: { completions: {
+      create: (params, options) => base.chat.completions.create({ ...params, fallbackModel }, options),
+    } } },
+  };
 }
 
 /**

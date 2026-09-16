@@ -67,6 +67,52 @@ const JOBS = {
   },
 };
 
+
+/**
+ * WHAT EACH JOB FALLS BACK TO, frozen at what it runs today. bd-4uw7n.
+ *
+ * The fallback is the model the job ALREADY WORKS WITH. Move a job to Anthropic later and this
+ * still names what it used to run, which is the only model anybody has validated for it.
+ *
+ * An earlier cut of this sent every non-OpenAI model to a blanket `openai/gpt-4o`, on the
+ * reasoning that a fallback answers "this supplier cannot serve us", a fact about the supplier
+ * rather than the job. Half right. WHETHER to fall back is about the supplier; WHAT to fall
+ * back to is entirely about the job. Concretely, that blanket would have failed roster
+ * extraction over from a model chosen for being cheap to one around 17x the price, swapped the
+ * model the transcript-quiz pipeline was validated against, and pointed lesson-plan authoring
+ * at something no rubric has ever been run against. One of them only worked by luck, because
+ * gpt-4o happens to do vision.
+ *
+ * FROZEN, NOT DERIVED. Reading it off the current primary would mean that setting
+ * LP_AUTHOR_MODEL=anthropic/claude-opus-5 makes the "fallback" resolve to claude-sonnet-5:
+ * still Anthropic, and useless when Anthropic is the thing that is down.
+ *
+ * `null` means no fallback, and that is a real answer, not a gap to fill later:
+ *   - the job already runs OpenAI, so it IS the floor and has nothing behind it
+ *   - or it already runs Anthropic with no OpenAI predecessor anybody validated. Naming one
+ *     would be a guess dressed as a decision.
+ */
+const FALLBACK = {
+  'lp.author':        null,  // already Anthropic; no validated OpenAI predecessor
+  'lp.fidelity':      null,  // already OpenAI, the floor
+  'lp.extractVision': 'google/gemini-2.5-flash',
+  'vision.analyse':   'openai/gpt-4.1-mini',
+  'roster.extract':   'google/gemini-3.1-flash-lite-preview',
+  'quiz.transcript':  'google/gemini-2.5-flash',
+  'hcp.feedback':     null,  // falls through to the platform default, which is the floor
+  'platform.default': null,  // the floor
+};
+
+/** The model this job is known to work with, or null when it has nothing behind it. */
+function fallbackForJob(job) {
+  if (!JOBS[job]) throw new Error(`unknown job: ${job}`);
+  const fb = FALLBACK[job];
+  if (!fb) return null;
+  // The client prefixes a bare id before sending, so record what would actually go out.
+  return fb.includes('/') ? fb : `openai/${fb}`;
+}
+
+
 /** A model id, not arbitrary text: this is the only value from settings sent to a third party. */
 const MODEL_RE = /^[a-z0-9]+(?:[/.-][a-z0-9]+)*$/;
 const isModel = (v) => typeof v === 'string' && v.length <= 80 && MODEL_RE.test(v);
@@ -153,4 +199,4 @@ function resolveModelForJob(job, ctx = {}) {
   return { job, model, source, env: JOBS[job].env, site: JOBS[job].site };
 }
 
-module.exports = { JOBS, resolveModelForJob, todaysModel, bucketOf, isModel };
+module.exports = { JOBS, FALLBACK, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel };
