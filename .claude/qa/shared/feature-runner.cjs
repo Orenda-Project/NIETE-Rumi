@@ -462,6 +462,22 @@ function makeApi(c) {
       try { const out = execFileSync('python3', args, { cwd: REPO, encoding: 'utf8', timeout: 60000 }); return { ok: true, out: out.trim().split('\n').slice(-2).join(' | ') }; }
       catch (e) { return { ok: false, err: String(e.message).slice(0, 200) }; }
     },
+    /** Set the driver's mutable identity (role, language, …) so a role/persona-based suite can drive
+     *  every layout on the shared driver. The harness snapshots+restores it around the feature (above),
+     *  so a driver just calls setRole/setUser. Same signature as the mock lane. No creds → no-op {ok:false}. */
+    async setUser(patch) {
+      trace('setUser ' + Object.keys(patch || {}).join(','));
+      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
+      try {
+        const res = await fetch(`${url}/rest/v1/users?phone_number=eq.${process.env.E2E_DRIVER}`, { method: 'PATCH',
+          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(patch) });
+        await new Promise((r) => setTimeout(r, 400));
+        return { ok: res.ok, status: res.status };
+      } catch (e) { return { ok: false, err: String(e.message).slice(0, 120) }; }
+    },
+    async setRole(role) { return this.setUser({ role }); },
     /** Attach a file via Attach -> <menu item>. The Document input does not EXIST until the
      *  menu item is clicked, so DOM.setFileInputFiles has nothing to target beforehand — an
      *  earlier version silently uploaded nothing by grabbing the page's image input instead.
@@ -583,6 +599,25 @@ function makeApi(c) {
     : makeApi(c);
   const results = [];
   const rec = (id, name, verdict, evidence, ms) => { trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms }); };
+  // Generic role/persona support: snapshot the driver's mutable identity (role, language) so a feature
+  // that switches role via api.setRole/api.setUser cannot leak that onto the next feature's run on this
+  // ONE shared driver. Restored in the finally below — a role-based suite never has to clean up itself.
+  const _SB = { url: process.env.NIETE_SANDBOX_SUPABASE_URL, key: process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY, drv: process.env.E2E_DRIVER };
+  const snapshotIdentity = async () => {
+    if (!_SB.url || !_SB.key || !_SB.drv) return null;
+    try {
+      const r = await fetch(`${_SB.url}/rest/v1/users?select=role,preferred_language,language_locked&phone_number=eq.${_SB.drv}`,
+        { headers: { apikey: _SB.key, Authorization: `Bearer ${_SB.key}` } });
+      const j = await r.json(); return (Array.isArray(j) && j[0]) || null;
+    } catch (_) { return null; }
+  };
+  const restoreIdentity = async (snap) => {
+    if (!snap || !_SB.url) return;
+    try { await fetch(`${_SB.url}/rest/v1/users?phone_number=eq.${_SB.drv}`, { method: 'PATCH',
+      headers: { apikey: _SB.key, Authorization: `Bearer ${_SB.key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify(snap) }); } catch (_) {}
+  };
+  const _identSnap = await snapshotIdentity();
   try {
     const ok = await api.inject();
     if (!ok) throw new Error('wa-drive failed to inject');
@@ -591,6 +626,7 @@ function makeApi(c) {
   } catch (e) {
     results.push({ id: 'RUNNER', verdict: 'ERROR', evidence: String(e && e.message || e) });
   } finally {
+    await restoreIdentity(_identSnap);   // put the shared driver's role/language back, whatever the feature did
     try { api.closeFlow(); } catch (_) {}
     // waitStats is a CDP evaluate with no timeout of its own, and a catch cannot catch a
     // HANG. On 2026-09-01 registration finished every scenario and then sat here for 66
