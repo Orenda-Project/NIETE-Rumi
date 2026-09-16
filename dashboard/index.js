@@ -3290,7 +3290,7 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
       // not reachability or consent. phone_number NOT NULL is the real gate.
       const { data, error } = await supabase
         .from('users')
-        .select('id, phone_number, name, last_message_at')
+        .select('id, phone_number, name, last_message_at, preferred_language')
         .in('id', userIds)
         .not('phone_number', 'is', null);
 
@@ -3410,7 +3410,17 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
       admin_ip_address: req.ip,
       admin_user_agent: req.headers['user-agent'],
       message_content: message,
-      filters: { ...filtersForLog, usersInWindow: usersInWindow.length, usersOutsideWindow: usersOutsideWindow.length },
+      // bd-1zyqf: templateLanguages records the variants this broadcast's template
+      // actually has, so the send can give each teacher their own language without
+      // ever asking Meta for a variant that does not exist. A template created here
+      // holds the one body the operator typed, so it is single-language; a template
+      // approved out of band in more languages is recorded with all of them.
+      filters: {
+        ...filtersForLog,
+        usersInWindow: usersInWindow.length,
+        usersOutsideWindow: usersOutsideWindow.length,
+        templateLanguages: [broadcastService.TEMPLATE_LANGUAGE_DEFAULT]
+      },
       total_recipients: users.length,
       status: 'template_pending'
     });

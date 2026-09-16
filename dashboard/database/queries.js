@@ -1554,7 +1554,7 @@ async function batchQueryUsers(userIds, country) {
 
       let query = supabase
         .from('users')
-        .select('id, phone_number, name, last_message_at')
+        .select('id, phone_number, name, last_message_at, preferred_language')
         .eq('registration_completed', true)
         .not('phone_number', 'is', null)
         .in('id', batch);
@@ -1606,7 +1606,7 @@ async function getUsersForBroadcast(filters = {}) {
     // phone cannot be sent to.
     const { data, error } = await supabase
       .from('users')
-      .select('id, phone_number, name, last_message_at')
+      .select('id, phone_number, name, last_message_at, preferred_language')
       .in('id', userIds)
       .not('phone_number', 'is', null);
 
@@ -1647,7 +1647,7 @@ async function getUsersForBroadcast(filters = {}) {
       } else {
         let query = supabase
           .from('users')
-          .select('id, phone_number, name, last_message_at')
+          .select('id, phone_number, name, last_message_at, preferred_language')
           .eq('registration_completed', true)
           .not('phone_number', 'is', null)
           .in('id', userIds);
@@ -1664,7 +1664,7 @@ async function getUsersForBroadcast(filters = {}) {
       // No user ID filter (all users)
       let query = supabase
         .from('users')
-        .select('id, phone_number, name, last_message_at')
+        .select('id, phone_number, name, last_message_at, preferred_language')
         .eq('registration_completed', true)
         .not('phone_number', 'is', null);
 
@@ -1873,7 +1873,11 @@ async function updateBroadcastMessage(broadcastId, userId, updates) {
 async function getPendingBroadcastMessages(broadcastId) {
   const { data, error } = await supabase
     .from('broadcast_messages')
-    .select('id, user_id, phone_number')
+    // bd-1zyqf: the embed reads the teacher's language as it is NOW, on the
+    // resume, not as it was when the broadcast was enqueued. Teacher-addressed
+    // text always reads the current preference at send time. Rides the existing
+    // broadcast_messages.user_id -> users.id FK, so no migration.
+    .select('id, user_id, phone_number, users(preferred_language)')
     .eq('broadcast_id', broadcastId)
     .eq('status', 'pending');
 
