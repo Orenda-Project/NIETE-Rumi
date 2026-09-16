@@ -223,3 +223,26 @@ describe('an English answer still costs the row and writes nothing', () => {
     expect(supabase.__state.updates).toEqual([]);
   });
 });
+
+describe('nor does an English answer that hides its Urdu in the glosses (bd-9a2sf reconciliation)', () => {
+  test('the whole walk refuses it, and R2 is never touched', async () => {
+    // The shape bd-y478d's rule alone lets through: the parentheticals contain Urdu, so nothing
+    // is discounted, and the merge is ~97% Urdu. Scored 43.9% against the genuine answer's 37.1%
+    // — the impostor reads HIGHER than the translation, which is why the check is positional and
+    // not a threshold. Driven end to end so it is the walk's verdict, not the gate's, that is
+    // pinned: a row this passes is a teacher's page rewritten in English.
+    create.mockImplementation(async () => reply({
+      '/provenance/chapter': 'Chapter 10 (کیمیائی توازن)',
+      '/provenance/topic': 'Equilibrium and Le Chatelier (توازن اور اطلاق)',
+      '/provenance/chapter_title': 'Chemical Equilibrium (کیمیائی توازن)',
+    }));
+
+    const out = await backfillUrduOverlays({ dryRun: false });
+
+    expect(out.repaired).toBe(0);
+    expect(out.failed.length).toBe(1);
+    expect(out.failed[0].error).toMatch(/outside brackets/);
+    expect(uploadBuffer).not.toHaveBeenCalled();
+    expect(supabase.__state.updates).toEqual([]);
+  });
+});
