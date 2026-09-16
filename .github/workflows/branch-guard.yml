@@ -45,6 +45,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Scan tooling for references to retired branches
+        # Explicit: GitHub's default is `bash -eo pipefail`, which is why the
+        # grep pipeline below sits in an `if` condition. Verify changes with
+        # `bash -eo pipefail`, not plain `bash`.
+        shell: bash
         run: |
           set -uo pipefail
 
@@ -58,25 +62,35 @@ jobs:
 
           PATTERN='origin/develop|branches: *\[ *develop|--base +develop|refs/heads/develop'
 
-          HITS=$(grep -rnE "$PATTERN" "${PATHS[@]}" 2>/dev/null \
-                 | grep -v 'branch-guard-allow' \
-                 | grep -v '^\.github/workflows/branch-guard\.yml:' || true)
-
-          if [ -z "$HITS" ]; then
-            echo "OK — no tooling references a retired branch."
-            exit 0
+          # grep exits 1 when it finds nothing, which is this job's SUCCESS case.
+          # GitHub runs `run:` blocks as `bash -e`, so a plain assignment from
+          # that pipeline ends the step immediately, with no output and no
+          # explanation - the job goes red precisely when everything is fine.
+          #
+          # The pipeline therefore lives in the `if` CONDITION: a command tested
+          # by `if` is exempt from `-e`, and its exit status is already the
+          # answer we want. A trailing `|| true` would also work, and is what
+          # this file shipped with in #949 - but `tests/setup/
+          # ci-workflow-no-silent-masks.test.js` keeps ALLOWED_MASKS empty on
+          # purpose (a mask in a guard usually hides the very failure the guard
+          # exists to catch), so that mask quietly reddened a conformance test
+          # for a week. This shape needs no mask at all.
+          if HITS=$(grep -rnE "$PATTERN" "${PATHS[@]}" 2>/dev/null \
+                    | grep -v 'branch-guard-allow' \
+                    | grep -v '^\.github/workflows/branch-guard\.yml:'); then
+            echo "::error::Tooling still points at the retired 'develop' branch."
+            echo ""
+            echo "$HITS" | sed 's/^/  /'
+            echo ""
+            echo "The branch model is: sandbox -> staging -> main."
+            echo "'develop' is frozen and locked; anything keyed on it silently stops working."
+            echo ""
+            echo "Point it at the branch that now does that job — usually 'sandbox' for"
+            echo "work-in-progress and 'staging' for pre-release. If the reference is"
+            echo "deliberate (a test fixture, a historical note), append to that line:"
+            echo ""
+            echo "    # branch-guard-allow: <why>"
+            exit 1
           fi
 
-          echo "::error::Tooling still points at the retired 'develop' branch."
-          echo ""
-          echo "$HITS" | sed 's/^/  /'
-          echo ""
-          echo "The branch model is: sandbox -> staging -> main."
-          echo "'develop' is frozen and locked; anything keyed on it silently stops working."
-          echo ""
-          echo "Point it at the branch that now does that job — usually 'sandbox' for"
-          echo "work-in-progress and 'staging' for pre-release. If the reference is"
-          echo "deliberate (a test fixture, a historical note), append to that line:"
-          echo ""
-          echo "    # branch-guard-allow: <why>"
-          exit 1
+          echo "OK — no tooling references a retired branch."
