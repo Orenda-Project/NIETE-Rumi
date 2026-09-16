@@ -22,17 +22,32 @@ describe('bd-u35ex — photo_done_ / photo_more_ are handled (source guard)', ()
   it('has a photo_more_ handler', () => {
     expect(bot).toMatch(/startsWith\('photo_more_'\)/);
   });
-  it('photo_done_ advances the session to the lesson-plan step (status awaiting_lesson_plan + LP selection)', () => {
-    const idx = bot.indexOf("startsWith('photo_done_')");
-    expect(idx).toBeGreaterThan(-1);
-    const body = bot.slice(idx, idx + 2600);
-    expect(body).toMatch(/awaiting_lesson_plan/);
-    expect(body).toMatch(/buildLPSelectionList/);
+  // Since bd-87p7s / bd-n9832 (2026-09-16) the three photo/LP taps no longer carry
+  // the step logic inline: photo_done_, photo_no_ and lp_none_-style paths all call
+  // ONE owner, advanceToLessonPlanStep in lp-step.service.js, which is where the
+  // properties below now live. This guard asserts the wiring in whatsapp-bot.js AND
+  // the properties in the owner — the behaviour itself is executed end-to-end by
+  // bot/tests/observe/bd-n9832-cancelled-stays-cancelled-taps.test.js and
+  // bot/tests/coaching/bd-n9832-terminal-guard-owners.test.js.
+  const owner = fs.readFileSync(
+    path.join(__dirname, '../../bot/shared/services/coaching/lp-coaching/lp-step.service.js'), 'utf8');
+
+  for (const handler of ['photo_done_', 'photo_no_']) {
+    it(`${handler} hands the session to the single lesson-plan-step owner`, () => {
+      const idx = bot.indexOf(`startsWith('${handler}')`);
+      expect(idx).toBeGreaterThan(-1);
+      const body = bot.slice(idx, idx + 1200);
+      expect(body).toMatch(/advanceToLessonPlanStep\s*\(/);
+      expect(body).toMatch(/lp-step\.service/);
+    });
+  }
+
+  it('the owner advances the session to awaiting_lesson_plan', () => {
+    expect(owner).toMatch(/status:\s*'awaiting_lesson_plan'/);
   });
-  it('photo_done_ preserves the uploaded classroom_photos (does not overwrite conversation_state)', () => {
-    const idx = bot.indexOf("startsWith('photo_done_')");
-    const body = bot.slice(idx, idx + 2600);
-    expect(body).toMatch(/\.\.\.\(?\s*doneSession/);
+
+  it('the owner preserves the uploaded classroom_photos (conversation_state is MERGED, not replaced)', () => {
+    expect(owner).toMatch(/\.\.\.\(\(session\s*&&\s*session\.conversation_state\)\s*\|\|\s*\{\}\)/);
   });
 });
 
@@ -42,28 +57,22 @@ describe('bd-u35ex — photo_done_ / photo_more_ are handled (source guard)', ()
  * returns false (it does not throw) when it refuses a payload, so an
  * undeliverable list left the session parked at a step the user was never
  * shown, with no sweeper to recover it. The send must come first and the commit
- * must be conditional on it.
+ * must be conditional on it. Both properties now live in the owner (see above).
  */
 describe('bd-zrlcp — the LP step is committed only after the prompt lands', () => {
-  for (const handler of ['photo_done_', 'photo_no_']) {
-    it(`${handler} sends the LP prompt BEFORE writing status awaiting_lesson_plan`, () => {
-      const idx = bot.indexOf(`startsWith('${handler}')`);
-      expect(idx).toBeGreaterThan(-1);
-      const body = bot.slice(idx, idx + 2600);
-      const send = body.indexOf('__sendLpPrompt');
-      const commit = body.indexOf("status: 'awaiting_lesson_plan'");
-      expect(send).toBeGreaterThan(-1);
-      expect(commit).toBeGreaterThan(-1);
-      expect(send).toBeLessThan(commit);
-    });
+  const owner = fs.readFileSync(
+    path.join(__dirname, '../../bot/shared/services/coaching/lp-coaching/lp-step.service.js'), 'utf8');
 
-    it(`${handler} guards the status write on the send result`, () => {
-      const idx = bot.indexOf(`startsWith('${handler}')`);
-      const body = bot.slice(idx, idx + 2600);
-      // the send result is captured and gates the update
-      expect(body).toMatch(/const\s+\w*[sS]ent\w*\s*=\s*await\s+__sendLpPrompt/);
-      expect(body).toMatch(/if\s*\(\s*\w*[sS]ent\w*\s*\)/);
-    });
-  }
+  it('the owner sends the LP prompt BEFORE writing status awaiting_lesson_plan', () => {
+    const send = owner.indexOf('await sendLpPrompt(');
+    const commit = owner.indexOf("status: 'awaiting_lesson_plan'");
+    expect(send).toBeGreaterThan(-1);
+    expect(commit).toBeGreaterThan(-1);
+    expect(send).toBeLessThan(commit);
+  });
+
+  it('the owner guards the status write on the send result', () => {
+    expect(owner).toMatch(/const\s+sent\s*=\s*await\s+sendLpPrompt/);
+    expect(owner).toMatch(/if\s*\(\s*!sent\s*\)/);
+  });
 });
-

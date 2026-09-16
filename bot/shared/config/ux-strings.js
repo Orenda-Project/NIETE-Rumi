@@ -215,6 +215,13 @@ const UX_STRINGS = {
   // abandoned — a button sent before the cancel is still live in the chat, and
   // silence there reads as a broken bot. Names the actual state, and says the
   // recording is not lost, because that is the first thing a coach asks.
+  // A tap on a coaching button whose session row no longer exists at all (not
+  // cancelled — gone). Distinct from coachingSessionCancelled: that one names a
+  // state the coach can act on; this one says the thing is simply not there.
+  coachingSessionNotFound: {
+    en: 'Sorry, I could not find that coaching session.',
+    ur: 'معذرت، مجھے وہ کوچنگ سیشن نہیں ملا۔',
+  },
   coachingSessionCancelled: {
     en: '\u{1F6AB} This session was cancelled, so it cannot continue. The recording is saved.',
     ur: '\u{1F6AB} یہ سیشن منسوخ ہو چکا ہے، اس لیے یہ آگے نہیں بڑھ سکتا۔ ریکارڈنگ محفوظ ہے۔',
