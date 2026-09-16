@@ -160,9 +160,16 @@ class CoachingSessionService {
       }
 
       // Get coaching session to retrieve audio_id
+      // bd-rw4so: the `users` embed is what lets the terminal guard below speak
+      // the teacher's OWN language. `.select('*')` returns no embedded object,
+      // so `session.users` was always undefined and clampLanguage floored every
+      // cancelled-session refusal to English — an Urdu teacher was told her
+      // session was cancelled in a language she may not read. The embed is the
+      // house pattern for this exact read on this exact table:
+      // observe-debrief.service.js:831 and observe-send.service.js:785.
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('*')
+        .select('*, users(preferred_language)')
         .eq('id', coachingSessionId)
         .single();
 
