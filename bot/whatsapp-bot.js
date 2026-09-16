@@ -732,6 +732,17 @@ app.post('/webhook', async (req, res) => {
         if (await Lp612FeedbackService.handleFeedbackButton(buttonId, from)) return;
       }
 
+      // 6-12 usage follow-up (bd-b708h) — `lp612_used_(taught|planned|not_yet)_<segment_id>`,
+      // the second question on the 👍 path. It answers "was a lesson TAUGHT", which is the one
+      // thing this lane cannot infer: a render row is a cache miss, not a delivery.
+      // Kept ABOVE the `lp_used_` branch so the two prefixes stay visibly distinct — they do not
+      // overlap (`lp612_used_` does not start with `lp_used_`), and the K-5 regex demands a UUID
+      // where this one carries a segment id, so a mis-route would silently drop the tap.
+      if (buttonId.startsWith('lp612_used_')) {
+        const Lp612FeedbackService = require('./shared/services/lp612-feedback.service');
+        if (await Lp612FeedbackService.handleUsageButton(buttonId, from)) return;
+      }
+
       // LP usage follow-up (bd-vw0aj) — the 👍 path when a voice note was delivered.
       // `lp_used_(taught|planned|not_yet)_<uuid>`. An unregistered prefix falls through to
       // generic text handling and the tap is silently lost, so this must stay beside the

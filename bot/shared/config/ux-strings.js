@@ -974,6 +974,41 @@ const UX_STRINGS = {
     ur: 'سمجھ گئی، شکریہ — اس سے اگلا سبق بہتر ہوگا۔',
   },
 
+  // ── did she actually teach it? (bd-b708h) ────────────────────────────────
+  //
+  // Sent only on a 👍, in place of the bare thank-you. `lp_feedback.used_in_class` was set on
+  // 33% of grades 1-5 rows and on 0 of 524 lp612 rows, because the 6-12 lane never asked. It is
+  // the only column that separates *a PDF was produced* from *a lesson was delivered*, and this
+  // lane has no other delivery signal: a render row is a cache MISS, `picked_up_at` is a worker
+  // claim, and `status='ready'` only means the file exists.
+  //
+  // Wording is deliberately identical to the grades 1-5 prompt (lp-feedback.service.js) — it asks
+  // about the LESSON, not about the voice note, so it carries to a PDF-only lane unchanged and the
+  // two lanes' answers stay comparable in one column.
+  //
+  // Same caps as above: button 20 code points, body 1024. 'Taught it today' is 15, «آج پڑھا دیا»
+  // is 11 — no emoji here, because three emoji-prefixed titles crowd the row on a small screen.
+  lp612UsedAsk: {
+    en: 'Did you get to use it in class?',
+    ur: 'کیا آپ نے اسے کلاس میں استعمال کیا؟',
+  },
+  lp612UsedTaught: {
+    en: 'Taught it today',
+    ur: 'آج پڑھا دیا',
+  },
+  lp612UsedPlanned: {
+    en: 'Planning to',
+    ur: 'ارادہ ہے',
+  },
+  lp612UsedNotYet: {
+    en: 'Not yet',
+    ur: 'ابھی نہیں',
+  },
+  lp612UsedThanks: {
+    en: 'Thank you — that helps.',
+    ur: 'شکریہ — اس سے مدد ملتی ہے۔',
+  },
+
   lpV8SendFailed: {
     en: "I couldn't send that lesson plan just now — please try again in a minute.",
     ur: 'ابھی یہ سبق کا منصوبہ نہیں بھیجا جا سکا — براہِ کرم ایک منٹ بعد دوبارہ کوشش کریں۔',
