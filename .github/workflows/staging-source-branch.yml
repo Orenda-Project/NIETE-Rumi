@@ -32,6 +32,7 @@
 # so out loud in the PR and have an admin override a failing check, not to make
 # the check quieter.
 name: PR source branch (staging)
+# 2026-09-16: a second job, `staging needs sandbox`, guards the FIRST door — see below.
 
 on:
   pull_request:
@@ -61,3 +62,86 @@ jobs:
             exit 1
           fi
           echo "Head branch is '$HEAD_REF', not 'main'. OK."
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # The other half of the same rule: `staging` may only receive what `sandbox`
+  # already has.
+  #
+  # The job above refuses a back-merge from `main`. It says nothing about the far
+  # more common way the route breaks, which is a fix branch cut from `staging`
+  # and PR'd straight back to `staging`, skipping `sandbox` entirely. On
+  # 2026-09-16 that happened ten times in one night (#1005-#1014, twelve
+  # patches): the PR's base was simply the branch the fix was cut from, and
+  # nothing said no. Sandbox kept every bug those fixes removed, and the
+  # backfill (#1024) needed two hand-resolved conflicts.
+  #
+  # So this job asks, per commit the PR would add to `staging`: is it already on
+  # `sandbox`?  Three ways to say yes, tried in order:
+  #   (0) it is an ancestor of origin/sandbox — a promotion PR from sandbox
+  #       itself, or a branch cut from it, passes here in one rev-list;
+  #   (1) it carries `(cherry picked from commit <sha>)` — the trailer that
+  #       `git cherry-pick -x` writes — and <sha> is an ancestor of sandbox.
+  #       Exact, and it survives conflict resolution;
+  #   (2) `git cherry origin/sandbox` reports its patch-id as present — a pick
+  #       done without -x. Fragile across context drift (promotion-invariant.yml
+  #       explains why patch-ids are the weakest of these), which is why it is
+  #       the last resort and why the fix for a miss is to re-pick with -x.
+  #
+  # The local twin is .claude/hooks/niete-staging-needs-sandbox.sh in the
+  # workspace, which refuses the `gh pr create` / `gh pr merge` / `git push`
+  # before it leaves the agent's machine. This job is the record for PRs that
+  # come from anywhere else — the GitHub UI included.
+  #
+  # ADVISORY UNTIL REQUIRED, exactly like the job above. Add "staging needs
+  # sandbox" to staging's required status checks to make it enforce.
+  #
+  # An operator-authorised hotfix that must skip sandbox says so in the PR body
+  # and has an admin override this failing check. Do not make the check quieter.
+  staging-needs-sandbox:
+    name: staging needs sandbox
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the whole graph; a shallow clone cannot answer this
+
+      - name: Every new commit is already on sandbox
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git fetch -q origin sandbox staging
+          MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          # (0) drop sandbox's own ancestors in one call
+          NEW=$(git rev-list --no-merges --reverse "$MB..$HEAD_SHA" ^origin/sandbox)
+          if [ -z "$NEW" ]; then
+            echo "Every commit this PR adds to staging is already on sandbox. OK."
+            exit 0
+          fi
+          CHERRY=$(git cherry origin/sandbox "$HEAD_SHA" "$MB" || true)
+          MISSING=""
+          for c in $NEW; do
+            picked=$(git log -1 --format=%B "$c" | grep -oE '\(cherry picked from commit [0-9a-f]{7,40}\)' | grep -oE '[0-9a-f]{7,40}' | tail -1 || true)
+            if [ -n "$picked" ] && git merge-base --is-ancestor "$picked" origin/sandbox 2>/dev/null; then continue; fi   # (1)
+            if printf '%s\n' "$CHERRY" | grep -qE "^- $c"; then continue; fi                                            # (2)
+            MISSING="$MISSING$(git log -1 --format='%h %s' "$c")"$'\n'
+          done
+          if [ -z "$MISSING" ]; then
+            echo "Every commit this PR adds to staging is on sandbox (by -x trailer or patch-id). OK."
+            exit 0
+          fi
+          N=$(printf '%s' "$MISSING" | grep -c .)
+          echo "::error::$N commit(s) in this PR are not on 'sandbox'. The route is sandbox -> staging -> main."
+          echo ""
+          echo "Not on origin/sandbox:"
+          printf '%s' "$MISSING"
+          echo ""
+          echo "Land the change on 'sandbox' first (PR against sandbox), then cherry-pick it"
+          echo "onto a branch off staging WITH -x and open this PR again:"
+          echo "    git cherry-pick -x <sha-as-merged-on-sandbox>"
+          echo "The '(cherry picked from commit ...)' trailer is what this check reads."
+          echo ""
+          echo "An operator-authorised hotfix that must skip sandbox says so in the PR body"
+          echo "and has an admin override this check. Do not make the check quieter."
+          exit 1
