@@ -1,0 +1,89 @@
+{
+  "version": "6.2",
+  "data_api_version": "3.0",
+  "routing_model": {},
+  "screens": [
+    {
+      "id": "CONFIRM_STUDENTS",
+      "title": "Confirm Students",
+      "terminal": true,
+      "refresh_on_back": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "I found 3 students"
+        },
+        "subheading": {
+          "type": "string",
+          "__example__": "Uncheck any name that isn't a real student, then tap Confirm."
+        },
+        "students": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "0",
+              "title": "1. Ayesha Khan"
+            },
+            {
+              "id": "1",
+              "title": "2. Bilal Ahmed"
+            },
+            {
+              "id": "2",
+              "title": "3. Fatima Noor"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "confirm_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.subheading}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "confirmed_students",
+                "label": "Students to grade",
+                "required": false,
+                "data-source": "${data.students}",
+                "min-selected-items": 0,
+                "max-selected-items": 100
+              },
+              {
+                "type": "Footer",
+                "label": "Confirm & Grade",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "confirmed_students": "${form.confirmed_students}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
