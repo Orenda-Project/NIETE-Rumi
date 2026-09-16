@@ -24,6 +24,11 @@ BEGIN
   END IF;
 END $$;
 
+-- bd-b708h widened this to the PDF-only 6-12 lane, so the comment below no longer says
+-- "PDF-only means not asked" — that exclusion was the reason the column sat at 0 of 524 lp612
+-- rows while grades 1-5 filled a third of theirs.
 COMMENT ON COLUMN lp_feedback.used_in_class IS
-  'ICT voicenote survey Q2 (bd-vw0aj). taught | planned | not_yet. '
-  'NULL = not asked (PDF-only delivery, or she tapped a thumbs-down) or not yet answered.';
+  'Survey Q2: taught | planned | not_yet. Asked on a thumbs-up in BOTH lanes — the voicenote '
+  'bundle (bd-vw0aj) and the PDF-only 6-12 lane (bd-b708h). NULL = she tapped a thumbs-down, or '
+  'has not answered yet. The only column separating "an artefact was produced" from "a lesson was '
+  'taught", and the only delivery signal the 6-12 lane has at all.';
