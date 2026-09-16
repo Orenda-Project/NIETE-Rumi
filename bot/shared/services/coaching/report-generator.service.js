@@ -19,6 +19,7 @@ const path = require('path');
 const axios = require('axios');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { reflectionProgress } = require('./reflection-progress');
 const GPT5MiniService = require('../gpt5-mini.service');
 const ContentService = require('../content.service');
 const AudioService = require('../audio.service');
@@ -1167,14 +1168,20 @@ class ReportGeneratorService {
     // Build partial report note if applicable
     let partialReportNote = null;
     if (session._isPartialReport && !session._suppressPartialBanner) {
-      const questionsCompleted = session._questionsAtCompletion || 0;
+      // The denominator is NUM_REFLECTIVE_QUESTIONS, not a literal 3.
+      // The debrief was cut from three questions to one, so this note told a
+      // teacher who had answered the only question she was ever going to be
+      // asked that her report covered "1/3 reflective responses" and that
+      // "full insights require completing all reflection questions".
+      const progress = reflectionProgress(session._questionsAtCompletion);
+      const questionsCompleted = progress.answered;
       if (session._isAutoCompleted) {
         partialReportNote = questionsCompleted > 0
-          ? `Note: This report includes ${questionsCompleted}/3 reflective responses. The session was auto-completed after 12 hours of inactivity. Full insights require completing all reflection questions.`
+          ? `Note: This report includes ${progress.label} reflective responses. The session was auto-completed after 12 hours of inactivity. Full insights require completing all reflection questions.`
           : `Note: This report is based on classroom audio analysis only. The reflective conversation was not completed (auto-completed after 12 hours of inactivity).`;
       } else if (session._isUserRequestedEarly) {
         partialReportNote = questionsCompleted > 0
-          ? `Note: This report includes ${questionsCompleted}/3 reflective responses. You requested early completion. Full insights require completing all reflection questions.`
+          ? `Note: This report includes ${progress.label} reflective responses. You requested early completion. Full insights require completing all reflection questions.`
           : `Note: This report is based on classroom audio analysis only. The reflective conversation was skipped at your request.`;
       }
 
