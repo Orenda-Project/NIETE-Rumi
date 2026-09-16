@@ -3235,7 +3235,7 @@ app.post('/observability/api/broadcast/dry-run', requireAdmin, async (req, res) 
 
 // Submit broadcast for template approval
 app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) => {
-  const { message, activity, country, recipientMode, selectedUserIds, adminPassword } = req.body;
+  const { message, activity, country, recipientMode, selectedUserIds, adminPassword, templateName } = req.body;
 
   try {
     // Verify broadcast password (distinct from login password)
@@ -3336,6 +3336,24 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
     // Generate broadcast ID
     const broadcastId = crypto.randomUUID();
 
+    // bd-x4njf: a template already approved on the WABA can be named here, which
+    // is the only way to reach a MULTI-language template — createBroadcastTemplate
+    // derives its own name from this broadcast's uuid and submits a single body.
+    // The variant list comes from Meta, never from the operator: a wrong list is
+    // invisible until the send, where Meta hard-fails every message with error
+    // 132001 rather than falling back.
+    const approvedTemplateName = (templateName || '').trim() || null;
+    let templateLanguages = [broadcastService.TEMPLATE_LANGUAGE_DEFAULT];
+
+    if (approvedTemplateName) {
+      try {
+        templateLanguages = await broadcastService.getApprovedTemplateLanguages(approvedTemplateName);
+      } catch (err) {
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      console.log(`[Broadcast] Using approved template ${approvedTemplateName} (${templateLanguages.join(', ')})`);
+    }
+
     // Split users by service window (24hr rule)
     const usersInWindow = users.filter(u => broadcastService.isWithinServiceWindow(u.last_message_at));
     const usersOutsideWindow = users.filter(u => !broadcastService.isWithinServiceWindow(u.last_message_at));
@@ -3343,7 +3361,10 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
     console.log(`[Broadcast] Users within 24hr window: ${usersInWindow.length}, outside: ${usersOutsideWindow.length}`);
 
     // If ALL users are within service window, send direct messages (no template needed)
-    if (usersOutsideWindow.length === 0 && usersInWindow.length > 0) {
+    // A named template is honoured even when everyone is inside the 24h window:
+    // the direct path sends the free-form body instead of the approved template,
+    // and it also drops the wamid (bd-zo16z).
+    if (!approvedTemplateName && usersOutsideWindow.length === 0 && usersInWindow.length > 0) {
       console.log(`[Broadcast] All ${usersInWindow.length} users within service window - sending direct messages`);
 
       // Create broadcast log with direct send status
@@ -3419,11 +3440,33 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
         ...filtersForLog,
         usersInWindow: usersInWindow.length,
         usersOutsideWindow: usersOutsideWindow.length,
-        templateLanguages: [broadcastService.TEMPLATE_LANGUAGE_DEFAULT]
+        templateLanguages
       },
       total_recipients: users.length,
-      status: 'template_pending'
+      status: approvedTemplateName ? 'sending' : 'template_pending',
+      ...(approvedTemplateName ? { template_name: approvedTemplateName } : {})
     });
+
+    if (approvedTemplateName) {
+      // Already approved: nothing to submit, nothing to poll for. Execution
+      // starts immediately, fire-and-forget, exactly as startTemplatePolling
+      // does at the moment approval lands.
+      broadcastService.executeBroadcast(broadcastId).catch((err) =>
+        console.error(`[Broadcast ${broadcastId}] Execution failed:`, err.message)
+      );
+
+      return res.json({
+        success: true,
+        broadcastId,
+        templateName: approvedTemplateName,
+        templateLanguages,
+        status: 'sending',
+        recipientCount: users.length,
+        usersInWindow: usersInWindow.length,
+        usersOutsideWindow: usersOutsideWindow.length,
+        message: `Sending to ${users.length} recipients with approved template ${approvedTemplateName} (${templateLanguages.join(', ')}).`
+      });
+    }
 
     // Create template with Meta
     const template = await broadcastService.createBroadcastTemplate(broadcastId, message);
