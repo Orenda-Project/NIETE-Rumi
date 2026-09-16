@@ -14,6 +14,11 @@ const { logToFile } = require('../../utils/logger');
 const REDIS_PREFIX = 'exam_session:';
 const REDIS_TTL = 60 * 60 * 24; // 24 hours
 
+// bd-2484: an accidental session (started but never used) is auto-expired after
+// this long so it can't linger and recapture normal chat. Only ever applied to
+// a `collecting_images` session with zero images — never to work in progress.
+const STALE_COLLECTING_MS = 60 * 60 * 1000; // 1 hour
+
 class ExamSessionService {
   /**
    * Get or create an exam session for a user
@@ -47,6 +52,39 @@ class ExamSessionService {
   }
 
   /**
+   * True if this is an ACCIDENTAL session that should auto-expire: still
+   * collecting images, none uploaded, and untouched for over STALE_COLLECTING_MS.
+   * Never true once images exist or the session has advanced past collection.
+   * @param {object} session
+   * @returns {boolean}
+   */
+  static _isStaleCollectingSession(session) {
+    if (!session || session.status !== 'collecting_images') return false;
+    if ((session.original_images || []).length > 0) return false;
+    const ts = Date.parse(session.updated_at || session.created_at || '');
+    if (!Number.isFinite(ts)) return false;
+    return (Date.now() - ts) > STALE_COLLECTING_MS;
+  }
+
+  /**
+   * If the session is a stale accidental one, cancel it (which clears Redis)
+   * and return true so callers treat it as "no active session".
+   * @param {object} session
+   * @returns {Promise<boolean>} true if it was expired
+   */
+  static async _expireIfStale(session) {
+    if (!this._isStaleCollectingSession(session)) return false;
+    try {
+      await this.updateStatus(session.id, 'cancelled', { error_message: 'auto_expired_stale_collecting' });
+      logToFile('⏱️ Auto-expired stale exam session', { sessionId: session.id, userId: session.user_id });
+    } catch (error) {
+      logToFile('⚠️ Failed to auto-expire stale exam session', { sessionId: session.id, error: error.message });
+      await this._clearFromRedis(session.user_id);
+    }
+    return true;
+  }
+
+  /**
    * Get active session for user (without creating new one)
    * @param {string} userId - User UUID
    * @returns {object|null} Session or null
@@ -55,6 +93,7 @@ class ExamSessionService {
     // Check Redis first
     const cachedSession = await this._getFromRedis(userId);
     if (cachedSession) {
+      if (await this._expireIfStale(cachedSession)) return null;
       return cachedSession;
     }
 
@@ -69,6 +108,7 @@ class ExamSessionService {
       .single();
 
     if (data && !error) {
+      if (await this._expireIfStale(data)) return null;
       await this._saveToRedis(userId, data);
       return data;
     }

@@ -28,25 +28,60 @@ const EXAM_CHECK_KEYWORDS = [
   'تصحيح امتحان', 'تصحيح الامتحان', 'تقييم امتحان'
 ];
 
+// Explicit exit words — the way OUT of an active exam-checker session.
+// (English + Urdu + Arabic.) bd-2484: before this, the session had no text
+// exit, so an accidental trigger trapped normal chat until a slash command.
+const EXAM_EXIT_KEYWORDS = [
+  // English
+  'stop', 'cancel', 'exit', 'quit', 'end',
+  'stop exam', 'cancel exam', 'stop grading', 'cancel grading',
+  // Urdu
+  'روکیں', 'روکو', 'منسوخ', 'بند کرو', 'بند کریں',
+  // Arabic
+  'إلغاء', 'الغاء', 'توقف', 'إيقاف',
+];
+
 // Button prefixes for exam checker
 const EXAM_BUTTON_PREFIX = 'ech_';
 
 /**
- * Check if a text message should trigger exam checker
+ * Check if a text message should START exam checking.
+ *
+ * bd-2484: ANCHORED intent — the message must BE a trigger phrase or LEAD with
+ * one. The old behaviour matched a keyword anywhere in the text (`.includes`),
+ * so a casual mention buried in a question — "Can you grade exam papers for
+ * me?" — silently started a real grading session and hijacked normal chat.
+ * Starting a feature should require clear intent, not an incidental word.
+ *
  * @param {string} text - Message text
  * @returns {boolean}
  */
 function shouldTriggerExamChecker(text) {
   if (!text) return false;
-  const normalizedText = text.toLowerCase().trim();
+  // Lowercase, and drop trailing punctuation/space so "grade exams?" still counts.
+  const normalized = text.toLowerCase().trim().replace(/[?!.\s]+$/g, '');
 
   for (const keyword of EXAM_CHECK_KEYWORDS) {
-    if (normalizedText.includes(keyword.toLowerCase())) {
+    const kw = keyword.toLowerCase();
+    if (normalized === kw || normalized.startsWith(kw + ' ')) {
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Check if a text message is an explicit request to LEAVE exam checking.
+ * Matches only the exit word itself (optionally punctuated) — never a sentence
+ * that merely contains "stop" ("how do I stop my students talking").
+ * @param {string} text - Message text
+ * @returns {boolean}
+ */
+function isExamExitText(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim().replace(/[?!.\s]+$/g, '');
+  return EXAM_EXIT_KEYWORDS.includes(t);
 }
 
 /**
@@ -351,30 +386,60 @@ async function handleExamFlow(flowId, flowResponse, from, user) {
 }
 
 /**
- * Handle cancel command for exam checker
+ * End the user's active exam-checker session, if any. This is THE way out of
+ * the state that (before bd-2484) trapped normal chat.
+ *
+ * Two callers, two modes:
+ *  - notify:true  → the teacher typed an explicit exit word ("stop"/"cancel").
+ *                   We end the session AND confirm it in chat.
+ *  - notify:false → the teacher ran a slash command (/menu, /training…). We end
+ *                   the session SILENTLY and let the command run — mirrors the
+ *                   coaching escape fix (bd-2508): bypassing without ending the
+ *                   session lets the very next plain text get recaptured.
+ *
+ * @param {string} from - Phone number
+ * @param {Object} user - User object
+ * @param {{notify?: boolean}} [opts]
+ * @returns {Promise<boolean>} true if a session was actually ended
+ */
+async function endActiveExamSession(from, user, { notify = false } = {}) {
+  if (!user) return false;
+
+  const state = await ExamCheckerOrchestrator.getSessionState(user.id);
+  if (!state.active) return false;
+
+  await ExamCheckerOrchestrator.cancelSession(state.sessionId);
+
+  if (notify) {
+    await WhatsAppService.sendMessage(
+      from,
+      '✅ Exam checking cancelled. Say "check exams" whenever you\'re ready to grade papers.'
+    );
+  }
+
+  logToFile('🚪 Exam session ended via exit path', {
+    userId: user.id, sessionId: state.sessionId, notify,
+  });
+
+  return true;
+}
+
+/**
+ * Handle cancel command for exam checker (thin wrapper over endActiveExamSession).
  * @param {string} from - Phone number
  * @param {Object} user - User object
  * @returns {Promise<Object>}
  */
 async function handleExamCancel(from, user) {
-  if (!user) return { handled: false };
-
-  const state = await ExamCheckerOrchestrator.getSessionState(user.id);
-
-  if (!state.active) {
-    return { handled: false };
-  }
-
-  const response = await ExamCheckerOrchestrator.cancelSession(state.sessionId);
-  await WhatsAppService.sendMessage(from, response.text);
-
-  return { handled: true };
+  const handled = await endActiveExamSession(from, user, { notify: true });
+  return { handled };
 }
 
 module.exports = {
   // Detection functions
   shouldTriggerExamChecker,
   isExamCheckerButton,
+  isExamExitText,
   hasActiveExamSession,
 
   // Handler functions
@@ -383,8 +448,10 @@ module.exports = {
   handleExamButton,
   handleExamFlow,
   handleExamCancel,
+  endActiveExamSession,
 
   // Constants
   EXAM_CHECK_KEYWORDS,
+  EXAM_EXIT_KEYWORDS,
   EXAM_BUTTON_PREFIX
 };
