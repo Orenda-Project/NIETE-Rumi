@@ -1,0 +1,42 @@
+{
+ "skill": "gherkin-test-cases",
+ "description_under_test": "Generate BDD/Gherkin test cases for a feature, ticket, bug fix or user flow \u2014 risk-based design, positive-first coverage, negative and edge analysis. Use for \"write test cases\", \"turn this ticket into Gherkin\". NOT for running tests (chrome-mcp-whatsapp-e2e).",
+ "generated": "2026-08-23",
+ "note": "Boundary pairs are the two neighbours it arrived beside in the same merge.",
+ "cases": [
+  {
+   "prompt": "write test cases for the new registration flow",
+   "should_trigger": true
+  },
+  {
+   "prompt": "turn BUG-114 into Gherkin scenarios",
+   "should_trigger": true
+  },
+  {
+   "prompt": "cover the storybook gallery with BDD scenarios",
+   "should_trigger": true
+  },
+  {
+   "prompt": "what edge cases should we test for the exam checker?",
+   "should_trigger": true
+  },
+  {
+   "prompt": "run the whatsapp e2e suite against staging",
+   "should_trigger": false,
+   "routes_to_instead": "chrome-mcp-whatsapp-e2e",
+   "why": "near-miss: running tests, not authoring them"
+  },
+  {
+   "prompt": "fold the approved e2e discoveries back into the specs",
+   "should_trigger": false,
+   "routes_to_instead": "apply-discoveries",
+   "why": "near-miss: applying results, not writing scenarios"
+  },
+  {
+   "prompt": "deploy the bot to production",
+   "should_trigger": false,
+   "routes_to_instead": "staging-to-production",
+   "why": "unrelated"
+  }
+ ]
+}

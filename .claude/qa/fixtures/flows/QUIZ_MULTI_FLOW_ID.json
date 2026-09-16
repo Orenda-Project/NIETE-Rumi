@@ -1,0 +1,90 @@
+{
+  "version": "6.3",
+  "screens": [
+    {
+      "id": "PICK",
+      "title": "Quiz · کوئز",
+      "terminal": true,
+      "data": {
+        "question": {
+          "type": "string",
+          "__example__": "Which of these are metals?"
+        },
+        "instruction": {
+          "type": "string",
+          "__example__": "Select all that apply."
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "0",
+              "title": "Iron"
+            },
+            {
+              "id": "1",
+              "title": "Wood"
+            },
+            {
+              "id": "2",
+              "title": "Copper"
+            }
+          ]
+        },
+        "submit_label": {
+          "type": "string",
+          "__example__": "Send answer"
+        },
+        "answer_token": {
+          "type": "string",
+          "__example__": "vqm:00000000-0000-0000-0000-000000000000:00000000-0000-0000-0000-000000000000"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "answer_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.question}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "picks",
+                "label": "${data.instruction}",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.submit_label}",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "picks": "${form.picks}",
+                    "answer_token": "${data.answer_token}",
+                    "quiz_multi_action": "answer"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

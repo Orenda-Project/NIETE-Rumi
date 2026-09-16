@@ -1,0 +1,104 @@
+name: qa-impact
+
+# Server-side half of the NIETE QA pipeline: Gherkin spec freshness + E2E impact,
+# on every PR into a branch that deploys.
+#
+# WHY THIS EXISTS (2026-09-09, bd-c3jx8). The pipeline was "hooks only, no CI" by
+# decision on 2026-09-07. Two days later NIETE-Rumi PRs #835 and #836 changed
+# bot/shared/services/coaching/** — a mapped feature whose spec needed an update —
+# and reached `sandbox` with no spec sync and no E2E, because the git hooks live on
+# the developer's machine, exit 0 silently in every failure mode, and a PR merged
+# in the GitHub UI never touches a hook at all. Nothing anywhere noticed. The
+# operator reversed the decision the same day ("fix everything so the process is
+# seamless"). This job is the piece that cannot be skipped by a clone that never
+# ran `npm install`.
+#
+# WHAT IT DOES. Runs scripts/qa/impact.py — the SAME analysis the pre-push hook
+# prints — over base...head of the PR, with the PR body available for a
+# `Spec-Sync: <feature>=none-needed (<why>)` declaration, and posts the result as
+# one PR comment that is edited in place (marker `<!-- niete-qa-impact -->`).
+#
+#   spec freshness  BLOCK  — a feature's own files changed but its .feature did
+#                            not, and nobody declared none-needed  -> job fails
+#   e2e proof       WARN   — a runs.jsonl row for the feature in the range; a run
+#                            cannot precede the merge it tests, so this is
+#                            reported, never blocking (yet)
+#
+# A PR touching no mapped bot feature (docs, portal, tests, infra) succeeds quietly
+# and posts nothing — so this is safe to mark as a REQUIRED check.
+#
+# WHAT IT CANNOT DO. Author a scenario or drive WhatsApp. It tells the author, in
+# the PR, exactly which `/sync-specs` and `/niete-e2e` to run in Claude Code.
+
+on:
+  pull_request:
+    branches: [sandbox, staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  impact:
+    name: Gherkin sync + E2E impact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the analysis is a commit RANGE (base...head) and a shallow
+          # clone cannot resolve it — impact.py would then report "undecidable" and
+          # pass, guarding nothing.
+          fetch-depth: 0
+
+      - name: PR body to a file (Spec-Sync declarations may live there)
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.txt"
+
+      - name: Analyse the PR range
+        id: impact
+        env:
+          BASE_REF: ${{ github.base_ref || 'sandbox' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set +e
+          python3 scripts/qa/impact.py --repo . \
+            --base "origin/$BASE_REF" --head "$HEAD_SHA" \
+            --pr-body-file "$RUNNER_TEMP/pr-body.txt" --target-branch "$BASE_REF" \
+            --format text --freshness block --proof warn \
+            --md-out "$RUNNER_TEMP/impact.md" --json-out "$RUNNER_TEMP/impact.json"
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          features=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1])).get("features") or []))' "$RUNNER_TEMP/impact.json" 2>/dev/null || echo 0)
+          echo "features=$features" >> "$GITHUB_OUTPUT"
+          echo "impact.py exit $rc, $features feature(s) affected"
+          cat "$RUNNER_TEMP/impact.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post or update the PR comment
+        if: github.event_name == 'pull_request' && steps.impact.outputs.features != '0'
+        uses: actions/github-script@v7
+        env:
+          MD_PATH: ${{ runner.temp }}/impact.md
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- niete-qa-impact -->';
+            const body = fs.readFileSync(process.env.MD_PATH, 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
+            const mine = comments.find(c => (c.body || '').includes(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Gate — stale Gherkin spec fails the PR
+        run: |
+          rc="${{ steps.impact.outputs.rc }}"
+          if [ "$rc" != "0" ]; then
+            echo "::error::A mapped bot feature changed but its Gherkin spec did not (and no Spec-Sync: none-needed declaration). See the PR comment for the exact /sync-specs command."
+          fi
+          exit "$rc"

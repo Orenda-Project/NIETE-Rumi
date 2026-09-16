@@ -1,0 +1,10 @@
+{
+  "_doc": "FAIL scenarios expected on the MOCK lane for documented reasons unrelated to the commit. check_known_findings.py makes the gate trustworthy: a run REGRESSES only when a scenario NOT listed here FAILS, or a listed one now PASSES (a fix — remove it). Only FAIL is regression-eligible; BLOCKED (couldn't drive: unreachable/@wip/content-driven/early-bail) and SKIP never flag and need no entry here. Keep a one-line reason per id.",
+
+  "language": {
+    "LANG07": "dead export (bd-ztx5n) — a language code path exports a symbol nothing imports"
+  },
+  "lesson-plan": {
+    "L08": "\"/lesson plan\" (with a space) is not a recognised keyword — spec-vs-build question, not a break"
+  }
+}
