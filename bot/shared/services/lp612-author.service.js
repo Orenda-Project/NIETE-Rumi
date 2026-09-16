@@ -426,7 +426,11 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens, u
    * The correlationId and stage are handed to the resolver so that a credit-exhaustion fallback
    * inside it emits a NAMED, traceable event rather than an anonymous one.
    */
-  const { client, model: wireModel } = getClientForModel(model, { correlationId, stage });
+  // bd-b8k7h: the job is named so the ladder can look up its fallback. lp.author has none
+  // recorded on purpose: it already runs Anthropic and has no OpenAI predecessor anybody
+  // validated, so it fails rather than answering a teacher with an unchecked model. Naming it
+  // here is what makes that a decision the registry states, rather than an accident of wiring.
+  const { client, model: wireModel } = getClientForModel(model, { correlationId, stage, job: 'lp.author' });
   const payload = {
     model: wireModel,
     temperature: TEMPERATURE,

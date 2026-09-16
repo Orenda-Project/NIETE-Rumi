@@ -44,7 +44,10 @@ function extractJson(text) {
  */
 async function completeJson({ prompt, maxTokens = 16000, label = 'transcript_quiz' }) {
   const requested = modelId();
-  const { client, model } = getClientForModel(requested);
+  // bd-b8k7h: naming the job arms the fallback ladder with THIS job's frozen fallback, the
+  // model it already works with. A no-op while TRANSCRIPT_QUIZ_MODEL still names that same
+  // model; live protection the moment the job is moved to another supplier.
+  const { client, model } = getClientForModel(requested, { job: 'quiz.transcript' });
   const reasoning = REASONING_RE.test(requested);
   const params = {
     model,
