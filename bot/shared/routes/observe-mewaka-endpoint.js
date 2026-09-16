@@ -74,7 +74,7 @@ async function coachLanguageIfNeeded(session) {
   }
 }
 
-async function loadSessionFromToken(flowToken) {
+async function loadSessionFromToken(flowToken, tap) {
   const [userId, sessionId] = String(flowToken || '').split(':');
   if (!userId || !sessionId) return { error: 'Invalid flow token' };
   const { data: session, error } = await supabase
@@ -99,6 +99,15 @@ async function loadSessionFromToken(flowToken) {
       const { languageFor } = require('../services/observe/observe-language');
       lang = await languageFor('coach', session);
     } catch (_) { /* the refusal must never depend on a language lookup */ }
+    // bd-rw4so: this refusal used to leave NO trace. The only Axiom row for a
+    // refused stale form was a generic `Decrypted flow data`, so "how many
+    // coaches hit a cancelled form this week" had no answer in production
+    // (the systemic bd-3zexi: 79 of 87 envelope returns emit no log). Same
+    // shape and same info level as the button layer's twin at
+    // observe-resume.service.js:199, so the two surfaces count together.
+    logToFile('\u{1F6AB} observe-form: endpoint refused — the observation is over', {
+      sessionId, status: session.status, tap,
+    });
     return { error: observeStrings(lang).flow_terminal_refused };
   }
   return { session, sessionId, userId };
@@ -132,7 +141,8 @@ async function handleObserveMewakaRequest(decrypted) {
   try {
     if (action === 'ping') return { data: { status: 'active' } };
 
-    const loaded = await loadSessionFromToken(flowToken);
+    // the action is carried in so the refusal event says WHICH surface she used
+    const loaded = await loadSessionFromToken(flowToken, action);
     if (loaded.error) return errorResponse(loaded.error);
     const { session, sessionId } = loaded;
 
