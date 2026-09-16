@@ -179,6 +179,21 @@ def test_the_injector_the_preflight_shells_out_to_actually_exists():
     assert os.path.exists(pf.INJECTOR), pf.INJECTOR
 
 
+def test_cli_records_method_and_commit_sha_in_run_json():
+    # The mock lane must tie a run to the exact commit it drove; the CLI is what run-suite.sh calls.
+    import json, tempfile
+    d = tempfile.mkdtemp()
+    run_dir = os.path.join(d, "20260908-0001-mock")
+    rc = pf.main(["preflight.py", run_dir, "--mode", "menu", "--driver", "923000000001",
+                  "--target", "local", "--env", "sandbox", "--no-inject",
+                  "--method", "mock", "--commit-sha", "a" * 40])
+    assert rc == 0, rc
+    meta = json.load(open(os.path.join(run_dir, "run.json")))
+    assert meta["method"] == "mock", meta
+    assert meta["commit_sha"] == "a" * 40, meta
+    assert meta["env"] == "sandbox" and meta["target"] == "local"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

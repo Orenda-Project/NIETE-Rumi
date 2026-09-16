@@ -37,10 +37,27 @@ function _log(msg, data) {
 
 function mode() {
   const m = String(process.env.E2E_CASSETTE || 'off').toLowerCase();
-  if (m !== 'record' && m !== 'replay') return 'off';
+  if (m !== 'record' && m !== 'replay' && m !== 'replay-strict') return 'off';
   const supa = String(process.env.SUPABASE_URL || '');
   if (PROD_PROJECT_REFS.some(ref => supa.includes(ref))) return 'off';
-  return m;
+  return m === 'replay-strict' ? 'replay' : m;
+}
+
+/** `replay-strict`: a hit replays exactly like `replay`; a MISS throws instead of going live.
+ *  The local mock E2E lane runs under it so a scenario can never quietly bill a vendor or
+ *  depend on a live answer. The miss is appended to E2E_CASSETTE_MISS_LOG (one JSON line) when
+ *  that is set, so the runner can name what is missing from the library. */
+function strict() {
+  return mode() === 'replay' && String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
+}
+function _miss(kind, key) {
+  const line = { ts: new Date().toISOString(), kind, key };
+  const log = process.env.E2E_CASSETTE_MISS_LOG;
+  if (log) { try { fs.mkdirSync(path.dirname(log), { recursive: true }); fs.appendFileSync(log, JSON.stringify(line) + '\n'); } catch (_) { /* best effort */ } }
+  _log('📼 e2e-cassette: replay-strict MISS — refusing to go live', line);
+  const err = new Error(`E2E_CASSETTE_MISS ${kind} ${key}: no recorded answer and E2E_CASSETTE=replay-strict forbids a live call. Record once with E2E_CASSETTE=record.`);
+  err.code = 'E2E_CASSETTE_MISS'; err.kind = kind; err.key = key;
+  return err;
 }
 
 /** Deterministic JSON: object keys sorted at every depth, so {a,b} and {b,a} hash the same. */
@@ -61,7 +78,18 @@ const VOLATILE = [
   [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<uuid>'],
   [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g, '<iso>'],
   [/\b\d{4}-\d{2}-\d{2}\b/g, '<date>'],
+  [/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, '<date>'],   // M/D/YYYY — toLocaleDateString('en-US', numeric); the coaching prior-feedback date
   [/\b\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM|am|pm)?\b/g, '<time>'],
+  // Relative-time labels the bot builds FROM THE CLOCK and writes into prompts: lp-context.agoLabel
+  // ("13h ago" / "45m ago" / "3d ago"), context.service._getTimeAgo ("2 hours ago" / "yesterday" /
+  // "just now"), call-context.agoLabel ("in 3 days" / "today" / "tomorrow"). Unlike the absolute
+  // formats above, these carry no fixed date VOLATILE could pin — they drift between the record run
+  // and the replay seconds/hours later (13h→14h, just now→5m ago, today→yesterday), so a fixture
+  // recorded moments earlier misses. They are context metadata, not the substance of the answer being
+  // replayed, so fold them to one token. (Longest unit alternatives first so "minutes" beats "min".)
+  [/\b\d+\s*(?:minutes|minute|mins|min|hours|hour|hrs|hr|days|day|weeks|week|months|month|years|year|m|h|d|w)\s+ago\b/gi, '<reltime>'],
+  [/\bin\s+\d+\s*(?:minutes|minute|hours|hour|days|day|weeks|week|months|month|years|year|m|h|d|w)\b/gi, '<reltime>'],
+  [/\b(?:just now|yesterday|tomorrow|today)\b/gi, '<reltime>'],
 ];
 function normaliseForKey(v) {
   if (typeof v === 'string') return VOLATILE.reduce((acc, [re, rep]) => acc.replace(re, rep), v);
@@ -148,6 +176,13 @@ async function wrap(kind, keyParts, fn, opts = {}) {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
       return deser(rec.value);
     }
+    if (strict()) {
+      // Diagnostic (opt-in): dump the EXACT normalised request that missed, so it can be diffed
+      // against the recorded cassette to see which token drifted. Off unless E2E_CASSETTE_MISS_DUMP.
+      const dd = process.env.E2E_CASSETTE_MISS_DUMP;
+      if (dd) { try { fs.mkdirSync(dd, { recursive: true }); fs.writeFileSync(path.join(dd, key + '.json'), JSON.stringify(requestForRecord(keyParts))); } catch (_) {} }
+      throw _miss(kind, key);
+    }
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
 
@@ -183,6 +218,13 @@ async function wrapBuffer(kind, keyParts, fn) {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
       return Buffer.from(rec.b64, 'base64');
     }
+    if (strict()) {
+      // Diagnostic (opt-in): dump the EXACT normalised request that missed, so it can be diffed
+      // against the recorded cassette to see which token drifted. Off unless E2E_CASSETTE_MISS_DUMP.
+      const dd = process.env.E2E_CASSETTE_MISS_DUMP;
+      if (dd) { try { fs.mkdirSync(dd, { recursive: true }); fs.writeFileSync(path.join(dd, key + '.json'), JSON.stringify(requestForRecord(keyParts))); } catch (_) {} }
+      throw _miss(kind, key);
+    }
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
   const t0 = Date.now();
@@ -201,4 +243,4 @@ function audioKey(audioPath, extra) {
   return { fileSha, ...extra };
 }
 
-module.exports = { mode, keyFor, wrap, wrapBuffer, wrapChatCompletions, audioKey, normaliseForKey, requestForRecord, stable, sha256, dir, PROD_PROJECT_REFS };
+module.exports = { mode, strict, keyFor, wrap, wrapBuffer, wrapChatCompletions, audioKey, normaliseForKey, requestForRecord, stable, sha256, dir, PROD_PROJECT_REFS };

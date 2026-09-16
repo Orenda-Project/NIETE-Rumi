@@ -192,6 +192,24 @@ describe('e2e-cassette: key normalisation for volatile prompt content', () => {
     const b = c.keyFor('llm', c.normaliseForKey({ messages: [{ content: 'Transcript: goodbye' }] }));
     expect(a).not.toBe(b);
   });
+  test('relative-time phrases do not change the key (the bot writes "13h ago" / "yesterday" into prompts)', () => {
+    // The prompt embeds now-relative labels the bot builds from the clock: lp-context.agoLabel emits
+    // "13h ago"/"3d ago", context.service "2 hours ago"/"yesterday", call-context "in 3 days"/"today".
+    // Absolute VOLATILE tokens (ISO/date) never catch these, so every run they drift and the fixture
+    // recorded seconds earlier misses. normaliseForKey must fold them to a constant.
+    const c = fresh({});
+    const mk = (rel) => ({ model: 'm', messages: [{ role: 'system', content: 'Recently delivered: Grade 1 English (' + rel + '). Transcript: the teacher said hello.' }] });
+    const keys = ['13h ago', '14h ago', '45m ago', '3d ago', '2 hours ago', '1 hour ago',
+                  '30 minutes ago', '2 days ago', 'yesterday', 'just now', 'today', 'in 3 days']
+      .map((rel) => c.keyFor('llm', c.normaliseForKey(mk(rel))));
+    expect(new Set(keys).size).toBe(1);
+  });
+  test('relative-time normalisation does not collide genuinely different prompts', () => {
+    const c = fresh({});
+    const a = c.keyFor('llm', c.normaliseForKey({ messages: [{ content: 'The lesson was 2 days ago about fractions' }] }));
+    const b = c.keyFor('llm', c.normaliseForKey({ messages: [{ content: 'The lesson was 2 days ago about the water cycle' }] }));
+    expect(a).not.toBe(b);
+  });
   test('wrapChatCompletions keys by the normalised params', async () => {
     const dir = tmpDir();
     const c = fresh({ E2E_CASSETTE: 'replay', E2E_CASSETTE_DIR: dir, SUPABASE_URL: 'https://rpqkekcfvumypldbejhp.supabase.co' });

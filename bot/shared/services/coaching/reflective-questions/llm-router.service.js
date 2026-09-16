@@ -57,11 +57,26 @@ const PROVIDER_ROUTING = { sort: 'throughput', allow_fallbacks: true };
 // Lazy-initialised: OPENROUTER_API_KEY is in REQUIRED_VARS so the bot won't pass
 // `doctor` without it, but we don't want module-load to crash before doctor's
 // friendly missing-key matrix runs.
-const getOpenRouter = lazyClient(OpenAI, ['OPENROUTER_API_KEY'], (env) => ({
+const _getOpenRouterRaw = lazyClient(OpenAI, ['OPENROUTER_API_KEY'], (env) => ({
   apiKey: env.OPENROUTER_API_KEY,
   baseURL: 'https://openrouter.ai/api/v1',
   maxRetries: 0,
 }));
+
+// Route this client's completions through the e2e cassette, exactly like llm-client.getClient().
+// WITHOUT this the reflective corpus/question call bypasses the cassette and goes LIVE — which in the
+// sealed mock lane (no vendor keys) 401s, so corpus extraction fails, the question falls back to a
+// generic safe question, and the TTS of that fallback was never recorded → an unattributable cassette
+// miss (bd-yjyn0). Off by default and forced off on the prod DB (see e2e-cassette.js).
+let _cassetteApplied = false;
+const getOpenRouter = () => {
+  const client = _getOpenRouterRaw();
+  if (!_cassetteApplied) {
+    _cassetteApplied = true;
+    try { const cassette = require('../../e2e-cassette'); if (cassette.mode() !== 'off') cassette.wrapChatCompletions(client); } catch (_) { /* cassette optional */ }
+  }
+  return client;
+};
 
 const PRIMARY_MODEL = 'deepseek/deepseek-v3.2';
 const FALLBACK_MODEL = 'openai/gpt-5.4';

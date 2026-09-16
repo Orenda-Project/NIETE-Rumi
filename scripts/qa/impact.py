@@ -116,10 +116,50 @@ def ledger_rows_added(repo, rng):
     return out
 
 
+def ledger_misses(repo, rng):
+    """{feature: misses} for the MOST RECENT runs.jsonl row of each feature in the range whose latest
+    run still has missing cassettes. A mock-lane run that could not replay a vendor answer records the
+    count under the nested `cassette.misses` (see .claude/qa/shared/ledger_row.py — there is no
+    top-level `cassette_misses`); the PR comment turns it into an @-mention so the cassette owner
+    records/updates the fixture. Last row wins, matching ledger_rows_added: a later clean run (misses 0)
+    means the cassettes were recorded since, so the feature drops out and we do not nag."""
+    r = _git(repo, "diff", rng, "--", LEDGER)
+    latest = {}
+    for line in r.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        try:
+            row = json.loads(line[1:])
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("feature"):
+            latest[row["feature"]] = int((row.get("cassette") or {}).get("misses") or 0)
+    return {f: m for f, m in latest.items() if m}
+
+
+def ledger_regression(repo, rng):
+    """{feature: regression dict} from the MOST RECENT row per feature that carries the known-findings
+    verdict (ledger_row.py stamps `regression` = {gate, new_failures, known, fixed}). Rows without it
+    (chrome runs, rows written before this field) contribute nothing, so the report simply falls back
+    to the raw status for those. Last row wins, matching ledger_rows_added."""
+    r = _git(repo, "diff", rng, "--", LEDGER)
+    out = {}
+    for line in r.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        try:
+            row = json.loads(line[1:])
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("feature") and isinstance(row.get("regression"), dict):
+            out[row["feature"]] = row["regression"]
+    return out
+
+
 def _empty(base, head, error=""):
     return {"base": base, "head": head, "range": None, "error": error, "paths": [],
             "features": [], "commands": [], "fallback": False, "unmapped": [],
-            "full_suite": None, "per_feature": {},
+            "full_suite": None, "per_feature": {}, "cassette_misses": {},
             "verdict": {"spec_freshness": "n/a", "e2e_proof": "n/a"}}
 
 
@@ -157,10 +197,12 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
     brief = ss.build_brief(seld, os.path.join(repo, SPEC_DIR), lambda p: "", repo=repo, rev_range=rng)
     tr = trailers(repo, rng, pr_body)
     proof = ledger_rows_added(repo, rng)
+    regr = ledger_regression(repo, rng)
 
     res = _empty(base, head)
     res.update({"range": rng, "paths": paths, "features": seld["features"], "commands": seld["commands"],
-                "fallback": seld["fallback"], "unmapped": seld["unmapped"], "full_suite": seld["full_suite"]})
+                "fallback": seld["fallback"], "unmapped": seld["unmapped"], "full_suite": seld["full_suite"],
+                "cassette_misses": ledger_misses(repo, rng)})
     for f in brief["features"]:
         name = f["feature"]
         spec_changed = "%s/%s.feature" % (SPEC_DIR.replace(os.sep, "/"), name) in paths
@@ -178,6 +220,7 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "scenario_count": f["scenario_count"], "spec_status": status, "spec_reason": reason,
             "changed_files": [c["path"] for c in f["changed_files"]],
             "e2e_proof": proof.get(name, "missing"),
+            "regression": regr.get(name),
         }
     pf = res["per_feature"]
     if pf:
@@ -203,6 +246,107 @@ def _icon(status):
             "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜"}.get(status, "")
 
 
+def _cassette_owner():
+    owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mah-noor1").strip()
+    return owner if owner.startswith("@") else "@" + owner
+
+
+def _regression_note(reg):
+    """One line reconciling a raw run status against the known-findings gate. '' when the row carries
+    no verdict (a chrome run, or a row written before the field existed) — the report then shows the
+    raw status alone, as before. A CRITICAL run is CLEAN when its only FAILs are documented findings."""
+    if not reg:
+        return ""
+    if reg.get("gate") == "fail":
+        return "❌ NEW REGRESSION: %s" % ", ".join(reg.get("new_failures") or ["?"])
+    note = "✅ no new regressions"
+    if reg.get("known"):
+        note += " (%d known: %s)" % (len(reg["known"]), ", ".join(reg["known"]))
+    if reg.get("fixed"):
+        note += " · ✓ now fixed: %s" % ", ".join(reg["fixed"])
+    return note
+
+
+def regressed_features(res):
+    """Features whose most recent recorded run has a NEW regression (unlisted FAIL)."""
+    return [n for n in res.get("features", [])
+            if (res["per_feature"].get(n, {}).get("regression") or {}).get("gate") == "fail"]
+
+
+def _any_regression_verdict(res):
+    return any(res["per_feature"].get(n, {}).get("regression") for n in res.get("features", []))
+
+
+def mock_feature_set():
+    """Features enrolled in the mock lane (layer 1): those whose driver
+    .claude/qa/shared/features/<f>.cjs carries a `@mock-lane` marker in its first 5 lines. This mirrors
+    .claude/hooks/lib/mock-lane.sh exactly, so the pre-push report and the commit-time hooks cannot
+    disagree about which lane a feature is on. E2E_MOCK_FEATURES overrides for a one-off. ROOT is the
+    repo impact.py lives in, which is always the repo it analyses (`--repo .` from the checkout root)."""
+    override = os.environ.get("E2E_MOCK_FEATURES")
+    if override:
+        return {f.strip() for f in override.split(",") if f.strip()}
+    d = os.path.join(ROOT, ".claude", "qa", "shared", "features")
+    out = set()
+    try:
+        names = sorted(os.listdir(d))
+    except OSError:
+        return out
+    for fn in names:
+        if not fn.endswith(".cjs"):
+            continue
+        try:
+            with open(os.path.join(d, fn), encoding="utf-8") as fh:
+                head = [next(fh, "") for _ in range(5)]
+        except OSError:
+            continue
+        if any(re.match(r"^//\s*@mock-lane", ln) for ln in head):
+            out.add(fn[:-4])
+    return out
+
+
+def chrome_paused():
+    """The chrome lane (layer 2) is paused unless E2E_CHROME_ON=1 — same switch as mock-lane.sh."""
+    return os.environ.get("E2E_CHROME_ON", "0") != "1"
+
+
+def _drive_block(res):
+    """The 'how to drive the E2E' recommendation, lane-aware. Mock-capable features go to the mock
+    lane (layer 1: commit-e2e.sh, no browser, tests THIS commit). Chrome-only features are layer 2:
+    noted as paused (with the scaffold hint that would move them onto the mock lane) unless
+    E2E_CHROME_ON=1, in which case their `/niete-e2e` WhatsApp-Web commands are shown."""
+    feats = res.get("features") or []
+    mock_set = mock_feature_set()
+    mock = [f for f in feats if f in mock_set]
+    chrome = [f for f in feats if f not in mock_set]
+    head = (res.get("head") or "HEAD")[:12]
+    L = []
+    if mock:
+        L += ["### Then drive the targeted E2E — mock lane (layer 1)",
+              "Tests THIS commit, no browser, no WhatsApp number:",
+              "```",
+              "bash .claude/qa/shared/commit-e2e.sh %s --features %s" % (head, ",".join(mock)),
+              "```",
+              "It boots the bot from a detached worktree at this commit behind a mock Graph API, drives the",
+              "feature scripts, and appends `.claude/qa/ledgers/runs.jsonl` — the row this check reads as proof.",
+              "Vendors are cassette replay-strict: a miss fails loudly and names the scenario. Commit the",
+              "`runs.jsonl` row (and any new fixtures).", ""]
+    if chrome:
+        if chrome_paused():
+            L += ["> **Chrome lane (layer 2) is paused** — %s not auto-driven here (no `@mock-lane` driver yet)."
+                  % ", ".join("`%s`" % c for c in chrome),
+                  "> Scaffold a mock driver to move it onto layer 1: `python3 .claude/qa/shared/scaffold-driver.py <feature>`",
+                  "> (then fill in the interactions). Or set `E2E_CHROME_ON=1` to drive it on WhatsApp Web against staging.", ""]
+        else:
+            L += ["### Then drive the targeted E2E — chrome lane (layer 2)",
+                  "```"] + ["/niete-e2e %s" % c for c in chrome] + ["```",
+                  "Against staging, from a Claude Code session with a linked WhatsApp Web tab (`/niete-e2e` checks the",
+                  "preconditions). The run appends to `.claude/qa/ledgers/runs.jsonl`.", ""]
+    if not L:  # no features split either way — fall back to whatever the selector emitted
+        L += ["### Then drive the targeted E2E", "```"] + (res.get("commands") or []) + ["```", ""]
+    return L
+
+
 def render_markdown(res, freshness="warn", proof="warn"):
     L = [COMMENT_MARKER, "## QA impact — Gherkin sync + targeted E2E", ""]
     if res.get("error"):
@@ -225,10 +369,25 @@ def render_markdown(res, freshness="warn", proof="warn"):
             spec += " — _%s_" % f["spec_reason"]
         if f["spec_status"] == "stale":
             spec += " — `%s.feature` unchanged" % name
-        L.append("| **%s** (%d scenarios) | %s | %s | %s %s |" % (
-            name, f["scenario_count"], via, spec, _icon(f["e2e_proof"]), f["e2e_proof"]))
+        proof_cell = "%s %s" % (_icon(f["e2e_proof"]), f["e2e_proof"])
+        cm = (res.get("cassette_misses") or {}).get(name)
+        if cm:
+            proof_cell += "<br>📼 %d missing — %s record" % (cm, _cassette_owner())
+        note = _regression_note(f.get("regression"))
+        if note:
+            proof_cell += "<br>%s" % note
+        L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (
+            name, f["scenario_count"], via, spec, proof_cell))
     L += ["", "**Spec freshness: %s** (mode: %s) · **E2E proof: %s** (mode: %s)" % (
         v["spec_freshness"], freshness, v["e2e_proof"], proof), ""]
+    regressed = regressed_features(res)
+    if regressed:
+        L += ["**❌ New regressions in %s** — a scenario broke that is not a documented known finding "
+              "(see the E2E column). This is separate from a run being CRITICAL: a CRITICAL run can still "
+              "be regression-clean." % ", ".join(regressed), ""]
+    elif _any_regression_verdict(res):
+        L += ["**✅ No new regressions** — every recorded FAIL is a documented known finding, so a "
+              "CRITICAL status here is expected debt, not a break this range introduced.", ""]
     if v["spec_freshness"] == "stale":
         stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
         L += ["### Sync the specs first",
@@ -238,10 +397,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
               "`python3 .claude/qa/shared/validate_specs.py --only %s`." % ",".join(stale), "",
               "If the change genuinely alters no teacher-visible behaviour, say so where this check can read it — a commit trailer",
               "or a line in the PR body:", "", "```", "Spec-Sync: %s=none-needed (<why>)" % ",".join(stale), "```", ""]
-    L += ["### Then drive the targeted E2E", "```"] + res["commands"] + ["```",
-          "Against staging, from a Claude Code session with a linked WhatsApp Web tab (`/niete-e2e` checks the",
-          "preconditions). The run appends to `.claude/qa/ledgers/runs.jsonl`; commit that file and this check",
-          "records the proof.", ""]
+    L += _drive_block(res)
     if res["fallback"]:
         L += ["> ⚠️ Unmapped in-scope files pulled in the SAFE subset: %s — add them to `feature-map.yaml`." % ", ".join("`%s`" % u for u in res["unmapped"]), ""]
     if res["full_suite"]:
@@ -260,6 +416,9 @@ def render_text(res, freshness="warn", proof="warn"):
     for name in res["features"]:
         f = res["per_feature"][name]
         extra = " (%s.feature unchanged)" % name if f["spec_status"] == "stale" else ""
+        cm = (res.get("cassette_misses") or {}).get(name)
+        if cm:
+            extra += " 📼%d missing" % cm
         L.append("│   %-13s spec: %-12s e2e: %s%s" % (name, f["spec_status"], f["e2e_proof"], extra))
     if v["spec_freshness"] == "stale":
         stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
@@ -267,7 +426,28 @@ def render_text(res, freshness="warn", proof="warn"):
         L.append("│   or declare it: commit trailer  Spec-Sync: %s=none-needed (<why>)" % ",".join(stale))
         if freshness == "block":
             L.append("│ QA_HOOKS_STRICT=1 is set: this push is BLOCKED until the specs are synced or declared.")
-    L.append("│ then: " + "   ".join(res["commands"]))
+    mock_set = mock_feature_set()
+    feats = res["features"]
+    mock = [f for f in feats if f in mock_set]
+    chrome = [f for f in feats if f not in mock_set]
+    head = (res.get("head") or "HEAD")[:12]
+    if mock:
+        L.append("│ mock lane (layer 1 — tests this commit, no browser):")
+        L.append("│   bash .claude/qa/shared/commit-e2e.sh %s --features %s" % (head, ",".join(mock)))
+    if chrome:
+        if chrome_paused():
+            L.append("│ chrome lane (layer 2) PAUSED — %s not auto-driven "
+                     "(scaffold-driver.py <feature> to move it onto mock, or E2E_CHROME_ON=1)" % ",".join(chrome))
+        else:
+            L.append("│ chrome lane (layer 2): " + "   ".join("/niete-e2e %s" % c for c in chrome))
+    if not mock and not chrome:
+        L.append("│ then: " + "   ".join(res["commands"]))
+    regressed = regressed_features(res)
+    if regressed:
+        L.append("│ ❌ NEW REGRESSIONS: " + ", ".join(
+            "%s(%s)" % (n, ",".join(res["per_feature"][n]["regression"]["new_failures"] or ["?"])) for n in regressed))
+    elif _any_regression_verdict(res):
+        L.append("│ ✅ no new regressions — recorded FAILs are all documented known findings")
     L.append("└ re-run any time: npm run qa:impact")
     return "\n".join(L)
 

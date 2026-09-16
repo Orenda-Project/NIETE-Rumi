@@ -8,7 +8,8 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   #   exact match), the Meta ice-breaker, a natural-language request, or a voice note.
   # Delivery engines:
   #   (A) the "Pick Class" native Flow (Grade → Subject → Chapter → Topic → PDF), gated on
-  #       PAKISTAN_LP_FLOW_ID. Grades 1–5 serve a pre-generated Pakistan PDF; grades 6–10 an Oxbridge PDF.
+  #       PAKISTAN_LP_FLOW_ID. Grades 1–5 serve a pre-generated Pakistan PDF; grades 6–12 the Pakistan
+  #       6-12 corpus (gated on LP_612_ENABLED, live per bd-mww73), with Oxbridge only as the fallback.
   #   (B) natural language / voice — since bd-2540 these NO LONGER generate a freeform plan; they return
   #       the curriculum fallback ("this isn't in our collection yet — type menu").
   # Flow driving: dropdown pickers (open dropdown → pick option → Next); final submit is "Send Lesson Plan".
@@ -39,12 +40,15 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The Meta ice-breaker "Plan Lesson - Create PDF lesson plans instantly" opens the same Flow.
 
   @e2e @flow @content-driven @P2
-  Scenario: A secondary grade delivers an Oxbridge lesson plan, not a Pakistan one
+  Scenario: A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one
     Given the NIETE bot chat is open
     And I have opened the LP Flow
-    When I complete it for a grade between 6 and 10
-    Then the interim ack matches "📖 Sending your Oxbridge lesson plan: <grade> <subject> — <chapter>…"
-    And an Oxbridge lesson-plan PDF is delivered (e.g. "Oxbridge — <chapter> — Lesson Plan.pdf")
+    When I complete it for a grade between 6 and 12
+    Then the bot delivers a lesson plan from the Pakistan 6-12 corpus (PDF named "grade_<n>_<subject>_c<NN>_p<NN>_<lang>.pdf")
+    And it does not fall back to an Oxbridge lesson plan
+    # Grades 6-12 = the Pakistan 6-12 corpus, gated on LP_612_ENABLED (live per bd-mww73; sandbox DB seeded).
+    # Oxbridge is only the fallback when the flag is off or a grade's books are not yet segmented — an
+    # Oxbridge reply for a secondary grade is now the FAILURE the driver reports (oxbridge:true).
 
   # ─────────────────────── Business rules / valid variations ───────────────────────
 

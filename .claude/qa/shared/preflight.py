@@ -199,8 +199,15 @@ def main(argv):
     order = feature_order()
     counts = spec_counts(order)
     run_dir = run if os.path.sep in run else os.path.join(RESULTS, run)
+    # Provenance the mock lane needs: WHICH driver technology and WHICH commit this run drove.
+    # Both are optional so the chrome lane's callers are unchanged.
+    extra = {}
+    if _arg(argv, "--method"):
+        extra["method"] = _arg(argv, "--method")
+    if _arg(argv, "--commit-sha"):
+        extra["commit_sha"] = _arg(argv, "--commit-sha")
     meta = write_run_json(run_dir, run=os.path.basename(run_dir), mode=mode, driver=driver,
-                          target=target, env=env, counts=counts, order=order)
+                          target=target, env=env, counts=counts, order=order, **extra)
 
     print("run dir   %s" % run_dir)
     print("mode      %s · %d feature(s) · %s scenario(s)"

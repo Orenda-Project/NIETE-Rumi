@@ -1,4 +1,5 @@
-/* menu.feature — all 12 @e2e scenarios, driven in one process.
+// @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
+/* menu.feature — all 13 @e2e scenarios, driven in one process.
  * Assertions mirror tests/features/whatsapp/niete/menu.feature. */
 const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Anything'];
 const head = t => (t || '').split('\n')[0];
@@ -51,18 +52,24 @@ exports.run = async ({ api, rec, sleep }) => {
       { reply: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs })), t() - s);
 
   // M08 — answers a teaching question
+  // Isolate each open-chat scenario: reset the conversation history (DB rows + the bot's in-process
+  // Map) so the LLM prompt does not fold in earlier scenarios' turns, which made the vendor cassette
+  // key drift every run (the M09/M08/M12 misses). With a clean baseline the prompt is deterministic.
+  api.resetConversation();
   s = t(); r = await api.sendWait('What are two quick classroom management strategies for a large class?', 120000);
   rec('M08', 'Ask Anything answers a teaching question',
       ...Object.values(V(r.ok && (r.txt || '').length > 60,
       { len: (r.txt || '').length, sample: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs })), t() - s);
 
   // M09 — gibberish handled gracefully
+  api.resetConversation();
   s = t(); r = await api.sendWait('asdfghjkl zxcvbnm qwerty', 120000);
   rec('M09', 'Gibberish input is handled gracefully',
       ...Object.values(V(r.ok && (r.txt || '').trim().length > 0 && !/error|exception|undefined/i.test(r.txt),
       { len: (r.txt || '').length, sample: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs })), t() - s);
 
   // M12 — capability question gets guidance, not a feature
+  api.resetConversation();
   s = t(); r = await api.sendWait('what can you do?', 120000);
   rec('M12', 'A capability question gets a guided answer, not a feature attempt',
       ...Object.values(V(r.ok && (r.txt || '').length > 40 && !r.btns.includes('View Features'),
@@ -82,7 +89,16 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('M11', '/settings degrades gracefully when the Settings Flow is not configured',
       notAvail ? 'PASS' : 'SKIP',
       { reply: (r.txt || '').slice(0, 90), botWaitMs: r.waitedMs,
-        note: notAvail ? null : 'Settings Flow IS configured here — the scenario precondition does not hold' }, t() - s);
+        note: notAvail ? null : 'Settings Flow IS configured here — the scenario precondition (SETTINGS_FLOW_ID unset) is an environment shape this lane does not run; the degrade path is covered by unit tests' }, t() - s);
+
+  // M13 — a menu number outside 1-4 gets the Helper Agent escape nudge and starts nothing
+  // (spec sync 2026-09-08; the first mock drive showed "7" never reaches handleMenuChoice)
+  s = t();
+  await api.sendWait('/menu');
+  r = await api.sendWait('7');
+  rec('M13', 'A menu number outside 1-4 gets the choose-an-option nudge and starts nothing',
+      ...Object.values(V(/choose an option \(1-4\)/i.test(r.txt || '') && /\/menu/.test(r.txt || '') && !r.btns.includes('View Features'),
+      { reply: (r.txt || '').slice(0, 110), btns: r.btns, botWaitMs: r.waitedMs })), t() - s);
 
   // M03 — /menu as escape hatch from inside a feature flow
   s = t();

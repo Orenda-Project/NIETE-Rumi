@@ -221,6 +221,30 @@ def cmd_answer_key(creds, a):
     print(json.dumps(out, ensure_ascii=False))
     sys.stderr.write("resolved %d/%d answers for grand_quiz %s\n" % (sum(1 for o in out if o["correct"]), len(out), gq))
 
+def _option_texts(opts):
+    return [o if isinstance(o, str) else (o.get("text") or o.get("label") or o.get("title") or "") for o in (opts or [])]
+
+def cmd_module_answer_key(creds, a):
+    """Answer key for ONE module's check, as the driver needs it: per served question, the correct
+    option TEXT(s) and canonical 1-based index(es). Resolves the module by id, or by the (possibly
+    truncated) title the Flow's picker showed — hence the prefix match. Read-only."""
+    if getattr(a, "module", None):
+        mods = _get(creds, "training_modules", "id=eq.%s&select=id,title" % a.module)
+    else:
+        title = (getattr(a, "title", "") or "").replace("…", "").strip()
+        if not title: sys.exit("module-answer-key needs --module <id> or --title <prefix>")
+        mods = _get(creds, "training_modules", "title=ilike.%s*&is_active=eq.true&select=id,title&order=id&limit=2" % urllib.parse.quote(title, safe=""))
+    if not mods: sys.exit("no module matches")
+    mod = mods[0]
+    qs = _get(creds, "training_questions", "training_module_id=eq.%s&is_active=eq.true&select=id,question_text,options,correct_option&order=order_index" % mod["id"]) or []
+    out = []
+    for q in qs:
+        texts = _option_texts(q.get("options"))
+        keys = [k.strip() for k in str(q.get("correct_option") or "").split(",") if k.strip()]
+        idx = [int(k) for k in keys if k.isdigit() and 1 <= int(k) <= len(texts)]
+        out.append({"q": (q.get("question_text") or "").strip(), "correct": [texts[i - 1] for i in idx], "correct_index": idx, "multi": len(keys) > 1})
+    print(json.dumps({"module": {"id": mod["id"], "title": mod["title"]}, "questions": out}, ensure_ascii=False))
+
 def _uid(creds, phone):
     u = _get(creds, "users", "phone_number=eq.%s&select=id" % phone)
     if not u: sys.exit("no user for phone %s" % phone)
@@ -322,13 +346,14 @@ def main():
     ak = sub.add_parser("answer-key", parents=[common]); ak.add_argument("--grand-quiz", type=int, dest="grand_quiz"); ak.add_argument("--level", type=int)
     for name in ("seed-level-complete", "revert-level"):
         s = sub.add_parser(name, parents=[common]); s.add_argument("--phone", required=True); s.add_argument("--level", type=int, required=True); s.add_argument("--yes-write", action="store_true")
+    mak = sub.add_parser("module-answer-key", parents=[common]); mak.add_argument("--phone"); mak.add_argument("--module", type=int); mak.add_argument("--title"); mak.add_argument("--yes-write", action="store_true")
     apg = sub.add_parser("activate-program", parents=[common]); apg.add_argument("--phone", required=True); apg.add_argument("--program-key", required=True, dest="program_key"); apg.add_argument("--yes-write", action="store_true")
     smp = sub.add_parser("seed-module-pass", parents=[common]); smp.add_argument("--phone", required=True); smp.add_argument("--module", type=int, required=True); smp.add_argument("--program-key", default="niete_standard", dest="program_key"); smp.add_argument("--yes-write", action="store_true")
     a = p.parse_args()
     creds = _creds(getattr(a, "env", None))
     {"lookup": cmd_lookup, "answer-key": cmd_answer_key, "seed-level-complete": cmd_seed_level_complete,
      "revert-level": cmd_revert_level, "activate-program": cmd_activate_program,
-     "seed-module-pass": cmd_seed_module_pass}[a.cmd](creds, a)
+     "seed-module-pass": cmd_seed_module_pass, "module-answer-key": cmd_module_answer_key}[a.cmd](creds, a)
 
 if __name__ == "__main__":
     main()
