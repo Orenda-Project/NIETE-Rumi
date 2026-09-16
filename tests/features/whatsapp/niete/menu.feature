@@ -139,8 +139,9 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # A non-activated teacher instead gets a /portal/setup/<token> link
     # (portal-invite.service.js:62).
 
-  @e2e @config-gated @P3
+  @obsolete @config-gated @P3
   Scenario: /settings degrades gracefully when the Settings Flow is not configured
+    # OBSOLETE 2026-09-16 (operator): removed from the E2E lane — its precondition (SETTINGS_FLOW_ID unset) cannot be met on any reachable env here, so it only ever SKIPped; the degrade path stays covered by unit tests. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open
     When I send "/settings"
     Then the bot reply contains "not available"
