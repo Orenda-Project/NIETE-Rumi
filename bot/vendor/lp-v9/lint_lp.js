@@ -835,16 +835,35 @@ const PROPHET_TOKENS = [
   "نبی کریم", "نبی اکرم", "نبی پاک", "آں حضرت", "آنحضرت", "حضور اکرم",
   "محمد", "حضور", "نبی",
 ].sort((a, b) => b.length - a.length);
-const PROPHET_RE = new RegExp(PROPHET_TOKENS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+// AND WHOLE-WORD. Arabic script has no \b that works, so the boundary is "not flanked by an
+// Arabic LETTER" — the class deliberately excludes diacritics (U+064B-065F) and the honorific
+// signs (U+0610-061A) so "نبیؐ" and "نبی ﷺ" still match. Without this, "نبی" matches INSIDE the
+// ordinary plural "انبیاء" ("prophets") and the gate refuses to deliver a lesson whose only sin
+// is using a common word — the three production refusals on 2026-09-15 were two of these.
+const AR_LETTER = "\u0620-\u064A\u066E-\u06D3\u06D5\u06EE\u06EF\u06FA-\u06FF";
+const PROPHET_RE = new RegExp(
+  `(?<![${AR_LETTER}])(?:${PROPHET_TOKENS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![${AR_LETTER}])`,
+  "g");
 // The honorific may be the ligature or spelled out, and a comma or a quote may sit between.
 const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/;
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
-const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
+// "رضی اللہ تعالیٰ عنہا" — the exalting word may sit INSIDE the honorific, and when it does the
+// form is the more reverent one, not a lesser one. Leaving it out made the Grade 6 Urdu tafheem
+// line "حضرت خدیجۃ الکبریٰ رضی اللہ تعالیٰ عنہا" read as BARE, and check 3 refused the lesson for
+// a slip the author had not made. The plural/feminine endings stay in one place rather than
+// repeated per-form.
+const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ|تعالى|تعالی)?\s*عنہ(?:م|ا|ما|من)?|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ[مان]?\s*السلام|رحمۃ\s*اللہ\s*علیہ|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
 // Latin script has no place in a sacred name on an Urdu religious page — a transliteration is a
 // de-pointing by another route, and §4c.5 bans that outright.
-const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|PBUH|SAW|SAWW|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu|RA\b)/;
+const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|PBUH|SAW|SAWW|Sallallahu|Rasool|Rasul|Sahaba|Radiallahu|RA)\b/;
+// "Latin script has no place in a sacred name ON AN URDU RELIGIOUS PAGE" — the rule's own words.
+// It was being applied to English strings, where Latin script is how the name is correctly
+// printed, so a Grade 6 History SLO quoting the curriculum verbatim ("...the role of Muhammad Ali
+// Jinnah...") was refused delivery and, being a verbatim quote, could never be edited to comply.
+// A string is in scope only if it actually carries Urdu/Arabic script.
+const HAS_URDU = new RegExp(`[${AR_LETTER}]`);
 // Attributed prophetic SPEECH: a Prophet token, a speech verb, and a quoted span. That is a
 // hadith, and a hadith without its source is the "content that has him speak" the operator ruled
 // out. A source is a book-and-number, a page cite, or a named collection.
@@ -1211,11 +1230,34 @@ function religiousMarks(doc, ctx) {
   const { fail, warn } = ctx;
   const HOLD = "Automated checks do NOT clear religious content: the native-speaker review remains a hard hold before any teacher delivery (brief §4c, gate G5c).";
 
-  const strings = harvest(doc).filter(({ at }) =>
+  // DETECTION is broad and ENFORCEMENT is narrow, and the two are deliberately different sets.
+  //
+  // Detection asks "does this document carry religious content at all", and the answer must
+  // count the model's OWN internal note saying so — `/human_review_reason` is often where the
+  // signal is clearest. Narrowing detection would silently switch off check 6, the
+  // `needs_human_review` hold, which is the protection that actually matters.
+  //
+  // Enforcement asks "must we refuse to DELIVER this", and that may only read what the teacher
+  // reads. Three fields are excluded because a defect there is not hers to see and, in two of
+  // them, not ours to fix:
+  //   • /human_review_reason  — an internal routing note; the model writing "this needs religious
+  //                             review" was doing its job and was refused for saying so.
+  //   • /slo/text_verbatim    — quoted from the curriculum document WORD FOR WORD. The gate
+  //                             demanded an edit to an immutable quote, so the segment could
+  //                             never pass: permanently undeliverable, not merely failed.
+  //   • /sections/*/video/... — a third party's video title. We can drop the video; we cannot
+  //                             rewrite someone else's title, so blocking the lesson over it
+  //                             refuses a whole plan for a line we do not own.
+  // The Prophet named without an honorific in the lesson BODY still hard-blocks, exactly as
+  // bd-qzitp shipped it.
+  const detected = harvest(doc).filter(({ at }) =>
     !at.startsWith("/revisions") && !at.startsWith("/notes") && !at.startsWith("/provenance"));
-  const isReligious = strings.some(({ s }) => PROPHET_RE.test(s) || /ﷺ|رضی\s*اللہ|علیہ\s*السلام|سیرت|حدیث|قرآن/.test(s));
+  const isReligious = detected.some(({ s }) => PROPHET_RE.test(s) || /ﷺ|رضی\s*اللہ|علیہ\s*السلام|سیرت|حدیث|قرآن/.test(s));
   PROPHET_RE.lastIndex = 0;
   if (!isReligious) return;
+
+  const NOT_TEACHER_FACING = /^\/human_review_reason|^\/slo\/text_verbatim|^\/sections\/[^/]+\/video\//;
+  const strings = detected.filter(({ at }) => !NOT_TEACHER_FACING.test(at));
 
   // 1 — the honorific after every mention of the Prophet. Mechanical, and blocking.
   for (const { at, s } of strings) {
@@ -1228,7 +1270,9 @@ function religiousMarks(doc, ctx) {
   }
 
   // 2 — no sacred name in Latin script. A transliteration is a de-pointing by another route.
+  //     Urdu-script strings only: see HAS_URDU.
   for (const { at, s } of strings) {
+    if (!HAS_URDU.test(s)) continue;
     const t = TRANSLIT_RE.exec(s);
     if (t) {
       fail("RELIGIOUS_MARKS", `${at || "/"} writes a sacred name or honorific in Latin script ("${t[0]}"): "${s.slice(0, 70)}". These are set in Urdu/Arabic script as the book prints them — اللہ، نبی کریم ﷺ، رضی اللہ عنہ (brief §4c.5). ${HOLD}`);
@@ -1258,7 +1302,7 @@ function religiousMarks(doc, ctx) {
         consumed += words[i].length + (words[i + 1] || "").length;
         tail = rest.slice(consumed).replace(/^\s+/, "");
         if (COMPANION_HON.test(tail)) break;
-        if (i >= 2) break;                        // a name is at most three words
+        if (i >= 4) break;                        // a name is at most three words
       }
       name = name.replace(/[،۔:'"’”)(]+$/, "").trim();
       if (!name) continue;
