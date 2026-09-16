@@ -146,7 +146,13 @@ features:
     # (10 services + the author worker), so every change to it armed the SAFE
     # subset and authored no spec. Reached from pakistan-lp-endpoint.js and
     # text-message.handler.js, both already lesson-plan.
-    - bot/shared/services/lp612-*.service.js
+    # Matched by PREFIX, not by suffix: the survey's shared constants landed as
+    # `lp612-feedback.shared.js` when the 439-line feedback file was split
+    # (bd-2dpco), and a `lp612-*.service.js` glob silently did not own it — an
+    # unmapped file arms the SAFE subset and authors no spec. The lane is the
+    # `lp612-` prefix; a sibling of it is not a different feature because someone
+    # chose a different suffix.
+    - bot/shared/services/lp612-*.js
     - bot/workers/lp612-*.worker.js
     # The vendored authoring/rendering engine behind that lane: the author briefs,
     # the diagram type manifest, the linter, the renderer.
