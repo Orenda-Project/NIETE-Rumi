@@ -61,6 +61,17 @@ const REDIS_REASON_KEY = (userId) => `lp612_feedback_pending:${userId}`;
  */
 const BUTTON_RX = /^lp612_fb_(yes|no)_(en|ur)_(.+)$/;
 
+/**
+ * Q2 — `lp612_used_(taught|planned|not_yet)_<segment_id>` (bd-b708h).
+ *
+ * Same shape, one difference: no language token. Q2 writes no language-dependent column, and the
+ * document language was already banked by the Q1 row this update lands on.
+ *
+ * `not_yet` contains the separator, so the answer is matched as a closed alternation rather than
+ * split on the next `_` — otherwise the column gets 'not' and the segment gets 'yet_grade_9_…'.
+ */
+const USAGE_RX = /^lp612_used_(taught|planned|not_yet)_(.+)$/;
+
 /** The lane + document-language discriminator written into the existing `lp_variant` column. */
 const variantFor = (lang) => `lp612_${clampLanguage(lang)}`;
 
@@ -76,6 +87,21 @@ async function _voiceOf(userId, fallback) {
     if (data && data.preferred_language) return clampLanguage(data.preferred_language);
   } catch (_) { /* fall through */ }
   return clampLanguage(fallback);
+}
+
+
+/**
+ * Phone → the teacher's row. Both button handlers need exactly these two fields.
+ *
+ * It is a helper rather than two inline copies because of `tests/setup/column-completeness.test.js`:
+ * that guard attributes a column to the nearest LITERAL `.from('…')` within 600 characters, and
+ * `.from(TABLE)` is a variable it cannot resolve. An inline `users` read sitting a few lines above
+ * the `lp_feedback` UPDATE therefore made the guard report `users.used_in_class` and `users.user_id`
+ * as missing columns — a false gap that would have gone into the snapshot as real debt.
+ */
+async function _userByPhone(phone) {
+  return supabase
+    .from('users').select('id, preferred_language').eq('phone_number', phone).maybeSingle();
 }
 
 // ─── 1. schedule ────────────────────────────────────────────────────────────
@@ -177,8 +203,7 @@ async function handleFeedbackButton(buttonId, phone) {
   const docLang = clampLanguage(match[2]);
   const segmentId = match[3];
 
-  const { data: user, error: userError } = await supabase
-    .from('users').select('id, preferred_language').eq('phone_number', phone).maybeSingle();
+  const { data: user, error: userError } = await _userByPhone(phone);
   if (userError || !user) {
     // Owned but unattributable. She still gets an answer — a button that does nothing is worse
     // than a lost datum — and the failure is named rather than swallowed.
@@ -251,8 +276,22 @@ async function handleFeedbackButton(buttonId, phone) {
     }
   }
 
+  // 👍 → Q2. The thank-you it replaces was the end of the survey, and it is why
+  // `used_in_class` is set on a third of grades 1-5 rows and on NONE of this lane's. The prompt is
+  // itself the acknowledgement; sending `lp612FeedbackThanks` as well would be two notifications
+  // for one tap, and the string stays in the catalog for the K-5-style ack it still names.
   if (useful) {
-    await WhatsAppService.sendMessage(phone, resolveUx('lp612FeedbackThanks', { language: voice }));
+    const asked = await WhatsAppService.sendInteractiveButtons(phone, {
+      body: resolveUx('lp612UsedAsk', { language: voice }),
+      buttons: [
+        { id: `lp612_used_taught_${segmentId}`, title: resolveUx('lp612UsedTaught', { language: voice }) },
+        { id: `lp612_used_planned_${segmentId}`, title: resolveUx('lp612UsedPlanned', { language: voice }) },
+        { id: `lp612_used_not_yet_${segmentId}`, title: resolveUx('lp612UsedNotYet', { language: voice }) },
+      ],
+    });
+    logEvent('lp612.usage.prompt_sent', {
+      segmentId, userId: user.id, feedbackId, voice, ok: asked !== false,
+    });
     return true;
   }
 
@@ -267,6 +306,55 @@ async function handleFeedbackButton(buttonId, phone) {
     logToFile('LP 6-12 feedback: could not arm the reason window', { segmentId, error: err.message });
   }
   await WhatsAppService.sendMessage(phone, resolveUx('lp612FeedbackAskReason', { language: voice }));
+  return true;
+}
+
+// ─── 3b. did she teach it? ──────────────────────────────────────────────────
+
+/**
+ * Handle a `lp612_used_(taught|planned|not_yet)_<segment_id>` reply (bd-b708h).
+ *
+ * The UPDATE is keyed on BOTH `user_id` and `lp612_segment_id`. The K-5 handler keys on
+ * `lesson_plan_id` alone, which is safe there because a lesson plan belongs to one teacher; here
+ * a segment is a shared corpus row that hundreds of teachers rate, so a filter on the segment
+ * alone would stamp one teacher's answer onto every row for that lesson.
+ *
+ * Deliberately forgiving, exactly as the K-5 handler is: a tap we cannot store still gets a
+ * thank-you. She has done her part, and a button that answers with silence teaches her that
+ * answering is pointless — which costs more signal than the one row we just failed to write.
+ *
+ * @returns {Promise<boolean>} true iff this handler owned the id
+ */
+async function handleUsageButton(buttonId, phone) {
+  const match = USAGE_RX.exec(buttonId || '');
+  if (!match) return false;
+
+  const usedInClass = match[1];
+  const segmentId = match[2];
+
+  const { data: user, error: userError } = await _userByPhone(phone);
+  if (userError || !user) {
+    logToFile('LP 6-12 usage: phone → user lookup failed', { phone, error: userError && userError.message });
+    logEvent('lp612.usage.unattributable', { segmentId, phone, usedInClass });
+    await WhatsAppService.sendMessage(phone, resolveUx('lp612UsedThanks', { language: clampLanguage(null) }));
+    return true;
+  }
+  const voice = clampLanguage(user.preferred_language);
+
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ used_in_class: usedInClass })
+    .eq('user_id', user.id)
+    .eq('lp612_segment_id', segmentId);
+
+  if (error) {
+    logToFile('LP 6-12 usage: UPDATE failed', { segmentId, userId: user.id, error: error.message });
+    logEvent('lp612.usage.update_failed', { segmentId, userId: user.id, usedInClass, error: error.message });
+  } else {
+    logEvent('lp612.usage.recorded', { segmentId, userId: user.id, usedInClass });
+  }
+
+  await WhatsAppService.sendMessage(phone, resolveUx('lp612UsedThanks', { language: voice }));
   return true;
 }
 
@@ -339,11 +427,13 @@ module.exports = {
   scheduleFeedbackPrompt,
   sendFeedbackPrompt,
   handleFeedbackButton,
+  handleUsageButton,
   consumeReasonIfPending,
   // exported for tests:
   FEEDBACK_DELAY_MS,
   REASON_WINDOW_SECS,
   REDIS_REASON_KEY,
   BUTTON_RX,
+  USAGE_RX,
   variantFor,
 };
