@@ -72,6 +72,40 @@ describe('bd-60106 — reflectionProgress derives everything from the config', (
   });
 });
 
+describe('bd-60106 — the caption a teacher actually reads', () => {
+  // `_shared.buildPartialNote` is what the FICO / HOTS / TEACH transformers call,
+  // and FICO is the framework this deployment runs — so this, not
+  // report-generator.service, is the sentence that reaches the teacher.
+  const { buildPartialNote } = require('../../bot/shared/services/coaching/report-transformers/_shared');
+
+  it('quotes the configured total, never 3', () => {
+    const note = buildPartialNote({
+      _isPartialReport: true, _isAutoCompleted: true, _questionsAtCompletion: 1,
+    });
+    expect(note).toContain(`1/${NUM_REFLECTIVE_QUESTIONS}`);
+    expect(note).not.toContain('1/3');
+  });
+
+  it('says the same for a teacher who asked to finish early', () => {
+    const note = buildPartialNote({
+      _isPartialReport: true, _isUserRequestedEarly: true, _questionsAtCompletion: 1,
+    });
+    expect(note).toContain(`1/${NUM_REFLECTIVE_QUESTIONS}`);
+    expect(note).not.toContain('1/3');
+  });
+
+  it('still uses the audio-only wording when she answered nothing', () => {
+    const note = buildPartialNote({
+      _isPartialReport: true, _isUserRequestedEarly: true, _questionsAtCompletion: 0,
+    });
+    expect(note).toMatch(/classroom audio analysis only/);
+  });
+
+  it('returns null for a report that is not partial at all', () => {
+    expect(buildPartialNote({ _isPartialReport: false })).toBeNull();
+  });
+});
+
 describe('bd-60106 — no consumer hardcodes the reflection total any more', () => {
   it('the stale-session worker reads the config instead of 3', () => {
     const src = read('bot/workers/stale-session.worker.js');
@@ -84,6 +118,38 @@ describe('bd-60106 — no consumer hardcodes the reflection total any more', () 
   it('the report generator does not tell her "N/3 reflective responses"', () => {
     const src = read('bot/shared/services/coaching/report-generator.service.js');
     expect(src).not.toMatch(/questionsCompleted\}\/3/);
+  });
+
+  it('NO report path anywhere hardcodes the reflection total', () => {
+    // The first pass at this fixed report-generator.service and stopped there.
+    // It missed TWO more copies of the same sentence, and they are the ones that
+    // actually reach a NIETE teacher: `_shared.js#buildPartialNote` is what the
+    // FICO / HOTS / TEACH transformers call, and oecd-report-transformer keeps
+    // its own duplicate. So the caption a teacher read still said "1/3" while
+    // the fix looked done.
+    //
+    // Hence this sweep rather than another named-file assertion: any new
+    // producer of the sentence has to derive the total too.
+    const offenders = [];
+    const walk = (rel) => {
+      const abs = path.join(__dirname, '../..', rel);
+      for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
+        const child = `${rel}/${entry.name}`;
+        if (entry.isDirectory()) { if (entry.name !== 'node_modules') walk(child); continue; }
+        if (!entry.name.endsWith('.js')) continue;
+        const src = fs.readFileSync(path.join(__dirname, '../..', child), 'utf8');
+        src.split('\n').forEach((line, i) => {
+          // Comments may quote the old wording to explain the bug — it is the
+          // emitted STRING that must not carry a literal total.
+          if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
+          if (/reflective responses/.test(line) && /\/\s*3\b/.test(line)) {
+            offenders.push(`${child}:${i + 1}`);
+          }
+        });
+      }
+    };
+    walk('bot');
+    expect(offenders).toEqual([]);
   });
 
   it('the reminder-button paths do not gate the report on a hardcoded 3', () => {
