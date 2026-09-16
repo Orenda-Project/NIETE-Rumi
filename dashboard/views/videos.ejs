@@ -288,9 +288,7 @@
             });
 
             // User display name
-            const userName = video.users.first_name
-              ? `${video.users.first_name} ${video.users.last_name || ''}`.trim()
-              : video.users.phone_number;
+            const userName = video.users.name || video.users.phone_number;
           %>
 
           <div class="video-card">
