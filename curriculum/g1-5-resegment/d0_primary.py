@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import d0_blocks as B
 import d0_board
+import d0_diagram
 import d0_hook
 import d0_page2
 
@@ -217,6 +218,13 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None):
     chapter = pt.get("chapter") or {}
     page = pt.get("printed_page_number")
 
+    # THE THREE ANCHORED DIAGRAM SLOTS (bd-abkz9). Additive: no `diagrams` key means no
+    # call does anything, which is every corpus lesson today. A spec that cannot be seated
+    # is dropped whole and says why in notes.gaps -- see d0_diagram.
+    sections = [_intro(g, page), _development(g), _activity(g),
+                _conclusion(g), _homework(g)]
+    dia_gaps = d0_diagram.apply_slots(sections, g.get("diagrams"))
+
     doc = {
         "lesson_id": enr["lesson_id"].upper(),
         "schema_version": "3.0",
@@ -242,13 +250,12 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None):
         "period_minutes": int(g.get("duration_min") or 0),
         "materials": g.get("materials") or [],
         "objectives": _objectives(g),
-        "sections": [_intro(g, page), _development(g), _activity(g),
-                     _conclusion(g), _homework(g)],
+        "sections": sections,
         "page2": d0_page2.build(g),
         "one_screen": _one_screen(g),
         "notes": {
             "supplied": [f"primary lp_type: {enr.get('lp_type') or 'content'}"],
-            "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)],
+            "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)] + dia_gaps,
         },
         "needs_human_review": bool(enr.get("needs_human_review")),
     }
