@@ -1,0 +1,66 @@
+# tenants.yaml — THE ONLY FILE THAT NAMES THIS REPO'S TENANT (bd-9157r.1).
+#
+# Every script under .claude/qa/engine/ (the vendored, read-only E2E engine authored in rumi-agent-home)
+# resolves the repo root, the slash command, the spec dir, the branches and every tenant fact through
+# this file — bin/tenants_lite.py (Python), hooks/lib/tenants.sh (bash), bin/tenant.cjs (Node).
+# Template + key reference: .claude/qa/engine/config-templates/tenants.example.yaml.
+#
+# BLOCK STYLE ONLY: yaml_lite (the no-PyYAML fallback) rejects flow mappings `{a: b}`.
+
+version: 1
+repo: NIETE-Rumi
+command: /niete-e2e
+runtime_scope:
+  - bot/**
+spec_suite: niete                       # tests/features/whatsapp/niete/*.feature
+bot_root: bot
+e2e_scripts: bot/scripts/e2e            # mock-graph-api.js · local-stack.sh · flow-emulator.js · flow-inventory.js
+
+branches:
+  landing: sandbox                      # all work lands here (operator, 2026-09-08); tests run on sandbox after the merge
+  promotion: staging                    # cut from main; finished work is cherry-picked sandbox → staging
+  release: main
+  deploy_triggers:                      # a `git push` to one of these arms a run
+    - sandbox
+    - staging
+    - main
+    - develop                           # frozen since 2026-09-08 but the staging Railway env may still build from it — drop once repointed
+  full_suite_on:                        # a merge into one of these arms `/niete-e2e all` (also in feature-map.yaml full_suite_on)
+    - main
+
+keys:
+  local: keys/niete-local.env           # the mock lane's env: sandbox Supabase, storage + Flow ids, NO vendor keys
+  record: keys/niete-record.env         # --record only: real vendor keys, makes LIVE paid calls
+
+db:
+  env_prefix: NIETE_SANDBOX_SUPABASE    # NIETE_SANDBOX_SUPABASE_URL / _SERVICE_ROLE_KEY, from keys.local
+  forbidden_project_refs:
+    - ihzciabopbttygxxgrkm              # NIETE production — the cassette and every DB tool refuse it
+
+comment_marker: "<!-- niete-qa-impact -->"
+
+tenant_tools:                           # this repo's seed/reset tools (tenant layer, stay in .claude/qa/shared)
+  training_db: .claude/qa/shared/niete_training_db.py
+  registration_db: .claude/qa/shared/niete_registration_db.py
+  coaching_db: .claude/qa/shared/niete_coaching_db.py
+  sandbox_driver: .claude/qa/shared/niete_sandbox_driver.py
+  training_program: niete_standard
+
+tenants:
+  niete:
+    region_code: default                # bot/shared/utils/region.js DEFAULT_REGION
+    notion_region: pk-ict
+    driver: "923000000001"              # the sandbox driver account (niete_sandbox_driver.py ensures it)
+    language: en
+    targets_match: NIETE                # substring that picks this tenant's profiles in whatsapp-targets.yaml
+    features:                           # the nine agents in .claude/qa/agents/
+      - registration
+      - menu
+      - training
+      - lesson-plan
+      - coaching
+      - language
+      - status
+      - observe
+      - attendance
+    chrome: niete-sandbox               # whatsapp-targets.yaml default_profile (923025502255)

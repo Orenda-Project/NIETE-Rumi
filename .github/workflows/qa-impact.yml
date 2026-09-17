@@ -13,7 +13,7 @@ name: qa-impact
 # seamless"). This job is the piece that cannot be skipped by a clone that never
 # ran `npm install`.
 #
-# WHAT IT DOES. Runs scripts/qa/impact.py — the SAME analysis the pre-push hook
+# WHAT IT DOES. Runs .claude/qa/engine/bin/impact.py — the SAME analysis the pre-push hook
 # prints — over base...head of the PR, with the PR body available for a
 # `Spec-Sync: <feature>=none-needed (<why>)` declaration, and posts the result as
 # one PR comment that is edited in place (marker `<!-- niete-qa-impact -->`).
@@ -63,7 +63,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set +e
-          python3 scripts/qa/impact.py --repo . \
+          python3 .claude/qa/engine/bin/impact.py --repo . \
             --base "origin/$BASE_REF" --head "$HEAD_SHA" \
             --pr-body-file "$RUNNER_TEMP/pr-body.txt" --target-branch "$BASE_REF" \
             --format text --freshness block --proof warn \
