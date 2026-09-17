@@ -100,10 +100,51 @@ function gradeIsapsLevel(input = {}) {
   };
 }
 
+/**
+ * Turn stored counts into the earned/possible pairs gradeIsapsLevel expects.
+ *
+ * Kept separate from the arithmetic so the rule stays pure while this — which
+ * is entirely about how rows are counted — can be fixture-tested.
+ *
+ * The load-bearing decision: `possible` for formative is EVERY active item in
+ * the level, not the number the teacher happened to answer. Oxbridge
+ * deliberately skips unattempted modules (bd-43811, legacy imports left
+ * progress rows with no attempts), but I-SAPS is the opposite case — formative
+ * is 25% of the composite, so counting only answered items would let someone
+ * who answered 2 of 112 items post 100% formative and certify.
+ *
+ * `earned` is clamped to `possible` so duplicate answer rows cannot push a
+ * component over 100%.
+ *
+ * @param {object} counts
+ * @param {number} [counts.formativeItemCount] active formative items in level
+ * @param {number} [counts.formativeCorrect]   correct formative answers
+ * @param {number} [counts.mcqItemCount]       active summative MCQ items
+ * @param {number} [counts.mcqCorrect]         correct summative MCQ answers
+ * @param {number} [counts.crqEarned]          rubric marks awarded
+ * @param {number} [counts.crqPossible]        rubric marks available
+ * @returns {{formative:{earned:number,possible:number},
+ *            mcq:{earned:number,possible:number},
+ *            crq:{earned:number,possible:number}}}
+ */
+function collectIsapsLevelTotals(counts = {}) {
+  const n = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0);
+  const pair = (earned, possible) => {
+    const p = n(possible);
+    return { earned: Math.min(n(earned), p), possible: p };
+  };
+  return {
+    formative: pair(counts.formativeCorrect, counts.formativeItemCount),
+    mcq: pair(counts.mcqCorrect, counts.mcqItemCount),
+    crq: pair(counts.crqEarned, counts.crqPossible),
+  };
+}
+
 module.exports = {
   ISAPS_WEIGHTS,
   ISAPS_BARS,
   COMPONENTS,
   computeComponentPct,
   gradeIsapsLevel,
+  collectIsapsLevelTotals,
 };
