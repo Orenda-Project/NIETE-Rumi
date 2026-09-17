@@ -2039,7 +2039,7 @@
     },
     {
       "id": "TEACHER_PICK",
-      "title": "Remove a teacher",
+      "title": "Remove teachers",
       "refresh_on_back": true,
       "data": {
         "options": {
@@ -2076,7 +2076,7 @@
         },
         "intro": {
           "type": "string",
-          "__example__": "Pick the person to take off IMSB (VI-X), Rawal Dam."
+          "__example__": "Tick everyone to take off IMSB (VI-X), Rawal Dam."
         }
       },
       "layout": {
@@ -2091,10 +2091,12 @@
             "name": "teacher_pick_form",
             "children": [
               {
-                "type": "Dropdown",
-                "name": "pick",
-                "label": "Teacher or principal",
+                "type": "CheckboxGroup",
+                "name": "picks",
+                "label": "Teachers to remove",
                 "required": true,
+                "min-selected-items": 1,
+                "max-selected-items": 30,
                 "data-source": "${data.options}"
               },
               {
@@ -2105,7 +2107,7 @@
                   "payload": {
                     "step": "teacher_remove_check",
                     "school_ext_id": "${data.school_ext_id}",
-                    "teacher_ext_id": "${form.pick}"
+                    "teacher_ext_ids": "${form.picks}"
                   }
                 }
               }
@@ -2121,7 +2123,7 @@
       "data": {
         "plan": {
           "type": "string",
-          "__example__": "Tahira Manzoor will come off IMCG, G-10/2."
+          "__example__": "3 people will come off IMCG, G-10/2:\n• Tahira Manzoor\n• Nasreen Akhtar\n• Farah Gul"
         },
         "school_ext_id": {
           "type": "string",
@@ -2129,7 +2131,7 @@
         },
         "teacher_ext_id": {
           "type": "string",
-          "__example__": "923001234567"
+          "__example__": "6f1c2f1e-...,8b20a9c4-...,c33e77d1-..."
         }
       },
       "layout": {
