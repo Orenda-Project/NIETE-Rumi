@@ -107,6 +107,10 @@ KNOWN_TAGS = frozenset(GATING_TAGS | {
 # `@profile:niete`, `@persona:teacher`, `@feature:menu` — the namespaced axes.
 KNOWN_PREFIXES = ("profile:", "persona:", "feature:", "tenants:")
 
+# Per-repo vocabulary the manifest implies: the suite tag (`@rumi`, `@niete` — spec_suite) and the tenant ids
+# (`@pk`, `@ye`). Filled by main() from tenants.yaml; a library caller may set it directly.
+EXTRA_KNOWN_TAGS = set()
+
 # An @obsolete scenario must say why, on a comment line inside it. The sync never
 # deletes; it proposes. An unexplained proposal is indistinguishable from a bug
 # by the time anyone reads it.
@@ -220,7 +224,7 @@ def _within_one_edit(a, b):
 
 def tag_problems(tag, path, line):
     """A tag is fine, a typo of something that gates the run, or just new."""
-    if tag in KNOWN_TAGS:
+    if tag in KNOWN_TAGS or tag in EXTRA_KNOWN_TAGS:
         return []
     if any(tag.startswith(p) for p in KNOWN_PREFIXES):
         return []
@@ -401,6 +405,7 @@ def main(argv):
     try:
         m = _tl.load(_tl.repo_root())
         root, spec_default, agents_default, tenants = m.root, m.spec_dir, m.agents_dir, set(m.tenants)
+        EXTRA_KNOWN_TAGS.update({m.spec_suite} | set(m.tenants))
     except _tl.ManifestError:
         m, root, spec_default, agents_default, tenants = None, os.getcwd(), "", os.path.join(".claude", "qa", "agents"), None
 

@@ -4,7 +4,7 @@
  *
  * Run: node .claude/qa/shared/test_mock_api.js
  *
- * Stand-ins: a real mock-graph-api process (bot/scripts/e2e/mock-graph-api.js) and a tiny
+ * Stand-ins: a real mock-graph-api process (<e2e_scripts>/mock-graph-api.js from tenants.yaml) and a tiny
  * scripted "bot" that answers /webhook the way the menu handler would. What is under test is
  * the adapter in mock-api.cjs: inject → wait on the outbox → return {ok, txt, btns, …}.
  *
@@ -17,9 +17,11 @@ const path = require('path');
 // The repo is the one carrying tenants.yaml, never this vendored file's ancestors (bd-9157r). This test also
 // needs the BOT SEAMS (mock-graph-api.js, flow-encryption.service.js, the stored Flow JSON), so it runs in a
 // real bot checkout, not in the tenant-layer-only fixtures.
-const REPO = require(path.join(__dirname, 'tenant.cjs')).load().root;
-const { createMockGraphApi } = require(path.join(REPO, 'bot/scripts/e2e/mock-graph-api.js'));
-const enc = require(path.join(REPO, 'bot/shared/services/flow-encryption.service.js'));
+const T = require(path.join(__dirname, 'tenant.cjs')).load();
+const REPO = T.root;
+// bot_root / e2e_scripts from tenants.yaml: NIETE keeps the bot under bot/, the main bot at the repo root.
+const { createMockGraphApi } = require(path.join(REPO, T.e2eScripts, 'mock-graph-api.js'));
+const enc = require(path.join(REPO, T.botRoot || '.', 'shared/services/flow-encryption.service.js'));
 const fs = require('fs'); const os = require('os');
 // A per-test keypair: the scripted bot decrypts with the private half (as the real bot does via
 // FLOW_PRIVATE_KEY); the adapter's emulator encrypts with the public half.

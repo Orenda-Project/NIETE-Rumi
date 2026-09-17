@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Consistency CHECK (not a test run): /niete-e2e `all` must claim the REAL per-feature
-@e2e counts.  Run: python3 .claude/qa/shared/check-all-mode-counts.py
+"""Consistency CHECK (not a test run): the repo's E2E command doc (command_doc in tenants.yaml) must
+claim the REAL per-feature @e2e counts in its `all` spec.  Run: python3 .claude/qa/engine/bin/check-all-mode-counts.py
 
 ⚠️ This drives NOTHING. It opens no WhatsApp session and executes no scenario — it takes
 about a second. It only compares the scenario counts hard-coded in the `all` spec of
@@ -41,12 +41,16 @@ FEATURES = os.path.join(ROOT, _M.spec_dir)
 if __name__ == "__main__" and not os.path.isfile(CMD):
     print("check-all-mode-counts: no command doc at %s — nothing to check (skip)" % os.path.relpath(CMD, ROOT))
     sys.exit(0)
+# A command doc that CLAIMS no counts (an alias that defers to the engine's /e2e, as the main bot's does) has
+# nothing this checker can hold it to. The moment it hard-codes a count list, every check below applies.
+if __name__ == "__main__" and "runnable scenarios" not in open(CMD, encoding="utf-8").read():
+    print("check-all-mode-counts: %s claims no per-feature counts — nothing to check (skip)" % os.path.relpath(CMD, ROOT))
+    sys.exit(0)
 
-# Excluded from `all`, run by NAME only (operator, 2026-08-18): attendance is all @wip and
-# needs the principal persona; observe is all @config-gated/@first-use and needs
-# role_switch.enabled, which is false. Coaching IS in `all` — slow (real audio + ~10 min
-# analysis per scenario), but in scope.
-RUN_BY_NAME_ONLY = {"attendance", "observe"}
+# Excluded from `all`, run by NAME only. Comes from tenants.yaml `run_by_name_only:` when the repo sets it;
+# the default is NIETE's (operator, 2026-08-18): attendance is all @wip and needs the principal persona;
+# observe is all @config-gated/@first-use and needs role_switch.enabled, which is false.
+RUN_BY_NAME_ONLY = set(_M.raw.get("run_by_name_only") or ["attendance", "observe"])
 
 
 def _claimed_counts(text):
@@ -74,7 +78,8 @@ def _actual_count(feature):
 def check_count_line_is_parseable():
     counts = _claimed_counts(open(CMD, encoding="utf-8").read())
     assert counts, "could not find the per-feature count list in the `all` spec"
-    assert "training" in counts, counts
+    missing = sorted(f for f in counts if not os.path.isfile(os.path.join(FEATURES, "%s.feature" % f)))
+    assert not missing, "the count line names features with no spec in %s: %s" % (FEATURES, ", ".join(missing))
 
 
 def check_claimed_counts_match_the_feature_files():
@@ -91,8 +96,11 @@ def check_claimed_counts_match_the_feature_files():
 
 
 def check_training_all_is_the_full_file_not_the_safe_subset():
-    """Training is the case that bit us: 23 total, 9 of them @wip/@draft."""
+    """Training is the case that bit us (NIETE): 23 total, 9 of them @wip/@draft. Only meaningful in a repo
+    that HAS a training feature — every other repo is covered by check_claimed_counts_match_the_feature_files."""
     claimed = _claimed_counts(open(CMD, encoding="utf-8").read())
+    if "training" not in claimed or not os.path.isfile(os.path.join(FEATURES, "training.feature")):
+        return
     assert claimed.get("training") == _actual_count("training")
     assert claimed.get("training", 0) > 14, (
         "training count is back at the safe-subset value; `all` must include @wip/@draft")

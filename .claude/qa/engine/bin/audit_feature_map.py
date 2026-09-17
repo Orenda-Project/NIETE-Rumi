@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """audit_feature_map — check feature-map.yaml against the bot's real import graph.
 
-    python3 audit_feature_map.py --repo <NIETE-Rumi> [--json] [--fix-hints]
+    python3 audit_feature_map.py --repo <bot repo carrying tenants.yaml> [--json] [--fix-hints]
 
 WHY THIS EXISTS
 
@@ -43,10 +43,11 @@ PRUNE = ("node_modules", "__mocks__", "tests", "docs", "fonts", "assets",
          "temp", "logs", "test-assets", "marketing", "scripts", "dashboard")
 
 
-def bot_files(repo):
-    out, root = [], os.path.join(repo, "bot")
+def bot_files(repo, bot_root="bot"):
+    """Every .js under the bot runtime — bot_root from tenants.yaml (`bot/` in one repo, `.` in another)."""
+    out, root = [], os.path.normpath(os.path.join(repo, bot_root))
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in PRUNE]
+        dirnames[:] = [d for d in dirnames if d not in PRUNE and not d.startswith(".")]
         for fn in filenames:
             if fn.endswith(".js"):
                 out.append(os.path.relpath(os.path.join(dirpath, fn), repo))
@@ -94,19 +95,24 @@ def main(argv):
     for i, a in enumerate(args):
         if a == "--repo" and i + 1 < len(args):
             repo = args[i + 1]
-    if not repo or not os.path.isdir(os.path.join(repo, "bot")):
+    if not repo or not os.path.isfile(os.path.join(repo, ".claude", "qa", "config", "tenants.yaml")):
         print("usage: audit_feature_map.py --repo <bot repo carrying tenants.yaml> [--json] [--fix-hints]",
               file=sys.stderr)
         return 2
+    repo = os.path.abspath(repo)
 
     here = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, here)
     import select_e2e as se
-    qa = os.path.dirname(here)
-    fmap = se.load_map(os.path.join(qa, "config", "feature-map.yaml"),
-                       os.path.join(qa, "agents"))
+    import tenants_lite as tl
+    # The map, the agents and the bot's layout all come from the REPO's tenant layer (bd-9157r) — never from
+    # a directory beside this vendored file.
+    m = tl.load(repo)
+    fmap = se.load_map(os.path.join(repo, ".claude", "qa", "config", "feature-map.yaml"),
+                       os.path.join(repo, m.agents_dir), m)
+    bot_root = m.bot_root
 
-    files = bot_files(repo)
+    files = bot_files(repo, bot_root)
     graph = build_graph(repo, files)
 
     # Entry points = files a feature owns via a NON-shared rule. Those are the
@@ -190,7 +196,8 @@ def main(argv):
             print("    ... %d more" % (len(rows) - 45))
         print()
 
-    short = lambda p: p.replace("bot/shared/", "").replace("bot/", "")
+    prefix = "" if bot_root in (".", "") else bot_root.rstrip("/") + "/"
+    short = lambda p: p.replace(prefix + "shared/", "").replace(prefix, "") if prefix else p.replace("shared/", "")
     sec("UNDER-SELECT", under,
         lambda r: "%-50s map=%-20s also reaches: %s" % (short(r[0]), ",".join(r[1]), ",".join(r[2])),
         "a change here breaks a feature no E2E gets armed for -- fix first")
