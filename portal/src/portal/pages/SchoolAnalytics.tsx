@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, Target, Users, BookOpen, Calendar } from 'lucide-react';
+import { TrendingUp, Target, Users, BookOpen, Calendar, UserCheck, ClipboardCheck } from 'lucide-react';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import PortalLayout from '../components/PortalLayout';
@@ -27,6 +27,9 @@ import type { SchoolAnalyticsResponse } from '../types/portal';
 const SchoolAnalytics = () => {
   const [data, setData] = useState<SchoolAnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  // bd-60118 — '' means the whole school. The server validates the id against
+  // her roster, so this is a convenience rather than the access boundary.
+  const [teacherId, setTeacherId] = useState<string>('');
   // 403 is a real answer, not an error: the other four leader-family roles are
   // multi-school, so there is no single school whose numbers would be theirs.
   const [forbidden, setForbidden] = useState(false);
@@ -34,7 +37,7 @@ const SchoolAnalytics = () => {
   useEffect(() => {
     let alive = true;
     leader
-      .getSchoolAnalytics()
+      .getSchoolAnalytics(teacherId || null)
       .then((d) => { if (alive) setData(d); })
       .catch((err) => {
         if (!alive) return;
@@ -43,7 +46,7 @@ const SchoolAnalytics = () => {
       })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [teacherId]);
 
   if (loading) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
@@ -80,7 +83,19 @@ const SchoolAnalytics = () => {
     );
   }
 
+  // Defaulted rather than destructured bare: an older cached bundle, a partial
+  // response or a mid-deploy version skew would otherwise crash the whole page
+  // on `.length` of undefined, turning a missing PANEL into a blank SCREEN.
   const { school, analytics } = data;
+  const focusTeacher = data.focusTeacher ?? null;
+  const teachers = data.teachers ?? [];
+  const presence = data.presence ?? {
+    teacher: { records: 0, present: 0, absent: 0, leave: 0, presentPct: null },
+    student: { sessions: 0, totalMarked: 0, present: 0, presentPct: null },
+  };
+  const remarks = data.remarks ?? {
+    submitted: 0, averagePct: null, indicatorBreakdown: [], focusIndicator: null,
+  };
   const hasData = analytics.totalSessions > 0;
 
   const trendOptions: ApexOptions = {
@@ -118,9 +133,35 @@ const SchoolAnalytics = () => {
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
         <header className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-light mb-2">Your school</h1>
-          <p className="text-muted-foreground">
-            {school.name || 'Your school'} — how your teachers are doing overall.
+          <p className="text-muted-foreground" data-testid="scope-label">
+            {focusTeacher
+              ? `${school.name || 'Your school'} — ${focusTeacher.name}`
+              : `${school.name || 'Your school'} — how your teachers are doing overall.`}
           </p>
+
+          {/* bd-60118 — one teacher's report card, on the same page. Osama,
+              2026-09-10: "build teacher report card individually". Every panel
+              below re-scopes together, so there is never a mix of one
+              teacher's presence beside the whole school's scores. */}
+          {teachers.length > 0 && (
+            <div className="mt-4">
+              <label htmlFor="teacher-filter" className="text-sm text-muted-foreground mr-2">
+                Showing
+              </label>
+              <select
+                id="teacher-filter"
+                data-testid="teacher-filter"
+                value={teacherId}
+                onChange={(e) => setTeacherId(e.target.value)}
+                className="border border-border rounded-md px-3 py-2 text-sm bg-white"
+              >
+                <option value="">The whole school</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </header>
 
         {/* Roster KPIs render even with no coaching yet: "18 teachers, 5 on
@@ -170,6 +211,119 @@ const SchoolAnalytics = () => {
             </div>
           </div>
         </div>
+
+        {/* ── Presence ───────────────────────────────────────────────────
+            Teacher and student presence sit SIDE BY SIDE, never blended. The
+            60:40 weighting between them was never locked — Sabeena, 2026-08-10:
+            start there and "adjust the percentage accordingly based on the
+            findings" after the pilot, and that thread is still open. Momina's
+            objection is the reason it is open: rural student absence is driven
+            by circumstances at home, so folding it into one teacher-facing
+            number can misattribute it. */}
+        <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
+          <div className="flex items-center gap-2 mb-6">
+            <UserCheck className="w-5 h-5 text-accent" />
+            <h2 className="text-2xl font-light">Attendance</h2>
+          </div>
+
+          {presence.teacher.presentPct == null && presence.student.presentPct == null ? (
+            <p data-testid="presence-empty" className="text-muted-foreground text-sm">
+              No attendance has been marked yet. Once registers are taken on Rumi,
+              teacher and student attendance will show here.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {presence.teacher.presentPct != null && (
+                <div className="p-4 bg-secondary rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">Teachers present</h3>
+                    <span data-testid="presence-teacher" className="text-2xl font-bold text-accent">
+                      {presence.teacher.presentPct}%
+                    </span>
+                  </div>
+                  {/* Leave is named, not hidden inside the absent count — a
+                      teacher on approved leave was not absent. */}
+                  <p className="text-xs text-muted-foreground">
+                    {presence.teacher.present} present · {presence.teacher.absent} absent
+                    {presence.teacher.leave > 0 && <> · {presence.teacher.leave} on leave</>}
+                  </p>
+                </div>
+              )}
+
+              {presence.student.presentPct != null && (
+                <div className="p-4 bg-secondary rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">Students present</h3>
+                    <span data-testid="presence-student" className="text-2xl font-bold text-accent">
+                      {presence.student.presentPct}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {presence.student.present} of {presence.student.totalMarked} across{' '}
+                    {presence.student.sessions} register{presence.student.sessions === 1 ? '' : 's'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* ── Supervisor remarks ─────────────────────────────────────────
+            Her OWN quarterly evaluations, read back to her. Only submitted
+            forms appear: scores are written as she answers, so a part-finished
+            form would otherwise show a teacher a "result" she never gave. */}
+        <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
+          <div className="flex items-center gap-2 mb-6">
+            <ClipboardCheck className="w-5 h-5 text-accent" />
+            <h2 className="text-2xl font-light">Your evaluations</h2>
+          </div>
+
+          {remarks.submitted === 0 ? (
+            <p data-testid="remarks-empty" className="text-muted-foreground text-sm">
+              You haven't submitted any teacher evaluations yet this quarter. Send
+              <strong> /remark</strong> on WhatsApp to start one.
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-muted-foreground text-sm">
+                  {remarks.submitted} evaluation{remarks.submitted === 1 ? '' : 's'} submitted
+                </p>
+                <div className="text-right">
+                  <span className="text-sm text-muted-foreground block">Average</span>
+                  <span data-testid="remarks-average" className="text-2xl font-bold text-accent">
+                    {remarks.averagePct}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {remarks.indicatorBreakdown.map((i) => (
+                  <div key={i.key} data-testid={`remark-${i.key}`} className="p-4 bg-secondary rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-sm">{i.name}</h3>
+                      <span className="text-lg font-bold text-accent whitespace-nowrap">
+                        {i.average}/4
+                      </span>
+                    </div>
+                    <div className="w-full bg-background rounded-full h-2">
+                      <div
+                        className="bg-accent h-2 rounded-full transition-all"
+                        style={{ width: `${i.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {remarks.focusIndicator && (
+                <p className="text-sm text-muted-foreground mt-4">
+                  Lowest rated: <strong data-testid="remarks-focus">{remarks.focusIndicator}</strong>
+                </p>
+              )}
+            </>
+          )}
+        </section>
 
         {!hasData ? (
           // Say the true thing. A 0% average and a flat chart would read as "my
