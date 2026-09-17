@@ -73,6 +73,22 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The document's language and the bot's voice are separate territories: ordering an English
     # plan does not switch an Urdu-preference teacher into being spoken to in English.
 
+  @e2e @content-driven @P1
+  Scenario: An Urdu plan that uses ordinary religious vocabulary is delivered, not withheld
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for an Urdu 6-12 segment whose text uses the common word "انبیاء"
+    Then a lesson-plan PDF is delivered to the chat
+    And the request does not end in silence
+    # bd-kpqu6. RELIGIOUS_MARKS is a never-deliver gate: when it fires the teacher gets NOTHING,
+    # not a degraded plan. `PROPHET_RE` had no word boundary — Arabic has no working \b — so the
+    # bare token "نبی" matched INSIDE the ordinary plural "انبیاء" ("prophets"). Three teachers
+    # asked for a lesson on 2026-09-16 between 02:33 and 02:37 and received nothing. The second
+    # half of the same fix stops the gate scoring fields no teacher reads (/human_review_reason,
+    # /slo/text_verbatim, video titles) — same observable outcome, so it is not a separate
+    # scenario: see grade_7_urdu.c11.p062-064.tafheem, which is delivered only because the model's
+    # internal routing note is not teacher-facing.
+
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
     Given the NIETE bot chat is open
@@ -100,6 +116,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And it does not ask whether I got to use it in class
     # Asking a teacher who has just said the plan was no use whether she taught it reads as not
     # listening — the reason window is the only follow-up on this branch.
+
+  @e2e @negative @content-driven @P1
+  Scenario: A plan that names the Prophet without an honorific in teacher-facing text is still withheld
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for a segment whose teacher-facing body names the Prophet with no honorific
+    Then no lesson-plan PDF is delivered
+    # The boundary fix narrows WHERE the gate looks, never WHETHER it holds. Gate G5c stands:
+    # automated checks do not clear religious content, and native-speaker review remains a hard
+    # hold before any teacher delivery. A plan that reaches this state is a review item, not a
+    # delivery — bd-qzitp is the regression this pins.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message
