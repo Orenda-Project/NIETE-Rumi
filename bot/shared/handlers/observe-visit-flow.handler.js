@@ -1134,7 +1134,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (!p) return null;
       // The picker carries display fields only; the edit rules need the row.
       const { data: row } = await supabase.from('users')
-        .select('id, name, phone_number, teacher_level, teacher_level_updated_at')
+        .select('id, name, phone_number, role, teacher_level, teacher_level_updated_at')
         .eq('id', pickedUserId).maybeSingle();
       return { ...p, row: row || null };
     };
@@ -1402,6 +1402,25 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           },
         };
       }
+      if (field === 'role') {
+        // Reads as Teacher when the column is NULL, matching role-features.js —
+        // a bulk-seeded row must not present as "no role on record" and then
+        // report "no change" when the coach picks Teacher.
+        const cur = String((person.row && person.row.role) || 'teacher').trim().toLowerCase();
+        const isPrincipal = cur === 'principal';
+        return {
+          screen: 'TEACHER_EDIT_ROLE',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `${person.name || 'This teacher'} is recorded as a *${isPrincipal ? 'Principal' : 'Teacher'}*.\n\nA Principal can also observe other teachers, and their voice notes are treated as observations rather than their own lesson.`,
+            options: [
+              _opt('teacher', 'Teacher', 'Teaches their own class', ''),
+              _opt('principal', 'Principal', 'Teaches and observes others', ''),
+            ],
+          },
+        };
+      }
       if (field === 'phone') {
         return {
           screen: 'TEACHER_EDIT_PHONE',
@@ -1470,6 +1489,33 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       }
       await _editAudit(userId, person, 'edit_level', { to: plan.bands });
       return _tdone('Saved', `${person.name || 'They'} now teach *${plan.bands.join(' + ')}*.`);
+    }
+
+    if (step === 'teacher_edit_role_commit') {
+      const E = _E();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const plan = E.planRoleEdit(person.row || {}, screenData && screenData.role);
+      if (!plan.ok) return _refuse(plan.reason === 'invalid_role' ? 'invalid_role' : 'failed');
+      if (plan.unchanged) {
+        return _tdone('No change',
+          `${person.name || 'They'} ${plan.role === 'principal' ? 'is already recorded as a Principal' : 'is already recorded as a Teacher'}.`);
+      }
+
+      const supabase = require('../config/supabase');
+      const { error } = await supabase.from('users').update(plan.patch).eq('id', pickedUserId);
+      if (error) return _refuse('failed');
+      // from/to both recorded: this write changes what the person MAY DO, so
+      // "it used to say teacher" is the fact an unpick would need.
+      await _editAudit(userId, person, 'edit_role', {
+        from: (person.row && person.row.role) || null, to: plan.role,
+      });
+      return _tdone('Saved', plan.role === 'principal'
+        ? `${person.name || 'They'} are now recorded as a *Principal*, and can observe other teachers.`
+        : `${person.name || 'They'} are now recorded as a *Teacher*.`);
     }
 
     // READS ONLY. Classifies the destination number and tells the coach exactly

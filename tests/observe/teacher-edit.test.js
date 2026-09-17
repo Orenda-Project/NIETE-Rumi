@@ -141,3 +141,68 @@ describe('planLevelEdit — delegates to the one writer, keeps the cooldown', ()
     expect(p.bands).toEqual(['HIGH']);
   });
 });
+
+// ── role ───────────────────────────────────────────────────────────────
+
+/**
+ * bd-60112 — a coach corrects Teacher vs Principal.
+ *
+ * This is the one edit on this screen that changes what the PERSON may do, not
+ * just how they read. `role` is the input to role-features.js: `principal`
+ * carries `observe: true`, so this write hands someone the ability to observe
+ * OTHER teachers and re-routes their audio to the HITL binding list. It is
+ * therefore constrained to the two roles the patch already contains — a coach
+ * must never be able to mint a `coach`/`aeo`/`supervisor` from this screen.
+ */
+describe('planRoleEdit — Teacher <-> Principal, and nothing else', () => {
+  const { planRoleEdit } = require('../../bot/shared/services/observe/teacher-edit.service');
+
+  it('promotes a teacher to principal', () => {
+    const p = planRoleEdit({ id: 'u1', role: 'teacher' }, 'principal');
+    expect(p.ok).toBe(true);
+    expect(p.role).toBe('principal');
+    expect(p.patch).toEqual({ role: 'principal' });
+  });
+
+  it('demotes a principal back to teacher', () => {
+    const p = planRoleEdit({ id: 'u1', role: 'principal' }, 'teacher');
+    expect(p.ok).toBe(true);
+    expect(p.patch).toEqual({ role: 'teacher' });
+  });
+
+  it('treats a NULL role as teacher, so the no-op is not mistaken for a change', () => {
+    // 'role' is nullable and bulk-seeded rows carry NULL. Reading that as
+    // "teacher" matches role-features.js, whose default grants DC and no HITL.
+    const p = planRoleEdit({ id: 'u1', role: null }, 'teacher');
+    expect(p.ok).toBe(true);
+    expect(p.unchanged).toBe(true);
+  });
+
+  it('is unchanged when the role already matches', () => {
+    const p = planRoleEdit({ id: 'u1', role: 'principal' }, 'principal');
+    expect(p.ok).toBe(true);
+    expect(p.unchanged).toBe(true);
+  });
+
+  it('REFUSES any role outside the two — no minting a coach or an aeo', () => {
+    // role-features.js grants `observe` to coach/aeo/supervisor/school_leader.
+    // If this screen could write them, a coach could grant a teacher the right
+    // to observe others AND strip her own Classroom Coaching, from a picker.
+    for (const bad of ['coach', 'aeo', 'supervisor', 'school_leader', 'admin', '']) {
+      const p = planRoleEdit({ id: 'u1', role: 'teacher' }, bad);
+      expect(p.ok).toBe(false);
+      expect(p.reason).toBe('invalid_role');
+    }
+  });
+
+  it('normalises case and surrounding space', () => {
+    const p = planRoleEdit({ id: 'u1', role: 'teacher' }, '  Principal ');
+    expect(p.ok).toBe(true);
+    expect(p.patch).toEqual({ role: 'principal' });
+  });
+
+  it('writes role and nothing else', () => {
+    const p = planRoleEdit({ id: 'u1', role: 'teacher' }, 'principal');
+    expect(Object.keys(p.patch)).toEqual(['role']);
+  });
+});
