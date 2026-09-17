@@ -89,6 +89,22 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # scenario: see grade_7_urdu.c11.p062-064.tafheem, which is delivered only because the model's
     # internal routing note is not teacher-facing.
 
+  @e2e @content-driven @P1
+  Scenario: A plan naming an ordinary person called محمد is delivered, because a reviewer cleared it
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for the Grade 10 Urdu segment whose body names the poet "سیّد ولی محمد"
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is not sent back for a revision round
+    # bd-zipoe. `محمد` is one of the commonest given names in Pakistan, and RELIGIOUS_MARKS
+    # demanded ﷺ after every one — so grade_10_urdu.p2c05.p135-135.tafheem failed five times on
+    # Nazeer Akbarabadi's real name, four of them on teacher-facing paths, and auto-repair answered
+    # by attaching the Prophet's salutation to a man who is not the Prophet. What clears it is NOT
+    # a rule: gate G5c forbids an automated check clearing religious content. It is the G5c
+    # native-speaker review itself — 298 phrases decided by Amena Ahmed on 2026-09-17 — carried
+    # into the repo as data (bot/vendor/lp-v9/g5c_cleared_names.json). A name the review did not
+    # decide is still withheld, which is the scenario below.
+
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
     Given the NIETE bot chat is open
@@ -127,6 +143,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # automated checks do not clear religious content, and native-speaker review remains a hard
     # hold before any teacher delivery. A plan that reaches this state is a review item, not a
     # delivery — bd-qzitp is the regression this pins.
+    # bd-zipoe does not move this line: the cleared-name list only ever CLEARS, and only the exact
+    # phrases the reviewer saw. An unreviewed name — even one shaped exactly like a cleared one —
+    # is not cleared. Fail-closed, always.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message
