@@ -26,6 +26,12 @@ const { logToFile } = require('../utils/logger');
 
 const ONE_HOUR_AGO = () => new Date(Date.now() - 60 * 60 * 1000).toISOString();
 const THIRTY_MIN_AGO = () => new Date(Date.now() - 30 * 60 * 1000).toISOString();
+// Six hours, matching the coaching step's own TTL: the codebase already treats
+// that as "she stepped away and may well come back". Training attempts stay
+// `in_progress` indefinitely — production carries hundreds going back days — so
+// without a recency bound this probe would report long-abandoned quizzes as
+// running. Within six hours it is a handful across the whole deployment.
+const SIX_HOURS_AGO = () => new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 
 const COACHING_TERMINAL = ['completed', 'failed', 'cancelled', 'report_sent'];
 const LP_IN_FLIGHT = ['pending', 'processing', 'extracting'];
@@ -302,6 +308,49 @@ async function listActiveResources(userId) {
     }
   } catch (err) {
     logToFile('⚠️ listActiveResources: reading probe failed', { error: err.message });
+  }
+
+  // Teacher training. LISTED, NEVER OFFERED — see `summaryOnly` below.
+  //
+  // Training keeps its progress in its own table and never touched this store, so
+  // /status could not see a teacher part-way through a quiz at all: the question
+  // she stopped on is recorded, and the one surface built to answer "what is
+  // running" said nothing. It is not moving onto the conversation store; training's
+  // own model is the better one for it (durable, per-module, no TTL) and it has its
+  // own way back in via /training. The gap was visibility, so visibility is all
+  // this adds.
+  try {
+    const { data: attempts } = await supabase
+      .from('training_assessment_attempts')
+      .select('id, current_question_index, total_questions')
+      .eq('user_id', userId)
+      .eq('status', 'in_progress')
+      .is('completed_at', null)
+      .gte('last_activity_at', SIX_HOURS_AGO())
+      .order('last_activity_at', { ascending: false })
+      .limit(2);
+    for (const a of (attempts || [])) {
+      // `current_question_index` is 0-based and counts questions ANSWERED, so the
+      // one she is looking at is the next one along.
+      const total = Number(a.total_questions) || 0;
+      const onQuestion = Math.min(Number(a.current_question_index || 0) + 1, total || Infinity);
+      const where = total > 0 ? ` · question ${onQuestion} of ${total}` : '';
+      items.push({
+        id: `training_${a.id}`,
+        title: `Teacher training${where}`.slice(0, 70),
+        kind: 'training',
+        refId: a.id,
+        // Every other item here becomes a selectable row, and the only action
+        // /status offers is Stop. Stopping a half-finished quiz throws away her
+        // answers, which is a worse thing to put under her thumb than simply
+        // telling her it is there. buildMainScreen keeps summary-only items out of
+        // the rows, so no id is emitted that the tap router would have to learn —
+        // the silent-drop trap parseResourceId warns about.
+        summaryOnly: true,
+      });
+    }
+  } catch (err) {
+    logToFile('⚠️ listActiveResources: training probe failed', { error: err.message });
   }
 
   return items;
