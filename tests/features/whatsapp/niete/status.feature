@@ -139,24 +139,33 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
   # to answer "what is running" said nothing.
 
   @e2e @training @P2
-  Scenario: A training quiz in progress is reported as running
+  Scenario: A training quiz in progress is reported as running, in the chat
     Given the NIETE bot chat is open
     And I have answered at least one question of a training quiz and not finished it
+    And I have nothing else in flight
     When I send "/status"
-    Then the status surface reports that something is running, and names the training quiz
+    Then the bot answers in the chat and names the training quiz
     And the line names the question I am on out of the total
+    And no "What's running" card is sent
+    # A training quiz cannot be stopped from /status, and the Flow's only verb is
+    # Stop — so with nothing else running the Flow would open on a screen whose
+    # one button is "Done — close". decideStatusReply routes an all-unstoppable
+    # list to the chat instead. This is the common case, not a corner: every
+    # teacher the probe surfaces has training as her only in-flight work.
     # teacher-state.service.js listActiveResources: training_assessment_attempts
     # where status='in_progress' AND completed_at IS NULL AND last_activity_at is
     # within six hours — the same TTL the coaching step uses for "stepped away,
     # may come back". Served by the existing partial index idx_taa_abandon_sweep.
 
   @e2e @training @P2
-  Scenario: The training quiz is listed but is not something /status can stop
+  Scenario: Alongside stoppable work, the training quiz is shown but not offered as a row
     Given the NIETE bot chat is open
     And I have a training quiz in progress
+    And I also have a classroom coaching session waiting, which CAN be stopped
     When I send "/status" and open the "What's running" card
-    Then the training quiz appears in the summary of what is running
-    But no selectable row is offered for it, so I cannot stop it from here
+    Then both are counted in the summary of what is running
+    And rows are offered to continue or stop the coaching session
+    But no row is offered for the training quiz, so I cannot stop it from here
     # The item carries `summaryOnly` and buildMainScreen filters those out of
     # `resources`. Stopping a half-finished quiz would discard her answers;
     # training is resumed with /training instead. Because no row id is emitted,
