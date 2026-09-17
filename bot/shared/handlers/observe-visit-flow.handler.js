@@ -1260,13 +1260,16 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         screen: 'TEACHER_ACTION',
         data: {
           school_ext_id: schoolExtId,
-          heading: school.school_name || 'This school',
+          // The screen TITLE is static ("Manage teachers") — it has to say what
+          // the screen is, and the school name would not fit beside it inside
+          // the 30-code-point cap. The school rides on each row instead, which
+          // has its own metadata line.
           items: [
             // "Add" is also how a teacher is MOVED between schools; saying so
             // is what a coach reported as missing (bd-eydf3, ported from sandbox).
-            _act('add', 'Add a teacher', 'By WhatsApp number - moves them if they are elsewhere'),
+            _act('add', 'Add a teacher', `To ${school.school_name} - moves them if they are elsewhere`),
             _act('edit', 'Edit a teacher', 'Name, level, role or number'),
-            _act('remove', 'Remove a teacher', 'Takes them off this school'),
+            _act('remove', 'Remove a teacher', `Takes them off ${school.school_name}`),
           ],
         },
       };

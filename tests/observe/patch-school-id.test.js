@@ -75,9 +75,10 @@ describe('the menu says what it does', () => {
   });
 
   it('still offers exactly add, remove and edit', () => {
-    const radio = screen('TEACHER_ACTION').layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    expect(radio['data-source'].map((o) => o.id)).toEqual(['add', 'remove', 'edit']);
+    // bd-60117: a NavigationList (one tap) now, so the rows are server-built.
+    // The Flow JSON pins the component; the three ids are asserted against the
+    // handler in bot/tests/observe/teacher-admin-flow.test.js.
+    expect(screen('TEACHER_ACTION').layout.children
+      .find((c) => c.type === 'NavigationList')).toBeTruthy();
   });
 });
