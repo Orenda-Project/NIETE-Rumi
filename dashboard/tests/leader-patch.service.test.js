@@ -1,10 +1,11 @@
 /**
  * bd-2434 — Leader patch resolver (TDD, red-first). NIETE port of bd-2387.
  *
- * A leader's "patch" = the teachers migrated into Rumi at leader_teachers
- * (keyed by leader_user_id = the portal session user id). Each patch teacher is
- * LEFT JOINed to their Rumi users row by teacher_phone_e164 → phone_number, so
- * teachers not yet on Rumi still appear (onRumi:false).
+ * A leader's "patch" is DERIVED — leader_schools (coach → school) x
+ * users.school_id (person → school) — rather than stored. The stored table
+ * disagreed with the schools on 230 rows; a join cannot disagree with itself.
+ * (Updated for that change + the name-column sweep: the SQL projects u.name,
+ * not a teacher_name/first_name pair, and resolves it via fullNameOf.)
  *
  * getPatchTeachers takes an injected query(sql, params) so it is unit-testable
  * without a live DB. Score is normalised framework-agnostically via getOverall —
@@ -19,7 +20,7 @@ const { getPatchTeachers } = require('../services/leader-patch.service');
 const ROWS = [
   {
     teacher_ext_id: 'T-100',
-    teacher_name: 'Ayesha Bibi',
+    name: 'Ayesha Bibi',
     phone: '923001234567',
     rumi_user_id: 'u-ayesha',
     rumi_first_name: 'Ayesha',
@@ -32,7 +33,7 @@ const ROWS = [
   },
   {
     teacher_ext_id: 'T-200',
-    teacher_name: 'Zainab Khan',
+    name: 'Zainab Khan',
     phone: '923009999999',
     rumi_user_id: null,          // not yet on Rumi
     rumi_first_name: null,
@@ -51,12 +52,14 @@ function fakeQuery(rows) {
 }
 
 describe('getPatchTeachers', () => {
-  it('queries leader_teachers scoped to the leader user id', async () => {
+  it('queries the derived patch scoped to the leader user id', async () => {
     const q = fakeQuery(ROWS);
     await getPatchTeachers(q, 'leader-1');
     expect(q.calls).toHaveLength(1);
     expect(q.calls[0].params).toEqual(['leader-1']);
-    expect(q.calls[0].sql).toMatch(/leader_teachers/);
+    // leader_schools x users.school_id — NOT the deprecated leader_teachers.
+    expect(q.calls[0].sql).toMatch(/leader_schools/);
+    expect(q.calls[0].sql).not.toMatch(/leader_teachers/);
     expect(q.calls[0].sql).toMatch(/leader_user_id\s*=\s*\$1/);
   });
 

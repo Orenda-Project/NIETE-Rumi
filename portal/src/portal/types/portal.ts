@@ -271,6 +271,43 @@ export interface LeaderOverview {
   focus: LeaderPatchTeacher[];
 }
 
+/**
+ * School-level coaching analytics for a principal — GET /leader/school-analytics
+ * (bd-60117).
+ *
+ * Domains are DISCOVERED from the data, never a fixed list: NIETE has two
+ * coexisting rubrics in live sessions, and `sessions` says how many sessions
+ * each domain was actually measured in so a rarely-scored domain cannot be
+ * misread as the school's weakness.
+ */
+export interface SchoolDomainScore {
+  key: string;
+  name: string;
+  percentage: number;
+  sessions: number;
+}
+
+export interface SchoolAnalytics {
+  totalSessions: number;
+  /** null — not 0 — when the school has no scored session yet. */
+  averageScore: number | null;
+  scoreTrend: Array<{ date: string; percentage: number }>;
+  domainBreakdown: SchoolDomainScore[];
+  strongestDomain: string | null;
+  focusDomain: string | null;
+}
+
+export interface SchoolAnalyticsResponse {
+  success: boolean;
+  school: {
+    name: string | null;
+    totalTeachers: number;
+    onRumi: number;
+    totalLessonPlans: number;
+  };
+  analytics: SchoolAnalytics;
+}
+
 /** The coach's /observe world (GET /leader/observations) — bd-2455. */
 export interface LeaderScheduledObservation {
   id: string;
