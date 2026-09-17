@@ -96,6 +96,9 @@ const BH_NAVY = '#1F4788';
 const BH_GOLD = '#FDB913';
 const OX_NAVY = '#003366';
 const OX_GOLD = '#FFD700';
+// bd-60113 — I-SAPS Level 1 (approved design, 2026-09-17).
+const ISAPS_SLATE = '#32414F';
+const ISAPS_GREEN = '#2FAE5F';
 
 const ASSET_DIR = path.join(__dirname, '../../assets/certs');
 
@@ -143,6 +146,11 @@ function templateIdFor(vendorKey) {
   const key = String(vendorKey || '').trim().toUpperCase();
   if (key === 'BEACONHOUSE') return 'BEACONHOUSE';
   if (key === 'OXBRIDGE') return 'OXBRIDGE';
+  // bd-60113 — I-SAPS must NOT fall through to the NIETE template. That
+  // template asserts AKU-IED accreditation; the I-SAPS programme is accredited
+  // by Allama Iqbal Open University. Falling through would print an
+  // accreditation AKU never gave for this content.
+  if (key === 'ISAPS') return 'ISAPS';
   return 'TALEEMABAD';
 }
 
@@ -283,11 +291,17 @@ async function renderCertificatePdf({
 
   const template = templateIdFor(vendorKey);
   const isNiete = template === 'TALEEMABAD';
+  const isIsaps = template === 'ISAPS';
   const palette = template === 'BEACONHOUSE'
     ? { primary: BH_NAVY, secondary: BH_GOLD }
     : template === 'OXBRIDGE'
       ? { primary: OX_NAVY, secondary: OX_GOLD }
-      : { primary: COLORS.ink, secondary: COLORS.accent };
+      : isIsaps
+        // The approved I-SAPS design is the NIETE green on navy-slate, same
+        // pair as the house template — the difference is the masthead and the
+        // accreditor, not the colours.
+        ? { primary: ISAPS_SLATE, secondary: ISAPS_GREEN }
+        : { primary: COLORS.ink, secondary: COLORS.accent };
 
   const centerW = PAGE.width - MARGIN * 2;
   const centered = { width: centerW, align: 'center' };
@@ -303,7 +317,42 @@ async function renderCertificatePdf({
 
   // ── Masthead ─────────────────────────────────────────────────────────────
   let y;
-  if (isNiete) {
+  if (isIsaps) {
+    // Four marks across the top, in the approved order: the Ministry of Federal
+    // Education seal, the Government of Pakistan state emblem, NIETE, I-SAPS.
+    // Widths differ per mark so the optical weights match rather than the boxes.
+    const topY = 52;
+    drawAsset(doc, path.join(ASSET_DIR, 'mofept-seal.png'), MARGIN + 30, topY - 4, { width: 52 });
+    drawAsset(doc, path.join(ASSET_DIR, 'gop-emblem.png'), MARGIN + 160, topY - 6, { width: 46 });
+    drawAsset(doc, path.join(ASSET_DIR, 'niete-logo.png'), MARGIN + 300, topY + 6, { width: 104 });
+    drawAsset(doc, path.join(ASSET_DIR, 'isaps-logo.png'), PAGE.width - MARGIN - 190, topY + 12, { width: 168 });
+
+    // Issue date (left) and certificate code (right), on clean paper inside the
+    // frame — no panel behind them; this is a printed document.
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(ISAPS_GREEN)
+       .text('DATE OF ISSUE', MARGIN + 30, 126, { characterSpacing: 1.1 });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(ISAPS_SLATE)
+       .text(formatIssueDate(issuedAt), MARGIN + 30, 139);
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(ISAPS_GREEN)
+       .text('CERTIFICATE CODE', PAGE.width - MARGIN - 230, 126, { width: 200, align: 'right', characterSpacing: 1.1 });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(ISAPS_SLATE)
+       .text(String(certificateCode || ''), PAGE.width - MARGIN - 230, 139, { width: 200, align: 'right' });
+
+    // Title, centred between two hairline flourishes.
+    const tY = 182;
+    doc.lineWidth(0.7).strokeColor(ISAPS_GREEN).opacity(0.85)
+       .moveTo(PAGE.width / 2 - 96, tY).lineTo(PAGE.width / 2 - 26, tY).stroke()
+       .moveTo(PAGE.width / 2 + 26, tY).lineTo(PAGE.width / 2 + 96, tY).stroke().opacity(1);
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(ISAPS_SLATE)
+       .text('CERTIFICATE OF COMPLETION', MARGIN, tY + 14, { ...centered, characterSpacing: 1.6 });
+    doc.lineWidth(0.7).strokeColor(ISAPS_GREEN).opacity(0.85)
+       .moveTo(PAGE.width / 2 - 96, tY + 52).lineTo(PAGE.width / 2 - 26, tY + 52).stroke()
+       .moveTo(PAGE.width / 2 + 26, tY + 52).lineTo(PAGE.width / 2 + 96, tY + 52).stroke().opacity(1);
+
+    doc.font('Helvetica').fontSize(10.5).fillColor(COLORS.muted)
+       .text('This is to certify that', MARGIN, tY + 70, centered);
+    y = tY + 92;
+  } else if (isNiete) {
     // Legacy put the NIETE mark top-RIGHT (level-certificate.tsx:38-49).
     drawAsset(doc, path.join(ASSET_DIR, 'niete-logo.png'), PAGE.width - MARGIN - 130, 58, { width: 110 });
     doc.font('Helvetica-Bold').fontSize(22).fillColor(COLORS.ink)
@@ -341,7 +390,25 @@ async function renderCertificatePdf({
   y += 16;
 
   // ── Body ─────────────────────────────────────────────────────────────────
-  if (isNiete) {
+  if (isIsaps) {
+    doc.font('Helvetica').fontSize(10.5).fillColor(COLORS.muted)
+       .text('has successfully completed the', MARGIN, y, centered);
+    y += 19;
+    doc.font('Helvetica-Bold').fontSize(15).fillColor(ISAPS_GREEN)
+       .text("Level 1 (Basic Level) of Secondary School Teachers' Training",
+             MARGIN + 40, y, { width: centerW - 80, align: 'center' });
+    y += 24;
+    doc.font('Helvetica').fontSize(10.5).fillColor(COLORS.muted)
+       .text('conducted by the National Institute of Excellence in Teacher Education (NIETE).',
+             MARGIN + 50, y, { width: centerW - 100, align: 'center' });
+    y += 26;
+    // THE accreditation line. AIOU, never AKU-IED — see templateIdFor.
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(ISAPS_SLATE)
+       .text('The content of this digital training module has been independently reviewed '
+           + 'and approved by Allama Iqbal Open University (AIOU)',
+             MARGIN + 90, y, { width: centerW - 180, align: 'center', lineGap: 2 });
+    y += 34;
+  } else if (isNiete) {
     // Legacy sentence (level-certificate.tsx:71-79), including the AKU-IED
     // accreditation. NIETE-only — never on a partner certificate.
     const display = cpdDisplayName(levelName, cpdLevel);
@@ -383,8 +450,12 @@ async function renderCertificatePdf({
   // NIETE hangs its two signature blocks off the footer (they are tall, with
   // artwork). The partner templates carry a single short signature LINE, so
   // they sit just under the body instead of leaving a void mid-page.
-  const sigY = isNiete ? PAGE.height - 190 : Math.min(y + 60, PAGE.height - 168);
-  if (isNiete) {
+  const sigY = (isNiete || isIsaps) ? PAGE.height - 190 : Math.min(y + 60, PAGE.height - 168);
+  // bd-60113 — I-SAPS carries the SAME two NIETE signatories: the training is
+  // conducted and signed by NIETE, and only the accreditor differs (AIOU, not
+  // AKU-IED). This is the opposite of the Beaconhouse/Oxbridge partner
+  // templates, which must never show a NIETE officer's signature.
+  if (isNiete || isIsaps) {
     // Two named signatories with their signature images (level-certificate.tsx:82-110).
     drawSignatory(doc, {
       x: MARGIN + 40, width: 180, y: sigY, align: 'left',
