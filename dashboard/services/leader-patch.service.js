@@ -38,7 +38,12 @@ const {
 // 433 rows) — no new tables, no new columns.
 const TERMINAL = `('completed', 'observer_review_complete')`;
 
-const PATCH_TEACHERS_SQL = `
+// bd-60117: the projection and the four stat LATERALs are shared by BOTH entry
+// points below (coach-by-leader_schools, principal-by-users.school_id). They are
+// one constant rather than two copies because the moment a stat is defined twice
+// the two definitions start to drift, and "the principal's numbers disagree with
+// the coach's numbers for the same teacher" is an unfalsifiable bug report.
+const PATCH_SELECT = `
   SELECT DISTINCT ON (u.id)
     u.phone_number        AS teacher_ext_id,
     -- The three name columns, resolved in JS by fullNameOf. This used to be
@@ -59,17 +64,11 @@ const PATCH_TEACHERS_SQL = `
     ls.analysis_data      AS last_analysis_data,
     ls.created_at         AS last_session_at,
     sch.name              AS school_name
-  -- The patch is DERIVED: whoever has the school has the teacher (operator,
-  -- 2026-08-28). leader_teachers stored this and disagreed with users.school_id
-  -- on 230 rows; a join cannot disagree with itself.
-  -- DISTINCT ON because two of a coach's school_ext_ids can resolve to one
-  -- schools row (niete:607 covers two real schools in the register).
-  FROM leader_schools lsch
-  JOIN schools sch
-    ON lsch.school_id = sch.id OR 'niete:' || sch.emis = lsch.school_ext_id
-  JOIN users u
-    ON u.school_id = sch.id
-   AND u.role IN ('teacher', 'principal')
+`;
+
+// The four per-person stat LATERALs. Identical for every caller: they key on
+// u.id alone, so they do not care how u was reached.
+const PATCH_LATERALS = `
   LEFT JOIN LATERAL (
     SELECT count(*) AS n
     FROM coaching_sessions c
@@ -96,7 +95,54 @@ const PATCH_TEACHERS_SQL = `
     ORDER BY c.created_at DESC
     LIMIT 1
   ) ls ON true
+`;
+
+// ── entry point 1: a COACH, via her school assignments ──────────────────────
+// The patch is DERIVED: whoever has the school has the teacher (operator,
+// 2026-08-28). leader_teachers stored this and disagreed with users.school_id
+// on 230 rows; a join cannot disagree with itself.
+// DISTINCT ON because two of a coach's school_ext_ids can resolve to one
+// schools row (niete:607 covers two real schools in the register).
+const PATCH_TEACHERS_SQL = `${PATCH_SELECT}
+  FROM leader_schools lsch
+  JOIN schools sch
+    ON lsch.school_id = sch.id OR 'niete:' || sch.emis = lsch.school_ext_id
+  JOIN users u
+    ON u.school_id = sch.id
+   AND u.role IN ('teacher', 'principal')
+${PATCH_LATERALS}
   WHERE lsch.leader_user_id = $1
+  ORDER BY u.id, u.name ASC
+`;
+
+// ── entry point 2: a PRINCIPAL, via her OWN users.school_id ─────────────────
+// bd-60117. A principal is tied to her school by users.school_id and holds no
+// leader_schools row — only 24 of 460 did on prod 2026-09-17, so the other 436
+// fell through the coach query's WHERE and saw an empty My Patch. Nothing
+// errored; the roster was simply blank, which is why it went unreported as a
+// bug and got read as "there is no data for my school".
+//
+// So she is found by her own id, her school is read off her own row, and the
+// roster is everyone at that school. `me` is a separate scan of users rather
+// than a self-join on the roster: she must resolve even when she is somehow not
+// in her own school's roster, otherwise the failure mode is the silent-empty
+// one all over again.
+//
+// The role guard on `me` matters as much as the school join. Without it any
+// leader-family user with a school_id would silently get a one-school patch
+// instead of their real multi-school one, which is a wrong answer wearing the
+// clothes of a right one. principals only, by decision — coaches keep entry
+// point 1, and the other three leader roles are multi-school by nature.
+const PRINCIPAL_PATCH_SQL = `${PATCH_SELECT}
+  FROM users me
+  JOIN schools sch
+    ON sch.id = me.school_id
+  JOIN users u
+    ON u.school_id = sch.id
+   AND u.role IN ('teacher', 'principal')
+${PATCH_LATERALS}
+  WHERE me.id = $1
+    AND me.role = 'principal'
   ORDER BY u.id, u.name ASC
 `;
 
@@ -153,13 +199,34 @@ function shapeTeacher(r) {
 }
 
 /**
+ * Which query answers "who is in this person's patch", given their role.
+ *
+ * bd-60117: a principal's patch is her own school (users.school_id); everyone
+ * else's is their school assignments (leader_schools). Unknown/absent role
+ * falls back to the coach path — that is what every caller got before this
+ * existed, so an un-passed role cannot change an existing answer.
+ */
+function patchSqlFor(role) {
+  const r = role == null ? null : String(role).trim().toLowerCase();
+  return r === 'principal' ? PRINCIPAL_PATCH_SQL : PATCH_TEACHERS_SQL;
+}
+
+/**
  * @param {(sql: string, params: any[]) => Promise<{rows: object[]}>} query
- * @param {string} leaderUserId  portal session user id (leader_teachers.leader_user_id)
+ * @param {string} leaderUserId  portal session user id
+ * @param {{role?: string}} [opts]  the caller's users.role — decides the entry
+ *   point. Omit it and you get the coach path, as before.
  * @returns {Promise<object[]>}  shaped patch teachers, sorted by name
  */
-async function getPatchTeachers(query, leaderUserId) {
-  const { rows } = await query(PATCH_TEACHERS_SQL, [leaderUserId]);
+async function getPatchTeachers(query, leaderUserId, opts = {}) {
+  const { rows } = await query(patchSqlFor(opts.role), [leaderUserId]);
   return (rows || []).map(shapeTeacher);
 }
 
-module.exports = { getPatchTeachers, PATCH_TEACHERS_SQL, TERMINAL };
+module.exports = {
+  getPatchTeachers,
+  patchSqlFor,
+  PATCH_TEACHERS_SQL,
+  PRINCIPAL_PATCH_SQL,
+  TERMINAL,
+};
