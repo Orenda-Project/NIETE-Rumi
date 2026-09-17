@@ -262,3 +262,58 @@ describe('E — a correctly-honorified companion is not reported as a slip', () 
     expect(message).toMatch(/names a companion/);
   });
 });
+
+describe('F — a prophet other than Muhammad reaches the teacher with علیہ السلام', () => {
+  // G5c ruling Q1 (operator, 2026-09-17): "any prophet not Muhammad gets their proper salutation
+  // alaihis salam in the stamp/nastaliq script".
+  //
+  // What production showed: grade_7_urdu.c11.p062-064.tafheem was refused 2026-09-15 04:53 with
+  // one teacher waiting, on a Hazrat Ibrahim chapter, and the gate told the author to write
+  // "نبی ﷺ". A lesson cannot be repaired by being instructed to write the wrong salutation, so
+  // every round produced the same refusal. These drive the real authoring path end to end — only
+  // the LLM call is doubled — so the assertion is about what the TEACHER gets, not what a
+  // matcher returns.
+
+  test('a correctly salutated non-Muhammad prophet is delivered, lint-clean, in round 0', async () => {
+    create.mockResolvedValue(reply(religiousDoc('حضرت ابراہیم اللہ کے نبی علیہ السلام تھے')));
+
+    const out = await run();
+
+    expect(religiousFails(out)).toEqual([]);
+    expect(out.lintClean).toBe(true);
+    expect(out.rounds).toBe(0);
+  });
+
+  test('the production Grade 7 line is still refused, but now told to write علیہ السلام', async () => {
+    // Still a refusal — the line carries no salutation at all, and that is the gate working.
+    // What changed is the instruction it hands back, which is what makes the segment repairable
+    // instead of permanently stuck.
+    create.mockResolvedValue(reply(religiousDoc(
+      'وہ اللہ کے نبی تھے، جنہوں نے بتوں کی پرستش سے منع کیا')));
+
+    const message = await refusal();
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+    expect(message).toMatch(/علیہ السلام/);
+    expect(message).toMatch(/ﷺ/);
+  });
+
+  test('محمد with علیہ السلام is STILL refused — his salutation is ﷺ and nothing else', async () => {
+    // The guard on the ruling's own words: "any prophet NOT Muhammad". If this is ever delivered,
+    // the fix has demoted the Prophet's own salutation.
+    create.mockResolvedValue(reply(religiousDoc('محمد علیہ السلام نے ارشاد کیا')));
+
+    const message = await refusal();
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+    expect(message).toMatch(/names the Prophet/);
+  });
+
+  test('a LATIN "alaihis salam" is STILL refused — the ruling says stamp/nastaliq script', async () => {
+    create.mockResolvedValue(reply(religiousDoc('حضرت ابراہیم اللہ کے نبی alaihis salam تھے')));
+
+    const message = await refusal();
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+  });
+});
