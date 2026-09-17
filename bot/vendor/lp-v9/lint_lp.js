@@ -2539,10 +2539,44 @@ function overlayDefects(doc, lang, opts = {}) {
 overlayDefects.targets = overlayTargets;
 overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 
+/**
+ * The pointers under `/provenance` this document is OFFERED and does not have an Urdu string for.
+ *
+ * bd-yhd16 — `overlayDefects` measures COVERAGE, a fraction over the whole document, and the
+ * chrome is three pointers out of ~92. A stored Urdu lesson whose body is fully translated and
+ * whose title is not scores ~0.97 and passes every existing gate, while the largest type on page 1
+ * and the running header of every continued page are still English. That is the entire shape of
+ * the 82 ready Urdu renders measured in production on 2026-09-17.
+ *
+ * Its ONE caller today is `reuseFromPreviousVersion` in `bot/workers/lp612-author.worker.js`.
+ * That lane re-renders a stored document at a new template version WITHOUT running the overlay
+ * pass (`!authored.reusedFrom`, bd-oak77.12), so a document that comes through it keeps whatever
+ * overlay it was written with — forever, in a fresh row that is then a permanent cache hit. It
+ * already refuses a stored BODY the current renderer would not accept (`oneScreenShapeDefects`,
+ * bd-jpfww); this is the same ruling for the stored OVERLAY.
+ *
+ * Derived from `overlayTargets`, never hand-listed, so it cannot drift from the set bd-x3dn6
+ * widened: adding a fourth provenance key here is a one-line change in `OVERLAY_PROVENANCE_KEYS`.
+ * An Urdu-medium book returns `[]` for the same reason `overlayDefects` does — its title is
+ * already Urdu and there is no overlay to miss.
+ *
+ * VENDOR DIVERGENCE (bd-yhd16) — ours; upstream has no reuse lane. Recorded in SYNC.md §3.13.
+ */
+function overlayChromeGaps(doc) {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return [];
+  if (((doc.provenance || {}).medium) === "ur") return [];
+  const ov = doc.ur_overlay && typeof doc.ur_overlay === "object" ? doc.ur_overlay : {};
+  return overlayTargets(doc).filter(
+    (p) => p.startsWith("/provenance/")
+      && !(typeof ov[p] === "string" && ov[p].trim().length > 0),
+  );
+}
+overlayDefects.chromeGaps = overlayChromeGaps;
+
 module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects, rayDiagramDefects,
   // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
   // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
-  oneScreenShapeDefects, ONESCREEN_BEATS,
+  oneScreenShapeDefects, ONESCREEN_BEATS, overlayChromeGaps,
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,

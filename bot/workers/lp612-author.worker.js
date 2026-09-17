@@ -47,7 +47,7 @@ const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
 // The one_screen shape rule, read from the LINTER itself so the reuse lane and gate 12b can never
 // drift apart (bd-jpfww). The reuse lane never calls `lint`, which is how a pre-shape body reached
 // a teacher's phone; it asks the same function instead.
-const { oneScreenShapeDefects } = require('../vendor/lp-v9/lint_lp.js');
+const { oneScreenShapeDefects, overlayChromeGaps } = require('../vendor/lp-v9/lint_lp.js');
 const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
@@ -834,6 +834,48 @@ async function process(payload) {
         });
         logToFile('LP 6-12 worker: stored lesson refused for reuse — one_screen has no shape', {
           renderId, segmentId, lang, fromVersion: prev, toVersion: templateVersion, correlationId,
+        });
+        continue;
+      }
+
+      // bd-yhd16. THE SAME RULING, FOR THE STORED OVERLAY.
+      //
+      // `ur_overlay` is written ONCE, by the overlay pass, and frozen into the document. Which
+      // pointers it may carry is decided by `overlayTargets()`, and bd-x3dn6 WIDENED that set:
+      // `/provenance/topic`, `/chapter` and `/chapter_title` — the lesson's title, the largest
+      // type on page 1, the running header of every continued page and the PDF's own document
+      // title — are offered now and were not before. Every Urdu document stored before that fix
+      // therefore carries no Urdu for its own title.
+      //
+      // This lane cannot repair one. The overlay pass is deliberately skipped on a reuse
+      // (`!authored.reusedFrom`, bd-oak77.12), so a document that comes through here keeps its
+      // pre-fix overlay, is re-rendered with English chrome, and is cached into a NEW row at the
+      // new template version — where it is a permanent cache hit for every teacher after the
+      // first. Measured in production 2026-09-17: 82 of 389 ready Urdu renders are in that state.
+      //
+      // Coverage cannot catch it. `overlayDefects` is a fraction over the whole document and the
+      // chrome is three pointers out of ~92; a fully-translated body with an English title scores
+      // ~0.97 and passes. So the gap is asked for by name, from the linter's own function, so the
+      // rule this lane enforces and the set the overlay pass writes cannot drift apart.
+      //
+      // The saving is not thrown away: an Urdu-medium book has no overlay to miss, an English
+      // render is untouched, and a document whose chrome IS overlaid is still reused for free.
+      // Refusing costs one author call for that segment, once.
+      const chromeGaps = lang === 'ur' ? overlayChromeGaps(lpDoc) : [];
+      if (chromeGaps.length) {
+        logEvent('lp612.render.reuse_rejected', {
+          renderId,
+          segmentId,
+          correlationId: correlationId || null,
+          lang,
+          fromVersion: prev,
+          toVersion: templateVersion,
+          reason: 'overlay_chrome_stale',
+          defects: chromeGaps,
+        });
+        logToFile('LP 6-12 worker: stored lesson refused for reuse — the Urdu overlay has no title', {
+          renderId, segmentId, lang, fromVersion: prev, toVersion: templateVersion,
+          missing: chromeGaps, correlationId,
         });
         continue;
       }
