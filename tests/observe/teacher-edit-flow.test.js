@@ -124,3 +124,74 @@ describe('the phone change is confirmed before it writes', () => {
     expect(body).toMatch(/classifyTarget/);
   });
 });
+
+describe('the role screen — Teacher vs Principal (bd-60112)', () => {
+  it('is offered on the field picker', () => {
+    const radio = screen('TEACHER_EDIT_FIELD').layout.children
+      .find((c) => c.type === 'Form').children
+      .find((c) => c.name === 'field');
+    expect(radio['data-source'].map((o) => o.id)).toContain('role');
+  });
+
+  it('exists, is routed to, and can reach TEACHER_DONE', () => {
+    expect(screen('TEACHER_EDIT_ROLE')).toBeTruthy();
+    expect(FLOW.routing_model.TEACHER_EDIT_FIELD).toContain('TEACHER_EDIT_ROLE');
+    expect(FLOW.routing_model.TEACHER_EDIT_ROLE).toContain('TEACHER_DONE');
+  });
+
+  it('is single-choice — a person holds ONE role, unlike bands', () => {
+    // The mirror of the TEACHER_EDIT_LEVEL assertion above: a CheckboxGroup
+    // here would let a coach submit both and leave the write to guess.
+    const control = screen('TEACHER_EDIT_ROLE').layout.children
+      .find((c) => c.type === 'Form').children
+      .find((c) => c.name === 'role');
+    expect(control.type).toBe('RadioButtonsGroup');
+  });
+
+  it('carries the school and teacher through to its commit', () => {
+    const footer = screen('TEACHER_EDIT_ROLE').layout.children
+      .find((c) => c.type === 'Form').children
+      .find((c) => c.type === 'Footer');
+    expect(footer['on-click-action'].payload).toMatchObject({
+      step: 'teacher_edit_role_commit',
+      school_ext_id: '${data.school_ext_id}',
+      teacher_ext_id: '${data.teacher_ext_id}',
+      role: '${form.role}',
+    });
+  });
+
+  it('offers the two roles from the SERVER, never hardcoded in the Flow', () => {
+    // The screen must show which role the person currently holds, and only the
+    // endpoint knows that. A static data-source would render a picker that
+    // cannot say "is recorded as a Principal".
+    const control = screen('TEACHER_EDIT_ROLE').layout.children
+      .find((c) => c.type === 'Form').children
+      .find((c) => c.name === 'role');
+    expect(control['data-source']).toBe('${data.options}');
+  });
+
+  it('the commit RE-RESOLVES the person rather than trusting the payload', () => {
+    // Same rule the name/level/phone commits follow: the pick and the save are
+    // separate round trips and the roster can move between them.
+    const commit = HANDLER.slice(HANDLER.indexOf("step === 'teacher_edit_role_commit'"));
+    const body = commit.slice(0, commit.indexOf('\n    if (step ==='));
+    expect(body).toMatch(/_editPerson\(/);
+    expect(body).toMatch(/planRoleEdit/);
+  });
+
+  it('records the role it moved AWAY from, because this changes what they may do', () => {
+    // `principal` carries observe:true in role-features.js, so this write grants
+    // the right to observe other teachers. Without `from`, an unpick cannot know
+    // what to restore.
+    const commit = HANDLER.slice(HANDLER.indexOf("step === 'teacher_edit_role_commit'"));
+    const body = commit.slice(0, commit.indexOf('\n    if (step ==='));
+    expect(body).toMatch(/edit_role/);
+    expect(body).toMatch(/from:/);
+  });
+
+  it('reads users.role on the row it edits', () => {
+    // _editPerson selects an explicit column list; role must be in it or the
+    // plan compares against undefined and every save looks like a change.
+    expect(HANDLER).toMatch(/\.select\('id, name, phone_number, role,/);
+  });
+});

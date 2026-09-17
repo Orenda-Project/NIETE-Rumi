@@ -125,6 +125,45 @@ function planLevelEdit(user, rawBands, now = Date.now()) {
   return { ok: true, bands, unchanged: same };
 }
 
+// ── role ──────────────────────────────────────────────────
+
+/**
+ * The only two roles this screen may write. Deliberately NOT every role in
+ * the system: `role` is the input to role-features.js, where `coach`, `aeo`,
+ * `supervisor` and `school_leader` all carry `observe: true` AND `dc: false`.
+ * Writing one of those from a coach-facing picker would hand a teacher the
+ * right to observe OTHER teachers and silently take away her own Classroom
+ * Coaching. The patch itself only ever contains these two (PATCH_ROLES in
+ * patch-resolver.service.js), so this is the same set, stated where it is
+ * enforced.
+ */
+const EDITABLE_ROLES = Object.freeze(['teacher', 'principal']);
+
+/**
+ * Plan a role edit (Teacher <-> Principal).
+ *
+ * THIS IS A PRIVILEGE CHANGE, not a label. `principal` is the one role that
+ * gets both features, so promoting someone opens /observe for them and makes
+ * observe-audio-router treat their next voice note as an observation of
+ * someone else. That is exactly what row 122 of the DC review sheet cost a
+ * teacher, so the caller must name the consequence on the confirm screen
+ * rather than saving silently.
+ *
+ * A NULL role reads as `teacher`: the column is nullable, bulk-seeded rows
+ * carry NULL, and role-features.js already defaults those to DC-only. Reading
+ * it the same way here keeps "no change" honest for the 233-odd rows that
+ * never had the column set.
+ */
+function planRoleEdit(user, rawRole) {
+  const role = String(rawRole == null ? '' : rawRole).trim().toLowerCase();
+  if (!EDITABLE_ROLES.includes(role)) return { ok: false, reason: 'invalid_role' };
+
+  const current = String((user && user.role) || 'teacher').trim().toLowerCase();
+  if (current === role) return { ok: true, unchanged: true, role };
+
+  return { ok: true, role, patch: { role } };
+}
+
 /**
  * The patch that retires the old record after its history has moved.
  *
@@ -151,4 +190,6 @@ module.exports = {
   classifyTarget,
   planNameEdit,
   planLevelEdit,
+  planRoleEdit,
+  EDITABLE_ROLES,
 };
