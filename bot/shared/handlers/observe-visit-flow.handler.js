@@ -1139,7 +1139,15 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       return { ...p, row: row || null };
     };
 
-    const _tdone = (heading, body) => ({ screen: 'TEACHER_DONE', data: { heading, body } });
+    // bd-60117: TEACHER_DONE carries the school it just acted on. The reopen
+    // needs it to land the coach back on THIS school's action picker instead of
+    // the top menu, and every finish path goes through this one helper, so the
+    // school is threaded here rather than at 16 call sites.
+    const _doneSchool = String((screenData && screenData.school_ext_id) || '');
+    const _tdone = (heading, body) => ({
+      screen: 'TEACHER_DONE',
+      data: { heading, body, school_ext_id: _doneSchool },
+    });
     const _refuse = (key) => _tdone(S_(_flowLang).flow_action_failed_heading, _T().refusalBody(_flowLang, key));
 
     if (step === 'teacher_school_open') {
@@ -1165,6 +1173,70 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     //
     // Both destinations are the SAME screens and steps as before, so the add
     // and remove paths past this point are untouched.
+    // bd-60117: the finish screen's links close the Flow through HERE.
+    //
+    // They cannot use `complete` directly — an EmbeddedLink only accepts
+    // data_exchange / navigate / open_url (Meta rejects `complete` on one) —
+    // and they cannot navigate back to TEACHER_ACTION either, because a
+    // TEACHER_DONE -> TEACHER_ACTION route makes the existing
+    // TEACHER_ACTION -> TEACHER_DONE route a backward pair, which the routing
+    // model refuses. Verified both against the Graph API.
+    //
+    // So the link does a round trip and we close from the endpoint, carrying
+    // the same roster_next the Footer used to carry. The chat-side loop
+    // (rosterTeacherNextTarget) is unchanged and reopens on the action picker.
+    if (step === 'teacher_done_next') {
+      const next = String((screenData && screenData.next) || 'done');
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      return {
+        screen: 'SUCCESS',
+        data: {
+          ..._success('', '', { action: 'roster_teacher' }),
+          extension_message_response: {
+            params: {
+              observe_visit_action: 'roster_teacher',
+              roster_next: next,
+              school_ext_id: schoolExtId,
+            },
+          },
+        },
+      };
+    }
+
+    // bd-60117: every result screen ends the same way — Main menu, or Close.
+    //
+    // Both are ONE tap. They are not a `complete` action, because an
+    // EmbeddedLink only accepts data_exchange / navigate / open_url (Meta
+    // rejects `complete` on one), so the link round-trips here and we close
+    // from the endpoint carrying the same *_next value the old Footer carried.
+    // The chat-side targets (rosterTeacherNextTarget / rosterNextTarget /
+    // _visitNextTarget) already understand 'menu' and 'done', so the loop
+    // behaviour is unchanged — only the number of taps is.
+    if (step === 'teacher_done_next' || step === 'action_done_next' || step === 'visit_done_next') {
+      const next = String((screenData && screenData.next) || 'done');
+      const params = { roster_next: next, visit_next: next };
+      if (step === 'teacher_done_next') {
+        params.observe_visit_action = 'roster_teacher';
+        params.school_ext_id = String((screenData && screenData.school_ext_id) || '');
+      } else if (step === 'action_done_next') {
+        params.observe_visit_action = 'roster';
+        params.school_name = String((screenData && screenData.school_name) || '');
+      } else {
+        // SUCCESS is shared by cancel/reschedule/done, and the chat-side arm is
+        // chosen by THIS value — passing our own would misroute the ack.
+        // `done_action`, never `action`: that key is reserved — it collides
+        // with the decrypt destructure and arrives as 'data_exchange' (bd-59811).
+        params.observe_visit_action = String((screenData && screenData.done_action) || 'done');
+        params.teacher_name = String((screenData && screenData.teacher_name) || '');
+      }
+      return {
+        screen: 'SUCCESS',
+        data: { heading: '', body: '', action: params.observe_visit_action,
+          teacher_name: params.teacher_name || '', sched_date: '', sched_slot: '',
+          extension_message_response: { params } },
+      };
+    }
+
     if (step === 'teacher_action_open') {
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');
@@ -1172,13 +1244,33 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const mine = await A.listMySchools(userId).catch(() => []);
       const school = mine.find((x) => x.school_ext_id === schoolExtId);
       if (!school) return _refuse('not_my_school');
-      // Composed server-side: Flow prints a ${data.x} reference inside a
-      // sentence verbatim, so the school name has to arrive already in it.
+      // bd-60117: a NavigationList, so each action is one tap instead of a
+      // radio plus Continue — the same shape MENU and the field picker use.
+      // The school name is the screen TITLE: Meta refuses any sibling component
+      // on a NavigationList screen, so there is nowhere to put a sentence.
+      const _act = (id, title, metadata) => ({
+        id,
+        'main-content': { title, metadata },
+        'on-click-action': {
+          name: 'data_exchange',
+          payload: { step: 'teacher_action_pick', choice: id, school_ext_id: schoolExtId },
+        },
+      });
       return {
         screen: 'TEACHER_ACTION',
         data: {
           school_ext_id: schoolExtId,
-          intro: `${school.school_name}\n\nWould you like to add a teacher to this school, or remove one?`,
+          // The screen TITLE is static ("Manage teachers") — it has to say what
+          // the screen is, and the school name would not fit beside it inside
+          // the 30-code-point cap. The school rides on each row instead, which
+          // has its own metadata line.
+          items: [
+            // "Add" is also how a teacher is MOVED between schools; saying so
+            // is what a coach reported as missing (bd-eydf3, ported from sandbox).
+            _act('add', 'Add a teacher', `To ${school.school_name} - moves them if they are elsewhere`),
+            _act('edit', 'Edit a teacher', 'Name, level, role or number'),
+            _act('remove', 'Remove a teacher', `Takes them off ${school.school_name}`),
+          ],
         },
       };
     }

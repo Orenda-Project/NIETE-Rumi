@@ -1784,9 +1784,58 @@
       "title": "Manage teachers",
       "refresh_on_back": true,
       "data": {
-        "intro": {
-          "type": "string",
-          "__example__": "IMSB (VI-X), Rawal Dam.\n\nWhat would you like to do?"
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "add",
+              "main-content": {
+                "title": "Add a teacher",
+                "metadata": "By WhatsApp number"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "teacher_action_pick",
+                  "choice": "add",
+                  "school_ext_id": "niete:916"
+                }
+              }
+            }
+          ]
         },
         "school_ext_id": {
           "type": "string",
@@ -1797,46 +1846,9 @@
         "type": "SingleColumnLayout",
         "children": [
           {
-            "type": "TextBody",
-            "text": "${data.intro}"
-          },
-          {
-            "type": "Form",
-            "name": "teacher_action_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "choice",
-                "label": "Choose one",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "add",
-                    "title": "Add a teacher"
-                  },
-                  {
-                    "id": "remove",
-                    "title": "Remove a teacher"
-                  },
-                  {
-                    "id": "edit",
-                    "title": "Edit a teacher"
-                  }
-                ]
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "step": "teacher_action_pick",
-                    "school_ext_id": "${data.school_ext_id}",
-                    "choice": "${form.choice}"
-                  }
-                }
-              }
-            ]
+            "type": "NavigationList",
+            "name": "teacher_action_list",
+            "list-items": "${data.items}"
           }
         ]
       }
@@ -2662,6 +2674,10 @@
         "body": {
           "type": "string",
           "__example__": "Added Tahira Manzoor to IMCG, G-10/2."
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:916"
         }
       },
       "layout": {
@@ -2676,45 +2692,28 @@
             "text": "${data.body}"
           },
           {
-            "type": "Form",
-            "name": "teacher_done_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "next",
-                "label": "What next?",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "teacher_add",
-                    "title": "Add another teacher"
-                  },
-                  {
-                    "id": "teacher_remove",
-                    "title": "Remove a teacher"
-                  },
-                  {
-                    "id": "menu",
-                    "title": "Main menu"
-                  },
-                  {
-                    "id": "done",
-                    "title": "I'm done"
-                  }
-                ]
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "complete",
-                  "payload": {
-                    "observe_visit_action": "roster_teacher",
-                    "roster_next": "${form.next}"
-                  }
-                }
+            "type": "EmbeddedLink",
+            "text": "Main menu",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "teacher_done_next",
+                "next": "menu",
+                "school_ext_id": "${data.school_ext_id}"
               }
-            ]
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "Close",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "teacher_done_next",
+                "next": "done",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
           }
         ]
       }
@@ -2750,46 +2749,28 @@
             "text": "${data.body}"
           },
           {
-            "type": "Form",
-            "name": "action_done_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "next",
-                "label": "What next?",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "add",
-                    "title": "Add another school"
-                  },
-                  {
-                    "id": "remove",
-                    "title": "Remove a school"
-                  },
-                  {
-                    "id": "menu",
-                    "title": "Main menu"
-                  },
-                  {
-                    "id": "done",
-                    "title": "I'm done"
-                  }
-                ]
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "complete",
-                  "payload": {
-                    "observe_visit_action": "roster",
-                    "roster_next": "${form.next}",
-                    "school_name": "${data.school_name}"
-                  }
-                }
+            "type": "EmbeddedLink",
+            "text": "Main menu",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "action_done_next",
+                "next": "menu",
+                "school_name": "${data.school_name}"
               }
-            ]
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "Close",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "action_done_next",
+                "next": "done",
+                "school_name": "${data.school_name}"
+              }
+            }
           }
         ]
       }
@@ -2954,44 +2935,30 @@
             "text": "${data.body}"
           },
           {
-            "type": "Form",
-            "name": "success_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "next",
-                "label": "What next?",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "schedule",
-                    "title": "Schedule another observation"
-                  },
-                  {
-                    "id": "menu",
-                    "title": "Main menu"
-                  },
-                  {
-                    "id": "done",
-                    "title": "I'm done for now"
-                  }
-                ]
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "complete",
-                  "payload": {
-                    "observe_visit_action": "${data.action}",
-                    "visit_next": "${form.next}",
-                    "teacher_name": "${data.teacher_name}",
-                    "sched_date": "${data.sched_date}",
-                    "sched_slot": "${data.sched_slot}"
-                  }
-                }
+            "type": "EmbeddedLink",
+            "text": "Main menu",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "visit_done_next",
+                "next": "menu",
+                "done_action": "${data.action}",
+                "teacher_name": "${data.teacher_name}"
               }
-            ]
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "Close",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "visit_done_next",
+                "next": "done",
+                "done_action": "${data.action}",
+                "teacher_name": "${data.teacher_name}"
+              }
+            }
           }
         ]
       }
