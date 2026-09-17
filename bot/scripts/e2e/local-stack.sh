@@ -119,6 +119,14 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # sandbox DB is seeded; without this the bot falls to the Oxbridge fallback and lesson-plan/L03
     # fails. Overridable for a dev testing the flag-off path: LP_612_ENABLED=false bash commit-e2e.sh …
     echo "LP_612_ENABLED=${LP_612_ENABLED:-true}"
+    # observe capability gate (observe-gate.js:62). Prod sets a real Meta Flow id; on the mock lane we
+    # only need it TRUTHY so /observe reaches the role gate — that is what lets the observe driver test
+    # coach-allowed vs teacher-denied instead of only the dark-safe OFF fall-through. Verified safe for
+    # the menu role tests: the "Observe a Teacher" row is gated on canObserve(role) in role-features.js,
+    # NOT on this var, so M14–M19 are unaffected. OBSERVE_VISIT_FLOW_ID is deliberately left UNSET so the
+    # coach entry degrades to the text capture-prompt (drivable) rather than a Flow (BLOCKED). Override to
+    # empty to exercise the OFF path: OBSERVE_MEWAKA_FLOW_ID= bash commit-e2e.sh …
+    echo "OBSERVE_MEWAKA_FLOW_ID=${OBSERVE_MEWAKA_FLOW_ID:-e2e-observe-gate-on}"
     echo "NODE_ENV=test"
     echo "QUEUE_DRIVER=bullmq"
     echo "REDIS_URL=redis://127.0.0.1:$redis_port"
