@@ -1151,7 +1151,8 @@ const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(
 const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ|تعالى|تعالی)?\s*عنہ(?:م|ا|ما|من)?|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ[مان]?\s*السلام|رحمۃ\s*اللہ\s*علیہ|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
 // §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
 // transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
-// in any medium — an English book prints "ﷺ" or "(peace be upon him)", never "(PBUH)".
+// in any medium — the salutation is written as "ﷺ", never as "(PBUH)" and never spelled out in
+// English (operator, 2026-09-17: "must be our stamp").
 const ABBREV_RE = /\b(PBUH|SAW|SAWW|RA)\b/;
 // A TRANSLITERATION, by contrast, is only wrong where the book prints the Urdu. On an Urdu
 // religious page Latin script is a de-pointing by another route; in a Grade 6 ENGLISH lesson
@@ -1161,7 +1162,10 @@ const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|Sallallahu|Rasool
 // Reverence does not depend on script, so the English lane keeps its own honorific rule: rule 1
 // cannot see these mentions at all, because PROPHET_RE holds only Urdu-script tokens.
 const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
-const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم|\(?\s*peace\s+be\s+upon\s+him\s*\)?)/i;
+// THE SALUTATION IS THE STAMP, IN EITHER MEDIUM (operator, 2026-09-17, G5c: "must be our stamp").
+// The spelled-out English "(peace be upon him)" used to satisfy this and no longer does — Q3 keeps
+// the book's Latin NAME on an English page, it does not license an English SALUTATION.
+const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/i;
 // A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
 // the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
 // two on an English page — the NAME keeps the Latin spelling the English book prints, the
@@ -1686,7 +1690,7 @@ function religiousMarks(doc, ctx) {
   for (const { at, s } of strings) {
     const a = ABBREV_RE.exec(s);
     if (a) {
-      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write it out — ﷺ, رضی اللہ عنہ, or "peace be upon him" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write the salutation itself — ﷺ for the Prophet, رضی اللہ عنہ for a companion — never de-pointed, abbreviated, transliterated, spelled out in English or dropped (brief §4c.5). ${HOLD}`);
       continue;
     }
     // Before the medium split, because it does not depend on it: a salutation belongs to the
