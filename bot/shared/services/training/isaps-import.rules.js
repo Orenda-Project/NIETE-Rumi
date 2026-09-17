@@ -87,4 +87,43 @@ function parseAnswerKey(cell) {
   return m ? m[1] : null;
 }
 
-module.exports = { parseUnitRef, parseItemType, parseAnswerKey };
+/**
+ * bd-60116 — convert a workbook answer key to the CANONICAL 1-BASED OPTION
+ * INDEX that `training_questions.correct_option` actually holds.
+ *
+ * The workbooks write the key as a letter ("C"). The platform stores an index
+ * ("3") — quiz-delivery.service:44-47 defines the button id as
+ * `training_quiz_<attempt>_<optionIndex1based>` and calls that index "the one
+ * `correct_option` is written in and the one 400k+ historical answer rows
+ * hold". The first I-SAPS import wrote the letters through unchanged, so a
+ * letter was compared against an index and EVERY answer graded wrong — all
+ * four options rejected on Unit 101.
+ *
+ * Idempotent: an already-numeric key passes through, so re-running the import
+ * over repaired rows cannot double-convert.
+ *
+ * @param {string|number|null} key e.g. 'C', 'c', ' C. ', 'Option C', 'A,C', '3'
+ * @returns {string|null} '3', or '1,3' for a multi-select set; null if unusable
+ */
+function answerKeyToIndex(key) {
+  if (key === null || key === undefined) return null;
+  const parts = String(key).split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+
+  const out = [];
+  for (const part of parts) {
+    const digits = part.match(/^\d+$/);
+    if (digits) {
+      const n = Number(digits[0]);
+      if (n <= 0) return null; // 0 is not a valid 1-based index
+      out.push(String(n));
+      continue;
+    }
+    const letter = part.toUpperCase().match(/\b([A-Z])\b/);
+    if (!letter) return null;
+    out.push(String(letter[1].charCodeAt(0) - 64)); // 'A' -> 1
+  }
+  return out.join(',');
+}
+
+module.exports = { parseUnitRef, parseItemType, parseAnswerKey, answerKeyToIndex };

@@ -142,10 +142,31 @@ def parse_unit_ref(cell, module_no):
 
 
 def parse_key(cell):
+    """Answer key as the CANONICAL 1-BASED OPTION INDEX (bd-60116).
+
+    `training_questions.correct_option` holds an INDEX, not a letter —
+    quiz-delivery.service:44-47 defines the button id as
+    `training_quiz_<attempt>_<optionIndex1based>` and calls that index "the one
+    correct_option is written in". The first import wrote the workbooks' letters
+    through unchanged, so a letter was compared against an index and EVERY
+    answer graded wrong (all four options rejected on Unit 101, caught in
+    sandbox). Mirrors answerKeyToIndex in isaps-import.rules.js.
+    """
     if not cell:
         return None
-    m = re.search(r"\b([A-D])\b", str(cell).upper())
-    return m.group(1) if m else None
+    parts = [p.strip() for p in str(cell).split(",") if p.strip()]
+    out = []
+    for p in parts:
+        if p.isdigit():
+            if int(p) <= 0:
+                return None
+            out.append(str(int(p)))
+            continue
+        m = re.search(r"\b([A-Z])\b", p.upper())
+        if not m:
+            return None
+        out.append(str(ord(m.group(1)) - 64))
+    return ",".join(out) if out else None
 
 
 def split_options(text):
