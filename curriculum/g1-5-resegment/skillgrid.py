@@ -48,9 +48,9 @@ TITLE = ("SKILLS MAP — when in the year each skill appears, and how that "
 # character per 6.5px, so the budget is 1383/6.5 ≈ 212 Latin characters and
 # this line is 153. Don't trust the figure — test_skillgrid measures it.
 CONVENTION = (
-    "Volume is counted in slots, position in day ordinals. Urdu writes "
-    "review and revision as ordinary Day N rows, so a day count overstates "
-    "it by 12–18 days.")
+    "Volume is counted in slots, position in day ordinals. Urdu writes its "
+    "assessment as an ordinary Day N row, so a day count overstates it by "
+    "16–18 days; revision days are folded into the last teaching day.")
 LEGEND = (f"█ the skill fills half this slice or more   ▌ the skill appears in "
           f"this slice   ░ not in this slice   ·   every track is {SLICES} "
           f"slices wide, whatever the grade's length")

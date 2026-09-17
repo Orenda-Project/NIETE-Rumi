@@ -3,11 +3,9 @@
 What it replaces was a changelog wearing an index's clothes: it told a returning participant what
 changed in this pass and never told a new reader how to read one row. The order here is a reader's
 order — the tabs, how a subject tab is read, what each colour means, what a blank means, how to
-move around, where the words come from; "what changed" now lives in the commit log. Two mechanical
-fixes ride along: row heights are computed from the longest wrapped string (rows were pinned at 21px
-against a WRAP column, so text clipped), and links are #1155CC, underlined, beside a literal
-"open ↗". Prose lives in `::` blocks — an indented line continues the entry above, a `§` line starts
-a section band — so the file reads roughly like the tab it writes.
+move around, where the words come from; "what changed" now lives in the commit log. Row heights are
+computed from the longest wrapped string, links are #1155CC beside a literal "open ↗", and prose
+lives in `::` blocks — an indented line continues the entry above, a `§` line starts a section band.
 """
 import datetime
 
@@ -76,11 +74,13 @@ Day 7 :: A teaching day: topic, skill-type chip, the printed pages it teaches, i
 ✅ Ch. Assessment :: The chapter's formative check against its own SLOs. It carries no new SLO, so
     its SLO cells are empty rather than reading `pending`.
 Urdu counts differently — read this before comparing subjects :: English, Maths and Science put
-    review and assessment on their own ↻ / 📋 / ✅ rows. Urdu does not: its جائزہ (assessment) and
-    دہرائی (revision) days are written as ordinary `Day N` rows, because that is how the Urdu books
-    sequence them — there the revision IS the day, not a tail on the chapter. So a strict count
-    of `Day N` rows makes Urdu look 12–18 days busier per grade than the other three. It is not
-    busier. Compare on total rows, or on the Skill type column, never on the day number.
+    review and assessment on their own ↻ / 📋 / ✅ rows. Urdu does not: its جائزہ (assessment) is
+    written as an ordinary `Day N` row, because that is how the Urdu books sequence it. So a strict
+    count of `Day N` rows makes Urdu look 16–18 days busier per grade than the other three. It is
+    not busier. Compare on total rows, or on the Skill type column, never on the day number.
+Revision is folded, not rowed :: Every Urdu دہرائی (revision) day and every Grade 1 English and Maths
+    revision day is folded into its chapter's last teaching day, which carries the revision's SLOs and
+    a `folded in` note; the assessment keeps its period. This pays for Grade 1's Foundations block.
 SLO role :: Every SLO has exactly one introducing day; later days on the same code read `develops`,
     so "this SLO was never introduced" is a question you can actually ask. And printed pages are
     never reassigned: where two days both claim a page, both keep it and each names the other.

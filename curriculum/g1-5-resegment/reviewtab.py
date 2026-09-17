@@ -55,8 +55,9 @@ Maths: the Skill Taxonomy tab's CPA ramp shows Concrete emptying out by Grade 4.
 SUBJECTS = _entries("""
 English G1–5 :: Boundaries were rebuilt from page truth this pass. Do the day splits match how the
     book teaches the chapter?
-Urdu G1–5 :: Boundaries were kept, not rebuilt. Its جائزہ / دہرائی days sit on ordinary `Day N`
-    rows, so a strict day count reads 12–18 days busier per grade. Is that still the right shape?
+Urdu G1–5 :: Boundaries were kept, not rebuilt. Its جائزہ days sit on ordinary `Day N` rows and its
+    دہرائی days are folded into each chapter's last teaching day, so a strict day count still reads
+    16–18 days busier per grade. Is that still the right shape?
 Maths G1–5 :: The Skill type column is the CPA ramp. Does the ramp climb the way the chapter does?
 Science G4–5 :: 5E-coded, General Science only. Does each chapter get a full 5E cycle?
 """)

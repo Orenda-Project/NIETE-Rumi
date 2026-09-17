@@ -189,6 +189,12 @@ MARKS = [
      "THE CHAPTER THE CLASS IS IN, using that chapter's own words and "
      "numbers, so it keeps the chapter's band. The class does not leave the "
      "book.", "italic"),
+    ("", "gold band",
+     "Grade 1's first six weeks. The class is not in the book yet \u2014 this is "
+     "talking and listening, rhyme, syllables, first sounds, holding a "
+     "pencil and counting. Children arrive with no pre-school, so the year "
+     "starts by building what the book assumes. It is planned work, NOT A "
+     "GAP.", "foundations"),
     ("", "violet column", "An official FDE assessment window.", "assess"),
     ("", "thick red line",
      "24 December 2026 — content must be finished by here. Everything right "
@@ -221,7 +227,7 @@ def grid_block(plans, days):
     for grade, subject, cells, st in plans:
         body.append([f"G{grade}" if grade != last else "", subject,
                      sy.periods_for(subject, grade), st["factual"],
-                     st["fill"] + st["onramp"]]
+                     st["fill"] + st["onramp"] + st["foundations"]]
                     + [c[0] for c in cells])
         bands.append([c[1] for c in cells])
         kinds.append([c[2] for c in cells])

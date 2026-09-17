@@ -24,6 +24,39 @@ Colourful, lively
 Twirling, leaping, spinning"""
 
 
+# Verbatim from grade_4_english_ch9_seg6 -- two finished boards, an arrow between them,
+# and not one blank line in the whole field.
+TWO_BOARDS = """\u250c\u2500\u2500\u2500\u2500 Apostrophe Alley \u2500\u2500\u2500\u2500\u2510
+Apostrophe = belonging OR missing letters
+Jojo's ball \u2192 the ball belongs to Jojo
+is not \u2192 isn't
+cannot \u2192 can't
+\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518
+                         \u2192 APPLY THE CLUE \u2192
+\u250c\u2500\u2500\u2500\u2500 Present Simple Party \u2500\u2500\u2500\u2500\u2510
+Often / always true
+The sun ______ in the east. \u2192 The sun rises in the east.
+Birds ______ in the sky. \u2192 Birds fly in the sky.
+\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"""
+
+# Verbatim from grade_4_science_ch9_seg2 -- ONE table, drawn as a box.
+TABLE = """\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2510
+\u2502 INSTRUMENT / APPARATUS \u2502 WHAT IT DOES \u2502
+\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2524
+\u2502 Thermometer \u2502 measures temperature \u2502
+\u2502 Digital balance \u2502 measures weight \u2502
+\u2502 Stopwatch \u2502 measures time passed \u2502
+\u2502 Calculator \u2502 does maths and calculations \u2502
+\u2502 Blood pressure apparatus \u2502 measures blood pressure \u2502
+\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2518"""
+
+# Verbatim from grade_4_maths_ch9_seg9 -- two boxes, SIDE BY SIDE, one arrow across.
+SIDE_BY_SIDE = """\u250c\u2500\u2500\u2500\u2500\u2510      5 years later      \u250c\u2500\u2500\u2500\u2500\u2510
+\u2502 TODAY'S DATE (year) \u2502 \u2500\u2500\u2500\u2500\u2500> \u2502 INTENDED OPENING DATE (year) \u2502
+\u2502 starting time \u2502     ADD 5 years     \u2502 future time \u2502
+\u2514\u2500\u2500\u2500\u2500\u2518                        \u2514\u2500\u2500\u2500\u2500\u2518"""
+
+
 def words_of(out):
     """Every WORD the parse put somewhere, in panel order then row order.
 
@@ -33,6 +66,10 @@ def words_of(out):
     """
     got = [out["title"]] if out.get("title") else []
     for p in out["panels"]:
+        # A connector prints between two boards, above the one it leads into, so it is a
+        # place the parse puts words and it is read back here like any other.
+        if p.get("connector"):
+            got.append(p["connector"])
         if p.get("label"):
             got.append(p["label"])
         for r in p["rows"]:
@@ -164,6 +201,58 @@ class TestATerminalFrameIsNotBoardContent(unittest.TestCase):
         self.assertIn("\u2500\u2500>", json.dumps(out, ensure_ascii=False))
         for w in ("Question", "KEY", "words/phrase", "Main", "point", "dhol's", "bhangra"):
             self.assertIn(w, " ".join(words_of(out)))
+
+    def test_a_box_that_closes_before_another_opens_is_a_SECOND_panel(self):
+        """bd-i44jn. The author drew two boards and an arrow joining them, with no blank
+        line anywhere. Grouping on blank lines alone made that ONE panel of 15 rows -- the
+        7th-heaviest board in the corpus and the only one-panel board that size -- and the
+        second board's title printed as a plain row indistinguishable from its content.
+
+        THE BOUNDARY IS A CLOSE FOLLOWED BY AN OPEN, and it is deliberately that narrow.
+        "A frame touches a line edge" already tells `_unbox` what a frame is; it does not
+        tell it what a BOARD is. Three shapes in the corpus would break under any looser
+        rule: `Science_seg2` is one box-drawn TABLE whose rows all touch the frame,
+        `Maths_seg9` opens two boxes SIDE BY SIDE on the same lines, and `Maths_seg6`
+        draws diagonals out of the same block. Only a box that has finished before the
+        next one starts is a second board, and exactly one board in 38 is shaped that way.
+        """
+        out = BD.board_panels(TWO_BOARDS)
+        self.assertEqual(len(out["panels"]), 2, out["panels"])
+        self.assertEqual(out["panels"][0]["label"], "Apostrophe Alley")
+        self.assertEqual(out["panels"][1]["label"], "Present Simple Party")
+        # The second title stops being a row of the first panel.
+        first = json.dumps(out["panels"][0], ensure_ascii=False)
+        self.assertNotIn("Present Simple Party", first)
+
+    def test_the_line_between_two_boxes_joins_them_and_is_not_a_row_of_either(self):
+        """On a real board the teacher chalks it BETWEEN the two boxes, which is where the
+        author put it -- after the close, before the open. As a row it read as something to
+        write inside the second board."""
+        out = BD.board_panels(TWO_BOARDS)
+        self.assertEqual(out["panels"][1]["connector"], "\u2192 APPLY THE CLUE \u2192")
+        self.assertNotIn("connector", out["panels"][0])
+        for p in out["panels"]:
+            for r in p["rows"]:
+                self.assertNotIn("APPLY THE CLUE", json.dumps(r, ensure_ascii=False))
+
+    def test_a_box_drawn_TABLE_is_still_one_panel(self):
+        """`Science_seg2`: one instrument table. Every row touches the frame, and five of
+        them would have become five panels under a rule that split on any framed line."""
+        out = BD.board_panels(TABLE)
+        self.assertEqual(len(out["panels"]), 1, out["panels"])
+        self.assertEqual(len(out["panels"][0]["rows"]), 5)
+
+    def test_two_boxes_drawn_SIDE_BY_SIDE_are_still_one_panel(self):
+        """`Maths_seg9`: both boxes open on the same line with an arrow across the middle.
+        Nothing closed before the second opened, so nothing is sequential here."""
+        out = BD.board_panels(SIDE_BY_SIDE)
+        self.assertEqual(len(out["panels"]), 1, out["panels"])
+
+    def test_no_word_survives_the_split_any_less_than_before(self):
+        got = " ".join(words_of(BD.board_panels(TWO_BOARDS)))
+        for w in ("Apostrophe", "Alley", "belonging", "Jojo's", "isn't", "can't",
+                  "Present", "Simple", "Party", "rises", "APPLY", "CLUE", "fly"):
+            self.assertIn(w, got, w)
 
     def test_a_frame_with_nothing_in_it_leaves_no_empty_panel(self):
         out = BD.board_panels("\u250c\u2500\u2500\u2500\u2510\n\u2514\u2500\u2500\u2500\u2518")

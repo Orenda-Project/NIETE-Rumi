@@ -23,6 +23,7 @@ data was checked for it (2026-09-16) and cannot carry it: mastery sits at
 starting value, so the instrument shows no grade signal at all. The shape is
 stated here so it can be argued with and changed in one place.
 """
+import foundations
 import schoolyear as sy
 
 # Grades 1-2 only: share of each week's periods that may be textbook, by week
@@ -51,6 +52,11 @@ FILL = {"English": ["communicative", "phonics"],
         "Maths": ["number_fluency", "word_problem"],
         "Science": ["investigate_handson", "apply_connect"]}
 
+# Grade 1's six-week Foundations block — the table and the rule that pays for
+# it live in foundations.py. Re-exported because the allocator is where the
+# rest of the year is described and a reader looking for the block looks here.
+FOUNDATION_WEEKS = foundations.FOUNDATION_WEEKS
+FOUNDATION = foundations.FOUNDATION
 
 def run_of(segments, syllabus):
     """The whole book as periods, each tagged book or omitted-by-FDE."""
@@ -81,7 +87,7 @@ def _week_sizes(subject, grade, end=None):
             for _m, days in sy.weeks(sy.school_days(end=end or sy.CONTENT_END))]
 
 
-def _take_per_week(n_queue, sizes, grade):
+def _take_per_week(n_queue, sizes, grade, weeks=None):
     """How many of each week's periods are textbook. Two effects, composed.
 
     The book is shorter than the year, so it stretches: if 122 book periods
@@ -105,11 +111,17 @@ def _take_per_week(n_queue, sizes, grade):
     room. Repeat until the pot is empty or the year is full. The ramp still
     shapes WHERE the book falls; it can no longer decide how much of the book
     gets taught at all.
+
+    `weeks` names the week indices the book may use. None means all of them,
+    byte-for-byte the behaviour that predates the parameter. A subset is how
+    the Foundations block is expressed: those weeks are not weighted to zero,
+    they are absent, so the water-fill has nothing to hand overflow back to.
     """
     weights = [size * content_rate(grade, w) for w, size in enumerate(sizes)]
     takes = [0] * len(sizes)
-    left = min(n_queue, sum(sizes))
-    open_weeks = [w for w in range(len(sizes)) if sizes[w] > 0]
+    live = range(len(sizes)) if weeks is None else weeks
+    left = min(n_queue, sum(sizes[w] for w in live))
+    open_weeks = [w for w in live if sizes[w] > 0]
 
     while left > 0 and open_weeks:
         total = sum(weights[w] for w in open_weeks) or 1
@@ -169,6 +181,11 @@ def _anchor(periods):
             p["chapter"], p["anchored"] = last, True
     ahead = None
     for p in reversed(periods):
+        # A Foundations period is NOT "before Chapter 1 in the book": it is
+        # a phase the book has no page for, and stamping the coming chapter
+        # on it read as six weeks of a chapter nobody had opened.
+        if p.get("kind") == "foundations":
+            continue
         if p["chapter"] is not None and not p.get("anchored"):
             ahead = p["chapter"]
         elif p["chapter"] is None and ahead is not None:
@@ -179,23 +196,36 @@ def _anchor(periods):
 def allocate(grade, subject, segments, syllabus):
     """One entry per period to 24 December. Returns (periods, stats).
 
-    Book periods are laid in order, chapters FDE omits riding at the end of
-    the queue: they are taught if the year reaches them and reported as
-    dropped if it does not. Every period the book does not claim is named —
-    on-ramp in Grades 1-2's first fourteen weeks, gap-fill after that.
-    Named, and anchored: a basics period keeps the chapter number of the book
-    period beside it, so the week still reads as a week in the book.
+    Grade 1 opens with the Foundations block: six weeks the book may not use,
+    already paid for before the segments arrive: dayfold folds every Grade 1
+    chapter's revision into its last teaching day at the load door, so the
+    allocator places exactly what it is given and never trims. The rest is
+    laid in order, chapters FDE omits riding at the end of the queue — taught
+    if the year reaches them, reported as dropped if not. Every period the
+    book does not claim is named: foundations, then on-ramp to week 14, then
+    gap-fill. Named, and anchored — a basics period keeps the chapter number
+    of the book period beside it. A Foundations period does not: it sits
+    before the book, not inside its first chapter.
     """
+    block = FOUNDATION_WEEKS.get(grade, ())
     run = run_of(segments, syllabus)
     factual = [p for p in run if p["kind"] == "book"]
     omitted = [p for p in run if p["kind"] == "omitted"]
     queue = factual + omitted
     sizes = _week_sizes(subject, grade)
     budget = sum(sizes)
-    takes = _take_per_week(min(len(queue), budget), sizes, grade)
+    takes = _take_per_week(
+        min(len(queue), budget), sizes, grade,
+        weeks=([w for w in range(len(sizes)) if w not in block]
+               if block else None))
 
     periods, i, tick = [], 0, [0]
     for w, (size, take) in enumerate(zip(sizes, takes)):
+        if w in block:
+            skill = FOUNDATION[subject][block.index(w)]
+            periods += [{"chapter": None, "skill": skill,
+                         "kind": "foundations"} for _ in range(size)]
+            continue
         onramp = grade <= 2 and w < RAMP[-1][1]
         chunk, i = queue[i:i + take], i + take
 
@@ -230,6 +260,8 @@ def allocate(grade, subject, segments, syllabus):
         "omitted_dropped": len(omitted) - kept,
         "onramp": sum(1 for p in periods if p["kind"] == "onramp"),
         "fill": sum(1 for p in periods if p["kind"] == "fill"),
+        "foundations": sum(1 for p in periods
+                           if p["kind"] == "foundations"),
         "chapters_taught": len(taught),
         "placed": placed,
         "dropped": len(run) - placed,

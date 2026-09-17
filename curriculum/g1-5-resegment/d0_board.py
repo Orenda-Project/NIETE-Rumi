@@ -58,6 +58,12 @@ _BOX = re.compile(r"[\u2500-\u257f]+")
 # 38 times to point one thing at another. It is content and the frame is not.
 _ARROWHEAD = ">\u276f\u00bb"
 _ARROWTAIL = "<\u276e\u00ab"
+# A BOX THAT CLOSES BEFORE ANOTHER OPENS IS A SECOND BOARD (bd-i44jn). These are the only
+# two characters that decide it: a top-left corner starts a box, a bottom-left corner ends
+# one. Nothing else in the block is read as structure, because nothing else is -- see
+# _boards for the three corpus shapes that a looser rule shatters.
+_OPENS = "\u250c\u256d\u250f"   # top-left:    box-drawings light / arc / heavy
+_CLOSES = "\u2514\u2570\u2517"  # bottom-left: the same three
 
 
 def _is_heading(line: str) -> bool:
@@ -142,6 +148,46 @@ def _unbox(line: str):
     return "".join(out).strip(), True
 
 
+def _boards(group: str):
+    """One authored group -> `[(lines, connector)]`, one entry per board drawn in it.
+
+    `English_seg6` draws a finished box, an arrow, then a second finished box with NO
+    blank line, so grouping on blank lines alone printed two boards as one 15-row panel
+    and the second title landed as a plain row (bd-i44jn).
+
+    THE BOUNDARY IS A CLOSE FOLLOWED BY AN OPEN, and the narrowness is the design.
+    `_unbox` knows a FRAME (a line touching an edge), not a BOARD; three corpus shapes
+    break under anything looser: `Science_seg2` (one instrument TABLE drawn as a box --
+    "split on a framed line" makes five panels), `Maths_seg9` (two boxes SIDE BY SIDE
+    opening on the same line), `Maths_seg6` (diagonals, no box at all). Only a box that
+    has finished before the next starts is a second board; exactly one of 38 is.
+
+    A line in the gap -- after the close, before the open -- is the CONNECTOR the teacher
+    chalks between the boxes, so it belongs to neither board's rows.
+    """
+    lines = [l for l in group.strip().split("\n") if l.strip()]
+    out, cur, gap, lead, closed = [], [], [], None, False
+    for l in lines:
+        head = l.strip()[:1]
+        if head in _OPENS and closed and cur:
+            # The gap belongs to the board it leads INTO, not the one it left.
+            out.append((cur, lead))
+            cur, lead, gap, closed = [], " ".join(gap).strip() or None, [], False
+        if closed and head not in _OPENS:
+            gap.append(l.strip())
+            continue
+        cur.append(l)
+        if head in _CLOSES:
+            closed = True
+    if cur:
+        out.append((cur, lead))
+    # A trailing gap closes the last board rather than leading into a board that was never
+    # drawn, so it stays a row of it -- no word of it is lost.
+    if gap and out:
+        out[-1][0].extend(gap)
+    return out
+
+
 def _panel(group: str) -> dict | None:
     lines = [l.strip() for l in group.strip().split("\n") if l.strip()]
     if not lines:
@@ -199,7 +245,17 @@ def board_panels(content: str) -> dict:
         if not _split_pair(first):
             title = first.rstrip(_HEADING_TAIL).strip()
             groups = groups[1:]
-    panels = [p for p in (_panel(g) for g in groups) if p]
+    panels = []
+    for g in groups:
+        for lines, connector in _boards(g):
+            p = _panel("\n".join(lines))
+            if not p:
+                continue
+            # The connector rides on the panel it leads INTO, so one ordered list still
+            # carries the whole board and a reader that ignores the key prints both boards.
+            if connector and panels:
+                p["connector"] = connector
+            panels.append(p)
     out = {"panels": panels}
     if title:
         out["title"] = title

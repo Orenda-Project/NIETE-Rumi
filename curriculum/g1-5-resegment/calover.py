@@ -33,6 +33,18 @@ ONRAMP_NAME = {"English": "phonics and oral language",
                "Science": "hands-on enquiry"}
 
 
+# One sentence per row, each under the 150-character budget `_sentences`
+# enforces, each starting in column 1 with every neighbour empty so it can
+# overflow rightwards across the tab. Plain words on purpose: this is read by
+# primary teachers who are not subject experts.
+FOUNDATIONS_NOTE = [
+    "Grade 1's first six weeks are a Foundations block, not the book: oral "
+    "language, rhyme, syllables, first sounds, print concepts and counting.",
+    "Foundations is the gold band on the Teaching Calendar. It is planned "
+    "work \u2014 Grade 1 arrives with no pre-school, so the book starts after it.",
+]
+
+
 def _row(*cells):
     row = [""] * N_COLS
     for i, cell in enumerate(cells):
@@ -63,13 +75,19 @@ def assumption_block(stats):
         # "20 periods spare" for books the calendar was in fact cutting six
         # periods from. If a period is not in the year, it is not taught.
         short = st["dropped"]
+        # The Foundations block is spent before the book opens, so it is
+        # neither on-ramp nor spare: G1 Maths at budget 163 = 35 block + 128
+        # book has ZERO left for basics, and "35 periods left" here would have
+        # a teacher plan a gap-fill week the year does not have.
+        found = st.get("foundations", 0)
+        spare = st["budget"] - st["placed"] - found
         rows.append(_row(
             f"G{grade}", subject, f"{rate}", st["ideal"], st["budget"],
-            f"{st['onramp']} + {st['fill']}",
-            f"yes — all {st['placed']} taught, "
-            f"{st['budget'] - st['placed']} period"
-            f"{'' if st['budget'] - st['placed'] == 1 else 's'} left for "
-            f"basics"
+            f"{st['onramp']} + {st['fill']}"
+            + (f" + {found} Foundations" if found else ""),
+            f"yes — all {st['placed']} taught, {spare} period"
+            f"{'' if spare == 1 else 's'} left for basics"
+            + (f" ({found} Foundations)" if found else "")
             if not short else
             f"NO — {st['placed']} of {st['ideal']} taught, {short} never "
             f"reached at {rate}/wk"))
@@ -82,6 +100,16 @@ def assumption_block(stats):
                 f"basics periods are not free — they are book periods spent "
                 f"on {ONRAMP_NAME.get(subject, 'basics')} instead. "
                 f"{st['dropped']} chapters' worth never gets taught."))
+    rows.append(_row(""))
+    # Grade 1's opening weeks are the one stretch of this calendar where the
+    # answer to "is the class in the book?" is no, on purpose. The day grid
+    # shows it as a gold band; a reader who only ever opens the overview
+    # would otherwise never be told the phase exists. Written unconditionally
+    # and off no stat key: it is a fact about the calendar's design, not
+    # about one book's arithmetic, and it must survive a stats record that
+    # has not got the count in it.
+    for line in FOUNDATIONS_NOTE:
+        rows.append(_row(line))
     rows.append(_row(""))
     rows.append(_row(
         "The previous matrix assumed five periods a week for every core "
@@ -131,8 +159,10 @@ def conflict_block():
         for i, line in enumerate(_sentences(text)):
             rows.append(_row("", f"→  {line}" if i == 0 else f"    {line}"))
     rows.append(_row("Our own ramp assumption",
-                     "Grades 1-2 take the textbook at half rate for six "
-                     "weeks, three quarters to week 14, full rate after."))
+                     "Grade 1 takes no textbook for six weeks (Foundations), "
+                     "then three quarters to week 14; Grade 2 takes it at half "
+                     "rate for six weeks, three quarters to week 14; full rate "
+                     "after."))
     for i, line in enumerate(_sentences(
             "⚠ A DESIGN ASSUMPTION, NOT A MEASUREMENT. The RDF quiz results "
             "were checked for it on 16 Sep 2026 and cannot carry it: mastery "

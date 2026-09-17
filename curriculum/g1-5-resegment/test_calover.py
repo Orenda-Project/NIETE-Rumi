@@ -38,7 +38,7 @@ import schoolyear as sy
 def stats(**over):
     """One allocator stats record, with the defaults of a book that fits."""
     base = {"ideal": 100, "budget": 120, "placed": 100, "dropped": 0,
-            "onramp": 10, "fill": 8}
+            "onramp": 10, "fill": 8, "foundations": 0}
     base.update(over)
     return base
 
@@ -235,6 +235,57 @@ class ThePainterIsToldTheRightRowsToPaint(unittest.TestCase):
     def test_the_widths_cover_every_column_the_rows_use(self):
         self.assertEqual(len(calover.WIDTHS), self.plan["n_cols"])
         self.assertEqual(self.plan["wide"], self.plan["n_cols"] - 1)
+
+
+def row_of(rows, grade):
+    return " ".join(str(c) for c in next(r for r in rows if r and r[0] == grade))
+
+
+class TheFoundationsBlockIsNotCountedAsSpare(unittest.TestCase):
+    """G1 Maths lands at budget 163 = 35 Foundations + 128 book, zero slack.
+
+    Read as budget minus placed, the fit table would call those 35 periods
+    "left for basics". They are the block, already spent, and a teacher who
+    plans a gap-fill week on that number loses the year.
+    """
+
+    def setUp(self):
+        rows, _s, _h = calover.assumption_block(
+            [(1, "Maths", stats(ideal=128, budget=163, placed=128, onramp=0,
+                                fill=0, foundations=35)),
+             (2, "Maths", stats())])
+        self.g1, self.g2 = row_of(rows, "G1"), row_of(rows, "G2")
+
+    def test_the_block_is_named_in_the_basics_column(self):
+        self.assertIn("35 Foundations", self.g1)
+
+    def test_periods_left_for_basics_excludes_the_block(self):
+        self.assertIn("0 periods left for basics", self.g1)
+        self.assertNotIn("35 periods left", self.g1)
+
+    def test_a_grade_without_a_block_reads_exactly_as_before(self):
+        self.assertNotIn("Foundations", self.g2)
+        self.assertIn("10 + 8", self.g2)
+        self.assertIn("20 periods left for basics", self.g2)
+
+
+class TheRampAssumptionRowKnowsAboutFoundations(unittest.TestCase):
+    """Grade 1 no longer takes the textbook at half rate for six weeks: it
+    takes none, and the block is the reason. A row that still says 1-2 sends
+    a reader to look for a half-rate Grade 1 that the calendar does not have."""
+
+    def setUp(self):
+        rows, _s, _h = calover.conflict_block()
+        self.text = row_of(rows, "Our own ramp assumption").lower()
+
+    def test_grade_1_is_the_foundations_case(self):
+        self.assertIn("grade 1", self.text)
+        self.assertIn("foundations", self.text)
+
+    def test_the_half_rate_ramp_is_grade_2_only(self):
+        self.assertNotIn("grades 1-2", self.text)
+        self.assertIn("grade 2", self.text)
+        self.assertIn("half rate", self.text)
 
 
 if __name__ == "__main__":

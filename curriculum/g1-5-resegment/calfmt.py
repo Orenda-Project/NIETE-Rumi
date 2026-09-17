@@ -41,10 +41,15 @@ AFTER = {"red": 0.88, "green": 0.86, "blue": 0.82}    # past 24 December
 # actually draws.
 ASSESS = {"red": 0.48, "green": 0.25, "blue": 0.55}
 RULE = {"red": 0.72, "green": 0.25, "blue": 0.16}
+# Grade 1's first six weeks: integrated FLN work, no chapter to be banded by,
+# so unmarked they read as a gap where the book should be — the opposite of
+# what they are. Warm gold, clear of OMIT (redmean 71) and AFTER (76), and
+# warm rather than grey because the phase is a beginning, not an absence.
+FOUNDATION = {"red": 0.99, "green": 0.88, "blue": 0.66}
 GREY = {"red": 0.45, "green": 0.45, "blue": 0.45}
 MONTH = {"red": 0.165, "green": 0.616, "blue": 0.561}  # #2A9D8F, the old band
 
-KIND_BG = {"omitted": OMIT, "after": AFTER}
+KIND_BG = {"omitted": OMIT, "after": AFTER, "foundations": FOUNDATION}
 
 # The MARKS section of the KEY names eight colours, lines and blanks. Naming
 # is not showing: "alternating bands" cannot be described in words, only put
@@ -52,7 +57,8 @@ KIND_BG = {"omitted": OMIT, "after": AFTER}
 # the colours stay here so the content module never imports the painter.
 WHITE = {"red": 1.0, "green": 1.0, "blue": 1.0}
 SWATCH_BG = {"band0": BAND[0], "band1": BAND[1], "omit": OMIT,
-             "assess": ASSESS, "after": AFTER, "blank": WHITE}
+             "assess": ASSESS, "after": AFTER, "blank": WHITE,
+             "foundations": FOUNDATION}
 SWATCH_RULE = {"rule": RULE, "vac": GREY}
 
 
@@ -60,7 +66,10 @@ def knows_swatch(name):
     """Can this painter actually draw the mark the KEY promises?"""
     return name in SWATCH_BG or name in SWATCH_RULE or name == "italic"
 
-ITALIC = ("fill", "onramp")   # basics — same chapter, different kind of period
+# Basics — a different kind of period, so the code is italic. "foundations"
+# is italic AND gold: italic for the same reason as the other two, gold
+# because it is the one basics run that is NOT inside a chapter's band.
+ITALIC = ("fill", "onramp", "foundations")
 LEAD_W = [52, 165, 48, 48, 48]   # Grade · Subject · Per wk · Book · Basics
 DAY_W = 30
 
@@ -215,7 +224,9 @@ def _grid(rng, sid, plan):
                 reqs.append(_paint(rng, sid, row, row + 1, lead + c0,
                                    lead + c1,
                                    {"backgroundColor": KIND_BG[kind]}))
-            elif kind in ITALIC:
+            # NOT elif: a kind can be both. While it was, ITALIC membership
+            # was dead for anything KIND_BG already named.
+            if kind in ITALIC:
                 reqs.append({"repeatCell": {
                     "range": rng(sid, row, row + 1, lead + c0, lead + c1),
                     "cell": {"userEnteredFormat": {
