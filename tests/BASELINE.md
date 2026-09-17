@@ -47,7 +47,7 @@ devDependency — see **Bot-only dependencies** below.
 
 ---
 
-## Baseline as of `348e9229` (sandbox), re-cut 2026-09-17
+## Baseline as of `459ca5e2` (sandbox), re-cut 2026-09-17
 
 Measured over **six** consecutive full runs. Node v22.23.1, Jest 29.7.0.
 

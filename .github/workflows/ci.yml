@@ -28,6 +28,12 @@ on:
     # `lint` is a REQUIRED check on staging — so the PR sits blocked for
     # ever on a check that can never report.
     branches: [main, staging, sandbox]
+    # `labeled`/`unlabeled` are here because the baseline-recut escape below reads labels
+    # off the event payload, which is fixed when the run starts. Without them, applying the
+    # label changes nothing until someone pushes again — an escape hatch you need a trick to
+    # use is not one. `unlabeled` re-runs too, so removing the label restores the guard
+    # rather than leaving a stale green behind it.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
 jobs:
