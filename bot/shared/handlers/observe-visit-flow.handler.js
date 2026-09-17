@@ -1134,7 +1134,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (!p) return null;
       // The picker carries display fields only; the edit rules need the row.
       const { data: row } = await supabase.from('users')
-        .select('id, name, phone_number, teacher_level, teacher_level_updated_at')
+        .select('id, name, phone_number, role, teacher_level, teacher_level_updated_at')
         .eq('id', pickedUserId).maybeSingle();
       return { ...p, row: row || null };
     };
@@ -1350,16 +1350,50 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
       if (!pickedUserId || pickedUserId === 'none') return _refuse('not_found');
-      const supabase = require('../config/supabase');
-      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
-      const person = people.find((p) => p.userId === pickedUserId);
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
       if (!person) return _refuse('not_found');
+
+      // A NavigationList, not a radio + Continue: picking the field IS the
+      // navigation, so one tap goes where two used to. Same component MENU and
+      // OBS_ACTION already use, so the screen reads like the rest of the flow.
+      //
+      // The subtitle carries the CURRENT value rather than a description of the
+      // field. "Level / Primary + Middle" answers "what is it now?" — which is
+      // what a coach opened this screen to find out — where "the grades they
+      // teach" only restates the title.
+      const row = (person.row || {});
+      const curLevel = require('../utils/teacher-level').teacherLevelOf(row);
+      const curRole = String(row.role || 'teacher').trim().toLowerCase() === 'principal'
+        ? 'Principal' : 'Teacher';
+      const _row = (id, title, metadata) => ({
+        id,
+        'main-content': { title, metadata: metadata || '' },
+        'on-click-action': {
+          name: 'data_exchange',
+          payload: {
+            step: 'teacher_edit_route',
+            field: id,
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+          },
+        },
+      });
       return {
         screen: 'TEACHER_EDIT_FIELD',
         data: {
           school_ext_id: schoolExtId,
           teacher_ext_id: pickedUserId,
-          intro: `${person.name || 'This teacher'}${person.phone ? ` (${person.phone})` : ''}.\n\nWhat would you like to change?`,
+          // Meta refuses any sibling component on a NavigationList screen, so
+          // the person's name rides in the screen TITLE rather than a TextBody.
+          // Every row already shows its current value, so the body text it
+          // replaced was only naming who we are editing.
+          heading: person.name || 'This teacher',
+          items: [
+            _row('name', 'Name', person.name || 'Not on record'),
+            _row('level', 'Level', curLevel.length ? curLevel.join(' + ') : 'Not on record'),
+            _row('role', 'Role', curRole),
+            _row('phone', 'Phone number', person.phone || 'Not on record'),
+          ],
         },
       };
     }
@@ -1393,11 +1427,30 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           data: {
             school_ext_id: schoolExtId,
             teacher_ext_id: pickedUserId,
-            intro: `${person.name || 'This teacher'} currently teaches ${cur.length ? cur.join(' + ') : 'no band on record'}.\n\nPick every band they teach.`,
+            intro: `${person.name || 'This teacher'} currently teaches ${cur.length ? cur.join(' + ') : 'no level on record'}.\n\nPick every level they teach.`,
             options: [
               _opt('PRIMARY', 'Primary (Grades 1-5)', '', ''),
               _opt('MIDDLE', 'Middle (Grades 6-8)', '', ''),
               _opt('HIGH', 'High (Grades 9-10)', '', ''),
+            ],
+          },
+        };
+      }
+      if (field === 'role') {
+        // Reads as Teacher when the column is NULL, matching role-features.js —
+        // a bulk-seeded row must not present as "no role on record" and then
+        // report "no change" when the coach picks Teacher.
+        const cur = String((person.row && person.row.role) || 'teacher').trim().toLowerCase();
+        const isPrincipal = cur === 'principal';
+        return {
+          screen: 'TEACHER_EDIT_ROLE',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `${person.name || 'This teacher'} is recorded as a *${isPrincipal ? 'Principal' : 'Teacher'}*.\n\nA Principal can also observe other teachers, and their voice notes are treated as observations rather than their own lesson.`,
+            options: [
+              _opt('teacher', 'Teacher', 'Teaches their own class', ''),
+              _opt('principal', 'Principal', 'Teaches and observes others', ''),
             ],
           },
         };
@@ -1470,6 +1523,33 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       }
       await _editAudit(userId, person, 'edit_level', { to: plan.bands });
       return _tdone('Saved', `${person.name || 'They'} now teach *${plan.bands.join(' + ')}*.`);
+    }
+
+    if (step === 'teacher_edit_role_commit') {
+      const E = _E();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const plan = E.planRoleEdit(person.row || {}, screenData && screenData.role);
+      if (!plan.ok) return _refuse(plan.reason === 'invalid_role' ? 'invalid_role' : 'failed');
+      if (plan.unchanged) {
+        return _tdone('No change',
+          `${person.name || 'They'} ${plan.role === 'principal' ? 'is already recorded as a Principal' : 'is already recorded as a Teacher'}.`);
+      }
+
+      const supabase = require('../config/supabase');
+      const { error } = await supabase.from('users').update(plan.patch).eq('id', pickedUserId);
+      if (error) return _refuse('failed');
+      // from/to both recorded: this write changes what the person MAY DO, so
+      // "it used to say teacher" is the fact an unpick would need.
+      await _editAudit(userId, person, 'edit_role', {
+        from: (person.row && person.row.role) || null, to: plan.role,
+      });
+      return _tdone('Saved', plan.role === 'principal'
+        ? `${person.name || 'They'} are now recorded as a *Principal*, and can observe other teachers.`
+        : `${person.name || 'They'} are now recorded as a *Teacher*.`);
     }
 
     // READS ONLY. Classifies the destination number and tells the coach exactly
