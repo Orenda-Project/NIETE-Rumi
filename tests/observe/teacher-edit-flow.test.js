@@ -127,10 +127,27 @@ describe('the phone change is confirmed before it writes', () => {
 
 describe('the role screen — Teacher vs Principal (bd-60112)', () => {
   it('is offered on the field picker', () => {
-    const radio = screen('TEACHER_EDIT_FIELD').layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.name === 'field');
-    expect(radio['data-source'].map((o) => o.id)).toContain('role');
+    // The picker is a NavigationList now (one tap navigates, no Continue), so
+    // the options are built by the HANDLER, not listed in the Flow JSON.
+    expect(screen('TEACHER_EDIT_FIELD').layout.children
+      .find((c) => c.type === 'NavigationList')).toBeTruthy();
+    const step = HANDLER.slice(HANDLER.indexOf("step === 'teacher_edit_field'"));
+    const body = step.slice(0, step.indexOf('\n    if (step ==='));
+    expect(body).toMatch(/_row\('role', 'Role'/);
+    for (const f of ['name', 'level', 'role', 'phone']) {
+      expect(body).toMatch(new RegExp(`_row\\('${f}'`));
+    }
+  });
+
+  it('every field row navigates on tap — no radio, no Continue footer', () => {
+    // Two taps for one choice was the complaint; the Footer is what caused it.
+    const s = screen('TEACHER_EDIT_FIELD');
+    const flat = JSON.stringify(s.layout);
+    expect(flat).not.toMatch(/RadioButtonsGroup/);
+    expect(flat).not.toMatch(/"type":"Footer"/);
+    const step = HANDLER.slice(HANDLER.indexOf("step === 'teacher_edit_field'"));
+    const body = step.slice(0, step.indexOf('\n    if (step ==='));
+    expect(body).toMatch(/step: 'teacher_edit_route'/);
   });
 
   it('exists, is routed to, and can reach TEACHER_DONE', () => {
