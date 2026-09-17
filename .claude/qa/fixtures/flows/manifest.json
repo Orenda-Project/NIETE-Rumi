@@ -1,0 +1,1143 @@
+{
+  "fetchedAt": "2026-09-08T06:54:39.150Z",
+  "graphVersion": "v21.0",
+  "source": "published FLOW_JSON assets, by flow id, from the staging WABA",
+  "flows": [
+    {
+      "envVar": "ASSESSMENT_GEN_FLOW_ID",
+      "flowId": "1789313642053401",
+      "name": "Assessment Generator",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 16,
+      "terminal": [
+        "CONFIRM",
+        "PICK_DONE"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Dropdown",
+        "EmbeddedLink",
+        "Footer",
+        "Form",
+        "NavigationList",
+        "OptIn",
+        "RadioButtonsGroup",
+        "TextArea",
+        "TextBody",
+        "TextCaption",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "365b27b20e9bcfc931a9ec4c19dc81f0a71a20c5819ee296e3fdec171ff88a67",
+      "fetchedAt": "2026-09-08T06:54:18.409Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "ASSESSMENT_REVIEW_FLOW_ID",
+      "flowId": "1097999235912123",
+      "name": "Assessment Review",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 11,
+      "terminal": [
+        "PICK_DONE"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "EmbeddedLink",
+        "Footer",
+        "Form",
+        "NavigationList",
+        "RadioButtonsGroup",
+        "TextArea",
+        "TextBody",
+        "TextCaption",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "875cdc175c06c332065fab49cdf072d93bbe193c152721a0757ed2fe319cd348",
+      "fetchedAt": "2026-09-08T06:54:19.069Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "ATTENDANCE_MARKING_FLOW_ID",
+      "flowId": "1504866268324140",
+      "name": "Attendance Marking",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 8,
+      "terminal": [
+        "SAVED"
+      ],
+      "components": [
+        "CalendarPicker",
+        "CheckboxGroup",
+        "Dropdown",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextCaption",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "04fad4b352314ca09fb0ca7100afde6f09007de589edb8e46655a4a99045b59f",
+      "fetchedAt": "2026-09-08T06:54:19.859Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "ATTENDANCE_SETUP_FLOW_ID",
+      "flowId": "1051631050648525",
+      "name": "Attendance Setup",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 4,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Dropdown",
+        "Footer",
+        "Form",
+        "TextArea",
+        "TextBody",
+        "TextCaption",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "0b038c71a381a4a72313cebba99d16c62f19a2532c9abb7fcda959f6513fa004",
+      "fetchedAt": "2026-09-08T06:54:20.571Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "CLASS_MANAGER_FLOW_ID",
+      "flowId": "1710271033596079",
+      "name": "Class Manager",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 5,
+      "terminal": [
+        "SAVED"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Dropdown",
+        "Footer",
+        "Form",
+        "OptIn",
+        "RadioButtonsGroup",
+        "TextArea",
+        "TextBody",
+        "TextCaption",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "25750d6887a04c95b573f5a94ce5b7d3ba9cc73b18d9108d2734cb63883014ac",
+      "fetchedAt": "2026-09-08T06:54:21.246Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "EDIT_CLASS_FLOW_ID",
+      "flowId": "1358247112482635",
+      "name": "Edit Class",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 5,
+      "terminal": [
+        "SAVED"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Dropdown",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextArea",
+        "TextBody",
+        "TextCaption",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "3df5a95591986528823473df1daca16a6f5394b54c6a9a1de5d6559fef65f77c",
+      "fetchedAt": "2026-09-08T06:54:22.038Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "EXAM_CHECKER_STUDENTS_FLOW_ID",
+      "flowId": "2182409509000290",
+      "name": "Exam Checker Confirm Students",
+      "status": "PUBLISHED",
+      "version": "6.2",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 1,
+      "terminal": [
+        "CONFIRM_STUDENTS"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Footer",
+        "Form",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "c4bfe1eb5dd5ccd74f585fbb48fbb6474fd7e71fd32a911f80e50cbcf0411d05",
+      "fetchedAt": "2026-09-08T06:54:22.932Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "EXAM_GENERATOR_FLOW_ID",
+      "flowId": "1773574070759184",
+      "name": "exam_generator_v1",
+      "status": "PUBLISHED",
+      "version": "5.1",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 5,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Dropdown",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "6d46bc35d3277e630c308eba35bf8de22b62ac1290e5036cb71295c42f73dff8",
+      "fetchedAt": "2026-09-08T06:54:23.618Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "HOMEWORK_FLOW_ID",
+      "flowId": "1610151014103765",
+      "name": "Homework Request",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 3,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Dropdown",
+        "Footer",
+        "Form",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "35d5844e090e0810f9b9ebf78270c933157f812d71d616c72e556079e1d5229a",
+      "fetchedAt": "2026-09-08T06:54:24.445Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "OBSERVE_MEWAKA_FLOW_ID",
+      "flowId": "4360063587540938",
+      "name": "Observe FICO v5",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 5,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextArea",
+        "TextBody",
+        "TextHeading",
+        "TextSubheading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "acdd938ba2579f15e5e13214624a1f48b4273459bec6aae7f295d59f9fea508f",
+      "fetchedAt": "2026-09-08T06:54:25.411Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "OBSERVE_VISIT_FLOW_ID",
+      "flowId": "2385271438550199",
+      "name": "observe_visit_v1",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 32,
+      "terminal": [
+        "TEACHER_DONE",
+        "ACTION_DONE",
+        "BRIEF",
+        "SUCCESS"
+      ],
+      "components": [
+        "CalendarPicker",
+        "Dropdown",
+        "EmbeddedLink",
+        "Footer",
+        "Form",
+        "NavigationList",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextCaption",
+        "TextHeading",
+        "TextInput",
+        "TextSubheading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange",
+        "navigate"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "39ee806482aa7ac230ab72d6a42ae9553e65633a8cc243ad26cc23559405b063",
+      "fetchedAt": "2026-09-08T06:54:26.360Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "PAKISTAN_LP_FLOW_ID",
+      "flowId": "1565529551677911",
+      "name": "Pakistan LP v2",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 8,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Footer",
+        "NavigationList",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "387a0b229956b038cf5e4792ff9c61da298030c94a07baf2ee9133af944c9db4",
+      "fetchedAt": "2026-09-08T06:54:27.172Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "PIC_LP_FLOW_ID",
+      "flowId": "1641449767590223",
+      "name": "Pic-to-LP Confirm",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 2,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Dropdown",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "78f95559211398131f05bba1b8e67d258b0c645f67a64e5d04496400920af726",
+      "fetchedAt": "2026-09-08T06:54:27.990Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "QUIZ_FLOW_ID",
+      "flowId": "1371879681584650",
+      "name": "Quiz Manager",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 6,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Dropdown",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "619f45ad5b2e612db86ef362939d6c65b2d177ef0ee6535b4ec524373496f83c",
+      "fetchedAt": "2026-09-08T06:54:28.711Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "QUIZ_MULTI_FLOW_ID",
+      "flowId": "2640356969755873",
+      "name": "Quiz Multi-Select",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": null,
+      "kind": "navigate",
+      "screens": 1,
+      "terminal": [
+        "PICK"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Footer",
+        "Form",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "f8db1bc05ce0efdfef351b37c04a8b1cde5abb2a8cacd0a74e036dd00c2ddcb5",
+      "fetchedAt": "2026-09-08T06:54:29.499Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "READING_ASSESSMENT_FLOW_ID",
+      "flowId": "1739904490378613",
+      "name": "Reading Assessment",
+      "status": "PUBLISHED",
+      "version": "6.2",
+      "data_api_version": null,
+      "kind": "navigate",
+      "screens": 2,
+      "terminal": [
+        "OPTIONS"
+      ],
+      "components": [
+        "Dropdown",
+        "Footer",
+        "Form",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "navigate"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "940be5a1dc4e4f9c67d9d6beae11efa013ed5bcdde458fea1bdd73d7a55786a1",
+      "fetchedAt": "2026-09-08T06:54:30.598Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "REGISTRATION_FLOW_ID",
+      "flowId": "1492701779552399",
+      "name": "Registration",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 5,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Dropdown",
+        "Footer",
+        "Form",
+        "TextBody",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "c6d9783f94bdf5677259ce257da0f710ee984ee4d5456f21c170698e5ad929ad",
+      "fetchedAt": "2026-09-08T06:54:31.415Z",
+      "repoCopy": "differs"
+    },
+    {
+      "envVar": "REMARK_FLOW_ID",
+      "flowId": "1025558763438362",
+      "name": "supervisor_remark_v1",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 4,
+      "terminal": [
+        "SUMMARY",
+        "SUCCESS"
+      ],
+      "components": [
+        "Dropdown",
+        "Footer",
+        "Form",
+        "NavigationList",
+        "TextArea",
+        "TextBody",
+        "TextCaption",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "47a290bb34159033dfbaa24fc74764039c8b51cc22bf33c9512772f416055dde",
+      "fetchedAt": "2026-09-08T06:54:32.159Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "ROSTER_FLOW_ID",
+      "flowId": "2106554893551971",
+      "name": "Roster",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 11,
+      "terminal": [
+        "SAVED"
+      ],
+      "components": [
+        "Dropdown",
+        "EmbeddedLink",
+        "Footer",
+        "Form",
+        "PhotoPicker",
+        "TextArea",
+        "TextBody",
+        "TextCaption",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange",
+        "navigate"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "0030116420c3569014d7115bb59214b9c297e36138c779b3fa00e0af04e4fe74",
+      "fetchedAt": "2026-09-08T06:54:33.278Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "SETTINGS_FLOW_ID",
+      "flowId": "1749476759411298",
+      "name": "Settings",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 2,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Dropdown",
+        "Footer",
+        "Form",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "6b7f547e87b17bfaedae9e7fbc0adb00827ed04b795f000f71fabd92b9f8fdd8",
+      "fetchedAt": "2026-09-08T06:54:33.866Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "STATUS_FLOW_ID",
+      "flowId": "1311302484171286",
+      "name": "Status",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 3,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "2d96fa0c094a6991607b64337a5406b1e53f6bdf22bb98887a20db3e75a9f0ca",
+      "fetchedAt": "2026-09-08T06:54:34.595Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "STUDENT_JOIN_FLOW_ID",
+      "flowId": "1606914280986330",
+      "name": "Student join — name and class",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": null,
+      "kind": "navigate",
+      "screens": 1,
+      "terminal": [
+        "WHO"
+      ],
+      "components": [
+        "Footer",
+        "Form",
+        "TextBody",
+        "TextHeading",
+        "TextInput"
+      ],
+      "actions": [
+        "complete"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "0f954d6831ed2f069d0aeaed49b14650b21eba84e0c59a9ffb40604f7490d856",
+      "fetchedAt": "2026-09-08T06:54:35.571Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "STUDENT_VIDEOS_FLOW_ID",
+      "flowId": "1623965966015274",
+      "name": "Student Videos",
+      "status": "PUBLISHED",
+      "version": "6.3",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 4,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "Dropdown",
+        "Footer",
+        "Form",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "5dd78a95ac564493b9e99d31be6e077a0db52b05a831c4c55b08d52263f4ac38",
+      "fetchedAt": "2026-09-08T06:54:36.386Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "TEACHER_TRAINING_FLOW_ID",
+      "flowId": "1271813674911683",
+      "name": "teacher_training_v1",
+      "status": "PUBLISHED",
+      "version": "5.1",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 6,
+      "terminal": [
+        "SUCCESS"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Dropdown",
+        "EmbeddedLink",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextCaption",
+        "TextHeading",
+        "TextSubheading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "d242987ae1fa03ab77a3f7434b94ecc5eea78151130b96d338ce53495e587741",
+      "fetchedAt": "2026-09-08T06:54:37.155Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "TRAINING_MSQ_FLOW_ID",
+      "flowId": "1044273318237587",
+      "name": "Training Multi-Answer Question",
+      "status": "PUBLISHED",
+      "version": "6.2",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 1,
+      "terminal": [
+        "MSQ_QUESTION"
+      ],
+      "components": [
+        "CheckboxGroup",
+        "Footer",
+        "Form",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "10df72b656fada9415d4b3f2b1d251ba5e42e99ddcd60ef1dd6d76128a6c769b",
+      "fetchedAt": "2026-09-08T06:54:38.075Z",
+      "repoCopy": "none"
+    },
+    {
+      "envVar": "TRANSCRIPT_QUIZ_FLOW_ID",
+      "flowId": "2469614803531838",
+      "name": "Transcript Quiz",
+      "status": "PUBLISHED",
+      "version": "7.0",
+      "data_api_version": "3.0",
+      "kind": "endpoint",
+      "screens": 3,
+      "terminal": [
+        "DONE"
+      ],
+      "components": [
+        "Footer",
+        "Form",
+        "NavigationList",
+        "RadioButtonsGroup",
+        "TextBody",
+        "TextCaption",
+        "TextHeading"
+      ],
+      "actions": [
+        "complete",
+        "data_exchange"
+      ],
+      "problems": [],
+      "validation_errors": 0,
+      "sha256": "6c1481f3b4d06e5c3a9b0ea8eeb02f5126844a5609cebe278b8289ce1e9d96db",
+      "fetchedAt": "2026-09-08T06:54:39.149Z",
+      "repoCopy": "none"
+    }
+  ],
+  "failures": [],
+  "census": {
+    "components": {
+      "CheckboxGroup": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_CHECKER_STUDENTS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "QUIZ_MULTI_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID"
+      ],
+      "Dropdown": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "READING_ASSESSMENT_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID"
+      ],
+      "EmbeddedLink": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID"
+      ],
+      "Footer": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_CHECKER_STUDENTS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PAKISTAN_LP_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "QUIZ_MULTI_FLOW_ID",
+        "READING_ASSESSMENT_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "STUDENT_JOIN_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "Form": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_CHECKER_STUDENTS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "QUIZ_MULTI_FLOW_ID",
+        "READING_ASSESSMENT_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "STUDENT_JOIN_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "NavigationList": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PAKISTAN_LP_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "OptIn": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID"
+      ],
+      "RadioButtonsGroup": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "TextArea": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID"
+      ],
+      "TextBody": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_CHECKER_STUDENTS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PAKISTAN_LP_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "STUDENT_JOIN_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "TextCaption": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "TextHeading": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_CHECKER_STUDENTS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PAKISTAN_LP_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "QUIZ_MULTI_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "STUDENT_JOIN_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "TextInput": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "READING_ASSESSMENT_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "STUDENT_JOIN_FLOW_ID"
+      ],
+      "CalendarPicker": [
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID"
+      ],
+      "TextSubheading": [
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID"
+      ],
+      "PhotoPicker": [
+        "ROSTER_FLOW_ID"
+      ]
+    },
+    "actions": {
+      "complete": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_CHECKER_STUDENTS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PAKISTAN_LP_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "QUIZ_MULTI_FLOW_ID",
+        "READING_ASSESSMENT_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "STUDENT_JOIN_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "data_exchange": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "navigate": [
+        "OBSERVE_VISIT_FLOW_ID",
+        "READING_ASSESSMENT_FLOW_ID",
+        "ROSTER_FLOW_ID"
+      ]
+    },
+    "kinds": {
+      "endpoint": [
+        "ASSESSMENT_GEN_FLOW_ID",
+        "ASSESSMENT_REVIEW_FLOW_ID",
+        "ATTENDANCE_MARKING_FLOW_ID",
+        "ATTENDANCE_SETUP_FLOW_ID",
+        "CLASS_MANAGER_FLOW_ID",
+        "EDIT_CLASS_FLOW_ID",
+        "EXAM_CHECKER_STUDENTS_FLOW_ID",
+        "EXAM_GENERATOR_FLOW_ID",
+        "HOMEWORK_FLOW_ID",
+        "OBSERVE_MEWAKA_FLOW_ID",
+        "OBSERVE_VISIT_FLOW_ID",
+        "PAKISTAN_LP_FLOW_ID",
+        "PIC_LP_FLOW_ID",
+        "QUIZ_FLOW_ID",
+        "REGISTRATION_FLOW_ID",
+        "REMARK_FLOW_ID",
+        "ROSTER_FLOW_ID",
+        "SETTINGS_FLOW_ID",
+        "STATUS_FLOW_ID",
+        "STUDENT_VIDEOS_FLOW_ID",
+        "TEACHER_TRAINING_FLOW_ID",
+        "TRAINING_MSQ_FLOW_ID",
+        "TRANSCRIPT_QUIZ_FLOW_ID"
+      ],
+      "navigate": [
+        "QUIZ_MULTI_FLOW_ID",
+        "READING_ASSESSMENT_FLOW_ID",
+        "STUDENT_JOIN_FLOW_ID"
+      ]
+    }
+  }
+}

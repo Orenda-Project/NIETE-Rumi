@@ -1,0 +1,642 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "CLASS": [
+      "DATE"
+    ],
+    "DATE": [
+      "MARK"
+    ],
+    "STAFF_DATE": [
+      "MARK"
+    ],
+    "REVIEW": [
+      "LEAVE"
+    ],
+    "MARK": [
+      "LEAVE"
+    ],
+    "LEAVE": [
+      "CONFIRM"
+    ],
+    "CONFIRM": [
+      "SAVED"
+    ],
+    "SAVED": []
+  },
+  "screens": [
+    {
+      "id": "CLASS",
+      "title": "Mark attendance",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Which class are we marking?"
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "l1",
+              "title": "Grade 11 - B",
+              "description": "3 students"
+            },
+            {
+              "id": "l2",
+              "title": "Grade 7 - E (evening)",
+              "description": "No students yet"
+            }
+          ]
+        },
+        "class_label": {
+          "type": "string",
+          "__example__": "Class"
+        },
+        "use_radio": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "use_dropdown": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "class_radio",
+                "label": "${data.class_label}",
+                "required": false,
+                "visible": "${data.use_radio}",
+                "data-source": "${data.classes}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "class_dropdown",
+                "label": "${data.class_label}",
+                "required": false,
+                "visible": "${data.use_dropdown}",
+                "data-source": "${data.classes}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CLASS",
+                    "class_radio": "${form.class_radio}",
+                    "class_dropdown": "${form.class_dropdown}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DATE",
+      "title": "Which day?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 11 - B"
+        },
+        "date_label": {
+          "type": "string",
+          "__example__": "Date"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-08-14"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-05-14"
+        },
+        "marked_note": {
+          "type": "string",
+          "__example__": "Marked this week: Mon, Tue"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "date_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.marked_note}"
+              },
+              {
+                "type": "CalendarPicker",
+                "name": "register_date",
+                "label": "${data.date_label}",
+                "required": true,
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "DATE",
+                    "register_date": "${form.register_date}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "STAFF_DATE",
+      "title": "Which day?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "GGPS Dhoke Ratta"
+        },
+        "date_label": {
+          "type": "string",
+          "__example__": "Date"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-08-22"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-05-24"
+        },
+        "marked_note": {
+          "type": "string",
+          "__example__": "Pick today, or any earlier day you missed."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "staff_date_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.marked_note}"
+              },
+              {
+                "type": "CalendarPicker",
+                "name": "register_date",
+                "label": "${data.date_label}",
+                "required": true,
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "STAFF_DATE",
+                    "register_date": "${form.register_date}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REVIEW",
+      "title": "Is this right?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "GGPS Dhoke Ratta"
+        },
+        "heard_note": {
+          "type": "string",
+          "__example__": "Heard: \"Ayesha aur Bilal ghair hazir hain\""
+        },
+        "date_label": {
+          "type": "string",
+          "__example__": "Date"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-08-22"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-05-24"
+        },
+        "roster": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "u1",
+              "title": "Ayesha Khan"
+            },
+            {
+              "id": "u2",
+              "title": "Bilal Ahmed"
+            }
+          ]
+        },
+        "preselected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "u1"
+          ]
+        },
+        "correction_note": {
+          "type": "string",
+          "__example__": "Tap to add or remove anyone before saving."
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "review_form",
+            "init-values": {
+              "absent": "${data.preselected}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.heard_note}"
+              },
+              {
+                "type": "CalendarPicker",
+                "name": "register_date",
+                "label": "${data.date_label}",
+                "required": true,
+                "mode": "single",
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "absent",
+                "label": "Absent",
+                "required": false,
+                "data-source": "${data.roster}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.correction_note}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "REVIEW",
+                    "register_date": "${form.register_date}",
+                    "absent": "${form.absent}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "MARK",
+      "title": "Mark attendance",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 5 - A · Mon 10 Aug"
+        },
+        "subject_note": {
+          "type": "string",
+          "__example__": "Tap only the students who are away. Everyone else is marked present."
+        },
+        "roster": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s1",
+              "title": "Ahmed Raza"
+            },
+            {
+              "id": "s2",
+              "title": "Ayesha Bibi"
+            }
+          ]
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "mark_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.subject_note}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "absent",
+                "label": "Absent",
+                "required": false,
+                "data-source": "${data.roster}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "MARK",
+                    "absent": "${form.absent}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LEAVE",
+      "title": "Anyone on leave?",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "1 marked absent"
+        },
+        "subject_note": {
+          "type": "string",
+          "__example__": "Everyone else is present. Tap anyone on approved leave instead."
+        },
+        "roster": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s2",
+              "title": "Tariq Asim"
+            }
+          ]
+        },
+        "preselected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": []
+        },
+        "has_roster": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "leave_form",
+            "init-values": {
+              "on_leave": "${data.preselected}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.subject_note}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "on_leave",
+                "label": "On leave",
+                "required": false,
+                "data-source": "${data.roster}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LEAVE",
+                    "on_leave": "${form.on_leave}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONFIRM",
+      "title": "Confirm",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "25 present · 2 absent · 1 on leave"
+        },
+        "detail": {
+          "type": "string",
+          "__example__": "Absent: Ahmed Raza, Bilal Hussain\nOn leave (casual): Hamza Ali"
+        },
+        "overwrite_note": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "confirm_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.detail}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.overwrite_note}"
+              },
+              {
+                "type": "Footer",
+                "label": "Save attendance",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "CONFIRM",
+                    "confirm": "save"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SAVED",
+      "title": "Saved",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Saved · 25 present · 2 absent · 1 on leave"
+        },
+        "detail": {
+          "type": "string",
+          "__example__": "Thank you — that is today done."
+        },
+        "overwrite_note": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "saved_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.detail}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.overwrite_note}"
+              },
+              {
+                "type": "Footer",
+                "label": "Done",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
