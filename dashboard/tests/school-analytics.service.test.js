@@ -57,6 +57,29 @@ describe('summarizeSchoolAnalytics', () => {
     expect(out.averageScore).toBe(70);
   });
 
+  // bd-60119 — the trend doubles as the coaching-history list on the portal, so
+  // each point carries what a principal points at in a conversation: the marks
+  // behind the percentage, and (across a school) whose lesson it was.
+  it('carries the marks and the teacher on each trend point', () => {
+    const out = summarizeSchoolAnalytics([
+      {
+        created_at: '2026-08-01T00:00:00Z',
+        teacher_name: 'Ayesha Bibi',
+        analysis_data: { scores: { overall_marks: 71, overall_max_marks: 104, overall_percentage: 68.3 } },
+      },
+    ]);
+    const [pt] = out.scoreTrend;
+    expect(pt.points).toBe(71);
+    expect(pt.maxPoints).toBe(104);
+    expect(pt.teacherName).toBe('Ayesha Bibi');
+    expect(pt.percentage).toBe(68.3);
+  });
+
+  it('leaves the teacher name null when the row does not carry one', () => {
+    const out = summarizeSchoolAnalytics([sess('2026-08-01T00:00:00Z', 60)]);
+    expect(out.scoreTrend[0].teacherName).toBeNull();
+  });
+
   it('builds a chronological trend, oldest first, regardless of input order', () => {
     const out = summarizeSchoolAnalytics([
       sess('2026-09-01T00:00:00Z', 75),

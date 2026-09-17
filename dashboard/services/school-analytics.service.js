@@ -78,7 +78,18 @@ function summarizeSchoolAnalytics(sessions) {
     const overall = s && s.analysis_data ? getOverall(s.analysis_data) : null;
     if (!overall || overall.percentage == null) continue;
     if (!Number.isFinite(overall.maxPoints) || overall.maxPoints <= 0) continue;
-    scored.push({ date: s.created_at, percentage: overall.percentage, analysis: s.analysis_data });
+    scored.push({
+      date: s.created_at,
+      percentage: overall.percentage,
+      // bd-60119: the trend doubles as the portal's coaching-history list, so
+      // each point carries what a principal actually points at in a
+      // conversation — the marks behind the percentage, and whose lesson it
+      // was. Null teacher name is fine: the UI only shows it school-wide.
+      points: overall.points,
+      maxPoints: overall.maxPoints,
+      teacherName: s.teacher_name || null,
+      analysis: s.analysis_data,
+    });
   }
 
   // Oldest first — a trend is read left to right, and callers pass whatever
@@ -121,7 +132,13 @@ function summarizeSchoolAnalytics(sessions) {
   return {
     totalSessions: scored.length,
     averageScore,
-    scoreTrend: scored.map((s) => ({ date: s.date, percentage: s.percentage })),
+    scoreTrend: scored.map((s) => ({
+      date: s.date,
+      percentage: s.percentage,
+      points: s.points,
+      maxPoints: s.maxPoints,
+      teacherName: s.teacherName,
+    })),
     domainBreakdown,
     // Strongest/weakest by the same averages, so the two can never disagree
     // with the list the principal is looking at.

@@ -1115,12 +1115,13 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
       // reaches 'completed' (bd-2671), and filtering on it hid the entire
       // observation programme once already.
       userIds.length ? pool.query(
-        `SELECT created_at, analysis_data
-           FROM coaching_sessions
-          WHERE user_id = ANY($1::uuid[])
-            AND status IN ${TERMINAL}
-            AND analysis_data IS NOT NULL
-          ORDER BY created_at ASC`, [userIds]) : { rows: [] },
+        `SELECT c.created_at, c.analysis_data, u.name AS teacher_name
+           FROM coaching_sessions c
+           JOIN users u ON u.id = c.user_id
+          WHERE c.user_id = ANY($1::uuid[])
+            AND c.status IN ${TERMINAL}
+            AND c.analysis_data IS NOT NULL
+          ORDER BY c.created_at ASC`, [userIds]) : { rows: [] },
 
       // P (teacher) — keyed by teacher_id, so it filters with the same ids.
       userIds.length ? pool.query(

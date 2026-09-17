@@ -291,7 +291,15 @@ export interface SchoolAnalytics {
   totalSessions: number;
   /** null — not 0 — when the school has no scored session yet. */
   averageScore: number | null;
-  scoreTrend: Array<{ date: string; percentage: number }>;
+  /** Doubles as the coaching-history list — each point is one observed lesson. */
+  scoreTrend: Array<{
+    date: string;
+    percentage: number;
+    points: number | null;
+    maxPoints: number | null;
+    /** Whose lesson. Only shown when the view is not already one teacher. */
+    teacherName: string | null;
+  }>;
   domainBreakdown: SchoolDomainScore[];
   strongestDomain: string | null;
   focusDomain: string | null;
