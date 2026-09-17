@@ -1107,7 +1107,7 @@ const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
-const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
+const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ|تعالى|تعالی)?\s*عنہ(?:م|ا|ما|من)?|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ[مان]?\s*السلام|رحمۃ\s*اللہ\s*علیہ|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
 // §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
 // transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
 // in any medium — an English book prints "ﷺ" or "(peace be upon him)", never "(PBUH)".
@@ -1688,7 +1688,7 @@ function religiousMarks(doc, ctx) {
         consumed += words[i].length + (words[i + 1] || "").length;
         tail = rest.slice(consumed).replace(/^\s+/, "");
         if (COMPANION_HON.test(tail)) break;
-        if (i >= 2) break;                        // a name is at most three words
+        if (i >= 4) break;                        // a name is at most three words
       }
       name = name.replace(/[،۔:'"’”)(]+$/, "").trim();
       if (!name) continue;

@@ -179,3 +179,53 @@ describe('C — enforcement reads only what the teacher reads', () => {
 // production strings it was built from, so take it from 065766b7 on branch
 // bd-kpqu6-religious-marks-false-positives instead. Cost of the hold, stated plainly:
 // grade_6_urdu.c10.p051-054.tafheem ("حضرت خدیجۃ الکبریٰ رضی اللہ تعالیٰ عنہا") stays refused.
+
+describe('D — a companion honorific that IS there, rejected by the matcher', () => {
+  // Found 2026-09-16 re-reading the actual flagged text rather than the field path. Check 3 is
+  // the CONSISTENCY rule: it only fires on a bare name the document honorifies elsewhere. Both
+  // defects below make a correctly-honorified name LOOK bare, so the gate reports a slip that
+  // the author did not make — and in the Grade 6 case refused a live lesson over it.
+  //
+  //   D1. COMPANION_HON did not accept "رضی اللہ تعالیٰ عنہا". That is not a lesser form; it is
+  //       the MORE reverent one, and it is what the Grade 6 Urdu book prints.
+  //   D2. The window comment reads "a name is at most three words" but `if (i >= 2) break` stops
+  //       after TWO, so a three-word name never reaches its honorific. Both "زینب بنت علی" and
+  //       "ابراہیم خلیل اللہ" are three-word names printed with the honorific right after.
+
+  /** The consistency rule needs the same first name honorified somewhere, or nothing fires. */
+  const honorifiedElsewhere = (d, first) => setSecondProse(d, `حضرت ${first} رضی اللہ عنہا کا ذکر`);
+
+  it('D1 — accepts "رضی اللہ تعالیٰ عنہا" (the production Grade 6 tafheem line)', () => {
+    const d = honorifiedElsewhere(
+      withProse('حضرت خدیجۃ الکبریٰ رضی اللہ تعالیٰ عنہا کا لقب کیا تھا؟'), 'خدیجۃ');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('D1 — the plain "رضی اللہ عنہا" form still passes, as it always did', () => {
+    const d = honorifiedElsewhere(
+      withProse('حضرت خدیجۃ الکبریٰ رضی اللہ عنہا کا لقب کیا تھا؟'), 'خدیجۃ');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('D2 — accepts a three-word name: "حضرت زینب بنت علی رضی اللہ عنہا"', () => {
+    const d = honorifiedElsewhere(withProse('حضرت زینب بنت علی رضی اللہ عنہا کا ذکر آتا ہے'), 'زینب');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('D2 — accepts "حضرت ابراہیم خلیل اللہ علیہ السلام" in lesson body', () => {
+    const d = setSecondProse(
+      withProse('حضرت ابراہیم خلیل اللہ علیہ السلام کا واقعہ پڑھیں'),
+      'حضرت ابراہیم علیہ السلام کا ذکر');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('STILL blocks a genuinely bare companion the document honorifies elsewhere', () => {
+    const d = honorifiedElsewhere(withProse('حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟'), 'خدیجۃ');
+    expect(blocked(d)).toBe(true);
+  });
+
+  it('a name never honorified anywhere is left to the reviewer, not blocked', () => {
+    // Not a slip — there is no internal inconsistency to point at. Check 6 still holds it.
+    expect(blocked(withProse('حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟'))).toBe(false);
+  });
+});
