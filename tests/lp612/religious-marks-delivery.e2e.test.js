@@ -219,9 +219,46 @@ describe('D — the native-speaker hold is untouched by this fix', () => {
   });
 });
 
-// describe E — the companion-honorific delivery scenarios — lived here and is REMOVED, not
-// skipped, for the same reason as describe D in religious-marks-false-positives.test.js: it
-// exercises bd-j335i (P1), which the operator held back from this cherry-pick (2026-09-16,
-// "cherry pick the p0 for now only"). Recover it from 065766b7 on branch
-// bd-kpqu6-religious-marks-false-positives when bd-j335i ships; it carries production strings
-// that should not be re-invented from memory.
+describe('E — a correctly-honorified companion is not reported as a slip', () => {
+  // Check 3 is the CONSISTENCY rule: it fires only on a bare name the same document honorifies
+  // somewhere else. Two matcher defects made a correctly-honorified name look bare, so the rule
+  // reported an inconsistency that was not in the text. Both mentions go in one string because
+  // the honorified set is document-wide.
+  const LINE = 'حضرت خدیجۃ الکبریٰ رضی اللہ تعالیٰ عنہا کا لقب کیا تھا؟ حضرت خدیجۃ رضی اللہ عنہا کا ذکر';
+
+  test('the production Grade 6 tafheem line is delivered, lint-clean', async () => {
+    create.mockResolvedValue(reply(religiousDoc(LINE)));
+
+    const out = await run();
+
+    expect(religiousFails(out)).toEqual([]);
+    expect(out.lintClean).toBe(true);
+    expect(out.rounds).toBe(0);
+  });
+
+  test('a three-word name reaches its honorific', async () => {
+    create.mockResolvedValue(reply(religiousDoc(
+      'حضرت زینب بنت علی رضی اللہ عنہا کا ذکر آتا ہے۔ حضرت زینب رضی اللہ عنہا مشہور ہیں')));
+
+    const out = await run();
+
+    expect(religiousFails(out)).toEqual([]);
+    expect(out.lintClean).toBe(true);
+  });
+
+  test('a genuinely bare companion is STILL not delivered clean', async () => {
+    // The consistency rule's whole point. If this goes green the fix has gone too far.
+    //
+    // Recovered from 065766b7, where this asserted on a RETURNED document. It cannot here: the
+    // P0 that shipped to sandbox made an exhausted ladder THROW (lp612-author.service.js:2511),
+    // so there is no dirty document to inspect — which is the protection working. The assertion
+    // moves onto the raised message via the `refusal` helper; what is being asserted is unchanged.
+    create.mockResolvedValue(reply(religiousDoc(
+      'حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟ حضرت خدیجۃ رضی اللہ عنہا کا ذکر')));
+
+    const message = await refusal(1);
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+    expect(message).toMatch(/names a companion/);
+  });
+});
