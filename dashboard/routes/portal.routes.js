@@ -66,9 +66,14 @@ const { getOverall } = require('../services/coaching-frameworks.service');
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
-const { getPatchTeachers } = require('../services/leader-patch.service');
+// TERMINAL is imported rather than respelled: two spellings of "finished" is
+// exactly how 629 observations went missing once (bd-2671).
+const { getPatchTeachers, TERMINAL } = require('../services/leader-patch.service');
 // My Patch overview aggregation (pure, over the resolver output).
 const { summarizePatch } = require('../services/leader-overview.service');
+// bd-60117 — school-level coaching analytics for a principal (pure, over the
+// school's scored sessions).
+const { summarizeSchoolAnalytics } = require('../services/school-analytics.service');
 // Single teacher detail (patch-membership guarded).
 const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.service');
 // The coach's /observe world (upcoming schedules + pending debriefs + past
@@ -981,7 +986,11 @@ router.get('/leader/overview', requirePortalAuth, requireLeaderRole, async (req,
   try {
     const teachers = await getPatchTeachers(
       (sql, params) => pool.query(sql, params),
-      req.session.portalUserId
+      req.session.portalUserId,
+      // bd-60117: a principal's patch is her own school, not a coach's school
+      // assignments. requireLeaderRole already loaded the row, so the role
+      // costs no extra round-trip.
+      { role: req.portalUser && req.portalUser.role }
     );
     res.json({ success: true, overview: summarizePatch(teachers) });
   } catch (error) {
@@ -1001,7 +1010,11 @@ router.get('/leader/teachers', requirePortalAuth, requireLeaderRole, async (req,
   try {
     const teachers = await getPatchTeachers(
       (sql, params) => pool.query(sql, params),
-      req.session.portalUserId
+      req.session.portalUserId,
+      // bd-60117: a principal's patch is her own school, not a coach's school
+      // assignments. requireLeaderRole already loaded the row, so the role
+      // costs no extra round-trip.
+      { role: req.portalUser && req.portalUser.role }
     );
     res.json({
       success: true,
@@ -1026,7 +1039,9 @@ router.get('/leader/teacher/:id', requirePortalAuth, requireLeaderRole, async (r
     const detail = await getPatchTeacherDetail(
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
-      req.params.id
+      req.params.id,
+      // bd-60117: a principal proves membership through her own school.
+      { role: req.portalUser && req.portalUser.role }
     );
     if (!detail) {
       return res.status(404).json({ success: false, error: 'Teacher not found in your patch.' });
@@ -1035,6 +1050,73 @@ router.get('/leader/teacher/:id', requirePortalAuth, requireLeaderRole, async (r
   } catch (error) {
     console.error('leader/teacher/:id error:', error);
     res.status(500).json({ success: false, error: 'Failed to load teacher detail.' });
+  }
+});
+
+/**
+ * GET /api/portal/leader/school-analytics
+ *
+ * bd-60117 — the Analytics tab, asked of a principal's SCHOOL rather than of
+ * her own handful of sessions. (Across all 460 principals there are 46 own
+ * completed sessions in total — 0.10 each — so "her own coaching data" is not
+ * a view worth giving her. Her school's is: sampling 40 principals, 34 had
+ * scored sessions, some with 68, 79, 135.)
+ *
+ * PRINCIPALS ONLY, by decision. requireLeaderRole lets the whole leader family
+ * through, so this 403s the other four rather than silently showing an AEO or
+ * a coach a one-school slice of a patch that actually spans many — a wrong
+ * answer in the shape of a right one. Roster scoping comes from the session
+ * user id via the same resolver the roster uses, never from a query param.
+ */
+router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const role = req.portalUser && req.portalUser.role;
+    if (String(role || '').trim().toLowerCase() !== 'principal') {
+      return res.status(403).json({
+        success: false,
+        error: 'School analytics is available to principals.'
+      });
+    }
+
+    // Same patch resolver the roster uses, so the two can never disagree about
+    // who is in this school.
+    const teachers = await getPatchTeachers(
+      (sql, params) => pool.query(sql, params),
+      req.session.portalUserId,
+      { role }
+    );
+
+    const userIds = teachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
+    let sessions = [];
+    if (userIds.length > 0) {
+      // TERMINAL, not status='completed': a leader observation never reaches
+      // 'completed' (bd-2671), and filtering on it hid the entire observation
+      // programme once already.
+      const { rows } = await pool.query(
+        `SELECT created_at, analysis_data
+           FROM coaching_sessions
+          WHERE user_id = ANY($1::uuid[])
+            AND status IN ${TERMINAL}
+            AND analysis_data IS NOT NULL
+          ORDER BY created_at ASC`,
+        [userIds]
+      );
+      sessions = rows || [];
+    }
+
+    res.json({
+      success: true,
+      school: {
+        name: (teachers.find((t) => t.schoolName) || {}).schoolName || null,
+        totalTeachers: teachers.length,
+        onRumi: teachers.filter((t) => t.onRumi).length,
+        totalLessonPlans: teachers.reduce((n, t) => n + (t.lessonPlans || 0), 0),
+      },
+      analytics: summarizeSchoolAnalytics(sessions),
+    });
+  } catch (error) {
+    console.error('leader/school-analytics error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load your school analytics.' });
   }
 });
 

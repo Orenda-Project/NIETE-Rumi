@@ -36,6 +36,34 @@ const MEMBERSHIP_SQL = `
   LIMIT 1
 `;
 
+// bd-60117 — the same proof for a PRINCIPAL, whose link to a school is her own
+// users.school_id rather than a leader_schools assignment. Without this she was
+// refused every teacher in her own school, herself included: the drawer 404'd
+// while the roster behind it sat empty, both from this one missing entry point.
+//
+// Just as strict, in the same shape: she is let through iff the teacher's school
+// is HER school. The role guard is part of the boundary, not decoration — drop
+// it and any leader-family user carrying a school_id would silently be scoped to
+// that one school instead of the patch they actually hold.
+const PRINCIPAL_MEMBERSHIP_SQL = `
+  SELECT u.id, u.name, u.phone_number
+  FROM users me
+  JOIN users u
+    ON u.school_id = me.school_id
+   AND u.role IN ('teacher', 'principal')
+  WHERE me.id = $1
+    AND me.role = 'principal'
+    AND me.school_id IS NOT NULL
+    AND u.id = $2
+  LIMIT 1
+`;
+
+/** Which membership proof applies, given the viewer's role. */
+function membershipSqlFor(role) {
+  const r = role == null ? null : String(role).trim().toLowerCase();
+  return r === 'principal' ? PRINCIPAL_MEMBERSHIP_SQL : MEMBERSHIP_SQL;
+}
+
 const SESSIONS_SQL = `
   SELECT id, created_at, analysis_data
   FROM coaching_sessions
@@ -53,10 +81,12 @@ const COUNTS_SQL = `
  * @param {(sql: string, params: any[]) => Promise<{rows: object[]}>} query
  * @param {string} leaderUserId   portal session user id
  * @param {string} teacherUserId  Rumi users.id of the teacher being viewed
+ * @param {{role?: string}} [opts]  viewer's users.role — picks the membership
+ *   proof (bd-60117). Omitted ⇒ the coach proof, exactly as before.
  * @returns {Promise<object|null>}  detail, or null if the teacher isn't in the leader's patch
  */
-async function getPatchTeacherDetail(query, leaderUserId, teacherUserId) {
-  const { rows: member } = await query(MEMBERSHIP_SQL, [leaderUserId, teacherUserId]);
+async function getPatchTeacherDetail(query, leaderUserId, teacherUserId, opts = {}) {
+  const { rows: member } = await query(membershipSqlFor(opts.role), [leaderUserId, teacherUserId]);
   if (!member || member.length === 0) return null;   // not in patch → caller 404s
   const t = member[0];
 
@@ -89,4 +119,11 @@ async function getPatchTeacherDetail(query, leaderUserId, teacherUserId) {
   };
 }
 
-module.exports = { getPatchTeacherDetail, MEMBERSHIP_SQL, SESSIONS_SQL, COUNTS_SQL };
+module.exports = {
+  getPatchTeacherDetail,
+  membershipSqlFor,
+  MEMBERSHIP_SQL,
+  PRINCIPAL_MEMBERSHIP_SQL,
+  SESSIONS_SQL,
+  COUNTS_SQL,
+};
