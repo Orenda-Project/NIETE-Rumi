@@ -35,6 +35,12 @@ on:
     # `lint` is a REQUIRED check on staging — so the PR sits blocked for
     # ever on a check that can never report.
     branches: [main, staging, sandbox]
+    # `labeled`/`unlabeled` are here because the baseline-recut escape below reads labels
+    # off the event payload, which is fixed when the run starts. Without them, applying the
+    # label changes nothing until someone pushes again — an escape hatch you need a trick to
+    # use is not one. `unlabeled` re-runs too, so removing the label restores the guard
+    # rather than leaving a stale green behind it.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
 jobs:
@@ -91,8 +97,22 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASELINE_BASE_REF: origin/${{ github.base_ref }}
+          # A re-cut after the base branch has drifted legitimately GROWS the snapshot, and
+          # until now the check had no way to hear that: --allow-growth was reachable only
+          # for PRs into `main`, so the one operation BASELINE.md documents as legitimate --
+          # "re-record it in its own commit, explain why in the PR, and re-run with
+          # --allow-growth" -- could not be performed on the branch where work lands.
+          # bd-8qsbt/bd-ym59h hit exactly that: a re-cut that made `npm test` print CLEAN
+          # could not merge, because recording everyone else's accumulated failures reads
+          # as growth to a check that only counts.
+          #
+          # The label is the explicit human act the check asks for: applied on the PR,
+          # visible in its timeline, added deliberately -- "the intent is recorded rather
+          # than inferred". Default is unchanged: no label, no growth.
+          ALLOW_GROWTH: ${{ github.base_ref == 'main' || contains(github.event.pull_request.labels.*.name, 'baseline-recut') }}
         run: |
-          if [ "${{ github.base_ref }}" = "main" ]; then
+          if [ "$ALLOW_GROWTH" = "true" ]; then
+            echo "baseline-growth: growth permitted (base=${{ github.base_ref }}, baseline-recut label or main)"
             npm run test:baseline:growth -- --allow-growth
           else
             npm run test:baseline:growth
