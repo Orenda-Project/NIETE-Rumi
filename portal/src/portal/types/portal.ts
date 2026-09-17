@@ -363,6 +363,57 @@ export interface SchoolAnalyticsResponse {
   remarks: SchoolRemarks;
 }
 
+/**
+ * Attendance detail (GET /leader/attendance) — bd-60123.
+ *
+ * The unit is a PERSON-DAY: `chances` = people x school days. Unmarked
+ * person-days are their own block, so thin coverage cannot hide inside the
+ * numerator the way a bare percentage lets it.
+ */
+export interface AttendanceGroup {
+  name: string;
+  /** Roster size — the largest register ever recorded for this group. */
+  people: number;
+  days: number;
+  /** people x days. */
+  chances: number;
+  present: number;
+  absent: number;
+  neverMarked: number;
+  /** How many of the window's days this group was marked at all. */
+  markedDays: number;
+}
+
+export interface AttendanceDayCell {
+  date: string;
+  marked: boolean;
+  total: number | null;
+  /** null — never 0 — when nobody marked that day. */
+  present: number | null;
+  absent: number | null;
+}
+
+export interface AttendanceByDay {
+  name: string;
+  days: AttendanceDayCell[];
+}
+
+export interface AttendanceSection {
+  groups: AttendanceGroup[];
+  byDay: AttendanceByDay[];
+}
+
+export interface AttendanceResponse {
+  success: boolean;
+  from: string;
+  to: string;
+  focusTeacher: { id: string; name: string } | null;
+  teachers: Array<{ id: string; name: string; isPrincipal: boolean }>;
+  schoolDays: string[];
+  students: AttendanceSection;
+  staff: AttendanceSection;
+}
+
 /** The coach's /observe world (GET /leader/observations) — bd-2455. */
 export interface LeaderScheduledObservation {
   id: string;
