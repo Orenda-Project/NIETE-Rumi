@@ -44,6 +44,16 @@ function decideStatusReply({ statusFlowId, items } = {}) {
 
   if (items.length === 0) return { mode: 'text', kind: 'empty' };
 
+  // The Flow's only verb is Stop. Items that cannot be stopped are marked
+  // `summaryOnly` and buildMainScreen keeps them out of the selectable rows — so
+  // if EVERY item is one of those, the Flow opens on a screen whose only button
+  // is "Done — close". A card and a tap to deliver one line of text is worse than
+  // the line of text, so say it in the chat instead.
+  //
+  // `it &&` on purpose: a malformed entry must not read as unstoppable. Falling
+  // through to the Flow is the safe direction — it still renders and still closes.
+  if (items.every((it) => it && it.summaryOnly)) return { mode: 'text', kind: 'list' };
+
   return hasFlow ? { mode: 'flow' } : { mode: 'text', kind: 'list' };
 }
 

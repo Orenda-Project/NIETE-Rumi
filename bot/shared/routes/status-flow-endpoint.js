@@ -27,13 +27,13 @@ async function handleStatusFlowDataExchange(userId, screen, screenData /*, flowT
 
   if (screen === 'MAIN') {
     const action = screenData._action;
-    if (!action) return createErrorResponse('No action selected');
+    if (!action) return createErrorResponse('No action selected', { userId, screen, screenData });
     if (action === 'done') {
       return buildSuccessScreen('Done — your /status is up to date.', { statusAction: 'done' });
     }
     // action is a row id like 'cancel_quiz_<uuid>' / 'cancel_video' etc.
     const parsed = TeacherStateService.parseResourceId(action);
-    if (parsed.kind === 'unknown') return createErrorResponse('Unknown action');
+    if (parsed.kind === 'unknown') return createErrorResponse('Unknown action', { userId, screen, action });
 
     // Re-derive the label so CONFIRM_CANCEL shows it without trusting client state
     const items = await TeacherStateService.listActiveResources(userId);
@@ -50,7 +50,7 @@ async function handleStatusFlowDataExchange(userId, screen, screenData /*, flowT
 
   if (screen === 'CONFIRM_CANCEL') {
     const rowId = screenData.resource_id;
-    if (!rowId) return createErrorResponse('Missing resource id');
+    if (!rowId) return createErrorResponse('Missing resource id', { userId, screen, screenData });
     const items = await TeacherStateService.listActiveResources(userId);
     const matched = items.find(it => it.id === rowId);
     if (!matched) {
@@ -79,11 +79,11 @@ async function handleStatusFlowDataExchange(userId, screen, screenData /*, flowT
         resourceLabel: matched.title
       });
     }
-    return createErrorResponse(`Couldn't stop that — ${result.reason || 'unknown error'}`);
+    return createErrorResponse(`Couldn't stop that — ${result.reason || 'unknown error'}`,
+      { userId, screen, resourceId: rowId, kind: matched.kind, reasonFromCancel: result.reason });
   }
 
-  logToFile('⚠️ Unknown screen in status flow', { screen });
-  return createErrorResponse('Unknown screen');
+  return createErrorResponse('Unknown screen', { userId, screen });
 }
 
 async function handleStatusFlowBack(userId, screen /*, flowToken */) {
@@ -129,7 +129,13 @@ async function buildMainScreen(userId) {
 
     const summaryBody = tasks.map(t => `• ${t}`).join('\n');
 
-    const resources = items.map(it => ({
+    // Summary-only items are counted and bulleted above but are NOT selectable.
+    // The only action this screen offers is Stop, and some in-flight work has no
+    // sensible stop here — a half-finished training quiz is hers to finish, not
+    // ours to discard on a tap. Filtering at the row layer (rather than leaving
+    // them out of `items`) is what lets them still appear in the heading and the
+    // bullets, which is the whole point of listing them.
+    const resources = items.filter(it => !it.summaryOnly).map(it => ({
       id: it.id,
       title: it.title.length > 30 ? it.title.slice(0, 27) + '...' : it.title
     }));
@@ -145,7 +151,7 @@ async function buildMainScreen(userId) {
     };
   } catch (err) {
     logToFile('❌ buildMainScreen error', { error: err.message });
-    return createErrorResponse('Could not load /status menu');
+    return createErrorResponse('Could not load /status menu', { userId, screen: 'MAIN', error: err.message });
   }
 }
 
@@ -170,7 +176,20 @@ function buildSuccessScreen(message, { statusAction = 'done', resourceKind = '',
   };
 }
 
-function createErrorResponse(message) {
+/**
+ * A refusal the teacher will see as Meta's generic "Something went wrong."
+ *
+ * LOGS AT ERROR, ALWAYS. Every refusal here is a dead end for a teacher, and
+ * Meta replaces `message` with its own copy — so this line is the only place the
+ * real reason survives. It used to log at info (or not at all), which is how the
+ * sandbox status Flow sat broken: the endpoint correctly refused an empty
+ * submission ~1,400 times a week's worth of offers could have hit, and Axiom
+ * showed nothing but an info-level data_exchange. Found by eye, not by monitor.
+ *
+ * pre-merge Class N: a terminal failure logged below error is invisible.
+ */
+function createErrorResponse(message, ctx = {}) {
+  logToFile('❌ /status Flow refused a submission', { ...ctx, reason: message }, 'error');
   return { data: { error: { message } } };
 }
 

@@ -127,5 +127,57 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     And I have more than one kind of work in flight (e.g. a lesson plan AND a video)
     When I send "/status"
     Then every in-flight item is listed on the status surface (inside the Flow where it is published, under "Running for you:" otherwise)
-    # teacher-state.service.js listActiveResources probes coaching + lesson-plan +
-    # video + reading + the conversation store independently and lists all non-empty ones.
+    # teacher-state.service.js listActiveResources probes quizzes + coaching +
+    # lesson-plan + the conversation store + reading (Redis) + training
+    # independently, and lists all non-empty ones. There is no `video` probe —
+    # that entry sat in this comment for a while and was never in the code.
+
+  # ── Teacher training ───────────────────────────────────────────────────────
+  # Training keeps its progress in its own table and never touched the
+  # conversation store, so /status could not see a teacher part-way through a
+  # quiz at all: the question she stopped on is recorded, and the surface built
+  # to answer "what is running" said nothing.
+
+  @e2e @training @P2
+  Scenario: A training quiz in progress is reported as running, in the chat
+    Given the NIETE bot chat is open
+    And I have answered at least one question of a training quiz and not finished it
+    And I have nothing else in flight
+    When I send "/status"
+    Then the bot answers in the chat and names the training quiz
+    And the line names the question I am on out of the total
+    And no "What's running" card is sent
+    # A training quiz cannot be stopped from /status, and the Flow's only verb is
+    # Stop — so with nothing else running the Flow would open on a screen whose
+    # one button is "Done — close". decideStatusReply routes an all-unstoppable
+    # list to the chat instead. This is the common case, not a corner: every
+    # teacher the probe surfaces has training as her only in-flight work.
+    # teacher-state.service.js listActiveResources: training_assessment_attempts
+    # where status='in_progress' AND completed_at IS NULL AND last_activity_at is
+    # within six hours — the same TTL the coaching step uses for "stepped away,
+    # may come back". Served by the existing partial index idx_taa_abandon_sweep.
+
+  @e2e @training @P2
+  Scenario: Alongside stoppable work, the training quiz is shown but not offered as a row
+    Given the NIETE bot chat is open
+    And I have a training quiz in progress
+    And I also have a classroom coaching session waiting, which CAN be stopped
+    When I send "/status" and open the "What's running" card
+    Then both are counted in the summary of what is running
+    And rows are offered to continue or stop the coaching session
+    But no row is offered for the training quiz, so I cannot stop it from here
+    # The item carries `summaryOnly` and buildMainScreen filters those out of
+    # `resources`. Stopping a half-finished quiz would discard her answers;
+    # training is resumed with /training instead. Because no row id is emitted,
+    # parseResourceId and cancelResource stay untouched — no tap can be dropped.
+
+  @e2e @training @negative @P2
+  Scenario: A training quiz I have already finished is not reported as running
+    Given the NIETE bot chat is open
+    And I have just finished a training quiz
+    And I have nothing else in flight
+    When I send "/status"
+    Then the bot replies in the chat that nothing is running
+    # The probe requires status='in_progress' AND completed_at IS NULL. An attempt
+    # keeps its last_activity_at when it finishes, so recency alone would report a
+    # quiz she passed minutes ago as still running.

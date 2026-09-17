@@ -271,6 +271,149 @@ export interface LeaderOverview {
   focus: LeaderPatchTeacher[];
 }
 
+/**
+ * School-level coaching analytics for a principal — GET /leader/school-analytics
+ * (bd-60117).
+ *
+ * Domains are DISCOVERED from the data, never a fixed list: NIETE has two
+ * coexisting rubrics in live sessions, and `sessions` says how many sessions
+ * each domain was actually measured in so a rarely-scored domain cannot be
+ * misread as the school's weakness.
+ */
+export interface SchoolDomainScore {
+  key: string;
+  name: string;
+  percentage: number;
+  sessions: number;
+}
+
+export interface SchoolAnalytics {
+  totalSessions: number;
+  /** null — not 0 — when the school has no scored session yet. */
+  averageScore: number | null;
+  /** Doubles as the coaching-history list — each point is one observed lesson. */
+  scoreTrend: Array<{
+    date: string;
+    percentage: number;
+    points: number | null;
+    maxPoints: number | null;
+    /** Whose lesson. Only shown when the view is not already one teacher. */
+    teacherName: string | null;
+  }>;
+  domainBreakdown: SchoolDomainScore[];
+  strongestDomain: string | null;
+  focusDomain: string | null;
+}
+
+/**
+ * STEPS "P" — Presence (bd-60118). Teacher and student presence stay SEPARATE:
+ * the 60:40 weighting between them was never locked (Sabeena, 2026-08-10:
+ * adjust after the pilot), so there is deliberately no combined figure.
+ */
+export interface SchoolPresence {
+  teacher: {
+    records: number;
+    present: number;
+    absent: number;
+    leave: number;
+    /** null — not 0 — when nothing has been marked. Leave is out of the denominator. */
+    presentPct: number | null;
+  };
+  student: {
+    sessions: number;
+    totalMarked: number;
+    present: number;
+    presentPct: number | null;
+  };
+}
+
+/** STEPS "S" — the principal's own quarterly supervisor remarks (bd-60118). */
+export interface SchoolRemarkIndicator {
+  key: string;
+  ordinal: number;
+  name: string;
+  /** Mean of the 1..4 rubric scores. */
+  average: number;
+  percentage: number;
+  teachers: number;
+}
+
+export interface SchoolRemarks {
+  /** Committed forms only — a part-answered form is not a result. */
+  submitted: number;
+  averagePct: number | null;
+  indicatorBreakdown: SchoolRemarkIndicator[];
+  focusIndicator: string | null;
+}
+
+export interface SchoolAnalyticsResponse {
+  success: boolean;
+  school: {
+    name: string | null;
+    totalTeachers: number;
+    onRumi: number;
+    totalLessonPlans: number;
+  };
+  /** Set when ?teacherId= narrowed the view to one teacher. */
+  focusTeacher: { id: string; name: string } | null;
+  /** Everyone in the school, for the filter control. */
+  teachers: Array<{ id: string; name: string; isPrincipal: boolean }>;
+  analytics: SchoolAnalytics;
+  presence: SchoolPresence;
+  remarks: SchoolRemarks;
+}
+
+/**
+ * Attendance detail (GET /leader/attendance) — bd-60123.
+ *
+ * The unit is a PERSON-DAY: `chances` = people x school days. Unmarked
+ * person-days are their own block, so thin coverage cannot hide inside the
+ * numerator the way a bare percentage lets it.
+ */
+export interface AttendanceGroup {
+  name: string;
+  /** Roster size — the largest register ever recorded for this group. */
+  people: number;
+  days: number;
+  /** people x days. */
+  chances: number;
+  present: number;
+  absent: number;
+  neverMarked: number;
+  /** How many of the window's days this group was marked at all. */
+  markedDays: number;
+}
+
+export interface AttendanceDayCell {
+  date: string;
+  marked: boolean;
+  total: number | null;
+  /** null — never 0 — when nobody marked that day. */
+  present: number | null;
+  absent: number | null;
+}
+
+export interface AttendanceByDay {
+  name: string;
+  days: AttendanceDayCell[];
+}
+
+export interface AttendanceSection {
+  groups: AttendanceGroup[];
+  byDay: AttendanceByDay[];
+}
+
+export interface AttendanceResponse {
+  success: boolean;
+  from: string;
+  to: string;
+  focusTeacher: { id: string; name: string } | null;
+  teachers: Array<{ id: string; name: string; isPrincipal: boolean }>;
+  schoolDays: string[];
+  students: AttendanceSection;
+  staff: AttendanceSection;
+}
+
 /** The coach's /observe world (GET /leader/observations) — bd-2455. */
 export interface LeaderScheduledObservation {
   id: string;

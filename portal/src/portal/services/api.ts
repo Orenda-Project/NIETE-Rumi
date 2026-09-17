@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
-import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData } from '../types/portal';
+import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse, AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
 
@@ -378,6 +378,31 @@ export const leader = {
 
   getTeacher: async (id: string): Promise<{ success: boolean } & LeaderTeacherDetail> => {
     const response = await api.get(`/leader/teacher/${id}`);
+    return response.data;
+  },
+
+  // bd-60117 — a principal's SCHOOL analytics. 403s for the rest of the leader
+  // family: they are multi-school, so a single school's numbers would be a
+  // confident wrong answer rather than a missing one.
+  // bd-60118 — teacherId narrows every STEPS component to one teacher. The
+  // server validates it against her school and 404s otherwise, so this is a
+  // convenience, not the boundary.
+  getSchoolAnalytics: async (teacherId?: string | null): Promise<SchoolAnalyticsResponse> => {
+    const response = await api.get('/leader/school-analytics', {
+      params: teacherId ? { teacherId } : undefined,
+    });
+    return response.data;
+  },
+
+  // bd-60123 — attendance, merged per group (G3) and split per day. Window
+  // defaults to the last 30 days server-side.
+  getAttendance: async (params: { from?: string; to?: string; teacherId?: string | null } = {}):
+    Promise<AttendanceResponse> => {
+    const query: Record<string, string> = {};
+    if (params.from) query.from = params.from;
+    if (params.to) query.to = params.to;
+    if (params.teacherId) query.teacherId = params.teacherId;
+    const response = await api.get('/leader/attendance', { params: query });
     return response.data;
   },
 

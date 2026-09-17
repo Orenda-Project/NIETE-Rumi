@@ -61,8 +61,12 @@ jest.mock('../../shared/services/observe/observe-teacher-admin.service', () => {
       person: { name: 'Tahira Manzoor', isPrincipal: false },
       fromSchoolName: 'IMS(I-V) No.2 G-10/2', toSchoolName: 'IMCG, G-10/2',
     })),
-    commitRemoval: jest.fn(async () => ({
-      ok: true, name: 'Tahira Manzoor', schoolName: 'IMCG, G-10/2', visitsCancelled: 1,
+    commitRemovals: jest.fn(async ({ userIds }) => ({
+      ok: true,
+      removed: (userIds || []).map((id) => ({ userId: id, name: `Name ${id}`, phone: null })),
+      skipped: [],
+      schoolName: 'IMCG, G-10/2',
+      visitsCancelled: 1,
     })),
   };
 });
@@ -73,7 +77,15 @@ jest.mock('../../shared/services/observe/patch-resolver.service', () => {
   return {
     ...actual,
     listPatchViaSupabase: jest.fn(async () => ([
-      { userId: 'u1', name: 'Tahira Manzoor', phone: '923001234567',
+      { userId: 'u1', name: 'Tahira Manzoor', displayName: 'Tahira Manzoor', phone: '923001234567',
+        isPrincipal: false, roleLabel: '', band: 'primary',
+        schoolName: 'IMCG, G-10/2', emis: '916' },
+      { userId: 'u2', name: 'Nasreen Akhtar', displayName: 'Nasreen Akhtar', phone: '923331112233',
+        isPrincipal: false, roleLabel: '', band: 'primary',
+        schoolName: 'IMCG, G-10/2', emis: '916' },
+      // No name on file. The picker has always rendered the label; the confirm
+      // screen used to fall back to "that teacher" for exactly these rows.
+      { userId: 'u3', name: null, displayName: 'Teacher …5566', phone: '923214445566',
         isPrincipal: false, roleLabel: '', band: 'primary',
         schoolName: 'IMCG, G-10/2', emis: '916' },
     ])),
@@ -189,19 +201,19 @@ describe('removing', () => {
 
   it('teacher_remove_check warns about the visits it will cancel', async () => {
     const res = await step('teacher_remove_check', {
-      school_ext_id: 'niete:916', teacher_ext_id: 'u1',
+      school_ext_id: 'niete:916', teacher_ext_ids: ['u1'],
     });
     expect(res.screen).toBe('TEACHER_REMOVE_CONFIRM');
     expect(res.data.plan).toContain('Tahira Manzoor');
     expect(res.data.teacher_ext_id).toBe('u1');
-    expect(TeacherAdmin.commitRemoval).not.toHaveBeenCalled();
+    expect(TeacherAdmin.commitRemovals).not.toHaveBeenCalled();
   });
 
   it('teacher_remove_commit writes and reports what happened', async () => {
     const res = await step('teacher_remove_commit', {
       school_ext_id: 'niete:916', teacher_ext_id: 'u1', reason: 'left',
     });
-    expect(TeacherAdmin.commitRemoval).toHaveBeenCalled();
+    expect(TeacherAdmin.commitRemovals).toHaveBeenCalled();
     expect(res.screen).toBe('TEACHER_DONE');
   });
 
@@ -209,7 +221,83 @@ describe('removing', () => {
     const res = await step('teacher_cancel');
     expect(res.screen).toBe('TEACHER_DONE');
     expect(TeacherAdmin.commitAdd).not.toHaveBeenCalled();
-    expect(TeacherAdmin.commitRemoval).not.toHaveBeenCalled();
+    expect(TeacherAdmin.commitRemovals).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * bd-2hjqk — several at once, and the deploy window in which the published
+ * Flow asset and the deployed code disagree about the payload's shape.
+ */
+describe('removing several people in one pass', () => {
+  it('the picker offers them as tick boxes carrying every person', async () => {
+    const res = await step('teacher_remove_open', { school_ext_id: 'niete:916' });
+    expect(res.screen).toBe('TEACHER_PICK');
+    expect(res.data.options.map((o) => o.id)).toEqual(['u1', 'u2', 'u3']);
+    expect(res.data.intro).toMatch(/Tick everyone/);
+  });
+
+  it('the confirm screen names everyone ticked, in the picker order', async () => {
+    const res = await step('teacher_remove_check', {
+      school_ext_id: 'niete:916', teacher_ext_ids: ['u3', 'u1'],
+    });
+    expect(res.screen).toBe('TEACHER_REMOVE_CONFIRM');
+    expect(res.data.plan).toContain('Tahira Manzoor');
+    // displayName, not name — u3 has none, and used to confirm as "that teacher".
+    expect(res.data.plan).toContain('Teacher …5566');
+    expect(res.data.plan).not.toContain('that teacher');
+    // The selection rides the ONE declared key, comma-joined, in picker order.
+    expect(res.data.teacher_ext_id).toBe('u1,u3');
+  });
+
+  it('the confirm screen asks — it does not announce a removal that has not happened', async () => {
+    const res = await step('teacher_remove_check', {
+      school_ext_id: 'niete:916', teacher_ext_ids: ['u1'],
+    });
+    expect(res.data.plan).not.toMatch(/^Removed/);
+    expect(res.data.plan).toMatch(/will come off/);
+  });
+
+  it('the commit sends every id to ONE batched write', async () => {
+    await step('teacher_remove_commit', {
+      school_ext_id: 'niete:916', teacher_ext_id: 'u1,u2,u3', reason: 'transferred',
+    });
+    expect(TeacherAdmin.commitRemovals).toHaveBeenCalledTimes(1);
+    expect(TeacherAdmin.commitRemovals).toHaveBeenCalledWith(expect.objectContaining({
+      userIds: ['u1', 'u2', 'u3'], reason: 'transferred', schoolExtId: 'niete:916',
+    }));
+  });
+
+  it('the done screen names everyone who came off', async () => {
+    const res = await step('teacher_remove_commit', {
+      school_ext_id: 'niete:916', teacher_ext_id: 'u1,u2',
+    });
+    expect(res.screen).toBe('TEACHER_DONE');
+    expect(res.data.body).toContain('Tahira Manzoor');
+    expect(res.data.body).toContain('Nasreen Akhtar');
+  });
+
+  /**
+   * Meta keeps serving the previously published JSON until the asset is
+   * republished, and republishing is only allowed once the endpoint is live —
+   * so for the length of that window the OLD Dropdown payload keeps arriving
+   * at the NEW code. It must not answer "there is nothing to remove".
+   */
+  it('a single id from the old published Dropdown still works', async () => {
+    const res = await step('teacher_remove_check', {
+      school_ext_id: 'niete:916', teacher_ext_id: 'u1',
+    });
+    expect(res.screen).toBe('TEACHER_REMOVE_CONFIRM');
+    expect(res.data.teacher_ext_id).toBe('u1');
+  });
+
+  it('an empty or "none" selection refuses instead of writing', async () => {
+    for (const data of [{ teacher_ext_ids: [] }, { teacher_ext_id: 'none' }, {}]) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await step('teacher_remove_commit', { school_ext_id: 'niete:916', ...data });
+      expect(res.screen).toBe('TEACHER_DONE');
+    }
+    expect(TeacherAdmin.commitRemovals).not.toHaveBeenCalled();
   });
 });
 
@@ -228,8 +316,8 @@ describe('every screen these steps return satisfies the keys it declares', () =>
     ['teacher_add_named', { school_ext_id: 'niete:916', phone: '923001234567', name: 'X' }],
     ['teacher_add_commit', { school_ext_id: 'niete:916', phone: '923001234567', name: 'T' }],
     ['teacher_remove_open', { school_ext_id: 'niete:916' }],
-    ['teacher_remove_check', { school_ext_id: 'niete:916', teacher_ext_id: 'u1' }],
-    ['teacher_remove_commit', { school_ext_id: 'niete:916', teacher_ext_id: 'u1' }],
+    ['teacher_remove_check', { school_ext_id: 'niete:916', teacher_ext_ids: ['u1', 'u2'] }],
+    ['teacher_remove_commit', { school_ext_id: 'niete:916', teacher_ext_id: 'u1,u2' }],
     ['teacher_cancel', {}],
   ];
 

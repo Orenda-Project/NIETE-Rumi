@@ -24,7 +24,7 @@ process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key';
 
 const {
-  planAdd, commitAdd, commitRemoval, addPlanAck,
+  planAdd, commitAdd, addPlanAck,
 } = require('../../shared/services/observe/observe-teacher-admin.service');
 
 const RAWAL = { school_ext_id: 'niete:409', school_id: 's409', school_name: 'IMSB (VI-X), Rawal Dam', emis: '409' };
@@ -47,7 +47,6 @@ function fakeDb(over = {}) {
     setUserSchool: jest.fn(async (a) => { calls.setSchool.push(a); return true; }),
     createTeacher: jest.fn(async (a) => { calls.created.push(a); return { id: 'new-user', ...a }; }),
     writeAudit: jest.fn(async (rows) => { calls.audit.push(...rows); return rows.length; }),
-    cancelUpcoming: jest.fn(async () => (over.cancelled == null ? 0 : over.cancelled)),
   };
 }
 
@@ -185,39 +184,5 @@ describe('commitAdd · one write, and a record of it', () => {
       expect(db.calls.setSchool).toHaveLength(0);
       expect(db.calls.created).toHaveLength(0);
     }
-  });
-});
-
-describe('commitRemoval · she leaves the school, keeps everything else', () => {
-  it('clears her school and cancels the visits that depended on it', async () => {
-    const db = fakeDb({ cancelled: 2 });
-    const res = await commitRemoval(
-      { actorLeaderUserId: 'coach-a', schoolExtId: SAID.school_ext_id, userId: 'u1', reason: 'left' },
-      { db },
-    );
-    expect(res.ok).toBe(true);
-    expect(db.calls.setSchool[0]).toMatchObject({ userId: 'u1', schoolId: null });
-    expect(res.visitsCancelled).toBe(2);
-  });
-
-  it('audits the removal with no destination — that is what makes it a removal', async () => {
-    const db = fakeDb();
-    await commitRemoval(
-      { actorLeaderUserId: 'coach-a', schoolExtId: SAID.school_ext_id, userId: 'u1', reason: 'left' },
-      { db },
-    );
-    const a = db.calls.audit.find((x) => x.action === 'remove');
-    expect(a.from_school_ext_id).toBe(SAID.school_ext_id);
-    expect(a.to_school_ext_id).toBeNull();
-    expect(a.detail).toMatchObject({ reason: 'left' });
-  });
-
-  it('refuses to remove someone from a school the coach does not coach', async () => {
-    const db = fakeDb({ holdsSchool: false });
-    const res = await commitRemoval(
-      { actorLeaderUserId: 'coach-a', schoolExtId: SAID.school_ext_id, userId: 'u1' }, { db },
-    );
-    expect(res.ok).toBe(false);
-    expect(db.calls.setSchool).toHaveLength(0);
   });
 });
