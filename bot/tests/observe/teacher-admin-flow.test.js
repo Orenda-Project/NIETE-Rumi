@@ -252,12 +252,31 @@ describe('the "what next?" tap after a teacher change', () => {
   });
 
   it('every option the screen offers has a target', () => {
+    // bd-60117: the result screen is two one-tap buttons now (Main menu /
+    // Close), not a radio plus Continue. The invariant is unchanged and still
+    // worth pinning: every `next` the screen can emit must map to a target, or
+    // the coach's tap does nothing.
     const screen = flow.screens.find((s) => s.id === 'TEACHER_DONE');
-    const radio = screen.layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    for (const opt of radio['data-source']) {
-      expect(rosterTeacherNextTarget(opt.id)).toBeTruthy();
+    const offered = screen.layout.children
+      .filter((c) => c['on-click-action'])
+      .map((c) => c['on-click-action'].payload.next);
+    expect(offered.sort()).toEqual(['done', 'menu']);
+    for (const next of offered) {
+      expect(rosterTeacherNextTarget(next)).toBeTruthy();
+    }
+  });
+
+  it('the result screen is two taps wide — no radio, no Continue', () => {
+    // Applies to every result screen in /observe, not just this one.
+    for (const id of ['TEACHER_DONE', 'ACTION_DONE', 'SUCCESS']) {
+      const scr = flow.screens.find((s) => s.id === id);
+      const flat = JSON.stringify(scr.layout);
+      expect(flat).not.toMatch(/RadioButtonsGroup/);
+      expect(flat).not.toMatch(/"label":"Continue"/);
+      const labels = scr.layout.children
+        .filter((c) => c['on-click-action'])
+        .map((c) => c.text || c.label);
+      expect(labels).toEqual(['Main menu', 'Close']);
     }
   });
 
