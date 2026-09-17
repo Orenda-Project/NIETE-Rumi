@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, Target, Users, BookOpen, Calendar, UserCheck, ClipboardCheck } from 'lucide-react';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
+import ScoreIndicator from '../components/ScoreIndicator';
 import { leader } from '../services/api';
 import type { SchoolAnalyticsResponse } from '../types/portal';
 
@@ -29,13 +31,33 @@ const SchoolAnalytics = () => {
   const [loading, setLoading] = useState(true);
   // bd-60118 — '' means the whole school. The server validates the id against
   // her roster, so this is a convenience rather than the access boundary.
-  const [teacherId, setTeacherId] = useState<string>('');
+  // bd-60119: seeded from ?teacherId=, so the roster can deep-link straight to
+  // one teacher's numbers and the dropdown shows her as selected on arrival.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [teacherId, setTeacherId] = useState<string>(searchParams.get('teacherId') || '');
+
+  // Keep the URL honest as she changes the filter, so the view is shareable and
+  // the back button returns to what she was actually looking at.
+  const selectTeacher = (id: string) => {
+    setTeacherId(id);
+    const next = new URLSearchParams(searchParams);
+    if (id) next.set('teacherId', id); else next.delete('teacherId');
+    setSearchParams(next, { replace: true });
+  };
+  // Distinct from `loading`, which is only ever true before the FIRST load.
+  // Without this a filter change swapped every number in place with nothing on
+  // screen to say so — on a slow link that reads as a broken filter, or worse,
+  // the previous teacher's numbers get read as the new teacher's.
+  const [refetching, setRefetching] = useState(false);
   // 403 is a real answer, not an error: the other four leader-family roles are
   // multi-school, so there is no single school whose numbers would be theirs.
   const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     let alive = true;
+    // First load owns the full-page loader; every later one is a refetch, which
+    // must keep the page (and the filter she is still using) on screen.
+    setRefetching((prev) => (data ? true : prev));
     leader
       .getSchoolAnalytics(teacherId || null)
       .then((d) => { if (alive) setData(d); })
@@ -44,8 +66,15 @@ const SchoolAnalytics = () => {
         if (err?.response?.status === 403) setForbidden(true);
         setData(null);
       })
-      .finally(() => { if (alive) setLoading(false); });
+      .finally(() => {
+        if (!alive) return;
+        setLoading(false);
+        setRefetching(false);
+      });
     return () => { alive = false; };
+    // `data` is deliberately not a dependency: it is read only to tell a first
+    // load from a refetch, and depending on it would refetch on every result.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacherId]);
 
   if (loading) {
@@ -114,20 +143,6 @@ const SchoolAnalytics = () => {
     markers: { size: 4 },
   };
 
-  const domainOptions: ApexOptions = {
-    chart: { type: 'bar', toolbar: { show: false } },
-    plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
-    colors: ['hsl(15, 85%, 60%)'],
-    dataLabels: { enabled: true, formatter: (v) => `${v}%`, offsetX: 28 },
-    xaxis: {
-      categories: analytics.domainBreakdown.map((d) => d.name),
-      max: 100,
-      labels: { formatter: (v) => `${v}%` },
-    },
-    grid: { borderColor: 'hsl(220, 13%, 91%)', strokeDashArray: 4 },
-    tooltip: { y: { formatter: (v) => `${v}%` } },
-  };
-
   return (
     <PortalLayout>
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
@@ -152,7 +167,7 @@ const SchoolAnalytics = () => {
                 id="teacher-filter"
                 data-testid="teacher-filter"
                 value={teacherId}
-                onChange={(e) => setTeacherId(e.target.value)}
+                onChange={(e) => selectTeacher(e.target.value)}
                 className="border border-border rounded-md px-3 py-2 text-sm bg-white"
               >
                 <option value="">The whole school</option>
@@ -160,6 +175,21 @@ const SchoolAnalytics = () => {
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
+
+              {/* Beside the control that caused it, not over the page: she is
+                  still using this filter, and a full-page loader would throw
+                  away her scroll position mid-comparison. */}
+              {refetching && (
+                <span
+                  data-testid="refetching"
+                  role="status"
+                  aria-live="polite"
+                  className="ml-3 inline-flex items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent" />
+                  Updating…
+                </span>
+              )}
             </div>
           )}
         </header>
@@ -223,8 +253,12 @@ const SchoolAnalytics = () => {
         <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
           <div className="flex items-center gap-2 mb-6">
             <UserCheck className="w-5 h-5 text-accent" />
-            <h2 className="text-2xl font-light">Attendance</h2>
+            <h2 className="text-2xl font-light">Who is showing up</h2>
           </div>
+          <p data-testid="presence-help" className="text-muted-foreground text-sm mb-6">
+            From the registers marked on Rumi. Teacher and student attendance are kept
+            separate — a teacher is not marked down for children kept home.
+          </p>
 
           {presence.teacher.presentPct == null && presence.student.presentPct == null ? (
             <p data-testid="presence-empty" className="text-muted-foreground text-sm">
@@ -277,6 +311,10 @@ const SchoolAnalytics = () => {
             <ClipboardCheck className="w-5 h-5 text-accent" />
             <h2 className="text-2xl font-light">Your evaluations</h2>
           </div>
+          <p data-testid="remarks-help" className="text-muted-foreground text-sm mb-6">
+            The quarterly reviews you submitted yourself on WhatsApp, rated 1 to 4 across
+            five areas. Only finished reviews are counted.
+          </p>
 
           {remarks.submitted === 0 ? (
             <p data-testid="remarks-empty" className="text-muted-foreground text-sm">
@@ -341,29 +379,46 @@ const SchoolAnalytics = () => {
           </div>
         ) : (
           <>
+            {/* Headings say what the number MEANS, not what the chart looks
+                like. "Score over time" and "By area" named the shape and left
+                the principal to infer the rest; the score is a FICO classroom
+                observation — a coach watches a lesson and scores sections
+                B/C/D/F — which is the one fact that makes any of it readable. */}
             <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
-              <h2 className="text-2xl font-light mb-6">Score over time</h2>
+              <h2 data-testid="trend-heading" className="text-2xl font-light mb-1">
+                Are lessons improving?
+              </h2>
+              <p data-testid="trend-help" className="text-muted-foreground text-sm mb-6">
+                Every point is one observed lesson, scored out of 100. A line that climbs
+                means teaching is getting stronger over time.
+              </p>
               <Chart
                 options={trendOptions}
-                series={[{ name: 'Score', data: analytics.scoreTrend.map((p) => p.percentage) }]}
+                series={[{ name: 'Lesson score', data: analytics.scoreTrend.map((p) => p.percentage) }]}
                 type="line"
                 height={320}
               />
             </section>
 
             <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
-              <h2 className="text-2xl font-light mb-6">By area</h2>
-              <Chart
-                options={domainOptions}
-                series={[{ name: 'Score', data: analytics.domainBreakdown.map((d) => d.percentage) }]}
-                type="bar"
-                height={300}
-              />
+              <h2 data-testid="domain-heading" className="text-2xl font-light mb-1">
+                What teaching is strongest and weakest
+              </h2>
+              <p data-testid="domain-help" className="text-muted-foreground text-sm mb-6">
+                Each observed lesson is scored across four parts of teaching. Higher is
+                better — the lowest one is where coaching will help most.
+              </p>
 
               {/* The session count sits next to every domain on purpose. NIETE
                   has two rubrics live at once — one set appears in 182 of 200
                   sessions, another in 15 — so a domain measured a handful of
-                  times would otherwise read as a school-wide weakness. */}
+                  times would otherwise read as a school-wide weakness.
+
+                  These cards replaced an Apex bar chart that plotted exactly
+                  the same four numbers directly above them (operator,
+                  2026-09-17). Two renderings of one dataset is not two views,
+                  it is one view and a distraction — and the cards carry the
+                  session count, which the bars could not. */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                 {analytics.domainBreakdown.map((d) => (
                   <div
@@ -387,6 +442,52 @@ const SchoolAnalytics = () => {
                   </div>
                 ))}
               </div>
+            </section>
+
+            {/* bd-60119 — Coaching history, ported from the teacher-detail page
+                that principals no longer land on. The chart above shows the
+                SHAPE; this is the individual lessons behind it, with the date
+                and the marks — what she points at when talking to a teacher
+                about one particular visit. Same ScoreIndicator as the detail
+                page, so it reads identically to what coaches already know. */}
+            <section
+              data-testid="coaching-history"
+              className="bg-white rounded-lg shadow-sm border border-border overflow-hidden mb-8"
+            >
+              <div className="p-6 pb-3">
+                <h2 className="text-2xl font-light">Every observed lesson</h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Newest first. Each row is one lesson a coach sat in on and scored.
+                </p>
+              </div>
+              <ul className="divide-y divide-border">
+                {[...analytics.scoreTrend].reverse().map((p, i) => (
+                  <li
+                    key={`${p.date}-${i}`}
+                    data-testid={`history-row-${i}`}
+                    className="flex items-center justify-between px-6 py-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {new Date(p.date).toLocaleDateString('en-GB', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                        })}
+                      </p>
+                      <p className="text-muted-foreground text-sm truncate">
+                        {/* Whose lesson — but only when the view is not already
+                            one teacher, where repeating her name on every row
+                            is noise. */}
+                        {!focusTeacher && p.teacherName && <>{p.teacherName}</>}
+                        {!focusTeacher && p.teacherName && p.points != null && <> · </>}
+                        {p.points != null && p.maxPoints != null && (
+                          <>{p.points} / {p.maxPoints} marks</>
+                        )}
+                      </p>
+                    </div>
+                    <ScoreIndicator percentage={p.percentage} size="small" />
+                  </li>
+                ))}
+              </ul>
             </section>
 
             {analytics.focusDomain && (
