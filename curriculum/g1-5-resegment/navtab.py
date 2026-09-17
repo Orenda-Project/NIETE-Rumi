@@ -49,15 +49,15 @@ English G1–5 :: One row per teaching day: grade band, chapter band, days. Rebu
 Urdu G1–5 :: Same row grammar. Boundaries kept; only the day-integrity fields were repaired.
 Maths G1–5 :: Same row grammar; the Skill type column IS the CPA ramp, so one chip carries both.
 Science G4–5 :: General Science only, 5E-coded. Grades 1–3 General Knowledge is out of scope here.
+Coverage Map :: The skill mix per grade, and every chapter against every skill type as a heat grid.
+Coverage — gaps :: Chapters too thin for their SLO load; every SLO checked for an introducing day.
+FLN Coverage :: Literacy and numeracy by strand and month, counted off the Teaching Calendar itself.
 Skills Map :: Every skill type against every grade: who meets it, where, where it never appears.
-Coverage Map :: What the year teaches — the skill mix per grade, every chapter against every skill
-    type as a heat grid, thin chapters named, every SLO checked for an introducing day.
 All Segments + SLOs :: Every row from all four subject tabs, flat and filterable. The tab to SEARCH.
 Skill Taxonomy :: Every skill type per subject: day count, chip colour, what the day actually is.
 Pipeline Stages :: The build recipe as data — and the stage that fills any column reading `pending`.
 Samples Review :: Where you write your verdict — five standing questions plus a row per subject.
-QA Checklist :: Part A of the master QA checklist — was the chapter split right before any lesson
-    was generated. Six items, blank for you.
+QA Checklist :: Part A of the master QA checklist — was the chapter split right before any lesson.
 """)
 
 BODY = _entries("""

@@ -16,6 +16,7 @@ import covtab
 import fde
 import fdefmt
 import fdetab
+import flntab
 import navtab
 import reviewtab
 import skillfmt
@@ -46,7 +47,8 @@ SUBJECT_TABS = {"English": "English G1–5", "Urdu": "Urdu G1–5",
 TAB_ORDER = ["Navigation", "Teaching Calendar", "Calendar (overview)",
              "FDE Syllabus", "English G1–5",
              "Urdu G1–5", "Maths G1–5", "Science G4–5",
-             "Coverage Map", "Coverage — gaps", "Skills Map",
+             "Coverage Map", "Coverage — gaps", "FLN Coverage",
+             "Skills Map",
              "All Segments + SLOs", "Skill Taxonomy", "Pipeline Stages",
              "Samples Review", "QA Checklist"]
 
@@ -56,7 +58,8 @@ NAV_LABEL_TO_TAB.update({t: t for t in ("All Segments + SLOs", "Skill Taxonomy",
                                         "Teaching Calendar", "FDE Syllabus",
                                         "Calendar (overview)",
                                         "Coverage Map", "Coverage — gaps",
-                                        "Skills Map", "Samples Review",
+                                        "FLN Coverage", "Skills Map",
+                                        "Samples Review",
                                         "QA Checklist")})
 
 
@@ -125,6 +128,7 @@ def main():
     over_rows, over_plan = calover.build(cal_plan["stats"])
     cov_rows, cov_plan = covtab.build(corpus)
     gap_rows, gap_plan = covtab.gaps_build(corpus)
+    fln_rows, fln_plan = flntab.build(cal_rows, cal_plan)
     map_rows, map_plan = skillmap.build(skillmap.load(SKILLSMAP_JSON),
                                        cal_plan["onsets"])
     fde_rows, fde_plan = fdetab.build(all_books, breaks)
@@ -139,12 +143,14 @@ def main():
                  "Calendar (overview)": over_plan["n_cols"],
                  "Coverage Map": cov_plan["n_cols"],
                  "Coverage — gaps": gap_plan["n_cols"],
+                 "FLN Coverage": fln_plan["n_cols"],
                  "Skills Map": map_plan["n_cols"]})
     heights = {t: len(v[0]) + 2 for t, v in payload.items()}
     heights.update({"Teaching Calendar": len(cal_rows),
                     "Calendar (overview)": len(over_rows),
                     "Coverage Map": len(cov_rows),
                     "Coverage — gaps": len(gap_rows),
+                    "FLN Coverage": len(fln_rows) + 2,
                     "Skills Map": len(map_rows),
                     "FDE Syllabus": len(fde_rows),
                     "Samples Review": len(rev_rows),
@@ -205,6 +211,18 @@ def main():
     covfmt.format_coverage(svc, sheetio, ids["Coverage — gaps"],
                            gap_rows, gap_plan)
     print(f"Coverage — gaps: {len(gap_rows)} rows")
+
+    fln, fln_head = sheetio.titled(fln_rows, flntab.TITLE, flntab.STANDFIRST,
+                                   at=3)          # first unfrozen column
+    sheetio.write_values(svc, "FLN Coverage", fln)
+    sheetio.format_grid(svc, ids["FLN Coverage"], len(fln), fln_plan["n_cols"],
+                        freeze_cols=3, head_row=fln_head, band=True,
+                        banner_rows=[r + fln_head
+                                     for r in fln_plan["grade_rows"]],
+                        sub_banner_rows=[r + fln_head
+                                         for r in fln_plan["total_rows"]],
+                        widths=fln_plan["widths"])
+    print(f"FLN Coverage: {len(fln)} rows x {fln_plan['n_cols']} cols")
 
     sheetio.write_values(svc, "Skills Map", map_rows)
     skillfmt.format_skillmap(svc, sheetio, ids["Skills Map"],
@@ -273,6 +291,7 @@ def main():
         "FDE Syllabus": (len(fde_rows), 10),
         "Coverage Map": (len(cov_rows), cov_plan["n_cols"]),
         "Coverage — gaps": (len(gap_rows), gap_plan["n_cols"]),
+        "FLN Coverage": (len(fln), fln_plan["n_cols"]),
         "Skills Map": (len(map_rows), map_plan["n_cols"]),
         "All Segments + SLOs": (len(flat), 15),
         "Skill Taxonomy": (len(tax), 7),
