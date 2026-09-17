@@ -31,6 +31,16 @@ jest.mock('../../bot/shared/services/llm-client', () => {
   };
 });
 
+// bd-5t71f. The English lane clears a Latin name off the G5c native-speaker review, carried as
+// data. The REAL list — `bot/vendor/lp-v9/g5c_cleared_names_en.json` — ships EMPTY and clears
+// nothing until Amena signs the candidate list off, so a FIXTURE clearance stands in here and
+// proves the mechanism end to end. Fail-closed regressions at this layer:
+// `religious-marks-cleared-names-en.e2e.test.js`.
+jest.mock('../../bot/vendor/lp-v9/g5c_cleared_names_en.json', () => ({
+  person: ['Mohammad Ali Jinnah'],
+  prophet: [],
+}));
+
 // The harness — doc builder, page-truth tree, run/refusal — is shared with
 // `religious-marks-english.e2e.test.js`, which holds the English-medium rulings. It lives in
 // helpers/religious-e2e.js rather than here because describe G took this file past 300 lines.
@@ -70,7 +80,7 @@ describe('A — the lesson that production refused now reaches the teacher', () 
   // (the Urdu lane's is at lint_lp.js:1630), so Latin "Mohammad" opening another person's name is
   // refused. That gap is live on sandbox today and is out of scope for bd-kpqu6's P0.
   // Un-skip in the commit that fixes bd-5t71f.
-  test.skip('an English lesson naming Muhammad Ali Jinnah is delivered', async () => {
+  test('an English lesson naming Muhammad Ali Jinnah is delivered', async () => {
     const d = religiousDoc();                       // keeps the سیرت trigger, so the gate RUNS
     d.sections.find((s) => (s.blocks || []).some((b) => b.type === 'key_points'))
       .blocks.find((b) => b.type === 'key_points').items =

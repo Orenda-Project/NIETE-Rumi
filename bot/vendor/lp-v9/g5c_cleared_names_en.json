@@ -1,0 +1,19 @@
+{
+  "what": "The LATIN-SCRIPT half of the G5c native-speaker review — every Latin-script name in the Grades 6-12 page-truth corpus that lint_lp.js's TRANSLIT_PROPHET_RE matches. When this file carries decided names it IS the clearance brief §4c requires; it is not a heuristic and nothing else in this repo may decide which Mohammad is which.",
+  "status": "AWAITING_REVIEW — ships EMPTY and clears NOTHING",
+  "status_note": "The candidate list is derived and is with Amena Ahmed for the G5c sign-off. Until her marks come back, `person` and `prophet` are empty, every Latin-script match is refused exactly as it is today, and the gate is unchanged. Dropping her decided file in here is the only remaining step. FAIL-CLOSED, ALWAYS — an unreviewed name is not a cleared name.",
+  "bead": "bd-5t71f",
+  "decided_by": null,
+  "decided_on": null,
+  "reviewer_of_record": "Amena Ahmed — native-speaker reviewer for gate G5c, named on the Grades 6-12 curriculum workbook Change Log as row H-0001",
+  "polarity": {
+    "prophet": "the Prophet — the salutation is required and the gate keeps demanding it",
+    "person": "an ordinary named person — no salutation, and the gate must stop demanding one"
+  },
+  "why_this_file_exists": "The Q2 ruling (operator, 2026-09-17) — 'since we will have lots of Muhammads not the prophet but regular ppl, get a list approved from the page truths so we know which names can come up and dont need the salutation' — was executed for URDU only. g5c_cleared_names.json is keyed on the Urdu word sequence, so the Urdu lane clears محمد علی جناح while the Latin lane refuses Mohammad Ali Jinnah and an English-medium Pakistan Studies lesson naming the Quaid is refused outright.",
+  "derived_how": "08_Grades 6-12 LP Build/_g5c_english_name_lane_2026-09-17/probes/extract-english-names.js — a read-only sweep of lp612/page-truth/ in R2, matching with lint_lp.js's own TRANSLIT_PROPHET_RE, lifted from its source text so the sweep cannot drift from the rule it feeds. The sweep classifies nothing; every row is a candidate carrying the book, page and sentence the reviewer rules on.",
+  "approval_packet": "08_Grades 6-12 LP Build/_g5c_english_name_lane_2026-09-17/English-name-list-for-approval.md",
+  "matching": "The gate matches on the WORD SEQUENCE, not the byte string: each word is compared with its edge punctuation trimmed and its case folded, because the books print 'MOHAMMAD ALI JINNAH' in a heading and 'Mohammad Ali Jinnah' in the prose. The longest decided phrase present rules, and on equal length the blocking mark wins.",
+  "person": [],
+  "prophet": []
+}
