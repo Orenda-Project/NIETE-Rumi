@@ -26,8 +26,8 @@
  * Copy grounded in observe-strings.js (en) + observe-command.handler.js; screens confirmed by live probe. */
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 const B = (reason) => ['BLOCKED', { reason }];
-const ROSTER   = B('the visit picker OPENS but cannot advance — the driver-coach has no leader_schools assignment / roster in the sandbox DB (empty school dropdown + teacher picker), and the mock API cannot seed leader_schools (no helper; setUser PATCHes only the users row). Confirmed by live probe.');
-const ANALYSIS = B('needs a completed audio analysis (pick teacher → analyse → FICO); unreachable because the teacher pick is empty (see ROSTER). The FICO form / debrief / report sit downstream.');
+const ROSTER   = B('the visit picker OPENS but cannot advance to school→teacher→brief. api.setRoster() DOES seed a dedicated E2E school + teachers + leader_schools row (verified queryable by the driver uid, and torn down by the harness — no pollution), but the visit Flow still renders an EMPTY school dropdown: listSchools returns nothing for the flow_token userId, so the seed does not surface in-Flow (a flow_token / lazy schools-data_exchange nuance, not yet root-caused). Until that is fixed the walk cannot proceed.');
+const ANALYSIS = B('needs a completed audio analysis (pick teacher → analyse → FICO); the teacher pick is gated by the same in-Flow empty-roster issue as ROSTER. The FICO form / debrief / report sit downstream of it.');
 const FAULT    = B('needs an injected DB-write / report-send failure; the harness provides no fault injection.');
 const NOACCT   = B('needs a WhatsApp number with no NIETE account; the mock driver is a registered user.');
 const OFF      = B('needs the capability gate OFF; the mock baseline sets OBSERVE_MEWAKA_FLOW_ID ON to exercise the coach path. Drive the OFF fall-through with: OBSERVE_MEWAKA_FLOW_ID= bash commit-e2e.sh …');
@@ -76,16 +76,19 @@ exports.run = async ({ api, rec }) => {
       ...V(!!(tap && tap.ok) && !DENIED.test(txt32) && ENTRY.test(txt32), { reply: txt32.slice(0, 180) }), Date.now() - s);
 
   // ── OBS03 — the visit picker Flow OPENS to school selection (data_exchange via the emulator) ──
+  // Also EXERCISES the roster seed + harness teardown: api.setRoster() creates a dedicated E2E school +
+  // teachers (uniquely keyed to the driver), and feature-runner's finally removes them unconditionally.
   s = Date.now();
-  await api.setRole('coach'); await api.freshReset();
+  await api.setRole('coach');
+  const seed = await api.setRoster();   // torn down by the harness even if the run fails — no DB pollution
+  await api.freshReset();
   await api.sendWait('/observe', 120000);
   const op = await api.openFlow('Plan my visit|plan your visit|Observe|Open');
   const p1 = (op && op.ok) ? await api.flowProbe() : { text: '', items: [] };
   rec('OBS03', 'The visit picker walks school → teacher → brief',
       ...V(!!(op && op.ok) && /Pick a school|School/i.test(p1.text || ''),
-        { openedPicker: !!(op && op.ok), screen: (p1.text || '').slice(0, 160),
-          items: (p1.items || []).map((i) => i.text).slice(0, 8),
-          note: 'picker OPENS to school selection; the school→teacher→brief walk itself needs a seeded roster (ROSTER)' }),
+        { openedPicker: !!(op && op.ok), seedOk: !!(seed && seed.ok), screen: (p1.text || '').slice(0, 160),
+          note: 'the visit Flow OPENS to school selection via the emulator; seed+teardown exercised. The seeded school does not yet surface in the Flow dropdown (listSchools returns empty for the flow_token) — a flow_token/lazy-load issue that gates walking school→teacher→brief here.' }),
       Date.now() - s);
   api.closeFlow(); await api.resetFlow();
 
