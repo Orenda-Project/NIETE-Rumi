@@ -285,3 +285,72 @@ describe('F — a prophet other than Muhammad takes علیہ السلام, not �
     expect(msgs.join('\n')).toMatch(/ﷺ/);
   });
 });
+
+describe('G — English keeps the name the book prints, and carries our salutation stamp', () => {
+  // OPERATOR RULING, 2026-09-17 (G5c native-speaker review, bd-zipoe packet, Q3):
+  //   "For English keep the name as shown in the page truth Hazrat Muhammad (salutation) or
+  //    'By Allah, if Fatima, the daughter of Muhammad (salutation), the justice of Hazrat
+  //    Muhammad (salutation) should be enforced dont write the English text in urdu, it should
+  //    stay as shown in the book but with our salutation stamp/script"
+  //
+  // Two halves, and only one of them is a code defect.
+  //
+  // THE JUDGEMENT HALF is already what the gate does: on an English page the NAME keeps its Latin
+  // spelling and the SALUTATION is our stamp. The tests here pin that, because the rule now has an
+  // explicit ruling behind it rather than only a source comment, and because a future narrowing of
+  // the English lane would silently break it.
+  //
+  // THE MECHANICAL HALF is the defect. grade_8_english.c01.p009-012.reading_comprehension carries
+  // three v9.2 fails on "the justice of حضرت محمد رسول اللہ ﷺ: the compani…". The honorific IS
+  // there. محمد رسول اللہ is a CHAINED name — one salutation closes the whole chain, which is how
+  // it is written — but HONORIFIC_RE is anchored immediately after each token, so the gate demands
+  // a second ﷺ in the middle of the chain and refuses a line that is correct as printed.
+  const TRIGGER = 'سیرت کا سبق';
+
+  it('G1 — "محمد رسول اللہ ﷺ" is one chained name closed by one salutation', () => {
+    expect(blocked(withProse('حضرت محمد رسول اللہ ﷺ کا فرمان'))).toBe(false);
+  });
+
+  it('G1 — the production Grade 8 line, mixed English and Urdu', () => {
+    const d = setSecondProse(withProse(TRIGGER),
+      'the justice of حضرت محمد رسول اللہ ﷺ: the companions saw it daily');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('G1 — a three-token chain closes on one salutation: "نبی کریم محمد مصطفیٰ ﷺ"', () => {
+    expect(blocked(withProse('نبی کریم محمد مصطفیٰ ﷺ کا ذکر'))).toBe(false);
+  });
+
+  it('STILL blocks a chain that never reaches a salutation', () => {
+    // The whole point of check 1. If a chain can absorb the requirement without ever satisfying
+    // it, the gate has been turned off rather than corrected.
+    expect(blocked(withProse('حضرت محمد رسول اللہ کا فرمان یاد رکھیں'))).toBe(true);
+  });
+
+  it('STILL blocks a single bare token — the chain rule changes nothing there', () => {
+    expect(blocked(withProse('نبی کریم کا فرمان یاد رکھیں'))).toBe(true);
+  });
+
+  it('G2 — an English page keeps "Hazrat Muhammad ﷺ" exactly as the book prints it', () => {
+    const d = setSecondProse(withProse(TRIGGER),
+      'Read the sentence: "the justice of Hazrat Muhammad ﷺ should be enforced".');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('G2 — "the daughter of Muhammad ﷺ" passes with the Latin name intact', () => {
+    const d = setSecondProse(withProse(TRIGGER),
+      'Read the sentence: "By Allah, if Fatima, the daughter of Muhammad ﷺ, stole…"');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('G2 — the bare Latin name is still caught, and is told to keep its spelling', () => {
+    // The production v9.6 fail. Under the ruling this refusal is CORRECT — the salutation is
+    // missing and must be added. What must never happen is the author being told to write the
+    // English sentence in Urdu.
+    const d = setSecondProse(withProse(TRIGGER),
+      'Read the sentence: "By Allah, if Fatima, the daughter of Muhammad, stole…"');
+    const msgs = religious(d);
+    expect(msgs.length).toBeGreaterThan(0);
+    expect(msgs.join('\n')).toMatch(/keeps the spelling the book prints/);
+  });
+});
