@@ -27,6 +27,8 @@ import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
 import LeaderObservations from "./portal/pages/LeaderObservations";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
+// bd-60123 — the attendance detail (merged G3 + day-wise).
+import SchoolAttendance from "./portal/pages/SchoolAttendance";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
  * imports and the /portal/reading-* + /portal/video* routes below. */
@@ -108,6 +110,7 @@ const App = () => {
                 the leader family and the page says so rather than showing
                 one school's numbers to a multi-school role. */}
             <Route path="/portal/leader/school-analytics" element={<SchoolAnalytics />} />
+            <Route path="/portal/leader/attendance" element={<SchoolAttendance />} />
             <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

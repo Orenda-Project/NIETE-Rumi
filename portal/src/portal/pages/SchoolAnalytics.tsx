@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { TrendingUp, Target, Users, BookOpen, Calendar, UserCheck, ClipboardCheck } from 'lucide-react';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
@@ -254,6 +254,16 @@ const SchoolAnalytics = () => {
           <div className="flex items-center gap-2 mb-6">
             <UserCheck className="w-5 h-5 text-accent" />
             <h2 className="text-2xl font-light">Who is showing up</h2>
+            {/* bd-60123 — the full picture lives on its own page: every grade
+                merged across children and days, with a day-by-day view and
+                date/teacher filters. This panel stays the headline. */}
+            <Link
+              to="/portal/leader/attendance"
+              data-testid="attendance-detail-link"
+              className="ml-auto text-sm font-medium text-accent hover:underline"
+            >
+              See all attendance →
+            </Link>
           </div>
           <p data-testid="presence-help" className="text-muted-foreground text-sm mb-6">
             From the registers marked on Rumi. Teacher and student attendance are kept
