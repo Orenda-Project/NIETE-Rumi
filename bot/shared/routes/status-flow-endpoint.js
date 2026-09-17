@@ -129,7 +129,13 @@ async function buildMainScreen(userId) {
 
     const summaryBody = tasks.map(t => `• ${t}`).join('\n');
 
-    const resources = items.map(it => ({
+    // Summary-only items are counted and bulleted above but are NOT selectable.
+    // The only action this screen offers is Stop, and some in-flight work has no
+    // sensible stop here — a half-finished training quiz is hers to finish, not
+    // ours to discard on a tap. Filtering at the row layer (rather than leaving
+    // them out of `items`) is what lets them still appear in the heading and the
+    // bullets, which is the whole point of listing them.
+    const resources = items.filter(it => !it.summaryOnly).map(it => ({
       id: it.id,
       title: it.title.length > 30 ? it.title.slice(0, 27) + '...' : it.title
     }));
