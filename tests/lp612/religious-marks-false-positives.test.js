@@ -229,3 +229,59 @@ describe('D — a companion honorific that IS there, rejected by the matcher', (
     expect(blocked(withProse('حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟'))).toBe(false);
   });
 });
+
+describe('F — a prophet other than Muhammad takes علیہ السلام, not ﷺ', () => {
+  // OPERATOR RULING, 2026-09-17 (G5c native-speaker review, bd-zipoe packet, Q1):
+  //   "any prophet not Muhammad gets their proper salutation alaihis salam in the
+  //    stamp/nastaliq script"
+  //
+  // This is the native-speaker clearance brief §4c/G5c requires. It is a decision, not a
+  // heuristic derived here.
+  //
+  // PROPHET_TOKENS carries the bare common noun نبی alongside the Prophet Muhammad's own name and
+  // his conventional epithets, and HONORIFIC_RE accepts only his salutation. So a correctly
+  // salutated mention of ANY other prophet read as an unhonorified mention of him — and the
+  // failure message instructed the author to write "نبی ﷺ", which for Hazrat Ibrahim is the wrong
+  // thing. A lesson cannot be repaired into compliance by being told to write something false, so
+  // it stayed refused on every round.
+  //
+  // PRODUCTION: grade_7_urdu.c11.p062-064.tafheem (v9.6), REFUSED 2026-09-15 04:53, one teacher
+  // waiting. /sections/0/warmup/items/1/a — "وہ اللہ کے نبی تھے، جنہوں نے بتوں کی…". The chapter
+  // is Hazrat Ibrahim.
+
+  it('F1 — "نبی علیہ السلام" is a complete salutation and does not block', () => {
+    expect(blocked(withProse('حضرت ابراہیم اللہ کے نبی علیہ السلام تھے'))).toBe(false);
+  });
+
+  it('F1 — the elaborated "علیہ الصلوٰۃ والسلام" is accepted too', () => {
+    expect(blocked(withProse('حضرت موسیٰ نبی علیہ الصلوٰۃ والسلام کا ذکر'))).toBe(false);
+  });
+
+  it('F2 — "نبی ﷺ" still passes, exactly as before', () => {
+    expect(blocked(withProse('نبی ﷺ نے فرمانے کا ذکر کیا ہے'))).toBe(false);
+  });
+
+  it('STILL blocks محمد with علیہ السلام — his salutation is ﷺ and nothing else', () => {
+    // The guard on the ruling's own words: "any prophet NOT Muhammad". If this goes green the
+    // fix has demoted the Prophet's salutation, which is the defect bd-qzitp exists to prevent.
+    expect(blocked(withProse('محمد علیہ السلام نے ارشاد کیا'))).toBe(true);
+  });
+
+  it('STILL blocks an epithet of the Prophet with علیہ السلام — رسول اللہ', () => {
+    expect(blocked(withProse('رسول اللہ علیہ السلام کا فرمان'))).toBe(true);
+  });
+
+  it('STILL blocks a LATIN "alaihis salam" — the ruling says stamp/nastaliq script', () => {
+    expect(blocked(withProse('حضرت ابراہیم اللہ کے نبی alaihis salam تھے'))).toBe(true);
+  });
+
+  it('the production Grade 7 line still fails, but now names علیہ السلام as the fix', () => {
+    // It carries no salutation at all, so it must still be caught — the change is WHAT the author
+    // is told to write. Demanding "نبی ﷺ" for Hazrat Ibrahim is why this segment could not be
+    // repaired on any round.
+    const msgs = religious(withProse('وہ اللہ کے نبی تھے، جنہوں نے بتوں کی پرستش سے منع کیا'));
+    expect(msgs.length).toBeGreaterThan(0);
+    expect(msgs.join('\n')).toMatch(/علیہ السلام/);
+    expect(msgs.join('\n')).toMatch(/ﷺ/);
+  });
+});

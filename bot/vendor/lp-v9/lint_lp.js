@@ -1084,7 +1084,10 @@ const PROPHET_RE = new RegExp(
 // epithets) is a compound given name — a person, not the Prophet. Same shape as the K-5 lane's
 // niete-nbpro/src/honorifics.js `isCompoundGivenName`; kept in step by hand.
 const PROPHET_CONTINUATIONS = ["مصطفی", "مصطفیٰ", "رسول", "عربی", "خاتم", "النبیین", "مجتبی", "مجتبیٰ", "مدنی",
-  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک"];
+  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک",
+  // G5c Q1 — a salutation word is never the second word of somebody else's given name. Without
+  // this, "محمد علیہ السلام" reads as a compound name and the wrong salutation goes unchallenged.
+  "علیہ", "علیہم", "علیھم", "الصلوٰۃ", "الصلوۃ"];
 const NAME_FUNCTION_WORDS = ["نے", "کا", "کی", "کے", "کو", "سے", "پر", "میں", "تک", "اور", "یا", "ہے", "ہیں",
   "تھا", "تھے", "تھی", "جو", "کہ", "بھی", "ہی", "نہیں", "والا", "والے", "والی", "صاحب", "نامی", "یعنی", "کہا", "کہتے"];
 function isCompoundGivenName(s, afterIdx) {
@@ -1104,6 +1107,20 @@ function isCompoundGivenName(s, afterIdx) {
 }
 // The honorific may be the ligature or spelled out, and a comma or a quote may sit between.
 const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/;
+// G5c RULING Q1 (operator, 2026-09-17, on the bd-zipoe native-speaker review packet): "any
+// prophet not Muhammad gets their proper salutation alaihis salam in the stamp/nastaliq script".
+// So a prophet who is not Muhammad is correctly salutated with علیہ السلام, and the gate must
+// stop reading that as a missing honorific. STAMP/NASTALIQ SCRIPT is part of the ruling and part
+// of §4c.5's ban on transliteration, so this holds Urdu forms only — a Latin "alaihis salam"
+// still fails, exactly as a Latin "sallallahu alaihi wasallam" does.
+const PROPHET_ALT_HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(علیہ\s*الصلو[ٰا]?[ۃہ]\s*و\s*ال?سلام|علیہ[مان]?\s*السلام)/;
+// ...but only after a token that CAN name another prophet. نبی is the bare common noun "prophet";
+// every other entry in PROPHET_TOKENS is either Muhammad's own name (محمد) or a conventional
+// epithet of him specifically — سرورِ کائنات, پیغمبر اسلام, رسولِ اکرم, رسول اللہ, رسول کریم,
+// نبی کریم, نبی اکرم, نبی پاک, آں حضرت, آنحضرت, حضور اکرم, حضور — and those keep demanding ﷺ.
+// A NAMED prophet (حضرت ابراہیم علیہ السلام) is not this lane at all; it goes through check 3,
+// whose COMPANION_HON has always accepted علیہ السلام.
+const GENERIC_PROPHET_TOKENS = new Set(["نبی"]);
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
@@ -1622,13 +1639,15 @@ function religiousMarks(doc, ctx) {
     PROPHET_RE.lastIndex = 0;
     let m;
     while ((m = PROPHET_RE.exec(s))) {
-      if (HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      const after = s.slice(m.index + m[0].length);
+      if (HONORIFIC_RE.test(after)) continue;
+      if (GENERIC_PROPHET_TOKENS.has(m[0]) && PROPHET_ALT_HONORIFIC_RE.test(after)) continue;
       // VENDOR DIVERGENCE (bd-gyrg8, 2026-09-11; also upstream): `محمد` opening ANOTHER PERSON's
       // compound name is not a mention of the Prophet — محمد علی جناح، محمد بن قاسم، علامہ محمد
       // اقبال، محمد خان. An author under this gate wrote `محمد ﷺ خان` for Ashfaq Ahmed's father.
       // The Prophet's own name-continuations (مصطفیٰ، رسول اللہ، بن عبداللہ …) still demand it.
       if (m[0] === "محمد" && isCompoundGivenName(s, m.index + m[0].length)) continue;
-      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". ${GENERIC_PROPHET_TOKENS.has(m[0]) ? `Write "${m[0]} ﷺ" if this is the Prophet Muhammad, or "${m[0]} علیہ السلام" if it is another prophet` : `Write "${m[0]} ﷺ"`} — in Urdu script, never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
     }
   }
 
