@@ -384,8 +384,13 @@ export const leader = {
   // bd-60117 — a principal's SCHOOL analytics. 403s for the rest of the leader
   // family: they are multi-school, so a single school's numbers would be a
   // confident wrong answer rather than a missing one.
-  getSchoolAnalytics: async (): Promise<SchoolAnalyticsResponse> => {
-    const response = await api.get('/leader/school-analytics');
+  // bd-60118 — teacherId narrows every STEPS component to one teacher. The
+  // server validates it against her school and 404s otherwise, so this is a
+  // convenience, not the boundary.
+  getSchoolAnalytics: async (teacherId?: string | null): Promise<SchoolAnalyticsResponse> => {
+    const response = await api.get('/leader/school-analytics', {
+      params: teacherId ? { teacherId } : undefined,
+    });
     return response.data;
   },
 
