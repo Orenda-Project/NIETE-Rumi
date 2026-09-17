@@ -70,6 +70,7 @@ paths = [
   '''\.test\.js$''',
   '''\.gitleaks\.toml$''',
   '''(^|/)bot/fonts/''',
+  '''(^|/)\.claude/qa/fixtures/cassettes/''',   # e2e cassette fixtures: keys are sha256 hashes (high-entropy false positives); requests store only model/messages, never auth
 ]
 regexes = [
   '''your-[a-z-]*-?(key|token|id|secret)''',

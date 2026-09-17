@@ -1,0 +1,331 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "ROSTER": [
+      "ADD",
+      "REMOVE",
+      "RENAME"
+    ],
+    "ADD": [
+      "SAVED"
+    ],
+    "REMOVE": [
+      "SAVED"
+    ],
+    "RENAME": [
+      "SAVED"
+    ],
+    "SAVED": []
+  },
+  "screens": [
+    {
+      "id": "ROSTER",
+      "title": "Edit class",
+      "refresh_on_back": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Grade 5 - A · 28 students"
+        },
+        "preview": {
+          "type": "string",
+          "__example__": "1. Ayesha Bibi\n2. Ahmed Raza\n3. Fatima Noor"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "add",
+              "title": "Add more students"
+            },
+            {
+              "id": "remove",
+              "title": "Remove students"
+            },
+            {
+              "id": "rename",
+              "title": "Fix a name"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "roster_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.preview}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "roster_action",
+                "label": "What would you like to do?",
+                "required": true,
+                "data-source": "${data.actions}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ROSTER",
+                    "roster_action": "${form.roster_action}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADD",
+      "title": "Add students",
+      "data": {
+        "class_display": {
+          "type": "string",
+          "__example__": "Grade 5 - A"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "add_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Add to ${data.class_display}"
+              },
+              {
+                "type": "TextArea",
+                "name": "roster",
+                "label": "New student names",
+                "required": true,
+                "helper-text": "One name per line. Anyone already on the list is skipped."
+              },
+              {
+                "type": "Footer",
+                "label": "Add them",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ADD",
+                    "roster": "${form.roster}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REMOVE",
+      "title": "Remove students",
+      "data": {
+        "class_display": {
+          "type": "string",
+          "__example__": "Grade 5 - A"
+        },
+        "roster": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s1",
+              "title": "Ayesha Bibi"
+            },
+            {
+              "id": "s2",
+              "title": "Ahmed Raza"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "remove_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Remove from ${data.class_display}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Removed students stay in past registers — only future ones change."
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "remove_ids",
+                "label": "Students to remove",
+                "required": true,
+                "data-source": "${data.roster}"
+              },
+              {
+                "type": "Footer",
+                "label": "Remove selected",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "REMOVE",
+                    "remove_ids": "${form.remove_ids}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "RENAME",
+      "title": "Fix a name",
+      "data": {
+        "roster": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s1",
+              "title": "Ayesha Bibi"
+            },
+            {
+              "id": "s2",
+              "title": "Ahmed Raza"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "rename_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Which name needs fixing?"
+              },
+              {
+                "type": "Dropdown",
+                "name": "student_id",
+                "label": "Student",
+                "required": true,
+                "data-source": "${data.roster}"
+              },
+              {
+                "type": "TextInput",
+                "name": "new_name",
+                "label": "Correct name",
+                "required": true,
+                "input-type": "text"
+              },
+              {
+                "type": "Footer",
+                "label": "Save",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "RENAME",
+                    "student_id": "${form.student_id}",
+                    "new_name": "${form.new_name}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SAVED",
+      "title": "Done",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Added 3 — 31 students now"
+        },
+        "detail": {
+          "type": "string",
+          "__example__": "All saved."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "saved_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.detail}"
+              },
+              {
+                "type": "Footer",
+                "label": "Done",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
