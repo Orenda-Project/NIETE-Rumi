@@ -1358,7 +1358,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       // OBS_ACTION already use, so the screen reads like the rest of the flow.
       //
       // The subtitle carries the CURRENT value rather than a description of the
-      // field. "Grade / Primary + Middle" answers "what is it now?" — which is
+      // field. "Level / Primary + Middle" answers "what is it now?" — which is
       // what a coach opened this screen to find out — where "the grades they
       // teach" only restates the title.
       const row = (person.row || {});
@@ -1390,7 +1390,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           heading: person.name || 'This teacher',
           items: [
             _row('name', 'Name', person.name || 'Not on record'),
-            _row('level', 'Grade', curLevel.length ? curLevel.join(' + ') : 'Not on record'),
+            _row('level', 'Level', curLevel.length ? curLevel.join(' + ') : 'Not on record'),
             _row('role', 'Role', curRole),
             _row('phone', 'Phone number', person.phone || 'Not on record'),
           ],
@@ -1427,7 +1427,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           data: {
             school_ext_id: schoolExtId,
             teacher_ext_id: pickedUserId,
-            intro: `${person.name || 'This teacher'} currently teaches ${cur.length ? cur.join(' + ') : 'no band on record'}.\n\nPick every band they teach.`,
+            intro: `${person.name || 'This teacher'} currently teaches ${cur.length ? cur.join(' + ') : 'no level on record'}.\n\nPick every level they teach.`,
             options: [
               _opt('PRIMARY', 'Primary (Grades 1-5)', '', ''),
               _opt('MIDDLE', 'Middle (Grades 6-8)', '', ''),

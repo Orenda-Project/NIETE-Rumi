@@ -212,3 +212,26 @@ describe('the role screen — Teacher vs Principal (bd-60112)', () => {
     expect(HANDLER).toMatch(/\.select\('id, name, phone_number, role,/);
   });
 });
+
+describe('it is a LEVEL, not a grade (operator, 2026-09-17)', () => {
+  // users.teacher_level holds PRIMARY/MIDDLE/HIGH. Those are levels; a grade is
+  // a number (1-10). Calling the field "Grade" in the picker and "Grades they
+  // teach" on the screen named it after the wrong thing.
+  it('the picker row says Level', () => {
+    const step = HANDLER.slice(HANDLER.indexOf("step === 'teacher_edit_field'"));
+    const body = step.slice(0, step.indexOf('\n    if (step ==='));
+    expect(body).toMatch(/_row\('level', 'Level'/);
+    expect(body).not.toMatch(/_row\('level', 'Grade'/);
+  });
+
+  it('the level screen is titled for levels', () => {
+    expect(screen('TEACHER_EDIT_LEVEL').title).toBe('Levels they teach');
+  });
+
+  it('no teacher-facing copy calls it a grade or a band', () => {
+    // "band" is our internal word for the same thing; a coach never sees it.
+    const s = JSON.stringify(screen('TEACHER_EDIT_LEVEL'));
+    expect(s).not.toMatch(/Grades they teach/);
+    expect(s).not.toMatch(/"label":"Bands"/);
+  });
+});
