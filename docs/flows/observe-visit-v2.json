@@ -2382,7 +2382,7 @@
     },
     {
       "id": "TEACHER_EDIT_LEVEL",
-      "title": "Grades they teach",
+      "title": "Levels they teach",
       "refresh_on_back": true,
       "data": {
         "options": {
@@ -2415,7 +2415,7 @@
         },
         "intro": {
           "type": "string",
-          "__example__": "Fatima currently teaches PRIMARY.\n\nPick every band they teach."
+          "__example__": "Fatima currently teaches PRIMARY.\n\nPick every level they teach."
         },
         "school_ext_id": {
           "type": "string",
@@ -2440,7 +2440,7 @@
               {
                 "type": "CheckboxGroup",
                 "name": "bands",
-                "label": "Bands",
+                "label": "Levels",
                 "required": true,
                 "data-source": "${data.options}"
               },
