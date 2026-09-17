@@ -29,6 +29,9 @@
 
 const { logToFile } = require('../utils/logger');
 const { teacherLevelOf } = require('../utils/teacher-level');
+const {
+  usesModuleScopedListing, buildCourseRows, isCourseRowId, parseCourseRowId,
+} = require('../services/training/isaps-listing.rules');
 const supabase = require('../config/supabase');
 const {
   applyBandSelection,
@@ -44,6 +47,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 // LLM-scored 'capstone'. Both certify a level, so both must be recognised
 // wherever "does this level have an exam / did they pass it" is asked.
 // 'diagnostic' rows live in the same table and are NOT an exam.
+// bd-60119 — I-SAPS per-module summative quizzes are keyed source_quiz_id
+// = PER_MODULE_SOURCE_BASE + module number, which is what keeps them out of
+// the level-exam lookup above. Legacy ids are 1-11.
+const PER_MODULE_SOURCE_BASE = 900;
 const EXAM_QUIZ_TYPES = ['grand_quiz', 'capstone'];
 const EXAM_QUIZ_KINDS = ['grand', 'capstone'];
 const BADGES_BUCKET = 'training-assets';
@@ -385,6 +392,36 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
     const action = screenData._action;
     const vendorKey = String(screenData._vendor_key || '').trim() || null;
     if (action === 'open_module') {
+      // bd-60119 — I-SAPS only: a `c:` row is a MODULE, not a unit. Re-enter
+      // this screen scoped to it (or, for `c:0`, back to the module list)
+      // instead of treating the prefix as a module id. Other vendors never
+      // emit a `c:` row, so this branch is inert for them.
+      if (isCourseRowId(screenData.module_id)) {
+        // The published payload carries module_id and _vendor_key only — no
+        // level order — and the Flow JSON cannot be edited in place. So the
+        // level is resolved from the COURSE itself, and for the `c:0` "back"
+        // row from the teacher's visible catalogue.
+        const cid = parseCourseRowId(screenData.module_id);
+        let levelOrder = null;
+        if (cid) {
+          const { data: c } = await supabase
+            .from('training_courses').select('level_id').eq('id', cid).maybeSingle();
+          if (c?.level_id) {
+            const { data: lv } = await supabase
+              .from('training_levels').select('order_index').eq('id', c.level_id).maybeSingle();
+            if (lv) levelOrder = (lv.order_index || 0) + 1;
+          }
+        } else {
+          const catalog = await loadVisibleLevelsWithProgress(userId);
+          const mine = vendorKey ? catalog.filter(l => l.vendor_key === vendorKey) : catalog;
+          if (mine.length) levelOrder = (mine[0].order_index || 0) + 1;
+        }
+        if (!levelOrder) return errorScreen('That module could not be opened. Please reopen your training.');
+        return buildLevelDetail(userId, levelOrder, {
+          vendorKey,
+          courseRowId: cid ? screenData.module_id : null,
+        });
+      }
       // bd-2448 — the gate. Without this the dropdown was a free jump to any
       // module in the level, bypassing the sequential order the bot's own
       // deliverNextModule enforces.
@@ -659,6 +696,12 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
   const modules = await loadModulesWithProgress(userId, lvl.id);
   const grandQuiz = await loadGrandQuizState(userId, lvl.id);
 
+  // bd-60119 — I-SAPS ONLY: list the 9 modules, not all 54 units. Picking one
+  // re-enters this screen scoped to that course. Gated on the vendor so every
+  // other training keeps the flat list it has always had.
+  const moduleScoped = usesModuleScopedListing(lvl.vendor_key);
+  const scopedCourseId = moduleScoped ? parseCourseRowId(opts.courseRowId) : null;
+
   const totalModules = modules.length;
   const doneModules = modules.filter(m => m.done).length;
   const pct = totalModules === 0 ? 0 : Math.round((doneModules / totalModules) * 100);
@@ -678,11 +721,9 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
       // tappable and checkModuleUnlocked does the actual refusing.
       // "Passed" replaces the old "✓ Watched", which read as "you opened the
       // video" when since bd-2390 it means the quick check was passed.
-      module_list:    modules.map(m => ({
-        id:          String(m.id),
-        title:       m.title.length > 40 ? `${m.title.slice(0, 37)}…` : m.title,
-        description: `${m.course_title} · ${moduleLockLabel(m)}`,
-      })),
+      module_list:    await buildModuleList({
+        userId, level: lvl, modules, moduleScoped, scopedCourseId,
+      }),
       grand_quiz_body:      grandQuiz.body,
       grand_quiz_caption:   grandQuiz.caption,
       grand_quiz_cta:       grandQuiz.cta,
@@ -696,6 +737,60 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
  * order then module order — so a teacher scrolling the dropdown sees a
  * natural progression through the level's topics.
  */
+/**
+ * bd-60119 — courses of a level, each with its own unit tally, for the I-SAPS
+ * module-then-unit listing. Built ON TOP of loadModulesWithProgress so the two
+ * views can never disagree about what is done.
+ *
+ * @returns {Promise<Array<{id:number, title:string, total:number, done:number}>>}
+ */
+/**
+ * bd-60119 — what goes in the level screen's dropdown.
+ *
+ * Three cases:
+ *   not I-SAPS          → every module of the level, flat (unchanged)
+ *   I-SAPS, no course   → the 9 modules
+ *   I-SAPS, a course    → that module's units, plus a row back to the modules
+ *
+ * @returns {Promise<Array<{id:string,title:string,description:string}>>}
+ */
+async function buildModuleList({ userId, level, modules, moduleScoped, scopedCourseId }) {
+  const flat = () => modules.map(m => ({
+    id:          String(m.id),
+    title:       m.title.length > 40 ? `${m.title.slice(0, 37)}…` : m.title,
+    description: `${m.course_title} · ${moduleLockLabel(m)}`,
+  }));
+  if (!moduleScoped) return flat();
+
+  if (!scopedCourseId) {
+    const courses = await loadCoursesWithProgress(userId, level.id);
+    return buildCourseRows(courses.map(c => ({
+      id: c.id, title: c.title, total: c.modules_total, done: c.modules_done,
+    })));
+  }
+
+  const { data: course } = await supabase
+    .from('training_courses').select('id, title, level_id')
+    .eq('id', scopedCourseId).maybeSingle();
+  // A course from another level would leak content across programmes.
+  if (!course || course.level_id !== level.id) {
+    const courses = await loadCoursesWithProgress(userId, level.id);
+    return buildCourseRows(courses.map(c => ({
+      id: c.id, title: c.title, total: c.modules_total, done: c.modules_done,
+    })));
+  }
+  const units = modules
+    .filter(m => m.course_title === course.title)
+    .map(m => ({
+      id:          String(m.id),
+      title:       m.title.length > 24 ? `${m.title.slice(0, 23)}…` : m.title,
+      description: moduleLockLabel(m),
+    }));
+  // Without this the teacher is stranded inside one module with no way back.
+  units.push({ id: 'c:0', title: '← All modules', description: 'Back to the module list' });
+  return units;
+}
+
 async function loadModulesWithProgress(userId, levelId) {
   const [{ data: courses }, { data: modules }, { data: progressRows }, unlockLogic] = await Promise.all([
     supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index').order('id'),
@@ -1333,12 +1428,26 @@ async function loadCoursesWithProgress(userId, levelId) {
 }
 
 async function loadGrandQuizState(userId, levelId) {
-  const [{ data: catalog }, { data: attempts }, { data: courses }, { data: modules }, { data: progressRows }, { data: levelCert }] = await Promise.all([
+  const [{ data: examRows }, { data: attempts }, { data: courses }, { data: modules }, { data: progressRows }, { data: levelCert }] = await Promise.all([
     // bd-2474 — resolve the level's exam by LEVEL, not by type. Beacon House
     // levels carry quiz_type='capstone'; filtering to 'grand_quiz' meant every
     // BH level reported "No level exam" even though capstones 29-32 are active.
     // 'diagnostic' rows are NOT an exam and stay excluded.
-    supabase.from('training_grand_quizzes').select('id, quiz_type').eq('level_id', levelId).in('quiz_type', EXAM_QUIZ_TYPES).eq('is_active', true).maybeSingle(),
+    // bd-60119 — fetch the level's exam rows and pick the LEVEL one in JS.
+    //
+    // UNIQUE (level_id, quiz_type) used to make one-exam-per-level a database
+    // fact, and .maybeSingle() THROWS on a second row. Widening that key so
+    // I-SAPS can carry one summative quiz per MODULE moved the guarantee out
+    // of the schema, so it is re-stated here — but in JS, not in the query:
+    //   * `.is('source_quiz_id', null)` would hide every Taleemabad (ids 1-4)
+    //     and Beacon House (8-11) exam, which is the opposite of the goal.
+    //   * `.lt(...)` silently drops NULLs, so a level whose exam carries no
+    //     source id reports 'no exam'.
+    //   * `.or(...)` expresses it exactly but is not in the chain the suite's
+    //     supabase mocks implement.
+    // A NULL id is a LEVEL exam; only 900+ is per-module. That is one line of
+    // JS and it says so.
+    supabase.from('training_grand_quizzes').select('id, quiz_type, source_quiz_id').eq('level_id', levelId).in('quiz_type', EXAM_QUIZ_TYPES).eq('is_active', true),
     // bd-2391 — EXAM attempts only (see isGrandPass). Without this a passed
     // module quick check rendered "🏆 You passed this level exam" and replaced
     // the CTA with "✓ Passed". bd-2474 widens 'grand' to both exam kinds so a
@@ -1361,6 +1470,14 @@ async function loadGrandQuizState(userId, levelId) {
     // for the very teachers who had most certainly passed it.
     supabase.from('training_certificates').select('id').eq('user_id', userId).eq('level_id', levelId).limit(1),
   ]);
+  // bd-60119 — the LEVEL exam is the row that is not a per-module quiz. A NULL
+  // source_quiz_id is a level exam (legacy rows and the test fixtures both
+  // leave it unset); only PER_MODULE_SOURCE_BASE and above is per-module.
+  const levelExams = (examRows || []).filter(
+    q => q.source_quiz_id == null || q.source_quiz_id < PER_MODULE_SOURCE_BASE,
+  );
+  const catalog = levelExams[0] || null;
+
   // bd-43491 — `catalog` is the level's exam, already resolved by EXAM_QUIZ_TYPES
   // above, so its id is the whole exam set for this level; a diagnostic's id is
   // never in it. Written as an explicit arrow rather than `.some(isGrandPass)`
