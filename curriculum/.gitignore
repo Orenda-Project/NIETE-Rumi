@@ -1,0 +1,28 @@
+# The corpus and everything derived from it stays on the machine that built it.
+#
+# Licence: restricted-educational-internal. The page-truth corpus is NBF/FBISE
+# textbook content; the segmentation JSONs, the FDE breakdowns and every
+# rendered lesson plan are derivations of it. They are for Taleemabad internal
+# educational and research use and are NOT redistributed — and this repo is a
+# public fork. What is committed here is the build CODE and the spec, both of
+# which are ours; what the code reads and what it renders are not.
+#
+# Point the build at a local corpus with SEG_DIR / FDE_DIR / SKILLSMAP_JSON.
+corpus/
+seg/
+fde/
+skillsmap.json
+renders/
+*.render.json
+
+# Build and test scratch
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# The Rule 23/24 verification exports — each one is a PDF of a live tab and a
+# PNG rendered from it, read back to check the formatting. They are pictures of
+# the segmented corpus, so they are derivations too, and they are scratch: the
+# loop re-exports them every time a painter changes.
+*.pdf
+*.png

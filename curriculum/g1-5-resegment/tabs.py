@@ -1,0 +1,213 @@
+"""Subject-tab assembly: header, row grammar, and the pending-column contract.
+
+A column this stage cannot fill is written `pending`, never a proxy. The
+Navigation tab says which stage fills each one.
+"""
+PENDING = "pending"
+# The FDE syllabus breakdown teaches a subset of each book. A chapter it skips
+# is labelled here and stays in the plan; nothing is silently deleted.
+OMITTED = "Omitted by FDE"
+
+CORE = ["Day #", "Topic", "Skill type", "Pages (printed)",
+        "Page overlap",
+        "Primary SLO", "SLO role", "Primary SLO description",
+        "Supporting SLOs", "Supporting SLO descriptions",
+        "Bloom's", "Period (min)", "Moves",
+        "Reading strategy", "Collaboration structure"]
+
+LANG = ["Function", "Interaction", "Gap", "Strand", "Recycles"]
+
+MID = ["FDE syllabus", "Prerequisite SLOs", "Teacher-primary min (of 40)", "Flags"]
+
+TRACES = ["A Page truth", "B Segmentation", "C Enrichment", "C-gate Enrich gate",
+          "D0 Slide script", "D Render meta", "E Voicenote script",
+          "J Pedagogy review", "J Design review", "F LP (latest PDF)"]
+
+REVIEW = ["Human reviewer", "Review status"]
+
+# stage that fills each pending column — shown on Navigation
+FILLED_BY = {
+    "Moves": "C — enrichment (10–15 moves per day)",
+    "Reading strategy": "C — enrichment",
+    "Collaboration structure": "C — enrichment",
+    "Function": "B2 — curriculum functions section",
+    "Interaction": "C — enrichment",
+    "Gap": "C — enrichment",
+    "Recycles": "B2 — once Function is in",
+    "Prerequisite SLOs": "B2 — SLO ordering check",
+    "Teacher-primary min (of 40)": "C — enrichment",
+    "Video": "B2 — video→SLO mapping",
+}
+
+LANG_SUBJECTS = {"English", "Urdu"}
+
+
+def header(subject):
+    cols = list(CORE)
+    if subject in LANG_SUBJECTS:
+        cols += LANG
+    return cols + MID + TRACES + REVIEW
+
+
+def _day_row(r, subject, ncols):
+    out = [r["day_label"], r["topic"], r["skill_type"], r["pages"],
+           r["overlap"],
+           r["primary_slo"], r["slo_role"], r["primary_slo_desc"],
+           r["supporting_slos"], r["supporting_descs"],
+           r["blooms"], r["period_min"], PENDING, PENDING, PENDING]
+    if subject in LANG_SUBJECTS:
+        out += [PENDING, PENDING, PENDING, r["strand"] or PENDING, PENDING]
+    out += [r["fde"], PENDING, PENDING, r["flags"]]
+    out += [""] * len(TRACES)
+    out += ["", "not reviewed"]
+    assert len(out) == ncols, f"{len(out)} != {ncols}"
+    return out
+
+
+def _tail_row(r, subject, ncols):
+    label = "📋 Ch. Review" if r["kind"] == "review" else "✅ Ch. Assessment"
+    out = [label, r["topic"], r["skill_type"], r["pages"], "",
+           "", "", "", r["supporting_slos"], "", r["blooms"], r["period_min"],
+           PENDING, "", ""]
+    if subject in LANG_SUBJECTS:
+        out += ["", "", "", "", ""]
+    out += [r["fde"], "", "", ""]
+    out += [""] * len(TRACES)
+    out += ["", "not reviewed"]
+    assert len(out) == ncols, f"{len(out)} != {ncols}"
+    return out
+
+
+def _banner(token, rest, ncols):
+    """A banner row, split across the first two columns.
+
+    Overflow stops dead at the frozen-column boundary, so a banner written
+    wholly into column A was cut at that column's width and a chapter title
+    was unreadable. The grammar token stays in A — `^GRADE \d+`,
+    `^Chapter \d+:` still match — and the readable remainder goes in B.
+    """
+    return [token, rest] + [""] * (ncols - 2)
+
+
+def subject_tab(subject, book_rows):
+    """book_rows: [(grade, [row,...]), ...] already in grade order.
+
+    Returns (values, grade banners, chapter banners, omitted-chapter banners).
+    Banners are matched later by label, never by index — the indices returned
+    here are only for the formatting pass in this same run.
+    """
+    cols = header(subject)
+    n = len(cols)
+    values = [cols]
+    grade_rows, chapter_rows, omitted_rows = [], [], []
+
+    for grade, rows in book_rows:
+        day_n = sum(1 for r in rows if r["kind"] == "day")
+        values.append(_banner(f"GRADE {grade}",
+                              f"{subject} · {day_n} teaching days · "
+                              f"{len({r['chapter'] for r in rows})} chapters",
+                              n))
+        grade_rows.append(len(values) - 1)
+        current_ch = None
+        for r in rows:
+            if r["chapter"] != current_ch:
+                current_ch = r["chapter"]
+                title = r["chapter_title"]
+                rest = title or ""
+                if r.get("fde") == OMITTED:
+                    rest += "   ⚠ OMITTED FROM THE FDE SYLLABUS BREAKDOWN"
+                    omitted_rows.append(len(values))
+                values.append(_banner(f"Chapter {current_ch}:", rest, n))
+                chapter_rows.append(len(values) - 1)
+            values.append(_day_row(r, subject, n) if r["kind"] == "day"
+                          else _tail_row(r, subject, n))
+
+    return values, grade_rows, chapter_rows, omitted_rows
+
+
+def wrap_columns(subject):
+    """Long-prose columns. Topic and the two SLO description columns."""
+    cols = header(subject)
+    want = {"Topic", "Primary SLO description", "Supporting SLO descriptions",
+            "Page overlap", "Flags"}
+    return [i for i, c in enumerate(cols) if c in want]
+
+
+def fde_column(subject):
+    return header(subject).index("FDE syllabus")
+
+
+def flag_column(subject):
+    return header(subject).index("Flags")
+
+
+def skill_column(subject):
+    return header(subject).index("Skill type")
+
+
+def widths(subject):
+    cols = header(subject)
+    px = {"Day #": 140, "Topic": 300, "Skill type": 160,
+          "Pages (printed)": 100, "Page overlap": 180, "Primary SLO": 110,
+          "SLO role": 90, "Primary SLO description": 320,
+          "Supporting SLOs": 130, "Supporting SLO descriptions": 300,
+          "Flags": 250, "FDE syllabus": 130}
+    return {i: px[c] for i, c in enumerate(cols) if c in px}
+
+
+# Columns no stage has filled yet. They keep the literal `pending` — that is
+# the honesty rule and Navigation documents it — but they are greyed at the
+# header, carry a note naming the stage that fills them, and ship inside a
+# COLLAPSED column group, so a reviewer sees them only when she asks for them.
+def pending_notes(subject):
+    cols = header(subject)
+    notes = {}
+    for i, c in enumerate(cols):
+        if c in FILLED_BY:
+            notes[i] = f"Empty on purpose. Filled by {FILLED_BY[c]}."
+        elif c in TRACES:
+            stage = c.split(" ", 1)[0]
+            notes[i] = (f"Trace column. A link lands here when stage {stage} "
+                        "runs for that day. Empty means the stage has not run.")
+        elif c == "Human reviewer":
+            notes[i] = "Type your name here when you review the row."
+    return notes
+
+
+def dead_columns(subject):
+    """Indices with nothing in them yet — pending columns and unrun traces."""
+    cols = header(subject)
+    return [i for i, c in enumerate(cols) if c in FILLED_BY or c in TRACES]
+
+
+def groups(subject, min_run=2):
+    """Contiguous runs of dead columns, as (start, end) half-open pairs."""
+    dead, runs = dead_columns(subject), []
+    for i in dead:
+        if runs and runs[-1][1] == i:
+            runs[-1][1] = i + 1
+        else:
+            runs.append([i, i + 1])
+    return [(a, b) for a, b in runs if b - a >= min_run]
+
+
+STANDFIRST = {
+    "English": "One row per teaching day, rebuilt from the printed pages. "
+               "Grades 1-5, in grade then chapter then day order.",
+    "Urdu": "One row per teaching day. The Urdu day boundaries are the ones "
+            "already in production — only the day-integrity fields were "
+            "repaired. جائزہ and دہرائی days are ordinary Day rows here, not "
+            "chapter tails.",
+    "Maths": "One row per teaching day, rebuilt from the printed pages. Skill "
+             "type IS the CPA phase — concrete, pictorial, the bridge, "
+             "abstract, word problem.",
+    "Science": "One row per teaching day, Grades 4-5 General Science. The day "
+               "boundaries are production's; only the day-integrity fields "
+               "were repaired.",
+}
+
+
+def standfirst(subject):
+    return (STANDFIRST[subject] + "  Grey headers are columns a later stage "
+            "fills; they are collapsed — click the + above them to open. "
+            "Hover a grey header for which stage fills it.")
