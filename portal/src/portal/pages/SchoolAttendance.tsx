@@ -99,7 +99,11 @@ function GroupRow({ g }: { g: AttendanceGroup }) {
 /** The day-wise table — P/A per day, the individual notation repeated. */
 function ByDayTable({ rows, days, id }: { rows: AttendanceByDay[]; days: string[]; id: string }) {
   return (
-    <div data-testid={`byday-${id}`} className="overflow-x-auto">
+    // pb-4 is the fix, not decoration: an overflow-x container draws its
+    // scrollbar INSIDE its own box, so without bottom padding the bar lands on
+    // top of the last row of cells (operator, 2026-09-17). The padding is the
+    // clearance the scrollbar occupies.
+    <div data-testid={`byday-${id}`} className="overflow-x-auto pb-4 -mb-1">
       <div className="min-w-max">
         <div className="flex items-center gap-2 pl-36 mb-2">
           {days.map((d) => (
@@ -274,16 +278,36 @@ const SchoolAttendance = () => {
             </select>
           </div>
 
-          <div className="flex gap-1 ml-auto rounded-md border border-border p-1">
+          {/* A real segmented control: this switches what every number on the
+              page means, so it has to read as a control rather than as two
+              words. The unselected half keeps a white ground and foreground
+              text — muted-on-muted made it look disabled. */}
+          <div
+            role="group"
+            aria-label="View"
+            className="flex ml-auto rounded-lg border-2 border-accent/30 bg-white p-1 shadow-sm"
+          >
             <button
-              type="button" data-testid="view-summary" onClick={() => setView('summary')}
-              className={`px-3 py-1.5 text-sm rounded ${view === 'summary' ? 'bg-accent text-white' : 'text-muted-foreground'}`}
+              type="button" data-testid="view-summary"
+              aria-pressed={view === 'summary'}
+              onClick={() => setView('summary')}
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                view === 'summary'
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'text-foreground hover:bg-muted'
+              }`}
             >
               Summary
             </button>
             <button
-              type="button" data-testid="view-byday" onClick={() => setView('byday')}
-              className={`px-3 py-1.5 text-sm rounded ${view === 'byday' ? 'bg-accent text-white' : 'text-muted-foreground'}`}
+              type="button" data-testid="view-byday"
+              aria-pressed={view === 'byday'}
+              onClick={() => setView('byday')}
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                view === 'byday'
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'text-foreground hover:bg-muted'
+              }`}
             >
               Day by day
             </button>
