@@ -1173,6 +1173,36 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     //
     // Both destinations are the SAME screens and steps as before, so the add
     // and remove paths past this point are untouched.
+    // bd-60117: the finish screen's links close the Flow through HERE.
+    //
+    // They cannot use `complete` directly — an EmbeddedLink only accepts
+    // data_exchange / navigate / open_url (Meta rejects `complete` on one) —
+    // and they cannot navigate back to TEACHER_ACTION either, because a
+    // TEACHER_DONE -> TEACHER_ACTION route makes the existing
+    // TEACHER_ACTION -> TEACHER_DONE route a backward pair, which the routing
+    // model refuses. Verified both against the Graph API.
+    //
+    // So the link does a round trip and we close from the endpoint, carrying
+    // the same roster_next the Footer used to carry. The chat-side loop
+    // (rosterTeacherNextTarget) is unchanged and reopens on the action picker.
+    if (step === 'teacher_done_next') {
+      const next = String((screenData && screenData.next) || 'done');
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      return {
+        screen: 'SUCCESS',
+        data: {
+          ..._success('', '', { action: 'roster_teacher' }),
+          extension_message_response: {
+            params: {
+              observe_visit_action: 'roster_teacher',
+              roster_next: next,
+              school_ext_id: schoolExtId,
+            },
+          },
+        },
+      };
+    }
+
     if (step === 'teacher_action_open') {
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');

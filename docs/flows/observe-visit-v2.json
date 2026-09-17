@@ -2696,42 +2696,40 @@
             "text": "${data.body}"
           },
           {
-            "type": "Form",
-            "name": "teacher_done_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "next",
-                "label": "What next?",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "teacher_again",
-                    "title": "Another at this school"
-                  },
-                  {
-                    "id": "menu",
-                    "title": "Main menu"
-                  },
-                  {
-                    "id": "done",
-                    "title": "I'm done"
-                  }
-                ]
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "complete",
-                  "payload": {
-                    "observe_visit_action": "roster_teacher",
-                    "roster_next": "${form.next}",
-                    "school_ext_id": "${data.school_ext_id}"
-                  }
-                }
+            "type": "EmbeddedLink",
+            "text": "Another at this school",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "teacher_done_next",
+                "next": "teacher_again",
+                "school_ext_id": "${data.school_ext_id}"
               }
-            ]
+            }
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Main menu",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "step": "teacher_done_next",
+                "next": "menu",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "I'm done",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "observe_visit_action": "roster_teacher",
+                "roster_next": "done",
+                "school_ext_id": "${data.school_ext_id}"
+              }
+            }
           }
         ]
       }
