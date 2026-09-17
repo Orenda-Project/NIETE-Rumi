@@ -62,6 +62,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
+const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./question-images.rules');
 // bd-2673 — the marking rule lives in ONE module, shared with the portal over
 // the internal API. Do not re-implement isMultiKey/normalizeSet here: a second
 // copy is the bug this extraction removed.
@@ -725,7 +726,7 @@ async function loadQuestionForDelivery(selected) {
   if (!selected?.id) return null;
   const { data } = await supabase
     .from('training_questions')
-    .select('id, question_text, options, correct_option, order_index')
+    .select('id, question_text, options, correct_option, order_index, option_images')
     .eq('id', selected.id)
     .maybeSingle();
   return data || null;
@@ -873,15 +874,43 @@ async function sendQuestion(attemptId, phoneNumber) {
     return false;
   }
 
-  const rows = options.map((text, i) => ({
-    // The id carries the CANONICAL index, so the shuffle never escapes the
-    // rendering layer — everything downstream keeps speaking the DB's own
-    // 1-based option numbering.
-    id: `training_quiz_${attempt.id}_${displayOrder[i]}`,
-    title: OPTION_LETTERS[i],
-    // Full text lives in the body when it would truncate here (bd-2230).
-    description: optionsInBody ? '' : (text || '').toString().slice(0, OPTION_DESC_MAX),
-  }));
+  // bd-60118 — options that are PICTURES. I-SAPS M1 item 1.6 ships its four
+  // choices as one embedded grid; the panels are split, each stamped with its
+  // option number, and sent as their own images just before the list.
+  //
+  // The shuffle is deliberately BYPASSED here. displayOrder permutes which text
+  // sits behind which letter, but the number is burned into the bitmap — a
+  // shuffled row would point at a panel the teacher never saw under that
+  // number. Fixed order is what keeps picture and button agreeing.
+  const optionImages = parseOptionImages(q.option_images);
+  const imageMode = optionImages.length > 0;
+  if (imageMode) {
+    for (let i = 0; i < optionImages.length; i += 1) {
+      // Failure to send ONE panel must not strand the attempt: the teacher
+      // still gets the list, and the log names the panel that went missing.
+      try {
+        await WhatsAppService.sendImageFromUrl(
+          phoneNumber, optionImages[i], `Option ${i + 1}`,
+        );
+      } catch (err) {
+        logToFile('⚠️ Option image send failed', {
+          attemptId: attempt.id, questionId: q.id, option: i + 1, error: err?.message,
+        }, 'warn');
+      }
+    }
+  }
+
+  const rows = imageMode
+    ? imageOptionRows(optionImages, attempt.id)
+    : options.map((text, i) => ({
+      // The id carries the CANONICAL index, so the shuffle never escapes the
+      // rendering layer — everything downstream keeps speaking the DB's own
+      // 1-based option numbering.
+      id: `training_quiz_${attempt.id}_${displayOrder[i]}`,
+      title: OPTION_LETTERS[i],
+      // Full text lives in the body when it would truncate here (bd-2230).
+      description: optionsInBody ? '' : (text || '').toString().slice(0, OPTION_DESC_MAX),
+    }));
 
   const multi = isMultiKey(q.correct_option);
   // Built by the same helper the size check used, so the string measured above
