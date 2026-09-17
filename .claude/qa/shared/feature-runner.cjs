@@ -617,6 +617,19 @@ function makeApi(c) {
       headers: { apikey: _SB.key, Authorization: `Bearer ${_SB.key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify(snap) }); } catch (_) {}
   };
+  // Roster teardown — the observe suite seeds a DEDICATED E2E school + teachers + leader_schools row
+  // (api.setRoster, keyed E2E-OBS-<driver> / E2EOBS<driver>). Remove them UNCONDITIONALLY in the finally
+  // so nothing is left in the SHARED sandbox DB, even if the feature crashes before it cleans up itself.
+  // Idempotent + driver-scoped (never touches other users' data).
+  const clearRoster = async () => {
+    if (!_SB.url || !_SB.key || !_SB.drv) return;
+    const sx = 'E2E-OBS-' + _SB.drv, em = 'E2EOBS' + _SB.drv;
+    const H = { apikey: _SB.key, Authorization: `Bearer ${_SB.key}`, Prefer: 'return=minimal' };
+    const del = (p) => fetch(`${_SB.url}/rest/v1/${p}`, { method: 'DELETE', headers: H }).catch(() => {});
+    await del(`leader_teachers?school_ext_id=eq.${sx}`);
+    await del(`leader_schools?school_ext_id=eq.${sx}`);
+    await del(`schools?emis=eq.${em}`);
+  };
   const _identSnap = await snapshotIdentity();
   try {
     const ok = await api.inject();
@@ -627,6 +640,7 @@ function makeApi(c) {
     results.push({ id: 'RUNNER', verdict: 'ERROR', evidence: String(e && e.message || e) });
   } finally {
     await restoreIdentity(_identSnap);   // put the shared driver's role/language back, whatever the feature did
+    await clearRoster();                 // remove any seeded E2E observe roster from the shared sandbox DB
     try { api.closeFlow(); } catch (_) {}
     // waitStats is a CDP evaluate with no timeout of its own, and a catch cannot catch a
     // HANG. On 2026-09-01 registration finished every scenario and then sat here for 66
