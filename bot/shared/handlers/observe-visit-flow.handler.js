@@ -1150,6 +1150,25 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     });
     const _refuse = (key) => _tdone(S_(_flowLang).flow_action_failed_heading, _T().refusalBody(_flowLang, key));
 
+    /**
+     * The ids the coach ticked, from EITHER wire shape.
+     *
+     * The published Flow asset and the deployed code change over at different
+     * moments — Meta keeps serving the old JSON until it is republished, and
+     * republishing is only allowed once the endpoint is live. So for the length
+     * of that window the CheckboxGroup's `teacher_ext_ids` array and the old
+     * Dropdown's single `teacher_ext_id` both arrive, and both have to work.
+     * The confirm hop then carries the selection back as a comma-joined string
+     * in that SAME declared key: a screen that declares a key it is not sent
+     * fails silently with nothing in the logs, and this flow has already been
+     * taken down once that way.
+     */
+    const _pickIds = (d) => {
+      const raw = (d && d.teacher_ext_ids) != null ? d.teacher_ext_ids : (d && d.teacher_ext_id);
+      const list = Array.isArray(raw) ? raw : String(raw == null ? '' : raw).split(',');
+      return [...new Set(list.map((x) => String(x).trim()).filter((x) => x && x !== 'none'))];
+    };
+
     if (step === 'teacher_school_open') {
       const A = _admin();
       const mine = await A.listMySchools(userId).catch(() => []);
@@ -1400,7 +1419,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         data: {
           options,
           school_ext_id: schoolExtId,
-          intro: `Pick the person to take off ${school.school_name}.`,
+          intro: `Tick everyone to take off ${school.school_name}.`,
         },
       };
     }
@@ -1753,34 +1772,61 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     if (step === 'teacher_remove_check') {
       const T = _T();
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
-      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
-      if (!pickedUserId || pickedUserId === 'none') return _refuse('not_found');
+      const picked = _pickIds(screenData);
+      if (!picked.length) return _refuse('not_found');
       const supabase = require('../config/supabase');
       const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
-      const person = people.find((p) => p.userId === pickedUserId);
-      if (!person) return _refuse('not_found');
+      // Her order, not the payload's, so the confirm list reads the same way
+      // the picker did.
+      const chosen = people.filter((p) => picked.includes(p.userId));
+      if (!chosen.length) return _refuse('not_found');
       return {
         screen: 'TEACHER_REMOVE_CONFIRM',
         data: {
-          plan: T.removedTeacherAck(_flowLang, { name: person.name, schoolName: person.schoolName }),
+          // displayName, not name. `name` is null for the 83 people on prod who
+          // carry none, and this screen then confirmed the removal of "that
+          // teacher" — the picker row she tapped was legible and the screen
+          // agreeing to it was not.
+          plan: T.removalPlanAck(_flowLang, {
+            names: chosen.map((p) => p.displayName || p.name),
+            schoolName: chosen[0].schoolName,
+          }),
           school_ext_id: schoolExtId,
-          teacher_ext_id: pickedUserId,
+          teacher_ext_id: chosen.map((p) => p.userId).join(','),
         },
       };
     }
 
     if (step === 'teacher_remove_commit') {
       const T = _T();
-      const res = await T.commitRemoval({
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const picked = _pickIds(screenData);
+      if (!picked.length) return _refuse('not_found');
+
+      // The display names are resolved BEFORE the write: afterwards these
+      // people are off the school, so her patch no longer returns them and the
+      // done screen would have nobody to name.
+      const supabase = require('../config/supabase');
+      const before = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const labelOf = new Map(before.map((p) => [p.userId, p.displayName || p.name]));
+
+      const res = await T.commitRemovals({
         actorLeaderUserId: userId,
-        schoolExtId: String((screenData && screenData.school_ext_id) || ''),
-        userId: String((screenData && screenData.teacher_ext_id) || ''),
+        schoolExtId,
+        userIds: picked,
         reason: (screenData && screenData.reason) || null,
       }).catch(() => ({ ok: false }));
       if (!res.ok) return _refuse(res.reason || 'failed');
+
       return _tdone(
         S_(_flowLang).teacher_removed_heading || 'Removed',
-        T.removedTeacherAck(_flowLang, { name: res.name, schoolName: res.schoolName }),
+        T.removedTeachersAck(_flowLang, {
+          names: res.removed.map((p) => labelOf.get(p.userId)
+            || _P().displayNameOf({ name: p.name, phone: p.phone })),
+          schoolName: res.schoolName,
+          visitsCancelled: res.visitsCancelled,
+          skippedCount: (res.skipped || []).length,
+        }),
       );
     }
 

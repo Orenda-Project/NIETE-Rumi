@@ -47,7 +47,13 @@ async function handleFinishCoachingTap({ sessionId, from, user }) {
     return false;
   }
 
-  const questionsAnswered = (session.conversation_state && session.conversation_state.questions_answered) || 0;
+  // Partial-ness is measured against NUM_REFLECTIVE_QUESTIONS, not a literal 3.
+  // With the debrief cut to one question, a teacher who had answered it and then
+  // tapped "Get Report Now" was still flagged partial, and her report was
+  // captioned as missing reflections.
+  const { reflectionProgress } = require('./reflection-progress');
+  const progress = reflectionProgress(session.conversation_state && session.conversation_state.questions_answered);
+  const questionsAnswered = progress.answered;
 
   // Mark as user-requested early completion. Predicated, so a cancel that lands
   // between the guard above and this write does not lose the race.
@@ -70,7 +76,7 @@ async function handleFinishCoachingTap({ sessionId, from, user }) {
   const CoachingJobQueueService = require('./coaching-job-queue.service');
   await CoachingJobQueueService.queueReport(sessionId, {
     from,
-    partial: questionsAnswered < 3,
+    partial: progress.isPartial,
     userRequestedEarly: true,
   });
 

@@ -63,6 +63,10 @@ const USER_ACTIVE_THRESHOLD_MS = _minutesFromEnv('COACHING_USER_ACTIVE_MINUTES',
 // auto-advance it to a report (default 60 min). The photo/LP is optional.
 const PHOTO_GATE_THRESHOLD_MS = _minutesFromEnv('COACHING_PHOTO_GATE_MINUTES', 60 * MINUTE_MS);
 const { PHOTO_GATE_STATUSES, shouldAutoAdvancePhotoGate } = require('../shared/services/coaching/photo-gate-sweep');
+// The reflection total comes from NUM_REFLECTIVE_QUESTIONS, never a literal.
+// This worker told teachers "0/3 reflections" and promised "3 more questions"
+// for months after the debrief was cut to one question.
+const { reflectionProgress } = require('../shared/services/coaching/reflection-progress');
 
 // Future: Reading assessment thresholds
 // const READING_REMINDER_THRESHOLD_MS = 1 * 60 * 60 * 1000;  // 1 hour
@@ -305,8 +309,9 @@ async function extractSessionContext(session) {
 async function sendSessionReminder(session) {
   try {
     const context = await extractSessionContext(session);
-    const questionsAnswered = session.conversation_state?.questions_answered || 0;
-    const questionsRemaining = 3 - questionsAnswered;
+    const progress = reflectionProgress(session.conversation_state?.questions_answered);
+    const questionsAnswered = progress.answered;
+    const questionsRemaining = progress.remaining;
 
     // Build contextual message
     let reminderText;
@@ -315,14 +320,14 @@ async function sendSessionReminder(session) {
       reminderText = `Hi ${firstNameOf(session.users) || 'there'}! 👋\n\n` +
         `You have an incomplete coaching session for your ${context.subject} lesson` +
         (questionsAnswered > 0
-          ? ` (${questionsAnswered}/3 reflections completed).\n\n`
+          ? ` (${progress.label} reflections completed).\n\n`
           : `.\n\n`) +
-        `Ready to continue? I just have ${questionsRemaining} more question${questionsRemaining > 1 ? 's' : ''} for you!`;
+        `Ready to continue? I just have ${questionsRemaining} more question${questionsRemaining === 1 ? '' : 's'} for you!`;
     } else {
       reminderText = `Hi ${firstNameOf(session.users) || 'there'}! 👋\n\n` +
         `You started a coaching session but didn't finish the reflective conversation.\n\n` +
         (questionsAnswered > 0
-          ? `✅ Progress: ${questionsAnswered}/3 questions answered\n\n`
+          ? `✅ Progress: ${progress.label} questions answered\n\n`
           : '') +
         `Would you like to continue and get your personalized feedback?`;
     }
@@ -369,12 +374,13 @@ async function sendSessionReminder(session) {
  */
 async function autoCompleteSession(session) {
   try {
-    const questionsAnswered = session.conversation_state?.questions_answered || 0;
+    const progress = reflectionProgress(session.conversation_state?.questions_answered);
+    const questionsAnswered = progress.answered;
 
     logToFile('🔄 Auto-completing stale coaching session', {
       sessionId: session.id,
       questionsAnswered,
-      totalQuestions: 3
+      totalQuestions: progress.total
     });
 
     // 1. Update conversation state to mark as auto-completed
@@ -383,7 +389,7 @@ async function autoCompleteSession(session) {
       current_state: 'AUTO_COMPLETED',
       auto_completed: true,
       auto_completed_at: new Date().toISOString(),
-      reflective_skipped: questionsAnswered < 3,
+      reflective_skipped: progress.isPartial,
       questions_at_completion: questionsAnswered
     };
 
@@ -398,7 +404,7 @@ async function autoCompleteSession(session) {
     // 2. Queue report generation with partial flag
     await CoachingJobQueueService.queueReport(session.id, {
       from: session.users.phone_number,
-      partial: questionsAnswered < 3,
+      partial: progress.isPartial,
       autoCompleted: true
     });
 

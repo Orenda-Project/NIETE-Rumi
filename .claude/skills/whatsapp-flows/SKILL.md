@@ -48,8 +48,23 @@ If `${data.xxx}` renders as literal text, the field is missing from that screen'
 ### 6. Edit-then-REPUBLISH — a local JSON change does NOT update Meta
 
 Editing the Flow JSON on disk does **not** update Meta. Meta keeps serving the previously-published JSON
-until you re-run the Flow registration script (and the Flow is in that script's list). When you add a new
-Flow, add it to the registration script too.
+until a new asset is uploaded *and* published. Which script does that depends on what you are doing, and
+picking the wrong one is how a live Flow gets duplicated:
+
+| Situation | Script |
+|---|---|
+| Change an existing Flow's JSON | `bot/scripts/setup/republish-flow.js --flow-id <id> --json <path>` |
+| Add ONE Flow to an account that already has others | `bot/scripts/setup/register-one-flow.js --flow "<name>" --env-file <file>` |
+| First-time setup of a brand-new, empty account | `bot/scripts/setup/register-all-flows.js` |
+
+**`register-all-flows.js` is only safe on an empty account.** It walks every entry in `flow-configs.js`
+and creates each one it cannot find *by exact name*. Once an account's Flows have been renamed — a `v2`
+suffix, an environment prefix — that comparison misses and it creates a second copy of a Flow that is
+already carrying traffic. `register-one-flow.js` exists for that case: it acts on one named config, stops
+on a name that merely *resembles* something already on the account, and diffs the whole account before and
+after so "nothing else changed" is proven rather than assumed. Both default to a dry run.
+
+When you add a new Flow, add it to `flow-configs.js` — every script reads the set from there.
 
 ### 7. `routing_model` is FORWARD-ONLY
 

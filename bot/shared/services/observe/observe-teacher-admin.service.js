@@ -82,13 +82,6 @@ function _supabaseDb() {
       return (data && data[0]) || null;
     },
 
-    async userById(userId) {
-      if (!userId) return null;
-      const { data } = await supabase.from('users')
-        .select('id, phone_number, role, school_id, name').eq('id', userId).limit(1);
-      return (data && data[0]) || null;
-    },
-
     /**
      * The single write. An 'unregistered' person becomes a teacher, because a
      * coach putting someone on a school register is exactly that assertion; a
@@ -109,15 +102,35 @@ function _supabaseDb() {
       return (data && data[0]) || null;
     },
 
-    /** Only 'upcoming'. A 'done' row IS the record of who was observed. */
-    async cancelUpcoming({ schoolExtId, teacherExtId }) {
-      if (!teacherExtId) return 0;
+    /**
+     * The three writes a removal makes, set-based.
+     *
+     * Not an optimisation for its own sake: thirty teachers down a
+     * single-teacher path is ~120 round trips inside a data_exchange Meta
+     * times out at ~10s. These three are flat in N.
+     */
+    async usersByIds(ids) {
+      if (!ids || !ids.length) return [];
+      const { data } = await supabase.from('users')
+        .select('id, phone_number, role, school_id, name').in('id', ids);
+      return data || [];
+    },
+
+    async cancelUpcomingMany({ schoolExtId, teacherExtIds }) {
+      const phones = (teacherExtIds || []).filter(Boolean);
+      if (!phones.length) return 0;
       const { data, error } = await supabase.from('observation_schedules')
         .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-        .eq('school_ext_id', schoolExtId).eq('teacher_ext_id', teacherExtId)
+        .eq('school_ext_id', schoolExtId).in('teacher_ext_id', phones)
         .eq('status', 'upcoming').select('id');
       if (error) return 0;                    // a lost booking must not fail the change
       return (data || []).length;
+    },
+
+    async clearSchoolForUsers(ids) {
+      if (!ids || !ids.length) return false;
+      const { error } = await supabase.from('users').update({ school_id: null }).in('id', ids);
+      return !error;
     },
 
     async writeAudit(rows) {
@@ -227,6 +240,100 @@ function removedTeacherAck(lang, opts = {}) {
     .replace('{school}', String(opts.schoolName || '').trim() || 'that school');
 }
 
+// ── removing several at once ───────────────────────────────────────────
+
+/**
+ * How many may come off in one pass.
+ *
+ * THIS SCREEN'S NUMBER ONLY. It is mirrored by `max-selected-items` on
+ * TEACHER_PICK's CheckboxGroup and by nothing else — every other multi-select
+ * in the product carries its own cap for its own reason (12 chapters, 6
+ * question types, 100 students), and none of them should ever be folded into
+ * this constant.
+ *
+ * It is NOT `LIST_CAP`. That one bounds how many names the picker DISPLAYS
+ * (200) and is shared by four screens; this bounds how many may be TICKED.
+ */
+const REMOVE_BATCH_MAX = 30;
+
+const _names = (list, fallback) => {
+  const clean = (list || []).map((n) => String(n == null ? '' : n).trim()).filter(Boolean);
+  return clean.length ? clean : [fallback];
+};
+
+const PLAN_TEMPLATES = {
+  en: {
+    one: '*{name}* will come off *{school}*.\n\nTheir account and full history are kept — they can be added to another school later.',
+    many: '{n} people will come off *{school}*:\n{names}\n\nTheir accounts and full history are kept — they can be added to another school later.',
+  },
+  ur: {
+    one: '*{name}* کو *{school}* سے ہٹایا جائے گا۔\n\nان کا اکاؤنٹ اور پورا ریکارڈ محفوظ رہے گا — انہیں بعد میں کسی اور اسکول میں شامل کیا جا سکتا ہے۔',
+    many: '{n} افراد کو *{school}* سے ہٹایا جائے گا:\n{names}\n\nان کے اکاؤنٹس اور پورا ریکارڈ محفوظ رہے گا — انہیں بعد میں کسی اور اسکول میں شامل کیا جا سکتا ہے۔',
+  },
+};
+
+/**
+ * What the confirm screen says BEFORE anything is written.
+ *
+ * It used to reuse `removedTeacherAck`, so the screen greeted the coach with
+ * "Removed Tahira Manzoor from IMCG, G-10/2." above a button reading "Yes,
+ * remove them" — announcing, in the past tense, something that had not
+ * happened. The screen's own `__example__` in the Flow JSON has always read
+ * "…will come off…"; this is that sentence.
+ */
+function removalPlanAck(lang, opts = {}) {
+  const l = clampLanguage(lang);
+  const t = PLAN_TEMPLATES[l] || PLAN_TEMPLATES.en;
+  const school = String(opts.schoolName || '').trim() || (l === 'ur' ? 'اس اسکول' : 'that school');
+  const names = _names(opts.names, l === 'ur' ? 'وہ ٹیچر' : 'that teacher');
+
+  if (names.length === 1) return t.one.replace('{name}', names[0]).replace('{school}', school);
+  return t.many
+    .replace('{n}', String(names.length))
+    .replace('{school}', school)
+    .replace('{names}', names.map((n) => `• ${n}`).join('\n'));
+}
+
+const REMOVED_MANY_TEMPLATES = {
+  en: {
+    body: 'Removed {n} people from *{school}*:\n{names}\n\nTheir accounts and full history are kept — they can be added to another school later.',
+    visits: '\n\n{v} booked visits were cancelled.',
+    skipped: '\n\n{s} could not be removed and are still on the list. Please try those again.',
+  },
+  ur: {
+    body: '{n} افراد کو *{school}* سے ہٹا دیا:\n{names}\n\nان کے اکاؤنٹس اور پورا ریکارڈ محفوظ ہیں — انہیں بعد میں کسی اور اسکول میں شامل کیا جا سکتا ہے۔',
+    visits: '\n\n{v} طے شدہ وزٹ منسوخ کر دیے گئے۔',
+    skipped: '\n\n{s} کو نہیں ہٹایا جا سکا اور وہ اب بھی فہرست میں ہیں۔ براہِ کرم دوبارہ کوشش کریں۔',
+  },
+};
+
+/**
+ * What the done screen says after the write.
+ *
+ * A partial batch is named out loud. Silence about the two that did not come
+ * off reads as success, and the coach walks away believing a register is clean
+ * when it is not.
+ */
+function removedTeachersAck(lang, opts = {}) {
+  const l = clampLanguage(lang);
+  const names = _names(opts.names, l === 'ur' ? 'وہ ٹیچر' : 'that teacher');
+  if (names.length === 1 && !opts.skippedCount) {
+    const one = removedTeacherAck(l, { name: names[0], schoolName: opts.schoolName });
+    return opts.visitsCancelled
+      ? one + REMOVED_MANY_TEMPLATES[l].visits.replace('{v}', String(opts.visitsCancelled))
+      : one;
+  }
+
+  const t = REMOVED_MANY_TEMPLATES[l] || REMOVED_MANY_TEMPLATES.en;
+  let body = t.body
+    .replace('{n}', String(names.length))
+    .replace('{school}', String(opts.schoolName || '').trim() || (l === 'ur' ? 'اس اسکول' : 'that school'))
+    .replace('{names}', names.map((n) => `• ${n}`).join('\n'));
+  if (opts.visitsCancelled) body += t.visits.replace('{v}', String(opts.visitsCancelled));
+  if (opts.skippedCount) body += t.skipped.replace('{s}', String(opts.skippedCount));
+  return body;
+}
+
 const REFUSALS = {
   en: {
     invalid_phone: 'That does not look like a mobile number. Type it as 03001234567 and try again.',
@@ -300,32 +407,74 @@ async function commitAdd({ actorLeaderUserId, schoolExtId, rawPhone, name }, dep
 }
 
 /**
- * Take someone off a school. Their `users` row, coaching sessions and completed
- * observations are untouched — only the school is cleared, which is what
- * removes them from every patch that contained them.
+ * Take one or SEVERAL people off a school in a single pass.
+ *
+ * Their `users` rows, coaching sessions and completed observations are
+ * untouched — only the school is cleared, which is what removes them from
+ * every patch that contained them.
+ *
+ * A coach removing a whole transferred group used to walk the four screens
+ * once per person, re-picking the school each time, because the picker
+ * returned one id. This replaces the single-teacher `commitRemoval` outright
+ * rather than looping it, for two reasons:
+ *
+ *   · Authorisation is checked ONCE, against the school — then every id is
+ *     checked against THAT school's roll. The picker is a screen and a service
+ *     that trusts a screen has no authorisation at all: a replayed payload
+ *     naming anyone in the district would otherwise go straight through.
+ *   · The writes are set-based. Thirty teachers through the single path is
+ *     ~120 round trips inside a data_exchange Meta cuts off at ~10s; this is
+ *     four, whatever N is.
+ *
+ * The audit trail does NOT collapse: one `leader_roster_audit` row per teacher,
+ * carrying her own phone, her own name and the shared reason, exactly as a
+ * one-at-a-time removal would have written it.
  */
-async function commitRemoval({ actorLeaderUserId, schoolExtId, userId, reason }, deps = {}) {
+async function commitRemovals({ actorLeaderUserId, schoolExtId, userIds, reason }, deps = {}) {
   const { db } = _deps(deps);
 
+  const asked = [...new Set((userIds || [])
+    .map((x) => String(x == null ? '' : x).trim())
+    .filter((x) => x && x !== 'none'))];
+  if (!asked.length) return { ok: false, reason: 'not_found', removed: [], skipped: [] };
+
+  // The client cap is a screen attribute, and a screen is not a guard — the
+  // same payload can arrive from a replay or from an older published asset.
+  const ids = asked.slice(0, REMOVE_BATCH_MAX);
+  const overflow = asked.slice(REMOVE_BATCH_MAX);
+
   const school = await db.myschool(actorLeaderUserId, schoolExtId);
-  if (!school) return { ok: false, reason: 'not_my_school' };
+  if (!school) return { ok: false, reason: 'not_my_school', removed: [], skipped: [] };
 
-  const person = db.userById ? await db.userById(userId) : null;
-  const phone = (person && person.phone_number) || null;
-  const visitsCancelled = await db.cancelUpcoming({ schoolExtId, teacherExtId: phone });
+  const people = await db.usersByIds(ids);
+  const byId = new Map((people || []).map((p) => [p.id, p]));
+  // Only people actually AT this school come off it.
+  const here = ids.map((id) => byId.get(id)).filter((p) => p && p.school_id === school.school_id);
+  const skipped = [...ids.filter((id) => !here.some((p) => p.id === id)), ...overflow];
 
-  await db.setUserSchool({ userId, schoolId: null });
-  await db.writeAudit([_auditRow({
+  if (!here.length) return { ok: false, reason: 'not_found', removed: [], skipped };
+
+  const phones = here.map((p) => p.phone_number).filter(Boolean);
+  const visitsCancelled = await db.cancelUpcomingMany({ schoolExtId, teacherExtIds: phones });
+
+  const wrote = await db.clearSchoolForUsers(here.map((p) => p.id));
+  if (!wrote) return { ok: false, reason: 'failed', removed: [], skipped };
+
+  await db.writeAudit(here.map((p) => _auditRow({
     action: 'remove', actor_user_id: actorLeaderUserId, affected_leader_user_id: actorLeaderUserId,
-    teacher_ext_id: phone, teacher_phone_e164: phone,
-    teacher_name: (person && person.name) || null,
+    teacher_ext_id: p.phone_number || null, teacher_phone_e164: p.phone_number || null,
+    teacher_name: p.name || null,
     from_school_ext_id: schoolExtId, to_school_ext_id: null,
-    detail: { via: 'observe_flow', reason: reason || null, visitsCancelled },
-  })]);
+    detail: { via: 'observe_flow', reason: reason || null, batch: here.length },
+  })));
 
   return {
-    ok: true, visitsCancelled, schoolName: school.school_name,
-    name: (person && person.name) || null,
+    ok: true,
+    reason: null,
+    removed: here.map((p) => ({ userId: p.id, name: p.name || null, phone: p.phone_number || null })),
+    skipped,
+    visitsCancelled,
+    schoolName: school.school_name,
   };
 }
 
@@ -424,8 +573,11 @@ module.exports = {
   normaliseTeacherPhone,
   planAdd,
   commitAdd,
-  commitRemoval,
+  commitRemovals,
+  REMOVE_BATCH_MAX,
   addPlanAck,
   removedTeacherAck,
+  removalPlanAck,
+  removedTeachersAck,
   refusalBody,
 };
