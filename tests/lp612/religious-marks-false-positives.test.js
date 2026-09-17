@@ -103,10 +103,10 @@ describe('B — Latin script is correct on an English page', () => {
     expect(blocked(withProse('نبی کریم PBUH کا فرمان سیرت میں ہے'))).toBe(true);
   });
 
-  // SKIPPED, not deleted: this is a REAL and CURRENTLY LIVE gap, filed as bd-6tfw6.
-  // ABBREV_RE holds a bare "RA", which is also right ascension / relative abundance / a resistance symbol.
-  // Out of scope for bd-kpqu6's P0 — un-skip in the commit that fixes bd-6tfw6.
-  it.skip('does not fire on "RA" used as an ordinary abbreviation', () => {
+  // UN-SKIPPED by bd-6tfw6 (operator, 2026-09-17: "go on option 1"). ABBREV_RE held a bare "RA",
+  // which is also right ascension / relative abundance / the roughness symbol Ra. RA now fires
+  // only where it is ADJACENT — parenthesised, or straight after a mid-sentence name word.
+  it('does not fire on "RA" used as an ordinary abbreviation', () => {
     const d = setSecondProse(withProse(TRIGGER), 'Identify the RA value on the diagram.');
     expect(blocked(d)).toBe(false);
   });

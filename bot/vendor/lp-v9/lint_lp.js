@@ -1216,7 +1216,34 @@ const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ|تعا
 // transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
 // in any medium — the salutation is written as "ﷺ", never as "(PBUH)" and never spelled out in
 // English (operator, 2026-09-17: "must be our stamp").
-const ABBREV_RE = /\b(PBUH|SAW|SAWW|RA)\b/;
+//
+// THREE OF THE FOUR TOKENS FIRE ON SIGHT; "RA" MAY NOT (bd-6tfw6; operator, 2026-09-17: "go on
+// option 1"). PBUH, SAW and SAWW spell nothing else in a school lesson. A bare, case-correct "RA"
+// does: right ascension (astronomy), relative abundance (biology), the roughness symbol Ra
+// (physics and engineering drawing) — all Grades 9-12 vocabulary. Two letters on their own carry
+// no evidence that they stand for رضی اللہ عنہ, and check 2 runs on MIXED lessons — a Pak Studies
+// or Islamiat-adjacent plan with a diagram — where both readings are live in one document.
+//
+// So RA is required to be ADJACENT, in one of the two shapes the operator approved:
+//   (a) an opening paren or bracket — "(RA)", "[RA]", and the "(RA" a truncation leaves behind;
+//   (b) straight after a NAME WORD — a capitalised word that is not the first word of the string,
+//       so "Hazrat Ali RA said" fires and a sentence-opening "Find RA from the chart." does not.
+//
+// The discriminator is measured, not guessed. Of the 1,401 servable renders in the 2026-09-17
+// census (bd-2cbwr), exactly one — 1140eb1d, grade_7_history.c02.p021-022, currently SERVING —
+// raises RA at all, 35 times, and every one of the 28 whose token the census excerpt shows is
+// "(RA)" straight after a name. The bead's false positive, "Identify the RA value on the
+// diagram.", is adjacent to nothing. Nothing else in the corpus changes: the 41st abbreviation
+// fail is a PBUH, and PBUH/SAW/SAWW are untouched.
+//
+// FAIL-CLOSED WHERE IT IS AMBIGUOUS. "right ascension (RA)" — the science idiom that DEFINES the
+// abbreviation in parentheses — still fails, because option 1 makes an opening paren sufficient
+// and this gate does not narrow a religious protection further than the operator approved.
+const ABBREV_RE = new RegExp([
+  "\\b(PBUH|SAW|SAWW)\\b",                          // unconditional — unambiguous tokens
+  "[(\\[]\\s*(RA)\\b",                              // (a) parenthesised
+  "[\\p{L}]\\S*\\s+[A-Z][\\p{L}'’.\\-]+[\\s,—\\-]{1,3}(RA)\\b",  // (b) after a name word
+].join("|"), "u");
 // A TRANSLITERATION, by contrast, is only wrong where the book prints the Urdu. On an Urdu
 // religious page Latin script is a de-pointing by another route; in a Grade 6 ENGLISH lesson
 // "Hazrat Muhammad" and "Khadijah radiallahu anha" are what the page itself prints, and forcing
@@ -1767,7 +1794,11 @@ function religiousMarks(doc, ctx) {
   for (const { at, s } of strings) {
     const a = ABBREV_RE.exec(s);
     if (a) {
-      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write the salutation itself — ﷺ for the Prophet, رضی اللہ عنہ for a companion — never de-pointed, abbreviated, transliterated, spelled out in English or dropped (brief §4c.5). ${HOLD}`);
+      // `a[0]` is the whole match, and the RA arms deliberately match the name word in front of
+      // the token so the adjacency can be required at all. The message names the ABBREVIATION —
+      // groups 1-3 are the three arms, exactly one of which is set (bd-6tfw6).
+      const tok = a[1] || a[2] || a[3];
+      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${tok}"): "${s.slice(0, 70)}". Write the salutation itself — ﷺ for the Prophet, رضی اللہ عنہ for a companion — never de-pointed, abbreviated, transliterated, spelled out in English or dropped (brief §4c.5). ${HOLD}`);
       continue;
     }
     // Before the medium split, because it does not depend on it: a salutation belongs to the
