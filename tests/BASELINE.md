@@ -390,10 +390,31 @@ Removals are reported and never fail; shrinking is the goal. A deliberate re-rec
 that genuinely must grow passes `--allow-growth`, so the intent is recorded rather than
 inferred.
 
-**It blocks a PR into `develop` and is advisory on a `develop` → `main` promotion.** A
-promotion legitimately carries develop's larger baseline into main — develop is ahead,
-so its snapshot is generally a superset — and blocking that would fire on every single
-release. Measured 2026-09-01: main's snapshot held 24 suites against develop's 30, so a
-promotion PR would have been refused for doing exactly what a promotion does. Advisory
-keeps the signal — *you are importing N newly-accepted failures into prod* — without the
-false block.
+**It blocks a PR into `sandbox` or `staging`, and is advisory on a promotion into `main`.**
+A promotion legitimately carries the ahead-branch's larger baseline into main — its
+snapshot is generally a superset — and blocking that would fire on every single release.
+Measured 2026-09-01: main's snapshot held 24 suites against 30 on the branch ahead of it,
+so a promotion PR would have been refused for doing exactly what a promotion does.
+Advisory keeps the signal — *you are importing N newly-accepted failures into prod* —
+without the false block. (Written when `develop` was the branch ahead; `develop` was
+frozen on 2026-09-08 and the chain is now `sandbox` → `staging` → `main`. The rule is the
+same, the branch names are not.)
+
+### Re-cutting a baseline that legitimately grows
+
+A re-cut after the base has drifted **will** grow the snapshot: it records everyone else's
+accumulated failures, which is the whole point of re-cutting. That is indistinguishable
+from a regression to a check that only counts, so growth needs an explicit human act
+rather than an inference.
+
+Until 2026-09-17 there wasn't one. `--allow-growth` was reachable only for PRs into
+`main`, so the operation this document tells you to perform — *"re-record it in its own
+commit, explain why in the PR, and re-run with `--allow-growth`"* — could not be performed
+on `sandbox`, where all work lands. bd-ym59h hit it head-on: a re-cut that made `npm test`
+print CLEAN could not be merged.
+
+**Add the `baseline-recut` label to the PR.** `ci.yml` passes `--allow-growth` when the
+label is present, and the label is visible in the PR timeline, so the intent is recorded
+where a reviewer will see it. Without the label nothing changes: the baseline may only
+shrink. Put the re-record in its own commit and say in the PR what grew and why — the
+growth check prints the newly-accepted suites, tests and offenders, so paste that.

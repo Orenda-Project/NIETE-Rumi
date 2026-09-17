@@ -84,8 +84,23 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASELINE_BASE_REF: origin/${{ github.base_ref }}
+          # A re-cut after the base branch has drifted legitimately GROWS the snapshot, and
+          # until now the check had no way to hear that: --allow-growth was reachable only
+          # for PRs into `main`, so the one operation BASELINE.md documents as legitimate --
+          # "re-record it in its own commit, explain why in the PR, and re-run with
+          # --allow-growth" -- could not be performed on `sandbox`, which is where all work
+          # lands. bd-ym59h hit exactly that: a re-cut that made `npm test` CLEAN could not
+          # be merged, because recording nine days of other people's accumulated failures
+          # reads as growth.
+          #
+          # The label is the explicit human act the check asks for. It is applied on the PR,
+          # visible in its timeline, and has to be added deliberately -- "the intent is
+          # recorded rather than inferred". Default behaviour is unchanged: no label, no
+          # growth.
+          ALLOW_GROWTH: ${{ github.base_ref == 'main' || contains(github.event.pull_request.labels.*.name, 'baseline-recut') }}
         run: |
-          if [ "${{ github.base_ref }}" = "main" ]; then
+          if [ "$ALLOW_GROWTH" = "true" ]; then
+            echo "baseline-growth: growth permitted (base=${{ github.base_ref }}, baseline-recut label or main)"
             npm run test:baseline:growth -- --allow-growth
           else
             npm run test:baseline:growth
