@@ -53,7 +53,10 @@ function deps() {
 }
 
 const KIND_CAPSTONE = 'capstone';
-const POINTS_PER_QUESTION = 5;
+// bd-60113 — the default now lives in capstone-points.rules alongside the
+// per-vendor override, so the portal can read the scale without pulling this
+// file's I/O in. Re-exported below, unchanged at 5, for existing importers.
+const { POINTS_PER_QUESTION, pointsPerQuestionFor } = require('./capstone-points.rules');
 const PASS_PCT = 0.7; // NIETE team rule (21 Jul): 70% required for certification
 
 const BUTTON_PREFIX = 'capstone_start_';
@@ -254,6 +257,11 @@ async function handleCapstoneButton(userId, buttonId, phoneNumber) {
       return true;
     }
 
+    // bd-60113 — the per-answer scale is a vendor setting (I-SAPS CRQs are 10
+    // marks, Beacon House answers 5). Resolved once here so total_score and the
+    // LLM prompt agree; a failed lookup falls back to the historical 5.
+    const perAnswer = await capstonePointsForLevel(levelId);
+
     const now = new Date().toISOString();
     const { data: attempt, error } = await supabase
       .from('training_assessment_attempts')
@@ -265,7 +273,7 @@ async function handleCapstoneButton(userId, buttonId, phoneNumber) {
         level_id: levelId,
         current_question_index: 0,
         total_questions: questions.length,
-        total_score: questions.length * POINTS_PER_QUESTION,
+        total_score: questions.length * perAnswer,
         status: 'in_progress',
         started_at: now,
         last_activity_at: now,
@@ -292,12 +300,52 @@ async function handleCapstoneButton(userId, buttonId, phoneNumber) {
   }
 }
 
+/**
+ * bd-60113 — the per-answer scale for a level's vendor.
+ *
+ * level -> vendor -> capstone_points_per_question, defaulting to 5. Never
+ * throws: a lookup failure must degrade to the historical scale rather than
+ * strand a teacher mid-exam, so every failure path returns the default.
+ *
+ * @param {number} levelId training_levels.id
+ * @returns {Promise<number>}
+ */
+async function capstonePointsForLevel(levelId) {
+  const { supabase, logToFile } = deps();
+  try {
+    const { data: level } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
+    if (!level?.vendor_id) return POINTS_PER_QUESTION;
+    const { data: vendor } = await supabase
+      .from('training_vendors')
+      .select('key, capstone_points_per_question')
+      .eq('id', level.vendor_id)
+      .maybeSingle();
+    return pointsPerQuestionFor(vendor);
+  } catch (err) {
+    logToFile('⚠️ capstone points lookup failed — using default', {
+      levelId, default: POINTS_PER_QUESTION, error: err?.message,
+    });
+    return POINTS_PER_QUESTION;
+  }
+}
+
 // ─── 3. answers ─────────────────────────────────────────────────────────────
 
-async function scoreAnswer(question, answerText) {
+/**
+ * @param {object} question    training_questions row
+ * @param {string} answerText  the teacher's verbatim answer
+ * @param {number} [maxPoints] top of the scale for this vendor — bd-60113.
+ *        Defaults to POINTS_PER_QUESTION so Beacon House and Oxbridge are
+ *        byte-identical to before. The scale is interpolated into the PROMPT as
+ *        well as the clamp: telling the model "score 0-5" and then clamping to
+ *        10 would silently cap every I-SAPS CRQ at half marks.
+ */
+async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION) {
   const { logToFile } = deps();
   const { getClient, getDefaultModel } = deps().llm;
   const client = getClient();
+  const top = Number.isInteger(maxPoints) && maxPoints > 0 ? maxPoints : POINTS_PER_QUESTION;
   const response = await client.chat.completions.create({
     model: getDefaultModel(),
     temperature: 0,
@@ -306,9 +354,9 @@ async function scoreAnswer(question, answerText) {
       {
         role: 'system',
         content:
-          'You grade a teacher-training open-ended answer. Score 0-5 (5 = specific, ' +
+          `You grade a teacher-training open-ended answer. Score 0-${top} (${top} = specific, ` +
           'practical, grounded in classroom practice; 0 = empty/off-topic). Reply ' +
-          'ONLY with JSON: {"score": <0-5 integer>, "feedback": "<1-2 encouraging, ' +
+          `ONLY with JSON: {"score": <0-${top} integer>, "feedback": "<1-2 encouraging, ` +
           'specific sentences>"}',
       },
       { role: 'user', content: `Question: ${question.question_text}\n\nTeacher's answer: ${answerText}` },
@@ -321,7 +369,7 @@ async function scoreAnswer(question, answerText) {
   } catch (e) {
     logToFile('⚠️ Capstone LLM response unparseable — scoring 0', { error: e.message });
   }
-  const score = Math.max(0, Math.min(POINTS_PER_QUESTION, Math.round(Number(parsed.score) || 0)));
+  const score = Math.max(0, Math.min(top, Math.round(Number(parsed.score) || 0)));
   const feedback = String(parsed.feedback || 'Thank you for your answer.').slice(0, 600);
   return { score, feedback };
 }
@@ -403,7 +451,14 @@ async function routeTextAnswer(phoneNumber, text) {
     return await finalizeAttempt(attempt, user, phoneNumber);
   }
 
-  const { score, feedback } = await scoreAnswer(q, trimmed);
+  // bd-60113 — derive the scale from the attempt rather than re-reading the
+  // vendor. The attempt froze total_score = questions * perAnswer when it was
+  // created, so this cannot drift from what the teacher is being marked out of
+  // even if the vendor's setting changes mid-exam.
+  const perAnswer = Math.round(
+    (Number(attempt.total_score) || 0) / Math.max(1, Number(attempt.total_questions) || 0)
+  ) || POINTS_PER_QUESTION;
+  const { score, feedback } = await scoreAnswer(q, trimmed, perAnswer);
   // bd-2478 — CHECK the write. This upsert silently failed for every capstone
   // answer ever submitted: is_correct was NOT NULL and a written answer has no
   // binary correctness, so Postgres rejected all eight rows of the first real
