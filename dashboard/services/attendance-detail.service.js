@@ -44,6 +44,43 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+
+/**
+ * bd-60124 — the reading order of a group list (operator, 2026-09-17).
+ *
+ * Grades run G1 → G2 → G3, teachers run alphabetically, and one comparator
+ * does both because a row is only ever a grade or a person.
+ *
+ * A plain `localeCompare` is wrong for grades and the data proves it: on prod
+ * there are 75 distinct `class_name` values and a string sort puts
+ * "Grade 10 - A" between "Grade 1 - D" and "Grade 2", because it compares "1"
+ * against "2" character by character. So the leading number is pulled out and
+ * compared numerically; everything after it (section, "(evening)") falls back
+ * to a locale compare, which orders A → B → C correctly.
+ *
+ * A name with no leading number — "Early Years", or a teacher — sorts before
+ * the numbered grades and alphabetically among its own kind. That puts Early
+ * Years at the top of a class list, which is where it belongs, and leaves a
+ * staff list in plain alphabetical order.
+ *
+ * This deliberately replaces the earlier least-known-first order. Coverage
+ * still drives the eye through colour — the dashed block is loud on its own —
+ * but a list a principal scans should be in the order she already knows.
+ */
+function gradeNumber(name) {
+  const m = /(\d+)/.exec(String(name || ''));
+  return m ? Number(m[1]) : null;
+}
+
+function compareGroupNames(a, b) {
+  const an = gradeNumber(a.name);
+  const bn = gradeNumber(b.name);
+  if (an == null && bn != null) return -1;   // Early Years before Grade 1
+  if (an != null && bn == null) return 1;
+  if (an != null && bn != null && an !== bn) return an - bn;
+  return String(a.name).localeCompare(String(b.name), undefined, { numeric: true });
+}
+
 /**
  * G3 — one fully merged row per group.
  *
@@ -102,16 +139,7 @@ function summarizeGroups(sessions, days, known = []) {
     };
   });
 
-  // Least-known first: the row she can say least about is the row that needs
-  // her. Ties break on absences, then name, so the order is stable.
-  rows.sort((a, b) => {
-    const au = a.chances ? a.neverMarked / a.chances : 1;
-    const bu = b.chances ? b.neverMarked / b.chances : 1;
-    if (bu !== au) return bu - au;
-    if (b.absent !== a.absent) return b.absent - a.absent;
-    return a.name.localeCompare(b.name);
-  });
-
+  rows.sort(compareGroupNames);
   return rows;
 }
 
@@ -139,6 +167,8 @@ function summarizeByDay(sessions, days) {
       : { total, present });
   }
 
+  // Same order as the summary — the two views are the same list, and a row
+  // that moves when she flips between them is a row she has to re-find.
   return [...groups.entries()].map(([name, byDate]) => ({
     name,
     days: window.map((date) => {
@@ -156,7 +186,7 @@ function summarizeByDay(sessions, days) {
         absent: Math.max(0, hit.total - hit.present),
       };
     }),
-  }));
+  })).sort(compareGroupNames);
 }
 
-module.exports = { summarizeGroups, summarizeByDay };
+module.exports = { summarizeGroups, summarizeByDay, compareGroupNames };

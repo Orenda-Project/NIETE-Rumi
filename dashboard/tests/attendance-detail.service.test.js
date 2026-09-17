@@ -96,9 +96,52 @@ describe('summarizeGroups — G3, merged across people AND days', () => {
     expect(g5.neverMarked).toBe(108);
   });
 
-  it('sorts the least-known groups first — they need her attention most', () => {
+  /**
+   * bd-60124 — grade order, not alphabetical and not by coverage (operator,
+   * 2026-09-17). Measured on prod: 75 distinct class_name values, and a plain
+   * sort puts "Grade 10 - A" between "Grade 1 - D" and "Grade 2" because it
+   * compares "1" against "2" one character at a time. Real values also include
+   * "Early Years", bare "Grade 3", sections A..L and an "(evening)" suffix.
+   */
+  it('orders grades numerically, so Grade 10 follows Grade 9 and not Grade 1', () => {
+    const names = summarizeGroups([
+      { group: 'Grade 10 - A', date: '2026-09-01', total: 10, present: 9 },
+      { group: 'Grade 2 - A', date: '2026-09-01', total: 10, present: 9 },
+      { group: 'Grade 1 - D', date: '2026-09-01', total: 10, present: 9 },
+      { group: 'Grade 9 - A', date: '2026-09-01', total: 10, present: 9 },
+    ], ['2026-09-01']).map((g) => g.name);
+    expect(names).toEqual(['Grade 1 - D', 'Grade 2 - A', 'Grade 9 - A', 'Grade 10 - A']);
+  });
+
+  it('orders sections within a grade', () => {
+    const names = summarizeGroups([
+      { group: 'Grade 3 - C', date: '2026-09-01', total: 10, present: 9 },
+      { group: 'Grade 3 - A', date: '2026-09-01', total: 10, present: 9 },
+      { group: 'Grade 3 - B', date: '2026-09-01', total: 10, present: 9 },
+    ], ['2026-09-01']).map((g) => g.name);
+    expect(names).toEqual(['Grade 3 - A', 'Grade 3 - B', 'Grade 3 - C']);
+  });
+
+  it('puts a non-numeric class like Early Years before the numbered grades', () => {
+    const names = summarizeGroups([
+      { group: 'Grade 1 - A', date: '2026-09-01', total: 10, present: 9 },
+      { group: 'Early Years', date: '2026-09-01', total: 10, present: 9 },
+    ], ['2026-09-01']).map((g) => g.name);
+    expect(names[0]).toBe('Early Years');
+  });
+
+  it('keeps grade order even when coverage differs wildly', () => {
+    // Grade 2 - B is the least-known group in the fixture; grade order wins.
     const rows = summarizeGroups(SESSIONS, DAYS);
-    expect(rows[0].name).toBe('Grade 2 - B');
+    expect(rows.map((g) => g.name)).toEqual(['Grade 2 - A', 'Grade 2 - B']);
+  });
+
+  it('leaves the staff list — names, not grades — in alphabetical order', () => {
+    const names = summarizeGroups([
+      { group: 'Sana Riaz', date: '2026-09-01', total: 1, present: 1 },
+      { group: 'Ayesha Bibi', date: '2026-09-01', total: 1, present: 1 },
+    ], ['2026-09-01']).map((g) => g.name);
+    expect(names).toEqual(['Ayesha Bibi', 'Sana Riaz']);
   });
 
   it('returns nothing rather than a zero row when there is no data at all', () => {
@@ -113,6 +156,14 @@ describe('summarizeByDay — the day-wise detail', () => {
     expect(a.days).toHaveLength(3);
     expect(a.days[0].date).toBe('2026-09-01');
     expect(a.days[0].present).toBe(38);
+  });
+
+  it('uses the same grade order as the summary, so rows do not move', () => {
+    const out = summarizeByDay([
+      { group: 'Grade 10 - A', date: '2026-09-01', total: 10, present: 9 },
+      { group: 'Grade 2 - A', date: '2026-09-01', total: 10, present: 9 },
+    ], ['2026-09-01']);
+    expect(out.map((g) => g.name)).toEqual(['Grade 2 - A', 'Grade 10 - A']);
   });
 
   it('marks a day the group was not registered as unmarked, not as zero', () => {
