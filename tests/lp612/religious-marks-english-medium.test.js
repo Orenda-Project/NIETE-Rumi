@@ -129,12 +129,14 @@ describe("RELIGIOUS_MARKS — a companion's SALUTATION is Urdu script even on an
     ]) expect(codes(docSaying(t))).toContain('RELIGIOUS_MARKS');
   });
 
-  it("leaves the PROPHET's spelled-out honorific alone — the operator ruled on companions only", () => {
-    // Deliberately NOT changed here. "Hazrat Muhammad (peace be upon him)" passes today, the
-    // operator quoted the ﷺ row approvingly without asking for this one, and tightening it is a
-    // one-line change she can call for separately. Pinned so the decision is visible, not implied.
+  it("refuses the PROPHET's spelled-out English honorific — she called for it (bd-c61xh)", () => {
+    // This test used to assert the opposite, and said so: the honorific was left alone because the
+    // operator had ruled on companions only, "a one-line change she can call for separately".
+    // She called for it on 2026-09-17 — "must be our stamp" — so the companion rule and the
+    // Prophet's rule now agree. Q3 keeps the book's Latin NAME on an English page; it never
+    // licensed an English SALUTATION.
     expect(codes(docSaying('Hazrat Muhammad (peace be upon him) was known for honesty.')))
-      .not.toContain('RELIGIOUS_MARKS');
+      .toContain('RELIGIOUS_MARKS');
   });
 
   it('does not DEMAND a salutation after a bare Latin companion name', () => {

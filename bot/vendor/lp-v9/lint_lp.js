@@ -1084,7 +1084,10 @@ const PROPHET_RE = new RegExp(
 // epithets) is a compound given name — a person, not the Prophet. Same shape as the K-5 lane's
 // niete-nbpro/src/honorifics.js `isCompoundGivenName`; kept in step by hand.
 const PROPHET_CONTINUATIONS = ["مصطفی", "مصطفیٰ", "رسول", "عربی", "خاتم", "النبیین", "مجتبی", "مجتبیٰ", "مدنی",
-  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک"];
+  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک",
+  // G5c Q1 — a salutation word is never the second word of somebody else's given name. Without
+  // this, "محمد علیہ السلام" reads as a compound name and the wrong salutation goes unchallenged.
+  "علیہ", "علیہم", "علیھم", "الصلوٰۃ", "الصلوۃ"];
 const NAME_FUNCTION_WORDS = ["نے", "کا", "کی", "کے", "کو", "سے", "پر", "میں", "تک", "اور", "یا", "ہے", "ہیں",
   "تھا", "تھے", "تھی", "جو", "کہ", "بھی", "ہی", "نہیں", "والا", "والے", "والی", "صاحب", "نامی", "یعنی", "کہا", "کہتے"];
 function isCompoundGivenName(s, afterIdx) {
@@ -1104,13 +1107,52 @@ function isCompoundGivenName(s, afterIdx) {
 }
 // The honorific may be the ligature or spelled out, and a comma or a quote may sit between.
 const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/;
+// G5c RULING Q1 (operator, 2026-09-17, on the bd-zipoe native-speaker review packet): "any
+// prophet not Muhammad gets their proper salutation alaihis salam in the stamp/nastaliq script".
+// So a prophet who is not Muhammad is correctly salutated with علیہ السلام, and the gate must
+// stop reading that as a missing honorific. STAMP/NASTALIQ SCRIPT is part of the ruling and part
+// of §4c.5's ban on transliteration, so this holds Urdu forms only — a Latin "alaihis salam"
+// still fails, exactly as a Latin "sallallahu alaihi wasallam" does.
+const PROPHET_ALT_HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(علیہ\s*الصلو[ٰا]?[ۃہ]\s*و\s*ال?سلام|علیہ[مان]?\s*السلام)/;
+// ...but only after a token that CAN name another prophet. نبی is the bare common noun "prophet";
+// every other entry in PROPHET_TOKENS is either Muhammad's own name (محمد) or a conventional
+// epithet of him specifically — سرورِ کائنات, پیغمبر اسلام, رسولِ اکرم, رسول اللہ, رسول کریم,
+// نبی کریم, نبی اکرم, نبی پاک, آں حضرت, آنحضرت, حضور اکرم, حضور — and those keep demanding ﷺ.
+// A NAMED prophet (حضرت ابراہیم علیہ السلام) is not this lane at all; it goes through check 3,
+// whose COMPANION_HON has always accepted علیہ السلام.
+const GENERIC_PROPHET_TOKENS = new Set(["نبی"]);
+// G5c RULING Q3 (operator, 2026-09-17, on the bd-zipoe native-speaker review packet): "For
+// English keep the name as shown in the page truth Hazrat Muhammad (salutation) ... it should stay
+// as shown in the book but with our salutation stamp/script".
+//
+// A CHAINED name carries ONE salutation and it sits at the END of the chain, which is how the
+// books print it: حضرت محمد رسول اللہ ﷺ، نبی کریم محمد مصطفیٰ ﷺ. HONORIFIC_RE anchors immediately
+// after whichever token PROPHET_RE matched, so the gate was demanding a SECOND ﷺ in the middle of
+// the chain and refusing a line that is already correct — three v9.2 fails on
+// grade_8_english.c01.p009-012.reading_comprehension, all on the same sentence.
+//
+// This moves only WHERE the honorific is looked for. It never makes one optional: a chain that
+// runs out without a salutation fails at the original match, exactly as before.
+const CHAIN_WORDS = new Set([...PROPHET_CONTINUATIONS, ...PROPHET_TOKENS.flatMap((t) => t.split(/\s+/))]);
+function skipNameChain(after) {
+  let rest = after;
+  for (let i = 0; i < 4; i++) {                      // a printed chain runs at most four words on
+    const m = /^\s+([^\s،؛۔.,;:!?…'"’”«»‹›()\[\]{}]+)/.exec(rest);
+    if (!m) return rest;
+    const w = m[1].replace(/[\u064B-\u0652\u0670\u06D6-\u06ED]/g, "");   // read through aeraab
+    if (w === "ﷺ" || !CHAIN_WORDS.has(w)) return rest;  // the salutation ENDS the chain
+    rest = rest.slice(m[0].length);
+  }
+  return rest;
+}
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
-const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
+const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ|تعالى|تعالی)?\s*عنہ(?:م|ا|ما|من)?|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ[مان]?\s*السلام|رحمۃ\s*اللہ\s*علیہ|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
 // §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
 // transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
-// in any medium — an English book prints "ﷺ" or "(peace be upon him)", never "(PBUH)".
+// in any medium — the salutation is written as "ﷺ", never as "(PBUH)" and never spelled out in
+// English (operator, 2026-09-17: "must be our stamp").
 const ABBREV_RE = /\b(PBUH|SAW|SAWW|RA)\b/;
 // A TRANSLITERATION, by contrast, is only wrong where the book prints the Urdu. On an Urdu
 // religious page Latin script is a de-pointing by another route; in a Grade 6 ENGLISH lesson
@@ -1120,7 +1162,10 @@ const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|Sallallahu|Rasool
 // Reverence does not depend on script, so the English lane keeps its own honorific rule: rule 1
 // cannot see these mentions at all, because PROPHET_RE holds only Urdu-script tokens.
 const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
-const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم|\(?\s*peace\s+be\s+upon\s+him\s*\)?)/i;
+// THE SALUTATION IS THE STAMP, IN EITHER MEDIUM (operator, 2026-09-17, G5c: "must be our stamp").
+// The spelled-out English "(peace be upon him)" used to satisfy this and no longer does — Q3 keeps
+// the book's Latin NAME on an English page, it does not license an English SALUTATION.
+const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/i;
 // A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
 // the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
 // two on an English page — the NAME keeps the Latin spelling the English book prints, the
@@ -1622,13 +1667,19 @@ function religiousMarks(doc, ctx) {
     PROPHET_RE.lastIndex = 0;
     let m;
     while ((m = PROPHET_RE.exec(s))) {
-      if (HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      const after = s.slice(m.index + m[0].length);
+      if (HONORIFIC_RE.test(after)) continue;
+      if (GENERIC_PROPHET_TOKENS.has(m[0]) && PROPHET_ALT_HONORIFIC_RE.test(after)) continue;
+      // Q3 — the honorific may close a CHAINED name two or three words on. Only re-tested when
+      // the chain actually advanced, so a bare token behaves identically to before.
+      const chained = skipNameChain(after);
+      if (chained !== after && HONORIFIC_RE.test(chained)) continue;
       // VENDOR DIVERGENCE (bd-gyrg8, 2026-09-11; also upstream): `محمد` opening ANOTHER PERSON's
       // compound name is not a mention of the Prophet — محمد علی جناح، محمد بن قاسم، علامہ محمد
       // اقبال، محمد خان. An author under this gate wrote `محمد ﷺ خان` for Ashfaq Ahmed's father.
       // The Prophet's own name-continuations (مصطفیٰ، رسول اللہ، بن عبداللہ …) still demand it.
       if (m[0] === "محمد" && isCompoundGivenName(s, m.index + m[0].length)) continue;
-      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". ${GENERIC_PROPHET_TOKENS.has(m[0]) ? `Write "${m[0]} ﷺ" if this is the Prophet Muhammad, or "${m[0]} علیہ السلام" if it is another prophet` : `Write "${m[0]} ﷺ"`} — in Urdu script, never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
     }
   }
 
@@ -1639,7 +1690,7 @@ function religiousMarks(doc, ctx) {
   for (const { at, s } of strings) {
     const a = ABBREV_RE.exec(s);
     if (a) {
-      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write it out — ﷺ, رضی اللہ عنہ, or "peace be upon him" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write the salutation itself — ﷺ for the Prophet, رضی اللہ عنہ for a companion — never de-pointed, abbreviated, transliterated, spelled out in English or dropped (brief §4c.5). ${HOLD}`);
       continue;
     }
     // Before the medium split, because it does not depend on it: a salutation belongs to the
@@ -1688,7 +1739,7 @@ function religiousMarks(doc, ctx) {
         consumed += words[i].length + (words[i + 1] || "").length;
         tail = rest.slice(consumed).replace(/^\s+/, "");
         if (COMPANION_HON.test(tail)) break;
-        if (i >= 2) break;                        // a name is at most three words
+        if (i >= 4) break;                        // a name is at most three words
       }
       name = name.replace(/[،۔:'"’”)(]+$/, "").trim();
       if (!name) continue;
