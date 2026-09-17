@@ -1781,7 +1781,7 @@
     },
     {
       "id": "TEACHER_ACTION",
-      "title": "${data.heading}",
+      "title": "Manage teachers",
       "refresh_on_back": true,
       "data": {
         "items": {
@@ -1836,10 +1836,6 @@
               }
             }
           ]
-        },
-        "heading": {
-          "type": "string",
-          "__example__": "IMSB (I-X), SAID PUR"
         },
         "school_ext_id": {
           "type": "string",
