@@ -297,6 +297,47 @@ export interface SchoolAnalytics {
   focusDomain: string | null;
 }
 
+/**
+ * STEPS "P" — Presence (bd-60118). Teacher and student presence stay SEPARATE:
+ * the 60:40 weighting between them was never locked (Sabeena, 2026-08-10:
+ * adjust after the pilot), so there is deliberately no combined figure.
+ */
+export interface SchoolPresence {
+  teacher: {
+    records: number;
+    present: number;
+    absent: number;
+    leave: number;
+    /** null — not 0 — when nothing has been marked. Leave is out of the denominator. */
+    presentPct: number | null;
+  };
+  student: {
+    sessions: number;
+    totalMarked: number;
+    present: number;
+    presentPct: number | null;
+  };
+}
+
+/** STEPS "S" — the principal's own quarterly supervisor remarks (bd-60118). */
+export interface SchoolRemarkIndicator {
+  key: string;
+  ordinal: number;
+  name: string;
+  /** Mean of the 1..4 rubric scores. */
+  average: number;
+  percentage: number;
+  teachers: number;
+}
+
+export interface SchoolRemarks {
+  /** Committed forms only — a part-answered form is not a result. */
+  submitted: number;
+  averagePct: number | null;
+  indicatorBreakdown: SchoolRemarkIndicator[];
+  focusIndicator: string | null;
+}
+
 export interface SchoolAnalyticsResponse {
   success: boolean;
   school: {
@@ -305,7 +346,13 @@ export interface SchoolAnalyticsResponse {
     onRumi: number;
     totalLessonPlans: number;
   };
+  /** Set when ?teacherId= narrowed the view to one teacher. */
+  focusTeacher: { id: string; name: string } | null;
+  /** Everyone in the school, for the filter control. */
+  teachers: Array<{ id: string; name: string; isPrincipal: boolean }>;
   analytics: SchoolAnalytics;
+  presence: SchoolPresence;
+  remarks: SchoolRemarks;
 }
 
 /** The coach's /observe world (GET /leader/observations) — bd-2455. */

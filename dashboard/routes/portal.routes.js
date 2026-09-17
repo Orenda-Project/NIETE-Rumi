@@ -74,6 +74,11 @@ const { summarizePatch } = require('../services/leader-overview.service');
 // bd-60117 — school-level coaching analytics for a principal (pure, over the
 // school's scored sessions).
 const { summarizeSchoolAnalytics } = require('../services/school-analytics.service');
+// bd-60118 — the remaining two STEPS components. P is two separate figures on
+// purpose (the teacher:student weighting is still unresolved); S delegates its
+// /20 math to remark-rubric rather than restating it.
+const { summarizePresence } = require('../services/steps-presence.service');
+const { summarizeRemarks } = require('../services/steps-remarks.service');
 // Single teacher detail (patch-membership guarded).
 const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.service');
 // The coach's /observe world (upcoming schedules + pending debriefs + past
@@ -1086,23 +1091,75 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
       { role }
     );
 
-    const userIds = teachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
-    let sessions = [];
-    if (userIds.length > 0) {
-      // TERMINAL, not status='completed': a leader observation never reaches
-      // 'completed' (bd-2671), and filtering on it hid the entire observation
-      // programme once already.
-      const { rows } = await pool.query(
+    // bd-60118 — optional ?teacherId= narrows every component to one teacher
+    // ("build teacher report card individually", Osama 2026-09-10). It is
+    // VALIDATED AGAINST THE PATCH, never trusted: an id that is not in her
+    // school 404s rather than quietly scoping to someone else's teacher. This
+    // is the same boundary the teacher drawer enforces.
+    const requestedTeacherId = (req.query.teacherId || '').trim() || null;
+    let focusTeacher = null;
+    if (requestedTeacherId) {
+      focusTeacher = teachers.find((t) => t.rumiUserId === requestedTeacherId) || null;
+      if (!focusTeacher) {
+        return res.status(404).json({ success: false, error: 'Teacher not found in your school.' });
+      }
+    }
+
+    const scopeTeachers = focusTeacher ? [focusTeacher] : teachers;
+    const userIds = scopeTeachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
+
+    // One round-trip per STEPS component, all scoped to the same id set, so a
+    // filtered view and the school view can never disagree about who counts.
+    const [sessionRows, teacherAttRows, studentSessRows, remarkRows] = await Promise.all([
+      // S/T/E — TERMINAL, not status='completed': a leader observation never
+      // reaches 'completed' (bd-2671), and filtering on it hid the entire
+      // observation programme once already.
+      userIds.length ? pool.query(
         `SELECT created_at, analysis_data
            FROM coaching_sessions
           WHERE user_id = ANY($1::uuid[])
             AND status IN ${TERMINAL}
             AND analysis_data IS NOT NULL
-          ORDER BY created_at ASC`,
-        [userIds]
-      );
-      sessions = rows || [];
-    }
+          ORDER BY created_at ASC`, [userIds]) : { rows: [] },
+
+      // P (teacher) — keyed by teacher_id, so it filters with the same ids.
+      userIds.length ? pool.query(
+        `SELECT status, date
+           FROM teacher_attendance_records
+          WHERE teacher_id = ANY($1::uuid[])
+          ORDER BY date ASC`, [userIds]) : { rows: [] },
+
+      // P (students) — attendance_sessions.user_id is the teacher who MARKED
+      // the register, which is how a student roll reaches a school at all.
+      userIds.length ? pool.query(
+        `SELECT total_students, present_count, session_date
+           FROM attendance_sessions
+          WHERE user_id = ANY($1::uuid[])
+          ORDER BY session_date ASC`, [userIds]) : { rows: [] },
+
+      // S (supervisor remarks) — the principal's own quarterly forms, with
+      // their per-indicator scores folded in. Only her remarks (she is the
+      // author), about teachers in the scope above.
+      userIds.length ? pool.query(
+        `SELECT r.id, r.teacher_id, r.submitted_at, r.comment_text, r.cycle_id,
+                COALESCE(
+                  json_agg(json_build_object('ordinal', sc.indicator_ordinal, 'score', sc.score)
+                           ORDER BY sc.indicator_ordinal)
+                  FILTER (WHERE sc.id IS NOT NULL), '[]'
+                ) AS scores
+           FROM supervisor_remarks r
+           LEFT JOIN supervisor_remark_scores sc ON sc.remark_id = r.id
+          WHERE r.teacher_id = ANY($1::uuid[])
+            AND r.principal_user_id = $2
+          GROUP BY r.id`, [userIds, req.session.portalUserId]) : { rows: [] },
+    ]);
+
+    const remarks = (remarkRows.rows || []).map((r) => ({
+      teacherId: r.teacher_id,
+      submittedAt: r.submitted_at,
+      comment: r.comment_text || null,
+      scores: Array.isArray(r.scores) ? r.scores : [],
+    }));
 
     res.json({
       success: true,
@@ -1110,9 +1167,20 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
         name: (teachers.find((t) => t.schoolName) || {}).schoolName || null,
         totalTeachers: teachers.length,
         onRumi: teachers.filter((t) => t.onRumi).length,
-        totalLessonPlans: teachers.reduce((n, t) => n + (t.lessonPlans || 0), 0),
+        totalLessonPlans: scopeTeachers.reduce((n, t) => n + (t.lessonPlans || 0), 0),
       },
-      analytics: summarizeSchoolAnalytics(sessions),
+      // The filter's own state, so the page renders the right heading without
+      // re-deriving who was asked for.
+      focusTeacher: focusTeacher
+        ? { id: focusTeacher.rumiUserId, name: focusTeacher.name }
+        : null,
+      // Every teacher in the school, for the filter control. Name + id only.
+      teachers: teachers
+        .filter((t) => t.rumiUserId)
+        .map((t) => ({ id: t.rumiUserId, name: t.name, isPrincipal: t.isPrincipal })),
+      analytics: summarizeSchoolAnalytics(sessionRows.rows || []),
+      presence: summarizePresence(teacherAttRows.rows || [], studentSessRows.rows || []),
+      remarks: summarizeRemarks(remarks),
     });
   } catch (error) {
     console.error('leader/school-analytics error:', error);
