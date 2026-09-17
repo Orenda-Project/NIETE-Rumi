@@ -67,6 +67,22 @@ describe('TEACHER_PICK takes more than one name', () => {
     expect(box.required).toBe(true);
   });
 
+  /**
+   * One box, N people — so the screen has to SAY that, or she types "retired"
+   * believing it lands on the one person it is true of. On production 361 of
+   * 1,744 removals carry a reason and they are person-specific ("Retired",
+   * "Duplicate", "Not in primary section"), so the coach who wants them exact
+   * needs to know to split the pass by reason.
+   */
+  it('the reason box admits it covers the whole selection, and stays optional', () => {
+    const confirm = screen('TEACHER_REMOVE_CONFIRM');
+    const input = componentsOfType(confirm.layout, 'TextInput')
+      .find((c) => c.name === 'reason');
+    expect(input.required).toBe(false);
+    expect(input['helper-text']).toMatch(/everyone you ticked/i);
+    expect(input.label).toMatch(/optional/i);
+  });
+
   it('sends the whole selection to the confirm step', () => {
     const footer = componentsOfType(pick().layout, 'Footer')[0];
     expect(footer['on-click-action'].payload).toMatchObject({
