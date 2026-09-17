@@ -446,6 +446,63 @@ async function sendDirectMessage(phoneNumber, messageText) {
 }
 
 /**
+ * Send a direct message AND record it, keeping the wamid.
+ *
+ * bd-djbrt. The direct path used to send and record in two unrelated steps: the
+ * caller threw away sendDirectMessage's response, so the wamid never reached
+ * broadcast_messages.message_id, and createBroadcastMessage swallowed its own
+ * insert error. handleBroadcastStatusWebhook matches receipts on message_id
+ * alone, so every delivery and read receipt for such a send is discarded on
+ * arrival. On 2026-09-17 that cost a 501-teacher launch its entire receipt
+ * stream (bd-zo16z).
+ *
+ * The three outcomes are the point. A send failure and a record failure used to
+ * look identical to the caller, and neither of the honest answers was available:
+ *
+ *   sent             - message accepted by Meta, row written with its wamid.
+ *   failed           - Meta rejected it. The teacher has nothing.
+ *   sent_unrecorded  - the teacher HAS the message but the row did not save.
+ *                      Reporting this as `failed` would be a lie, and reporting
+ *                      it as `sent` is what made the 17 Sep loss invisible. Its
+ *                      receipts are unmatchable for good, so it must be surfaced.
+ *
+ * @param {string} broadcastId - Parent broadcast_logs id
+ * @param {Object} user - { id, phone_number }
+ * @param {string} messageText - The message text to send
+ * @returns {{outcome: string, messageId: string|null, error: string|null}}
+ */
+async function sendDirectAndRecord(broadcastId, user, messageText) {
+  let messageId = null;
+
+  try {
+    const response = await sendDirectMessage(user.phone_number, messageText);
+    messageId = response?.messages?.[0]?.id || null;
+
+    if (!messageId) {
+      // Accepted with no message id: the row is unmatchable to any receipt, so
+      // it must not pass silently even though the send itself worked.
+      console.warn(`[Broadcast] ${broadcastId}: send accepted with no message id, receipts for this message cannot be matched`);
+    }
+  } catch (error) {
+    try {
+      await queries.createBroadcastMessage(broadcastId, user.id, user.phone_number, 'failed', error.message, null);
+    } catch (recordError) {
+      console.error(`[Broadcast] ${broadcastId}: failed to record a failed send:`, recordError.message);
+    }
+    return { outcome: 'failed', messageId: null, error: error.message };
+  }
+
+  try {
+    await queries.createBroadcastMessage(broadcastId, user.id, user.phone_number, 'sent', null, messageId);
+  } catch (recordError) {
+    console.error(`[Broadcast] ${broadcastId}: SENT BUT NOT RECORDED for user ${user.id} — receipts for ${messageId} can never be matched:`, recordError.message);
+    return { outcome: 'sent_unrecorded', messageId, error: recordError.message };
+  }
+
+  return { outcome: 'sent', messageId, error: null };
+}
+
+/**
  * Check if a user is within the 24-hour service window
  * @param {Date|string} lastMessageAt - User's last message timestamp
  * @returns {boolean} True if within 24hr window
@@ -797,6 +854,7 @@ module.exports = {
   // Message sending
   sendTemplateMessage,
   sendDirectMessage,
+  sendDirectAndRecord,
   executeBroadcast,
 
   // Service window check
