@@ -2245,7 +2245,7 @@
     },
     {
       "id": "TEACHER_EDIT_FIELD",
-      "title": "What to change",
+      "title": "${data.heading}",
       "refresh_on_back": true,
       "data": {
         "items": {
@@ -2302,9 +2302,9 @@
             }
           ]
         },
-        "intro": {
+        "heading": {
           "type": "string",
-          "__example__": "Fatima Rehman (923001234567).\n\nWhat would you like to change?"
+          "__example__": "Fatima Rehman"
         },
         "school_ext_id": {
           "type": "string",
@@ -2318,10 +2318,6 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          {
-            "type": "TextBody",
-            "text": "${data.intro}"
-          },
           {
             "type": "NavigationList",
             "name": "teacher_edit_field_list",

@@ -1383,7 +1383,11 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         data: {
           school_ext_id: schoolExtId,
           teacher_ext_id: pickedUserId,
-          intro: `${person.name || 'This teacher'}${person.phone ? ` (${person.phone})` : ''}.\n\nWhat would you like to change?`,
+          // Meta refuses any sibling component on a NavigationList screen, so
+          // the person's name rides in the screen TITLE rather than a TextBody.
+          // Every row already shows its current value, so the body text it
+          // replaced was only naming who we are editing.
+          heading: person.name || 'This teacher',
           items: [
             _row('name', 'Name', person.name || 'Not on record'),
             _row('level', 'Grade', curLevel.length ? curLevel.join(' + ') : 'Not on record'),
