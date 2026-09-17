@@ -341,6 +341,14 @@ async function commitRemoval({ actorLeaderUserId, schoolExtId, userId, reason },
  */
 function rosterTeacherNextTarget(next) {
   switch (next) {
+    // bd-60117: back to THIS school's action picker, not the top menu. A coach
+    // fixing a roster does several things to one school in a row, and sending
+    // her to MENU made her re-walk Manage teachers -> school every time. The
+    // caller supplies the screen's declared keys (see _continueObserveLoop) —
+    // reopening ON a screen has no endpoint round trip to fill them.
+    case 'teacher_again':
+      return { reopen: true, screen: 'TEACHER_ACTION' };
+    // Kept for Flow clients still holding the old published options.
     case 'teacher_add':
     case 'teacher_remove':
     case 'menu':

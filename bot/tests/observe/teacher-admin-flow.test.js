@@ -391,23 +391,31 @@ describe('Waheed 3 — picking a school does not commit the coach to adding', ()
 });
 
 describe('the new TEACHER_ACTION screen', () => {
-  it('exists, and offers exactly the three actions', () => {
+  it('exists, and offers exactly the three actions', async () => {
+    // bd-60117: a NavigationList (one tap), so the rows are built by the
+    // handler rather than listed in the Flow JSON. The intent is unchanged:
+    // exactly three actions, in the order a coach reads them.
     const scr = flowScreen('TEACHER_ACTION');
     expect(scr).toBeTruthy();
-    const radio = scr.layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    // bd-60096 added 'edit'. Order is the menu order a coach reads.
-    expect(radio['data-source'].map((o) => o.id)).toEqual(['add', 'remove', 'edit']);
-    expect(radio.required).toBe(true);
+    expect(scr.layout.children.find((c) => c.type === 'NavigationList')).toBeTruthy();
+    const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
+    expect(res.data.items.map((i) => i.id)).toEqual(['add', 'edit', 'remove']);
+  });
+
+  it('every action navigates on tap — no radio, no Continue footer', () => {
+    const flat = JSON.stringify(flowScreen('TEACHER_ACTION').layout);
+    expect(flat).not.toMatch(/RadioButtonsGroup/);
+    expect(flat).not.toMatch(/"type":"Footer"/);
   });
 
   it('carries the school through so the next screen knows where we are', async () => {
     const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
     expect(res.screen).toBe('TEACHER_ACTION');
     expect(res.data.school_ext_id).toBe('niete:916');
-    expect(res.data.intro).toContain('IMCG, G-10/2');
-    expect(res.data.intro).not.toContain('${');
+    // The school name is the screen TITLE now — Meta refuses a sibling
+    // component on a NavigationList screen, so there is no body sentence.
+    expect(res.data.heading).toContain('IMCG, G-10/2');
+    expect(res.data.heading).not.toContain('${');
   });
 
   it('choosing Add lands on the phone screen — the SAME add flow as before', async () => {
@@ -531,20 +539,15 @@ describe('routing_model — Meta rejects the publish without it', () => {
 // in production. These tests pin the KEY, not just the behaviour.
 
 describe('bd-59811 — the choice must not ride on a reserved key', () => {
-  it('the screen sends `choice`, never `action`', () => {
-    const scr = flowScreen('TEACHER_ACTION');
-    const payload = JSON.parse(JSON.stringify(scr)).layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'Footer')['on-click-action'].payload;
-    expect(payload.choice).toBe('${form.choice}');
-    expect(payload).not.toHaveProperty('action');
-  });
-
-  it('the radio is named `choice` so ${form.choice} resolves', () => {
-    const radio = flowScreen('TEACHER_ACTION').layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    expect(radio.name).toBe('choice');
+  it('the screen sends `choice`, never `action`', async () => {
+    // Each NavigationList row carries its own payload now; the reserved-key
+    // rule is unchanged and still the thing worth pinning.
+    const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
+    for (const row of res.data.items) {
+      const payload = row['on-click-action'].payload;
+      expect(payload.choice).toBe(row.id);
+      expect(payload).not.toHaveProperty('action');
+    }
   });
 
   it('NO screen in this flow sends a payload key called `action`', () => {

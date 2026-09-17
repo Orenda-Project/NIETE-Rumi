@@ -28,10 +28,16 @@ const EDIT_SCREENS = [
 
 describe('the Edit option on the action menu', () => {
   it('is offered alongside add and remove', () => {
-    const radio = screen('TEACHER_ACTION').layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    expect(radio['data-source'].map((o) => o.id)).toEqual(['add', 'remove', 'edit']);
+    // bd-60117: TEACHER_ACTION became a NavigationList (one tap), so its rows
+    // are server-built. The Flow JSON only pins the component; the handler
+    // owns the three ids, asserted in bot/tests/observe/teacher-admin-flow.
+    expect(screen('TEACHER_ACTION').layout.children
+      .find((c) => c.type === 'NavigationList')).toBeTruthy();
+    const step = HANDLER.slice(HANDLER.indexOf("step === 'teacher_action_open'"));
+    const body = step.slice(0, step.indexOf('\n    if (step ==='));
+    for (const id of ['add', 'edit', 'remove']) {
+      expect(body).toMatch(new RegExp(`_act\\('${id}'`));
+    }
   });
 
   it('routes to the edit picker', () => {

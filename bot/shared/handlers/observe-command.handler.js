@@ -77,11 +77,14 @@ const REOPEN_BODY = {
   ADD_SEARCH: { en: 'Search for the next school to add.', ur: 'اگلا اسکول تلاش کریں جو آپ شامل کرنا چاہتی ہیں۔' },
   MANAGE_SCHOOLS: { en: 'Pick a school to remove from your list.', ur: 'اپنی فہرست سے ہٹانے کے لیے اسکول چنیں۔' },
   MENU: { en: 'What would you like to do next?', ur: 'اب آپ کیا کرنا چاہیں گی؟' },
+  // bd-60117: the roster loop — she is staying on one school, so the card says so.
+  TEACHER_ACTION: { en: 'Anything else for this school?', ur: 'اس اسکول کے لیے کچھ اور؟' },
 };
 const REOPEN_CTA = {
   ADD_SEARCH: { en: 'Add a school', ur: 'اسکول شامل کریں' },
   MANAGE_SCHOOLS: { en: 'Remove a school', ur: 'اسکول ہٹائیں' },
   MENU: { en: 'Open menu', ur: 'مینو کھولیں' },
+  TEACHER_ACTION: { en: 'Manage teachers', ur: 'اساتذہ کا انتظام' },
 };
 
 /**
