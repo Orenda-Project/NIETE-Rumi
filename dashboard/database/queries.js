@@ -1831,15 +1831,24 @@ async function insertBroadcastMessages(messages) {
 }
 
 /**
- * Create a single broadcast message record
+ * Create a single broadcast message record.
+ *
+ * messageId is the WhatsApp wamid returned by the send. It is the ONLY key
+ * handleBroadcastStatusWebhook can match a delivery or read receipt on, so a
+ * row written without it can never be measured — see bd-djbrt.
+ *
+ * Throws on failure. The caller decides what a recording failure means; it is
+ * not the same thing as a send failure, and swallowing it here is what hid the
+ * loss of 691 receipts on 2026-09-17.
  */
-async function createBroadcastMessage(broadcastId, userId, phoneNumber, status, errorMessage = null) {
+async function createBroadcastMessage(broadcastId, userId, phoneNumber, status, errorMessage = null, messageId = null) {
   const { error } = await supabase
     .from('broadcast_messages')
     .insert({
       broadcast_id: broadcastId,
       user_id: userId,
       phone_number: phoneNumber,
+      message_id: messageId,
       status: status,
       error_message: errorMessage,
       sent_at: status === 'sent' ? new Date().toISOString() : null
@@ -1847,7 +1856,7 @@ async function createBroadcastMessage(broadcastId, userId, phoneNumber, status, 
 
   if (error) {
     console.error('Error creating broadcast message:', error);
-    // Don't throw - we don't want to break the loop
+    throw new Error(error.message || 'failed to record broadcast message');
   }
 }
 
