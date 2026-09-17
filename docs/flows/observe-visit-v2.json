@@ -1781,12 +1781,65 @@
     },
     {
       "id": "TEACHER_ACTION",
-      "title": "Manage teachers",
+      "title": "${data.heading}",
       "refresh_on_back": true,
       "data": {
-        "intro": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "add",
+              "main-content": {
+                "title": "Add a teacher",
+                "metadata": "By WhatsApp number"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "teacher_action_pick",
+                  "choice": "add",
+                  "school_ext_id": "niete:916"
+                }
+              }
+            }
+          ]
+        },
+        "heading": {
           "type": "string",
-          "__example__": "IMSB (VI-X), Rawal Dam.\n\nWhat would you like to do?"
+          "__example__": "IMSB (I-X), SAID PUR"
         },
         "school_ext_id": {
           "type": "string",
@@ -1797,46 +1850,9 @@
         "type": "SingleColumnLayout",
         "children": [
           {
-            "type": "TextBody",
-            "text": "${data.intro}"
-          },
-          {
-            "type": "Form",
-            "name": "teacher_action_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "choice",
-                "label": "Choose one",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "add",
-                    "title": "Add a teacher"
-                  },
-                  {
-                    "id": "remove",
-                    "title": "Remove a teacher"
-                  },
-                  {
-                    "id": "edit",
-                    "title": "Edit a teacher"
-                  }
-                ]
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "step": "teacher_action_pick",
-                    "school_ext_id": "${data.school_ext_id}",
-                    "choice": "${form.choice}"
-                  }
-                }
-              }
-            ]
+            "type": "NavigationList",
+            "name": "teacher_action_list",
+            "list-items": "${data.items}"
           }
         ]
       }
@@ -2662,6 +2678,10 @@
         "body": {
           "type": "string",
           "__example__": "Added Tahira Manzoor to IMCG, G-10/2."
+        },
+        "school_ext_id": {
+          "type": "string",
+          "__example__": "niete:916"
         }
       },
       "layout": {
@@ -2686,12 +2706,8 @@
                 "required": true,
                 "data-source": [
                   {
-                    "id": "teacher_add",
-                    "title": "Add another teacher"
-                  },
-                  {
-                    "id": "teacher_remove",
-                    "title": "Remove a teacher"
+                    "id": "teacher_again",
+                    "title": "Another at this school"
                   },
                   {
                     "id": "menu",
@@ -2710,7 +2726,8 @@
                   "name": "complete",
                   "payload": {
                     "observe_visit_action": "roster_teacher",
-                    "roster_next": "${form.next}"
+                    "roster_next": "${form.next}",
+                    "school_ext_id": "${data.school_ext_id}"
                   }
                 }
               }

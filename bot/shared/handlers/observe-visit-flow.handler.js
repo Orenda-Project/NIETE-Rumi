@@ -1139,7 +1139,15 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       return { ...p, row: row || null };
     };
 
-    const _tdone = (heading, body) => ({ screen: 'TEACHER_DONE', data: { heading, body } });
+    // bd-60117: TEACHER_DONE carries the school it just acted on. The reopen
+    // needs it to land the coach back on THIS school's action picker instead of
+    // the top menu, and every finish path goes through this one helper, so the
+    // school is threaded here rather than at 16 call sites.
+    const _doneSchool = String((screenData && screenData.school_ext_id) || '');
+    const _tdone = (heading, body) => ({
+      screen: 'TEACHER_DONE',
+      data: { heading, body, school_ext_id: _doneSchool },
+    });
     const _refuse = (key) => _tdone(S_(_flowLang).flow_action_failed_heading, _T().refusalBody(_flowLang, key));
 
     if (step === 'teacher_school_open') {
@@ -1172,13 +1180,30 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const mine = await A.listMySchools(userId).catch(() => []);
       const school = mine.find((x) => x.school_ext_id === schoolExtId);
       if (!school) return _refuse('not_my_school');
-      // Composed server-side: Flow prints a ${data.x} reference inside a
-      // sentence verbatim, so the school name has to arrive already in it.
+      // bd-60117: a NavigationList, so each action is one tap instead of a
+      // radio plus Continue — the same shape MENU and the field picker use.
+      // The school name is the screen TITLE: Meta refuses any sibling component
+      // on a NavigationList screen, so there is nowhere to put a sentence.
+      const _act = (id, title, metadata) => ({
+        id,
+        'main-content': { title, metadata },
+        'on-click-action': {
+          name: 'data_exchange',
+          payload: { step: 'teacher_action_pick', choice: id, school_ext_id: schoolExtId },
+        },
+      });
       return {
         screen: 'TEACHER_ACTION',
         data: {
           school_ext_id: schoolExtId,
-          intro: `${school.school_name}\n\nWould you like to add a teacher to this school, or remove one?`,
+          heading: school.school_name || 'This school',
+          items: [
+            // "Add" is also how a teacher is MOVED between schools; saying so
+            // is what a coach reported as missing (bd-eydf3, ported from sandbox).
+            _act('add', 'Add a teacher', 'By WhatsApp number - moves them if they are elsewhere'),
+            _act('edit', 'Edit a teacher', 'Name, level, role or number'),
+            _act('remove', 'Remove a teacher', 'Takes them off this school'),
+          ],
         },
       };
     }

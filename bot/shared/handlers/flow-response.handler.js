@@ -786,7 +786,8 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     // "tell me about the lesson you observed".
     if (visitAction === 'roster_teacher') {
       const { rosterTeacherNextTarget } = require('../services/observe/observe-teacher-admin.service');
-      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId);
+      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId,
+        { schoolExtId: responseJson.school_ext_id });
       return;
     }
 
@@ -864,11 +865,42 @@ function _visitNextTarget(next) {
  * the reopen fails the coach has still had her action confirmed on-screen, and
  * /observe always gets her back in. Never throws into the caller.
  */
-async function _continueObserveLoop(target, user, phoneNumber, userId) {
+async function _continueObserveLoop(target, user, phoneNumber, userId, ctx = {}) {
   if (!target || !target.reopen || !user) return;
   try {
     const { reopenObserveVisitFlow } = require('./observe-command.handler');
     let screenData;
+    if (target.screen === 'TEACHER_ACTION') {
+      // bd-60117: same declared-key rule as MANAGE_SCHOOLS below. TEACHER_ACTION
+      // declares `items`, `heading` and `school_ext_id`; in navigate mode there
+      // is no endpoint round trip to fill them, so the shape must match exactly
+      // what the endpoint's own `teacher_action_open` step returns — a missing
+      // key renders nothing and the coach's tap looks dead.
+      const admin = require('../services/observe/observe-teacher-admin.service');
+      const schoolExtId = String(ctx.schoolExtId || '');
+      const mine = await admin.listMySchools(userId).catch(() => []);
+      const school = mine.find((x) => x.school_ext_id === schoolExtId);
+      // Lost the school (stale client, or she no longer holds it): the menu is
+      // the honest fallback rather than an action picker for nothing.
+      if (!school) return reopenObserveVisitFlow(user, phoneNumber, null);
+      const act = (id, title, metadata) => ({
+        id,
+        'main-content': { title, metadata },
+        'on-click-action': {
+          name: 'data_exchange',
+          payload: { step: 'teacher_action_pick', choice: id, school_ext_id: schoolExtId },
+        },
+      });
+      screenData = {
+        school_ext_id: schoolExtId,
+        heading: school.school_name || 'This school',
+        items: [
+          act('add', 'Add a teacher', 'By WhatsApp number - moves them if they are elsewhere'),
+          act('edit', 'Edit a teacher', 'Name, level, role or number'),
+          act('remove', 'Remove a teacher', 'Takes them off this school'),
+        ],
+      };
+    }
     if (target.screen === 'MANAGE_SCHOOLS') {
       // MANAGE_SCHOOLS declares `options`; opening straight onto it in navigate
       // mode means WE supply them — there is no endpoint round-trip to do it.
