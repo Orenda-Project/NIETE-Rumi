@@ -2148,9 +2148,9 @@
               {
                 "type": "TextInput",
                 "name": "reason",
-                "label": "Why?",
+                "label": "Why? (optional)",
                 "required": false,
-                "helper-text": "Kept on the record"
+                "helper-text": "Saved for everyone you ticked"
               },
               {
                 "type": "Footer",
