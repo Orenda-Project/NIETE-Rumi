@@ -1121,6 +1121,30 @@ const PROPHET_ALT_HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(علیہ\s*الص
 // A NAMED prophet (حضرت ابراہیم علیہ السلام) is not this lane at all; it goes through check 3,
 // whose COMPANION_HON has always accepted علیہ السلام.
 const GENERIC_PROPHET_TOKENS = new Set(["نبی"]);
+// G5c RULING Q3 (operator, 2026-09-17, on the bd-zipoe native-speaker review packet): "For
+// English keep the name as shown in the page truth Hazrat Muhammad (salutation) ... it should stay
+// as shown in the book but with our salutation stamp/script".
+//
+// A CHAINED name carries ONE salutation and it sits at the END of the chain, which is how the
+// books print it: حضرت محمد رسول اللہ ﷺ، نبی کریم محمد مصطفیٰ ﷺ. HONORIFIC_RE anchors immediately
+// after whichever token PROPHET_RE matched, so the gate was demanding a SECOND ﷺ in the middle of
+// the chain and refusing a line that is already correct — three v9.2 fails on
+// grade_8_english.c01.p009-012.reading_comprehension, all on the same sentence.
+//
+// This moves only WHERE the honorific is looked for. It never makes one optional: a chain that
+// runs out without a salutation fails at the original match, exactly as before.
+const CHAIN_WORDS = new Set([...PROPHET_CONTINUATIONS, ...PROPHET_TOKENS.flatMap((t) => t.split(/\s+/))]);
+function skipNameChain(after) {
+  let rest = after;
+  for (let i = 0; i < 4; i++) {                      // a printed chain runs at most four words on
+    const m = /^\s+([^\s،؛۔.,;:!?…'"’”«»‹›()\[\]{}]+)/.exec(rest);
+    if (!m) return rest;
+    const w = m[1].replace(/[\u064B-\u0652\u0670\u06D6-\u06ED]/g, "");   // read through aeraab
+    if (w === "ﷺ" || !CHAIN_WORDS.has(w)) return rest;  // the salutation ENDS the chain
+    rest = rest.slice(m[0].length);
+  }
+  return rest;
+}
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
@@ -1642,6 +1666,10 @@ function religiousMarks(doc, ctx) {
       const after = s.slice(m.index + m[0].length);
       if (HONORIFIC_RE.test(after)) continue;
       if (GENERIC_PROPHET_TOKENS.has(m[0]) && PROPHET_ALT_HONORIFIC_RE.test(after)) continue;
+      // Q3 — the honorific may close a CHAINED name two or three words on. Only re-tested when
+      // the chain actually advanced, so a bare token behaves identically to before.
+      const chained = skipNameChain(after);
+      if (chained !== after && HONORIFIC_RE.test(chained)) continue;
       // VENDOR DIVERGENCE (bd-gyrg8, 2026-09-11; also upstream): `محمد` opening ANOTHER PERSON's
       // compound name is not a mention of the Prophet — محمد علی جناح، محمد بن قاسم، علامہ محمد
       // اقبال، محمد خان. An author under this gate wrote `محمد ﷺ خان` for Ashfaq Ahmed's father.
