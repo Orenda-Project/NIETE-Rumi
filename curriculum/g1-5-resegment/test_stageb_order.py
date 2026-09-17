@@ -115,10 +115,11 @@ class LoadBookAppliesTheTwoPeriodRulesOnTheWayIn(unittest.TestCase):
 # same order, saying the same thing. Against the real corpus, when this
 # machine has it.
 #
-# The one sanctioned difference is the CPA ramp (cparamp), which renames a
-# Maths day's skill type from the bridge to `abstract` and changes nothing
-# else. It is allowed by name and by direction: any other edited field, any
-# other renaming, and any change at all to English still fails here.
+# The only sanctioned differences are the CPA ramp's two ends, and each is
+# allowed by name and by direction: cparamp renames the bridge to `abstract`,
+# and cpaopen opens a chapter that has none in children's hands, which moves
+# the phase with the skill type and records what they hold. Any other edited
+# field, any other renaming, and any change at all to English still fails.
 # --------------------------------------------------------------------------
 
 SEG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "corpus", "seg")
@@ -137,7 +138,22 @@ def stems(*words):
     return found
 
 
-RAMP = ("pictorial_abstract", "abstract")
+ABSTRACT = {"skill_type": ("pictorial_abstract", "abstract")}
+CONCRETE_FROM = ("pictorial", "pictorial_abstract")
+
+
+def is_the_ramp(changed):
+    """True when one day's changes are the CPA ramp and nothing else."""
+    if changed == ABSTRACT:
+        return True
+    was, now = changed.get("skill_type", (None, None))
+    if now != "concrete" or was not in CONCRETE_FROM:
+        return False
+    if changed.get("cpa_phase", (None, "concrete"))[1] != "concrete":
+        return False
+    if not (changed.get("concrete_added", (None, ""))[1] or "").strip():
+        return False
+    return set(changed) <= {"skill_type", "cpa_phase", "concrete_added"}
 
 
 @unittest.skipUnless(HAVE_CORPUS, "corpus/ is gitignored and not present")
@@ -157,9 +173,10 @@ class GradesTwoToFiveEnglishAndMathsKeepEveryPeriodTheyCameWith(unittest.TestCas
         for was, now in zip(expected, actual):
             self.assertEqual(was.get("segment_index"), now.get("segment_index"),
                              f"{stem} reordered its days")
-            for field in set(was) | set(now):
-                if was.get(field) != now.get(field):
-                    out.append((field, was.get(field), now.get(field)))
+            changed = {f: (was.get(f), now.get(f)) for f in set(was) | set(now)
+                       if was.get(f) != now.get(f)}
+            if changed:
+                out.append((now.get("day_label"), changed))
         return out
 
     def test_the_four_upper_english_books_are_unchanged(self):
@@ -173,17 +190,20 @@ class GradesTwoToFiveEnglishAndMathsKeepEveryPeriodTheyCameWith(unittest.TestCas
         names = [n for n in stems("math", "maths") if "grade_1_" not in n]
         self.assertEqual(len(names), 4)
         for stem in names:
-            for field, was, now in self.diffs(stem):
-                self.assertEqual((field, was, now), ("skill_type", *RAMP),
-                                 f"{stem}: load_book changed {field} "
-                                 f"from {was!r} to {now!r}")
+            for label, changed in self.diffs(stem):
+                self.assertTrue(is_the_ramp(changed),
+                                f"{stem} {label}: load_book changed {changed}")
 
-    def test_the_ramp_actually_reaches_the_upper_grades(self):
+    def test_both_ends_of_the_ramp_reach_the_upper_grades(self):
         """Otherwise the test above passes by touching nothing at all."""
-        named = sum(len(self.diffs(stem))
-                    for stem in stems("math", "maths")
-                    if "grade_1_" not in stem)
-        self.assertGreater(named, 0, "no upper-grade Maths day reaches abstract")
+        ends = set()
+        for stem in stems("math", "maths"):
+            if "grade_1_" in stem:
+                continue
+            for _label, changed in self.diffs(stem):
+                ends.add(changed["skill_type"][1])
+        self.assertEqual(ends, {"abstract", "concrete"},
+                         f"the upper grades only reach {sorted(ends)}")
 
 
 @unittest.skipUnless(HAVE_CORPUS, "corpus/ is gitignored and not present")

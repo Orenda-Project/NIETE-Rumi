@@ -11,6 +11,7 @@ import json
 import re
 from collections import defaultdict
 
+import cpaopen
 import cparamp
 import dayfold
 import dayrules
@@ -149,6 +150,7 @@ def load_book(path):
     segments = order_segments(doc["segments"])
     segments, _freed = dayfold.fold_revision(segments, subject, grade)
     segments, _swaps = dayfold.complete_5e(segments, subject)
+    segments, _opened = cpaopen.open_concrete(segments, subject)
     segments, _named = cparamp.name_abstract(segments, subject)
     return stem, grade, subject, doc["_meta"], segments
 
@@ -170,6 +172,8 @@ def day_flags(day, role, shared):
         # legitimately carry three Urdu days. Every page shared is different:
         # the day has no page of its own, so its boundary needs confirming.
         flags.append("all printed pages shared — confirm boundary")
+    if day.get("concrete_added"):
+        flags.append(f"concrete opener added — {day['concrete_added']}")
     return " · ".join(flags)
 
 
