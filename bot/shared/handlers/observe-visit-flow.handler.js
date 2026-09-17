@@ -1203,6 +1203,40 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       };
     }
 
+    // bd-60117: every result screen ends the same way — Main menu, or Close.
+    //
+    // Both are ONE tap. They are not a `complete` action, because an
+    // EmbeddedLink only accepts data_exchange / navigate / open_url (Meta
+    // rejects `complete` on one), so the link round-trips here and we close
+    // from the endpoint carrying the same *_next value the old Footer carried.
+    // The chat-side targets (rosterTeacherNextTarget / rosterNextTarget /
+    // _visitNextTarget) already understand 'menu' and 'done', so the loop
+    // behaviour is unchanged — only the number of taps is.
+    if (step === 'teacher_done_next' || step === 'action_done_next' || step === 'visit_done_next') {
+      const next = String((screenData && screenData.next) || 'done');
+      const params = { roster_next: next, visit_next: next };
+      if (step === 'teacher_done_next') {
+        params.observe_visit_action = 'roster_teacher';
+        params.school_ext_id = String((screenData && screenData.school_ext_id) || '');
+      } else if (step === 'action_done_next') {
+        params.observe_visit_action = 'roster';
+        params.school_name = String((screenData && screenData.school_name) || '');
+      } else {
+        // SUCCESS is shared by cancel/reschedule/done, and the chat-side arm is
+        // chosen by THIS value — passing our own would misroute the ack.
+        // `done_action`, never `action`: that key is reserved — it collides
+        // with the decrypt destructure and arrives as 'data_exchange' (bd-59811).
+        params.observe_visit_action = String((screenData && screenData.done_action) || 'done');
+        params.teacher_name = String((screenData && screenData.teacher_name) || '');
+      }
+      return {
+        screen: 'SUCCESS',
+        data: { heading: '', body: '', action: params.observe_visit_action,
+          teacher_name: params.teacher_name || '', sched_date: '', sched_slot: '',
+          extension_message_response: { params } },
+      };
+    }
+
     if (step === 'teacher_action_open') {
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');
