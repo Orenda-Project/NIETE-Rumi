@@ -47,17 +47,28 @@ devDependency — see **Bot-only dependencies** below.
 
 ---
 
-## Baseline as of `e71dbaa` (main)
+## Baseline as of `eb7ec94d` (staging), re-cut 2026-09-17
 
-Measured over four consecutive runs. Node v22.23.1, Jest 29.7.0.
+Measured over three consecutive full runs. Node v22.23.1, Jest 29.7.0.
+
+Re-cut because the previous snapshot dated from 2026-09-02 and `staging` had moved past
+it. The gate treats a failing suite it has never seen as a NEW failure, so every test file
+written since then was reported as a regression the moment it went red, and `test (22)`
+was red on PRs regardless of content (bd-002be). A gate nobody can pass is the same as a
+gate nobody reads.
+
+**This snapshot is per-branch and must not be copied from `sandbox`.** The two branches
+differ by ~1,485 files, so their accepted-failure sets are genuinely different: `sandbox`
+carries 29 failing suites out of 878, this one 29 out of 832, and the memberships are not
+the same. `sandbox` was re-cut separately under bd-ym59h.
 
 | | |
 |---|---|
-| Total suites | 420 |
-| Total tests | 4,797 |
-| Stable failing suites | **30** |
-| Flaky failing suites | **0 observed** (3 quarantined, see below) |
-| Failing tests | 86 |
+| Total suites | 832 |
+| Total tests | 10,567 |
+| Stable failing suites | **29** |
+| Flaky failing suites | **5** (listed below, not gating) |
+| Failing tests | 69 (varies with the flaky ones) |
 | Suites that fail to *load* | **0** |
 
 `main` is measurably steadier than `develop`: four consecutive runs produced an
@@ -149,14 +160,30 @@ failure as inconclusive and re-run before investigating.
 
 ```
 tests/queue/sqs-cancel-by-group.test.js
+tests/training/certificate-pdf-delivery.test.js
 tests/training/certificate-pdf-issuance.test.js
+tests/training/portal-capstone-submit.test.js
 tests/training/portal-grand-quiz.test.js
 ```
 
-`portal-capstone-submit` is on the `develop` list too; it does not exist on `main` and
-so is omitted here. **None of these three flaked in four consecutive runs on `main`** —
-they are quarantined because the underlying race is the same code, not because they
-misbehaved here.
+All five reach `bot/shared/services/training/certificate.service` (or, for
+`sqs-cancel-by-group`, its own Redis mock) and register their mocks with `jest.doMock`
+against modules the code under test requires *lazily*, so whether the mock or the real
+module wins is decided by interleaving. Each passes in isolation and fails roughly one
+full-suite run in ten.
+
+Two were added on 2026-09-17 (bd-8qsbt) on measured evidence, having previously been
+omitted:
+
+- `portal-capstone-submit` was left off because it "does not exist on `main`". It does
+  exist here now, it failed 1 of 3 consecutive full runs, and it passes 7/7 alone.
+- `certificate-pdf-delivery` failed 1 of 3. Note it is a DIFFERENT FILE from
+  `certificate-pdf-issuance`, which was already listed — the near-identical names are
+  why it went unnoticed.
+
+The earlier note that "none of these flaked in four consecutive runs" no longer holds:
+three of the five flaked within three runs on 2026-09-17. They are quarantined because
+they misbehave AND because the underlying race is the same code.
 
 `sqs-cancel-by-group` is its own thing: its Redis cancel-flag mock intermittently does
 not observe the expected `setex`.
