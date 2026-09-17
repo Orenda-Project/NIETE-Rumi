@@ -11,6 +11,7 @@ import json
 import re
 from collections import defaultdict
 
+import cparamp
 import dayfold
 import dayrules
 import skills
@@ -130,13 +131,16 @@ def order_segments(segments):
 def load_book(path):
     """The one door the corpus comes through (build.py calls nothing else).
 
-    The two period rules run here, after the teaching order is settled and
-    before any consumer sees a segment, because `segments` goes to build_rows
+    Every rule that rewrites a day runs here, after the teaching order is
+    settled and before any consumer sees a segment, because `segments` goes
+    to build_rows
     AND to the calendar. Applied at either call site instead, the subject tab
     and the calendar would be free to disagree about how many periods the same
     chapter costs — which is exactly what happened when Grade 1's revision
     fold first lived inside the allocator: the calendar counted 98 English
-    periods while Coverage and the FDE tab counted 110.
+    periods while Coverage and the FDE tab counted 110. The same reasoning
+    covers the CPA ramp, which renames rather than folds: a day the calendar
+    calls abstract and the subject tab calls the bridge is worse than either.
     """
     with open(path) as fh:
         doc = json.load(fh)
@@ -145,6 +149,7 @@ def load_book(path):
     segments = order_segments(doc["segments"])
     segments, _freed = dayfold.fold_revision(segments, subject, grade)
     segments, _swaps = dayfold.complete_5e(segments, subject)
+    segments, _named = cparamp.name_abstract(segments, subject)
     return stem, grade, subject, doc["_meta"], segments
 
 

@@ -110,9 +110,15 @@ class LoadBookAppliesTheTwoPeriodRulesOnTheWayIn(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------
-# load_book now runs BOTH period rules over every book, so the two subjects
-# neither rule is meant to touch have to come out of it untouched. Against the
-# real corpus, byte for byte, when this machine has it.
+# load_book runs every period rule over every book, so the grades no period
+# rule is meant to touch have to come out of it with the same days, in the
+# same order, saying the same thing. Against the real corpus, when this
+# machine has it.
+#
+# The one sanctioned difference is the CPA ramp (cparamp), which renames a
+# Maths day's skill type from the bridge to `abstract` and changes nothing
+# else. It is allowed by name and by direction: any other edited field, any
+# other renaming, and any change at all to English still fails here.
 # --------------------------------------------------------------------------
 
 SEG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "corpus", "seg")
@@ -131,34 +137,53 @@ def stems(*words):
     return found
 
 
+RAMP = ("pictorial_abstract", "abstract")
+
+
 @unittest.skipUnless(HAVE_CORPUS, "corpus/ is gitignored and not present")
-class GradesTwoToFiveEnglishAndMathsComeOutOfLoadBookByteForByte(unittest.TestCase):
+class GradesTwoToFiveEnglishAndMathsKeepEveryPeriodTheyCameWith(unittest.TestCase):
     """Grade 1 is the exception, and it is tested below by name: its revision
     rows are folded at the door to pay for the Foundations block."""
 
-
-    def assert_untouched(self, stem):
+    def diffs(self, stem):
+        """Every (day, field) load_book changed, with both values."""
         path = os.path.join(SEG, f"{stem}.json")
         with open(path) as fh:
             expected = stageb.order_segments(json.load(fh)["segments"])
         _stem, _grade, _subject, _meta, actual = stageb.load_book(path)
         self.assertEqual(len(actual), len(expected),
                          f"{stem} changed period count")
-        self.assertEqual(json.dumps(actual, sort_keys=True, ensure_ascii=False),
-                         json.dumps(expected, sort_keys=True, ensure_ascii=False),
-                         f"{stem} was modified on the way through load_book")
+        out = []
+        for was, now in zip(expected, actual):
+            self.assertEqual(was.get("segment_index"), now.get("segment_index"),
+                             f"{stem} reordered its days")
+            for field in set(was) | set(now):
+                if was.get(field) != now.get(field):
+                    out.append((field, was.get(field), now.get(field)))
+        return out
 
     def test_the_four_upper_english_books_are_unchanged(self):
         names = [n for n in stems("english") if "grade_1_" not in n]
         self.assertEqual(len(names), 4)
         for stem in names:
-            self.assert_untouched(stem)
+            self.assertEqual(self.diffs(stem), [],
+                             f"{stem} was modified on the way through load_book")
 
-    def test_the_four_upper_maths_books_are_unchanged(self):
+    def test_the_four_upper_maths_books_change_nothing_but_the_ramp(self):
         names = [n for n in stems("math", "maths") if "grade_1_" not in n]
         self.assertEqual(len(names), 4)
         for stem in names:
-            self.assert_untouched(stem)
+            for field, was, now in self.diffs(stem):
+                self.assertEqual((field, was, now), ("skill_type", *RAMP),
+                                 f"{stem}: load_book changed {field} "
+                                 f"from {was!r} to {now!r}")
+
+    def test_the_ramp_actually_reaches_the_upper_grades(self):
+        """Otherwise the test above passes by touching nothing at all."""
+        named = sum(len(self.diffs(stem))
+                    for stem in stems("math", "maths")
+                    if "grade_1_" not in stem)
+        self.assertGreater(named, 0, "no upper-grade Maths day reaches abstract")
 
 
 @unittest.skipUnless(HAVE_CORPUS, "corpus/ is gitignored and not present")
