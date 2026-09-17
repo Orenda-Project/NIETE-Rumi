@@ -1145,6 +1145,69 @@ function skipNameChain(after) {
   }
   return rest;
 }
+// VENDOR DIVERGENCE (bd-zipoe, 2026-09-17; SYNC.md §3.14). THE G5c NATIVE-SPEAKER REVIEW, AS DATA.
+//
+// `محمد` is one of the commonest given names in Pakistan, and rule 1 demanded ﷺ after every one
+// of them. A DELIVERED Grade 10 Urdu lesson (grade_10_urdu.p2c05.p135-135.tafheem, v9.6) carried
+// four teacher-facing RELIGIOUS_MARKS fails on `سیّد ولی محمد` — the poet Nazeer Akbarabadi's real
+// name. `isCompoundGivenName()` cannot reach that shape: it reads the word AFTER `محمد`, and here
+// `محمد` is the LAST word of the name, so the next word is the ordinary `اور`.
+//
+// WHY THIS IS A LIST AND NOT A RULE. Brief §4c, gate G5c: "Automated checks do NOT clear religious
+// content: the native-speaker review remains a hard hold before any teacher delivery." Writing a
+// heuristic that decides which `محمد` is not the Prophet is precisely the automated clearance that
+// forbids. So nothing here decides anything. `g5c_cleared_names.json` is the review itself — every
+// whole-word `محمد` in the Grades 6-12 page-truth corpus (11,261 files, 62 books, 730 occurrences
+// in 298 distinct phrases), each one marked by Amena Ahmed, the named reviewer of record, on
+// 2026-09-17: 254 `person`, 44 `prophet`, none undecided. The polarity was confirmed by her after
+// the review document's own printed legend was found to be inverted.
+//
+// The decided file is GITIGNORED and lives in a different repository, so it cannot be read from
+// disk at runtime. It is carried here deliberately, as committed data with its provenance and the
+// source's sha256 in the file's own header.
+//
+// WHAT THE TWO HALVES DO. `person` CLEARS — the gate stops demanding a salutation there, and that
+// is the only thing in this file that can clear anything. `prophet` never clears and never blocks
+// on its own; it exists to ARBITRATE where two decided phrases cover the same word (`حضرت محمد` is
+// prophet, `حضرت محمد باقر رحمہ اللہ` is person). The longest decided phrase present rules, and on
+// equal length the blocking mark wins. A `محمد` that matches nothing is not cleared: the gate
+// fails, exactly as it does today. FAIL-CLOSED, ALWAYS — an unreviewed name is not a cleared name.
+//
+// KEYED ON THE WORD SEQUENCE, NOT THE BYTES. The books print `سیّد` with a shadda and the review
+// recorded `سید` without one; `اقبال` appears with and without the ؒ sign. A byte-exact allowlist
+// would clear the row and not the page. So each word is compared with its combining marks removed
+// and its edge punctuation trimmed — the same "read through aeraab" the rules above already do.
+const CLEARED_NAMES = require("./g5c_cleared_names.json");
+const NAME_MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭ]/g;
+const NAME_EDGE = /^[\s،؛۔.,;:!?…'"’”«»‹›()[\]{}ﷺ؟–—\-‎‏؜]+|[\s،؛۔.,;:!?…'"’”«»‹›()[\]{}ﷺ؟–—\-‎‏؜]+$/g;
+const nameWord = (w) => w.replace(NAME_MARKS, "").replace(NAME_EDGE, "");
+const decidedPhrase = (name, blocks) => {
+  const words = name.split(/\s+/).map(nameWord).filter(Boolean);
+  return { words, blocks, slots: words.map((w, i) => (w === "محمد" ? i : -1)).filter((i) => i >= 0) };
+};
+const DECIDED_NAMES = [
+  ...CLEARED_NAMES.person.map((n) => decidedPhrase(n, false)),
+  ...CLEARED_NAMES.prophet.map((n) => decidedPhrase(n, true)),
+].filter((p) => p.slots.length);
+/** True only when the native-speaker review decided THIS occurrence is an ordinary person. */
+function clearedByReview(s, idx) {
+  const toks = [];
+  for (const t of s.matchAll(/\S+/g)) toks.push({ w: nameWord(t[0]), at: t.index, len: t[0].length });
+  const j = toks.findIndex((t) => idx >= t.at && idx < t.at + t.len);
+  if (j < 0) return false;
+  let best = null;
+  for (const p of DECIDED_NAMES) {
+    for (const k of p.slots) {
+      const a = j - k;
+      if (a < 0 || a + p.words.length > toks.length) continue;
+      if (p.words.some((w, i) => toks[a + i].w !== w)) continue;
+      if (!best || p.words.length > best.n || (p.words.length === best.n && p.blocks)) {
+        best = { n: p.words.length, blocks: p.blocks };
+      }
+    }
+  }
+  return best !== null && !best.blocks;
+}
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
@@ -1176,6 +1239,15 @@ const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*ال
 // deliberately refuses to keep a corpus of companion names — bare "علی"/"عمر" are ordinary words —
 // and a Latin list would be worse, so a bare "Khadijah" is still the native-speaker reviewer's
 // call. What IS decidable without a name list is that a salutation was typed in the wrong script.
+//
+// AMENDED (bd-zipoe, 2026-09-17). Rule 1 now DOES carry a name corpus — `g5c_cleared_names.json`.
+// The position above has not changed; the corpus is a different kind of thing. It is not a guess
+// about which names are ordinary, assembled by this file. It is the G5c native-speaker review
+// itself: 298 phrases, each one decided by Amena Ahmed on 2026-09-17, carried in as data with its
+// provenance. It only ever CLEARS, and only the exact phrases she saw; an unreviewed name still
+// fails. Rule 3 keeps no corpus because no such review exists for companion names — nobody has
+// sat down and decided the bare "علی"s of the Grades 6-12 corpus one by one. When someone does,
+// rule 3 may carry that review the same way. Until then a bare "Khadijah" remains her call.
 //
 // Transliterations vary more than the Urdu does: radi/radhi/razi/radiya, alayhi/alaihi,
 // rahmat/rahimah. The Urdu forms these should have been are COMPANION_HON's set, quoted back to
@@ -1679,6 +1751,11 @@ function religiousMarks(doc, ctx) {
       // اقبال، محمد خان. An author under this gate wrote `محمد ﷺ خان` for Ashfaq Ahmed's father.
       // The Prophet's own name-continuations (مصطفیٰ، رسول اللہ، بن عبداللہ …) still demand it.
       if (m[0] === "محمد" && isCompoundGivenName(s, m.index + m[0].length)) continue;
+      // VENDOR DIVERGENCE (bd-zipoe, 2026-09-17): the G5c native-speaker review, as data. Only the
+      // 298 phrases Amena Ahmed decided on 2026-09-17 can clear a `محمد` this rule would otherwise
+      // demand a salutation after — see `clearedByReview()` above. Nothing here decides; a name the
+      // review did not clear STILL FAILS. Fail-closed, always (brief §4c, gate G5c).
+      if (m[0] === "محمد" && clearedByReview(s, m.index)) continue;
       fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". ${GENERIC_PROPHET_TOKENS.has(m[0]) ? `Write "${m[0]} ﷺ" if this is the Prophet Muhammad, or "${m[0]} علیہ السلام" if it is another prophet` : `Write "${m[0]} ﷺ"`} — in Urdu script, never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
     }
   }
