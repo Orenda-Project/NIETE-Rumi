@@ -2248,6 +2248,60 @@
       "title": "What to change",
       "refresh_on_back": true,
       "data": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "name",
+              "main-content": {
+                "title": "Name",
+                "metadata": "Their full name"
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {
+                  "step": "teacher_edit_route",
+                  "field": "name",
+                  "school_ext_id": "niete:916",
+                  "teacher_ext_id": "u-1"
+                }
+              }
+            }
+          ]
+        },
         "intro": {
           "type": "string",
           "__example__": "Fatima Rehman (923001234567).\n\nWhat would you like to change?"
@@ -2269,47 +2323,9 @@
             "text": "${data.intro}"
           },
           {
-            "type": "Form",
-            "name": "teacher_edit_field_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "field",
-                "label": "Choose one",
-                "required": true,
-                "data-source": [
-                  {
-                    "id": "name",
-                    "title": "Their name"
-                  },
-                  {
-                    "id": "level",
-                    "title": "The grades they teach"
-                  },
-                  {
-                    "id": "phone",
-                    "title": "Their WhatsApp number"
-                  },
-                  {
-                    "id": "role",
-                    "title": "Teacher or Principal"
-                  }
-                ]
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "step": "teacher_edit_route",
-                    "school_ext_id": "${data.school_ext_id}",
-                    "teacher_ext_id": "${data.teacher_ext_id}",
-                    "field": "${form.field}"
-                  }
-                }
-              }
-            ]
+            "type": "NavigationList",
+            "name": "teacher_edit_field_list",
+            "list-items": "${data.items}"
           }
         ]
       }

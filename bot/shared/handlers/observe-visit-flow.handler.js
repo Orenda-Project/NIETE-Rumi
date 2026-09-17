@@ -1350,16 +1350,46 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
       if (!pickedUserId || pickedUserId === 'none') return _refuse('not_found');
-      const supabase = require('../config/supabase');
-      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
-      const person = people.find((p) => p.userId === pickedUserId);
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
       if (!person) return _refuse('not_found');
+
+      // A NavigationList, not a radio + Continue: picking the field IS the
+      // navigation, so one tap goes where two used to. Same component MENU and
+      // OBS_ACTION already use, so the screen reads like the rest of the flow.
+      //
+      // The subtitle carries the CURRENT value rather than a description of the
+      // field. "Grade / Primary + Middle" answers "what is it now?" — which is
+      // what a coach opened this screen to find out — where "the grades they
+      // teach" only restates the title.
+      const row = (person.row || {});
+      const curLevel = require('../utils/teacher-level').teacherLevelOf(row);
+      const curRole = String(row.role || 'teacher').trim().toLowerCase() === 'principal'
+        ? 'Principal' : 'Teacher';
+      const _row = (id, title, metadata) => ({
+        id,
+        'main-content': { title, metadata: metadata || '' },
+        'on-click-action': {
+          name: 'data_exchange',
+          payload: {
+            step: 'teacher_edit_route',
+            field: id,
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+          },
+        },
+      });
       return {
         screen: 'TEACHER_EDIT_FIELD',
         data: {
           school_ext_id: schoolExtId,
           teacher_ext_id: pickedUserId,
           intro: `${person.name || 'This teacher'}${person.phone ? ` (${person.phone})` : ''}.\n\nWhat would you like to change?`,
+          items: [
+            _row('name', 'Name', person.name || 'Not on record'),
+            _row('level', 'Grade', curLevel.length ? curLevel.join(' + ') : 'Not on record'),
+            _row('role', 'Role', curRole),
+            _row('phone', 'Phone number', person.phone || 'Not on record'),
+          ],
         },
       };
     }
