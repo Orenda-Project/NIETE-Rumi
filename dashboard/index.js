@@ -2995,7 +2995,6 @@ const {
   getBroadcastById,
   createBroadcastLog,
   updateBroadcastLog,
-  createBroadcastMessage,
   checkActiveBroadcast,
   checkDuplicateBroadcast,
   checkBroadcastCooldown
@@ -3380,26 +3379,41 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
         status: 'sending'
       });
 
-      // Send direct messages immediately
+      // Send direct messages immediately.
+      // bd-djbrt: sending and recording are one step in the service so the wamid
+      // reaches broadcast_messages.message_id. A message that sent but did not
+      // record counts as sent — the teacher has it — and is reported separately,
+      // because its receipts can never be matched.
       let sentCount = 0;
       let failedCount = 0;
+      let unrecordedCount = 0;
       const errors = [];
 
       for (const user of usersInWindow) {
-        try {
-          await broadcastService.sendDirectMessage(user.phone_number, message);
-          sentCount++;
+        const result = await broadcastService.sendDirectAndRecord(broadcastId, user, message);
 
-          // Store individual message status
-          await createBroadcastMessage(broadcastId, user.id, user.phone_number, 'sent');
-        } catch (err) {
+        if (result.outcome === 'failed') {
           failedCount++;
-          errors.push({ phone: user.phone_number, error: err.message });
-          await createBroadcastMessage(broadcastId, user.id, user.phone_number, 'failed', err.message);
+          errors.push({ phone: user.phone_number, error: result.error });
+        } else {
+          sentCount++;
+          if (result.outcome === 'sent_unrecorded') {
+            unrecordedCount++;
+            errors.push({
+              phone: user.phone_number,
+              error: `sent but not recorded: ${result.error}`,
+              sent: true,
+              unrecorded: true
+            });
+          }
         }
 
         // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      if (unrecordedCount > 0) {
+        console.error(`[Broadcast] ${broadcastId}: ${unrecordedCount} of ${sentCount} messages sent but not recorded — delivery and read receipts for those are unmatchable`);
       }
 
       // Update broadcast as completed
@@ -3418,7 +3432,10 @@ app.post('/observability/api/broadcast/submit', requireAdmin, async (req, res) =
         recipientCount: usersInWindow.length,
         sentCount,
         failedCount,
-        message: `Direct messages sent to ${sentCount} users (within 24hr service window)`
+        unrecordedCount,
+        message: unrecordedCount > 0
+          ? `Direct messages sent to ${sentCount} users (within 24hr service window). ${unrecordedCount} sent but not recorded — their delivery and read receipts cannot be tracked.`
+          : `Direct messages sent to ${sentCount} users (within 24hr service window)`
       });
     }
 
