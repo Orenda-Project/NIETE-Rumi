@@ -1,5 +1,15 @@
 # QA — E2E test system
 
+> **Since bd-9157r.1 the pipeline itself lives in `.claude/qa/engine/` — the tenant-agnostic E2E engine, authored in
+> `rumi-agent-home` and vendored here READ-ONLY** (`engine/README.md`; the `qa-engine-guard.sh` Claude hook refuses
+> edits, and the next port would overwrite them). Everything else under `.claude/qa/` — `config/tenants.yaml` (the one
+> file that names this tenant), `config/feature-map.yaml`, `whatsapp-targets.yaml`, `known-findings.json`, the agents,
+> the drivers in `shared/features/`, the `niete_*` seed/reset tools, fixtures and ledgers — is this repo's **tenant
+> layer** and is edited here. Engine scripts are invoked as `.claude/qa/engine/bin/<script>`; the hooks are wired in
+> `.claude/settings.json` to `.claude/qa/engine/hooks/`; git hooks install from `.claude/qa/engine/githooks/`
+> (`npm install` or `bash .claude/qa/engine/scripts/install-hooks.sh`). `npm run qa:test` runs the engine suite on a
+> fixture cut from this checkout's `HEAD`, then the tenant tools' own tests.
+
 > **How a commit reaches this system from any machine** — git hooks and Claude Code hooks, and
 > what each guarantees — is in [docs/qa-automation.md](../../docs/qa-automation.md). This file is the
 > system itself.
@@ -21,7 +31,7 @@ tests/features/<surface>/<tenant>/*.feature   # SPECS (source of truth) — web/
 ## Run an e2e suite
 ```bash
 # 1. list the scenarios a run will cover
-python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
 # 2. invoke that feature's agent, e.g. agents/niete-menu-agent.md
 #    (resolves @profile:<tenant> → whatsapp-targets.yaml → target+method)
 #    → drives each scenario, writes results/whatsapp/niete/<run>/run.json
@@ -42,9 +52,9 @@ commit → select_e2e.py    which features the diff touched   (feature-map.yaml)
 ```
 
 ```bash
-python3 .claude/qa/shared/spec_sync.py --repo <repo> --committed        # the brief
-python3 .claude/qa/shared/validate_specs.py --only menu,status          # the gate
-python3 .claude/qa/shared/validate_specs.py --json                      # machine-readable
+python3 .claude/qa/engine/bin/spec_sync.py --repo <repo> --committed        # the brief
+python3 .claude/qa/engine/bin/validate_specs.py --only menu,status          # the gate
+python3 .claude/qa/engine/bin/validate_specs.py --json                      # machine-readable
 ```
 
 Two rules the sync will not bend:
@@ -61,9 +71,9 @@ Off switch for phase 1 alone: `export E2E_SPEC_SYNC_OFF=1`.
 Tests:
 
 ```bash
-python3 .claude/qa/shared/test_spec_sync.py          # the brief builder
-python3 .claude/qa/shared/test_validate_specs.py     # the gate
-bash    .claude/hooks/spec-sync-pipeline.test.sh     # the whole chain, end to end
+python3 .claude/qa/engine/bin/test_spec_sync.py          # the brief builder
+python3 .claude/qa/engine/bin/test_validate_specs.py     # the gate
+bash    .claude/qa/engine/hooks/spec-sync-pipeline.test.sh     # the whole chain, end to end
 ```
 
 The last one is the one to run after touching any part of this: it drives a real

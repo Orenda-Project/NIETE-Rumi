@@ -33,7 +33,7 @@ developer changes bot code
 └────────────────────────────────────────────────────────────────────────────────────┘
         │  push — any branch
         ▼
-   pre-push hook (scripts/qa/impact.py): affected features · spec freshness · E2E proof,
+   pre-push hook (.claude/qa/engine/bin/impact.py): affected features · spec freshness · E2E proof,
    printed in the terminal — advisory unless QA_HOOKS_STRICT=1
         │  pull request into sandbox / staging / main
         ▼
@@ -46,7 +46,7 @@ developer changes bot code
 
 | Mechanism | Fires for | Can do | Cannot do |
 |---|---|---|---|
-| **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/install-hooks.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
+| **Git hooks** (`.claude/qa/engine/githooks/`, installed by `npm install` via `prepare`, or `bash .claude/qa/engine/scripts/install-hooks.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
 | **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; **hold the turn until the Gherkin is synced and valid, or declared none-needed** (phase 1 — a gate, bounded to 3 holds, `--clear` refuses while open); order the E2E **once** (phase 2) — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
 | **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
@@ -62,7 +62,7 @@ happen — the check tells the author what to run, in the PR, where it cannot be
 ## Developer setup (once per clone)
 
 **Open Claude Code in the clone — that is enough.** Since 2026-09-09 the SessionStart hook
-(`.claude/hooks/e2e-pending-banner.sh`) installs the git hooks itself when `core.hooksPath` is
+(`.claude/qa/engine/hooks/e2e-pending-banner.sh`) installs the git hooks itself when `core.hooksPath` is
 unset, tells the session it did, and warns (with the `--force` command) when a foreign hooksPath
 is in the way. Sessions launched from the parent workspace reach every NIETE checkout under it
 through the workspace's SessionStart shim, so worktrees are covered too.
@@ -72,11 +72,11 @@ By hand, for a terminal-only developer:
 ```bash
 npm install                          # root — its `prepare` script installs the git hooks
 # or, explicitly:
-bash scripts/qa/install-hooks.sh     # sets core.hooksPath = .githooks; --uninstall / --force
+bash .claude/qa/engine/scripts/install-hooks.sh     # sets core.hooksPath = .claude/qa/engine/githooks; --uninstall / --force
 ```
 
 Nothing else. Python 3 is the only runtime the tooling needs; PyYAML is used when
-present and a bundled zero-dependency reader (`.claude/qa/shared/yaml_lite.py`) is used
+present and a bundled zero-dependency reader (`.claude/qa/engine/bin/yaml_lite.py`) is used
 when it is not. `bash scripts/qa/verify-clean-clone.sh` clones this repo into a temp
 dir with a scrubbed environment and walks the whole pipeline end to end — run it when
 you change any part of this.
@@ -87,7 +87,7 @@ you change any part of this.
 ```
 ┌ QA · commit 3f2a9c1d7e0b touched: menu
 │ Gherkin: sync needed first →  /sync-specs --brief .claude/.e2e-pending/git-3f2a9c1d7e0b.sync.json
-│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/shared/commit-e2e.sh <sha> --features menu
+│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/engine/bin/commit-e2e.sh <sha> --features menu
 │ Then the targeted E2E (WhatsApp Web, after deploy) →  /niete-e2e menu
 │ Open Claude Code in this clone: it announces this at start and holds the turn once until
 │ it is driven or cleared. Off: QA_HOOKS_OFF=1 · Quiet: QA_HOOKS_QUIET=1
@@ -98,7 +98,7 @@ Docs-only, test-only and out-of-scope commits print nothing.
 **Next Claude Code session in that clone:** the SessionStart banner lists every pending
 `git-<sha>` marker with its brief and commands. At the end of the first turn the Stop
 hook holds the session, with the same instructions, until the spec is synced (or declared) and the run is driven or the
-marker is cleared with a stated reason (`bash .claude/hooks/e2e-autorun.sh --clear
+marker is cleared with a stated reason (`bash .claude/qa/engine/hooks/e2e-autorun.sh --clear
 --session git-<sha>`). A commit the session makes itself is armed the same way.
 
 **On a push to `develop` or `main`:** the pre-push hook prints, per feature, whether its
@@ -137,7 +137,7 @@ Nothing server-side enforces either verdict.
 - **A commit-triggered run on the WhatsApp Web lane cannot test the commit.** Nothing deploys
   from a commit, so that run exercises the build that is already live. It is a regression check
   and must be reported as one; only a run after the `develop` deploy tests the change on Meta.
-  **The mock lane exists for exactly this gap**: `bash .claude/qa/shared/commit-e2e.sh <sha>`
+  **The mock lane exists for exactly this gap**: `bash .claude/qa/engine/bin/commit-e2e.sh <sha>`
   starts the bot from a detached worktree at that commit behind a local mock Graph API and drives
   the same feature scripts (menu · language · status · lesson-plan · coaching · training) — see
   [docs/e2e-mock-lane.md](e2e-mock-lane.md). Its ledger rows carry `method: mock`, the
@@ -150,14 +150,14 @@ Nothing server-side enforces either verdict.
 | Piece | Path |
 |---|---|
 | Feature map (hand-maintained: add a service/handler/route here in the same pass) | `.claude/qa/config/feature-map.yaml` |
-| Selector · brief builder · spec validator · count check · YAML fallback | `.claude/qa/shared/select_e2e.py` · `spec_sync.py` · `validate_specs.py` · `check-all-mode-counts.py` · `yaml_lite.py` |
+| Selector · brief builder · spec validator · count check · YAML fallback | `.claude/qa/engine/bin/select_e2e.py` · `spec_sync.py` · `validate_specs.py` · `check-all-mode-counts.py` · `yaml_lite.py` |
 | Gherkin specs (nine features) + suite notes | `tests/features/whatsapp/niete/*.feature` · `_suite.md` |
 | Per-feature executor agents · fixtures · targets · ledgers | `.claude/qa/agents/` · `.claude/qa/fixtures/` · `.claude/qa/config/whatsapp-targets.yaml` · `.claude/qa/ledgers/` |
-| Runner | `.claude/qa/shared/feature-runner.cjs` (+ `features/*.cjs`, `wa-drive.js`, `flow-lib.cjs`) |
-| Git hooks + installer | `.githooks/post-commit` · `.githooks/pre-push` · `scripts/qa/install-hooks.sh` |
-| Claude Code hooks | `.claude/hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` · `lib/git-push-match.sh` |
+| Runner | `.claude/qa/engine/bin/feature-runner.cjs` (+ `features/*.cjs`, `wa-drive.js`, `flow-lib.cjs`) |
+| Git hooks + installer | `.claude/qa/engine/githooks/post-commit` · `.claude/qa/engine/githooks/pre-push` · `.claude/qa/engine/scripts/install-hooks.sh` |
+| Claude Code hooks | `.claude/qa/engine/hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` · `lib/git-push-match.sh` |
 | Commands / skills | `/niete-e2e` · `/sync-specs` · `/testcases` · `/apply-discoveries` · `gherkin-spec-sync` · `gherkin-test-cases` · `chrome-mcp-whatsapp-e2e` |
-| Pre-push range report (`npm run qa:impact`) | `scripts/qa/impact.py` |
+| Pre-push range report (`npm run qa:impact`) | `.claude/qa/engine/bin/impact.py` |
 | Verification from a clean clone | `scripts/qa/verify-clean-clone.sh` |
 
 Tests for all of it: `npm run qa:test`.
@@ -188,10 +188,10 @@ agent to "clear it either way". Now:
   **holds the turn again** — up to `E2E_PHASE1_MAX_BLOCKS` (default 3) times, then lets go with a
   loud stderr line, and the PR check catches it. A changed spec is run through
   `validate_specs.py`; an invalid one holds too, quoting the validator;
-- `bash .claude/hooks/e2e-autorun.sh --clear` **refuses** while phase 1 is open (`--force` is the
+- `bash .claude/qa/engine/hooks/e2e-autorun.sh --clear` **refuses** while phase 1 is open (`--force` is the
   escape hatch, and `qa-impact` still flags it);
 - the two legitimate exits are a changed+valid `.feature`, or an explicit declaration:
-  `bash .claude/hooks/e2e-autorun.sh --declare --session <id> '<feature>=none-needed (<why>)'`,
+  `bash .claude/qa/engine/hooks/e2e-autorun.sh --declare --session <id> '<feature>=none-needed (<why>)'`,
   or the same grammar as a `Spec-Sync:` trailer on HEAD — one declaration satisfies the hook,
   the pre-push report and the PR check alike.
 
