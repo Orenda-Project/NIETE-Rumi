@@ -1711,6 +1711,36 @@ async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {
  * @param {string} text
  * @returns {Promise<boolean>}
  */
+/**
+ * bd-60137 — points per open-ended answer for a level's vendor.
+ *
+ * Local rather than borrowed from capstone-delivery: the RULE is pure
+ * (capstone-points.rules owns the default and the per-vendor override), so all
+ * this needs is the vendor row. Reaching into the other service for it was a
+ * ReferenceError, and requiring it back would add a cross-service dependency
+ * for a single integer.
+ *
+ * Never throws — a lookup failure falls back to the historical default.
+ */
+async function crqPointsForLevel(levelId) {
+  const { pointsPerQuestionFor, POINTS_PER_QUESTION } = require('./capstone-points.rules');
+  try {
+    const { data: level } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
+    if (!level?.vendor_id) return POINTS_PER_QUESTION;
+    const { data: vendor } = await supabase
+      .from('training_vendors')
+      .select('key, capstone_points_per_question')
+      .eq('id', level.vendor_id).maybeSingle();
+    return pointsPerQuestionFor(vendor);
+  } catch (err) {
+    logToFile('⚠️ CRQ scale lookup failed — using the default', {
+      levelId, error: err?.message,
+    });
+    return POINTS_PER_QUESTION;
+  }
+}
+
 async function routeOpenEndedAnswer(phoneNumber, text) {
   const trimmed = String(text || '').trim();
   if (!trimmed || trimmed.startsWith('/')) return false;
@@ -1721,7 +1751,12 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
 
   const { data: openAttempts } = await supabase
     .from('training_assessment_attempts')
-    .select('id, user_id, level_id, grand_quiz_id, program_id, current_question_index, total_questions, total_score, status')
+    // bd-60137 — quiz_kind and training_module_id are REQUIRED:
+    // resolveServedQuestions reads both to pick the question bank. Without
+    // them the served list was wrong, the question at the teacher's index
+    // came back undefined, and her typed answer was never claimed — it fell
+    // through to ordinary LLM chat.
+    .select('id, user_id, level_id, grand_quiz_id, training_module_id, quiz_kind, program_id, current_question_index, total_questions, total_score, status')
     .eq('user_id', user.id)
     .eq('quiz_kind', KIND_GRAND)
     .eq('status', 'in_progress')
@@ -1732,7 +1767,7 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
 
   // Only claim it when the question actually IS open-ended; otherwise a
   // teacher typing chat during an MCQ would have it stored and marked.
-  const { questions } = await loadServedQuestions(attempt);
+  const { questions } = await resolveServedQuestions(attempt);
   const q = questions[attempt.current_question_index];
   if (!isTextAnswerForOpenQuestion(trimmed, q)) return false;
 
@@ -1747,7 +1782,13 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
 
   // Marked against the module's own scale — I-SAPS CRQs are 10 marks
   // (bd-60113), Beacon House answers 5.
-  const perAnswer = await capstonePointsForLevel(attempt.level_id);
+  // bd-60137 — the per-answer scale, resolved HERE rather than by reaching into
+  // capstone-delivery. Calling a bare `capstonePointsForLevel` was a
+  // ReferenceError on every CRQ answer (it lives in the other service), and
+  // requiring that service back adds a cross-dependency for one number. The
+  // rule itself is pure (capstone-points.rules), so only the vendor row is
+  // needed.
+  const perAnswer = await crqPointsForLevel(attempt.level_id);
   const { score, feedback } = await CapstoneDelivery.scoreAnswer(q, trimmed, perAnswer);
 
   await supabase.from('training_assessment_answers').upsert({
@@ -1888,7 +1929,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
   let score = (answers || []).filter(a => a.is_correct === true).length;
   let mixedPossible = null;
   if (hasRubricMark) {
-    const crqMax = await capstonePointsForLevel(attempt.level_id);
+    const crqMax = await crqPointsForLevel(attempt.level_id);
     const mcqCount = Math.max(0, (Number(attempt.total_questions) || 0) - 1);
     const mixed = scoreMixedPaper({ answers: answers || [], mcqCount, crqMaxPoints: crqMax });
     score = mixed.earned;

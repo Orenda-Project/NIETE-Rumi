@@ -248,6 +248,25 @@ function moduleExamPassMessage({ moduleTitle, score, total, hasCrq } = {}) {
   return msg;
 }
 
+
+/**
+ * bd-60130 — the level-exam slot, rendered as nothing.
+ *
+ * A vendor that assesses per MODULE has no level exam, and saying so out loud
+ * ("No level exam — finish all sessions to complete this level") is internal
+ * plumbing a teacher reads as breakage.
+ *
+ * The keys are kept and filled with a single space rather than removed or
+ * emptied: the published Flow declares them, and a screen missing a declared
+ * data key does not render. A single space is the convention this screen
+ * already uses for an absent caption.
+ *
+ * @returns {{body: string, caption: string, cta: string}}
+ */
+function levelExamSlotHidden() {
+  return { body: ' ', caption: ' ', cta: ' ' };
+}
+
 module.exports = {
   PER_MODULE_SOURCE_BASE,
   moduleSourceQuizId,
@@ -258,4 +277,5 @@ module.exports = {
   moduleExamOfferMessage,
   isLevelCertifyingAttempt,
   moduleExamPassMessage,
+  levelExamSlotHidden,
 };
