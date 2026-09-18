@@ -14,10 +14,16 @@ jest.mock('../../bot/shared/utils/constants', () => ({
   PHONE_NUMBER_ID: 'test-phone-id',
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
-jest.mock('../../bot/shared/storage/r2', () => ({
-  downloadFromR2: jest.fn(),
-  extractKeyFromUrl: jest.fn(),
-}));
+jest.mock('../../bot/shared/storage/r2', () => {
+  // Mirrors the real module (r2.js:534-538): downloadMedia extracts the key and
+  // defers to downloadFromR2. Doubling it as that composition — rather than as a
+  // bare jest.fn() — keeps the boundary at R2 and leaves the key-extraction and
+  // download assertions below asserting the same thing they always did.
+  const downloadFromR2 = jest.fn();
+  const extractKeyFromUrl = jest.fn();
+  const downloadMedia = jest.fn(async (urlOrKey) => downloadFromR2(extractKeyFromUrl(urlOrKey)));
+  return { downloadFromR2, extractKeyFromUrl, downloadMedia };
+});
 jest.mock('fs', () => {
   const real = jest.requireActual('fs');
   return {

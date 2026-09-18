@@ -32,7 +32,7 @@ const ROLE_REFUSAL = Object.freeze({
   }),
 });
 
-const refusal = (kind, language) => ROLE_REFUSAL[kind][language === 'ur' ? 'ur' : 'en'];
+const refusal = (kind, language) => ROLE_REFUSAL[kind][clampLanguage(language)];
 
 // Menu selection state TTL (5 minutes)
 const MENU_STATE_TTL = 300;

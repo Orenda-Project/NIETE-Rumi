@@ -125,11 +125,24 @@ describe('catalog completeness — every key exists in every offered language', 
     // Guards the failure where an English string is pasted into the ur slot to
     // "fill it in" — which the completeness check above would not catch.
     const PERSO_ARABIC = /[؀-ۿ]/;
+    const LATIN = /[A-Za-z]/;
+    // A pure-format entry — '{date} · {status}', '• {name} — {score}' — holds no
+    // translatable words at all: every letter in it belongs to a placeholder name
+    // the interpolator substitutes away, and the separators are script-neutral.
+    // Demanding Urdu of those would only force a decorative character into a
+    // format string. So strip the placeholders and judge what is actually left:
+    // no surviving Latin letter means there was no English here to translate.
+    // An English WORD in the ur slot still survives the strip, and still fails.
+    const translatable = (s) => s.replace(/\{[^}]*\}/g, '');
+    const offenders = [];
     for (const [key, variants] of Object.entries(UX_STRINGS)) {
       if (!variants.ur) continue;
-      // Bilingual-by-design entries contain both scripts; require only that some
-      // Urdu is present.
-      expect(PERSO_ARABIC.test(variants.ur)).toBe(true);
+      if (PERSO_ARABIC.test(variants.ur)) continue;
+      if (!LATIN.test(translatable(variants.ur))) continue;
+      offenders.push(`${key}: ${JSON.stringify(variants.ur)}`);
     }
+    // Reported as a list rather than one assertion per key, so a reviewer sees
+    // every offending string in one run instead of peeling them off one by one.
+    expect(offenders).toEqual([]);
   });
 });

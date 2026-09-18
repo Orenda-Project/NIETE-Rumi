@@ -20,10 +20,10 @@ const V1 = {
 const mockSession = { id: 'obs-1', user_id: 'teacher-1', observer_user_id: 'coach-1', observation_type: 'leader_observation', analysis_data: JSON.parse(JSON.stringify(V1)), autofill_analysis_data: JSON.parse(JSON.stringify(V1)), users: { phone_number: '1', name: 'T', preferred_language: 'en' } };
 jest.mock('../../bot/shared/config/supabase', () => {
   const chain = {};
-  ['select', 'eq'].forEach((m) => { chain[m] = jest.fn(() => chain); });
+  ['select', 'eq', 'not'].forEach((m) => { chain[m] = jest.fn(() => chain); });
   chain.single = jest.fn(async () => ({ data: mockSession, error: null }));
   chain.update = jest.fn((payload) => { mockUpdates.push(payload); return chain; });
-  chain.then = (resolve) => resolve({ data: null, error: null });
+  chain.then = (resolve) => resolve({ data: [{ id: mockSession.id }], error: null });
   return { from: jest.fn(() => chain) };
 });
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: jest.fn(async () => {}), sendFlow: jest.fn(async () => {}) }));

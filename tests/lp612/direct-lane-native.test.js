@@ -116,8 +116,8 @@ function installFetch(route) {
 
 const ENV_KEYS = [
   'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS',
-  'LLM_MAX_RETRIES', 'LLM_DIRECT_FALLBACK_MODEL', 'LP612_PROMPT_CACHE', 'LP612_TARGETED_REVISION',
-  'LP612_PAGE_TRUTH_DIR', 'E2E_CASSETTE',
+  'LLM_MAX_RETRIES', 'LLM_DIRECT_FALLBACK_MODEL', 'LLM_FALLBACK_OFF', 'LP612_PROMPT_CACHE',
+  'LP612_TARGETED_REVISION', 'LP612_PAGE_TRUTH_DIR', 'E2E_CASSETTE',
 ];
 
 function freshLlmClient(env) {
@@ -458,21 +458,111 @@ describe('the direct lane refuses to run without a usable fallback', () => {
     expect(res.choices[0].message.content).toBe('{"ok":true}');
   });
 
-  test('there is NO env var that switches the fallback off — only one that retargets it', () => {
+  test('a blank LLM_DIRECT_FALLBACK_MODEL RETARGETS nothing and disables nothing', () => {
     const mod = freshLlmClient({ LLM_DIRECT_FALLBACK_MODEL: '   ' });
-    // A blank override falls through to the derived id rather than disabling anything: whitespace
-    // must not be a way to unwire the net by accident.
+    // Whitespace must not be a way to unwire the net by accident: it falls through to the
+    // derived id rather than leaving the lane with no fallback at all.
     expect(mod.directFallbackModel('claude-sonnet-5')).toBe('anthropic/claude-sonnet-5');
-    const src = require('fs').readFileSync(
-      require('path').resolve(__dirname, '../../bot/shared/services/llm-client.js'), 'utf8');
-    // Guards the PROPERTY, not the spelling: any new env read in this module must be justified,
-    // and none of them may be a fallback kill switch.
-    const envVars = [...src.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
-    expect(new Set(envVars)).toEqual(new Set([
-      'ANTHROPIC_API_KEY', 'APP_URL', 'LLM_DIRECT_FALLBACK_MODEL', 'LLM_MAX_RETRIES',
-      'LLM_MODEL', 'LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS', 'OPENAI_API_KEY',
-      'OPENROUTER_API_KEY',
-    ]));
+  });
+
+  /**
+   * SWITCH-SHAPED names this module actually reads. The source is used to ENUMERATE what to set
+   * in the environment — the assertion below is on BEHAVIOUR, never on the text. `LLM_FALLBACK_OFF`
+   * is pinned in unconditionally: it exists, it is real for the vendor tier (see the next
+   * describe), and it is here as a HOSTILE value proved inert on this lane — the opposite of an
+   * allowlist, which would excuse it instead of testing it.
+   */
+  const KILL_SWITCH_SHAPED = /(^|_)(NO|OFF|DISABLE|DISABLED|SKIP|BYPASS)($|_)/;
+  function hostileSwitchNames() {
+    const src = fs.readFileSync(
+      path.resolve(__dirname, '../../bot/shared/services/llm-client.js'), 'utf8');
+    const read = [...src.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
+    return [...new Set(['LLM_FALLBACK_OFF', ...read.filter((n) => KILL_SWITCH_SHAPED.test(n))])];
+  }
+
+  test('NO env var can switch the DIRECT lane\'s credit fallback off — the operator said "Keep the fall back on"', async () => {
+    const names = hostileSwitchNames();
+    expect(names.length).toBeGreaterThan(0);
+
+    for (const name of names) {
+      for (const value of ['1', 'true', 'on', 'yes', 'off', 'disabled']) {
+        const net = installFetch((url) => (
+          url === ANTHROPIC_URL ? [400, CREDIT_400] : [200, orReply('{"from":"openrouter"}')]
+        ));
+        restoreFetch = net.restore;
+        const mod = freshLlmClient({ [name]: value });
+
+        const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+        // The throw is CAUGHT rather than allowed to fail the test on its own, so the report
+        // below names the variable that disarmed the net instead of showing a bare SDK 400 —
+        // a guard whose failure does not say what broke costs the next reader an hour.
+        let outcome;
+        try {
+          const res = await client.chat.completions.create({
+            model, max_tokens: 1000, messages: [{ role: 'user', content: 'hi' }],
+          });
+          outcome = {
+            lastUrl: net.seen[net.seen.length - 1].url,
+            fellBack: res.usage.provider_fallback === true,
+            content: res.choices[0].message.content,
+          };
+        } catch (err) {
+          outcome = { threw: String((err && err.message) || err).slice(0, 120) };
+        }
+
+        expect({ name, value, ...outcome }).toEqual({
+          name, value, lastUrl: OPENROUTER_URL, fellBack: true, content: '{"from":"openrouter"}',
+        });
+
+        restoreFetch(); restoreFetch = undefined;
+        delete process.env[name];
+      }
+    }
+  });
+});
+
+// ── 3c. the vendor-tier switch is real, and it stops at the vendor tier ──────
+
+describe('LLM_FALLBACK_OFF governs the VENDOR-TIER ladder and nothing else', () => {
+  // `quiz.transcript`'s frozen fallback (model-registry) — a different model from the primary,
+  // so `to === params.model` cannot silently short-circuit the ladder and fake a pass.
+  const TIER_PRIMARY = 'openai/gpt-4o';
+  const TIER_FALLBACK = 'google/gemini-2.5-flash';
+  const tierRoute = (url, body) => (
+    body && body.model === TIER_PRIMARY
+      ? [429, { error: { message: 'rate limited' } }]
+      : [200, orReply('{"from":"tier-fallback"}')]
+  );
+
+  test('unset: a job-armed vendor swap DOES fire — this is the path the switch exists for', async () => {
+    const net = installFetch(tierRoute);
+    restoreFetch = net.restore;
+    const mod = freshLlmClient();
+
+    const { client, model } = mod.getClientForModel(TIER_PRIMARY, { job: 'quiz.transcript' });
+    const res = await client.chat.completions.create({
+      model, max_tokens: 16, messages: [{ role: 'user', content: 'hi' }],
+    });
+
+    expect(net.seen.map((s) => s.body.model)).toContain(TIER_FALLBACK);
+    expect(res.usage.provider_fallback_to).toBe(TIER_FALLBACK);
+    expect(mockLogEvent.mock.calls.filter((c) => c[0] === 'llm.vendor_fallback')).toHaveLength(1);
+  });
+
+  test('LLM_FALLBACK_OFF=1: the vendor swap is stopped — a vendor change is what an operator may veto', async () => {
+    const net = installFetch(tierRoute);
+    restoreFetch = net.restore;
+    const mod = freshLlmClient({ LLM_FALLBACK_OFF: '1' });
+
+    const { client, model } = mod.getClientForModel(TIER_PRIMARY, { job: 'quiz.transcript' });
+    await expect(client.chat.completions.create({
+      model, max_tokens: 16, messages: [{ role: 'user', content: 'hi' }],
+    })).rejects.toThrow();
+
+    // The two lanes are separate code paths; the test above proves this same flag leaves the
+    // direct lane's credit fallback running. Conflating them is what this pair prevents.
+    expect(net.seen.map((s) => s.body.model)).not.toContain(TIER_FALLBACK);
+    expect(mockLogEvent.mock.calls.filter((c) => c[0] === 'llm.vendor_fallback')).toHaveLength(0);
   });
 });
 
