@@ -359,9 +359,11 @@ document.addEventListener('click',function(e){var a=e.target.closest('a[href^="#
 window.addEventListener('hashchange',function(){var el=document.getElementById(location.hash.slice(1));if(el){var panel=el.closest('.run');if(panel&&panel.hidden)show(panel.id.replace('run-',''));el.scrollIntoView();}});
 })();
 '''
-    return f'''<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>{esc(title)}</title>
+    # Published as a claude.ai artifact, which wraps the file in its own
+    # doctype/head/body at publish time: the page starts at <title>.
+    return f'''<title>{esc(title)}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>{css}</style></head><body>
+<style>{css}</style>
 <div class=wrap>
 <header class=masthead>
   <div><div class=eyebrow>I-SAPS Level 1 · CRQ marker eval · NIETE sandbox</div><h1>{esc(title)}</h1><p class=lede>{lede}</p></div>
@@ -371,7 +373,7 @@ window.addEventListener('hashchange',function(){var el=document.getElementById(l
 {"".join(panels)}
 </div>
 <script>{js}</script>
-</body></html>'''
+'''
 
 
 def main():
