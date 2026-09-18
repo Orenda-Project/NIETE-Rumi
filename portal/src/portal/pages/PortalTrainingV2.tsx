@@ -211,7 +211,7 @@ function VendorCards({
   return (
     <section className="mb-8" data-testid="vendor-grouping">
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
           <Building2 className="w-4 h-4 text-muted-foreground" />
           Your training providers
         </h2>
@@ -255,10 +255,10 @@ function VendorCards({
             >
               {/* A thin bar of the provider's colour — the cheapest way to make
                   four cards tell themselves apart at a glance. */}
-              <div className="h-1.5" style={{ backgroundColor: tint }} />
+              <div className="h-2" style={{ backgroundColor: tint }} />
 
               <div
-                className="h-20 flex items-center justify-center px-5"
+                className="h-28 flex items-center justify-center px-6"
                 // A wash of the same colour, light enough to keep dark-on-light
                 // logo artwork legible on top of it.
                 style={{ backgroundColor: `${tint}0f` }}
@@ -267,7 +267,7 @@ function VendorCards({
                   <img
                     src={brand.logo}
                     alt={v.vendor_name}
-                    className="max-h-11 max-w-full w-auto object-contain"
+                    className="max-h-16 max-w-full w-auto object-contain"
                     loading="lazy"
                   />
                 ) : (
@@ -281,14 +281,14 @@ function VendorCards({
                 )}
               </div>
 
-              <div className="px-4 pt-3 pb-1">
-                <div className="font-semibold text-sm text-foreground truncate">
+              <div className="px-5 pt-4 pb-1">
+                <div className="font-semibold text-lg text-foreground truncate">
                   {v.vendor_name}
                 </div>
               </div>
 
-              <div className="px-4 pb-4">
-                <div className="text-xs text-muted-foreground mb-3">
+              <div className="px-5 pb-5">
+                <div className="text-sm text-muted-foreground mb-4">
                   {v.level_count} {v.level_count === 1 ? 'level' : 'levels'} · {v.module_count} modules
                 </div>
                 <div
@@ -305,16 +305,16 @@ function VendorCards({
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">
+                  <span className="text-sm font-semibold text-foreground">
                     {v.completed_module_count > 0
                       ? `${v.completed_module_count} / ${v.module_count}`
                       : 'Not started'}
                   </span>
                   {v.avg_score_pct == null ? (
-                    <span className="text-xs text-muted-foreground" data-testid="vendor-avg-score-none">—</span>
+                    <span className="text-sm text-muted-foreground" data-testid="vendor-avg-score-none">—</span>
                   ) : (
                     <span
-                      className={`inline-flex px-2 py-0.5 rounded-full border text-xs font-medium ${scoreTone(v.avg_score_pct)}`}
+                      className={`inline-flex px-2.5 py-1 rounded-full border text-sm font-medium ${scoreTone(v.avg_score_pct)}`}
                       data-testid="vendor-avg-score-badge"
                     >
                       {v.avg_score_pct}% avg
@@ -373,10 +373,10 @@ function LevelRail({
   return (
     <section className="mb-8" data-testid="level-rail">
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-sm font-semibold text-foreground">
+        <h2 className="text-base font-semibold text-foreground">
           {laddered ? 'Your levels' : 'Choose a subject'}
         </h2>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {laddered ? 'Each level unlocks the next' : 'These are independent — take them in any order'}
         </span>
       </div>
@@ -398,7 +398,7 @@ function LevelRail({
               onClick={() => onSelect(String(l.id))}
               data-testid={`level-card-${l.id}`}
               aria-pressed={active}
-              className={`text-left rounded-xl border p-4 transition-all ${
+              className={`text-left rounded-xl border p-5 transition-all ${
                 locked
                   ? 'border-dashed border-border bg-muted/40 cursor-not-allowed'
                   : active
@@ -411,11 +411,11 @@ function LevelRail({
             >
               <div className="flex items-center justify-between mb-2">
                 {laddered ? (
-                  <span className={`text-[11px] font-bold tracking-wider ${locked ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  <span className={`text-xs font-bold tracking-wider ${locked ? 'text-muted-foreground' : 'text-foreground'}`}>
                     LEVEL {l.order_index + 1}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold tracking-wider text-muted-foreground">
+                  <span className="text-xs font-bold tracking-wider text-muted-foreground">
                     SUBJECT
                   </span>
                 )}
@@ -426,12 +426,12 @@ function LevelRail({
                 )}
               </div>
 
-              <div className={`text-sm font-semibold mb-2.5 ${locked ? 'text-muted-foreground' : 'text-foreground'}`}>
+              <div className={`text-base font-semibold mb-3 ${locked ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {l.name}
               </div>
 
               <div
-                className="h-1.5 rounded-full bg-muted overflow-hidden mb-2"
+                className="h-2 rounded-full bg-muted overflow-hidden mb-2.5"
                 role="progressbar"
                 aria-valuenow={pct}
                 aria-valuemin={0}
@@ -444,7 +444,7 @@ function LevelRail({
                 />
               </div>
 
-              <div className={`text-xs font-medium ${
+              <div className={`text-sm font-medium ${
                 locked ? 'text-muted-foreground'
                 : certified ? 'text-green-700'
                 : 'text-foreground'
@@ -720,12 +720,6 @@ const PortalTrainingV2 = () => {
 
   const noAssignment = levelsLoaded && levels.length === 0;
 
-  // Headline totals, summed across providers. Derived from the vendor roll-up
-  // the API already sends, so an empty/failed vendor fetch simply hides the
-  // bar rather than printing a wrong number.
-  const totalModules = vendors.reduce((n, v) => n + v.module_count, 0);
-  const completedModules = vendors.reduce((n, v) => n + v.completed_module_count, 0);
-  const overallPct = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
 
   return (
     <PortalLayout>
@@ -742,29 +736,11 @@ const PortalTrainingV2 = () => {
             <div>
               <h1 className="text-3xl sm:text-4xl font-light mb-1">Training</h1>
               <p className="text-sm text-white/75">
-                {totalModules > 0
-                  ? `${completedModules} of ${totalModules} modules complete across ${vendors.length} ${vendors.length === 1 ? 'provider' : 'providers'}.`
-                  : 'Your assigned professional development.'}
+                Your assigned professional development.
               </p>
             </div>
             <CertificatesPanel />
           </div>
-
-          {totalModules > 0 && (
-            <div
-              className="h-2 rounded-full bg-white/20 overflow-hidden mt-5"
-              role="progressbar"
-              aria-valuenow={overallPct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Overall training progress"
-            >
-              <div
-                className="h-full rounded-full bg-white transition-[width] duration-700"
-                style={{ width: `${overallPct}%` }}
-              />
-            </div>
-          )}
         </div>
 
         {/* No assignment — the recovery path, not a dead end (bd-43487). */}
@@ -855,7 +831,7 @@ const PortalTrainingV2 = () => {
             {selectedLevel && (
               <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4 mb-8">
                 <div className="rounded-2xl border bg-card p-2 shadow-sm" data-testid="course-list">
-                  <div className="px-3 pt-2.5 pb-2 text-[11px] font-bold tracking-wider text-muted-foreground">
+                  <div className="px-3.5 pt-3 pb-2 text-xs font-bold tracking-wider text-muted-foreground">
                     COURSES
                   </div>
                   {loadingCourses && (
@@ -879,10 +855,10 @@ const PortalTrainingV2 = () => {
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`text-sm ${active ? 'font-semibold text-accent-foreground' : 'text-foreground'}`}>
+                          <span className={`text-[15px] ${active ? 'font-semibold text-accent-foreground' : 'text-foreground'}`}>
                             {c.title}
                           </span>
-                          <span className={`text-xs shrink-0 ${done ? 'text-green-700' : 'text-muted-foreground'}`}>
+                          <span className={`text-sm shrink-0 ${done ? 'text-green-700' : 'text-muted-foreground'}`}>
                             {c.completed_count}/{c.module_count}
                           </span>
                         </div>
@@ -892,8 +868,8 @@ const PortalTrainingV2 = () => {
                 </div>
 
                 <div className="rounded-2xl border bg-card p-2 shadow-sm" data-testid="module-list">
-                  <div className="px-3.5 pt-2.5 pb-2 flex items-baseline justify-between gap-3">
-                    <span className="text-[11px] font-bold tracking-wider text-muted-foreground truncate">
+                  <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3">
+                    <span className="text-xs font-bold tracking-wider text-muted-foreground truncate">
                       {selectedCourseObj ? selectedCourseObj.title.toUpperCase() : 'MODULES'}
                     </span>
                     {selectedCourseObj && (
@@ -938,11 +914,11 @@ const PortalTrainingV2 = () => {
                         {m.completed_at
                           ? <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
                           : <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
-                        <span className={`flex-1 text-sm truncate ${active ? 'font-semibold' : ''} text-foreground`}>
+                        <span className={`flex-1 text-[15px] truncate ${active ? 'font-semibold' : ''} text-foreground`}>
                           {m.title}
                         </span>
                         {m.duration_seconds > 0 && (
-                          <span className="text-xs text-muted-foreground shrink-0">
+                          <span className="text-sm text-muted-foreground shrink-0">
                             {formatDuration(m.duration_seconds)}
                           </span>
                         )}
