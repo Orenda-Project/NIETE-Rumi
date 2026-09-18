@@ -870,38 +870,6 @@ const PortalTrainingV2 = () => {
                     );
                   })}
 
-                  {/* bd-60149 — the I-SAPS reading of this list.
-                      A unit and its own formative assessment are two separate
-                      things a teacher does in order, so they are two rows:
-                      "Unit 301" then "Unit 301 — Assessment". The assessment
-                      row is CONDITIONAL — 2 of the level's 54 units carry no
-                      questions at all, and a row for them would promise work
-                      that does not exist. Selecting either row opens the same
-                      unit; the detail card already holds the quiz. */}
-
-                  {/* bd-60149 — the module's summative exam, as the row AFTER
-                      its units, which is where a teacher looks for it. It was
-                      first built inside a unit's detail card, so walking from
-                      the last unit of one module to the first of the next
-                      never showed it at all. Renders nothing unless this
-                      course has an exam. */}
-                  {selectedCourse && moduleExam && (
-                    <ModuleExamPanel
-                      key={`exam-${selectedCourse}`}
-                      courseId={String(selectedCourse)}
-                      exam={moduleExam}
-                      asListRow
-                      onPassed={() => {
-                        if (!selectedCourse) return;
-                        api.get('/training/modules', { params: { course_id: selectedCourse } })
-                          .then(({ data }) => {
-                            setModules(data.modules || []);
-                            setModuleExam(data.exam || null);
-                          })
-                          .catch(() => { /* the pass is recorded server-side either way */ });
-                      }}
-                    />
-                  )}
                 </div>
 
                 <div className="rounded-2xl border bg-card p-2 shadow-sm" data-testid="module-list">
@@ -989,6 +957,38 @@ const PortalTrainingV2 = () => {
                     </Fragment>
                     );
                   })}
+                  {/* bd-60149 — the I-SAPS reading of this list.
+                      A unit and its own formative assessment are two separate
+                      things a teacher does in order, so they are two rows:
+                      "Unit 301" then "Unit 301 — Assessment". The assessment
+                      row is CONDITIONAL — 2 of the level's 54 units carry no
+                      questions at all, and a row for them would promise work
+                      that does not exist. Selecting either row opens the same
+                      unit; the detail card already holds the quiz. */}
+
+                  {/* bd-60149 — the module's summative exam, as the row AFTER
+                      its units, which is where a teacher looks for it. It was
+                      first built inside a unit's detail card, so walking from
+                      the last unit of one module to the first of the next
+                      never showed it at all. Renders nothing unless this
+                      course has an exam. */}
+                  {selectedCourse && moduleExam && (
+                    <ModuleExamPanel
+                      key={`exam-${selectedCourse}`}
+                      courseId={String(selectedCourse)}
+                      exam={moduleExam}
+                      asListRow
+                      onPassed={() => {
+                        if (!selectedCourse) return;
+                        api.get('/training/modules', { params: { course_id: selectedCourse } })
+                          .then(({ data }) => {
+                            setModules(data.modules || []);
+                            setModuleExam(data.exam || null);
+                          })
+                          .catch(() => { /* the pass is recorded server-side either way */ });
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             )}
