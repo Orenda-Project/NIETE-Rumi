@@ -267,6 +267,46 @@ function levelExamSlotHidden() {
   return { body: ' ', caption: ' ', cta: ' ' };
 }
 
+/**
+ * bd-60139 — has every per-module exam of this level been PASSED?
+ *
+ * The certificate guard it feeds (maybeIssueQuizScoreCertificate) was written
+ * for Oxbridge, where a level is finished when its units are finished: all
+ * modules complete + each unit quick-check >= 70%. A per-module-assessed
+ * vendor breaks that assumption, because the real assessment is a SUMMATIVE
+ * exam sitting after each module, and the quick-checks say nothing about it.
+ *
+ * Operator hit this on sandbox: answering the last unit's 2-question quick
+ * check minted the Level 1 certificate while EIGHT of the nine module exams
+ * had never been taken and the ninth was still in progress.
+ *
+ * Only ACTIVE exams count, and only per-module ones (source_quiz_id >= 900).
+ * A level with no per-module exams at all returns true — it is not gated by
+ * this rule, so the caller's existing logic decides, and no other vendor's
+ * behaviour changes.
+ *
+ * @param {Array<object>} quizzes  rows of training_grand_quizzes for the level
+ *                                 ({ id, source_quiz_id, quiz_type, is_active })
+ * @param {Array<object>} attempts rows of training_assessment_attempts
+ *                                 ({ grand_quiz_id, is_passed })
+ * @returns {boolean}
+ */
+function allModuleExamsPassed(quizzes, attempts) {
+  const exams = (Array.isArray(quizzes) ? quizzes : []).filter(
+    q => q && q.is_active === true && isPerModuleQuiz(q.source_quiz_id),
+  );
+  // No per-module exams on this level: this rule does not gate it.
+  if (exams.length === 0) return true;
+
+  const passed = new Set(
+    (Array.isArray(attempts) ? attempts : [])
+      .filter(a => a && a.is_passed === true && a.grand_quiz_id !== null
+        && a.grand_quiz_id !== undefined)
+      .map(a => a.grand_quiz_id),
+  );
+  return exams.every(q => passed.has(q.id));
+}
+
 module.exports = {
   PER_MODULE_SOURCE_BASE,
   moduleSourceQuizId,
@@ -276,6 +316,7 @@ module.exports = {
   shouldOfferModuleExam,
   moduleExamOfferMessage,
   isLevelCertifyingAttempt,
+  allModuleExamsPassed,
   moduleExamPassMessage,
   levelExamSlotHidden,
 };

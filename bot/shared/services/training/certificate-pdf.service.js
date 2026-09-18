@@ -46,7 +46,7 @@ const path = require('path');
 const { logToFile } = require('../../utils/logger');
 const branding = require('../../config/branding');
 const {
-  TEST_BANNER_TEXT, shouldStampTestBanner,
+  TEST_BANNER_TEXT, TEST_BANNER_SUBTEXT, shouldStampTestBanner,
 } = require('./certificate-env.rules');
 
 // NIETE palette (brand book): navy-slate + green. Same pair the coaching hero
@@ -313,21 +313,6 @@ async function renderCertificatePdf({
   // ── Frame ────────────────────────────────────────────────────────────────
   // NIETE keeps the green/navy double rule. The partner templates reproduce
   // legacy's 3px primary border with a 6px secondary inset outline.
-  // bd-60133 — outside production, say so on the page. Drawn FIRST so the
-  // frame and masthead sit over the band's edges rather than under them, and
-  // applied to EVERY vendor: a Beacon House test certificate is just as
-  // mistakable for a real one as a NIETE test certificate.
-  if (shouldStampTestBanner(process.env.NODE_ENV)) {
-    const bandH = 26;
-    doc.rect(0, 0, PAGE.width, bandH).fill('#B5651D');
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF')
-       .text(TEST_BANNER_TEXT, 0, 9, {
-         width: PAGE.width, align: 'center', characterSpacing: 0.6,
-       });
-    // Restore the fill the rest of the page assumes.
-    doc.fillColor(COLORS.ink);
-  }
-
   doc.lineWidth(3).strokeColor(palette.primary)
      .rect(MARGIN * 0.6, MARGIN * 0.6, PAGE.width - MARGIN * 1.2, PAGE.height - MARGIN * 1.2).stroke();
   doc.lineWidth(isNiete ? 0.75 : 6).strokeColor(isNiete ? COLORS.ink : palette.secondary)
@@ -535,6 +520,46 @@ async function renderCertificatePdf({
        .text(String(certificateCode || ''), PAGE.width - MARGIN - 260, footY + 22, {
          width: 220, align: 'right',
        });
+  }
+
+  // bd-60140 — outside production, watermark the page.
+  //
+  // This was a solid band across the top (bd-60133). A header bar reads as part
+  // of the design — something the certificate is SUPPOSED to have — so it did
+  // not do the one job it exists for: making a test artefact unmistakable for
+  // a real one at a glance. A translucent mark across the middle of the page
+  // reads as a watermark, which is the visual language people already
+  // understand for "not a valid document".
+  //
+  // Drawn LAST, over the content, for the same reason: a watermark under the
+  // text would be hidden by the very fields that make the page look real.
+  // save()/restore() brackets the whole thing so the rotation, opacity and
+  // fill cannot leak into anything drawn afterwards.
+  if (shouldStampTestBanner(process.env.NODE_ENV)) {
+    // Sizing the box to the page diagonal is not enough on its own: `rotate`
+    // turns the whole coordinate system about `origin`, so a box drawn at
+    // x=(width-diag)/2 is centred on the PAGE, then swung away from centre by
+    // the rotation. Two renders were clipped at opposite corners before this
+    // was understood.
+    //
+    // Translating to the centre first makes the maths local: the origin moves
+    // to the middle of the page, rotation happens about (0,0), and the text
+    // box is then placed at -diag/2 — symmetric about that origin by
+    // construction, so it cannot drift whatever the angle.
+    const diag = Math.sqrt(PAGE.width ** 2 + PAGE.height ** 2);
+    doc.save();
+    doc.translate(PAGE.width / 2, PAGE.height / 2);
+    doc.rotate(-30);
+    // One line only. A second, smaller line set on the same diagonal reads as
+    // debris rather than as part of the mark — it is too small to scan at that
+    // angle and too faint to be worth the clutter. The headline alone already
+    // says the only thing that matters.
+    doc.font('Helvetica-Bold').fontSize(38).fillColor('#B5651D').opacity(0.14)
+       .text(TEST_BANNER_TEXT, -diag / 2, -22, {
+         width: diag, align: 'center', characterSpacing: 2, lineBreak: false,
+       });
+    doc.opacity(1).fillColor(COLORS.ink);
+    doc.restore();
   }
 
   doc.end();

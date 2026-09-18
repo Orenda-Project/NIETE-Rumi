@@ -27,6 +27,7 @@
  * deployment name.
  */
 const { logToFile } = require('../../utils/logger');
+const { allModuleExamsPassed } = require('./isaps-module-exam.rules');
 
 const FALLBACK_PREFIX = 'CERT';
 
@@ -197,6 +198,34 @@ async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, atte
       .eq('is_active', true)
       .maybeSingle();
     if (capstone) return { issued: false };
+
+    // bd-60139 — a per-module-assessed level certifies on its module EXAMS,
+    // not on its unit quick-checks.
+    //
+    // Everything below this point is the Oxbridge rule: all units complete,
+    // each unit quick-check >= 70%. That is the whole of "finished" for a
+    // vendor whose only assessment IS the quick-check. I-SAPS is not such a
+    // vendor — it puts a summative exam after each module — so the Oxbridge
+    // rule certified it the instant the last unit was ticked, which on sandbox
+    // meant a certificate issued while EIGHT of nine module exams had never
+    // been taken and the ninth was still in progress. The teacher was
+    // congratulated and sent a PDF, then immediately offered the exam.
+    //
+    // Read the level's exams and require every ACTIVE per-module one to be
+    // passed. A level with no per-module exams returns true from the rule, so
+    // every other vendor reaches the code below exactly as before.
+    const { data: levelQuizzes } = await supabase
+      .from('training_grand_quizzes')
+      .select('id, source_quiz_id, quiz_type, is_active')
+      .eq('level_id', level.id);
+    const { data: examAttempts } = await supabase
+      .from('training_assessment_attempts')
+      .select('grand_quiz_id, is_passed')
+      .eq('user_id', userId)
+      .eq('quiz_kind', 'grand');
+    if (!allModuleExamsPassed(levelQuizzes || [], examAttempts || [])) {
+      return { issued: false };
+    }
 
     // One certificate per (user, level). bd-2670: this was a `.maybeSingle()`,
     // which 406s once duplicates exist — the throw was swallowed and the guard

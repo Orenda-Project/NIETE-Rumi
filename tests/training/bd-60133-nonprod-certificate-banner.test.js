@@ -79,7 +79,10 @@ describe('bd-60133 — the banner text', () => {
   });
 
   test('names testing as the purpose', () => {
-    expect(TEST_BANNER_TEXT).toMatch(/test/i);
+    // bd-60140 — the headline is now short enough to set at 52pt diagonally,
+    // so the explanatory half moved to TEST_BANNER_SUBTEXT. Assert the pair.
+    const { TEST_BANNER_SUBTEXT } = require('../../bot/shared/services/training/certificate-env.rules');
+    expect(`${TEST_BANNER_TEXT} ${TEST_BANNER_SUBTEXT}`).toMatch(/test/i);
   });
 
   test('is short enough for one banner line', () => {
@@ -108,6 +111,7 @@ function makePdfkitMock(textCalls) {
     doc.fill = chain; doc.stroke = chain; doc.fillAndStroke = chain; doc.clip = chain;
     doc.linearGradient = () => ({ stop() { return this; } });
     doc.save = chain; doc.restore = chain; doc.addPage = chain;
+    doc.rotate = chain; doc.translate = chain; doc.scale = chain;
     doc.image = chain; doc.widthOfString = () => 100; doc.heightOfString = () => 12;
     doc.text = (str) => { textCalls.push(String(str)); return doc; };
     doc.end = () => setImmediate(() => { doc.emit('data', Buffer.from('%PDF')); doc.emit('end'); });
