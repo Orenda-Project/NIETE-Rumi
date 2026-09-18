@@ -40,6 +40,14 @@ const { seededShuffle } = require('../../utils/seeded-random');
  */
 function isOpenEndedQuestion(q) {
   if (!q) return false;
+  // bd-60131 — a row that carries NEITHER field is a thin projection, not a
+  // CRQ. loadQuestionBank selects only (id, order_index, bloom_level), and
+  // treating that silence as "open-ended" classified all 12 of Module 1's bank
+  // rows as CRQs: the paper collapsed to one question and the exam resolved
+  // the module instantly. The row simply does not say — so do not guess.
+  const knowsOptions = Object.prototype.hasOwnProperty.call(q, 'options');
+  const knowsKey = Object.prototype.hasOwnProperty.call(q, 'correct_option');
+  if (!knowsOptions && !knowsKey) return false;
   const opts = q.options;
   const hasOptions = Array.isArray(opts)
     ? opts.length > 0
