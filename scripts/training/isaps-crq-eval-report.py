@@ -253,7 +253,8 @@ def build(golden, results, title, model, date, lede, findings_html):
                 cells.append(f'<td class="num {cls}">{m:.1f} <span class=hint>({off:+.1f})</span></td>')
             else:
                 cells.append("<td class=num>·</td>")
-        des.append(f'<tr><td><a href="#{variants[0]}-{esc(e["id"])}">{esc(e["id"])}</a> · M{e["module"]} {esc(e["concept"])}</td><td>{esc(e.get("design") or "")}</td><td class=num>{e["golden_total"]}</td>{"".join(cells)}</tr>')
+        short = (e.get("design") or "").split("Tests:")[0].split(".")[0].strip()
+        des.append(f'<tr><td><a href="#{variants[0]}-{esc(e["id"])}">{esc(e["id"])}</a> · M{e["module"]} {esc(e["concept"])}</td><td>{esc(short)}</td><td class=num>{e["golden_total"]}</td>{"".join(cells)}</tr>')
     des.append("</tbody></table>")
     # model-answer deductions
     ded = [e for e in entries if e["kind"] == "model_answer" and e["golden_total"] < e["total_marks"]]
@@ -268,15 +269,12 @@ def build(golden, results, title, model, date, lede, findings_html):
     panels.append(f'''
 <section class=run id="run-0" role=tabpanel>
   {findings_html}
-  <h3 class=secttl>Two markers against {len(entries)} hand-graded answers</h3>
   <div class=summary>{"".join(comp)}</div>
   <div class=scgrid>{"".join(scatter_html)}</div>
-  <h3 class=secttl>The ten synthetic answers, by design</h3>
+  <h3 class=secttl>The ten synthetic answers</h3>
   <div class=summary>{"".join(des)}</div>
-  <h3 class=secttl>Where I-SAPS's own possible answers miss their own rubric</h3>
-  <div class=summary>{"".join(dedh)}</div>
-  <h3 class=secttl>Rubric and source defects found while grading</h3>
-  {"".join(flagh)}
+  <details><summary>Rubric and source defects found while grading <span class=hint>{len(flags)} flags, {len(ded)} deductions</span></summary>
+  <div class=summary>{"".join(dedh)}</div>{"".join(flagh)}</details>
 </section>''')
 
     for i, v in enumerate(variants, start=1):
