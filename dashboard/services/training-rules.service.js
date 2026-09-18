@@ -212,6 +212,50 @@ async function certifyLevel({ userId, levelId, attemptId = null, programId = nul
 }
 
 /**
+ * bd-60149 — the module exam, which the portal previously had no concept of.
+ *
+ * Three asks, all decided by the bot: may she sit it, what is on the paper,
+ * and what did it score. No gate, no sampler and no marking live here — the
+ * portal had NONE of this before, and adding a local copy would recreate the
+ * exact drift this module was built to remove.
+ */
+async function moduleExamGate(userId, courseId) {
+  return gate('module-exam-gate', () => ask('module-exam-gate', { userId, courseId }));
+}
+
+/** Open or resume the attempt, and get the served paper. Denies on failure. */
+async function startModuleExam(userId, courseId, programId = null) {
+  try {
+    const data = await ask('module-exam-start', { userId, courseId, programId });
+    return {
+      ok: data.ok === true,
+      reason: data.reason || null,
+      attempt_id: data.attempt_id || null,
+      module_title: data.module_title || null,
+      total_questions: data.total_questions || 0,
+      questions: Array.isArray(data.questions) ? data.questions : [],
+    };
+  } catch (err) {
+    return { ok: false, reason: 'unavailable', questions: [], total_questions: 0 };
+  }
+}
+
+/**
+ * Submit the paper. THROWS on failure, like the other marking calls and for
+ * the same reason: a marking result has no safe default in either direction,
+ * so the caller must abandon the write rather than record a pass or a fail it
+ * cannot justify.
+ */
+async function submitModuleExam(userId, attemptId, answers) {
+  const data = await ask('module-exam-submit', { userId, attemptId, answers });
+  return {
+    attempt: data.attempt || null,
+    crq_pending: data.crq_pending === true,
+    certificate: data.certificate || null,
+  };
+}
+
+/**
  * Mark a submitted paper. bd-2673.
  *
  * The portal used to do this itself, twice — once for module quizzes and once
@@ -261,6 +305,9 @@ module.exports = {
   checkExamGate,
   checkExamGateByLevel,
   certifyLevel,
+  moduleExamGate,
+  startModuleExam,
+  submitModuleExam,
   getModuleQuizVerdict,
   getGrandQuizState,
   UNAVAILABLE,
