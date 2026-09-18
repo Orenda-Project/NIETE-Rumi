@@ -83,14 +83,16 @@ done
 [ -n "$LATER" ] && echo "│ chrome lane only (not in the mock lane yet): $LATER"
 if [ -z "$RUN" ]; then echo "└ nothing for the mock lane to drive — done."; exit 0; fi
 
-# 3b. can THIS machine run the lane at all? Say so NOW with the fix — not exit 14 deep inside
-# local-stack.sh after the worktree and results dir exist (how PR #1084 shipped `e2e: missing`).
-if type e2e_mock_lane_ready >/dev/null 2>&1; then
+# 3b. can THIS machine run the lane? FIX it first (keys from Railway, redis via brew) — no manual step. Only if
+# it still cannot (railway not logged in) say so NOW, not exit 14 deep inside local-stack.sh (PR #1084).
+if type e2e_mock_lane_autofix >/dev/null 2>&1; then
   _MAIN=$(e2e_main_checkout "$ROOT")
-  if ! _WHY=$(e2e_mock_lane_ready "$_MAIN"); then
+  _FIX=$(e2e_mock_lane_autofix "$_MAIN" --with-redis); _FIX_RC=$?
+  [ -n "$_FIX" ] && printf '%s\n' "$_FIX" | sed 's/^/│ machine:   /'
+  if [ "$_FIX_RC" -ne 0 ]; then
     echo "│ machine:   NOT READY for the mock lane"
-    e2e_mock_not_ready_block "$_WHY" | sed 's/^/│ /'
-    echo "└ nothing ran (exit 3). Fix once, then re-run this exact command."
+    e2e_mock_not_ready_block "$(e2e_mock_lane_ready "$_MAIN"; printf '%s\n' "$_FIX" | grep -E 'failed|unavailable' || true)" | sed 's/^/│ /'
+    echo "└ nothing ran (exit 3). Once railway is logged in, re-run this exact command — the rest is automatic."
     exit 3
   fi
 fi
