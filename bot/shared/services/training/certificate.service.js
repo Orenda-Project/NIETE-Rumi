@@ -174,17 +174,43 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
  */
 const QUIZ_CERT_PASS_PCT = 0.7;
 
-async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, attemptId, programId }) {
+async function maybeIssueQuizScoreCertificate(
+  supabase, { userId, moduleId, levelId = null, attemptId, programId },
+) {
   try {
-    const { data: mod } = await supabase
-      .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
-    if (!mod || !mod.course_id) return { issued: false };
-    const { data: course } = await supabase
-      .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
-    if (!course) return { issued: false };
-    const { data: level } = await supabase
-      .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();
-    if (!level) return { issued: false };
+    // bd-60144 — the level can arrive DIRECTLY, because a module exam has no
+    // module to resolve it through.
+    //
+    // This function was written for the unit quick-check path, where the only
+    // thing in hand is the module that was just completed, so it walked
+    // module → course → level. A module EXAM attempt stores
+    // training_module_id = NULL (it is keyed by grand_quiz_id), so passing that
+    // value made the FIRST query return nothing and the guard returned
+    // { issued: false } before reaching a single gate. A teacher could finish
+    // all 54 units and all 9 exams and be certified by nothing — the gates were
+    // right, but none of them ever ran.
+    //
+    // The caller that knows its level now says so. The quick-check path passes
+    // no levelId and resolves through the module exactly as before, so every
+    // other vendor is untouched.
+    let levelRow = null;
+    if (levelId !== null && levelId !== undefined) {
+      const { data: lvl } = await supabase
+        .from('training_levels').select('id, name, vendor_id').eq('id', levelId).maybeSingle();
+      levelRow = lvl || null;
+    } else {
+      const { data: mod } = await supabase
+        .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
+      if (!mod || !mod.course_id) return { issued: false };
+      const { data: course } = await supabase
+        .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
+      if (!course) return { issued: false };
+      const { data: lvl } = await supabase
+        .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();
+      levelRow = lvl || null;
+    }
+    if (!levelRow) return { issued: false };
+    const level = levelRow;
     const { data: vendor } = await supabase
       .from('training_vendors').select('id, unlock_logic').eq('id', level.vendor_id).maybeSingle();
     if ((vendor?.unlock_logic || 'chain') === 'chain') return { issued: false };

@@ -2150,7 +2150,11 @@ async function gradeAttempt(attemptId, phoneNumber) {
     const { maybeIssueQuizScoreCertificate } = require('./certificate.service');
     const levelCert = await maybeIssueQuizScoreCertificate(supabase, {
       userId: attempt.user_id,
+      // bd-60144 — a module-exam attempt has training_module_id = NULL, so the
+      // level must be handed over directly. Passing the null module made the
+      // guard bail on its first lookup, before any gate.
       moduleId: attempt.training_module_id,
+      levelId: attempt.level_id,
       attemptId: attempt.id,
       programId: attempt.program_id,
     });
