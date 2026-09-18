@@ -112,10 +112,14 @@ describe('bd-2503 — a certificate is what makes a no-exam level terminal', () 
     expect(s.body).not.toMatch(/finish all sessions/i);
   });
 
-  it('an UNfinished no-exam level still says finish the sessions', async () => {
+  it('an UNfinished no-exam level shows NOTHING rather than explaining', async () => {
     seed({ allDone: false, certified: false });
     const s=await ep().loadGrandQuizState(UID, LEVEL);
-    expect(s.body).toMatch(/finish all sessions/i);
+    // bd-60130 — was /finish all sessions/i. A level with no exam now renders
+    // a blank slot: the teacher's progress is already on the screen above, and
+    // narrating the absence of an exam reads as breakage.
+    expect(s.body.trim()).toBe('');
+    expect(s.body).not.toMatch(/finish all sessions/i);
   });
 
   it('finished but not yet certified is not falsely marked certified', async () => {

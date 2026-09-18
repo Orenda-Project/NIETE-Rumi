@@ -67,8 +67,11 @@ profiles:
   # unchanged (media rides the mock; a private redis + the queue worker run the pipelines). Flows are
   # NOT rendered here — every Flow scenario records BLOCKED/SKIP through its own branch, never PASS.
   # Vendors are cassette replay-strict: a miss fails the run loudly instead of going live.
-  # `number` is a placeholder (there is no WhatsApp number); the driver is a fixed synthetic
-  # phone that exists only in the sandbox DB. Select with:  run-suite.sh <features> --method mock
+  # `number` is a placeholder (there is no WhatsApp number). The driver is a synthetic phone that exists
+  # only in the sandbox DB and is PER MACHINE: run-suite.sh resolves it with .claude/qa/shared/mock_driver.py
+  # (hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it). `test_driver` below is only the last-resort
+  # fallback if that resolver cannot run — two machines sharing it interleaved on the sandbox DB (bd-yj4e4).
+  # Select with:  run-suite.sh <features> --method mock
   niete-local:
     tenant: NIETE (ICT / Islamabad) — LOCAL MOCK
     env: sandbox

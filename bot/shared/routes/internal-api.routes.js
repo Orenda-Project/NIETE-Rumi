@@ -314,6 +314,59 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
 });
 
 /**
+ * POST /api/internal/training/certify-level
+ * Body { userId, levelId, attemptId?, programId?, moduleId? }
+ *   -> { success, issued, certificate_code?, level_name?, teacher_name?, pdf_r2_key? }
+ *
+ * bd-60145 — the portal's only way to certify a level.
+ *
+ * Before this, `dashboard/routes/portal.routes.js` called `issueCertificate`
+ * DIRECTLY the moment an attempt passed, from the capstone and grand-quiz
+ * routes. That skips every completeness check: it is the portal's copy of
+ * bd-60139, where a single pass minted a certificate without asking whether
+ * the units were finished or the per-module exams passed. And no portal route
+ * certified a per-module-assessed level at all, so an I-SAPS teacher who
+ * finished everything was certified by nothing (bd-60142, one surface over).
+ *
+ * The guard is `maybeIssueQuizScoreCertificate`, unchanged and shared — the
+ * portal gets the SAME decision WhatsApp gets, which is the whole point of
+ * this internal API. `levelId` is accepted because a module-exam attempt
+ * carries training_module_id = NULL (bd-60144); passing that null is what made
+ * the guard bail on its first lookup.
+ *
+ * Idempotent: the guard refuses a second certificate for a (user, level), so a
+ * retry or a double submit cannot mint two.
+ */
+router.post('/training/certify-level', requireInternalKey, async (req, res) => {
+  const body = req.body || {};
+  const { userId } = body;
+  const levelId = num(body.levelId);
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });
+
+  try {
+    const supabase = require('../config/supabase');
+    const { maybeIssueQuizScoreCertificate } = require('../services/training/certificate.service');
+    const result = await maybeIssueQuizScoreCertificate(supabase, {
+      userId,
+      levelId,
+      // Optional: the quick-check path still has a module, and passing it
+      // changes nothing when levelId is supplied.
+      moduleId: body.moduleId === undefined ? null : body.moduleId,
+      attemptId: body.attemptId || null,
+      programId: body.programId || null,
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    // Fail CLOSED: a lookup failure must read as "not certified", never as a
+    // certificate. The caller's own write (the graded attempt) is already
+    // committed by this point and is not affected.
+    logToFile('❌ Internal training API failed', { route: 'certify-level', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Certification failed' });
+  }
+});
+
+/**
  * POST /api/internal/training/mark-paper
  * Body { questions:[{id, correct_option, order_index}], answers:[{question_id, chosen_option}] }
  *   → { success, graded, score, total_questions, has_unknown_question, has_duplicate_answer }

@@ -79,6 +79,10 @@ const VOLATILE = [
   [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g, '<iso>'],
   [/\b\d{4}-\d{2}-\d{2}\b/g, '<date>'],
   [/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, '<date>'],   // M/D/YYYY — toLocaleDateString('en-US', numeric); the coaching prior-feedback date
+  // The mock lane's synthetic driver is PER MACHINE (92300 + 7 digits, .claude/qa/shared/mock_driver.py,
+  // 2026-09-18). If a prompt carries it, a cassette recorded on one machine must still replay on another —
+  // fold the synthetic range to one token. Real subscribers are never in this range and are left alone.
+  [/\b92300\d{7}\b/g, '<driver>'],
   [/\b\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM|am|pm)?\b/g, '<time>'],
   // Relative-time labels the bot builds FROM THE CLOCK and writes into prompts: lp-context.agoLabel
   // ("13h ago" / "45m ago" / "3d ago"), context.service._getTimeAgo ("2 hours ago" / "yesterday" /

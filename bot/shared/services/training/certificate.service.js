@@ -27,6 +27,7 @@
  * deployment name.
  */
 const { logToFile } = require('../../utils/logger');
+const { allModuleExamsPassed } = require('./isaps-module-exam.rules');
 
 const FALLBACK_PREFIX = 'CERT';
 
@@ -173,17 +174,43 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
  */
 const QUIZ_CERT_PASS_PCT = 0.7;
 
-async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, attemptId, programId }) {
+async function maybeIssueQuizScoreCertificate(
+  supabase, { userId, moduleId, levelId = null, attemptId, programId },
+) {
   try {
-    const { data: mod } = await supabase
-      .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
-    if (!mod || !mod.course_id) return { issued: false };
-    const { data: course } = await supabase
-      .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
-    if (!course) return { issued: false };
-    const { data: level } = await supabase
-      .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();
-    if (!level) return { issued: false };
+    // bd-60144 — the level can arrive DIRECTLY, because a module exam has no
+    // module to resolve it through.
+    //
+    // This function was written for the unit quick-check path, where the only
+    // thing in hand is the module that was just completed, so it walked
+    // module → course → level. A module EXAM attempt stores
+    // training_module_id = NULL (it is keyed by grand_quiz_id), so passing that
+    // value made the FIRST query return nothing and the guard returned
+    // { issued: false } before reaching a single gate. A teacher could finish
+    // all 54 units and all 9 exams and be certified by nothing — the gates were
+    // right, but none of them ever ran.
+    //
+    // The caller that knows its level now says so. The quick-check path passes
+    // no levelId and resolves through the module exactly as before, so every
+    // other vendor is untouched.
+    let levelRow = null;
+    if (levelId !== null && levelId !== undefined) {
+      const { data: lvl } = await supabase
+        .from('training_levels').select('id, name, vendor_id').eq('id', levelId).maybeSingle();
+      levelRow = lvl || null;
+    } else {
+      const { data: mod } = await supabase
+        .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
+      if (!mod || !mod.course_id) return { issued: false };
+      const { data: course } = await supabase
+        .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
+      if (!course) return { issued: false };
+      const { data: lvl } = await supabase
+        .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();
+      levelRow = lvl || null;
+    }
+    if (!levelRow) return { issued: false };
+    const level = levelRow;
     const { data: vendor } = await supabase
       .from('training_vendors').select('id, unlock_logic').eq('id', level.vendor_id).maybeSingle();
     if ((vendor?.unlock_logic || 'chain') === 'chain') return { issued: false };
@@ -197,6 +224,34 @@ async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, atte
       .eq('is_active', true)
       .maybeSingle();
     if (capstone) return { issued: false };
+
+    // bd-60139 — a per-module-assessed level certifies on its module EXAMS,
+    // not on its unit quick-checks.
+    //
+    // Everything below this point is the Oxbridge rule: all units complete,
+    // each unit quick-check >= 70%. That is the whole of "finished" for a
+    // vendor whose only assessment IS the quick-check. I-SAPS is not such a
+    // vendor — it puts a summative exam after each module — so the Oxbridge
+    // rule certified it the instant the last unit was ticked, which on sandbox
+    // meant a certificate issued while EIGHT of nine module exams had never
+    // been taken and the ninth was still in progress. The teacher was
+    // congratulated and sent a PDF, then immediately offered the exam.
+    //
+    // Read the level's exams and require every ACTIVE per-module one to be
+    // passed. A level with no per-module exams returns true from the rule, so
+    // every other vendor reaches the code below exactly as before.
+    const { data: levelQuizzes } = await supabase
+      .from('training_grand_quizzes')
+      .select('id, source_quiz_id, quiz_type, is_active')
+      .eq('level_id', level.id);
+    const { data: examAttempts } = await supabase
+      .from('training_assessment_attempts')
+      .select('grand_quiz_id, is_passed')
+      .eq('user_id', userId)
+      .eq('quiz_kind', 'grand');
+    if (!allModuleExamsPassed(levelQuizzes || [], examAttempts || [])) {
+      return { issued: false };
+    }
 
     // One certificate per (user, level). bd-2670: this was a `.maybeSingle()`,
     // which 406s once duplicates exist — the throw was swallowed and the guard

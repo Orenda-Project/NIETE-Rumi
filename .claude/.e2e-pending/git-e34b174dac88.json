@@ -1,0 +1,28 @@
+{
+ "session": "git",
+ "repo": "bd-60147",
+ "branch": "isaps-to-staging",
+ "sha": "e34b174dac88",
+ "commit_sha": "e34b174dac8806b4fd8a48ba8f70055a2092d2c7",
+ "trigger": "git-commit",
+ "mode": "execute",
+ "armed_at": "2026-09-18T17:00:38Z",
+ "nudged": false,
+ "spec_sync": true,
+ "spec_hashes": {
+  "training": {
+   "hash": "2c0e14ca86366b06f808afb4aef60753e9f1f0e0a55098202162d9e8a4bf6002",
+   "path": "tests/features/whatsapp/niete/training.feature"
+  }
+ },
+ "spec_declared": {},
+ "phase1_blocks": 0,
+ "commands": [
+  "/niete-e2e training"
+ ],
+ "features": [
+  "training"
+ ],
+ "fallback": false,
+ "unmapped": []
+}

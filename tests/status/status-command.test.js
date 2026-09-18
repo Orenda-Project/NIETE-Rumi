@@ -163,6 +163,46 @@ describe('the /status branch routes through the decision (bd-60059)', () => {
     expect(statusBranch()).toContain('decideStatusReply');
   });
 
+  // Every arm of this branch is a thing that happened to a teacher, so every arm
+  // has to leave a trace. The chat-LIST arm had none. That cost nothing while it
+  // was only reachable with no Flow published — which on production is never —
+  // but the all-unstoppable routing made it the arm a training-only teacher
+  // takes WITH the Flow published, and that is now the common case. A feature
+  // built for visibility whose main path cannot be seen in Axiom is the same
+  // class of bug this file's own workstream keeps closing.
+  it('every arm of the branch leaves a log, including the chat-list one', () => {
+    const branch = stripComments(statusBranch());
+
+    // Split on the arms so a log line in one cannot satisfy the assertion for
+    // another — the whole failure was that three arms logged and one did not.
+    // Bounded at the `catch`, NOT at the end of the branch: the catch block logs
+    // too, and an unbounded slice swallows it and passes against the very shape
+    // this test exists to reject. (It did, on the first run.)
+    const from = branch.indexOf('Running for you');
+    const to = branch.indexOf('catch', from);
+    expect(from).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    const listArm = branch.slice(from, to);
+
+    expect(branch).toContain('Status flow sent');
+    expect(branch).toContain('nothing running');
+    expect(listArm).toContain('logToFile');
+  });
+
+  it('CONTROL: the chat-list log assertion really can fail', () => {
+    // The shipped shape, which had no logToFile after "Running for you".
+    const preFix = stripComments([
+      '} else {',
+      '  await WhatsAppService.sendMessage(from,',
+      '    `Running for you:\n${items.map(it => `• ${it.title}`).join("\n")}`);',
+      '}',
+    ].join('\n'));
+    const f = preFix.indexOf('Running for you');
+    const t = preFix.indexOf('catch', f);
+    const listArm = preFix.slice(f, t > f ? t : undefined);
+    expect(listArm).not.toContain('logToFile');
+  });
+
   it('CONTROL: the ordering assertion really can fail', () => {
     // Mutation-test the guard itself. Language-protocol §7, failure mode 3: a
     // guard never proven capable of failing is not evidence. This is the
