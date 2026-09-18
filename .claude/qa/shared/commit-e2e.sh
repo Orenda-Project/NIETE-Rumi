@@ -83,6 +83,18 @@ done
 [ -n "$LATER" ] && echo "│ chrome lane only (not in the mock lane yet): $LATER"
 if [ -z "$RUN" ]; then echo "└ nothing for the mock lane to drive — done."; exit 0; fi
 
+# 3b. can THIS machine run the lane at all? Say so NOW with the fix — not exit 14 deep inside
+# local-stack.sh after the worktree and results dir exist (how PR #1084 shipped `e2e: missing`).
+if type e2e_mock_lane_ready >/dev/null 2>&1; then
+  _MAIN=$(e2e_main_checkout "$ROOT")
+  if ! _WHY=$(e2e_mock_lane_ready "$_MAIN"); then
+    echo "│ machine:   NOT READY for the mock lane"
+    e2e_mock_not_ready_block "$_WHY" | sed 's/^/│ /'
+    echo "└ nothing ran (exit 3). Fix once, then re-run this exact command."
+    exit 3
+  fi
+fi
+
 # 4. the gate
 python3 "$QA/validate_specs.py" --only "$RUN" >"$PEND/mock-$SHORT.validate.log" 2>&1; VEXIT=$?
 if [ "$VEXIT" -ne 0 ]; then
