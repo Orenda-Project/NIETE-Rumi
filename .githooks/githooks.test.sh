@@ -69,6 +69,10 @@ has "terminal output names the next command" "$err" "/sync-specs" yes
 # tells the developer the one command that tests this commit without a browser.
 say "marker carries the full commit_sha" "$(python3 -c "import json;print(len(json.load(open('$PEND/git-$sha.json'))['commit_sha']))" 2>/dev/null)" "40"
 has "terminal output names the mock lane" "$err" "commit-e2e.sh" yes
+# The throwaway repo has no keys/niete-local.env and (see the PATH below) no redis-server, so the hook
+# must say the mock lane CANNOT run here and how to fix it — not hand the developer a command that dies
+# with exit 14 on the agent's turn (PR #1084 shipped `e2e: missing` exactly that way).
+has "…and says the mock lane is not runnable on this machine" "$err" "provision-local-keys.sh" yes
 
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')
