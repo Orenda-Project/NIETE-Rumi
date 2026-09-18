@@ -70,7 +70,7 @@ describe('e2e-cassette: keys', () => {
   });
   test('a real-looking number outside the synthetic range is left alone', () => {
     const c = fresh({});
-    expect(c.normaliseForKey('from 923295012345.')).toBe('from 923295012345.');
+    expect(c.normaliseForKey('from 923459876543.')).toBe('from 923459876543.');
     expect(c.normaliseForKey('from 92300123456.')).toBe('from 92300123456.');   // 11 digits: not the range
   });
 });
