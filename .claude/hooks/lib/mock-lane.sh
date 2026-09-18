@@ -91,3 +91,56 @@ miss fails loudly and names the scenarios; it never goes live. Flows are never
 rendered here — Flow scenarios record BLOCKED, not PASS. Read the rows it prints.
 EOF
 }
+
+# ── Machine readiness (2026-09-18) ────────────────────────────────────────────────────────────
+# The lane is "part of the hook" only if the hook can SAY, before an agent's turn, whether this
+# machine can run it. Until now the first signal was exit 14 deep inside local-stack.sh — after the
+# commit, after the worktree and results dir existed — so a developer without keys/niete-local.env
+# was handed a command that could never run, and the ledger read `e2e: missing` (PR #1084).
+# These three helpers give post-commit, the SessionStart banner and commit-e2e.sh one shared answer.
+
+# e2e_main_checkout "<repo>" → the MAIN checkout even from a worktree (gitignored keys/ live there).
+e2e_main_checkout() {
+  local repo="$1" common
+  common=$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null) || { printf '%s' "$repo"; return; }
+  case "$common" in /*) ;; *) common="$repo/$common" ;; esac
+  dirname "$common"
+}
+
+# e2e_keys_dir "<main>" → <main>/keys, else the workspace-level ../keys. Mirrors local-stack.sh:39 —
+# the FILE is checked, so a stray shadow keys/ (one carrying only niete-staging.env) cannot mask it.
+e2e_keys_dir() {
+  local d="$1/keys"
+  [ -f "$d/niete-local.env" ] || d="$(dirname "$1")/keys"
+  printf '%s' "$d"
+}
+
+# e2e_mock_lane_ready "<main>" → one missing precondition per line on stdout; returns 0 iff none.
+# Exactly the two things local-stack.sh refuses without (exit 14 and exit 16); nothing speculative.
+e2e_mock_lane_ready() {
+  local main="$1" kd missing=0
+  kd=$(e2e_keys_dir "$main")
+  if [ ! -f "$kd/niete-local.env" ]; then
+    printf 'keys/niete-local.env missing (looked in %s/keys and %s/keys)\n' "$main" "$(dirname "$main")"
+    missing=1
+  fi
+  if ! command -v redis-server >/dev/null 2>&1; then
+    printf 'redis-server not on PATH\n'
+    missing=1
+  fi
+  return $missing
+}
+
+# e2e_mock_not_ready_block "<lines from e2e_mock_lane_ready>" → the warning + the one-time fix per item.
+e2e_mock_not_ready_block() {
+  local why="$1"
+  echo "⚠ MOCK LANE NOT RUNNABLE ON THIS MACHINE — a commit's commit-e2e.sh run stops before starting anything:"
+  printf '%s\n' "$why" | sed 's/^/    · /'
+  echo "  fix (once per machine):"
+  case "$why" in *niete-local.env*)
+    echo "    bash bot/scripts/e2e/provision-local-keys.sh    # sandbox DB lines + staging Flow/storage/portal ids; placeholders for everything else (docs/e2e-mock-lane.md § Setup)" ;;
+  esac
+  case "$why" in *redis-server*)
+    echo "    brew install redis                                # the stack starts a private redis-server per run" ;;
+  esac
+}
