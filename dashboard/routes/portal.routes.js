@@ -3065,12 +3065,30 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       }
     }
 
+    // bd-60149 — does each unit have a formative assessment of its own?
+    //
+    // The I-SAPS list interleaves "Unit 301 / Unit 301 — Assessment", and the
+    // assessment row must NOT render for a unit that has no questions: two of
+    // the level's 54 units (302, 303) have none, and a blank row for them
+    // would promise work that does not exist. The detail endpoint already
+    // reports this per unit; the LIST needs it too, in one query.
+    const qMap = new Map();
+    if (moduleIds.length) {
+      const { data: qRows } = await supabase
+        .from('training_questions')
+        .select('training_module_id')
+        .in('training_module_id', moduleIds)
+        .eq('is_active', true);
+      for (const r of qRows || []) qMap.set(r.training_module_id, true);
+    }
+
     const enriched = (modules || []).map(m => ({
       id: m.id, title: m.title, order_index: m.order_index,
       duration_seconds: m.duration_seconds,
       has_video: !!m.video_url,
       has_audio: !!m.audio_url,
       has_pdf: _isPdfSourceUrl(m.source_media_url),
+      has_questions: qMap.has(m.id),
       completed_at: completedMap.get(m.id) || null,
     }));
     // bd-60149 — the module's own summative exam, alongside its units.
