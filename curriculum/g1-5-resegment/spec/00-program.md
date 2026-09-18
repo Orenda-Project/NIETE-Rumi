@@ -31,6 +31,7 @@ that reaches her phone points at the same SLO the plan does.
 | 3 | **Core remaining chapters push** | Finishing the four core subjects: English + Maths boundary rebuild, the Maths CPA hole, the Urdu vocabulary hole, SLO normalisation | [03-core-remaining.md](03-core-remaining.md) |
 | 4 | **Segmentation** | The engine underneath all three: row grammar, day rules, page-overlap model, SLO role model, the review gate | [04-segmentation.md](04-segmentation.md) |
 | — | **Media** | Video→SLO mapping from the 915-video catalogue, and the voice note that carries the moves | [05-media.md](05-media.md) |
+| — | **LP production** | The authoring law for the HTML profile: section registry, the measured per-surface word budget, and why "reduce the script" is a Stage-C rule and not a renderer one | [07-lp-production.md](07-lp-production.md) |
 
 ---
 
@@ -71,7 +72,7 @@ These are measured, not assumed. Each is verifiable in the workbook today.
   Maths G1–5, Science G4–5.
 - **FDE omits nothing.** 233 chapters across all 17 core books; the FDE
   syllabus breakdown schedules every one. Verified 16 Sep 2026 and recorded on
-  the FDE Syllabus tab. *An earlier version of this programme was built on the
+  the Calendar — assumptions tab. *An earlier version of this programme was built on the
   premise that FDE drops chapters and that the dropped chapters give us room.
   That premise was wrong and is retracted.*
 - **The room is still real, for a different reason.** The books are shorter than

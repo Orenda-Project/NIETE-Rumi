@@ -1,7 +1,7 @@
 """Skills Map — when in the year a skill appears, and how that moves G1 → G5.
 
-The Skill Taxonomy tab already counts days, so this tab never repeats a count.
-It answers what a count cannot: WHERE in the year a skill sits (a track per
+The Coverage Map already counts days, so this tab never repeats a count. It
+answers what a count cannot: WHERE in the year a skill sits (a track per
 skill-and-grade, the grade's days cut into 40 equal slices in block characters
 — never a chart object, which floats over a grid this build rewrites every
 run); HOW IT MOVES DOWN THE GRADES (the Coverage Map groups by grade; this tab
@@ -11,16 +11,26 @@ the year" side by side); and WHAT SHAPE A CHAPTER HAS (one modal template per
 grade, follow/deviate counted, never every chapter). Loops run off
 `labels_seen_in_data`, never skills.ORDER — ORDER is missing the live Science
 label `review_assess` and an ORDER-driven loop drops it silently.
+
+POSITION comes from `skillsmap.json`; ABSENCE does not. This is the only
+analysis tab built from a snapshot, so it is the only one that can fall behind
+the build, and for one build it did: it called Maths Abstract and Grade 4
+Concrete never taught while the Coverage Map counted their days two tabs away
+(bd-hlq38). Every claim that a skill has no teaching is now settled against
+the live corpus through `skilltaught`, and the snapshot is only allowed to
+narrow a claim the corpus already supports. See `skilltaught` for what the
+snapshot is still the only source of.
 """
 import collections
 
 import skills
+import skilltaught
 from skilldelta import delta_block          # noqa: F401
 # The tab's column roles, characters, colour ramp and row helpers.
 from skillgrid import *                                  # noqa: F401,F403
 
 
-def timeline_block(subject, subj, keymap, labels):
+def timeline_block(subject, subj, keymap, labels, live):
     """Skill on the outside, G1..G5 stacked under it. Returns local markers."""
     grades = sorted(subj["grades"])
     seqs = {g: [lab for lab, n in subj["grades"][g]["day_sequence_runs"]
@@ -64,6 +74,20 @@ def timeline_block(subject, subj, keymap, labels):
                 line[NOTE_C] = f"chapter-close slot only — {slots} slots, " \
                                f"no Day N row"
                 line[TRACK_C] = VOID * SLICES
+                slotonly.append(len(rows))
+            elif skilltaught.days(live, subject, key, g):
+                # The build teaches it and this snapshot has no day sequence
+                # to draw it from, which is a statement about the snapshot,
+                # not about the teaching (bd-tphbz). A track drawn from
+                # nothing would be a proxy for days we cannot place, so the
+                # row says what it does not know and points at the tab that
+                # does. Marked slot-only, not absent: italic grey, because
+                # like a chapter-close slot this is taught and unplaced,
+                # and nothing here may be struck through.
+                line[NOTE_C] = (f"{skilltaught.days(live, subject, key, g)} "
+                                f"days in the build, not in this snapshot")
+                line[TRACK_C] = ("taught — the Coverage Map counts its days; "
+                                 "no position here yet")
                 slotonly.append(len(rows))
             else:
                 line[NOTE_C] = "never appears in this grade"
@@ -113,8 +137,8 @@ def template_block(data, keymap):
 
 
 
-def absence_block(gaps):
-    """Two different findings that both look like "this skill has no day row".
+def absence_block(gaps, live):
+    """Three different findings that all look like "this skill has no day row".
 
     The timeline blocks find a skill with no days in a grade; comparing the
     subject's vocabulary against the data finds one with no days anywhere. A
@@ -132,12 +156,28 @@ def absence_block(gaps):
     the tab beside it as never taught at all. A row's own wording cannot undo
     the heading above it, so the two are separated here: a gap is struck, a
     basics period is a note under its own heading.
+
+    The third is a skill the live build teaches and the snapshot has not
+    caught up with. `live` is the Coverage Map's own tally and it vetoes any
+    proposal it counts days for, so nothing it teaches can be struck; that is
+    the one choke point every absence passes through, and a caller proposing
+    a false gap for a new reason still cannot print one. The veto applies to
+    the struck list only — a basics period has no day row by design and is
+    not a claim the corpus can settle. But dropping a vetoed skill in silence
+    is its own failure: Maths Abstract has no track above it either, so the
+    tab would stop mentioning a skill the build gives forty days to. It gets
+    a third heading of its own, and names the tab that does know its days.
     """
     rows = [["WHAT IS NEVER TAUGHT — a skill the subject's vocabulary carries "
              "and the teaching does not touch; what a grade teaches in that "
              "place instead is not in this file"], list(HEAD_AB)]
-    real = [(subject, key, g) for subject, key, g in gaps if key not in BASICS]
+    real = [(subject, key, g) for subject, key, g in gaps
+            if key not in BASICS
+            and not skilltaught.days(live, subject, key, g)]
     kept = [(subject, key, g) for subject, key, g in gaps if key in BASICS]
+    lagged = [(subject, key, g) for subject, key, g in gaps
+              if key not in BASICS
+              and skilltaught.days(live, subject, key, g)]
     struck, basics, heads = [], [], []
 
     def add(subject, key, g, note, track):
@@ -172,11 +212,29 @@ def absence_block(gaps):
             add(subject, key, g, "a basics period, not a textbook day",
                 "allocated on the Teaching Calendar, inside the "
                 "chapter the class is in")
+    if lagged:
+        rows.append([""] * N_COLS)
+        heads.append(len(rows))
+        rows.append(["TAUGHT, BUT NOT IN THIS SNAPSHOT — the build teaches "
+                     "these and skillsmap.json was written before it did, so "
+                     "there is no track above to draw them from (bd-tphbz)"])
+        rows.append(list(HEAD_AB))
+        for subject, key, g in lagged:
+            # Slot-grey, not struck: taught and unplaced is what a
+            # chapter-close slot is, and nothing here may be struck through.
+            basics.append(len(rows))
+            add(subject, key, g, "taught in the build, not in this snapshot",
+                "counted on the Coverage Map; no day row in this file")
     return rows, struck, basics, heads
 
 
-def build(data, onsets=None):
+def build(data, corpus, onsets=None):
     """Returns (rows, plan). Rows are padded to plan['n_cols'].
+
+    `corpus` is the in-memory corpus this run built, in the same shape covtab
+    is handed — `{subject: [(grade, rows, stats)]}`. It is what decides every
+    absence claim on the tab, and it has no default on purpose: the tab was
+    wrong for as long as it was possible to build it without one.
 
     `onsets` comes from caltab's plan and is the only thing on this tab that
     knows about the calendar. Everything else here — the tracks, the chapter
@@ -186,6 +244,7 @@ def build(data, onsets=None):
     # skills.KEY_BY_LABEL: it is what the analysis actually saw.
     keymap = {(r["subject"], r["label"]): r["key"]
               for r in data["skill_reference"]}
+    live = skilltaught.counts(corpus)
     out, tint, cells, sections = [], [], [], []
     absent, slotonly, prose, gaps = [], [], [], []
     out += [[TITLE], [CONVENTION], list(HEAD_TOP), [LEGEND], [""] * N_COLS]
@@ -196,10 +255,13 @@ def build(data, onsets=None):
             continue
         sections.append(len(out))
         block, t, ab, so, gp = timeline_block(
-            subject, subj, keymap, data["labels_seen_in_data"][subject])
+            subject, subj, keymap, data["labels_seen_in_data"][subject], live)
         gaps += gp
         # A skill absent from every grade never gets a track, so it is found
-        # here by comparing the vocabulary against what the data shows.
+        # here by comparing the vocabulary against what the data shows. This
+        # reads the snapshot, so what it produces is a PROPOSAL — absence_block
+        # settles it against the live corpus. Maths Abstract came from exactly
+        # this line, and was true of the snapshot and false of the build.
         seen = set(data["labels_seen_in_data"][subject])
         gaps += [(subject, k, None) for k in skills.ORDER.get(subject, ())
                  if skills.label(k, subject) not in seen]
@@ -222,7 +284,7 @@ def build(data, onsets=None):
     sections.append(len(out))
     out += template_block(data, keymap)
     sections.append(len(out))
-    block, ab, kept, heads = absence_block(gaps)
+    block, ab, kept, heads = absence_block(gaps, live)
     absent += [len(out) + r for r in ab]
     slotonly += [len(out) + r for r in kept]
     sections += [len(out) + r for r in heads]

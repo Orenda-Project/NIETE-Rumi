@@ -3,19 +3,16 @@
     python3 build.py            # all four subjects
     python3 build.py English    # one subject (the others are left untouched)
 """
-import glob
 import os
 import sys
 
+import buildload
+import calfde
 import calfmt
-import calover
 import caltab
 import covfmt
-import corpuscheck
 import covtab
-import fde
 import fdefmt
-import fdetab
 import flntab
 import navtab
 import reviewtab
@@ -23,29 +20,22 @@ import skillfmt
 import skillmap
 import skills
 import sheetio
-import stageb
 import support
 import tabs
 
-# The corpus lives in `corpus/` beside this file and is NOT committed: its
-# licence is restricted-educational-internal, so page-truth, the pipeline
-# intermediates and any rendered output stay local (see ../.gitignore). Point
-# the env vars elsewhere to build from a corpus kept outside the repo.
-HERE = os.path.dirname(os.path.abspath(__file__))
-CORPUS = os.environ.get("CORPUS_DIR", os.path.join(HERE, "corpus"))
-
-FDE_DIR = os.environ.get("FDE_DIR", os.path.join(CORPUS, "fde"))
-
-SKILLSMAP_JSON = os.environ.get("SKILLSMAP_JSON",
-                                os.path.join(CORPUS, "skillsmap.json"))
-
-SEG_DIR = os.environ.get("SEG_DIR", os.path.join(CORPUS, "seg"))
+# Re-exported from buildload, which owns the corpus paths, so a caller that
+# already reaches for build.SEG_DIR or build.load_corpus() still finds them.
+CORPUS = buildload.CORPUS
+FDE_DIR = buildload.FDE_DIR
+SKILLSMAP_JSON = buildload.SKILLSMAP_JSON
+SEG_DIR = buildload.SEG_DIR
+load_corpus = buildload.load_corpus
 
 SUBJECT_TABS = {"English": "English G1–5", "Urdu": "Urdu G1–5",
                 "Maths": "Maths G1–5", "Science": "Science G4–5"}
 
-TAB_ORDER = ["Navigation", "Teaching Calendar", "Calendar (overview)",
-             "FDE Syllabus", "English G1–5",
+TAB_ORDER = ["Navigation", "Teaching Calendar",
+             "Calendar — assumptions", "English G1–5",
              "Urdu G1–5", "Maths G1–5", "Science G4–5",
              "Coverage Map", "Coverage — gaps", "FLN Coverage",
              "Skills Map",
@@ -55,8 +45,8 @@ TAB_ORDER = ["Navigation", "Teaching Calendar", "Calendar (overview)",
 NAV_LABEL_TO_TAB = {v: v for v in SUBJECT_TABS.values()}
 NAV_LABEL_TO_TAB.update({t: t for t in ("All Segments + SLOs", "Skill Taxonomy",
                                         "Pipeline Stages", "Navigation",
-                                        "Teaching Calendar", "FDE Syllabus",
-                                        "Calendar (overview)",
+                                        "Teaching Calendar",
+                                        "Calendar — assumptions",
                                         "Coverage Map", "Coverage — gaps",
                                         "FLN Coverage", "Skills Map",
                                         "Samples Review",
@@ -71,46 +61,13 @@ def send(svc, requests, size=200):
             body={"requests": requests[i:i + size]}).execute()
 
 
-def load_corpus():
-    corpuscheck.require(SEG_DIR, FDE_DIR, SKILLSMAP_JSON)
-    by_subject, runs, books, breaks = {}, [], [], {}
-    for path in sorted(glob.glob(os.path.join(SEG_DIR, "grade_*.json"))):
-        stem, grade, subject, meta, segments = stageb.load_book(path)
-        rec = fde.load(FDE_DIR, stem)
-        syllabus = set(rec["chapters"]) if rec else None
-        rows, st = stageb.build_rows(stem, grade, subject, segments, syllabus)
-        by_subject.setdefault(subject, []).append((grade, rows, st))
-        runs.append((grade, subject, segments, syllabus))
-        books.append((grade, subject, st, rows, rec))
-        for w in (rec["weeks"] if rec else []):
-            if w["kind"] == "break":
-                breaks.setdefault(w["title"], []).append(stem)
-    for subject in by_subject:
-        by_subject[subject].sort(key=lambda t: t[0])
-    order = {"English": 0, "Urdu": 1, "Maths": 2, "Science": 3}
-    runs.sort(key=lambda t: (t[0], order[t[1]]))
-    return by_subject, runs, books, breaks
-
-
 def main():
     only = sys.argv[1] if len(sys.argv) > 1 else None
-    # `books` is shadowed twice below, so the whole-corpus list keeps its
-    # own name. It is the only list that carries the FDE record per book.
-    corpus, runs, all_books, breaks = load_corpus()
+    # `books` is rebound per subject below, so the whole-corpus list keeps
+    # its own name. It is the only list carrying the FDE record per book.
+    corpus, runs, all_books, breaks = buildload.load_corpus()
 
-    subject_stats, all_rows = [], []
-    for subject in ("English", "Urdu", "Maths", "Science"):
-        books = corpus.get(subject, [])
-        days = sum(b[2]["days"] for b in books)
-        rows_n = sum(b[2]["rows"] for b in books)
-        subject_stats.append((subject, {
-            "days": days, "tails": rows_n - days,
-            "introduces": sum(b[2]["introduces"] for b in books),
-            "overlapping": sum(b[2]["overlapping"] for b in books)}))
-        for _, rows, _ in books:
-            all_rows.extend(rows)
-    total = {k: sum(s[1][k] for s in subject_stats)
-             for k in ("days", "tails", "introduces", "overlapping")}
+    _stats, all_rows, total = buildload.subject_totals(corpus)
 
     payload = {}
     for subject, title in SUBJECT_TABS.items():
@@ -125,34 +82,33 @@ def main():
         titles = TAB_ORDER
     cols = {t: len(v[0][0]) for t, v in payload.items()}
     cal_rows, cal_plan = caltab.build(runs)
-    over_rows, over_plan = calover.build(cal_plan["stats"])
+    over_rows, over_plan = calfde.build(cal_plan["stats"], all_books,
+                                        breaks)
     cov_rows, cov_plan = covtab.build(corpus)
     gap_rows, gap_plan = covtab.gaps_build(corpus)
     fln_rows, fln_plan = flntab.build(cal_rows, cal_plan)
-    map_rows, map_plan = skillmap.build(skillmap.load(SKILLSMAP_JSON),
+    map_rows, map_plan = skillmap.build(skillmap.load(SKILLSMAP_JSON), corpus,
                                        cal_plan["onsets"])
-    fde_rows, fde_plan = fdetab.build(all_books, breaks)
     rev_rows, rev_plan = reviewtab.samples_review()
     qa_rows, qa_plan = reviewtab.qa_checklist()
-    cols.update({"All Segments + SLOs": 15, "FDE Syllabus": 10,
+    cols.update({"All Segments + SLOs": 15,
                  "Navigation": navtab.N_COLS,
                  "Samples Review": rev_plan["n_cols"],
                  "QA Checklist": qa_plan["n_cols"],
-                 "Skill Taxonomy": 7, "Pipeline Stages": 6,
+                 "Skill Taxonomy": support.TAX_COLS, "Pipeline Stages": 6,
                  "Teaching Calendar": cal_plan["n_cols"],
-                 "Calendar (overview)": over_plan["n_cols"],
+                 "Calendar — assumptions": over_plan["n_cols"],
                  "Coverage Map": cov_plan["n_cols"],
                  "Coverage — gaps": gap_plan["n_cols"],
                  "FLN Coverage": fln_plan["n_cols"],
                  "Skills Map": map_plan["n_cols"]})
     heights = {t: len(v[0]) + 2 for t, v in payload.items()}
     heights.update({"Teaching Calendar": len(cal_rows),
-                    "Calendar (overview)": len(over_rows),
+                    "Calendar — assumptions": len(over_rows),
                     "Coverage Map": len(cov_rows),
                     "Coverage — gaps": len(gap_rows),
                     "FLN Coverage": len(fln_rows) + 2,
                     "Skills Map": len(map_rows),
-                    "FDE Syllabus": len(fde_rows),
                     "Samples Review": len(rev_rows),
                     "QA Checklist": len(qa_rows),
                     "All Segments + SLOs": len(all_rows) + 12})
@@ -188,19 +144,16 @@ def main():
     if only:
         return
 
-    sheetio.write_values(svc, "FDE Syllabus", fde_rows)
-    fdefmt.format_fde(svc, ids["FDE Syllabus"], fde_rows, fde_plan)
-    print(f"FDE Syllabus: {len(fde_rows)} rows")
-
     sheetio.write_values(svc, "Teaching Calendar", cal_rows)
     calfmt.format_calendar(svc, sheetio, ids["Teaching Calendar"],
                            cal_rows, cal_plan)
     print(f"Teaching Calendar: {len(cal_rows)} rows x {cal_plan['n_cols']} cols")
 
-    sheetio.write_values(svc, "Calendar (overview)", over_rows)
-    calfmt.format_overview(svc, sheetio, ids["Calendar (overview)"],
+    sheetio.write_values(svc, "Calendar — assumptions", over_rows)
+    calfde.format_overview(svc, sheetio, ids["Calendar — assumptions"],
                            over_rows, over_plan)
-    print(f"Calendar (overview): {len(over_rows)} rows")
+    print(f"Calendar — assumptions: {len(over_rows)} rows x "
+          f"{over_plan['n_cols']} cols")
 
     sheetio.write_values(svc, "Coverage Map", cov_rows)
     covfmt.format_coverage(svc, sheetio, ids["Coverage Map"],
@@ -256,17 +209,18 @@ def main():
         "than run in parallel. Same colour, same kind of cognitive work, "
         "whichever subject you are reading.")
     sheetio.write_values(svc, "Skill Taxonomy", tax)
-    sheetio.format_grid(svc, ids["Skill Taxonomy"], len(tax), 7, freeze_cols=2,
+    sheetio.format_grid(svc, ids["Skill Taxonomy"], len(tax),
+                        support.TAX_COLS, freeze_cols=2,
                         head_row=head, band=True,
-                        widths={0: 70, 1: 210, 4: 90, 5: 520, 6: 260})
+                        widths={0: 70, 1: 210, 3: 90, 4: 520, 5: 260})
     send(svc, skills.chip_requests(ids["Skill Taxonomy"], tax, 1,
                                    first_row=head + 1))
 
     pipe, head = sheetio.titled(
         support.pipeline_tab(), "PIPELINE STAGES",
-        "The seven stages a teaching day passes through, and the review gate "
-        "on each. The trace columns on every subject tab are named after "
-        "these stages.", at=1)
+        "Every stage a teaching day passes through, its gate, and what it is "
+        "waiting on. The trace columns on every subject tab are named after "
+        "these stages. Below them: the tabs not built yet, and why.", at=1)
     sheetio.write_values(svc, "Pipeline Stages", pipe)
     sheetio.format_grid(svc, ids["Pipeline Stages"], len(pipe), 6,
                         freeze_cols=1, head_row=head, band=True,
@@ -287,14 +241,13 @@ def main():
     # was actually written rather than from what was planned.
     sizes.update({
         "Teaching Calendar": (len(cal_rows), cal_plan["n_cols"]),
-        "Calendar (overview)": (len(over_rows), over_plan["n_cols"]),
-        "FDE Syllabus": (len(fde_rows), 10),
+        "Calendar — assumptions": (len(over_rows), over_plan["n_cols"]),
         "Coverage Map": (len(cov_rows), cov_plan["n_cols"]),
         "Coverage — gaps": (len(gap_rows), gap_plan["n_cols"]),
         "FLN Coverage": (len(fln), fln_plan["n_cols"]),
         "Skills Map": (len(map_rows), map_plan["n_cols"]),
         "All Segments + SLOs": (len(flat), 15),
-        "Skill Taxonomy": (len(tax), 7),
+        "Skill Taxonomy": (len(tax), support.TAX_COLS),
         "Pipeline Stages": (len(pipe), 6),
         "Samples Review": (len(rev_rows), rev_plan["n_cols"]),
         "QA Checklist": (len(qa_rows), qa_plan["n_cols"])})

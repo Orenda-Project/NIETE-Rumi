@@ -64,8 +64,23 @@ def _day_row(r, subject, ncols):
     return out
 
 
+def tail_label(kind):
+    """The `Day #` marker a chapter-tail row carries, on every tab that prints
+    one.
+
+    Scripts identify a row by this marker and never by its position, so the
+    marker is an interface and not a caption — and the flat dump used to write
+    its own captions here, one of them `Day 8 (Review)`, which a script
+    counting `^Day \\d+` teaching days matched. It answered 1,695 for a year
+    that teaches 1,657. Both surfaces read this function now: two spellings of
+    one row type is the whole defect, and a second copy of the string is how it
+    comes back.
+    """
+    return "📋 Ch. Review" if kind == "review" else "✅ Ch. Assessment"
+
+
 def _tail_row(r, subject, ncols):
-    label = "📋 Ch. Review" if r["kind"] == "review" else "✅ Ch. Assessment"
+    label = tail_label(r["kind"])
     out = [label, r["topic"], r["skill_type"], r["pages"], "",
            "", "", "", r["supporting_slos"], "", r["blooms"], r["period_min"],
            PENDING, "", ""]

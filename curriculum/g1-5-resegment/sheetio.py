@@ -7,6 +7,8 @@ one leftover merge makes a freeze fail, so patching never converges
 import os
 
 from google.oauth2 import service_account
+
+import house
 from googleapiclient.discovery import build
 
 import quota  # noqa: F401  — importing it paces every call under the quota
@@ -27,6 +29,8 @@ INK = {"title": {"red": 0.059, "green": 0.298, "blue": 0.361},   # #0F4C5C
        "flagbg": {"red": 1.0, "green": 0.95, "blue": 0.90},
        "rule": {"red": 0.80, "green": 0.80, "blue": 0.80},
        "link": {"red": 0.067, "green": 0.333, "blue": 0.800},    # #1155CC
+       "sub": {"red": 0.294, "green": 0.333, "blue": 0.388},     # #4B5563
+       "data": {"red": 0.122, "green": 0.161, "blue": 0.216},    # #1F2937
        "white": {"red": 1, "green": 1, "blue": 1}}
 
 
@@ -145,6 +149,12 @@ def format_grid(svc, sid, nrows, ncols, freeze_cols=2, banner_rows=(),
     draft clipped by default, which silently hid every cell longer than its
     column — a 460-character SLO description read as a sentence fragment and
     there was no way to tell from the tab that anything was missing.
+
+    Two deliberate deviations from sheet.md §5, pinned by test_sheetio.py so
+    neither can be mistaken for drift: data text stays 10pt where §5.2 asks
+    for 9 (the reviewer reads this on a laptop and asked for an easier, not a
+    denser, grid), and the header row stays 46px where §5.1 asks for 36
+    (headers here WRAP, and a two-line header clips at 36).
     """
     white = {"foregroundColor": INK["white"]}
     reqs = [
@@ -156,11 +166,13 @@ def format_grid(svc, sid, nrows, ncols, freeze_cols=2, banner_rows=(),
                       "gridProperties.frozenColumnCount"}},
         _fmt(sid, 0, nrows, 0, ncols, {
             "verticalAlignment": "TOP", "wrapStrategy": "WRAP",
-            "textFormat": {"fontSize": 10}}),
+            "textFormat": {"fontSize": house.DATA_PT,
+                           "foregroundColor": INK["data"]}}),
         _fmt(sid, head_row, head_row + 1, 0, ncols, {
             "backgroundColor": INK["head"], "verticalAlignment": "MIDDLE",
-            "wrapStrategy": "WRAP",
-            "textFormat": dict(white, bold=True, fontSize=10)}),
+            "horizontalAlignment": "CENTER", "wrapStrategy": "WRAP",
+            "textFormat": dict(white, bold=True,
+                               fontSize=house.HEAD_PT)}),
     ]
     for col, px in (widths or {}).items():
         if col < ncols:
@@ -185,12 +197,15 @@ def format_grid(svc, sid, nrows, ncols, freeze_cols=2, banner_rows=(),
             _fmt(sid, 0, 1, 0, ncols, {
                 "backgroundColor": INK["title"], "wrapStrategy": "OVERFLOW_CELL",
                 "verticalAlignment": "MIDDLE",
-                "textFormat": dict(white, bold=True, fontSize=13)}),
+                "textFormat": dict(white, bold=True,
+                                   fontSize=house.TITLE_PT)}),
             _fmt(sid, 1, 2, 0, ncols, {
-                "backgroundColor": INK["cream"], "wrapStrategy": "OVERFLOW_CELL",
-                "verticalAlignment": "MIDDLE", "textFormat": {"fontSize": 10}}),
-            _dim(sid, "ROWS", 0, 1, 34),
-            _dim(sid, "ROWS", 1, 2, 26),
+                "backgroundColor": INK["white"], "wrapStrategy": "OVERFLOW_CELL",
+                "verticalAlignment": "MIDDLE",
+                "textFormat": {"fontSize": house.SUB_PT,
+                               "foregroundColor": INK["sub"]}}),
+            _dim(sid, "ROWS", 0, 1, house.TITLE_PX),
+            _dim(sid, "ROWS", 1, 2, house.SUB_PX),
         ]
     if flag_col is not None and flag_col < ncols:
         reqs.append({"addConditionalFormatRule": {"index": 0, "rule": {

@@ -1,36 +1,35 @@
 """Painting the Teaching Calendar. Split out of caltab so both stay readable.
 
-The grid carries four layers of colour and they have to stack in this order,
-because each later one is meant to show through as an exception to the one
-before it:
+The grid carries four layers of colour and they stack in this order, because
+each later one is meant to show through as an exception to the one before it:
 
-    1. alternating chapter bands   — where one chapter ends and the next starts
-    2. the FDE-omitted tint        — the one kind of period that leaves the book
-    3. assessment columns          — FDE's own windows, straight down the page
-    4. the 24 December rule        — and a rule at every vacation
+    1. alternating chapter bands — where one chapter ends and the next starts
+    2. the FDE-omitted tint      — the one kind of period that leaves the book
+    3. assessment columns        — FDE's own windows, straight down the page
+    4. the 24 December rule      — and a rule at every vacation
 
-Anything painted out of that order hides a fact rather than adding one. Every
-one of them is load-bearing, which is why the fifth thing a cell has to say —
-WHICH SKILL — is said in the colour of the two letters, not behind them; that
-pass is calink's, and it runs last.
+Anything painted out of that order hides a fact rather than adding one. All four
+are load-bearing, which is why the fifth thing a cell must say — WHICH SKILL —
+is said in the colour of the two letters, not behind them: calink's pass, last.
 
-Basics periods — phonics, arkaan saazi, number fluency, communicative work —
-are deliberately NOT given a colour of their own. They were, and a run of grey
-blocks read as the class putting the textbook down for a fortnight, which is
-exactly what teachers object to. They are taught on the current chapter's own
-text and numbers, so they sit inside its band and are marked italic: a
-different kind of period in the same chapter, not a departure from the book.
+Basics periods — phonics, arkaan saazi, number fluency, communicative work — are
+deliberately NOT given a colour of their own. They were, and a run of grey blocks
+read as the class putting the textbook down for a fortnight, which is exactly
+what teachers object to. They are taught on the current chapter's own text and
+numbers, so they sit inside its band and are marked italic: a different kind of
+period in the same chapter, not a departure from the book.
 
 Two rules about text, learnt the hard way on this tab:
 
-    nothing WRAPs. A wrapped paragraph in a 150px column comes out one word
-    per line and drags the row to 400px. Long lines start past the frozen edge
-    and overflow right across the empty grid instead.
+    nothing WRAPs. A wrapped paragraph in a 150px column comes out one word per
+    line and drags the row to 400px. Long lines start past the frozen edge and
+    overflow right across the empty grid instead.
 
-    nothing MERGEs. A merge that crosses the frozen boundary makes the freeze
-    request fail outright, so the five header rows are painted, not merged.
+    nothing MERGEs. A merge crossing the frozen boundary makes the freeze request
+    fail outright, so the five header rows are painted, not merged.
 """
 import calink
+import house
 BAND = [{"red": 0.84, "green": 0.90, "blue": 0.96},
         {"red": 0.92, "green": 0.96, "blue": 0.90}]
 OMIT = {"red": 0.97, "green": 0.85, "blue": 0.85}     # FDE drops this chapter
@@ -130,10 +129,13 @@ def _frame(rng, sid, nrows, ncols, plan, ink):
         _paint(rng, sid, 0, 1, 0, ncols, {
             "backgroundColor": ink["title"], "horizontalAlignment": "LEFT",
             "wrapStrategy": "OVERFLOW_CELL",
-            "textFormat": dict(white, bold=True, fontSize=13)}),
+            "textFormat": dict(white, bold=True,
+                               fontSize=house.TITLE_PT)}),
         _paint(rng, sid, 1, 2, 0, ncols, {
-            "backgroundColor": ink["cream"], "horizontalAlignment": "LEFT",
-            "wrapStrategy": "OVERFLOW_CELL", "textFormat": {"fontSize": 10}}),
+            "backgroundColor": ink["white"], "horizontalAlignment": "LEFT",
+            "wrapStrategy": "OVERFLOW_CELL",
+            "textFormat": {"fontSize": house.SUB_PT,
+                           "foregroundColor": ink["sub"]}}),
         # Month band, then day-of-month and weekday on the house header ink.
         _paint(rng, sid, top, top + 1, 0, ncols, {
             "backgroundColor": MONTH, "horizontalAlignment": "LEFT",
@@ -261,38 +263,4 @@ def format_calendar(svc, sheetio, sid, rows, plan):
     # LAST, and it must stay last: _frame writes whole `textFormat` objects,
     # which would take the foreground colour back out with them.
     reqs += calink.ink_requests(rng, sid, rows, plan)
-    _send(svc, sheetio, reqs)
-
-
-def format_overview(svc, sheetio, sid, rows, plan):
-    """The companion tab: wide columns, no freeze, everything overflows."""
-    rng, ink = sheetio._rng, sheetio.INK
-    nrows, ncols = len(rows), plan["n_cols"]
-    reqs = [
-        {"updateSheetProperties": {"properties": {
-            "sheetId": sid,
-            "gridProperties": {"frozenRowCount": 2, "frozenColumnCount": 0}},
-            "fields": "gridProperties.frozenRowCount,"
-                      "gridProperties.frozenColumnCount"}},
-        _paint(rng, sid, 0, nrows, 0, ncols, {
-            "verticalAlignment": "MIDDLE", "horizontalAlignment": "LEFT",
-            "wrapStrategy": "OVERFLOW_CELL", "textFormat": {"fontSize": 10}}),
-        _paint(rng, sid, 0, 1, 0, ncols, {
-            "backgroundColor": ink["title"],
-            "textFormat": {"bold": True, "fontSize": 13,
-                           "foregroundColor": ink["white"]}}),
-        _paint(rng, sid, 1, 2, 0, ncols, {"backgroundColor": ink["cream"]}),
-        _height(sid, 0, nrows, 22),
-        _height(sid, 0, 1, 34),
-    ]
-    reqs += [_width(sid, i, i + 1, w) for i, w in enumerate(plan["widths"])]
-    for row in plan["sections"]:
-        reqs.append(_paint(rng, sid, row, row + 1, 0, ncols, {
-            "backgroundColor": ink["band"],
-            "textFormat": {"bold": True, "fontSize": 11,
-                           "foregroundColor": ink["white"]}}))
-    for row in plan["heads"]:
-        reqs.append(_paint(rng, sid, row, row + 1, 0, ncols, {
-            "backgroundColor": ink["chapter"],
-            "textFormat": {"bold": True, "fontSize": 9}}))
     _send(svc, sheetio, reqs)

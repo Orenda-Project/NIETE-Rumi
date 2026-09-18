@@ -16,6 +16,8 @@ and the training tabs are a different workbook's business.
 """
 import datetime
 
+import house
+
 BEAD = "bd-6a20p"
 STAMP = datetime.date.today().isoformat()
 HAND = ["Reviewer", "Verdict", "Comments", "Evidence"]
@@ -47,9 +49,9 @@ Maths days flagged 'CPA disagreement in source': the skill-type label and the ol
     in source.
 Check the chapter banners read the way the textbook reads. :: Every subject tab › the chapter bands,
     against the book's own contents page.
-Maths: the Skill Taxonomy tab's CPA ramp shows Concrete emptying out by Grade 4. Confirm whether
-    that is the book or our segmentation before the rebuild pass. :: Skill Taxonomy › Maths rows ›
-    the Concrete row, read down the grades.
+Maths: Concrete runs 36 / 15 / 15 / 11 / 33 days G1 → G5 and Abstract 11 / 7 / 3 / 16 / 3. Is that
+    thinning through G2–G4 the book's ramp or our segmentation? :: Coverage Map › Maths › the
+    Concrete and Abstract rows, read down the grades.
 """)
 
 SUBJECTS = _entries("""
@@ -171,11 +173,11 @@ def _dim(sid, axis, start, end, px):
         "properties": {"pixelSize": px}, "fields": "pixelSize"}}
 
 
-def _fill(rng, sid, r0, r1, c0, c1, bg, size=10, white=False, bold=False,
-          wrap="OVERFLOW_CELL", valign="MIDDLE"):
+def _fill(rng, sid, r0, r1, c0, c1, bg, size=house.DATA_PT, fg=None,
+          bold=False, wrap="OVERFLOW_CELL", valign="MIDDLE"):
     txt = {"bold": bold, "fontSize": size}
-    if white:
-        txt["foregroundColor"] = {"red": 1, "green": 1, "blue": 1}
+    if fg:
+        txt["foregroundColor"] = fg
     return {"repeatCell": {"range": rng(sid, r0, r1, c0, c1), "cell": {"userEnteredFormat": {
         "backgroundColor": bg, "wrapStrategy": wrap, "verticalAlignment": valign,
         "textFormat": txt}}, "fields": "userEnteredFormat(backgroundColor,wrapStrategy,"
@@ -217,12 +219,12 @@ def format_review(svc, sheetio, sid, rows, plan):
                 "frozenRowCount": plan["freeze"], "frozenColumnCount": 0}},
             "fields": "gridProperties(frozenRowCount,frozenColumnCount)"}},
         _fill(rng, sid, 0, nrows, 0, n, ink["white"], wrap="WRAP", valign="TOP"),
-        _fill(rng, sid, 0, 1, 0, n, ink["title"], 14, white=True, bold=True),
-        _fill(rng, sid, 1, 2, 0, n, ink["cream"], wrap="WRAP"),
-        _fill(rng, sid, 2, 3, 0, n, ink["head"], white=True, bold=True),
-        _fill(rng, sid, foot, foot + 1, 0, n, ink["head"], white=True),
+        _fill(rng, sid, 0, 1, 0, n, ink["title"], house.TITLE_PT, fg=ink["white"], bold=True),
+        _fill(rng, sid, 1, 2, 0, n, ink["white"], house.SUB_PT, fg=ink["sub"], wrap="WRAP"),
+        _fill(rng, sid, 2, 3, 0, n, ink["head"], house.HEAD_PT, fg=ink["white"], bold=True),
+        _fill(rng, sid, foot, foot + 1, 0, n, ink["head"], fg=ink["white"]),
     ]
-    reqs += [_fill(rng, sid, r, r + 1, 0, n, ink["band"], 12, white=True, bold=True)
+    reqs += [_fill(rng, sid, r, r + 1, 0, n, ink["band"], house.BAND_PT, fg=ink["white"], bold=True)
              for r in plan["sections"]]
     # The hand-entry block stays white and gets a border ring instead of a background colour, so
     # Navigation's colour legend still accounts for every background in the workbook.

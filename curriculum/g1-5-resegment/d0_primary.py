@@ -28,6 +28,7 @@ that is the answer (spec/00-program.md, binding working rules).
 from __future__ import annotations
 
 import d0_blocks as B
+import d0_bigidea
 import d0_board
 import d0_diagram
 import d0_hook
@@ -103,9 +104,12 @@ def _intro(g, page):
 
 
 def _development(g):
-    """I Do — the modelled move, then whatever the worked example adds to it."""
+    """The Big Idea, then I Do — the modelled move, then whatever the worked example adds."""
     ido = B.steps_by_phase(g.get("steps"), "I-Do")
-    blocks = []
+    # THE BIG IDEA opens EXPLANATION, ahead of I Do: a teacher cannot model a distinction
+    # she has not been told. Printed after the worked example it reads as a footnote to
+    # teaching that already happened, which is why the seat is index 0 and not appended.
+    blocks = [d0_bigidea.big_idea_block(g.get("bigIdea"))]
     ido_blk = B.i_do_block(ido)
     if ido_blk:
         blocks.append(ido_blk)

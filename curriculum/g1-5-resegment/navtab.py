@@ -9,6 +9,7 @@ lives in `::` blocks — an indented line continues the entry above, a `§` line
 """
 import datetime
 
+import house
 import support
 
 BEAD = "bd-6a20p"
@@ -43,8 +44,8 @@ TABS = _entries("""
 Navigation :: You are here. The index, the colour legend, and how to read every other tab.
 Teaching Calendar :: The year sideways: periods a week, the month view, a week-by-week band showing
     which chapter each grade is in. The red line is 24 December.
-Calendar (overview) :: The year compressed to months — teaching weeks, assessment windows, breaks.
-FDE Syllabus :: The FDE breakdown against what the books contain. Skipped chapters are kept, named.
+Calendar — assumptions :: What the year assumes, ours and FDE's: the period rate, where FDE's own
+    documents disagree, the month view, and FDE's weeks per chapter against our periods.
 English G1–5 :: One row per teaching day: grade band, chapter band, days. Rebuilt from page truth.
 Urdu G1–5 :: Same row grammar. Boundaries kept; only the day-integrity fields were repaired.
 Maths G1–5 :: Same row grammar; the Skill type column IS the CPA ramp, so one chip carries both.
@@ -54,8 +55,8 @@ Coverage — gaps :: Chapters too thin for their SLO load; every SLO checked for
 FLN Coverage :: Literacy and numeracy by strand and month, counted off the Teaching Calendar itself.
 Skills Map :: Every skill type against every grade: who meets it, where, where it never appears.
 All Segments + SLOs :: Every row from all four subject tabs, flat and filterable. The tab to SEARCH.
-Skill Taxonomy :: Every skill type per subject: day count, chip colour, what the day actually is.
-Pipeline Stages :: The build recipe as data — and the stage that fills any column reading `pending`.
+Skill Taxonomy :: Every skill type per subject, defined: chip colour, what the day actually is.
+Pipeline Stages :: The build recipe as data: the stage that fills any `pending` column, then the tabs not built yet.
 Samples Review :: Where you write your verdict — five standing questions plus a row per subject.
 QA Checklist :: Part A of the master QA checklist — was the chapter split right before any lesson.
 """)
@@ -87,22 +88,21 @@ SLO role :: Every SLO has exactly one introducing day; later days on the same co
 § :: 3 · COLOUR LEGEND — EVERY BACKGROUND COLOUR IN THIS WORKBOOK
 #0F4C5C :: Deep teal, white text — the title band: the top row of every tab, saying what it is.
 #264653 :: Slate, white text — the column headers. Frozen, so they stay put as you scroll.
-#E76F51 :: Coral, white text — a section band: here, on FDE Syllabus, Coverage Map and the reviews.
+#E76F51 :: Coral, white text — a section band: here, on Calendar — assumptions, Coverage Map, reviews.
 #F4F1DE :: Cream — a label cell: the short label in column B saying what the row beside it is.
 #D9E6F5 :: Pale blue — a GRADE band on a subject tab.
 #EDF2FA :: Paler blue — a chapter band on a subject tab.
 #FFF2E6 :: Warm cream — the Flags column when not empty: a day needing a human decision. Filter it.
 #1155CC :: Blue, underlined — a link. Linked rows also carry the words open ↗ in the last column.
 #FCE7C8 :: Peach — entry / concrete. Pre-reading · ارکان سازی · Concrete · Engage · Number fluency.
-#E7F0FD :: Pale blue — the code itself. Phonics · قواعد.
+#E7F0FD :: Palest blue — the code itself. Phonics · قواعد.
 #C8E6F4 :: Blue — receptive / pictorial. Reading comprehension · بلند خوانی · تفہیم · Pictorial.
 #D9E4D6 :: Sage — build / bridge. Vocabulary & grammar · الفاظ و معانی · Pictorial → Abstract.
 #EAD7F0 :: Lilac — productive / abstract. Writing · تخلیقی لکھائی · Abstract · Apply & connect.
 #F4E1C8 :: Tan — oral / applied. Oral communication · Communicative language · Word problem.
 #F4C7C7 :: Pink — revision. Revision · دہرائی · ↻ Spiral Review days.
 #FBE3B8 :: Amber — assessment. Assessment · جائزہ · Review & assess · ✅ Ch. Assessment days.
-#94C4ED :: Blue in four steps — the Coverage Map heat grid: palest = 1 day, darkest = 7+. The number
-    is printed in the cell too.
+#94C4ED :: Blue, four steps — the Coverage Map heat grid: palest 1 day, darkest 7+; number in cell.
 #FCEBEB :: Rose, ringed in red — Coverage Map, zero days: that chapter never teaches that skill
     type. Ringed so it cannot be mistaken for any other zero. The hole is the finding.
 Accessibility :: Colour is never the only signal — a chip carries its skill name, a flag its flag
@@ -128,8 +128,8 @@ Click the + in the left margin :: The subject tabs hide the columns this pass ca
     looks like it is missing blocks of data, the data is not missing — the group is closed.
 What the freeze does :: Every subject tab freezes the column-header row and the two left-hand
     columns (Day # and Topic), so you keep your place scrolling right through 31–36. Teaching
-    Calendar freezes one row and two columns across 206; FDE Syllabus freezes five rows; this tab
-    freezes its top three — title, subtitle, headers — and no columns. Off: View › Freeze › No rows.
+    Calendar freezes one row and two columns across 206; Calendar — assumptions freezes two rows,
+    no columns; this tab freezes its top three — title, subtitle, headers. Off: View › Freeze › No rows.
 Filter without disturbing anyone :: Every subject tab ships with a basic filter across its used
     width, and changing that filter changes it for everyone else in the file at that moment,
     mid-scroll. To keep a slice to yourself: Data › Filter views › Create new filter view — yours,
@@ -223,11 +223,11 @@ def _dim(sid, axis, start, end, px):
         "properties": {"pixelSize": px}, "fields": "pixelSize"}}
 
 
-def _fill(rng, sid, r0, r1, c0, c1, bg, size=10, white=False, bold=False,
-          wrap="OVERFLOW_CELL", valign="MIDDLE"):
+def _fill(rng, sid, r0, r1, c0, c1, bg, size=house.DATA_PT, fg=None,
+          bold=False, wrap="OVERFLOW_CELL", valign="MIDDLE"):
     txt = {"bold": bold, "fontSize": size}
-    if white:
-        txt["foregroundColor"] = {"red": 1, "green": 1, "blue": 1}
+    if fg:
+        txt["foregroundColor"] = fg
     return {"repeatCell": {"range": rng(sid, r0, r1, c0, c1), "cell": {"userEnteredFormat": {
         "backgroundColor": bg, "wrapStrategy": wrap, "verticalAlignment": valign,
         "textFormat": txt}}, "fields": "userEnteredFormat(backgroundColor,wrapStrategy,"
@@ -270,12 +270,12 @@ def format_navigation(svc, sheetio, sid, rows, plan, ids):
                 "frozenRowCount": plan["freeze"], "frozenColumnCount": 0}},
             "fields": "gridProperties(frozenRowCount,frozenColumnCount)"}},
         _fill(rng, sid, 0, nrows, 0, n, ink["white"], wrap="WRAP", valign="TOP"),
-        _fill(rng, sid, 0, 1, 0, n, ink["title"], 14, white=True, bold=True),
-        _fill(rng, sid, 1, 2, 0, n, ink["cream"], wrap="WRAP"),
-        _fill(rng, sid, 2, 3, 0, n, ink["head"], white=True, bold=True),
-        _fill(rng, sid, foot, foot + 1, 0, n, ink["head"], white=True),
+        _fill(rng, sid, 0, 1, 0, n, ink["title"], house.TITLE_PT, fg=ink["white"], bold=True),
+        _fill(rng, sid, 1, 2, 0, n, ink["white"], house.SUB_PT, fg=ink["sub"], wrap="WRAP"),
+        _fill(rng, sid, 2, 3, 0, n, ink["head"], house.HEAD_PT, fg=ink["white"], bold=True),
+        _fill(rng, sid, foot, foot + 1, 0, n, ink["head"], fg=ink["white"]),
     ]
-    reqs += [_fill(rng, sid, r, r + 1, 0, n, ink["band"], 12, white=True, bold=True)
+    reqs += [_fill(rng, sid, r, r + 1, 0, n, ink["band"], house.BAND_PT, fg=ink["white"], bold=True)
              for r in plan["sections"]]
     reqs += [_fill(rng, sid, r, r + 1, 1, 2, ink["cream"], bold=True, wrap="WRAP", valign="TOP")
              for r in plan["labels"]]

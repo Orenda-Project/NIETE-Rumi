@@ -8,8 +8,8 @@ The grid comes FIRST, under five frozen header rows, exactly as the previous
 matrix does it. The earlier draft of this tab stacked four prose tables above
 the grid, so opening the tab showed a wall of text and the calendar itself was
 off screen — and the prose sat in a 150px column set to WRAP, which stacks a
-sentence one word per line. The prose tables now live on `Calendar (overview)`,
-which has columns wide enough to hold them (see calover.py).
+sentence one word per line. The prose tables now live on `Calendar —
+assumptions`, whose columns are wide enough to hold them (see calfde.py).
 
 What is left below the grid is the key, and it is a table, not a sentence:
 every code, colour and mark gets its own line. Each line puts its code in the
@@ -181,8 +181,8 @@ MARKS = [
      "A chapter FDE's syllabus breakdown omits, taught here anyway because "
      "the year has room. NONE IN 2026-27 — all 17 breakdown documents "
      "schedule every chapter of their book (verified 16 Sep 2026). The band "
-     "is kept for a future syllabus that does drop one. See the FDE Syllabus "
-     "tab.", "omit"),
+     "is kept for a future syllabus that does drop one. See the "
+     "Calendar — assumptions tab.", "omit"),
     ("", "italic code",
      "A basics period — phonics, arkaan saazi, communicative language, "
      "number fluency. The textbook does not carry it, but it is TAUGHT ON "
@@ -268,7 +268,7 @@ def build(books):
                       f"{weeks} teaching weeks to get there. The rest of the "
                       "session is revision and Grade 5 board prep. Period "
                       "budgets, FDE date conflicts and the month view are on "
-                      "the Calendar (overview) tab.", n_cols)]
+                      "the Calendar — assumptions tab.", n_cols)]
     grid_top = len(rows)
     grid, bands, kinds, head_rows = grid_block(plans, days)
     rows += grid

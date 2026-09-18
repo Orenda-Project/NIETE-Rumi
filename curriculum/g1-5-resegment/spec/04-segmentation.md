@@ -157,7 +157,7 @@ One sheet, eleven tabs, first tab is navigation.
 |---|---|
 | Navigation | How to read the workbook |
 | Teaching Calendar | The year, in periods, with keys |
-| FDE Syllabus | FDE's pacing against ours, per book |
+| Calendar — assumptions | What the year assumes: the period rate, FDE date conflicts, the month view, FDE's pacing against ours |
 | English · Urdu · Maths · Science | The segment rows |
 | Coverage Map | Mix bars, chapter heat grid, gap list, SLO coverage |
 | All Segments + SLOs | The flat join |

@@ -80,8 +80,10 @@ class FirstAppearanceReadsTheCalendar(unittest.TestCase):
         self.assertEqual(row[skillgrid.GRADE_C], "·")
 
     def test_the_timeline_block_is_labelled_as_the_book(self):
+        # No live day counts: this asserts which source the block's HEADING
+        # names, and an empty tally leaves the snapshot's own rows in place.
         rows, *_rest = skillmap.timeline_block(
-            "English", BOOK["subjects"]["English"], KEYMAP, ["Phonics"])
+            "English", BOOK["subjects"]["English"], KEYMAP, ["Phonics"], {})
         self.assertIn("BOOK", rows[0][0])
 
 

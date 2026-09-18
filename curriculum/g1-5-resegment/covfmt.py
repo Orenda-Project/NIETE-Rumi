@@ -27,6 +27,8 @@ reader drag it open.
 """
 import colorsys
 
+import house
+
 import skills
 
 WHITE = {"red": 1, "green": 1, "blue": 1}
@@ -37,7 +39,7 @@ HEAT = [{"red": 0.89, "green": 0.94, "blue": 0.99},
 HOLE = {"red": 0.99, "green": 0.92, "blue": 0.92}
 HOLE_EDGE = {"red": 0.80, "green": 0.45, "blue": 0.40}
 DEF_W, CHUNK = 60, 200
-H_TITLE, H_NOTE, H_BAND, H_HEAD = 42, 36, 30, 34
+H_TITLE, H_NOTE, H_BAND, H_HEAD = house.TITLE_PX, 36, 30, 34
 # Jewel tone: the chip hue kept, lightness pinned dark, saturation floored so a
 # near-grey tint still reads as its own colour rather than as text grey.
 JEWEL_L, JEWEL_S = 0.32, 0.55
@@ -95,6 +97,18 @@ def _merge(rng, sid, row, n):
                            "mergeType": "MERGE_ALL"}}
 
 
+def _note_px(rows, row, plan):
+    """How tall a merged 11pt standfirst has to be to show all of itself."""
+    try:
+        text = next(c for c in rows[row] if str(c).strip())
+    except (IndexError, StopIteration):
+        return H_NOTE
+    width = sum(plan["widths"].get(i, 100) for i in range(plan["n_cols"]))
+    per_line = max(20, int(width / (house.SUB_PT * 0.55)))
+    lines = -(-len(str(text)) // per_line)
+    return max(H_NOTE, lines * (house.SUB_PT + 5) + 10)
+
+
 def _house(rng, sid, row, n, bg, text, px):
     """A full-width house row: painted, wrapped and pinned to a height."""
     return [_fmt(rng, sid, row, row + 1, 0, n, backgroundColor=bg,
@@ -137,28 +151,40 @@ def _frame(rng, sid, nrows, plan):
     return reqs
 
 
-def _rows(rng, sid, plan, ink):
+def _rows(rng, sid, plan, ink, rows=()):
     """The named rows: title, notes, section bands, column headers."""
     n, reqs, merges = plan["n_cols"], [], []
     reqs += _house(rng, sid, plan["title_row"], n, ink["title"],
-                   {"bold": True, "fontSize": 14, "foregroundColor": WHITE},
+                   {"bold": True, "fontSize": house.TITLE_PT,
+                    "foregroundColor": WHITE},
                    H_TITLE)
     merges.append(_merge(rng, sid, plan["title_row"], n))
     for row in plan["note_rows"]:
-        reqs += _house(rng, sid, row, n, ink["cream"],
-                       {"fontSize": 10, "italic": True,
-                        "foregroundColor": ink["head"]}, H_NOTE)
+        # The first note row IS the §5.1 standfirst: grey prose on white, right
+        # under the title. The later ones are in-tab callouts and keep the cream
+        # of a label cell, because that is the role they play where they sit.
+        top = row == plan["title_row"] + 1
+        # A merged, wrapped standfirst at 11pt clips at H_NOTE: the third line
+        # is simply cut off, which is how the Coverage Map lost the end of its
+        # own reading instruction. Height it from the text it actually holds.
+        px = _note_px(rows, row, plan) if top else H_NOTE
+        reqs += _house(rng, sid, row, n,
+                       ink["white"] if top else ink["cream"],
+                       {"fontSize": house.SUB_PT if top else 10,
+                        "italic": not top,
+                        "foregroundColor": ink["sub"] if top else ink["head"]},
+                       px)
         merges.append(_merge(rng, sid, row, n))
     for row in plan["band_rows"]:
         reqs += _house(rng, sid, row, n, ink["band"],
-                       {"bold": True, "fontSize": 12,
+                       {"bold": True, "fontSize": house.BAND_PT,
                         "foregroundColor": WHITE}, H_BAND)
         merges.append(_merge(rng, sid, row, n))
     for row in plan["head_rows"]:
         reqs.append(_fmt(
             rng, sid, row, row + 1, 0, n, backgroundColor=ink["head"],
             wrapStrategy="OVERFLOW_CELL", verticalAlignment="BOTTOM",
-            textFormat={"bold": True, "fontSize": 10,
+            textFormat={"bold": True, "fontSize": house.HEAD_PT,
                         "foregroundColor": WHITE}))
         reqs.append(_size(sid, "ROWS", row, row + 1, H_HEAD))
     return reqs, merges
@@ -228,7 +254,7 @@ def format_coverage(svc, sheetio, sid, rows, plan):
     rng, ink, nrows = sheetio._rng, sheetio.INK, len(rows)
     reqs = _stale_views(svc, sheetio, sid)
     reqs += _frame(rng, sid, nrows, plan)
-    body, merges = _rows(rng, sid, plan, ink)
+    body, merges = _rows(rng, sid, plan, ink, rows)
     reqs += body
     reqs += _paint(rng, sid, plan, ink)
     reqs += merges

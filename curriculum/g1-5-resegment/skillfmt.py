@@ -21,6 +21,7 @@ scanning columns frozen that is ~350px, which is where this workbook's titles
 have been dying. Only the three header rows are frozen; the tab is 1380px
 wide, so there is nothing to freeze columns for.
 """
+import house
 import skills
 
 WHITE = {"red": 1, "green": 1, "blue": 1}
@@ -60,7 +61,7 @@ def _frame(rng, sid, nrows, ncols, ink, plan):
             "range": rng(sid, 0, 1, 0, ncols),
             "cell": {"userEnteredFormat": {
                 "backgroundColor": ink["title"], "wrapStrategy": "OVERFLOW_CELL",
-                "textFormat": {"bold": True, "fontSize": 14,
+                "textFormat": {"bold": True, "fontSize": house.TITLE_PT,
                                "foregroundColor": WHITE}}},
             "fields": "userEnteredFormat(backgroundColor,wrapStrategy,"
                       "textFormat)"}},
@@ -70,8 +71,10 @@ def _frame(rng, sid, nrows, ncols, ink, plan):
         {"repeatCell": {
             "range": rng(sid, 1, 2, 0, ncols),
             "cell": {"userEnteredFormat": {
-                "backgroundColor": ink["cream"], "wrapStrategy": "OVERFLOW_CELL",
-                "textFormat": {"bold": False, "fontSize": 10}}},
+                "backgroundColor": ink["white"],
+                "wrapStrategy": "OVERFLOW_CELL",
+                "textFormat": {"bold": False, "fontSize": house.SUB_PT,
+                               "foregroundColor": ink["sub"]}}},
             "fields": "userEnteredFormat(backgroundColor,wrapStrategy,"
                       "textFormat)"}},
         # Row 2 — column headers.

@@ -20,6 +20,7 @@ under 1200px anyway, so a column freeze buys nothing, and dropping it is what
 lets the banners be merged and wrapped — merging and freezing are exclusive.
 """
 import covdata
+import skillgrid
 import skills
 
 BLOCK, HALF = "█", "▌"
@@ -40,6 +41,17 @@ SUB = ("Read the bars for balance and the grid for holes. Counts are teaching "
        "its own subject — same length across subjects is not the same thing.")
 GRID_NOTE = ("A blank cell is a chapter that never teaches that skill; a "
              "blank column is a book that never teaches it. Darker = more.")
+# Three rows of the mix count zero and are not gaps — Communicative language
+# in English and in Urdu, Number fluency in Maths. The Teaching Calendar
+# teaches them in basics periods, which sit outside the textbook days this tab
+# counts, so a dash there is an accounting boundary and not a finding. The tab
+# says so on the row itself, because this is the tab that goes to FDE and an
+# unexplained dash beside a 0% share gets reported as a hole in the year.
+# `skillgrid` names the set for the Skills Map and both tabs read that one
+# set: two tabs disagreeing about which zero is innocent is the failure here.
+BASICS_WHERE = ("taught in basics periods the Teaching Calendar allocates "
+                "outside these textbook days")
+BASICS_NOTE = f"not a gap — {BASICS_WHERE}"
 GAP_TITLE = "COVERAGE — GAPS — what the year misses"
 GAP_SUB = ("Two work lists. Above: chapters that never teach a skill their "
            "subject is supposed to carry every chapter. Below: SLOs the book "
@@ -53,6 +65,23 @@ def bar(n, scale, width=20):
     """n days as block characters, half a block for the remainder."""
     units = n * width * 2 // scale if n > 0 and scale > 0 else 0
     return BLOCK * (units // 2) + (HALF if units % 2 else "")
+
+
+def _basics_note(key):
+    """The sentence a basics skill's empty row carries, or nothing."""
+    return BASICS_NOTE if key in skillgrid.BASICS else ""
+
+
+def grid_note(keys, subject):
+    """The chapter grid's note, plus the basics exception when the grid shows
+    one. Here it matters more than in the mix: the grid's empty cells are
+    RINGED, so a basics column arrives as one red hole per chapter."""
+    basics = [skills.label(k, subject) for k in keys if k in skillgrid.BASICS]
+    if not basics:
+        return GRID_NOTE
+    return (f"{GRID_NOTE} {' and '.join(basics)} "
+            f"{'is' if len(basics) == 1 else 'are'} the exception: "
+            f"{BASICS_WHERE}, so an empty column there is not a gap.")
 
 
 def _row(n, *pairs):
@@ -101,9 +130,15 @@ def _mix(prepared, plan, base):
                 days, at = per.get(key, 0), base + len(rows)
                 hexcode = skills.colour(skills.canonical(key, subject))
                 plan["tint"].append((at, TEXT_C, hexcode))
+                # A basics skill with no textbook day spends the bar's lane
+                # saying where it IS taught, and is flagged like the
+                # bookkeeping line below: a row carrying a sentence is not a
+                # bar of length zero. Tag a basics day in the corpus and it
+                # is a textbook day like any other — count it, drop the note.
+                note = "" if days else _basics_note(key)
                 if days:
                     plan["bars"].append((at, BAR_C, hexcode))
-                if key in extra:
+                if key in extra or note:
                     plan["flags"].append((at, TEXT_C))
                 rows.append(_row(
                     n, (GRADE_C, f"G{grade}"), (SUBJ_C, subject),
@@ -114,7 +149,7 @@ def _mix(prepared, plan, base):
                     # blanks — there a blank is the signal.
                     (NUM_C, days or "—"),
                     (SHARE_C, f"{100 * days / total:.0f}%" if days else "—"),
-                    (BAR_C, bar(days, scale))))
+                    (BAR_C, note or bar(days, scale))))
             plan["flags"].append((base + len(rows), TEXT_C))
             # Share stays a dash: only the bar column overflows on these rows,
             # so the sentence goes there and the 52px Share column does not
@@ -162,7 +197,7 @@ def build(corpus):
     out += mix
     for subject, (books, keys, _extra, counted) in prepared.items():
         _section(plan, out, f"{subject.upper()} — every chapter against "
-                            "every skill type", GRID_NOTE)
+                            "every skill type", grid_note(keys, subject))
         block = _grid(subject, books, keys, counted, plan, len(out))
         _block(plan, out, block, f"Chapters — {subject}", False, 32)
         out += block

@@ -13,10 +13,10 @@ this column asked the wrong one. `ramp` reports what it PLACED (`placed`,
 
 Three more things on this tab are quietly load-bearing and are tested here:
 
-  * every row overflows across the tab and then STOPS — there is no eighth
-    column to run into — so `_sentences` exists to keep each line inside the
-    budget. A paragraph written as one cell loses its tail silently: it looks
-    fine in the API response and is cut on the sheet;
+  * every row overflows across the tab and then STOPS at its last column, so
+    `sentences` exists to keep each line inside the budget. A paragraph
+    written as one cell loses its tail silently: it looks fine in the API
+    response and is cut on the sheet;
 
   * `month_block` leaves column 5 EMPTY on purpose, because the assessment
     window is written in column 4 and left to run through it. Anything put
@@ -115,7 +115,7 @@ class NoLineOnThisTabRunsPastWhereTheSheetCutsIt(unittest.TestCase):
 
     def test_every_sentence_it_emits_is_inside_the_budget(self):
         long = ("word " * 200).strip()
-        for line in calover._sentences(long):
+        for line in calover.sentences(long):
             self.assertLessEqual(len(line), self.BUDGET, line)
 
     def test_no_word_is_lost_on_the_way_through(self):
@@ -127,18 +127,18 @@ class NoLineOnThisTabRunsPastWhereTheSheetCutsIt(unittest.TestCase):
                   "sierra tango uniform victor whiskey xray yankee zulu. "
                   "Second sentence here with a few more words in it to push "
                   "the buffer over the wrap boundary at least once more.")
-        self.assertEqual(" ".join(calover._sentences(source)).split(),
+        self.assertEqual(" ".join(calover.sentences(source)).split(),
                          source.split())
 
     def test_a_single_short_sentence_is_left_as_one_line(self):
-        self.assertEqual(calover._sentences("Short and done."),
+        self.assertEqual(calover.sentences("Short and done."),
                          ["Short and done."])
 
     def test_every_deviation_the_year_carries_is_inside_the_budget(self):
         # The real text, not a synthetic one: DEVIATIONS is hand-written prose
         # and grows whenever FDE contradicts itself again.
         for _window, body in sy.DEVIATIONS:
-            for line in calover._sentences(body):
+            for line in calover.sentences(body):
                 self.assertLessEqual(len(line), self.BUDGET, line)
 
 

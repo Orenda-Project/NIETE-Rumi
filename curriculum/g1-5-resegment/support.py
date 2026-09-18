@@ -1,5 +1,5 @@
 """Support tabs: Navigation, Skill Taxonomy, Pipeline Stages, All Segments + SLOs."""
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 import skills
 import tabs
@@ -7,18 +7,11 @@ from fdetab import book_label
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/14-ndk94fkTbqKn0MW4QPhMgLGTesswVj-_GTwe4GYio"
 
-TAB_NOTES = [
-    ("Navigation", "You are here. What each tab holds, what is filled, what is pending."),
-    ("Teaching Calendar", "The year seen sideways: periods a week, the month view, and a week-by-week band showing which chapter each grade is in. The red line is 24 December."),
-    ("English G1–5", "One row per teaching day. Grade banner, chapter banner, then days."),
-    ("Urdu G1–5", "Same grammar. Boundaries kept from the existing segmentation; day-integrity fields repaired."),
-    ("Maths G1–5", "Same grammar. The Skill type column IS the CPA ramp — Concrete, Pictorial, Pictorial → Abstract, Abstract, Word problem — so one chip carries both."),
-    ("Science G4–5", "General Science only. G1–3 General Knowledge is out of scope."),
-    ("Coverage Map", "What the year actually teaches: skill-type mix per grade as bars, every chapter against every skill type as a heat grid, the thin chapters named, and whether every SLO gets a day that introduces it."),
-    ("All Segments + SLOs", "Flat, filterable dump of every row on the four subject tabs."),
-    ("Skill Taxonomy", "Every skill type per subject with day counts, so reviewers and LP writers share a vocabulary."),
-    ("Pipeline Stages", "The build recipe as data: stage, input, output, status."),
-]
+# Subject · Skill type · Grades · CPA phase · What the day is · Source.
+# Named because build.py quotes the width twice — to `format_grid` and to the
+# navigation index — and a header that grows without both of them growing
+# writes data past the formatting.
+TAX_COLS = 6
 
 PENDING_TABS = [
     ("Communicative Balance", "English + Urdu: periods tagged Speaking/Listening vs periods whose Interaction is actually pair/group.", "after Interaction + Gap are filled (stage C)"),
@@ -43,46 +36,63 @@ STAGES = [
 def skill_taxonomy(all_rows, cpa_conflicts=0):
     """One vocabulary per subject, in teaching order, with its chip colour.
 
+    Definitions, not a tally. There was a `Days` column here; it restated the
+    Coverage Map's counts added up across the grades, and a second copy of a
+    number is a second number to go stale. The Coverage Map counts the build
+    that exists — per grade, per chapter — and this tab says what the words
+    mean, which is what reviewers and LP writers need to share.
+
+    `all_rows` is still read, for two things that are not counts: which grades
+    teach the skill, and which of the vocabulary this corpus actually uses. A
+    skill type no day carries is left off rather than defined into existence.
+
     CPA lives here, in its own column, rather than in a second column on every
     Maths row: for Maths the skill type IS the CPA phase, so the subject tab
     carries one chip and this tab says what that chip means in CPA terms.
     """
-    counts = defaultdict(Counter)
-    grades = defaultdict(set)
+    used, grades = defaultdict(set), defaultdict(set)
     for r in all_rows:
         if not r["skill_type"]:
             continue
-        counts[r["subject"]][r["skill_type"]] += 1
+        used[r["subject"]].add(r["skill_type"])
         grades[(r["subject"], r["skill_type"])].add(r["grade"])
-    out = [["Subject", "Skill type", "Days", "Grades", "CPA phase",
+    out = [["Subject", "Skill type", "Grades", "CPA phase",
             "What the day is", "Source"]]
     for subject in ("English", "Urdu", "Maths", "Science"):
         keys = list(skills.ORDER[subject])
-        keys += [skills.KEY_BY_LABEL.get(lb, lb) for lb in counts[subject]
+        keys += [skills.KEY_BY_LABEL.get(lb, lb) for lb in used[subject]
                  if skills.KEY_BY_LABEL.get(lb, lb) not in keys]
         seen = set()
         for key in keys:
             lb = skills.label(key)
-            n = counts[subject].get(lb, 0)
-            if not n or lb in seen:
+            if lb not in used[subject] or lb in seen:
                 continue
             seen.add(lb)
             g = ", ".join(str(x) for x in sorted(grades[(subject, lb)]))
+            # The phase is a taxonomy key, and printing a key would put a
+            # lowercase `abstract` beside `Pictorial → Abstract` in the
+            # column before it. Three phases, five skill types: the bridge
+            # and the word problem both land in abstract, which is the whole
+            # reason the column is worth its width.
             cpa = skills.CPA_FROM_SKILL.get(key, "") if subject == "Maths" else ""
-            out.append([subject, lb, n, g, cpa,
+            out.append([subject, lb, g, skills.label(cpa),
                         skills.gloss(key) or tabs.PENDING,
-                        "counted from the segmentation corpus"])
+                        "defined here — the build's skill-type vocabulary; "
+                        "grades as segmented"])
     out += cpa_pointer()
     if cpa_conflicts:
-        out += [[""] * 7,
-                ["DATA QUALITY", "", "", "", "", "", ""],
-                ["Maths", "skill type vs cpa_phase", cpa_conflicts, "1–5", "",
-                 "The segmentation corpus carried two fields for the same "
-                 "thing and they disagreed on these days. Skill type is now "
-                 "the single column and the authority, so the disagreement no "
-                 "longer shows on the subject tab — it is counted here "
-                 "instead. The B2 boundary rebuild resolves them against the "
-                 "page text.",
+        # The count sits in the sentence now. It is a tally, not a definition,
+        # so it has no column to sit in on this tab — and it is the one number
+        # here that nothing else in the workbook reports.
+        out += [[""] * TAX_COLS,
+                ["DATA QUALITY"] + [""] * (TAX_COLS - 1),
+                ["Maths", "skill type vs cpa_phase", "1–5", "",
+                 f"{cpa_conflicts} days. The segmentation corpus carried two "
+                 "fields for the same thing and they disagreed on them. Skill "
+                 "type is now the single column and the authority, so the "
+                 "disagreement no longer shows on the subject tab — it is "
+                 "reported here instead. The B2 boundary rebuild resolves "
+                 "them against the page text.",
                  "counted while building the rows"]]
     return out
 
@@ -92,30 +102,46 @@ def cpa_pointer():
 
     This block used to be a second table under the same column grid — a
     grade-by-phase count of the Maths chips — which made the tab two tables
-    wide apart and forced one set of widths to serve both. The Skills Map
-    measures the same thing better (per skill, per grade, with a position in
-    the year and a track), so what is left here is the pointer and the
-    reading, one row each.
+    wide apart and forced one set of widths to serve both. The Coverage Map
+    counts the phases per grade and the Skills Map draws them against the year,
+    so what is left here is the pointer and the reading, one row each.
+
+    It kept the counts in its prose for a while, which was the same mistake in
+    a shape the eye skips: by the time anyone read the sentence the build said
+    Concrete 36 / 15 / 15 / 11 / 33 and Abstract 11 / 7 / 3 / 16 / 3, and the
+    sentence still said Concrete 36 / 6 / 1 / 0 / 33 and Abstract nowhere at
+    all. A stale number in prose is read as a finding, not as a cache.
     """
-    return [[""] * 7,
-            ["READ THIS", "", "", "", "", "", ""],
-            ["Maths", "the CPA ramp", "", "1\u20135", "",
+    return [[""] * TAX_COLS,
+            ["READ THIS"] + [""] * (TAX_COLS - 1),
+            ["Maths", "the CPA ramp", "1\u20135", "",
              "Reading down a phase is the point: if Concrete empties out while "
              "the grade level rises, children are being handed symbols they "
-             "never held. Measured on the SKILLS MAP tab, which draws every "
-             "skill against the year in all five grades \u2014 Concrete is 36 / "
-             "6 / 1 / 0 / 33 days in G1\u2013G5, so it is absent exactly where "
-             "multiplication and division are introduced; Abstract is 0 in "
-             "every grade, because the corpus stops at the Pictorial \u2192 "
-             "Abstract bridge and never names a day where children work in "
-             "symbols alone. Both are boundary decisions for the rebuild "
-             "pass, not labelling errors.",
-             "measured on the Skills Map tab"]]
+             "never held. The days are counted per grade on the COVERAGE MAP "
+             "tab and drawn against the year on the SKILLS MAP tab; this tab "
+             "does not restate them, because a phase count kept in two places "
+             "is a phase count that disagrees with itself. Where the ramp "
+             "thins, that is a boundary decision for the rebuild pass to "
+             "settle against the page text, not a labelling error.",
+             "measured on the Coverage Map and the Skills Map"]]
 
 
 def pipeline_tab():
+    """The stages, then the tabs that are deliberately not built yet.
+
+    PENDING_TABS used to be printed nowhere. A design-pending tab that appears
+    on no tab is indistinguishable from one nobody thought of, which is the one
+    way "dark stages stay dark" can fail: silently. They are labelled, never
+    given a stage code, and each says when it gets built and what it waits on.
+    """
     out = [["Stage", "Name", "Input", "Output", "Status", "Key decisions"]]
     out += [list(s) for s in STAGES]
+    out.append([""] * 6)
+    out.append(["TABS NOT BUILT YET", "Proposed, and not built on purpose. "
+                "Nothing in this workbook reads as if these existed.",
+                "", "", "", ""])
+    for name, holds, when in PENDING_TABS:
+        out.append(["", name, "", holds, "not built", f"built {when}"])
     return out
 
 
@@ -132,7 +158,17 @@ def all_segments(all_rows):
         # sheet stops right-aligning them into the title beside them.
         out.append([f"G{r['grade']}", r["subject"], book_label(r["book"]),
                     f"Ch. {r['chapter']}" if r["chapter"] is not None else "",
-                    r["chapter_title"], r["kind"], r["day_label"], r["topic"],
+                    r["chapter_title"], r["kind"],
+                    # A review or assessment row gets the subject tabs' marker,
+                    # not the caption the corpus happened to carry. Three
+                    # spellings reached this column — `Chapter Review`, `Review
+                    # Day` and `Day 8 (Review)` — and the third one matched the
+                    # `^Day \d+` a counting script uses, so the flat tab
+                    # reported 1,695 teaching days against the 1,657 its own
+                    # `Row type` column knew about.
+                    r["day_label"] if r["kind"] == "day"
+                    else tabs.tail_label(r["kind"]),
+                    r["topic"],
                     r["skill_type"], r["pages"],
                     r["primary_slo"], r["primary_slo_desc"], r["supporting_slos"],
                     r["blooms"], r["flags"]])

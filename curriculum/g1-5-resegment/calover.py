@@ -1,4 +1,4 @@
-"""Calendar (overview) — the three tables the day grid cannot hold.
+"""The overview half of `Calendar — assumptions` — three tables of them.
 
 The Teaching Calendar is a 30px-per-column day grid. These three blocks are
 prose and wide numbers: what the conservative period rate buys, where our
@@ -10,6 +10,10 @@ So they live here, on a tab with no frozen columns and columns wide enough for
 the text. Nothing is merged and nothing wraps: the whole tab is OVERFLOW_CELL, so a
 long line starting in a column whose neighbours are empty runs across them to
 its full length, and no row ever balloons to hold a paragraph.
+
+The FDE half of the same tab is fdetab's, stacked below these three by calfde.
+It is ten columns against these seven, so these rows stop at column 7 and the
+three columns past it stay empty — which only lengthens the overflow lane.
 """
 import schoolyear as sy
 from caltab import MONTHS
@@ -33,7 +37,7 @@ ONRAMP_NAME = {"English": "phonics and oral language",
                "Science": "hands-on enquiry"}
 
 
-# One sentence per row, each under the 150-character budget `_sentences`
+# One sentence per row, each under the 150-character budget `sentences`
 # enforces, each starting in column 1 with every neighbour empty so it can
 # overflow rightwards across the tab. Plain words on purpose: this is read by
 # primary teachers who are not subject experts.
@@ -119,11 +123,12 @@ def assumption_block(stats):
     return rows, [0], [1]
 
 
-def _sentences(text):
+def sentences(text):
     """One sentence per row. A row here overflows across the whole tab and
-    then stops — there is no eighth column for it to run into — so the budget
-    is about 240 characters and a paragraph written as one cell loses its
-    tail. Every sentence in this file is under 150.
+    then stops at its last column, so a paragraph written as one cell loses
+    its tail: it looks fine in the API response and is cut on the sheet. The
+    tab is about 320 characters wide; every sentence it emits is under 150,
+    and fdetab's half holds to the same budget.
     """
     out, buf = [], ""
     for word in text.split(" "):
@@ -156,14 +161,14 @@ def conflict_block():
             _row("Source", "The disagreement, and what this calendar does")]
     for window, text in sy.DEVIATIONS:
         rows.append(_row("FDE, against itself", window))
-        for i, line in enumerate(_sentences(text)):
+        for i, line in enumerate(sentences(text)):
             rows.append(_row("", f"→  {line}" if i == 0 else f"    {line}"))
     rows.append(_row("Our own ramp assumption",
                      "Grade 1 takes no textbook for six weeks (Foundations), "
                      "then three quarters to week 14; Grade 2 takes it at half "
                      "rate for six weeks, three quarters to week 14; full rate "
                      "after."))
-    for i, line in enumerate(_sentences(
+    for i, line in enumerate(sentences(
             "⚠ A DESIGN ASSUMPTION, NOT A MEASUREMENT. The RDF quiz results "
             "were checked for it on 16 Sep 2026 and cannot carry it: mastery "
             "sits at 81-85% in every grade 1-5 and the adaptive difficulty "
@@ -200,20 +205,32 @@ def month_block():
     return rows, [0], [1]
 
 
-def build(stats):
-    """stats: [(grade, subject, allocator stats)] from caltab's plan."""
-    rows = [_row("CALENDAR — OVERVIEW"),
-            _row("The three tables behind the day grid: what the period rate "
-                 "buys, where FDE's own documents disagree with each other, "
-                 "and the shape of the year by month. The grid itself is on "
-                 "the Teaching Calendar tab.")]
+def stack(rows, blocks):
+    """Append each block to `rows` under a blank spacer, returning the section
+    and header rows it wants painted — the block's own row numbers offset onto
+    the tab. Off by one here paints a banner over a data row and nothing in
+    the build fails; it just comes out wrong. calfde stacks the FDE half with
+    the same call, so there is one piece of this arithmetic, not two.
+    """
     sections, heads = [], []
-    for block in (assumption_block(stats), conflict_block(), month_block()):
-        part, secs, hds = block
+    for part, secs, hds in blocks:
         rows.append(_row(""))
         base = len(rows)
         sections += [base + r for r in secs]
         heads += [base + r for r in hds]
         rows += part
+    return sections, heads
+
+
+def build(stats, head=()):
+    """stats: [(grade, subject, allocator stats)] from caltab's plan.
+
+    `head` is the tab's own title band, prepended so every row number handed
+    to the painter counts from the top of the tab rather than from the top of
+    this half. The band names both halves, so its words live in calfde.
+    """
+    rows = list(head)
+    sections, heads = stack(rows, (assumption_block(stats), conflict_block(),
+                                   month_block()))
     return rows, {"n_cols": N_COLS, "widths": WIDTHS, "wide": WIDE,
                   "sections": sections, "heads": heads}
