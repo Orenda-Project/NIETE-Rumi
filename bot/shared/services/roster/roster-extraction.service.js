@@ -285,6 +285,8 @@ async function extractPage(imageBuffer, mimeType, deps = {}) {
 
   const resp = await getClient().chat.completions.create({
     model: visionModel(),
+    // bd-27ort: names the spender; llm-client records it and strips it before the wire.
+    job: 'roster.extract',
     temperature: 0,
     // Without this the client asks for the model's full ceiling (65,536 on the
     // flash-lite tier). A 40-row register serialises to well under 8k tokens, and

@@ -218,3 +218,34 @@ describe('bd-5rd2f — the switches reach this job', () => {
     expect(result.model).toBe('google/gemini-2.5-flash');
   });
 });
+
+/**
+ * bd-27ort — the pilot must also SAY it is the pilot.
+ *
+ * Proved live on staging 2026-09-18, the first run of this telemetry outside a harness: 66
+ * `api.cost.incurred` events, and `job` null on every one. vision.analyse was 48 of them.
+ *
+ * The model is resolved through the registry (above), but the CALL goes out on the bare
+ * `getClient()`, which carries no job. So the spend is recorded and cannot be attributed to a
+ * feature — and "what does this feature cost per teacher" is the question the whole workstream
+ * exists to answer. Spend-by-model is only a proxy, and already a leaky one: lp.extractVision
+ * and quiz.transcript both run google/gemini-2.5-flash.
+ *
+ * The wrapper in llm-client already reads `params.job` and strips it before the request goes
+ * out, so naming the job costs one field and changes nothing else. Arming that job's fallback
+ * ladder stays a separate, deliberate step for when the job actually moves.
+ */
+describe('bd-27ort — the call names its job, so the spend can be attributed', () => {
+  it('sends job: vision.analyse with the request', async () => {
+    await modelUsed();
+    expect(created[created.length - 1].job).toBe('vision.analyse');
+  });
+
+  it('names the job whichever model it resolves to', async () => {
+    process.env.VISION_MODEL = 'google/gemini-2.5-flash';
+    await modelUsed();
+    const last = created[created.length - 1];
+    expect(last.model).toBe('google/gemini-2.5-flash');
+    expect(last.job).toBe('vision.analyse');
+  });
+});

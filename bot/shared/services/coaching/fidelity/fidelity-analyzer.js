@@ -122,6 +122,8 @@ async function analyzeFidelity(moves, transcript, meta = {}, opts = {}) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const request = {
       model,
+      // bd-27ort: names the spender; llm-client records it and strips it before the wire.
+      job: 'lp.fidelity',
       temperature: 0, // luna accepts 0; minimises the ~±12pt run-to-run wobble (D23 — median on top)
       messages: [
         { role: 'system', content: brief },
