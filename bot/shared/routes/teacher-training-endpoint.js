@@ -31,6 +31,9 @@ const { logToFile } = require('../utils/logger');
 const {
   usesModuleScopedListing, buildCourseRows, isCourseRowId, parseCourseRowId,
 } = require('../services/training/isaps-listing.rules');
+const {
+  moduleSourceQuizId, buildModuleExamSlot,
+} = require('../services/training/isaps-module-exam.rules');
 const supabase = require('../config/supabase');
 const {
   applyBandSelection,
@@ -445,7 +448,14 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
       // parseInt -> NaN. Only an actual number may be trusted; anything else
       // falls through to inference.
       const rawOrder = String(screenData._level_order ?? '').trim();
-      let levelOrder = /^\d+$/.test(rawOrder) ? parseInt(rawOrder, 10) : null;
+      // bd-60120 — `<order>.<courseId>` means "the exam for that I-SAPS module".
+      // A plain integer is the level exam, unchanged. parseInt alone would have
+      // swallowed the suffix and silently started the LEVEL exam instead.
+      const scopedMatch = /^(\d+)\.(\d+)$/.exec(rawOrder);
+      const examCourseId = scopedMatch ? parseInt(scopedMatch[2], 10) : null;
+      let levelOrder = scopedMatch
+        ? parseInt(scopedMatch[1], 10)
+        : (/^\d+$/.test(rawOrder) ? parseInt(rawOrder, 10) : null);
       if (levelOrder === null) {
         const catalog = await loadVisibleLevelsWithProgress(userId);
         const scoped = vendorKey
@@ -466,6 +476,30 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
           });
           return errorScreen('Please open the level again and tap Take exam.');
         }
+      }
+      // bd-60120 — a module exam, not the level one. Same discipline as
+      // bd-2452: the CTA is a tappable link whatever it reads, so the slot's
+      // own `ok` flag is what refuses it here rather than the label.
+      if (examCourseId) {
+        const catalog = await loadVisibleLevelsWithProgress(userId);
+        const scopedLevels = vendorKey
+          ? (catalog || []).filter(l => l.vendor_key === vendorKey)
+          : (catalog || []);
+        const lvl = scopedLevels.find(l => l.order_index === levelOrder - 1);
+        if (!lvl) return errorScreen('That level is not part of your program.');
+        const mods = await loadModulesWithProgress(userId, lvl.id);
+        const slot = await loadModuleExamSlot(userId, lvl.id, examCourseId, mods);
+        if (!slot || !slot.ok) {
+          logToFile('🎓 Refused module-exam start', {
+            userId, levelOrder, examCourseId, reason: slot ? slot.cta : 'no slot',
+          });
+          return errorScreen(slot ? slot.body : 'That exam is not available yet.');
+        }
+        return buildSuccessScreen('Starting your module exam…', {
+          trainingAction: 'start_module_exam',
+          levelOrder,
+          courseId: examCourseId,
+        });
       }
       // bd-2452 — THE GATE. The "🔒 Locked" / "✓ Passed" / blank CTA are all
       // tappable links; this is what actually refuses them.
@@ -700,6 +734,9 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
   // other training keeps the flat list it has always had.
   const moduleScoped = usesModuleScopedListing(lvl.vendor_key);
   const scopedCourseId = moduleScoped ? parseCourseRowId(opts.courseRowId) : null;
+  const moduleExam = scopedCourseId
+    ? await loadModuleExamSlot(userId, lvl.id, scopedCourseId, modules)
+    : null;
 
   const totalModules = modules.length;
   const doneModules = modules.filter(m => m.done).length;
@@ -710,7 +747,14 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
     data: {
       level_title:    levelDisplayTitle(lvl),
       level_progress: `${doneModules}/${totalModules} modules done · ${pct}%`,
-      level_order:    String(levelOrder),
+      // bd-60120 — `level_order` is the only field on this screen that the
+      // server fills AND gets back in the exam CTA's payload, and it is used
+      // nowhere else (verified: one occurrence in the published JSON). When
+      // the teacher is inside an I-SAPS module it therefore carries the
+      // course too, as `<order>.<courseId>`, so tapping the exam starts THAT
+      // module's exam. The reader below parses both shapes; a plain integer
+      // keeps meaning exactly what it always did.
+      level_order:    scopedCourseId ? `${levelOrder}.${scopedCourseId}` : String(levelOrder),
       // bd-2102 — echoed back through payload interpolation so downstream
       // data_exchange keeps the vendor scope. Falls back to '' for single-
       // vendor teachers whose level rows don't carry a resolved key.
@@ -723,9 +767,13 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
       module_list:    await buildModuleList({
         userId, level: lvl, modules, moduleScoped, scopedCourseId,
       }),
-      grand_quiz_body:      grandQuiz.body,
-      grand_quiz_caption:   grandQuiz.caption,
-      grand_quiz_cta:       grandQuiz.cta,
+      // bd-60120 — drilled into an I-SAPS module, the single exam slot carries
+      // THAT module's exam. It is free to reuse precisely because I-SAPS has no
+      // level exam (bd-60119), so nothing is displaced and no other vendor's
+      // level view changes.
+      grand_quiz_body:      moduleExam ? moduleExam.body    : grandQuiz.body,
+      grand_quiz_caption:   moduleExam ? moduleExam.caption : grandQuiz.caption,
+      grand_quiz_cta:       moduleExam ? moduleExam.cta     : grandQuiz.cta,
     },
   };
 }
@@ -1407,6 +1455,72 @@ async function assertCanStartExamForLevel(userId, levelId) {
   return assertCanStartGrandQuiz(userId, level.order_index + 1, level.vendor_key);
 }
 
+/**
+ * bd-60120 — the exam slot for ONE I-SAPS module.
+ *
+ * Gathers what buildModuleExamSlot needs: the module's unit tally, how many
+ * scenario MCQs and CRQ items its per-module quizzes hold, and whether the
+ * teacher has already passed it. Never throws — a failure here must degrade to
+ * "no exam" rather than break the level screen.
+ *
+ * @returns {Promise<{ok:boolean, body:string, caption:string, cta:string}|null>}
+ */
+async function loadModuleExamSlot(userId, levelId, courseId, modules) {
+  try {
+    const { data: course } = await supabase
+      .from('training_courses').select('id, title, level_id')
+      .eq('id', courseId).maybeSingle();
+    if (!course || course.level_id !== levelId) return null;
+    const m = /Module (\d+)/.exec(course.title || '');
+    if (!m) return null;
+    const moduleNo = parseInt(m[1], 10);
+    const srcId = moduleSourceQuizId(moduleNo);
+
+    const { data: quizzes } = await supabase
+      .from('training_grand_quizzes')
+      .select('id, quiz_type')
+      .eq('level_id', levelId).eq('source_quiz_id', srcId).eq('is_active', true);
+    const ids = (quizzes || []).map(q => q.id);
+    let mcqCount = 0;
+    let crqCount = 0;
+    if (ids.length) {
+      const { data: qs } = await supabase
+        .from('training_questions').select('id, grand_quiz_id')
+        .in('grand_quiz_id', ids).eq('is_active', true);
+      const typeById = new Map((quizzes || []).map(q => [q.id, q.quiz_type]));
+      for (const q of qs || []) {
+        if (typeById.get(q.grand_quiz_id) === 'capstone') crqCount += 1;
+        else mcqCount += 1;
+      }
+    }
+
+    const units = (modules || []).filter(x => x.course_title === course.title);
+    const { data: attempts } = await supabase
+      .from('training_assessment_attempts')
+      .select('is_passed, completed_at, cooldown_until, grand_quiz_id')
+      .eq('user_id', userId).in('grand_quiz_id', ids.length ? ids : [-1]);
+    const passed = (attempts || []).some(a => a.is_passed);
+    let cooldownHoursLeft = 0;
+    for (const a of attempts || []) {
+      if (a.is_passed || !a.cooldown_until) continue;
+      const left = (new Date(a.cooldown_until).getTime() - Date.now()) / 36e5;
+      if (left > cooldownHoursLeft) cooldownHoursLeft = Math.ceil(left);
+    }
+
+    return buildModuleExamSlot({
+      moduleTitle: course.title,
+      unitsTotal: units.length,
+      unitsDone: units.filter(u => u.done).length,
+      mcqCount, crqCount, passed, cooldownHoursLeft,
+    });
+  } catch (err) {
+    logToFile('⚠️ loadModuleExamSlot failed — falling back to no exam', {
+      userId, levelId, courseId, error: err?.message,
+    });
+    return null;
+  }
+}
+
 async function loadCoursesWithProgress(userId, levelId) {
   const [{ data: courses }, { data: progressRows }, { data: modules }] = await Promise.all([
     supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index').order('id'),
@@ -1875,6 +1989,7 @@ module.exports = {
   // SEQUENCE is a rule worth pinning, and it cannot be tested through the Flow
   // handler without standing up the whole screen.
   loadModulesWithProgress,
+  loadModuleExamSlot,
   // bd-43482 — the LEVEL axis, exported so "BH subjects are parallel but
   // NIETE/Oxbridge ladders are not" is assertable without a DB.
   isLevelChainLocked,
