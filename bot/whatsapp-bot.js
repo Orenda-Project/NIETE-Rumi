@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
-      // bd-60124 — the I-SAPS end-of-module exam offer, sent when the last unit
-      // of a module is completed. Routed before the module/quiz prefixes below
-      // because `module_exam_start_` must not be mistaken for either.
+      // The end-of-module exam offer, sent when the last unit of a module is
+      // completed. Routed BEFORE the module/quiz prefixes below because
+      // `module_exam_start_` must not be mistaken for either.
       if (buttonId.startsWith('module_exam_start_')) {
         const courseId = buttonId.replace('module_exam_start_', '');
         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
