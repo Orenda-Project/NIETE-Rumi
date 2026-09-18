@@ -38,6 +38,7 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 | Installed deps match the commit's lockfiles | root and bot `package-lock.json` blobs at the sha must equal the installed trees' (exit 10) |
 | No live vendor call | `E2E_CASSETTE=replay-strict`: a hit replays, a miss **throws** `E2E_CASSETTE_MISS`, is logged to `cassette-misses.jsonl`, and makes the ledger row `CRITICAL` naming the scenarios it hit |
 | No production or staging data | the bot runs on the **sandbox** Supabase (`keys/niete-local.env`); the cassette and the DB tooling both refuse any other project ref |
+| One driver row per machine | the synthetic driver is derived from `hostname\|user` (`mock_driver.py`, `92300XXXXXXX`; `E2E_MOCK_DRIVER` pins it) and `ensure`d on first use, so two machines never seed or read the same rows on the shared sandbox DB; the run lock (`driver_lock.py`) is per machine and guards same-machine parallel runs |
 | Flows are emulated, never rendered | the `flow*` primitives play Meta's client from the stored FLOW_JSON (phase 4); every result carries `via: flow-emulator`, `caps.render` stays `false`, and a component the emulator does not model (PhotoPicker) is refused, not faked |
 | Meta's field caps are enforced | the mock rejects header/footer > 60, button > 20, row title > 24, > 3 buttons, > 10 rows — counted in **code points**, like Meta |
 
