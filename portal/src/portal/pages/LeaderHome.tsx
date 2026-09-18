@@ -56,7 +56,7 @@ const LeaderHome = () => {
             {/* Headline KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <StatCard title="Teachers" value={overview.totalTeachers} icon={Users} />
-              <StatCard title="On Rumi" value={`${overview.onRumi}/${overview.totalTeachers}`} icon={TrendingUp} />
+              <StatCard title="On NIETE" value={`${overview.onRumi}/${overview.totalTeachers}`} icon={TrendingUp} />
               <StatCard title="Coaching sessions" value={overview.totalCoachingSessions} icon={MessageSquare} />
               <StatCard title="Lesson plans" value={overview.totalLessonPlans} icon={BookOpen} />
             </div>

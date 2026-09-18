@@ -29,6 +29,8 @@ import LeaderObservations from "./portal/pages/LeaderObservations";
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 // bd-60123 — the attendance detail (merged G3 + day-wise).
 import SchoolAttendance from "./portal/pages/SchoolAttendance";
+// bd-60121 — every observed lesson, its own page.
+import SchoolLessons from "./portal/pages/SchoolLessons";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
  * imports and the /portal/reading-* + /portal/video* routes below. */
@@ -111,6 +113,7 @@ const App = () => {
                 one school's numbers to a multi-school role. */}
             <Route path="/portal/leader/school-analytics" element={<SchoolAnalytics />} />
             <Route path="/portal/leader/attendance" element={<SchoolAttendance />} />
+            <Route path="/portal/leader/lessons" element={<SchoolLessons />} />
             <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
