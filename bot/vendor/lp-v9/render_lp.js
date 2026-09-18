@@ -19,7 +19,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const { buildHtml, scaledPx, PAGE } = require("./lib/template");
+const { buildHtml, scaledPx, PAGE, PAGE_FORMATS, isPrimary } = require("./lib/template");
 const { applyOverlay } = require("./lib/overlay");
 const { validateDoc } = require("./lib/validate");
 const { REPO_ROOT } = require("./lib/fonts");
@@ -120,9 +120,75 @@ const WARN_PAGES = { teach: 3, support: 2 };    // above this: WARN, and keep go
 const MAX_PAGES_UR = { teach: 5, support: 4 };
 const WARN_PAGES_UR = { teach: 4, support: 3 };
 
-/** The caps for one render, by the language actually being laid out. */
-function pageCapsFor(lang) {
-  return lang === "ur"
+// VENDOR DIVERGENCE (SYNC §3.17). PRIMARY (G1-5) TEACHES FROM A LONGER PLAN, and that is the
+// operator's decision, not a drift. Asked to choose the shape, she took "one continuous plan, as
+// today" over a per-move phone view and over a deliver/script split, and raised the teach cap
+// from 4 to 9 in the same breath.
+//
+// The 4-page ceiling above was measured on G6-12, where the plan is a board-exam brief for a
+// subject teacher who already knows the content. A primary plan is a different document with a
+// different reader: one teacher takes every subject, the script is what she actually says, and
+// the 2026-09 format survey found primary teachers asking for MORE script, not less. So the
+// reduction this profile is being built for is SCAN COST, not word count -- nothing is hidden,
+// collapsed or moved to the support sheet -- and a cap tuned to a shorter document would have
+// forced exactly the deletion she ruled out.
+//
+// Support stays at 3. Her page map ends the plan at the close ("coming in can go") and primary's
+// page2 surfaces are mostly dark by design (d0_page2.NO_PRIMARY_SOURCE), so nothing is pressing
+// on that sheet and raising it would only give content somewhere to hide.
+const MAX_PAGES_PRIMARY = { teach: 9, support: 3 };
+const WARN_PAGES_PRIMARY = { teach: 8, support: 2 };
+const MAX_PAGES_PRIMARY_UR = { teach: 12, support: 4 };   // round(9 x 1.33) -- same Nastaliq
+const WARN_PAGES_PRIMARY_UR = { teach: 11, support: 3 };  // premium the UR caps above apply
+
+// `isPrimary` is IMPORTED from lib/template (bd-vbs5w). It used to be defined here, and once
+// page 1's primary furniture started reading the same rule there were two copies of one grade
+// test -- which is how a plan ends up capped as primary and laid out as secondary. It lives in
+// the template because render_lp requires that module and not the reverse.
+
+// VENDOR DIVERGENCE (bd-vbs5w, SYNC §3.20). A CAP IS A CONTENT BUDGET WRITTEN IN SHEETS, AND
+// ONLY ONE SHEET WAS EVER MEASURED.
+//
+// Every number above was tuned against the 520x2000 phone page, because until the format became
+// selectable (SYNC §3.14) that was the only page there was. The phone content box is 1986px and
+// A4's is 1109px -- 56% of it -- so the same plan needs ~1.79x the sheets to say the same thing.
+// English_seg6, green at `teach 8/9` on the phone, reported "teach needs 14 pages; the cap is 9"
+// at --format a4 with nothing else changed: not a lesson over budget, a budget quoted in the
+// wrong unit. Amena asked for both renders of every primary plan ("Both -- A4 to review, phone to
+// deliver"), so a cap only one sheet can meet makes the review copy unrenderable.
+//
+// PHONE IS UNTOUCHED BY CONSTRUCTION: at ratio 1 the object is returned as it is, so bd-rjt3x's
+// standing "do not raise the cap" still binds the sheet a teacher actually receives, and so does
+// every reading of these constants that does not name a format (the author's budget card).
+//
+// WARN is recomputed rather than scaled, because the invariant the constants' own comment states
+// is one sheet under the cap -- scaling both independently drifts them apart.
+function scaleCapsToFormat(caps, format) {
+  const box = (f) => f.h - f.padT - f.padB;           // template.js: PAGE_CONTENT_H
+  const fmt = PAGE_FORMATS[format] || PAGE_FORMATS.phone;
+  const ratio = box(PAGE_FORMATS.phone) / box(fmt);
+  if (ratio === 1) return caps;
+  const scale = (n) => Math.max(1, Math.round(n * ratio));
+  const max = { teach: scale(caps.max.teach), support: scale(caps.max.support) };
+  return { max, warn: { teach: max.teach - 1, support: max.support - 1 } };
+}
+
+/** The caps for one render, by the language actually being laid out, the plan's own profile, and
+ *  the sheet it is being laid out on. `format` is optional and defaults to the measured one. */
+function pageCapsFor(lang, doc, format) {
+  const ur = lang === "ur";
+  if (isPrimary(doc)) {
+    // PRIMARY ONLY, deliberately. The same physics would take the G6-12 teach cap from 4 to 7 on
+    // A4. That is a real question, but it is the operator's: those caps gate the format G6-12
+    // plans are delivered in, and they are not moving as a side effect of a G1-5 page-1 change.
+    return scaleCapsToFormat(
+      ur
+        ? { max: MAX_PAGES_PRIMARY_UR, warn: WARN_PAGES_PRIMARY_UR }
+        : { max: MAX_PAGES_PRIMARY, warn: WARN_PAGES_PRIMARY },
+      format,
+    );
+  }
+  return ur
     ? { max: MAX_PAGES_UR, warn: WARN_PAGES_UR }
     : { max: MAX_PAGES, warn: WARN_PAGES };
 }
@@ -255,7 +321,7 @@ const CHROME_CLI_BIN = process.env.LP612_CHROME_BIN ||
     : "google-chrome");
 
 function parseArgs(argv) {
-  const a = { png: false, pdf: true, lang: null, out: null, stem: null, quiet: false };
+  const a = { png: false, pdf: true, lang: null, out: null, stem: null, quiet: false, format: null };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i];
@@ -265,6 +331,8 @@ function parseArgs(argv) {
     else if (v === "--lang") a.lang = argv[++i];
     else if (v === "--out") a.out = argv[++i];
     else if (v === "--stem") a.stem = argv[++i];
+    // VENDOR DIVERGENCE (SYNC §3.14) — `phone` (default, what a teacher receives) or `a4`.
+    else if (v === "--format") a.format = argv[++i];
     else rest.push(v);
   }
   a.doc = rest[0];
@@ -501,14 +569,20 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
   // part that already fitted is paginated exactly as it was. Below `pages`, so the allowance
   // is spent whenever it removes a page. With slack = 0 the term is identically zero and the
   // comparison is the one the exact packer has always used.
+  // VENDOR DIVERGENCE (bd-usirc, SYNC 3.22). `splits` -- breaks that fell on an atom marked
+  // `soft` -- sits between orphans and over. BELOW `pages`, so a seam can never buy paper the
+  // way `glue` does; ABOVE `used`, so it wins the ties that front-loading used to win, which
+  // is where the gratuitous splits were. An atom that declares no `soft` scores zero here and
+  // is packed by the comparison the exact packer has always used.
   const better = (a, b) =>
     a.pages !== b.pages ? a.pages < b.pages
       : a.orphans !== b.orphans ? a.orphans < b.orphans
-        : a.over !== b.over ? a.over < b.over
-          : a.used > b.used;
+        : a.splits !== b.splits ? a.splits < b.splits
+          : a.over !== b.over ? a.over < b.over
+            : a.used > b.used;
 
   const best = new Array(n + 1).fill(null);
-  best[n] = { pages: 0, orphans: 0, over: 0, used: 0, next: n };
+  best[n] = { pages: 0, orphans: 0, splits: 0, over: 0, used: 0, next: n };
 
   for (let i = n - 1; i >= 0; i--) {
     const box = boxOf(i);
@@ -526,6 +600,7 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
       const cand = {
         pages: rest.pages + 1,
         orphans: rest.orphans + orphan,
+        splits: rest.splits + (j + 1 < n && atoms[j].soft ? 1 : 0),
         over: rest.over + (used > box ? 1 : 0),
         used,
         next: j + 1,
@@ -673,7 +748,7 @@ function overTargetWarning(part, n, target, cap, advice) {
  * (no glue, no per-section bars) and because the packer's oldest regression tests speak it.
  */
 function computeBreaks(heights, capacity, contHeight = 0) {
-  const atoms = heights.map((h) => ({ h, mt: 0, glue: false, sec: null, first: false }));
+  const atoms = heights.map((h) => ({ h, mt: 0, glue: false, soft: false, sec: null, first: false }));
   return packAtoms(atoms, capacity, { strip: contHeight }).breaks;
 }
 
@@ -753,7 +828,12 @@ const PROBE = `() => {
   };
 }`;
 
-async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, repaginate, pdfMeta) {
+// VENDOR DIVERGENCE (SYNC §3.14). `geom` is the page box this render lays out on, and it is
+// passed IN rather than read from the module. `PAGE` is destructured at require time, so once
+// the format became selectable the imported binding froze on whatever the FIRST build used —
+// a viewport and a PDF box silently disagreeing with the `@page` rule in the HTML. It comes
+// from `buildHtml`'s return value, which is the only thing that knows what was actually built.
+async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, repaginate, pdfMeta, geom = PAGE) {
   const channel = chromeChannel();
 // VENDOR DIVERGENCE (see SYNC.md, "container launch flags"): two flags that matter only on a
   // container, and only under load (bd-v60qf).
@@ -769,7 +849,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
     channel ? { channel, args: LAUNCH_ARGS } : { args: LAUNCH_ARGS },
   );
   try {
-    const page = await browser.newPage({ viewport: { width: PAGE.w, height: PAGE.h }, deviceScaleFactor: 2 });
+    const page = await browser.newPage({ viewport: { width: geom.w, height: geom.h }, deviceScaleFactor: 2 });
     const load = async (p) => {
       await page.goto("file://" + p + "?t=" + Date.now(), { waitUntil: "load" });
       await page.evaluate("document.fonts.ready.then(function(){return true;})");
@@ -844,7 +924,7 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       // plan and both G10 Urdu support pages in the 2026-08-30 sample run.
       // The renderer emits EVERY page the packer laid out; going over the cap is reported
       // below as a loud PAGE COUNT failure. Cutting a long plan is an authoring decision.
-      const buf = await page.pdf({ width: `${PAGE.w}px`, height: `${PAGE.h}px`, printBackground: true });
+      const buf = await page.pdf({ width: `${geom.w}px`, height: `${geom.h}px`, printBackground: true });
       // The internal identifiers the footer no longer prints live HERE instead — visible to
       // the pipeline (and in File > Properties), invisible to the teacher.
       fs.writeFileSync(outPdf, pdfMeta ? setInfo(buf, pdfMeta) : buf);
@@ -929,7 +1009,11 @@ async function renderDoc(a) {
   };
 
   const pw = loadPlaywright();
-  let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw });
+  // VENDOR DIVERGENCE (SYNC §3.14). `format` rides on EVERY buildHtml call, the first one and
+  // the repaginating rebuild alike: the rebuild re-enters the template, so omitting it there
+  // would reset the geometry to the default halfway through a two-pass render.
+  const format = a.format || "phone";
+  let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw, format });
   const { warnings, fontReport, pageContentHeight, hasRasterFigure } = built;
   let figureProblems = built.figureProblems || [];
   // bd-oak77.14 — the figures the layout had to WIDEN to keep legible. Reported, never inferred:
@@ -944,9 +1028,9 @@ async function renderDoc(a) {
     const repaginate = {
       capacity: pageContentHeight,
       atoms: built.atoms,
-      rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks }),
+      rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks, format }),
     };
-    result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta);
+    result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta, built.page);
     if (repaginate.warnings) { warnings.length = 0; warnings.push(...repaginate.warnings); }
     if (repaginate.figureProblems) figureProblems = repaginate.figureProblems;
     if (repaginate.figureRepairs) figureRepairs = repaginate.figureRepairs;
@@ -976,7 +1060,7 @@ async function renderDoc(a) {
     }
   }
   const byPart = (probe && probe.pagesByPart) || {};
-  const CAPS = pageCapsFor(lang);
+  const CAPS = pageCapsFor(lang, doc, format);
   for (const [part, cap] of Object.entries(CAPS.max)) {
     const n = byPart[part] || 0;
     if (n > cap) {
@@ -1059,14 +1143,14 @@ async function renderDoc(a) {
 async function main() {
   const a = parseArgs(process.argv.slice(2));
   if (!a.doc) {
-    console.error("usage: node render_lp.js <lp_doc.json> [--out DIR] [--stem NAME] [--lang en|ur] [--png] [--no-pdf]");
+    console.error("usage: node render_lp.js <lp_doc.json> [--out DIR] [--stem NAME] [--lang en|ur] [--format phone|a4] [--png] [--no-pdf]");
     process.exit(2);
   }
   let out;
   try {
     out = await renderDoc(a);
   } catch (e) {
-    if (e.code === "SCHEMA_INVALID" || e.code === "OVERLAY_INVALID") {
+    if (e.code === "SCHEMA_INVALID" || e.code === "OVERLAY_INVALID" || e.code === "BAD_FORMAT") {
       console.error(e.message);
       process.exit(1);
     }
@@ -1105,6 +1189,7 @@ if (require.main === module) {
 module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtomsGreedy,
   overCapAdvice, overCapProblem,
   PAGE,
-  MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor,
+  MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor, isPrimary,
+  MAX_PAGES_PRIMARY, WARN_PAGES_PRIMARY, MAX_PAGES_PRIMARY_UR, WARN_PAGES_PRIMARY_UR,
   absorbPlan, OVERFLOW_ABSORB_MAX_PX,
   BODY_FLOOR_PX, CHIP_FLOOR_PX };

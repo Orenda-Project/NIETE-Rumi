@@ -136,6 +136,8 @@
       "properties": {
         "previous": { "type": ["string", "null"] },
         "this": { "type": "string", "minLength": 3 },
+        "day": { "type": "integer", "minimum": 1, "description": "bd-vbs5w. The primary rail draws a numbered pip per day and fills this one. The integer, not the sentence — re-parsing `this` in the renderer would put a second reading of one fact in a second language." },
+        "of": { "type": "integer", "minimum": 1, "description": "bd-vbs5w. How many pips to draw. Additive: a document with neither integer still renders `this` as text." },
         "next": { "type": ["string", "null"] },
         "checkpoint": { "type": ["string", "null"], "description": "The next assessment this LP is building towards, e.g. 'Ch. 3 assessment (day 12)'." }
       }
@@ -177,6 +179,7 @@
         "properties": {
           "id": { "type": "string", "enum": ["introduction", "development", "activity", "conclusion", "homework"] },
           "title": { "type": "string", "description": "Override for the printed bar label. Defaults to the localized section name." },
+          "move": { "type": "string", "description": "The gradual-release step — I DO / WE DO / YOU DO — printed as a pill at the reading-end edge of the section bar, after the minutes. The BAR names the lesson phase (OPENING, EXPLANATION); this names what the teacher is doing inside it. Authored at D0 in the lesson language, so the renderer holds no label table for it. Primary only in practice: no G6-12 document carries it." },
           "minutes": { "type": "integer", "minimum": 0, "description": "Printed as the section's minute badge. 0 prints NO badge — and homework may not be 0 (spec §4 / the expert's '0 min' complaint)." },
           "layout": { "type": "string", "enum": ["full", "half"], "default": "full" },
           "blocks": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/block" } },
@@ -490,6 +493,48 @@
     }
   },
   "definitions": {
+    "script_turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "description": "ONE ROW of the teacher's script (SYNC §3.17). The six kinds are closed because each one is a CSS rule (`.k-say`, `.k-ask`, …); a seventh would print unstyled rather than loudly wrong. `routine` is the only kind that carries `parts` instead of `text`.",
+      "properties": {
+        "kind": { "enum": ["do", "say", "ask", "frame", "calc", "routine"] },
+        "text": { "type": "string" },
+        "expect": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "What the class says back. Printed as pills at the reading edge; 7 of 954 corpus turns supply one, and an `ask` without one gets a ruled waiting space instead of a guess." },
+        "name": { "type": "string", "description": "`routine` only — the named procedure, e.g. THINK-PAIR-SHARE." },
+        "parts": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "`routine` only — the procedure's steps, kept in one box so they do not read as unrelated turns." },
+        "ref": { "type": "string", "description": "A page citation. Prints as a chip, not inline: it is how she finds the page, not part of what she says." }
+      }
+    },
+    "board_panel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows"],
+      "description": "ONE PANEL of a laid-out board (SYNC §3.16) — a numbered group in the order it goes up. `rows` is required: a panel with none is a numbered chip with nothing under it.",
+      "properties": {
+        "label": { "type": "string", "description": "The panel's own heading, as authored." },
+        "connector": { "type": "string", "description": "A relationship drawn BETWEEN this panel and the one before it, e.g. '-> APPLY THE CLUE ->' (SYNC §3.21). It is a row of neither board, so it prints in the gap where the teacher chalks it." },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "oneOf": [
+              { "required": ["term", "gloss"] },
+              { "required": ["text"] }
+            ],
+            "description": "Either a term and its gloss, which align in two columns, or one free line.",
+            "properties": {
+              "term": { "type": "string", "minLength": 1 },
+              "gloss": { "type": "string" },
+              "text": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
     "diagram_spec": {
       "type": "object",
       "required": ["type"],
@@ -545,6 +590,9 @@
             "type": { "const": "board" },
             "id": { "type": "string" },
             "text": { "type": "string", "minLength": 1 }
+            ,
+            "title": { "type": "string", "description": "A heading over the whole board." },
+            "panels": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/board_panel" }, "description": "VENDOR DIVERGENCE (SYNC §3.16). The board LAID OUT. `text` remains required as the flat fallback — it is what every reader outside the renderer addresses, and `boardWork.content` authored its layout as blank-line groups that HTML collapsed to one paragraph." }
           },
           "required": ["type", "text"],
           "additionalProperties": false
@@ -579,6 +627,24 @@
             "items": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "type": "string", "minLength": 3 } }
           },
           "required": ["type", "items"],
+          "additionalProperties": false
+        },
+        {
+          "description": "BIG IDEA -- the teaching behind the lesson, opening EXPLANATION. Three NAMED paragraphs, never a free list: named fields are what make an omission visible as a labelled blank rather than a shorter list. Primary profile only; 80 words across all three (spec/07-lp-production.md).",
+          "type": "object",
+          "properties": {
+            "type": { "const": "big_idea" },
+            "id": { "type": "string" },
+            "title": { "type": "string",
+              "description": "Overrides the printed \"The Big Idea\" label. Pass \"\" to print no label." },
+            "distinction": { "type": "string", "minLength": 3,
+              "description": "The concept distinction the textbook does not make explicit -- what pupils confuse." },
+            "misconception": { "type": "string", "minLength": 3,
+              "description": "What pupils will get wrong, and why." },
+            "demo": { "type": "string", "minLength": 3,
+              "description": "ONE sentence: the move that teaches the distinction today." }
+          },
+          "required": ["type", "distinction", "misconception", "demo"],
           "additionalProperties": false
         },
         {
@@ -621,6 +687,9 @@
             "minutes": { "type": "integer", "minimum": 0 },
             "steps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } },
             "result": { "type": "string" }
+            ,
+            "turns": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/script_turn" }, "description": "VENDOR DIVERGENCE (SYNC §3.17). The script as call-and-response ROWS, one turn each. `steps` remains required: every G6-12 document carries no turns and takes the flat `<ol>` branch, so their render is unchanged by construction." },
+            "cfu": { "type": "string", "minLength": 3, "description": "VENDOR DIVERGENCE (SYNC §3.29). The check the modelling closes on — ONE question, asked before the class works alone. It prints as the last row INSIDE this box, under the label the plain `ask` block already uses, so the check sits with the work it checks instead of surfacing pages later in the conclusion. No G6-12 document carries it, and their markup is unchanged by construction." }
           },
           "required": ["type", "steps"],
           "additionalProperties": false
@@ -635,6 +704,8 @@
             "minutes": { "type": "integer", "minimum": 0 },
             "steps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } },
             "answer": { "type": "string" }
+            ,
+            "turns": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/script_turn" }, "description": "VENDOR DIVERGENCE (SYNC §3.17). The script as call-and-response ROWS, one turn each. `steps` remains required: every G6-12 document carries no turns and takes the flat `<ol>` branch, so their render is unchanged by construction." }
           },
           "required": ["type", "steps"],
           "additionalProperties": false

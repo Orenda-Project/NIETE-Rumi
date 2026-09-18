@@ -169,10 +169,21 @@ const LABELS = {
     introduction: "Introduction", development: "Development", activity: "Activity",
     conclusion: "Conclusion", homework: "Home work",
     min: "min", say: "Say", ask: "Open with this question", askPlain: "Ask this", lookFor: "Look for",
-    watch: "Watch out", board: "On the board", keywords: "Key words",
+    watch: "Watch out", board: "Write on the board", keywords: "Key words",
     keyPoints: "Key points", worked: "Worked example", faded: "Faded example",
+    // bd-z4xkl. THE BIG IDEA -- the teaching behind Key fact, opening EXPLANATION. The three
+    // sub-labels are the surface's whole discipline: they are what stops an author writing three
+    // restatements of the outcome, because an omitted DISTINCTION is visible as a labelled blank.
+    bigIdea: "The Big Idea", biDistinction: "The difference to make clear",
+    biMisconception: "What pupils get wrong", biDemo: "Show it like this",
+    // bd-f6opy. The SHORT names the two halves of the activity band print. The pill under each
+    // band still carries the whole sentence ("WE DO \u00b7 class practises together"); the band is
+    // the landmark a teacher aims at while flipping, so it is two words. These are furniture, so
+    // they are translated -- unlike a block title, which the author wrote and which is frozen.
+    weDo: "We Do", youDo: "You Do",
     guided: "Guided practice", independent: "Independent practice",
     practice: "Practice", answer: "Answer", support: "Support", extension: "Extension",
+    teacher: "Teacher", classSays: "Class says",
     // bd-a8veu.3 — `slo` captions the QUOTED curriculum wording; `outcome` (below) heads the box.
     // In English both were "Learning outcome", so the box printed that heading twice over two
     // differently-worded sentences and read as two of the three styles the operator counted. Urdu
@@ -216,6 +227,15 @@ const LABELS = {
     kind: { scaffold: "scaffold for today", prerequisite: "prerequisite", spaced: "spaced review" },
     seqPrev: "Last", seqNext: "Next", seqCheck: "Checkpoint",
     fromBook: "Teaching from", video: "Video",
+    // bd-vbs5w — G1-5 page 1. The primary band restates the same three periods `seqPrev`/`this`/
+    // `seqNext` carry, in the operator's own words for them: *"the header should be as kie.ai as
+    // should the Journey so far, Today and Coming up columns"*. They are separate keys because the
+    // band's headings are column titles a teacher reads at a glance, not the inline "Last:" that
+    // labels a sentence, and `journeyNone` is a day-1 statement, not an empty column.
+    journey: "Journey so far", journeyNone: "Starting fresh today",
+    today: "Today", comingUp: "Coming up",
+    toPrepare: "To prepare", videoRes: "Video resource",
+    videoPending: "design pending — no video mapped yet",
     checkpoint: "Board question", exitTicket: "Exit ticket", reteach: "Re-teach rule",
     markAbbr: "m", teacherNote: "Teacher note —", distractors: "what each wrong option catches",
     refMissing: "\u26a0 this answer names no question in the plan",
@@ -237,10 +257,14 @@ const LABELS = {
     introduction: "تعارف", development: "تدریس", activity: "سرگرمی",
     conclusion: "اختتام", homework: "گھر کا کام",
     min: "منٹ", say: "کہیے", ask: "اس سوال سے آغاز کریں", askPlain: "یہ سوال پوچھیں", lookFor: "جواب میں یہ دیکھیں",
-    watch: "خیال رکھیے", board: "تختۂ سیاہ پر", keywords: "کلیدی الفاظ",
+    watch: "خیال رکھیے", board: "تختۂ سیاہ پر لکھیے", keywords: "کلیدی الفاظ",
     keyPoints: "اہم نکات", worked: "حل شدہ مثال", faded: "نیم حل شدہ مثال",
+    bigIdea: "بنیادی تصور", biDistinction: "وہ فرق جو واضح کرنا ہے",
+    biMisconception: "بچے کیا غلط سمجھتے ہیں", biDemo: "یوں کر کے دکھائیں",
+    weDo: "مل کر کریں", youDo: "خود کریں",
     guided: "رہنمائی کے ساتھ مشق", independent: "انفرادی مشق",
     practice: "مشق", answer: "جواب", support: "مدد", extension: "اضافی کام",
+    teacher: "استاد", classSays: "جماعت کہتی ہے",
     materials: "درکار اشیاء", pacing: "وقت کی تقسیم", slo: "متعینہ تدریسی مقصد",
     prerequisite: "سابقہ علم", spaced: "دہرائی",
     supportPage: "حوالہ جاتی مواد", notReadAloud: "کلاس میں پڑھ کر نہ سنائیں",
@@ -265,6 +289,11 @@ const LABELS = {
     kind: { scaffold: "آج کے سبق کی بنیاد", prerequisite: "سابقہ علم", spaced: "دہرائی" },
     seqPrev: "پچھلا", seqNext: "اگلا", seqCheck: "جانچ",
     fromBook: "تدریس بمطابق", video: "ویڈیو",
+    // bd-vbs5w — the primary band. See the English note.
+    journey: "اب تک کا سفر", journeyNone: "آج نئی شروعات",
+    today: "آج", comingUp: "آگے کیا",
+    toPrepare: "تیاری کیجیے", videoRes: "ویڈیو وسیلہ",
+    videoPending: "ڈیزائن زیرِ تکمیل — ویڈیو ابھی متعین نہیں",
     checkpoint: "بورڈ کے انداز کا سوال", exitTicket: "اختتامی پرچی", reteach: "دوبارہ پڑھانے کا اصول",
     markAbbr: "نمبر", teacherNote: "استاد کے لیے نوٹ —", distractors: "ہر غلط جواب کس غلط فہمی کو پکڑتا ہے",
     refMissing: "\u26a0 اس جواب کا سوال منصوبے میں موجود نہیں",
