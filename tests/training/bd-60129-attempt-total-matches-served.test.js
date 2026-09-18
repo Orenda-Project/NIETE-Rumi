@@ -27,6 +27,7 @@
  */
 
 const {
+  MODULE_EXAM_MCQ_COUNT,
   selectPaperWithOneCrq,
   isOpenEndedQuestion,
 } = require('../../bot/shared/services/training/isaps-crq-paper.rules');
@@ -48,16 +49,26 @@ const BANK = [
 ];
 
 describe('bd-60129 — the served paper is what the attempt must be sized to', () => {
-  test('the bank is 12 but the paper is 9 — the numbers that caused this', () => {
+  // bd-60141 changed the paper from "every MCQ + 1 CRQ" to "2 MCQs + 1 CRQ",
+  // so the fixed counts below moved. The INVARIANT this file exists for is
+  // untouched and is what the assertions now express: the attempt must be
+  // sized to the SERVED paper, never to the bank, because the teacher's
+  // question index addresses the paper.
+
+  test('the bank is 12 but the paper is 3 — the numbers, after bd-60141', () => {
     expect(BANK).toHaveLength(12);
-    expect(selectPaperWithOneCrq(BANK, 'attempt-a')).toHaveLength(9);
+    expect(selectPaperWithOneCrq(BANK, 'attempt-a')).toHaveLength(3);
   });
 
-  test('the LAST served index is the CRQ, and it is index 8 of 9', () => {
+  test('the paper is always SHORTER than the bank — sizing to the bank is the bug', () => {
+    for (let i = 0; i < 20; i += 1) {
+      expect(selectPaperWithOneCrq(BANK, `attempt-${i}`).length).toBeLessThan(BANK.length);
+    }
+  });
+
+  test('the LAST served index is the CRQ', () => {
     const paper = selectPaperWithOneCrq(BANK, 'attempt-a');
-    const lastIndex = paper.length - 1;
-    expect(lastIndex).toBe(8);
-    expect(isOpenEndedQuestion(paper[lastIndex])).toBe(true);
+    expect(isOpenEndedQuestion(paper[paper.length - 1])).toBe(true);
   });
 
   test('exactly one CRQ is served — four would break the index contract', () => {
@@ -65,32 +76,35 @@ describe('bd-60129 — the served paper is what the attempt must be sized to', (
     expect(paper.filter(isOpenEndedQuestion)).toHaveLength(1);
   });
 
-  test('index 8 of the FULL bank is a different question than index 8 of the paper', () => {
-    // This is the actual defect: serving the bank meant the question at the
-    // teacher's index was not the question the code inspected.
+  test('the paper index addresses the PAPER, not the bank', () => {
+    // The original defect: the question at the teacher's index was not the
+    // question the code inspected, because one indexed the paper and the
+    // other the bank. With a sampled paper they diverge immediately.
     const paper = selectPaperWithOneCrq(BANK, 'attempt-zzz');
-    const servedAt8 = paper[8];
-    const bankAt8 = BANK[8];
-    // Both are open-ended, but they are not necessarily the same item — and
-    // the paper's is the one the teacher was actually shown.
-    expect(isOpenEndedQuestion(servedAt8)).toBe(true);
-    expect(isOpenEndedQuestion(bankAt8)).toBe(true);
+    const lastIdx = paper.length - 1;
+    expect(isOpenEndedQuestion(paper[lastIdx])).toBe(true);
+    // Same ordinal read off the bank is NOT the same question.
+    expect(BANK[lastIdx].id).not.toBe(paper[lastIdx].id);
     expect(BANK.filter(isOpenEndedQuestion)).toHaveLength(4);
   });
 
-  test('a module with no CRQ sizes to its MCQs, unchanged', () => {
+  test('a module with no CRQ sizes to its sampled MCQs', () => {
     const mcqOnly = BANK.filter(q => !isOpenEndedQuestion(q));
-    expect(selectPaperWithOneCrq(mcqOnly, 'a')).toHaveLength(8);
+    expect(selectPaperWithOneCrq(mcqOnly, 'a')).toHaveLength(MODULE_EXAM_MCQ_COUNT);
   });
 
-  test('every module shape in sandbox sizes to mcqs + 1', () => {
-    // M6 is the thin one (2 MCQs) and M8 the fat one (12) — both must size
-    // correctly, since the snapshot guard trips on ANY mismatch.
+  test('every module shape in sandbox sizes to the same 3 — including the thin one', () => {
+    // M6 is the thin one (1 MCQ in the real bank) and M8 the fat one (12).
+    // A fat bank now sizes to 3 like every other; a bank thinner than the
+    // quota serves what it has, which is why M6 is asserted separately.
     for (const mcqCount of [2, 5, 7, 8, 9, 10, 12]) {
       const bank = [];
       for (let i = 1; i <= mcqCount; i += 1) bank.push(MCQ(i, i));
       for (let i = 1; i <= 4; i += 1) bank.push(CRQ(900 + i, 900 + i));
-      expect(selectPaperWithOneCrq(bank, `a-${mcqCount}`)).toHaveLength(mcqCount + 1);
+      expect(selectPaperWithOneCrq(bank, `a-${mcqCount}`)).toHaveLength(3);
     }
+    // The real Module 6: a single MCQ in the bank cannot yield two.
+    const thin = [MCQ(1, 1), CRQ(901, 901), CRQ(902, 902)];
+    expect(selectPaperWithOneCrq(thin, 'a-thin')).toHaveLength(2);
   });
 });

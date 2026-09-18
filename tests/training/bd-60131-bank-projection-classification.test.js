@@ -45,13 +45,19 @@ describe('bd-60131 — a thin projection is not evidence of open-endedness', () 
     expect(isOpenEndedQuestion(THIN(1, 1))).toBe(false);
   });
 
-  test('a full bank of thin rows serves them ALL, not one', () => {
+  test('a full bank of thin rows yields NO CRQ — none is invented', () => {
     const bank = [];
     for (let i = 1; i <= 8; i += 1) bank.push(THIN(i, i));
     for (let i = 1; i <= 4; i += 1) bank.push(THIN(100 + i, 900 + i));
-    // Nothing is classifiable, so nothing is dropped — 12 in, 12 out. The
-    // caller must load the answer columns if it wants the one-CRQ rule.
-    expect(selectPaperWithOneCrq(bank, 'sizing')).toHaveLength(12);
+    // bd-60141 changed the COUNT (the paper is now sampled to 2 MCQs + 1 CRQ
+    // rather than serving the bank), so this no longer asserts 12. What
+    // bd-60131 actually guards is unchanged and is asserted here: an
+    // unclassifiable row must never be treated as open-ended, so a bank of
+    // thin rows produces a paper with NO CRQ in it — which is what stopped
+    // Module 1's 12 rows collapsing to a single CRQ.
+    const paper = selectPaperWithOneCrq(bank, 'sizing');
+    expect(paper.every(q => !isOpenEndedQuestion(q))).toBe(true);
+    expect(paper.length).toBeGreaterThan(0);
   });
 
   test('an EXPLICITLY empty options array with an empty key IS open-ended', () => {
@@ -63,11 +69,16 @@ describe('bd-60131 — a thin projection is not evidence of open-endedness', () 
     expect(isOpenEndedQuestion(MCQ(1, 1))).toBe(false);
   });
 
-  test('a properly loaded Module 1 bank still serves 9', () => {
+  test('a properly loaded Module 1 bank serves exactly one CRQ', () => {
     const bank = [];
     for (let i = 1; i <= 8; i += 1) bank.push(MCQ(i, i));
     for (let i = 1; i <= 4; i += 1) bank.push(CRQ(100 + i, 900 + i));
-    expect(selectPaperWithOneCrq(bank, 'sizing')).toHaveLength(9);
+    // Was 9 (all MCQs + 1 CRQ). bd-60141 samples the MCQs to 2 per the ISAPS
+    // spec, so the paper is 3 — but the invariant bd-60131 exists for is that
+    // EXACTLY ONE CRQ is served off a properly loaded bank, never four.
+    const paper = selectPaperWithOneCrq(bank, 'sizing');
+    expect(paper.filter(isOpenEndedQuestion)).toHaveLength(1);
+    expect(paper).toHaveLength(3);
   });
 
   test('options present but key missing is open-ended — the image-CRQ guard', () => {
