@@ -5,6 +5,6 @@
     "LANG07": "dead export (bd-ztx5n) — a language code path exports a symbol nothing imports"
   },
   "lesson-plan": {
-    "L08": "\"/lesson plan\" (with a space) is not a recognised keyword — spec-vs-build question, not a break"
+    "L03": "fails identically on every mock run since its assertion was inverted in ce4ae0b8 (2026-09-14): 8f904e14 and 10d2418e on 2026-09-16, 7417291c on 2026-09-18 — the document delivered is the Grade 1 English plan, not a Grade 6 one, after the driver's Flow picks re-open the LP Flow repeatedly; pre-dates PR #1084, root cause not yet established"
   }
 }
