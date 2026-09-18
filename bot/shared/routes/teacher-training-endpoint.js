@@ -1554,7 +1554,7 @@ async function loadGrandQuizState(userId, levelId) {
     // fact, and .maybeSingle() THROWS on a second row. Widening that key so
     // I-SAPS can carry one summative quiz per MODULE moved the guarantee out
     // of the schema, so it is re-stated here — but in JS, not in the query:
-    //   * `.is('source_quiz_id', null)` would hide every Taleemabad (ids 1-4)
+    //   * `.is('source_quiz_id', null)` would hide every legacy exam (ids 1-4
     //     and Beacon House (8-11) exam, which is the opposite of the goal.
     //   * `.lt(...)` silently drops NULLs, so a level whose exam carries no
     //     source id reports 'no exam'.
