@@ -193,6 +193,61 @@ function moduleExamOfferMessage({ moduleTitle, mcqCount, crqCount }) {
     + `The module exam is ${what}. The next module waits until you are ready.`;
 }
 
+
+/**
+ * bd-60126 — may THIS attempt's pass issue a LEVEL certificate?
+ *
+ * Reported from sandbox: passing Module 1's eight MCQs announced "you passed
+ * the Level 1 grand quiz" and issued a level certificate — one module of nine.
+ *
+ * The cause was a one-word collision: startModuleExam stores its attempt with
+ * `quiz_kind: 'grand'`, the same kind the LEVEL exam uses, because the CHECK
+ * constraint on training_assessment_attempts admits only 'grand',
+ * 'training_module' and 'capstone'. gradeAttempt branched on quiz_kind alone
+ * and so could not tell them apart.
+ *
+ * The separating signal needs no schema change: a per-module quiz carries
+ * source_quiz_id >= PER_MODULE_SOURCE_BASE (bd-60119); a level exam's is NULL
+ * or a legacy 1-11.
+ *
+ * DEFAULTS TO TRUE on a missing or unloadable quiz row. Failing to certify a
+ * genuine level pass is the worse error — every existing vendor certifies
+ * through this path, and the module case is the narrow, provable one.
+ *
+ * @param {{source_quiz_id?: number|null}|null} quiz the attempt's quiz row
+ * @returns {boolean}
+ */
+function isLevelCertifyingAttempt(quiz) {
+  if (!quiz) return true;
+  return !isPerModuleQuiz(quiz.source_quiz_id);
+}
+
+/**
+ * What a teacher is told when a MODULE exam is passed.
+ *
+ * Deliberately claims no level and no certificate: the level certificate is
+ * the composite across all nine modules (bd-60113), and saying otherwise is
+ * exactly the bug this fixes.
+ *
+ * @param {object} input
+ * @param {string} [input.moduleTitle]
+ * @param {number} [input.score]
+ * @param {number} [input.total]
+ * @param {boolean} [input.hasCrq]
+ * @returns {string}
+ */
+function moduleExamPassMessage({ moduleTitle, score, total, hasCrq } = {}) {
+  const title = moduleTitle || 'this module';
+  const s = Number(score) || 0;
+  const t = Number(total) || 0;
+  let msg = `✅ *${title}* — scenario questions done: *${s}/${t}*.`;
+  if (hasCrq) {
+    msg += '\n\nOne written answer left for this module. It is marked against '
+        + 'the I-SAPS rubric, so take your time.';
+  }
+  return msg;
+}
+
 module.exports = {
   PER_MODULE_SOURCE_BASE,
   moduleSourceQuizId,
@@ -201,4 +256,6 @@ module.exports = {
   buildModuleExamSlot,
   shouldOfferModuleExam,
   moduleExamOfferMessage,
+  isLevelCertifyingAttempt,
+  moduleExamPassMessage,
 };

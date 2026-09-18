@@ -504,14 +504,20 @@ async function renderCertificatePdf({
   doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.ink)
      .text(formatIssueDate(issuedAt), MARGIN + 40, footY + 22);
 
-  doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
-     .text('CERTIFICATE CODE', PAGE.width - MARGIN - 260, footY + 10, {
-       width: 220, align: 'right', characterSpacing: 1.5,
-     });
-  doc.font('Courier-Bold').fontSize(10).fillColor(COLORS.ink)
-     .text(String(certificateCode || ''), PAGE.width - MARGIN - 260, footY + 22, {
-       width: 220, align: 'right',
-     });
+  // bd-60127 — the I-SAPS template prints the code in its MASTHEAD (the
+  // approved design puts it top-right beside the issue date), so printing it
+  // again here rendered it twice on the same certificate. Every other template
+  // has no masthead code and still needs this footer.
+  if (!isIsaps) {
+    doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
+       .text('CERTIFICATE CODE', PAGE.width - MARGIN - 260, footY + 10, {
+         width: 220, align: 'right', characterSpacing: 1.5,
+       });
+    doc.font('Courier-Bold').fontSize(10).fillColor(COLORS.ink)
+       .text(String(certificateCode || ''), PAGE.width - MARGIN - 260, footY + 22, {
+         width: 220, align: 'right',
+       });
+  }
 
   doc.end();
   return done;
