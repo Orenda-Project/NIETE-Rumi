@@ -34,6 +34,7 @@ const {
 } = require('../services/training/isaps-listing.rules');
 const {
   moduleSourceQuizId, buildModuleExamSlot,
+  levelExamSlotHidden,
 } = require('../services/training/isaps-module-exam.rules');
 const supabase = require('../config/supabase');
 const {
@@ -1631,7 +1632,10 @@ async function loadGrandQuizState(userId, levelId) {
     if (allDone) {
       return { badge: 'badge_quiz_passed', body: '🏆 Level complete — you have finished every session.', caption: ' ', cta: '✓ Complete' };
     }
-    return { badge: 'badge_quiz_available', body: '🎓 No level exam — finish all sessions to complete this level.', caption: ' ', cta: ' ' };
+    // bd-60130 — a vendor with no LEVEL exam (I-SAPS assesses per module)
+    // shows nothing here. The previous copy announced the absence, which
+    // reads as something missing rather than as by design.
+    return { badge: 'badge_quiz_available', ...levelExamSlotHidden() };
   }
 
   if (passed) return { badge: 'badge_quiz_passed', body: '🏆 Grand Quiz — You passed this level exam.', caption: 'Certificate available in your records.', cta: '✓ Passed' };

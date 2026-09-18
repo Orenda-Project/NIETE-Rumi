@@ -45,6 +45,9 @@ const fs = require('fs');
 const path = require('path');
 const { logToFile } = require('../../utils/logger');
 const branding = require('../../config/branding');
+const {
+  TEST_BANNER_TEXT, shouldStampTestBanner,
+} = require('./certificate-env.rules');
 
 // NIETE palette (brand book): navy-slate + green. Same pair the coaching hero
 // report uses for this deployment, so a teacher's certificate and their
@@ -310,6 +313,21 @@ async function renderCertificatePdf({
   // ── Frame ────────────────────────────────────────────────────────────────
   // NIETE keeps the green/navy double rule. The partner templates reproduce
   // legacy's 3px primary border with a 6px secondary inset outline.
+  // bd-60133 — outside production, say so on the page. Drawn FIRST so the
+  // frame and masthead sit over the band's edges rather than under them, and
+  // applied to EVERY vendor: a Beacon House test certificate is just as
+  // mistakable for a real one as a NIETE test certificate.
+  if (shouldStampTestBanner(process.env.NODE_ENV)) {
+    const bandH = 26;
+    doc.rect(0, 0, PAGE.width, bandH).fill('#B5651D');
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF')
+       .text(TEST_BANNER_TEXT, 0, 9, {
+         width: PAGE.width, align: 'center', characterSpacing: 0.6,
+       });
+    // Restore the fill the rest of the page assumes.
+    doc.fillColor(COLORS.ink);
+  }
+
   doc.lineWidth(3).strokeColor(palette.primary)
      .rect(MARGIN * 0.6, MARGIN * 0.6, PAGE.width - MARGIN * 1.2, PAGE.height - MARGIN * 1.2).stroke();
   doc.lineWidth(isNiete ? 0.75 : 6).strokeColor(isNiete ? COLORS.ink : palette.secondary)
