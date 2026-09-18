@@ -139,9 +139,11 @@ def cpa_pointer():
              "tab. The row below states what this build's ramp is, computed "
              "from that same tally while the sheet is written \u2014 never typed "
              "in, because a phase count typed into a sentence goes stale while "
-             "still reading like a finding. Where the ramp thins, that is a "
-             "boundary decision for the rebuild pass to settle against the "
-             "page text, not a labelling error.",
+             "still reading like a finding. Where the ramp thins, the page "
+             "text settles it, and it is as likely to be a label as a "
+             "boundary: the last primary year's concrete count turned out "
+             "to be a section heading read as a page, and is corrected on "
+             "the way in.",
              "measured on the Coverage Map and the Skills Map"]]
 
 

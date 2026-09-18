@@ -2,16 +2,24 @@
 
 Grade 4 ran a whole year without one concrete period: 5-digit place value,
 4-digit multiplication and long division, entirely in symbols. Grade 3 had
-one. Grade 5 has 33, so this was never a seniors-skip-concrete design
-(bd-wi85y).
+one. Grade 5 appeared to have 33, which is why this rule was first written to
+skip it — and that reading was wrong. Those days were the section heading
+"Leap and Learn" read as a page. Not one of the 33 pages puts an object in a
+child's hands, and the corpus says as much in its own second column, where
+`cpa_phase` calls 28 of them pictorial. cpatrust drops the heading's claim
+before this rule runs, so the board-prep year is now reached like any other
+(bd-x2su1, correcting bd-wi85y).
 
 The abstract end of the ramp was a labelling artefact and could be renamed
-(see cparamp). This end could not. The Grade 1 and Grade 5 books open a topic
-with Adventure Begins and Leap and Learn pages that put real objects, number
-discs and counters in front of the child; from Grade 2 on those same sections
-open with printed prices and place-value tables instead. Scanning every G2-G4
-day for a manipulative to recover turned up nothing real — the matches were
-`Disc`overy and the CUBES word-problem acronym. There was nothing to rename.
+(see cparamp). This end could not. The Grade 1 book opens a topic with
+Adventure Begins and Leap and Learn pages that really do put objects in front
+of the child, and its page text says so in its own words on 21 of its 36
+concrete days: "Deal out real counters one-to-one", "Use a real balance and
+counters/stones", "act out buying with play money". From Grade 2 on, those
+same sections open with printed prices and place-value tables instead.
+Scanning every G2-G5 day for a manipulative to recover turned up nothing real
+— the matches were `Disc`overy, cube NUMBERS, and the CUBES word-problem
+acronym. There was nothing to rename.
 
 So this rule ADDS a hands-on start where the book gives none. It spends no
 period: the chapter's opening day already exists and keeps its pages, its SLO
@@ -39,11 +47,18 @@ MARK = "concrete_added"
 # What to put in children's hands, by what the day teaches. First match wins,
 # so the specific topics come before the general ones — every chapter is
 # about numbers, but only some are about fractions.
+#
+# Decimals come before fractions for the same reason. The two Grade 5
+# chapters that convert BETWEEN them name both, and a fraction-first match
+# handed them folded paper strips: strips show halves and thirds and cannot
+# show a hundredth, which is the whole content of those chapters. A grid
+# shaded ten by ten is one thing read three ways, so it also serves the
+# chapter that meets percentages (bd-w1r3k).
 MANIPULATIVES = (
-    (("fraction",),
-     "folded paper strips — fold and tear the parts before naming them"),
     (("decimal", "percent", "tenth", "hundredth"),
      "a 10x10 paper grid — shade it before writing the decimal"),
+    (("fraction",),
+     "folded paper strips — fold and tear the parts before naming them"),
     (("time", "clock", "hour", "calendar"),
      "a geared clock face — turn the hands to each time before reading it"),
     (("money", "currency", "denomination", "rupee", "shopping", "budget"),

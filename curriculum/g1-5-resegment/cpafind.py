@@ -211,9 +211,11 @@ def reading(ramp):
             "drawn against the year on the SKILLS MAP tab; the figures here "
             "are computed from that same tally while the sheet is written, so "
             "this sentence cannot drift from the build the way a typed-in "
-            "count did. Where the ramp is not a ramp, that is a boundary "
-            "decision for the rebuild pass to settle against the page text, "
-            "not a labelling error.")
+            "count did. The page text has already settled one of these: the "
+            "last primary year's concrete count was a section heading read "
+            "as a page, not work in children's hands, and is corrected at "
+            "the load door. Where the ramp is still not a ramp, that check "
+            "comes first — it is as likely to be a label as a boundary.")
 
 
 def finding(ramp, width):

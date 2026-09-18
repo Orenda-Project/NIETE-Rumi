@@ -2,16 +2,20 @@
 
 Grade 4 ran a whole year of Maths without one concrete period: 5-digit place
 value, 4-digit multiplication and long division, all in symbols. Grade 3 had
-one. Grade 5 has 33, so this was never a seniors-skip-concrete design
-(bd-wi85y).
+one. Grade 5 appeared to have 33 and was skipped on that basis, until the
+pages were read: every one of them is a context scene and a worked method,
+and the corpus's own `cpa_phase` column calls 28 of them pictorial. The label
+came from the section heading, not the book (bd-x2su1). cpatrust drops it
+before this rule runs, which is why Grade 5 is tested here as a grade the
+rule reaches rather than one it leaves alone.
 
 Unlike the abstract end of the ramp, this could NOT be fixed by relabelling.
-The Grade 1 and Grade 5 books open a topic with Adventure Begins and Leap and
-Learn pages that put real objects, number discs and counters in front of the
-child; from Grade 2 on the same sections open with printed prices and
-place-value tables instead. A scan of every G2-G4 day found no manipulative
-to recover — the hits were all `Disc`overy and the CUBES word-problem
-acronym. There was nothing there.
+The Grade 1 book opens a topic with Adventure Begins and Leap and Learn pages
+that really do put objects in front of the child, and says so in its own page
+text on 21 of its 36 concrete days; from Grade 2 on the same sections open
+with printed prices and place-value tables instead. A scan of every G2-G5 day
+found no manipulative to recover — the hits were all `Disc`overy, cube
+NUMBERS and the CUBES word-problem acronym. There was nothing there.
 
 So this rule ADDS a hands-on start where the book gives none, and says so.
 The day already exists and keeps its pages, SLO and place in the year — no
@@ -28,18 +32,15 @@ concrete days from the book's own.
 A chapter with no picture or bridge day to convert is left alone. We add a
 hands-on start to a day that was going to be taught anyway; we do not turn
 the application end of the ramp into its beginning.
+
+The corpus-backed half of this suite — what the rule does to Grades 1-5 as
+actually segmented — is in test_cpaopen_corpus.py, split off at the
+300-line limit.
 """
-import glob
-import json
-import os
 import unittest
 
 import cpaopen
 import stageb
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-SEG = os.path.join(HERE, "corpus", "seg")
-HAVE_CORPUS = os.path.isdir(SEG)
 
 
 def day(topic, chapter=1, skill="pictorial", label="Day 1", title="Ch"):
@@ -164,86 +165,6 @@ class TheAddedDayIsMarkedAsOurs(unittest.TestCase):
         flags = stageb.day_flags(got, {"new_codes": []}, set())
         self.assertIn("concrete opener added", flags)
         self.assertIn(got["concrete_added"], flags)
-
-
-@unittest.skipUnless(HAVE_CORPUS, "corpus/ is gitignored and not present")
-class EveryGradeGetsItsHandsOnWork(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.books = {}
-        for path in sorted(glob.glob(os.path.join(SEG, "grade_*.json"))):
-            _stem, grade, subject, _meta, segs = stageb.load_book(path)
-            if subject == "Maths":
-                cls.books[grade] = segs
-
-    def days(self, grade):
-        return [s for s in self.books[grade] if s.get("day_label")]
-
-    def test_no_grade_teaches_a_year_without_concrete(self):
-        for grade in (1, 2, 3, 4, 5):
-            n = sum(1 for d in self.days(grade)
-                    if d["skill_type"] == "concrete")
-            self.assertGreater(n, 0, f"Grade {grade} has no concrete work")
-
-    def test_grade_four_is_no_longer_the_outlier(self):
-        """It ran 5-digit place value, 4-digit multiplication and long
-        division entirely in symbols."""
-        n = sum(1 for d in self.days(4) if d["skill_type"] == "concrete")
-        self.assertGreaterEqual(n, 10, f"Grade 4 has only {n} concrete days")
-
-    def test_every_chapter_that_can_start_in_hands_does(self):
-        for grade, segs in self.books.items():
-            chapters = {}
-            for day in self.days(grade):
-                chapters.setdefault(day["chapter_number"], []).append(day)
-            for number, days in chapters.items():
-                kinds = {d["skill_type"] for d in days}
-                if kinds <= {"word_problem", "revision", "assessment"}:
-                    continue
-                self.assertIn("concrete", kinds,
-                              f"G{grade} chapter {number} never starts in hands")
-
-    def test_the_books_own_concrete_days_outnumber_the_ones_we_added(self):
-        """A ramp we wrote more of than the book did would be a different
-        curriculum, not a fixed one."""
-        own = added = 0
-        for grade in self.books:
-            for day in self.days(grade):
-                if day["skill_type"] != "concrete":
-                    continue
-                added += 1 if day.get("concrete_added") else 0
-                own += 0 if day.get("concrete_added") else 1
-        self.assertGreater(own, added, f"{added} added vs {own} from the book")
-
-    def test_every_added_day_names_what_the_children_hold(self):
-        for grade in self.books:
-            for day in self.days(grade):
-                kit = day.get("concrete_added")
-                if kit:
-                    self.assertTrue(kit.strip(), f"G{grade} {day['topic']}")
-
-    def test_no_period_is_spent_adding_them(self):
-        """The year has to land by 24 December, so the opener is a day that
-        was already being taught, not a new one. Measured against the rule
-        itself: Grade 1 legitimately loses rows at the same door, where its
-        revision is folded to pay for the Foundations block."""
-        total = 0
-        for path in sorted(glob.glob(os.path.join(SEG, "grade_*math*.json"))):
-            with open(path) as fh:
-                raw = json.load(fh)["segments"]
-            out, added = cpaopen.open_concrete(raw, "Maths")
-            self.assertEqual(len(out), len(raw), f"{path} changed period count")
-            total += added
-        self.assertGreater(total, 0, "no book gained a hands-on start")
-
-    def test_the_grades_whose_books_already_open_in_hands_are_left_alone(self):
-        """Grade 1 opens every chapter with real objects already, so the rule
-        has nothing to do there. If it ever starts adding days to Grade 1, it
-        is overwriting the book rather than filling a gap in it."""
-        for grade in (1, 5):
-            marked = [d for d in self.days(grade) if d.get("concrete_added")]
-            self.assertEqual(marked, [], f"G{grade} was given days it had")
 
 
 if __name__ == "__main__":

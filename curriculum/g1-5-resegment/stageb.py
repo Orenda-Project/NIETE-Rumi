@@ -13,6 +13,7 @@ from collections import defaultdict
 
 import cpaopen
 import cparamp
+import cpatrust
 import dayfold
 import dayrules
 import skills
@@ -142,6 +143,9 @@ def load_book(path):
     periods while Coverage and the FDE tab counted 110. The same reasoning
     covers the CPA ramp, which renames rather than folds: a day the calendar
     calls abstract and the subject tab calls the bridge is worse than either.
+    The order inside this door is load-bearing too: cpatrust drops a concrete
+    label the page does not support, and cpaopen only opens a chapter that has
+    no concrete day left, so reversing the two leaves Grade 5 untouched.
     """
     with open(path) as fh:
         doc = json.load(fh)
@@ -150,6 +154,7 @@ def load_book(path):
     segments = order_segments(doc["segments"])
     segments, _freed = dayfold.fold_revision(segments, subject, grade)
     segments, _swaps = dayfold.complete_5e(segments, subject)
+    segments, _read = cpatrust.trust_page(segments, subject)
     segments, _opened = cpaopen.open_concrete(segments, subject)
     segments, _named = cparamp.name_abstract(segments, subject)
     return stem, grade, subject, doc["_meta"], segments
@@ -172,6 +177,11 @@ def day_flags(day, role, shared):
         # legitimately carry three Urdu days. Every page shared is different:
         # the day has no page of its own, so its boundary needs confirming.
         flags.append("all printed pages shared — confirm boundary")
+    if day.get(cpatrust.MARK):
+        # Before the opener, because on eleven Grade 5 days both fire: the
+        # heading's claim was dropped and the day then re-opened honestly.
+        # Read in this order the pair is one sentence about one day.
+        flags.append(f"skill type re-read — {day[cpatrust.MARK]}")
     if day.get("concrete_added"):
         flags.append(f"concrete opener added — {day['concrete_added']}")
     return " · ".join(flags)

@@ -115,11 +115,16 @@ class LoadBookAppliesTheTwoPeriodRulesOnTheWayIn(unittest.TestCase):
 # same order, saying the same thing. Against the real corpus, when this
 # machine has it.
 #
-# The only sanctioned differences are the CPA ramp's two ends, and each is
-# allowed by name and by direction: cparamp renames the bridge to `abstract`,
-# and cpaopen opens a chapter that has none in children's hands, which moves
-# the phase with the skill type and records what they hold. Any other edited
-# field, any other renaming, and any change at all to English still fails.
+# The only sanctioned differences are the three CPA rules, and each is allowed
+# by name and by direction: cparamp renames the bridge to `abstract`; cpatrust
+# drops a concrete label the page does not support, marking what the page said
+# instead; cpaopen opens a chapter that has none in children's hands, moving
+# the phase with the skill type and recording what they hold. The last two run
+# in that order on purpose and may both touch the same day: Grade 5's chapter
+# openers were labelled concrete off a section heading, so the day is demoted
+# on the page's word and then opened honestly with counters, ending at the
+# same skill type by a different route and carrying both marks. Any other
+# edited field, any other renaming, and any change at all to English fails.
 # --------------------------------------------------------------------------
 
 SEG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "corpus", "seg")
@@ -140,20 +145,50 @@ def stems(*words):
 
 ABSTRACT = {"skill_type": ("pictorial_abstract", "abstract")}
 CONCRETE_FROM = ("pictorial", "pictorial_abstract")
+PAGE_READ = ("pictorial", "pictorial_abstract", "abstract")
+FIELDS = {"skill_type", "cpa_phase", "concrete_added", "page_phase"}
+
+
+def marked(changed, field):
+    return bool((changed.get(field, (None, ""))[1] or "").strip())
+
+
+def re_read(changed):
+    """cpatrust: a concrete claim the page denies, demoted to what it says.
+
+    `abstract` is reachable here because cparamp may rename the bridge this
+    rule just put the day on — one day, two renames, both by the book.
+    """
+    was, now = changed.get("skill_type", (None, None))
+    if was != "concrete" or now not in PAGE_READ:
+        return False
+    if "cpa_phase" in changed:
+        return False
+    return marked(changed, "page_phase") and set(changed) <= FIELDS
+
+
+def opened(changed):
+    """cpaopen, on its own or on a day cpatrust has just re-read.
+
+    A day that comes out concrete having gone in concrete is only allowed
+    when it carries the page mark: it means the heading's claim was dropped
+    and the day re-opened on our own evidence, with the kit named.
+    """
+    was, now = changed.get("skill_type", ("concrete", "concrete"))
+    if now != "concrete" or was not in CONCRETE_FROM + ("concrete",):
+        return False
+    if changed.get("cpa_phase", (None, "concrete"))[1] != "concrete":
+        return False
+    if not marked(changed, "concrete_added"):
+        return False
+    if was == "concrete" and not marked(changed, "page_phase"):
+        return False
+    return set(changed) <= FIELDS
 
 
 def is_the_ramp(changed):
     """True when one day's changes are the CPA ramp and nothing else."""
-    if changed == ABSTRACT:
-        return True
-    was, now = changed.get("skill_type", (None, None))
-    if now != "concrete" or was not in CONCRETE_FROM:
-        return False
-    if changed.get("cpa_phase", (None, "concrete"))[1] != "concrete":
-        return False
-    if not (changed.get("concrete_added", (None, ""))[1] or "").strip():
-        return False
-    return set(changed) <= {"skill_type", "cpa_phase", "concrete_added"}
+    return changed == ABSTRACT or re_read(changed) or opened(changed)
 
 
 @unittest.skipUnless(HAVE_CORPUS, "corpus/ is gitignored and not present")
@@ -194,16 +229,23 @@ class GradesTwoToFiveEnglishAndMathsKeepEveryPeriodTheyCameWith(unittest.TestCas
                 self.assertTrue(is_the_ramp(changed),
                                 f"{stem} {label}: load_book changed {changed}")
 
-    def test_both_ends_of_the_ramp_reach_the_upper_grades(self):
-        """Otherwise the test above passes by touching nothing at all."""
-        ends = set()
+    def test_all_three_ramp_rules_reach_the_upper_grades(self):
+        """Otherwise the test above passes by touching nothing at all. One
+        name per rule, so a rule that stops firing is reported by name rather
+        than hidden inside a set the other two still satisfy."""
+        ran = set()
         for stem in stems("math", "maths"):
             if "grade_1_" in stem:
                 continue
             for _label, changed in self.diffs(stem):
-                ends.add(changed["skill_type"][1])
-        self.assertEqual(ends, {"abstract", "concrete"},
-                         f"the upper grades only reach {sorted(ends)}")
+                if changed == ABSTRACT:
+                    ran.add("cparamp")
+                if marked(changed, "page_phase"):
+                    ran.add("cpatrust")
+                if marked(changed, "concrete_added"):
+                    ran.add("cpaopen")
+        self.assertEqual(ran, {"cparamp", "cpatrust", "cpaopen"},
+                         f"the upper grades only reach {sorted(ran)}")
 
 
 @unittest.skipUnless(HAVE_CORPUS, "corpus/ is gitignored and not present")
