@@ -161,15 +161,23 @@ pattern on the image path.
 | 8 | Opening — warm-up then hook | 2 | `warmup`, `introduction` | settle → activate |
 | 9 | Explanation header | 2 | — | section opener |
 | 10 | **The Big Idea** | 2 | `big_idea` block | pedagogical heart |
-| 11 | **I DO** | 2+ | `worked_example` | gradual release |
-| 12 | Key fact · Watch for this slip | 2+ | `objectives.outcome`, `cfu` | teaching aids |
+| 11 | **I DO**, closing on its own check | 2+ | `worked_example` + `.cfu` | gradual release |
+| 12 | Key fact · Watch for this slip | 2+ | `objectives.outcome`, `misconception_preempt` | teaching aids |
 | 13 | **WE DO** | — | `faded_example` | gradual release |
 | 14 | Practice — **YOU DO** | — | `practice` | gradual release |
-| 15 | Exit ticket (exactly one) | close | `exit_ticket` | assessment |
-| 16 | Homework · Remember · Coaching corner | close | `homework`, `page2` | close |
+| 15 | **Remember** | close | `key_points` id `remember` | consolidation |
+| 16 | Exit ticket (exactly one) | close | `exit_ticket` | assessment |
+| 17 | Homework · Coaching corner | close | `homework`, `page2` | close |
 
 Invariants:
 
+- **REMEMBER prints above the exit ticket, not after homework.** The operator's
+  sentence listed it last; `after(s)` appends a section's extras AFTER its blocks,
+  so a `key_points` block in `conclusion` necessarily precedes `exit_ticket`.
+  Printing it later means moving it to its own section, which is hers to call.
+- **The worked example carries the check.** `cfuExplain` has ONE home and it is the
+  `worked_example.cfu` field (§3.29); it is not also seated as an `ask` block in the
+  close, or the teacher meets the same question twice.
 - **One exit ticket**, not three — already held by
   `test_exactly_one_exit_ticket`.
 - **The board is one atom and never splits.** It opens page 2 whole. Forcing it

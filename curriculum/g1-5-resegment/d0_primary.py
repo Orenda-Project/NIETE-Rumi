@@ -30,6 +30,7 @@ from __future__ import annotations
 import d0_blocks as B
 import d0_bigidea
 import d0_board
+import d0_close
 import d0_diagram
 import d0_hook
 import d0_page2
@@ -148,35 +149,6 @@ def _activity(g):
             "minutes": B.minutes_of(wedo) + B.minutes_of(youdo), "blocks": blocks}
 
 
-def _conclusion(g):
-    """Exactly one exit ticket (spec/01-format.md), plus the check for understanding."""
-    et = g.get("exitTicket") or {}
-    task = (et.get("task") or "").strip()
-    criteria = (et.get("success_criteria") or "").strip()
-    blocks = []
-    cfu = (g.get("cfuExplain") or "").strip()
-    if len(cfu) >= 3:
-        # No `look_for`: it was `success_criteria`, which is the exit ticket's
-        # ANSWER and prints there. Measured on the corpus, that one line printed
-        # twice in 30 of 38 lessons. cfuExplain is an instruction to the teacher
-        # ("ask for the clue, not the word"), and it needs no answer beside it.
-        blocks.append({"type": "ask", "id": "cfu", "question": cfu})
-    # No key_points echo of keyFact (it is the outcome) and no `checkpoint`:
-    # v9's checkpoint is a board-style NEW-context question, and primary's
-    # exitTicket is already exactly that. spec/01-format.md: ONE exit ticket.
-    sec = {"id": "conclusion", "title": "Check", "minutes": 0, "blocks": blocks}
-    if len(task) >= 5 and criteria:
-        sec["exit_ticket"] = [{"q": task, "a": criteria}]
-    return sec
-
-
-def _homework(g):
-    hw = (g.get("homework") or "").strip()
-    blocks = [{"type": "key_points", "id": "hw", "title": "Homework", "items": [hw]}] \
-        if len(hw) >= 3 else []
-    return {"id": "homework", "title": "Homework", "minutes": 0, "blocks": blocks}
-
-
 def _objectives(g):
     """Section O is ONE box: the outcome, its SLO citation, then the objectives.
 
@@ -235,8 +207,9 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None):
     # call does anything, which is every corpus lesson today. A spec that cannot be seated
     # is dropped whole and says why in notes.gaps -- see d0_diagram.
     sections = [_intro(g, page), _development(g), _activity(g),
-                _conclusion(g), _homework(g)]
+                d0_close.conclusion(g), d0_close.homework(g)]
     dia_gaps = d0_diagram.apply_slots(sections, g.get("diagrams"))
+    d0_close.seat_the_check(sections, g)
 
     doc = {
         "lesson_id": enr["lesson_id"].upper(),

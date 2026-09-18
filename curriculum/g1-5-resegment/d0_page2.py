@@ -60,7 +60,14 @@ def _mistakes(g):
     out = []
     for m in raw if isinstance(raw, list) else [raw] if raw else []:
         if isinstance(m, str) and len(m) >= 3:
-            out.append({"pupil_says": m, "you_ask": DESIGN_PENDING})
+            # A STRING pre-empt is a TEACHER MOVE, not a pupil error: the corpus writes it
+            # as an instruction she performs ("Explicitly contrast the two apostrophe
+            # purposes before the pairs work"). The box is labelled "What pupils write" /
+            # "You ask", so filing it on the left put her own move in a child's mouth and
+            # left the column she actually reads blank. It goes in the teacher-move slot,
+            # and the error stays dark because Stage C did not author one -- reverse-
+            # engineering the error from the move would be inventing a proxy.
+            out.append({"pupil_says": DESIGN_PENDING, "you_ask": m})
         elif isinstance(m, dict):
             says = (m.get("misconception") or m.get("pupil_says")
                     or m.get("error") or "").strip()

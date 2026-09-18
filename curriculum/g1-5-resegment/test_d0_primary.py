@@ -221,15 +221,6 @@ def test_the_key_fact_is_the_outcome_and_lives_only_there():
     assert len(doc["objectives"]["items"]) == 1, "one objective, not one per SLO code"
 
 
-def test_the_exit_criteria_print_beside_the_exit_ticket_only():
-    """success_criteria is the exit ticket's ANSWER. It was also the CFU's
-    `look_for`, which printed it twice in 30 of the corpus's 38 lessons."""
-    concl = build()["sections"][3]
-    cfu = [b for b in concl["blocks"] if b.get("id") == "cfu"][0]
-    assert "look_for" not in cfu
-    assert concl["exit_ticket"][0]["a"] == ENR["generated"]["exitTicket"]["success_criteria"]
-
-
 def test_g6_12_only_surfaces_are_not_forced_onto_primary():
     """spec: primary gets ONE exit ticket, has no board exam, and its finished
     board belongs on the support page — not printed twice."""
