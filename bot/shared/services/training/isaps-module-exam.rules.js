@@ -20,8 +20,8 @@
  */
 
 /**
- * I-SAPS per-module quizzes are keyed 900 + module. Legacy ids are 1-11
- * (Taleemabad 1-4, Beacon House 8-11), so the range cannot collide, and the
+ * I-SAPS per-module quizzes are keyed 900 + module. Legacy ids are 1-11 (the base
+ * vendor holds 1-4, a partner vendor 8-11), so the range cannot collide, and the
  * level-exam lookup excludes it.
  */
 const PER_MODULE_SOURCE_BASE = 900;
