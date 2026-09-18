@@ -13,6 +13,7 @@ cd "$(dirname "$0")/.." || exit 1
 # the suite must not inherit a CI=true environment. These cases test the
 # installer's behaviour on a developer machine; give them that environment.
 unset CI QA_HOOKS_OFF QA_HOOKS_QUIET QA_HOOKS_STRICT
+export E2E_AUTOFIX_OFF=1   # the throwaway repo must never reach the real Railway; the auto case below re-enables it
 ROOT="$PWD"
 FAILED=0
 ok()  { printf '  ok    %s\n' "$1"; }
@@ -72,7 +73,22 @@ has "terminal output names the mock lane" "$err" "commit-e2e.sh" yes
 # The throwaway repo has no keys/niete-local.env and (see the PATH below) no redis-server, so the hook
 # must say the mock lane CANNOT run here and how to fix it — not hand the developer a command that dies
 # with exit 14 on the agent's turn (PR #1084 shipped `e2e: missing` exactly that way).
-has "…and says the mock lane is not runnable on this machine" "$err" "provision-local-keys.sh" yes
+has "…and says the mock lane is not runnable on this machine (no railway on PATH here)" "$err" "railway login" yes
+# With railway available the hook must FIX it, not ask: keys auto-provisioned on this commit, no manual step.
+mkdir -p "$TMP/rbin" "$R/bot/scripts/e2e"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$R/bot/scripts/e2e/"
+SBX=$(sed -nE 's/^ENV_REFS = .*"sandbox": "([a-z0-9]+)".*/\1/p' "$ROOT/.claude/qa/shared/niete_training_db.py")
+cat > "$TMP/rbin/railway" <<RW
+#!/bin/sh
+env=staging; while [ \$# -gt 0 ]; do case "\$1" in --environment) env="\$2"; shift 2;; *) shift;; esac; done
+case "\$env" in sandbox) printf '%s\\n' "SUPABASE_URL=https://$SBX.supabase.co" "SUPABASE_SERVICE_ROLE_KEY=SBX";; *) printf '%s\\n' "PAKISTAN_LP_FLOW_ID=1" "PORTAL_URL=https://p.test";; esac
+RW
+chmod +x "$TMP/rbin/railway"
+git -C "$R" add -A >/dev/null; git -C "$R" commit -qm "add provisioner" >/dev/null 2>&1
+printf '// auto\n' >> "$R/bot/shared/services/menu.service.js"; git -C "$R" add -A >/dev/null
+err=$(cd "$R" && E2E_AUTOFIX_OFF= PATH="$TMP/rbin:$PATH" git commit -qm "feat(menu): machine fixes itself" 2>&1)
+has "post-commit auto-provisioned the keys file" "$err" "auto-provisioned" yes
+[ -f "$R/keys/niete-local.env" ] && ok "…and it exists under the repo's keys/" || bad "keys file not created by the hook"
+has "…so the not-runnable warning is gone" "$err" "railway login" no
 
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')
