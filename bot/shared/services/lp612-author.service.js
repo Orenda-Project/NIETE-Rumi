@@ -2783,16 +2783,42 @@ async function overlayLessonPlan({
   sanitizeOverlay(probe);
   const kept = probe.ur_overlay || {};
 
-  // GATE 1 — is it Urdu at all? Measured over the overlay's own text, because the DOCUMENT is
-  // English by construction and would drown the signal.
-  const joined = Object.values(kept).join(' ');
-  const share = urduShare(joined);
+  // GATE 1 — is it Urdu at all? Measured over the OVERLAY's text, never the document's: the
+  // document is English by construction and would drown the signal.
+  //
+  // MEASURED ON THE MERGE, like GATE 2 below and for the same reason (bd-htw51). `base` is empty
+  // in the authoring case, so merged === kept there and this is the decision that has always been
+  // made. On a top-up it is the ninety strings already on the document, and the thing the floor
+  // exists to protect is the page the teacher receives, which is the merge. bd-idneu's two
+  // provenance strings are chapter numbers, book names and the terms of record the brief itself
+  // orders kept in Latin; judged alone they measured 30.9%-47.9% and eight production rows were
+  // refused for translating correctly.
+  const merged = { ...kept, ...base };
+  const share = urduShare(Object.values(merged).join(' '));
   if (share < OVERLAY_MIN_URDU) {
     throw fail('OVERLAY_NOT_URDU',
       `the overlay is not Urdu — ${(share * 100).toFixed(1)}% of its letters are Urdu script, `
       + `and at least ${OVERLAY_MIN_URDU * 100}% is required. An English "translation" renders as `
       + `the same English page with the row claiming it worked.`,
       { urduShare: share });
+  }
+
+  // ...and THIS CALL must not have answered in English. Measuring only the merge would make the
+  // floor unfalsifiable on a top-up — three English strings among ninety Urdu ones clear 50%
+  // comfortably — and an English delta is the same defect as an English overlay, just smaller.
+  //
+  // The test is categorical, not calibrated: NO Urdu script at all. A correct translation that
+  // keeps a Latin term of record still carries Urdu around it (the production floor was 30.9%),
+  // and a model that answered in English carries none. A threshold picked between those two
+  // numbers would be a guess, and the direction this one fails in is safe — the row is recorded
+  // and skipped, and the stored document is left exactly as it was.
+  const patchShare = urduShare(Object.values(kept).join(' '));
+  if (!patchShare) {
+    throw fail('OVERLAY_NOT_URDU',
+      `this call returned no Urdu script at all — ${Object.keys(kept).length} string(s) came back `
+      + 'with not one Urdu letter between them. That is an English answer, and applying it would '
+      + 'leave those lines English on a page that claims to be Urdu.',
+      { urduShare: share, patchUrduShare: patchShare });
   }
 
   // GATE 2 — coverage, from the linter's own function at expected:true. One computation, so the
