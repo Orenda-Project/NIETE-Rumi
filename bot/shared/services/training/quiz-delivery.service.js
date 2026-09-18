@@ -63,6 +63,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
 const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./question-images.rules');
+const { isPerModuleQuiz, moduleSourceQuizId } = require('./isaps-module-exam.rules');
 // bd-2673 — the marking rule lives in ONE module, shared with the portal over
 // the internal API. Do not re-implement isMultiKey/normalizeSet here: a second
 // copy is the bug this extraction removed.
@@ -366,6 +367,146 @@ async function loadPartialAnswer(attemptId, questionIndex) {
 /**
  * Start a fresh grand quiz attempt for the given level.
  */
+/**
+ * bd-60120 — start the END-OF-MODULE exam for an I-SAPS module.
+ *
+ * I-SAPS assesses per module (doc §4): scenario MCQs plus one CRQ, keyed onto
+ * per-module quizzes by bd-60119. This is the sibling of startGrandQuiz, and it
+ * runs the SAME preconditions — which is the entire point. bd-2452/2453
+ * hardened the level exam after a teacher sat one at 38/40 modules and minted a
+ * duplicate certificate, because every CTA in this Flow is a tappable
+ * EmbeddedLink with no disabled state. The endpoint's slot already refuses a
+ * locked tap; this is the second line, for anything that reaches the service
+ * directly.
+ *
+ * The MCQ set and the CRQ set are two rows (grand_quiz + capstone) sharing one
+ * source_quiz_id. The MCQs run here; a capstone-only module delegates to the
+ * capstone starter, exactly as the level path does.
+ *
+ * @param {string} userId
+ * @param {number|string} courseId training_courses.id — the MODULE
+ * @param {string} phoneNumber
+ * @returns {Promise<boolean>}
+ */
+async function startModuleExam(userId, courseId, phoneNumber) {
+  const courseIdNum = parseInt(String(courseId), 10);
+  if (!Number.isFinite(courseIdNum)) {
+    logToFile('⚠️ Invalid courseId for startModuleExam', { userId, courseId });
+    await WhatsAppService.sendMessage(phoneNumber, 'Could not start the exam — please open /training again.');
+    return false;
+  }
+
+  const { data: course } = await supabase
+    .from('training_courses').select('id, title, level_id')
+    .eq('id', courseIdNum).maybeSingle();
+  if (!course?.level_id) {
+    logToFile('⚠️ startModuleExam for an unknown course', { userId, courseId: courseIdNum });
+    await WhatsAppService.sendMessage(phoneNumber, 'That module is not available. Please open /training again.');
+    return false;
+  }
+  const m = /Module (\d+)/.exec(course.title || '');
+  if (!m) {
+    logToFile('⚠️ startModuleExam: course title carries no module number', {
+      userId, courseId: courseIdNum, title: course.title,
+    });
+    await WhatsAppService.sendMessage(phoneNumber, 'No exam is configured for this module yet. Please contact NIETE support.');
+    return false;
+  }
+  const srcId = moduleSourceQuizId(parseInt(m[1], 10));
+
+  const { data: quizRows } = await supabase
+    .from('training_grand_quizzes')
+    .select('id, quiz_type')
+    .eq('level_id', course.level_id)
+    .eq('source_quiz_id', srcId)
+    .eq('is_active', true);
+  const quizzes = quizRows || [];
+  const mcqQuiz = quizzes.find(q => q.quiz_type === 'grand_quiz') || null;
+  const crqQuiz = quizzes.find(q => q.quiz_type === 'capstone') || null;
+  if (!mcqQuiz && !crqQuiz) {
+    logToFile('❌ Module exam lookup found nothing', { userId, courseId: courseIdNum, srcId });
+    await WhatsAppService.sendMessage(phoneNumber, 'No exam is configured for this module yet. Please contact NIETE support.');
+    return false;
+  }
+
+  // THE GATE — the endpoint's own slot, reused rather than re-derived, so the
+  // screen and the service can never disagree about whether this exam is open.
+  const { loadModulesWithProgress, loadModuleExamSlot } = require('../../routes/teacher-training-endpoint');
+  const mods = await loadModulesWithProgress(userId, course.level_id);
+  const slot = await loadModuleExamSlot(userId, course.level_id, courseIdNum, mods);
+  if (!slot || !slot.ok) {
+    logToFile('🎓 startModuleExam refused', {
+      userId, courseId: courseIdNum, reason: slot ? slot.cta : 'no slot',
+    });
+    await WhatsAppService.sendMessage(phoneNumber, slot ? slot.body : 'That exam is not available yet.');
+    return false;
+  }
+
+  // MCQs first when the module has them; the CRQ follows as its own capstone.
+  if (!mcqQuiz) {
+    const CapstoneDelivery = require('./capstone-delivery.service');
+    return CapstoneDelivery.handleCapstoneButton(userId, `capstone_start_${course.level_id}`, phoneNumber);
+  }
+
+  const { data: assignment } = await supabase
+    .from('teacher_training_assignments')
+    .select('program_id').eq('user_id', userId).eq('is_active', true)
+    .limit(1).maybeSingle();
+  if (!assignment) {
+    logToFile('❌ No active program for user', { userId });
+    await WhatsAppService.sendMessage(phoneNumber, 'You are not enrolled in a training program yet. Please contact your NIETE coach.');
+    return false;
+  }
+
+  const bank = await loadQuestionBank({ quizKind: KIND_GRAND, grandQuizId: mcqQuiz.id });
+  if (bank.length === 0) {
+    await WhatsAppService.sendMessage(phoneNumber, 'This module has no active exam questions yet. Please contact NIETE support.');
+    return false;
+  }
+
+  // Resume an in-progress attempt rather than starting a second one.
+  const { data: existing } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, status, cooldown_until, current_question_index')
+    .eq('user_id', userId).eq('grand_quiz_id', mcqQuiz.id)
+    .order('started_at', { ascending: false }).limit(1).maybeSingle();
+  if (existing?.status === 'in_progress') {
+    logToFile('🎓 Resuming in-progress module exam', { attemptId: existing.id });
+    return await sendQuestion(existing.id, phoneNumber);
+  }
+
+  const now = new Date().toISOString();
+  const { data: attempt, error: aErr } = await supabase
+    .from('training_assessment_attempts')
+    .insert({
+      user_id: userId,
+      program_id: assignment.program_id,
+      quiz_kind: KIND_GRAND,
+      grand_quiz_id: mcqQuiz.id,
+      level_id: course.level_id,
+      current_question_index: 0,
+      total_questions: bank.length,
+      total_score: bank.length,
+      status: 'in_progress',
+      started_at: now,
+      last_activity_at: now,
+    })
+    .select('id').single();
+  if (aErr || !attempt) {
+    logToFile('❌ Module-exam attempt insert failed', {
+      userId, courseId: courseIdNum, error: aErr?.message,
+    });
+    await WhatsAppService.sendMessage(phoneNumber, 'Could not start the exam — please try again in a moment.');
+    return false;
+  }
+
+  await WhatsAppService.sendMessage(
+    phoneNumber,
+    `📝 *${course.title}* — module exam\n\n${bank.length} question${bank.length === 1 ? '' : 's'}. Your answers are saved as you go.`,
+  );
+  return await sendQuestion(attempt.id, phoneNumber);
+}
+
 async function startGrandQuiz(userId, levelOrder, phoneNumber) {
   const levelOrderIdx = (typeof levelOrder === 'number' ? levelOrder : parseInt(levelOrder, 10)) - 1;
   if (!Number.isFinite(levelOrderIdx) || levelOrderIdx < 0) {
@@ -407,13 +548,20 @@ async function startGrandQuiz(userId, levelOrder, phoneNumber) {
   // One entry point, two engines: resolve by level, then route on type. The
   // capstone starter owns its own preconditions (bd-2454), so we delegate
   // rather than reimplementing them here.
-  const { data: quiz, error: qErr } = await supabase
+  // bd-60120 — `.lt('source_quiz_id', ...)` is load-bearing, not cosmetic.
+  // I-SAPS carries 18 PER-MODULE quizzes on one level (bd-60119), and
+  // .maybeSingle() THROWS on more than one row — so without this filter every
+  // I-SAPS exam start dies, and it takes the shared level-exam path down with
+  // it. Legacy exams are 1-11, per-module are 900+, and a NULL source id is a
+  // level exam, which is why the rows are fetched and narrowed in JS: SQL drops
+  // NULLs from a `<` comparison (learned in bd-60119).
+  const { data: levelQuizRows, error: qErr } = await supabase
     .from('training_grand_quizzes')
-    .select('id, level_id, quiz_type')
+    .select('id, level_id, quiz_type, source_quiz_id')
     .eq('level_id', level.id)
     .in('quiz_type', ['grand_quiz', 'capstone'])
-    .eq('is_active', true)
-    .maybeSingle();
+    .eq('is_active', true);
+  const quiz = (levelQuizRows || []).find(q => !isPerModuleQuiz(q.source_quiz_id)) || null;
   if (qErr || !quiz) {
     logToFile('❌ Level exam lookup failed', { levelId: level.id, error: qErr?.message });
     await WhatsAppService.sendMessage(phoneNumber, 'No exam is configured for this level yet. Please contact NIETE support.');
@@ -1804,6 +1952,7 @@ async function decideExamPass(levelId, score, totalQuestions) {
 
 module.exports = {
   startGrandQuiz,
+  startModuleExam,
   startTrainingQuiz,
   sendQuestion,
   handleQuizButton,
