@@ -50,9 +50,16 @@ fi
 # keys/niete-local.env + redis-server every commit's mock run stops before starting and the ledger
 # stays `e2e: missing` — say so at session start, with the one-time fix, not on the agent's turn.
 MOCK_CTX=""
-if type e2e_mock_lane_ready >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --show-toplevel >/dev/null 2>&1; then
-  _WHY=$(e2e_mock_lane_ready "$(e2e_main_checkout "$PROJECT_ROOT")") || MOCK_CTX="$(e2e_mock_not_ready_block "$_WHY")
+if type e2e_mock_lane_autofix >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --show-toplevel >/dev/null 2>&1; then
+  _MAIN=$(e2e_main_checkout "$PROJECT_ROOT")
+  _FIX=$(e2e_mock_lane_autofix "$_MAIN"); _FIX_RC=$?
+  _DONE=$(printf '%s\n' "$_FIX" | grep '^auto-' || true)
+  if [ "$_FIX_RC" -ne 0 ]; then
+    MOCK_CTX="$(e2e_mock_not_ready_block "$(e2e_mock_lane_ready "$_MAIN"; printf '%s\n' "$_FIX" | grep -E 'failed|unavailable' || true)")
 Until that is done, report a commit's mock lane as NOT RUN (and why) — never as a pass."
+  elif [ -n "$_DONE" ]; then
+    MOCK_CTX="MOCK LANE: this session fixed the machine automatically — $_DONE. Nothing to do."
+  fi
 fi
 
 PEND="$PROJECT_ROOT/.claude/.e2e-pending"

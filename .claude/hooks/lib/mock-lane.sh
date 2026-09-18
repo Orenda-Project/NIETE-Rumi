@@ -131,16 +131,56 @@ e2e_mock_lane_ready() {
   return $missing
 }
 
-# e2e_mock_not_ready_block "<lines from e2e_mock_lane_ready>" → the warning + the one-time fix per item.
+# e2e_mock_lane_autofix "<main>" [--with-redis]  → FIX the machine instead of asking (operator, 2026-09-18:
+# "no manual interventions"). Missing keys file → run provision-local-keys.sh (sandbox DB lines from Railway's
+# sandbox env, Flow/storage ids from staging). --with-redis and no redis-server → `brew install redis` when brew
+# exists. Prints one line per action; returns 0 iff the machine is ready afterwards. The ONE thing it cannot
+# create is `railway login`. E2E_AUTOFIX_OFF=1 disables it (CI, tests).
+e2e_mock_lane_autofix() {
+  local main="$1" with_redis="" kd prov rc=0 out
+  [ "${2:-}" = "--with-redis" ] && with_redis=1
+  if [ "${E2E_AUTOFIX_OFF:-}" = "1" ]; then e2e_mock_lane_ready "$main" >/dev/null; return $?; fi
+  kd=$(e2e_keys_dir "$main")
+  if [ ! -f "$kd/niete-local.env" ]; then
+    prov="$main/bot/scripts/e2e/provision-local-keys.sh"
+    [ -f "$prov" ] || prov="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)/bot/scripts/e2e/provision-local-keys.sh"
+    if [ -f "$prov" ]; then
+      if out=$(cd "$main" && bash "$prov" --quiet 2>&1); then
+        echo "auto-provisioned keys/niete-local.env — $out"
+      else
+        echo "keys/niete-local.env missing (auto-provision failed: $(printf '%s' "$out" | grep -v '^[[:space:]]*$' | tail -1 | sed 's/^\[provision-local-keys\] //' | cut -c1-220))"
+        rc=1
+      fi
+    else
+      echo "keys/niete-local.env missing (auto-provision unavailable: bot/scripts/e2e/provision-local-keys.sh is not in this checkout)"; rc=1
+    fi
+  fi
+  if [ -n "$with_redis" ] && ! command -v redis-server >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1; then
+      if brew install redis >/dev/null 2>&1 && command -v redis-server >/dev/null 2>&1; then
+        echo "auto-installed redis-server via brew"
+      else
+        echo "redis-server not on PATH (brew install redis failed — see \`brew install redis\` by hand)"; rc=1
+      fi
+    else
+      echo "redis-server not on PATH (no brew to auto-install it)"; rc=1
+    fi
+  fi
+  e2e_mock_lane_ready "$main" >/dev/null || rc=1
+  return $rc
+}
+
+# e2e_mock_not_ready_block "<lines from e2e_mock_lane_ready / autofix>" → the warning + what is left to do.
+# After autofix, a missing keys file means ONE thing: this machine is not logged into Railway.
 e2e_mock_not_ready_block() {
   local why="$1"
   echo "⚠ MOCK LANE NOT RUNNABLE ON THIS MACHINE — a commit's commit-e2e.sh run stops before starting anything:"
   printf '%s\n' "$why" | sed 's/^/    · /'
-  echo "  fix (once per machine):"
+  echo "  what is left (everything else is automatic):"
   case "$why" in *niete-local.env*)
-    echo "    bash bot/scripts/e2e/provision-local-keys.sh    # sandbox DB lines + staging Flow/storage/portal ids; placeholders for everything else (docs/e2e-mock-lane.md § Setup)" ;;
+    echo "    railway login        # an account with access to the \"NIETE-Rumi Staging\" project; the keys file is then provisioned automatically on the next commit / session" ;;
   esac
   case "$why" in *redis-server*)
-    echo "    brew install redis                                # the stack starts a private redis-server per run" ;;
+    echo "    brew install redis   # commit-e2e.sh installs it automatically when brew is present" ;;
   esac
 }

@@ -24,8 +24,11 @@ PROD_REF=$(sed -nE 's/^ENV_REFS = .*"prod": "([a-z0-9]+)".*/\1/p' "$ROOT/.claude
 mkdir -p "$TMP/bin"; cat > "$TMP/bin/railway" <<'RW'
 #!/bin/sh
 [ -n "${FAKE_RAILWAY_FAIL:-}" ] && { echo "Unauthorized. Please login with 'railway login'" >&2; exit 1; }
-case "$1" in
-  variables) printf '%s\n' \
+env=staging; while [ $# -gt 0 ]; do case "$1" in --environment) env="$2"; shift 2;; *) shift;; esac; done
+case "$env" in
+  sandbox) printf '%s\n' "SUPABASE_URL=https://${FAKE_SANDBOX_REF:-__SBX__}.supabase.co" "SUPABASE_SERVICE_ROLE_KEY=SBX-FROM-RAILWAY" \
+             "OPENROUTER_API_KEY=sk-or-SANDBOXVENDOR" "WHATSAPP_TOKEN=EAAB-SBXWA" "PAKISTAN_LP_FLOW_ID=000";;
+  *) printf '%s\n' \
     "PAKISTAN_LP_FLOW_ID=1565529551677911" "TEACHER_TRAINING_FLOW_ID=1271813674911683" "STATUS_FLOW_ID=111" \
     "PORTAL_URL=https://portal.example.test" \
     "R2_ACCOUNT_ID=acct" "R2_ACCESS_KEY_ID=rk" "R2_SECRET_ACCESS_KEY=RSECRET-XYZ" "R2_BUCKET_NAME=b" "R2_ENDPOINT=https://x.r2.dev" \
@@ -33,19 +36,37 @@ case "$1" in
     "WHATSAPP_TOKEN=EAAB-REALWA" "WEBHOOK_VERIFY_TOKEN=verifyme" "WABA_ID=999" "PHONE_NUMBER_ID=888" \
     "SUPABASE_URL=https://STAGINGREF.supabase.co" "SUPABASE_SERVICE_ROLE_KEY=STAGING-SRK" "AWS_SECRET_ACCESS_KEY=AWSSECRET" \
     "RAILWAY_ENVIRONMENT=staging";;
-  *) echo ok;;
 esac
 RW
 chmod +x "$TMP/bin/railway"
 export PATH="$TMP/bin:$PATH"
+export FAKE_SANDBOX_REF="$SANDBOX_REF"
 
-echo "provision — refusals"
+echo "provision — no hand-made niete-sandbox.env: the sandbox lines come from Railway's sandbox env (NO manual step)"
 K1="$TMP/k1"; mkdir -p "$K1"
 out=$(bash "$S" --keys-dir "$K1" 2>&1); rc=$?
-say "no niete-sandbox.env → exit 2" "$rc" "2"
-has "…names the file it needs" "$out" "niete-sandbox.env" yes
-[ -e "$K1/niete-local.env" ] && bad "wrote a file despite refusing" || ok "nothing written"
+say "exit 0 without any hand-made file" "$rc" "0"
+[ -f "$K1/niete-local.env" ] && ok "niete-local.env written" || bad "niete-local.env not written"
+say "SUPABASE_URL pulled from the Railway SANDBOX env" "$(sed -nE 's/^SUPABASE_URL=(.*)$/\1/p' "$K1/niete-local.env")" "https://$SANDBOX_REF.supabase.co"
+say "…and its service key" "$(sed -nE 's/^SUPABASE_SERVICE_ROLE_KEY=(.*)$/\1/p' "$K1/niete-local.env")" "SBX-FROM-RAILWAY"
+has "the sandbox env's vendor key is NOT copied" "$(cat "$K1/niete-local.env")" "SANDBOXVENDOR" no
+has "the sandbox env's WhatsApp token is NOT copied" "$(cat "$K1/niete-local.env")" "EAAB-SBXWA" no
+say "Flow ids still come from STAGING, not the sandbox env" "$(sed -nE 's/^PAKISTAN_LP_FLOW_ID=(.*)$/\1/p' "$K1/niete-local.env")" "1565529551677911"
+[ -f "$K1/niete-sandbox.env" ] && ok "niete-sandbox.env ALSO written so the DB tooling works without a manual step" || bad "niete-sandbox.env not written"
+say "…0600" "$(stat -f '%Lp' "$K1/niete-sandbox.env" 2>/dev/null || stat -c '%a' "$K1/niete-sandbox.env")" "600"
+has "stdout never shows the key" "$out" "SBX-FROM-RAILWAY" no
+out=$(FAKE_SANDBOX_REF="$PROD_REF" bash "$S" --keys-dir "$TMP/k1b" 2>&1); rc=$?
+say "a Railway sandbox env that answers with the PROD ref → exit 3, refused" "$rc" "3"
+[ -e "$TMP/k1b/niete-local.env" ] || [ -e "$TMP/k1b/niete-sandbox.env" ] && bad "wrote something for a prod ref" || ok "nothing written for a prod ref"
+out=$(FAKE_RAILWAY_FAIL=1 bash "$S" --keys-dir "$TMP/k1c" 2>&1); rc=$?
+say "no hand-made file AND railway not logged in → exit 5" "$rc" "5"
+has "…names the ONE remaining manual fact: railway login" "$out" "railway login" yes
+out=$(bash "$S" --keys-dir "$TMP/k1d" --quiet 2>&1); rc=$?
+say "--quiet: exit 0" "$rc" "0"
+say "--quiet: exactly one line" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "1"
+has "--quiet: the line names the file" "$out" "niete-local.env" yes
 
+echo "provision — refusals"
 K2="$TMP/k2"; mkdir -p "$K2"
 printf 'SUPABASE_URL=https://%s.supabase.co\nSUPABASE_SERVICE_ROLE_KEY=PRODSRK-SECRET\n' "$PROD_REF" > "$K2/niete-sandbox.env"
 out=$(bash "$S" --keys-dir "$K2" 2>&1); rc=$?
