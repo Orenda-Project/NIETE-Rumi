@@ -3620,6 +3620,10 @@ CREATE TABLE IF NOT EXISTS training_vendors (
     has_diagnostic       BOOLEAN NOT NULL DEFAULT FALSE,
     cert_code_prefix     VARCHAR(8) NOT NULL,
     unlock_logic         VARCHAR(16) NOT NULL DEFAULT 'chain',
+    -- Marks a single written (CRQ/capstone) answer is worth for this vendor.
+    -- NULL for vendors whose written work is not separately weighted; I-SAPS
+    -- marks each CRQ out of 10 (their process document, §5.1).
+    capstone_points_per_question INTEGER,
     is_active            BOOLEAN NOT NULL DEFAULT TRUE,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -3682,6 +3686,10 @@ CREATE TABLE IF NOT EXISTS training_questions (
     options              JSONB NOT NULL,                       -- [{key: '1', text: 'A', urdu: '...'}, ...]
     correct_option       VARCHAR(16) NOT NULL,
     bloom_level          VARCHAR(32),
+    -- One image URL per option, positionally aligned with `options`, for
+    -- questions whose answers ARE pictures rather than text. NULL for the
+    -- ordinary text-option case.
+    option_images        TEXT[],
     order_index          INTEGER NOT NULL,
     is_active            BOOLEAN NOT NULL DEFAULT TRUE,
     CHECK ((grand_quiz_id IS NOT NULL) OR (training_module_id IS NOT NULL))

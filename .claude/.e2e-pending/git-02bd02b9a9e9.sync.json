@@ -1,0 +1,416 @@
+{
+  "version": 1,
+  "repo": "bd-60147",
+  "range": "",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/services/training/certificate.service.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/quiz-delivery.service.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        }
+      ],
+      "only_shared": false,
+      "diff": "diff --git a/bot/shared/services/training/certificate.service.js b/bot/shared/services/training/certificate.service.js\nindex a0bb347a..213cc4d6 100644\n--- a/bot/shared/services/training/certificate.service.js\n+++ b/bot/shared/services/training/certificate.service.js\n@@ -174,17 +174,43 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI\n  */\n const QUIZ_CERT_PASS_PCT = 0.7;\n \n-async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, attemptId, programId }) {\n+async function maybeIssueQuizScoreCertificate(\n+  supabase, { userId, moduleId, levelId = null, attemptId, programId },\n+) {\n   try {\n-    const { data: mod } = await supabase\n-      .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();\n-    if (!mod || !mod.course_id) return { issued: false };\n-    const { data: course } = await supabase\n-      .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();\n-    if (!course) return { issued: false };\n-    const { data: level } = await supabase\n-      .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();\n-    if (!level) return { issued: false };\n+    // bd-60144 \u2014 the level can arrive DIRECTLY, because a module exam has no\n+    // module to resolve it through.\n+    //\n+    // This function was written for the unit quick-check path, where the only\n+    // thing in hand is the module that was just completed, so it walked\n+    // module \u2192 course \u2192 level. A module EXAM attempt stores\n+    // training_module_id = NULL (it is keyed by grand_quiz_id), so passing that\n+    // value made the FIRST query return nothing and the guard returned\n+    // { issued: false } before reaching a single gate. A teacher could finish\n+    // all 54 units and all 9 exams and be certified by nothing \u2014 the gates were\n+    // right, but none of them ever ran.\n+    //\n+    // The caller that knows its level now says so. The quick-check path passes\n+    // no levelId and resolves through the module exactly as before, so every\n+    // other vendor is untouched.\n+    let levelRow = null;\n+    if (levelId !== null && levelId !== undefined) {\n+      const { data: lvl } = await supabase\n+        .from('training_levels').select('id, name, vendor_id').eq('id', levelId).maybeSingle();\n+      levelRow = lvl || null;\n+    } else {\n+      const { data: mod } = await supabase\n+        .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();\n+      if (!mod || !mod.course_id) return { issued: false };\n+      const { data: course } = await supabase\n+        .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();\n+      if (!course) return { issued: false };\n+      const { data: lvl } = await supabase\n+        .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();\n+      levelRow = lvl || null;\n+    }\n+    if (!levelRow) return { issued: false };\n+    const level = levelRow;\n     const { data: vendor } = await supabase\n       .from('training_vendors').select('id, unlock_logic').eq('id', level.vendor_id).maybeSingle();\n     if ((vendor?.unlock_logic || 'chain') === 'chain') return { issued: false };\ndiff --git a/bot/shared/services/training/quiz-delivery.service.js b/bot/shared/services/training/quiz-delivery.service.js\nindex 09b8a958..24ac8d1e 100644\n--- a/bot/shared/services/training/quiz-delivery.service.js\n+++ b/bot/shared/services/training/quiz-delivery.service.js\n@@ -2150,7 +2150,11 @@ async function gradeAttempt(attemptId, phoneNumber) {\n     const { maybeIssueQuizScoreCertificate } = require('./certificate.service');\n     const levelCert = await maybeIssueQuizScoreCertificate(supabase, {\n       userId: attempt.user_id,\n+      // bd-60144 \u2014 a module-exam attempt has training_module_id = NULL, so the\n+      // level must be handed over directly. Passing the null module made the\n+      // guard bail on its first lookup, before any gate.\n       moduleId: attempt.training_module_id,\n+      levelId: attempt.level_id,\n       attemptId: attempt.id,\n       programId: attempt.program_id,\n     });\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [],
+  "fallback": false,
+  "fallback_reason": ""
+}

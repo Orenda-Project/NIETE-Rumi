@@ -2817,19 +2817,27 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
     // WhatsApp both use.
     let certificate = null;
     if (verdict.is_passed) {
-      const { issueCertificate } = require('../../bot/shared/services/training/certificate.service');
-      const cert = await issueCertificate(supabase, {
+      // bd-60145 — through the bot's GUARD, not the raw issuer.
+      //
+      // This called issueCertificate directly the moment the attempt passed,
+      // which skips every completeness check: the portal's copy of bd-60139,
+      // where one pass minted a certificate without asking whether the units
+      // were finished or the per-module exams passed. The decision belongs to
+      // the bot so that WhatsApp and the portal cannot disagree about who is
+      // certified. Denies (issues nothing) if the rules API is unreachable —
+      // the graded attempt above is already written either way.
+      const cert = await TrainingRules.certifyLevel({
         userId,
-        programId: assignment.program_id,
         levelId,
         attemptId: attempt.id,
+        programId: assignment.program_id,
       });
-      certificate = {
+      certificate = cert.issued ? {
         certificate_code: cert.certificate_code,
         teacher_name: cert.teacher_name,
         level_name: cert.level_name,
         issued_at: cert.issued_at,
-      };
+      } : null;
     }
 
     try {
@@ -3599,6 +3607,44 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
         );
     }
 
+    // 8b. The level certificate, if this pass finished the level.
+    //
+    // bd-60145 — no portal route certified a per-module-assessed level at all.
+    // Certification lived only in the capstone and grand-quiz routes, both
+    // LEVEL-scoped, so an I-SAPS teacher who finished every unit and every
+    // module exam through the portal was certified by nothing — the same hole
+    // bd-60142 fixed on WhatsApp, one surface over.
+    //
+    // The bot's guard decides. It is cheap to ask and refuses fast when the
+    // level is unfinished, and it is idempotent per (user, level), so calling
+    // it on every pass cannot mint a duplicate.
+    //
+    // Deliberately NOT allowed to affect this response's success: the graded
+    // attempt, its answers and the progress row are already committed. A
+    // certificate that fails to issue here is issued by the next pass or by
+    // the WhatsApp path; a submission lost to a certificate error would
+    // destroy real work.
+    let certificate = null;
+    if (isPassed) {
+      try {
+        const cert = await TrainingRules.certifyLevel({
+          userId,
+          levelId,
+          moduleId,
+          attemptId: attempt.id,
+          programId: assignment.program_id,
+        });
+        if (cert.issued) {
+          certificate = {
+            certificate_code: cert.certificate_code,
+            teacher_name: cert.teacher_name,
+            level_name: cert.level_name,
+            issued_at: cert.issued_at,
+          };
+        }
+      } catch (_) { /* never let certification fail a graded submission */ }
+    }
+
     // 9. Semantic event — same name/shape as WhatsApp side for observability
     //    parity. Payload keys deliberately avoid tripping the column-scanner
     //    heuristic (see quiz-delivery.service.js gradeAttempt).
@@ -3629,6 +3675,8 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
         achieved_pct: verdict.achieved_pct,
         completed_at: completedAt,
       },
+      // null unless this pass completed the level (bd-60145).
+      certificate,
     });
   } catch (error) {
     console.error('training/module/:id/quiz-attempts POST error:', error);
@@ -4139,19 +4187,27 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
     //    the service lives in the bot tree and must not load at router mount.
     let certificate = null;
     if (isPassed) {
-      const { issueCertificate } = require('../../bot/shared/services/training/certificate.service');
-      const cert = await issueCertificate(supabase, {
+      // bd-60145 — through the bot's GUARD, not the raw issuer.
+      //
+      // This called issueCertificate directly the moment the attempt passed,
+      // which skips every completeness check: the portal's copy of bd-60139,
+      // where one pass minted a certificate without asking whether the units
+      // were finished or the per-module exams passed. The decision belongs to
+      // the bot so that WhatsApp and the portal cannot disagree about who is
+      // certified. Denies (issues nothing) if the rules API is unreachable —
+      // the graded attempt above is already written either way.
+      const cert = await TrainingRules.certifyLevel({
         userId,
-        programId: assignment.program_id,
         levelId,
         attemptId: attempt.id,
+        programId: assignment.program_id,
       });
-      certificate = {
+      certificate = cert.issued ? {
         certificate_code: cert.certificate_code,
         teacher_name: cert.teacher_name,
         level_name: cert.level_name,
         issued_at: cert.issued_at,
-      };
+      } : null;
     }
 
     // 9. Semantic event — observability parity with the module-quiz endpoint.
