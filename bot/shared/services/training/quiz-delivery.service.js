@@ -296,9 +296,14 @@ async function getServingConfig({ levelId, moduleId }) {
  * selection needs is identity, order and Bloom level.
  */
 async function loadQuestionBank({ quizKind, trainingModuleId, grandQuizId }) {
+  // bd-60131 — `options` and `correct_option` are part of the projection
+  // because the CRQ rule needs the ANSWER SHAPE, not just the id. Without
+  // them, isOpenEndedQuestion cannot tell an MCQ from a written answer: every
+  // row read as open-ended, Module 1's 12-row bank collapsed to a single
+  // question, and the exam resolved the module on one CRQ.
   let qBuilder = supabase
     .from('training_questions')
-    .select('id, order_index, bloom_level')
+    .select('id, order_index, bloom_level, options, correct_option')
     .eq('is_active', true)
     .order('order_index', { ascending: true });
   qBuilder = quizKind === KIND_TRAINING_MODULE

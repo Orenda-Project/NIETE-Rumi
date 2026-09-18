@@ -63,7 +63,11 @@ describe('bd-60128 — isOpenEndedQuestion', () => {
 
   test('missing input is not open-ended, and does not throw', () => {
     expect(isOpenEndedQuestion(null)).toBe(false);
-    expect(isOpenEndedQuestion({})).toBe(true); // no options, no key
+    // bd-60131 — `{}` carries NEITHER field, which is a thin projection
+    // (loadQuestionBank's select), not a CRQ. This assertion originally read
+    // `true` and that encoded the bug: every bank row classified as
+    // open-ended, so Module 1's paper collapsed from 9 questions to 1.
+    expect(isOpenEndedQuestion({})).toBe(false);
   });
 });
 
