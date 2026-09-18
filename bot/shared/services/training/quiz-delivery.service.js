@@ -2114,7 +2114,11 @@ async function gradeAttempt(attemptId, phoneNumber) {
       moduleTitle = c?.title || course?.title || null;
     }
     await WhatsAppService.sendMessage(phoneNumber, moduleExamPassMessage({
-      moduleTitle, score, total: attempt.total_questions, hasCrq: Boolean(crqQuizId),
+      // bd-60143 — MARKS, not the question count. `score` here is already a
+      // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by
+      // attempt.total_questions printed "12/3". examTotal is the same
+      // denominator the pass/fail decision above is computed against.
+      moduleTitle, score, total: examTotal, hasCrq: Boolean(crqQuizId),
     }));
     logToFile('🎓 Module exam passed — no level certificate', {
       userId: attempt.user_id, attemptId, sourceQuizId: attemptQuiz?.source_quiz_id,
@@ -2126,6 +2130,40 @@ async function gradeAttempt(attemptId, phoneNumber) {
     // Auto-delivering the CRQ therefore needs that service made
     // module-aware first; until then the teacher is told it is outstanding
     // rather than being handed a broken flow or silently skipped.
+
+    // bd-60142 — the LEVEL certificate is decided here too.
+    //
+    // This branch used to return without ever attempting issuance, because the
+    // only call to maybeIssueQuizScoreCertificate lived in the unit
+    // quick-check branch above. A teacher could therefore finish all 54 units
+    // AND all 9 module exams and be certified by nothing: the last thing they
+    // did was pass a module exam, and this path had no opinion about
+    // certificates. Confirmed on sandbox — every gate satisfied, no
+    // certificate.
+    //
+    // bd-60139 added the gate that stops a certificate minting after ONE
+    // module; that gate was necessary but not sufficient, because it guarded a
+    // path a module exam never reached. The guard decides whether the level is
+    // complete (all units done, every active per-module exam passed), so this
+    // call site must NOT pre-judge which module is "last" — a level with a
+    // different number of modules would break the moment it did.
+    const { maybeIssueQuizScoreCertificate } = require('./certificate.service');
+    const levelCert = await maybeIssueQuizScoreCertificate(supabase, {
+      userId: attempt.user_id,
+      moduleId: attempt.training_module_id,
+      attemptId: attempt.id,
+      programId: attempt.program_id,
+    });
+    if (levelCert.issued) {
+      await WhatsAppService.sendMessage(
+        phoneNumber,
+        `🏆 *Congratulations, ${levelCert.teacher_name}!*\n\n`
+        + `You have completed every module of ${levelCert.level_name}.\n\n`
+        + `Certificate code: \`${levelCert.certificate_code}\`\n`
+        + 'You can also download it from your portal.',
+      );
+      await deliverCertificatePdf(phoneNumber, levelCert);
+    }
     return true;
   }
 
