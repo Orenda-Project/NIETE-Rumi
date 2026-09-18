@@ -46,6 +46,15 @@ never runs and commits here arm no E2E. Either take it over —  bash scripts/qa
   fi
 fi
 
+# Machine readiness for the mock lane (layer 1, the run that tests a commit itself). Without
+# keys/niete-local.env + redis-server every commit's mock run stops before starting and the ledger
+# stays `e2e: missing` — say so at session start, with the one-time fix, not on the agent's turn.
+MOCK_CTX=""
+if type e2e_mock_lane_ready >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --show-toplevel >/dev/null 2>&1; then
+  _WHY=$(e2e_mock_lane_ready "$(e2e_main_checkout "$PROJECT_ROOT")") || MOCK_CTX="$(e2e_mock_not_ready_block "$_WHY")
+Until that is done, report a commit's mock lane as NOT RUN (and why) — never as a pass."
+fi
+
 PEND="$PROJECT_ROOT/.claude/.e2e-pending"
 LINES=""; N=0
 [ -d "$PEND" ] || PEND=""
@@ -79,12 +88,16 @@ done <<LS
 $([ -n "$PEND" ] && ls -t "$PEND"/git-*.json 2>/dev/null)
 LS
 if [ "$N" -eq 0 ]; then
-  [ -n "$INSTALL_CTX" ] || exit 0
-  jq -n --arg ctx "$INSTALL_CTX" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
+  [ -n "$INSTALL_CTX$MOCK_CTX" ] || exit 0
+  jq -n --arg ctx "${INSTALL_CTX:+$INSTALL_CTX
+}${INSTALL_CTX:+${MOCK_CTX:+
+}}$MOCK_CTX" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
   exit 0
 fi
 read -r -d '' CTX <<EOF
 ${INSTALL_CTX:+$INSTALL_CTX
+
+}${MOCK_CTX:+$MOCK_CTX
 
 }QA WORK IS PENDING FROM $N TERMINAL COMMIT(S) IN THIS CLONE. They were made outside
 any Claude session, so their Gherkin specs have not been synced and their targeted
