@@ -17,6 +17,7 @@ be one semantic ramp that already holds across subjects:
 Reading a Maths row and an English row side by side, the same colour means the
 same kind of cognitive work. That is the whole point of keeping one column.
 """
+import colorsys
 
 PEACH = "#FCE7C8"   # entry, concrete, hook
 BLUE = "#C8E6F4"    # receptive, pictorial
@@ -178,6 +179,62 @@ def colour(key, subject=None):
 
 def gloss(key, subject=None):
     return SKILL.get(canonical(key, subject), ("", None, ""))[2]
+
+
+INK_LUMINANCE = 0.1196
+"""The brightest a day code may be, as WCAG relative luminance.
+
+Derived, not chosen. The darkest background the grid paints is calfmt.AFTER,
+the warm grey of the January run, and a 9px code on it has to clear 4.5:1,
+which puts the ceiling at (lum(AFTER) + 0.05) / 4.5 - 0.05. Every other band
+is lighter, so meeting it here meets it everywhere.
+"""
+
+INK_SATURATION = 0.65
+"""How saturated a code is, at least.
+
+Scaling the palette toward black was tried first, and it fails on pastels:
+these colours have very little saturation to give up, so a peach at 40%
+strength is a brown and a pink is a grey — revision and assessment came out
+the same colour, which is the hue doing no work at all. Holding the hue and
+flooring the saturation keeps them tellable apart. The warm three — PEACH,
+TAN and AMBER — arrive nearly identical in the palette itself, and no ink can
+separate what came in the same; that is a palette question.
+"""
+
+
+def ink(hexcode):
+    """A chip colour as text: its own hue, saturated, dark enough to read.
+
+    Lives here so the Skills Map tracks and the Teaching Calendar day codes
+    cannot drift into two treatments of one palette.
+    """
+    hue, _light, sat = colorsys.rgb_to_hls(*_triple(rgb(hexcode)))
+    sat = max(sat, INK_SATURATION)
+    lo, hi = 0.0, 1.0
+    for _ in range(24):    # luminance rises with lightness, so bisection works
+        mid = (lo + hi) / 2
+        if _luminance(colorsys.hls_to_rgb(hue, mid, sat)) > INK_LUMINANCE:
+            hi = mid
+        else:
+            lo = mid
+    red, green, blue = colorsys.hls_to_rgb(hue, lo, sat)
+    return {"red": round(red, 4), "green": round(green, 4),
+            "blue": round(blue, 4)}
+
+
+def _triple(colour):
+    return (colour["red"], colour["green"], colour["blue"])
+
+
+def _luminance(triple):
+    """WCAG relative luminance, the thing contrast is measured on."""
+    def channel(value):
+        return (value / 12.92 if value <= 0.03928
+                else ((value + 0.055) / 1.055) ** 2.4)
+    red, green, blue = triple
+    return (0.2126 * channel(red) + 0.7152 * channel(green)
+            + 0.0722 * channel(blue))
 
 
 def rgb(hexcode):

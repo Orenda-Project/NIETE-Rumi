@@ -23,6 +23,7 @@ from unittest import mock
 
 import caltab
 import calfmt
+import calink
 import skills
 
 
@@ -33,39 +34,72 @@ def _rows_and_key():
     return caltab.key_block(N_COLS)
 
 
+def _key_named(label, subject):
+    """The skill whose label this is — the KEY carries labels, not keys."""
+    for key in skills.ORDER[subject]:
+        if skills.label(key, subject) == label:
+            return key
+    raise AssertionError(f"no {subject} skill is labelled {label!r}")
+
+
 def _text(rows):
     return " ".join(str(c) for row in rows for c in row)
 
 
-class TheKeyDoesNotPromiseColoursTheGridNeverPaints(unittest.TestCase):
+class TheKeyAndTheGridAgreeOnColour(unittest.TestCase):
+    """The KEY and the grid have to be wrong or right together.
 
-    def test_the_key_never_asks_for_a_skill_colour_at_all(self):
-        # calfmt._grid paints BAND[chapter % 2] and KIND_BG only. It never
-        # calls skills.colour(), so a coloured chip beside a code in the KEY
-        # is a colour code with nothing on the other end of it. Asserting on
-        # the returned chips would only prove the colours were dropped on the
-        # way out; the legend must not go looking for them in the first place.
-        with mock.patch.object(skills, "colour",
-                               side_effect=AssertionError(
-                                   "the KEY asked for a skill colour")):
-            caltab.key_block(N_COLS)
+    They were wrong together once in each direction: chips tinted by skill
+    over a grid with no skill colour in it, then a flat legend over a flat
+    grid of 3,230 codes that had to be looked up one at a time. What has to
+    hold is the agreement — the chip and the code carry one skill's colour,
+    and the note names the background, which is the chapter, not the skill.
+    """
+
+    def test_every_chip_carries_its_own_skills_colour(self):
+        rows, chips, _s, _o, _sw = _rows_and_key()
+        for row, tint in chips:
+            code, subject = rows[row][0], rows[row][2]
+            if subject not in caltab.SUBJECTS:
+                continue
+            key = skills.canonical(_key_named(rows[row][1], subject), subject)
+            self.assertEqual(tint, skills.colour(key, subject),
+                             f"{subject} {code} chip is not its skill colour")
+
+    def test_the_chip_matches_the_ink_the_grid_writes_that_code_in(self):
+        # Two darkenings of one palette would read as two palettes; the grid's
+        # ink is this same colour pulled toward black. See skills.ink.
+        rows, chips, _s, _o, _sw = _rows_and_key()
+        for row, tint in chips:
+            code = rows[row][0]
+            if rows[row][2] not in caltab.SUBJECTS:
+                continue
+            self.assertEqual(calink.cell_ink(code), calink.dark(tint),
+                             f"{code}: the chip and the grid ink differ")
 
     def test_every_code_still_gets_a_chip_cell_to_be_styled(self):
-        # Neutral is not absent: the code cell is still centred and bold, so
-        # the first column reads as a column of codes.
         rows, chips, _s, _o, _sw = _rows_and_key()
         coded = [i for i, row in enumerate(rows)
                  if row[0] and row[2] in caltab.SUBJECTS]
         self.assertTrue(coded)
-        self.assertTrue(set(coded) <= set(chips))
+        self.assertTrue(set(coded) <= {row for row, _tint in chips})
 
-    def test_the_key_says_what_the_grid_is_actually_coloured_by(self):
-        # Dropping the chips is only half the fix: the reader still has to be
-        # told where colour-by-skill does live.
+    def test_the_note_says_the_code_colour_is_the_skill(self):
         rows, *_rest = _rows_and_key()
         text = _text(rows).lower()
-        self.assertIn("not colour-coded", text)
-        self.assertIn("skills map", text)
+        self.assertIn("skill's colour", text)
+        self.assertNotIn("not colour-coded", text)
+
+    def test_the_note_still_says_the_background_is_the_chapter(self):
+        # The four background layers are the facts a skill colour would have
+        # hidden. The reader has to be told what they are still reading.
+        rows, *_rest = _rows_and_key()
+        self.assertIn("chapter", _text(rows).lower())
+
+    def test_the_note_says_what_a_shared_cell_does(self):
+        # 196 of the 3,230 cells hold two codes and can only be one colour.
+        rows, *_rest = _rows_and_key()
+        self.assertIn("first one", _text(rows).lower())
 
 
 class EveryMarkIsShownAsWellAsNamed(unittest.TestCase):

@@ -106,17 +106,16 @@ def _wide(left, text, n_cols):
 def key_block(n_cols):
     """The legend. Every code, every mark — one line each, and each one shown.
 
-    Returns (rows, chips, sections, over, swatch): the rows whose code cell is
-    styled as a chip, the rows that are section headings, the rows whose
-    column-WIDE text must be set to OVERFLOW_CELL, and the swatches to paint.
+    Returns (rows, chips, sections, over, swatch). A chip is (row, colour) —
+    the colour is settled here, where the skill is still in hand, so nothing
+    downstream has to read a code back into a skill to tint it.
 
-    The code chips used to be tinted with `skills.colour()`, which made the
-    KEY read as a colour code — find the green chip, look for green cells. The
-    grid has no skill colours at all, and deliberately so: it bands by
-    CHAPTER, because a grey block per basics period read as the class putting
-    the book down for a fortnight. So the chips are neutral here, the reader
-    is told in words what the grid IS coloured by, and colour-by-skill is
-    pointed at the two tabs that really do it.
+    The chips carry `skills.colour()` and the grid's codes are drawn in the
+    same colour darkened for text (calink). They were neutral for a while,
+    because a tinted chip over a grid holding no skill colour sent the reader
+    hunting for green cells that were not there — a real contradiction, fixed
+    at the wrong end. The background still bands by CHAPTER, so the skill
+    colour goes on the glyph and both facts can be seen at once.
 
     The MARKS lines carry a symbolic swatch name rather than a colour. "Two
     alternating bands" cannot be described, only shown — but naming a hex here
@@ -133,20 +132,21 @@ def key_block(n_cols):
     add(["KEY"], "How to read this calendar — every code, colour and mark "
                  "that appears in the grid above.")
     add(["Code", "What the day is", "Subject"], "In plain words")
-    add(["Note"], "These codes say WHAT is taught on a day. They are NOT "
-                  "colour-coded in the grid — the grid's colour is the "
-                  "CHAPTER, so a long chapter reads as a long bar (see MARKS "
-                  "below). For colour by skill, read the Skills Map and "
-                  "Coverage Map tabs.")
+    add(["Note"], "These codes say WHAT is taught on a day, each written in "
+                  "its own skill's colour — the colour that skill has here, "
+                  "on the Skills Map and on the subject tabs. The CELL behind "
+                  "it is the CHAPTER, so a long chapter still reads as a long "
+                  "bar (see MARKS below). Where two codes share a cell, the "
+                  "colour is the first one's — that period's lead skill.")
     for subject in SUBJECTS:
         for key in skills.ORDER[subject]:
             code = skills.code(key, subject)
             if any(r[0] == code and r[2] == subject for r in rows):
                 continue
-            chips.append(len(rows))
+            chips.append((len(rows), skills.colour(key, subject)))
             add([code, skills.label(key, subject), subject],
                 skills.gloss(key, subject))
-    chips.append(len(rows))
+    chips.append((len(rows), skills.colour("board_prep")))
     add(["BP", skills.label("board_prep"), "Grade 5 only"],
         skills.gloss("board_prep"))
 
@@ -288,7 +288,7 @@ def build(books):
             "body_top": body_top, "body_rows": len(plans),
             "key_top": key_top,
             "sections": [key_top + r for r in sections],
-            "chips": [key_top + r for r in chips],
+            "chips": [(key_top + r, c) for r, c in chips],
             "swatch": [(key_top + r, c0, c1, n)
                        for r, c0, c1, n in swatch],
             "over": [key_top + r for r in over],

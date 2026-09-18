@@ -9,7 +9,10 @@ before it:
     3. assessment columns          — FDE's own windows, straight down the page
     4. the 24 December rule        — and a rule at every vacation
 
-Anything painted out of that order hides a fact rather than adding one.
+Anything painted out of that order hides a fact rather than adding one. Every
+one of them is load-bearing, which is why the fifth thing a cell has to say —
+WHICH SKILL — is said in the colour of the two letters, not behind them; that
+pass is calink's, and it runs last.
 
 Basics periods — phonics, arkaan saazi, number fluency, communicative work —
 are deliberately NOT given a colour of their own. They were, and a run of grey
@@ -27,6 +30,7 @@ Two rules about text, learnt the hard way on this tab:
     nothing MERGEs. A merge that crosses the frozen boundary makes the freeze
     request fail outright, so the five header rows are painted, not merged.
 """
+import calink
 BAND = [{"red": 0.84, "green": 0.90, "blue": 0.96},
         {"red": 0.92, "green": 0.96, "blue": 0.90}]
 OMIT = {"red": 0.97, "green": 0.85, "blue": 0.85}     # FDE drops this chapter
@@ -169,16 +173,7 @@ def _key(rng, sid, ncols, plan, ink):
         reqs.append(_paint(rng, sid, row + 1, row + 2, 0, ncols, {
             "backgroundColor": ink["chapter"], "horizontalAlignment": "LEFT",
             "textFormat": {"bold": True, "fontSize": 9}}))
-    # The code chips are NEUTRAL on purpose. They used to be tinted with the
-    # skill's own colour, which made the KEY read as a colour code — but the
-    # grid below is banded by CHAPTER and has no skill colours in it at all,
-    # so the reader was being sent to look for something that is not there.
-    # Colour by skill lives on the Skills Map and Coverage Map tabs, and the
-    # KEY now says so in words.
-    for row in plan["chips"]:
-        reqs.append(_paint(rng, sid, row, row + 1, 0, 1, {
-            "backgroundColor": ink["cream"], "horizontalAlignment": "CENTER",
-            "textFormat": {"bold": True, "fontSize": 10}}))
+    reqs += calink.chip_requests(_paint, rng, sid, plan["chips"], ink["cream"])
     # Painted LAST: the `over` and `sections` passes above write the whole row
     # width, so a swatch laid before them would be overwritten by its own row.
     for row, c0, c1, name in plan["swatch"]:
@@ -263,6 +258,9 @@ def format_calendar(svc, sheetio, sid, rows, plan):
     reqs = _frame(rng, sid, len(rows), plan["n_cols"], plan, ink)
     reqs += _grid(rng, sid, plan)
     reqs += _key(rng, sid, plan["n_cols"], plan, ink)
+    # LAST, and it must stay last: _frame writes whole `textFormat` objects,
+    # which would take the foreground colour back out with them.
+    reqs += calink.ink_requests(rng, sid, rows, plan)
     _send(svc, sheetio, reqs)
 
 

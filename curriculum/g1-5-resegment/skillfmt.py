@@ -34,14 +34,10 @@ PROSE_PX = 34        # the few rows that carry a sentence
 HEAD_PX = (42, 32, 30)
 
 
-def _dark(hexcode, k=0.55):
-    """The chip colour pulled toward black so it reads as text.
-
-    The palette in skills.py is a background palette — #FCE7C8 as a foreground
-    on white is a smudge. k is how much of the original survives.
-    """
-    c = skills.rgb(hexcode)
-    return {ch: round(v * k, 4) for ch, v in c.items()}
+def _dark(hexcode):
+    """The chip colour as text. See skills.ink — the Teaching Calendar day
+    codes get the same treatment, out of the same place."""
+    return skills.ink(hexcode)
 
 
 def _frame(rng, sid, nrows, ncols, ink, plan):
