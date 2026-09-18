@@ -71,7 +71,9 @@ beforeEach(() => {
   delete process.env.BOT_NAME;
   delete process.env.ORG_NAME;
 
-  jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+  jest.doMock('../../bot/shared/utils/logger', () => ({
+    logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(),
+  }));
   jest.doMock('../../bot/shared/services/training/certificate-pdf.service', () => ({
     generateAndStoreCertificatePdf: jest.fn(async (supabase, args) => {
       pdfCalls.push(args);
@@ -153,7 +155,9 @@ describe('issueCertificate → PDF', () => {
     tableStates.users = { rows: [{ name: 'Amina Khan' }] };
     tableStates.training_levels = { rows: [{ name: 'Aspiring Teacher' }] };
 
-    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+    jest.doMock('../../bot/shared/utils/logger', () => ({
+    logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(),
+  }));
     jest.doMock('../../bot/shared/services/training/certificate-pdf.service', () => {
       throw new Error("Cannot find module 'pdfkit'");
     });
