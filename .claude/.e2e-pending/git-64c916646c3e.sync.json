@@ -1,0 +1,3184 @@
+{
+  "version": 1,
+  "repo": "bd-60147",
+  "range": "",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "registration",
+      "spec_path": "tests/features/whatsapp/niete/registration.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 12,
+      "scenarios": [
+        {
+          "name": "/register opens the registration Flow",
+          "line": 23,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The registration Flow first screen collects name and country",
+          "line": 33,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Completing the Flow registers the teacher",
+          "line": 41,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1",
+            "@destructive"
+          ]
+        },
+        {
+          "name": "The completion greeting names the teacher, in Urdu for Pakistan",
+          "line": 53,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/register is case-insensitive",
+          "line": 72,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pakistan teachers get an extra region screen",
+          "line": 79,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An already-registered teacher is not re-onboarded",
+          "line": 87,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A required field on the personal-info screen must be provided",
+          "line": 100,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Abandoning the registration Flow leaves the teacher unregistered",
+          "line": 113,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The registration Flow persists the selected role",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A non-Pakistan teacher skips the region screen",
+          "line": 147,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Choosing organization \"Other\" adds an organization-details screen",
+          "line": 157,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "menu",
+      "spec_path": "tests/features/whatsapp/niete/menu.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 19,
+      "scenarios": [
+        {
+          "name": "/menu renders the role-aware feature card for a teacher",
+          "line": 26,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/menu is case-insensitive",
+          "line": 50,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/menu re-opens the menu from inside a feature flow (escape hatch)",
+          "line": 58,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Sending /menu repeatedly is idempotent",
+          "line": 68,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/menu with surrounding whitespace still opens the menu (client trims)",
+          "line": 76,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A bare \"menu\" (no slash) does not open the interactive menu",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The Ask Anything menu row opens general help",
+          "line": 100,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@menu",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Ask Anything answers a teaching question",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Gibberish input is handled gracefully",
+          "line": 118,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@negative",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/portal points an activated teacher to their portal login",
+          "line": 130,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@portal",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/settings degrades gracefully when the Settings Flow is not configured",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@obsolete",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A capability question gets a guided answer, not a feature attempt",
+          "line": 160,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A menu number outside 1-4 gets the choose-an-option nudge and starts nothing",
+          "line": 175,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A principal sees BOTH Classroom Coaching and Observe a Teacher",
+          "line": 201,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A coach sees Observe a Teacher and NOT Classroom Coaching",
+          "line": 214,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher still sees Classroom Coaching and no observe row",
+          "line": 227,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A coach tapping a Classroom Coaching row from old scrollback is refused",
+          "line": 236,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher tapping a stray Observe row is refused and redirected",
+          "line": 249,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The refusal is in the teacher's own language",
+          "line": 257,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@language",
+            "@p2"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/routes/teacher-training-endpoint.js",
+          "pattern": "bot/shared/routes/teacher-training-endpoint.js",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/isaps-module-exam.rules.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/quiz-delivery.service.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        }
+      ],
+      "only_shared": false,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\ndiff --git a/bot/shared/routes/teacher-training-endpoint.js b/bot/shared/routes/teacher-training-endpoint.js\nindex 18c083c8..b0b5d616 100644\n--- a/bot/shared/routes/teacher-training-endpoint.js\n+++ b/bot/shared/routes/teacher-training-endpoint.js\n@@ -32,6 +32,9 @@ const { teacherLevelOf } = require('../utils/teacher-level');\n const {\n   usesModuleScopedListing, buildCourseRows, isCourseRowId, parseCourseRowId,\n } = require('../services/training/isaps-listing.rules');\n+const {\n+  moduleSourceQuizId, buildModuleExamSlot,\n+} = require('../services/training/isaps-module-exam.rules');\n const supabase = require('../config/supabase');\n const {\n   applyBandSelection,\n@@ -446,7 +449,14 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*,\n       // parseInt -> NaN. Only an actual number may be trusted; anything else\n       // falls through to inference.\n       const rawOrder = String(screenData._level_order ?? '').trim();\n-      let levelOrder = /^\\d+$/.test(rawOrder) ? parseInt(rawOrder, 10) : null;\n+      // bd-60120 \u2014 `<order>.<courseId>` means \"the exam for that I-SAPS module\".\n+      // A plain integer is the level exam, unchanged. parseInt alone would have\n+      // swallowed the suffix and silently started the LEVEL exam instead.\n+      const scopedMatch = /^(\\d+)\\.(\\d+)$/.exec(rawOrder);\n+      const examCourseId = scopedMatch ? parseInt(scopedMatch[2], 10) : null;\n+      let levelOrder = scopedMatch\n+        ? parseInt(scopedMatch[1], 10)\n+        : (/^\\d+$/.test(rawOrder) ? parseInt(rawOrder, 10) : null);\n       if (levelOrder === null) {\n         const catalog = await loadVisibleLevelsWithProgress(userId);\n         const scoped = vendorKey\n@@ -468,6 +478,30 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*,\n           return errorScreen('Please open the level again and tap Take exam.');\n         }\n       }\n+      // bd-60120 \u2014 a module exam, not the level one. Same discipline as\n+      // bd-2452: the CTA is a tappable link whatever it reads, so the slot's\n+      // own `ok` flag is what refuses it here rather than the label.\n+      if (examCourseId) {\n+        const catalog = await loadVisibleLevelsWithProgress(userId);\n+        const scopedLevels = vendorKey\n+          ? (catalog || []).filter(l => l.vendor_key === vendorKey)\n+          : (catalog || []);\n+        const lvl = scopedLevels.find(l => l.order_index === levelOrder - 1);\n+        if (!lvl) return errorScreen('That level is not part of your program.');\n+        const mods = await loadModulesWithProgress(userId, lvl.id);\n+        const slot = await loadModuleExamSlot(userId, lvl.id, examCourseId, mods);\n+        if (!slot || !slot.ok) {\n+          logToFile('\ud83c\udf93 Refused module-exam start', {\n+            userId, levelOrder, examCourseId, reason: slot ? slot.cta : 'no slot',\n+          });\n+          return errorScreen(slot ? slot.body : 'That exam is not available yet.');\n+        }\n+        return buildSuccessScreen('Starting your module exam\u2026', {\n+          trainingAction: 'start_module_exam',\n+          levelOrder,\n+          courseId: examCourseId,\n+        });\n+      }\n       // bd-2452 \u2014 THE GATE. The \"\ud83d\udd12 Locked\" / \"\u2713 Passed\" / blank CTA are all\n       // tappable links; this is what actually refuses them.\n       const gate = await assertCanStartGrandQuiz(userId, levelOrder, vendorKey);\n@@ -701,6 +735,9 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {\n   // other training keeps the flat list it has always had.\n   const moduleScoped = usesModuleScopedListing(lvl.vendor_key);\n   const scopedCourseId = moduleScoped ? parseCourseRowId(opts.courseRowId) : null;\n+  const moduleExam = scopedCourseId\n+    ? await loadModuleExamSlot(userId, lvl.id, scopedCourseId, modules)\n+    : null;\n \n   const totalModules = modules.length;\n   const doneModules = modules.filter(m => m.done).length;\n@@ -711,7 +748,14 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {\n     data: {\n       level_title:    levelDisplayTitle(lvl),\n       level_progress: `${doneModules}/${totalModules} modules done \u00b7 ${pct}%`,\n-      level_order:    String(levelOrder),\n+      // bd-60120 \u2014 `level_order` is the only field on this screen that the\n+      // server fills AND gets back in the exam CTA's payload, and it is used\n+      // nowhere else (verified: one occurrence in the published JSON). When\n+      // the teacher is inside an I-SAPS module it therefore carries the\n+      // course too, as `<order>.<courseId>`, so tapping the exam starts THAT\n+      // module's exam. The reader below parses both shapes; a plain integer\n+      // keeps meaning exactly what it always did.\n+      level_order:    scopedCourseId ? `${levelOrder}.${scopedCourseId}` : String(levelOrder),\n       // bd-2102 \u2014 echoed back through payload interpolation so downstream\n       // data_exchange keeps the vendor scope. Falls back to '' for single-\n       // vendor teachers whose level rows don't carry a resolved key.\n@@ -724,9 +768,13 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {\n       module_list:    await buildModuleList({\n         userId, level: lvl, modules, moduleScoped, scopedCourseId,\n       }),\n-      grand_quiz_body:      grandQuiz.body,\n-      grand_quiz_caption:   grandQuiz.caption,\n-      grand_quiz_cta:       grandQuiz.cta,\n+      // bd-60120 \u2014 drilled into an I-SAPS module, the single exam slot carries\n+      // THAT module's exam. It is free to reuse precisely because I-SAPS has no\n+      // level exam (bd-60119), so nothing is displaced and no other vendor's\n+      // level view changes.\n+      grand_quiz_body:      moduleExam ? moduleExam.body    : grandQuiz.body,\n+      grand_quiz_caption:   moduleExam ? moduleExam.caption : grandQuiz.caption,\n+      grand_quiz_cta:       moduleExam ? moduleExam.cta     : grandQuiz.cta,\n     },\n   };\n }\n@@ -1408,6 +1456,72 @@ async function assertCanStartExamForLevel(userId, levelId) {\n   return assertCanStartGrandQuiz(userId, level.order_index + 1, level.vendor_key);\n }\n \n+/**\n+ * bd-60120 \u2014 the exam slot for ONE I-SAPS module.\n+ *\n+ * Gathers what buildModuleExamSlot needs: the module's unit tally, how many\n+ * scenario MCQs and CRQ items its per-module quizzes hold, and whether the\n+ * teacher has already passed it. Never throws \u2014 a failure here must degrade to\n+ * \"no exam\" rather than break the level screen.\n+ *\n+ * @returns {Promise<{ok:boolean, body:string, caption:string, cta:string}|null>}\n+ */\n+async function loadModuleExamSlot(userId, levelId, courseId, modules) {\n+  try {\n+    const { data: course } = await supabase\n+      .from('training_courses').select('id, title, level_id')\n+      .eq('id', courseId).maybeSingle();\n+    if (!course || course.level_id !== levelId) return null;\n+    const m = /Module (\\d+)/.exec(course.title || '');\n+    if (!m) return null;\n+    const moduleNo = parseInt(m[1], 10);\n+    const srcId = moduleSourceQuizId(moduleNo);\n+\n+    const { data: quizzes } = await supabase\n+      .from('training_grand_quizzes')\n+      .select('id, quiz_type')\n+      .eq('level_id', levelId).eq('source_quiz_id', srcId).eq('is_active', true);\n+    const ids = (quizzes || []).map(q => q.id);\n+    let mcqCount = 0;\n+    let crqCount = 0;\n+    if (ids.length) {\n+      const { data: qs } = await supabase\n+        .from('training_questions').select('id, grand_quiz_id')\n+        .in('grand_quiz_id', ids).eq('is_active', true);\n+      const typeById = new Map((quizzes || []).map(q => [q.id, q.quiz_type]));\n+      for (const q of qs || []) {\n+        if (typeById.get(q.grand_quiz_id) === 'capstone') crqCount += 1;\n+        else mcqCount += 1;\n+      }\n+    }\n+\n+    const units = (modules || []).filter(x => x.course_title === course.title);\n+    const { data: attempts } = await supabase\n+      .from('training_assessment_attempts')\n+      .select('is_passed, completed_at, cooldown_until, grand_quiz_id')\n+      .eq('user_id', userId).in('grand_quiz_id', ids.length ? ids : [-1]);\n+    const passed = (attempts || []).some(a => a.is_passed);\n+    let cooldownHoursLeft = 0;\n+    for (const a of attempts || []) {\n+      if (a.is_passed || !a.cooldown_until) continue;\n+      const left = (new Date(a.cooldown_until).getTime() - Date.now()) / 36e5;\n+      if (left > cooldownHoursLeft) cooldownHoursLeft = Math.ceil(left);\n+    }\n+\n+    return buildModuleExamSlot({\n+      moduleTitle: course.title,\n+      unitsTotal: units.length,\n+      unitsDone: units.filter(u => u.done).length,\n+      mcqCount, crqCount, passed, cooldownHoursLeft,\n+    });\n+  } catch (err) {\n+    logToFile('\u26a0\ufe0f loadModuleExamSlot failed \u2014 falling back to no exam', {\n+      userId, levelId, courseId, error: err?.message,\n+    });\n+    return null;\n+  }\n+}\n+\n async function loadCoursesWithProgress(userId, levelId) {\n   const [{ data: courses }, { data: progressRows }, { data: modules }] = await Promise.all([\n     supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index').order('id'),\n@@ -1876,6 +1990,7 @@ module.exports = {\n   // SEQUENCE is a rule worth pinning, and it cannot be tested through the Flow\n   // handler without standing up the whole screen.\n   loadModulesWithProgress,\n+  loadModuleExamSlot,\n   // bd-43482 \u2014 the LEVEL axis, exported so \"BH subjects are parallel but\n   // NIETE/Oxbridge ladders are not\" is assertable without a DB.\n   isLevelChainLocked,\ndiff --git a/bot/shared/services/training/isaps-module-exam.rules.js b/bot/shared/services/training/isaps-module-exam.rules.js\nnew file mode 100644\nindex 00000000..605e838d\n--- /dev/null\n+++ b/bot/shared/services/training/isaps-module-exam.rules.js\n@@ -0,0 +1,141 @@\n+/**\n+ * bd-60120 \u2014 the end-of-module exam for I-SAPS.\n+ *\n+ * I-SAPS assesses at the end of each MODULE: scenario MCQs plus one CRQ\n+ * (assessment doc \u00a74). bd-60119 re-keyed those onto per-module quizzes\n+ * (source_quiz_id = PER_MODULE_SOURCE_BASE + module) and retired the\n+ * level-wide pair \u2014 so the questions exist, but the level screen has exactly\n+ * one exam slot and it is bound to the LEVEL.\n+ *\n+ * That slot is free for I-SAPS precisely BECAUSE I-SAPS has no level exam: it\n+ * renders \"No level exam \u2014 finish all sessions\". When the teacher is drilled\n+ * into a module (the `c:` scope from bd-60119), it shows that module's exam\n+ * instead. No Flow re-publish, and no other vendor's level view changes.\n+ *\n+ * Pure rules only: which quiz belongs to a module, whether it is open, and\n+ * what the slot reads. The `ok` flag is the important output \u2014 a CTA in this\n+ * Flow is a tappable link whatever its label, so the SERVER has to be the\n+ * thing that refuses it. bd-2452 learned that on the level exam, where\n+ * \"\ud83d\udd12 Locked\" was still tappable and started the exam anyway.\n+ */\n+\n+/**\n+ * I-SAPS per-module quizzes are keyed 900 + module. Legacy ids are 1-11\n+ * (Taleemabad 1-4, Beacon House 8-11), so the range cannot collide, and the\n+ * level-exam lookup excludes it.\n+ */\n+const PER_MODULE_SOURCE_BASE = 900;\n+\n+/** @param {number} moduleNo 1..9 @returns {number} */\n+function moduleSourceQuizId(moduleNo) {\n+  return PER_MODULE_SOURCE_BASE + Number(moduleNo);\n+}\n+\n+/**\n+ * Is this source_quiz_id one of the I-SAPS per-module quizzes?\n+ *\n+ * A NULL is a LEVEL exam, never a module one \u2014 that distinction is what keeps\n+ * every other vendor's exam resolving to exactly one row.\n+ *\n+ * @param {number|null} sourceQuizId\n+ * @returns {boolean}\n+ */\n+function isPerModuleQuiz(sourceQuizId) {\n+  if (sourceQuizId === null || sourceQuizId === undefined) return false;\n+  const n = Number(sourceQuizId);\n+  return Number.isFinite(n) && n > PER_MODULE_SOURCE_BASE;\n+}\n+\n+/**\n+ * The module number behind a per-module quiz id, or null for anything else.\n+ *\n+ * @param {number|null} sourceQuizId\n+ * @returns {number|null}\n+ */\n+function moduleFromSourceQuizId(sourceQuizId) {\n+  if (!isPerModuleQuiz(sourceQuizId)) return null;\n+  return Number(sourceQuizId) - PER_MODULE_SOURCE_BASE;\n+}\n+\n+/**\n+ * What the exam slot says for one module, and whether it may be started.\n+ *\n+ * Order of the branches is deliberate: \"no questions\" and \"already passed\"\n+ * come before \"units unfinished\", because a module with nothing to sit should\n+ * never tell a teacher to go finish units in order to reach an exam that does\n+ * not exist.\n+ *\n+ * @param {object} input\n+ * @param {string} input.moduleTitle\n+ * @param {number} input.unitsTotal\n+ * @param {number} input.unitsDone\n+ * @param {number} input.mcqCount           active scenario MCQs for the module\n+ * @param {number} input.crqCount           active CRQ items for the module\n+ * @param {boolean} [input.passed]          the module exam is already passed\n+ * @param {number} [input.cooldownHoursLeft] hours until a retake is allowed\n+ * @returns {{ok: boolean, body: string, caption: string, cta: string}}\n+ */\n+function buildModuleExamSlot({\n+  moduleTitle, unitsTotal, unitsDone, mcqCount, crqCount, passed, cooldownHoursLeft,\n+}) {\n+  const mcq = Number(mcqCount) || 0;\n+  const crq = Number(crqCount) || 0;\n+  const total = Number(unitsTotal) || 0;\n+  const done = Number(unitsDone) || 0;\n+\n+  if (mcq === 0 && crq === 0) {\n+    return {\n+      ok: false,\n+      body: '\ud83c\udf93 No exam for this module yet.',\n+      caption: ' ',\n+      cta: '\u2014 ',\n+    };\n+  }\n+\n+  if (passed) {\n+    return {\n+      ok: false,\n+      body: '\ud83c\udfc6 Module exam \u2014 you passed this module.',\n+      caption: 'Your score counts towards the level certificate.',\n+      cta: '\u2713 Passed',\n+    };\n+  }\n+\n+  const hours = Number(cooldownHoursLeft) || 0;\n+  if (hours > 0) {\n+    return {\n+      ok: false,\n+      body: `\u23f3 Module exam \u2014 locked after a recent attempt. Try again in about ${hours} hours.`,\n+      caption: 'Review the sessions while you wait.',\n+      cta: `\u23f3 Cooldown (${hours}h)`,\n+    };\n+  }\n+\n+  const left = Math.max(0, total - done);\n+  if (left > 0) {\n+    return {\n+      ok: false,\n+      body: `\ud83d\udd12 Module exam \u2014 finish the remaining ${left} of ${total} sessions first.`,\n+      caption: 'The exam opens once every session in this module is done.',\n+      cta: '\ud83d\udd12 Locked',\n+    };\n+  }\n+\n+  const parts = [];\n+  if (mcq > 0) parts.push(`${mcq} scenario question${mcq === 1 ? '' : 's'}`);\n+  if (crq > 0) parts.push('1 written answer');\n+  return {\n+    ok: true,\n+    body: `\ud83c\udf93 Module exam \u2014 ${parts.join(' and ')}.`,\n+    caption: 'Your written answer is marked against the I-SAPS rubric.',\n+    cta: '\ud83d\udcdd Take the module exam',\n+  };\n+}\n+\n+module.exports = {\n+  PER_MODULE_SOURCE_BASE,\n+  moduleSourceQuizId,\n+  moduleFromSourceQuizId,\n+  isPerModuleQuiz,\n+  buildModuleExamSlot,\n+};\ndiff --git a/bot/shared/services/training/quiz-delivery.service.js b/bot/shared/services/training/quiz-delivery.service.js\nindex 4913d640..b1584869 100644\n--- a/bot/shared/services/training/quiz-delivery.service.js\n+++ b/bot/shared/services/training/quiz-delivery.service.js\n@@ -63,6 +63,7 @@ const { logToFile } = require('../../utils/logger');\n const { logEvent } = require('../../utils/structured-logger');\n const { issueCertificate } = require('./certificate.service');\n const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./question-images.rules');\n+const { isPerModuleQuiz, moduleSourceQuizId } = require('./isaps-module-exam.rules');\n // bd-2673 \u2014 the marking rule lives in ONE module, shared with the portal over\n // the internal API. Do not re-implement isMultiKey/normalizeSet here: a second\n // copy is the bug this extraction removed.\n@@ -366,6 +367,146 @@ async function loadPartialAnswer(attemptId, questionIndex) {\n /**\n  * Start a fresh grand quiz attempt for the given level.\n  */\n+/**\n+ * bd-60120 \u2014 start the END-OF-MODULE exam for an I-SAPS module.\n+ *\n+ * I-SAPS assesses per module (doc \u00a74): scenario MCQs plus one CRQ, keyed onto\n+ * per-module quizzes by bd-60119. This is the sibling of startGrandQuiz, and it\n+ * runs the SAME preconditions \u2014 which is the entire point. bd-2452/2453\n+ * hardened the level exam after a teacher sat one at 38/40 modules and minted a\n+ * duplicate certificate, because every CTA in this Flow is a tappable\n+ * EmbeddedLink with no disabled state. The endpoint's slot already refuses a\n+ * locked tap; this is the second line, for anything that reaches the service\n+ * directly.\n+ *\n+ * The MCQ set and the CRQ set are two rows (grand_quiz + capstone) sharing one\n+ * source_quiz_id. The MCQs run here; a capstone-only module delegates to the\n+ * capstone starter, exactly as the level path does.\n+ *\n+ * @param {string} userId\n+ * @param {number|string} courseId training_courses.id \u2014 the MODULE\n+ * @param {string} phoneNumber\n+ * @returns {Promise<boolean>}\n+ */\n+async function startModuleExam(userId, courseId, phoneNumber) {\n+  const courseIdNum = parseInt(String(courseId), 10);\n+  if (!Number.isFinite(courseIdNum)) {\n+    logToFile('\u26a0\ufe0f Invalid courseId for startModuleExam', { userId, courseId });\n+    await WhatsAppService.sendMessage(phoneNumber, 'Could not start the exam \u2014 please open /training again.');\n+    return false;\n+  }\n+\n+  const { data: course } = await supabase\n+    .from('training_courses').select('id, title, level_id')\n+    .eq('id', courseIdNum).maybeSingle();\n+  if (!course?.level_id) {\n+    logToFile('\u26a0\ufe0f startModuleExam for an unknown course', { userId, courseId: courseIdNum });\n+    await WhatsAppService.sendMessage(phoneNumber, 'That module is not available. Please open /training again.');\n... [141 more diff lines truncated \u2014 read the files directly if the change is bigger than it looks]",
+      "diff_truncated": true
+    },
+    {
+      "feature": "lesson-plan",
+      "spec_path": "tests/features/whatsapp/niete/lesson-plan.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 13,
+      "scenarios": [
+        {
+          "name": "Completing the Pick Class Flow delivers the lesson-plan PDF",
+          "line": 21,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A recognised keyword opens the Lesson Plans Flow",
+          "line": 29,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one",
+          "line": 43,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Rating a 6-12 lesson plan useful asks whether I taught it",
+          "line": 54,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The use question is asked in my language, not the document's",
+          "line": 68,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A natural-language request returns the curriculum fallback, not a generated plan",
+          "line": 77,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A voice lesson-plan request is transcribed and answered like the text path",
+          "line": 85,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@voice",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A thumbs-down asks why, and never asks whether I taught it",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A grade with no lesson plans shows a friendly message",
+          "line": 105,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A subject with no chapters for that grade is refused politely",
+          "line": 112,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/lesson plan\" is not a recognised keyword and falls through to natural language",
+          "line": 119,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A photo gets no reply when pic-to-LP is disabled",
+          "line": 127,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@known-fail",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The Pick Class Flow renders in English for an Urdu-preference teacher",
+          "line": 137,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@i18n",
+            "@known-issue",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "coaching",
+      "spec_path": "tests/features/whatsapp/niete/coaching.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "The Classroom Coaching menu row asks for a classroom recording",
+          "line": 12,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Declining the intro on a coaching request asks for the class audio",
+          "line": 24,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@first-use",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Uploading a classroom recording is detected and confirmed for analysis",
+          "line": 37,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Confirming analysis walks a 5-step pipeline with optional-context prompts",
+          "line": 50,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The pipeline delivers coaching feedback on the FICO/ICT rubric",
+          "line": 70,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@slow",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The two coaching entry points quote different minimum audio lengths",
+          "line": 82,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@known-issue"
+          ]
+        },
+        {
+          "name": "The reflective step asks exactly one question and closes after the answer",
+          "line": 98,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A report built without the reflection never claims a total of three questions",
+          "line": 108,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Coaching feedback is delivered as a branded hero-report image",
+          "line": 124,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Accepting the classroom-photo prompt folds photos into the analysis",
+          "line": 133,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A lesson-plan move is credited from what a classroom photo shows",
+          "line": 157,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@config-gated",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A second recording sent mid-analysis is deferred, not started fresh",
+          "line": 178,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A slash command during the reflective step ends the session",
+          "line": 187,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher's under-15-minute recording does not start a coaching analysis",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Declining analysis cancels the coaching session",
+          "line": 221,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A button left behind by a cancelled coaching session is refused on every tap",
+          "line": 230,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The reflective question still arrives as text when its voice note cannot be sent",
+          "line": 244,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An English-account teacher's reflective question is written in English",
+          "line": 255,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The report-preparation greeting never calls a teacher \"null\"",
+          "line": 265,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A screenshot sent as a classroom photo is kept out of both scorers",
+          "line": 278,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@config-gated",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A non-lesson-plan document is rejected, not silently analysed",
+          "line": 294,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An audio document over the size cap is rejected before download",
+          "line": 302,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The commitment-card buttons on the report are handled",
+          "line": 311,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@known-fail",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "language",
+      "spec_path": "tests/features/whatsapp/niete/language.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "/language opens a bilingual picker offering EXACTLY Urdu and English (no Auto-detect)",
+          "line": 49,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Selecting English confirms in English and persists the choice, locked",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Selecting Urdu confirms IN Urdu and persists the choice, locked",
+          "line": 90,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/language is case-insensitive",
+          "line": 102,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A stale client replaying an off-offer row is rejected by the writer, not stored",
+          "line": 109,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@negative",
+            "@defensive",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The coaching transcription path cannot re-language a locked account",
+          "line": 124,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "No dead language-lock reader export exists (removed 2026-08-11, bd-2485)",
+          "line": 134,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@coverage",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The registration launch bubble is English regardless of any prior language",
+          "line": 147,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Ask Anything answers an Urdu account in Urdu, and drift is logged",
+          "line": 165,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/observe \u2014 the whole visit flow renders bot CONTENT in Urdu, but the Flow chrome stays English",
+          "line": 186,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@persona:coach",
+            "@language",
+            "@config-gated",
+            "@seeded",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Lesson Plans via the natural-language path answers in the chosen language",
+          "line": 206,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Teacher Training ENTRY launcher is localized (entry only)",
+          "line": 215,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/menu renders English on an Urdu account",
+          "line": 226,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/status answers in Urdu on an Urdu account",
+          "line": 237,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Lesson Plans via the Pick-Class Flow renders English on an Urdu account",
+          "line": 249,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A Grade 1-5 Pick-Class lesson plan is served in Urdu only if an Urdu PDF exists (else English)",
+          "line": 261,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Coaching progress steps render English on an Urdu account, but the interstitials render Urdu",
+          "line": 284,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@slow",
+            "@persona:teacher",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A coach reads the observation flow in the COACH's language, not the observed teacher's",
+          "line": 298,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@language",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A refusal for a cancelled session is worded in my language",
+          "line": 311,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@language",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A new teacher is offered Urdu first; English is only the emergency floor (D4)",
+          "line": 324,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A lesson plan keeps the language it was enqueued with, even if I switch mid-generation (D3)",
+          "line": 335,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An off-market language arriving from outside the offer is narrowed AND logged (D5)",
+          "line": 346,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@defensive",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A bare \"language\" (no slash) does not open the picker",
+          "line": 359,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@negative",
+            "@edge",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "status",
+      "spec_path": "tests/features/whatsapp/niete/status.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 8,
+      "scenarios": [
+        {
+          "name": "/status lists the teacher's in-flight work",
+          "line": 30,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/status with nothing running answers in the chat and does not open the Flow",
+          "line": 48,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p1",
+            "@copy"
+          ]
+        },
+        {
+          "name": "The nothing-running answer is in the teacher's language",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p2",
+            "@copy",
+            "@language"
+          ]
+        },
+        {
+          "name": "Opening the menu is a glance, not work \u2014 /status right after /menu still says nothing is running",
+          "line": 75,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An in-flight item is named in plain words, never as an internal identifier",
+          "line": 88,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p2",
+            "@draft"
+          ]
+        },
+        {
+          "name": "A bare \"status\" (no slash) does not open the status surface",
+          "line": 104,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@negative",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/status is case-insensitive and tolerates trailing text",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/status lists multiple concurrent items",
+          "line": 125,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "observe",
+      "spec_path": "tests/features/whatsapp/niete/observe.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 36,
+      "scenarios": [
+        {
+          "name": "A leader's /observe opens the capture/visit entry point",
+          "line": 57,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "First-ever /observe shows the one-time onboarding",
+          "line": 66,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@first-use",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The visit picker walks school \u2192 teacher \u2192 brief",
+          "line": 77,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@content-driven",
+            "@flow",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The scheduling menu shows live pending-debrief and upcoming counts",
+          "line": 93,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@flow",
+            "@scheduling",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A leader schedules a future observation visit",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@flow",
+            "@scheduling",
+            "@destructive",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A leader's recording is captured without a Yes/No confirmation",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@audio",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "When analysis is ready the editable FICO form opens pre-filled",
+          "line": 128,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@flow",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The observer edits ratings then submits the FICO form",
+          "line": 138,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "\"Debrief now\" delivers the 6-step debrief guide",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@debrief",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A respectful debrief recording yields two wins and one improvement",
+          "line": 161,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@debrief",
+            "@harm-gate",
+            "@audio",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The observer sends the finished report to the teacher",
+          "line": 173,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The FICO report to the teacher carries no score and no accusatory verdicts",
+          "line": 183,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@p2",
+            "@config-gated"
+          ]
+        },
+        {
+          "name": "BACK on a FICO domain screen re-serves it without losing edits",
+          "line": 195,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@edge",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A pending debrief is offered the next time the leader opens /observe",
+          "line": 203,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@debrief",
+            "@edge",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping \"Debrief now\" twice re-sends the same guide, no new analysis",
+          "line": 213,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@debrief",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A leader with no saved roster is asked for the teacher's name and number",
+          "line": 221,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The teacher picker paginates when a school has many teachers",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A report send outside the 24h window goes via an approved template",
+          "line": 238,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@destructive",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A scheduled visit cannot be cancelled from the WhatsApp Flow",
+          "line": 247,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@flow",
+            "@scheduling",
+            "@edge",
+            "@known-issue",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/observe from a teacher account is denied (and the teacher is unaffected)",
+          "line": 259,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/observe is inert when the observation Flow is not configured",
+          "line": 267,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/observe before an account exists reports no account",
+          "line": 275,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A harmful debrief is gated \u2014 a concern, never praise, no card",
+          "line": 282,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@harm-gate",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The FICO form refuses a session that is not the observer's own",
+          "line": 291,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@flow",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A leader's long audio with no active state never starts teacher coaching",
+          "line": 299,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@negative",
+            "@audio",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A capture whose DB write fails reports a capture failure, not \"no account\"",
+          "line": 309,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@destructive",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A too-short debrief recording is refused and stays pending",
+          "line": 316,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@debrief",
+            "@audio",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A failed report send is surfaced to the coach with a retry",
+          "line": 324,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A cancelled observation stays cancelled whichever old button is tapped",
+          "line": 331,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Reopening a cancelled observation's form names the real reason, once",
+          "line": 343,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The FICO report total reflects the real 148-point maximum",
+          "line": 356,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@known-fail",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The Observe a Teacher menu row opens the same /observe entry",
+          "line": 379,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@menu",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal's OWN lesson recording reaches Digital Coach, not the binding list",
+          "line": 389,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@coaching",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal who HAS started an observation still captures it as an observation",
+          "line": 403,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A leader recording with nothing declared is still asked whose it is",
+          "line": 413,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A coach never reaches her own Digital Coach, even after tapping an old DC row",
+          "line": 424,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "attendance",
+      "spec_path": "tests/features/whatsapp/niete/attendance.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 31,
+      "scenarios": [
+        {
+          "name": "A teacher saying \"attendance\" enters the student-marking flow",
+          "line": 49,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@role-fork",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no classes is sent the class-setup Flow",
+          "line": 58,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher with exactly one class goes straight to the marking method",
+          "line": 66,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher with several classes is asked which class",
+          "line": 73,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "\"Everyone present\" produces the monthly register",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@excel",
+            "@destructive",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Tap-to-mark marks the absentees and delivers the register",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@excel",
+            "@destructive",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A voice roll-call is transcribed into an attendance draft",
+          "line": 98,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@voice",
+            "@destructive",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Confirming the verification delivers the register",
+          "line": 108,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@destructive",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/add-class opens the class-setup Flow even when classes exist",
+          "line": 115,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/edit-class opens the roster editor",
+          "line": 123,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal without student classes marks teacher attendance",
+          "line": 134,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal marks everyone present",
+          "line": 144,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal marks specific teachers absent",
+          "line": 151,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal marks a teacher on leave and picks the leave type",
+          "line": 158,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Confirming persists teacher attendance (one upsert per teacher)",
+          "line": 169,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "WhatsApp and the web Portal show the same teacher presence",
+          "line": 178,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@out-of-band",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Roman-Urdu and Urdu attendance keywords all trigger",
+          "line": 189,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@role-fork",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal who also owns classes is asked teachers-or-students",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@edge",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The teachers-or-students answer routes to the right channel",
+          "line": 205,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The role fork tolerates casing and whitespace",
+          "line": 213,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A teacher can resume a recent unfinished attendance session",
+          "line": 220,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Voice roll-call understands \"everyone except\" phrasing",
+          "line": 227,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@voice",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Recording the same class/date/session twice is caught",
+          "line": 236,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@excel",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "\"Edit\" at verification returns to marking",
+          "line": 244,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Text sent while awaiting a voice roll-call is redirected",
+          "line": 254,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@voice",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tap marking falls back to text when the marking Flow is unset",
+          "line": 261,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@negative",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A class deleted mid-flow is reported, not silently dropped",
+          "line": 268,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@destructive",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal with no school on file is told setup is needed",
+          "line": 276,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal whose school has no teachers is told there is nothing to mark",
+          "line": 284,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An out-of-range teacher number is rejected, not misapplied",
+          "line": 291,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A principal is never silently marked into the student flow",
+          "line": 298,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@negative",
+            "@p1"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/flow-response.handler.js",
+          "pattern": "bot/shared/handlers/flow-response.handler.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/flow-response.handler.js b/bot/shared/handlers/flow-response.handler.js\nindex 690317df..87d5ee77 100644\n--- a/bot/shared/handlers/flow-response.handler.js\n+++ b/bot/shared/handlers/flow-response.handler.js\n@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {\n     const QuizDelivery = require('../services/training/quiz-delivery.service');\n     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);\n   }\n+  // bd-60120 \u2014 I-SAPS assesses per MODULE, so the exam the teacher tapped is\n+  // that module's, not the level's. courseId identifies the module.\n+  if (trainingAction === 'start_module_exam' && courseId) {\n+    const QuizDelivery = require('../services/training/quiz-delivery.service');\n+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);\n+  }\n   // a refusal used to land here and fall through to `return true`,\n   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so\n   // from the teacher's side the Flow just closed and the chat stayed silent \u2014\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [],
+  "fallback": false,
+  "fallback_reason": ""
+}

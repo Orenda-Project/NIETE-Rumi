@@ -1,0 +1,410 @@
+{
+  "version": 1,
+  "repo": "bd-60147",
+  "range": "",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/services/training/isaps-grading.rules.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        }
+      ],
+      "only_shared": false,
+      "diff": "diff --git a/bot/shared/services/training/isaps-grading.rules.js b/bot/shared/services/training/isaps-grading.rules.js\nindex c21f6f2c..4d481932 100644\n--- a/bot/shared/services/training/isaps-grading.rules.js\n+++ b/bot/shared/services/training/isaps-grading.rules.js\n@@ -100,10 +100,51 @@ function gradeIsapsLevel(input = {}) {\n   };\n }\n \n+/**\n+ * Turn stored counts into the earned/possible pairs gradeIsapsLevel expects.\n+ *\n+ * Kept separate from the arithmetic so the rule stays pure while this \u2014 which\n+ * is entirely about how rows are counted \u2014 can be fixture-tested.\n+ *\n+ * The load-bearing decision: `possible` for formative is EVERY active item in\n+ * the level, not the number the teacher happened to answer. Oxbridge\n+ * deliberately skips unattempted modules (bd-43811, legacy imports left\n+ * progress rows with no attempts), but I-SAPS is the opposite case \u2014 formative\n+ * is 25% of the composite, so counting only answered items would let someone\n+ * who answered 2 of 112 items post 100% formative and certify.\n+ *\n+ * `earned` is clamped to `possible` so duplicate answer rows cannot push a\n+ * component over 100%.\n+ *\n+ * @param {object} counts\n+ * @param {number} [counts.formativeItemCount] active formative items in level\n+ * @param {number} [counts.formativeCorrect]   correct formative answers\n+ * @param {number} [counts.mcqItemCount]       active summative MCQ items\n+ * @param {number} [counts.mcqCorrect]         correct summative MCQ answers\n+ * @param {number} [counts.crqEarned]          rubric marks awarded\n+ * @param {number} [counts.crqPossible]        rubric marks available\n+ * @returns {{formative:{earned:number,possible:number},\n+ *            mcq:{earned:number,possible:number},\n+ *            crq:{earned:number,possible:number}}}\n+ */\n+function collectIsapsLevelTotals(counts = {}) {\n+  const n = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0);\n+  const pair = (earned, possible) => {\n+    const p = n(possible);\n+    return { earned: Math.min(n(earned), p), possible: p };\n+  };\n+  return {\n+    formative: pair(counts.formativeCorrect, counts.formativeItemCount),\n+    mcq: pair(counts.mcqCorrect, counts.mcqItemCount),\n+    crq: pair(counts.crqEarned, counts.crqPossible),\n+  };\n+}\n+\n module.exports = {\n   ISAPS_WEIGHTS,\n   ISAPS_BARS,\n   COMPONENTS,\n   computeComponentPct,\n   gradeIsapsLevel,\n+  collectIsapsLevelTotals,\n };\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [],
+  "fallback": false,
+  "fallback_reason": ""
+}

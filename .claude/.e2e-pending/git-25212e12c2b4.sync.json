@@ -1,0 +1,3232 @@
+{
+  "version": 1,
+  "repo": "bd-60147",
+  "range": "",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "registration",
+      "spec_path": "tests/features/whatsapp/niete/registration.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 12,
+      "scenarios": [
+        {
+          "name": "/register opens the registration Flow",
+          "line": 23,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The registration Flow first screen collects name and country",
+          "line": 33,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Completing the Flow registers the teacher",
+          "line": 41,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1",
+            "@destructive"
+          ]
+        },
+        {
+          "name": "The completion greeting names the teacher, in Urdu for Pakistan",
+          "line": 53,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/register is case-insensitive",
+          "line": 72,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pakistan teachers get an extra region screen",
+          "line": 79,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An already-registered teacher is not re-onboarded",
+          "line": 87,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A required field on the personal-info screen must be provided",
+          "line": 100,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Abandoning the registration Flow leaves the teacher unregistered",
+          "line": 113,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The registration Flow persists the selected role",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A non-Pakistan teacher skips the region screen",
+          "line": 147,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Choosing organization \"Other\" adds an organization-details screen",
+          "line": 157,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:registration",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "menu",
+      "spec_path": "tests/features/whatsapp/niete/menu.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 19,
+      "scenarios": [
+        {
+          "name": "/menu renders the role-aware feature card for a teacher",
+          "line": 26,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/menu is case-insensitive",
+          "line": 50,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/menu re-opens the menu from inside a feature flow (escape hatch)",
+          "line": 58,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Sending /menu repeatedly is idempotent",
+          "line": 68,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/menu with surrounding whitespace still opens the menu (client trims)",
+          "line": 76,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A bare \"menu\" (no slash) does not open the interactive menu",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The Ask Anything menu row opens general help",
+          "line": 100,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@menu",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Ask Anything answers a teaching question",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Gibberish input is handled gracefully",
+          "line": 118,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@negative",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/portal points an activated teacher to their portal login",
+          "line": 130,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@portal",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/settings degrades gracefully when the Settings Flow is not configured",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@obsolete",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A capability question gets a guided answer, not a feature attempt",
+          "line": 160,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@ask",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A menu number outside 1-4 gets the choose-an-option nudge and starts nothing",
+          "line": 175,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A principal sees BOTH Classroom Coaching and Observe a Teacher",
+          "line": 201,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A coach sees Observe a Teacher and NOT Classroom Coaching",
+          "line": 214,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher still sees Classroom Coaching and no observe row",
+          "line": 227,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A coach tapping a Classroom Coaching row from old scrollback is refused",
+          "line": 236,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher tapping a stray Observe row is refused and redirected",
+          "line": 249,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The refusal is in the teacher's own language",
+          "line": 257,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:menu",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@role",
+            "@language",
+            "@p2"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/isaps-crq-paper.rules.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/quiz-delivery.service.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": false,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/shared/services/training/isaps-crq-paper.rules.js b/bot/shared/services/training/isaps-crq-paper.rules.js\nnew file mode 100644\nindex 00000000..73346dd0\n--- /dev/null\n+++ b/bot/shared/services/training/isaps-crq-paper.rules.js\n@@ -0,0 +1,165 @@\n+/**\n+ * bd-60128 \u2014 the CRQ is the module exam's LAST QUESTION, not a second engine.\n+ *\n+ * The I-SAPS CRQs were first modelled as a separate `capstone` quiz per module,\n+ * copying Beacon House's level-wide capstone. That inherited\n+ * loadCapstoneQuiz's level-scoped `.maybeSingle()`, which THROWS now that\n+ * I-SAPS carries nine capstones on one level (bd-60119) \u2014 so the CRQ could not\n+ * be delivered at all.\n+ *\n+ * The operator's framing is better and is what this implements: a module with 8\n+ * scenario MCQs and one written answer has NINE questions. Everything needed\n+ * already sits on the shared path \u2014\n+ *\n+ *   answer_text / answer_score / feedback_text   training_assessment_answers\n+ *   capstone_points_per_question                 training_vendors (bd-60113)\n+ *   scoreAnswer()                                capstone-delivery, pure\n+ *\n+ * \u2014 so folding the CRQ in REMOVES an engine instead of adding one.\n+ *\n+ * Operator decision 2026-09-18: serve ONE CRQ per attempt from the module's\n+ * bank of four, so a re-sit draws a different scenario (doc \u00a75.3 asks for \"a\n+ * new set of CRQs\"). The draw is seeded on the attempt id, so it is stable\n+ * across a resume and varies between attempts.\n+ *\n+ * Pure: no I/O, no supabase, no LLM.\n+ */\n+\n+const { seededShuffle } = require('../../utils/seeded-random');\n+\n+/**\n+ * Is this question answered in free text rather than by picking an option?\n+ *\n+ * The marker is the one the capstone import already used (bd-2233): empty\n+ * options AND an empty correct_option. Both halves matter \u2014 an image-option\n+ * question (bd-60118) has synthesised option text but a REAL key, and must not\n+ * be mistaken for open-ended.\n+ *\n+ * @param {{options?: any, correct_option?: any}|null} q\n+ * @returns {boolean}\n+ */\n+function isOpenEndedQuestion(q) {\n+  if (!q) return false;\n+  const opts = q.options;\n+  const hasOptions = Array.isArray(opts)\n+    ? opts.length > 0\n+    : Boolean(opts && String(opts).trim() && String(opts).trim() !== '[]');\n+  const hasKey = Boolean(q.correct_option !== null\n+    && q.correct_option !== undefined\n+    && String(q.correct_option).trim());\n+  return !hasOptions && !hasKey;\n+}\n+\n+/**\n+ * Draw ONE CRQ from a module's bank.\n+ *\n+ * Seeded on the attempt so the same exam always shows the same scenario \u2014 a\n+ * resumed attempt must not silently swap the question a teacher is part way\n+ * through \u2014 while a new attempt can draw a different one.\n+ *\n+ * @param {Array<object>|null} bank\n+ * @param {string} attemptId\n+ * @returns {Array<object>} zero or one question\n+ */\n+function pickOneCrq(bank, attemptId) {\n+  const items = Array.isArray(bank) ? bank.filter(Boolean) : [];\n+  if (items.length === 0) return [];\n+  if (items.length === 1) return [items[0]];\n+  return seededShuffle(items, `${attemptId}:crq-select`).slice(0, 1);\n+}\n+\n+/**\n+ * The served paper: the module's MCQs in order, then the one CRQ.\n+ *\n+ * The written answer closes the exam deliberately \u2014 it is the longest task, and\n+ * putting it last means a teacher who runs out of time has already banked the\n+ * MCQs.\n+ *\n+ * @param {Array<object>} mcqs\n+ * @param {Array<object>} crqBank\n+ * @param {string} attemptId\n+ * @returns {Array<object>}\n+ */\n+function buildMixedPaper(mcqs, crqBank, attemptId) {\n+  const front = Array.isArray(mcqs) ? [...mcqs] : [];\n+  return [...front, ...pickOneCrq(crqBank, attemptId)];\n+}\n+\n+/**\n+ * Score a paper that mixes auto-marked MCQs with one rubric-marked CRQ.\n+ *\n+ * An MCQ is worth 1; the CRQ is worth its vendor's\n+ * capstone_points_per_question (10 for I-SAPS). An unanswered or unmarked CRQ\n+ * scores 0 rather than undefined, and a mark above the cap is clamped \u2014 an\n+ * LLM returning 99 must not invent a pass.\n+ *\n+ * @param {object} input\n+ * @param {Array<{question_index:number, is_correct?:boolean, answer_score?:number}>} input.answers\n+ * @param {number} input.mcqCount     how many MCQs the paper served\n+ * @param {number} input.crqMaxPoints 0 when the paper has no CRQ\n+ * @returns {{earned:number, possible:number}}\n+ */\n+function scoreMixedPaper({ answers, mcqCount, crqMaxPoints }) {\n+  const rows = Array.isArray(answers) ? answers : [];\n+  const mcqs = Number(mcqCount) || 0;\n+  const crqMax = Number(crqMaxPoints) || 0;\n+\n+  let earned = 0;\n+  for (const a of rows) {\n+    const idx = Number(a.question_index);\n+    if (Number.isFinite(idx) && idx < mcqs) {\n+      if (a.is_correct === true) earned += 1;\n+    } else if (crqMax > 0) {\n+      const raw = Number(a.answer_score);\n+      if (Number.isFinite(raw) && raw > 0) earned += Math.min(crqMax, raw);\n+    }\n+  }\n+  return { earned, possible: mcqs + crqMax };\n+}\n+\n+\n+/**\n+ * The served paper for a folded module bank: every MCQ, then ONE CRQ.\n+ *\n+ * The bank now holds a module's MCQs and all four of its CRQs (bd-60128). Only\n+ * one CRQ is sat per attempt, drawn on the attempt id so a resume is stable and\n+ * a re-sit differs (doc \u00a75.3).\n+ *\n+ * @param {Array<object>|null} bank ordered questions for the module's quiz\n+ * @param {string} attemptId\n+ * @returns {Array<object>}\n+ */\n+function selectPaperWithOneCrq(bank, attemptId) {\n+  const items = Array.isArray(bank) ? bank.filter(Boolean) : [];\n+  if (items.length === 0) return [];\n+  const mcqs = items.filter(q => !isOpenEndedQuestion(q));\n+  const crqs = items.filter(isOpenEndedQuestion);\n+  return buildMixedPaper(mcqs, crqs, attemptId);\n+}\n+\n+/**\n+ * Should this plain text message be taken as the answer to the question the\n+ * teacher is currently on?\n+ *\n+ * Only when that question is open-ended. Claiming text during an MCQ would\n+ * store ordinary chat as an answer and mark it; refusing a slash command keeps\n+ * /training and the rest reachable mid-exam.\n+ *\n+ * @param {string|null} text\n+ * @param {object|null} currentQuestion\n+ * @returns {boolean}\n+ */\n+function isTextAnswerForOpenQuestion(text, currentQuestion) {\n+  const trimmed = String(text || '').trim();\n+  if (!trimmed || trimmed.startsWith('/')) return false;\n+  return isOpenEndedQuestion(currentQuestion);\n+}\n+\n+module.exports = {\n+  isOpenEndedQuestion,\n+  pickOneCrq,\n+  buildMixedPaper,\n+  scoreMixedPaper,\n+  selectPaperWithOneCrq,\n+  isTextAnswerForOpenQuestion,\n+};\ndiff --git a/bot/shared/services/training/quiz-delivery.service.js b/bot/shared/services/training/quiz-delivery.service.js\nindex 1396b278..c9864224 100644\n--- a/bot/shared/services/training/quiz-delivery.service.js\n+++ b/bot/shared/services/training/quiz-delivery.service.js\n@@ -66,6 +66,9 @@ const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./quest\n const {\n   isPerModuleQuiz, moduleSourceQuizId, isLevelCertifyingAttempt, moduleExamPassMessage,\n } = require('./isaps-module-exam.rules');\n+const {\n+  isOpenEndedQuestion, selectPaperWithOneCrq, isTextAnswerForOpenQuestion, scoreMixedPaper,\n+} = require('./isaps-crq-paper.rules');\n // bd-2673 \u2014 the marking rule lives in ONE module, shared with the portal over\n // the internal API. Do not re-implement isMultiKey/normalizeSet here: a second\n // copy is the bug this extraction removed.\n@@ -339,7 +342,14 @@ async function resolveServedQuestions(attempt) {\n     levelId: attempt.level_id,\n     moduleId: isModuleQuiz ? attempt.training_module_id : null,\n   });\n-  const served = selectServedQuestions(all, { attemptId: attempt.id, isModuleQuiz, config });\n+  // bd-60128 \u2014 a folded I-SAPS module bank holds the module's MCQs AND all four\n+  // of its CRQs. Only ONE CRQ is sat per attempt, drawn on the attempt id, so\n+  // the generic selector would otherwise serve all four. Detected by the bank's\n+  // own shape rather than by vendor, so it cannot drift from the data.\n+  const bankHasOpenEnded = all.some(isOpenEndedQuestion);\n+  const served = bankHasOpenEnded\n+    ? selectPaperWithOneCrq(all, attempt.id)\n+    : selectServedQuestions(all, { attemptId: attempt.id, isModuleQuiz, config });\n \n   const snapshot = Number(attempt.total_questions);\n   if (Number.isFinite(snapshot) && snapshot > 0 && served.length !== snapshot && all.length === snapshot) {\n@@ -917,6 +927,32 @@ async function sendQuestion(attemptId, phoneNumber) {\n     return await gradeAttempt(attemptId, phoneNumber);\n   }\n \n+  // bd-60128 \u2014 an OPEN-ENDED question (the I-SAPS CRQ) is answered by typing,\n+  // so it goes out as plain text and returns here. This MUST precede the\n+  // option handling below: a CRQ has no options, and that path treats \"no\n+  // options\" as bad data \u2014 it records a wrong answer and advances, which would\n+  // silently score every CRQ zero without the teacher ever seeing it.\n+  if (isOpenEndedQuestion(q)) {\n+    const sentOpen = await WhatsAppService.sendMessage(\n+      phoneNumber,\n+      `*Q${attempt.current_question_index + 1}/${attempt.total_questions}*\\n\\n`\n+      + `${q.question_text || ''}\\n\\n`\n+      + '_Type your answer as a message. Take your time \u2014 it is marked against '\n+      + 'the I-SAPS rubric._',\n+    );\n+    // bd-43496 \u2014 never claim a delivery that did not happen: an unreported\n+    // failure leaves the attempt in_progress on a question never seen, and\n+    // every retry resumes onto the same one.\n+    if (sentOpen === false) {\n+      logToFile('\u274c Open-ended question send failed', {\n+        attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,\n+      }, 'error');\n+      await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);\n+      return false;\n+    }\n+    return true;\n+  }\n+\n   // WhatsApp interactive list \u2014 one row per option (A, B, C, ...). Multi\n   // questions reserve one row for the Done submit action (10-row list cap).\n   const optionCap = isMultiKey(q.correct_option) ? MULTI_OPTION_CAP : MAX_OPTIONS;\n@@ -1628,6 +1664,91 @@ async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {\n   }\n }\n \n+/**\n+ * bd-60128 \u2014 claim a plain text message as the answer to an open-ended\n+ * question the teacher is currently on (the I-SAPS CRQ).\n+ *\n+ * Mirrors capstone-delivery.routeTextAnswer, including the lesson recorded in\n+ * its own comment: that read used `.maybeSingle()`, a teacher with two open\n+ * attempts hit a PGRST116 error, the attempt came back null, and her answer\n+ * was passed to ordinary chat \u2014 11 teachers, 28 attempts, answers lost. The\n+ * read below is therefore a LIST ordered by activity, never a single row.\n+ *\n+ * Returns true when the message was consumed, so the text handler stops.\n+ *\n+ * @param {string} phoneNumber\n+ * @param {string} text\n+ * @returns {Promise<boolean>}\n+ */\n+async function routeOpenEndedAnswer(phoneNumber, text) {\n+  const trimmed = String(text || '').trim();\n+  if (!trimmed || trimmed.startsWith('/')) return false;\n+\n+  const { data: user } = await supabase\n+    .from('users').select('id, name').eq('phone_number', phoneNumber).maybeSingle();\n+  if (!user) return false;\n+\n+  const { data: openAttempts } = await supabase\n+    .from('training_assessment_attempts')\n+    .select('id, user_id, level_id, grand_quiz_id, program_id, current_question_index, total_questions, total_score, status')\n+    .eq('user_id', user.id)\n+    .eq('quiz_kind', KIND_GRAND)\n+    .eq('status', 'in_progress')\n+    .order('last_activity_at', { ascending: false })\n+    .limit(5);\n+  const attempt = (openAttempts || [])[0];\n+  if (!attempt) return false;\n+\n+  // Only claim it when the question actually IS open-ended; otherwise a\n+  // teacher typing chat during an MCQ would have it stored and marked.\n+  const { questions } = await loadServedQuestions(attempt);\n+  const q = questions[attempt.current_question_index];\n+  if (!isTextAnswerForOpenQuestion(trimmed, q)) return false;\n+\n+  const CapstoneDelivery = require('./capstone-delivery.service');\n+  if (!CapstoneDelivery.meetsAnswerFloor(trimmed)) {\n+    await WhatsAppService.sendMessage(\n+      phoneNumber,\n+      `Your answer looks very short. Please write at least ${CapstoneDelivery.MIN_ANSWER_CHARS} characters so it can be marked fairly.`,\n+    );\n+    return true;\n+  }\n+\n+  // Marked against the module's own scale \u2014 I-SAPS CRQs are 10 marks\n+  // (bd-60113), Beacon House answers 5.\n+  const perAnswer = await capstonePointsForLevel(attempt.level_id);\n+  const { score, feedback } = await CapstoneDelivery.scoreAnswer(q, trimmed, perAnswer);\n+\n+  await supabase.from('training_assessment_answers').upsert({\n+    attempt_id: attempt.id,\n+    question_index: attempt.current_question_index,\n+    question_id: q.id,\n+    chosen_option: '',\n+    is_correct: null,\n+    answer_text: trimmed,\n+    answer_score: score,\n+    feedback_text: feedback,\n+  }, { onConflict: 'attempt_id,question_index' });\n+\n+  await supabase.from('training_assessment_attempts').update({\n+    current_question_index: attempt.current_question_index + 1,\n+    last_activity_at: new Date().toISOString(),\n+  }).eq('id', attempt.id);\n+\n+  await WhatsAppService.sendMessage(\n+    phoneNumber, `\ud83d\udcdd Answer recorded \u2014 *${score}/${perAnswer}*.\\n\\n${feedback}`,\n+  );\n+  logToFile('\ud83c\udf93 Open-ended answer recorded', {\n+    attemptId: attempt.id, questionId: q.id, score, perAnswer,\n+  });\n+\n+  const nextIndex = attempt.current_question_index + 1;\n+  if (nextIndex >= (attempt.total_questions || 0)) {\n+    return await gradeAttempt(attempt.id, phoneNumber);\n+  }\n+  return await sendQuestion(attempt.id, phoneNumber);\n+}\n+\n async function recordAnswer(attemptId, questionIndex, questionId, chosenOption, isCorrect) {\n   await supabase\n     .from('training_assessment_answers')\n@@ -1723,9 +1844,28 @@ async function gradeAttempt(attemptId, phoneNumber) {\n \n   const { data: answers } = await supabase\n     .from('training_assessment_answers')\n-    .select('is_correct')\n+    .select('is_correct, question_index, answer_score')\n     .eq('attempt_id', attemptId);\n-  const score = (answers || []).filter(a => a.is_correct === true).length;\n+\n+  // bd-60128 \u2014 a folded I-SAPS paper mixes auto-marked MCQs with ONE\n+  // rubric-marked CRQ, so counting is_correct would score every CRQ zero. When\n+  // an answer row carries a rubric mark, the mixed scorer runs instead: MCQs\n+  // are worth 1 each, the CRQ its vendor's capstone_points_per_question.\n+  const hasRubricMark = (answers || []).some(\n+    a => a.answer_score !== null && a.answer_score !== undefined,\n+  );\n+  let score = (answers || []).filter(a => a.is_correct === true).length;\n+  let mixedPossible = null;\n+  if (hasRubricMark) {\n+    const crqMax = await capstonePointsForLevel(attempt.level_id);\n+    const mcqCount = Math.max(0, (Number(attempt.total_questions) || 0) - 1);\n+    const mixed = scoreMixedPaper({ answers: answers || [], mcqCount, crqMaxPoints: crqMax });\n+    score = mixed.earned;\n+    mixedPossible = mixed.possible;\n+    logToFile('\ud83c\udf93 Mixed paper scored (MCQs + rubric-marked CRQ)', {\n+      attemptId, mcqCount, crqMax, earned: mixed.earned, possible: mixed.possible,\n+    });\n+  }\n \n   if (attempt.quiz_kind === KIND_TRAINING_MODULE) {\n     // bd-2390 \u2014 the module quiz is now a GATE, so it has a real pass/fail.\n@@ -1852,7 +1992,9 @@ async function gradeAttempt(attemptId, phoneNumber) {\n   // genuinely passed \u2014 across 30,996 historical attempts the source data\n   // matches \">= 80 TALEEMABAD / >= 70 otherwise\" for all but 4 rows.\n   const examPassingPct = await getVendorPassingPctByLevel(attempt.level_id, 'exam');\n-  const examTotal = attempt.total_questions || 0;\n+  // bd-60128 \u2014 a mixed paper's denominator is MARKS, not questions: 8 MCQs\n+  // plus a 10-mark CRQ is out of 18, not out of 9.\n+  const examTotal = mixedPossible !== null ? mixedPossible : (attempt.total_questions || 0);\n   const examPct = examTotal > 0 ? (score / examTotal) * 100 : 0;\n   const isPassed = examTotal > 0 && examPct >= examPassingPct;\n   const update = {\n@@ -2005,6 +2147,7 @@ async function decideExamPass(levelId, score, totalQuestions) {\n module.exports = {\n   startGrandQuiz,\n   startModuleExam,\n+  routeOpenEndedAnswer,\n   startTrainingQuiz,\n   sendQuestion,\n   handleQuizButton,\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n... [15 more diff lines truncated \u2014 read the files directly if the change is bigger than it looks]",
+      "diff_truncated": true
+    },
+    {
+      "feature": "lesson-plan",
+      "spec_path": "tests/features/whatsapp/niete/lesson-plan.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 13,
+      "scenarios": [
+        {
+          "name": "Completing the Pick Class Flow delivers the lesson-plan PDF",
+          "line": 21,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A recognised keyword opens the Lesson Plans Flow",
+          "line": 29,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one",
+          "line": 43,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Rating a 6-12 lesson plan useful asks whether I taught it",
+          "line": 54,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The use question is asked in my language, not the document's",
+          "line": 68,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A natural-language request returns the curriculum fallback, not a generated plan",
+          "line": 77,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A voice lesson-plan request is transcribed and answered like the text path",
+          "line": 85,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@voice",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A thumbs-down asks why, and never asks whether I taught it",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A grade with no lesson plans shows a friendly message",
+          "line": 105,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A subject with no chapters for that grade is refused politely",
+          "line": 112,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/lesson plan\" is not a recognised keyword and falls through to natural language",
+          "line": 119,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A photo gets no reply when pic-to-LP is disabled",
+          "line": 127,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@known-fail",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The Pick Class Flow renders in English for an Urdu-preference teacher",
+          "line": 137,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@i18n",
+            "@known-issue",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "coaching",
+      "spec_path": "tests/features/whatsapp/niete/coaching.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "The Classroom Coaching menu row asks for a classroom recording",
+          "line": 12,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Declining the intro on a coaching request asks for the class audio",
+          "line": 24,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@first-use",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Uploading a classroom recording is detected and confirmed for analysis",
+          "line": 37,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Confirming analysis walks a 5-step pipeline with optional-context prompts",
+          "line": 50,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The pipeline delivers coaching feedback on the FICO/ICT rubric",
+          "line": 70,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@slow",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The two coaching entry points quote different minimum audio lengths",
+          "line": 82,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@known-issue"
+          ]
+        },
+        {
+          "name": "The reflective step asks exactly one question and closes after the answer",
+          "line": 98,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A report built without the reflection never claims a total of three questions",
+          "line": 108,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Coaching feedback is delivered as a branded hero-report image",
+          "line": 124,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Accepting the classroom-photo prompt folds photos into the analysis",
+          "line": 133,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A lesson-plan move is credited from what a classroom photo shows",
+          "line": 157,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@config-gated",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A second recording sent mid-analysis is deferred, not started fresh",
+          "line": 178,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A slash command during the reflective step ends the session",
+          "line": 187,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher's under-15-minute recording does not start a coaching analysis",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Declining analysis cancels the coaching session",
+          "line": 221,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A button left behind by a cancelled coaching session is refused on every tap",
+          "line": 230,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The reflective question still arrives as text when its voice note cannot be sent",
+          "line": 244,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An English-account teacher's reflective question is written in English",
+          "line": 255,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The report-preparation greeting never calls a teacher \"null\"",
+          "line": 265,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A screenshot sent as a classroom photo is kept out of both scorers",
+          "line": 278,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@config-gated",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A non-lesson-plan document is rejected, not silently analysed",
+          "line": 294,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An audio document over the size cap is rejected before download",
+          "line": 302,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The commitment-card buttons on the report are handled",
+          "line": 311,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:coaching",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@known-fail",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "language",
+      "spec_path": "tests/features/whatsapp/niete/language.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "/language opens a bilingual picker offering EXACTLY Urdu and English (no Auto-detect)",
+          "line": 49,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Selecting English confirms in English and persists the choice, locked",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Selecting Urdu confirms IN Urdu and persists the choice, locked",
+          "line": 90,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/language is case-insensitive",
+          "line": 102,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A stale client replaying an off-offer row is rejected by the writer, not stored",
+          "line": 109,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@negative",
+            "@defensive",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The coaching transcription path cannot re-language a locked account",
+          "line": 124,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "No dead language-lock reader export exists (removed 2026-08-11, bd-2485)",
+          "line": 134,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@coverage",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The registration launch bubble is English regardless of any prior language",
+          "line": 147,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Ask Anything answers an Urdu account in Urdu, and drift is logged",
+          "line": 165,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/observe \u2014 the whole visit flow renders bot CONTENT in Urdu, but the Flow chrome stays English",
+          "line": 186,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@persona:coach",
+            "@language",
+            "@config-gated",
+            "@seeded",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Lesson Plans via the natural-language path answers in the chosen language",
+          "line": 206,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Teacher Training ENTRY launcher is localized (entry only)",
+          "line": 215,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/menu renders English on an Urdu account",
+          "line": 226,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/status answers in Urdu on an Urdu account",
+          "line": 237,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Lesson Plans via the Pick-Class Flow renders English on an Urdu account",
+          "line": 249,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A Grade 1-5 Pick-Class lesson plan is served in Urdu only if an Urdu PDF exists (else English)",
+          "line": 261,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Coaching progress steps render English on an Urdu account, but the interstitials render Urdu",
+          "line": 284,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@slow",
+            "@persona:teacher",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A coach reads the observation flow in the COACH's language, not the observed teacher's",
+          "line": 298,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@language",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A refusal for a cancelled session is worded in my language",
+          "line": 311,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@language",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A new teacher is offered Urdu first; English is only the emergency floor (D4)",
+          "line": 324,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A lesson plan keeps the language it was enqueued with, even if I switch mid-generation (D3)",
+          "line": 335,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An off-market language arriving from outside the offer is narrowed AND logged (D5)",
+          "line": 346,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@defensive",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A bare \"language\" (no slash) does not open the picker",
+          "line": 359,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@negative",
+            "@edge",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "status",
+      "spec_path": "tests/features/whatsapp/niete/status.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 8,
+      "scenarios": [
+        {
+          "name": "/status lists the teacher's in-flight work",
+          "line": 30,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/status with nothing running answers in the chat and does not open the Flow",
+          "line": 48,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p1",
+            "@copy"
+          ]
+        },
+        {
+          "name": "The nothing-running answer is in the teacher's language",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p2",
+            "@copy",
+            "@language"
+          ]
+        },
+        {
+          "name": "Opening the menu is a glance, not work \u2014 /status right after /menu still says nothing is running",
+          "line": 75,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An in-flight item is named in plain words, never as an internal identifier",
+          "line": 88,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p2",
+            "@draft"
+          ]
+        },
+        {
+          "name": "A bare \"status\" (no slash) does not open the status surface",
+          "line": 104,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@menu",
+            "@negative",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/status is case-insensitive and tolerates trailing text",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/status lists multiple concurrent items",
+          "line": 125,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:status",
+            "@persona:teacher",
+            "@e2e",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "observe",
+      "spec_path": "tests/features/whatsapp/niete/observe.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 36,
+      "scenarios": [
+        {
+          "name": "A leader's /observe opens the capture/visit entry point",
+          "line": 57,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "First-ever /observe shows the one-time onboarding",
+          "line": 66,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@first-use",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The visit picker walks school \u2192 teacher \u2192 brief",
+          "line": 77,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@content-driven",
+            "@flow",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The scheduling menu shows live pending-debrief and upcoming counts",
+          "line": 93,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@flow",
+            "@scheduling",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A leader schedules a future observation visit",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@flow",
+            "@scheduling",
+            "@destructive",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A leader's recording is captured without a Yes/No confirmation",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@audio",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "When analysis is ready the editable FICO form opens pre-filled",
+          "line": 128,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@flow",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The observer edits ratings then submits the FICO form",
+          "line": 138,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "\"Debrief now\" delivers the 6-step debrief guide",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@debrief",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A respectful debrief recording yields two wins and one improvement",
+          "line": 161,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@debrief",
+            "@harm-gate",
+            "@audio",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The observer sends the finished report to the teacher",
+          "line": 173,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The FICO report to the teacher carries no score and no accusatory verdicts",
+          "line": 183,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@p2",
+            "@config-gated"
+          ]
+        },
+        {
+          "name": "BACK on a FICO domain screen re-serves it without losing edits",
+          "line": 195,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@edge",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A pending debrief is offered the next time the leader opens /observe",
+          "line": 203,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@debrief",
+            "@edge",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping \"Debrief now\" twice re-sends the same guide, no new analysis",
+          "line": 213,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@debrief",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A leader with no saved roster is asked for the teacher's name and number",
+          "line": 221,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The teacher picker paginates when a school has many teachers",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A report send outside the 24h window goes via an approved template",
+          "line": 238,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@destructive",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A scheduled visit cannot be cancelled from the WhatsApp Flow",
+          "line": 247,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@flow",
+            "@scheduling",
+            "@edge",
+            "@known-issue",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/observe from a teacher account is denied (and the teacher is unaffected)",
+          "line": 259,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/observe is inert when the observation Flow is not configured",
+          "line": 267,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/observe before an account exists reports no account",
+          "line": 275,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A harmful debrief is gated \u2014 a concern, never praise, no card",
+          "line": 282,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@harm-gate",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The FICO form refuses a session that is not the observer's own",
+          "line": 291,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@flow",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A leader's long audio with no active state never starts teacher coaching",
+          "line": 299,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@negative",
+            "@audio",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A capture whose DB write fails reports a capture failure, not \"no account\"",
+          "line": 309,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@destructive",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A too-short debrief recording is refused and stays pending",
+          "line": 316,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@debrief",
+            "@audio",
+            "@config-gated",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A failed report send is surfaced to the coach with a retry",
+          "line": 324,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@destructive",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A cancelled observation stays cancelled whichever old button is tapped",
+          "line": 331,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Reopening a cancelled observation's form names the real reason, once",
+          "line": 343,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@negative",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The FICO report total reflects the real 148-point maximum",
+          "line": 356,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@wip",
+            "@known-fail",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The Observe a Teacher menu row opens the same /observe entry",
+          "line": 379,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@menu",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal's OWN lesson recording reaches Digital Coach, not the binding list",
+          "line": 389,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@coaching",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal who HAS started an observation still captures it as an observation",
+          "line": 403,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A leader recording with nothing declared is still asked whose it is",
+          "line": 413,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A coach never reaches her own Digital Coach, even after tapping an old DC row",
+          "line": 424,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:observe",
+            "@persona:coach",
+            "@e2e",
+            "@observe",
+            "@edge",
+            "@config-gated",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "attendance",
+      "spec_path": "tests/features/whatsapp/niete/attendance.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 31,
+      "scenarios": [
+        {
+          "name": "A teacher saying \"attendance\" enters the student-marking flow",
+          "line": 49,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@role-fork",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no classes is sent the class-setup Flow",
+          "line": 58,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher with exactly one class goes straight to the marking method",
+          "line": 66,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A teacher with several classes is asked which class",
+          "line": 73,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "\"Everyone present\" produces the monthly register",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@excel",
+            "@destructive",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Tap-to-mark marks the absentees and delivers the register",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@excel",
+            "@destructive",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A voice roll-call is transcribed into an attendance draft",
+          "line": 98,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@voice",
+            "@destructive",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Confirming the verification delivers the register",
+          "line": 108,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@destructive",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/add-class opens the class-setup Flow even when classes exist",
+          "line": 115,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/edit-class opens the roster editor",
+          "line": 123,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal without student classes marks teacher attendance",
+          "line": 134,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal marks everyone present",
+          "line": 144,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal marks specific teachers absent",
+          "line": 151,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A principal marks a teacher on leave and picks the leave type",
+          "line": 158,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Confirming persists teacher attendance (one upsert per teacher)",
+          "line": 169,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "WhatsApp and the web Portal show the same teacher presence",
+          "line": 178,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@out-of-band",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Roman-Urdu and Urdu attendance keywords all trigger",
+          "line": 189,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@role-fork",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal who also owns classes is asked teachers-or-students",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@edge",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The teachers-or-students answer routes to the right channel",
+          "line": 205,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The role fork tolerates casing and whitespace",
+          "line": 213,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A teacher can resume a recent unfinished attendance session",
+          "line": 220,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Voice roll-call understands \"everyone except\" phrasing",
+          "line": 227,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@voice",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Recording the same class/date/session twice is caught",
+          "line": 236,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@excel",
+            "@edge",
+            "@p2"
+          ]
+        },
+        {
+          "name": "\"Edit\" at verification returns to marking",
+          "line": 244,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Text sent while awaiting a voice roll-call is redirected",
+          "line": 254,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@voice",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tap marking falls back to text when the marking Flow is unset",
+          "line": 261,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@flow",
+            "@negative",
+            "@config-gated",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A class deleted mid-flow is reported, not silently dropped",
+          "line": 268,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@negative",
+            "@destructive",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal with no school on file is told setup is needed",
+          "line": 276,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A principal whose school has no teachers is told there is nothing to mark",
+          "line": 284,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An out-of-range teacher number is rejected, not misapplied",
+          "line": 291,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A principal is never silently marked into the student flow",
+          "line": 298,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:attendance",
+            "@persona:teacher",
+            "@draft",
+            "@e2e",
+            "@wip",
+            "@new",
+            "@role-fork",
+            "@negative",
+            "@p1"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/handlers/text-message.handler.js",
+          "pattern": "bot/shared/handlers/text-message.handler.js",
+          "shared": true,
+          "kind": "map"
+        },
+        {
+          "path": "bot/whatsapp-bot.js",
+          "pattern": "bot/whatsapp-bot.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/handlers/text-message.handler.js b/bot/shared/handlers/text-message.handler.js\nindex 120f9437..652ab230 100644\n--- a/bot/shared/handlers/text-message.handler.js\n+++ b/bot/shared/handlers/text-message.handler.js\n@@ -331,6 +331,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {\n           return;\n         }\n \n+        // bd-60128 \u2014 the I-SAPS CRQ is the LAST question of a module exam, not\n+        // a separate capstone, so its answer arrives during a `grand` attempt\n+        // and the capstone router above does not see it. Claimed only when the\n+        // question the teacher is on really is open-ended; slash commands pass\n+        // through either way.\n+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');\n+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {\n+          typingController.stop();\n+          return;\n+        }\n+\n         const quizState = await QuizSessionService.getActiveState(from);\n         if (quizState) {\n           const trimmedQ = messageBody.trim();\ndiff --git a/bot/whatsapp-bot.js b/bot/whatsapp-bot.js\nindex bfa62035..db551c3e 100644\n--- a/bot/whatsapp-bot.js\n+++ b/bot/whatsapp-bot.js\n@@ -680,9 +680,9 @@ app.post('/webhook', async (req, res) => {\n         return;\n       }\n \n-      // bd-60124 \u2014 the I-SAPS end-of-module exam offer, sent when the last unit\n-      // of a module is completed. Routed before the module/quiz prefixes below\n-      // because `module_exam_start_` must not be mistaken for either.\n+      // The end-of-module exam offer, sent when the last unit of a module is\n+      // completed. Routed BEFORE the module/quiz prefixes below because\n+      // `module_exam_start_` must not be mistaken for either.\n       if (buttonId.startsWith('module_exam_start_')) {\n         const courseId = buttonId.replace('module_exam_start_', '');\n         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [],
+  "fallback": false,
+  "fallback_reason": ""
+}

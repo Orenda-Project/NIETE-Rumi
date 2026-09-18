@@ -59,6 +59,12 @@ function makePdfkitMock() {
     doc.linearGradient = () => ({ stop: function () { return this; } });
     doc.save = chain;
     doc.restore = chain;
+    // bd-60140 — the non-production watermark transforms the canvas.
+    // A double missing a primitive the renderer uses fails the whole
+    // file with a TypeError unrelated to what it asserts.
+    doc.rotate = chain;
+    doc.translate = chain;
+    doc.scale = chain;
     doc.addPage = chain;
     doc.image = (p) => { imageCalls.push(String(p)); return doc; };
     doc.widthOfString = () => 100;

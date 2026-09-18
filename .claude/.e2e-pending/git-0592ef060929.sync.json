@@ -1,0 +1,998 @@
+{
+  "version": 1,
+  "repo": "bd-60147",
+  "range": "",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/routes/internal-api.routes.js",
+          "pattern": "bot/shared/routes/internal-api.routes.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/routes/internal-api.routes.js b/bot/shared/routes/internal-api.routes.js\nindex 7a16096b..db9bdda8 100644\n--- a/bot/shared/routes/internal-api.routes.js\n+++ b/bot/shared/routes/internal-api.routes.js\n@@ -313,6 +313,59 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {\n   }\n });\n \n+/**\n+ * POST /api/internal/training/certify-level\n+ * Body { userId, levelId, attemptId?, programId?, moduleId? }\n+ *   -> { success, issued, certificate_code?, level_name?, teacher_name?, pdf_r2_key? }\n+ *\n+ * bd-60145 \u2014 the portal's only way to certify a level.\n+ *\n+ * Before this, `dashboard/routes/portal.routes.js` called `issueCertificate`\n+ * DIRECTLY the moment an attempt passed, from the capstone and grand-quiz\n+ * routes. That skips every completeness check: it is the portal's copy of\n+ * bd-60139, where a single pass minted a certificate without asking whether\n+ * the units were finished or the per-module exams passed. And no portal route\n+ * certified a per-module-assessed level at all, so an I-SAPS teacher who\n+ * finished everything was certified by nothing (bd-60142, one surface over).\n+ *\n+ * The guard is `maybeIssueQuizScoreCertificate`, unchanged and shared \u2014 the\n+ * portal gets the SAME decision WhatsApp gets, which is the whole point of\n+ * this internal API. `levelId` is accepted because a module-exam attempt\n+ * carries training_module_id = NULL (bd-60144); passing that null is what made\n+ * the guard bail on its first lookup.\n+ *\n+ * Idempotent: the guard refuses a second certificate for a (user, level), so a\n+ * retry or a double submit cannot mint two.\n+ */\n+router.post('/training/certify-level', requireInternalKey, async (req, res) => {\n+  const body = req.body || {};\n+  const { userId } = body;\n+  const levelId = num(body.levelId);\n+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });\n+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });\n+\n+  try {\n+    const supabase = require('../config/supabase');\n+    const { maybeIssueQuizScoreCertificate } = require('../services/training/certificate.service');\n+    const result = await maybeIssueQuizScoreCertificate(supabase, {\n+      userId,\n+      levelId,\n+      // Optional: the quick-check path still has a module, and passing it\n+      // changes nothing when levelId is supplied.\n+      moduleId: body.moduleId === undefined ? null : body.moduleId,\n+      attemptId: body.attemptId || null,\n+      programId: body.programId || null,\n+    });\n+    return res.json({ success: true, ...result });\n+  } catch (error) {\n+    // Fail CLOSED: a lookup failure must read as \"not certified\", never as a\n+    // certificate. The caller's own write (the graded attempt) is already\n+    // committed by this point and is not affected.\n+    logToFile('\u274c Internal training API failed', { route: 'certify-level', error: error?.message });\n+    return res.status(500).json({ success: false, error: 'Certification failed' });\n+  }\n+});\n+\n /**\n  * POST /api/internal/training/mark-paper\n  * Body { questions:[{id, correct_option, order_index}], answers:[{question_id, chosen_option}] }\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "lesson-plan",
+      "spec_path": "tests/features/whatsapp/niete/lesson-plan.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 13,
+      "scenarios": [
+        {
+          "name": "Completing the Pick Class Flow delivers the lesson-plan PDF",
+          "line": 21,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A recognised keyword opens the Lesson Plans Flow",
+          "line": 29,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one",
+          "line": 43,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Rating a 6-12 lesson plan useful asks whether I taught it",
+          "line": 54,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@p1"
+          ]
+        },
+        {
+          "name": "The use question is asked in my language, not the document's",
+          "line": 68,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A natural-language request returns the curriculum fallback, not a generated plan",
+          "line": 77,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A voice lesson-plan request is transcribed and answered like the text path",
+          "line": 85,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@voice",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A thumbs-down asks why, and never asks whether I taught it",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A grade with no lesson plans shows a friendly message",
+          "line": 105,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A subject with no chapters for that grade is refused politely",
+          "line": 112,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/lesson plan\" is not a recognised keyword and falls through to natural language",
+          "line": 119,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A photo gets no reply when pic-to-LP is disabled",
+          "line": 127,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@negative",
+            "@known-fail",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The Pick Class Flow renders in English for an Urdu-preference teacher",
+          "line": 137,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:lesson-plan",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@i18n",
+            "@known-issue",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/routes/internal-api.routes.js",
+          "pattern": "bot/shared/routes/internal-api.routes.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/routes/internal-api.routes.js b/bot/shared/routes/internal-api.routes.js\nindex 7a16096b..db9bdda8 100644\n--- a/bot/shared/routes/internal-api.routes.js\n+++ b/bot/shared/routes/internal-api.routes.js\n@@ -313,6 +313,59 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {\n   }\n });\n \n+/**\n+ * POST /api/internal/training/certify-level\n+ * Body { userId, levelId, attemptId?, programId?, moduleId? }\n+ *   -> { success, issued, certificate_code?, level_name?, teacher_name?, pdf_r2_key? }\n+ *\n+ * bd-60145 \u2014 the portal's only way to certify a level.\n+ *\n+ * Before this, `dashboard/routes/portal.routes.js` called `issueCertificate`\n+ * DIRECTLY the moment an attempt passed, from the capstone and grand-quiz\n+ * routes. That skips every completeness check: it is the portal's copy of\n+ * bd-60139, where a single pass minted a certificate without asking whether\n+ * the units were finished or the per-module exams passed. And no portal route\n+ * certified a per-module-assessed level at all, so an I-SAPS teacher who\n+ * finished everything was certified by nothing (bd-60142, one surface over).\n+ *\n+ * The guard is `maybeIssueQuizScoreCertificate`, unchanged and shared \u2014 the\n+ * portal gets the SAME decision WhatsApp gets, which is the whole point of\n+ * this internal API. `levelId` is accepted because a module-exam attempt\n+ * carries training_module_id = NULL (bd-60144); passing that null is what made\n+ * the guard bail on its first lookup.\n+ *\n+ * Idempotent: the guard refuses a second certificate for a (user, level), so a\n+ * retry or a double submit cannot mint two.\n+ */\n+router.post('/training/certify-level', requireInternalKey, async (req, res) => {\n+  const body = req.body || {};\n+  const { userId } = body;\n+  const levelId = num(body.levelId);\n+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });\n+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });\n+\n+  try {\n+    const supabase = require('../config/supabase');\n+    const { maybeIssueQuizScoreCertificate } = require('../services/training/certificate.service');\n+    const result = await maybeIssueQuizScoreCertificate(supabase, {\n+      userId,\n+      levelId,\n+      // Optional: the quick-check path still has a module, and passing it\n+      // changes nothing when levelId is supplied.\n+      moduleId: body.moduleId === undefined ? null : body.moduleId,\n+      attemptId: body.attemptId || null,\n+      programId: body.programId || null,\n+    });\n+    return res.json({ success: true, ...result });\n+  } catch (error) {\n+    // Fail CLOSED: a lookup failure must read as \"not certified\", never as a\n+    // certificate. The caller's own write (the graded attempt) is already\n+    // committed by this point and is not affected.\n+    logToFile('\u274c Internal training API failed', { route: 'certify-level', error: error?.message });\n+    return res.status(500).json({ success: false, error: 'Certification failed' });\n+  }\n+});\n+\n /**\n  * POST /api/internal/training/mark-paper\n  * Body { questions:[{id, correct_option, order_index}], answers:[{question_id, chosen_option}] }\n",
+      "diff_truncated": false
+    },
+    {
+      "feature": "language",
+      "spec_path": "tests/features/whatsapp/niete/language.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "/language opens a bilingual picker offering EXACTLY Urdu and English (no Auto-detect)",
+          "line": 49,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Selecting English confirms in English and persists the choice, locked",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Selecting Urdu confirms IN Urdu and persists the choice, locked",
+          "line": 90,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@acceptance",
+            "@language",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/language is case-insensitive",
+          "line": 102,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A stale client replaying an off-offer row is rejected by the writer, not stored",
+          "line": 109,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@negative",
+            "@defensive",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The coaching transcription path cannot re-language a locked account",
+          "line": 124,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "No dead language-lock reader export exists (removed 2026-08-11, bd-2485)",
+          "line": 134,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@coverage",
+            "@p3"
+          ]
+        },
+        {
+          "name": "The registration launch bubble is English regardless of any prior language",
+          "line": 147,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Ask Anything answers an Urdu account in Urdu, and drift is logged",
+          "line": 165,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/observe \u2014 the whole visit flow renders bot CONTENT in Urdu, but the Flow chrome stays English",
+          "line": 186,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@persona:coach",
+            "@language",
+            "@config-gated",
+            "@seeded",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Lesson Plans via the natural-language path answers in the chosen language",
+          "line": 206,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Teacher Training ENTRY launcher is localized (entry only)",
+          "line": 215,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "/menu renders English on an Urdu account",
+          "line": 226,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p1"
+          ]
+        },
+        {
+          "name": "/status answers in Urdu on an Urdu account",
+          "line": 237,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Lesson Plans via the Pick-Class Flow renders English on an Urdu account",
+          "line": 249,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A Grade 1-5 Pick-Class lesson plan is served in Urdu only if an Urdu PDF exists (else English)",
+          "line": 261,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Coaching progress steps render English on an Urdu account, but the interstitials render Urdu",
+          "line": 284,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@known-issue",
+            "@slow",
+            "@persona:teacher",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A coach reads the observation flow in the COACH's language, not the observed teacher's",
+          "line": 298,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@language",
+            "@config-gated",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A refusal for a cancelled session is worded in my language",
+          "line": 311,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@language",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A new teacher is offered Urdu first; English is only the emergency floor (D4)",
+          "line": 324,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A lesson plan keeps the language it was enqueued with, even if I switch mid-generation (D3)",
+          "line": 335,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "An off-market language arriving from outside the offer is narrowed AND logged (D5)",
+          "line": 346,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@defensive",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A bare \"language\" (no slash) does not open the picker",
+          "line": 359,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:language",
+            "@persona:teacher",
+            "@e2e",
+            "@language",
+            "@negative",
+            "@edge",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/routes/internal-api.routes.js",
+          "pattern": "bot/shared/routes/internal-api.routes.js",
+          "shared": true,
+          "kind": "map"
+        }
+      ],
+      "only_shared": true,
+      "diff": "diff --git a/bot/shared/routes/internal-api.routes.js b/bot/shared/routes/internal-api.routes.js\nindex 7a16096b..db9bdda8 100644\n--- a/bot/shared/routes/internal-api.routes.js\n+++ b/bot/shared/routes/internal-api.routes.js\n@@ -313,6 +313,59 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {\n   }\n });\n \n+/**\n+ * POST /api/internal/training/certify-level\n+ * Body { userId, levelId, attemptId?, programId?, moduleId? }\n+ *   -> { success, issued, certificate_code?, level_name?, teacher_name?, pdf_r2_key? }\n+ *\n+ * bd-60145 \u2014 the portal's only way to certify a level.\n+ *\n+ * Before this, `dashboard/routes/portal.routes.js` called `issueCertificate`\n+ * DIRECTLY the moment an attempt passed, from the capstone and grand-quiz\n+ * routes. That skips every completeness check: it is the portal's copy of\n+ * bd-60139, where a single pass minted a certificate without asking whether\n+ * the units were finished or the per-module exams passed. And no portal route\n+ * certified a per-module-assessed level at all, so an I-SAPS teacher who\n+ * finished everything was certified by nothing (bd-60142, one surface over).\n+ *\n+ * The guard is `maybeIssueQuizScoreCertificate`, unchanged and shared \u2014 the\n+ * portal gets the SAME decision WhatsApp gets, which is the whole point of\n+ * this internal API. `levelId` is accepted because a module-exam attempt\n+ * carries training_module_id = NULL (bd-60144); passing that null is what made\n+ * the guard bail on its first lookup.\n+ *\n+ * Idempotent: the guard refuses a second certificate for a (user, level), so a\n+ * retry or a double submit cannot mint two.\n+ */\n+router.post('/training/certify-level', requireInternalKey, async (req, res) => {\n+  const body = req.body || {};\n+  const { userId } = body;\n+  const levelId = num(body.levelId);\n+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });\n+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });\n+\n+  try {\n+    const supabase = require('../config/supabase');\n+    const { maybeIssueQuizScoreCertificate } = require('../services/training/certificate.service');\n+    const result = await maybeIssueQuizScoreCertificate(supabase, {\n+      userId,\n+      levelId,\n+      // Optional: the quick-check path still has a module, and passing it\n+      // changes nothing when levelId is supplied.\n+      moduleId: body.moduleId === undefined ? null : body.moduleId,\n+      attemptId: body.attemptId || null,\n+      programId: body.programId || null,\n+    });\n+    return res.json({ success: true, ...result });\n+  } catch (error) {\n+    // Fail CLOSED: a lookup failure must read as \"not certified\", never as a\n+    // certificate. The caller's own write (the graded attempt) is already\n+    // committed by this point and is not affected.\n+    logToFile('\u274c Internal training API failed', { route: 'certify-level', error: error?.message });\n+    return res.status(500).json({ success: false, error: 'Certification failed' });\n+  }\n+});\n+\n /**\n  * POST /api/internal/training/mark-paper\n  * Body { questions:[{id, correct_option, order_index}], answers:[{question_id, chosen_option}] }\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [],
+  "fallback": false,
+  "fallback_reason": ""
+}

@@ -36,6 +36,10 @@ function makePdfkitMock() {
     doc.fillColor = chain; doc.strokeColor = chain; doc.lineWidth = chain;
     doc.rect = chain; doc.roundedRect = chain; doc.moveTo = chain; doc.lineTo = chain;
     doc.fill = chain; doc.stroke = chain; doc.fillAndStroke = chain;
+    // bd-60140 — the non-production watermark transforms the canvas.
+    doc.save = chain; doc.restore = chain;
+    doc.rotate = chain; doc.translate = chain; doc.scale = chain;
+    doc.opacity = chain; doc.clip = chain;
     doc.image = chain; doc.widthOfString = () => 100; doc.heightOfString = () => 12;
     doc.text = () => { if (renderShouldThrow) throw new Error('boom: renderer exploded'); return doc; };
     doc.end = () => setImmediate(() => { doc.emit('data', Buffer.from('%PDF-1.3')); doc.emit('end'); });

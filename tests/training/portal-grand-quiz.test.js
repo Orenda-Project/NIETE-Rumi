@@ -244,6 +244,19 @@ beforeEach(() => {
   });
   jest.doMock('../../bot/shared/services/training/certificate.service', () => ({
     issueCertificate: issueCertificateMock,
+    // bd-60145 — the portal now certifies through the bot's GUARD rather than
+    // calling the raw issuer, so the double must expose it or the route 500s
+    // with "maybeIssueQuizScoreCertificate is not a function".
+    //
+    // These suites are about the SUBMIT path (marking, the pass bar, cooldown,
+    // the quiz_kind filter), not about the completeness rules that decide
+    // whether a level may be certified — those are asserted directly in
+    // bd-60139 / bd-60142 / bd-60144. So the guard is stubbed to mint, which
+    // keeps each file testing the one thing it was written for.
+    maybeIssueQuizScoreCertificate: async (...args) => {
+      const cert = await issueCertificateMock(...args);
+      return { issued: true, ...cert };
+    },
   }), { virtual: true });
   jest.doMock('../../bot/shared/utils/structured-logger', () => ({
     logEvent: jest.fn(),

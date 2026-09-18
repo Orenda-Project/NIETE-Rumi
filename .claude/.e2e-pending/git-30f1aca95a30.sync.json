@@ -1,0 +1,422 @@
+{
+  "version": 1,
+  "repo": "bd-60147",
+  "range": "",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/services/training/capstone-delivery.service.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/capstone-points.rules.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/isaps-crq.rules.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        }
+      ],
+      "only_shared": false,
+      "diff": "diff --git a/bot/shared/services/training/capstone-delivery.service.js b/bot/shared/services/training/capstone-delivery.service.js\nindex 4374b17f..24471469 100644\n--- a/bot/shared/services/training/capstone-delivery.service.js\n+++ b/bot/shared/services/training/capstone-delivery.service.js\n@@ -53,7 +53,10 @@ function deps() {\n }\n \n const KIND_CAPSTONE = 'capstone';\n-const POINTS_PER_QUESTION = 5;\n+// bd-60113 \u2014 the default now lives in capstone-points.rules alongside the\n+// per-vendor override, so the portal can read the scale without pulling this\n+// file's I/O in. Re-exported below, unchanged at 5, for existing importers.\n+const { POINTS_PER_QUESTION, pointsPerQuestionFor } = require('./capstone-points.rules');\n const PASS_PCT = 0.7; // NIETE team rule (21 Jul): 70% required for certification\n \n const BUTTON_PREFIX = 'capstone_start_';\n@@ -254,6 +257,11 @@ async function handleCapstoneButton(userId, buttonId, phoneNumber) {\n       return true;\n     }\n \n+    // bd-60113 \u2014 the per-answer scale is a vendor setting (I-SAPS CRQs are 10\n+    // marks, Beacon House answers 5). Resolved once here so total_score and the\n+    // LLM prompt agree; a failed lookup falls back to the historical 5.\n+    const perAnswer = await capstonePointsForLevel(levelId);\n+\n     const now = new Date().toISOString();\n     const { data: attempt, error } = await supabase\n       .from('training_assessment_attempts')\n@@ -265,7 +273,7 @@ async function handleCapstoneButton(userId, buttonId, phoneNumber) {\n         level_id: levelId,\n         current_question_index: 0,\n         total_questions: questions.length,\n-        total_score: questions.length * POINTS_PER_QUESTION,\n+        total_score: questions.length * perAnswer,\n         status: 'in_progress',\n         started_at: now,\n         last_activity_at: now,\n@@ -292,12 +300,52 @@ async function handleCapstoneButton(userId, buttonId, phoneNumber) {\n   }\n }\n \n+/**\n+ * bd-60113 \u2014 the per-answer scale for a level's vendor.\n+ *\n+ * level -> vendor -> capstone_points_per_question, defaulting to 5. Never\n+ * throws: a lookup failure must degrade to the historical scale rather than\n+ * strand a teacher mid-exam, so every failure path returns the default.\n+ *\n+ * @param {number} levelId training_levels.id\n+ * @returns {Promise<number>}\n+ */\n+async function capstonePointsForLevel(levelId) {\n+  const { supabase, logToFile } = deps();\n+  try {\n+    const { data: level } = await supabase\n+      .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();\n+    if (!level?.vendor_id) return POINTS_PER_QUESTION;\n+    const { data: vendor } = await supabase\n+      .from('training_vendors')\n+      .select('key, capstone_points_per_question')\n+      .eq('id', level.vendor_id)\n+      .maybeSingle();\n+    return pointsPerQuestionFor(vendor);\n+  } catch (err) {\n+    logToFile('\u26a0\ufe0f capstone points lookup failed \u2014 using default', {\n+      levelId, default: POINTS_PER_QUESTION, error: err?.message,\n+    });\n+    return POINTS_PER_QUESTION;\n+  }\n+}\n+\n // \u2500\u2500\u2500 3. answers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n \n-async function scoreAnswer(question, answerText) {\n+/**\n+ * @param {object} question    training_questions row\n+ * @param {string} answerText  the teacher's verbatim answer\n+ * @param {number} [maxPoints] top of the scale for this vendor \u2014 bd-60113.\n+ *        Defaults to POINTS_PER_QUESTION so Beacon House and Oxbridge are\n+ *        byte-identical to before. The scale is interpolated into the PROMPT as\n+ *        well as the clamp: telling the model \"score 0-5\" and then clamping to\n+ *        10 would silently cap every I-SAPS CRQ at half marks.\n+ */\n+async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION) {\n   const { logToFile } = deps();\n   const { getClient, getDefaultModel } = deps().llm;\n   const client = getClient();\n+  const top = Number.isInteger(maxPoints) && maxPoints > 0 ? maxPoints : POINTS_PER_QUESTION;\n   const response = await client.chat.completions.create({\n     model: getDefaultModel(),\n     temperature: 0,\n@@ -306,9 +354,9 @@ async function scoreAnswer(question, answerText) {\n       {\n         role: 'system',\n         content:\n-          'You grade a teacher-training open-ended answer. Score 0-5 (5 = specific, ' +\n+          `You grade a teacher-training open-ended answer. Score 0-${top} (${top} = specific, ` +\n           'practical, grounded in classroom practice; 0 = empty/off-topic). Reply ' +\n-          'ONLY with JSON: {\"score\": <0-5 integer>, \"feedback\": \"<1-2 encouraging, ' +\n+          `ONLY with JSON: {\"score\": <0-${top} integer>, \"feedback\": \"<1-2 encouraging, ` +\n           'specific sentences>\"}',\n       },\n       { role: 'user', content: `Question: ${question.question_text}\\n\\nTeacher's answer: ${answerText}` },\n@@ -321,7 +369,7 @@ async function scoreAnswer(question, answerText) {\n   } catch (e) {\n     logToFile('\u26a0\ufe0f Capstone LLM response unparseable \u2014 scoring 0', { error: e.message });\n   }\n-  const score = Math.max(0, Math.min(POINTS_PER_QUESTION, Math.round(Number(parsed.score) || 0)));\n+  const score = Math.max(0, Math.min(top, Math.round(Number(parsed.score) || 0)));\n   const feedback = String(parsed.feedback || 'Thank you for your answer.').slice(0, 600);\n   return { score, feedback };\n }\n@@ -403,7 +451,14 @@ async function routeTextAnswer(phoneNumber, text) {\n     return await finalizeAttempt(attempt, user, phoneNumber);\n   }\n \n-  const { score, feedback } = await scoreAnswer(q, trimmed);\n+  // bd-60113 \u2014 derive the scale from the attempt rather than re-reading the\n+  // vendor. The attempt froze total_score = questions * perAnswer when it was\n+  // created, so this cannot drift from what the teacher is being marked out of\n+  // even if the vendor's setting changes mid-exam.\n+  const perAnswer = Math.round(\n+    (Number(attempt.total_score) || 0) / Math.max(1, Number(attempt.total_questions) || 0)\n+  ) || POINTS_PER_QUESTION;\n+  const { score, feedback } = await scoreAnswer(q, trimmed, perAnswer);\n   // bd-2478 \u2014 CHECK the write. This upsert silently failed for every capstone\n   // answer ever submitted: is_correct was NOT NULL and a written answer has no\n   // binary correctness, so Postgres rejected all eight rows of the first real\ndiff --git a/bot/shared/services/training/capstone-points.rules.js b/bot/shared/services/training/capstone-points.rules.js\nnew file mode 100644\nindex 00000000..3a7b46d1\n--- /dev/null\n+++ b/bot/shared/services/training/capstone-points.rules.js\n@@ -0,0 +1,51 @@\n+/**\n+ * bd-60113 \u2014 how many points one open-ended capstone answer is worth.\n+ *\n+ * This was a module constant in capstone-delivery.service.js (bd-2233):\n+ * Beacon House scores each answer 0\u20135. Every I-SAPS CRQ is worth 10 marks\n+ * against its own printed rubric, so one shared constant cannot serve both \u2014\n+ * a teacher shown a 10-mark rubric must not be marked out of 5.\n+ *\n+ * Operator decision 2026-09-17: make the scale per-vendor rather than scaling\n+ * a 0\u20135 score up to 10, so the mark matches the rubric the teacher saw.\n+ *\n+ * WHY A SEPARATE MODULE. `POINTS_PER_QUESTION` is not private \u2014 it is exported\n+ * from capstone-delivery and imported by dashboard/routes/portal.routes.js to\n+ * render the capstone and compute total_score, and pinned by\n+ * tests/portal/portal-reaches-bot-modules.test.js. Putting the vendor lookup\n+ * here keeps it dependency-free (no supabase, no WhatsApp), so the portal can\n+ * use it without the lazy-require dance documented at capstone-delivery.js:29.\n+ *\n+ * BACKWARDS COMPATIBILITY IS THE POINT. The default stays 5, and anything that\n+ * is not a sane positive integer override falls back to it. A 0 or negative\n+ * scale would make every capstone unpassable; a non-numeric would poison\n+ * total_score with NaN. Beacon House and Oxbridge have no column value and are\n+ * therefore untouched.\n+ */\n+\n+/** The historical default, unchanged: Beacon House scores answers 0\u20135. */\n+const POINTS_PER_QUESTION = 5;\n+\n+/** Guard rail \u2014 a scale outside this range is treated as bad data. */\n+const MAX_POINTS_PER_QUESTION = 100;\n+\n+/**\n+ * Points per open-ended answer for a vendor.\n+ *\n+ * @param {{key?: string, capstone_points_per_question?: number}|null} vendor\n+ *        a training_vendors row (or null when it could not be loaded)\n+ * @returns {number} a positive integer; POINTS_PER_QUESTION when unset or bad\n+ */\n+function pointsPerQuestionFor(vendor) {\n+  const raw = vendor && vendor.capstone_points_per_question;\n+  const n = Number(raw);\n+  if (!Number.isInteger(n)) return POINTS_PER_QUESTION;\n+  if (n <= 0 || n > MAX_POINTS_PER_QUESTION) return POINTS_PER_QUESTION;\n+  return n;\n+}\n+\n+module.exports = {\n+  POINTS_PER_QUESTION,\n+  MAX_POINTS_PER_QUESTION,\n+  pointsPerQuestionFor,\n+};\ndiff --git a/bot/shared/services/training/isaps-crq.rules.js b/bot/shared/services/training/isaps-crq.rules.js\nnew file mode 100644\nindex 00000000..2c97a987\n--- /dev/null\n+++ b/bot/shared/services/training/isaps-crq.rules.js\n@@ -0,0 +1,109 @@\n+/**\n+ * bd-60113 \u2014 splitting an I-SAPS CRQ document into gradeable items.\n+ *\n+ * Each module ships one .docx with 4 constructed-response items in a uniform\n+ * shape: Item No. / Concept / Marks / Reference / Scenario / Question /\n+ * Possible Answer / Rubric.\n+ *\n+ * The one rule that matters: the teacher is shown `prompt` (scenario +\n+ * question) and must NEVER see `model_answer` or `rubric` \u2014 the documents ship\n+ * a full worked answer directly under the question, and leaking it mid-exam\n+ * would make the item worthless. Those two fields are extracted precisely so\n+ * they can be handed to the MARKER instead, which is what makes rubric-grounded\n+ * AI marking possible (I-SAPS doc section 4.3 permits AI marking \"based on the\n+ * rubrics and notes on key components of a correct answer\").\n+ *\n+ * Pure: takes already-extracted document lines, returns plain objects. The\n+ * .docx unzipping lives in the seeder.\n+ */\n+\n+const DEFAULT_MARKS = 10;\n+\n+const RE_ITEM = /^Item No\\.?\\s*(\\d+)/i;\n+const RE_CONCEPT = /^Concept\\s*:\\s*(.+)$/i;\n+const RE_MARKS = /^Marks\\s*\\/?\\s*points?\\s*:\\s*(\\d+)/i;\n+const RE_REFERENCE = /^Reference\\s*:\\s*(.+)$/i;\n+// Every heading in these documents may be GLUED to the text that follows it \u2014\n+// \"ScenarioYou are a mentor teacher...\", \"QuestionWrite a 2-3 paragraph...\".\n+// Each therefore captures its remainder, or the first paragraph is lost. M3\n+// item 1 and M4 item 2 ship a glued Scenario and are exactly this case.\n+const RE_SCENARIO = /^Scenario\\s*:?\\s*(.*)$/i;\n+const RE_ANSWER = /^Possible Answer\\s*:?\\s*(.*)$/i;\n+const RE_RUBRIC = /^Rubric\\b(.*)$/i;\n+const RE_QUESTION = /^Question\\s*:?\\s*(.*)$/i;\n+\n+/**\n+ * @param {string[]} lines document lines, in order, already de-XML'd\n+ * @returns {Array<{item_no:number, concept:string, marks:number,\n+ *                  reference:string, scenario:string, question:string,\n+ *                  model_answer:string, rubric:string, prompt:string}>}\n+ */\n+function splitCrqItems(lines) {\n+  const src = Array.isArray(lines) ? lines : [];\n+  const starts = [];\n+  src.forEach((l, i) => {\n+    if (RE_ITEM.test(l || '')) starts.push(i);\n+  });\n+  if (starts.length === 0) return [];\n+\n+  const items = [];\n+  for (let s = 0; s < starts.length; s += 1) {\n+    const from = starts[s];\n+    const to = s + 1 < starts.length ? starts[s + 1] : src.length;\n+    const block = src.slice(from, to).filter((l) => (l || '').trim());\n+\n+    const item = {\n+      item_no: Number((block[0].match(RE_ITEM) || [])[1] || s + 1),\n+      concept: '',\n+      marks: DEFAULT_MARKS,\n+      reference: '',\n+      scenario: '',\n+      question: '',\n+      model_answer: '',\n+      rubric: '',\n+      prompt: '',\n+    };\n+\n+    // `section` tracks which heading we are under, so a paragraph is filed by\n+    // position rather than by guessing from its own text.\n+    let section = null;\n+    const buf = { scenario: [], question: [], model_answer: [], rubric: [] };\n+\n+    for (let i = 1; i < block.length; i += 1) {\n+      const line = block[i];\n+      const mConcept = line.match(RE_CONCEPT);\n+      if (mConcept) { item.concept = mConcept[1].trim(); continue; }\n+      const mMarks = line.match(RE_MARKS);\n+      if (mMarks) { item.marks = Number(mMarks[1]) || DEFAULT_MARKS; continue; }\n+      const mRef = line.match(RE_REFERENCE);\n+      if (mRef) { item.reference = mRef[1].trim(); continue; }\n+      // Each heading switches section AND keeps any text glued to it.\n+      const heading = [\n+        ['scenario', RE_SCENARIO],\n+        ['model_answer', RE_ANSWER],\n+        ['rubric', RE_RUBRIC],\n+        ['question', RE_QUESTION],\n+      ].find(([, re]) => re.test(line));\n+      if (heading) {\n+        const [name, re] = heading;\n+        section = name;\n+        const rest = (line.match(re) || [])[1];\n+        if (rest && rest.trim()) buf[name].push(rest.trim());\n+        continue;\n+      }\n+      if (section) buf[section].push(line);\n+    }\n+\n+    item.scenario = buf.scenario.join('\\n\\n').trim();\n+    item.question = buf.question.join('\\n').trim();\n+    item.model_answer = buf.model_answer.join('\\n\\n').trim();\n+    item.rubric = buf.rubric.join('\\n').trim();\n+    // What the teacher sees. Deliberately assembled from only these two.\n+    item.prompt = [item.scenario, item.question].filter(Boolean).join('\\n\\n').trim();\n+\n+    items.push(item);\n+  }\n+  return items;\n+}\n+\n+module.exports = { splitCrqItems, DEFAULT_MARKS };\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [],
+  "fallback": false,
+  "fallback_reason": ""
+}

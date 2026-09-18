@@ -1,0 +1,416 @@
+{
+  "version": 1,
+  "repo": "bd-60147",
+  "range": "",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 23,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/routes/teacher-training-endpoint.js",
+          "pattern": "bot/shared/routes/teacher-training-endpoint.js",
+          "shared": false,
+          "kind": "map"
+        },
+        {
+          "path": "bot/shared/services/training/isaps-listing.rules.js",
+          "pattern": "bot/shared/services/training/**",
+          "shared": false,
+          "kind": "map"
+        }
+      ],
+      "only_shared": false,
+      "diff": "diff --git a/bot/shared/routes/teacher-training-endpoint.js b/bot/shared/routes/teacher-training-endpoint.js\nindex 51333b10..18c083c8 100644\n--- a/bot/shared/routes/teacher-training-endpoint.js\n+++ b/bot/shared/routes/teacher-training-endpoint.js\n@@ -29,6 +29,9 @@\n \n const { logToFile } = require('../utils/logger');\n const { teacherLevelOf } = require('../utils/teacher-level');\n+const {\n+  usesModuleScopedListing, buildCourseRows, isCourseRowId, parseCourseRowId,\n+} = require('../services/training/isaps-listing.rules');\n const supabase = require('../config/supabase');\n const {\n   applyBandSelection,\n@@ -44,6 +47,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';\n // LLM-scored 'capstone'. Both certify a level, so both must be recognised\n // wherever \"does this level have an exam / did they pass it\" is asked.\n // 'diagnostic' rows live in the same table and are NOT an exam.\n+// bd-60119 \u2014 I-SAPS per-module summative quizzes are keyed source_quiz_id\n+// = PER_MODULE_SOURCE_BASE + module number, which is what keeps them out of\n+// the level-exam lookup above. Legacy ids are 1-11.\n+const PER_MODULE_SOURCE_BASE = 900;\n const EXAM_QUIZ_TYPES = ['grand_quiz', 'capstone'];\n const EXAM_QUIZ_KINDS = ['grand', 'capstone'];\n const BADGES_BUCKET = 'training-assets';\n@@ -385,6 +392,36 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*,\n     const action = screenData._action;\n     const vendorKey = String(screenData._vendor_key || '').trim() || null;\n     if (action === 'open_module') {\n+      // bd-60119 \u2014 I-SAPS only: a `c:` row is a MODULE, not a unit. Re-enter\n+      // this screen scoped to it (or, for `c:0`, back to the module list)\n+      // instead of treating the prefix as a module id. Other vendors never\n+      // emit a `c:` row, so this branch is inert for them.\n+      if (isCourseRowId(screenData.module_id)) {\n+        // The published payload carries module_id and _vendor_key only \u2014 no\n+        // level order \u2014 and the Flow JSON cannot be edited in place. So the\n+        // level is resolved from the COURSE itself, and for the `c:0` \"back\"\n+        // row from the teacher's visible catalogue.\n+        const cid = parseCourseRowId(screenData.module_id);\n+        let levelOrder = null;\n+        if (cid) {\n+          const { data: c } = await supabase\n+            .from('training_courses').select('level_id').eq('id', cid).maybeSingle();\n+          if (c?.level_id) {\n+            const { data: lv } = await supabase\n+              .from('training_levels').select('order_index').eq('id', c.level_id).maybeSingle();\n+            if (lv) levelOrder = (lv.order_index || 0) + 1;\n+          }\n+        } else {\n+          const catalog = await loadVisibleLevelsWithProgress(userId);\n+          const mine = vendorKey ? catalog.filter(l => l.vendor_key === vendorKey) : catalog;\n+          if (mine.length) levelOrder = (mine[0].order_index || 0) + 1;\n+        }\n+        if (!levelOrder) return errorScreen('That module could not be opened. Please reopen your training.');\n+        return buildLevelDetail(userId, levelOrder, {\n+          vendorKey,\n+          courseRowId: cid ? screenData.module_id : null,\n+        });\n+      }\n       // bd-2448 \u2014 the gate. Without this the dropdown was a free jump to any\n       // module in the level, bypassing the sequential order the bot's own\n       // deliverNextModule enforces.\n@@ -659,6 +696,12 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {\n   const modules = await loadModulesWithProgress(userId, lvl.id);\n   const grandQuiz = await loadGrandQuizState(userId, lvl.id);\n \n+  // bd-60119 \u2014 I-SAPS ONLY: list the 9 modules, not all 54 units. Picking one\n+  // re-enters this screen scoped to that course. Gated on the vendor so every\n+  // other training keeps the flat list it has always had.\n+  const moduleScoped = usesModuleScopedListing(lvl.vendor_key);\n+  const scopedCourseId = moduleScoped ? parseCourseRowId(opts.courseRowId) : null;\n+\n   const totalModules = modules.length;\n   const doneModules = modules.filter(m => m.done).length;\n   const pct = totalModules === 0 ? 0 : Math.round((doneModules / totalModules) * 100);\n@@ -678,11 +721,9 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {\n       // tappable and checkModuleUnlocked does the actual refusing.\n       // \"Passed\" replaces the old \"\u2713 Watched\", which read as \"you opened the\n       // video\" when since bd-2390 it means the quick check was passed.\n-      module_list:    modules.map(m => ({\n-        id:          String(m.id),\n-        title:       m.title.length > 40 ? `${m.title.slice(0, 37)}\u2026` : m.title,\n-        description: `${m.course_title} \u00b7 ${moduleLockLabel(m)}`,\n-      })),\n+      module_list:    await buildModuleList({\n+        userId, level: lvl, modules, moduleScoped, scopedCourseId,\n+      }),\n       grand_quiz_body:      grandQuiz.body,\n       grand_quiz_caption:   grandQuiz.caption,\n       grand_quiz_cta:       grandQuiz.cta,\n@@ -696,6 +737,60 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {\n  * order then module order \u2014 so a teacher scrolling the dropdown sees a\n  * natural progression through the level's topics.\n  */\n+/**\n+ * bd-60119 \u2014 courses of a level, each with its own unit tally, for the I-SAPS\n+ * module-then-unit listing. Built ON TOP of loadModulesWithProgress so the two\n+ * views can never disagree about what is done.\n+ *\n+ * @returns {Promise<Array<{id:number, title:string, total:number, done:number}>>}\n+ */\n+/**\n+ * bd-60119 \u2014 what goes in the level screen's dropdown.\n+ *\n+ * Three cases:\n+ *   not I-SAPS          \u2192 every module of the level, flat (unchanged)\n+ *   I-SAPS, no course   \u2192 the 9 modules\n+ *   I-SAPS, a course    \u2192 that module's units, plus a row back to the modules\n+ *\n+ * @returns {Promise<Array<{id:string,title:string,description:string}>>}\n+ */\n+async function buildModuleList({ userId, level, modules, moduleScoped, scopedCourseId }) {\n+  const flat = () => modules.map(m => ({\n+    id:          String(m.id),\n+    title:       m.title.length > 40 ? `${m.title.slice(0, 37)}\u2026` : m.title,\n+    description: `${m.course_title} \u00b7 ${moduleLockLabel(m)}`,\n+  }));\n+  if (!moduleScoped) return flat();\n+\n+  if (!scopedCourseId) {\n+    const courses = await loadCoursesWithProgress(userId, level.id);\n+    return buildCourseRows(courses.map(c => ({\n+      id: c.id, title: c.title, total: c.modules_total, done: c.modules_done,\n+    })));\n+  }\n+\n+  const { data: course } = await supabase\n+    .from('training_courses').select('id, title, level_id')\n+    .eq('id', scopedCourseId).maybeSingle();\n+  // A course from another level would leak content across programmes.\n+  if (!course || course.level_id !== level.id) {\n+    const courses = await loadCoursesWithProgress(userId, level.id);\n+    return buildCourseRows(courses.map(c => ({\n+      id: c.id, title: c.title, total: c.modules_total, done: c.modules_done,\n+    })));\n+  }\n+  const units = modules\n+    .filter(m => m.course_title === course.title)\n+    .map(m => ({\n+      id:          String(m.id),\n+      title:       m.title.length > 24 ? `${m.title.slice(0, 23)}\u2026` : m.title,\n+      description: moduleLockLabel(m),\n+    }));\n+  // Without this the teacher is stranded inside one module with no way back.\n+  units.push({ id: 'c:0', title: '\u2190 All modules', description: 'Back to the module list' });\n+  return units;\n+}\n+\n async function loadModulesWithProgress(userId, levelId) {\n   const [{ data: courses }, { data: modules }, { data: progressRows }, unlockLogic] = await Promise.all([\n     supabase.from('training_courses').select('id, title, order_index').eq('level_id', levelId).eq('is_active', true).order('order_index').order('id'),\n@@ -1333,12 +1428,26 @@ async function loadCoursesWithProgress(userId, levelId) {\n }\n \n async function loadGrandQuizState(userId, levelId) {\n-  const [{ data: catalog }, { data: attempts }, { data: courses }, { data: modules }, { data: progressRows }, { data: levelCert }] = await Promise.all([\n+  const [{ data: examRows }, { data: attempts }, { data: courses }, { data: modules }, { data: progressRows }, { data: levelCert }] = await Promise.all([\n     // bd-2474 \u2014 resolve the level's exam by LEVEL, not by type. Beacon House\n     // levels carry quiz_type='capstone'; filtering to 'grand_quiz' meant every\n     // BH level reported \"No level exam\" even though capstones 29-32 are active.\n     // 'diagnostic' rows are NOT an exam and stay excluded.\n-    supabase.from('training_grand_quizzes').select('id, quiz_type').eq('level_id', levelId).in('quiz_type', EXAM_QUIZ_TYPES).eq('is_active', true).maybeSingle(),\n+    // bd-60119 \u2014 fetch the level's exam rows and pick the LEVEL one in JS.\n+    //\n+    // UNIQUE (level_id, quiz_type) used to make one-exam-per-level a database\n+    // fact, and .maybeSingle() THROWS on a second row. Widening that key so\n+    // I-SAPS can carry one summative quiz per MODULE moved the guarantee out\n+    // of the schema, so it is re-stated here \u2014 but in JS, not in the query:\n+    //   * `.is('source_quiz_id', null)` would hide every Taleemabad (ids 1-4)\n+    //     and Beacon House (8-11) exam, which is the opposite of the goal.\n+    //   * `.lt(...)` silently drops NULLs, so a level whose exam carries no\n+    //     source id reports 'no exam'.\n+    //   * `.or(...)` expresses it exactly but is not in the chain the suite's\n+    //     supabase mocks implement.\n+    // A NULL id is a LEVEL exam; only 900+ is per-module. That is one line of\n+    // JS and it says so.\n+    supabase.from('training_grand_quizzes').select('id, quiz_type, source_quiz_id').eq('level_id', levelId).in('quiz_type', EXAM_QUIZ_TYPES).eq('is_active', true),\n     // bd-2391 \u2014 EXAM attempts only (see isGrandPass). Without this a passed\n     // module quick check rendered \"\ud83c\udfc6 You passed this level exam\" and replaced\n     // the CTA with \"\u2713 Passed\". bd-2474 widens 'grand' to both exam kinds so a\n@@ -1361,6 +1470,14 @@ async function loadGrandQuizState(userId, levelId) {\n     // for the very teachers who had most certainly passed it.\n     supabase.from('training_certificates').select('id').eq('user_id', userId).eq('level_id', levelId).limit(1),\n   ]);\n+  // bd-60119 \u2014 the LEVEL exam is the row that is not a per-module quiz. A NULL\n+  // source_quiz_id is a level exam (legacy rows and the test fixtures both\n+  // leave it unset); only PER_MODULE_SOURCE_BASE and above is per-module.\n+  const levelExams = (examRows || []).filter(\n+    q => q.source_quiz_id == null || q.source_quiz_id < PER_MODULE_SOURCE_BASE,\n+  );\n+  const catalog = levelExams[0] || null;\n+\n   // bd-43491 \u2014 `catalog` is the level's exam, already resolved by EXAM_QUIZ_TYPES\n   // above, so its id is the whole exam set for this level; a diagnostic's id is\n   // never in it. Written as an explicit arrow rather than `.some(isGrandPass)`\ndiff --git a/bot/shared/services/training/isaps-listing.rules.js b/bot/shared/services/training/isaps-listing.rules.js\nnew file mode 100644\nindex 00000000..59d8fc48\n--- /dev/null\n+++ b/bot/shared/services/training/isaps-listing.rules.js\n@@ -0,0 +1,123 @@\n+/**\n+ * bd-60119 \u2014 I-SAPS lists MODULES first, then the units inside one.\n+ *\n+ * The level screen's dropdown was handed every module in the level. For NIETE\n+ * and the partner vendors that is a handful of rows; for I-SAPS it is 54 units\n+ * in one flat list with the module name demoted to a subtitle, which is not\n+ * the structure the content has. I-SAPS is 9 modules, each holding its own\n+ * units and its own end-of-module assessment.\n+ *\n+ * WHY THIS IS A SERVER-SIDE BRANCH AND NOT A NEW FLOW SCREEN\n+ * ---------------------------------------------------------\n+ * One Flow serves every vendor, and a published Flow's JSON cannot be edited\n+ * in place (.claude/skills/whatsapp-flows) \u2014 adding a screen means\n+ * re-publishing to Meta and changing TEACHER_TRAINING_FLOW_ID, which would\n+ * touch NIETE, Beacon House and Oxbridge for a change none of them asked for.\n+ *\n+ * But a dropdown row is just {id, title, description} that the SERVER fills,\n+ * and nothing requires the id to be a module id. So for I-SAPS the same screen\n+ * is re-entered carrying course rows, tagged with a prefix the server\n+ * recognises. No Flow change, no re-publish, and every other vendor runs the\n+ * path it ran before.\n+ *\n+ * Every export here is gated on the vendor key for that reason.\n+ */\n+\n+/**\n+ * Marks a dropdown row as a COURSE rather than a module.\n+ *\n+ * A module row id is the bare numeric `training_modules.id`, so the prefix has\n+ * to be something a number can never produce. The colon is deliberate: `c12`\n+ * would collide with nothing today but reads as ambiguous, and a future id\n+ * scheme could produce it.\n+ */\n+const COURSE_ROW_PREFIX = 'c:';\n+\n+/** WhatsApp caps an interactive row title at 24 characters. */\n+const ROW_TITLE_MAX = 24;\n+\n+/**\n+ * Does this vendor use the module-then-unit listing?\n+ *\n+ * ONLY I-SAPS. Every other vendor keeps the flat list it has always had \u2014\n+ * this is the guard that makes the change safe to ship without re-testing\n+ * three other trainings.\n+ *\n+ * @param {string|null} vendorKey\n+ * @returns {boolean}\n+ */\n+function usesModuleScopedListing(vendorKey) {\n+  return String(vendorKey || '').trim().toUpperCase() === 'ISAPS';\n+}\n+\n+/**\n+ * @param {number|string} courseId training_courses.id\n+ * @returns {string}\n+ */\n+function courseRowId(courseId) {\n+  return `${COURSE_ROW_PREFIX}${courseId}`;\n+}\n+\n+/**\n+ * @param {string|number|null} rowId\n+ * @returns {boolean}\n+ */\n+function isCourseRowId(rowId) {\n+  return typeof rowId === 'string' && rowId.startsWith(COURSE_ROW_PREFIX);\n+}\n+\n+/**\n+ * The numeric course id behind a course row, or null.\n+ *\n+ * Returns null rather than NaN for anything malformed: a NaN would reach a\n+ * database lookup and fail far from the cause.\n+ *\n+ * @param {string|number|null} rowId\n+ * @returns {number|null}\n+ */\n+function parseCourseRowId(rowId) {\n+  if (!isCourseRowId(rowId)) return null;\n+  const raw = rowId.slice(COURSE_ROW_PREFIX.length);\n+  if (!/^\\d+$/.test(raw)) return null;\n+  const n = Number(raw);\n+  return Number.isFinite(n) && n > 0 ? n : null;\n+}\n+\n+/** Fit a title to the row cap, keeping a visible ellipsis when it is cut. */\n+function fitTitle(title) {\n+  const chars = [...String(title || '')];\n+  if (chars.length <= ROW_TITLE_MAX) return chars.join('');\n+  return `${chars.slice(0, ROW_TITLE_MAX - 1).join('')}\u2026`;\n+}\n+\n+/**\n+ * One dropdown row per MODULE, carrying that module's own unit progress.\n+ *\n+ * @param {Array<{id:number, title:string, total:number, done:number}>} courses\n+ * @returns {Array<{id:string, title:string, description:string}>}\n+ */\n+function buildCourseRows(courses) {\n+  if (!Array.isArray(courses)) return [];\n+  return courses.map((c) => {\n+    const total = Number(c.total) || 0;\n+    const done = Number(c.done) || 0;\n+    const complete = total > 0 && done >= total;\n+    return {\n+      id: courseRowId(c.id),\n+      title: fitTitle(c.title),\n+      description: complete\n+        ? `${done}/${total} units \u00b7 \u2713 Complete`\n+        : `${done}/${total} units`,\n+    };\n+  });\n+}\n+\n+module.exports = {\n+  COURSE_ROW_PREFIX,\n+  ROW_TITLE_MAX,\n+  usesModuleScopedListing,\n+  courseRowId,\n+  isCourseRowId,\n+  parseCourseRowId,\n+  buildCourseRows,\n+};\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [],
+  "fallback": false,
+  "fallback_reason": ""
+}
