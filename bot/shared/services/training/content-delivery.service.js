@@ -347,6 +347,8 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
   const {
     shouldOfferModuleExam, moduleExamOfferMessage, moduleSourceQuizId,
   } = require('./isaps-module-exam.rules');
+  // bd-60146 — the offer must promise the PAPER, not the bank.
+  const { MODULE_EXAM_MCQ_COUNT } = require('./isaps-crq-paper.rules');
 
   const { data: mod } = await supabase
     .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
@@ -404,12 +406,35 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
     alreadyPassed: (passedRows || []).length > 0,
   })) return false;
 
+  // bd-60146 — announce the paper the teacher will actually sit.
+  //
+  // mcqCount/crqCount above are BANK tallies, and they are the right input for
+  // shouldOfferModuleExam, which only asks "does this module have any items?".
+  // They are the wrong thing to say out loud: Module 9's bank holds 13 items,
+  // so the offer read "The module exam is 13 scenario questions" while
+  // bd-60141's sampler served 3. The teacher was promised thirteen and given
+  // three.
+  //
+  // The paper is MODULE_EXAM_MCQ_COUNT scenario MCQs (ISAPS §5.1) plus one
+  // written answer, and a bank thinner than the quota serves what it has —
+  // Module 6 holds a single MCQ, so it is announced as one rather than padded
+  // to a promise the sampler cannot honour.
+  const offeredMcqCount = Math.min(MODULE_EXAM_MCQ_COUNT, mcqCount);
+  const offeredCrqCount = crqCount > 0 ? 1 : 0;
+
   await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-    body: moduleExamOfferMessage({ moduleTitle: course.title, mcqCount, crqCount }),
+    body: moduleExamOfferMessage({
+      moduleTitle: course.title,
+      mcqCount: offeredMcqCount,
+      crqCount: offeredCrqCount,
+    }),
     buttons: [{ id: `module_exam_start_${course.id}`, title: '📝 Take the exam' }],
   });
   logToFile('🎓 Offered the module exam', {
-    userId, moduleId, courseId: course.id, mcqCount, crqCount,
+    userId, moduleId, courseId: course.id,
+    // Both, so a log line can show the bank the paper was drawn from.
+    mcqCount: offeredMcqCount, crqCount: offeredCrqCount,
+    bankMcqCount: mcqCount, bankCrqCount: crqCount,
   });
   return true;
 }
