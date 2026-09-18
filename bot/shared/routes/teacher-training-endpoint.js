@@ -1508,11 +1508,22 @@ async function loadModuleExamSlot(userId, levelId, courseId, modules) {
       if (left > cooldownHoursLeft) cooldownHoursLeft = Math.ceil(left);
     }
 
+    // bd-60146 (second site) — announce the PAPER, not the bank.
+    //
+    // mcqCount/crqCount above are bank tallies, which is right for deciding
+    // whether an exam exists at all and wrong for saying out loud: Module 1's
+    // bank holds 12 MCQs, so this slot read "12 scenario questions" while the
+    // sampler serves 2. The same conflation was fixed in content-delivery for
+    // the WhatsApp offer; this is the copy the Flow and the PORTAL render, and
+    // it was missed because the two builders live in different files.
+    const { MODULE_EXAM_MCQ_COUNT } = require('../services/training/isaps-crq-paper.rules');
     return buildModuleExamSlot({
       moduleTitle: course.title,
       unitsTotal: units.length,
       unitsDone: units.filter(u => u.done).length,
-      mcqCount, crqCount, passed, cooldownHoursLeft,
+      mcqCount: Math.min(MODULE_EXAM_MCQ_COUNT, mcqCount),
+      crqCount: crqCount > 0 ? 1 : 0,
+      passed, cooldownHoursLeft,
     });
   } catch (err) {
     logToFile('⚠️ loadModuleExamSlot failed — falling back to no exam', {
