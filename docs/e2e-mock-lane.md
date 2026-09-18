@@ -43,12 +43,25 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 
 ## Setup (once per machine)
 
-1. `keys/niete-local.env` next to `keys/niete-sandbox.env`: the two sandbox Supabase lines, placeholders for
-   `WHATSAPP_TOKEN` / `WEBHOOK_VERIFY_TOKEN` / `WABA_ID` / `OPENROUTER_API_KEY=cassette-only…`, and from the
-   staging Railway env ONLY the storage + Flow-id lines (`R2_*`, `*_FLOW_ID`, `PORTAL_URL`), e.g.
-   `railway variables -p "NIETE-Rumi Staging" -s bot --environment staging --kv | grep -E '^(R2_|[A-Z_]+_FLOW_ID=|PORTAL_URL=)'`.
-   No vendor API key belongs in it — that absence is what keeps the lane offline. `QUEUE_DRIVER`, `REDIS_URL`
-   and the run's own values are appended per run by `local-stack.sh`.
+1. `keys/niete-local.env` — **one command**:
+   ```bash
+   bash bot/scripts/e2e/provision-local-keys.sh          # needs `railway login` (staging access) and keys/niete-sandbox.env
+   bash bot/scripts/e2e/provision-local-keys.sh --from-kv team.kv   # no railway login: a teammate's `railway variables --kv` dump
+   ```
+   It writes the file next to `keys/niete-sandbox.env` (repo `keys/` or the workspace-level `keys/`, the two
+   places `local-stack.sh` looks): the two sandbox Supabase lines copied from that file — the project ref is
+   asserted against `ENV_REFS` in `niete_training_db.py`, anything but the sandbox ref is refused —, placeholders
+   for `WHATSAPP_TOKEN` / `WEBHOOK_VERIFY_TOKEN` / `WABA_ID` / `OPENROUTER_API_KEY=cassette-only…`, and from the
+   staging Railway env ONLY the storage + Flow-id + portal lines (`R2_*`, `*_FLOW_ID`, `PORTAL_URL`). No vendor
+   API key is ever copied — that absence is what keeps the lane offline. It never overwrites (`--force`), never
+   prints a value, and writes the file `0600`. `QUEUE_DRIVER`, `REDIS_URL` and the run's own values are appended
+   per run by `local-stack.sh`.
+
+   **The hook tells you when this is missing.** `.githooks/post-commit`, the SessionStart banner and
+   `commit-e2e.sh` all run the same readiness check (`e2e_mock_lane_ready` in `.claude/hooks/lib/mock-lane.sh`:
+   this file + `redis-server`) and print the fix; `commit-e2e.sh` exits 3 before starting anything. Before
+   2026-09-18 the first signal was exit 14 deep inside `local-stack.sh`, on the agent's turn, which is how a PR
+   could ship with the ledger reading `e2e: missing`.
 1b. `redis-server` on PATH (`brew install redis`): the stack starts a private instance per run.
 2. Installed dependencies whose lockfiles match the commit under test. If the main checkout's install is
    stale, point the stack at a fresh one: `E2E_NODE_MODULES_ROOT=<dir with node_modules>` (root set) and
