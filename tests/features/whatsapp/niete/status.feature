@@ -181,3 +181,54 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # The probe requires status='in_progress' AND completed_at IS NULL. An attempt
     # keeps its last_activity_at when it finishes, so recency alone would report a
     # quiz she passed minutes ago as still running.
+
+  @e2e @lesson-plan @P1
+  Scenario: A 6-12 lesson plan being prepared is reported as running
+    Given the NIETE bot chat is open
+    And I have asked for a grade 6-12 lesson plan and it is still being prepared
+    And I have nothing else in flight
+    When I send "/status"
+    Then the bot answers in the chat and names the lesson I asked for
+    And no row is offered to stop it
+    # THE MOST COMMON WAIT THERE IS, AND /status COULD NOT SEE IT. The probe read
+    # `lesson_plan_requests`; the 6-12 Flow picker never writes there. Seven days
+    # of production: 18,196 rows written by the path a teacher uses against 25 in
+    # the table /status was reading. listActiveResources now reads the 6-12 path's
+    # own in-flight state instead of adding a second writer — a render row per
+    # (segment, language, template version), 'authoring' until the PDF exists.
+    # Named from the segment's menu_title, which is the same wording the picker
+    # showed her; with no segment row it degrades to a bare "Lesson plan" rather
+    # than rendering undefined.
+    # Listed, never offered: one render serves every teacher queued on the same
+    # lesson, so a Stop tap would discard work other teachers are waiting for. The
+    # item carries `summaryOnly`, exactly as a training quiz does.
+
+  @e2e @lesson-plan @negative @P2
+  Scenario: A lesson plan that has already arrived is not reported as running
+    Given the NIETE bot chat is open
+    And the grade 6-12 lesson plan I asked for has already been delivered to me
+    And I have nothing else in flight
+    When I send "/status"
+    Then the bot replies in the chat that nothing is running
+    # The render row survives delivery — that is the point of it, every teacher
+    # after the first is served from it — so the probe is bounded on
+    # status='authoring'. Without that clause "what is running" would become
+    # "every lesson plan you have ever been sent". A render is also bounded to
+    # thirty minutes: one still 'authoring' hours later is a stranded run the
+    # sweeper has not reached, not work she is waiting on.
+
+  @e2e @lesson-plan @negative @P1
+  Scenario: A lesson plan another teacher is waiting on is never reported as mine
+    Given the NIETE bot chat is open
+    And another teacher has a grade 6-12 lesson plan being prepared
+    And I have nothing in flight myself
+    When I send "/status"
+    Then the bot replies in the chat that nothing is running
+    And that teacher's lesson is not named to me
+    # 'authoring' is a DEPLOYMENT-WIDE state, not a per-teacher one. The probe is
+    # filtered on the render's `waiters` array containing my own user id, which is
+    # what keeps one teacher's screen to her own work. `waiters` rather than
+    # `requested_by` because a teacher who taps a lesson already being authored is
+    # appended to that list and never becomes the requester, though she is waiting
+    # just as much — and the claim path writes the requester into `waiters` too,
+    # so one clause covers both.
