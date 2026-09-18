@@ -59,7 +59,7 @@
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
-const { logToFile } = require('../../utils/logger');
+const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
 const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./question-images.rules');
@@ -448,7 +448,7 @@ async function startModuleExam(userId, courseId, phoneNumber) {
   const mcqQuiz = quizzes.find(q => q.quiz_type === 'grand_quiz') || null;
   const crqQuiz = quizzes.find(q => q.quiz_type === 'capstone') || null;
   if (!mcqQuiz && !crqQuiz) {
-    logToFile('❌ Module exam lookup found nothing', { userId, courseId: courseIdNum, srcId });
+    logError('Module exam lookup found nothing', { userId, courseId: courseIdNum, srcId });
     await WhatsAppService.sendMessage(phoneNumber, 'No exam is configured for this module yet. Please contact NIETE support.');
     return false;
   }
@@ -477,7 +477,7 @@ async function startModuleExam(userId, courseId, phoneNumber) {
     .select('program_id').eq('user_id', userId).eq('is_active', true)
     .limit(1).maybeSingle();
   if (!assignment) {
-    logToFile('❌ No active program for user', { userId });
+    logError('No active program for user', { userId });
     await WhatsAppService.sendMessage(phoneNumber, 'You are not enrolled in a training program yet. Please contact your NIETE coach.');
     return false;
   }
@@ -536,7 +536,7 @@ async function startModuleExam(userId, courseId, phoneNumber) {
     })
     .select('id').single();
   if (aErr || !attempt) {
-    logToFile('❌ Module-exam attempt insert failed', {
+    logError('Module-exam attempt insert failed', {
       userId, courseId: courseIdNum, error: aErr?.message,
     });
     await WhatsAppService.sendMessage(phoneNumber, 'Could not start the exam — please try again in a moment.');
@@ -2338,7 +2338,7 @@ async function openModuleExamAttempt({ userId, courseId, programId = null }) {
       })
       .select('id').single();
     if (aErr || !created) {
-      logToFile('❌ Portal module-exam attempt insert failed', { userId, courseId: courseIdNum, error: aErr?.message });
+      logError('Portal module-exam attempt insert failed', { userId, courseId: courseIdNum, error: aErr?.message });
       return { ok: false, reason: 'insert_failed' };
     }
     attemptId = created.id;
@@ -2457,7 +2457,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
   if (crq) {
     // Background: never let a ~10s model call hold the teacher's submit open.
     setImmediate(() => {
-      finishGrading().catch(err => logToFile('❌ Portal CRQ marking failed', {
+      finishGrading().catch(err => logError('Portal CRQ marking failed', {
         attemptId, error: err?.message,
       }));
     });

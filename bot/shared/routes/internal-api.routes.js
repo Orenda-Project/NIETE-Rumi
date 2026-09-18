@@ -30,7 +30,7 @@
  * INTERNAL_API_KEY are already provisioned on the portal service.
  */
 const express = require('express');
-const { logToFile } = require('../utils/logger');
+const { logToFile, logError } = require('../utils/logger');
 const { clampLanguage } = require('../config/ux-strings');
 // Out of the doc comment above, where #913 first put it: inside /* */ this line never ran and
 // POST /training/bands/state threw "teacherLevelOf is not defined" for every teacher (15 Sep 2026).
@@ -361,7 +361,7 @@ router.post('/training/certify-level', requireInternalKey, async (req, res) => {
     // Fail CLOSED: a lookup failure must read as "not certified", never as a
     // certificate. The caller's own write (the graded attempt) is already
     // committed by this point and is not affected.
-    logToFile('❌ Internal training API failed', { route: 'certify-level', error: error?.message });
+    logError('Internal training API failed', { route: 'certify-level', error: error?.message });
     return res.status(500).json({ success: false, error: 'Certification failed' });
   }
 });
@@ -409,7 +409,7 @@ router.post('/training/module-exam-gate', requireInternalKey, async (req, res) =
     });
   } catch (error) {
     // Fail CLOSED: a gate that cannot be read is a gate that stays shut.
-    logToFile('❌ Internal training API failed', { route: 'module-exam-gate', error: error?.message });
+    logError('Internal training API failed', { route: 'module-exam-gate', error: error?.message });
     return res.status(500).json({ success: false, error: 'Exam gate lookup failed' });
   }
 });
@@ -442,7 +442,7 @@ router.post('/training/module-exam-start', requireInternalKey, async (req, res) 
     }
     return res.json({ success: true, ok: true, ...out });
   } catch (error) {
-    logToFile('❌ Internal training API failed', { route: 'module-exam-start', error: error?.message });
+    logError('Internal training API failed', { route: 'module-exam-start', error: error?.message });
     return res.status(500).json({ success: false, error: 'Could not start the module exam' });
   }
 });
@@ -483,7 +483,7 @@ router.post('/training/module-exam-submit', requireInternalKey, async (req, res)
     // THROWS rather than denying: a marking result has no safe default in
     // either direction, and the caller must abandon the write instead of
     // recording a pass or a fail it cannot justify.
-    logToFile('❌ Internal training API failed', { route: 'module-exam-submit', error: error?.message });
+    logError('Internal training API failed', { route: 'module-exam-submit', error: error?.message });
     return res.status(500).json({ success: false, error: 'Could not mark the paper' });
   }
 });
