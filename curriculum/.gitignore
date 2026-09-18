@@ -26,3 +26,7 @@ __pycache__/
 # loop re-exports them every time a painter changes.
 *.pdf
 *.png
+
+# The durable home of the corpus on this machine (was a /tmp scratchpad until
+# 2026-09-18). Same licence, same rule: it never leaves the machine.
+corpus-local/
