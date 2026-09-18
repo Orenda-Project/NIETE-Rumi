@@ -66,6 +66,9 @@ const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./quest
 const {
   isPerModuleQuiz, moduleSourceQuizId, isLevelCertifyingAttempt, moduleExamPassMessage,
 } = require('./isaps-module-exam.rules');
+const {
+  isOpenEndedQuestion, selectPaperWithOneCrq, isTextAnswerForOpenQuestion, scoreMixedPaper,
+} = require('./isaps-crq-paper.rules');
 // bd-2673 — the marking rule lives in ONE module, shared with the portal over
 // the internal API. Do not re-implement isMultiKey/normalizeSet here: a second
 // copy is the bug this extraction removed.
@@ -339,7 +342,14 @@ async function resolveServedQuestions(attempt) {
     levelId: attempt.level_id,
     moduleId: isModuleQuiz ? attempt.training_module_id : null,
   });
-  const served = selectServedQuestions(all, { attemptId: attempt.id, isModuleQuiz, config });
+  // bd-60128 — a folded I-SAPS module bank holds the module's MCQs AND all four
+  // of its CRQs. Only ONE CRQ is sat per attempt, drawn on the attempt id, so
+  // the generic selector would otherwise serve all four. Detected by the bank's
+  // own shape rather than by vendor, so it cannot drift from the data.
+  const bankHasOpenEnded = all.some(isOpenEndedQuestion);
+  const served = bankHasOpenEnded
+    ? selectPaperWithOneCrq(all, attempt.id)
+    : selectServedQuestions(all, { attemptId: attempt.id, isModuleQuiz, config });
 
   const snapshot = Number(attempt.total_questions);
   if (Number.isFinite(snapshot) && snapshot > 0 && served.length !== snapshot && all.length === snapshot) {
@@ -915,6 +925,32 @@ async function sendQuestion(attemptId, phoneNumber) {
   if (!q) {
     logToFile('⚠️ No question at index', { attemptId, index: attempt.current_question_index });
     return await gradeAttempt(attemptId, phoneNumber);
+  }
+
+  // bd-60128 — an OPEN-ENDED question (the I-SAPS CRQ) is answered by typing,
+  // so it goes out as plain text and returns here. This MUST precede the
+  // option handling below: a CRQ has no options, and that path treats "no
+  // options" as bad data — it records a wrong answer and advances, which would
+  // silently score every CRQ zero without the teacher ever seeing it.
+  if (isOpenEndedQuestion(q)) {
+    const sentOpen = await WhatsAppService.sendMessage(
+      phoneNumber,
+      `*Q${attempt.current_question_index + 1}/${attempt.total_questions}*\n\n`
+      + `${q.question_text || ''}\n\n`
+      + '_Type your answer as a message. Take your time — it is marked against '
+      + 'the I-SAPS rubric._',
+    );
+    // bd-43496 — never claim a delivery that did not happen: an unreported
+    // failure leaves the attempt in_progress on a question never seen, and
+    // every retry resumes onto the same one.
+    if (sentOpen === false) {
+      logToFile('❌ Open-ended question send failed', {
+        attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
+      }, 'error');
+      await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+      return false;
+    }
+    return true;
   }
 
   // WhatsApp interactive list — one row per option (A, B, C, ...). Multi
@@ -1628,6 +1664,91 @@ async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {
   }
 }
 
+/**
+ * bd-60128 — claim a plain text message as the answer to an open-ended
+ * question the teacher is currently on (the I-SAPS CRQ).
+ *
+ * Mirrors capstone-delivery.routeTextAnswer, including the lesson recorded in
+ * its own comment: that read used `.maybeSingle()`, a teacher with two open
+ * attempts hit a PGRST116 error, the attempt came back null, and her answer
+ * was passed to ordinary chat — 11 teachers, 28 attempts, answers lost. The
+ * read below is therefore a LIST ordered by activity, never a single row.
+ *
+ * Returns true when the message was consumed, so the text handler stops.
+ *
+ * @param {string} phoneNumber
+ * @param {string} text
+ * @returns {Promise<boolean>}
+ */
+async function routeOpenEndedAnswer(phoneNumber, text) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed || trimmed.startsWith('/')) return false;
+
+  const { data: user } = await supabase
+    .from('users').select('id, name').eq('phone_number', phoneNumber).maybeSingle();
+  if (!user) return false;
+
+  const { data: openAttempts } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id, level_id, grand_quiz_id, program_id, current_question_index, total_questions, total_score, status')
+    .eq('user_id', user.id)
+    .eq('quiz_kind', KIND_GRAND)
+    .eq('status', 'in_progress')
+    .order('last_activity_at', { ascending: false })
+    .limit(5);
+  const attempt = (openAttempts || [])[0];
+  if (!attempt) return false;
+
+  // Only claim it when the question actually IS open-ended; otherwise a
+  // teacher typing chat during an MCQ would have it stored and marked.
+  const { questions } = await loadServedQuestions(attempt);
+  const q = questions[attempt.current_question_index];
+  if (!isTextAnswerForOpenQuestion(trimmed, q)) return false;
+
+  const CapstoneDelivery = require('./capstone-delivery.service');
+  if (!CapstoneDelivery.meetsAnswerFloor(trimmed)) {
+    await WhatsAppService.sendMessage(
+      phoneNumber,
+      `Your answer looks very short. Please write at least ${CapstoneDelivery.MIN_ANSWER_CHARS} characters so it can be marked fairly.`,
+    );
+    return true;
+  }
+
+  // Marked against the module's own scale — I-SAPS CRQs are 10 marks
+  // (bd-60113), Beacon House answers 5.
+  const perAnswer = await capstonePointsForLevel(attempt.level_id);
+  const { score, feedback } = await CapstoneDelivery.scoreAnswer(q, trimmed, perAnswer);
+
+  await supabase.from('training_assessment_answers').upsert({
+    attempt_id: attempt.id,
+    question_index: attempt.current_question_index,
+    question_id: q.id,
+    chosen_option: '',
+    is_correct: null,
+    answer_text: trimmed,
+    answer_score: score,
+    feedback_text: feedback,
+  }, { onConflict: 'attempt_id,question_index' });
+
+  await supabase.from('training_assessment_attempts').update({
+    current_question_index: attempt.current_question_index + 1,
+    last_activity_at: new Date().toISOString(),
+  }).eq('id', attempt.id);
+
+  await WhatsAppService.sendMessage(
+    phoneNumber, `📝 Answer recorded — *${score}/${perAnswer}*.\n\n${feedback}`,
+  );
+  logToFile('🎓 Open-ended answer recorded', {
+    attemptId: attempt.id, questionId: q.id, score, perAnswer,
+  });
+
+  const nextIndex = attempt.current_question_index + 1;
+  if (nextIndex >= (attempt.total_questions || 0)) {
+    return await gradeAttempt(attempt.id, phoneNumber);
+  }
+  return await sendQuestion(attempt.id, phoneNumber);
+}
+
 async function recordAnswer(attemptId, questionIndex, questionId, chosenOption, isCorrect) {
   await supabase
     .from('training_assessment_answers')
@@ -1723,9 +1844,28 @@ async function gradeAttempt(attemptId, phoneNumber) {
 
   const { data: answers } = await supabase
     .from('training_assessment_answers')
-    .select('is_correct')
+    .select('is_correct, question_index, answer_score')
     .eq('attempt_id', attemptId);
-  const score = (answers || []).filter(a => a.is_correct === true).length;
+
+  // bd-60128 — a folded I-SAPS paper mixes auto-marked MCQs with ONE
+  // rubric-marked CRQ, so counting is_correct would score every CRQ zero. When
+  // an answer row carries a rubric mark, the mixed scorer runs instead: MCQs
+  // are worth 1 each, the CRQ its vendor's capstone_points_per_question.
+  const hasRubricMark = (answers || []).some(
+    a => a.answer_score !== null && a.answer_score !== undefined,
+  );
+  let score = (answers || []).filter(a => a.is_correct === true).length;
+  let mixedPossible = null;
+  if (hasRubricMark) {
+    const crqMax = await capstonePointsForLevel(attempt.level_id);
+    const mcqCount = Math.max(0, (Number(attempt.total_questions) || 0) - 1);
+    const mixed = scoreMixedPaper({ answers: answers || [], mcqCount, crqMaxPoints: crqMax });
+    score = mixed.earned;
+    mixedPossible = mixed.possible;
+    logToFile('🎓 Mixed paper scored (MCQs + rubric-marked CRQ)', {
+      attemptId, mcqCount, crqMax, earned: mixed.earned, possible: mixed.possible,
+    });
+  }
 
   if (attempt.quiz_kind === KIND_TRAINING_MODULE) {
     // bd-2390 — the module quiz is now a GATE, so it has a real pass/fail.
@@ -1852,7 +1992,9 @@ async function gradeAttempt(attemptId, phoneNumber) {
   // genuinely passed — across 30,996 historical attempts the source data
   // matches ">= 80 TALEEMABAD / >= 70 otherwise" for all but 4 rows.
   const examPassingPct = await getVendorPassingPctByLevel(attempt.level_id, 'exam');
-  const examTotal = attempt.total_questions || 0;
+  // bd-60128 — a mixed paper's denominator is MARKS, not questions: 8 MCQs
+  // plus a 10-mark CRQ is out of 18, not out of 9.
+  const examTotal = mixedPossible !== null ? mixedPossible : (attempt.total_questions || 0);
   const examPct = examTotal > 0 ? (score / examTotal) * 100 : 0;
   const isPassed = examTotal > 0 && examPct >= examPassingPct;
   const update = {
@@ -2005,6 +2147,7 @@ async function decideExamPass(levelId, score, totalQuestions) {
 module.exports = {
   startGrandQuiz,
   startModuleExam,
+  routeOpenEndedAnswer,
   startTrainingQuiz,
   sendQuestion,
   handleQuizButton,
