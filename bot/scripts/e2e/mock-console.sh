@@ -15,17 +15,19 @@ cleanup() { echo; echo "→ tearing down…"; bash "$HERE/local-stack.sh" down "
 trap cleanup INT TERM
 echo "→ starting the mock stack at ${SHA:0:12} (this takes ~30s)…"
 bash "$HERE/local-stack.sh" up "$SHA" "$RUN_DIR" || { echo "stack failed — see $RUN_DIR/*.log"; exit 1; }
-# register the synthetic teacher so the bot treats it as a known, registered user
+# register the synthetic teacher so the bot treats it as a known, registered user. The driver is PER MACHINE
+# (mock_driver.py, same as run-suite.sh) so two machines never share a row on the sandbox DB (bd-yj4e4).
+DRIVER="$(python3 "$REPO/.claude/qa/shared/mock_driver.py" 2>/dev/null || echo 923000000001)"
 K="$REPO/keys"; [ -f "$K/niete-local.env" ] || K="$(dirname "$REPO")/keys"
 if [ -f "$K/niete-local.env" ]; then
   eval "$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$K/niete-local.env" | sed 's/^SUPABASE_/export NIETE_SANDBOX_SUPABASE_/')"
-  python3 "$REPO/.claude/qa/shared/niete_sandbox_driver.py" ensure --phone 923000000001 --yes-write 2>/dev/null | tail -1 || true
+  python3 "$REPO/.claude/qa/shared/niete_sandbox_driver.py" ensure --phone "$DRIVER" --yes-write 2>/dev/null | tail -1 || true
 fi
 PORT="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["mock_url"])' "$RUN_DIR/stack.json")"
 echo
 echo "┌──────────────────────────────────────────────────────────────┐"
 echo "│  LIVE mock WhatsApp is up.  Open in a browser:               │"
-echo "│     $PORT/console"
+echo "│     $PORT/console?driver=$DRIVER"
 echo "│  Type, tap list rows/buttons, watch the local bot reply.     │"
 echo "│  Ctrl+C here to shut it down.                                 │"
 echo "└──────────────────────────────────────────────────────────────┘"

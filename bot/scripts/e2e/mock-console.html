@@ -56,7 +56,7 @@ footer{flex:0 0 auto;background:var(--panel);padding:9px 10px;display:flex;gap:8
  </footer>
 </div>
 <script>
-const DRIVER="923000000001", base="";
+const DRIVER=new URLSearchParams(location.search).get("driver")||"923000000001", base="";  // per-machine driver from mock-console.sh (?driver=…)
 let cursor=0, sending=false;
 const chat=document.getElementById("chat"), msg=document.getElementById("msg"), go=document.getElementById("go");
 const live=document.getElementById("live"), livetx=document.getElementById("livetx");

@@ -59,6 +59,20 @@ describe('e2e-cassette: keys', () => {
     expect(c.keyFor('llm', { a: 1 })).not.toBe(c.keyFor('tts', { a: 1 }));
     expect(c.keyFor('llm', { a: 1 })).not.toBe(c.keyFor('llm', { a: 2 }));
   });
+  // The mock lane's driver is PER MACHINE since 2026-09-18 (92300XXXXXXX, mock_driver.py). If a prompt ever
+  // carries it, a cassette recorded on one machine must still replay on another — fold the synthetic range
+  // to one token. Real-looking numbers are NOT folded: the chrome lane's driver is a real subscriber.
+  test('the synthetic mock-driver range (92300 + 7 digits) is folded, so cassettes are machine-independent', () => {
+    const c = fresh({});
+    const req = (n) => ({ messages: [{ role: 'user', content: `teacher ${n} asked for grade 6` }] });
+    expect(c.keyFor('llm', c.normaliseForKey(req('923006477804')))).toBe(c.keyFor('llm', c.normaliseForKey(req('923001234567'))));
+    expect(c.normaliseForKey(`from 923006477804.`)).toBe('from <driver>.');
+  });
+  test('a real-looking number outside the synthetic range is left alone', () => {
+    const c = fresh({});
+    expect(c.normaliseForKey('from 923295012345.')).toBe('from 923295012345.');
+    expect(c.normaliseForKey('from 92300123456.')).toBe('from 92300123456.');   // 11 digits: not the range
+  });
 });
 
 describe('e2e-cassette: wrap', () => {

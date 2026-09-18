@@ -29,12 +29,13 @@ DRIVER="" ENV="sandbox" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFL
 # --commit <sha> behind bot/scripts/e2e/mock-graph-api.js, on the sandbox DB, vendors replay-strict. No
 # Chrome, no WhatsApp number. Default chrome — every existing invocation is unchanged.
 # --spec-sync <brief.json|none> and --validator-exit <n> are provenance for the ledger row (phase 1).
-METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}"
+METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" PRINT_DRIVER=""
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
+  --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
   *) echo "unknown option $1"; exit 2;; esac; done
 if [ -z "$METHOD" ]; then METHOD=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where "env=$ENV" --where 'tenant~NIETE' --get method); METHOD="${METHOD:-chrome}"; fi
 case "$METHOD" in chrome|mock) ;; *) echo "ERROR: --method must be chrome or mock (got '$METHOD')"; exit 2;; esac
@@ -42,8 +43,13 @@ if [ "$METHOD" = mock ]; then
   [ "$ENV" = staging ] && ENV=sandbox      # the mock lane's DB is the sandbox; never staging or prod
   [ -n "$COMMIT" ] || COMMIT=$(git -C "$ROOT" rev-parse HEAD)
   COMMIT=$(git -C "$ROOT" rev-parse --verify "${COMMIT}^{commit}" 2>/dev/null) || { echo "ERROR: --commit $COMMIT is not a commit"; exit 2; }
+  # The mock driver is PER MACHINE (mock_driver.py: hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it).
+  # Two machines used to share the fixed yaml number on the same sandbox DB and interleave (bd-yj4e4).
+  # The yaml test_driver stays only as the last-resort fallback if the resolver itself cannot run.
+  [ -n "$DRIVER" ] || DRIVER=$(python3 "$QA/mock_driver.py" 2>/dev/null)
   [ -n "$DRIVER" ] || DRIVER=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where method=mock --get test_driver)
 fi
+if [ -n "$PRINT_DRIVER" ]; then [ -n "$DRIVER" ] && { echo "$DRIVER"; exit 0; } || { echo "ERROR: no driver resolved"; exit 2; }; fi
 [ -n "$DRIVER" ] || { echo "ERROR: --driver <digits> is required (the runner's OWN linked WhatsApp number — bd-2748)"; exit 2; }
 if [ -z "$TARGET" ]; then TARGET=$(python3 - "$ENV" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" <<'PY'
 import re,sys; env,path=sys.argv[1],sys.argv[2]; txt=open(path).read()
