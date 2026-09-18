@@ -18,6 +18,7 @@ import PortalDashboard from "./portal/pages/PortalDashboard";
 import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
 import PortalTraining from "./portal/pages/PortalTraining";
+import PortalTrainingV2 from "./portal/pages/PortalTrainingV2";
 import PortalCoaching from "./portal/pages/PortalCoaching";
 import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
 import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
@@ -98,6 +99,13 @@ const App = () => {
             />
             <Route path="/portal/classes" element={<PortalClasses />} />
             <Route path="/portal/curriculum" element={<PortalCurriculum />} />
+            {/* bd-60148 — the redesigned training page, HIDDEN. No nav entry
+                points here; it is reached by typing the URL while it is
+                reviewed. /portal/training below keeps serving the original
+                page unchanged, so rolling back is "don't ship the nav change"
+                rather than a revert. Listed first for readability only —
+                react-router v6 ranks by specificity, not source order. */}
+            <Route path="/portal/training/v2" element={<PortalTrainingV2 />} />
             <Route path="/portal/training" element={<PortalTraining />} />
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
