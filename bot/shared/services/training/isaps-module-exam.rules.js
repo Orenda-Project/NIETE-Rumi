@@ -132,10 +132,73 @@ function buildModuleExamSlot({
   };
 }
 
+
+/**
+ * bd-60124 — should finishing this module OFFER its exam instead of advancing?
+ *
+ * Reported from sandbox: completing the last unit of Module 1 delivered Unit
+ * 201's video instead of Module 1's exam. `onModuleCompleted` offers a
+ * capstone and then advances, and both assumptions are LEVEL-scoped —
+ * loadCapstoneQuiz looks for a level capstone and levelFullyComplete demands
+ * all 54 units — so an I-SAPS module exam is invisible to it.
+ *
+ * Gated on the vendor: NIETE, Beacon House and Oxbridge must reach `false`
+ * here and keep advancing exactly as they did.
+ *
+ * @param {object} input
+ * @param {string|null} input.vendorKey
+ * @param {number} input.unitsTotal
+ * @param {number} input.unitsDone
+ * @param {number} input.mcqCount
+ * @param {number} input.crqCount
+ * @param {boolean} [input.alreadyPassed]
+ * @returns {boolean}
+ */
+function shouldOfferModuleExam(input) {
+  if (!input) return false;
+  const {
+    vendorKey, unitsTotal, unitsDone, mcqCount, crqCount, alreadyPassed,
+  } = input;
+  if (String(vendorKey || '').trim().toUpperCase() !== 'ISAPS') return false;
+  if (alreadyPassed) return false;
+  const total = Number(unitsTotal) || 0;
+  const done = Number(unitsDone) || 0;
+  // 0/0 would otherwise read as "complete" and offer an exam for a module with
+  // no content yet.
+  if (total <= 0 || done < total) return false;
+  return (Number(mcqCount) || 0) + (Number(crqCount) || 0) > 0;
+}
+
+/**
+ * The message that offers a finished module's exam.
+ *
+ * It says the next module waits, because the bug this fixes was the teacher
+ * being swept onward: if the offer and the next unit's video arrive together,
+ * the video is what gets tapped.
+ *
+ * @param {object} input
+ * @param {string} input.moduleTitle
+ * @param {number} input.mcqCount
+ * @param {number} input.crqCount
+ * @returns {string}
+ */
+function moduleExamOfferMessage({ moduleTitle, mcqCount, crqCount }) {
+  const mcq = Number(mcqCount) || 0;
+  const crq = Number(crqCount) || 0;
+  const parts = [];
+  if (mcq > 0) parts.push(`${mcq} scenario question${mcq === 1 ? '' : 's'}`);
+  if (crq > 0) parts.push('1 written answer');
+  const what = parts.length ? parts.join(' and ') : 'the assessment';
+  return `🎓 *${moduleTitle}* — every session is done.\n\n`
+    + `The module exam is ${what}. The next module waits until you are ready.`;
+}
+
 module.exports = {
   PER_MODULE_SOURCE_BASE,
   moduleSourceQuizId,
   moduleFromSourceQuizId,
   isPerModuleQuiz,
   buildModuleExamSlot,
+  shouldOfferModuleExam,
+  moduleExamOfferMessage,
 };

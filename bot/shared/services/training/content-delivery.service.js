@@ -334,6 +334,86 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
  * @param {number} moduleId the module just credited
  * @param {string} phoneNumber
  */
+/**
+ * bd-60124 — offer a finished I-SAPS module's own exam.
+ *
+ * Returns true when an offer was SENT, which tells onModuleCompleted to hold
+ * the next module back. Returns false for every other vendor and for any
+ * module whose exam is not yet open, so their advancement is untouched.
+ *
+ * @returns {Promise<boolean>} true if an offer was sent
+ */
+async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
+  const {
+    shouldOfferModuleExam, moduleExamOfferMessage, moduleSourceQuizId,
+  } = require('./isaps-module-exam.rules');
+
+  const { data: mod } = await supabase
+    .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
+  if (!mod?.course_id) return false;
+  const { data: course } = await supabase
+    .from('training_courses').select('id, title, level_id').eq('id', mod.course_id).maybeSingle();
+  if (!course?.level_id) return false;
+  const { data: level } = await supabase
+    .from('training_levels').select('id, vendor_id').eq('id', course.level_id).maybeSingle();
+  if (!level) return false;
+  const { data: vendor } = await supabase
+    .from('training_vendors').select('key').eq('id', level.vendor_id).maybeSingle();
+
+  const m = /Module (\d+)/.exec(course.title || '');
+  if (!m) return false;
+  const srcId = moduleSourceQuizId(parseInt(m[1], 10));
+
+  const { data: quizzes } = await supabase
+    .from('training_grand_quizzes').select('id, quiz_type')
+    .eq('level_id', level.id).eq('source_quiz_id', srcId).eq('is_active', true);
+  const ids = (quizzes || []).map(q => q.id);
+  if (ids.length === 0) return false;
+
+  const { data: qs } = await supabase
+    .from('training_questions').select('id, grand_quiz_id')
+    .in('grand_quiz_id', ids).eq('is_active', true);
+  const typeById = new Map((quizzes || []).map(q => [q.id, q.quiz_type]));
+  let mcqCount = 0;
+  let crqCount = 0;
+  for (const q of qs || []) {
+    if (typeById.get(q.grand_quiz_id) === 'capstone') crqCount += 1;
+    else mcqCount += 1;
+  }
+
+  // This module's own units, not the level's.
+  const { data: units } = await supabase
+    .from('training_modules').select('id').eq('course_id', course.id).eq('is_active', true);
+  const unitIds = (units || []).map(u => u.id);
+  const { data: prog } = await supabase
+    .from('teacher_training_progress').select('module_id')
+    .eq('user_id', userId).in('module_id', unitIds.length ? unitIds : [-1]);
+  const doneIds = new Set((prog || []).map(p => p.module_id));
+
+  const { data: passedRows } = await supabase
+    .from('training_assessment_attempts').select('id')
+    .eq('user_id', userId).eq('is_passed', true)
+    .in('grand_quiz_id', ids);
+
+  if (!shouldOfferModuleExam({
+    vendorKey: vendor?.key,
+    unitsTotal: unitIds.length,
+    unitsDone: unitIds.filter(id => doneIds.has(id)).length,
+    mcqCount,
+    crqCount,
+    alreadyPassed: (passedRows || []).length > 0,
+  })) return false;
+
+  await WhatsAppService.sendInteractiveButtons(phoneNumber, {
+    body: moduleExamOfferMessage({ moduleTitle: course.title, mcqCount, crqCount }),
+    buttons: [{ id: `module_exam_start_${course.id}`, title: '📝 Take the exam' }],
+  });
+  logToFile('🎓 Offered the module exam', {
+    userId, moduleId, courseId: course.id, mcqCount, crqCount,
+  });
+  return true;
+}
+
 async function onModuleCompleted(userId, moduleId, phoneNumber) {
   // Capstone offer — fire-and-forget, never blocks forward progress. The
   // service itself checks vendor type, capstone existence, full completion and
@@ -343,6 +423,30 @@ async function onModuleCompleted(userId, moduleId, phoneNumber) {
     Promise.resolve(CapstoneDelivery.maybeOfferCapstone(userId, moduleId, phoneNumber))
       .catch((err) => logToFile('⚠️ Non-blocking capstone offer failed', { moduleId, error: err?.message }));
   }
+
+  // bd-60124 — the I-SAPS end-of-MODULE exam.
+  //
+  // Reported from sandbox: finishing Unit 106 delivered Unit 201's video
+  // instead of Module 1's exam. The capstone offer above cannot cover it —
+  // loadCapstoneQuiz looks for a LEVEL capstone and levelFullyComplete demands
+  // every unit of the level, so a per-module quiz (bd-60119) is invisible to
+  // it.
+  //
+  // This runs BEFORE advancement and, when it fires, RETURNS — holding the next
+  // module back. Awaited, not fire-and-forget, for the same reason: if the offer
+  // and the next unit's video arrive together, the video is what gets tapped,
+  // which is precisely the bug.
+  try {
+    const offered = await maybeOfferModuleExam(userId, moduleId, phoneNumber);
+    if (offered) return true;
+  } catch (err) {
+    // Never block progress on this. A teacher who does not get the offer can
+    // still open the module and start the exam from the level screen.
+    logToFile('⚠️ Module-exam offer failed — advancing instead', {
+      moduleId, error: err?.message,
+    });
+  }
+
   return advanceAfterModule(userId, moduleId, phoneNumber);
 }
 
