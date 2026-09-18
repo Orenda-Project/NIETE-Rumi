@@ -42,27 +42,29 @@ describe('bd-60128 — selectPaperWithOneCrq', () => {
     CRQ(101, 901), CRQ(102, 902), CRQ(103, 903), CRQ(104, 904),
   ];
 
-  test('serves every MCQ and exactly ONE CRQ', () => {
+  test('serves the sampled MCQs and exactly ONE CRQ', () => {
+    // bd-60141 — "every MCQ" became "2 MCQs" per ISAPS §5.1. The ONE-CRQ half
+    // of the rule, which this file is about, is unchanged.
     const paper = selectPaperWithOneCrq(BANK, 'attempt-a');
-    expect(paper).toHaveLength(9);
+    expect(paper).toHaveLength(3);
     expect(paper.filter(q => q.correct_option === '').length).toBe(1);
   });
 
   test('the CRQ is last', () => {
     const paper = selectPaperWithOneCrq(BANK, 'attempt-a');
-    expect(paper[8].correct_option).toBe('');
+    expect(paper.at(-1).correct_option).toBe('');
   });
 
   test('stable within an attempt — a resume shows the same CRQ', () => {
-    const a = selectPaperWithOneCrq(BANK, 'attempt-a')[8].id;
-    const b = selectPaperWithOneCrq(BANK, 'attempt-a')[8].id;
+    const a = selectPaperWithOneCrq(BANK, 'attempt-a').at(-1).id;
+    const b = selectPaperWithOneCrq(BANK, 'attempt-a').at(-1).id;
     expect(a).toBe(b);
   });
 
   test('a re-sit can draw a different scenario (doc §5.3)', () => {
     const seen = new Set();
     for (let i = 0; i < 60; i += 1) {
-      seen.add(selectPaperWithOneCrq(BANK, `attempt-${i}`)[8].id);
+      seen.add(selectPaperWithOneCrq(BANK, `attempt-${i}`).at(-1).id);
     }
     expect(seen.size).toBeGreaterThan(1);
   });
@@ -79,7 +81,8 @@ describe('bd-60128 — selectPaperWithOneCrq', () => {
 
   test('MCQ order is never disturbed by the CRQ draw', () => {
     const paper = selectPaperWithOneCrq(BANK, 'attempt-zzz');
-    expect(paper.slice(0, 8).map(q => q.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    const ids = paper.slice(0, -1).map(q => q.id);
+    expect(ids).toEqual([...ids].sort((a, b) => a - b));
   });
 });
 

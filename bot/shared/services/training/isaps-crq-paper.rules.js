@@ -69,6 +69,17 @@ function isOpenEndedQuestion(q) {
  * @param {string} attemptId
  * @returns {Array<object>} zero or one question
  */
+/**
+ * How many scenario MCQs a module's summative paper carries.
+ *
+ * ISAPS process document §5.1: "The Summative Assessment score is itself
+ * calculated for two Scenario-Based MCQs (2 marks @ 1 mark for each MCQ) and
+ * one CRQ (10 marks)." So the paper is 3 questions / 12 marks, drawn from a
+ * per-module bank that is deliberately larger (Module 1 holds 8 MCQs and 4
+ * CRQs) — the surplus is what makes a §5.5 re-attempt possible.
+ */
+const MODULE_EXAM_MCQ_COUNT = 2;
+
 function pickOneCrq(bank, attemptId) {
   const items = Array.isArray(bank) ? bank.filter(Boolean) : [];
   if (items.length === 0) return [];
@@ -88,9 +99,21 @@ function pickOneCrq(bank, attemptId) {
  * @param {string} attemptId
  * @returns {Array<object>}
  */
+function pickMcqs(bank, attemptId, count = MODULE_EXAM_MCQ_COUNT) {
+  const items = Array.isArray(bank) ? bank.filter(Boolean) : [];
+  if (items.length <= count) return items;
+  const drawn = seededShuffle(items, `${attemptId}:mcq-select`).slice(0, count);
+  // WHICH two are drawn is random; the ORDER they are asked in is the authored
+  // one. The shuffle picks the sample, it does not decide presentation — a
+  // teacher should meet the module's scenarios in the sequence ISAPS wrote
+  // them. Nothing downstream depends on this (answers are keyed by position in
+  // the paper, not order_index), so it is purely about how the exam reads.
+  const rank = new Map(items.map((q, i) => [q, i]));
+  return drawn.sort((a, b) => rank.get(a) - rank.get(b));
+}
+
 function buildMixedPaper(mcqs, crqBank, attemptId) {
-  const front = Array.isArray(mcqs) ? [...mcqs] : [];
-  return [...front, ...pickOneCrq(crqBank, attemptId)];
+  return [...pickMcqs(mcqs, attemptId), ...pickOneCrq(crqBank, attemptId)];
 }
 
 /**
@@ -164,6 +187,8 @@ function isTextAnswerForOpenQuestion(text, currentQuestion) {
 }
 
 module.exports = {
+  MODULE_EXAM_MCQ_COUNT,
+  pickMcqs,
   isOpenEndedQuestion,
   pickOneCrq,
   buildMixedPaper,

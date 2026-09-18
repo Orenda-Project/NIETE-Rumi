@@ -107,19 +107,26 @@ describe('bd-60128 — buildMixedPaper', () => {
   const CRQS = [CRQ(101, 91), CRQ(102, 92)];
 
   test('the CRQ comes LAST — the written answer closes the exam', () => {
+    // bd-60141 — the paper is now SAMPLED to 2 MCQs + 1 CRQ, so its length is
+    // 3 rather than every-MCQ + 1. What this test guards is position, not
+    // size: the written answer must close the exam.
     const paper = buildMixedPaper(MCQS, CRQS, 'attempt-a');
-    expect(paper).toHaveLength(4);
+    expect(paper).toHaveLength(3);
     expect(isOpenEndedQuestion(paper[paper.length - 1])).toBe(true);
-    expect(paper.slice(0, 3).every(q => !isOpenEndedQuestion(q))).toBe(true);
+    expect(paper.slice(0, -1).every(q => !isOpenEndedQuestion(q))).toBe(true);
   });
 
   test('MCQ order is preserved', () => {
+    // bd-60141 — WHICH MCQs are drawn is sampled; the order they are ASKED in
+    // is still the authored one. So this asserts ascending ids, not [1,2,3].
     const paper = buildMixedPaper(MCQS, CRQS, 'attempt-a');
-    expect(paper.slice(0, 3).map(q => q.id)).toEqual([1, 2, 3]);
+    const mcqIds = paper.slice(0, -1).map(q => q.id);
+    expect(mcqIds).toEqual([...mcqIds].sort((a, b) => a - b));
   });
 
   test('a module with no CRQ is just its MCQs — no empty slot', () => {
-    expect(buildMixedPaper(MCQS, [], 'a')).toHaveLength(3);
+    // bd-60141 — "its MCQs" is now the 2 sampled ones, not all of them.
+    expect(buildMixedPaper(MCQS, [], 'a')).toHaveLength(2);
   });
 
   test('a module with only a CRQ is a one-question paper', () => {
