@@ -26,6 +26,13 @@ import type { SchoolAnalyticsResponse } from '../types/portal';
  * goal1_total in this deployment's data, so each one would render a confident
  * 0%. The domains here are whatever the sessions actually contain.
  */
+/**
+ * bd-60121 — how many lessons the Analytics panel previews before handing off
+ * to the full page. Five covers the median school (5 rows on prod) while the
+ * p90 of 13 and the 63-row tail go to /portal/leader/lessons.
+ */
+const LESSON_PREVIEW = 5;
+
 const SchoolAnalytics = () => {
   const [data, setData] = useState<SchoolAnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -194,20 +201,45 @@ const SchoolAnalytics = () => {
           )}
         </header>
 
-        {/* Roster KPIs render even with no coaching yet: "18 teachers, 5 on
-            Rumi" is useful on its own, and is the state 6 of 40 sampled
-            schools are actually in. */}
+        {/* bd-60122 — the row says ONE scope at a time. Filtered, it used to mix
+            two and announce neither: totalTeachers/onRumi came from the whole
+            school while totalLessonPlans was already scoped to the selection,
+            so three cards described her and one described the school. Four
+            cards in a row read as sharing a scope, which made it misleading
+            rather than merely redundant. */}
+        <p data-testid="kpi-scope" className="text-xs text-muted-foreground mb-2">
+          {focusTeacher ? `${focusTeacher.name}'s numbers` : 'Across the whole school'}
+        </p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-5 h-5 text-accent" />
-              <span className="text-sm text-muted-foreground">Teachers</span>
+          {focusTeacher ? (
+            // Her equivalent of the roster card: how many lessons a coach has
+            // actually sat in on. "19 teachers · 17 on NIETE" says nothing
+            // about her.
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5 text-accent" />
+                <span className="text-sm text-muted-foreground">Observed lessons</span>
+              </div>
+              <div data-testid="kpi-observed" className="text-3xl font-bold">
+                {analytics.totalSessions}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">a coach sat in</p>
             </div>
-            <div data-testid="kpi-teachers" className="text-3xl font-bold">
-              {school.totalTeachers}
+          ) : (
+            // Roster KPIs render even with no coaching yet: "18 teachers, 5 on
+            // NIETE" is useful on its own, and is the state 6 of 40 sampled
+            // schools are actually in.
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5 text-accent" />
+                <span className="text-sm text-muted-foreground">Teachers</span>
+              </div>
+              <div data-testid="kpi-teachers" className="text-3xl font-bold">
+                {school.totalTeachers}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{school.onRumi} on NIETE</p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{school.onRumi} on Rumi</p>
-          </div>
+          )}
 
           <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
             <div className="flex items-center gap-2 mb-2">
@@ -266,13 +298,13 @@ const SchoolAnalytics = () => {
             </Link>
           </div>
           <p data-testid="presence-help" className="text-muted-foreground text-sm mb-6">
-            From the registers marked on Rumi. Teacher and student attendance are kept
+            From the registers marked on NIETE. Teacher and student attendance are kept
             separate — a teacher is not marked down for children kept home.
           </p>
 
           {presence.teacher.presentPct == null && presence.student.presentPct == null ? (
             <p data-testid="presence-empty" className="text-muted-foreground text-sm">
-              No attendance has been marked yet. Once registers are taken on Rumi,
+              No attendance has been marked yet. Once registers are taken on NIETE,
               teacher and student attendance will show here.
             </p>
           ) : (
@@ -383,7 +415,7 @@ const SchoolAnalytics = () => {
           >
             <h2 className="text-lg font-medium mb-2">No coaching sessions yet</h2>
             <p className="text-muted-foreground text-sm">
-              Once your teachers record a coaching session on Rumi, their scores and the
+              Once your teachers record a coaching session on NIETE, their scores and the
               areas to focus on will show up here.
             </p>
           </div>
@@ -464,14 +496,27 @@ const SchoolAnalytics = () => {
               data-testid="coaching-history"
               className="bg-white rounded-lg shadow-sm border border-border overflow-hidden mb-8"
             >
-              <div className="p-6 pb-3">
-                <h2 className="text-2xl font-light">Every observed lesson</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Newest first. Each row is one lesson a coach sat in on and scored.
-                </p>
+              <div className="p-6 pb-3 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-light">Recent observed lessons</h2>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Newest first. Each row is one lesson a coach sat in on and scored.
+                  </p>
+                </div>
+                {/* bd-60121 — a preview, not the archive. Prod has a school at
+                    63 lessons and the list grows as observation coverage
+                    improves, so the full list has its own page rather than a
+                    cap that hides the tail. */}
+                <Link
+                  to={`/portal/leader/lessons${focusTeacher ? `?teacherId=${focusTeacher.id}` : ''}`}
+                  data-testid="lessons-detail-link"
+                  className="text-sm font-medium text-accent hover:underline whitespace-nowrap shrink-0"
+                >
+                  See all {analytics.scoreTrend.length} →
+                </Link>
               </div>
               <ul className="divide-y divide-border">
-                {[...analytics.scoreTrend].reverse().map((p, i) => (
+                {[...analytics.scoreTrend].reverse().slice(0, LESSON_PREVIEW).map((p, i) => (
                   <li
                     key={`${p.date}-${i}`}
                     data-testid={`history-row-${i}`}

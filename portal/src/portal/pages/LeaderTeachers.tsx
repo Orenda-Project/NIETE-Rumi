@@ -34,7 +34,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Observations and self-recorded sessions are different acts — name both. */
 function teacherActivityLine(t: LeaderPatchTeacher): string {
-  if (!t.onRumi) return "Not yet on Rumi";
+  if (!t.onRumi) return "Not yet on NIETE";
   const bits: string[] = [];
   if (t.observations > 0) bits.push(plural(t.observations, "observation"));
   bits.push(plural(t.coachingSessions, "session"));
@@ -83,7 +83,7 @@ const LeaderTeachers = () => {
           <h1 className="text-3xl font-light">Teachers</h1>
           {!loading && (
             <p className="text-muted-foreground mt-2">
-              {summary.total} teacher{summary.total === 1 ? "" : "s"} in your patch · {summary.onRumi}/{summary.total} on Rumi
+              {summary.total} teacher{summary.total === 1 ? "" : "s"} in your patch · {summary.onRumi}/{summary.total} on NIETE
             </p>
           )}
         </header>
