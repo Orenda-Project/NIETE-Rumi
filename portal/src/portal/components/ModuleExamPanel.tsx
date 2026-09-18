@@ -33,7 +33,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { GraduationCap, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { GraduationCap, Loader2, CheckCircle2, XCircle, Clock, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -73,11 +73,19 @@ export default function ModuleExamPanel({
   courseId,
   exam,
   onPassed,
+  asListRow = false,
 }: {
   courseId: string;
   exam: ExamGate | null;
   /** Fired once the exam is PASSED, so the page can unlock what follows. */
   onPassed?: () => void;
+  /**
+   * Render the idle/locked states as a ROW inside the unit list rather than a
+   * card beneath it — which is where a teacher actually looks for the exam
+   * that follows a module's last unit. Once the paper is open the full panel
+   * takes over regardless, because a list row cannot hold a textarea.
+   */
+  asListRow?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
@@ -148,6 +156,18 @@ export default function ModuleExamPanel({
   // Gate closed: say what the gate says, in its own words.
   if (!exam.available && phase === 'idle') {
     if (!exam.body?.trim()) return null;
+    if (asListRow) {
+      return (
+        <div
+          className="w-full rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 opacity-60"
+          data-testid="module-exam-locked"
+        >
+          <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="flex-1 text-[15px] truncate text-muted-foreground">Module exam</span>
+          <span className="text-sm text-muted-foreground shrink-0">Locked</span>
+        </div>
+      );
+    }
     return (
       <div className="border-t pt-4" data-testid="module-exam-locked">
         <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4">
@@ -163,8 +183,23 @@ export default function ModuleExamPanel({
     );
   }
 
+  if (asListRow && phase === 'idle') {
+    return (
+      <button
+        type="button"
+        onClick={start}
+        data-testid="module-exam-start"
+        className="w-full text-left rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 transition-colors hover:bg-muted/50 ring-1 ring-primary/30 bg-primary/5"
+      >
+        <GraduationCap className="w-4 h-4 text-primary shrink-0" />
+        <span className="flex-1 text-[15px] truncate font-semibold text-foreground">Module exam</span>
+        <span className="text-sm text-primary shrink-0">{exam.cta?.trim() || 'Take the exam'}</span>
+      </button>
+    );
+  }
+
   return (
-    <div className="border-t pt-4" data-testid="module-exam-panel">
+    <div className={asListRow ? 'px-3.5 py-3' : 'border-t pt-4'} data-testid="module-exam-panel">
       {phase === 'idle' && (
         <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-4">
           <GraduationCap className="h-5 w-5 mt-0.5 text-primary shrink-0" />
