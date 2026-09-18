@@ -18,6 +18,7 @@ cannot mistake them for the same kind of drift:
 """
 import unittest
 
+import house
 import sheetio
 
 
@@ -159,12 +160,15 @@ class BaseTextFormat(unittest.TestCase):
         self.assertEqual(f["wrapStrategy"], "WRAP")
         self.assertEqual(f["verticalAlignment"], "TOP")
 
-    def test_data_size_is_a_documented_deviation_from_the_spec_nine(self):
-        # Held at 10 on purpose: §5.2 says 9, and the reviewer asked for an
-        # easier read, not a denser one. Asserted so a future pass that
-        # conforms it has to change this test and read the reason.
+    def test_data_is_the_spec_nine(self):
+        # This test used to assert 10 and carry the reason for it, so that any
+        # pass conforming the size had to read the reason first. It worked:
+        # Amena read it and chose 9 on 2026-09-18. Kept as a conformance check
+        # rather than deleted — the grid font is what makes every data row on
+        # every tab the same size, and nothing else asserts it.
         self.assertEqual(fmt_for(self.reqs, 0, 12)["textFormat"]["fontSize"],
-                         10)
+                         house.DATA_PT)
+        self.assertEqual(house.DATA_PT, 9)
 
 
 class HeaderHeightDeviation(unittest.TestCase):

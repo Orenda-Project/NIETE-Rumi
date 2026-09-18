@@ -64,7 +64,7 @@ def data_rows(rows):
     """The definition rows: header, banners and the trailing blocks dropped."""
     return [r for r in rows[1:] if r[0] in
             ("English", "Urdu", "Maths", "Science") and r[1] not in
-            ("the CPA ramp", "skill type vs cpa_phase")]
+            ("the CPA ramp", "this build's ramp", "skill type vs cpa_phase")]
 
 
 class TheTaxonomyDefinesAndDoesNotCount(unittest.TestCase):

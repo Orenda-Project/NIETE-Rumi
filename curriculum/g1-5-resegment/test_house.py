@@ -42,12 +42,12 @@ class TheSpecNumbers(unittest.TestCase):
     def test_headers_are_10pt_bold(self):
         self.assertEqual(house.HEAD_PT, 10)
 
-    def test_data_is_held_at_10_and_says_why(self):
-        # §5.2 asks for 9. Held at 10 deliberately — the reviewer reads this
-        # workbook on a laptop and asked for an easier read, not a denser one.
-        self.assertEqual(house.DATA_PT, 10)
-        self.assertIn("9", house.__doc__)
-        self.assertIn("denser", house.__doc__)
+    def test_data_is_arial_9_per_section_5_2(self):
+        # Held at 10 for a while because a laptop reader had asked for an
+        # easier read. Amena took the call on 2026-09-18: go to 9. It is the
+        # spec value, so this is now a plain conformance test with no note to
+        # keep in step — which is the state a deviation should end in.
+        self.assertEqual(house.DATA_PT, 9)
 
 
 class NoFormatterKeepsItsOwnCopy(unittest.TestCase):

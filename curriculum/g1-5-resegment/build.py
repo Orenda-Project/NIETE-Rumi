@@ -12,6 +12,7 @@ import calfmt
 import caltab
 import covfmt
 import covtab
+import cpafind
 import fdefmt
 import flntab
 import navtab
@@ -202,8 +203,12 @@ def main():
                                    first_row=head + 1))
 
     tax, head = sheetio.titled(
+        # The ramp is computed here, off the corpus this run transformed,
+        # and handed in as an argument. The tab states the figures; it never
+        # holds them — see `cpafind` for the build that outran its own prose.
         support.skill_taxonomy(
-            all_rows, sum(b[2]["cpa_conflicts"] for b in all_books)),
+            all_rows, sum(b[2]["cpa_conflicts"] for b in all_books),
+            cpafind.ramp(corpus)),
         "SKILL TAXONOMY",
         "One Skill type column for all four subjects, CPA included rather "
         "than run in parallel. Same colour, same kind of cognitive work, "

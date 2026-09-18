@@ -1,6 +1,7 @@
 """Support tabs: Navigation, Skill Taxonomy, Pipeline Stages, All Segments + SLOs."""
 from collections import defaultdict
 
+import cpafind
 import skills
 import tabs
 from fdetab import book_label
@@ -33,7 +34,7 @@ STAGES = [
     ("F", "Deliver", "Reviewed LP", "PDF + voice note to the teacher", "pending", "No delivery message in primary — the voice note goes instead"),
 ]
 
-def skill_taxonomy(all_rows, cpa_conflicts=0):
+def skill_taxonomy(all_rows, cpa_conflicts=0, cpa_ramp=None):
     """One vocabulary per subject, in teaching order, with its chip colour.
 
     Definitions, not a tally. There was a `Days` column here; it restated the
@@ -49,6 +50,12 @@ def skill_taxonomy(all_rows, cpa_conflicts=0):
     CPA lives here, in its own column, rather than in a second column on every
     Maths row: for Maths the skill type IS the CPA phase, so the subject tab
     carries one chip and this tab says what that chip means in CPA terms.
+
+    `cpa_ramp` is the one tally this tab does carry, and it is a computed
+    argument rather than anything read here — `cpafind.ramp(corpus)` off the
+    Coverage Map's own count. Omitted, the ramp block is not printed: a caller
+    with no corpus in hand gets silence, never a ramp inferred from part of a
+    build.
     """
     used, grades = defaultdict(set), defaultdict(set)
     for r in all_rows:
@@ -80,6 +87,7 @@ def skill_taxonomy(all_rows, cpa_conflicts=0):
                         "defined here — the build's skill-type vocabulary; "
                         "grades as segmented"])
     out += cpa_pointer()
+    out += cpafind.finding(cpa_ramp, TAX_COLS)
     if cpa_conflicts:
         # The count sits in the sentence now. It is a tally, not a definition,
         # so it has no column to sit in on this tab — and it is the one number
@@ -111,18 +119,29 @@ def cpa_pointer():
     Concrete 36 / 15 / 15 / 11 / 33 and Abstract 11 / 7 / 3 / 16 / 3, and the
     sentence still said Concrete 36 / 6 / 1 / 0 / 33 and Abstract nowhere at
     all. A stale number in prose is read as a finding, not as a cache.
+
+    The finding is back under this pointer, and the row that carries it is
+    built by `cpafind` from the Coverage Map's own tally as the sheet is
+    written. What is forbidden is a number TYPED here, not a number stated
+    here: this function stays count-free and its prose is asserted to hold no
+    digit, so the only path a phase count has onto this tab is the computed
+    one. Read the two rows in order \u2014 this one says how to read the ramp, the
+    one below says what this build's ramp is.
     """
     return [[""] * TAX_COLS,
             ["READ THIS"] + [""] * (TAX_COLS - 1),
             ["Maths", "the CPA ramp", "1\u20135", "",
              "Reading down a phase is the point: if Concrete empties out while "
              "the grade level rises, children are being handed symbols they "
-             "never held. The days are counted per grade on the COVERAGE MAP "
-             "tab and drawn against the year on the SKILLS MAP tab; this tab "
-             "does not restate them, because a phase count kept in two places "
-             "is a phase count that disagrees with itself. Where the ramp "
-             "thins, that is a boundary decision for the rebuild pass to "
-             "settle against the page text, not a labelling error.",
+             "never held, and if Abstract never arrives they are left short of "
+             "the symbol altogether. The days are counted per grade on the "
+             "COVERAGE MAP tab and drawn against the year on the SKILLS MAP "
+             "tab. The row below states what this build's ramp is, computed "
+             "from that same tally while the sheet is written \u2014 never typed "
+             "in, because a phase count typed into a sentence goes stale while "
+             "still reading like a finding. Where the ramp thins, that is a "
+             "boundary decision for the rebuild pass to settle against the "
+             "page text, not a labelling error.",
              "measured on the Coverage Map and the Skills Map"]]
 
 
