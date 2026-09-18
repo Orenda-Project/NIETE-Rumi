@@ -1,0 +1,255 @@
+/**
+ * The most common thing a NIETE teacher waits on is the one thing /status could
+ * not see.
+ *
+ * `listActiveResources` probes `lesson_plan_requests`. The 6-12 path — the Flow
+ * picker, which is how lesson plans are actually requested here — does not write
+ * there. It claims a row in `niete_lp612_renders` with status 'authoring' and
+ * parks the teacher in that row's `waiters` array. Measured on production over
+ * seven days: 18,196 rows written by the path a teacher uses, 25 by the table
+ * /status reads. For the ~2 minutes she is genuinely waiting, the surface built
+ * to answer "what is running" answered "nothing".
+ *
+ * WHY `waiters` AND NOT `requested_by`. One render serves every teacher who taps
+ * the same lesson while it is being authored — the second tapper is appended to
+ * `waiters` by `lp612_join_waiters` and never becomes `requested_by`. She is
+ * waiting just as much as the first. Reading `requested_by` would have shown the
+ * lesson to exactly one of them. The claim path writes the requester INTO
+ * `waiters` (lp612-serving.service.js, the insert at the miss branch), so
+ * containment covers both without a second clause.
+ *
+ * LISTED, NEVER OFFERED. A render is shared: stopping it would discard a lesson
+ * other teachers are queued behind. So the item is summary-only, like training —
+ * it appears in "You have N things running" and emits no tappable row.
+ *
+ * TDD: written before the implementation.
+ */
+
+const RENDERS = 'niete_lp612_renders';
+const SEGMENTS = 'niete_lp612_segments';
+
+// `contains` is in this list because the probe filters `waiters` with it. Every
+// other probe in the service shares this mock, so the list is the union.
+const CHAIN_METHODS = [
+  'select', 'insert', 'update', 'delete',
+  'eq', 'in', 'is', 'not', 'gte', 'lte', 'contains', 'order', 'limit',
+];
+
+function chainResolving(byTable) {
+  return (table) => {
+    const result = { data: byTable[table] || [], error: null };
+    const chain = {};
+    for (const m of CHAIN_METHODS) chain[m] = jest.fn(() => chain);
+    chain.single = jest.fn().mockResolvedValue(result);
+    chain.then = (resolve) => resolve(result);
+    chain.__table = table;
+    return chain;
+  };
+}
+
+/**
+ * A chain that records one method's arguments and answers every table from
+ * `data`. `omit` drops the spied method from the pass-through list so the spy is
+ * the only definition of it.
+ */
+function spyChain({ method, sink, data }) {
+  return (table) => {
+    const chain = {};
+    for (const m of CHAIN_METHODS) {
+      if (m === method) continue;
+      chain[m] = jest.fn(() => chain);
+    }
+    chain[method] = jest.fn((...args) => { sink.push({ table, args }); return chain; });
+    chain.then = (resolve) => resolve({ data: data[table] || [], error: null });
+    return chain;
+  };
+}
+
+function load({ activeState = null, tables = {}, fromImpl = null } = {}) {
+  jest.resetModules();
+  jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+  jest.doMock('../../bot/shared/config/supabase', () => ({
+    from: jest.fn((table) => (fromImpl ? fromImpl(table) : chainResolving(tables)(table))),
+  }));
+  jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
+    isAvailable: () => false,
+    redis: { get: jest.fn().mockResolvedValue(null), del: jest.fn() },
+  }));
+  jest.doMock('../../bot/shared/services/conversation-state.service', () => ({
+    getState: jest.fn().mockResolvedValue(activeState),
+    setState: jest.fn().mockResolvedValue(activeState),
+    clearState: jest.fn().mockResolvedValue(true),
+  }));
+
+  return {
+    TeacherState: require('../../bot/shared/services/teacher-state.service'),
+    endpoint: require('../../bot/shared/routes/status-flow-endpoint'),
+  };
+}
+
+const RENDER = { id: 'rnd-1', segment_id: 'seg-9', started_at: new Date().toISOString() };
+const SEGMENT = { segment_id: 'seg-9', menu_title: 'World War I: Causes' };
+
+const COACHING = {
+  flow: 'coaching', step: 'AWAITING_CLASSROOM_AUDIO', payload: {}, stack: [], version: 1,
+};
+
+const lp612Of = (items) => items.filter((i) => String(i.id).startsWith('lp612_'));
+
+describe('/status sees a 6-12 lesson plan being authored', () => {
+  it('lists the render that is in flight', async () => {
+    const { TeacherState } = load({ tables: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } });
+
+    const found = lp612Of(await TeacherState.listActiveResources('u-1'));
+    expect(found).toHaveLength(1);
+    expect(found[0].refId).toBe('rnd-1');
+    expect(found[0].kind).toBe('lesson_plan');
+  });
+
+  it('names the lesson, so the bullet is worth reading', async () => {
+    const { TeacherState } = load({ tables: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } });
+
+    const [item] = lp612Of(await TeacherState.listActiveResources('u-1'));
+    expect(item.title).toBe('Lesson plan · World War I: Causes');
+  });
+
+  it('still names it when the segment lookup returns nothing, rather than rendering undefined', async () => {
+    const { TeacherState } = load({ tables: { [RENDERS]: [RENDER], [SEGMENTS]: [] } });
+
+    const [item] = lp612Of(await TeacherState.listActiveResources('u-1'));
+    expect(item.title).toBe('Lesson plan');
+    expect(item.title).not.toMatch(/undefined|null|NaN/);
+  });
+
+  // THE LEAK GUARD, and the reason this probe cannot be a bare status filter.
+  // `authoring` is a deployment-wide state: without this clause every teacher who
+  // sent /status would be shown whatever lesson any other teacher happened to be
+  // waiting on.
+  it('asks only for renders THIS teacher is waiting on', async () => {
+    const seen = [];
+    const { TeacherState } = load({
+      fromImpl: spyChain({ method: 'contains', sink: seen, data: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } }),
+    });
+    await TeacherState.listActiveResources('u-77');
+
+    const call = seen.find((c) => c.table === RENDERS);
+    expect(call).toBeDefined();
+    expect(call.args[0]).toBe('waiters');
+    expect(call.args[1]).toEqual([{ user_id: 'u-77' }]);
+  });
+
+  // A render is 'ready' the moment the PDF exists and 'failed' when it gave up.
+  // Both keep the row. Dropping this clause turns "being prepared" into "every
+  // lesson plan she has ever been served".
+  it('asks only for renders still being authored', async () => {
+    const seen = [];
+    const { TeacherState } = load({
+      fromImpl: spyChain({ method: 'eq', sink: seen, data: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } }),
+    });
+    await TeacherState.listActiveResources('u-1');
+
+    const call = seen.find((c) => c.table === RENDERS && c.args[0] === 'status');
+    expect(call).toBeDefined();
+    expect(call.args[1]).toBe('authoring');
+  });
+
+  // Authoring takes about two minutes. A row still 'authoring' hours later is a
+  // stranded run the sweeper has not reached yet, not work she is waiting on —
+  // telling her it is running would be a lie with a clock on it.
+  it('bounds the window at thirty minutes', async () => {
+    const seen = [];
+    const { TeacherState } = load({
+      fromImpl: spyChain({ method: 'gte', sink: seen, data: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } }),
+    });
+    await TeacherState.listActiveResources('u-1');
+
+    const call = seen.find((c) => c.table === RENDERS);
+    expect(call).toBeDefined();
+    expect(call.args[0]).toBe('started_at');
+
+    const minutesAgo = (Date.now() - Date.parse(call.args[1])) / 60_000;
+    expect(minutesAgo).toBeGreaterThan(29);
+    expect(minutesAgo).toBeLessThan(31);
+  });
+
+  it('stops at two, so one teacher cannot flood the screen', async () => {
+    const seen = [];
+    const { TeacherState } = load({
+      fromImpl: spyChain({ method: 'limit', sink: seen, data: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } }),
+    });
+    await TeacherState.listActiveResources('u-1');
+
+    const call = seen.find((c) => c.table === RENDERS);
+    expect(call).toBeDefined();
+    expect(call.args[0]).toBe(2);
+  });
+
+  it('does not query the segment table when nothing is in flight', async () => {
+    const touched = [];
+    const { TeacherState } = load({
+      fromImpl: (table) => {
+        touched.push(table);
+        return chainResolving({})(table);
+      },
+    });
+    await TeacherState.listActiveResources('u-1');
+
+    expect(touched).toContain(RENDERS);
+    expect(touched).not.toContain(SEGMENTS);
+  });
+});
+
+describe('the 6-12 entry is listed, never offered as a tap', () => {
+  it('is marked summary-only', async () => {
+    const { TeacherState } = load({ tables: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } });
+
+    const [item] = lp612Of(await TeacherState.listActiveResources('u-1'));
+    expect(item.summaryOnly).toBe(true);
+  });
+
+  it('is counted and bulleted on the Flow screen but emits no selectable row', async () => {
+    const { endpoint } = load({ tables: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } });
+    const res = await endpoint.handleStatusFlowInit('u-1');
+
+    expect(res.screen).toBe('MAIN');
+    expect(res.data.summary_heading).toBe('You have 1 thing running right now.');
+    expect(res.data.summary_body).toContain('World War I: Causes');
+
+    expect(res.data.resources.map((r) => r.id)).toEqual(['done']);
+  });
+
+  // It must not cost the coaching pair its taps on the way in.
+  it('sits alongside a live coaching wait without disturbing it', async () => {
+    const { endpoint } = load({
+      tables: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] },
+      activeState: COACHING,
+    });
+    const res = await endpoint.handleStatusFlowInit('u-1');
+
+    const ids = res.data.resources.map((r) => r.id);
+    expect(ids).toEqual(expect.arrayContaining(['resume_flow_coaching', 'cancel_flow_coaching', 'done']));
+    expect(res.data.resources).toHaveLength(3);
+    expect(res.data.summary_heading).toBe('You have 2 things running right now.');
+  });
+});
+
+describe('the probe degrades rather than taking /status down', () => {
+  it('a failing render query leaves the other sources intact', async () => {
+    const { TeacherState } = load({
+      fromImpl: (table) => {
+        if (table === RENDERS) throw new Error('renders unavailable');
+        const chain = {};
+        for (const m of CHAIN_METHODS) chain[m] = jest.fn(() => chain);
+        chain.then = (resolve) => resolve({
+          data: table === 'quizzes' ? [{ id: 'q-1', topic: 'Fractions' }] : [],
+          error: null,
+        });
+        return chain;
+      },
+    });
+
+    const items = await TeacherState.listActiveResources('u-1');
+    expect(lp612Of(items)).toHaveLength(0);
+    expect(items.some((i) => i.kind === 'quiz')).toBe(true);
+  });
+});
