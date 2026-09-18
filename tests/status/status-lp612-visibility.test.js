@@ -218,6 +218,43 @@ describe('the 6-12 entry is listed, never offered as a tap', () => {
     expect(res.data.resources.map((r) => r.id)).toEqual(['done']);
   });
 
+  // parseResourceId's own comment warns about the failure this guards: a row whose
+  // id nothing can read is a tap silently dropped. A summary-only item emits no row
+  // at all, so the router is never reached — but if that ever changes, this fails.
+  it('never emits a row id the tap router cannot parse', async () => {
+    const { TeacherState, endpoint } = load({
+      tables: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] },
+      activeState: COACHING,
+    });
+    const res = await endpoint.handleStatusFlowInit('u-1');
+
+    for (const row of res.data.resources) {
+      if (row.id === 'done') continue;
+      expect(TeacherState.parseResourceId(row.id).kind).not.toBe('unknown');
+    }
+  });
+
+  // THE FAIL-CLOSED GUARD, and the reason the id is not `cancel_lp_<id>`.
+  //
+  // cancelResource routes `kind: 'lesson_plan'` to an UPDATE on
+  // `lesson_plan_requests` keyed by refId — and this item's refId is a RENDER id
+  // from a different table entirely. Feeding one to the other would report a
+  // successful cancel for a write that matched nothing.
+  //
+  // It cannot happen, and this pins the two independent reasons it cannot: the
+  // item is summary-only so no row is emitted, AND the id carries no `cancel_`
+  // prefix, so even a hand-fed tap parses as `unknown` and is refused rather than
+  // being routed at the wrong table. Dropping `summaryOnly` alone must not be
+  // enough to cause a bad write.
+  it('cannot be routed into the lesson-plan cancel path even if a row were emitted', async () => {
+    const { TeacherState } = load({ tables: { [RENDERS]: [RENDER], [SEGMENTS]: [SEGMENT] } });
+    const [item] = lp612Of(await TeacherState.listActiveResources('u-1'));
+
+    const parsed = TeacherState.parseResourceId(item.id);
+    expect(parsed.kind).toBe('unknown');
+    expect(parsed.kind).not.toBe('lesson_plan');
+  });
+
   // It must not cost the coaching pair its taps on the way in.
   it('sits alongside a live coaching wait without disturbing it', async () => {
     const { endpoint } = load({
