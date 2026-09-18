@@ -63,7 +63,9 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
 const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./question-images.rules');
-const { isPerModuleQuiz, moduleSourceQuizId } = require('./isaps-module-exam.rules');
+const {
+  isPerModuleQuiz, moduleSourceQuizId, isLevelCertifyingAttempt, moduleExamPassMessage,
+} = require('./isaps-module-exam.rules');
 // bd-2673 — the marking rule lives in ONE module, shared with the portal over
 // the internal API. Do not re-implement isMultiKey/normalizeSet here: a second
 // copy is the bug this extraction removed.
@@ -1862,6 +1864,56 @@ async function gradeAttempt(attemptId, phoneNumber) {
     cooldown_until: isPassed ? null : new Date(Date.now() + COOLDOWN_HOURS * 3_600_000).toISOString(),
   };
   await supabase.from('training_assessment_attempts').update(update).eq('id', attemptId);
+
+  // bd-60126 — is this a LEVEL exam or an I-SAPS MODULE exam?
+  //
+  // Both store quiz_kind='grand' (the CHECK constraint admits no third kind),
+  // so quiz_kind alone cannot tell them apart — which is how passing Module 1
+  // announced a Level 1 pass and issued a level certificate. The quiz's
+  // source_quiz_id is the separating signal (bd-60119).
+  const { data: attemptQuiz } = attempt.grand_quiz_id
+    ? await supabase.from('training_grand_quizzes')
+      .select('id, source_quiz_id').eq('id', attempt.grand_quiz_id).maybeSingle()
+    : { data: null };
+  const certifiesLevel = isLevelCertifyingAttempt(attemptQuiz);
+
+  if (isPassed && !certifiesLevel) {
+    // A module exam. Record the pass, report the MODULE score, and hand over to
+    // the module's CRQ — no level claim, no certificate. The level certificate
+    // is the composite across all nine modules (bd-60113).
+    const { data: course } = await supabase
+      .from('training_courses').select('id, title').eq('level_id', attempt.level_id)
+      .order('order_index').limit(1).maybeSingle();
+    let crqQuizId = null;
+    let moduleTitle = null;
+    if (attemptQuiz?.source_quiz_id) {
+      const { data: crq } = await supabase
+        .from('training_grand_quizzes').select('id')
+        .eq('level_id', attempt.level_id)
+        .eq('source_quiz_id', attemptQuiz.source_quiz_id)
+        .eq('quiz_type', 'capstone').eq('is_active', true).maybeSingle();
+      crqQuizId = crq?.id || null;
+      const modNo = attemptQuiz.source_quiz_id - 900;
+      const { data: c } = await supabase
+        .from('training_courses').select('title')
+        .eq('level_id', attempt.level_id).ilike('title', `Module ${modNo}%`).maybeSingle();
+      moduleTitle = c?.title || course?.title || null;
+    }
+    await WhatsAppService.sendMessage(phoneNumber, moduleExamPassMessage({
+      moduleTitle, score, total: attempt.total_questions, hasCrq: Boolean(crqQuizId),
+    }));
+    logToFile('🎓 Module exam passed — no level certificate', {
+      userId: attempt.user_id, attemptId, sourceQuizId: attemptQuiz?.source_quiz_id,
+      hasCrq: Boolean(crqQuizId),
+    });
+    // The CRQ hand-off is NOT wired yet, and this comment is the honest state.
+    // capstone-delivery resolves a capstone by LEVEL with .maybeSingle(), which
+    // throws now that I-SAPS carries nine of them on one level (bd-60119).
+    // Auto-delivering the CRQ therefore needs that service made
+    // module-aware first; until then the teacher is told it is outstanding
+    // rather than being handed a broken flow or silently skipped.
+    return true;
+  }
 
   if (isPassed) {
     // Certificate row via the shared issuance service (PDF rendering is
