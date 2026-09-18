@@ -12,12 +12,35 @@
 const { getClient } = require('./llm-client');
 const { logEvent } = require('../utils/structured-logger');
 const { OPENAI_API_KEY } = require('../utils/constants');
+const { resolveModelForJob } = require('../config/model-registry');
+const { configForRequest } = require('../config/model-settings');
 
 const openai = getClient();
 
+/**
+ * bd-5rd2f — the model is now resolved PER REQUEST rather than captured at import.
+ *
+ * It used to be `analysisModel: process.env.VISION_MODEL || 'gpt-4.1-mini'` on the CONFIG
+ * object below, evaluated once when this module was first required. That fixed the model for
+ * the life of the process, so no settings row, changed variable or incident could move it.
+ *
+ * With nothing written to `app_settings` this returns exactly what that constant returned:
+ * `VISION_MODEL` if set, else `gpt-4.1-mini`. The registry's own `todaysModel()` is that same
+ * expression, and tests/model-pilot-vision.test.js pins it for both cases.
+ *
+ * `language` is what `analyzeImage` was already given. `userId` is passed by the one caller
+ * that has a teacher; the coaching path has none, passes none, and is simply never bucketed.
+ */
+function analysisModelFor({ language, userId } = {}) {
+  return resolveModelForJob('vision.analyse', {
+    cfg: configForRequest(),
+    language,
+    userId,
+  }).model;
+}
+
 // Configuration - use gpt-4.1-mini for speed + vision + multilingual
 const CONFIG = {
-  analysisModel: process.env.VISION_MODEL || 'gpt-4.1-mini',
   defaultDetail: 'low',
   maxTokens: 1000,
   timeout: 60000,
@@ -109,15 +132,20 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
     prompt = 'Please analyze this image and describe what you see.',
     detail = CONFIG.defaultDetail,
     language = 'en',
+    userId,
     context = {},
   } = options;
+
+  // Resolved ONCE per call and then reused, so the request, the result and both log lines
+  // can never disagree about which model ran.
+  const analysisModel = analysisModelFor({ language, userId });
 
   logEvent('vision.analysis.started', {
     mimeType,
     imageSize: imageBuffer.length,
     detail,
     language,
-    model: CONFIG.analysisModel,
+    model: analysisModel,
   });
 
   // Validate MIME type
@@ -134,7 +162,7 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
     const systemPrompt = buildSystemPrompt(language, context);
 
     const response = await openai.chat.completions.create({
-      model: CONFIG.analysisModel,
+      model: analysisModel,
       messages: [
         { role: 'system', content: systemPrompt },
         {
@@ -160,14 +188,14 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
         completionTokens: response.usage.completion_tokens,
         totalTokens: response.usage.total_tokens,
       },
-      model: CONFIG.analysisModel,
+      model: analysisModel,
       detail,
     };
 
     logEvent('vision.analysis.completed', {
       durationMs: Date.now() - startTime,
       tokens: result.usage.totalTokens,
-      model: CONFIG.analysisModel,
+      model: analysisModel,
     });
 
     return result;

@@ -466,13 +466,45 @@ describe('the direct lane refuses to run without a usable fallback', () => {
     const src = require('fs').readFileSync(
       require('path').resolve(__dirname, '../../bot/shared/services/llm-client.js'), 'utf8');
     // Guards the PROPERTY, not the spelling: any new env read in this module must be justified,
-    // and none of them may be a fallback kill switch.
+    // and none of them may switch off THIS lane's fallback.
+    //
+    // LLM_FALLBACK_OFF (bd-4uw7n) is listed because it belongs to the OTHER lane: it gates the
+    // OpenRouter wrapper's per-job vendor fallback, which is an optimisation, not a net. The
+    // direct lane's fallback is mandatory and stays unconditional. A file-wide env scan cannot
+    // tell the two apart, so the behavioural test below carries the real invariant. bd-jbhya.
     const envVars = [...src.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
     expect(new Set(envVars)).toEqual(new Set([
-      'ANTHROPIC_API_KEY', 'APP_URL', 'LLM_DIRECT_FALLBACK_MODEL', 'LLM_MAX_RETRIES',
-      'LLM_MODEL', 'LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS', 'OPENAI_API_KEY',
-      'OPENROUTER_API_KEY',
+      'ANTHROPIC_API_KEY', 'APP_URL', 'LLM_DIRECT_FALLBACK_MODEL', 'LLM_FALLBACK_OFF',
+      'LLM_MAX_RETRIES', 'LLM_MODEL', 'LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS',
+      'OPENAI_API_KEY', 'OPENROUTER_API_KEY',
     ]));
+  });
+
+  test('LLM_FALLBACK_OFF=1 does NOT disable the direct lane — that net is not switchable', async () => {
+    // The invariant the file scan above can only approximate. LLM_FALLBACK_OFF gates the
+    // OpenRouter wrapper's per-job vendor fallback; if anyone ever wires it into
+    // buildDirectLaneClient too, the spelling guard would still pass and this will not --
+    // a teacher's lesson would silently stop being rescued when the balance runs dry.
+    process.env.LLM_FALLBACK_OFF = '1';
+    try {
+      const net = installFetch((url) => (
+        url === ANTHROPIC_URL ? [400, CREDIT_400] : [200, orReply('{"from":"openrouter"}')]
+      ));
+      restoreFetch = net.restore;
+      const mod = freshLlmClient();
+
+      const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+      const res = await client.chat.completions.create({
+        model, max_tokens: 16, messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      const urls = net.seen.map((x) => x.url);
+      expect(urls[0]).toBe(ANTHROPIC_URL);
+      expect(urls[urls.length - 1]).toBe(OPENROUTER_URL);
+      expect(res.choices[0].message.content).toBe('{"from":"openrouter"}');
+    } finally {
+      delete process.env.LLM_FALLBACK_OFF;
+    }
   });
 });
 
