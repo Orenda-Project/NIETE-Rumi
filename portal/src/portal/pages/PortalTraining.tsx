@@ -68,7 +68,7 @@ type Level = {
   previous_level_order: number | null;
 };
 type Course = { id: string; title: string; course_type: string; order_index: number; module_count: number; completed_count: number };
-type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; completed_at: string | null };
+type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; has_questions?: boolean; completed_at: string | null };
 type ModuleDetail = {
   id: string; title: string; content_html: string;
   video_url: string | null; audio_url: string | null;
@@ -252,7 +252,7 @@ const PortalTraining = () => {
   const [levels, setLevels] = useState<Level[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [modules, setModules] = useState<ModuleSummary[]>([]);
-  // bd-60149 — the end-of-module summative exam for the selected course.
+  // bd-60149 — the module's own summative exam, delivered with its units.
   const [moduleExam, setModuleExam] = useState<ExamGate | null>(null);
   const [moduleDetail, setModuleDetail] = useState<ModuleDetail | null>(null);
   // bd-44003 — why the cascade below failed, kept ON SCREEN. A locked level is
@@ -399,7 +399,6 @@ const PortalTraining = () => {
         const { data } = await api.get('/training/modules', { params: { course_id: selectedCourse } });
         const list: ModuleSummary[] = data.modules || [];
         setModules(list);
-        // bd-60149 — the module's summative exam travels with its units.
         setModuleExam(data.exam || null);
         // Fire-and-forget per-module attempt lookups so each row's Quiz
         // Score badge fills in as it arrives. Mark each as "loading" (null
@@ -695,6 +694,29 @@ const PortalTraining = () => {
           </div>
         </div>
 
+        {/* bd-60149 — the module's summative exam. V1 lists units in a
+            DROPDOWN rather than as rows, so the exam cannot be interleaved as
+            a row the way it is on v2; it sits directly beneath the picker,
+            which is the equivalent position. Renders nothing without one. */}
+        {selectedCourse && moduleExam && (
+          <div className="mb-6">
+            <ModuleExamPanel
+              key={`exam-${selectedCourse}`}
+              courseId={String(selectedCourse)}
+              exam={moduleExam}
+              onPassed={() => {
+                if (!selectedCourse) return;
+                api.get('/training/modules', { params: { course_id: selectedCourse } })
+                  .then(({ data }) => {
+                    setModules(data.modules || []);
+                    setModuleExam(data.exam || null);
+                  })
+                  .catch(() => { /* the pass is recorded server-side either way */ });
+              }}
+            />
+          </div>
+        )}
+
         {/* Written-capstone record for a previous attempt — bd-2233. The exam
             itself is now sat in LevelExamCard below (bd-2673); this card is the
             read-only history of an attempt already marked, on either surface. */}
@@ -825,24 +847,6 @@ const PortalTraining = () => {
               hasAttempts={(attemptsByModule[moduleDetail.id] ?? []).length > 0}
               hasQuestions={moduleDetail.has_questions}
               onSubmitted={handleQuizSubmitted}
-            />
-
-            {/* bd-60149 — the MODULE's summative exam, distinct from the unit
-                self-check above. Renders nothing unless this course has one.
-                Passing it is what unlocks the next module. */}
-            <ModuleExamPanel
-              key={`exam-${selectedCourse}`}
-              courseId={String(selectedCourse)}
-              exam={moduleExam}
-              onPassed={() => {
-                if (!selectedCourse) return;
-                api.get('/training/modules', { params: { course_id: selectedCourse } })
-                  .then(({ data }) => {
-                    setModules(data.modules || []);
-                    setModuleExam(data.exam || null);
-                  })
-                  .catch(() => { /* the pass is recorded server-side either way */ });
-              }}
             />
 
             {/* Mark complete — ONLY for quiz-less modules. Modules with an
