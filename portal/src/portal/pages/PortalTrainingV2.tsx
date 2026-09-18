@@ -63,6 +63,35 @@ import { classifyTrainingLoadError, EMPTY_MODULES_MESSAGE } from '../lib/trainin
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
+import niteLogo from '@/assets/vendors/niete.png';
+import beaconhouseLogo from '@/assets/vendors/beaconhouse.png';
+import isapsLogo from '@/assets/vendors/isaps.png';
+import oxbridgeLogo from '@/assets/vendors/oxbridge.png';
+
+/**
+ * Vendor identity — the real logo plus the accent the card is tinted with.
+ *
+ * Bundled rather than served from R2 or a `training_vendors.logo_url`: there
+ * are four rows, the files change roughly never, and Vite fingerprints them
+ * into the build so they are cached forever with no request of ours. A DB
+ * column earns its place when a partner needs to change its own logo without
+ * a deploy; until then it is a column, a migration and an upload to maintain
+ * for four constants.
+ *
+ * Every logo here is dark-on-light artwork, so the tile behind it is WHITE in
+ * all four cases. Tinting that tile would muddy three of the four marks — the
+ * colour belongs to the card's frame and header, not behind the logo.
+ *
+ * `tint` is the provider's own brand colour, used only as a wash on the card
+ * header and its selected ring, so a row of four cards is scannable by colour
+ * before a single word is read.
+ */
+const VENDOR_BRAND: Record<string, { logo: string; tint: string; label: string }> = {
+  TALEEMABAD:  { logo: niteLogo,         tint: '#47ba7d', label: 'NIETE' },
+  BEACONHOUSE: { logo: beaconhouseLogo,  tint: '#1b3a6b', label: 'Beacon House' },
+  ISAPS:       { logo: isapsLogo,        tint: '#42307d', label: 'I-SAPS' },
+  OXBRIDGE:    { logo: oxbridgeLogo,     tint: '#24477f', label: 'Oxbridge' },
+};
 
 type Vendor = {
   vendor_key: string;
@@ -204,6 +233,8 @@ function VendorCards({
           const pct = v.module_count > 0
             ? Math.round((v.completed_module_count / v.module_count) * 100)
             : 0;
+          const brand = VENDOR_BRAND[v.vendor_key];
+          const tint = brand?.tint ?? '#333748';
           const initials = v.vendor_name
             .split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
           return (
@@ -213,34 +244,65 @@ function VendorCards({
               onClick={() => onSelect(active ? null : v.vendor_key)}
               data-testid={`vendor-card-${v.vendor_key}`}
               aria-pressed={active}
-              className={`relative text-left rounded-2xl border bg-card overflow-hidden transition-shadow ${
+              className={`relative text-left rounded-2xl border bg-card overflow-hidden transition-all ${
                 active
-                  ? 'border-accent ring-1 ring-accent shadow-md'
-                  : 'border-border shadow-sm hover:shadow-md'
+                  ? 'shadow-lg -translate-y-0.5'
+                  : 'border-border shadow-sm hover:shadow-md hover:-translate-y-0.5'
               }`}
+              // The provider's own colour, only while selected, so the chosen
+              // card is unmistakable without repainting the whole row.
+              style={active ? { borderColor: tint, boxShadow: `0 0 0 1px ${tint}` } : undefined}
             >
-              <div className="h-16 bg-muted/60 flex items-center justify-center gap-2.5 px-4">
-                <span className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
-                  {initials}
-                </span>
-                <span className="font-semibold text-sm text-foreground truncate">
-                  {v.vendor_name}
-                </span>
+              {/* A thin bar of the provider's colour — the cheapest way to make
+                  four cards tell themselves apart at a glance. */}
+              <div className="h-1.5" style={{ backgroundColor: tint }} />
+
+              <div
+                className="h-20 flex items-center justify-center px-5"
+                // A wash of the same colour, light enough to keep dark-on-light
+                // logo artwork legible on top of it.
+                style={{ backgroundColor: `${tint}0f` }}
+              >
+                {brand ? (
+                  <img
+                    src={brand.logo}
+                    alt={v.vendor_name}
+                    className="max-h-11 max-w-full w-auto object-contain"
+                    loading="lazy"
+                  />
+                ) : (
+                  // A provider we have no artwork for still needs a mark.
+                  <span
+                    className="w-10 h-10 rounded-lg text-white flex items-center justify-center text-sm font-bold"
+                    style={{ backgroundColor: tint }}
+                  >
+                    {initials}
+                  </span>
+                )}
               </div>
 
-              <div className="p-4">
+              <div className="px-4 pt-3 pb-1">
+                <div className="font-semibold text-sm text-foreground truncate">
+                  {v.vendor_name}
+                </div>
+              </div>
+
+              <div className="px-4 pb-4">
                 <div className="text-xs text-muted-foreground mb-3">
                   {v.level_count} {v.level_count === 1 ? 'level' : 'levels'} · {v.module_count} modules
                 </div>
                 <div
-                  className="h-1.5 rounded-full bg-muted overflow-hidden mb-2"
+                  className="h-2 rounded-full bg-muted overflow-hidden mb-2"
                   role="progressbar"
                   aria-valuenow={pct}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-label={`${v.vendor_name} progress`}
                 >
-                  <div className="h-full bg-accent rounded-full" style={{ width: `${pct}%` }} />
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500"
+                    style={{ width: `${pct}%`, backgroundColor: tint }}
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-foreground">
@@ -262,7 +324,10 @@ function VendorCards({
               </div>
 
               {active && (
-                <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-accent flex items-center justify-center">
+                <span
+                  className="absolute top-3.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: tint }}
+                >
                   <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                 </span>
               )}
@@ -286,10 +351,13 @@ function LevelRail({
   levels,
   selectedLevel,
   onSelect,
+  tint,
 }: {
   levels: Level[];
   selectedLevel: string;
   onSelect: (id: string) => void;
+  /** The chosen provider's colour, so the rail reads as part of that card. */
+  tint: string | null;
 }) {
   if (levels.length === 0) return null;
 
@@ -299,6 +367,8 @@ function LevelRail({
   if (levels.length === 1) return null;
 
   const laddered = (levels[0].unlock_logic || 'chain') === 'chain';
+  // Falls back to the NIETE green when a provider has no colour of its own.
+  const bar = tint ?? '#47ba7d';
 
   return (
     <section className="mb-8" data-testid="level-rail">
@@ -328,15 +398,16 @@ function LevelRail({
               onClick={() => onSelect(String(l.id))}
               data-testid={`level-card-${l.id}`}
               aria-pressed={active}
-              className={`text-left rounded-xl border p-4 transition-shadow ${
+              className={`text-left rounded-xl border p-4 transition-all ${
                 locked
                   ? 'border-dashed border-border bg-muted/40 cursor-not-allowed'
                   : active
-                    ? 'border-accent ring-1 ring-accent bg-card shadow-md'
+                    ? 'bg-card shadow-lg -translate-y-0.5'
                     : certified
-                      ? 'border-green-200 bg-green-50/60 hover:shadow-md'
-                      : 'border-border bg-card shadow-sm hover:shadow-md'
+                      ? 'border-green-200 bg-green-50/60 hover:shadow-md hover:-translate-y-0.5'
+                      : 'border-border bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5'
               }`}
+              style={active && bar ? { borderColor: bar, boxShadow: `0 0 0 1px ${bar}` } : undefined}
             >
               <div className="flex items-center justify-between mb-2">
                 {laddered ? (
@@ -368,8 +439,8 @@ function LevelRail({
                 aria-label={`${l.name} progress`}
               >
                 <div
-                  className={`h-full rounded-full ${certified ? 'bg-green-700' : 'bg-accent'}`}
-                  style={{ width: `${pct}%` }}
+                  className="h-full rounded-full transition-[width] duration-500"
+                  style={{ width: `${pct}%`, backgroundColor: certified ? '#15803d' : bar }}
                 />
               </div>
 
@@ -455,8 +526,13 @@ const PortalTrainingV2 = () => {
     } catch { /* silent — the next mount refetches anyway */ }
   }, []);
 
+  // NO VENDOR, NO LEVELS. v1 showed every provider's levels at once when
+  // nothing was picked, and v2 inherited it — which a dropdown survived and a
+  // rail does not: ten levels from four providers in one flat grid, two of
+  // them both labelled "LEVEL 1", nothing saying which belongs to whom.
+  // Choosing a provider is the first step, so the rail waits for it.
   const visibleLevels = useMemo(() => {
-    if (!selectedVendor) return levels;
+    if (!selectedVendor) return [];
     return levels.filter(l => l.vendor_key === selectedVendor);
   }, [levels, selectedVendor]);
 
@@ -471,6 +547,20 @@ const PortalTrainingV2 = () => {
       setModuleDetail(null);
     }
   }, [visibleLevels, selectedLevel]);
+
+  // One provider is not a choice. Gating the rail on a vendor (above) would
+  // otherwise make a single-provider teacher click her only card before
+  // seeing anything — so pick it for her. Derived from the LEVELS rather than
+  // the vendor roll-up, because the roll-up is an enhancement that is allowed
+  // to fail silently, and a page that shows nothing when it does is worse
+  // than one that never had it.
+  useEffect(() => {
+    if (selectedVendor) return;
+    const keys = Array.from(
+      new Set(levels.map(l => l.vendor_key).filter((k): k is string => !!k)),
+    );
+    if (keys.length === 1) setSelectedVendor(keys[0]);
+  }, [levels, selectedVendor]);
 
   // A single-level vendor has nothing to choose: select it so the teacher
   // lands on the courses. The rail renders nothing in this case, so without
@@ -630,18 +720,51 @@ const PortalTrainingV2 = () => {
 
   const noAssignment = levelsLoaded && levels.length === 0;
 
+  // Headline totals, summed across providers. Derived from the vendor roll-up
+  // the API already sends, so an empty/failed vendor fetch simply hides the
+  // bar rather than printing a wrong number.
+  const totalModules = vendors.reduce((n, v) => n + v.module_count, 0);
+  const completedModules = vendors.reduce((n, v) => n + v.completed_module_count, 0);
+  const overallPct = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+
   return (
     <PortalLayout>
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-6xl" data-testid="training-v2-root">
 
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-7">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-light text-foreground mb-1">Training</h1>
-            <p className="text-sm text-muted-foreground">
-              Your assigned professional development.
-            </p>
+        {/* The NIETE navy→green gradient (--gradient-hero). The page used to
+            open on flat white, which read as unfinished next to the rest of
+            the portal. */}
+        <div
+          className="rounded-2xl p-6 sm:p-7 mb-7 text-white"
+          style={{ background: 'linear-gradient(135deg, hsl(229 17% 24%) 0%, hsl(146 44% 51%) 100%)' }}
+        >
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-light mb-1">Training</h1>
+              <p className="text-sm text-white/75">
+                {totalModules > 0
+                  ? `${completedModules} of ${totalModules} modules complete across ${vendors.length} ${vendors.length === 1 ? 'provider' : 'providers'}.`
+                  : 'Your assigned professional development.'}
+              </p>
+            </div>
+            <CertificatesPanel />
           </div>
-          <CertificatesPanel />
+
+          {totalModules > 0 && (
+            <div
+              className="h-2 rounded-full bg-white/20 overflow-hidden mt-5"
+              role="progressbar"
+              aria-valuenow={overallPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Overall training progress"
+            >
+              <div
+                className="h-full rounded-full bg-white transition-[width] duration-700"
+                style={{ width: `${overallPct}%` }}
+              />
+            </div>
+          )}
         </div>
 
         {/* No assignment — the recovery path, not a dead end (bd-43487). */}
@@ -681,10 +804,28 @@ const PortalTrainingV2 = () => {
               onSelect={setSelectedVendor}
             />
 
+            {/* The gated state says what to do next, rather than ending the
+                page in white space. */}
+            {!selectedVendor && levels.length > 0 && (
+              <div
+                className="rounded-2xl border border-dashed p-8 text-center mb-8"
+                data-testid="vendor-prompt"
+              >
+                <Building2 className="w-7 h-7 mx-auto mb-2.5 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Choose a training provider to begin
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your levels, courses and modules appear here once you pick one above.
+                </p>
+              </div>
+            )}
+
             <LevelRail
               levels={visibleLevels}
               selectedLevel={selectedLevel}
               onSelect={handleLevelChange}
+              tint={selectedVendor ? (VENDOR_BRAND[selectedVendor]?.tint ?? null) : null}
             />
 
             {/* Written-capstone history for non-chain levels (bd-2233). */}
