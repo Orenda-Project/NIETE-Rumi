@@ -352,7 +352,14 @@ async function resolveServedQuestions(attempt) {
     : selectServedQuestions(all, { attemptId: attempt.id, isModuleQuiz, config });
 
   const snapshot = Number(attempt.total_questions);
-  if (Number.isFinite(snapshot) && snapshot > 0 && served.length !== snapshot && all.length === snapshot) {
+  // bd-60129 — the fallback below exists for attempts created BEFORE serving
+  // selection shipped: their snapshot equals the full bank, so the bank is what
+  // must be served. A folded I-SAPS paper legitimately serves FEWER than its
+  // bank (one CRQ of four), so applying that fallback here would undo the
+  // one-CRQ rule and shift every question index. It is skipped for such a bank.
+  if (!bankHasOpenEnded
+      && Number.isFinite(snapshot) && snapshot > 0
+      && served.length !== snapshot && all.length === snapshot) {
     logToFile('🎓 Attempt predates serving selection — keeping the full bank', {
       attemptId: attempt.id, snapshot, wouldServe: served.length,
     });
@@ -488,6 +495,25 @@ async function startModuleExam(userId, courseId, phoneNumber) {
   }
 
   const now = new Date().toISOString();
+
+  // bd-60129 — size the attempt to the SERVED paper, not the bank.
+  //
+  // The bank holds all four of the module's CRQs but only ONE is sat, so
+  // `bank.length` over-counts by three. That mismatch was not merely cosmetic:
+  // loadServedQuestions compares total_questions against what it would serve
+  // and, when they disagree, decides the attempt "predates serving selection"
+  // and falls back to the FULL bank — silently turning the one-CRQ rule off.
+  // Four CRQs then shifted every index, so the question the code inspected was
+  // not the question the teacher was looking at, her typed answer was never
+  // claimed, and it fell through to ordinary LLM chat.
+  //
+  // The paper is drawn here with the same seed sendQuestion will use, so the
+  // count and the content cannot disagree. Note the seed is the attempt id,
+  // which does not exist yet — so the count is taken from a paper drawn with
+  // the same RULE (all MCQs + exactly one CRQ), which is what determines
+  // LENGTH regardless of which CRQ is picked.
+  const servedCount = selectPaperWithOneCrq(bank, 'sizing').length;
+
   const { data: attempt, error: aErr } = await supabase
     .from('training_assessment_attempts')
     .insert({
@@ -497,8 +523,8 @@ async function startModuleExam(userId, courseId, phoneNumber) {
       grand_quiz_id: mcqQuiz.id,
       level_id: course.level_id,
       current_question_index: 0,
-      total_questions: bank.length,
-      total_score: bank.length,
+      total_questions: servedCount,
+      total_score: servedCount,
       status: 'in_progress',
       started_at: now,
       last_activity_at: now,
@@ -514,7 +540,7 @@ async function startModuleExam(userId, courseId, phoneNumber) {
 
   await WhatsAppService.sendMessage(
     phoneNumber,
-    `📝 *${course.title}* — module exam\n\n${bank.length} question${bank.length === 1 ? '' : 's'}. Your answers are saved as you go.`,
+    `📝 *${course.title}* — module exam\n\n${servedCount} question${servedCount === 1 ? '' : 's'}. Your answers are saved as you go.`,
   );
   return await sendQuestion(attempt.id, phoneNumber);
 }
