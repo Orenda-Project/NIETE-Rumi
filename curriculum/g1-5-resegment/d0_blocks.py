@@ -78,7 +78,13 @@ def i_do_block(steps):
     if not lines:
         return None
     return _with_turns({"type": "worked_example", "id": "i-do",
-                        "title": f"{MOVE_TITLE['I-Do']} · teacher models",
+                        # NOT "I DO - teacher models": the move is now named on the section
+                        # bar (d0_primary._development -> `move`), and ONE HOME PER SOURCE FIELD
+                        # means it is not also named 25mm below it in the same amber pill. The
+                        # box keeps the half that is about the BOX. We Do / You Do keep their
+                        # prefixes -- their bands are named by the move itself (moveSplit), so
+                        # the bar never says it for them.
+                        "title": "Teacher models",
                         "minutes": minutes_of(steps), "steps": lines},
                        d0_script.turns(steps))
 

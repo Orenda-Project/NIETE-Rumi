@@ -18,7 +18,9 @@ def test_renders_against_the_live_v9_schema():
 
     `LP_V9` points this at the vendor tree the render is actually using. It defaults to the
     live clone, so a normal run checks against what is deployed; a render that depends on an
-    unmerged vendor divergence (today: `board.panels`, SYNC §3.16) sets it to the worktree.
+    unmerged vendor divergence sets it to the worktree. Unmerged today: the five properties
+    spliced by SYNC §3.27 (`board.panels`/`.title`, `turns` on both example variants,
+    `sequence.day`/`.of`), the `big_idea` variant (§3.26) and `section.move` (§3.28).
     """
     import os
     schema = os.path.join(

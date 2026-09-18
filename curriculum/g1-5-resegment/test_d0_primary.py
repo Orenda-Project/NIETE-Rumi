@@ -73,6 +73,38 @@ def test_section_ids_are_the_closed_enum_in_order():
         "introduction", "development", "activity", "conclusion", "homework"]
 
 
+def test_the_first_two_sections_are_named_by_the_lesson_phase():
+    """Operator: *"Warm Up and Hook should come under opening header / Explanation header
+    with an I Do tag on the extreme right to understand the moves"*.
+
+    The band names the PHASE -- OPENING, then EXPLANATION -- because the warm-up and the
+    hook are both contents of the one opening box (SYNC 3.22 made it one box), and "I Do"
+    is a MOVE, not a phase: it is what the teacher does inside the explanation.
+    """
+    doc = build()
+    assert doc["sections"][0]["title"] == "Opening"
+    assert doc["sections"][1]["title"] == "Explanation"
+
+
+def test_the_move_rides_the_section_as_its_own_field():
+    """So the renderer can put it where she asked -- the extreme right of the bar -- rather
+    than folding it into the name. Additive, and only where there is a move to name:
+    a section without one carries no key, which is also why G6-12 is untouched.
+    """
+    doc = build()
+    assert doc["sections"][1]["move"] == "I DO"
+    assert [s["id"] for s in doc["sections"] if "move" in s] == ["development"]
+
+
+def test_the_move_is_named_once_on_the_page():
+    """ONE HOME PER SOURCE FIELD. The bar says I DO; the amber box says what the box is
+    for. Printing "I DO" twice within four centimetres of page is exactly the duplication
+    this profile exists to remove.
+    """
+    ido = [b for b in _blocks(build(), 1) if b.get("id") == "i-do"][0]
+    assert ido["title"] == "Teacher models"
+
+
 
 
 def test_minutes_sum_within_the_period():
@@ -147,7 +179,6 @@ def test_i_do_is_a_worked_example_carrying_its_own_minutes():
     ido = [b for b in _blocks(build(), 1) if b.get("id") == "i-do"][0]
     assert ido["type"] == "worked_example"
     assert ido["minutes"] == 6
-    assert "I DO" in ido["title"]
 
 
 def test_i_do_stays_out_of_activity():

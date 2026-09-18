@@ -96,7 +96,11 @@ def _intro(g, page):
     board = d0_board.board_block(g.get("boardWork"))
     if board:
         blocks.append(board)
-    sec = {"id": "introduction", "title": "Warm-up and hook",
+    # OPENING, not "Warm-up and hook" -- operator: *"Warm Up and Hook should come under
+    # opening header"*. The band names the PHASE of the lesson and the warm-up and the hook are
+    # both contents of it (SYNC 3.22 made the opening ONE box, settle then provoke), so naming
+    # the band after its two parts said twice what the box already labels once.
+    sec = {"id": "introduction", "title": "Opening",
            "minutes": int(warm.get("minutes") or 0), "blocks": blocks}
     if items:
         sec["warmup"] = {"items": items}
@@ -123,8 +127,13 @@ def _development(g):
         if steps:
             blocks.append({"type": "worked_example", "id": "worked",
                            "title": "Worked example", "steps": steps})
-    return {"id": "development", "title": "I Do", "minutes": B.minutes_of(ido),
-            "blocks": blocks}
+    # EXPLANATION + an I DO tag -- operator: *"Explanation header with an I Do tag on the
+    # extreme right to understand the moves"*. `title` is the phase, `move` is what she DOES
+    # inside it, and they are two fields because she asked for a POSITION (the extreme right)
+    # which a single string cannot carry. The renderer prints `move` as an amber pill after the
+    # minutes; see bar() in template.js, SYNC 3.28.
+    return {"id": "development", "title": "Explanation", "move": B.MOVE_TITLE["I-Do"],
+            "minutes": B.minutes_of(ido), "blocks": blocks}
 
 
 def _activity(g):
