@@ -31,6 +31,7 @@ import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardChe
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
+import ModuleExamPanel, { type ExamGate } from '../components/ModuleExamPanel';
 import LevelExamCard from '../components/LevelExamCard';
 import CapstoneResultCard from '../components/CapstoneResultCard';
 import CertificatesPanel from '../components/CertificatesPanel';
@@ -251,6 +252,8 @@ const PortalTraining = () => {
   const [levels, setLevels] = useState<Level[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [modules, setModules] = useState<ModuleSummary[]>([]);
+  // bd-60149 — the end-of-module summative exam for the selected course.
+  const [moduleExam, setModuleExam] = useState<ExamGate | null>(null);
   const [moduleDetail, setModuleDetail] = useState<ModuleDetail | null>(null);
   // bd-44003 — why the cascade below failed, kept ON SCREEN. A locked level is
   // a permanent state until the teacher finishes an earlier one, so a toast
@@ -385,7 +388,7 @@ const PortalTraining = () => {
 
   // Course → modules
   useEffect(() => {
-    setModules([]); setModuleDetail(null);
+    setModules([]); setModuleDetail(null); setModuleExam(null);
     setSelectedModule('');
     setAttemptsByModule({});
     setLoadError(null);   // bd-44003
@@ -396,6 +399,8 @@ const PortalTraining = () => {
         const { data } = await api.get('/training/modules', { params: { course_id: selectedCourse } });
         const list: ModuleSummary[] = data.modules || [];
         setModules(list);
+        // bd-60149 — the module's summative exam travels with its units.
+        setModuleExam(data.exam || null);
         // Fire-and-forget per-module attempt lookups so each row's Quiz
         // Score badge fills in as it arrives. Mark each as "loading" (null
         // in the map — the badge component treats missing key as "not yet
@@ -820,6 +825,24 @@ const PortalTraining = () => {
               hasAttempts={(attemptsByModule[moduleDetail.id] ?? []).length > 0}
               hasQuestions={moduleDetail.has_questions}
               onSubmitted={handleQuizSubmitted}
+            />
+
+            {/* bd-60149 — the MODULE's summative exam, distinct from the unit
+                self-check above. Renders nothing unless this course has one.
+                Passing it is what unlocks the next module. */}
+            <ModuleExamPanel
+              key={`exam-${selectedCourse}`}
+              courseId={String(selectedCourse)}
+              exam={moduleExam}
+              onPassed={() => {
+                if (!selectedCourse) return;
+                api.get('/training/modules', { params: { course_id: selectedCourse } })
+                  .then(({ data }) => {
+                    setModules(data.modules || []);
+                    setModuleExam(data.exam || null);
+                  })
+                  .catch(() => { /* the pass is recorded server-side either way */ });
+              }}
             />
 
             {/* Mark complete — ONLY for quiz-less modules. Modules with an
