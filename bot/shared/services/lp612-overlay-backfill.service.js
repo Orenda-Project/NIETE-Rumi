@@ -45,6 +45,7 @@ const { downloadFromR2, uploadBuffer } = require('../storage/r2');
 const { renderLessonPlan } = require('./lp612-render.service');
 const Serving = require('./lp612-serving.service');
 const { topUpOverlay, missingOverlayPointers } = require('./lp612-overlay-topup.service');
+const { refsFromDoc, stageFigures } = require('./lp612-pagetruth.service');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 
@@ -55,6 +56,7 @@ const BACKFILL_SKIPPED = Object.freeze({
   NO_DOC: 'no_stored_doc',
   NOT_OVERLAID: 'not_overlaid',
   COMPLETE: 'already_complete',
+  FIGURES_MISSING: 'figures_missing',
 });
 
 /**
@@ -181,6 +183,24 @@ async function repairRow(row, lpDoc, { model, correlationId }) {
 
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), `lp612-backfill-${row.segment_id}-`));
   try {
+    // bd-u8ii8. THE CROPS COME WITH IT. The renderer inlines a book figure from
+    // `<outDir>/<ref>.jpg`, and this directory is brand new — so without this step every
+    // `textbook_figure` re-renders as an empty framed box, badge and caption over nothing, and
+    // that box is then written over the live PDF. It is invisible: the renderer reports a missing
+    // crop through `ctx.warn`, which reaches no delivery verdict and sets no `render_degraded`.
+    // Same call, same position, as the authoring worker (lp612-author.worker.js:1051-1053).
+    //
+    // A crop it cannot fetch REFUSES THE ROW. The lesson on the teacher's phone today has the
+    // picture in it; a repair that trades a picture for a title is a regression she would have to
+    // notice herself. The row is left for a later run and counted by name in the summary.
+    const figRefs = refsFromDoc(up.doc);
+    if (figRefs.length) {
+      const { missing } = await stageFigures({ refs: figRefs, outDir, correlationId });
+      if (missing.length) {
+        return { repaired: false, reason: BACKFILL_SKIPPED.FIGURES_MISSING, missing };
+      }
+    }
+
     const rendered = await renderLessonPlan({
       lpDoc: up.doc,
       lang: row.lang,
@@ -296,5 +316,6 @@ module.exports = {
   BACKFILL_SKIPPED,
   backfillKeysFor,
   classifyRow,
+  repairRow,
   backfillUrduOverlays,
 };
