@@ -839,6 +839,32 @@ metadata, `subject`, a physics symbol, the machine fields, and a short label out
 
 Upstream carries neither fix. Push both hunks up at the next re-sync.
 
+**`bd-yhd16` — `overlayChromeGaps()`, a third divergence, added 2026-09-17.** Widening the target
+set fixed everything authored AFTER it. It did nothing for what was already stored, because
+`ur_overlay` is frozen into the document at authoring time and is never recomputed at render time.
+Measured against production on 2026-09-17: of 389 ready Urdu renders, **82 still serve an English
+title**, each missing exactly the provenance pointers this section added.
+
+The lane that carries them forward is `reuseFromPreviousVersion` in
+`bot/workers/lp612-author.worker.js` — a template bump is a re-render, not a re-authoring
+(`bd-oak77.12`), and the overlay pass is explicitly skipped on a reuse, so a pre-`bd-x3dn6`
+document is re-rendered with its English chrome into a NEW row at the new template version, where
+it is a permanent cache hit. `overlayDefects` cannot see it: coverage is a fraction over the whole
+document and the chrome is three pointers out of ~92, so a fully-translated body with an English
+title scores ~0.97 and passes.
+
+`overlayChromeGaps(doc)` names the offered `/provenance` pointers a document has no non-blank Urdu
+string for. It is **derived from `overlayTargets`**, so adding a fourth key to
+`OVERLAY_PROVENANCE_KEYS` extends it with no second edit; an Urdu-medium book returns `[]` for the
+same reason `overlayDefects` does. Exported as `overlayDefects.chromeGaps` beside `.targets`, and
+as a named export for the worker. It is a READER — no existing call path changes behaviour.
+
+Covered by `tests/lp612/overlay-chrome-reuse-gate.test.js` (9 tests) and
+`tests/lp612/overlay-chrome-reuse.e2e.test.js` (4 tests, the whole tap-to-upload chain).
+
+Upstream carries none of the three fixes, and has no reuse lane for this one to belong to. Push
+the first two hunks up at the next re-sync; `overlayChromeGaps` stays ours.
+
 ### 3.14 `lint_lp.js` + `g5c_cleared_names.json` — the G5c native-speaker review, carried as data (2026-09-17)
 
 `bd-zipoe`. Rule 1 (RELIGIOUS_MARKS) demanded ﷺ after every whole-word `محمد`. `محمد` is also one
@@ -897,7 +923,7 @@ deployment's human review, not a general rule. Push nothing of §3.14 up at the 
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
