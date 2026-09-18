@@ -130,7 +130,8 @@ def main():
             banner_rows=[r + head for r in grade_rows],
             sub_banner_rows=[r + head for r in chapter_rows],
             flag_col=tabs.flag_column(subject), widths=tabs.widths(subject),
-            notes=tabs.pending_notes(subject), groups=tabs.groups(subject))
+            notes=tabs.pending_notes(subject), groups=tabs.groups(subject),
+            rows=values)
         send(svc, skills.chip_requests(ids[title], values,
                                        tabs.skill_column(subject),
                                        first_row=head + 1))
@@ -175,7 +176,7 @@ def main():
                                      for r in fln_plan["grade_rows"]],
                         sub_banner_rows=[r + fln_head
                                          for r in fln_plan["total_rows"]],
-                        widths=fln_plan["widths"])
+                        widths=fln_plan["widths"], rows=fln)
     print(f"FLN Coverage: {len(fln)} rows x {fln_plan['n_cols']} cols")
 
     sheetio.write_values(svc, "Skills Map", map_rows)
@@ -198,7 +199,8 @@ def main():
                         # inside a narrow default and dragged a chapter-tail
                         # row — which lists every SLO code of the chapter —
                         # to twenty lines tall.
-                        widths={4: 230, 7: 320, 11: 320, 12: 300, 14: 260})
+                        widths={4: 230, 7: 320, 11: 320, 12: 300, 14: 260},
+                        rows=flat)
     send(svc, skills.chip_requests(ids["All Segments + SLOs"], flat, 8,
                                    first_row=head + 1))
 
@@ -217,7 +219,8 @@ def main():
     sheetio.format_grid(svc, ids["Skill Taxonomy"], len(tax),
                         support.TAX_COLS, freeze_cols=2,
                         head_row=head, band=True,
-                        widths={0: 70, 1: 210, 3: 90, 4: 520, 5: 260})
+                        widths={0: 70, 1: 210, 3: 90, 4: 520, 5: 260},
+                        rows=tax)
     send(svc, skills.chip_requests(ids["Skill Taxonomy"], tax, 1,
                                    first_row=head + 1))
 
@@ -230,7 +233,7 @@ def main():
     sheetio.format_grid(svc, ids["Pipeline Stages"], len(pipe), 6,
                         freeze_cols=1, head_row=head, band=True,
                         widths={0: 80, 1: 160, 2: 250, 3: 300, 4: 110,
-                                5: 400})
+                                5: 400}, rows=pipe)
 
     sheetio.write_values(svc, "Samples Review", rev_rows)
     reviewtab.format_review(svc, sheetio, ids["Samples Review"],

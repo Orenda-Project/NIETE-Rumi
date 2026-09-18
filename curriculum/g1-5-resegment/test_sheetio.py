@@ -117,6 +117,67 @@ class SubtitleRow(unittest.TestCase):
             {"red": 0x4B, "green": 0x55, "blue": 0x63})
 
 
+class TheSubtitleIsGivenRoomToBeRead(unittest.TestCase):
+    """§5.1's sentence, §5.9's rule about where it may be merged to.
+
+    OVERFLOW_CELL is not a wrap strategy — it is a promise that nothing sits
+    to the right. On a grid with a fixed column count that promise expires at
+    the last column, and the sentence is cut there without an error. So the
+    row wraps, is merged across the room it has, and is heighted from its own
+    text; and the merge stays on one side of the frozen boundary, because a
+    merge that crosses it makes the freeze request fail (§6 gotcha 2).
+    """
+
+    @staticmethod
+    def merges(reqs, row):
+        return [q["mergeCells"]["range"] for q in reqs
+                if q.get("mergeCells")
+                and q["mergeCells"]["range"]["startRowIndex"] == row]
+
+    def test_the_subtitle_wraps_rather_than_running_off_the_grid(self):
+        self.assertEqual(fmt_for(grid(), 1, 2)["wrapStrategy"], "WRAP")
+
+    def test_the_title_band_still_overflows_because_nothing_is_beside_it(self):
+        self.assertEqual(fmt_for(grid(), 0, 1)["wrapStrategy"], "OVERFLOW_CELL")
+
+    def test_a_long_subtitle_is_given_more_than_the_house_height(self):
+        rows = [["TITLE"], ["", "", "y" * 600]]
+        tall = grid(rows=rows, ncols=5, freeze_cols=2,
+                    widths={0: 90, 1: 90, 2: 300, 3: 300, 4: 300})
+        self.assertGreater(height_of(tall, 1), house.SUB_PX)
+
+    def test_a_tab_without_rows_keeps_the_house_height(self):
+        # The fallback: a caller that has not passed its rows yet is not
+        # given a tall blank band where a sentence is missing.
+        self.assertEqual(height_of(grid(), 1), house.SUB_PX)
+
+    def test_the_subtitle_is_merged_from_the_freeze_to_the_edge(self):
+        rows = [["TITLE"], ["", "", "y" * 600]]
+        got = self.merges(grid(rows=rows, ncols=5, freeze_cols=2), 1)
+        self.assertEqual([(r["startColumnIndex"], r["endColumnIndex"])
+                          for r in got], [(2, 5)])
+
+    def test_the_merge_never_crosses_the_frozen_boundary(self):
+        # If a caller's titled(at=) and format_grid(freeze_cols=) disagree the
+        # sentence lands INSIDE the frozen region. Merging it to the edge from
+        # there would silently kill the freeze, so it stops at the boundary.
+        rows = [["TITLE"], ["y" * 600]]
+        got = self.merges(grid(rows=rows, ncols=5, freeze_cols=2), 1)
+        for r in got:
+            self.assertLessEqual(r["endColumnIndex"], 2)
+
+    def test_an_empty_subtitle_is_not_merged_at_all(self):
+        self.assertEqual(self.merges(grid(rows=[["TITLE"], ["", ""]]), 1), [])
+
+    def test_the_merge_is_unmerged_first_so_a_rebuild_is_idempotent(self):
+        rows = [["TITLE"], ["", "", "y" * 600]]
+        reqs = grid(rows=rows, ncols=5, freeze_cols=2)
+        kinds = [k for q in reqs for k in q
+                 if k in ("mergeCells", "unmergeCells")
+                 and q[k]["range"].get("startRowIndex") == 1]
+        self.assertEqual(kinds, ["unmergeCells", "mergeCells"])
+
+
 class HeaderRow(unittest.TestCase):
     """§5.1 — row 3 is #264653, white, Arial 10 bold, CENTERED."""
 

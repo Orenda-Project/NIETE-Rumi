@@ -9,6 +9,7 @@ import os
 from google.oauth2 import service_account
 
 import house
+import standfirst
 from googleapiclient.discovery import build
 
 import quota  # noqa: F401  — importing it paces every call under the quota
@@ -135,26 +136,32 @@ def _fmt(sid, r0, r1, c0, c1, fmt):
 
 def format_grid(svc, sid, nrows, ncols, freeze_cols=2, banner_rows=(),
                 sub_banner_rows=(), flag_col=None, widths=None,
-                head_row=0, notes=None, groups=(), band=False):
+                head_row=0, notes=None, groups=(), band=False, rows=None):
     """House formatting for a header-plus-rows tab.
 
     head_row is where the column header sits — 2 when the caller has run the
     table through titled(). Everything above it is the title band, and the
     freeze runs to the bottom of it, so the header stays on screen.
 
-    Nothing is merged: a merge across the frozen boundary makes the freeze
-    request fail (sheet.md §6 gotcha 2), so banner rows are painted instead.
+    Only the standfirst is merged, and only from the frozen boundary to the
+    right-hand edge, which is entirely inside the unfrozen region: a merge
+    ACROSS the frozen boundary is what makes the freeze request fail
+    (sheet.md §6 gotcha 2), so banner rows are still painted, not merged.
 
     Base wrapStrategy is WRAP and the data rows are auto-resized. The earlier
     draft clipped by default, which silently hid every cell longer than its
     column — a 460-character SLO description read as a sentence fragment and
     there was no way to tell from the tab that anything was missing.
 
-    Two deliberate deviations from sheet.md §5, pinned by test_sheetio.py so
-    neither can be mistaken for drift: data text stays 10pt where §5.2 asks
-    for 9 (the reviewer reads this on a laptop and asked for an easier, not a
-    denser, grid), and the header row stays 46px where §5.1 asks for 36
-    (headers here WRAP, and a two-line header clips at 36).
+    One deliberate deviation from sheet.md §5, pinned by test_sheetio.py so
+    it cannot be mistaken for drift: the header row stays 46px where §5.1
+    asks for 36, because headers here WRAP and a two-line header clips at 36.
+    (The 10pt data deviation is gone — Amena took the call on 2026-09-18 and
+    chose §5.2's Arial 9; see house.py.)
+
+    Pass `rows` — the table this call is about to format — and the standfirst
+    is merged and heighted from the text it actually holds. Without it the
+    row falls back to the house 28px, which clips any sentence that wraps.
     """
     white = {"foregroundColor": INK["white"]}
     reqs = [
@@ -186,27 +193,47 @@ def format_grid(svc, sid, nrows, ncols, freeze_cols=2, banner_rows=(),
                 "secondBandColor": INK["chapter"]}}}})
     # Banners carry their grammar token in column A and the readable remainder
     # in column B, because overflow stops at the frozen edge.
-    for rows, bg, size in ((banner_rows, INK["grade"], 11),
-                           (sub_banner_rows, INK["chapter"], 10)):
-        for r in rows:
+    # `band` here, not `rows`: `rows` is this function's table of values and
+    # rebinding it left the standfirst below measuring an empty tuple.
+    for band_rows, bg, size in ((banner_rows, INK["grade"], 11),
+                                (sub_banner_rows, INK["chapter"], 10)):
+        for r in band_rows:
             reqs.append(_fmt(sid, r, r + 1, 0, ncols, {
                 "backgroundColor": bg, "wrapStrategy": "WRAP",
                 "textFormat": {"bold": True, "fontSize": size}}))
     if head_row:
+        # OVERFLOW_CELL is not a wrap strategy, it is a promise that nothing
+        # sits to the right. On a grid with a fixed column count that promise
+        # expires at the last column and the sentence is cut there without a
+        # sound. So the standfirst is merged across the room it actually has,
+        # WRAPped inside it, and the row heighted from its own text.
+        sub = head_row - 1
+        c0, c1 = standfirst.span(
+            standfirst.column(rows[sub]) if rows else freeze_cols,
+            ncols, freeze_cols)
+        sub_px = (standfirst.row_px(rows, sub, widths, ncols, freeze_cols,
+                                    house.SUB_PX) if rows else house.SUB_PX)
         reqs += [
             _fmt(sid, 0, 1, 0, ncols, {
-                "backgroundColor": INK["title"], "wrapStrategy": "OVERFLOW_CELL",
+                "backgroundColor": INK["title"],
+                "wrapStrategy": "OVERFLOW_CELL",
                 "verticalAlignment": "MIDDLE",
                 "textFormat": dict(white, bold=True,
                                    fontSize=house.TITLE_PT)}),
-            _fmt(sid, 1, 2, 0, ncols, {
-                "backgroundColor": INK["white"], "wrapStrategy": "OVERFLOW_CELL",
+            _fmt(sid, sub, sub + 1, 0, ncols, {
+                "backgroundColor": INK["white"], "wrapStrategy": "WRAP",
                 "verticalAlignment": "MIDDLE",
                 "textFormat": {"fontSize": house.SUB_PT,
                                "foregroundColor": INK["sub"]}}),
             _dim(sid, "ROWS", 0, 1, house.TITLE_PX),
-            _dim(sid, "ROWS", 1, 2, house.SUB_PX),
+            _dim(sid, "ROWS", sub, sub + 1, sub_px),
         ]
+        if c1 - c0 > 1:
+            reqs.append({"unmergeCells": {
+                "range": _rng(sid, sub, sub + 1, c0, c1)}})
+            reqs.append({"mergeCells": {
+                "range": _rng(sid, sub, sub + 1, c0, c1),
+                "mergeType": "MERGE_ALL"}})
     if flag_col is not None and flag_col < ncols:
         reqs.append({"addConditionalFormatRule": {"index": 0, "rule": {
             "ranges": [_rng(sid, head_row + 1, nrows, flag_col, flag_col + 1)],

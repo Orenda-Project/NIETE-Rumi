@@ -28,6 +28,7 @@ reader drag it open.
 import colorsys
 
 import house
+import standfirst
 
 import skills
 
@@ -98,15 +99,16 @@ def _merge(rng, sid, row, n):
 
 
 def _note_px(rows, row, plan):
-    """How tall a merged 11pt standfirst has to be to show all of itself."""
-    try:
-        text = next(c for c in rows[row] if str(c).strip())
-    except (IndexError, StopIteration):
-        return H_NOTE
-    width = sum(plan["widths"].get(i, 100) for i in range(plan["n_cols"]))
-    per_line = max(20, int(width / (house.SUB_PT * 0.55)))
-    lines = -(-len(str(text)) // per_line)
-    return max(H_NOTE, lines * (house.SUB_PT + 5) + 10)
+    """How tall a merged 11pt standfirst has to be to show all of itself.
+
+    The arithmetic moved to `standfirst` once the same clipping was measured
+    on four more tabs painted by other modules: a height each painter worked
+    out for itself is a separate chance to be a line short. These coverage
+    tabs freeze no columns (see the module docstring), so the sentence may be
+    merged from wherever it starts to the right-hand edge of the grid.
+    """
+    return standfirst.row_px(rows, row, plan["widths"], plan["n_cols"],
+                             0, H_NOTE)
 
 
 def _house(rng, sid, row, n, bg, text, px):

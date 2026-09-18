@@ -10,6 +10,7 @@ lives in `::` blocks — an indented line continues the entry above, a `§` line
 import datetime
 
 import house
+import standfirst
 import support
 
 BEAD = "bd-6a20p"
@@ -285,6 +286,13 @@ def format_navigation(svc, sheetio, sid, rows, plan, ids):
              for r, h in plan["tint"]]
     reqs += [_dim(sid, "COLUMNS", c, c + 1, px) for c, px in plan["widths"].items()]
     reqs += _heights(sid, plan["heights"])
+    # _height sizes this row with a 10pt estimate, but the cell above renders
+    # it at house.SUB_PT (11) — so the line COUNT is right and every line is
+    # a few pixels short, which clips the last one. QA Checklist: 3 lines
+    # given 53px, needing 58. Re-height from the text at the size it is
+    # actually drawn at, after _heights so this is the request that lands.
+    reqs.append(_dim(sid, "ROWS", 1, 2, standfirst.row_px(
+        rows, 1, plan["widths"], n, 0, plan["heights"].get(1, house.SUB_PX))))
     # Full-width merges are legal here only because this tab freezes no columns.
     reqs += [{"mergeCells": {"range": rng(sid, r, r + 1, 0, n), "mergeType": "MERGE_ALL"}}
              for r in plan["merges"]]

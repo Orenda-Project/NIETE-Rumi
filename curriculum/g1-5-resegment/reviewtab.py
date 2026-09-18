@@ -17,6 +17,7 @@ and the training tabs are a different workbook's business.
 import datetime
 
 import house
+import standfirst
 
 BEAD = "bd-6a20p"
 STAMP = datetime.date.today().isoformat()
@@ -241,6 +242,13 @@ def format_review(svc, sheetio, sid, rows, plan):
         reqs.append(_validation(rng, sid, r0, r1, dcol, dvals))
     reqs += [_dim(sid, "COLUMNS", c, c + 1, px) for c, px in plan["widths"].items()]
     reqs += _heights(sid, plan["heights"])
+    # _height sizes this row with a 10pt estimate, but the cell above renders
+    # it at house.SUB_PT (11) — so the line COUNT is right and every line is
+    # a few pixels short, which clips the last one. QA Checklist: 3 lines
+    # given 53px, needing 58. Re-height from the text at the size it is
+    # actually drawn at, after _heights so this is the request that lands.
+    reqs.append(_dim(sid, "ROWS", 1, 2, standfirst.row_px(
+        rows, 1, plan["widths"], n, 0, plan["heights"].get(1, house.SUB_PX))))
     # Full-width merges are legal here only because these tabs freeze no columns.
     reqs += [{"mergeCells": {"range": rng(sid, r, r + 1, 0, n), "mergeType": "MERGE_ALL"}}
              for r in plan["merges"]]
