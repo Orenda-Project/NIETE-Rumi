@@ -137,9 +137,28 @@ const WARN_PAGES_UR = { teach: 4, support: 3 };
 // page2 surfaces are mostly dark by design (d0_page2.NO_PRIMARY_SOURCE), so nothing is pressing
 // on that sheet and raising it would only give content somewhere to hide.
 const MAX_PAGES_PRIMARY = { teach: 9, support: 3 };
-const WARN_PAGES_PRIMARY = { teach: 8, support: 2 };
 const MAX_PAGES_PRIMARY_UR = { teach: 12, support: 4 };   // round(9 x 1.33) -- same Nastaliq
-const WARN_PAGES_PRIMARY_UR = { teach: 11, support: 3 };  // premium the UR caps above apply
+                                                          // premium the UR caps above apply
+
+// VENDOR DIVERGENCE (bd-788pe, SYNC 3.31). FOR PRIMARY, WARN IS A TARGET, NOT THE CAP MINUS ONE.
+//
+// Everywhere else in this file WARN and MAX say the same thing one sheet apart -- "you are nearly
+// out of room". Primary needs them to say different things. Operator, 2026-09-18: *"I would like
+// to keep 5 as the cap, once the content is sorted, we can come to that page number, no?"* and,
+// asked which unit she meant, *"keep the max at 9, but ideally 4-5 pages on phone-first"*.
+//
+// MAX cannot be 5 today. Over cap FAILS and this renderer never trims, so a cap of 5 against a
+// plan that measures 8 would emit nothing at all -- the one outcome that helps no teacher, and
+// the exact failure bd-vjk68 was opened to stop ("we will stop cancelling or delaying lesson
+// plans now because of the length issue"). So MAX stays at the 9 she set when she chose "one
+// continuous plan", and the 4-5 becomes the TARGET the render reports against on every run.
+//
+// PHONE UNITS, because "phone-first" is her word and the phone is the sheet a teacher receives.
+// teach 4 + support 1 is the 5 she named. Seven surfaces still print "design pending"; when they
+// carry real content and the page count comes down to meet this, turning the target into a gate
+// is one constant.
+const WARN_PAGES_PRIMARY = { teach: 4, support: 1 };
+const WARN_PAGES_PRIMARY_UR = { teach: 5, support: 1 };   // round(4 x 1.33), the same premium
 
 // `isPrimary` is IMPORTED from lib/template (bd-vbs5w). It used to be defined here, and once
 // page 1's primary furniture started reading the same rule there were two copies of one grade
@@ -161,8 +180,13 @@ const WARN_PAGES_PRIMARY_UR = { teach: 11, support: 3 };  // premium the UR caps
 // standing "do not raise the cap" still binds the sheet a teacher actually receives, and so does
 // every reading of these constants that does not name a format (the author's budget card).
 //
-// WARN is recomputed rather than scaled, because the invariant the constants' own comment states
-// is one sheet under the cap -- scaling both independently drifts them apart.
+// WARN IS SCALED, NOT RECOMPUTED (bd-788pe). It used to come back as `max - 1`, which was right
+// while warn meant "nearly at the cap" -- deriving it kept the two from drifting apart. Primary's
+// warn is now an authored target that is nowhere near its cap, and `max - 1` would throw it away
+// and put it back one sheet under a cap scaled to 16. A budget quoted in phone sheets and read on
+// A4 is the defect this function exists to fix, so the target converts on the same geometry the
+// cap does. The clamp is the one invariant left: a target above the cap could never fire, because
+// the over-cap branch would have taken the render first.
 function scaleCapsToFormat(caps, format) {
   const box = (f) => f.h - f.padT - f.padB;           // template.js: PAGE_CONTENT_H
   const fmt = PAGE_FORMATS[format] || PAGE_FORMATS.phone;
@@ -170,7 +194,9 @@ function scaleCapsToFormat(caps, format) {
   if (ratio === 1) return caps;
   const scale = (n) => Math.max(1, Math.round(n * ratio));
   const max = { teach: scale(caps.max.teach), support: scale(caps.max.support) };
-  return { max, warn: { teach: max.teach - 1, support: max.support - 1 } };
+  const warn = { teach: Math.min(scale(caps.warn.teach), max.teach),
+                 support: Math.min(scale(caps.warn.support), max.support) };
+  return { max, warn };
 }
 
 /** The caps for one render, by the language actually being laid out, the plan's own profile, and

@@ -2158,6 +2158,50 @@ was proven by reverting `groupAtoms` alone -- `git stash` is forbidden here and 
 would have destroyed unrelated uncommitted work in the same file -- then restoring from a byte-checked
 snapshot.
 
+### 3.31 `render_lp.js` — primary's WARN is a page TARGET, not the cap minus one (bd-788pe, 2026-09-18)
+
+**Operator, 2026-09-18:** *"I would like to keep 5 as the cap, once the content is sorted, we can
+come to that page number, no?"* — then, asked which sheet she meant: *"keep the max at 9, but
+ideally 4-5 pages on phone-first"*.
+
+Both halves matter, and they pull in opposite directions until you separate the two numbers.
+
+**Why MAX cannot be 5 today.** Over cap FAILS and this renderer never trims. The reference plan
+measures `teach 8` on the phone, so a cap of 5 would not produce a shorter lesson — it would
+produce no lesson, on every primary render, until the content work lands. That is the exact
+failure §3.x's ladder was built to end (bd-vjk68, operator: *"we will stop cancelling or delaying
+lesson plans now because of the length issue"*). MAX therefore stays at the 9 she set when she
+chose "one continuous plan" over a split.
+
+**So the 5 becomes the target.** `WARN_PAGES_PRIMARY` goes `{teach: 8, support: 2}` →
+`{teach: 4, support: 1}` — 4 + 1 = the five pages she named — and UR goes `{teach: 11, support: 3}`
+→ `{teach: 5, support: 1}`, `round(4 x 1.33)`, the same Nastaliq premium every other UR primary
+constant carries. **Phone units**, because *"phone-first"* is her word and the phone is the sheet
+a teacher receives.
+
+This is the first place in the file where WARN and MAX say **different things**. Everywhere else
+warn means "one sheet from the cap"; for primary it now means "this is where the document is
+going". The warning text already distinguished them — `overTargetWarning` prints *"the soft target
+is 4 (hard cap 9) … This is a TARGET, not the cap: the lesson renders and is delivered either
+way"* — so nothing downstream had to learn a new idea.
+
+**`scaleCapsToFormat` had to stop deriving warn.** It returned
+`warn: {teach: max.teach - 1, support: max.support - 1}`, which was right while warn was a
+function of max: deriving it kept the pair from drifting apart across a format conversion. An
+authored target that sits five sheets below its cap is not that, and `max - 1` would have thrown
+it away and re-seated it one sheet under a cap scaled to 16. The target now scales on the same
+geometry the cap does (§3.20's whole point: a budget quoted in phone sheets and read on A4 is a
+budget in the wrong unit), clamped to max so a target that could never fire cannot be configured.
+
+**Measured, both sheets, both fixtures:** phone `teach 8/9`, target 4 — warns, `problems: []`.
+A4 `teach 12/16`, target 7 — warns, `problems: []`. The advice line names where the pages
+actually are: *We Do* 31 blocks, *Explanation* 18, *You Do* 13. Every lesson still renders.
+
+**G6-12 is untouched** — `pageCapsFor` only routes primary through `scaleCapsToFormat`, and its
+own constants are unchanged, so `warn = max - 1` still holds there and is still tested.
+
+**When the content lands**, turning the target into a gate is one constant.
+
 ### 3.8 Nothing else
 
 Every other file in `lib/` is **byte-identical to upstream**. `lib/template.js` is not: it carries the
@@ -2167,7 +2211,8 @@ rules (§3.18), the two board grid tracks (§3.19), primary's page-1 furniture w
 `isPrimary` predicate (§3.20), the board connector renderer (§3.21), the one opening box (§3.22) and
 the three move surfaces with the split activity band (§3.23), the primary diagram floor
 with its phone-first canvas (§3.24), the board hoisted onto page 1 (§3.25), the phase/move split on the
-band (§3.28), the check that closes the worked example (§3.29) and the grid row that is a row (§3.30). `lib/overlay.js` carries the
+band (§3.28), the check that closes the worked example (§3.29) and the grid row that is a row (§3.30).
+`render_lp.js` additionally carries primary's page target (§3.31). `lib/overlay.js` carries the
 two board labels (§3.16), the two script column heads (§3.17), page 1's seven labels (§3.20) and the
 two band names `weDo` / `youDo` (§3.23). `schema/lp_doc.schema.json`
 carries two additive hunks — the `board` variant's optional `title` and `panels` (§3.16) and the two
