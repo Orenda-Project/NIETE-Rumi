@@ -2258,7 +2258,223 @@ async function decideExamPass(levelId, score, totalQuestions) {
   };
 }
 
+/**
+ * bd-60149 — open (or resume) a module-exam attempt for a SURFACE THAT IS NOT
+ * WHATSAPP, and hand back the served paper.
+ *
+ * `startModuleExam` above does the same job but speaks WhatsApp: it takes a
+ * phone number and answers by sending messages. The portal needs the same
+ * DECISIONS without the delivery, so the shared parts — the gate, the quiz
+ * lookup, the one-CRQ sampler, the attempt sizing — are reused here rather
+ * than copied, and only the transport differs.
+ *
+ * Resumes an in-progress attempt instead of opening a second one, and seeds
+ * the paper on the attempt id (bd-60141) so a page reload re-derives the same
+ * three questions rather than drawing fresh ones.
+ *
+ * @returns {Promise<{ok:boolean, reason?:string, attempt_id?:string,
+ *   total_questions?:number, questions?:Array}>}
+ */
+async function openModuleExamAttempt({ userId, courseId, programId = null }) {
+  const courseIdNum = parseInt(String(courseId), 10);
+  if (!Number.isFinite(courseIdNum)) return { ok: false, reason: 'bad_course' };
+
+  const { data: course } = await supabase
+    .from('training_courses').select('id, title, level_id')
+    .eq('id', courseIdNum).maybeSingle();
+  if (!course?.level_id) return { ok: false, reason: 'unknown_course' };
+
+  const m = /Module (\d+)/.exec(course.title || '');
+  if (!m) return { ok: false, reason: 'no_module_number' };
+  const srcId = moduleSourceQuizId(parseInt(m[1], 10));
+
+  const { data: quizRows } = await supabase
+    .from('training_grand_quizzes').select('id, quiz_type')
+    .eq('level_id', course.level_id).eq('source_quiz_id', srcId).eq('is_active', true);
+  const mcqQuiz = (quizRows || []).find(q => q.quiz_type === 'grand_quiz') || null;
+  if (!mcqQuiz) return { ok: false, reason: 'no_exam' };
+
+  // THE GATE — the endpoint's own slot, so the portal and WhatsApp can never
+  // disagree about whether this exam is open.
+  const { loadModulesWithProgress, loadModuleExamSlot } = require('../../routes/teacher-training-endpoint');
+  const mods = await loadModulesWithProgress(userId, course.level_id);
+  const slot = await loadModuleExamSlot(userId, course.level_id, courseIdNum, mods);
+  if (!slot || !slot.ok) return { ok: false, reason: 'gate_closed', message: slot ? slot.body : null };
+
+  const bank = await loadQuestionBank({ quizKind: KIND_GRAND, grandQuizId: mcqQuiz.id });
+  if (bank.length === 0) return { ok: false, reason: 'empty_bank' };
+
+  const { data: existing } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, status, total_questions')
+    .eq('user_id', userId).eq('grand_quiz_id', mcqQuiz.id)
+    .order('started_at', { ascending: false }).limit(1).maybeSingle();
+
+  let attemptId = null;
+  let total = 0;
+  if (existing && existing.status === 'in_progress') {
+    attemptId = existing.id;
+    total = existing.total_questions;
+  } else {
+    let pid = programId;
+    if (!pid) {
+      const { data: asg } = await supabase
+        .from('teacher_training_assignments').select('program_id')
+        .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+      pid = asg?.program_id || null;
+    }
+    // bd-60129 — size the attempt to the SERVED paper, not the bank. The seed
+    // is 'sizing' because the attempt id does not exist yet, and LENGTH is the
+    // same whichever CRQ the real draw picks.
+    total = selectPaperWithOneCrq(bank, 'sizing').length;
+    const now = new Date().toISOString();
+    const { data: created, error: aErr } = await supabase
+      .from('training_assessment_attempts')
+      .insert({
+        user_id: userId, program_id: pid, quiz_kind: KIND_GRAND,
+        grand_quiz_id: mcqQuiz.id, level_id: course.level_id,
+        current_question_index: 0, total_questions: total, total_score: total,
+        status: 'in_progress', started_at: now, last_activity_at: now,
+      })
+      .select('id').single();
+    if (aErr || !created) {
+      logToFile('❌ Portal module-exam attempt insert failed', { userId, courseId: courseIdNum, error: aErr?.message });
+      return { ok: false, reason: 'insert_failed' };
+    }
+    attemptId = created.id;
+  }
+
+  // The real draw, seeded on the attempt id.
+  const served = selectPaperWithOneCrq(bank, attemptId);
+  const ids = served.map(q => q.id);
+  const { data: full } = await supabase
+    .from('training_questions')
+    .select('id, question_text, options, correct_option, option_images, order_index')
+    .in('id', ids.length ? ids : [-1]);
+  const byId = new Map((full || []).map(q => [q.id, q]));
+
+  return {
+    ok: true,
+    attempt_id: attemptId,
+    module_title: course.title,
+    total_questions: total,
+    questions: ids.map((id, i) => {
+      const q = byId.get(id) || {};
+      const open = isOpenEndedQuestion({ options: q.options, correct_option: q.correct_option });
+      return {
+        id,
+        index: i,
+        question_text: q.question_text,
+        // The key NEVER leaves the bot for an unsubmitted paper.
+        options: open ? [] : (q.options || []),
+        option_images: q.option_images || null,
+        is_open_ended: open,
+      };
+    }),
+  };
+}
+
+/**
+ * bd-60149 — mark a module-exam paper submitted from the portal.
+ *
+ * MCQs are marked against the stored key here. The CRQ is marked by the SAME
+ * grader WhatsApp uses, because the same words must earn the same score on
+ * either surface.
+ *
+ * THE CRQ MARKS IN THE BACKGROUND (operator decision). Everything durable —
+ * the answer rows, the attempt's MCQ score — is committed before this returns,
+ * and the response carries `crq_pending: true`. The rubric score is written
+ * when the model replies, and a slow or failing LLM call therefore cannot cost
+ * a teacher the answer she typed.
+ *
+ * @returns {Promise<{attempt:object, crq_pending:boolean, certificate?:object}>}
+ */
+async function submitModuleExamPaper({ userId, attemptId, answers }) {
+  const { data: attempt } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id, level_id, program_id, grand_quiz_id, total_questions, status')
+    .eq('id', attemptId).maybeSingle();
+  if (!attempt) throw new Error('attempt not found');
+  if (attempt.user_id !== userId) throw new Error('attempt does not belong to this user');
+
+  const ids = answers.map(a => a.question_id).filter(Boolean);
+  const { data: qs } = await supabase
+    .from('training_questions')
+    .select('id, question_text, options, correct_option')
+    .in('id', ids.length ? ids : [-1]);
+  const byId = new Map((qs || []).map(q => [q.id, q]));
+
+  const now = new Date().toISOString();
+  const rows = [];
+  let mcqScore = 0;
+  let crq = null;
+  answers.forEach((a, i) => {
+    const q = byId.get(a.question_id);
+    if (!q) return;
+    const open = isOpenEndedQuestion({ options: q.options, correct_option: q.correct_option });
+    if (open) {
+      crq = { question: q, text: String(a.answer_text || ''), index: i };
+      rows.push({
+        attempt_id: attemptId, question_index: i, question_id: q.id,
+        chosen_option: null, is_correct: null, answered_at: now,
+        answer_text: crq.text, answer_score: null,
+      });
+    } else {
+      const correct = String(a.chosen_option) === String(q.correct_option);
+      if (correct) mcqScore += 1;
+      rows.push({
+        attempt_id: attemptId, question_index: i, question_id: q.id,
+        chosen_option: String(a.chosen_option ?? ''), is_correct: correct, answered_at: now,
+        answer_text: null, answer_score: null,
+      });
+    }
+  });
+  if (rows.length) {
+    const { error } = await supabase.from('training_assessment_answers').insert(rows);
+    if (error) throw new Error(`could not store answers: ${error.message}`);
+  }
+
+  // Commit the MCQ half now. The attempt stays in_progress while a CRQ is
+  // outstanding, so nothing reads it as a finished paper mid-marking.
+  await supabase.from('training_assessment_attempts').update({
+    current_question_index: answers.length,
+    score: mcqScore,
+    last_activity_at: now,
+  }).eq('id', attemptId);
+
+  const finishGrading = async () => {
+    if (crq) {
+      const perAnswer = await crqPointsForLevel(attempt.level_id);
+      const { scoreAnswer } = require('./capstone-delivery.service');
+      const { score, feedback } = await scoreAnswer(crq.question, crq.text, perAnswer);
+      await supabase.from('training_assessment_answers')
+        .update({ answer_score: score, feedback_text: feedback })
+        .eq('attempt_id', attemptId).eq('question_index', crq.index);
+    }
+    return gradeAttempt(attemptId, null);
+  };
+
+  if (crq) {
+    // Background: never let a ~10s model call hold the teacher's submit open.
+    setImmediate(() => {
+      finishGrading().catch(err => logToFile('❌ Portal CRQ marking failed', {
+        attemptId, error: err?.message,
+      }));
+    });
+    return { attempt: { id: attemptId, score: mcqScore, total_questions: attempt.total_questions, status: 'marking' }, crq_pending: true };
+  }
+
+  await finishGrading();
+  const { data: done } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, score, total_questions, status, is_passed')
+    .eq('id', attemptId).maybeSingle();
+  return { attempt: done, crq_pending: false };
+}
+
 module.exports = {
+  openModuleExamAttempt,
+  submitModuleExamPaper,
   startGrandQuiz,
   startModuleExam,
   routeOpenEndedAnswer,
