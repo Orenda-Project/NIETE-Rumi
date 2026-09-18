@@ -21,8 +21,18 @@
  * the caller decides where the environment comes from.
  */
 
-/** Printed across the top of any certificate generated outside production. */
-const TEST_BANNER_TEXT = 'TEST CERTIFICATE — NOT A REAL CERTIFICATE. For testing purposes only.';
+/**
+ * Watermarked across the middle of any certificate generated outside
+ * production (bd-60140 moved it there from a header band).
+ *
+ * Deliberately SHORT: it is set large and diagonal, so a full sentence would
+ * wrap into an unreadable block. The long form lives in TEST_BANNER_SUBTEXT
+ * and is set small underneath.
+ */
+const TEST_BANNER_TEXT = 'NOT A REAL CERTIFICATE';
+
+/** The explanatory line, set small beneath the watermark. */
+const TEST_BANNER_SUBTEXT = 'Generated outside production — for testing purposes only.';
 
 /**
  * Is this the production environment?
@@ -50,6 +60,7 @@ function shouldStampTestBanner(nodeEnv) {
 
 module.exports = {
   TEST_BANNER_TEXT,
+  TEST_BANNER_SUBTEXT,
   isProductionEnv,
   shouldStampTestBanner,
 };
