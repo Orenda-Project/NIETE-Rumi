@@ -3065,15 +3065,57 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       }
     }
 
+    // bd-60149 — does each unit have a formative assessment of its own?
+    //
+    // The I-SAPS list interleaves "Unit 301 / Unit 301 — Assessment", and the
+    // assessment row must NOT render for a unit that has no questions: two of
+    // the level's 54 units (302, 303) have none, and a blank row for them
+    // would promise work that does not exist. The detail endpoint already
+    // reports this per unit; the LIST needs it too, in one query.
+    const qMap = new Map();
+    if (moduleIds.length) {
+      const { data: qRows } = await supabase
+        .from('training_questions')
+        .select('training_module_id')
+        .in('training_module_id', moduleIds)
+        .eq('is_active', true);
+      for (const r of qRows || []) qMap.set(r.training_module_id, true);
+    }
+
     const enriched = (modules || []).map(m => ({
       id: m.id, title: m.title, order_index: m.order_index,
       duration_seconds: m.duration_seconds,
       has_video: !!m.video_url,
       has_audio: !!m.audio_url,
       has_pdf: _isPdfSourceUrl(m.source_media_url),
+      has_questions: qMap.has(m.id),
       completed_at: completedMap.get(m.id) || null,
     }));
-    res.json({ success: true, modules: enriched });
+    // bd-60149 — the module's own summative exam, alongside its units.
+    //
+    // Operator decision: an unpassed module exam BLOCKS the next module, the
+    // same way WhatsApp gates it. The UI cannot render that lock without the
+    // state, and the portal must not compute it locally — so the verdict comes
+    // from the bot, once per course rather than once per unit.
+    //
+    // Best effort: a rules-API hiccup must not stop a teacher seeing her
+    // units. `exam: null` renders as "no exam here", which is also the honest
+    // answer for every vendor that has none.
+    let exam = null;
+    try {
+      const g = await TrainingRules.moduleExamGate(userId, parseInt(courseId, 10));
+      if (g && (g.ok || g.body)) {
+        exam = {
+          available: g.ok === true,
+          body: g.body || '',
+          caption: g.caption || '',
+          cta: g.cta || '',
+          module_no: g.module_no ?? null,
+        };
+      }
+    } catch (_) { /* leave exam null — the units still render */ }
+
+    res.json({ success: true, modules: enriched, exam });
   } catch (error) {
     console.error('training/modules error:', error);
     res.status(500).json({ success: false, error: 'Failed to load modules' });
@@ -4269,6 +4311,106 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
  * The write itself upserts on the (user_id, module_id) unique constraint so a
  * concurrent double-click cannot 500 on a duplicate either.
  */
+/**
+ * GET /api/portal/training/module/:id/exam
+ *
+ * bd-60149 — may this teacher sit this module's summative exam?
+ *
+ * The portal had no concept of a module exam: `source_quiz_id` appeared
+ * nowhere in this file, so an I-SAPS teacher could finish all 54 units here
+ * and never reach a summative assessment. `:id` is the COURSE (a "module" in
+ * I-SAPS terms), matching how the exam is keyed.
+ *
+ * The verdict comes from the bot, so this screen and WhatsApp cannot disagree
+ * about whether the exam is open.
+ */
+router.get('/training/module/:id/exam', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const courseId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(courseId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+    const gate = await TrainingRules.moduleExamGate(userId, courseId);
+    return res.json({ success: true, exam: gate });
+  } catch (error) {
+    console.error('training/module/:id/exam GET error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load the module exam' });
+  }
+});
+
+/**
+ * GET /api/portal/training/module/:id/exam/questions
+ *
+ * bd-60149 — opens (or resumes) the attempt and returns the served paper:
+ * 2 scenario MCQs + 1 written answer, seeded on the attempt id so a page
+ * reload re-derives the SAME three questions rather than drawing fresh ones.
+ *
+ * Answer keys never cross this boundary — the bot strips them.
+ */
+router.get('/training/module/:id/exam/questions', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const courseId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(courseId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+    const { data: assignment } = await supabase
+      .from('teacher_training_assignments').select('program_id')
+      .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+
+    const paper = await TrainingRules.startModuleExam(userId, courseId, assignment?.program_id || null);
+    if (!paper.ok) {
+      return res.status(409).json({ success: false, error: 'This exam is not available yet.', reason: paper.reason });
+    }
+    return res.json({
+      success: true,
+      attempt_id: paper.attempt_id,
+      module_title: paper.module_title,
+      total_questions: paper.total_questions,
+      questions: paper.questions,
+    });
+  } catch (error) {
+    console.error('training/module/:id/exam/questions GET error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load the exam paper' });
+  }
+});
+
+/**
+ * POST /api/portal/training/module/:id/exam/attempts
+ * Body { attempt_id, answers:[{question_id, chosen_option?, answer_text?}] }
+ *
+ * bd-60149 — submit the paper.
+ *
+ * Marking happens in the bot, with the same grader WhatsApp uses, so identical
+ * words earn an identical score whichever surface a teacher used.
+ *
+ * THE WRITTEN ANSWER IS MARKED IN THE BACKGROUND (operator decision): the
+ * answers are committed and this returns `crq_pending: true` immediately, with
+ * the rubric score landing when the model replies. A ~10s LLM call must never
+ * be the reason a teacher's typed answer is lost.
+ */
+router.post('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const { attempt_id: attemptId, answers } = req.body || {};
+    if (!attemptId) {
+      return res.status(400).json({ success: false, error: 'attempt_id is required' });
+    }
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ success: false, error: 'answers[] is required' });
+    }
+    const result = await TrainingRules.submitModuleExam(userId, attemptId, answers);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    // The rules client THROWS when marking cannot be trusted; abandoning the
+    // write is correct, because recording an unmarked pass invents progress
+    // and an unmarked fail destroys real work.
+    console.error('training/module/:id/exam/attempts POST error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to submit the exam' });
+  }
+});
+
 router.post('/training/module/:id/complete', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;

@@ -46,7 +46,7 @@
  * separates "nothing assigned" from "could not ask" (bd-43487).
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import DOMPurify from 'dompurify';
 import {
   GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck,
@@ -61,6 +61,7 @@ import CertificatesPanel from '../components/CertificatesPanel';
 import BandPicker from '../components/BandPicker';
 import { classifyTrainingLoadError, EMPTY_MODULES_MESSAGE } from '../lib/trainingLoadError';
 import { Button } from '@/components/ui/button';
+import ModuleExamPanel, { type ExamGate } from '../components/ModuleExamPanel';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 import niteLogo from '@/assets/vendors/niete.png';
@@ -115,7 +116,7 @@ type Level = {
   previous_level_order: number | null;
 };
 type Course = { id: string; title: string; course_type: string; order_index: number; module_count: number; completed_count: number };
-type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; completed_at: string | null };
+type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; has_questions?: boolean; completed_at: string | null };
 type ModuleDetail = {
   id: string; title: string; content_html: string;
   video_url: string | null; audio_url: string | null;
@@ -476,6 +477,8 @@ const PortalTrainingV2 = () => {
   const [levels, setLevels] = useState<Level[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [modules, setModules] = useState<ModuleSummary[]>([]);
+  // bd-60149 — the module's own summative exam, delivered with its units.
+  const [moduleExam, setModuleExam] = useState<ExamGate | null>(null);
   const [moduleDetail, setModuleDetail] = useState<ModuleDetail | null>(null);
   const [loadError, setLoadError] = useState<{ message: string; locked: boolean } | null>(null);
 
@@ -543,7 +546,7 @@ const PortalTrainingV2 = () => {
       setSelectedCourse('');
       setSelectedModule('');
       setCourses([]);
-      setModules([]);
+      setModules([]); setModuleExam(null);
       setModuleDetail(null);
     }
   }, [visibleLevels, selectedLevel]);
@@ -623,6 +626,7 @@ const PortalTrainingV2 = () => {
         const { data } = await api.get('/training/modules', { params: { course_id: selectedCourse } });
         const list: ModuleSummary[] = data.modules || [];
         setModules(list);
+        setModuleExam(data.exam || null);
         if (list.length > 0) {
           setAttemptsByModule(Object.fromEntries(list.map(m => [m.id, null])));
           list.forEach(m => {
@@ -865,6 +869,7 @@ const PortalTrainingV2 = () => {
                       </button>
                     );
                   })}
+
                 </div>
 
                 <div className="rounded-2xl border bg-card p-2 shadow-sm" data-testid="module-list">
@@ -900,7 +905,11 @@ const PortalTrainingV2 = () => {
                     const active = m.id === selectedModule;
                     const attempts = attemptsByModule[m.id];
                     const loading = m.id in attemptsByModule && attempts === null;
+                    // The unit's own formative assessment is a separate row —
+                    // but only when the unit actually has one.
+                    const scored = (attempts || []).some(a => a.completed_at);
                     return (
+                    <Fragment key={m.id}>
                       <button
                         key={m.id}
                         type="button"
@@ -928,8 +937,58 @@ const PortalTrainingV2 = () => {
                           loading={loading}
                         />
                       </button>
+                      {m.has_questions && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedModule(m.id)}
+                          data-testid={`module-assessment-${m.id}`}
+                          className={`w-full text-left rounded-lg pl-9 pr-3.5 py-2 mb-0.5 flex items-center gap-3 transition-colors ${
+                            active ? 'bg-accent/5' : 'hover:bg-muted/50'
+                          }`}
+                        >
+                          {scored
+                            ? <CheckCircle2 className="w-3.5 h-3.5 text-accent shrink-0" />
+                            : <Circle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                          <span className="flex-1 text-sm truncate text-muted-foreground">
+                            {m.title} — Assessment
+                          </span>
+                        </button>
+                      )}
+                    </Fragment>
                     );
                   })}
+                  {/* bd-60149 — the I-SAPS reading of this list.
+                      A unit and its own formative assessment are two separate
+                      things a teacher does in order, so they are two rows:
+                      "Unit 301" then "Unit 301 — Assessment". The assessment
+                      row is CONDITIONAL — 2 of the level's 54 units carry no
+                      questions at all, and a row for them would promise work
+                      that does not exist. Selecting either row opens the same
+                      unit; the detail card already holds the quiz. */}
+
+                  {/* bd-60149 — the module's summative exam, as the row AFTER
+                      its units, which is where a teacher looks for it. It was
+                      first built inside a unit's detail card, so walking from
+                      the last unit of one module to the first of the next
+                      never showed it at all. Renders nothing unless this
+                      course has an exam. */}
+                  {selectedCourse && moduleExam && (
+                    <ModuleExamPanel
+                      key={`exam-${selectedCourse}`}
+                      courseId={String(selectedCourse)}
+                      exam={moduleExam}
+                      asListRow
+                      onPassed={() => {
+                        if (!selectedCourse) return;
+                        api.get('/training/modules', { params: { course_id: selectedCourse } })
+                          .then(({ data }) => {
+                            setModules(data.modules || []);
+                            setModuleExam(data.exam || null);
+                          })
+                          .catch(() => { /* the pass is recorded server-side either way */ });
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             )}
