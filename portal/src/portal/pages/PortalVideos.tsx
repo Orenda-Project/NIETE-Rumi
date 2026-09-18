@@ -125,7 +125,7 @@ const PortalVideos = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground">My Videos</h1>
             <p className="text-muted-foreground">
-              Educational videos generated with Rumi
+              Educational videos generated with NIETE
             </p>
           </div>
           {pagination && (
@@ -178,7 +178,7 @@ const PortalVideos = () => {
             icon={Video}
             title="No videos found"
             description={videos.length === 0
-              ? "Your generated videos will appear here. Start by requesting a video through Rumi on WhatsApp!"
+              ? "Your generated videos will appear here. Start by requesting a video through NIETE on WhatsApp!"
               : "No videos match your search criteria. Try adjusting your filters."
             }
           />

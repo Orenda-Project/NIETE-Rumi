@@ -66,9 +66,9 @@ describe("LeaderTeachers — school, EMIS, observations, named focus (bd-2672)",
     expect(await screen.findByText(/Checking for understanding/)).toBeInTheDocument();
   });
 
-  it("shows the school even for a teacher not yet on Rumi", async () => {
+  it("shows the school even for a teacher not yet on NIETE", async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/IMSG Beta/)).toBeInTheDocument());
-    expect(screen.getByText(/Not yet on Rumi/)).toBeInTheDocument();
+    expect(screen.getByText(/Not yet on NIETE/)).toBeInTheDocument();
   });
 });

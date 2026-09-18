@@ -101,7 +101,7 @@ const LeaderObservations = () => {
         <header className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-light">Observations</h1>
           <p className="text-muted-foreground mt-2">
-            Your schedule, debriefs waiting, and completed observations. To schedule or debrief, send /observe to Rumi on WhatsApp.
+            Your schedule, debriefs waiting, and completed observations. To schedule or debrief, send /observe to NIETE on WhatsApp.
           </p>
         </header>
 

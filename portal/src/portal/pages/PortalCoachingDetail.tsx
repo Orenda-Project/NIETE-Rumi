@@ -296,7 +296,7 @@ const PortalCoachingDetail = () => {
                   <h2 className="text-xl font-semibold">Your reflection</h2>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  From your conversation with Rumi on WhatsApp.
+                  From your conversation with NIETE on WhatsApp.
                 </p>
 
                 <div className="space-y-5">
@@ -305,7 +305,7 @@ const PortalCoachingDetail = () => {
                       {entry.question && (
                         <div>
                           <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                            Rumi asked
+                            NIETE asked
                           </div>
                           <UrduAware
                             text={entry.question}
@@ -325,7 +325,7 @@ const PortalCoachingDetail = () => {
                         </div>
                       ) : (
                         <p className="text-xs text-muted-foreground pl-3">
-                          You have not answered this one yet — reply to Rumi on WhatsApp.
+                          You have not answered this one yet — reply to NIETE on WhatsApp.
                         </p>
                       )}
                     </div>
