@@ -203,6 +203,87 @@ describe('compareSnapshots — must not cry wolf', () => {
     expect(compareSnapshots(base, base).clean).toBe(true);
   });
 
+  // bd-ic9t5. The guards report `path:line`, and a line number moves whenever ANYTHING
+  // above it is edited. Comparing raw strings therefore reports the same violation at a
+  // new line as both a new offender and a fixed one.
+  //
+  // `normaliseOffender` was written for exactly this on 2026-09-04 (70 additions reported,
+  // 2 real) — but it was only ever wired into snapshotGrowth, so the GATE still cried wolf.
+  // Measured 2026-09-17/18: three separate re-cuts went stale within the hour, once
+  // reporting 175 fixed and a fresh batch of new for a single unrelated commit.
+  it('the SAME violation at a NEW line is not a regression, nor a fix', () => {
+    const now = {
+      'tests/setup/source-hygiene.test.js': {
+        failing: ['no internal refs'],
+        offenders: ['bot/a.js:118', 'bot/b.js:207'],   // a.js:1 and b.js:2, shifted down
+      },
+    };
+    const r = compareSnapshots(now, base);
+    expect(r.newOffenders).toEqual([]);
+    expect(r.fixedOffenders).toEqual([]);
+    expect(r.clean).toBe(true);
+  });
+
+  it('...but a DIFFERENT file at the same line still counts', () => {
+    const now = {
+      'tests/setup/source-hygiene.test.js': {
+        failing: ['no internal refs'],
+        offenders: ['bot/a.js:1', 'bot/b.js:2', 'bot/c.js:2'],
+      },
+    };
+    const r = compareSnapshots(now, base);
+    expect(r.newOffenders).toEqual([
+      { suite: 'tests/setup/source-hygiene.test.js', offenders: ['bot/c.js:2'] },
+    ]);
+    expect(r.clean).toBe(false);
+  });
+
+  // The trap in fixing the above. Dropping the line number and comparing SETS would make
+  // a file that already has one violation absorb any number of new ones silently — which
+  // is the invisible-absorption bug this whole gate was built to catch, moved down a level
+  // from the suite to the file. So the comparison must be a MULTISET: position-insensitive,
+  // count-sensitive.
+  it('a file that already has a violation and gains more still reports them', () => {
+    const now = {
+      'tests/setup/source-hygiene.test.js': {
+        failing: ['no internal refs'],
+        offenders: ['bot/a.js:10', 'bot/a.js:20', 'bot/a.js:30', 'bot/b.js:2'],
+      },
+    };
+    const r = compareSnapshots(now, base);   // base has ONE offender in a.js
+    expect(r.newOffenders[0].offenders).toHaveLength(2);
+    expect(r.clean).toBe(false);
+  });
+
+  it('and losing one of several in a file still reports the improvement', () => {
+    const b = {
+      'tests/setup/source-hygiene.test.js': {
+        failing: ['no internal refs'],
+        offenders: ['bot/a.js:10', 'bot/a.js:20', 'bot/a.js:30'],
+      },
+    };
+    const n = {
+      'tests/setup/source-hygiene.test.js': {
+        failing: ['no internal refs'],
+        offenders: ['bot/a.js:11', 'bot/a.js:21'],
+      },
+    };
+    const r = compareSnapshots(n, b);
+    expect(r.newOffenders).toEqual([]);
+    expect(r.fixedOffenders[0].offenders).toHaveLength(1);
+    expect(r.clean).toBe(true);
+  });
+
+  it('a non-positional offender is compared verbatim, line-stripping or not', () => {
+    // `video_requests.observer_debrief` has no `:line` to strip. It must still compare.
+    const b = { 'tests/setup/column-completeness.test.js': { failing: ['cols'], offenders: ['users.name'] } };
+    const n = { 'tests/setup/column-completeness.test.js': { failing: ['cols'], offenders: ['users.name', 'users.age'] } };
+    expect(compareSnapshots(n, b).newOffenders).toEqual([
+      { suite: 'tests/setup/column-completeness.test.js', offenders: ['users.age'] },
+    ]);
+    expect(compareSnapshots(b, b).clean).toBe(true);
+  });
+
   it('FEWER offenders is an improvement, not a regression', () => {
     const now = {
       'tests/setup/source-hygiene.test.js': {

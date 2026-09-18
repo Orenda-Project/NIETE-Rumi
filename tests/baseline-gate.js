@@ -103,6 +103,42 @@ function summariseRun(report) {
 const missing = (a, b) => a.filter((x) => !b.includes(x));
 
 /**
+ * Offenders in `a` that `b` does not account for, compared BY VIOLATION and BY COUNT.
+ *
+ * Two properties, and both are load-bearing:
+ *
+ * POSITION-INSENSITIVE, via normaliseOffender — `path:123` and `path:456` are the same
+ * violation at a new line. Without this the gate cries wolf every time anyone edits above
+ * an offender: measured over 2026-09-17/18, three consecutive re-cuts went stale inside
+ * the hour, one of them reporting 175 fixed and a fresh batch of new for a single
+ * unrelated commit. A gate that cries wolf gets switched off, which is how this repo's
+ * CI ended up `disabled_manually` in the first place.
+ *
+ * COUNT-SENSITIVE, hence a multiset rather than a Set. Normalising into a Set would let a
+ * file that already has one violation absorb any number of new ones in silence — which is
+ * precisely the invisible-absorption bug this gate was built to catch, moved down one
+ * level from the suite to the file. `source-hygiene` reports bare `path:line` with nothing
+ * after it, so every violation in a file collapses to the same key and only the count
+ * distinguishes them.
+ *
+ * Returns the RAW strings from `a`, so whoever reads the output gets a line number to go to.
+ */
+function missingOffenders(a, b) {
+  const pool = new Map();
+  for (const x of b) {
+    const k = normaliseOffender(x);
+    pool.set(k, (pool.get(k) || 0) + 1);
+  }
+  const out = [];
+  for (const x of a) {
+    const k = normaliseOffender(x);
+    const n = pool.get(k) || 0;
+    if (n > 0) pool.set(k, n - 1); else out.push(x);
+  }
+  return out;
+}
+
+/**
  * Never record a documented-flaky suite as baseline.
  *
  * Without this, running --update at an unlucky moment bakes a flaky suite in as an
@@ -163,8 +199,11 @@ function compareSnapshots(now, base, opts = {}) {
     }
     const newT = missing(now[suite].failing, base[suite].failing);
     const gotT = missing(base[suite].failing, now[suite].failing);
-    const newO = missing(now[suite].offenders, base[suite].offenders);
-    const gotO = missing(base[suite].offenders, now[suite].offenders);
+    // bd-ic9t5: by violation and by count, NOT by raw string. normaliseOffender was
+    // written for this on 2026-09-04 and only ever wired into snapshotGrowth below, so
+    // the gate itself kept comparing `path:line` literally and kept crying wolf.
+    const newO = missingOffenders(now[suite].offenders, base[suite].offenders);
+    const gotO = missingOffenders(base[suite].offenders, now[suite].offenders);
     if (newT.length) r.newTests.push({ suite, tests: newT });
     if (gotT.length) r.fixedTests.push({ suite, tests: gotT });
     if (newO.length) r.newOffenders.push({ suite, offenders: newO });
@@ -343,8 +382,9 @@ function snapshotGrowth(before, after) {
     if (!(suite in before)) continue;
     const wasRaw = list(before, suite, 'offenders');
     const nowRaw = list(after, suite, 'offenders');
-    const wasNorm = new Set(wasRaw.map(normaliseOffender));
-    const added = nowRaw.filter((x) => !wasNorm.has(normaliseOffender(x)));
+    // Same multiset comparison as the gate. This was a Set, which normalised position
+    // correctly and lost count entirely, so a file gaining violations read as no growth.
+    const added = missingOffenders(nowRaw, wasRaw);
     if (added.length) addedOffenders.push({ suite, offenders: added.sort() });
   }
   addedOffenders.sort((a, b) => a.suite.localeCompare(b.suite));
