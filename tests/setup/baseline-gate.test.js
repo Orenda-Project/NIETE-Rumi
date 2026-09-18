@@ -612,4 +612,26 @@ describe('snapshotGrowth — a moved offender is not growth', () => {
     const after  = snap(["bot/s.js:12 — x — a: 'one'", "bot/s.js:20 — x — b: 'two'"]);
     expect(snapshotGrowth(before, after).grew).toBe(true);
   });
+
+  // The case the test above cannot see, and the one that mattered. It distinguishes its two
+  // offenders by the text AFTER the line number, so a Set of normalised keys holds two
+  // entries and reports growth correctly by accident.
+  //
+  // source-hygiene reports BARE `path:line` with nothing after it. Both of these collapse
+  // to `bot/s.js:L`, one Set entry, and the growth check saw no growth at all — a file
+  // already on the list could absorb any number of new violations in silence. Fixed in
+  // bd-ic9t5 by comparing as a multiset. Counts, not just identities.
+  it('a second BARE path:line in a file that already had one is growth', () => {
+    const before = snap(['bot/s.js:10']);
+    const after  = snap(['bot/s.js:12', 'bot/s.js:20']);
+    const g = snapshotGrowth(before, after);
+    expect(g.grew).toBe(true);
+    expect(g.addedOffenders[0].offenders).toHaveLength(1);
+  });
+
+  it('and dropping one of several bare offenders is a shrink, not growth', () => {
+    const before = snap(['bot/s.js:10', 'bot/s.js:20', 'bot/s.js:30']);
+    const after  = snap(['bot/s.js:11', 'bot/s.js:21']);
+    expect(snapshotGrowth(before, after).grew).toBe(false);
+  });
 });
