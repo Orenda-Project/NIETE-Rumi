@@ -2080,6 +2080,12 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
       course_count: agg.course_count,
       module_count: agg.module_count,
       completed_module_count: agg.completed_module_count,
+      // bd-60155 — this line is why the card read "0 Certificates" for
+      // everyone. The count was aggregated correctly above and then dropped
+      // here: this mapper names every field it returns, so a field added to
+      // the accumulator and not to this list is silently discarded. The
+      // aggregation was verified against real data; the RESPONSE never was.
+      certificate_count: agg.certificate_count,
       avg_score_pct: agg._pctN > 0 ? Math.round(agg._pctSum / agg._pctN) : null,
     }));
 
