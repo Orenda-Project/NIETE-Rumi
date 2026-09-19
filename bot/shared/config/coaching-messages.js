@@ -166,6 +166,18 @@ const COACHING_MESSAGES = {
     ...en("🔄 Step 5/5: Creating your personalized voice debrief..."),
     ur: '🔄 مرحلہ ⁦5/5⁩: آپ کے لیے آواز میں خصوصی خلاصہ تیار کیا جا رہا ہے...',
   },
+  // bd-x3k1q (DC row 133): the coaching session has to announce its own END.
+  // Qurat, 2026-09-18: the quiz offer used to land immediately after the
+  // commitment question with nothing between them, so teachers and coaches read
+  // the quiz as still part of the coaching session. This line is the boundary —
+  // sent after the commit prompt and before anything the quiz or the feature
+  // linker says. Keep it ONE short line led by the ✅ — bd-sk206 (row 132) is the
+  // warning: an Urdu reader scans the FRONT of the string, so the closing marker
+  // has to be visible there, not buried at the end of a paragraph.
+  sessionComplete: {
+    ...en("✅ That completes your coaching session. Anything I send after this is separate from it."),
+    ur: '✅ آپ کا کوچنگ سیشن مکمل ہو گیا۔ اس کے بعد جو پیغام آئے گا وہ اس سیشن کا حصہ نہیں ہے۔',
+  },
   // Final report delivery
   reportReady: {
     ...en("✅ Your Classroom Observation Report is ready! 📄"),
