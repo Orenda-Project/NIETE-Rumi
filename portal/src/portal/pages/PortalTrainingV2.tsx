@@ -623,6 +623,19 @@ const PortalTrainingV2 = () => {
 
   useEffect(() => {
     if (!selectedLevel) return;
+    // bd-60152 — this guard drops a level the teacher can no longer see (a
+    // band change, a revoked assignment). It must NOT run while a URL owns
+    // the selection, and it must NOT run before the level list has arrived.
+    //
+    // Both were wrong, and together they were the whole "navigation doesn't
+    // work" bug. visibleLevels is [] on first paint, so ANY selected level
+    // looks absent from it — the guard then fired on a perfectly valid level
+    // and wiped selectedModule, which the route had just set. The detail
+    // fetch keys on selectedModule, so it never ran: on a deep link the page
+    // issued only /vendors and /levels and nothing else, leaving a unit page
+    // with no unit and both arrows dead.
+    if (onSubPage) return;
+    if (visibleLevels.length === 0) return;
     if (!visibleLevels.some(l => String(l.id) === selectedLevel)) {
       setSelectedLevel('');
       setSelectedCourse('');
@@ -631,7 +644,8 @@ const PortalTrainingV2 = () => {
       setModules([]); setModuleExam(null);
       setModuleDetail(null);
     }
-  }, [visibleLevels, selectedLevel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleLevels, selectedLevel, onSubPage]);
 
   // One provider is not a choice. Gating the rail on a vendor (above) would
   // otherwise make a single-provider teacher click her only card before
@@ -670,8 +684,17 @@ const PortalTrainingV2 = () => {
   }, [levels, toast]);
 
   useEffect(() => {
-    setCourses([]); setModules([]); setModuleDetail(null);
-    setSelectedCourse(''); setSelectedModule('');
+    setCourses([]); setModules([]);
+    // bd-60152 — the THIRD effect that tore down URL-owned state, and the one
+    // the instrumentation actually caught clearing it (a deep link set
+    // selectedModule, then this ran when the level auto-picked and wiped it).
+    //
+    // Changing level legitimately invalidates the open unit when the teacher
+    // is browsing. On a unit URL the opposite is true: the level is being
+    // restored *because* of that unit, so clearing it here threw away the
+    // very selection that caused the fetch, and the detail request was never
+    // issued at all.
+    if (!onSubPage) { setModuleDetail(null); setSelectedCourse(''); setSelectedModule(''); }
     setLoadError(null);
     if (!selectedLevel) return;
     (async () => {
@@ -697,13 +720,24 @@ const PortalTrainingV2 = () => {
   }, [courses, selectedCourse]);
 
   useEffect(() => {
-    setModules([]); setModuleDetail(null);
-    // bd-60152 — do NOT clear the selection when the URL names a unit.
+    setModules([]);
+    // bd-60152 — do NOT clear the selection OR the detail when the URL names a
+    // unit.
     //
     // This unconditionally reset selectedModule, which fought the route: a
     // deep link set the unit, then this effect wiped it the moment the course
     // resolved, and the page fell back to the picker.
-    if (!routeModuleId) setSelectedModule('');
+    //
+    // Clearing moduleDetail here was the second half of the same bug, and the
+    // reason the arrows stayed grey after the first fix. On a deep link the
+    // order is: detail arrives -> the restore effect reads its course -> that
+    // sets selectedCourse -> which re-runs THIS effect -> which nulled the
+    // very detail the restore had just read. The detail fetch keys on
+    // selectedModule alone, so it never re-ran, the restore's `if
+    // (!moduleDetail) return` bailed forever, and moduleIndex stayed -1 with
+    // both arrows disabled. The URL owns this state; a course change that the
+    // URL itself caused must not tear it down.
+    if (!routeModuleId) { setSelectedModule(''); setModuleDetail(null); }
     setAttemptsByModule({});
     setLoadError(null);
     if (!selectedCourse) return;
