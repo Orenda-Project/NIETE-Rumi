@@ -1,0 +1,112 @@
+{
+  "_note": "SHAPE REFERENCE, NOT CONTENT. Invented for this purpose -- no page of any textbook is behind it, and it must never be copied into a real revision day. It exists because a field list tells an author which keys to write and nothing at all about how much to write in them, and because the shape it demonstrates is the one the pilot got wrong: three of four revision lessons arrived with revisionPanels null and rendered as ordinary lesson plans at full cost. Everything panellint enforces is visible here at least once -- three complete panels teaching the same content at three depths, a grouping note, one to three board lines, one worked example, two to three practice items, one exit question, and not one iDo, weDo or youDo anywhere. Kept lint-clean by test_cbrief_revision.py, so it cannot rot into an example of the wrong thing.",
+  "lesson_id": "exemplar_revision",
+  "lp_type": "revision",
+  "generated": {
+    "title": "Revision Day — Hello World!",
+    "minutes": 40,
+    "revisionPanels": {
+      "groupingNote": "Three groups by last week's dictation: children still matching sounds to letters, children reading the words, children writing them. Move a child up the moment they are ready.",
+      "beginner": {
+        "focus": "Hearing and naming the first sound in a word",
+        "board": [
+          "m - m - mat",
+          "s - s - sun",
+          "p - p - pen"
+        ],
+        "explain": {
+          "say": "Say the word slowly, the way we stretch a rubber band. The very first sound you hear is the one we write first. Listen: mmmm-at. The first sound is m.",
+          "sayLocal": "لفظ آہستہ بولو، جیسے ربڑ کھینچتے ہیں۔ جو آواز سب سے پہلے سنائی دے، وہی پہلے لکھی جاتی ہے۔ سنو: مـ ـم ـات۔ پہلی آواز م ہے۔"
+        },
+        "guided": {
+          "prompt": "What sound does 'mat' start with?",
+          "strategy": "Stretch the word out loud, then point at the letter on the board that makes that sound.",
+          "answer": "m"
+        },
+        "practice": [
+          {
+            "prompt": "sun",
+            "answer": "s"
+          },
+          {
+            "prompt": "pen",
+            "answer": "p"
+          },
+          {
+            "prompt": "map",
+            "answer": "m"
+          }
+        ],
+        "exit": {
+          "prompt": "What sound does 'dog' start with?",
+          "answer": "d"
+        }
+      },
+      "intermediate": {
+        "focus": "Reading the chapter's greeting words on sight",
+        "board": [
+          "hello",
+          "good morning",
+          "thank you"
+        ],
+        "explain": {
+          "say": "These are the words from our chapter. We do not sound them out one letter at a time any more -- we look at the whole word and say it. Read them with me, together.",
+          "sayLocal": "یہ ہمارے سبق کے الفاظ ہیں۔ اب ہم ایک ایک حرف نہیں جوڑتے، پورا لفظ دیکھ کر پڑھتے ہیں۔ میرے ساتھ مل کر پڑھو۔"
+        },
+        "guided": {
+          "prompt": "Read this word aloud: hello",
+          "strategy": "Look at the whole word, not the letters. Say it the way you say it to a friend at the gate.",
+          "answer": "hello"
+        },
+        "practice": [
+          {
+            "prompt": "Read aloud: good morning",
+            "answer": "good morning"
+          },
+          {
+            "prompt": "Read aloud: thank you",
+            "answer": "thank you"
+          }
+        ],
+        "exit": {
+          "prompt": "Which word do we say when someone helps us?",
+          "answer": "thank you"
+        }
+      },
+      "advanced": {
+        "focus": "Writing a greeting in a full sentence",
+        "board": [
+          "Hello, I am ____.",
+          "Good morning, Miss ____."
+        ],
+        "explain": {
+          "say": "A greeting is a whole sentence. It starts with a capital letter and ends with a full stop, and it tells the other person who you are. Watch me write one, then write your own underneath.",
+          "sayLocal": "سلام ایک مکمل جملہ ہے۔ بڑے حرف سے شروع اور وقفے پر ختم، اور یہ بتاتا ہے کہ آپ کون ہیں۔ میں ایک لکھتا ہوں، پھر آپ اپنا لکھیں۔"
+        },
+        "guided": {
+          "prompt": "Write a sentence that greets your teacher in the morning and says your name.",
+          "strategy": "Capital letter, the greeting, a comma, then your name, then a full stop.",
+          "answer": "Good morning, Miss Sana. I am Ali."
+        },
+        "practice": [
+          {
+            "prompt": "Greet a new classmate and say your name.",
+            "answer": "Hello, I am Ayesha."
+          },
+          {
+            "prompt": "Thank someone who lent you a pencil.",
+            "answer": "Thank you, Bilal."
+          },
+          {
+            "prompt": "Say goodbye to your teacher at home time.",
+            "answer": "Goodbye, Miss Sana."
+          }
+        ],
+        "exit": {
+          "prompt": "Write one sentence greeting someone in your family by name.",
+          "answer": "Good morning, Amma."
+        }
+      }
+    }
+  }
+}

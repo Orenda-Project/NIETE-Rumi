@@ -75,12 +75,57 @@ WORKSHEET = {
 SHAPE = {"content": "lesson", "assessment": "worksheet",
          "revision": "revision"}
 
-# Refused loudly by `d0_route` and not yet built: the three-panel
-# beginner/intermediate/advanced revision page. Briefing it as a lesson is how
-# it would quietly become one.
+# The shape of a revision day. Same law as `WORKSHEET` above, and the same
+# reason said twice as loudly: on the GK/Islamiat/SST pilot THREE of four
+# revision lessons reached the renderer with `revisionPanels: null`. Each one
+# burned a paid render slot, each came back as an ordinary lesson plan with the
+# teaching removed, and the run still logged "30/30 lint clean". The renderer
+# does that silently by design -- it picks the revision page set only when the
+# panels are there, and one missing panel discards all three. `d0_panels`
+# refuses that artefact and `panellint` refuses it for free; neither tells an
+# author what the accepted shape is. Every rule below is one `panellint`
+# enforces, said in the order an author meets it.
 REVISION = {
-    "artefact": "a three-panel revision page (beginner / intermediate / "
-                "advanced) -- DESIGN PENDING, no builder exists yet",
+    "artefact": "three parallel revision panels -- beginner, intermediate and "
+                "advanced -- built by d0_panels.build into a portrait glance "
+                "page and three landscape 4:3 pages (explain, practice, exit). "
+                "It is NOT a lesson plan with the teaching removed: a revision "
+                "day legally has no iDo and no youDo",
+    "fields": ("revisionPanels", "groupingNote",
+               "beginner", "intermediate", "advanced",
+               "focus", "board", "explain", "say", "sayLocal",
+               "guided", "prompt", "strategy", "answer",
+               "practice", "exit"),
+    "rules": (
+        "write revisionPanels with exactly three keys -- beginner, "
+        "intermediate, advanced -- and nothing else beside groupingNote. All "
+        "three must be complete: one missing panel and the renderer discards "
+        "all three and prints the ordinary lesson pages instead, at full cost "
+        "and without saying so",
+        "a key that is present and null is ABSENT. Writing \"advanced\": null "
+        "to mean \"this one is short\" loses the other two as well",
+        "groupingNote tells the teacher how to split the class, in 200 "
+        "characters or fewer",
+        "every panel carries focus (80 chars), board (1 to 3 lines of 60), "
+        "explain, guided, practice and exit",
+        "explain.say is what the teacher says, 300 characters at most, and "
+        "sayLocal is the same thing in Urdu -- aim at 220 so it is not read "
+        "at a truncation point",
+        "guided is one worked example: prompt (115), strategy (140) and "
+        "answer (78)",
+        "practice is 2 to 3 items, each prompt 115 and each answer 78",
+        "exit is one question the child leaves on: prompt (125), answer (78)",
+        "no answer is printed on a child-facing card -- every guided and "
+        "practice answer is collected into the single teacher footnote, and "
+        "the answer boxes on the page are empty",
+        "the three panels teach the SAME chapter content at three depths: "
+        "beginner is building the foundations, intermediate is the chapter "
+        "made simpler, advanced is at grade level and beyond. They are not "
+        "three different topics",
+        "write no iDo, weDo or youDo. A revision day has no teaching blocks, "
+        "and one written here is a lesson plan wearing a revision label",
+    ),
+    "exemplar": "exemplars/revision.json",
 }
 
 

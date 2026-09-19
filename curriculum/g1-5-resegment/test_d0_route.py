@@ -14,11 +14,13 @@ separate answer key. Nothing in the pipeline would have said a word.
 
 So the refusal is tested through `to_lp_doc` itself rather than through a
 helper anyone could route around, and it is tested for BOTH review
-vocabularies. 990 (revision) has no route in this build either; the difference
-is that 990 currently gets folded away by `dayfold.fold_revision` in the
-languages and maths corpora, which is luck, not a guard. 81 segments still
-say `revision`, 72 say `duhrai` and 18 say `review_assess` — guard the
-vocabulary, not the English word.
+vocabularies. A 990 (revision) now has a route of its own in `d0_panels`, and
+`d0_primary` must still refuse it — the point of the guard was never that
+nothing else could build it, it was that THIS builder must not. `dayfold`
+folds 115 of the 236 revision segments away in the languages and maths
+corpora, which is arithmetic, not a guard; the other 121 go to the panel
+builder. 81 segments say `revision`, 72 say `duhrai` and 18 say
+`review_assess` — guard the vocabulary, not the English word.
 """
 import unittest
 
@@ -123,8 +125,9 @@ class TheEngineRefuses(unittest.TestCase):
             self.assertIn("grade_1_english_ch1_seg1", str(e))
 
     def test_a_revision_segment_is_refused_too(self):
-        # No panel builder exists yet. Refusing is the honest answer; the
-        # silent RECALL fallback was not.
+        # `d0_panels` builds these now, and this builder must still refuse
+        # one. Refusing is the honest answer; the silent RECALL fallback was
+        # not.
         with self.assertRaises(d0_route.WrongRoute):
             d0_primary.to_lp_doc(enr("revision"), PAGE)
 

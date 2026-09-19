@@ -6,7 +6,7 @@ Primary's type axis has three values and each one is a DIFFERENT artefact:
   assessment  a student-facing worksheet, plus a separate
               answer key as its own file                 -> d0_worksheet
   revision    three parallel Beginner / Intermediate /
-              Advanced panels, with no I-Do and no You-Do -> no route yet
+              Advanced panels, with no I-Do and no You-Do -> d0_panels
 
 The skill's Law 18 is about where that decision is allowed to live. It was
 caught twice in the cloud lineage and it happened here a third time: v9's
@@ -52,7 +52,10 @@ WORKSHEET_ROUTE = (
 PANEL_ROUTE = (
     "a 990 is three parallel Beginner / Intermediate / Advanced panels and "
     "legally has NO iDo and NO youDo — it is not a lesson plan with the "
-    "teaching removed, and there is no panel builder in this build yet")
+    "teaching removed: build it with d0_panels (a portrait glance page "
+    "carrying the grouping note and the three board cards, then three "
+    "landscape 4:3 pages — explain, practice, exit — one panel per group, "
+    "with every practice answer in a single teacher footnote)")
 
 ROUTES = {"assessment": WORKSHEET_ROUTE, "revision": PANEL_ROUTE}
 
