@@ -54,6 +54,7 @@ import sys
 import d0_route
 import wordbudget
 import wslint
+import wssoft
 
 # The migrated reviewer (PROVENANCE.md, D-017) lives in the skill, outside this
 # repo. Relative on purpose: root CLAUDE.md forbids hardcoded absolute paths,
@@ -135,13 +136,15 @@ def compose(qa, judge_pct=None, judge="", review=None, render=None,
                          "name": "no judge score — the lesson was never rated"})
 
     # A soft score of None is not a soft score of zero. It means nothing
-    # measured that half — which is the case for a worksheet, because no
-    # worksheet soft-check suite exists yet. Averaging a real judge score
-    # against an absence would report a number nobody computed, so the
-    # composite simply does not form and `S1` says why.
+    # measured that half. Averaging a real judge score against an absence
+    # would report a number nobody computed, so the composite simply does not
+    # form and `S1` says why. A worksheet used to land here always; `wssoft`
+    # now measures it, and a suite may still hand back individual checks it
+    # could not measure — those come through by their own ids, not as `S1`.
     soft = qa.get("soft_pct")
     if soft is None:
         not_checked.append("S1")
+    not_checked.extend(qa.get("not_checked") or [])
     composite = (None if judge_pct is None or soft is None
                  else (judge_pct + soft) / 2.0)
 
@@ -173,6 +176,7 @@ def compose(qa, judge_pct=None, judge="", review=None, render=None,
     return {"qa_hard_pass": bool(qa.get("hard_pass")) and not failures,
             "qa_hard_failures": failures,
             "soft_pct": qa.get("soft_pct"),
+            "checks": list(qa.get("checks") or []),
             "judge_pct": judge_pct,
             "composite_pct": composite,
             "judge": judge,
@@ -181,8 +185,8 @@ def compose(qa, judge_pct=None, judge="", review=None, render=None,
             "not_checked": not_checked}
 
 
-def _worksheet_qa():
-    """The hard checks for a 995: its own lint, and nothing borrowed.
+def _worksheet_qa(lp, segment):
+    """The checks for a 995: its own lint and its own soft suite, nothing borrowed.
 
     `qa_checks` is the LESSON suite. It asks for `warmUp`, `steps` and
     `exitTicket`, and a student worksheet has none of the three and never
@@ -195,12 +199,17 @@ def _worksheet_qa():
     `compose`, and `worksheet_findings` stays the single place that decides
     which artefact is in hand.
 
-    `soft_pct` is None rather than 0.0 on purpose: there IS no worksheet
-    soft-check suite. That is a gap to build, not a score to report, and
-    `compose` surfaces it as `S1` in `not_checked`.
+    The soft half is `wssoft`, which asks the questions a lint may not refuse
+    on — variety beyond the floor, an mcq whose answer is among its own
+    options, a key that is not one answer repeated, a writing space that fits
+    the answer, an instruction inside the grade's reading band. Until it
+    existed this returned `soft_pct: None` and `compose` reported `S1`; the
+    composite could not form, so a judged worksheet still could not be gated.
     """
-    return {"hard_pass": True, "hard_failures": [], "soft_pct": None,
-            "checks": []}
+    soft = wssoft.checks(lp, segment)
+    return {"hard_pass": True, "hard_failures": [],
+            "soft_pct": soft["soft_pct"], "checks": soft["checks"],
+            "not_checked": soft["not_checked"]}
 
 
 def verdict(score):
@@ -227,7 +236,7 @@ def evaluate(lp, segment, review, judge="", subject=None, grounding=None,
     unenforced for a day, so the caller says which is which.
     """
     lint = worksheet_findings(lp, segment)
-    checks = _worksheet_qa() if lint is not None else \
+    checks = _worksheet_qa(lp, segment) if lint is not None else \
         reviewer("qa_checks").run_checks(lp, segment)
     # `tally` returns (total, denom, flags), and a denominator of zero means
     # every check came back notAssessable — an unscored lesson, not a zero.

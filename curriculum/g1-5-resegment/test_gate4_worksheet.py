@@ -116,13 +116,21 @@ class AWorksheetIsNotMeasuredByLessonChecks(unittest.TestCase):
     switched off, which is how the one check that DOES apply — the lint —
     would have stopped being read.
 
-    The soft half is a genuine gap rather than a bug: there is no worksheet
-    soft-check suite. Per "dark stages stay dark", it is reported as
-    unmeasured rather than papered over with a 0.0 that reads as "scored
-    zero" — bd filed.
+    The soft half was a genuine gap rather than a bug: there was no worksheet
+    soft-check suite, so it was reported as unmeasured rather than papered
+    over with a 0.0 that reads as "scored zero". `wssoft` closed it
+    (bd-nr311), and the tests below now hold the other end — a measured soft
+    half, and a composite that forms.
+
+    The fixture is `test_wssoft.sheet` rather than `test_wslint.good`. The
+    lint fixture is minimal on purpose — every question carries the same
+    childText, the same answer and the same common errors, and the drawing
+    question is offered ruled lines. That is a legitimate LINT fixture,
+    because none of it is a refusal. It is not a clean worksheet, and a gate
+    test that called it one would be asserting the gate ignores quality.
     """
 
-    from test_wslint import good as _good
+    from test_wssoft import sheet as _good
 
     SEG = {"segment_index": 995, "chapter_number": 1,
            "lp_type": "assessment", "skill_type": "assessment"}
@@ -152,22 +160,43 @@ class AWorksheetIsNotMeasuredByLessonChecks(unittest.TestCase):
         score, _ = self.ev()
         self.assertTrue(score["qa_hard_pass"], score["qa_hard_failures"])
 
-    def test_the_soft_score_is_unmeasured_not_zero(self):
-        # There is no worksheet soft-check suite. Zero would read as "scored
-        # zero" and drag the composite down by half its range.
+    def test_the_soft_half_is_measured_by_the_worksheet_suite(self):
+        # It used to come back None with `S1` in not_checked, because nothing
+        # measured a worksheet's quality. `wssoft` does.
         score, _ = self.ev()
-        self.assertIsNone(score["soft_pct"])
-        self.assertIn("S1", score["not_checked"])
+        self.assertEqual(score["soft_pct"], 100.0)
+        self.assertNotIn("S1", score["not_checked"])
 
-    def test_an_unmeasured_soft_half_leaves_the_composite_unformed(self):
+    def test_the_composite_now_forms(self):
         score, _ = self.ev()
-        self.assertIsNone(score["composite_pct"])
+        self.assertIsNotNone(score["composite_pct"])
 
-    def test_an_unformed_composite_still_does_not_pass(self):
-        # Unmeasured is not a pass. The gate stays shut until someone builds
-        # the missing suite.
+    def test_a_clean_worksheet_with_a_judge_score_passes(self):
+        # The whole point of the route: a good worksheet can now get through
+        # the same gate a good lesson does.
         _, v = self.ev()
-        self.assertFalse(v["pass"])
+        self.assertTrue(v["pass"], v)
+
+    def test_a_worksheet_that_clears_the_lint_can_still_lose_soft_marks(self):
+        # Ruled lines for a drawing question is not a refusal. It is a worse
+        # paper, and the composite should say so.
+        env = self.env()
+        for q in env["generated"]["questions"]:
+            if q["type"] == "draw":
+                q["space"] = "lines"
+        score, _ = gate4.evaluate(env, self.SEG, self.REVIEW, subject="English")
+        self.assertTrue(score["qa_hard_pass"])
+        self.assertLess(score["soft_pct"], 100.0)
+        self.assertIn("WSS-06", [c["id"] for c in score["checks"]
+                                 if not c["pass"]])
+
+    def test_a_soft_check_that_could_not_be_measured_reaches_the_gate(self):
+        # An unknown grade means the reading band was not measured. That has
+        # to surface where `S1` used to, or the blur comes straight back.
+        env = self.env()
+        env["lesson_id"] = "seg995"
+        score, _ = gate4.evaluate(env, self.SEG, self.REVIEW, subject="English")
+        self.assertIn("WSS-07", score["not_checked"])
 
     def test_a_broken_worksheet_still_fails_on_its_own_lint(self):
         score, v = self.ev(6)
