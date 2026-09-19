@@ -206,5 +206,63 @@ class ItStaysPure(unittest.TestCase):
         self.assertEqual(repr(d), before)
 
 
+class TheScriptIsCountedOnce(unittest.TestCase):
+    """`turns` is a parsed VIEW of `steps`, not a second piece of teaching.
+
+    `d0_blocks._with_turns` attaches it beside the flat `steps` list it was
+    built from -- "the structured field is OPTIONAL, the renderer prints it
+    when present, and the flat string field stays as the home every other
+    reader already addresses". One of the two reaches the page, and a teacher
+    reads the sentence once.
+
+    Counting both made the two script surfaces read about 1.5x long. Measured
+    on the six Grade 1 English Ch.1 lessons rendered through d0_primary
+    (19 Sep 2026), `faded_example` ran at a median of 488 against its 470 cap,
+    so five of the six broke it -- while spec/07-lp-production.md §4 calls that
+    cap "a ceiling on the outlier, not a target. Median 238 passes untouched",
+    and chose option B over C precisely because B cuts "ZERO words of teaching
+    script". Double-counting turned the decided option into the rejected one.
+    """
+
+    def test_a_parsed_turn_does_not_charge_its_sentence_a_second_time(self):
+        plain = block("faded_example", steps=["Tap the word.", "Say it."])
+        parsed = block("faded_example", steps=["Tap the word.", "Say it."],
+                       turns=[{"kind": "do", "text": "Tap the word."},
+                              {"kind": "say", "text": "Say it."}])
+        self.assertEqual(wordbudget.block_words(parsed),
+                         wordbudget.block_words(plain))
+
+    def test_it_holds_for_the_worked_example_too(self):
+        plain = block("worked_example", steps=["I tap three sounds."])
+        parsed = block("worked_example", steps=["I tap three sounds."],
+                       turns=[{"kind": "do", "text": "I tap three sounds."}])
+        self.assertEqual(wordbudget.block_words(parsed),
+                         wordbudget.block_words(plain))
+
+    def test_the_partner_setup_line_is_not_a_duplicate_and_stays_counted(self):
+        # `prompt` carries partnerActivity's structure and teacher_role. It is
+        # not built from `steps` and appears nowhere else, so excluding it
+        # would hide real prose.
+        bare = block("faded_example", steps=["Sort the cards."])
+        withp = block("faded_example", steps=["Sort the cards."],
+                      prompt="Pairs face each other. Teacher circulates.")
+        self.assertGreater(wordbudget.block_words(withp),
+                           wordbudget.block_words(bare))
+
+    def test_a_lesson_that_only_broke_its_cap_on_the_duplicate_now_passes(self):
+        script = ["word " * 300]
+        d = doc(block("faded_example", steps=script,
+                      turns=[{"kind": "say", "text": script[0]}]))
+        self.assertEqual(wordbudget.totals(d)["faded_example"], 300)
+        self.assertEqual(wordbudget.over(d), [])
+
+    def test_a_genuinely_long_script_still_fails(self):
+        # The cap is not being loosened -- only the double read is removed.
+        script = ["word " * 500]
+        d = doc(block("faded_example", steps=script,
+                      turns=[{"kind": "say", "text": script[0]}]))
+        self.assertEqual(wordbudget.over(d)[0]["over"], 30)
+
+
 if __name__ == "__main__":
     unittest.main()

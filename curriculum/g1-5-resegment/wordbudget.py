@@ -57,6 +57,21 @@ UNCAPPED = ("ask", "warmup", "board", "keywords", "exit_ticket")
 # them would make a well-formed block look longer than it is.
 SCAFFOLDING = ("id", "type", "mode")
 
+# A parsed VIEW of prose the block already holds, not prose of its own.
+# `d0_blocks._with_turns` builds `turns` from the same `steps` (and dialogue
+# frames) the block prints, keeping the flat list "as the home every other
+# reader already addresses" -- the lint profile, Stage E's voicenotes, the
+# WhatsApp body. One of the two reaches the page and a teacher reads the
+# sentence once, so charging both read the two script surfaces about 1.5x
+# long: measured across the six Grade 1 English Ch.1 renders on 19 Sep 2026,
+# `faded_example` sat at a median of 488 against its 470 cap and five of six
+# lessons broke it. §4 calls that cap "a ceiling on the outlier, not a target.
+# Median 238 passes untouched" and picked option B over C because B cuts "ZERO
+# words of teaching script" -- so the double read was quietly enforcing the
+# rejected option. `prompt` is NOT derived (partnerActivity's structure and
+# teacher_role appear nowhere else) and stays counted.
+DERIVED = ("turns",)
+
 
 def count(node):
     """Words of teacher-facing prose anywhere under `node`.
@@ -75,8 +90,9 @@ def count(node):
 
 
 def block_words(block):
-    """The prose of one block, with its wiring left out."""
-    return sum(count(v) for k, v in block.items() if k not in SCAFFOLDING)
+    """The prose of one block, with its wiring and its parsed views left out."""
+    return sum(count(v) for k, v in block.items()
+               if k not in SCAFFOLDING and k not in DERIVED)
 
 
 def surface_of(node):
