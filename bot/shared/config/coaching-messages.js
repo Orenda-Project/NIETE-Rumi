@@ -111,10 +111,31 @@ const COACHING_MESSAGES = {
     ...en("⏳ I'm still analysing your previous recording. If your report hasn't arrived in 30 minutes, please send this recording again."),
     ur: '⏳ میں ابھی آپ کی پچھلی ریکارڈنگ کا تجزیہ کر رہی ہوں۔ اگر 30 منٹ میں رپورٹ نہ ملے تو براہِ کرم یہ ریکارڈنگ دوبارہ بھیج دیں۔',
   },
-  // Step 1/5 — transcription kickoff
+  // Step 1/5 — transcription kickoff.
+  //
+  // bd-59840 (DC row 129 residue): this used to promise "30-60 seconds", and the
+  // Urdu "تقریباً ایک منٹ" (about one minute). Both were wrong by more than an
+  // order of magnitude, for every teacher who has ever seen this message:
+  // CLASSROOM_AUDIO_THRESHOLD = 900 means nothing SHORTER than 15 minutes is
+  // routed into this job, and sqs-worker.js measured 28 transcription runs in the
+  // 880-990s band over nine days — which is why its visibility extension is now
+  // unconditional at 1200s. The "Long Lesson Detected" warning that used to
+  // follow was the only thing walking the promise back, and bd-di5ap correctly
+  // removed it (it fired on 58% of sessions — an engineering threshold, not a
+  // teacher-meaningful one). That left the promise standing alone, so it is
+  // fixed here instead of being patched one message later.
+  //
+  // "up to 15 minutes" is the measured band, not a guess. The teacher is also
+  // told she does not have to sit and watch — the pipeline messages her at every
+  // step, and this is the longest silence in it.
+  //
+  // The `۱ از ۵` step counter is deliberately left in Urdu numerals: converting
+  // it is DC row 131, a separate decision. The new duration uses standard digits
+  // because that is what row 131 asks for, so this string does not have to be
+  // rewritten again when row 131 lands.
   step1_transcribing: {
-    ...en("🔄 Step 1/5: Transcribing your classroom audio. This may take 30-60 seconds...hang in there!"),
-    ur: '🔄 مرحلہ ۱ از ۵: آپ کی کلاس روم آڈیو کو تحریر میں منتقل کیا جا رہا ہے۔ اس میں تقریباً ایک منٹ لگ سکتا ہے — تھوڑا انتظار کریں!',
+    ...en("🔄 Step 1/5: Transcribing your classroom audio. For a full lesson this can take up to 15 minutes — no need to wait here, I'll message you as each step finishes."),
+    ur: '🔄 مرحلہ ۱ از ۵: آپ کی کلاس روم آڈیو کو تحریر میں منتقل کیا جا رہا ہے۔ مکمل سبق کے لیے اس میں 15 منٹ تک لگ سکتے ہیں — یہیں انتظار کرنے کی ضرورت نہیں، ہر مرحلہ مکمل ہونے پر اطلاع دی جائے گی۔',
   },
   // Step 2/5 — pedagogy analysis kickoff (templated; `${step}` resolved by caller via interpolation OR by passing the number 2 when constant)
   step2_analyzing: {
@@ -160,29 +181,21 @@ const COACHING_MESSAGES = {
     ...en("Note: Voice summary could not be generated, but your written report is complete! You can review it in the PDF above. 📄"),
     ur: 'نوٹ: آواز کا خلاصہ تیار نہیں ہو سکا، مگر آپ کی تحریری رپورٹ مکمل ہے! اوپر دی گئی PDF میں اسے دیکھا جا سکتا ہے۔ 📄',
   },
-  // Post-transcription acknowledgement (bd-di5ap / DC row 129).
+  // There is deliberately NO post-transcription acknowledgement key here.
   //
-  // This REPLACES a GPT-4o call that was handed only a name and a duration and
-  // told to be "authentic and specific". With no transcript and no analysis to
-  // be specific about, it invented the specificity — one teacher was told "your
-  // 29-minute lesson was engaging and impactful" before a single word had been
-  // analysed, and read it as her feedback. A fixed sentence cannot form an
-  // opinion, so the defect is removed at its source rather than guarded.
+  // bd-di5ap replaced the GPT-4o "encouraging message" with a fixed catalog
+  // acknowledgement ("Transcription complete, {{name}}! You taught for N
+  // minutes."). bd-59840 removed that too, by operator decision on 2026-09-20:
+  // DC row 129 asked for the stretch between Step 1/5 and the photo prompt to
+  // carry no extra messages at all, and an acknowledgement is still an extra
+  // message. Transcription now runs straight into the photo prompt, which is
+  // itself the teacher's signal that her audio arrived and was read.
   //
-  // It is an ACKNOWLEDGEMENT, not praise: it confirms the audio landed and how
-  // long it ran, and stops there. {{minutes}} stays in standard digits in both
-  // languages — the count is data, only the words around it translate.
-  transcriptionComplete: {
-    ...en('✅ Transcription complete, {{name}}! You taught for {{minutes}} minutes.'),
-    ur: '✅ {{name}}، آپ کی آڈیو تحریر میں منتقل ہو گئی۔ آپ نے {{minutes}} منٹ پڑھایا۔',
-  },
-  // Same message for the 6,282-of-15,552 teachers whose `users.name` is NULL
-  // (bd-gc1ge). A separate key, not an empty {{name}} slot, so neither language
-  // is left with a dangling comma.
-  transcriptionComplete_noName: {
-    ...en('✅ Transcription complete! You taught for {{minutes}} minutes.'),
-    ur: '✅ آپ کی آڈیو تحریر میں منتقل ہو گئی۔ آپ نے {{minutes}} منٹ پڑھایا۔',
-  },
+  // If a confirmation is ever wanted back here, it belongs in this catalog with
+  // an `ur` variant from the start — the original defect was a model call with
+  // no language instruction at all, and re-adding an English literal at the send
+  // site would reopen it (the no-hardcoded-coaching-strings ratchet also refuses
+  // that).
   // Agency follow-up: remind the teacher of their prior commitment.
   // {{action}} is substituted at the call site (kept distinct from
   // ${} JS interpolation so this string can be translated 1:1).

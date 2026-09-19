@@ -10,17 +10,30 @@
  * (1) is an ENGINEERING guard leaked to teachers: the 15,000-char gate was
  * picked against a model output limit (its own log says "May exceed GPT-5 mini
  * output token limit"), not against anything a teacher would recognise as a
- * long lesson — and it contradicts the 30-60s promise made one message earlier.
- * The telemetry is worth keeping; the send is not.
+ * long lesson. It fired on 6,773 of 11,698 sessions (58%) in the month to
+ * 18 Sep — the "exception" was the majority — and it contradicted the 30-60s
+ * promise made one message earlier. The telemetry is worth keeping; the send
+ * is not.
  *
- * (2) is a verdict on a lesson nothing has read yet. The system prompt asks
+ * (2) is a verdict on a lesson nothing has read yet. The system prompt asked
  * GPT-4o to be "authentic and specific" while handing it ONLY a name and a
  * duration — no transcript, no analysis. A model told to be specific with
- * nothing to be specific about invents the specificity. The fix removes the
- * model call rather than guarding its output: with no model there is no verdict
- * to leak, and the message becomes translatable for free (it never was — the
- * prompt carried no language instruction at all, which is the row-130 defect
- * the main bot already fixed in BUG-117 and never ported here).
+ * nothing to be specific about invents the specificity.
+ *
+ * ── UPDATED BY bd-59840 ──────────────────────────────────────────────────────
+ * bd-di5ap replaced (2) with a fixed, translated catalog acknowledgement. The
+ * operator then decided on 2026-09-20 to remove that too: row 129 asked for NO
+ * extra messages between Step 1/5 and the photo prompt, and an acknowledgement
+ * is still an extra message. So the "the acknowledgement reads correctly" cases
+ * that used to live here are gone — not weakened, SUPERSEDED. The thing they
+ * guarded no longer exists, which is a stronger position than asserting it
+ * behaves: `generateEncouragingMessage` is absent from both the helper service
+ * and the orchestrator, and both catalog keys are retired. Those assertions,
+ * plus the Step 1/5 wait-time fix that made the removal safe, live in
+ * tests/coaching/bd-59840-honest-wait-no-ack.test.js.
+ *
+ * What remains here is bd-di5ap's own half: the Long Lesson warning must stay
+ * gone from the teacher's chat while its telemetry stays in the logs.
  */
 
 'use strict';
@@ -28,104 +41,47 @@
 const fs = require('fs');
 const path = require('path');
 
-// If the implementation still reaches for the model, this records it. The test
-// asserts it is NEVER constructed — that is the guarantee that no invented
-// verdict can reach a teacher, and it is stronger than pattern-matching the copy.
-const mockCreate = jest.fn(async () => ({
-  choices: [{ message: { content: 'Your 29-minute lesson was engaging and impactful' } }],
-}));
-const MockOpenAI = jest.fn().mockImplementation(() => ({
-  chat: { completions: { create: mockCreate } },
-}));
-jest.mock('openai', () => MockOpenAI);
-
-const CoachingHelpersService = require('../../bot/shared/services/coaching/coaching-helpers.service');
 const { getCoachingMessage } = require('../../bot/shared/config/coaching-messages');
 
-const TWENTY_NINE_MINUTES = 1740;
-
+// Comment-stripped before matching. A source assertion that lands on the comment
+// ABOVE the code passes on code that does the opposite — good code names its own
+// subject in its comment, which is exactly what makes the naive version vacuous.
 const stripComments = (src) => src
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/^\s*\/\/.*$/gm, '');
 
-describe('bd-di5ap — no premature verdict, no leaked engineering guard', () => {
-  beforeEach(() => jest.clearAllMocks());
+const processorSrc = () => stripComments(fs.readFileSync(
+  path.join(__dirname, '../../bot/shared/services/coaching/transcription-processor.service.js'),
+  'utf8',
+));
 
-  describe('the post-transcription acknowledgement', () => {
-    test('is built without ever calling the model', async () => {
-      await CoachingHelpersService.generateEncouragingMessage('Ayesha', TWENTY_NINE_MINUTES, 'en');
-
-      expect(MockOpenAI).not.toHaveBeenCalled();
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-
-    test('acknowledges the recording and its length, and passes no judgement on it', async () => {
-      const msg = await CoachingHelpersService.generateEncouragingMessage(
-        'Ayesha', TWENTY_NINE_MINUTES, 'en',
-      );
-
-      expect(msg).toContain('Ayesha');
-      expect(msg).toContain('29');
-      // The teacher's own words for what went wrong: it read as feedback.
-      expect(msg).not.toMatch(/engaging|impactful|excellent|wonderful|great|amazing|fantastic/i);
-    });
-
-    test('renders in Urdu for an Urdu teacher (never fixed before — no language was passed at all)', async () => {
-      const msg = await CoachingHelpersService.generateEncouragingMessage(
-        'Ayesha', TWENTY_NINE_MINUTES, 'ur',
-      );
-
-      expect(msg).toBe(
-        getCoachingMessage('transcriptionComplete', 'ur')
-          .replace('{{name}}', 'Ayesha')
-          .replace('{{minutes}}', '29'),
-      );
-      // Urdu copy, but the COUNT stays in standard digits (the row-131 class).
-      expect(msg).toContain('29');
-      expect(msg).not.toMatch(/[۰-۹]/);
-    });
-
-    test('a nameless teacher is still addressed properly (bd-gc1ge regression)', async () => {
-      for (const nameless of [null, undefined, '', '   ']) {
-        const msg = await CoachingHelpersService.generateEncouragingMessage(
-          nameless, TWENTY_NINE_MINUTES, 'en',
-        );
-        expect(msg).not.toMatch(/\bnull\b|\bundefined\b/);
-        expect(msg).not.toMatch(/,\s*!/);        // "complete, !"
-        expect(msg).not.toContain('{{name}}');   // an unsubstituted placeholder
-        expect(msg).toContain('29');
-      }
-    });
-
-    test('every offered language has real copy for both variants — no TODO sentinel', () => {
-      const { COACHING_MESSAGES, SUPPORTED_LANGUAGES, TODO } = require('../../bot/shared/config/coaching-messages');
-      for (const key of ['transcriptionComplete', 'transcriptionComplete_noName']) {
-        for (const lang of SUPPORTED_LANGUAGES) {
-          expect(COACHING_MESSAGES[key][lang]).toBeDefined();
-          expect(COACHING_MESSAGES[key][lang]).not.toBe(TODO);
-        }
-      }
-    });
+describe('bd-di5ap — the "Long Lesson Detected" warning', () => {
+  test('is no longer sent to the teacher', () => {
+    expect(processorSrc()).not.toContain('longLessonDetected');
   });
 
-  describe('the "Long Lesson Detected" warning', () => {
-    const processorSrc = () => stripComments(fs.readFileSync(
-      path.join(__dirname, '../../bot/shared/services/coaching/transcription-processor.service.js'),
-      'utf8',
-    ));
+  test('is retired from the catalog rather than left dangling', () => {
+    expect(() => getCoachingMessage('longLessonDetected', 'en'))
+      .toThrow(/Unknown coaching message key/);
+  });
 
-    test('is no longer sent to the teacher', () => {
-      expect(processorSrc()).not.toContain('longLessonDetected');
-    });
+  test('but the length telemetry survives — this was a real signal, just not a teacher-facing one', () => {
+    const src = processorSrc();
+    expect(src).toContain('15000');
+    expect(src).toMatch(/logToFile\(\s*['"`][^'"`]*Long transcript detected/);
+  });
+});
 
-    test('is retired from the catalog rather than left dangling', () => {
-      expect(() => getCoachingMessage('longLessonDetected', 'en')).toThrow(/Unknown coaching message key/);
-    });
+describe('bd-di5ap — no model is consulted between transcription and the photo prompt', () => {
+  test('the transcription processor reaches for no LLM on this stretch', () => {
+    const src = processorSrc();
 
-    test('but the length telemetry survives — this was a real signal, just not a teacher-facing one', () => {
-      const src = processorSrc();
-      expect(src).toContain('15000');
-      expect(src).toMatch(/logToFile\(\s*['"`][^'"`]*Long transcript detected/);
-    });
+    // Positive control: we really are reading the processor, not an empty string.
+    expect(src).toContain('processTranscription');
+
+    // The verdict came from an OpenAI call reached through the helper service.
+    // Neither the call nor its former entry point may reappear here.
+    expect(src).not.toMatch(/generateEncouragingMessage/);
+    expect(src).not.toMatch(/\bnew OpenAI\b/);
   });
 });
