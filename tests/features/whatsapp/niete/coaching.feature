@@ -52,8 +52,23 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have uploaded a classroom recording and it was detected
     When I tap "Yes, Analyze"
     Then the bot posts "Step 1/5: Transcribing your classroom audio"
-    And for a long recording it warns "Long Lesson Detected" and that analysis will take longer
-    And it acknowledges the lesson (e.g. "Great job, Teacher! …engaging <N>-minute lesson")
+    # UPDATED 2026-09-18 (bd-di5ap): the "Long Lesson Detected" step that stood
+    # here is gone, and the acknowledgement no longer praises the lesson. Both
+    # were sent before any analysis had run — the second was a GPT-4o line that
+    # invented a verdict ("your 29-minute lesson was engaging and impactful") on
+    # a transcript nothing had read. DC sheet row 129.
+    #
+    # UPDATED 2026-09-20 (bd-59840): the acknowledgement is gone too. Row 129
+    # asked for NO extra messages between Step 1/5 and the photo prompt, and an
+    # acknowledgement is still an extra message. The same change made Step 1/5
+    # state the real wait: nothing shorter than 15 minutes reaches this pipeline
+    # (CLASSROOM_AUDIO_THRESHOLD = 900) and transcription was measured in the
+    # 880-990s band, so "30-60 seconds" was wrong by more than an order of
+    # magnitude — and the warning that used to qualify it had just been removed.
+    And that step states the wait in minutes and does NOT promise "30-60 seconds"
+    And it does NOT warn "Long Lesson Detected" — that engineering threshold is telemetry only
+    And it sends NO acknowledgement of the recording at all before the photo prompt
+    And in particular no message carries a verdict on the teaching — no "engaging", "impactful" or similar
     And it asks whether I want to add up to 3 photos, naming the useful ones (the board with the objective/task, a student's notebook or worksheet, the materials used) and that a photo of the class at their desks does not help
     And when I decline it asks whether I have a lesson plan for this class
     And when I decline it replies "No problem! I'll analyze your classroom audio without the lesson plan."
@@ -72,8 +87,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have confirmed analysis and answered the optional-context prompts
     When the async worker finishes steps 4/5 and 5/5
     Then it returns coaching feedback referencing the FICO / ICT rubric
-    # @wip @slow: for a LONG (~26-min) recording the worker takes 10+ minutes —
-    # "Long Lesson Detected" is the bot warning you of exactly this. Driven live
+    # @wip @slow: for a LONG (~26-min) recording the worker takes 10+ minutes. The
+    # bot no longer says so (bd-di5ap removed that warning — it fired for the
+    # majority of sessions and contradicted the 30-60s promise). Driven live
     # 2026-08-04: reached Step 3/5 ("Let's reflect on your teaching together") ~6 min
     # in; the final graded report had not landed within the run window. Rubric:
     # bot/shared/services/observe/observe-framework.js.
