@@ -77,7 +77,7 @@ def build_row(a):
     skipped = by("SKIP", "DEFERRED", "NOT DRIVEN", "INFO", "PARTIAL")
     row = {
         "run_id": a.run_id, "ts": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "surface": "whatsapp", "tenant": "niete", "env": a.env, "method": a.method, "feature": a.feature,
+        "surface": "whatsapp", "tenant": a.tenant, "env": a.env, "method": a.method, "feature": a.feature,
         "status": ledger.verdict(passed, failed, blocked),
         "summary": {"total": len(res), "passed": passed, "failed": failed, "blocked": blocked, "skipped": skipped},
         "duration_ms": int(a.seconds) * 1000, "drift_count": 0, "discovery_count": 0,
@@ -157,11 +157,17 @@ def main(argv=None):
     for k in ("root", "run_dir", "feature", "run_id", "env", "method", "seconds", "driver"):
         p.add_argument("--" + k.replace("_", "-"), required=True)
     p.add_argument("--trigger", default="manual")
+    # The tenant the run drove: --tenant, else E2E_TENANT (run-suite exports it), else the manifest's first.
+    p.add_argument("--tenant", default=os.environ.get("E2E_TENANT") or None)
     p.add_argument("--commit", default="")
     p.add_argument("--spec-sync", default="")
     p.add_argument("--validator-exit", default="")
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args(argv)
+    if not a.tenant:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import tenants_lite as _tl
+        a.tenant = next(iter(_tl.load(a.root).tenants), "")
     try:
         row = build_row(a)
     except FileNotFoundError as e:

@@ -180,7 +180,7 @@ PY
   # runs.jsonl went unwritten from 2026-08-24 because the append lived only in the agent markdown.
   # Extras beyond the frozen schema tie the row to the exact commit and to phase 1 (ledger.py allows them).
   python3 "$QA/ledger_row.py" --root "$ROOT" --run-dir "$RUN_DIR" --feature "$f" --run-id "$RUN_ID" --env "$ENV" \
-    --method "$METHOD" --seconds "$((t2-t1))" --driver "$DRIVER" --trigger "$TRIGGER" \
+    --method "$METHOD" --seconds "$((t2-t1))" --driver "$DRIVER" --trigger "$TRIGGER" --tenant "$TENANT" \
     ${COMMIT:+--commit "$COMMIT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} 2>&1 | tee -a "$LOG"
 }
 
