@@ -42,7 +42,12 @@ describe('fidelity-analyzer · provider knobs, photo evidence, untrustworthy gra
     const client = fakeClient(GOOD);
     await analyzeFidelity(MOVES, '[05:00] t', META, { client });
     const p = client.calls[0];
-    expect(Object.keys(p)).toEqual(['model', 'temperature', 'messages', 'max_completion_tokens', 'response_format']);
+    // `job` is metadata, not an option: llm-client reads it, records it on api.cost.incurred,
+    // and DELETES it before the request goes to the vendor (bd-27ort). It is listed here
+    // because this guard pins the exact key set on purpose — a new key must be justified, not
+    // waved through. That it never reaches the wire is proved separately, in
+    // bot/tests/llm-cost-attributed.test.js, by asserting on the vendor mock's own payload.
+    expect(Object.keys(p)).toEqual(['model', 'job', 'temperature', 'messages', 'max_completion_tokens', 'response_format']);
     expect(p.messages[0].content).toBe(GRADER_BRIEF);
     expect(p.messages[1].content).toBe(buildUserPrompt(META, MOVES, '[05:00] t'));
     expect(p.max_completion_tokens).toBe(4000);
