@@ -73,12 +73,22 @@ export default function ModuleExamPanel({
   courseId,
   exam,
   onPassed,
+  onOpen,
   asListRow = false,
+  autoStart = false,
 }: {
   courseId: string;
   exam: ExamGate | null;
   /** Fired once the exam is PASSED, so the page can unlock what follows. */
   onPassed?: () => void;
+  /**
+   * bd-60152 — when given, tapping the list row NAVIGATES instead of opening
+   * the paper in place. A sat exam with a written answer needs a page, not a
+   * row in a sidebar.
+   */
+  onOpen?: () => void;
+  /** Open the paper immediately — the exam PAGE has nothing else to show. */
+  autoStart?: boolean;
   /**
    * Render the idle/locked states as a ROW inside the unit list rather than a
    * card beneath it — which is where a teacher actually looks for the exam
@@ -100,6 +110,7 @@ export default function ModuleExamPanel({
     setAnswers({}); setResult(null);
   }, [courseId]);
 
+
   const start = useCallback(async () => {
     setPhase('loading');
     try {
@@ -114,6 +125,15 @@ export default function ModuleExamPanel({
       setPhase('idle');
     }
   }, [courseId, toast]);
+
+  // bd-60152 — on the exam PAGE there is nothing to click first, so the paper
+  // opens on mount. Declared after `start` deliberately: referencing a const
+  // before its declaration only works because effects run post-render, which
+  // is a fragile thing to rely on.
+  useEffect(() => {
+    if (autoStart && exam?.available && phase === 'idle') void start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, exam?.available, courseId]);
 
   const answeredCount = questions.filter(q => (answers[q.id] || '').trim().length > 0).length;
   const allAnswered = questions.length > 0 && answeredCount === questions.length;
@@ -187,7 +207,7 @@ export default function ModuleExamPanel({
     return (
       <button
         type="button"
-        onClick={start}
+        onClick={onOpen || start}
         data-testid="module-exam-start"
         className="w-full text-left rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 transition-colors hover:bg-muted/50 ring-1 ring-primary/30 bg-primary/5"
       >

@@ -110,6 +110,9 @@ const App = () => {
                 be linked, reloaded and navigated with the browser's own back
                 button rather than living as a panel under the lists. */}
             <Route path="/portal/training/v2/unit/:moduleId" element={<PortalTrainingV2 />} />
+            {/* bd-60152 — the module exam gets its own page too: it is a sat
+                assessment, not a panel under a list. */}
+            <Route path="/portal/training/v2/exam/:courseId" element={<PortalTrainingV2 />} />
             <Route path="/portal/training" element={<PortalTraining />} />
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
