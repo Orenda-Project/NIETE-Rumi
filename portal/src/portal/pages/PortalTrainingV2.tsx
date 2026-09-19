@@ -222,10 +222,13 @@ function VendorCards({
   vendors,
   selectedVendor,
   onSelect,
+  levels,
 }: {
   vendors: Vendor[];
   selectedVendor: string | null;
   onSelect: (key: string | null) => void;
+  /** Every visible level; the shelf below narrows to the chosen provider. */
+  levels: Level[];
 }) {
   if (vendors.length === 0) return null;
   return (
@@ -360,9 +363,32 @@ function VendorCards({
           them, which is where a teacher goes looking. Shown once a provider
           is chosen, so the row is about that provider rather than everything
           at once. */}
+      {/* bd-60154 — THE SHELF, in place of the drawer that used to sit in the
+          page header.
+
+          Two things changed and they are the same change. Certificates now
+          live WITH the provider whose training earns them, which is where a
+          teacher looks; and the list no longer hides behind a button, because
+          a drawer whose contents are "nothing yet" teaches nothing when it is
+          opened. Earned and unearned share one list, so the next certificate
+          and the work left on it are always on screen.
+
+          `levels` is already the chosen provider's (visibleLevels filters on
+          selectedVendor), which is what keeps I-SAPS and Beacon House out of
+          one undifferentiated column. Do not re-filter here — a second filter
+          on the same key reads as though it were load-bearing. */}
       {selectedVendor && (
-        <div className="mt-4 flex justify-end" data-testid="vendor-certificates">
-          <CertificatesPanel />
+        <div className="mt-4" data-testid="vendor-certificates">
+          <CertificatesPanel
+            alwaysOpen
+            levels={levels
+              .map(l => ({
+                id: l.id,
+                name: l.name,
+                module_count: l.module_count,
+                completed_count: l.completed_count,
+              }))}
+          />
         </div>
       )}
     </section>
@@ -902,6 +928,7 @@ const PortalTrainingV2 = () => {
               vendors={vendors}
               selectedVendor={selectedVendor}
               onSelect={setSelectedVendor}
+              levels={visibleLevels}
             />
 
             {/* The gated state says what to do next, rather than ending the
