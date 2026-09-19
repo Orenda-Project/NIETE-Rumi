@@ -285,6 +285,7 @@ describe('GET /api/portal/training/vendors', () => {
       course_count: 3,
       module_count: 4,
       completed_module_count: 2,
+      certificate_count: 0,
       avg_score_pct: 90,
     });
 
@@ -296,6 +297,7 @@ describe('GET /api/portal/training/vendors', () => {
       course_count: 1,
       module_count: 1,
       completed_module_count: 1,
+      certificate_count: 0,
       avg_score_pct: 50,
     });
 
@@ -329,6 +331,7 @@ describe('GET /api/portal/training/vendors', () => {
       level_count: 1,
       course_count: 1,
       module_count: 1,
+      certificate_count: 0,
       completed_module_count: 0,
       avg_score_pct: null,
     });
@@ -363,6 +366,64 @@ describe('GET /api/portal/training/vendors', () => {
     expect(statusCode).toBe(200);
     const names = payload.vendors.map(v => v.vendor_name);
     expect(names).toEqual(['Alpha Trainers', 'Middle Vendor', 'Zed Academy']);
+  });
+
+  /**
+   * bd-60155 — certificate_count must REACH the client.
+   *
+   * It was aggregated correctly and then dropped on the way out: the response
+   * mapper names every field it returns, so a field added to the accumulator
+   * and not to that list vanishes silently. The card read "0 Certificates" for
+   * every teacher, including ones holding several.
+   *
+   * Nothing caught it because the aggregation had been checked against real
+   * data and the RESPONSE never had. This test asserts the serialized payload,
+   * which is the only thing the page can actually see.
+   */
+  it('returns certificate_count per vendor, attributed through level_id', async () => {
+    tableStates.teacher_training_assignments = {
+      rows: [{ user_id: 'user-1', program_id: 'prog-1', is_active: true }],
+    };
+    tableStates.training_program_scopes = {
+      rows: [
+        { program_id: 'prog-1', vendor_id: 'v-tab', level_ids: null, course_ids: null, module_ids: null },
+        { program_id: 'prog-1', vendor_id: 'v-ox',  level_ids: null, course_ids: null, module_ids: null },
+      ],
+    };
+    tableStates.training_vendors = {
+      rows: [
+        { id: 'v-tab', key: 'TALEEMABAD', name: 'Taleemabad', is_active: true },
+        { id: 'v-ox',  key: 'OXBRIDGE',   name: 'Oxbridge',   is_active: true },
+      ],
+    };
+    tableStates.training_levels = {
+      rows: [
+        { id: 1, vendor_id: 'v-tab', is_active: true },
+        { id: 2, vendor_id: 'v-tab', is_active: true },
+        { id: 3, vendor_id: 'v-ox',  is_active: true },
+      ],
+    };
+    tableStates.training_courses = { rows: [{ id: 10, level_id: 1, is_active: true }] };
+    tableStates.training_modules = { rows: [{ id: 100, course_id: 10, is_active: true }] };
+    tableStates.teacher_training_progress = { rows: [] };
+    tableStates.training_assessment_attempts = { rows: [] };
+    // Two on Taleemabad levels, one on Oxbridge.
+    tableStates.training_certificates = {
+      rows: [
+        { user_id: 'user-1', level_id: 1 },
+        { user_id: 'user-1', level_id: 2 },
+        { user_id: 'user-1', level_id: 3 },
+      ],
+    };
+
+    const { statusCode, payload } = await invoke({ userId: 'user-1' });
+    expect(statusCode).toBe(200);
+    const byKey = Object.fromEntries(payload.vendors.map(v => [v.vendor_key, v]));
+
+    // The field must EXIST on the wire, not merely be computed server-side.
+    expect(byKey.TALEEMABAD).toHaveProperty('certificate_count');
+    expect(byKey.TALEEMABAD.certificate_count).toBe(2);
+    expect(byKey.OXBRIDGE.certificate_count).toBe(1);
   });
 
   it('excludes assignments where is_active=false', async () => {
