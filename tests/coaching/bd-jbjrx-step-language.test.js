@@ -45,7 +45,7 @@ process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key';
 process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
 
 const mockSent = [];
-jest.mock('../../shared/services/whatsapp.service', () => ({
+jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn((to, text) => { mockSent.push({ to, text }); return Promise.resolve({}); }),
   sendSticker: jest.fn(() => Promise.resolve({})),
   sendButtonMessage: jest.fn(() => Promise.resolve({})),
@@ -53,7 +53,7 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
   downloadMedia: jest.fn(() => Promise.resolve(Buffer.from(''))),
 }));
 
-jest.mock('../../shared/utils/logger', () => ({
+jest.mock('../../bot/shared/utils/logger', () => ({
   logToFile: jest.fn(),
   logError: jest.fn(),
   logWarn: jest.fn(),
@@ -61,15 +61,15 @@ jest.mock('../../shared/utils/logger', () => ({
 
 // Heavy collaborators the two processors pull in at module load. None of them
 // runs before the step message, so they only have to exist.
-jest.mock('../../shared/services/audio.service', () => ({}), { virtual: true });
-jest.mock('../../shared/storage/r2', () => ({
+jest.mock('../../bot/shared/services/audio.service', () => ({}));
+jest.mock('../../bot/shared/storage/r2', () => ({
   uploadClassroomAudio: jest.fn(() => Promise.resolve({})),
 }));
-jest.mock('../../shared/services/coaching/coaching-session.service', () => ({
+jest.mock('../../bot/shared/services/coaching/coaching-session.service', () => ({
   updateStatus: jest.fn(() => Promise.resolve({})),
   updateConversationState: jest.fn(() => Promise.resolve({})),
 }));
-jest.mock('../../shared/services/coaching/report-generator.service', () => ({
+jest.mock('../../bot/shared/services/coaching/report-generator.service', () => ({
   fetchAndCompressPriorFeedback: jest.fn(() => Promise.reject(new Error('stop here'))),
 }));
 
@@ -78,7 +78,7 @@ let mockTeacherLanguage = 'ur';
 /** The coaching_sessions row the processors read. */
 let mockSession = null;
 
-jest.mock('../../shared/config/supabase', () => ({
+jest.mock('../../bot/shared/config/supabase', () => ({
   from: (table) => {
     const b = { _cols: '', filters: {} };
     b.select = (cols) => { b._cols = String(cols || ''); return b; };
@@ -107,10 +107,10 @@ jest.mock('../../shared/config/supabase', () => ({
   },
 }));
 
-const TranscriptionProcessorService = require('../../shared/services/coaching/transcription-processor.service');
-const AnalysisProcessorService = require('../../shared/services/coaching/analysis-processor.service');
-const { getCoachingMessage } = require('../../shared/config/coaching-messages');
-const { offerDefaultLanguage } = require('../../shared/config/languages');
+const TranscriptionProcessorService = require('../../bot/shared/services/coaching/transcription-processor.service');
+const AnalysisProcessorService = require('../../bot/shared/services/coaching/analysis-processor.service');
+const { getCoachingMessage } = require('../../bot/shared/config/coaching-messages');
+const { offerDefaultLanguage } = require('../../bot/shared/config/languages');
 
 const SID = 'sess-jbjrx-steps';
 const FROM = '923016669553';
