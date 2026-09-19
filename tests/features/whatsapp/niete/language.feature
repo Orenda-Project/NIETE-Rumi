@@ -292,7 +292,11 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # __TODO_TRANSLATE__ sentinel (:50-52) → EN fallback (:117). Keys step1_transcribing:73 …
     # step5_voiceDebrief:81. Meanwhile the interstitials are inline-localized and DO render Urdu:
     # photo-prompt.service.js:17-28, lp-selection-list.service.js:34-79. "Yes, Analyze" /
-    # "Long Lesson Detected" / report-delivery chrome are English. @slow: full pipeline is 10+ min.
+    # report-delivery chrome are English. @slow: full pipeline is 10+ min.
+    # bd-di5ap (2026-09-18): "Long Lesson Detected" is no longer sent at all, and the
+    # post-transcription acknowledgement that followed it — the one message here with no
+    # language handling whatsoever (its GPT-4o prompt named no language) — is now a
+    # translated catalog string. Both were removed from the English-chrome list above.
 
   @e2e @wip @draft @language @config-gated @P1
   Scenario: A coach reads the observation flow in the COACH's language, not the observed teacher's

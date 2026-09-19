@@ -26,9 +26,20 @@ const { logToFile } = require('../utils/logger');
 
 const ONE_HOUR_AGO = () => new Date(Date.now() - 60 * 60 * 1000).toISOString();
 const THIRTY_MIN_AGO = () => new Date(Date.now() - 30 * 60 * 1000).toISOString();
+// Six hours, matching the coaching step's own TTL: the codebase already treats
+// that as "she stepped away and may well come back". Training attempts stay
+// `in_progress` indefinitely — production carries hundreds going back days — so
+// without a recency bound this probe would report long-abandoned quizzes as
+// running. Within six hours it is a handful across the whole deployment.
+const SIX_HOURS_AGO = () => new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 
 const COACHING_TERMINAL = ['completed', 'failed', 'cancelled', 'report_sent'];
 const LP_IN_FLIGHT = ['pending', 'processing', 'extracting'];
+
+// The 6-12 lesson-plan path keeps its own in-flight state: one render row per
+// (segment, language, template version), 'authoring' until the PDF exists.
+const LP612_RENDERS = 'niete_lp612_renders';
+const LP612_SEGMENTS = 'niete_lp612_segments';
 
 /**
  * Flows that are a GLANCE, not work in flight.
@@ -92,6 +103,24 @@ async function probeTeacherBusy(userId) {
   } catch (err) {
     logToFile('⚠️ probeTeacherBusy: LP probe failed (defaulting to not-busy)', { userId, error: err.message });
   }
+
+  // KNOWN DIVERGENCE FROM listActiveResources, AND IT IS NOT YET A DECISION.
+  //
+  // The branch above reads `lesson_plan_requests`, which the 6-12 path never
+  // writes, so a teacher waiting on a 6-12 lesson plan reads as NOT busy here.
+  // listActiveResources now probes `niete_lp612_renders` for exactly that case;
+  // this function deliberately does not, YET.
+  //
+  // Not because the two questions want different answers — they do not, it is one
+  // blind spot — but because closing it here changes report SCHEDULING at a volume
+  // nobody has signed off: the table this branch reads takes ~25 rows a week, the
+  // one listActiveResources now reads takes ~18,196. Every one of those becomes a
+  // potential 5-minute deferral of a quiz report that ships immediately today.
+  // That is a product call about deferral volume, not a bug fix, so it is written
+  // down rather than slipped in. Close it or reject it — do not leave it drifting.
+  //
+  // See GLANCE_FLOWS above: two lists nobody kept in step is how the /status
+  // defect shipped in the first place.
 
   // 4. Reading assessment in flight
   try {
@@ -237,6 +266,62 @@ async function listActiveResources(userId) {
     logToFile('⚠️ listActiveResources: LP probe failed', { error: err.message });
   }
 
+  // The 6-12 lesson plan she is actually waiting on.
+  //
+  // The probe above reads `lesson_plan_requests`, and the 6-12 Flow picker — the
+  // way lesson plans are really requested on this deployment — never writes there.
+  // Seven days of production: 18,196 rows from the path a teacher uses, 25 from
+  // the table /status was reading. For the ~2 minutes she waits, the surface built
+  // to answer "what is running" answered "nothing".
+  //
+  // `waiters`, not `requested_by`. One render serves everyone who taps the same
+  // lesson while it is being authored; the later tappers are appended to `waiters`
+  // by `lp612_join_waiters` and never become `requested_by`. They are waiting just
+  // as much as the first. The claim path writes the requester into `waiters` too,
+  // so containment covers both without a second clause — and, being per-teacher,
+  // it is also what stops a deployment-wide 'authoring' state from showing one
+  // teacher another teacher's lesson.
+  //
+  // `status` + `started_at` are exactly the partial index idx_lp612_renders_inflight.
+  try {
+    const { data: renders } = await supabase
+      .from(LP612_RENDERS)
+      .select('id, segment_id, started_at')
+      .eq('status', 'authoring')
+      .gte('started_at', THIRTY_MIN_AGO())
+      .contains('waiters', [{ user_id: userId }])
+      .order('started_at', { ascending: false })
+      .limit(2);
+
+    const inFlight = renders || [];
+    // Second query only when there is something to name — the common answer here
+    // is the empty list, and that must stay one round trip.
+    const titleFor = new Map();
+    const segmentIds = [...new Set(inFlight.map((r) => r.segment_id).filter(Boolean))];
+    if (segmentIds.length > 0) {
+      const { data: segments } = await supabase
+        .from(LP612_SEGMENTS)
+        .select('segment_id, menu_title')
+        .in('segment_id', segmentIds);
+      for (const s of (segments || [])) titleFor.set(s.segment_id, s.menu_title);
+    }
+
+    for (const r of inFlight) {
+      const lesson = titleFor.get(r.segment_id);
+      items.push({
+        id: `lp612_${r.id}`,
+        title: (lesson ? `Lesson plan · ${lesson}` : 'Lesson plan').slice(0, 70),
+        kind: 'lesson_plan',
+        refId: r.id,
+        // Listed, never offered. A render is shared: stopping it would discard a
+        // lesson every other teacher in `waiters` is queued behind.
+        summaryOnly: true,
+      });
+    }
+  } catch (err) {
+    logToFile('⚠️ listActiveResources: LP 6-12 probe failed', { error: err.message });
+  }
+
   // Whatever the conversation store says she is mid-way through — and now she can
   // RESUME it rather than only cancel it, which is the point of listing it at all.
   // The attendance entry that used to sit here was dead: rebuilt as Flows and kept
@@ -302,6 +387,49 @@ async function listActiveResources(userId) {
     }
   } catch (err) {
     logToFile('⚠️ listActiveResources: reading probe failed', { error: err.message });
+  }
+
+  // Teacher training. LISTED, NEVER OFFERED — see `summaryOnly` below.
+  //
+  // Training keeps its progress in its own table and never touched this store, so
+  // /status could not see a teacher part-way through a quiz at all: the question
+  // she stopped on is recorded, and the one surface built to answer "what is
+  // running" said nothing. It is not moving onto the conversation store; training's
+  // own model is the better one for it (durable, per-module, no TTL) and it has its
+  // own way back in via /training. The gap was visibility, so visibility is all
+  // this adds.
+  try {
+    const { data: attempts } = await supabase
+      .from('training_assessment_attempts')
+      .select('id, current_question_index, total_questions')
+      .eq('user_id', userId)
+      .eq('status', 'in_progress')
+      .is('completed_at', null)
+      .gte('last_activity_at', SIX_HOURS_AGO())
+      .order('last_activity_at', { ascending: false })
+      .limit(2);
+    for (const a of (attempts || [])) {
+      // `current_question_index` is 0-based and counts questions ANSWERED, so the
+      // one she is looking at is the next one along.
+      const total = Number(a.total_questions) || 0;
+      const onQuestion = Math.min(Number(a.current_question_index || 0) + 1, total || Infinity);
+      const where = total > 0 ? ` · question ${onQuestion} of ${total}` : '';
+      items.push({
+        id: `training_${a.id}`,
+        title: `Teacher training${where}`.slice(0, 70),
+        kind: 'training',
+        refId: a.id,
+        // Every other item here becomes a selectable row, and the only action
+        // /status offers is Stop. Stopping a half-finished quiz throws away her
+        // answers, which is a worse thing to put under her thumb than simply
+        // telling her it is there. buildMainScreen keeps summary-only items out of
+        // the rows, so no id is emitted that the tap router would have to learn —
+        // the silent-drop trap parseResourceId warns about.
+        summaryOnly: true,
+      });
+    }
+  } catch (err) {
+    logToFile('⚠️ listActiveResources: training probe failed', { error: err.message });
   }
 
   return items;

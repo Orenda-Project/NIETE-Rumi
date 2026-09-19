@@ -33,42 +33,13 @@
  *      narrowed.
  */
 
-const fs = require('fs');
-const path = require('path');
+const {
+  fails, religious, blocked, withProse, setSecondProse, cleanDoc,
+} = require('./helpers/religious-marks');
 
-const V = path.join(__dirname, '..', '..', 'bot', 'vendor', 'lp-v9');
-const { lint } = require(path.join(V, 'lint_lp.js'));
-
-const BASE = path.join(__dirname, '__fixtures__', 'v9_gate_base.lp.json');
-const raw = fs.readFileSync(BASE, 'utf8');
-
-/** `lint()` returns { fails, warns } — a BLOCKING defect is in `fails`. */
-const fails = (doc) => (lint(doc).fails || []).map(String);
-const religious = (doc) => fails(doc).filter((e) => e.startsWith('RELIGIOUS_MARKS'));
-const blocked = (doc) => religious(doc).length > 0;
-
-/**
- * Put `text` in a teacher-facing prose slot, with the human-review hold already set.
- *
- * It MUTATES the fixture's existing `paragraph` block rather than substituting a block of its
- * own. An invented block shape fails SCHEMA, `lint` stops at the schema tier and never reaches
- * the religious gate at all — so every "does not block" assertion would pass while asserting
- * nothing. Mutating a block the fixture already validates keeps the document schema-clean and
- * the gate actually running.
- */
-function withProse(text) {
-  const d = JSON.parse(raw);
-  d.needs_human_review = true;               // isolate checks 1-5 from check 6
-  const para = d.sections[1].blocks.find((b) => b.type === 'paragraph');
-  para.text = text;
-  return d;
-}
-
-/** A second teacher-facing prose slot, for the cases that need the trigger and the defect apart. */
-function setSecondProse(d, text) {
-  d.sections[1].blocks.find((b) => b.type === 'key_points').items = [text];
-  return d;
-}
+// The English-medium rulings (Q3 bd-xo6mb, and the stamp ruling bd-c61xh) live in their own
+// suite — `religious-marks-english.test.js` — because describe G took this file past the
+// 300-line limit. Same harness, imported above rather than copied.
 
 /** Guard: the fixture must be schema-clean, or every assertion below is vacuous. */
 beforeAll(() => {
@@ -132,10 +103,10 @@ describe('B — Latin script is correct on an English page', () => {
     expect(blocked(withProse('نبی کریم PBUH کا فرمان سیرت میں ہے'))).toBe(true);
   });
 
-  // SKIPPED, not deleted: this is a REAL and CURRENTLY LIVE gap, filed as bd-6tfw6.
-  // ABBREV_RE holds a bare "RA", which is also right ascension / relative abundance / a resistance symbol.
-  // Out of scope for bd-kpqu6's P0 — un-skip in the commit that fixes bd-6tfw6.
-  it.skip('does not fire on "RA" used as an ordinary abbreviation', () => {
+  // UN-SKIPPED by bd-6tfw6 (operator, 2026-09-17: "go on option 1"). ABBREV_RE held a bare "RA",
+  // which is also right ascension / relative abundance / the roughness symbol Ra. RA now fires
+  // only where it is ADJACENT — parenthesised, or straight after a mid-sentence name word.
+  it('does not fire on "RA" used as an ordinary abbreviation', () => {
     const d = setSecondProse(withProse(TRIGGER), 'Identify the RA value on the diagram.');
     expect(blocked(d)).toBe(false);
   });
@@ -169,7 +140,7 @@ describe('C — enforcement reads only what the teacher reads', () => {
   });
 
   it('a non-religious document is untouched by any of this', () => {
-    expect(religious(JSON.parse(raw))).toEqual([]);
+    expect(religious(cleanDoc())).toEqual([]);
   });
 });
 
@@ -179,3 +150,110 @@ describe('C — enforcement reads only what the teacher reads', () => {
 // production strings it was built from, so take it from 065766b7 on branch
 // bd-kpqu6-religious-marks-false-positives instead. Cost of the hold, stated plainly:
 // grade_6_urdu.c10.p051-054.tafheem ("حضرت خدیجۃ الکبریٰ رضی اللہ تعالیٰ عنہا") stays refused.
+
+describe('D — a companion honorific that IS there, rejected by the matcher', () => {
+  // Found 2026-09-16 re-reading the actual flagged text rather than the field path. Check 3 is
+  // the CONSISTENCY rule: it only fires on a bare name the document honorifies elsewhere. Both
+  // defects below make a correctly-honorified name LOOK bare, so the gate reports a slip that
+  // the author did not make — and in the Grade 6 case refused a live lesson over it.
+  //
+  //   D1. COMPANION_HON did not accept "رضی اللہ تعالیٰ عنہا". That is not a lesser form; it is
+  //       the MORE reverent one, and it is what the Grade 6 Urdu book prints.
+  //   D2. The window comment reads "a name is at most three words" but `if (i >= 2) break` stops
+  //       after TWO, so a three-word name never reaches its honorific. Both "زینب بنت علی" and
+  //       "ابراہیم خلیل اللہ" are three-word names printed with the honorific right after.
+
+  /** The consistency rule needs the same first name honorified somewhere, or nothing fires. */
+  const honorifiedElsewhere = (d, first) => setSecondProse(d, `حضرت ${first} رضی اللہ عنہا کا ذکر`);
+
+  it('D1 — accepts "رضی اللہ تعالیٰ عنہا" (the production Grade 6 tafheem line)', () => {
+    const d = honorifiedElsewhere(
+      withProse('حضرت خدیجۃ الکبریٰ رضی اللہ تعالیٰ عنہا کا لقب کیا تھا؟'), 'خدیجۃ');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('D1 — the plain "رضی اللہ عنہا" form still passes, as it always did', () => {
+    const d = honorifiedElsewhere(
+      withProse('حضرت خدیجۃ الکبریٰ رضی اللہ عنہا کا لقب کیا تھا؟'), 'خدیجۃ');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('D2 — accepts a three-word name: "حضرت زینب بنت علی رضی اللہ عنہا"', () => {
+    const d = honorifiedElsewhere(withProse('حضرت زینب بنت علی رضی اللہ عنہا کا ذکر آتا ہے'), 'زینب');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('D2 — accepts "حضرت ابراہیم خلیل اللہ علیہ السلام" in lesson body', () => {
+    const d = setSecondProse(
+      withProse('حضرت ابراہیم خلیل اللہ علیہ السلام کا واقعہ پڑھیں'),
+      'حضرت ابراہیم علیہ السلام کا ذکر');
+    expect(blocked(d)).toBe(false);
+  });
+
+  it('STILL blocks a genuinely bare companion the document honorifies elsewhere', () => {
+    const d = honorifiedElsewhere(withProse('حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟'), 'خدیجۃ');
+    expect(blocked(d)).toBe(true);
+  });
+
+  it('a name never honorified anywhere is left to the reviewer, not blocked', () => {
+    // Not a slip — there is no internal inconsistency to point at. Check 6 still holds it.
+    expect(blocked(withProse('حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟'))).toBe(false);
+  });
+});
+
+describe('F — a prophet other than Muhammad takes علیہ السلام, not ﷺ', () => {
+  // OPERATOR RULING, 2026-09-17 (G5c native-speaker review, bd-zipoe packet, Q1):
+  //   "any prophet not Muhammad gets their proper salutation alaihis salam in the
+  //    stamp/nastaliq script"
+  //
+  // This is the native-speaker clearance brief §4c/G5c requires. It is a decision, not a
+  // heuristic derived here.
+  //
+  // PROPHET_TOKENS carries the bare common noun نبی alongside the Prophet Muhammad's own name and
+  // his conventional epithets, and HONORIFIC_RE accepts only his salutation. So a correctly
+  // salutated mention of ANY other prophet read as an unhonorified mention of him — and the
+  // failure message instructed the author to write "نبی ﷺ", which for Hazrat Ibrahim is the wrong
+  // thing. A lesson cannot be repaired into compliance by being told to write something false, so
+  // it stayed refused on every round.
+  //
+  // PRODUCTION: grade_7_urdu.c11.p062-064.tafheem (v9.6), REFUSED 2026-09-15 04:53, one teacher
+  // waiting. /sections/0/warmup/items/1/a — "وہ اللہ کے نبی تھے، جنہوں نے بتوں کی…". The chapter
+  // is Hazrat Ibrahim.
+
+  it('F1 — "نبی علیہ السلام" is a complete salutation and does not block', () => {
+    expect(blocked(withProse('حضرت ابراہیم اللہ کے نبی علیہ السلام تھے'))).toBe(false);
+  });
+
+  it('F1 — the elaborated "علیہ الصلوٰۃ والسلام" is accepted too', () => {
+    expect(blocked(withProse('حضرت موسیٰ نبی علیہ الصلوٰۃ والسلام کا ذکر'))).toBe(false);
+  });
+
+  it('F2 — "نبی ﷺ" still passes, exactly as before', () => {
+    expect(blocked(withProse('نبی ﷺ نے فرمانے کا ذکر کیا ہے'))).toBe(false);
+  });
+
+  it('STILL blocks محمد with علیہ السلام — his salutation is ﷺ and nothing else', () => {
+    // The guard on the ruling's own words: "any prophet NOT Muhammad". If this goes green the
+    // fix has demoted the Prophet's salutation, which is the defect bd-qzitp exists to prevent.
+    expect(blocked(withProse('محمد علیہ السلام نے ارشاد کیا'))).toBe(true);
+  });
+
+  it('STILL blocks an epithet of the Prophet with علیہ السلام — رسول اللہ', () => {
+    expect(blocked(withProse('رسول اللہ علیہ السلام کا فرمان'))).toBe(true);
+  });
+
+  it('STILL blocks a LATIN "alaihis salam" — the ruling says stamp/nastaliq script', () => {
+    expect(blocked(withProse('حضرت ابراہیم اللہ کے نبی alaihis salam تھے'))).toBe(true);
+  });
+
+  it('the production Grade 7 line still fails, but now names علیہ السلام as the fix', () => {
+    // It carries no salutation at all, so it must still be caught — the change is WHAT the author
+    // is told to write. Demanding "نبی ﷺ" for Hazrat Ibrahim is why this segment could not be
+    // repaired on any round.
+    const msgs = religious(withProse('وہ اللہ کے نبی تھے، جنہوں نے بتوں کی پرستش سے منع کیا'));
+    expect(msgs.length).toBeGreaterThan(0);
+    expect(msgs.join('\n')).toMatch(/علیہ السلام/);
+    expect(msgs.join('\n')).toMatch(/ﷺ/);
+  });
+});
+

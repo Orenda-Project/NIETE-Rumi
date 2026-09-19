@@ -91,6 +91,35 @@ describe('decideStatusReply — decide before anything is sent (bd-60059)', () =
       .toEqual({ mode: 'text', kind: 'list' });
   });
 
+  // The Flow's only verb is Stop. An item that cannot be stopped (`summaryOnly`)
+  // is filtered out of the selectable rows by buildMainScreen, so a teacher whose
+  // ONLY in-flight work is that kind would tap "Open status" and land on a screen
+  // whose one button is "Done — close".
+  //
+  // That is not a corner case. Every teacher the training probe surfaces is in it:
+  // measured on production, 13 of 13 mid-quiz teachers had nothing else running,
+  // because training is self-contained. Sending a card and a tap to deliver a line
+  // of text is worse than the line of text.
+  it('everything running is unstoppable → answer in the chat, not a Flow with no verbs', () => {
+    const items = [{ id: 'training_a', title: 'Teacher training · question 3 of 8', summaryOnly: true }];
+    expect(decideStatusReply({ statusFlowId: 'flow-123', items })).toEqual({ mode: 'text', kind: 'list' });
+  });
+
+  it('but ONE stoppable item is enough to earn the Flow', () => {
+    const items = [
+      { id: 'training_a', title: 'Teacher training', summaryOnly: true },
+      { id: 'cancel_flow_coaching', title: 'Stop: classroom observation' },
+    ];
+    expect(decideStatusReply({ statusFlowId: 'flow-123', items })).toEqual({ mode: 'flow' });
+  });
+
+  it('a malformed item is not mistaken for an unstoppable one', () => {
+    // `null` must not satisfy "every item is summaryOnly" — the safe direction is
+    // the Flow, which can still render and be closed.
+    const items = [null, { id: 'x', title: 'y' }];
+    expect(decideStatusReply({ statusFlowId: 'flow-123', items })).toEqual({ mode: 'flow' });
+  });
+
   it('the probe FAILED → open the Flow anyway; a failed read must not cause silence', () => {
     // `null` is "could not tell", which is NOT "nothing". Treating it as empty
     // would answer "nothing is running" to a teacher who has a live session —
@@ -132,6 +161,46 @@ describe('the /status branch routes through the decision (bd-60059)', () => {
 
   it('uses decideStatusReply rather than re-deriving the decision inline', () => {
     expect(statusBranch()).toContain('decideStatusReply');
+  });
+
+  // Every arm of this branch is a thing that happened to a teacher, so every arm
+  // has to leave a trace. The chat-LIST arm had none. That cost nothing while it
+  // was only reachable with no Flow published — which on production is never —
+  // but the all-unstoppable routing made it the arm a training-only teacher
+  // takes WITH the Flow published, and that is now the common case. A feature
+  // built for visibility whose main path cannot be seen in Axiom is the same
+  // class of bug this file's own workstream keeps closing.
+  it('every arm of the branch leaves a log, including the chat-list one', () => {
+    const branch = stripComments(statusBranch());
+
+    // Split on the arms so a log line in one cannot satisfy the assertion for
+    // another — the whole failure was that three arms logged and one did not.
+    // Bounded at the `catch`, NOT at the end of the branch: the catch block logs
+    // too, and an unbounded slice swallows it and passes against the very shape
+    // this test exists to reject. (It did, on the first run.)
+    const from = branch.indexOf('Running for you');
+    const to = branch.indexOf('catch', from);
+    expect(from).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    const listArm = branch.slice(from, to);
+
+    expect(branch).toContain('Status flow sent');
+    expect(branch).toContain('nothing running');
+    expect(listArm).toContain('logToFile');
+  });
+
+  it('CONTROL: the chat-list log assertion really can fail', () => {
+    // The shipped shape, which had no logToFile after "Running for you".
+    const preFix = stripComments([
+      '} else {',
+      '  await WhatsAppService.sendMessage(from,',
+      '    `Running for you:\n${items.map(it => `• ${it.title}`).join("\n")}`);',
+      '}',
+    ].join('\n'));
+    const f = preFix.indexOf('Running for you');
+    const t = preFix.indexOf('catch', f);
+    const listArm = preFix.slice(f, t > f ? t : undefined);
+    expect(listArm).not.toContain('logToFile');
   });
 
   it('CONTROL: the ordering assertion really can fail', () => {

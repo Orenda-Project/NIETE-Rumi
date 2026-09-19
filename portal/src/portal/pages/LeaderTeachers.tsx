@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Users } from "lucide-react";
 import { leader } from "../services/api";
+import { useAuth } from "../hooks/useAuth";
+import { resolveRole } from "../lib/leaderRole";
 import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -32,7 +34,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Observations and self-recorded sessions are different acts — name both. */
 function teacherActivityLine(t: LeaderPatchTeacher): string {
-  if (!t.onRumi) return "Not yet on Rumi";
+  if (!t.onRumi) return "Not yet on NIETE";
   const bits: string[] = [];
   if (t.observations > 0) bits.push(plural(t.observations, "observation"));
   bits.push(plural(t.coachingSessions, "session"));
@@ -41,6 +43,25 @@ function teacherActivityLine(t: LeaderPatchTeacher): string {
 }
 
 const LeaderTeachers = () => {
+  const { user } = useAuth();
+  /**
+   * bd-60119 — where a teacher row leads depends on who is looking.
+   *
+   * A PRINCIPAL goes to Analytics, pre-filtered to that teacher: the detail
+   * page and Analytics had become near-duplicates (both a score trend plus
+   * per-teacher numbers) and Analytics now does strictly more — presence and
+   * evaluations too. Two pages answering one question is two places to keep
+   * right and a needless choice for her.
+   *
+   * A COACH keeps the detail page. Her patch spans many schools, so the
+   * school-scoped Analytics tab is not hers — the endpoint 403s her — and
+   * redirecting her there would take away the only view she has.
+   */
+  const teacherHref = (id: string) =>
+    resolveRole(user) === 'principal'
+      ? `/portal/leader/school-analytics?teacherId=${id}`
+      : `/portal/leader/teacher/${id}`;
+
   const [teachers, setTeachers] = useState<LeaderPatchTeacher[]>([]);
   const [summary, setSummary] = useState<{ total: number; onRumi: number }>({ total: 0, onRumi: 0 });
   const [loading, setLoading] = useState(true);
@@ -62,7 +83,7 @@ const LeaderTeachers = () => {
           <h1 className="text-3xl font-light">Teachers</h1>
           {!loading && (
             <p className="text-muted-foreground mt-2">
-              {summary.total} teacher{summary.total === 1 ? "" : "s"} in your patch · {summary.onRumi}/{summary.total} on Rumi
+              {summary.total} teacher{summary.total === 1 ? "" : "s"} in your patch · {summary.onRumi}/{summary.total} on NIETE
             </p>
           )}
         </header>
@@ -97,7 +118,7 @@ const LeaderTeachers = () => {
                 return (
                   <li key={t.rumiUserId || t.phone || t.teacherExtId}>
                     {t.onRumi && t.rumiUserId ? (
-                      <Link to={`/portal/leader/teacher/${t.rumiUserId}`} className="block hover:bg-muted/40 transition-colors">
+                      <Link to={teacherHref(t.rumiUserId)} className="block hover:bg-muted/40 transition-colors">
                         {row}
                       </Link>
                     ) : (

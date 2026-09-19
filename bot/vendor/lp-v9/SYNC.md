@@ -839,11 +839,91 @@ metadata, `subject`, a physics symbol, the machine fields, and a short label out
 
 Upstream carries neither fix. Push both hunks up at the next re-sync.
 
+**`bd-yhd16` — `overlayChromeGaps()`, a third divergence, added 2026-09-17.** Widening the target
+set fixed everything authored AFTER it. It did nothing for what was already stored, because
+`ur_overlay` is frozen into the document at authoring time and is never recomputed at render time.
+Measured against production on 2026-09-17: of 389 ready Urdu renders, **82 still serve an English
+title**, each missing exactly the provenance pointers this section added.
+
+The lane that carries them forward is `reuseFromPreviousVersion` in
+`bot/workers/lp612-author.worker.js` — a template bump is a re-render, not a re-authoring
+(`bd-oak77.12`), and the overlay pass is explicitly skipped on a reuse, so a pre-`bd-x3dn6`
+document is re-rendered with its English chrome into a NEW row at the new template version, where
+it is a permanent cache hit. `overlayDefects` cannot see it: coverage is a fraction over the whole
+document and the chrome is three pointers out of ~92, so a fully-translated body with an English
+title scores ~0.97 and passes.
+
+`overlayChromeGaps(doc)` names the offered `/provenance` pointers a document has no non-blank Urdu
+string for. It is **derived from `overlayTargets`**, so adding a fourth key to
+`OVERLAY_PROVENANCE_KEYS` extends it with no second edit; an Urdu-medium book returns `[]` for the
+same reason `overlayDefects` does. Exported as `overlayDefects.chromeGaps` beside `.targets`, and
+as a named export for the worker. It is a READER — no existing call path changes behaviour.
+
+Covered by `tests/lp612/overlay-chrome-reuse-gate.test.js` (9 tests) and
+`tests/lp612/overlay-chrome-reuse.e2e.test.js` (4 tests, the whole tap-to-upload chain).
+
+Upstream carries none of the three fixes, and has no reuse lane for this one to belong to. Push
+the first two hunks up at the next re-sync; `overlayChromeGaps` stays ours.
+
+### 3.14 `lint_lp.js` + `g5c_cleared_names.json` — the G5c native-speaker review, carried as data (2026-09-17)
+
+`bd-zipoe`. Rule 1 (RELIGIOUS_MARKS) demanded ﷺ after every whole-word `محمد`. `محمد` is also one
+of the commonest given names in Pakistan, so a **delivered** Grade 10 Urdu lesson
+(`grade_10_urdu.p2c05.p135-135.tafheem`, v9.6) carried five fails on `سیّد ولی محمد` — the poet
+Nazeer Akbarabadi's real name — four of them on teacher-facing paths, and the auto-repair round
+answered by attaching the Prophet's salutation to a non-Prophet name. §3.11's `isCompoundGivenName`
+(`bd-gyrg8`) cannot reach this shape: it reads the word AFTER `محمد`, and here `محمد` is the LAST
+word of the name, so the next word is the ordinary `اور`.
+
+**The fix is a list, not a rule, and that is the whole point.** Brief §4c / gate G5c: *"Automated
+checks do NOT clear religious content: the native-speaker review remains a hard hold before any
+teacher delivery."* A heuristic deciding which `محمد` is not the Prophet is exactly the automated
+clearance that forbids. So nothing in this hunk decides anything. The new
+`bot/vendor/lp-v9/g5c_cleared_names.json` **is** the review: every whole-word `محمد` in the Grades
+6-12 page-truth corpus, gathered into 298 distinct phrases and marked one by one by Amena Ahmed,
+the named reviewer of record, on 2026-09-17 — 254 `person`, 44 `prophet`, none undecided. The
+polarity of the marks was confirmed by her directly, after the review document's own printed legend
+was found to be inverted; the file records that, the source path and the source's sha256 in its own
+header.
+
+The source lives in the workspace repo (`08_Grades 6-12 LP Build/_g5c_native_speaker_review_2026-09-17/Q2-decisions.json`)
+and is gitignored there, so it cannot be read from disk at runtime. It is carried here deliberately,
+as committed data. All 298 decisions are kept; only the review's descriptive columns
+(`occurrences`, `books`, `example`, `reading_aid_group`) are dropped, since none of them is consulted
+at match time.
+
+`person` CLEARS. `prophet` never clears and never blocks on its own — it exists only to arbitrate
+where two decided phrases cover the same word (`حضرت محمد` is prophet; `حضرت محمد باقر رحمہ اللہ`
+is person). Longest decided phrase present wins, and on equal length the blocking mark wins. Letting
+`prophet` block directly would be wrong in a way worth recording: the review contains a bare
+single-word `محمد` row, so a blocking list would re-break every `bd-gyrg8` case. **A `محمد` that
+matches nothing is not cleared — the gate fails, unchanged. Fail-closed, always.**
+
+Matching is on the normalised WORD SEQUENCE, not the bytes: the books print `سیّد` with a shadda
+where the review recorded `سید`, and `اقبال` appears with and without ؒ. Each word is compared with
+its combining marks (U+0610–U+061A, U+064B–U+065F, U+0670, U+06D6–U+06ED) removed and its edge
+punctuation trimmed — the same "read through aeraab" the surrounding rules already do.
+
+The §3.11-era comment at `COMPANION_SALUT_LATIN_RE` says rule 3 "deliberately refuses to keep a
+corpus of companion names". That position is unchanged and the comment now says so explicitly: rule 1
+carries a corpus because a dated, named human review of those exact phrases exists; rule 3 carries
+none because no such review exists for companion names. When one does, rule 3 may carry it the same
+way.
+
+Covered by `tests/lp612/religious-marks-cleared-names.test.js` (15 tests — the four production
+strings, aeraab, punctuation, plus the regression half: bare `محمد`, `حضرت محمد`, `محمد بن عبداللہ`,
+`محمد مصطفیٰ`, an unreviewed name of the same shape, a cleared and an uncleared `محمد` in one
+sentence, longest-match arbitration) and `tests/lp612/religious-marks-cleared-names.e2e.test.js`
+(4 tests through `authorLessonPlan`, both directions: delivered, and refused).
+
+Upstream has neither the check nor the data file, and should not be sent the data file — it is this
+deployment's human review, not a general rule. Push nothing of §3.14 up at the next re-sync.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes, and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

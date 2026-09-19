@@ -38,18 +38,36 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 | Installed deps match the commit's lockfiles | root and bot `package-lock.json` blobs at the sha must equal the installed trees' (exit 10) |
 | No live vendor call | `E2E_CASSETTE=replay-strict`: a hit replays, a miss **throws** `E2E_CASSETTE_MISS`, is logged to `cassette-misses.jsonl`, and makes the ledger row `CRITICAL` naming the scenarios it hit |
 | No production or staging data | the bot runs on the **sandbox** Supabase (`keys/niete-local.env`); the cassette and the DB tooling both refuse any other project ref |
+| One driver row per machine | the synthetic driver is derived from `hostname\|user` (`mock_driver.py`, `92300XXXXXXX`; `E2E_MOCK_DRIVER` pins it) and `ensure`d on first use, so two machines never seed or read the same rows on the shared sandbox DB; the run lock (`driver_lock.py`) is per machine and guards same-machine parallel runs |
 | Flows are emulated, never rendered | the `flow*` primitives play Meta's client from the stored FLOW_JSON (phase 4); every result carries `via: flow-emulator`, `caps.render` stays `false`, and a component the emulator does not model (PhotoPicker) is refused, not faked |
 | Meta's field caps are enforced | the mock rejects header/footer > 60, button > 20, row title > 24, > 3 buttons, > 10 rows — counted in **code points**, like Meta |
 
-## Setup (once per machine)
+## Setup (automatic — no manual step)
 
-1. `keys/niete-local.env` next to `keys/niete-sandbox.env`: the two sandbox Supabase lines, placeholders for
-   `WHATSAPP_TOKEN` / `WEBHOOK_VERIFY_TOKEN` / `WABA_ID` / `OPENROUTER_API_KEY=cassette-only…`, and from the
-   staging Railway env ONLY the storage + Flow-id lines (`R2_*`, `*_FLOW_ID`, `PORTAL_URL`), e.g.
-   `railway variables -p "NIETE-Rumi Staging" -s bot --environment staging --kv | grep -E '^(R2_|[A-Z_]+_FLOW_ID=|PORTAL_URL=)'`.
-   No vendor API key belongs in it — that absence is what keeps the lane offline. `QUEUE_DRIVER`, `REDIS_URL`
-   and the run's own values are appended per run by `local-stack.sh`.
-1b. `redis-server` on PATH (`brew install redis`): the stack starts a private instance per run.
+1. `keys/niete-local.env` is **provisioned for you**. The SessionStart banner, `.githooks/post-commit` and
+   `commit-e2e.sh` all call `e2e_mock_lane_autofix` (`.claude/hooks/lib/mock-lane.sh`), which runs
+   `bot/scripts/e2e/provision-local-keys.sh --quiet` whenever the file is missing:
+   - the two sandbox Supabase lines come from the **Railway sandbox environment** (or from a hand-made
+     `keys/niete-sandbox.env` if one exists); the project ref is asserted against `ENV_REFS` in
+     `niete_training_db.py` and anything but the sandbox ref is refused. `niete-sandbox.env` is written too, so
+     the DB tooling works without a step of its own;
+   - from the **staging** Railway env ONLY the storage + Flow-id + portal lines (`R2_*`, `*_FLOW_ID`, `PORTAL_URL`);
+   - placeholders for `WHATSAPP_TOKEN` / `WEBHOOK_VERIFY_TOKEN` / `WABA_ID` / `OPENROUTER_API_KEY=cassette-only…`.
+     No vendor API key is ever copied — that absence is what keeps the lane offline.
+   It never overwrites (`--force`), never prints a value, writes `0600`, and lands the file next to any existing
+   `keys/niete-sandbox.env` (repo `keys/` or the workspace-level `keys/`, the two places `local-stack.sh` looks).
+   `QUEUE_DRIVER`, `REDIS_URL` and the run's own values are appended per run by `local-stack.sh`.
+
+   **The one per-machine fact this cannot create is `railway login`** (an account with access to the
+   "NIETE-Rumi Staging" project). Without it the banner / hook say exactly that, and nothing else — the keys
+   are provisioned on the next session or commit once you are logged in. A machine with no Railway access can
+   still be fed a teammate's dump: `provision-local-keys.sh --from-kv team.kv` covers the staging half.
+   `E2E_AUTOFIX_OFF=1` disables the autofix (CI, tests).
+
+   Before 2026-09-18 the first signal of a missing file was exit 14 deep inside `local-stack.sh`, on the agent's
+   turn — which is how a PR could ship with the ledger reading `e2e: missing`.
+1b. `redis-server` — `commit-e2e.sh` installs it automatically (`brew install redis`) when brew is present; the
+   stack starts a private instance per run.
 2. Installed dependencies whose lockfiles match the commit under test. If the main checkout's install is
    stale, point the stack at a fresh one: `E2E_NODE_MODULES_ROOT=<dir with node_modules>` (root set) and
    `E2E_BOT_NODE_MODULES_ROOT=<dir with bot/node_modules>`.

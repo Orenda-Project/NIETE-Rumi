@@ -87,6 +87,20 @@ done
 [ -n "$LATER" ] && echo "│ chrome lane only (not in the mock lane yet): $LATER"
 if [ -z "$RUN" ]; then echo "└ nothing for the mock lane to drive — done."; exit 0; fi
 
+# 3b. can THIS machine run the lane? FIX it first (keys from Railway, redis via brew) — no manual step. Only if
+# it still cannot (railway not logged in) say so NOW, not exit 14 deep inside local-stack.sh (PR #1084).
+if type e2e_mock_lane_autofix >/dev/null 2>&1; then
+  _MAIN=$(e2e_main_checkout "$ROOT")
+  _FIX=$(e2e_mock_lane_autofix "$_MAIN" --with-redis); _FIX_RC=$?
+  [ -n "$_FIX" ] && printf '%s\n' "$_FIX" | sed 's/^/│ machine:   /'
+  if [ "$_FIX_RC" -ne 0 ]; then
+    echo "│ machine:   NOT READY for the mock lane"
+    e2e_mock_not_ready_block "$(e2e_mock_lane_ready "$_MAIN"; printf '%s\n' "$_FIX" | grep -E 'failed|unavailable' || true)" | sed 's/^/│ /'
+    echo "└ nothing ran (exit 3). Once the provisioner can log in, re-run this exact command — the rest is automatic."
+    exit 3
+  fi
+fi
+
 # 4. the gate
 python3 "$QA/validate_specs.py" --only "$RUN" >"$PEND/mock-$SHORT.validate.log" 2>&1; VEXIT=$?
 if [ "$VEXIT" -ne 0 ]; then

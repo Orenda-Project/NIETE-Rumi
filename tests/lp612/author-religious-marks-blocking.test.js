@@ -175,3 +175,53 @@ describe('a lesson still naming the Prophet without an honorific is not delivere
     expect(out.rounds).toBe(0);
   });
 });
+
+/**
+ * bd-6tfw6 — the same refusal, driven end to end, for the ONE token that was over-reaching.
+ *
+ * The unit suites assert `lint()`. This block asserts what the teacher actually gets: the author
+ * ladder either hands the worker a document or throws `LP612_RELIGIOUS_MARKS` and she gets no
+ * lesson at all. Only the model call is stubbed — `llm-client` at the network boundary, mocked
+ * once at the top of this file — so the segment build, the schema tier, the full lint and the
+ * ladder all run for real.
+ */
+describe('bd-6tfw6 — RA is refused when adjacent to a name, delivered when it is not', () => {
+  /** A mixed lesson: religious enough to run check 2, with one line of science prose in it. */
+  function mixedDoc(prose) {
+    const d = clone(CLEAN_DOC);
+    d.needs_human_review = true;                                  // isolate check 2 from check 6
+    d.sections.find((s) => s.id === 'homework').homework.items[0].text += ' سیرت کا سبق۔';
+    d.sections[1].blocks.find((b) => b.type === 'key_points').items = [prose];
+    return d;
+  }
+
+  test('a bare "RA" no longer costs the teacher the whole lesson', async () => {
+    // The bead's string, in a lesson that genuinely carries religious content. Before option 1
+    // the ladder spent all five rounds on it and threw; the teacher received nothing.
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(mixedDoc('Identify the RA value on the diagram.')));
+
+    const out = await run(renderCheck);
+
+    expect(out.fails.some((f) => String(f).startsWith('RELIGIOUS_MARKS:'))).toBe(false);
+    expect(out.rounds).toBe(0);
+  });
+
+  test('GUARD: the production string from render 1140eb1d is still refused', async () => {
+    // grade_7_history.c02.p021-022, /objectives/items/0/text, currently SERVING. Green before
+    // this change and after it — the proof the protection was not narrowed.
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(
+      mixedDoc("You can name Hazrat Mu'awiya (RA) as the Umayyad founder and his tribe")));
+
+    await expect(run(renderCheck)).rejects.toMatchObject({ code: 'LP612_RELIGIOUS_MARKS' });
+  });
+
+  test('GUARD: "(SAW)" is refused exactly as before — only RA was narrowed', async () => {
+    const renderCheck = jest.fn().mockResolvedValue([]);
+    create.mockResolvedValue(reply(
+      mixedDoc('Which family/tribe did the Prophet (SAW) belong to?')));
+
+    await expect(run(renderCheck)).rejects.toMatchObject({ code: 'LP612_RELIGIOUS_MARKS' });
+  });
+});

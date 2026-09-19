@@ -1,35 +1,38 @@
 /**
  * bd-gc1ge — "Transcription complete, null!"
  *
- * Third site in the same defect class as the photo-gate greeting. When the
- * GPT-4o call that writes the post-transcription encouragement fails, the
- * hardcoded fallback copy is:
+ * `transcription-processor.service.js` passes `session.users.name` RAW, and
+ * 6,282 of 15,552 prod users have `name IS NULL`, so a nameless teacher was
+ * greeted as "null" — both in the copy she received and in the prompt the model
+ * was given ("Teacher's name: null"), which it then echoed back at her.
  *
- *     `✅ Transcription complete, ${firstName}! You taught for N minutes …`
+ * UPDATED by bd-di5ap (DC row 129). The model call this test was written around
+ * is gone: it was handed only a name and a duration, told to be "specific", and
+ * duly invented a verdict on a lesson nothing had analysed yet. The message is
+ * now a fixed, translated catalog string.
  *
- * and transcription-processor.service.js passes `session.users.name` RAW. So a
- * nameless teacher (6,282 of 15,552 prod users have `name IS NULL`) was told
- * "Transcription complete, null!" — and the same raw value was also being fed
- * to the model as "Teacher's name: null", which is what the model then greets
- * her by on the SUCCESS path.
- *
- * The LLM branch is deliberately forced to throw here: the fallback is the
- * branch that carries the literal, and a test that reaches OpenAI would be
- * neither hermetic nor deterministic.
+ * That makes the second half of this file STRONGER, not obsolete. The original
+ * "the model is never asked to greet a teacher called null" case has been
+ * replaced by "no model is consulted at all" — the same defect, closed at the
+ * source instead of sanitised on the way in. The name-safety assertions below
+ * are unchanged and still guard the copy a teacher actually receives.
  */
 
 'use strict';
 
-// Force the GPT-4o call to fail so the fallback copy is what we assert on.
-// Shape matches the call site: `new OpenAI({...}).chat.completions.create(...)`.
-const mockCreate = jest.fn(async () => { throw new Error('openai unavailable (forced)'); });
-jest.mock('openai', () => jest.fn().mockImplementation(() => ({
+// Kept as a TRIPWIRE, not a stub: nothing should reach it any more. If someone
+// reintroduces a model call here, these tests fail rather than quietly pass.
+const mockCreate = jest.fn(async () => ({
+  choices: [{ message: { content: 'some generated praise' } }],
+}));
+const MockOpenAI = jest.fn().mockImplementation(() => ({
   chat: { completions: { create: mockCreate } },
-})));
+}));
+jest.mock('openai', () => MockOpenAI);
 
 const CoachingHelpersService = require('../../shared/services/coaching/coaching-helpers.service');
 
-describe('bd-gc1ge — the encouragement fallback for a nameless teacher', () => {
+describe('bd-gc1ge — the transcription acknowledgement for a nameless teacher', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('a null name does not become the word "null"', async () => {
@@ -48,6 +51,8 @@ describe('bd-gc1ge — the encouragement fallback for a nameless teacher', () =>
     expect(msg).not.toMatch(/\bnull\b/);
     // "complete, !" — the empty-gap shape a bare helper swap would leave.
     expect(msg).not.toMatch(/,\s*!/);
+    // and the placeholder itself must not survive into the send
+    expect(msg).not.toContain('{{name}}');
   });
 
   test('a named teacher is still addressed by name', async () => {
@@ -57,15 +62,11 @@ describe('bd-gc1ge — the encouragement fallback for a nameless teacher', () =>
     expect(msg).not.toMatch(/\bnull\b/);
   });
 
-  test('the model is never asked to greet a teacher called "null"', async () => {
-    // The SUCCESS path interpolates the same value into the prompt, so a raw
-    // null reaches the model as "Teacher's name: null" and comes back in its
-    // own greeting — the fallback is not the only victim.
+  test('no model is consulted, so there is no prompt to leak a name into (bd-di5ap)', async () => {
     await CoachingHelpersService.generateEncouragingMessage(null, 600);
+    await CoachingHelpersService.generateEncouragingMessage('Ayesha', 600);
 
-    expect(mockCreate).toHaveBeenCalled();
-    const sent = JSON.stringify(mockCreate.mock.calls[0][0]);
-    expect(sent).not.toMatch(/name: null/i);
-    expect(sent).not.toMatch(/name: undefined/i);
+    expect(MockOpenAI).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });

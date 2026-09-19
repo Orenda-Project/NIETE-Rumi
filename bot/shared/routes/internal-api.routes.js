@@ -311,6 +311,181 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
 });
 
 /**
+ * POST /api/internal/training/certify-level
+ * Body { userId, levelId, attemptId?, programId?, moduleId? }
+ *   -> { success, issued, certificate_code?, level_name?, teacher_name?, pdf_r2_key? }
+ *
+ * bd-60145 — the portal's only way to certify a level.
+ *
+ * Before this, `dashboard/routes/portal.routes.js` called `issueCertificate`
+ * DIRECTLY the moment an attempt passed, from the capstone and grand-quiz
+ * routes. That skips every completeness check: it is the portal's copy of
+ * bd-60139, where a single pass minted a certificate without asking whether
+ * the units were finished or the per-module exams passed. And no portal route
+ * certified a per-module-assessed level at all, so an I-SAPS teacher who
+ * finished everything was certified by nothing (bd-60142, one surface over).
+ *
+ * The guard is `maybeIssueQuizScoreCertificate`, unchanged and shared — the
+ * portal gets the SAME decision WhatsApp gets, which is the whole point of
+ * this internal API. `levelId` is accepted because a module-exam attempt
+ * carries training_module_id = NULL (bd-60144); passing that null is what made
+ * the guard bail on its first lookup.
+ *
+ * Idempotent: the guard refuses a second certificate for a (user, level), so a
+ * retry or a double submit cannot mint two.
+ */
+router.post('/training/certify-level', requireInternalKey, async (req, res) => {
+  const body = req.body || {};
+  const { userId } = body;
+  const levelId = num(body.levelId);
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });
+
+  try {
+    const supabase = require('../config/supabase');
+    const { maybeIssueQuizScoreCertificate } = require('../services/training/certificate.service');
+    const result = await maybeIssueQuizScoreCertificate(supabase, {
+      userId,
+      levelId,
+      // Optional: the quick-check path still has a module, and passing it
+      // changes nothing when levelId is supplied.
+      moduleId: body.moduleId === undefined ? null : body.moduleId,
+      attemptId: body.attemptId || null,
+      programId: body.programId || null,
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    // Fail CLOSED: a lookup failure must read as "not certified", never as a
+    // certificate. The caller's own write (the graded attempt) is already
+    // committed by this point and is not affected.
+    logToFile('❌ Internal training API failed', { route: 'certify-level', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Certification failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/module-exam-gate
+ * Body { userId, courseId } -> { success, ok, body, caption, cta, module_no }
+ *
+ * bd-60149 — may this teacher sit this module's exam, and what should the
+ * screen say about it?
+ *
+ * The portal had no concept of a module exam at all: `source_quiz_id` appears
+ * nowhere in its routes, so an I-SAPS teacher could finish all 54 units there
+ * and never reach a summative assessment. This is the gate WhatsApp already
+ * asks (`loadModuleExamSlot`), exposed so both surfaces answer identically —
+ * re-deriving it portal-side is precisely the drift bd-2480 removed.
+ */
+router.post('/training/module-exam-gate', requireInternalKey, async (req, res) => {
+  const { userId } = req.body || {};
+  const courseId = num((req.body || {}).courseId);
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (courseId === null) return res.status(400).json({ success: false, error: 'courseId is required' });
+
+  try {
+    const supabase = require('../config/supabase');
+    const { data: course } = await supabase
+      .from('training_courses').select('id, title, level_id').eq('id', courseId).maybeSingle();
+    if (!course || !course.level_id) {
+      return res.json({ success: true, ok: false, body: 'That module is not available.', cta: '', caption: '' });
+    }
+    const {
+      loadModulesWithProgress, loadModuleExamSlot,
+    } = require('./teacher-training-endpoint');
+    const mods = await loadModulesWithProgress(userId, course.level_id);
+    const slot = await loadModuleExamSlot(userId, course.level_id, courseId, mods);
+    const m = /Module (\d+)/.exec(course.title || '');
+    return res.json({
+      success: true,
+      ok: !!(slot && slot.ok),
+      body: (slot && slot.body) || '',
+      caption: (slot && slot.caption) || '',
+      cta: (slot && slot.cta) || '',
+      module_no: m ? parseInt(m[1], 10) : null,
+      level_id: course.level_id,
+    });
+  } catch (error) {
+    // Fail CLOSED: a gate that cannot be read is a gate that stays shut.
+    logToFile('❌ Internal training API failed', { route: 'module-exam-gate', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Exam gate lookup failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/module-exam-start
+ * Body { userId, courseId, programId } -> { success, attempt_id, total_questions, questions[] }
+ *
+ * bd-60149 — opens (or RESUMES) the attempt and returns the served paper.
+ *
+ * The paper is 2 MCQs + 1 CRQ sampled from the module's bank and seeded on the
+ * attempt id (bd-60141), so a teacher who reloads the page gets the same paper
+ * rather than a fresh draw. Resuming rather than starting a second attempt is
+ * the same rule WhatsApp follows.
+ */
+router.post('/training/module-exam-start', requireInternalKey, async (req, res) => {
+  const { userId } = req.body || {};
+  const courseId = num((req.body || {}).courseId);
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (courseId === null) return res.status(400).json({ success: false, error: 'courseId is required' });
+
+  try {
+    const supabase = require('../config/supabase');
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const out = await QuizDelivery.openModuleExamAttempt({
+      userId, courseId, programId: (req.body || {}).programId || null,
+    });
+    if (!out || !out.ok) {
+      return res.json({ success: true, ok: false, reason: (out && out.reason) || 'unavailable' });
+    }
+    return res.json({ success: true, ok: true, ...out });
+  } catch (error) {
+    logToFile('❌ Internal training API failed', { route: 'module-exam-start', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Could not start the module exam' });
+  }
+});
+
+/**
+ * POST /api/internal/training/module-exam-submit
+ * Body { userId, attemptId, answers:[{question_id, chosen_option?, answer_text?}] }
+ *   -> { success, attempt:{...}, certificate?:{...}, crq_pending:boolean }
+ *
+ * bd-60149 — marks the paper and decides the level.
+ *
+ * MCQs are marked against the stored key. The CRQ is marked by the SAME grader
+ * WhatsApp uses (capstone-delivery.scoreAnswer, an LLM call against the
+ * vendor's points scale), because a teacher must not get a different score for
+ * the same words depending on which surface she used.
+ *
+ * THE CRQ IS MARKED IN THE BACKGROUND (operator decision). The attempt and
+ * every answer row are committed first and the response returns immediately
+ * with `crq_pending: true`; the rubric score lands when the model replies. A
+ * ~10s LLM call — or a failing one — must never be the reason a teacher's
+ * written answer is lost.
+ *
+ * Certification runs afterwards through the shared guard, so finishing the
+ * last module on the portal certifies the level exactly as it does on WhatsApp.
+ */
+router.post('/training/module-exam-submit', requireInternalKey, async (req, res) => {
+  const { userId, attemptId } = req.body || {};
+  const answers = Array.isArray((req.body || {}).answers) ? req.body.answers : null;
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (!attemptId) return res.status(400).json({ success: false, error: 'attemptId is required' });
+  if (!answers) return res.status(400).json({ success: false, error: 'answers[] is required' });
+
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const out = await QuizDelivery.submitModuleExamPaper({ userId, attemptId, answers });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    // THROWS rather than denying: a marking result has no safe default in
+    // either direction, and the caller must abandon the write instead of
+    // recording a pass or a fail it cannot justify.
+    logToFile('❌ Internal training API failed', { route: 'module-exam-submit', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Could not mark the paper' });
+  }
+});
+
+/**
  * POST /api/internal/training/mark-paper
  * Body { questions:[{id, correct_option, order_index}], answers:[{question_id, chosen_option}] }
  *   → { success, graded, score, total_questions, has_unknown_question, has_duplicate_answer }

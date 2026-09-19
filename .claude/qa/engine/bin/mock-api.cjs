@@ -319,6 +319,59 @@ function makeMockApi(opts) {
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 120) }; }
     },
     async setRole(role) { return this.setUser({ role }); },
+    /** Seed a DEDICATED, uniquely-named observe roster for THIS driver so the visit picker can advance:
+     *  one school + N teachers + the leader_schools assignment (coach → school) and leader_teachers
+     *  (school → teachers). Keys are driver-scoped (school_ext_id `E2E-OBS-<driver>`, emis `E2EOBS<driver>`)
+     *  and it is IDEMPOTENT (deletes its own rows first). The HARNESS tears these down unconditionally in
+     *  its finally (feature-runner clearRoster), so a run never leaves rows behind — but call clearRoster()
+     *  too if you want them gone mid-run. Scoped to the driver + test school ONLY — never other users' data. */
+    async setRoster(opts = {}) {
+      const { url, key, prefix } = T.dbEnv();
+      if (!url || !key) return { ok: false, err: `no E2E DB creds (${prefix}_URL / _SERVICE_ROLE_KEY)` };
+      // The CHECK constraint on leader_schools/leader_teachers.source is per repo: tenant_tools.roster_source.
+      const source = opts.source || (T.tenantTools && T.tenantTools.roster_source);
+      if (!source) return { ok: false, err: 'tenant_tools.roster_source is not set in tenants.yaml (the value leader_schools.source accepts)' };
+      const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+      const sx = 'E2E-OBS-' + driver, em = 'E2EOBS' + driver;
+      const schoolName = opts.schoolName || ('E2E Observe School ' + driver);
+      const teachers = opts.teachers || [
+        { ext: 'e2e-t1-' + driver, name: 'Ayesha Khan (E2E)', phone: '923990000001' },
+        { ext: 'e2e-t2-' + driver, name: 'Bilal Ahmed (E2E)', phone: '923990000002' },
+      ];
+      const req = (m, path, body) => fetch(`${url}/rest/v1/${path}`, { method: m, headers: { ...H, Prefer: body && body._rep ? 'return=representation' : 'return=minimal' }, body: body ? JSON.stringify(body._rep ? body.rows : body) : undefined });
+      try {
+        trace('setRoster ' + sx + ' teachers=' + teachers.length);
+        const uidR = await fetch(`${url}/rest/v1/users?select=id&phone_number=eq.${driver}`, { headers: H });
+        const uidJson = await uidR.json().catch(() => []);
+        const uid = Array.isArray(uidJson) && uidJson[0] && uidJson[0].id;
+        if (!uid) return { ok: false, err: 'driver user not found for ' + driver };
+        // idempotent: clear this driver's E2E roster first
+        await req('DELETE', `leader_teachers?school_ext_id=eq.${sx}`);
+        await req('DELETE', `leader_schools?school_ext_id=eq.${sx}`);
+        await req('DELETE', `schools?emis=eq.${em}`);
+        // schools row → school_id (FK target for leader_schools)
+        const schR = await fetch(`${url}/rest/v1/schools`, { method: 'POST', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify({ name: schoolName, emis: em }) });
+        const schJson = await schR.json().catch(() => []);
+        const school_id = Array.isArray(schJson) && schJson[0] && schJson[0].id;
+        if (!school_id) return { ok: false, err: 'schools insert failed: ' + JSON.stringify(schJson).slice(0, 160) };
+        const lsR = await req('POST', 'leader_schools', { leader_user_id: uid, school_ext_id: sx, school_id, school_name: schoolName, emis: em, source });
+        const ltR = await req('POST', 'leader_teachers', teachers.map((t) => ({ leader_user_id: uid, school_ext_id: sx, teacher_ext_id: t.ext, teacher_name: t.name, teacher_phone_e164: t.phone, teacher_phone: t.phone, level: 'Primary', source })));
+        await new Promise((r) => setTimeout(r, 400));
+        return { ok: lsR.ok && ltR.ok, schoolExtId: sx, schoolName, teachers, lsStatus: lsR.status, ltStatus: ltR.status };
+      } catch (e) { return { ok: false, err: String(e.message).slice(0, 160) }; }
+    },
+    /** Remove this driver's E2E roster (idempotent). The harness also does this in its finally. */
+    async clearRoster() {
+      const { url, key } = T.dbEnv();
+      if (!url || !key) return { ok: false };
+      const H = { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=minimal' };
+      const sx = 'E2E-OBS-' + driver, em = 'E2EOBS' + driver;
+      const del = (path) => fetch(`${url}/rest/v1/${path}`, { method: 'DELETE', headers: H }).catch(() => {});
+      await del(`leader_teachers?school_ext_id=eq.${sx}`);
+      await del(`leader_schools?school_ext_id=eq.${sx}`);
+      await del(`schools?emis=eq.${em}`);
+      return { ok: true };
+    },
     /** Attach a file the way the CDP driver does via Attach → <menu item>. The menu item picks the
      *  WhatsApp kind (Document / Photos & videos / Audio); the mock registers the bytes so the bot's
      *  downloadMedia() fetches them back through the Graph API, exactly as with Meta. */

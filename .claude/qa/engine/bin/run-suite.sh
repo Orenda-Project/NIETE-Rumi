@@ -37,12 +37,13 @@ DRIVER="" ENV="sandbox" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFL
 # --commit <sha> behind bot/scripts/e2e/mock-graph-api.js, on the sandbox DB, vendors replay-strict. No
 # Chrome, no WhatsApp number. Default chrome — every existing invocation is unchanged.
 # --spec-sync <brief.json|none> and --validator-exit <n> are provenance for the ledger row (phase 1).
-METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" TENANT="${E2E_TENANT:-}"
+METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" TENANT="${E2E_TENANT:-}" PRINT_DRIVER=""
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;; --tenant) TENANT="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
+  --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
   *) echo "unknown option $1"; exit 2;; esac; done
 # The tenant: --tenant / E2E_TENANT, else the manifest's first. Its phone-number id is what the mock lane boots
 # the bot with (region = PHONE_NUMBER_ID in the main bot); its `targets_match` (default: the id) picks the
@@ -57,9 +58,16 @@ if [ "$METHOD" = mock ]; then
   [ "$ENV" = staging ] && ENV=sandbox      # the mock lane's DB is the sandbox; never staging or prod
   [ -n "$COMMIT" ] || COMMIT=$(git -C "$ROOT" rev-parse HEAD)
   COMMIT=$(git -C "$ROOT" rev-parse --verify "${COMMIT}^{commit}" 2>/dev/null) || { echo "ERROR: --commit $COMMIT is not a commit"; exit 2; }
+  # The mock driver is PER MACHINE (mock_driver.py: hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it).
+  # Two machines used to share one fixed number on the same E2E DB and interleave (bd-yj4e4). In a multi-tenant
+  # repo the tenant id is folded into the key too, so each tenant keeps its own row per machine. The manifest's
+  # per-tenant `driver` and the yaml test_driver stay as last-resort fallbacks if the resolver cannot run.
+  _MD_TENANT=""; [ "$(e2e_tenants | wc -l | tr -d ' ')" -gt 1 ] && _MD_TENANT="--tenant $TENANT"
+  [ -n "$DRIVER" ] || DRIVER=$(python3 "$QA/mock_driver.py" $_MD_TENANT 2>/dev/null)
   [ -n "$DRIVER" ] || DRIVER=$(e2e_tenant_get "$TENANT" driver)
   [ -n "$DRIVER" ] || DRIVER=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where method=mock --get test_driver 2>/dev/null)
 fi
+if [ -n "$PRINT_DRIVER" ]; then [ -n "$DRIVER" ] && { echo "$DRIVER"; exit 0; } || { echo "ERROR: no driver resolved"; exit 2; }; fi
 [ -n "$DRIVER" ] || { echo "ERROR: --driver <digits> is required (the runner's OWN linked WhatsApp number — bd-2748)"; exit 2; }
 if [ -z "$TARGET" ]; then TARGET=$(python3 - "$ENV" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" "$TMATCH" <<'PY'
 import re,sys; env,path,match=sys.argv[1],sys.argv[2],sys.argv[3]

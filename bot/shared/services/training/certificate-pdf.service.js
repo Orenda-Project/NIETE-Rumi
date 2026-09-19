@@ -45,6 +45,9 @@ const fs = require('fs');
 const path = require('path');
 const { logToFile } = require('../../utils/logger');
 const branding = require('../../config/branding');
+const {
+  TEST_BANNER_TEXT, TEST_BANNER_SUBTEXT, shouldStampTestBanner,
+} = require('./certificate-env.rules');
 
 // NIETE palette (brand book): navy-slate + green. Same pair the coaching hero
 // report uses for this deployment, so a teacher's certificate and their
@@ -96,6 +99,9 @@ const BH_NAVY = '#1F4788';
 const BH_GOLD = '#FDB913';
 const OX_NAVY = '#003366';
 const OX_GOLD = '#FFD700';
+// bd-60113 — I-SAPS Level 1 (approved design, 2026-09-17).
+const ISAPS_SLATE = '#32414F';
+const ISAPS_GREEN = '#2FAE5F';
 
 const ASSET_DIR = path.join(__dirname, '../../assets/certs');
 
@@ -143,6 +149,11 @@ function templateIdFor(vendorKey) {
   const key = String(vendorKey || '').trim().toUpperCase();
   if (key === 'BEACONHOUSE') return 'BEACONHOUSE';
   if (key === 'OXBRIDGE') return 'OXBRIDGE';
+  // bd-60113 — I-SAPS must NOT fall through to the NIETE template. That
+  // template asserts AKU-IED accreditation; the I-SAPS programme is accredited
+  // by Allama Iqbal Open University. Falling through would print an
+  // accreditation AKU never gave for this content.
+  if (key === 'ISAPS') return 'ISAPS';
   return 'TALEEMABAD';
 }
 
@@ -283,11 +294,17 @@ async function renderCertificatePdf({
 
   const template = templateIdFor(vendorKey);
   const isNiete = template === 'TALEEMABAD';
+  const isIsaps = template === 'ISAPS';
   const palette = template === 'BEACONHOUSE'
     ? { primary: BH_NAVY, secondary: BH_GOLD }
     : template === 'OXBRIDGE'
       ? { primary: OX_NAVY, secondary: OX_GOLD }
-      : { primary: COLORS.ink, secondary: COLORS.accent };
+      : isIsaps
+        // The approved I-SAPS design is the NIETE green on navy-slate, same
+        // pair as the house template — the difference is the masthead and the
+        // accreditor, not the colours.
+        ? { primary: ISAPS_SLATE, secondary: ISAPS_GREEN }
+        : { primary: COLORS.ink, secondary: COLORS.accent };
 
   const centerW = PAGE.width - MARGIN * 2;
   const centered = { width: centerW, align: 'center' };
@@ -303,7 +320,42 @@ async function renderCertificatePdf({
 
   // ── Masthead ─────────────────────────────────────────────────────────────
   let y;
-  if (isNiete) {
+  if (isIsaps) {
+    // Four marks across the top, in the approved order: the Ministry of Federal
+    // Education seal, the Government of Pakistan state emblem, NIETE, I-SAPS.
+    // Widths differ per mark so the optical weights match rather than the boxes.
+    const topY = 52;
+    drawAsset(doc, path.join(ASSET_DIR, 'mofept-seal.png'), MARGIN + 30, topY - 4, { width: 52 });
+    drawAsset(doc, path.join(ASSET_DIR, 'gop-emblem.png'), MARGIN + 160, topY - 6, { width: 46 });
+    drawAsset(doc, path.join(ASSET_DIR, 'niete-logo.png'), MARGIN + 300, topY + 6, { width: 104 });
+    drawAsset(doc, path.join(ASSET_DIR, 'isaps-logo.png'), PAGE.width - MARGIN - 190, topY + 12, { width: 168 });
+
+    // Issue date (left) and certificate code (right), on clean paper inside the
+    // frame — no panel behind them; this is a printed document.
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(ISAPS_GREEN)
+       .text('DATE OF ISSUE', MARGIN + 30, 126, { characterSpacing: 1.1 });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(ISAPS_SLATE)
+       .text(formatIssueDate(issuedAt), MARGIN + 30, 139);
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(ISAPS_GREEN)
+       .text('CERTIFICATE CODE', PAGE.width - MARGIN - 230, 126, { width: 200, align: 'right', characterSpacing: 1.1 });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(ISAPS_SLATE)
+       .text(String(certificateCode || ''), PAGE.width - MARGIN - 230, 139, { width: 200, align: 'right' });
+
+    // Title, centred between two hairline flourishes.
+    const tY = 182;
+    doc.lineWidth(0.7).strokeColor(ISAPS_GREEN).opacity(0.85)
+       .moveTo(PAGE.width / 2 - 96, tY).lineTo(PAGE.width / 2 - 26, tY).stroke()
+       .moveTo(PAGE.width / 2 + 26, tY).lineTo(PAGE.width / 2 + 96, tY).stroke().opacity(1);
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(ISAPS_SLATE)
+       .text('CERTIFICATE OF COMPLETION', MARGIN, tY + 14, { ...centered, characterSpacing: 1.6 });
+    doc.lineWidth(0.7).strokeColor(ISAPS_GREEN).opacity(0.85)
+       .moveTo(PAGE.width / 2 - 96, tY + 52).lineTo(PAGE.width / 2 - 26, tY + 52).stroke()
+       .moveTo(PAGE.width / 2 + 26, tY + 52).lineTo(PAGE.width / 2 + 96, tY + 52).stroke().opacity(1);
+
+    doc.font('Helvetica').fontSize(10.5).fillColor(COLORS.muted)
+       .text('This is to certify that', MARGIN, tY + 70, centered);
+    y = tY + 92;
+  } else if (isNiete) {
     // Legacy put the NIETE mark top-RIGHT (level-certificate.tsx:38-49).
     drawAsset(doc, path.join(ASSET_DIR, 'niete-logo.png'), PAGE.width - MARGIN - 130, 58, { width: 110 });
     doc.font('Helvetica-Bold').fontSize(22).fillColor(COLORS.ink)
@@ -341,7 +393,25 @@ async function renderCertificatePdf({
   y += 16;
 
   // ── Body ─────────────────────────────────────────────────────────────────
-  if (isNiete) {
+  if (isIsaps) {
+    doc.font('Helvetica').fontSize(10.5).fillColor(COLORS.muted)
+       .text('has successfully completed the', MARGIN, y, centered);
+    y += 19;
+    doc.font('Helvetica-Bold').fontSize(15).fillColor(ISAPS_GREEN)
+       .text("Level 1 (Basic Level) of Secondary School Teachers' Training",
+             MARGIN + 40, y, { width: centerW - 80, align: 'center' });
+    y += 24;
+    doc.font('Helvetica').fontSize(10.5).fillColor(COLORS.muted)
+       .text('conducted by the National Institute of Excellence in Teacher Education (NIETE).',
+             MARGIN + 50, y, { width: centerW - 100, align: 'center' });
+    y += 26;
+    // THE accreditation line. AIOU, never AKU-IED — see templateIdFor.
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(ISAPS_SLATE)
+       .text('The content of this digital training module has been independently reviewed '
+           + 'and approved by Allama Iqbal Open University (AIOU)',
+             MARGIN + 90, y, { width: centerW - 180, align: 'center', lineGap: 2 });
+    y += 34;
+  } else if (isNiete) {
     // Legacy sentence (level-certificate.tsx:71-79), including the AKU-IED
     // accreditation. NIETE-only — never on a partner certificate.
     const display = cpdDisplayName(levelName, cpdLevel);
@@ -383,8 +453,12 @@ async function renderCertificatePdf({
   // NIETE hangs its two signature blocks off the footer (they are tall, with
   // artwork). The partner templates carry a single short signature LINE, so
   // they sit just under the body instead of leaving a void mid-page.
-  const sigY = isNiete ? PAGE.height - 190 : Math.min(y + 60, PAGE.height - 168);
-  if (isNiete) {
+  const sigY = (isNiete || isIsaps) ? PAGE.height - 190 : Math.min(y + 60, PAGE.height - 168);
+  // bd-60113 — I-SAPS carries the SAME two NIETE signatories: the training is
+  // conducted and signed by NIETE, and only the accreditor differs (AIOU, not
+  // AKU-IED). This is the opposite of the Beaconhouse/Oxbridge partner
+  // templates, which must never show a NIETE officer's signature.
+  if (isNiete || isIsaps) {
     // Two named signatories with their signature images (level-certificate.tsx:82-110).
     drawSignatory(doc, {
       x: MARGIN + 40, width: 180, y: sigY, align: 'left',
@@ -433,14 +507,60 @@ async function renderCertificatePdf({
   doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.ink)
      .text(formatIssueDate(issuedAt), MARGIN + 40, footY + 22);
 
-  doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
-     .text('CERTIFICATE CODE', PAGE.width - MARGIN - 260, footY + 10, {
-       width: 220, align: 'right', characterSpacing: 1.5,
-     });
-  doc.font('Courier-Bold').fontSize(10).fillColor(COLORS.ink)
-     .text(String(certificateCode || ''), PAGE.width - MARGIN - 260, footY + 22, {
-       width: 220, align: 'right',
-     });
+  // bd-60127 — the I-SAPS template prints the code in its MASTHEAD (the
+  // approved design puts it top-right beside the issue date), so printing it
+  // again here rendered it twice on the same certificate. Every other template
+  // has no masthead code and still needs this footer.
+  if (!isIsaps) {
+    doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
+       .text('CERTIFICATE CODE', PAGE.width - MARGIN - 260, footY + 10, {
+         width: 220, align: 'right', characterSpacing: 1.5,
+       });
+    doc.font('Courier-Bold').fontSize(10).fillColor(COLORS.ink)
+       .text(String(certificateCode || ''), PAGE.width - MARGIN - 260, footY + 22, {
+         width: 220, align: 'right',
+       });
+  }
+
+  // bd-60140 — outside production, watermark the page.
+  //
+  // This was a solid band across the top (bd-60133). A header bar reads as part
+  // of the design — something the certificate is SUPPOSED to have — so it did
+  // not do the one job it exists for: making a test artefact unmistakable for
+  // a real one at a glance. A translucent mark across the middle of the page
+  // reads as a watermark, which is the visual language people already
+  // understand for "not a valid document".
+  //
+  // Drawn LAST, over the content, for the same reason: a watermark under the
+  // text would be hidden by the very fields that make the page look real.
+  // save()/restore() brackets the whole thing so the rotation, opacity and
+  // fill cannot leak into anything drawn afterwards.
+  if (shouldStampTestBanner(process.env.NODE_ENV)) {
+    // Sizing the box to the page diagonal is not enough on its own: `rotate`
+    // turns the whole coordinate system about `origin`, so a box drawn at
+    // x=(width-diag)/2 is centred on the PAGE, then swung away from centre by
+    // the rotation. Two renders were clipped at opposite corners before this
+    // was understood.
+    //
+    // Translating to the centre first makes the maths local: the origin moves
+    // to the middle of the page, rotation happens about (0,0), and the text
+    // box is then placed at -diag/2 — symmetric about that origin by
+    // construction, so it cannot drift whatever the angle.
+    const diag = Math.sqrt(PAGE.width ** 2 + PAGE.height ** 2);
+    doc.save();
+    doc.translate(PAGE.width / 2, PAGE.height / 2);
+    doc.rotate(-30);
+    // One line only. A second, smaller line set on the same diagonal reads as
+    // debris rather than as part of the mark — it is too small to scan at that
+    // angle and too faint to be worth the clutter. The headline alone already
+    // says the only thing that matters.
+    doc.font('Helvetica-Bold').fontSize(38).fillColor('#B5651D').opacity(0.14)
+       .text(TEST_BANNER_TEXT, -diag / 2, -22, {
+         width: diag, align: 'center', characterSpacing: 2, lineBreak: false,
+       });
+    doc.opacity(1).fillColor(COLORS.ink);
+    doc.restore();
+  }
 
   doc.end();
   return done;

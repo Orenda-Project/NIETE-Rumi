@@ -2636,6 +2636,49 @@ function urduShare(text) {
 }
 
 /**
+ * The same text with its ALL-LATIN parentheticals removed — for SCORING only, never for output.
+ *
+ * bd-y478d: `OVERLAY_MIN_URDU` was set for a whole document, where ninety-odd strings of Urdu
+ * prose drown the handful of English terms of record the language protocol asks for. bd-idneu
+ * then pointed the same gate at a THREE-STRING delta — a chapter, a chapter title and a topic
+ * line — which is precisely the set a science lesson glosses, because that is how a Pakistani
+ * science textbook writes an examinable term: Urdu first, the English beside it in brackets.
+ * Measured on the real model output for `grade_10_biology.c07`, correct teacher-ready Urdu scored
+ * 0.452 and was refused with an error saying it was English.
+ *
+ * Lowering the threshold would have admitted a genuinely English overlay of four Urdu words and
+ * left no number a reviewer could defend. Discounting the glosses instead separates the two cases
+ * outright: the biology delta scores 1.000, a wholly English delta still scores 0.000.
+ *
+ * A parenthetical containing ANY Urdu is left in place and still counted. Urdu inside brackets is
+ * the lesson, not a term of record, and discarding it would re-open the hole this gate exists to
+ * close. Wrapping an English "translation" entirely in brackets strips to nothing, and nothing
+ * scores 0 — so this is a discount, not a bypass.
+ */
+function stripLatinGlosses(text) {
+  return String(text || '').replace(
+    /[(（][^()（）]*[)）]/g,
+    (m) => (new RegExp(URDU_RE.source).test(m) ? m : ' '),
+  );
+}
+
+/**
+ * The same text with EVERY parenthetical removed, Urdu ones included — for the categorical check
+ * in GATE 1 (b) and nowhere else.
+ *
+ * bd-htw51: a wholly English delta with an Urdu gloss («Chapter 7 (وراثت)») and a correct Urdu
+ * delta with a bare Latin term of record («باب 10 · Chemical Equilibrium») both score about 38%,
+ * so no threshold can tell them apart. Their difference is positional: a translation puts Urdu in
+ * the line and the gloss in brackets, the impostor puts English in the line and Urdu in brackets.
+ * Strip both kinds of bracket and only the translation still carries Urdu.
+ *
+ * This discards Urdu, so it can only make a check stricter. It must never feed the floor.
+ */
+function stripAllGlosses(text) {
+  return String(text || '').replace(/[(（][^()（）]*[)）]/g, ' ');
+}
+
+/**
  * The pass's system prompt. Deliberately SHORT — this is a translation job on strings that have
  * already passed every pedagogical gate, so none of the ~95KB author brief applies, and paying
  * for it again on every Urdu lesson would be most of the cost this bead exists to remove.
@@ -2783,16 +2826,58 @@ async function overlayLessonPlan({
   sanitizeOverlay(probe);
   const kept = probe.ur_overlay || {};
 
-  // GATE 1 — is it Urdu at all? Measured over the overlay's own text, because the DOCUMENT is
-  // English by construction and would drown the signal.
-  const joined = Object.values(kept).join(' ');
-  const share = urduShare(joined);
+  // GATE 1 — is it Urdu at all? TWO questions, because one number cannot answer both, and the
+  // two bugs this gate has produced were each the other question going unasked.
+  //
+  // (a) THE FLOOR, measured on the MERGE — like GATE 2 below and for the same reason (bd-htw51).
+  //     `base` is empty in the authoring case, so merged === kept there and this is the decision
+  //     that has always been made. On a top-up `base` is the ninety strings already on the
+  //     document, and the thing a floor exists to protect is the page the teacher receives, which
+  //     is the merge. bd-idneu's two provenance strings are chapter numbers, book names and the
+  //     terms of record the brief itself orders kept in Latin; judged alone they measured
+  //     30.9%-47.9% and eight production rows were refused for translating correctly.
+  //
+  //     All-Latin parentheticals are discounted (bd-y478d): the English terms of record the
+  //     language protocol REQUIRES must not count as evidence that the translation is English. An
+  //     Urdu parenthetical is left in place and still counted — that is prose, not a term of
+  //     record, and discarding it here would lower a score this check reads as a floor.
+  const merged = { ...kept, ...base };
+  const share = urduShare(stripLatinGlosses(Object.values(merged).join(' ')));
   if (share < OVERLAY_MIN_URDU) {
     throw fail('OVERLAY_NOT_URDU',
-      `the overlay is not Urdu — ${(share * 100).toFixed(1)}% of its letters are Urdu script, `
-      + `and at least ${OVERLAY_MIN_URDU * 100}% is required. An English "translation" renders as `
-      + `the same English page with the row claiming it worked.`,
+      `the overlay is not Urdu — ${(share * 100).toFixed(1)}% of its letters are Urdu script `
+      + `once English terms of record in brackets are discounted, and at least `
+      + `${OVERLAY_MIN_URDU * 100}% is required. An English "translation" renders as the same `
+      + `English page with the row claiming it worked.`,
       { urduShare: share });
+  }
+
+  // (b) ...and THIS CALL must not have answered in English. Measuring only the merge would make
+  //     the floor unfalsifiable on a top-up — three English strings among ninety Urdu ones clear
+  //     50% comfortably — and an English delta is the same defect as an English overlay, just
+  //     smaller.
+  //
+  //     The test is CATEGORICAL, not calibrated: no Urdu script at all in the BODY of the delta.
+  //     A share cannot separate these two real cases, because both land near 38%:
+  //
+  //       «باب 10 · Chemical Equilibrium»          Urdu sentence, bare Latin term   ACCEPT
+  //       «Chapter 7 (وراثت)»                       English sentence, Urdu gloss     REJECT
+  //
+  //     What separates them is WHERE the Urdu is. A translation carries Urdu in the line itself
+  //     and glosses in brackets; an English answer dressed up carries English in the line and the
+  //     Urdu in brackets. So every parenthetical is stripped for this check — Latin AND Urdu —
+  //     and what is left must contain Urdu script. Stripping Urdu makes this check STRICTER, never
+  //     laxer, which is why it is safe here and wrong in the floor above.
+  //
+  //     The direction it fails in is safe: the row is recorded and skipped, and the stored
+  //     document is left exactly as it was.
+  const patchShare = urduShare(stripAllGlosses(Object.values(kept).join(' ')));
+  if (!patchShare) {
+    throw fail('OVERLAY_NOT_URDU',
+      `this call returned no Urdu script at all — ${Object.keys(kept).length} string(s) came back `
+      + 'with not one Urdu letter outside brackets between them. That is an English answer, and '
+      + 'applying it would leave those lines English on a page that claims to be Urdu.',
+      { urduShare: share, patchUrduShare: patchShare });
   }
 
   // GATE 2 — coverage, from the linter's own function at expected:true. One computation, so the

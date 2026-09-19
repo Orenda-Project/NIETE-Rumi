@@ -331,13 +331,20 @@ describe('bd-2474 — a Beacon House level has an exam', () => {
     expect(String(gate.body)).toMatch(/level complete/i);
   });
 
-  test('an UNFINISHED level with no exam row still says there is no exam', async () => {
+  test('an UNFINISHED level with no exam row shows NOTHING, not an explanation', async () => {
     seedLevel({ done: [101] });                  // partial
     tableStates.training_grand_quizzes = { rows: [] };
 
     const gate = await Endpoint.loadGrandQuizState(UID, 18);
 
-    expect(JSON.stringify(gate)).toMatch(/no level exam/i);
+    // bd-60130 — this used to assert /no level exam/. The operator's call:
+    // a vendor that assesses per module has no LEVEL exam, and announcing its
+    // absence reads to a teacher as something broken. The slot now renders
+    // blank, and the fields must still EXIST because the Flow declares them.
+    expect(gate.body.trim()).toBe('');
+    expect(gate.caption.trim()).toBe('');
+    expect(gate.cta.trim()).toBe('');
+    expect(JSON.stringify(gate)).not.toMatch(/no level exam/i);
   });
 });
 

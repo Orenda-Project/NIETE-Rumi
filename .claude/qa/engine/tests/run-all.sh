@@ -8,6 +8,8 @@ set -uo pipefail
 # Resolve E2E_VENDORED_ROOT (a bot checkout to run the vendored suites against, see below) BEFORE the cd: `.` means
 # the caller's repo root, not the engine dir.
 if [ -n "${E2E_VENDORED_ROOT:-}" ]; then E2E_VENDORED_ROOT=$(cd "$E2E_VENDORED_ROOT" 2>/dev/null && pwd) || E2E_VENDORED_ROOT=""; fi
+# No fixture ever provisions keys or installs redis: the machine-readiness autofix (hooks/lib/mock-lane.sh) is off here.
+export E2E_AUTOFIX_OFF=1
 # E2E_NIETE_CHECKOUT=<dir> (+ E2E_NIETE_SHA, default de93aee5): the checkout whose REAL tenant layer the --real fixture
 # overlays. A bot repo tests itself with `E2E_NIETE_CHECKOUT=. E2E_NIETE_SHA=HEAD` — a throwaway copy with a synthetic,
 # non-merge baseline commit, so the suites are deterministic even when the live HEAD is a merge (whose committed diff
@@ -27,6 +29,7 @@ run bash tests/mkfixture.test.sh
 run bash tests/no-tenant-literals.test.sh     # Task 7 — engine code names no tenant
 run bash tests/no-manifest.test.sh            # Task 7 — every hook is silent in an unguarded repo
 run bash hooks/qa-engine-guard.test.sh        # Task 8 — the downstream read-only guard
+run python3 bin/test_mock_driver.py             # per-machine (and per-tenant) mock driver
 [ -f ../../scripts/port_qa.test.py ] && run python3 ../../scripts/port_qa.test.py   # Task 8 — the porter (parent workspace only)
 
 for shape in niete rumi; do
@@ -39,6 +42,7 @@ for shape in niete rumi; do
   run env E2E_FIXTURE="$D" E2E_FIXTURE_SHAPE="$shape" bash hooks/e2e-tenancy.test.sh
   # Task 6 — the Node runner/driver read tenants.yaml through tenant.cjs (both shapes; no bot seams needed)
   run env E2E_FIXTURE="$D" E2E_FIXTURE_SHAPE="$shape" node bin/test_tenant_cjs.js
+  run env E2E_FIXTURE="$D" bash -c "cd '$D' && bash .claude/qa/engine/bin/run-suite-mock-driver.test.sh"
   # Task 7 appends its fixture-driven tests below this line.
   unset E2E_FIXTURE E2E_FIXTURE_SHAPE
   rm -rf "$D"

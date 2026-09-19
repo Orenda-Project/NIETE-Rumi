@@ -3,7 +3,7 @@
  * Utility functions for coaching workflow
  *
  * Responsibilities:
- * - Generate encouraging messages
+ * - Acknowledge a completed transcription
  * - Determine output language
  * - Record quality metrics
  * - Calculate costs
@@ -11,65 +11,59 @@
  * Extracted from coaching.service.js as part of Phase 2 refactoring
  */
 
-const OpenAI = require('openai');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
-const { OPENAI_API_KEY } = require('../../utils/constants');
+const { getCoachingMessage } = require('../../config/coaching-messages');
 const { getUserLanguage } = require('../../utils/language-cache');
 const { clampLanguage } = require('../../config/ux-strings');
 
 class CoachingHelpersService {
   /**
-   * Generate encouraging message after transcription using GPT-4o
-   * @param {string} firstName - Teacher's first name
+   * Acknowledge a completed transcription.
+   *
+   * bd-di5ap (DC row 129) — this used to ask GPT-4o for a "warm, encouraging"
+   * line and gave it two inputs: the teacher's name and the lesson duration. No
+   * transcript. No analysis — none has run at this point in the pipeline. The
+   * system prompt nonetheless asked it to be "authentic and SPECIFIC", so the
+   * model supplied specificity it had no basis for: a teacher was told "your
+   * 29-minute lesson was engaging and impactful" and reasonably took it for her
+   * feedback, one message after being told transcription would take 30-60
+   * seconds. Guarding the output would have been the wrong fix — the prompt was
+   * ASKING for a verdict. Removing the model removes the class.
+   *
+   * What the teacher needs here is the receipt, not the review: confirmation
+   * that her audio arrived and how long it ran. That is a fixed sentence, so it
+   * now lives in the catalog and is translated — which also closes a second
+   * defect for free. The old prompt carried no language instruction at all
+   * ("a supportive teaching coach in Pakistan"), so the one message in this
+   * stretch of the pipeline that was not translatable was this one. The main
+   * bot hit exactly this and fixed it in bd-8/BUG-117; the port never reached
+   * NIETE. It feeds DC row 130 (half-English, half-Urdu sessions).
+   *
+   * @param {string} firstName - Teacher's name. `session.users.name` is NULL for
+   *   6,282 of 15,552 prod users (bd-gc1ge), so a nameless variant is a real
+   *   path, not an edge case — normalised here so every caller is covered.
    * @param {number} durationSeconds - Audio duration in seconds
-   * @returns {Promise<string>} Encouraging message
+   * @param {string} [language='en'] - Teacher's current language. Defaults to
+   *   English only as an emergency floor; callers resolve it at send time
+   *   (teacher-addressed text reads the CURRENT preference, never a frozen one).
+   * @returns {Promise<string>} The acknowledgement, ready to send
    */
-  static async generateEncouragingMessage(firstName, durationSeconds) {
-    // bd-gc1ge — `firstName` arrives as `session.users.name`, which is NULL for
-    // 6,282 of 15,552 prod users. Taken raw it reached the teacher as
-    // "Transcription complete, null!" on the fallback path AND the model as
-    // "Teacher's name: null" on the success path, which the model then echoed
-    // back as her name. Normalised once here, so both callers are covered —
-    // transcription-processor and the coaching-orchestrator pass-through.
+  static async generateEncouragingMessage(firstName, durationSeconds, language = 'en') {
     const name = String(firstName == null ? '' : firstName).trim();
-    try {
-      const durationMinutes = Math.round(durationSeconds / 60);
-      const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+    const durationMinutes = Math.round(Number(durationSeconds) / 60) || 0;
 
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a supportive teaching coach in Pakistan. Generate a brief, warm, encouraging message (1-2 sentences max) acknowledging a teacher after they complete a classroom recording. Be authentic and specific, using their name and the lesson duration.'
-          },
-          {
-            role: 'user',
-            content: `${name
-              ? `Teacher's name: ${name}\n`
-              : 'The teacher\'s name is not on record — greet the teacher warmly without using a name, and do not invent one.\n'
-            }Lesson duration: ${durationMinutes} minutes\n\nGenerate an encouraging message.`
-          }
-        ],
-        max_tokens: 100,
-        temperature: 0.8
-      });
+    const key = name ? 'transcriptionComplete' : 'transcriptionComplete_noName';
 
-      return `✅ ${response.choices[0].message.content.trim()}`;
-    } catch (error) {
-      logToFile('Warning: Failed to generate encouraging message, using fallback', {
-        error: error.message
-      });
-
-      // Fallback message if LLM call fails
-      const durationMinutes = Math.round(durationSeconds / 60);
-      // A nameless teacher gets the same sentence without the greeting slot —
-      // not "complete, !", which is what a bare helper swap would leave.
-      return name
-        ? `✅ Transcription complete, ${name}! You taught for ${durationMinutes} minutes - that's great stamina! 💪`
-        : `✅ Transcription complete! You taught for ${durationMinutes} minutes - that's great stamina! 💪`;
-    }
+    // No `|| 'en'` floor here: getCoachingMessage already returns the English
+    // entry for any code it has no copy for, including null. Adding one would
+    // ratchet this file's English-floor count for no behavioural gain.
+    //
+    // String(...) on the count, never a locale-aware formatter: the digits stay
+    // Western in both languages. Only the words around them translate.
+    return getCoachingMessage(key, language)
+      .replace('{{name}}', name)
+      .replace('{{minutes}}', String(durationMinutes));
   }
 
   /**

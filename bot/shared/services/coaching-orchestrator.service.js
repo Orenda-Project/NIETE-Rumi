@@ -133,11 +133,15 @@ class CoachingOrchestrator {
   // ============================================================================
 
   /**
-   * Generate encouraging message
+   * Acknowledge a completed transcription
    * ✅ Delegated to CoachingHelpersService
+   *
+   * bd-di5ap: `language` added to the pass-through. Without it this wrapper
+   * silently pinned every caller that routes through the orchestrator to the
+   * English floor — the exact shape of the bug being fixed downstream.
    */
-  static async generateEncouragingMessage(firstName, durationSeconds) {
-    return await CoachingHelpersService.generateEncouragingMessage(firstName, durationSeconds);
+  static async generateEncouragingMessage(firstName, durationSeconds, language = 'en') {
+    return await CoachingHelpersService.generateEncouragingMessage(firstName, durationSeconds, language);
   }
 
   /**

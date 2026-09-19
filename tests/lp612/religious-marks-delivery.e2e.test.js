@@ -22,10 +22,6 @@
  * about the GATE'S VERDICT, which is the thing that was wrong.
  */
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-
 jest.mock('../../bot/shared/services/llm-client', () => {
   const create = jest.fn();
   return {
@@ -35,89 +31,14 @@ jest.mock('../../bot/shared/services/llm-client', () => {
   };
 });
 
-const create = require('../../bot/shared/services/llm-client').__create;
-const { authorLessonPlan } = require('../../bot/shared/services/lp612-author.service');
-const CLEAN_DOC = require('./__fixtures__/v9_gate_base.lp.json');
+// The harness — doc builder, page-truth tree, run/refusal — is shared with
+// `religious-marks-english.e2e.test.js`, which holds the English-medium rulings. It lives in
+// helpers/religious-e2e.js rather than here because describe G took this file past 300 lines.
+const {
+  PROD_STRING, create, religiousDoc, cleanDoc, reply, installPageTruth, run, religiousFails, refusal,
+} = require('./helpers/religious-e2e');
 
-/** The exact string from the 2026-09-15 production refusal. */
-const PROD_STRING = 'سیرتِ انبیاء سے متعلق مواد — نبی ﷺ کی تعلیمات';
-
-/**
- * Put Urdu religious prose in a teacher-facing slot of an otherwise clean, schema-valid doc.
- *
- * `needs_human_review` is set because that is the SHAPE OF A REAL ISLAMIAT LESSON, not a
- * convenience. Check 6 of the gate (brief §4c.1, G5c) refuses any religious document that does
- * not carry the flag, and it refuses it whether or not this bug exists — see describe D, which
- * pins that hold. Leaving the flag off here would mean every assertion below was really
- * measuring check 6 and never reaching the boundary logic this fix changed.
- */
-function religiousDoc(text = PROD_STRING) {
-  const d = JSON.parse(JSON.stringify(CLEAN_DOC));
-  const sec = d.sections.find((s) => (s.blocks || []).some((b) => b.type === 'paragraph'));
-  sec.blocks.find((b) => b.type === 'paragraph').text = text;
-  d.needs_human_review = true;
-  return d;
-}
-
-const BOOK = { title: 'Islamiat 9', publisher: 'PCTB', subject: 'islamiat', grade: 9, medium: 'ur', language: 'Urdu', offset: 4 };
-const TOC = { chapters: [{ number: 1, title: 'The Biological Method', printed_start: 9 }] };
-const SEGMENT = {
-  segment_id: 'seg-religious-1', book_stem: 'grade_9_biology', grade: 9, subject: 'biology',
-  medium: 'en', language: 'English', chapter_number: 1, chapter_title: 'The Biological Method',
-  chapter_key: 'g9-bio-ch1', subtopic_title: 'Observation and hypothesis',
-  menu_title: 'Observation & hypothesis', printed_page_start: 11, printed_page_end: 12,
-  pages_covered: [11, 12], order_index: 3, lp_type: 'SCI-9-10', yt: null,
-};
-
-const reply = (obj) => ({
-  choices: [{ message: { content: typeof obj === 'string' ? obj : JSON.stringify(obj) } }],
-  usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
-});
-
-let dir;
-beforeEach(() => {
-  jest.clearAllMocks();
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lp612-relig-'));
-  const d = path.join(dir, SEGMENT.book_stem);
-  fs.mkdirSync(d, { recursive: true });
-  fs.writeFileSync(path.join(d, '_book.json'), JSON.stringify(BOOK));
-  fs.writeFileSync(path.join(d, '_toc.json'), JSON.stringify(TOC));
-  for (const n of [11, 12]) {
-    fs.writeFileSync(path.join(d, `pg_${String(n).padStart(3, '0')}.json`), JSON.stringify({
-      printed_page_number: n, pdf_page_index: n + 4, page_type: 'content',
-      blocks: [{ t: 'heading', text: `1.${n} Observation` }],
-    }));
-  }
-  process.env.LP612_PAGE_TRUTH_DIR = dir;
-});
-afterEach(() => { delete process.env.LP612_PAGE_TRUTH_DIR; });
-
-/** The renderer is clean throughout — this suite is about the LINT gate, nothing else. */
-const run = (rounds = 3) => authorLessonPlan({
-  segment: SEGMENT, lang: 'en', model: 'test/model', rounds,
-  renderCheck: jest.fn().mockResolvedValue([]), correlationId: 'c',
-});
-
-const religiousFails = (out) => (out.fails || []).map(String).filter((e) => e.startsWith('RELIGIOUS_MARKS'));
-
-/**
- * The refusal path is a THROW, not a return value.
- *
- * When the ladder runs out of rounds with a blocking fail still standing, `authorLessonPlan`
- * raises at lp612-author.service.js:2511 — there is no dirty document handed back to inspect,
- * which is the point: nothing downstream can accidentally serve it. So a "still refuses" test
- * asserts on the raised error, and a test that awaited a result would report the protection
- * WORKING as a failure.
- */
-const refusal = async (rounds = 1) => {
-  try {
-    const out = await run(rounds);
-    throw new Error(`expected a refusal, but the lesson was delivered (lintClean=${out.lintClean})`);
-  } catch (e) {
-    if (/expected a refusal/.test(e.message)) throw e;
-    return e.message;
-  }
-};
+installPageTruth();
 
 describe('A — the lesson that production refused now reaches the teacher', () => {
   test('the exact 2026-09-15 string is delivered, lint-clean, in zero revision rounds', async () => {
@@ -192,7 +113,7 @@ describe('C — the ladder is not burning rounds on a word it cannot fix', () =>
   test('a religious lesson costs the SAME rounds as a non-religious one', async () => {
     // The production symptom was cost, not just refusal: every round was spent re-writing a
     // correct word. Parity with the control is the thing worth asserting.
-    create.mockResolvedValue(reply(JSON.parse(JSON.stringify(CLEAN_DOC))));
+    create.mockResolvedValue(reply(cleanDoc()));
     const control = await run();
 
     jest.clearAllMocks();
@@ -219,9 +140,101 @@ describe('D — the native-speaker hold is untouched by this fix', () => {
   });
 });
 
-// describe E — the companion-honorific delivery scenarios — lived here and is REMOVED, not
-// skipped, for the same reason as describe D in religious-marks-false-positives.test.js: it
-// exercises bd-j335i (P1), which the operator held back from this cherry-pick (2026-09-16,
-// "cherry pick the p0 for now only"). Recover it from 065766b7 on branch
-// bd-kpqu6-religious-marks-false-positives when bd-j335i ships; it carries production strings
-// that should not be re-invented from memory.
+describe('E — a correctly-honorified companion is not reported as a slip', () => {
+  // Check 3 is the CONSISTENCY rule: it fires only on a bare name the same document honorifies
+  // somewhere else. Two matcher defects made a correctly-honorified name look bare, so the rule
+  // reported an inconsistency that was not in the text. Both mentions go in one string because
+  // the honorified set is document-wide.
+  const LINE = 'حضرت خدیجۃ الکبریٰ رضی اللہ تعالیٰ عنہا کا لقب کیا تھا؟ حضرت خدیجۃ رضی اللہ عنہا کا ذکر';
+
+  test('the production Grade 6 tafheem line is delivered, lint-clean', async () => {
+    create.mockResolvedValue(reply(religiousDoc(LINE)));
+
+    const out = await run();
+
+    expect(religiousFails(out)).toEqual([]);
+    expect(out.lintClean).toBe(true);
+    expect(out.rounds).toBe(0);
+  });
+
+  test('a three-word name reaches its honorific', async () => {
+    create.mockResolvedValue(reply(religiousDoc(
+      'حضرت زینب بنت علی رضی اللہ عنہا کا ذکر آتا ہے۔ حضرت زینب رضی اللہ عنہا مشہور ہیں')));
+
+    const out = await run();
+
+    expect(religiousFails(out)).toEqual([]);
+    expect(out.lintClean).toBe(true);
+  });
+
+  test('a genuinely bare companion is STILL not delivered clean', async () => {
+    // The consistency rule's whole point. If this goes green the fix has gone too far.
+    //
+    // Recovered from 065766b7, where this asserted on a RETURNED document. It cannot here: the
+    // P0 that shipped to sandbox made an exhausted ladder THROW (lp612-author.service.js:2511),
+    // so there is no dirty document to inspect — which is the protection working. The assertion
+    // moves onto the raised message via the `refusal` helper; what is being asserted is unchanged.
+    create.mockResolvedValue(reply(religiousDoc(
+      'حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟ حضرت خدیجۃ رضی اللہ عنہا کا ذکر')));
+
+    const message = await refusal(1);
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+    expect(message).toMatch(/names a companion/);
+  });
+});
+
+describe('F — a prophet other than Muhammad reaches the teacher with علیہ السلام', () => {
+  // G5c ruling Q1 (operator, 2026-09-17): "any prophet not Muhammad gets their proper salutation
+  // alaihis salam in the stamp/nastaliq script".
+  //
+  // What production showed: grade_7_urdu.c11.p062-064.tafheem was refused 2026-09-15 04:53 with
+  // one teacher waiting, on a Hazrat Ibrahim chapter, and the gate told the author to write
+  // "نبی ﷺ". A lesson cannot be repaired by being instructed to write the wrong salutation, so
+  // every round produced the same refusal. These drive the real authoring path end to end — only
+  // the LLM call is doubled — so the assertion is about what the TEACHER gets, not what a
+  // matcher returns.
+
+  test('a correctly salutated non-Muhammad prophet is delivered, lint-clean, in round 0', async () => {
+    create.mockResolvedValue(reply(religiousDoc('حضرت ابراہیم اللہ کے نبی علیہ السلام تھے')));
+
+    const out = await run();
+
+    expect(religiousFails(out)).toEqual([]);
+    expect(out.lintClean).toBe(true);
+    expect(out.rounds).toBe(0);
+  });
+
+  test('the production Grade 7 line is still refused, but now told to write علیہ السلام', async () => {
+    // Still a refusal — the line carries no salutation at all, and that is the gate working.
+    // What changed is the instruction it hands back, which is what makes the segment repairable
+    // instead of permanently stuck.
+    create.mockResolvedValue(reply(religiousDoc(
+      'وہ اللہ کے نبی تھے، جنہوں نے بتوں کی پرستش سے منع کیا')));
+
+    const message = await refusal();
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+    expect(message).toMatch(/علیہ السلام/);
+    expect(message).toMatch(/ﷺ/);
+  });
+
+  test('محمد with علیہ السلام is STILL refused — his salutation is ﷺ and nothing else', async () => {
+    // The guard on the ruling's own words: "any prophet NOT Muhammad". If this is ever delivered,
+    // the fix has demoted the Prophet's own salutation.
+    create.mockResolvedValue(reply(religiousDoc('محمد علیہ السلام نے ارشاد کیا')));
+
+    const message = await refusal();
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+    expect(message).toMatch(/names the Prophet/);
+  });
+
+  test('a LATIN "alaihis salam" is STILL refused — the ruling says stamp/nastaliq script', async () => {
+    create.mockResolvedValue(reply(religiousDoc('حضرت ابراہیم اللہ کے نبی alaihis salam تھے')));
+
+    const message = await refusal();
+
+    expect(message).toMatch(/RELIGIOUS_MARKS/);
+  });
+});

@@ -182,6 +182,80 @@ async function getExamVerdict(levelId, score, totalQuestions) {
 }
 
 /**
+ * Issue the level certificate, if the bot's guard says the level is finished.
+ *
+ * bd-60145 — the portal used to call `issueCertificate` directly the moment an
+ * attempt passed, which skipped every completeness check, and no portal route
+ * certified a per-module-assessed level at all. Both are decisions, so both
+ * belong to the bot. This asks; it does not judge.
+ *
+ * DENIES on failure rather than throwing, unlike the grading verdicts above,
+ * and the asymmetry is deliberate: a marking result has no safe default, but
+ * "no certificate yet" is always safe. The teacher's graded attempt is already
+ * written by the time this runs, so a failure here costs a certificate that the
+ * next pass — or the WhatsApp path — will issue anyway. Losing their paper to a
+ * certificate-service hiccup would be the worse trade.
+ */
+async function certifyLevel({ userId, levelId, attemptId = null, programId = null, moduleId = null }) {
+  try {
+    const data = await ask('certify-level', { userId, levelId, attemptId, programId, moduleId });
+    return {
+      issued: data.issued === true,
+      certificate_code: data.certificate_code || null,
+      level_name: data.level_name || null,
+      teacher_name: data.teacher_name || null,
+      issued_at: data.issued_at || null,
+    };
+  } catch (err) {
+    return { issued: false, certificate_code: null, level_name: null, teacher_name: null, issued_at: null };
+  }
+}
+
+/**
+ * bd-60149 — the module exam, which the portal previously had no concept of.
+ *
+ * Three asks, all decided by the bot: may she sit it, what is on the paper,
+ * and what did it score. No gate, no sampler and no marking live here — the
+ * portal had NONE of this before, and adding a local copy would recreate the
+ * exact drift this module was built to remove.
+ */
+async function moduleExamGate(userId, courseId) {
+  return gate('module-exam-gate', () => ask('module-exam-gate', { userId, courseId }));
+}
+
+/** Open or resume the attempt, and get the served paper. Denies on failure. */
+async function startModuleExam(userId, courseId, programId = null) {
+  try {
+    const data = await ask('module-exam-start', { userId, courseId, programId });
+    return {
+      ok: data.ok === true,
+      reason: data.reason || null,
+      attempt_id: data.attempt_id || null,
+      module_title: data.module_title || null,
+      total_questions: data.total_questions || 0,
+      questions: Array.isArray(data.questions) ? data.questions : [],
+    };
+  } catch (err) {
+    return { ok: false, reason: 'unavailable', questions: [], total_questions: 0 };
+  }
+}
+
+/**
+ * Submit the paper. THROWS on failure, like the other marking calls and for
+ * the same reason: a marking result has no safe default in either direction,
+ * so the caller must abandon the write rather than record a pass or a fail it
+ * cannot justify.
+ */
+async function submitModuleExam(userId, attemptId, answers) {
+  const data = await ask('module-exam-submit', { userId, attemptId, answers });
+  return {
+    attempt: data.attempt || null,
+    crq_pending: data.crq_pending === true,
+    certificate: data.certificate || null,
+  };
+}
+
+/**
  * Mark a submitted paper. bd-2673.
  *
  * The portal used to do this itself, twice — once for module quizzes and once
@@ -230,6 +304,10 @@ module.exports = {
   checkModuleUnlocked,
   checkExamGate,
   checkExamGateByLevel,
+  certifyLevel,
+  moduleExamGate,
+  startModuleExam,
+  submitModuleExam,
   getModuleQuizVerdict,
   getGrandQuizState,
   UNAVAILABLE,

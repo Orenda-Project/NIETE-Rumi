@@ -47,24 +47,50 @@ devDependency — see **Bot-only dependencies** below.
 
 ---
 
-## Baseline as of `0c52957` (develop)
+## Baseline as of `459ca5e2` (sandbox), re-cut 2026-09-17
 
-Measured over four consecutive runs. Node v22.23.1, Jest 29.7.0.
+Measured over **six** consecutive full runs. Node v22.23.1, Jest 29.7.0.
+
+Re-cut because the previous snapshot was taken on 2026-09-08 and `sandbox` had moved 366
+commits past it. The gate treats a failing suite it has never seen as a NEW failure
+(`if (!(suite in base))`), so every test file written in those nine days was reported as a
+regression the moment it went red, and `test (22)` was red on every PR regardless of
+content. Twenty sweep PRs were pushed with `SKIP_QA=1` to get around it (bd-002be). A gate
+nobody can pass is the same as a gate nobody reads.
+
+**A re-cut RACES with incoming merges.** This one was first taken at `f212f9f2`, and by the
+time CI ran, five commits had landed — bd-60118 among them, which added 124 offenders in
+`training/question-images.rules.js` and `quiz-delivery.service.js`. CI tests your branch
+MERGED INTO the base, so those counted against it and `test (22)` failed on a PR that had
+touched none of it. Re-cut against the tip you will actually merge into, land it promptly,
+and expect to refresh if it sits. (That the gate caught bd-60118's debt the moment it began
+working is the argument for having it, not against.)
+
+**The snapshot is per-branch.** `staging` and `main` share their own copy, last cut
+2026-09-02, and it is stale in the same way — re-cutting `sandbox` does not fix them, and a
+`sandbox` snapshot must not simply be copied across: the branches differ by ~1,485 files, so
+each one's accepted-failure set is genuinely different.
 
 | | |
 |---|---|
-| Total suites | 415 |
-| Total tests | 4,784 |
-| Stable failing suites | **30** |
-| Flaky failing suites | **4** (listed below, not gating) |
-| Failing tests | 91–93 (varies with the flaky ones) |
-| Suites that fail to *load* | **0** |
+| Total suites | 878 |
+| Total tests | 10,986 |
+| Stable failing suites | **29** |
+| Flaky failing suites | **6** (listed below, not gating) |
+| Failing tests | 55–57 (varies with the flaky ones) |
+| Suites that fail to *load* | **1** (`render-slow-telemetry`, katex — see Flaky) |
 
 That last row is the one to protect. Until 2026-08-31, **20 of 55 failing suites
 never executed a single assertion** — they died at `require()` on a package that
 lives in `bot/node_modules`, which the root job installs *after* it runs. Those were
 not test failures; they were a harness gap wearing a test failure's clothes, and
 they made the real backlog look twice its size.
+
+That row reads **1** as of 2026-09-17, and the one is understood rather than newly broken:
+`render-slow-telemetry` dies on katex's `mhchem` UMD interop, which is load-order dependent
+(details under Flaky). It is listed as flaky, so it is excluded from the snapshot and cannot
+gate. If this row ever climbs to 2 without an explanation directly beneath it, treat that as
+the harness gap returning — not as a suite to add to the list.
 
 ### Stable failures — fail on every run
 
@@ -139,21 +165,47 @@ failure here cannot make the gate red for a reason nobody can act on. Treat a
 failure as inconclusive and re-run before investigating.
 
 ```
+tests/lp612/render-slow-telemetry.test.js
 tests/queue/sqs-cancel-by-group.test.js
+tests/training/certificate-pdf-delivery.test.js
 tests/training/certificate-pdf-issuance.test.js
 tests/training/portal-capstone-submit.test.js
 tests/training/portal-grand-quiz.test.js
 ```
 
+`render-slow-telemetry` is the one entry here whose **root cause is known**, so it does not
+need re-investigating. It fails at LOAD, not in a test — `Tests: 0 total` — with
+
+```
+TypeError: katex__WEBPACK_IMPORTED_MODULE_0___default(...).__defineMacro is not a function
+  at bot/node_modules/katex/dist/contrib/mhchem.js:136
+  at bot/vendor/lp-v9/lib/rich.js:15        // require("katex/dist/contrib/mhchem.js")
+```
+
+`mhchem` is a webpack UMD bundle whose interop shim resolves `katex`'s default export
+differently depending on how `katex` was first loaded in the worker. Alone it resolves to
+the namespace object, which has no `__defineMacro`, and the suite cannot load. In a full
+run another suite has usually loaded `katex` first and it resolves correctly — so this
+suite **passes in the full suite and fails in isolation**, the exact inverse of the
+`tests/training/` entries above. Measured 2026-09-17 (bd-ym59h): failed 1 of 7 full runs,
+fails 3/3 alone.
+
+`tests/lp612/direct-lane-native.test.js` shares the hazard through the same
+`bot/vendor/lp-v9` require chain and is deliberately **not** listed: post-bd-jbhya it passed
+3/3 full runs, and listing a suite excuses it forever. If it ever goes red on a run nobody
+changed lp612 in, this is why — check for `__defineMacro` before investigating anything else.
+
 `sqs-cancel-by-group` is its own thing: its Redis cancel-flag mock intermittently does
 not observe the expected `setex`.
 
-**The other three are ONE bug, not three.** All live in `tests/training/`, all reach
+**The other four are ONE bug, not four.** All live in `tests/training/`, all reach
 `bot/shared/services/training/certificate.service`, and all register their mock with
 `jest.doMock` against a module the code under test requires *lazily* — so whether the
 mock or the real module wins is decided by interleaving. Each passes **3/3 in isolation**
 and inside its own `tests/training/` run, and each fails roughly one full-suite run in
-ten. The tell is unmistakable: `portal-grand-quiz` fails with a genuine `CERT-…` code
+ten. `certificate-pdf-delivery` was added on 2026-09-17 (bd-ym59h) on the same evidence:
+it failed 1 of 3 consecutive full-suite runs on a clean `sandbox`, passed 8/8 three times
+in isolation, and `jest.doMock`s six lazily-required modules exactly as its siblings do. The tell is unmistakable: `portal-grand-quiz` fails with a genuine `CERT-…` code
 where the mock's `TESTPFX-…` was expected, meaning the real generator ran.
 
 They are listed rather than fixed because **the root cause is not yet established**, and
@@ -338,10 +390,31 @@ Removals are reported and never fail; shrinking is the goal. A deliberate re-rec
 that genuinely must grow passes `--allow-growth`, so the intent is recorded rather than
 inferred.
 
-**It blocks a PR into `develop` and is advisory on a `develop` → `main` promotion.** A
-promotion legitimately carries develop's larger baseline into main — develop is ahead,
-so its snapshot is generally a superset — and blocking that would fire on every single
-release. Measured 2026-09-01: main's snapshot held 24 suites against develop's 30, so a
-promotion PR would have been refused for doing exactly what a promotion does. Advisory
-keeps the signal — *you are importing N newly-accepted failures into prod* — without the
-false block.
+**It blocks a PR into `sandbox` or `staging`, and is advisory on a promotion into `main`.**
+A promotion legitimately carries the ahead-branch's larger baseline into main — its
+snapshot is generally a superset — and blocking that would fire on every single release.
+Measured 2026-09-01: main's snapshot held 24 suites against 30 on the branch ahead of it,
+so a promotion PR would have been refused for doing exactly what a promotion does.
+Advisory keeps the signal — *you are importing N newly-accepted failures into prod* —
+without the false block. (Written when `develop` was the branch ahead; `develop` was
+frozen on 2026-09-08 and the chain is now `sandbox` → `staging` → `main`. The rule is the
+same, the branch names are not.)
+
+### Re-cutting a baseline that legitimately grows
+
+A re-cut after the base has drifted **will** grow the snapshot: it records everyone else's
+accumulated failures, which is the whole point of re-cutting. That is indistinguishable
+from a regression to a check that only counts, so growth needs an explicit human act
+rather than an inference.
+
+Until 2026-09-17 there wasn't one. `--allow-growth` was reachable only for PRs into
+`main`, so the operation this document tells you to perform — *"re-record it in its own
+commit, explain why in the PR, and re-run with `--allow-growth`"* — could not be performed
+on `sandbox`, where all work lands. bd-ym59h hit it head-on: a re-cut that made `npm test`
+print CLEAN could not be merged.
+
+**Add the `baseline-recut` label to the PR.** `ci.yml` passes `--allow-growth` when the
+label is present, and the label is visible in the PR timeline, so the intent is recorded
+where a reviewer will see it. Without the label nothing changes: the baseline may only
+shrink. Put the re-record in its own commit and say in the PR what grew and why — the
+growth check prints the newly-accepted suites, tests and offenders, so paste that.

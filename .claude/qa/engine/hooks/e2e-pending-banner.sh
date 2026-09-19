@@ -52,6 +52,24 @@ never runs and commits here arm no E2E. Either take it over —  bash .claude/qa
   fi
 fi
 
+# Machine readiness for the mock lane (layer 1, the run that tests a commit itself). Without
+# the keys file (keys.local in tenants.yaml) + redis-server every commit's mock run stops before starting and the ledger
+# stays `e2e: missing` — say so at session start, with the one-time fix, not on the agent's turn.
+MOCK_CTX=""
+# E2E_AUTOFIX_OFF=1 (CI, the engine's own tests) also silences this block: with the fix disabled there is nothing a
+# session could do about it, and a fixture repo is not a developer machine.
+if [ "${E2E_AUTOFIX_OFF:-}" != "1" ] && type e2e_mock_lane_autofix >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --show-toplevel >/dev/null 2>&1; then
+  _MAIN=$(e2e_main_checkout "$PROJECT_ROOT")
+  _FIX=$(e2e_mock_lane_autofix "$_MAIN"); _FIX_RC=$?
+  _DONE=$(printf '%s\n' "$_FIX" | grep '^auto-' || true)
+  if [ "$_FIX_RC" -ne 0 ]; then
+    MOCK_CTX="$(e2e_mock_not_ready_block "$(e2e_mock_lane_ready "$_MAIN"; printf '%s\n' "$_FIX" | grep -E 'failed|unavailable' || true)")
+Until that is done, report a commit's mock lane as NOT RUN (and why) — never as a pass."
+  elif [ -n "$_DONE" ]; then
+    MOCK_CTX="MOCK LANE: this session fixed the machine automatically — $_DONE. Nothing to do."
+  fi
+fi
+
 PEND="$PROJECT_ROOT/.claude/.e2e-pending"
 LINES=""; N=0
 [ -d "$PEND" ] || PEND=""
@@ -85,12 +103,16 @@ done <<LS
 $([ -n "$PEND" ] && ls -t "$PEND"/git-*.json 2>/dev/null)
 LS
 if [ "$N" -eq 0 ]; then
-  [ -n "$INSTALL_CTX" ] || exit 0
-  jq -n --arg ctx "$INSTALL_CTX" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
+  [ -n "$INSTALL_CTX$MOCK_CTX" ] || exit 0
+  jq -n --arg ctx "${INSTALL_CTX:+$INSTALL_CTX
+}${INSTALL_CTX:+${MOCK_CTX:+
+}}$MOCK_CTX" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
   exit 0
 fi
 read -r -d '' CTX <<EOF
 ${INSTALL_CTX:+$INSTALL_CTX
+
+}${MOCK_CTX:+$MOCK_CTX
 
 }QA WORK IS PENDING FROM $N TERMINAL COMMIT(S) IN THIS CLONE. They were made outside
 any Claude session, so their Gherkin specs have not been synced and their targeted

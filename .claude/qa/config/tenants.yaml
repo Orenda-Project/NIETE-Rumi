@@ -45,6 +45,7 @@ tenant_tools:                           # this repo's seed/reset tools (tenant l
   coaching_db: .claude/qa/shared/niete_coaching_db.py
   sandbox_driver: .claude/qa/shared/niete_sandbox_driver.py
   training_program: niete_standard
+  roster_source: niete_ict             # the value leader_schools/leader_teachers.source accepts (api.setRoster, observe)
 
 tenants:
   niete:

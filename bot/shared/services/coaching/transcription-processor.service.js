@@ -194,8 +194,14 @@ class TranscriptionProcessorService {
           warning: 'May exceed GPT-5 mini output token limit'
         });
 
-        // Send warning to user (uses the user's already-resolved language).
-        await WhatsAppService.sendMessage(from, getCoachingMessage('longLessonDetected', currentLanguage || 'en'));
+        // bd-di5ap (DC row 129): the teacher-facing send that used to sit here is
+        // gone. The 15,000 gate is an ENGINEERING threshold — see the warning on
+        // the log line above, it is about a model's output limit — and NIETE only
+        // routes recordings of 15+ minutes into this job, so it fired for the
+        // majority of sessions. A warning that is the normal case is not a
+        // warning, and it contradicted the "30-60 seconds" promise made one
+        // message earlier. The signal is real, so the telemetry stays; only the
+        // message to the teacher goes.
       }
 
       // bd-2139 — backfill the true duration when the webhook never gave us one.
@@ -288,11 +294,17 @@ class TranscriptionProcessorService {
         return;
       }
 
-      // Send encouraging message
+      // Acknowledge the recording — the receipt, not a review. bd-di5ap: this
+      // was a GPT-4o call that invented a verdict on a lesson nothing had read
+      // yet. Language is resolved HERE, at send time, rather than reusing the
+      // `currentLanguage` read before the transcript was analysed — teacher-
+      // addressed text follows her current preference.
       const CoachingHelpersService = require('./coaching-helpers.service');
+      const ackLanguage = await getUserLanguage(session.user_id) || 'en';
       const encouragingMessage = await CoachingHelpersService.generateEncouragingMessage(
         session.users.name,
-        session.audio_duration_seconds
+        session.audio_duration_seconds,
+        ackLanguage
       );
       await WhatsAppService.sendMessage(from, encouragingMessage);
 

@@ -1084,7 +1084,10 @@ const PROPHET_RE = new RegExp(
 // epithets) is a compound given name — a person, not the Prophet. Same shape as the K-5 lane's
 // niete-nbpro/src/honorifics.js `isCompoundGivenName`; kept in step by hand.
 const PROPHET_CONTINUATIONS = ["مصطفی", "مصطفیٰ", "رسول", "عربی", "خاتم", "النبیین", "مجتبی", "مجتبیٰ", "مدنی",
-  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک"];
+  "مکی", "ہاشمی", "قریشی", "امی", "اُمی", "صادق", "امین", "احمد", "ﷺ", "کریم", "اکرم", "پاک",
+  // G5c Q1 — a salutation word is never the second word of somebody else's given name. Without
+  // this, "محمد علیہ السلام" reads as a compound name and the wrong salutation goes unchallenged.
+  "علیہ", "علیہم", "علیھم", "الصلوٰۃ", "الصلوۃ"];
 const NAME_FUNCTION_WORDS = ["نے", "کا", "کی", "کے", "کو", "سے", "پر", "میں", "تک", "اور", "یا", "ہے", "ہیں",
   "تھا", "تھے", "تھی", "جو", "کہ", "بھی", "ہی", "نہیں", "والا", "والے", "والی", "صاحب", "نامی", "یعنی", "کہا", "کہتے"];
 function isCompoundGivenName(s, afterIdx) {
@@ -1104,14 +1107,143 @@ function isCompoundGivenName(s, afterIdx) {
 }
 // The honorific may be the ligature or spelled out, and a comma or a quote may sit between.
 const HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/;
+// G5c RULING Q1 (operator, 2026-09-17, on the bd-zipoe native-speaker review packet): "any
+// prophet not Muhammad gets their proper salutation alaihis salam in the stamp/nastaliq script".
+// So a prophet who is not Muhammad is correctly salutated with علیہ السلام, and the gate must
+// stop reading that as a missing honorific. STAMP/NASTALIQ SCRIPT is part of the ruling and part
+// of §4c.5's ban on transliteration, so this holds Urdu forms only — a Latin "alaihis salam"
+// still fails, exactly as a Latin "sallallahu alaihi wasallam" does.
+const PROPHET_ALT_HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(علیہ\s*الصلو[ٰا]?[ۃہ]\s*و\s*ال?سلام|علیہ[مان]?\s*السلام)/;
+// ...but only after a token that CAN name another prophet. نبی is the bare common noun "prophet";
+// every other entry in PROPHET_TOKENS is either Muhammad's own name (محمد) or a conventional
+// epithet of him specifically — سرورِ کائنات, پیغمبر اسلام, رسولِ اکرم, رسول اللہ, رسول کریم,
+// نبی کریم, نبی اکرم, نبی پاک, آں حضرت, آنحضرت, حضور اکرم, حضور — and those keep demanding ﷺ.
+// A NAMED prophet (حضرت ابراہیم علیہ السلام) is not this lane at all; it goes through check 3,
+// whose COMPANION_HON has always accepted علیہ السلام.
+const GENERIC_PROPHET_TOKENS = new Set(["نبی"]);
+// G5c RULING Q3 (operator, 2026-09-17, on the bd-zipoe native-speaker review packet): "For
+// English keep the name as shown in the page truth Hazrat Muhammad (salutation) ... it should stay
+// as shown in the book but with our salutation stamp/script".
+//
+// A CHAINED name carries ONE salutation and it sits at the END of the chain, which is how the
+// books print it: حضرت محمد رسول اللہ ﷺ، نبی کریم محمد مصطفیٰ ﷺ. HONORIFIC_RE anchors immediately
+// after whichever token PROPHET_RE matched, so the gate was demanding a SECOND ﷺ in the middle of
+// the chain and refusing a line that is already correct — three v9.2 fails on
+// grade_8_english.c01.p009-012.reading_comprehension, all on the same sentence.
+//
+// This moves only WHERE the honorific is looked for. It never makes one optional: a chain that
+// runs out without a salutation fails at the original match, exactly as before.
+const CHAIN_WORDS = new Set([...PROPHET_CONTINUATIONS, ...PROPHET_TOKENS.flatMap((t) => t.split(/\s+/))]);
+function skipNameChain(after) {
+  let rest = after;
+  for (let i = 0; i < 4; i++) {                      // a printed chain runs at most four words on
+    const m = /^\s+([^\s،؛۔.,;:!?…'"’”«»‹›()\[\]{}]+)/.exec(rest);
+    if (!m) return rest;
+    const w = m[1].replace(/[\u064B-\u0652\u0670\u06D6-\u06ED]/g, "");   // read through aeraab
+    if (w === "ﷺ" || !CHAIN_WORDS.has(w)) return rest;  // the salutation ENDS the chain
+    rest = rest.slice(m[0].length);
+  }
+  return rest;
+}
+// VENDOR DIVERGENCE (bd-zipoe, 2026-09-17; SYNC.md §3.14). THE G5c NATIVE-SPEAKER REVIEW, AS DATA.
+//
+// `محمد` is one of the commonest given names in Pakistan, and rule 1 demanded ﷺ after every one
+// of them. A DELIVERED Grade 10 Urdu lesson (grade_10_urdu.p2c05.p135-135.tafheem, v9.6) carried
+// four teacher-facing RELIGIOUS_MARKS fails on `سیّد ولی محمد` — the poet Nazeer Akbarabadi's real
+// name. `isCompoundGivenName()` cannot reach that shape: it reads the word AFTER `محمد`, and here
+// `محمد` is the LAST word of the name, so the next word is the ordinary `اور`.
+//
+// WHY THIS IS A LIST AND NOT A RULE. Brief §4c, gate G5c: "Automated checks do NOT clear religious
+// content: the native-speaker review remains a hard hold before any teacher delivery." Writing a
+// heuristic that decides which `محمد` is not the Prophet is precisely the automated clearance that
+// forbids. So nothing here decides anything. `g5c_cleared_names.json` is the review itself — every
+// whole-word `محمد` in the Grades 6-12 page-truth corpus (11,261 files, 62 books, 730 occurrences
+// in 298 distinct phrases), each one marked by Amena Ahmed, the named reviewer of record, on
+// 2026-09-17: 254 `person`, 44 `prophet`, none undecided. The polarity was confirmed by her after
+// the review document's own printed legend was found to be inverted.
+//
+// The decided file is GITIGNORED and lives in a different repository, so it cannot be read from
+// disk at runtime. It is carried here deliberately, as committed data with its provenance and the
+// source's sha256 in the file's own header.
+//
+// WHAT THE TWO HALVES DO. `person` CLEARS — the gate stops demanding a salutation there, and that
+// is the only thing in this file that can clear anything. `prophet` never clears and never blocks
+// on its own; it exists to ARBITRATE where two decided phrases cover the same word (`حضرت محمد` is
+// prophet, `حضرت محمد باقر رحمہ اللہ` is person). The longest decided phrase present rules, and on
+// equal length the blocking mark wins. A `محمد` that matches nothing is not cleared: the gate
+// fails, exactly as it does today. FAIL-CLOSED, ALWAYS — an unreviewed name is not a cleared name.
+//
+// KEYED ON THE WORD SEQUENCE, NOT THE BYTES. The books print `سیّد` with a shadda and the review
+// recorded `سید` without one; `اقبال` appears with and without the ؒ sign. A byte-exact allowlist
+// would clear the row and not the page. So each word is compared with its combining marks removed
+// and its edge punctuation trimmed — the same "read through aeraab" the rules above already do.
+const CLEARED_NAMES = require("./g5c_cleared_names.json");
+const NAME_MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭ]/g;
+const NAME_EDGE = /^[\s،؛۔.,;:!?…'"’”«»‹›()[\]{}ﷺ؟–—\-‎‏؜]+|[\s،؛۔.,;:!?…'"’”«»‹›()[\]{}ﷺ؟–—\-‎‏؜]+$/g;
+const nameWord = (w) => w.replace(NAME_MARKS, "").replace(NAME_EDGE, "");
+const decidedPhrase = (name, blocks) => {
+  const words = name.split(/\s+/).map(nameWord).filter(Boolean);
+  return { words, blocks, slots: words.map((w, i) => (w === "محمد" ? i : -1)).filter((i) => i >= 0) };
+};
+const DECIDED_NAMES = [
+  ...CLEARED_NAMES.person.map((n) => decidedPhrase(n, false)),
+  ...CLEARED_NAMES.prophet.map((n) => decidedPhrase(n, true)),
+].filter((p) => p.slots.length);
+/** True only when the native-speaker review decided THIS occurrence is an ordinary person. */
+function clearedByReview(s, idx) {
+  const toks = [];
+  for (const t of s.matchAll(/\S+/g)) toks.push({ w: nameWord(t[0]), at: t.index, len: t[0].length });
+  const j = toks.findIndex((t) => idx >= t.at && idx < t.at + t.len);
+  if (j < 0) return false;
+  let best = null;
+  for (const p of DECIDED_NAMES) {
+    for (const k of p.slots) {
+      const a = j - k;
+      if (a < 0 || a + p.words.length > toks.length) continue;
+      if (p.words.some((w, i) => toks[a + i].w !== w)) continue;
+      if (!best || p.words.length > best.n || (p.words.length === best.n && p.blocks)) {
+        best = { n: p.words.length, blocks: p.blocks };
+      }
+    }
+  }
+  return best !== null && !best.blocks;
+}
 // A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
 // unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
 const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
-const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*عنہم?ا?|رضی\s*اللہ\s*عنہا|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ\s*السلام|علیہا\s*السلام|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
+const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ|تعالى|تعالی)?\s*عنہ(?:م|ا|ما|من)?|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ[مان]?\s*السلام|رحمۃ\s*اللہ\s*علیہ|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
 // §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
 // transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
-// in any medium — an English book prints "ﷺ" or "(peace be upon him)", never "(PBUH)".
-const ABBREV_RE = /\b(PBUH|SAW|SAWW|RA)\b/;
+// in any medium — the salutation is written as "ﷺ", never as "(PBUH)" and never spelled out in
+// English (operator, 2026-09-17: "must be our stamp").
+//
+// THREE OF THE FOUR TOKENS FIRE ON SIGHT; "RA" MAY NOT (bd-6tfw6; operator, 2026-09-17: "go on
+// option 1"). PBUH, SAW and SAWW spell nothing else in a school lesson. A bare, case-correct "RA"
+// does: right ascension (astronomy), relative abundance (biology), the roughness symbol Ra
+// (physics and engineering drawing) — all Grades 9-12 vocabulary. Two letters on their own carry
+// no evidence that they stand for رضی اللہ عنہ, and check 2 runs on MIXED lessons — a Pak Studies
+// or Islamiat-adjacent plan with a diagram — where both readings are live in one document.
+//
+// So RA is required to be ADJACENT, in one of the two shapes the operator approved:
+//   (a) an opening paren or bracket — "(RA)", "[RA]", and the "(RA" a truncation leaves behind;
+//   (b) straight after a NAME WORD — a capitalised word that is not the first word of the string,
+//       so "Hazrat Ali RA said" fires and a sentence-opening "Find RA from the chart." does not.
+//
+// The discriminator is measured, not guessed. Of the 1,401 servable renders in the 2026-09-17
+// census (bd-2cbwr), exactly one — 1140eb1d, grade_7_history.c02.p021-022, currently SERVING —
+// raises RA at all, 35 times, and every one of the 28 whose token the census excerpt shows is
+// "(RA)" straight after a name. The bead's false positive, "Identify the RA value on the
+// diagram.", is adjacent to nothing. Nothing else in the corpus changes: the 41st abbreviation
+// fail is a PBUH, and PBUH/SAW/SAWW are untouched.
+//
+// FAIL-CLOSED WHERE IT IS AMBIGUOUS. "right ascension (RA)" — the science idiom that DEFINES the
+// abbreviation in parentheses — still fails, because option 1 makes an opening paren sufficient
+// and this gate does not narrow a religious protection further than the operator approved.
+const ABBREV_RE = new RegExp([
+  "\\b(PBUH|SAW|SAWW)\\b",                          // unconditional — unambiguous tokens
+  "[(\\[]\\s*(RA)\\b",                              // (a) parenthesised
+  "[\\p{L}]\\S*\\s+[A-Z][\\p{L}'’.\\-]+[\\s,—\\-]{1,3}(RA)\\b",  // (b) after a name word
+].join("|"), "u");
 // A TRANSLITERATION, by contrast, is only wrong where the book prints the Urdu. On an Urdu
 // religious page Latin script is a de-pointing by another route; in a Grade 6 ENGLISH lesson
 // "Hazrat Muhammad" and "Khadijah radiallahu anha" are what the page itself prints, and forcing
@@ -1120,7 +1252,10 @@ const TRANSLIT_RE = /\b(Allah|ALLAH|Muhammad|Mohammad|Muhammed|Sallallahu|Rasool
 // Reverence does not depend on script, so the English lane keeps its own honorific rule: rule 1
 // cannot see these mentions at all, because PROPHET_RE holds only Urdu-script tokens.
 const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
-const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم|\(?\s*peace\s+be\s+upon\s+him\s*\)?)/i;
+// THE SALUTATION IS THE STAMP, IN EITHER MEDIUM (operator, 2026-09-17, G5c: "must be our stamp").
+// The spelled-out English "(peace be upon him)" used to satisfy this and no longer does — Q3 keeps
+// the book's Latin NAME on an English page, it does not license an English SALUTATION.
+const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/i;
 // A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
 // the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
 // two on an English page — the NAME keeps the Latin spelling the English book prints, the
@@ -1131,6 +1266,15 @@ const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*ال
 // deliberately refuses to keep a corpus of companion names — bare "علی"/"عمر" are ordinary words —
 // and a Latin list would be worse, so a bare "Khadijah" is still the native-speaker reviewer's
 // call. What IS decidable without a name list is that a salutation was typed in the wrong script.
+//
+// AMENDED (bd-zipoe, 2026-09-17). Rule 1 now DOES carry a name corpus — `g5c_cleared_names.json`.
+// The position above has not changed; the corpus is a different kind of thing. It is not a guess
+// about which names are ordinary, assembled by this file. It is the G5c native-speaker review
+// itself: 298 phrases, each one decided by Amena Ahmed on 2026-09-17, carried in as data with its
+// provenance. It only ever CLEARS, and only the exact phrases she saw; an unreviewed name still
+// fails. Rule 3 keeps no corpus because no such review exists for companion names — nobody has
+// sat down and decided the bare "علی"s of the Grades 6-12 corpus one by one. When someone does,
+// rule 3 may carry that review the same way. Until then a bare "Khadijah" remains her call.
 //
 // Transliterations vary more than the Urdu does: radi/radhi/razi/radiya, alayhi/alaihi,
 // rahmat/rahimah. The Urdu forms these should have been are COMPANION_HON's set, quoted back to
@@ -1622,13 +1766,24 @@ function religiousMarks(doc, ctx) {
     PROPHET_RE.lastIndex = 0;
     let m;
     while ((m = PROPHET_RE.exec(s))) {
-      if (HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      const after = s.slice(m.index + m[0].length);
+      if (HONORIFIC_RE.test(after)) continue;
+      if (GENERIC_PROPHET_TOKENS.has(m[0]) && PROPHET_ALT_HONORIFIC_RE.test(after)) continue;
+      // Q3 — the honorific may close a CHAINED name two or three words on. Only re-tested when
+      // the chain actually advanced, so a bare token behaves identically to before.
+      const chained = skipNameChain(after);
+      if (chained !== after && HONORIFIC_RE.test(chained)) continue;
       // VENDOR DIVERGENCE (bd-gyrg8, 2026-09-11; also upstream): `محمد` opening ANOTHER PERSON's
       // compound name is not a mention of the Prophet — محمد علی جناح، محمد بن قاسم، علامہ محمد
       // اقبال، محمد خان. An author under this gate wrote `محمد ﷺ خان` for Ashfaq Ahmed's father.
       // The Prophet's own name-continuations (مصطفیٰ، رسول اللہ، بن عبداللہ …) still demand it.
       if (m[0] === "محمد" && isCompoundGivenName(s, m.index + m[0].length)) continue;
-      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      // VENDOR DIVERGENCE (bd-zipoe, 2026-09-17): the G5c native-speaker review, as data. Only the
+      // 298 phrases Amena Ahmed decided on 2026-09-17 can clear a `محمد` this rule would otherwise
+      // demand a salutation after — see `clearedByReview()` above. Nothing here decides; a name the
+      // review did not clear STILL FAILS. Fail-closed, always (brief §4c, gate G5c).
+      if (m[0] === "محمد" && clearedByReview(s, m.index)) continue;
+      fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". ${GENERIC_PROPHET_TOKENS.has(m[0]) ? `Write "${m[0]} ﷺ" if this is the Prophet Muhammad, or "${m[0]} علیہ السلام" if it is another prophet` : `Write "${m[0]} ﷺ"`} — in Urdu script, never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
     }
   }
 
@@ -1639,7 +1794,11 @@ function religiousMarks(doc, ctx) {
   for (const { at, s } of strings) {
     const a = ABBREV_RE.exec(s);
     if (a) {
-      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${a[0]}"): "${s.slice(0, 70)}". Write it out — ﷺ, رضی اللہ عنہ, or "peace be upon him" — never de-pointed, abbreviated, transliterated or dropped (brief §4c.5). ${HOLD}`);
+      // `a[0]` is the whole match, and the RA arms deliberately match the name word in front of
+      // the token so the adjacency can be required at all. The message names the ABBREVIATION —
+      // groups 1-3 are the three arms, exactly one of which is set (bd-6tfw6).
+      const tok = a[1] || a[2] || a[3];
+      fail("RELIGIOUS_MARKS", `${at || "/"} abbreviates an honorific ("${tok}"): "${s.slice(0, 70)}". Write the salutation itself — ﷺ for the Prophet, رضی اللہ عنہ for a companion — never de-pointed, abbreviated, transliterated, spelled out in English or dropped (brief §4c.5). ${HOLD}`);
       continue;
     }
     // Before the medium split, because it does not depend on it: a salutation belongs to the
@@ -1688,7 +1847,7 @@ function religiousMarks(doc, ctx) {
         consumed += words[i].length + (words[i + 1] || "").length;
         tail = rest.slice(consumed).replace(/^\s+/, "");
         if (COMPANION_HON.test(tail)) break;
-        if (i >= 2) break;                        // a name is at most three words
+        if (i >= 4) break;                        // a name is at most three words
       }
       name = name.replace(/[،۔:'"’”)(]+$/, "").trim();
       if (!name) continue;
@@ -2411,10 +2570,44 @@ function overlayDefects(doc, lang, opts = {}) {
 overlayDefects.targets = overlayTargets;
 overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 
+/**
+ * The pointers under `/provenance` this document is OFFERED and does not have an Urdu string for.
+ *
+ * bd-yhd16 — `overlayDefects` measures COVERAGE, a fraction over the whole document, and the
+ * chrome is three pointers out of ~92. A stored Urdu lesson whose body is fully translated and
+ * whose title is not scores ~0.97 and passes every existing gate, while the largest type on page 1
+ * and the running header of every continued page are still English. That is the entire shape of
+ * the 82 ready Urdu renders measured in production on 2026-09-17.
+ *
+ * Its ONE caller today is `reuseFromPreviousVersion` in `bot/workers/lp612-author.worker.js`.
+ * That lane re-renders a stored document at a new template version WITHOUT running the overlay
+ * pass (`!authored.reusedFrom`, bd-oak77.12), so a document that comes through it keeps whatever
+ * overlay it was written with — forever, in a fresh row that is then a permanent cache hit. It
+ * already refuses a stored BODY the current renderer would not accept (`oneScreenShapeDefects`,
+ * bd-jpfww); this is the same ruling for the stored OVERLAY.
+ *
+ * Derived from `overlayTargets`, never hand-listed, so it cannot drift from the set bd-x3dn6
+ * widened: adding a fourth provenance key here is a one-line change in `OVERLAY_PROVENANCE_KEYS`.
+ * An Urdu-medium book returns `[]` for the same reason `overlayDefects` does — its title is
+ * already Urdu and there is no overlay to miss.
+ *
+ * VENDOR DIVERGENCE (bd-yhd16) — ours; upstream has no reuse lane. Recorded in SYNC.md §3.13.
+ */
+function overlayChromeGaps(doc) {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return [];
+  if (((doc.provenance || {}).medium) === "ur") return [];
+  const ov = doc.ur_overlay && typeof doc.ur_overlay === "object" ? doc.ur_overlay : {};
+  return overlayTargets(doc).filter(
+    (p) => p.startsWith("/provenance/")
+      && !(typeof ov[p] === "string" && ov[p].trim().length > 0),
+  );
+}
+overlayDefects.chromeGaps = overlayChromeGaps;
+
 module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects, rayDiagramDefects,
   // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
   // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
-  oneScreenShapeDefects, ONESCREEN_BEATS,
+  oneScreenShapeDefects, ONESCREEN_BEATS, overlayChromeGaps,
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,

@@ -106,3 +106,101 @@ miss fails loudly and names the scenarios; it never goes live. Flows are never
 rendered here — Flow scenarios record BLOCKED, not PASS. Read the rows it prints.
 EOF
 }
+
+# ── Machine readiness (2026-09-18) ────────────────────────────────────────────────────────────
+# The lane is "part of the hook" only if the hook can SAY, before an agent's turn, whether this
+# machine can run it. Until now the first signal was exit 14 deep inside local-stack.sh — after the
+# commit, after the worktree and results dir existed — so a developer without keys/niete-local.env
+# was handed a command that could never run, and the ledger read `e2e: missing` (PR #1084).
+# These three helpers give post-commit, the SessionStart banner and commit-e2e.sh one shared answer.
+
+# e2e_main_checkout "<repo>" → the MAIN checkout even from a worktree (gitignored keys/ live there).
+e2e_main_checkout() {
+  local repo="$1" common
+  common=$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null) || { printf '%s' "$repo"; return; }
+  case "$common" in /*) ;; *) common="$repo/$common" ;; esac
+  dirname "$common"
+}
+
+# e2e_keys_local_name → the basename of keys.local in tenants.yaml (the mock lane's env file), else local.env.
+e2e_keys_local_name() {
+  local k; k=$(e2e_get keys.local 2>/dev/null); printf '%s' "$(basename "${k:-keys/local.env}")"
+}
+# e2e_keys_dir "<main>" → <main>/keys, else the workspace-level ../keys. Mirrors the bot's local-stack.sh —
+# the FILE is checked, so a stray shadow keys/ (one carrying only some other env file) cannot mask it.
+e2e_keys_dir() {
+  local d="$1/keys" n; n=$(e2e_keys_local_name)
+  [ -f "$d/$n" ] || d="$(dirname "$1")/keys"
+  printf '%s' "$d"
+}
+
+# e2e_mock_lane_ready "<main>" → one missing precondition per line on stdout; returns 0 iff none.
+# Exactly the two things local-stack.sh refuses without (exit 14 and exit 16); nothing speculative.
+e2e_mock_lane_ready() {
+  local main="$1" kd n missing=0
+  kd=$(e2e_keys_dir "$main"); n=$(e2e_keys_local_name)
+  if [ ! -f "$kd/$n" ]; then
+    printf 'keys/%s missing (looked in %s/keys and %s/keys)\n' "$n" "$main" "$(dirname "$main")"
+    missing=1
+  fi
+  if ! command -v redis-server >/dev/null 2>&1; then
+    printf 'redis-server not on PATH\n'
+    missing=1
+  fi
+  return $missing
+}
+
+# e2e_mock_lane_autofix "<main>" [--with-redis]  → FIX the machine instead of asking (operator, 2026-09-18:
+# "no manual interventions"). Missing keys file → run the bot's provisioner, <e2e_scripts>/provision-local-keys.sh
+# (a bot seam: it knows where that repo's E2E DB credential and storage/Flow ids come from). --with-redis and no
+# redis-server → `brew install redis` when brew exists. Prints one line per action; returns 0 iff the machine is
+# ready afterwards. The ONE thing it cannot create is the login the provisioner needs. E2E_AUTOFIX_OFF=1 disables it.
+e2e_mock_lane_autofix() {
+  local main="$1" with_redis="" kd n prov rc=0 out scripts
+  [ "${2:-}" = "--with-redis" ] && with_redis=1
+  if [ "${E2E_AUTOFIX_OFF:-}" = "1" ]; then e2e_mock_lane_ready "$main" >/dev/null; return $?; fi
+  kd=$(e2e_keys_dir "$main"); n=$(e2e_keys_local_name)
+  if [ ! -f "$kd/$n" ]; then
+    scripts=$(e2e_get e2e_scripts 2>/dev/null); scripts="${scripts:-scripts/e2e}"
+    prov="$main/$scripts/provision-local-keys.sh"
+    [ -f "$prov" ] || prov="$(e2e_root 2>/dev/null)/$scripts/provision-local-keys.sh"
+    if [ -f "$prov" ]; then
+      if out=$(cd "$main" && bash "$prov" --quiet 2>&1); then
+        echo "auto-provisioned keys/$n — $out"
+      else
+        echo "keys/$n missing (auto-provision failed: $(printf '%s' "$out" | grep -v '^[[:space:]]*$' | tail -1 | sed 's/^\[provision-local-keys\] //' | cut -c1-220))"
+        rc=1
+      fi
+    else
+      echo "keys/$n missing (auto-provision unavailable: $scripts/provision-local-keys.sh is not in this checkout)"; rc=1
+    fi
+  fi
+  if [ -n "$with_redis" ] && ! command -v redis-server >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1; then
+      if brew install redis >/dev/null 2>&1 && command -v redis-server >/dev/null 2>&1; then
+        echo "auto-installed redis-server via brew"
+      else
+        echo "redis-server not on PATH (brew install redis failed — see \`brew install redis\` by hand)"; rc=1
+      fi
+    else
+      echo "redis-server not on PATH (no brew to auto-install it)"; rc=1
+    fi
+  fi
+  e2e_mock_lane_ready "$main" >/dev/null || rc=1
+  return $rc
+}
+
+# e2e_mock_not_ready_block "<lines from e2e_mock_lane_ready / autofix>" → the warning + what is left to do.
+# After autofix, a missing keys file means ONE thing: this machine lacks the login the provisioner needs.
+e2e_mock_not_ready_block() {
+  local why="$1" n scripts; n=$(e2e_keys_local_name); scripts=$(e2e_get e2e_scripts 2>/dev/null); scripts="${scripts:-scripts/e2e}"
+  echo "⚠ MOCK LANE NOT RUNNABLE ON THIS MACHINE — a commit's commit-e2e.sh run stops before starting anything:"
+  printf '%s\n' "$why" | sed 's/^/    · /'
+  echo "  what is left (everything else is automatic):"
+  case "$why" in *"$n"*)
+    echo "    railway login        # an account with access to the project the provisioner reads (bash $scripts/provision-local-keys.sh --help); the keys file is then provisioned automatically on the next commit / session" ;;
+  esac
+  case "$why" in *redis-server*)
+    echo "    brew install redis   # commit-e2e.sh installs it automatically when brew is present" ;;
+  esac
+}

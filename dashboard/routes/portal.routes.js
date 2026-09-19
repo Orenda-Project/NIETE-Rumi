@@ -79,6 +79,8 @@ const { summarizeSchoolAnalytics } = require('../services/school-analytics.servi
 // /20 math to remark-rubric rather than restating it.
 const { summarizePresence } = require('../services/steps-presence.service');
 const { summarizeRemarks } = require('../services/steps-remarks.service');
+// bd-60123 — attendance, merged per group (G3) and split per day.
+const { summarizeGroups, summarizeByDay } = require('../services/attendance-detail.service');
 // Single teacher detail (patch-membership guarded).
 const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.service');
 // The coach's /observe world (upcoming schedules + pending debriefs + past
@@ -1059,6 +1061,143 @@ router.get('/leader/teacher/:id', requirePortalAuth, requireLeaderRole, async (r
 });
 
 /**
+ * GET /api/portal/leader/attendance
+ *
+ * bd-60123 — the attendance detail, in the two shapes settled on the design
+ * canvas (operator, 2026-09-17):
+ *   · `groups`  (G3) every grade merged across its children AND its days, one
+ *     row each on one scale. The dashboard default.
+ *   · `byDay`   the same groups split back out per day, for the detail page.
+ *   · `staff`   the same two shapes for teachers, so one grammar covers both.
+ *
+ * Filters: ?from=&to= (dates, inclusive) and ?teacherId= (one teacher's own
+ * classes). The teacher id is validated against her roster and 404s otherwise,
+ * the same boundary the rest of this page uses.
+ *
+ * PRINCIPALS ONLY, like the analytics tab beside it.
+ */
+router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const role = req.portalUser && req.portalUser.role;
+    if (String(role || '').trim().toLowerCase() !== 'principal') {
+      return res.status(403).json({ success: false, error: 'Attendance is available to principals.' });
+    }
+
+    const teachers = await getPatchTeachers(
+      (sql, params) => pool.query(sql, params),
+      req.session.portalUserId,
+      { role }
+    );
+
+    const requestedTeacherId = (req.query.teacherId || '').trim() || null;
+    let focusTeacher = null;
+    if (requestedTeacherId) {
+      focusTeacher = teachers.find((t) => t.rumiUserId === requestedTeacherId) || null;
+      if (!focusTeacher) {
+        return res.status(404).json({ success: false, error: 'Teacher not found in your school.' });
+      }
+    }
+
+    // Default window: the last 30 days. Explicit and bounded rather than
+    // all-time — an unbounded window makes "of how many days?" unanswerable,
+    // which is the whole failure this view exists to fix.
+    const today = new Date();
+    const defaultFrom = new Date(today.getTime() - 29 * 86400000);
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '') ? req.query.from : iso(defaultFrom);
+    const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '') ? req.query.to : iso(today);
+
+    const scopeTeachers = focusTeacher ? [focusTeacher] : teachers;
+    const userIds = scopeTeachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
+
+    if (userIds.length === 0) {
+      return res.json({
+        success: true, from, to,
+        focusTeacher: null,
+        teachers: [],
+        schoolDays: [],
+        students: { groups: [], byDay: [] },
+        staff: { groups: [], byDay: [] },
+      });
+    }
+
+    const [studentRows, staffRows] = await Promise.all([
+      // class_name already contains the section — appending it yields
+      // "Grade 2 - A-A" (measured on prod).
+      pool.query(
+        `SELECT s.session_date::text AS date,
+                COALESCE(sl.class_name, 'Unnamed class') AS "group",
+                s.total_students AS total,
+                s.present_count  AS present
+           FROM attendance_sessions s
+           LEFT JOIN student_lists sl ON sl.id = s.list_id
+          WHERE s.user_id = ANY($1::uuid[])
+            AND s.session_date BETWEEN $2::date AND $3::date
+          ORDER BY s.session_date ASC`,
+        [userIds, from, to]
+      ),
+      // Staff: one "group" per teacher, so the same summariser serves both.
+      // present/absent are per-person, hence total 1 per row; leave is NOT an
+      // absence and is excluded from the register entirely.
+      pool.query(
+        `SELECT r.date::text AS date,
+                COALESCE(u.name, 'Unnamed teacher') AS "group",
+                1 AS total,
+                CASE WHEN r.status = 'present' THEN 1 ELSE 0 END AS present,
+                r.status
+           FROM teacher_attendance_records r
+           JOIN users u ON u.id = r.teacher_id
+          WHERE r.teacher_id = ANY($1::uuid[])
+            AND r.date BETWEEN $2::date AND $3::date
+          ORDER BY r.date ASC`,
+        [userIds, from, to]
+      ),
+    ]);
+
+    // The window's school days are the days SOMEBODY marked anything. Without
+    // a school calendar this is the only defensible denominator — inventing
+    // one from weekday arithmetic would state a term we do not know.
+    const dayset = new Set();
+    for (const r of studentRows.rows) dayset.add(r.date);
+    for (const r of staffRows.rows) dayset.add(r.date);
+    const schoolDays = [...dayset].sort();
+
+    // Leave is not an absence: a teacher on approved leave is dropped from the
+    // register rather than counted against her.
+    const staffSessions = staffRows.rows
+      .filter((r) => r.status !== 'leave')
+      .map((r) => ({ group: r.group, date: r.date, total: 1, present: Number(r.present) }));
+
+    const studentSessions = studentRows.rows.map((r) => ({
+      group: r.group, date: r.date, total: Number(r.total), present: Number(r.present),
+    }));
+
+    res.json({
+      success: true,
+      from, to,
+      focusTeacher: focusTeacher
+        ? { id: focusTeacher.rumiUserId, name: focusTeacher.name }
+        : null,
+      teachers: teachers
+        .filter((t) => t.rumiUserId)
+        .map((t) => ({ id: t.rumiUserId, name: t.name, isPrincipal: t.isPrincipal })),
+      schoolDays,
+      students: {
+        groups: summarizeGroups(studentSessions, schoolDays),
+        byDay: summarizeByDay(studentSessions, schoolDays),
+      },
+      staff: {
+        groups: summarizeGroups(staffSessions, schoolDays),
+        byDay: summarizeByDay(staffSessions, schoolDays),
+      },
+    });
+  } catch (error) {
+    console.error('leader/attendance error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load attendance.' });
+  }
+});
+
+/**
  * GET /api/portal/leader/school-analytics
  *
  * bd-60117 — the Analytics tab, asked of a principal's SCHOOL rather than of
@@ -1115,12 +1254,13 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
       // reaches 'completed' (bd-2671), and filtering on it hid the entire
       // observation programme once already.
       userIds.length ? pool.query(
-        `SELECT created_at, analysis_data
-           FROM coaching_sessions
-          WHERE user_id = ANY($1::uuid[])
-            AND status IN ${TERMINAL}
-            AND analysis_data IS NOT NULL
-          ORDER BY created_at ASC`, [userIds]) : { rows: [] },
+        `SELECT c.created_at, c.analysis_data, u.name AS teacher_name
+           FROM coaching_sessions c
+           JOIN users u ON u.id = c.user_id
+          WHERE c.user_id = ANY($1::uuid[])
+            AND c.status IN ${TERMINAL}
+            AND c.analysis_data IS NOT NULL
+          ORDER BY c.created_at ASC`, [userIds]) : { rows: [] },
 
       // P (teacher) — keyed by teacher_id, so it filters with the same ids.
       userIds.length ? pool.query(
@@ -2176,9 +2316,22 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
         course_count: 0,
         module_count: 0,
         completed_module_count: 0,
+        // bd-60152 — the card leads with certificates earned, so the count
+        // must come from the same call that draws the card.
+        certificate_count: 0,
         _pctSum: 0,
         _pctN: 0,
       });
+    }
+
+    // Certificates held, attributed to the vendor that owns the level.
+    const { data: certRows } = levelIds.length
+      ? await supabase.from('training_certificates')
+        .select('level_id').eq('user_id', userId).in('level_id', levelIds)
+      : { data: [] };
+    for (const c of certRows || []) {
+      const agg = perVendor.get(levelToVendor.get(c.level_id));
+      if (agg) agg.certificate_count += 1;
     }
 
     for (const l of levels || []) {
@@ -2217,6 +2370,12 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
       course_count: agg.course_count,
       module_count: agg.module_count,
       completed_module_count: agg.completed_module_count,
+      // bd-60155 — this line is why the card read "0 Certificates" for
+      // everyone. The count was aggregated correctly above and then dropped
+      // here: this mapper names every field it returns, so a field added to
+      // the accumulator and not to this list is silently discarded. The
+      // aggregation was verified against real data; the RESPONSE never was.
+      certificate_count: agg.certificate_count,
       avg_score_pct: agg._pctN > 0 ? Math.round(agg._pctSum / agg._pctN) : null,
     }));
 
@@ -2532,6 +2691,128 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
     }
     console.error('portal/classes/:id/students remove error:', error.message);
     return res.status(502).json({ success: false, error: 'Could not remove the student. Please try again.' });
+  }
+});
+
+/**
+ * GET  /api/portal/training/level/:id/certificate   — is it claimable, and is one held?
+ * POST /api/portal/training/level/:id/certificate   — claim it.
+ *
+ * bd-60152 — the "Receive Certificate" row at the end of the course list.
+ *
+ * A teacher on a per-module-assessed level (I-SAPS) never sits a LEVEL exam, so
+ * nothing on the page ever told her the level was finished or handed her the
+ * certificate she had earned. The row is that affordance: locked until every
+ * module is done, and on tap it either says what is still outstanding or mints
+ * the certificate.
+ *
+ * The DECISION is the bot's shared guard (bd-60145), unchanged — all units
+ * complete AND every active per-module exam passed. This route adds no rule of
+ * its own; it reports what the guard already holds and asks it to issue.
+ * Idempotent: the guard refuses a second certificate per (user, level), so a
+ * double tap cannot mint two.
+ */
+async function _levelCertificateState(userId, levelId) {
+  // Held already? Then the answer is the certificate, whatever the gates say.
+  const { data: held } = await supabase
+    .from('training_certificates')
+    .select('certificate_code, issued_at')
+    .eq('user_id', userId).eq('level_id', levelId)
+    .limit(1);
+  if (Array.isArray(held) && held.length > 0) {
+    return { state: 'issued', certificate: held[0], units_total: 0, units_done: 0 };
+  }
+
+  // Otherwise: how much of the level is actually finished? Counted here rather
+  // than trusted from the client, because this is what the copy must explain.
+  const { data: courses } = await supabase
+    .from('training_courses').select('id').eq('level_id', levelId).eq('is_active', true);
+  const courseIds = (courses || []).map(c => c.id);
+  const { data: units } = courseIds.length
+    ? await supabase.from('training_modules').select('id')
+      .in('course_id', courseIds).eq('is_active', true)
+    : { data: [] };
+  const unitIds = (units || []).map(u => u.id);
+  const { data: done } = unitIds.length
+    ? await supabase.from('teacher_training_progress').select('module_id')
+      .eq('user_id', userId).in('module_id', unitIds)
+    : { data: [] };
+  const doneIds = new Set((done || []).map(d => d.module_id));
+
+  // And the per-module exams, which are the other half of the guard's test.
+  const { data: quizzes } = await supabase
+    .from('training_grand_quizzes')
+    .select('id, source_quiz_id, is_active')
+    .eq('level_id', levelId).eq('is_active', true);
+  const perModule = (quizzes || []).filter(q => Number(q.source_quiz_id) > 900);
+  const { data: passed } = perModule.length
+    ? await supabase.from('training_assessment_attempts')
+      .select('grand_quiz_id, is_passed')
+      .eq('user_id', userId).eq('quiz_kind', 'grand')
+    : { data: [] };
+  const passedIds = new Set((passed || []).filter(a => a.is_passed === true).map(a => a.grand_quiz_id));
+  const examsDone = perModule.filter(q => passedIds.has(q.id)).length;
+
+  return {
+    state: 'locked',
+    certificate: null,
+    units_total: unitIds.length,
+    units_done: unitIds.filter(id => doneIds.has(id)).length,
+    exams_total: perModule.length,
+    exams_done: examsDone,
+  };
+}
+
+router.get('/training/level/:id/certificate', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) {
+      return res.status(400).json({ success: false, error: 'Invalid level id' });
+    }
+    return res.json({ success: true, ...(await _levelCertificateState(userId, levelId)) });
+  } catch (error) {
+    console.error('training/level/:id/certificate GET error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load the certificate state' });
+  }
+});
+
+router.post('/training/level/:id/certificate', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) {
+      return res.status(400).json({ success: false, error: 'Invalid level id' });
+    }
+
+    const before = await _levelCertificateState(userId, levelId);
+    if (before.state === 'issued') {
+      return res.json({ success: true, issued: true, certificate: before.certificate });
+    }
+
+    const { data: assignment } = await supabase
+      .from('teacher_training_assignments').select('program_id')
+      .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+
+    const cert = await TrainingRules.certifyLevel({
+      userId, levelId, programId: assignment?.program_id || null,
+    });
+    if (cert.issued) {
+      return res.json({ success: true, issued: true, certificate: cert });
+    }
+    // The guard refused. Say WHAT is outstanding rather than "not yet".
+    return res.json({
+      success: true,
+      issued: false,
+      reason: 'incomplete',
+      units_total: before.units_total,
+      units_done: before.units_done,
+      exams_total: before.exams_total,
+      exams_done: before.exams_done,
+    });
+  } catch (error) {
+    console.error('training/level/:id/certificate POST error:', error);
+    return res.status(500).json({ success: false, error: 'Could not issue the certificate' });
   }
 });
 
@@ -2967,19 +3248,27 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
     // WhatsApp both use.
     let certificate = null;
     if (verdict.is_passed) {
-      const { issueCertificate } = require('../../bot/shared/services/training/certificate.service');
-      const cert = await issueCertificate(supabase, {
+      // bd-60145 — through the bot's GUARD, not the raw issuer.
+      //
+      // This called issueCertificate directly the moment the attempt passed,
+      // which skips every completeness check: the portal's copy of bd-60139,
+      // where one pass minted a certificate without asking whether the units
+      // were finished or the per-module exams passed. The decision belongs to
+      // the bot so that WhatsApp and the portal cannot disagree about who is
+      // certified. Denies (issues nothing) if the rules API is unreachable —
+      // the graded attempt above is already written either way.
+      const cert = await TrainingRules.certifyLevel({
         userId,
-        programId: assignment.program_id,
         levelId,
         attemptId: attempt.id,
+        programId: assignment.program_id,
       });
-      certificate = {
+      certificate = cert.issued ? {
         certificate_code: cert.certificate_code,
         teacher_name: cert.teacher_name,
         level_name: cert.level_name,
         issued_at: cert.issued_at,
-      };
+      } : null;
     }
 
     try {
@@ -3207,15 +3496,57 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       }
     }
 
+    // bd-60149 — does each unit have a formative assessment of its own?
+    //
+    // The I-SAPS list interleaves "Unit 301 / Unit 301 — Assessment", and the
+    // assessment row must NOT render for a unit that has no questions: two of
+    // the level's 54 units (302, 303) have none, and a blank row for them
+    // would promise work that does not exist. The detail endpoint already
+    // reports this per unit; the LIST needs it too, in one query.
+    const qMap = new Map();
+    if (moduleIds.length) {
+      const { data: qRows } = await supabase
+        .from('training_questions')
+        .select('training_module_id')
+        .in('training_module_id', moduleIds)
+        .eq('is_active', true);
+      for (const r of qRows || []) qMap.set(r.training_module_id, true);
+    }
+
     const enriched = (modules || []).map(m => ({
       id: m.id, title: m.title, order_index: m.order_index,
       duration_seconds: m.duration_seconds,
       has_video: !!m.video_url,
       has_audio: !!m.audio_url,
       has_pdf: _isPdfSourceUrl(m.source_media_url),
+      has_questions: qMap.has(m.id),
       completed_at: completedMap.get(m.id) || null,
     }));
-    res.json({ success: true, modules: enriched });
+    // bd-60149 — the module's own summative exam, alongside its units.
+    //
+    // Operator decision: an unpassed module exam BLOCKS the next module, the
+    // same way WhatsApp gates it. The UI cannot render that lock without the
+    // state, and the portal must not compute it locally — so the verdict comes
+    // from the bot, once per course rather than once per unit.
+    //
+    // Best effort: a rules-API hiccup must not stop a teacher seeing her
+    // units. `exam: null` renders as "no exam here", which is also the honest
+    // answer for every vendor that has none.
+    let exam = null;
+    try {
+      const g = await TrainingRules.moduleExamGate(userId, parseInt(courseId, 10));
+      if (g && (g.ok || g.body)) {
+        exam = {
+          available: g.ok === true,
+          body: g.body || '',
+          caption: g.caption || '',
+          cta: g.cta || '',
+          module_no: g.module_no ?? null,
+        };
+      }
+    } catch (_) { /* leave exam null — the units still render */ }
+
+    res.json({ success: true, modules: enriched, exam });
   } catch (error) {
     console.error('training/modules error:', error);
     res.status(500).json({ success: false, error: 'Failed to load modules' });
@@ -3749,6 +4080,44 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
         );
     }
 
+    // 8b. The level certificate, if this pass finished the level.
+    //
+    // bd-60145 — no portal route certified a per-module-assessed level at all.
+    // Certification lived only in the capstone and grand-quiz routes, both
+    // LEVEL-scoped, so an I-SAPS teacher who finished every unit and every
+    // module exam through the portal was certified by nothing — the same hole
+    // bd-60142 fixed on WhatsApp, one surface over.
+    //
+    // The bot's guard decides. It is cheap to ask and refuses fast when the
+    // level is unfinished, and it is idempotent per (user, level), so calling
+    // it on every pass cannot mint a duplicate.
+    //
+    // Deliberately NOT allowed to affect this response's success: the graded
+    // attempt, its answers and the progress row are already committed. A
+    // certificate that fails to issue here is issued by the next pass or by
+    // the WhatsApp path; a submission lost to a certificate error would
+    // destroy real work.
+    let certificate = null;
+    if (isPassed) {
+      try {
+        const cert = await TrainingRules.certifyLevel({
+          userId,
+          levelId,
+          moduleId,
+          attemptId: attempt.id,
+          programId: assignment.program_id,
+        });
+        if (cert.issued) {
+          certificate = {
+            certificate_code: cert.certificate_code,
+            teacher_name: cert.teacher_name,
+            level_name: cert.level_name,
+            issued_at: cert.issued_at,
+          };
+        }
+      } catch (_) { /* never let certification fail a graded submission */ }
+    }
+
     // 9. Semantic event — same name/shape as WhatsApp side for observability
     //    parity. Payload keys deliberately avoid tripping the column-scanner
     //    heuristic (see quiz-delivery.service.js gradeAttempt).
@@ -3779,6 +4148,8 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
         achieved_pct: verdict.achieved_pct,
         completed_at: completedAt,
       },
+      // null unless this pass completed the level (bd-60145).
+      certificate,
     });
   } catch (error) {
     console.error('training/module/:id/quiz-attempts POST error:', error);
@@ -4289,19 +4660,27 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
     //    the service lives in the bot tree and must not load at router mount.
     let certificate = null;
     if (isPassed) {
-      const { issueCertificate } = require('../../bot/shared/services/training/certificate.service');
-      const cert = await issueCertificate(supabase, {
+      // bd-60145 — through the bot's GUARD, not the raw issuer.
+      //
+      // This called issueCertificate directly the moment the attempt passed,
+      // which skips every completeness check: the portal's copy of bd-60139,
+      // where one pass minted a certificate without asking whether the units
+      // were finished or the per-module exams passed. The decision belongs to
+      // the bot so that WhatsApp and the portal cannot disagree about who is
+      // certified. Denies (issues nothing) if the rules API is unreachable —
+      // the graded attempt above is already written either way.
+      const cert = await TrainingRules.certifyLevel({
         userId,
-        programId: assignment.program_id,
         levelId,
         attemptId: attempt.id,
+        programId: assignment.program_id,
       });
-      certificate = {
+      certificate = cert.issued ? {
         certificate_code: cert.certificate_code,
         teacher_name: cert.teacher_name,
         level_name: cert.level_name,
         issued_at: cert.issued_at,
-      };
+      } : null;
     }
 
     // 9. Semantic event — observability parity with the module-quiz endpoint.
@@ -4363,6 +4742,106 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
  * The write itself upserts on the (user_id, module_id) unique constraint so a
  * concurrent double-click cannot 500 on a duplicate either.
  */
+/**
+ * GET /api/portal/training/module/:id/exam
+ *
+ * bd-60149 — may this teacher sit this module's summative exam?
+ *
+ * The portal had no concept of a module exam: `source_quiz_id` appeared
+ * nowhere in this file, so an I-SAPS teacher could finish all 54 units here
+ * and never reach a summative assessment. `:id` is the COURSE (a "module" in
+ * I-SAPS terms), matching how the exam is keyed.
+ *
+ * The verdict comes from the bot, so this screen and WhatsApp cannot disagree
+ * about whether the exam is open.
+ */
+router.get('/training/module/:id/exam', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const courseId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(courseId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+    const gate = await TrainingRules.moduleExamGate(userId, courseId);
+    return res.json({ success: true, exam: gate });
+  } catch (error) {
+    console.error('training/module/:id/exam GET error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load the module exam' });
+  }
+});
+
+/**
+ * GET /api/portal/training/module/:id/exam/questions
+ *
+ * bd-60149 — opens (or resumes) the attempt and returns the served paper:
+ * 2 scenario MCQs + 1 written answer, seeded on the attempt id so a page
+ * reload re-derives the SAME three questions rather than drawing fresh ones.
+ *
+ * Answer keys never cross this boundary — the bot strips them.
+ */
+router.get('/training/module/:id/exam/questions', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const courseId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(courseId)) {
+      return res.status(400).json({ success: false, error: 'Invalid module id' });
+    }
+    const { data: assignment } = await supabase
+      .from('teacher_training_assignments').select('program_id')
+      .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+
+    const paper = await TrainingRules.startModuleExam(userId, courseId, assignment?.program_id || null);
+    if (!paper.ok) {
+      return res.status(409).json({ success: false, error: 'This exam is not available yet.', reason: paper.reason });
+    }
+    return res.json({
+      success: true,
+      attempt_id: paper.attempt_id,
+      module_title: paper.module_title,
+      total_questions: paper.total_questions,
+      questions: paper.questions,
+    });
+  } catch (error) {
+    console.error('training/module/:id/exam/questions GET error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load the exam paper' });
+  }
+});
+
+/**
+ * POST /api/portal/training/module/:id/exam/attempts
+ * Body { attempt_id, answers:[{question_id, chosen_option?, answer_text?}] }
+ *
+ * bd-60149 — submit the paper.
+ *
+ * Marking happens in the bot, with the same grader WhatsApp uses, so identical
+ * words earn an identical score whichever surface a teacher used.
+ *
+ * THE WRITTEN ANSWER IS MARKED IN THE BACKGROUND (operator decision): the
+ * answers are committed and this returns `crq_pending: true` immediately, with
+ * the rubric score landing when the model replies. A ~10s LLM call must never
+ * be the reason a teacher's typed answer is lost.
+ */
+router.post('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const { attempt_id: attemptId, answers } = req.body || {};
+    if (!attemptId) {
+      return res.status(400).json({ success: false, error: 'attempt_id is required' });
+    }
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ success: false, error: 'answers[] is required' });
+    }
+    const result = await TrainingRules.submitModuleExam(userId, attemptId, answers);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    // The rules client THROWS when marking cannot be trusted; abandoning the
+    // write is correct, because recording an unmarked pass invents progress
+    // and an unmarked fail destroys real work.
+    console.error('training/module/:id/exam/attempts POST error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to submit the exam' });
+  }
+});
+
 router.post('/training/module/:id/complete', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;

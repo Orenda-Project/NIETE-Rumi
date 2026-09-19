@@ -111,6 +111,14 @@ REL_SYNC=".claude/.e2e-pending/git-$SHA.sync.json"
   e2e_split_lanes "$(printf '%s' "$FEATURES" | tr -d ' ')"
   if [ -n "${E2E_LANE_MOCK:-}" ]; then
     echo "│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/engine/bin/commit-e2e.sh $SHA --features $E2E_LANE_MOCK"
+    # Can this machine actually run it? FIX it here (keys auto-provisioned from Railway) — no manual step.
+    # Only what cannot be fixed (railway not logged in) is printed. Inline fallback = no lib = silent.
+    if type e2e_mock_lane_autofix >/dev/null 2>&1; then
+      _MAIN=$(e2e_main_checkout "$ROOT")
+      _FIX=$(e2e_mock_lane_autofix "$_MAIN"); _FIX_RC=$?
+      printf '%s\n' "$_FIX" | grep '^auto-' | sed 's/^/│ machine: /' || true
+      [ "$_FIX_RC" -eq 0 ] || e2e_mock_not_ready_block "$(e2e_mock_lane_ready "$_MAIN"; printf '%s\n' "$_FIX" | grep -E 'failed|unavailable' || true)" | sed 's/^/│ /'
+    fi
   fi
   if [ -n "${E2E_LANE_CHROME:-}" ]; then
     if [ "${E2E_CHROME_ON:-0}" != "1" ]; then

@@ -160,10 +160,28 @@ const COACHING_MESSAGES = {
     ...en("Note: Voice summary could not be generated, but your written report is complete! You can review it in the PDF above. 📄"),
     ur: 'نوٹ: آواز کا خلاصہ تیار نہیں ہو سکا، مگر آپ کی تحریری رپورٹ مکمل ہے! اوپر دی گئی PDF میں اسے دیکھا جا سکتا ہے۔ 📄',
   },
-  // Long transcript warning (transcription pipeline)
-  longLessonDetected: {
-    ...en("⚠️ *Long Lesson Detected*\n\nYour lesson transcript is quite lengthy. The analysis may take a bit longer, but I'll make sure to provide comprehensive feedback!"),
-    ur: '⚠️ *طویل سبق*\n\nآپ کے سبق کی تحریر خاصی طویل ہے۔ تجزیے میں کچھ زیادہ وقت لگ سکتا ہے، مگر تفصیلی فیڈبیک ضرور دیا جائے گا!',
+  // Post-transcription acknowledgement (bd-di5ap / DC row 129).
+  //
+  // This REPLACES a GPT-4o call that was handed only a name and a duration and
+  // told to be "authentic and specific". With no transcript and no analysis to
+  // be specific about, it invented the specificity — one teacher was told "your
+  // 29-minute lesson was engaging and impactful" before a single word had been
+  // analysed, and read it as her feedback. A fixed sentence cannot form an
+  // opinion, so the defect is removed at its source rather than guarded.
+  //
+  // It is an ACKNOWLEDGEMENT, not praise: it confirms the audio landed and how
+  // long it ran, and stops there. {{minutes}} stays in standard digits in both
+  // languages — the count is data, only the words around it translate.
+  transcriptionComplete: {
+    ...en('✅ Transcription complete, {{name}}! You taught for {{minutes}} minutes.'),
+    ur: '✅ {{name}}، آپ کی آڈیو تحریر میں منتقل ہو گئی۔ آپ نے {{minutes}} منٹ پڑھایا۔',
+  },
+  // Same message for the 6,282-of-15,552 teachers whose `users.name` is NULL
+  // (bd-gc1ge). A separate key, not an empty {{name}} slot, so neither language
+  // is left with a dangling comma.
+  transcriptionComplete_noName: {
+    ...en('✅ Transcription complete! You taught for {{minutes}} minutes.'),
+    ur: '✅ آپ کی آڈیو تحریر میں منتقل ہو گئی۔ آپ نے {{minutes}} منٹ پڑھایا۔',
   },
   // Agency follow-up: remind the teacher of their prior commitment.
   // {{action}} is substituted at the call site (kept distinct from

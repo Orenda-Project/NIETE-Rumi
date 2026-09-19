@@ -89,6 +89,44 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # scenario: see grade_7_urdu.c11.p062-064.tafheem, which is delivered only because the model's
     # internal routing note is not teacher-facing.
 
+  @e2e @content-driven @P1
+  Scenario: A plan naming an ordinary person called محمد is delivered, because a reviewer cleared it
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for the Grade 10 Urdu segment whose body names the poet "سیّد ولی محمد"
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is not sent back for a revision round
+    # bd-zipoe. `محمد` is one of the commonest given names in Pakistan, and RELIGIOUS_MARKS
+    # demanded ﷺ after every one — so grade_10_urdu.p2c05.p135-135.tafheem failed five times on
+    # Nazeer Akbarabadi's real name, four of them on teacher-facing paths, and auto-repair answered
+    # by attaching the Prophet's salutation to a man who is not the Prophet. What clears it is NOT
+    # a rule: gate G5c forbids an automated check clearing religious content. It is the G5c
+    # native-speaker review itself — 298 phrases decided by Amena Ahmed on 2026-09-17 — carried
+    # into the repo as data (bot/vendor/lp-v9/g5c_cleared_names.json). A name the review did not
+    # decide is still withheld, which is the scenario below.
+
+  @e2e @content-driven @P1
+  Scenario: An "Urdu" plan that is really English is refused, and the English lesson is delivered instead
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment from an English-medium book, and the overlay pass answers in
+      English with its Urdu only inside the brackets — "Chapter 10 (کیمیائی توازن)"
+    Then a lesson-plan PDF is still delivered to the chat — the refusal is not silence
+    And what she receives is the English lesson, flagged by the honest caption
+    And she is never handed a plan that presents itself as Urdu and reads as English
+    # bd-htw51 / bd-y478d / bd-9a2sf. Two fixes to this gate each answered half the question and each
+    # re-opened the other half, because ONE number cannot answer both. Measured on real deltas: a
+    # genuine Urdu line carrying a bare English term of record — «باب 10 · Chemical Equilibrium» —
+    # scores 0.371 Urdu, while an English line with an Urdu gloss — «Chapter 10 (کیمیائی توازن)» —
+    # scores 0.439. The impostor scores HIGHER, so no threshold could separate them. What separates
+    # them is WHERE the Urdu sits, so the gate now asks two questions: a FLOOR on the merged overlay
+    # with all-Latin brackets discounted, and a CATEGORICAL check on THIS call's delta with every
+    # bracket stripped — if no Urdu survives outside the brackets, the model answered in English.
+    # Refusing is the kind outcome: the worker falls back to the English document it kept intact,
+    # the row records overlay_dropped, and lp612.overlay.pass carries outcome=failed. The silent
+    # alternative was an English page delivered under an Urdu claim, which is what 8 of the 23
+    # attempted 6-12 repair rows were on 2026-09-18.
+
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
     Given the NIETE bot chat is open
@@ -127,6 +165,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # automated checks do not clear religious content, and native-speaker review remains a hard
     # hold before any teacher delivery. A plan that reaches this state is a review item, not a
     # delivery — bd-qzitp is the regression this pins.
+    # bd-zipoe does not move this line: the cleared-name list only ever CLEARS, and only the exact
+    # phrases the reviewer saw. An unreviewed name — even one shaped exactly like a cleared one —
+    # is not cleared. Fail-closed, always.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message

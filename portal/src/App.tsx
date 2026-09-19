@@ -18,6 +18,7 @@ import PortalDashboard from "./portal/pages/PortalDashboard";
 import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
 import PortalTraining from "./portal/pages/PortalTraining";
+import PortalTrainingV2 from "./portal/pages/PortalTrainingV2";
 import PortalCoaching from "./portal/pages/PortalCoaching";
 import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
 import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
@@ -27,6 +28,10 @@ import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
 import LeaderObservations from "./portal/pages/LeaderObservations";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
+// bd-60123 — the attendance detail (merged G3 + day-wise).
+import SchoolAttendance from "./portal/pages/SchoolAttendance";
+// bd-60121 — every observed lesson, its own page.
+import SchoolLessons from "./portal/pages/SchoolLessons";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
  * imports and the /portal/reading-* + /portal/video* routes below. */
@@ -94,7 +99,30 @@ const App = () => {
             />
             <Route path="/portal/classes" element={<PortalClasses />} />
             <Route path="/portal/curriculum" element={<PortalCurriculum />} />
-            <Route path="/portal/training" element={<PortalTraining />} />
+            {/* bd-60160 — the redesigned page IS the training page now.
+                /portal/training serves it; the nav needs no change because it
+                already points there.
+
+                The old page stays reachable at /portal/training/v1 rather than
+                being deleted, so a rollback is repointing ONE route back
+                instead of a revert, and anyone mid-session on the old URL is
+                not stranded. /v2 keeps working too — it has been handed out in
+                this session and in review links, and a dead link is a worse
+                answer than a duplicate one. */}
+            <Route path="/portal/training/v1" element={<PortalTraining />} />
+            <Route path="/portal/training/v2" element={<PortalTrainingV2 />} />
+            {/* bd-60152 — a unit gets its own page and its own URL, so it can
+                be linked, reloaded and navigated with the browser's own back
+                button rather than living as a panel under the lists. */}
+            <Route path="/portal/training/v2/unit/:moduleId" element={<PortalTrainingV2 />} />
+            {/* bd-60152 — the module exam gets its own page too: it is a sat
+                assessment, not a panel under a list. */}
+            <Route path="/portal/training/v2/exam/:courseId" element={<PortalTrainingV2 />} />
+            {/* The same two sub-pages under the canonical path, because that is
+                where openUnit/openExam now navigate. */}
+            <Route path="/portal/training/unit/:moduleId" element={<PortalTrainingV2 />} />
+            <Route path="/portal/training/exam/:courseId" element={<PortalTrainingV2 />} />
+            <Route path="/portal/training" element={<PortalTrainingV2 />} />
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
             <Route path="/portal/coaching/session/:sessionId" element={<PortalCoachingDetail />} />
@@ -108,6 +136,8 @@ const App = () => {
                 the leader family and the page says so rather than showing
                 one school's numbers to a multi-school role. */}
             <Route path="/portal/leader/school-analytics" element={<SchoolAnalytics />} />
+            <Route path="/portal/leader/attendance" element={<SchoolAttendance />} />
+            <Route path="/portal/leader/lessons" element={<SchoolLessons />} />
             <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

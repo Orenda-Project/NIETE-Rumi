@@ -695,6 +695,12 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
     const QuizDelivery = require('../services/training/quiz-delivery.service');
     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);
   }
+  // bd-60120 — I-SAPS assesses per MODULE, so the exam the teacher tapped is
+  // that module's, not the level's. courseId identifies the module.
+  if (trainingAction === 'start_module_exam' && courseId) {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    return await QuizDelivery.startModuleExam(userId, courseId, phoneNumber);
+  }
   // a refusal used to land here and fall through to `return true`,
   // so the bot said nothing at all. The Flow's SUCCESS screen is terminal, so
   // from the teacher's side the Flow just closed and the chat stayed silent —

@@ -344,6 +344,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {
           return;
         }
 
+        // bd-60128 — the I-SAPS CRQ is the LAST question of a module exam, not
+        // a separate capstone, so its answer arrives during a `grand` attempt
+        // and the capstone router above does not see it. Claimed only when the
+        // question the teacher is on really is open-ended; slash commands pass
+        // through either way.
+        const QuizDeliveryText = require('../services/training/quiz-delivery.service');
+        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {
+          typingController.stop();
+          return;
+        }
+
         const quizState = await QuizSessionService.getActiveState(from);
         if (quizState) {
           const trimmedQ = messageBody.trim();
@@ -2130,9 +2141,19 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       } else if (decision.kind === 'unknown') {
         await WhatsAppService.sendMessage(from, resolveUx('statusCheckFailed', { user }));
       } else {
-        // No Flow published — the plain-text list, so the command still answers.
+        // The plain-text list. TWO ways to land here, and the second is now the
+        // common one: no Flow published, OR a Flow IS published but nothing
+        // running can be stopped — decideStatusReply routes an all-`summaryOnly`
+        // list here rather than open a Flow whose only button is "Done — close".
         await WhatsAppService.sendMessage(from,
           `Running for you:\n${items.map(it => `• ${it.title}`).join('\n')}`);
+        logToFile('📋 /status answered in chat — listed what is running', {
+          userId: user.id,
+          taskCount: items.length,
+          // Distinguishes the two ways in: no Flow at all, versus a Flow
+          // deliberately not opened because nothing listed can be stopped.
+          flowPublished: Boolean(STATUS_FLOW_ID),
+        });
       }
     } catch (error) {
       logToFile('❌ Error starting /status', { userId: user?.id, error: error.message }, 'error');
