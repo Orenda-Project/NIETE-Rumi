@@ -294,19 +294,20 @@ class TranscriptionProcessorService {
         return;
       }
 
-      // Acknowledge the recording — the receipt, not a review. bd-di5ap: this
-      // was a GPT-4o call that invented a verdict on a lesson nothing had read
-      // yet. Language is resolved HERE, at send time, rather than reusing the
-      // `currentLanguage` read before the transcript was analysed — teacher-
-      // addressed text follows her current preference.
-      const CoachingHelpersService = require('./coaching-helpers.service');
-      const ackLanguage = await getUserLanguage(session.user_id) || 'en';
-      const encouragingMessage = await CoachingHelpersService.generateEncouragingMessage(
-        session.users.name,
-        session.audio_duration_seconds,
-        ackLanguage
-      );
-      await WhatsAppService.sendMessage(from, encouragingMessage);
+      // bd-59840 (DC row 129): nothing is sent here.
+      //
+      // This slot held an acknowledgement — first a GPT-4o "encouraging message"
+      // that invented a verdict on a lesson nothing had read (bd-di5ap), then a
+      // fixed catalog line in its place. Row 129 asked for the stretch between
+      // Step 1/5 and the photo prompt to carry no extra messages at all, so the
+      // slot is empty and the photo prompt below follows transcription directly.
+      //
+      // Step 1/5 now states the real wait ("up to 15 minutes") rather than
+      // "30-60 seconds", which is what made this silence feel like a fault.
+      // Anything re-added here must come from coaching-messages.js with an `ur`
+      // variant — an English literal at this send site is refused by the
+      // no-hardcoded-coaching-strings ratchet, and a model call is the shape
+      // that caused row 129 in the first place.
 
       // Phase 3: Agency follow-up — remind teacher of prior commitment
       try {

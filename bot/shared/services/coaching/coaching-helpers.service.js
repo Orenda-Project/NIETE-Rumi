@@ -3,7 +3,6 @@
  * Utility functions for coaching workflow
  *
  * Responsibilities:
- * - Acknowledge a completed transcription
  * - Determine output language
  * - Record quality metrics
  * - Calculate costs
@@ -13,58 +12,27 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
-const { getCoachingMessage } = require('../../config/coaching-messages');
 const { getUserLanguage } = require('../../utils/language-cache');
 const { clampLanguage } = require('../../config/ux-strings');
 
 class CoachingHelpersService {
-  /**
-   * Acknowledge a completed transcription.
-   *
-   * bd-di5ap (DC row 129) — this used to ask GPT-4o for a "warm, encouraging"
-   * line and gave it two inputs: the teacher's name and the lesson duration. No
-   * transcript. No analysis — none has run at this point in the pipeline. The
-   * system prompt nonetheless asked it to be "authentic and SPECIFIC", so the
-   * model supplied specificity it had no basis for: a teacher was told "your
-   * 29-minute lesson was engaging and impactful" and reasonably took it for her
-   * feedback, one message after being told transcription would take 30-60
-   * seconds. Guarding the output would have been the wrong fix — the prompt was
-   * ASKING for a verdict. Removing the model removes the class.
-   *
-   * What the teacher needs here is the receipt, not the review: confirmation
-   * that her audio arrived and how long it ran. That is a fixed sentence, so it
-   * now lives in the catalog and is translated — which also closes a second
-   * defect for free. The old prompt carried no language instruction at all
-   * ("a supportive teaching coach in Pakistan"), so the one message in this
-   * stretch of the pipeline that was not translatable was this one. The main
-   * bot hit exactly this and fixed it in bd-8/BUG-117; the port never reached
-   * NIETE. It feeds DC row 130 (half-English, half-Urdu sessions).
-   *
-   * @param {string} firstName - Teacher's name. `session.users.name` is NULL for
-   *   6,282 of 15,552 prod users (bd-gc1ge), so a nameless variant is a real
-   *   path, not an edge case — normalised here so every caller is covered.
-   * @param {number} durationSeconds - Audio duration in seconds
-   * @param {string} [language='en'] - Teacher's current language. Defaults to
-   *   English only as an emergency floor; callers resolve it at send time
-   *   (teacher-addressed text reads the CURRENT preference, never a frozen one).
-   * @returns {Promise<string>} The acknowledgement, ready to send
-   */
-  static async generateEncouragingMessage(firstName, durationSeconds, language = 'en') {
-    const name = String(firstName == null ? '' : firstName).trim();
-    const durationMinutes = Math.round(Number(durationSeconds) / 60) || 0;
-
-    const key = name ? 'transcriptionComplete' : 'transcriptionComplete_noName';
-
-    // No `|| 'en'` floor here: getCoachingMessage already returns the English
-    // entry for any code it has no copy for, including null. Adding one would
-    // ratchet this file's English-floor count for no behavioural gain.
-    //
-    // String(...) on the count, never a locale-aware formatter: the digits stay
-    // Western in both languages. Only the words around them translate.
-    return getCoachingMessage(key, language)
-      .replace('{{name}}', name)
-      .replace('{{minutes}}', String(durationMinutes));
-  }
+  // bd-59840 (DC row 129): there is deliberately no post-transcription
+  // acknowledgement here any more.
+  //
+  // It began as a GPT-4o call handed only a name and a duration and told to be
+  // "authentic and specific". With no transcript and no analysis to be specific
+  // about, it invented the specificity — a teacher was told "your 29-minute
+  // lesson was engaging and impactful" before a single word had been analysed
+  // and reasonably read it as her feedback. bd-di5ap removed the model and left
+  // a fixed, translated catalog line in its place; bd-59840 removed that too,
+  // because row 129 asked for NO extra messages in the stretch between Step 1/5
+  // and the photo prompt, and an acknowledgement is still an extra message.
+  //
+  // The photo prompt now follows transcription directly and is itself the
+  // teacher's signal that her audio arrived. If a confirmation is ever wanted
+  // back, it belongs in coaching-messages.js with an `ur` variant from the
+  // start — never as an English literal at the send site, and never as a model
+  // call, which is the shape that caused this.
 
   /**
    * Determine output language for the report + voice debrief.
