@@ -21,7 +21,7 @@ So the assertions below are the invariant, not the symptom:
     the two strings live; a copy here would be a third convention waiting to
     drift from the two it was meant to reconcile.
   * `Row type` STAYS THE ORACLE. It carried the truth all along, which is why
-    the fix was safe: the live build reads day 1657 / assessment 145 /
+    the fix was safe: the live build reads day 1658 / assessment 145 /
     review 121 there, and the pattern count now agrees with it.
 """
 import os
@@ -144,8 +144,10 @@ class TheLiveBuildAgreesWithItsOwnRowTypes(unittest.TestCase):
 
     def test_the_year_teaches_the_days_the_row_types_count(self):
         # 1,695 before the fix: the 38 `Day N (Review)` rows matched too.
+        # 1,658 since 19 Sep 2026: bd-4lx8q split one Grade 1 English day in
+        # two, so the year teaches one more period than it did.
         matched = [r for r in self.body if DAY.match(str(r[self.day_c]))]
-        self.assertEqual(len(matched), 1657)
+        self.assertEqual(len(matched), 1658)
         self.assertEqual(len(matched), len(self.kinds("day")))
 
     def test_the_chapter_tails_are_counted_where_they_belong(self):

@@ -111,7 +111,12 @@ class TheRealGradeOneBooksPayTheFoundationsBill(unittest.TestCase):
     def test_grade_1_english_frees_twelve_periods(self):
         before = book("grade_1_english")
         after, freed = dayfold.fold_revision(before, "English", 1)
-        self.assertEqual((len(before), len(after), freed), (110, 98, 12))
+        # 111/99 since 19 Sep 2026, not 110/98: bd-4lx8q split chapter 1's
+        # day 5 in two. It carried a rhyme SLO and a days-of-the-week SLO
+        # that have nothing to do with each other, so the book teaches one
+        # more period than it did. The freed count is unchanged -- the split
+        # added a teaching day, not a revision row.
+        self.assertEqual((len(before), len(after), freed), (111, 99, 12))
 
     def test_grade_1_maths_frees_fifteen_periods(self):
         before = book("grade_1_maths")

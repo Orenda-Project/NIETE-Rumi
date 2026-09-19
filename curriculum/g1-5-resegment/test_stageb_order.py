@@ -262,8 +262,13 @@ class GradeOneEnglishAndMathsAreFoldedAtTheDoor(unittest.TestCase):
         codes = lambda rows: {c for s in rows for c in s.get("slo_codes") or []}
         return len(raw), len(out), codes(raw) == codes(out)
 
-    def test_grade_1_english_comes_out_at_98_with_every_slo(self):
-        self.assertEqual(self.counts("grade_1_english"), (110, 98, True))
+    def test_grade_1_english_comes_out_at_99_with_every_slo(self):
+        # 111/99 since 19 Sep 2026, not 110/98: bd-4lx8q split chapter 1's
+        # day 5 in two. It carried a rhyme SLO and a days-of-the-week SLO
+        # that have nothing to do with each other, so the book teaches one
+        # more period than it did. The freed count is unchanged -- the split
+        # added a teaching day, not a revision row.
+        self.assertEqual(self.counts("grade_1_english"), (111, 99, True))
 
     def test_grade_1_maths_comes_out_at_128_with_every_slo(self):
         self.assertEqual(self.counts("grade_1_maths"), (143, 128, True))
