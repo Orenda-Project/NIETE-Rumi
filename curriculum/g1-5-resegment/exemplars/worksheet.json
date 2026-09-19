@@ -1,0 +1,105 @@
+{
+  "_note": "SHAPE REFERENCE, NOT CONTENT. Invented for this purpose -- no page of any textbook is behind it, and it must never be copied into a real assessment. It exists because a field list tells an author which keys to write and nothing at all about how much to write in them. Every rule wslint enforces is visible here at least once: a question with an illustration split into groups of four, an open-personal question that carries a model answer instead of a key, a directive kept off the child's sheet, and per-question marks that add up to the stated total. Kept lint-clean by test_cbrief.py, so it cannot rot into an example of the wrong thing.",
+  "lesson_id": "exemplar_worksheet",
+  "lp_type": "assessment",
+  "generated": {
+    "title": "Chapter Worksheet — A Day at the Farm",
+    "instructions": "Read each question carefully. Do your best work.",
+    "total_marks": 20,
+    "questions": [
+      {
+        "id": "q1",
+        "type": "mcq",
+        "marks": 2,
+        "childText": "Which animal gives us milk?",
+        "options": ["Cow", "Hen", "Fish"],
+        "space": "none",
+        "answer": "Cow",
+        "marking": "2 marks for Cow. No half marks.",
+        "common_errors": ["picks Hen because it is also a farm animal"]
+      },
+      {
+        "id": "q2",
+        "type": "fill",
+        "marks": 2,
+        "childText": "A baby cat is called a ______.",
+        "space": "lines",
+        "answer": "kitten",
+        "marking": "2 marks for kitten; 1 mark for a clear phonetic attempt such as 'kiten'.",
+        "common_errors": ["writes 'cat' again", "spells 'kiten' with one t"]
+      },
+      {
+        "id": "q3",
+        "type": "match",
+        "marks": 3,
+        "childText": "Draw a line to match each animal to its home.",
+        "pairs": [
+          {"left": "Hen", "right": "Coop"},
+          {"left": "Horse", "right": "Stable"},
+          {"left": "Bee", "right": "Hive"}
+        ],
+        "space": "none",
+        "answer": "Hen-Coop, Horse-Stable, Bee-Hive",
+        "marking": "1 mark per correct line.",
+        "common_errors": ["joins every animal to the barn"]
+      },
+      {
+        "id": "q4",
+        "type": "compute",
+        "marks": 3,
+        "childText": "There are 4 ducks in one pond and 3 ducks in another. How many ducks in all?",
+        "space": "box",
+        "illustration": {
+          "ascii": "pond A: [d][d][d][d]   pond B: [d][d][d]",
+          "groups": [4, 3],
+          "caption": "two ponds, ducks drawn as separate groups"
+        },
+        "answer": "7",
+        "marking": "2 marks for 7; 1 mark for a correct count shown on the picture with a wrong total.",
+        "common_errors": ["counts one pond only and answers 4"]
+      },
+      {
+        "id": "q5",
+        "type": "draw",
+        "marks": 2,
+        "childText": "Draw the animal you liked best on the farm.",
+        "space": "box",
+        "directive": "Let children draw without naming an animal for them.",
+        "open_personal": true,
+        "model_solution": "Any recognisable farm animal, drawn with at least one identifying feature (a comb, a tail, wings).",
+        "marking": "2 marks for a recognisable farm animal; 1 mark for an attempt.",
+        "common_errors": []
+      },
+      {
+        "id": "q6",
+        "type": "word",
+        "marks": 3,
+        "childText": "The farmer has 5 eggs. He sells 2. How many eggs are left?",
+        "space": "lines",
+        "answer": "3 eggs",
+        "marking": "2 marks for 3; 1 mark for showing 5 - 2 with a wrong answer.",
+        "common_errors": ["adds instead of subtracting and answers 7"]
+      },
+      {
+        "id": "q7",
+        "type": "short",
+        "marks": 3,
+        "childText": "Write one sentence about what the farmer does in the morning.",
+        "space": "lines",
+        "answer": "Any sentence naming a morning farm task, e.g. 'He feeds the hens.'",
+        "marking": "2 marks for a full sentence, 1 for a phrase, 1 extra for a capital letter and a full stop.",
+        "common_errors": ["writes a single word", "no capital letter"]
+      },
+      {
+        "id": "q8",
+        "type": "short",
+        "marks": 2,
+        "childText": "Name two animals you saw at the farm.",
+        "space": "lines",
+        "answer": "Any two of: cow, hen, horse, duck, bee, cat.",
+        "marking": "1 mark per animal named.",
+        "common_errors": ["names the same animal twice"]
+      }
+    ]
+  }
+}

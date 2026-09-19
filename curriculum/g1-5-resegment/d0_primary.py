@@ -34,6 +34,7 @@ import d0_close
 import d0_diagram
 import d0_hook
 import d0_page2
+import d0_route
 
 # v9's `lp_type` is a G6-12 vocabulary and primary's is a different axis
 # (content / revision / assessment). The schema enum is closed, so D0 maps onto
@@ -47,6 +48,8 @@ LANGUAGE_SUBJECTS = {"english", "urdu"}
 
 
 def _lp_type(primary_type, subject):
+    # Reachable for a review day only under `to_lp_doc(force_lp=True)`. The
+    # ordinary path refuses before it gets here -- see d0_route.
     if (primary_type or "").lower() in ("revision", "assessment"):
         return "RECALL"
     return "LL-2" if (subject or "").lower() in LANGUAGE_SUBJECTS else "STEM-2"
@@ -184,7 +187,8 @@ def _one_screen(g):
     return "\n\n".join(p for p in parts if p) or B.DESIGN_PENDING
 
 
-def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None):
+def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
+              segment=None, force_lp=False):
     """Build an lp_doc v3.0 from one gate-passed enrichment record.
 
     `enr`        the enrichment file (its `generated` payload)
@@ -196,7 +200,19 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None):
                  the continuation strip, the page2 title and the browser title --
                  four printings, so it must be a NAME. An earlier pass put the
                  216-character SLO sentence here and it filled the header.
+    `segment`    the curriculum-matrix row, for the route check. Optional
+                 because the envelope carries the type too -- its absence may
+                 not disable the check (d0_route).
+    `force_lp`   render a review day as a lesson plan anyway. The deliberate,
+                 named escape hatch; never the default.
     """
+    # THE ROUTE CHECK LIVES HERE, NOT IN A WRAPPER (the skill's Law 18, caught
+    # twice in the cloud lineage and once here). An assessment is a student
+    # worksheet and a revision day is three panels; both used to fall through
+    # `_lp_type` onto v9's RECALL and render as an ordinary teacher LP, which
+    # is well-formed, scores clean, and is the wrong object.
+    d0_route.assert_content(enr, segment, force=force_lp)
+
     g = enr["generated"]
     pt = page_truth or {}
     stem = pt.get("book_stem") or ""

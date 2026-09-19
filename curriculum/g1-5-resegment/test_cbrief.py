@@ -242,17 +242,111 @@ class GroundingIsNotOptional(unittest.TestCase):
 class ItStaysPure(unittest.TestCase):
     """Testable without the restricted corpus and without credentials."""
 
-    def test_it_reads_no_files_and_imports_only_the_budget_map(self):
+    def test_it_reads_no_files_and_imports_only_pure_modules(self):
+        # `d0_route` is itself import-free, so asking it which route a segment
+        # takes costs this module nothing. Widened deliberately on 2026-09-19
+        # rather than silently: the list is the guarantee.
         with open("cbrief.py") as fh:
             imports = [l for l in fh.read().splitlines()
                        if l.startswith(("import ", "from "))]
-        self.assertEqual(imports, ["import bodysurface"])
+        self.assertEqual(imports, ["import bodysurface", "import d0_route"])
 
     def test_it_does_not_mutate_the_segment_it_was_given(self):
         s = seg(1)
         before = dict(s)
         cbrief.context(s, [page(2, 5)], book=BOOK)
         self.assertEqual(s, before)
+
+
+class AnAssessmentIsBriefedAsAWorksheet(unittest.TestCase):
+    """Law 18's third clause: the shape goes in the brief, not only in a guard.
+
+    The engine refuses a 995 that arrives as a lesson plan and the free lint
+    refuses one of the wrong shape — but an author who was handed the five
+    lesson caps and a list of `hookStory`/`workedExample` fields will write a
+    lesson plan, be refused, and have been given no way to do otherwise. A
+    guard that fires on work nobody could have got right is a guard that
+    teaches nothing. So the brief itself changes shape.
+    """
+
+    ASSESS = seg(995, lp_type="assessment", skill_type="assessment",
+                 topic="Chapter 1 Assessment")
+
+    def brief(self):
+        return cbrief.context(self.ASSESS, [page(2, 5)], book=BOOK)
+
+    def test_a_content_segment_is_still_briefed_as_a_lesson(self):
+        self.assertEqual(ctx()["shape"], "lesson")
+
+    def test_an_assessment_segment_is_briefed_as_a_worksheet(self):
+        self.assertEqual(self.brief()["shape"], "worksheet")
+
+    def test_the_lesson_word_caps_are_not_handed_to_a_worksheet_author(self):
+        # `key_points`, `worked_example` and the rest are the surfaces of a
+        # four-page lesson. Handing them over is an instruction to write one.
+        b = self.brief()
+        self.assertNotIn("budget", b)
+        self.assertNotIn("write_last", b)
+
+    def test_a_lesson_still_gets_its_caps(self):
+        self.assertIn("budget", ctx())
+        self.assertEqual(set(ctx()["budget"]), set(bodysurface.targets()))
+
+    def test_the_worksheet_brief_names_every_field_a_question_carries(self):
+        fields = self.brief()["worksheet"]["fields"]
+        for f in ("id", "type", "marks", "childText", "space", "answer",
+                  "marking", "common_errors"):
+            self.assertIn(f, fields, f)
+
+    def test_it_names_the_two_fields_that_keep_a_key_honest(self):
+        # An open-personal question has no answer and still owes a model, and
+        # a teacher directive has somewhere to go other than the child's
+        # sheet. Both are legal states an author will not guess at.
+        fields = self.brief()["worksheet"]["fields"]
+        self.assertIn("open_personal", fields)
+        self.assertIn("model_solution", fields)
+        self.assertIn("directive", fields)
+
+    def test_the_rules_say_how_many_questions_and_how_much_variety(self):
+        rules = " ".join(self.brief()["worksheet"]["rules"])
+        self.assertIn("8", rules)
+        self.assertIn("12", rules)
+
+    def test_it_names_an_exemplar_file_that_is_actually_there(self):
+        # A brief naming a file that does not exist is worse than naming none.
+        import os
+        path = self.brief()["worksheet"]["exemplar"]
+        self.assertTrue(os.path.exists(path), path)
+
+    def test_the_exemplar_passes_the_lint_it_is_an_example_for(self):
+        # The one test that stops the example rotting into an example of the
+        # wrong thing.
+        import json
+        import wslint
+        with open(self.brief()["worksheet"]["exemplar"]) as fh:
+            self.assertEqual(wslint.findings(json.load(fh)), [])
+
+    def test_the_exemplar_is_marked_as_shape_and_not_as_content(self):
+        # It is invented. Nothing of it may reach a real sheet.
+        import json
+        with open(self.brief()["worksheet"]["exemplar"]) as fh:
+            self.assertIn("NOT CONTENT", json.load(fh)["_note"])
+
+    def test_a_revision_segment_is_briefed_as_neither(self):
+        # The 990 panel route is refused and unbuilt (bd filed). Briefing it
+        # as a lesson would be how it quietly became one.
+        b = cbrief.context(seg(990, lp_type="revision", skill_type="revision"),
+                           [page(2, 5)], book=BOOK)
+        self.assertEqual(b["shape"], "revision")
+        self.assertNotIn("budget", b)
+
+    def test_the_source_and_spiral_are_unchanged_whatever_the_shape(self):
+        # Grounding does not depend on the artefact. Every exercise on every
+        # resolved page still arrives, and so does the previous lesson.
+        b = self.brief()
+        self.assertIn("source", b)
+        self.assertIn("spiral", b)
+        self.assertIn("envelope", b)
 
 
 if __name__ == "__main__":

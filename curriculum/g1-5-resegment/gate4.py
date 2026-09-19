@@ -51,7 +51,9 @@ did.
 import os
 import sys
 
+import d0_route
 import wordbudget
+import wslint
 
 # The migrated reviewer (PROVENANCE.md, D-017) lives in the skill, outside this
 # repo. Relative on purpose: root CLAUDE.md forbids hardcoded absolute paths,
@@ -104,8 +106,19 @@ def _grounding_failure(grounding):
                     + (", ".join(reasons) or "unknown")}
 
 
+def worksheet_findings(lp, segment):
+    """The lint's findings for a 995, or None because this is not one.
+
+    The single place that decides, so a content lesson cannot be measured
+    against worksheet rules by accident and a worksheet cannot escape them.
+    """
+    if d0_route.kind(lp, segment) != "assessment":
+        return None
+    return wslint.findings(lp, segment)
+
+
 def compose(qa, judge_pct=None, judge="", review=None, render=None,
-            grounding=None):
+            grounding=None, lint=None):
     """Build the score dict `production_gate.gate` reads.
 
     `qa` is a `qa_checks.run_checks` result, run over the Stage-C body it was
@@ -120,16 +133,31 @@ def compose(qa, judge_pct=None, judge="", review=None, render=None,
     if judge_pct is None:
         failures.append({"id": "not-judged",
                          "name": "no judge score — the lesson was never rated"})
-        composite = None
-    else:
-        composite = (judge_pct + qa.get("soft_pct", 0.0)) / 2.0
+
+    # A soft score of None is not a soft score of zero. It means nothing
+    # measured that half — which is the case for a worksheet, because no
+    # worksheet soft-check suite exists yet. Averaging a real judge score
+    # against an absence would report a number nobody computed, so the
+    # composite simply does not form and `S1` says why.
+    soft = qa.get("soft_pct")
+    if soft is None:
+        not_checked.append("S1")
+    composite = (None if judge_pct is None or soft is None
+                 else (judge_pct + soft) / 2.0)
 
     # A document carrying none of the five capped BLOCKS has not been
     # measured — it has been looked past. `wordbudget` returns no findings
     # either way, so the distinction has to be drawn here or the budget
     # quietly stops applying the first time the wrong artifact arrives. It
     # did: handed the Stage-C body, which has no blocks, this read as clean.
-    if render is None or not wordbudget.totals(render):
+    #
+    # A worksheet is the one artefact for which W1 is not "unmeasured" but
+    # "inapplicable": it has no `key_points` and never will. Its own lint
+    # takes W1's place, so `lint` being a list — even an empty one — is the
+    # signal that this is a 995 and the caps are not the question.
+    if lint is not None:
+        failures.extend({"id": f["id"], "name": f["name"]} for f in lint)
+    elif render is None or not wordbudget.totals(render):
         not_checked.append("W1")
     else:
         failures.extend(_budget_failures(render))
@@ -151,6 +179,28 @@ def compose(qa, judge_pct=None, judge="", review=None, render=None,
             "review": review if review is not None else {},
             "grounding_flags": flags,
             "not_checked": not_checked}
+
+
+def _worksheet_qa():
+    """The hard checks for a 995: its own lint, and nothing borrowed.
+
+    `qa_checks` is the LESSON suite. It asks for `warmUp`, `steps` and
+    `exitTicket`, and a student worksheet has none of the three and never
+    will. Run against the real `grade_1_english_ch1_seg995` — ten questions,
+    32 marks, clean on every one of WS-01..WS-16 — it produced six hard
+    failures the artefact cannot ever clear. A gate that does that is a gate
+    somebody switches off, and the one check that does apply goes with it.
+
+    So the lint replaces it whole, exactly as it already replaces W1 inside
+    `compose`, and `worksheet_findings` stays the single place that decides
+    which artefact is in hand.
+
+    `soft_pct` is None rather than 0.0 on purpose: there IS no worksheet
+    soft-check suite. That is a gap to build, not a score to report, and
+    `compose` surfaces it as `S1` in `not_checked`.
+    """
+    return {"hard_pass": True, "hard_failures": [], "soft_pct": None,
+            "checks": []}
 
 
 def verdict(score):
@@ -176,12 +226,14 @@ def evaluate(lp, segment, review, judge="", subject=None, grounding=None,
     Passing the body where the render belongs is how the budget went
     unenforced for a day, so the caller says which is which.
     """
-    checks = reviewer("qa_checks").run_checks(lp, segment)
+    lint = worksheet_findings(lp, segment)
+    checks = _worksheet_qa() if lint is not None else \
+        reviewer("qa_checks").run_checks(lp, segment)
     # `tally` returns (total, denom, flags), and a denominator of zero means
     # every check came back notAssessable — an unscored lesson, not a zero.
     total, denom, _ = reviewer("score_lp").tally(review, subject) if review \
         else (0, 0, [])
     judge_pct = round(100.0 * total / denom, 1) if denom else None
     score = compose(checks, judge_pct=judge_pct, judge=judge, review=review,
-                    render=render, grounding=grounding)
+                    render=render, grounding=grounding, lint=lint)
     return score, verdict(score)

@@ -37,12 +37,29 @@ def test_renders_against_the_live_v9_schema():
 
 
 def test_primary_lp_type_maps_onto_the_closed_v9_enum():
-    """content+language -> LL-2, content+STEM -> STEM-2, revision/assessment -> RECALL."""
+    """content+language -> LL-2, content+STEM -> STEM-2."""
     assert build()["lp_type"] == "LL-2"
     maths = dict(PT, subject="Maths", book_stem="grade_4_maths")
     assert d0.to_lp_doc(ENR, maths)["lp_type"] == "STEM-2"
+
+
+def test_a_review_day_is_refused_rather_than_mapped_onto_RECALL():
+    """The RECALL mapping was the silent fallback, not the answer (d0_route).
+
+    It stays reachable under the named escape hatch, because somebody
+    occasionally wants to see what the LP renderer makes of a review day --
+    but it is no longer what happens by default, which is what shipped a
+    worksheet as a teacher lesson plan.
+    """
+    import d0_route
     rev = {**ENR, "lp_type": "revision"}
-    assert d0.to_lp_doc(rev, PT)["lp_type"] == "RECALL"
+    try:
+        d0.to_lp_doc(rev, PT)
+    except d0_route.WrongRoute:
+        pass
+    else:
+        raise AssertionError("a revision segment rendered as a lesson plan")
+    assert d0.to_lp_doc(rev, PT, force_lp=True)["lp_type"] == "RECALL"
 
 
 def test_primary_lp_type_is_preserved_not_lost():

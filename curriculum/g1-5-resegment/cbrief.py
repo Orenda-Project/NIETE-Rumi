@@ -34,6 +34,54 @@ failure is FABRICATION from no grounding" — a brief that asks for a lesson and
 supplies no page is that failure, pre-authorised.
 """
 import bodysurface
+import d0_route
+
+# The shape of a chapter assessment, handed to the author rather than only
+# enforced afterwards. Law 18: "MIRROR EVERY ENGINE REFUSAL IN THE FREE
+# PRE-RENDER LINT, AND WRITE THE SHAPE INTO THE AUTHORING BRIEF." The engine
+# refuses a 995 that arrives as a lesson plan and `wslint` refuses one of the
+# wrong shape; neither tells an author what the right one is. Every rule below
+# is one `wslint` enforces, said in the order an author meets it.
+WORKSHEET = {
+    "artefact": "a student-facing worksheet and a separate answer key, built "
+                "from ONE authored questions[] by d0_worksheet.build",
+    "fields": ("title", "instructions", "total_marks", "questions",
+               "id", "type", "marks", "childText", "directive", "space",
+               "options", "pairs", "illustration",
+               "answer", "marking", "common_errors",
+               "open_personal", "model_solution"),
+    "rules": (
+        "8 to 12 questions for the whole chapter -- not a four-page lesson "
+        "with the teaching removed",
+        "at least 3 of: mcq, fill, match, short, draw, compute, word",
+        "every question carries its own marks, and they add to total_marks",
+        "childText is what the CHILD reads; anything addressed to the teacher "
+        "goes in `directive` and never reaches the sheet",
+        "anything written into declares its space: lines, box, grid or none",
+        "every question carries answer, marking and common_errors -- a "
+        "question with no key is one the teacher cannot mark at the front of "
+        "a class",
+        "a personal question legitimately has no single answer: set "
+        "open_personal and give model_solution instead of answer",
+        "an illustration carries an ASCII count, and no drawn group holds "
+        "more than 4 countable objects -- split 7 into 4 and 3. This is about "
+        "PICTURED OBJECTS ONLY: five rhyming pairs or seven days of the week "
+        "are the book's own content and are never split",
+    ),
+    "exemplar": "exemplars/worksheet.json",
+}
+
+# `d0_route` names the route; an author names the artefact.
+SHAPE = {"content": "lesson", "assessment": "worksheet",
+         "revision": "revision"}
+
+# Refused loudly by `d0_route` and not yet built: the three-panel
+# beginner/intermediate/advanced revision page. Briefing it as a lesson is how
+# it would quietly become one.
+REVISION = {
+    "artefact": "a three-panel revision page (beginner / intermediate / "
+                "advanced) -- DESIGN PENDING, no builder exists yet",
+}
 
 
 class Ungrounded(Exception):
@@ -144,11 +192,25 @@ def context(segment, pages, book, prev=None, day=None, total_days=None):
                 % (segment.get("segment_index"), chapter,
                    p.get("printed_page_number"), ch.get("number")))
 
-    budget = bodysurface.targets()
-    return {
+    brief = {
         "envelope": _envelope(segment, pages, book, day, total_days),
         "spiral": _spiral(segment, prev),
         "source": _source(pages),
-        "budget": budget,
-        "write_last": _tightest(budget),
+        # The route word, said in the brief's own vocabulary: an author
+        # builds a lesson, a worksheet or a revision page, not a "content".
+        "shape": SHAPE.get(d0_route.kind({}, segment), "lesson"),
     }
+
+    # Grounding is the same question whatever is being built, so `source` and
+    # `spiral` above are unconditional. What is built from it is not: the five
+    # capped surfaces belong to a four-page lesson, and handing them to a
+    # worksheet author is an instruction to write one.
+    if brief["shape"] == "worksheet":
+        brief["worksheet"] = WORKSHEET
+    elif brief["shape"] == "revision":
+        brief["revision"] = REVISION
+    else:
+        budget = bodysurface.targets()
+        brief["budget"] = budget
+        brief["write_last"] = _tightest(budget)
+    return brief
