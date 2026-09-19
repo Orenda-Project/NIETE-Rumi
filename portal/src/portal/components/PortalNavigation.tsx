@@ -21,6 +21,15 @@ const PortalNavigation = () => {
     { title: 'Teachers', path: '/portal/leader/teachers', icon: Users },
     // bd-2455 — schedule + debriefs + completed observations.
     { title: 'Observations', path: '/portal/leader/observations', icon: CalendarDays },
+    // bd-60160 — a coach TAKES training too, she does not only supervise it.
+    //
+    // The leader family never had this entry, so when I-SAPS was assigned to
+    // 89 people on production and 88 of them were coaches, the training was
+    // unreachable in the portal for all 88: assigned, visible to the API, and
+    // with no link anywhere in the UI. The gate was never a permission — the
+    // training routes check the session and not the role — it was a missing
+    // nav item.
+    { title: 'Training', path: '/portal/training', icon: GraduationCap },
   ];
   const teacherNav = [
     { title: 'Dashboard', path: '/portal/dashboard', icon: Home },
