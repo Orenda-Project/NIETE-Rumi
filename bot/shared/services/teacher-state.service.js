@@ -289,7 +289,15 @@ async function listActiveResources(userId) {
       .select('id, segment_id, started_at')
       .eq('status', 'authoring')
       .gte('started_at', THIRTY_MIN_AGO())
-      .contains('waiters', [{ user_id: userId }])
+      // JSON.stringify, NOT the bare array. postgrest-js serialises an Array
+      // argument through `value.join(',')`, which on an array of objects is the
+      // literal text "[object Object]" — so the bare array sends
+      // `waiters=cs.{[object Object]}`: a Postgres ARRAY literal, against a JSONB
+      // column, holding a string no row will ever contain. It matched nothing, on
+      // every call, and reported "nothing is running" to a teacher mid-wait.
+      // A string argument is passed through untouched and is the only form that
+      // reaches Postgres as jsonb containment.
+      .contains('waiters', JSON.stringify([{ user_id: userId }]))
       .order('started_at', { ascending: false })
       .limit(2);
 
