@@ -1,7 +1,10 @@
 /**
  * PortalTrainingV2 — the redesigned teacher-training page (bd-60148).
  *
- * HIDDEN ROUTE. Served at /portal/training/v2 with NO navigation entry: the
+ * THE training page (bd-60160). Served at /portal/training — the path the nav
+ * has always pointed at — and still at /portal/training/v2, the review URL.
+ *
+ * Was, until bd-60160: HIDDEN ROUTE. Served at /portal/training/v2 with NO navigation entry: the
  * operator types the URL to review it. /portal/training keeps serving the
  * original page, untouched, until the rollout call is made — so rolling back
  * is "point the nav at the old path", not a revert.
@@ -47,7 +50,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
   GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck,
@@ -551,15 +554,27 @@ const PortalTrainingV2 = () => {
   const { moduleId: routeModuleId, courseId: routeExamCourseId } =
     useParams<{ moduleId: string; courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // bd-60160 — the page is served from BOTH /portal/training (canonical, what
+  // the nav points at) and /portal/training/v2 (the review URL, kept alive
+  // because it has been handed out). Hardcoding /v2 here meant a teacher who
+  // arrived at the canonical path was thrown onto /v2 by her first tap, and
+  // the breadcrumb then walked her back to a different page from the one she
+  // started on. Derive the base from where she actually is.
+  const routeBase = location.pathname.startsWith('/portal/training/v2')
+    ? '/portal/training/v2'
+    : '/portal/training';
+
   const openUnit = useCallback((id: string) => {
-    navigate(`/portal/training/v2/unit/${id}`);
-  }, [navigate]);
+    navigate(`${routeBase}/unit/${id}`);
+  }, [navigate, routeBase]);
   const closeUnit = useCallback(() => {
-    navigate('/portal/training/v2');
-  }, [navigate]);
+    navigate(routeBase);
+  }, [navigate, routeBase]);
   const openExam = useCallback((courseId: string) => {
-    navigate(`/portal/training/v2/exam/${courseId}`);
-  }, [navigate]);
+    navigate(`${routeBase}/exam/${courseId}`);
+  }, [navigate, routeBase]);
   /** True when EITHER a unit or an exam has taken over the page. */
   const onSubPage = Boolean(routeModuleId || routeExamCourseId);
 
@@ -923,7 +938,7 @@ const PortalTrainingV2 = () => {
           >
             <button
               type="button"
-              onClick={() => { setSelectedLevel(''); navigate('/portal/training/v2'); }}
+              onClick={() => { setSelectedLevel(''); navigate(routeBase); }}
               className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
               data-testid="breadcrumb-vendor"
             >
