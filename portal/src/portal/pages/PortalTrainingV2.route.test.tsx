@@ -1,19 +1,26 @@
 /**
- * bd-60148 — the v2 training page lives at a HIDDEN route.
+ * bd-60160 — the v2 page IS the training page. Rollout, not a hidden route.
  *
- * Two independent promises are made here, and both are the point of the
- * ticket rather than incidental detail:
+ * bd-60148 shipped it behind /portal/training/v2 with no nav entry, and this
+ * file asserted that hiding. The operator has now made the call: "make v2 the
+ * new v1 aka let people be to that page when they click on trainings."
  *
- *   1. /portal/training/v2 renders the NEW page, and
- *   2. /portal/training still renders the OLD one, byte-for-byte untouched.
+ * What is promised NOW:
+ *   1. /portal/training renders the NEW page — the nav already points there;
+ *   2. the old page is still reachable at /portal/training/v1, so a rollback
+ *      is repointing one route rather than a revert;
+ *   3. the nav's Training entry points at /portal/training, for teachers AND
+ *      for the leader family.
  *
- * (2) is why this test renders the real <App/> router rather than the pages
- * in isolation: a redesign that quietly captured the existing path would pass
- * every component test while taking the live page away from 9,534 teachers.
+ * (3) is not cosmetic. 88 of the 89 people assigned I-SAPS on production are
+ * coaches, who get leaderNav — which had no Training entry at all. The
+ * training was assigned, served by the API, and unreachable in the UI for all
+ * 88 of them.
  *
- * The nav assertion is the third promise: no link points at v2 yet. The
- * operator reaches it by typing the URL until the rollout call is made, so a
- * stray nav entry is a regression, not a nicety.
+ * NOTE these tests render pages directly rather than through <App/>. That is
+ * why the pre-bd-60160 versions kept passing through a route swap they were
+ * written to catch: a direct render cannot see routing. The route-level
+ * promise is covered by App.routes.test.tsx, which mounts the real router.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -67,15 +74,19 @@ describe("bd-60148 — v2 training page behind a hidden route", () => {
     expect(screen.queryByTestId("training-v2-root")).not.toBeInTheDocument();
   });
 
-  it("exposes no navigation link to v2 — the route stays typed-in only", () => {
+  it("points the nav's Training entry at the canonical path, not /v2", () => {
     render(
       <MemoryRouter>
         <PortalNavigation />
       </MemoryRouter>,
     );
-    const v2Links = screen
-      .queryAllByRole("link")
-      .filter((a) => (a.getAttribute("href") || "").includes("/training/v2"));
-    expect(v2Links).toHaveLength(0);
+    const links = screen.queryAllByRole("link");
+    const training = links.filter((a) =>
+      (a.getAttribute("href") || "").includes("/portal/training"));
+    expect(training.length).toBeGreaterThan(0);
+    // Never /v2: that URL is kept alive for old links, not advertised.
+    for (const a of training) {
+      expect(a.getAttribute("href")).not.toContain("/training/v2");
+    }
   });
 });
