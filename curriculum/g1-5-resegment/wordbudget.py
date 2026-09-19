@@ -43,6 +43,13 @@ CAPS = {"key_points": 120, "practice": 350, "big_idea": 80,
 # Named, not merely absent: each already sits inside 1.5x its median, and the
 # spec's point is that a budget listing every surface reads as a compression
 # target for all of them.
+#
+# Measured 19 Sep 2026: `ask`, `board` and `keywords` are block types, while
+# `warmup` and `exit_ticket` are section-level extras the renderer appends
+# after a section's blocks (`d0_close.py:47` seats the exit ticket as
+# `sec["exit_ticket"]`). Nothing here turns on the difference — the whole
+# tuple is uncapped either way — but a reader who assumes all five are block
+# types is one step from the mistake that made this module ship broken.
 UNCAPPED = ("ask", "warmup", "board", "keywords", "exit_ticket")
 
 # A block's wiring, not its words. `id` and `type` are slugs the renderer
