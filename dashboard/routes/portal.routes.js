@@ -2026,9 +2026,22 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
         course_count: 0,
         module_count: 0,
         completed_module_count: 0,
+        // bd-60152 — the card leads with certificates earned, so the count
+        // must come from the same call that draws the card.
+        certificate_count: 0,
         _pctSum: 0,
         _pctN: 0,
       });
+    }
+
+    // Certificates held, attributed to the vendor that owns the level.
+    const { data: certRows } = levelIds.length
+      ? await supabase.from('training_certificates')
+        .select('level_id').eq('user_id', userId).in('level_id', levelIds)
+      : { data: [] };
+    for (const c of certRows || []) {
+      const agg = perVendor.get(levelToVendor.get(c.level_id));
+      if (agg) agg.certificate_count += 1;
     }
 
     for (const l of levels || []) {

@@ -103,6 +103,7 @@ type Vendor = {
   course_count: number;
   module_count: number;
   completed_module_count: number;
+  certificate_count: number;
   avg_score_pct: number | null;
 };
 
@@ -324,21 +325,19 @@ function VendorCards({
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">
-                    {v.completed_module_count > 0
-                      ? `${v.completed_module_count} / ${v.module_count}`
-                      : 'Not started'}
+                  {/* bd-60152 — the card leads with what a teacher has EARNED.
+                      "3 / 54" is bookkeeping; a certificate is the thing she
+                      is working towards, and the bar already carries progress.
+                      The figure beside it is that bar in words — a percentage,
+                      not a second fraction saying the same thing twice. */}
+                  <span className="text-sm font-semibold text-foreground" data-testid="vendor-certificate-count">
+                    {v.certificate_count === 1
+                      ? '1 Certificate'
+                      : `${v.certificate_count || 0} Certificates`}
                   </span>
-                  {v.avg_score_pct == null ? (
-                    <span className="text-sm text-muted-foreground" data-testid="vendor-avg-score-none">—</span>
-                  ) : (
-                    <span
-                      className={`inline-flex px-2.5 py-1 rounded-full border text-sm font-medium ${scoreTone(v.avg_score_pct)}`}
-                      data-testid="vendor-avg-score-badge"
-                    >
-                      {v.avg_score_pct}% avg
-                    </span>
-                  )}
+                  <span className="text-sm text-muted-foreground" data-testid="vendor-progress-pct">
+                    {pct}%
+                  </span>
                 </div>
               </div>
 
@@ -354,6 +353,18 @@ function VendorCards({
           );
         })}
       </div>
+
+      {/* bd-60152 — certificates live WITH the provider, not in the page
+          header. In the header they were a global drawer that belonged to
+          nothing; here they sit under the provider whose training earned
+          them, which is where a teacher goes looking. Shown once a provider
+          is chosen, so the row is about that provider rather than everything
+          at once. */}
+      {selectedVendor && (
+        <div className="mt-4 flex justify-end" data-testid="vendor-certificates">
+          <CertificatesPanel />
+        </div>
+      )}
     </section>
   );
 }
@@ -511,7 +522,8 @@ const PortalTrainingV2 = () => {
   // reading a unit still had the whole picker above her. The route parameter
   // is now the source of truth for what is open; selecting a unit navigates,
   // and closing it navigates back.
-  const { moduleId: routeModuleId } = useParams<{ moduleId: string }>();
+  const { moduleId: routeModuleId, courseId: routeExamCourseId } =
+    useParams<{ moduleId: string; courseId: string }>();
   const navigate = useNavigate();
   const openUnit = useCallback((id: string) => {
     navigate(`/portal/training/v2/unit/${id}`);
@@ -519,9 +531,37 @@ const PortalTrainingV2 = () => {
   const closeUnit = useCallback(() => {
     navigate('/portal/training/v2');
   }, [navigate]);
+  const openExam = useCallback((courseId: string) => {
+    navigate(`/portal/training/v2/exam/${courseId}`);
+  }, [navigate]);
+  /** True when EITHER a unit or an exam has taken over the page. */
+  const onSubPage = Boolean(routeModuleId || routeExamCourseId);
 
   // Keep the selection in step with the URL, in both directions: a deep link
   // or a back button must open the right unit.
+  // bd-60152 — a unit opened by URL restores its own course and level.
+  //
+  // `modules` is fetched from selectedCourse. On a direct load of
+  // /unit/:id nothing had set that, so the list was empty, moduleIndex was -1,
+  // and prev/next were both null and disabled — the reported "navigation
+  // doesn't work". The detail response already carries course and level, so
+  // the page can put itself back together from the URL alone.
+  useEffect(() => {
+    if (!moduleDetail) return;
+    if (moduleDetail.level && !selectedLevel) setSelectedLevel(String(moduleDetail.level.id));
+    if (moduleDetail.course && !selectedCourse) setSelectedCourse(moduleDetail.course.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleDetail]);
+
+  // bd-60152 — an exam opened by URL selects its course, so the gate and the
+  // paper resolve exactly as they do from the list.
+  useEffect(() => {
+    if (routeExamCourseId && routeExamCourseId !== selectedCourse) {
+      setSelectedCourse(routeExamCourseId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeExamCourseId]);
+
   useEffect(() => {
     if (routeModuleId && routeModuleId !== selectedModule) setSelectedModule(routeModuleId);
     if (!routeModuleId && selectedModule) setSelectedModule('');
@@ -658,7 +698,12 @@ const PortalTrainingV2 = () => {
 
   useEffect(() => {
     setModules([]); setModuleDetail(null);
-    setSelectedModule('');
+    // bd-60152 — do NOT clear the selection when the URL names a unit.
+    //
+    // This unconditionally reset selectedModule, which fought the route: a
+    // deep link set the unit, then this effect wiped it the moment the course
+    // resolved, and the page fell back to the picker.
+    if (!routeModuleId) setSelectedModule('');
     setAttemptsByModule({});
     setLoadError(null);
     if (!selectedCourse) return;
@@ -785,7 +830,6 @@ const PortalTrainingV2 = () => {
                 Your assigned professional development.
               </p>
             </div>
-            <CertificatesPanel />
           </div>
         </div>
 
@@ -879,7 +923,7 @@ const PortalTrainingV2 = () => {
                 PAGE, and leaving the whole picker above it is what made it
                 feel like a panel. Closing the unit brings them straight back,
                 because the URL is what decides. */}
-            {selectedLevel && !routeModuleId && (
+            {selectedLevel && !onSubPage && (
               <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4 mb-8">
                 <div className="rounded-2xl border bg-card p-2 shadow-sm" data-testid="course-list">
                   <div className="px-3.5 pt-3 pb-2 text-xs font-bold tracking-wider text-muted-foreground">
@@ -1036,6 +1080,7 @@ const PortalTrainingV2 = () => {
                       courseId={String(selectedCourse)}
                       exam={moduleExam}
                       asListRow
+                      onOpen={() => openExam(String(selectedCourse))}
                       onPassed={() => {
                         if (!selectedCourse) return;
                         api.get('/training/modules', { params: { course_id: selectedCourse } })
@@ -1061,7 +1106,7 @@ const PortalTrainingV2 = () => {
             {/* bd-60152 — the way OUT of the unit page. Without it the only
                 route back to the module list is the browser's back button,
                 which a teacher on a phone will not reliably find. */}
-            {routeModuleId && (
+            {onSubPage && (
               <button
                 type="button"
                 onClick={closeUnit}
@@ -1071,6 +1116,37 @@ const PortalTrainingV2 = () => {
                 <ChevronLeft className="w-4 h-4" />
                 Back to modules
               </button>
+            )}
+
+            {/* bd-60152 — the module exam as its own PAGE.
+                It was rendered only inside the module list, which the unit
+                page hides — so opening a unit made the exam vanish, and there
+                was nowhere to sit it with the room a written answer needs. */}
+            {routeExamCourseId && moduleExam && (
+              <div className="rounded-2xl border bg-card shadow-sm overflow-hidden" data-testid="module-exam-page">
+                <div className="p-6 border-b">
+                  <h2 className="text-xl font-medium text-foreground">
+                    {selectedCourseObj ? selectedCourseObj.title : 'Module exam'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">Module exam</p>
+                </div>
+                <div className="px-6 pb-6">
+                  <ModuleExamPanel
+                    key={`exampage-${routeExamCourseId}`}
+                    courseId={String(routeExamCourseId)}
+                    exam={moduleExam}
+                    autoStart
+                    onPassed={() => {
+                      api.get('/training/modules', { params: { course_id: routeExamCourseId } })
+                        .then(({ data }) => {
+                          setModules(data.modules || []);
+                          setModuleExam(data.exam || null);
+                        })
+                        .catch(() => { /* the pass is recorded server-side either way */ });
+                    }}
+                  />
+                </div>
+              </div>
             )}
 
             {moduleDetail && !loadingDetail && (
