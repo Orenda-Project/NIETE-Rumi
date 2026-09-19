@@ -268,11 +268,16 @@ The budget is enforced the way everything else here is: a check that fails.
 ## 8. What an agent producing a lesson does
 
 1. Author from page truth into the section registry of §5, in that order.
-2. Keep every surface inside §4. If `practice` runs over, **split it across
-   days** — do not compress it.
+2. Keep every surface inside §4. The caps are named in render surfaces and
+   you write body fields — `08-authoring-budget.md` is that table translated,
+   and it is measured against the renderer rather than restated. If `practice`
+   runs over, **split it across days** — do not compress it.
 3. Write the **Big Idea** before I Do, not after — if you cannot name the
    distinction pupils confuse, the lesson is not ready to model. 80 words.
-4. Write `key_points` last, and only for what no other surface already says.
-   It is the first thing over budget in 35 of 38 corpus lessons.
+4. `key_points` is the tightest cap and you never write it directly: it is
+   fed by `hookStory`, `hookCharacters`, the You-Do steps and `homework`, and
+   `remember` has already spent 10 of its 120 words on a placeholder. Write
+   those four last, and only for what no other surface already says. It is the
+   first thing over budget in 35 of 38 corpus lessons (§08).
 5. Do not reach for a diagram to save space (§1).
 6. Leave an absent source dark. Never invent a proxy.
