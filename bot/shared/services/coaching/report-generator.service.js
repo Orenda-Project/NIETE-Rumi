@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const supabase = require('../../config/supabase');
-const { logToFile } = require('../../utils/logger');
+const { logToFile, logWarn } = require('../../utils/logger');
 const { reflectionProgress } = require('./reflection-progress');
 const GPT5MiniService = require('../gpt5-mini.service');
 const AudioService = require('../audio.service');
@@ -520,6 +520,24 @@ class ReportGeneratorService {
       await this.completeSession(session, coachingSessionId);
 
       logToFile('✅ Report generation complete', { coachingSessionId });
+
+      // bd-x3k1q (DC row 133): close the session OUT LOUD before the next
+      // feature speaks. Everything below this point — the transcript-quiz offer,
+      // the feature linker — belongs to a different feature, and without a
+      // spoken boundary teachers and coaches read the quiz as step 6 of the
+      // coaching session. Sent after the commit prompt (above) and before the
+      // first of those asks, in her language via the unified resolver. Never
+      // fatal: a failed boundary line must not fail a completed session.
+      try {
+        await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
+      } catch (error) {
+        // Class N: degraded-but-recovered — the session IS complete, she just
+        // did not get the line saying so. logWarn, not a bare info logToFile.
+        logWarn('⚠️ Session-complete boundary line failed to send (non-fatal)', {
+          coachingSessionId,
+          error: error.message,
+        });
+      }
 
       // Transcript quiz: schedule the offer AFTER the survey's reply window.
       // Replaces the dead "Trigger 3" (it needed a lesson plan, a class and

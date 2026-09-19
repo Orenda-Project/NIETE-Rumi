@@ -369,6 +369,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (buildTooLargeMessage). NB the reject copy still says "25MB"/"Whisper" though
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
 
+  @e2e @wip @draft @P2
+  Scenario: The coaching session says it is over before the quiz offer arrives
+    Given the NIETE bot chat is open
+    And I have received a coaching report with a commitment card
+    When the commitment question arrives
+    Then the bot tells me the coaching session is complete
+    And that line arrives before any quiz offer
+    And that line is in my selected language
+    # bd-x3k1q / DC row 133. report-generator.service.js sends
+    # getCoachingMessage('sessionComplete', outputLanguage) straight after
+    # completeSession() — i.e. after the commit-prompt buttons and before
+    # scheduleTranscriptQuiz() / FeatureLinkerService.suggestNext(). Without it
+    # teachers and coaches read the quiz as step 6 of the coaching session.
+
   @e2e @wip @draft @negative @known-fail @P3
   Scenario: The commitment-card buttons on the report are handled
     Given the NIETE bot chat is open
