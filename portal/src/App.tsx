@@ -93,12 +93,17 @@ const App = () => {
             />
             <Route path="/portal/classes" element={<PortalClasses />} />
             <Route path="/portal/curriculum" element={<PortalCurriculum />} />
-            {/* bd-60148 — the redesigned training page, HIDDEN. No nav entry
-                points here; it is reached by typing the URL while it is
-                reviewed. /portal/training below keeps serving the original
-                page unchanged, so rolling back is "don't ship the nav change"
-                rather than a revert. Listed first for readability only —
-                react-router v6 ranks by specificity, not source order. */}
+            {/* bd-60160 — the redesigned page IS the training page now.
+                /portal/training serves it; the nav needs no change because it
+                already points there.
+
+                The old page stays reachable at /portal/training/v1 rather than
+                being deleted, so a rollback is repointing ONE route back
+                instead of a revert, and anyone mid-session on the old URL is
+                not stranded. /v2 keeps working too — it has been handed out in
+                this session and in review links, and a dead link is a worse
+                answer than a duplicate one. */}
+            <Route path="/portal/training/v1" element={<PortalTraining />} />
             <Route path="/portal/training/v2" element={<PortalTrainingV2 />} />
             {/* bd-60152 — a unit gets its own page and its own URL, so it can
                 be linked, reloaded and navigated with the browser's own back
@@ -107,7 +112,11 @@ const App = () => {
             {/* bd-60152 — the module exam gets its own page too: it is a sat
                 assessment, not a panel under a list. */}
             <Route path="/portal/training/v2/exam/:courseId" element={<PortalTrainingV2 />} />
-            <Route path="/portal/training" element={<PortalTraining />} />
+            {/* The same two sub-pages under the canonical path, because that is
+                where openUnit/openExam now navigate. */}
+            <Route path="/portal/training/unit/:moduleId" element={<PortalTrainingV2 />} />
+            <Route path="/portal/training/exam/:courseId" element={<PortalTrainingV2 />} />
+            <Route path="/portal/training" element={<PortalTrainingV2 />} />
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
             <Route path="/portal/coaching/session/:sessionId" element={<PortalCoachingDetail />} />
