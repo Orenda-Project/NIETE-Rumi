@@ -83,7 +83,7 @@ describe("bd-60152 — unit opened by URL keeps its neighbours", () => {
     renderAtUnit("m-303");
 
     // The unit itself renders — proves the route resolved and detail loaded.
-    expect(await screen.findByText("Unit 303")).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Unit 303' })).toBeInTheDocument();
 
     // The actual regression: neighbours must be known, so the arrow is live.
     await waitFor(() => {
@@ -93,9 +93,49 @@ describe("bd-60152 — unit opened by URL keeps its neighbours", () => {
 
   it("enables the previous arrow too, since 303 has a predecessor", async () => {
     renderAtUnit("m-303");
-    expect(await screen.findByText("Unit 303")).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Unit 303' })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("module-prev")).not.toBeDisabled();
     });
+  });
+});
+
+/**
+ * bd-60156 — a unit page shows the unit, and the way back. Nothing else.
+ *
+ * Operator: "On the unit page or the module exam page, you are not supposed to
+ * show the vendors at the top."
+ *
+ * It was three sections, not one: the provider grid, the certificates shelf
+ * and the level rail all rendered above the unit, so the thing she tapped was
+ * the fourth item on the page and began below the fold on a phone. The
+ * provider grid was also a live control — one tap changed what the page was
+ * about while she was mid-session.
+ *
+ * The risk in the fix is the opposite failure, and it is the one that bit
+ * during the build: the picker sections and the unit detail live in the SAME
+ * JSX block, so gating the block hides the unit too and the page renders
+ * blank. Typecheck passes either way. These tests assert BOTH halves — the
+ * picker gone AND the unit still there — because only the pair is correct.
+ */
+describe('bd-60156 — unit page shows only the unit', () => {
+  it('hides the provider grid, and still renders the unit', async () => {
+    renderAtUnit('m-303');
+    // The heading is the unit itself; the title also appears as the
+    // breadcrumb leaf, so match the role rather than the bare text.
+    expect(await screen.findByRole('heading', { name: 'Unit 303' })).toBeInTheDocument();
+    expect(screen.queryByTestId('vendor-grouping')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('vendor-certificates')).not.toBeInTheDocument();
+  });
+
+  it('replaces the page hero with a breadcrumb that names where you are', async () => {
+    renderAtUnit('m-303');
+    const crumb = await screen.findByTestId('unit-breadcrumb');
+    expect(crumb).toBeInTheDocument();
+    // The course is the middle crumb; the unit is the leaf.
+    expect(crumb).toHaveTextContent('Module 3');
+    expect(crumb).toHaveTextContent('Unit 303');
+    // The hero belongs to the training page, not to a unit.
+    expect(screen.queryByRole('heading', { name: 'Training' })).not.toBeInTheDocument();
   });
 });

@@ -860,6 +860,26 @@ const PortalTrainingV2 = () => {
   const nextModule =
     moduleIndex >= 0 && moduleIndex < modules.length - 1 ? modules[moduleIndex + 1] : null;
 
+  // bd-60156 — the breadcrumb's three labels.
+  //
+  // Each falls back rather than rendering an empty crumb: on a deep link the
+  // detail arrives before courses/levels do, and a crumb that flickers from
+  // blank to a name reads as a glitch. moduleDetail carries its own course and
+  // level, so it is the most reliable source once it lands.
+  const crumbVendor = selectedVendor
+    ? (VENDOR_BRAND[selectedVendor]?.label ?? selectedVendor)
+    : 'Training';
+  // On the EXAM page the module is the middle crumb and "Module exam" is the
+  // leaf. Naming the course as the leaf would give the exam a breadcrumb
+  // identical to the module's, so a teacher mid-exam could not tell from the
+  // trail which of the two she had open.
+  const crumbCourse = routeExamCourseId
+    ? (courses.find(c => c.id === routeExamCourseId)?.title ?? null)
+    : (moduleDetail?.course?.title ?? null);
+  const crumbLeaf = routeExamCourseId
+    ? 'Module exam'
+    : (moduleDetail?.title ?? 'Session');
+
   const selectedCourseObj = useMemo(
     () => courses.find(c => c.id === selectedCourse) ?? null,
     [courses, selectedCourse],
@@ -876,22 +896,67 @@ const PortalTrainingV2 = () => {
     <PortalLayout>
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-6xl" data-testid="training-v2-root">
 
-        {/* The NIETE navy→green gradient (--gradient-hero). The page used to
-            open on flat white, which read as unfinished next to the rest of
-            the portal. */}
-        <div
-          className="rounded-2xl p-6 sm:p-7 mb-7 text-white"
-          style={{ background: 'linear-gradient(135deg, hsl(229 17% 24%) 0%, hsl(146 44% 51%) 100%)' }}
-        >
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-light mb-1">Training</h1>
-              <p className="text-sm text-white/75">
-                Your assigned professional development.
-              </p>
+        {/* bd-60156 — the hero belongs to the TRAINING page, not to a unit.
+            On a sub-page it is a fifth of the screen of branding above the one
+            thing the teacher opened, so the breadcrumb takes its place: it
+            says where she is AND gets her back, in one line instead of a
+            banner plus three pickers. */}
+        {!onSubPage ? (
+          <div
+            className="rounded-2xl p-6 sm:p-7 mb-7 text-white"
+            style={{ background: 'linear-gradient(135deg, hsl(229 17% 24%) 0%, hsl(146 44% 51%) 100%)' }}
+          >
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-light mb-1">Training</h1>
+                <p className="text-sm text-white/75">
+                  Your assigned professional development.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <nav
+            className="flex items-center gap-2 mb-5 text-sm min-w-0"
+            aria-label="Breadcrumb"
+            data-testid="unit-breadcrumb"
+          >
+            <button
+              type="button"
+              onClick={() => { setSelectedLevel(''); navigate('/portal/training/v2'); }}
+              className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              data-testid="breadcrumb-vendor"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              {crumbVendor}
+            </button>
+            {crumbCourse && (
+              <>
+                <span className="text-muted-foreground/50" aria-hidden="true">/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Return to the module LIST with this course still open.
+                    // closeUnit alone lands on the training root, which would
+                    // make the course crumb a lie — it names a module and
+                    // would drop her back at the provider picker.
+                    const back = routeExamCourseId || moduleDetail?.course?.id;
+                    if (back) setSelectedCourse(String(back));
+                    closeUnit();
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors truncate"
+                  data-testid="breadcrumb-course"
+                >
+                  {crumbCourse}
+                </button>
+              </>
+            )}
+            <span className="text-muted-foreground/50" aria-hidden="true">/</span>
+            <span className="font-semibold text-foreground truncate" aria-current="page">
+              {crumbLeaf}
+            </span>
+          </nav>
+        )}
 
         {/* No assignment — the recovery path, not a dead end (bd-43487). */}
         {noAssignment && (
@@ -922,8 +987,16 @@ const PortalTrainingV2 = () => {
           </div>
         )}
 
+        {/* bd-60156 — the picker is the TRAINING page. A unit or exam page
+            shows the one thing the teacher opened and the way back, nothing
+            else: the provider grid, the certificates shelf and the level rail
+            all belong to choosing, and she has already chosen. The provider
+            grid was also a live control sitting above a unit she was reading —
+            one tap changed what the page was about mid-session. */}
         {!noAssignment && (
           <>
+            {!onSubPage && (
+              <>
             <VendorCards
               vendors={vendors}
               selectedVendor={selectedVendor}
@@ -954,6 +1027,8 @@ const PortalTrainingV2 = () => {
               onSelect={handleLevelChange}
               tint={selectedVendor ? (VENDOR_BRAND[selectedVendor]?.tint ?? null) : null}
             />
+              </>
+            )}
 
             {/* Written-capstone history for non-chain levels (bd-2233). */}
             {selectedLevelObj && (selectedLevelObj.unlock_logic || 'chain') !== 'chain' && (
