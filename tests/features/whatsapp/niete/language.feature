@@ -295,8 +295,15 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # report-delivery chrome are English. @slow: full pipeline is 10+ min.
     # bd-di5ap (2026-09-18): "Long Lesson Detected" is no longer sent at all, and the
     # post-transcription acknowledgement that followed it — the one message here with no
-    # language handling whatsoever (its GPT-4o prompt named no language) — is now a
+    # language handling whatsoever (its GPT-4o prompt named no language) — became a
     # translated catalog string. Both were removed from the English-chrome list above.
+    # bd-59840 (2026-09-20): that acknowledgement is now removed outright, so the
+    # message with no language handling is gone rather than translated — nothing is
+    # sent between Step 1/5 and the photo prompt. step1_transcribing's copy changed in
+    # the same commit (it no longer promises "30-60 seconds"), but its en/ur BEHAVIOUR
+    # is untouched and this scenario's BUG still stands: steps 1 and 2 pass no language
+    # to sendProgressUpdate, so they render English regardless. That is DC row 130 and
+    # is deliberately out of bd-59840's scope.
 
   @e2e @wip @draft @language @config-gated @P1
   Scenario: A coach reads the observation flow in the COACH's language, not the observed teacher's
