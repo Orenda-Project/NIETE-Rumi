@@ -35,6 +35,7 @@ supplies no page is that failure, pre-authorised.
 """
 import bodysurface
 import d0_route
+import lessonrules
 
 # The shape of a chapter assessment, handed to the author rather than only
 # enforced afterwards. Law 18: "MIRROR EVERY ENGINE REFUSAL IN THE FREE
@@ -258,4 +259,9 @@ def context(segment, pages, book, prev=None, day=None, total_days=None):
         budget = bodysurface.targets()
         brief["budget"] = budget
         brief["write_last"] = _tightest(budget)
+        # The marks the v3 rubric kept withholding, stated as instructions.
+        # A worksheet and a revision page have no partner activity, no exit
+        # ticket and no gradual release to hang these on, so they are the
+        # lesson's alone.
+        brief["rules"] = lessonrules.RULES
     return brief
