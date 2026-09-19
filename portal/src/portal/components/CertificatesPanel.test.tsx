@@ -20,7 +20,13 @@ import userEvent from "@testing-library/user-event";
 vi.mock("../services/api", () => ({
   default: { get: vi.fn(), post: vi.fn() },
 }));
-vi.mock("@/lib/runtime", () => ({ getApiBaseUrl: vi.fn(() => "/api/portal") }));
+// isNativeApp joined this module when the View/Download split landed
+// (bd-2676); the mock was never widened, so every test in this file died on
+// "No isNativeApp export". Web (false) is the branch these tests assert.
+vi.mock("@/lib/runtime", () => ({
+  getApiBaseUrl: vi.fn(() => "/api/portal"),
+  isNativeApp: vi.fn(() => false),
+}));
 import api from "../services/api";
 import { getApiBaseUrl } from "@/lib/runtime";
 import CertificatesPanel from "./CertificatesPanel";
@@ -112,7 +118,7 @@ describe("CertificatesPanel", () => {
     await userEvent.click(screen.getByTestId("certificates-toggle"));
 
     const row = await screen.findByTestId("certificate-row");
-    expect(row.textContent).toMatch(/prepared on first download/i);
+    expect(row.textContent).toMatch(/will be prepared the first time/i);
   });
 
   it("says nothing about preparing when the PDF already exists", async () => {
@@ -121,7 +127,7 @@ describe("CertificatesPanel", () => {
     await userEvent.click(screen.getByTestId("certificates-toggle"));
 
     const row = await screen.findByTestId("certificate-row");
-    expect(row.textContent).not.toMatch(/prepared on first download/i);
+    expect(row.textContent).not.toMatch(/will be prepared the first time/i);
   });
 
   it("shows an empty state when the teacher has none", async () => {

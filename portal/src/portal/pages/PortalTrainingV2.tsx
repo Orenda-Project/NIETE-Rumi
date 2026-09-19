@@ -47,6 +47,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
   GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck,
@@ -56,6 +57,7 @@ import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
 import LevelExamCard from '../components/LevelExamCard';
+import LevelCertificateRow from '../components/LevelCertificateRow';
 import CapstoneResultCard from '../components/CapstoneResultCard';
 import CertificatesPanel from '../components/CertificatesPanel';
 import BandPicker from '../components/BandPicker';
@@ -101,8 +103,25 @@ type Vendor = {
   course_count: number;
   module_count: number;
   completed_module_count: number;
+  certificate_count: number;
   avg_score_pct: number | null;
 };
+
+/**
+ * bd-60152 — vendors that assess PER MODULE and have no level exam at all.
+ *
+ * The level-exam card rendered "🔒 Level exam — locked. Unlocks when all
+ * courses in this level are complete (1/9 courses started)" on I-SAPS, which
+ * has no level exam: it is assessed module by module, and the certificate
+ * comes from finishing all nine. Announcing the absence of an exam reads as
+ * something missing rather than as by design, so the card is simply not shown.
+ *
+ * A set rather than an === so the next per-module vendor is one word, and
+ * hardcoded rather than derived because the data model cannot yet say "this
+ * level has no exam" — the real fix is bd-60150, which stops a per-module quiz
+ * being reported as the level's.
+ */
+const LEVEL_EXAMLESS_VENDORS = new Set(['ISAPS']);
 
 type LevelState = 'locked' | 'certified' | 'ready_for_quiz' | 'in_progress' | 'not_started';
 type Level = {
@@ -203,10 +222,13 @@ function VendorCards({
   vendors,
   selectedVendor,
   onSelect,
+  levels,
 }: {
   vendors: Vendor[];
   selectedVendor: string | null;
   onSelect: (key: string | null) => void;
+  /** Every visible level; the shelf below narrows to the chosen provider. */
+  levels: Level[];
 }) {
   if (vendors.length === 0) return null;
   return (
@@ -306,21 +328,19 @@ function VendorCards({
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">
-                    {v.completed_module_count > 0
-                      ? `${v.completed_module_count} / ${v.module_count}`
-                      : 'Not started'}
+                  {/* bd-60152 — the card leads with what a teacher has EARNED.
+                      "3 / 54" is bookkeeping; a certificate is the thing she
+                      is working towards, and the bar already carries progress.
+                      The figure beside it is that bar in words — a percentage,
+                      not a second fraction saying the same thing twice. */}
+                  <span className="text-sm font-semibold text-foreground" data-testid="vendor-certificate-count">
+                    {v.certificate_count === 1
+                      ? '1 Certificate'
+                      : `${v.certificate_count || 0} Certificates`}
                   </span>
-                  {v.avg_score_pct == null ? (
-                    <span className="text-sm text-muted-foreground" data-testid="vendor-avg-score-none">—</span>
-                  ) : (
-                    <span
-                      className={`inline-flex px-2.5 py-1 rounded-full border text-sm font-medium ${scoreTone(v.avg_score_pct)}`}
-                      data-testid="vendor-avg-score-badge"
-                    >
-                      {v.avg_score_pct}% avg
-                    </span>
-                  )}
+                  <span className="text-sm text-muted-foreground" data-testid="vendor-progress-pct">
+                    {pct}%
+                  </span>
                 </div>
               </div>
 
@@ -336,6 +356,41 @@ function VendorCards({
           );
         })}
       </div>
+
+      {/* bd-60152 — certificates live WITH the provider, not in the page
+          header. In the header they were a global drawer that belonged to
+          nothing; here they sit under the provider whose training earned
+          them, which is where a teacher goes looking. Shown once a provider
+          is chosen, so the row is about that provider rather than everything
+          at once. */}
+      {/* bd-60154 — THE SHELF, in place of the drawer that used to sit in the
+          page header.
+
+          Two things changed and they are the same change. Certificates now
+          live WITH the provider whose training earns them, which is where a
+          teacher looks; and the list no longer hides behind a button, because
+          a drawer whose contents are "nothing yet" teaches nothing when it is
+          opened. Earned and unearned share one list, so the next certificate
+          and the work left on it are always on screen.
+
+          `levels` is already the chosen provider's (visibleLevels filters on
+          selectedVendor), which is what keeps I-SAPS and Beacon House out of
+          one undifferentiated column. Do not re-filter here — a second filter
+          on the same key reads as though it were load-bearing. */}
+      {selectedVendor && (
+        <div className="mt-4" data-testid="vendor-certificates">
+          <CertificatesPanel
+            alwaysOpen
+            levels={levels
+              .map(l => ({
+                id: l.id,
+                name: l.name,
+                module_count: l.module_count,
+                completed_count: l.completed_count,
+              }))}
+          />
+        </div>
+      )}
     </section>
   );
 }
@@ -486,6 +541,59 @@ const PortalTrainingV2 = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<string>('');
 
+  // bd-60152 — a unit has its OWN page and URL.
+  //
+  // It was a panel under the course/module lists, which meant it could not be
+  // linked, reloaded or left with the browser's back button, and a teacher
+  // reading a unit still had the whole picker above her. The route parameter
+  // is now the source of truth for what is open; selecting a unit navigates,
+  // and closing it navigates back.
+  const { moduleId: routeModuleId, courseId: routeExamCourseId } =
+    useParams<{ moduleId: string; courseId: string }>();
+  const navigate = useNavigate();
+  const openUnit = useCallback((id: string) => {
+    navigate(`/portal/training/v2/unit/${id}`);
+  }, [navigate]);
+  const closeUnit = useCallback(() => {
+    navigate('/portal/training/v2');
+  }, [navigate]);
+  const openExam = useCallback((courseId: string) => {
+    navigate(`/portal/training/v2/exam/${courseId}`);
+  }, [navigate]);
+  /** True when EITHER a unit or an exam has taken over the page. */
+  const onSubPage = Boolean(routeModuleId || routeExamCourseId);
+
+  // Keep the selection in step with the URL, in both directions: a deep link
+  // or a back button must open the right unit.
+  // bd-60152 — a unit opened by URL restores its own course and level.
+  //
+  // `modules` is fetched from selectedCourse. On a direct load of
+  // /unit/:id nothing had set that, so the list was empty, moduleIndex was -1,
+  // and prev/next were both null and disabled — the reported "navigation
+  // doesn't work". The detail response already carries course and level, so
+  // the page can put itself back together from the URL alone.
+  useEffect(() => {
+    if (!moduleDetail) return;
+    if (moduleDetail.level && !selectedLevel) setSelectedLevel(String(moduleDetail.level.id));
+    if (moduleDetail.course && !selectedCourse) setSelectedCourse(moduleDetail.course.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleDetail]);
+
+  // bd-60152 — an exam opened by URL selects its course, so the gate and the
+  // paper resolve exactly as they do from the list.
+  useEffect(() => {
+    if (routeExamCourseId && routeExamCourseId !== selectedCourse) {
+      setSelectedCourse(routeExamCourseId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeExamCourseId]);
+
+  useEffect(() => {
+    if (routeModuleId && routeModuleId !== selectedModule) setSelectedModule(routeModuleId);
+    if (!routeModuleId && selectedModule) setSelectedModule('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeModuleId]);
+
   const [levelsLoaded, setLevelsLoaded] = useState(false);
   const [editingBands, setEditingBands] = useState(false);
 
@@ -541,6 +649,19 @@ const PortalTrainingV2 = () => {
 
   useEffect(() => {
     if (!selectedLevel) return;
+    // bd-60152 — this guard drops a level the teacher can no longer see (a
+    // band change, a revoked assignment). It must NOT run while a URL owns
+    // the selection, and it must NOT run before the level list has arrived.
+    //
+    // Both were wrong, and together they were the whole "navigation doesn't
+    // work" bug. visibleLevels is [] on first paint, so ANY selected level
+    // looks absent from it — the guard then fired on a perfectly valid level
+    // and wiped selectedModule, which the route had just set. The detail
+    // fetch keys on selectedModule, so it never ran: on a deep link the page
+    // issued only /vendors and /levels and nothing else, leaving a unit page
+    // with no unit and both arrows dead.
+    if (onSubPage) return;
+    if (visibleLevels.length === 0) return;
     if (!visibleLevels.some(l => String(l.id) === selectedLevel)) {
       setSelectedLevel('');
       setSelectedCourse('');
@@ -549,7 +670,8 @@ const PortalTrainingV2 = () => {
       setModules([]); setModuleExam(null);
       setModuleDetail(null);
     }
-  }, [visibleLevels, selectedLevel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleLevels, selectedLevel, onSubPage]);
 
   // One provider is not a choice. Gating the rail on a vendor (above) would
   // otherwise make a single-provider teacher click her only card before
@@ -588,8 +710,17 @@ const PortalTrainingV2 = () => {
   }, [levels, toast]);
 
   useEffect(() => {
-    setCourses([]); setModules([]); setModuleDetail(null);
-    setSelectedCourse(''); setSelectedModule('');
+    setCourses([]); setModules([]);
+    // bd-60152 — the THIRD effect that tore down URL-owned state, and the one
+    // the instrumentation actually caught clearing it (a deep link set
+    // selectedModule, then this ran when the level auto-picked and wiped it).
+    //
+    // Changing level legitimately invalidates the open unit when the teacher
+    // is browsing. On a unit URL the opposite is true: the level is being
+    // restored *because* of that unit, so clearing it here threw away the
+    // very selection that caused the fetch, and the detail request was never
+    // issued at all.
+    if (!onSubPage) { setModuleDetail(null); setSelectedCourse(''); setSelectedModule(''); }
     setLoadError(null);
     if (!selectedLevel) return;
     (async () => {
@@ -615,8 +746,24 @@ const PortalTrainingV2 = () => {
   }, [courses, selectedCourse]);
 
   useEffect(() => {
-    setModules([]); setModuleDetail(null);
-    setSelectedModule('');
+    setModules([]);
+    // bd-60152 — do NOT clear the selection OR the detail when the URL names a
+    // unit.
+    //
+    // This unconditionally reset selectedModule, which fought the route: a
+    // deep link set the unit, then this effect wiped it the moment the course
+    // resolved, and the page fell back to the picker.
+    //
+    // Clearing moduleDetail here was the second half of the same bug, and the
+    // reason the arrows stayed grey after the first fix. On a deep link the
+    // order is: detail arrives -> the restore effect reads its course -> that
+    // sets selectedCourse -> which re-runs THIS effect -> which nulled the
+    // very detail the restore had just read. The detail fetch keys on
+    // selectedModule alone, so it never re-ran, the restore's `if
+    // (!moduleDetail) return` bailed forever, and moduleIndex stayed -1 with
+    // both arrows disabled. The URL owns this state; a course change that the
+    // URL itself caused must not tear it down.
+    if (!routeModuleId) { setSelectedModule(''); setModuleDetail(null); }
     setAttemptsByModule({});
     setLoadError(null);
     if (!selectedCourse) return;
@@ -713,6 +860,26 @@ const PortalTrainingV2 = () => {
   const nextModule =
     moduleIndex >= 0 && moduleIndex < modules.length - 1 ? modules[moduleIndex + 1] : null;
 
+  // bd-60156 — the breadcrumb's three labels.
+  //
+  // Each falls back rather than rendering an empty crumb: on a deep link the
+  // detail arrives before courses/levels do, and a crumb that flickers from
+  // blank to a name reads as a glitch. moduleDetail carries its own course and
+  // level, so it is the most reliable source once it lands.
+  const crumbVendor = selectedVendor
+    ? (VENDOR_BRAND[selectedVendor]?.label ?? selectedVendor)
+    : 'Training';
+  // On the EXAM page the module is the middle crumb and "Module exam" is the
+  // leaf. Naming the course as the leaf would give the exam a breadcrumb
+  // identical to the module's, so a teacher mid-exam could not tell from the
+  // trail which of the two she had open.
+  const crumbCourse = routeExamCourseId
+    ? (courses.find(c => c.id === routeExamCourseId)?.title ?? null)
+    : (moduleDetail?.course?.title ?? null);
+  const crumbLeaf = routeExamCourseId
+    ? 'Module exam'
+    : (moduleDetail?.title ?? 'Session');
+
   const selectedCourseObj = useMemo(
     () => courses.find(c => c.id === selectedCourse) ?? null,
     [courses, selectedCourse],
@@ -729,23 +896,67 @@ const PortalTrainingV2 = () => {
     <PortalLayout>
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-6xl" data-testid="training-v2-root">
 
-        {/* The NIETE navy→green gradient (--gradient-hero). The page used to
-            open on flat white, which read as unfinished next to the rest of
-            the portal. */}
-        <div
-          className="rounded-2xl p-6 sm:p-7 mb-7 text-white"
-          style={{ background: 'linear-gradient(135deg, hsl(229 17% 24%) 0%, hsl(146 44% 51%) 100%)' }}
-        >
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-light mb-1">Training</h1>
-              <p className="text-sm text-white/75">
-                Your assigned professional development.
-              </p>
+        {/* bd-60156 — the hero belongs to the TRAINING page, not to a unit.
+            On a sub-page it is a fifth of the screen of branding above the one
+            thing the teacher opened, so the breadcrumb takes its place: it
+            says where she is AND gets her back, in one line instead of a
+            banner plus three pickers. */}
+        {!onSubPage ? (
+          <div
+            className="rounded-2xl p-6 sm:p-7 mb-7 text-white"
+            style={{ background: 'linear-gradient(135deg, hsl(229 17% 24%) 0%, hsl(146 44% 51%) 100%)' }}
+          >
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-light mb-1">Training</h1>
+                <p className="text-sm text-white/75">
+                  Your assigned professional development.
+                </p>
+              </div>
             </div>
-            <CertificatesPanel />
           </div>
-        </div>
+        ) : (
+          <nav
+            className="flex items-center gap-2 mb-5 text-sm min-w-0"
+            aria-label="Breadcrumb"
+            data-testid="unit-breadcrumb"
+          >
+            <button
+              type="button"
+              onClick={() => { setSelectedLevel(''); navigate('/portal/training/v2'); }}
+              className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              data-testid="breadcrumb-vendor"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              {crumbVendor}
+            </button>
+            {crumbCourse && (
+              <>
+                <span className="text-muted-foreground/50" aria-hidden="true">/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Return to the module LIST with this course still open.
+                    // closeUnit alone lands on the training root, which would
+                    // make the course crumb a lie — it names a module and
+                    // would drop her back at the provider picker.
+                    const back = routeExamCourseId || moduleDetail?.course?.id;
+                    if (back) setSelectedCourse(String(back));
+                    closeUnit();
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors truncate"
+                  data-testid="breadcrumb-course"
+                >
+                  {crumbCourse}
+                </button>
+              </>
+            )}
+            <span className="text-muted-foreground/50" aria-hidden="true">/</span>
+            <span className="font-semibold text-foreground truncate" aria-current="page">
+              {crumbLeaf}
+            </span>
+          </nav>
+        )}
 
         {/* No assignment — the recovery path, not a dead end (bd-43487). */}
         {noAssignment && (
@@ -776,12 +987,21 @@ const PortalTrainingV2 = () => {
           </div>
         )}
 
+        {/* bd-60156 — the picker is the TRAINING page. A unit or exam page
+            shows the one thing the teacher opened and the way back, nothing
+            else: the provider grid, the certificates shelf and the level rail
+            all belong to choosing, and she has already chosen. The provider
+            grid was also a live control sitting above a unit she was reading —
+            one tap changed what the page was about mid-session. */}
         {!noAssignment && (
           <>
+            {!onSubPage && (
+              <>
             <VendorCards
               vendors={vendors}
               selectedVendor={selectedVendor}
               onSelect={setSelectedVendor}
+              levels={visibleLevels}
             />
 
             {/* The gated state says what to do next, rather than ending the
@@ -807,6 +1027,8 @@ const PortalTrainingV2 = () => {
               onSelect={handleLevelChange}
               tint={selectedVendor ? (VENDOR_BRAND[selectedVendor]?.tint ?? null) : null}
             />
+              </>
+            )}
 
             {/* Written-capstone history for non-chain levels (bd-2233). */}
             {selectedLevelObj && (selectedLevelObj.unlock_logic || 'chain') !== 'chain' && (
@@ -819,7 +1041,8 @@ const PortalTrainingV2 = () => {
 
             {/* The level exam belongs to the LEVEL, so it sits above the
                 course/module lists rather than below the open module. */}
-            {selectedLevelObj && selectedLevelObj.state !== 'locked' && (
+            {selectedLevelObj && selectedLevelObj.state !== 'locked'
+              && !LEVEL_EXAMLESS_VENDORS.has(String(selectedLevelObj.vendor_key || '').toUpperCase()) && (
               <div className="mb-8">
                 <LevelExamCard
                   key={selectedLevelObj.id}
@@ -831,8 +1054,12 @@ const PortalTrainingV2 = () => {
               </div>
             )}
 
-            {/* Courses + modules, both visible at once. */}
-            {selectedLevel && (
+            {/* Courses + modules, both visible at once.
+                bd-60152 — hidden while a unit is open: a unit is now its own
+                PAGE, and leaving the whole picker above it is what made it
+                feel like a panel. Closing the unit brings them straight back,
+                because the URL is what decides. */}
+            {selectedLevel && !onSubPage && (
               <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4 mb-8">
                 <div className="rounded-2xl border bg-card p-2 shadow-sm" data-testid="course-list">
                   <div className="px-3.5 pt-3 pb-2 text-xs font-bold tracking-wider text-muted-foreground">
@@ -870,6 +1097,17 @@ const PortalTrainingV2 = () => {
                     );
                   })}
 
+                  {/* bd-60152 — the certificate, as the last row of the course
+                      list. On a per-module-assessed level there is no level
+                      exam to hand it over, so without this a teacher who
+                      finished everything had nowhere to collect it. */}
+                  {selectedLevelObj && (
+                    <LevelCertificateRow
+                      key={`cert-${selectedLevelObj.id}`}
+                      levelId={selectedLevelObj.id}
+                      onIssued={refreshLevels}
+                    />
+                  )}
                 </div>
 
                 <div className="rounded-2xl border bg-card p-2 shadow-sm" data-testid="module-list">
@@ -913,7 +1151,7 @@ const PortalTrainingV2 = () => {
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => setSelectedModule(m.id)}
+                        onClick={() => openUnit(m.id)}
                         data-testid={`module-item-${m.id}`}
                         aria-pressed={active}
                         className={`w-full text-left rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 transition-colors ${
@@ -940,7 +1178,7 @@ const PortalTrainingV2 = () => {
                       {m.has_questions && (
                         <button
                           type="button"
-                          onClick={() => setSelectedModule(m.id)}
+                          onClick={() => openUnit(m.id)}
                           data-testid={`module-assessment-${m.id}`}
                           className={`w-full text-left rounded-lg pl-9 pr-3.5 py-2 mb-0.5 flex items-center gap-3 transition-colors ${
                             active ? 'bg-accent/5' : 'hover:bg-muted/50'
@@ -978,6 +1216,7 @@ const PortalTrainingV2 = () => {
                       courseId={String(selectedCourse)}
                       exam={moduleExam}
                       asListRow
+                      onOpen={() => openExam(String(selectedCourse))}
                       onPassed={() => {
                         if (!selectedCourse) return;
                         api.get('/training/modules', { params: { course_id: selectedCourse } })
@@ -997,6 +1236,52 @@ const PortalTrainingV2 = () => {
             {loadingDetail && (
               <div className="rounded-2xl border bg-card p-6 shadow-sm">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {/* bd-60152 — the way OUT of the unit page. Without it the only
+                route back to the module list is the browser's back button,
+                which a teacher on a phone will not reliably find. */}
+            {onSubPage && (
+              <button
+                type="button"
+                onClick={closeUnit}
+                className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="unit-back"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back to modules
+              </button>
+            )}
+
+            {/* bd-60152 — the module exam as its own PAGE.
+                It was rendered only inside the module list, which the unit
+                page hides — so opening a unit made the exam vanish, and there
+                was nowhere to sit it with the room a written answer needs. */}
+            {routeExamCourseId && moduleExam && (
+              <div className="rounded-2xl border bg-card shadow-sm overflow-hidden" data-testid="module-exam-page">
+                <div className="p-6 border-b">
+                  <h2 className="text-xl font-medium text-foreground">
+                    {selectedCourseObj ? selectedCourseObj.title : 'Module exam'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">Module exam</p>
+                </div>
+                <div className="px-6 pb-6">
+                  <ModuleExamPanel
+                    key={`exampage-${routeExamCourseId}`}
+                    courseId={String(routeExamCourseId)}
+                    exam={moduleExam}
+                    autoStart
+                    onPassed={() => {
+                      api.get('/training/modules', { params: { course_id: routeExamCourseId } })
+                        .then(({ data }) => {
+                          setModules(data.modules || []);
+                          setModuleExam(data.exam || null);
+                        })
+                        .catch(() => { /* the pass is recorded server-side either way */ });
+                    }}
+                  />
+                </div>
               </div>
             )}
 
@@ -1046,7 +1331,7 @@ const PortalTrainingV2 = () => {
                         variant="outline"
                         size="icon"
                         disabled={!prevModule}
-                        onClick={() => prevModule && setSelectedModule(prevModule.id)}
+                        onClick={() => prevModule && openUnit(prevModule.id)}
                         aria-label="Previous module"
                         data-testid="module-prev"
                       >
@@ -1056,7 +1341,7 @@ const PortalTrainingV2 = () => {
                         variant="outline"
                         size="icon"
                         disabled={!nextModule}
-                        onClick={() => nextModule && setSelectedModule(nextModule.id)}
+                        onClick={() => nextModule && openUnit(nextModule.id)}
                         aria-label="Next module"
                         data-testid="module-next"
                       >
@@ -1173,7 +1458,7 @@ const PortalTrainingV2 = () => {
                         )}
                       </div>
                     </div>
-                    <Button variant="outline" onClick={() => setSelectedModule(nextModule.id)}>
+                    <Button variant="outline" onClick={() => openUnit(nextModule.id)}>
                       <PlayCircle className="w-4 h-4 mr-2" />
                       Continue
                     </Button>

@@ -2026,9 +2026,22 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
         course_count: 0,
         module_count: 0,
         completed_module_count: 0,
+        // bd-60152 — the card leads with certificates earned, so the count
+        // must come from the same call that draws the card.
+        certificate_count: 0,
         _pctSum: 0,
         _pctN: 0,
       });
+    }
+
+    // Certificates held, attributed to the vendor that owns the level.
+    const { data: certRows } = levelIds.length
+      ? await supabase.from('training_certificates')
+        .select('level_id').eq('user_id', userId).in('level_id', levelIds)
+      : { data: [] };
+    for (const c of certRows || []) {
+      const agg = perVendor.get(levelToVendor.get(c.level_id));
+      if (agg) agg.certificate_count += 1;
     }
 
     for (const l of levels || []) {
@@ -2067,6 +2080,12 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
       course_count: agg.course_count,
       module_count: agg.module_count,
       completed_module_count: agg.completed_module_count,
+      // bd-60155 — this line is why the card read "0 Certificates" for
+      // everyone. The count was aggregated correctly above and then dropped
+      // here: this mapper names every field it returns, so a field added to
+      // the accumulator and not to this list is silently discarded. The
+      // aggregation was verified against real data; the RESPONSE never was.
+      certificate_count: agg.certificate_count,
       avg_score_pct: agg._pctN > 0 ? Math.round(agg._pctSum / agg._pctN) : null,
     }));
 
@@ -2382,6 +2401,128 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
     }
     console.error('portal/classes/:id/students remove error:', error.message);
     return res.status(502).json({ success: false, error: 'Could not remove the student. Please try again.' });
+  }
+});
+
+/**
+ * GET  /api/portal/training/level/:id/certificate   — is it claimable, and is one held?
+ * POST /api/portal/training/level/:id/certificate   — claim it.
+ *
+ * bd-60152 — the "Receive Certificate" row at the end of the course list.
+ *
+ * A teacher on a per-module-assessed level (I-SAPS) never sits a LEVEL exam, so
+ * nothing on the page ever told her the level was finished or handed her the
+ * certificate she had earned. The row is that affordance: locked until every
+ * module is done, and on tap it either says what is still outstanding or mints
+ * the certificate.
+ *
+ * The DECISION is the bot's shared guard (bd-60145), unchanged — all units
+ * complete AND every active per-module exam passed. This route adds no rule of
+ * its own; it reports what the guard already holds and asks it to issue.
+ * Idempotent: the guard refuses a second certificate per (user, level), so a
+ * double tap cannot mint two.
+ */
+async function _levelCertificateState(userId, levelId) {
+  // Held already? Then the answer is the certificate, whatever the gates say.
+  const { data: held } = await supabase
+    .from('training_certificates')
+    .select('certificate_code, issued_at')
+    .eq('user_id', userId).eq('level_id', levelId)
+    .limit(1);
+  if (Array.isArray(held) && held.length > 0) {
+    return { state: 'issued', certificate: held[0], units_total: 0, units_done: 0 };
+  }
+
+  // Otherwise: how much of the level is actually finished? Counted here rather
+  // than trusted from the client, because this is what the copy must explain.
+  const { data: courses } = await supabase
+    .from('training_courses').select('id').eq('level_id', levelId).eq('is_active', true);
+  const courseIds = (courses || []).map(c => c.id);
+  const { data: units } = courseIds.length
+    ? await supabase.from('training_modules').select('id')
+      .in('course_id', courseIds).eq('is_active', true)
+    : { data: [] };
+  const unitIds = (units || []).map(u => u.id);
+  const { data: done } = unitIds.length
+    ? await supabase.from('teacher_training_progress').select('module_id')
+      .eq('user_id', userId).in('module_id', unitIds)
+    : { data: [] };
+  const doneIds = new Set((done || []).map(d => d.module_id));
+
+  // And the per-module exams, which are the other half of the guard's test.
+  const { data: quizzes } = await supabase
+    .from('training_grand_quizzes')
+    .select('id, source_quiz_id, is_active')
+    .eq('level_id', levelId).eq('is_active', true);
+  const perModule = (quizzes || []).filter(q => Number(q.source_quiz_id) > 900);
+  const { data: passed } = perModule.length
+    ? await supabase.from('training_assessment_attempts')
+      .select('grand_quiz_id, is_passed')
+      .eq('user_id', userId).eq('quiz_kind', 'grand')
+    : { data: [] };
+  const passedIds = new Set((passed || []).filter(a => a.is_passed === true).map(a => a.grand_quiz_id));
+  const examsDone = perModule.filter(q => passedIds.has(q.id)).length;
+
+  return {
+    state: 'locked',
+    certificate: null,
+    units_total: unitIds.length,
+    units_done: unitIds.filter(id => doneIds.has(id)).length,
+    exams_total: perModule.length,
+    exams_done: examsDone,
+  };
+}
+
+router.get('/training/level/:id/certificate', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) {
+      return res.status(400).json({ success: false, error: 'Invalid level id' });
+    }
+    return res.json({ success: true, ...(await _levelCertificateState(userId, levelId)) });
+  } catch (error) {
+    console.error('training/level/:id/certificate GET error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load the certificate state' });
+  }
+});
+
+router.post('/training/level/:id/certificate', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const levelId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(levelId)) {
+      return res.status(400).json({ success: false, error: 'Invalid level id' });
+    }
+
+    const before = await _levelCertificateState(userId, levelId);
+    if (before.state === 'issued') {
+      return res.json({ success: true, issued: true, certificate: before.certificate });
+    }
+
+    const { data: assignment } = await supabase
+      .from('teacher_training_assignments').select('program_id')
+      .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+
+    const cert = await TrainingRules.certifyLevel({
+      userId, levelId, programId: assignment?.program_id || null,
+    });
+    if (cert.issued) {
+      return res.json({ success: true, issued: true, certificate: cert });
+    }
+    // The guard refused. Say WHAT is outstanding rather than "not yet".
+    return res.json({
+      success: true,
+      issued: false,
+      reason: 'incomplete',
+      units_total: before.units_total,
+      units_done: before.units_done,
+      exams_total: before.exams_total,
+      exams_done: before.exams_done,
+    });
+  } catch (error) {
+    console.error('training/level/:id/certificate POST error:', error);
+    return res.status(500).json({ success: false, error: 'Could not issue the certificate' });
   }
 });
 
