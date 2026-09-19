@@ -94,6 +94,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have confirmed analysis and answered the optional-context prompts
     When the async worker finishes steps 4/5 and 5/5
     Then it returns coaching feedback referencing the FICO / ICT rubric
+    And Step 5/5 is followed by the voice note ITSELF — exactly one message stands
+    And that one message is the Step 5/5 announcement, in my own language, not a second line restating it
+    # UPDATED 2026-09-20 (bd-sk206, DC row 132): a caption used to sit between
+    # Step 5/5 and the audio — "🎤 Here's your personalized voice summary:". In
+    # Urdu it restated the announcement almost word for word (both "a summary …
+    # in audio"), differing only by verb aspect at the END of the sentence, so
+    # the reporter read Step 5 as one message sent twice. English hid it: there
+    # the step label and "Creating…" vs "Here's…" separate them up front. The
+    # caption is gone; the ANNOUNCEMENT stays, because it covers a real wait —
+    # median 39.7s between the two across 586 sessions on 18 Sep 2026 (niete-logs;
+    # min 15s, p95 55s, max 242s). Assert the COUNT and which one survived, not
+    # the wording of the removed line.
     # @wip @slow: for a LONG (~26-min) recording the worker takes 10+ minutes. The
     # bot no longer says so (bd-di5ap removed that warning — it fired for the
     # majority of sessions and contradicted the 30-60s promise). Driven live

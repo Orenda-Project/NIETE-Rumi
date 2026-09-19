@@ -1659,8 +1659,20 @@ class ReportGeneratorService {
         });
       }
 
-      // Send voice debrief
-      await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('voiceSummaryReady', _languageFromSession(session)));
+      // Send voice debrief.
+      //
+      // bd-sk206 (feedback row 132) — NO caption precedes the audio. There used
+      // to be one (`voiceSummaryReady`), and in Urdu it restated the Step 5/5
+      // announcement above almost word for word: both read "a summary has been /
+      // is being prepared for you in audio", differing only in verb aspect
+      // (تیار کیا گیا ہے vs تیار کیا جا رہا ہے) at the END of the sentence. The
+      // reporter read them as one message sent twice. English hid it — there the
+      // step label and "Creating…" vs "Here's…" carry the distinction up front.
+      //
+      // The ANNOUNCEMENT is the half that stays: production sits a median 39.7s
+      // between the two (586 sessions, 18 Sep 2026; p95 55s, max 242s), so
+      // dropping it instead would leave the teacher waiting in silence. The audio
+      // arriving after it needs no caption.
       await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl);
 
       logToFile('✅ Voice debrief sent successfully', { coachingSessionId });
