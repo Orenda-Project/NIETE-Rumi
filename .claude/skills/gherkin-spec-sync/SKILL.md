@@ -31,7 +31,7 @@ confidence it has not earned. That is the failure this phase exists to end.
 
 ```bash
 cat .claude/.e2e-pending/<session>.sync.json     # the hook names the exact path
-python3 .claude/qa/shared/spec_sync.py --selection <that file>   # human summary
+python3 .claude/qa/engine/bin/spec_sync.py --selection <that file>   # human summary
 ```
 
 Per feature it carries:
@@ -204,7 +204,7 @@ promoted. Do not turn one into a spec without an explicit ask.
 ## 6. Validate — this is a gate, not a formality
 
 ```bash
-python3 .claude/qa/shared/validate_specs.py --only menu,status
+python3 .claude/qa/engine/bin/validate_specs.py --only menu,status
 ```
 
 Exit `1` means **phase 2 does not run.** Fix, or state that the E2E is skipped
@@ -228,7 +228,7 @@ somebody's deliberate style.
 `check-all-mode-counts.py` is what catches that drift, and it is a separate gate:
 
 ```bash
-python3 .claude/qa/shared/check-all-mode-counts.py
+python3 .claude/qa/engine/bin/check-all-mode-counts.py
 ```
 
 ---

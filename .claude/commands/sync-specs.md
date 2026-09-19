@@ -23,7 +23,7 @@ Full procedure: [`gherkin-spec-sync`](../skills/gherkin-spec-sync/SKILL.md).
 1. **Get the brief.** With `--brief`, read that file — it is already built and is
    the same selection that armed the run, so do not recompute it. Otherwise:
    ```bash
-   python3 .claude/qa/shared/spec_sync.py --repo <repo> --committed --json
+   python3 .claude/qa/engine/bin/spec_sync.py --repo <repo> --committed --json
    ```
 2. **Invoke the `gherkin-spec-sync` skill and follow it exactly.** Per feature:
    `create` · `update` · `validate-only`, from the brief's `action`.
@@ -45,7 +45,7 @@ Full procedure: [`gherkin-spec-sync`](../skills/gherkin-spec-sync/SKILL.md).
    entry with its reason. Full procedure: `gherkin-spec-sync` §5.
 7. **Gate on the validator:**
    ```bash
-   python3 .claude/qa/shared/validate_specs.py --only <features>
+   python3 .claude/qa/engine/bin/validate_specs.py --only <features>
    ```
    Exit 1 → do NOT run the suite. Fix, or say phase 2 is skipped and why.
 8. If a scenario count changed, update the counts in

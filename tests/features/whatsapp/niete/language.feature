@@ -30,7 +30,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
   #                    alongside the clamped value so an off-market code stays visible.
   #
   # ─────────────────────────── Handling non-determinism (READ FIRST) ────────────────────
-  # See ../../../.claude/qa/shared/non-determinism-contract.md. FIXED strings (@copy) are
+  # See ../../../.claude/qa/engine/bin/non-determinism-contract.md. FIXED strings (@copy) are
   # pinned exactly; the language a surface renders IN is asserted by SHAPE ("renders in Urdu /
   # RTL Perso-Arabic script"), never by pinning a full sentence copywriters may reword. Where a
   # scenario proves persistence, read state back from the DB (users.preferred_language /

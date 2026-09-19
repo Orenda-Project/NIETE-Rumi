@@ -11,7 +11,7 @@ a fabricated one.
 
 ## Populating it (one time, needs real vendor keys)
 
-    bash .claude/qa/shared/commit-e2e.sh HEAD --features coaching --record
+    bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features coaching --record
 
 `--record` un-seals the lane for that single run: it uses `keys/niete-record.env` (real Soniox /
 OpenRouter / ElevenLabs keys — gitignored, never the sealed default), sets `E2E_CASSETTE=record`, drives

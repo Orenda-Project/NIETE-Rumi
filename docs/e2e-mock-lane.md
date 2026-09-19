@@ -21,12 +21,12 @@ commit
 ## One command
 
 ```bash
-bash .claude/qa/shared/commit-e2e.sh HEAD                      # what this commit touched (mock-capable subset)
-bash .claude/qa/shared/commit-e2e.sh <sha> --features menu     # a specific feature
-bash .claude/qa/shared/commit-e2e.sh HEAD --all-mock           # every mock-lane feature regardless of the diff
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD                      # what this commit touched (mock-capable subset)
+bash .claude/qa/engine/bin/commit-e2e.sh <sha> --features menu     # a specific feature
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --all-mock           # every mock-lane feature regardless of the diff
 ```
 
-Or the runner directly: `bash .claude/qa/shared/run-suite.sh menu,status --method mock --commit <sha>`.
+Or the runner directly: `bash .claude/qa/engine/bin/run-suite.sh menu,status --method mock --commit <sha>`.
 Every existing chrome invocation is unchanged; `--method` defaults from `whatsapp-targets.yaml`.
 
 ## What is guaranteed
@@ -184,7 +184,7 @@ Recorded once, they are replayed by every run and every clone — no keys, no ne
 Populating them is a one-time, un-sealing step that makes LIVE, paid calls, so it is gated:
 
 ```
-bash .claude/qa/shared/commit-e2e.sh HEAD --features coaching --record
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features coaching --record
 ```
 
 `--record` uses a SEPARATE keys file, `keys/niete-record.env`, that carries real vendor keys (and `R2_*`
@@ -216,9 +216,9 @@ the lane's feature list.
 | Stack launcher (redis · mock · bot · worker) | `bot/scripts/e2e/local-stack.sh` |
 | Strict cassette | `bot/shared/services/e2e-cassette.js` (`E2E_CASSETTE=replay-strict`, `E2E_CASSETTE_MISS_LOG`) |
 | Vendor cassette fixtures + record | `.claude/qa/fixtures/cassettes/` (committed); `commit-e2e.sh --record` + `keys/niete-record.env` to populate |
-| Mock driver | `.claude/qa/shared/mock-api.cjs` (selected by `E2E_METHOD=mock` in `feature-runner.cjs`) |
-| Runner, profile, ledger | `.claude/qa/shared/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
+| Mock driver | `.claude/qa/engine/bin/mock-api.cjs` (selected by `E2E_METHOD=mock` in `feature-runner.cjs`) |
+| Runner, profile, ledger | `.claude/qa/engine/bin/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
 | Sandbox driver account | `.claude/qa/shared/niete_sandbox_driver.py` |
 | Flow definitions + census | `bot/scripts/e2e/flow-inventory.js` → `.claude/qa/fixtures/flows/` |
 | Flow emulator (client side of a Flow, encrypted exchange) | `bot/scripts/e2e/flow-emulator.js`, used by `mock-api.cjs` (`E2E_FLOWS_DIR`, `E2E_FLOW_PUBLIC_KEY_B64`, `E2E_BOT_URL`) |
-| Tests | `tests/e2e-mock/*.test.js` (54), `.claude/qa/shared/test_mock_api.js` (23), `test_ledger_row.py`, `test_niete_sandbox_driver.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/hooks/e2e-autorun.test.sh` |
+| Tests | `tests/e2e-mock/*.test.js` (54), `.claude/qa/engine/bin/test_mock_api.js` (23), `test_ledger_row.py`, `test_niete_sandbox_driver.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/qa/engine/hooks/e2e-autorun.test.sh` |

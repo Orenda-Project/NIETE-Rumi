@@ -6,7 +6,7 @@ session, driven over the Chrome DevTools Protocol by `feature-runner.cjs` (one n
 **Argument (`$ARGUMENTS`)** — optional:
 - *(empty)* → run the **SAFE subset**: every `@e2e` scenario EXCEPT `@destructive` · `@slow` · `@wip` · `@first-use` · `@config-gated`, across all features.
 - a **feature name** (any of, shown in run order: `registration` | `menu` | `training` | `lesson-plan` | `coaching` | `language` | `status` | `observe`† | `attendance`† — authoritative order via `feature-order.py`, §2) → run **that whole feature: EVERY `@e2e` scenario in its `.feature` file**, NOT the safe subset. Naming a feature turns off the default tag-exclusions and auto-applies the reversible `test_driver`-scoped seeds (§1b) so config/persona/seeded scenarios still run; a scenario is only skipped if it is genuinely un-runnable on the throwaway (shared-catalog/env seed a human must apply, or a mock-layer case) — and every skip is logged with its reason (§3), never silent. Unit/DB-backed scenarios in the file (e.g. `@coverage`, writer/clamp guards, corpus counts) are executed via their jest/DB path, not a WhatsApp drive. **†RUN-BY-NAME ONLY** — `observe` and `attendance` are excluded from `all` and only run when you name them; naming one still drives **every** `@e2e` scenario in its file. `observe`/`attendance` are code-grounded but not yet driven live (attendance: all `@wip`; observe: mostly `@wip`, the remainder `@config-gated`/`@first-use`), so the SAFE subset skips them entirely; run them **by name** to drive + promote them, and mind the special accounts (see the table).
-- `all` → **maximum-runnable mode — EXHAUSTIVE, every scenario.** This is NOT a "core happy-path" or "one-per-feature" health check. `all` means: **enumerate every `@e2e` scenario in each feature file (via parse-gherkin, §2) and drive/account for each one INDIVIDUALLY** — each scenario gets its own PASS / FAIL / SKIP verdict with evidence in the report (§3). That is **128 runnable scenarios**: **menu 18 · training 23 · lesson-plan 16 · coaching 22 · registration 12 · status 14 · language 23**. **`all` covers those SEVEN features only** — **attendance and observe are excluded from `all` and run by NAME only** (operator, 2026-08-18): attendance because all 31 are `@wip` and need the principal persona; observe because all 29 are `@config-gated`/`@first-use` and need `role_switch.enabled: true`, which is `false` — both would otherwise pad the report with BLOCKED lines for preconditions nobody has set up. ⏱️ **Coaching IS in `all`** (operator, 2026-08-18) — budget for it: each of its 22 scenarios uploads real audio and waits ~10 min on analysis, so coaching alone dominates the wall-clock of an `all` run. These are the **full `@e2e` counts per file** — verify with `python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/<feature>.feature --tag @e2e` and treat that number, not this line, as authoritative if a file has changed. ⚠️ **These used to be the SAFE-subset counts** (training said 14), which silently capped `all` below exhaustive — corrected 2026-08-18. `all` is exhaustive **within its seven features**; it was never a claim to run every file in the directory. If your run touched fewer than the parse-gherkin count for a feature, you have not run `all` — go back and drive the rest. A teammate reading the report must see a line for every scenario, not a summary of "the core paths passed."
+- `all` → **maximum-runnable mode — EXHAUSTIVE, every scenario.** This is NOT a "core happy-path" or "one-per-feature" health check. `all` means: **enumerate every `@e2e` scenario in each feature file (via parse-gherkin, §2) and drive/account for each one INDIVIDUALLY** — each scenario gets its own PASS / FAIL / SKIP verdict with evidence in the report (§3). That is **128 runnable scenarios**: **menu 18 · training 23 · lesson-plan 16 · coaching 22 · registration 12 · status 14 · language 23**. **`all` covers those SEVEN features only** — **attendance and observe are excluded from `all` and run by NAME only** (operator, 2026-08-18): attendance because all 31 are `@wip` and need the principal persona; observe because all 29 are `@config-gated`/`@first-use` and need `role_switch.enabled: true`, which is `false` — both would otherwise pad the report with BLOCKED lines for preconditions nobody has set up. ⏱️ **Coaching IS in `all`** (operator, 2026-08-18) — budget for it: each of its 22 scenarios uploads real audio and waits ~10 min on analysis, so coaching alone dominates the wall-clock of an `all` run. These are the **full `@e2e` counts per file** — verify with `python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/<feature>.feature --tag @e2e` and treat that number, not this line, as authoritative if a file has changed. ⚠️ **These used to be the SAFE-subset counts** (training said 14), which silently capped `all` below exhaustive — corrected 2026-08-18. `all` is exhaustive **within its seven features**; it was never a claim to run every file in the directory. If your run touched fewer than the parse-gherkin count for a feature, you have not run `all` — go back and drive the rest. A teammate reading the report must see a line for every scenario, not a summary of "the core paths passed."
   - **What `all` runs:** the SAFE subset **plus** `@destructive` + `@slow` + `@known-fail`/`@known-issue` (these RUN — a passing `@known-fail` means the bug is fixed), **plus `@wip` / `@draft`** — these RUN too, and a passing `@wip` scenario should be **promoted** (drop the tag) in the same pass; `@wip` marks "not yet driven live", never "do not run", so leaving them out is exactly what makes `all` non-exhaustive (a tracked issue: 9 of training's 23 are `@wip`/`@draft`, and on 2026-08-18 **5 of those 9 passed** first time — exam→certify, certificate-by-code, Beacon House capstone, quiz resume, long-option render) — **plus** the `@seeded` scenarios whose prerequisite is a **test-driver-scoped, reversible seed** — auto-applied under `whatsapp-targets.yaml` → `standing_authorization` on **the run's resolved driver** (the runner's own linked number): e.g. first-use marker reset, `ur` language toggle. ⚠️ `@destructive`/`@slow` mutate the driver account's real state (training quiz progress, registration completion → blanks the account name, coaching 16-min upload → ~10-min analysis) — so run `all` on a **test/throwaway number you're fine resetting** (advice, not a block); prod needs an explicit per-action "go" (Rule 7).
   - **The ONLY legitimate SKIPs under `all`** (each logged in §3 with its exact reason — never silent, never counted as covered): `@config-gated` (needs a non-prod env with the flag *unset*); `@seeded` whose seed is a **shared-catalog write or env/deploy change** (R2-missing row · curriculum flag · `PIC_LP_FLOW_ID` — needs a human seed + go); a **catalog-gap negative** that the live catalog can't reproduce (e.g. LP "empty grade/subject" when every grade is populated — log which grades you probed); anything **not data-drivable** (a forced generation failure → jest/mock layer); and a **content/data gap in the target env** — the scenario's `Given` has no row to drive it and creating one is a shared-catalog write (e.g. training's "a PDF module" when the level holds only video/html modules, or the Urdu-question path when `training_questions.question_urdu` is NULL for every row). Log the query you ran to establish the gap, so it reads as evidence and not as a scenario nobody bothered with. `all` does **not** promote draft `observe`/`attendance` — those run only when named.
 
@@ -33,7 +33,7 @@ session, driven over the Chrome DevTools Protocol by `feature-runner.cjs` (one n
 - **Chrome with a DevTools TCP port — start it FIRST.** `chrome-devtools-mcp` launches Chrome with
   `--remote-debugging-pipe` (no port), which the runner cannot reach. So:
   ```bash
-  bash .claude/qa/shared/start-chrome-cdp.sh          # CDP on 127.0.0.1:9223, profile ~/.cache/chrome-devtools-mcp/chrome-profile
+  bash .claude/qa/engine/bin/start-chrome-cdp.sh          # CDP on 127.0.0.1:9223, profile ~/.cache/chrome-devtools-mcp/chrome-profile
   ```
   If Chrome is already up on that profile with the port, it just confirms `CDP already serving on 9223`.
   The WhatsApp link lives in the profile and survives restarts. Another Claude session holding the MCP
@@ -41,7 +41,7 @@ session, driven over the Chrome DevTools Protocol by `feature-runner.cjs` (one n
 - **Linked WhatsApp Web tab — PROVE it, never infer.** The WhatsApp page must exist as a CDP target AND
   be past the QR screen:
   ```bash
-  node .claude/qa/shared/inject-wa-drive.js --port 9223 --quiet && echo linked-tab-ok   # exit 1 = no web.whatsapp.com target
+  node .claude/qa/engine/bin/inject-wa-drive.js --port 9223 --quiet && echo linked-tab-ok   # exit 1 = no web.whatsapp.com target
   ```
   If there is no target, open `https://web.whatsapp.com` in that Chrome. If the page shows the **QR
   "Scan to log in"** screen, leave it up and ask the runner to scan it with the driver phone (Linked
@@ -73,7 +73,7 @@ session, driven over the Chrome DevTools Protocol by `feature-runner.cjs` (one n
 - **Nothing in flight on the driver account.** A coaching session left `initiated` /
   `awaiting_classroom_photo` / in analysis from a previous run defers the next upload (COA04 BLOCKED),
   and its late messages land mid-run and get picked as replies by other features. Run
-  `node .claude/qa/shared/feature-runner.cjs reset-state` first (stops observation items through the
+  `node .claude/qa/engine/bin/feature-runner.cjs reset-state` first (stops observation items through the
   `/status` Flow). A **coaching session** cannot be stopped through the product (the Flow offers no
   Stop row for it) — check `coaching_sessions` for the driver on the target DB and cancel stuck
   **test** sessions there before the run (staging: pre-authorised; prod: per-action go).
@@ -85,9 +85,9 @@ session, driven over the Chrome DevTools Protocol by `feature-runner.cjs` (one n
 ## 1. Setup — and the whole run — is ONE command
 
 ```bash
-bash .claude/qa/shared/run-suite.sh all   --driver <digits>        # /niete-e2e all   → EVERYTHING (below)
-bash .claude/qa/shared/run-suite.sh safe  --driver <digits>        # /niete-e2e       → the default subset
-bash .claude/qa/shared/run-suite.sh lesson-plan,status --driver <digits>   # /niete-e2e <feature> → every scenario in it
+bash .claude/qa/engine/bin/run-suite.sh all   --driver <digits>        # /niete-e2e all   → EVERYTHING (below)
+bash .claude/qa/engine/bin/run-suite.sh safe  --driver <digits>        # /niete-e2e       → the default subset
+bash .claude/qa/engine/bin/run-suite.sh lesson-plan,status --driver <digits>   # /niete-e2e <feature> → every scenario in it
 #   --env prod --target 923206281951 (explicit go first) · --run-id <id> · --port 9223 · --no-seed · --reflect slash
 ```
 
@@ -113,9 +113,9 @@ and each step is logged in `runner.log`:
 If you must run a feature by hand (a repro, or after a crash mid-suite), the underlying call is:
 ```bash
 export RUN_DIR=.claude/qa/results/whatsapp/niete/<run-id> E2E_ENV=staging E2E_DRIVER=<digits>
-E2E_PROGRESS="$RUN_DIR/progress-<feature>.log" node .claude/qa/shared/feature-runner.cjs <feature>
+E2E_PROGRESS="$RUN_DIR/progress-<feature>.log" node .claude/qa/engine/bin/feature-runner.cjs <feature>
 ```
-after `python3 .claude/qa/shared/driver_lock.py acquire --driver <digits> --run-id <run-id>`. A page
+after `python3 .claude/qa/engine/bin/driver_lock.py acquire --driver <digits> --run-id <run-id>`. A page
 reload drops `window.__wa`; the runner re-injects it at process start, so `inject-wa-drive.js` is only
 needed when hand-driving outside the runner.
 
@@ -154,11 +154,11 @@ does not match `--env`): `lookup` · `answer-key --grand-quiz N` · `seed-level-
 (`.claude/qa/agents/niete-<feature>-agent.md`). Get it at run start and run in exactly that sequence,
 for the safe run and for `all` alike (the argument changes which scenarios are included, never the order):
 ```bash
-python3 .claude/qa/shared/feature-order.py      # today: registration · menu · training · lesson-plan · coaching · language · status · observe · attendance
+python3 .claude/qa/engine/bin/feature-order.py      # today: registration · menu · training · lesson-plan · coaching · language · status · observe · attendance
 ```
 
 **One process per feature — `run-suite.sh` (§1) does this loop for you.** Under the hood it is
-`node .claude/qa/shared/feature-runner.cjs <feature>` per feature, sequentially, `DEEP=1` on coaching
+`node .claude/qa/engine/bin/feature-runner.cjs <feature>` per feature, sequentially, `DEEP=1` on coaching
 under `all`, with `reset-state` after menu and after coaching (the two features that leave work in
 flight). Each feature writes `$RUN_DIR/<feature>.json`: `wallMs`, `perScenarioSec`, `botWaitStats`,
 and one `results[]` row per scenario `{id, name, verdict, evidence, ms}`; `progress-<feature>.log`
@@ -185,7 +185,7 @@ JSON wins and the stale one gets fixed.
 
 **List a feature's scenarios first — and under `all`, this list is your checklist.**
 ```bash
-python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/<feature>.feature --tag @e2e
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/<feature>.feature --tag @e2e
 ```
 A driver records a row for every scenario it knows about, including BLOCKED rows with the reason
 (account state, `@wip`, no fixture, not automated). A scenario in the `.feature` file with **no row in
@@ -233,7 +233,7 @@ next one starts — a 75 s `FLOW_READY_TIMEOUT` or a 150 s wait for a reply that
 harness, not the bot, and is exactly what the 2026-09-02 findings were about.
 
 ```bash
-python3 .claude/qa/shared/run_efficiency.py "$RUN_DIR"     # still runs; snapshot budgets are moot (the runner takes none)
+python3 .claude/qa/engine/bin/run_efficiency.py "$RUN_DIR"     # still runs; snapshot budgets are moot (the runner takes none)
 ```
 
 ## 3. Report
@@ -244,7 +244,7 @@ An `all` run's report must account for **all 128** `@e2e` scenarios across its s
 row each, PASS / FAIL / SKIP with a reason. `check-all-mode-counts.py` keeps this number, the per-feature
 list in the `all` spec above, and the `.feature` files in agreement; update all three in one pass.
 
-`run-suite.sh` ends by running `python3 .claude/qa/shared/build-per-scenario.py "$RUN_DIR"`, which
+`run-suite.sh` ends by running `python3 .claude/qa/engine/bin/build-per-scenario.py "$RUN_DIR"`, which
 turns the `<feature>.json` files into the shape the artifact builder consumes. One section per feature,
 one row per scenario, straight from `results[]`; the section count is the `.feature` file's `@e2e`
 count and a driver that has fewer rows than the spec gets a ⚠️ line under its table:
@@ -267,11 +267,11 @@ count and a driver that has fewer rows than the spec gets a ⚠️ line under it
 ### Gate, then publish
 
 ```bash
-python3 .claude/qa/shared/validate-run.py "$RUN_DIR"          # exit 1 = do not publish
+python3 .claude/qa/engine/bin/validate-run.py "$RUN_DIR"          # exit 1 = do not publish
 python3 .claude/qa/shared/parse-per-scenario.py "$RUN_DIR"
-python3 .claude/qa/shared/build-run-artifact.py "$RUN_DIR"
-python3 .claude/qa/shared/driver_lock.py release --driver <digits>
-python3 .claude/qa/shared/preflight.py "$RUN_DIR" --finish
+python3 .claude/qa/engine/bin/build-run-artifact.py "$RUN_DIR"
+python3 .claude/qa/engine/bin/driver_lock.py release --driver <digits>
+python3 .claude/qa/engine/bin/preflight.py "$RUN_DIR" --finish
 ```
 then republish the ONE living suite page with the Artifact tool using the recorded `url`
 ([`.claude/qa/ARTIFACT.md`](../qa/ARTIFACT.md)) — publishing without `url` forks the team's link.
@@ -329,12 +329,12 @@ Run it yourself any time, without pushing:
 
 ```bash
 # what the current branch would earn
-python3 .claude/qa/shared/select_e2e.py --repo .
+python3 .claude/qa/engine/bin/select_e2e.py --repo .
 
 # an arbitrary range, or explicit paths
-python3 .claude/qa/shared/select_e2e.py --repo . --range 'origin/develop...HEAD'
-python3 .claude/qa/shared/select_e2e.py bot/shared/services/menu.service.js
-python3 .claude/qa/shared/select_e2e.py --repo . --json    # machine-readable
+python3 .claude/qa/engine/bin/select_e2e.py --repo . --range 'origin/develop...HEAD'
+python3 .claude/qa/engine/bin/select_e2e.py bot/shared/services/menu.service.js
+python3 .claude/qa/engine/bin/select_e2e.py --repo . --json    # machine-readable
 ```
 
 The map is [`.claude/qa/config/feature-map.yaml`](../qa/config/feature-map.yaml) — **hand-
@@ -371,7 +371,7 @@ than quietly selecting nothing. Tests: `python3 .claude/qa/shared/test_select_e2
 
 ## Reference
 - Suite index + durable findings: [`tests/features/whatsapp/niete/_suite.md`](../../tests/features/whatsapp/niete/_suite.md)
-- Runner: [`.claude/qa/shared/feature-runner.cjs`](../qa/shared/feature-runner.cjs) · drivers `features/*.cjs` · Flow layer `flow-lib.cjs` / `flow-drive.js` · chat layer `wa-drive.js`
+- Runner: [`.claude/qa/engine/bin/feature-runner.cjs`](../qa/shared/feature-runner.cjs) · drivers `features/*.cjs` · Flow layer `flow-lib.cjs` / `flow-drive.js` · chat layer `wa-drive.js`
 - Why it is built this way: the 2026-09-02 harness findings (upstream workspace PR #72; the FINDINGS.md of that run lives in its results dir, which is gitignored)
 - Method history (the MCP step-by-step how-to, kept for hand-driving primitives): [`chrome-mcp-whatsapp-e2e`](../skills/chrome-mcp-whatsapp-e2e/SKILL.md)
 - Known env caveat: repo `.env.template` ≠ prod runtime — assert against the running env (bit us on `/portal`, LP flow, registration, `/status`).

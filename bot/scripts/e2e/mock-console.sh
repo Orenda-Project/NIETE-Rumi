@@ -17,7 +17,7 @@ echo "→ starting the mock stack at ${SHA:0:12} (this takes ~30s)…"
 bash "$HERE/local-stack.sh" up "$SHA" "$RUN_DIR" || { echo "stack failed — see $RUN_DIR/*.log"; exit 1; }
 # register the synthetic teacher so the bot treats it as a known, registered user. The driver is PER MACHINE
 # (mock_driver.py, same as run-suite.sh) so two machines never share a row on the sandbox DB (bd-yj4e4).
-DRIVER="$(python3 "$REPO/.claude/qa/shared/mock_driver.py" 2>/dev/null || echo 923000000001)"
+DRIVER="$(python3 "$REPO/.claude/qa/engine/bin/mock_driver.py" 2>/dev/null || echo 923000000001)"
 K="$REPO/keys"; [ -f "$K/niete-local.env" ] || K="$(dirname "$REPO")/keys"
 if [ -f "$K/niete-local.env" ]; then
   eval "$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$K/niete-local.env" | sed 's/^SUPABASE_/export NIETE_SANDBOX_SUPABASE_/')"

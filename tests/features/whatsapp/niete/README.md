@@ -50,7 +50,7 @@ From Claude Code, in this repo:
 **Don't know which one you need?** Ask — the selector maps a diff to the affected feature(s):
 
 ```bash
-python3 .claude/qa/shared/select_e2e.py --repo NIETE-Rumi        # what this branch earns
+python3 .claude/qa/engine/bin/select_e2e.py --repo NIETE-Rumi        # what this branch earns
 ```
 
 On a **commit (any branch)** or a push to `develop`/`main` this is **automatic**: the run is
@@ -67,7 +67,7 @@ the [`/niete-e2e` command](../../../../.claude/commands/niete-e2e.md#which-featu
 
 List what a feature will cover before running:
 ```bash
-python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
 ```
 
 ---
@@ -80,7 +80,7 @@ python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/menu.fe
   writes don't touch prod. Prod (`923206281951`) is explicit opt-in only and needs a "go".
 - **Throwaway driver only for `all`.** Destructive scenarios blank the account name / advance quiz progress /
   can trip a 24h grand-quiz cooldown. Never point the driver at a personal number.
-- **One run at a time** — a file lock (`.claude/qa/shared/driver_lock.py`) prevents two runs sharing the driver.
+- **One run at a time** — a file lock (`.claude/qa/engine/bin/driver_lock.py`) prevents two runs sharing the driver.
 
 ---
 
@@ -123,6 +123,6 @@ A `@known-fail` that **passes** means the bug got fixed — update the spec.
 |---|---|
 | `list_pages` "unknown tool" / no `chrome-devtools` | MCP not loaded — approve `./.mcp.json` (or `claude mcp add chrome-devtools -- npx -y chrome-devtools-mcp@latest`) and **restart Claude Code** |
 | Screenshot shows the QR "Scan to log in" screen | not linked — scan the QR on the driver phone; don't proceed on a QR screen |
-| "driver lock is already held" | another run is in progress; wait, or `python3 .claude/qa/shared/driver_lock.py status --driver <num>` to inspect |
+| "driver lock is already held" | another run is in progress; wait, or `python3 .claude/qa/engine/bin/driver_lock.py status --driver <num>` to inspect |
 | Overnight run skipped | machine slept — keep it awake + plugged in, lid open, Chrome running |
 | Results look like "env drift" | assert against the **running** bot, not `.env.template` — staging ≠ the repo template |
