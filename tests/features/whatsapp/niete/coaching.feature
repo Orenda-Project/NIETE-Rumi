@@ -49,6 +49,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   @e2e @content-driven @P2
   Scenario: Confirming analysis walks a 5-step pipeline with optional-context prompts
     Given the NIETE bot chat is open
+    # UPDATED 2026-09-20 (DC row 130): the account language is now stated. Every
+    # quoted step below is the ENGLISH string, and steps 1 and 2 used to be
+    # English for everyone regardless of preference — so this scenario passed for
+    # an Urdu teacher too, by way of the bug. It is an English-account scenario
+    # now that all five steps follow the preference; the Urdu path is its own
+    # scenario below.
+    And my account language is English
     And I have uploaded a classroom recording and it was detected
     When I tap "Yes, Analyze"
     Then the bot posts "Step 1/5: Transcribing your classroom audio"
@@ -266,6 +273,33 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # reflective-conversation.service.js (bd-dsx0c): sendAudio's false return used to be
     # ignored, so a failed voice note left the teacher waiting for a question that never
     # came. Now: voice → on false, the question text → delivery recorded as voice/text/none.
+
+  @e2e @wip @draft @P1
+  Scenario: An Urdu teacher's five step messages are all in Urdu, counted in digits
+    Given the NIETE bot chat is open
+    And my account language is Urdu
+    And I have uploaded a classroom recording and it was detected
+    When I tap the confirm-analysis button
+    Then every one of the five step messages is in Urdu — steps 1 and 2 included
+    And no step message is in English
+    And each counter reads "مرحلہ 1/5" through "مرحلہ 5/5" — standard digits, only the word translated
+    And no counter uses Urdu numeral glyphs such as "۱ از ۵"
+    And the digits render left-to-right inside the Urdu sentence, not reordered
+    # ADDED 2026-09-20 (DC rows 130 + 131). Row 130: steps 1 and 2 were sent with
+    # no language argument at all, so `languageCode = 'en'` addressed every
+    # teacher in English while steps 3/4/5 resolved her preference — one session,
+    # two languages. transcription-processor.service.js and
+    # analysis-processor.service.js now pass the resolved language, and their
+    # defaults are offerDefaultLanguage() (Urdu here), not 'en'.
+    #
+    # Row 131: the counter was Urdu numeral glyphs. It is digits now, wrapped in
+    # LRI…PDI (U+2066…U+2069) — the last step matters because a bare "1/5" is a
+    # neutral run with a neutral separator, which an RTL paragraph reorders. That
+    # is why the reordering assertion is separate from the glyph one: the string
+    # can be right in the source and wrong on the screen.
+    #
+    # A teacher who never picked a language belongs on THIS path, not the English
+    # one: LANGUAGE_OFFER is ['ur','en'], so the floor is Urdu.
 
   @e2e @wip @draft @content-driven @P2
   Scenario: An English-account teacher's reflective question is written in English
