@@ -15,11 +15,21 @@ first, so the calibrated gate has never actually run end to end. That join is
 Two hard checks are added, both things this build knows and the imported
 reviewer cannot:
 
-  W1, the word budget. `spec/07-lp-production.md` §4, DECIDED B. The imported
-  QA checks read a camelCase v9 body (`warmUp`, `keyWords`, `exitTicket`);
-  this build's surfaces are snake_case, so the budget would go unmeasured
-  otherwise — and a checker pointed at the wrong schema does not complain, it
-  passes. Over cap fails: the renderer never trims.
+  W1, the word budget. `spec/07-lp-production.md` §4, DECIDED B. Over cap
+  fails: the renderer never trims. It is measured on the RENDERED D0
+  document, because the budget is a property of the printed page — §4's caps
+  exist to keep the p90 lesson inside the 5-8 phone-page band, and the
+  Stage-C body has no pages.
+
+  That artifact was wrong when this gate shipped on 18 Sep 2026, and so was
+  the surface match. `wordbudget` read dict KEYS while a capped surface is a
+  block TYPE, and `evaluate` handed it the Stage-C body, which carries no
+  blocks at all. On `grade_1_english_ch1_seg1` the render broke three of the
+  five caps — `faded_example` 627/470, `worked_example` 515/470, `key_points`
+  367/120 — and the gate reported nothing. Worse, the body's
+  `instance_ledger.worked_example` is a real dict key holding five words of
+  provenance, so the result was non-empty and the not-checked net below never
+  fired either.
 
   G1, page grounding. `qa_checks` H5 asks whether the segment CARRIES a page
   reference. It cannot ask whether that page exists in the book and belongs to
@@ -32,9 +42,11 @@ thresholds in `production_gate` were calibrated on real scores; re-deriving
 them here to bolt on two checks would throw that calibration away for nothing.
 
 What a check did NOT look at is recorded in `not_checked` rather than counted
-as a pass. Scoring a render has no snake_case body to measure and scoring a
-lesson without its book has no page to resolve; calling either a pass is the
-one way this gate could quietly become decoration.
+as a pass. A document carrying no capped block has not been measured — on a
+render that is not "inside budget", it is "this is not a render" — and a
+lesson scored without its book has no page to resolve. Calling either a pass
+is the one way this gate could quietly become decoration, and for one day it
+did.
 """
 import os
 import sys
@@ -76,12 +88,12 @@ def reviewer(module):
     return __import__(module)
 
 
-def _budget_failures(body):
+def _budget_failures(render):
     """The word budget as hard failures, one per surface over its cap."""
     return [{"id": "W1",
              "name": "%s is %d words, cap %d (over by %d)"
                      % (f["surface"], f["words"], f["cap"], f["over"])}
-            for f in wordbudget.over(body)]
+            for f in wordbudget.over(render)]
 
 
 def _grounding_failure(grounding):
@@ -92,13 +104,15 @@ def _grounding_failure(grounding):
                     + (", ".join(reasons) or "unknown")}
 
 
-def compose(qa, judge_pct=None, judge="", review=None, body=None,
+def compose(qa, judge_pct=None, judge="", review=None, render=None,
             grounding=None):
     """Build the score dict `production_gate.gate` reads.
 
-    `qa` is a `qa_checks.run_checks` result. `judge_pct` is the v3 rubric
-    percentage from `score_lp`. `body` and `grounding` are optional; leaving
-    one out records its check as not looked at, never as passed.
+    `qa` is a `qa_checks.run_checks` result, run over the Stage-C body it was
+    written for. `judge_pct` is the v3 rubric percentage from `score_lp`.
+    `render` is the D0 document the word budget measures. `render` and
+    `grounding` are optional; leaving one out records its check as not looked
+    at, never as passed.
     """
     failures = list(qa.get("hard_failures") or [])
     not_checked = []
@@ -110,14 +124,15 @@ def compose(qa, judge_pct=None, judge="", review=None, body=None,
     else:
         composite = (judge_pct + qa.get("soft_pct", 0.0)) / 2.0
 
-    # A body carrying none of the five capped surfaces has not been measured —
-    # it has been looked past. `wordbudget` returns no findings either way, so
-    # the distinction has to be drawn here or the budget quietly stops applying
-    # the first time a body arrives in a different shape.
-    if body is None or not wordbudget.totals(body):
+    # A document carrying none of the five capped BLOCKS has not been
+    # measured — it has been looked past. `wordbudget` returns no findings
+    # either way, so the distinction has to be drawn here or the budget
+    # quietly stops applying the first time the wrong artifact arrives. It
+    # did: handed the Stage-C body, which has no blocks, this read as clean.
+    if render is None or not wordbudget.totals(render):
         not_checked.append("W1")
     else:
-        failures.extend(_budget_failures(body))
+        failures.extend(_budget_failures(render))
 
     if grounding is None:
         not_checked.append("G1")
@@ -148,11 +163,18 @@ def verdict(score):
     return gate(score)
 
 
-def evaluate(lp, segment, review, judge="", subject=None, grounding=None):
+def evaluate(lp, segment, review, judge="", subject=None, grounding=None,
+             render=None):
     """Score one enriched lesson end to end: QA checks, budget, grounding, judge.
 
     The single call Stage C makes. Everything it depends on that is not pure
     is resolved here, once.
+
+    Two artifacts, deliberately both named. `lp` is the Stage-C envelope, and
+    its camelCase v9 `generated` body is what the imported `qa_checks` reads.
+    `render` is the D0 document, and it is what the word budget measures.
+    Passing the body where the render belongs is how the budget went
+    unenforced for a day, so the caller says which is which.
     """
     checks = reviewer("qa_checks").run_checks(lp, segment)
     # `tally` returns (total, denom, flags), and a denominator of zero means
@@ -161,5 +183,5 @@ def evaluate(lp, segment, review, judge="", subject=None, grounding=None):
         else (0, 0, [])
     judge_pct = round(100.0 * total / denom, 1) if denom else None
     score = compose(checks, judge_pct=judge_pct, judge=judge, review=review,
-                    body=lp.get("generated", lp), grounding=grounding)
+                    render=render, grounding=grounding)
     return score, verdict(score)

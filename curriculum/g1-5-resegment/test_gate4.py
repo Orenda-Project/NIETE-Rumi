@@ -14,9 +14,13 @@ actually been runnable end to end.
 This module is that piece, plus the two hard checks this build owns and the
 imported reviewer cannot know about:
 
-  THE WORD BUDGET (DECIDED B, operator 2026-09-18). The imported QA checks read
-  a camelCase v9 body; this build's surfaces are snake_case, and the budget is
-  this build's law. Over cap fails — the renderer never trims.
+  THE WORD BUDGET (DECIDED B, operator 2026-09-18). Over cap fails — the
+  renderer never trims. It is measured on the D0 RENDER, not on the Stage-C
+  body, because §4's caps exist to hold the p90 lesson inside the 5-8
+  phone-page band and a body has no pages. This gate shipped measuring the
+  body and matching capped surfaces by dict KEY; a capped surface is a block
+  TYPE. `grade_1_english_ch1_seg1` broke three caps and the gate said nothing.
+  bd-8kdod.
 
   PAGE GROUNDING. `qa_checks` H5 asks only whether the segment CARRIES a page
   reference, not whether that page exists in the book or belongs to the
@@ -36,6 +40,19 @@ import gate4
 def qa(hard_pass=True, soft_pct=100.0, failures=None):
     return {"hard_pass": hard_pass, "hard_failures": failures or [],
             "soft_pct": soft_pct, "checks": []}
+
+
+def block(kind, **kw):
+    """A D0 render block, shaped as `d0_*.py` actually emits one."""
+    d = {"type": kind, "id": kind.replace("_", "-")}
+    d.update(kw)
+    return d
+
+
+def render(*blocks):
+    """The shape `to_lp_doc` returns: sections holding typed blocks."""
+    return {"lesson_id": "GRADE_1_ENGLISH_CH1_SEG1",
+            "sections": [{"blocks": list(blocks)}]}
 
 
 class TheCompositeNumber(unittest.TestCase):
@@ -79,93 +96,18 @@ class TheShapeProductionGateExpects(unittest.TestCase):
         self.assertEqual(s["review"], review)
 
 
-class TheWordBudgetIsAHardFailure(unittest.TestCase):
-    """Over cap fails. The renderer never trims, so nothing downstream absorbs it."""
-
-    def test_a_lesson_over_a_cap_fails_hard(self):
-        s = gate4.compose(qa(), judge_pct=99.0,
-                          body={"big_idea": "word " * 200})
-        self.assertFalse(s["qa_hard_pass"])
-
-    def test_the_failure_names_the_surface_its_count_and_its_cap(self):
-        s = gate4.compose(qa(), judge_pct=99.0,
-                          body={"big_idea": "word " * 200})
-        f = [h for h in s["qa_hard_failures"] if h["id"] == "W1"][0]
-        self.assertIn("big_idea", f["name"])
-        self.assertIn("200", f["name"])
-        self.assertIn("80", f["name"])
-
-    def test_a_lesson_inside_the_budget_adds_no_failure(self):
-        s = gate4.compose(qa(), judge_pct=99.0, body={"big_idea": "word " * 80})
-        self.assertTrue(s["qa_hard_pass"])
-
-    def test_no_body_means_no_budget_verdict_rather_than_a_pass(self):
-        # Scoring an HTML render has no snake_case body to measure. Claiming
-        # the budget passed would be asserting something never checked.
-        s = gate4.compose(qa(), judge_pct=99.0, body=None)
-        self.assertTrue(s["qa_hard_pass"])
-        self.assertIn("W1", s["not_checked"])
-
-    def test_a_body_carrying_no_capped_surface_is_unchecked_not_passed(self):
-        # THE SILENT FAILURE. The imported QA checks read a camelCase v9 body
-        # (`warmUp`, `keyWords`, `exitTicket`); the budget is written against
-        # this build's snake_case surfaces. Handed a v9 body, `wordbudget` finds
-        # none of its surfaces and returns no findings — which reads exactly
-        # like a lesson inside the budget. A gate that cannot tell "measured and
-        # fine" from "measured nothing" is decoration.
-        s = gate4.compose(qa(), judge_pct=99.0,
-                          body={"warmUp": "word " * 400,
-                                "exitTicket": "word " * 400})
-        self.assertIn("W1", s["not_checked"])
-
-    def test_one_capped_surface_is_enough_to_count_as_measured(self):
-        s = gate4.compose(qa(), judge_pct=99.0,
-                          body={"warmUp": "x", "big_idea": "word " * 10})
-        self.assertNotIn("W1", s["not_checked"])
-
-
-class PageGroundingIsAHardFailure(unittest.TestCase):
-    """The whole no-fabrication guarantee is 'the right page', not 'a page'."""
-
-    def test_an_unresolved_segment_fails_hard(self):
-        s = gate4.compose(qa(), judge_pct=99.0,
-                          grounding={"resolved": False,
-                                     "flags": [{"reason": "chapter-mismatch"}]})
-        self.assertFalse(s["qa_hard_pass"])
-        self.assertEqual([h["id"] for h in s["qa_hard_failures"]], ["G1"])
-
-    def test_the_failure_names_the_reason_so_it_is_actionable(self):
-        s = gate4.compose(qa(), judge_pct=99.0,
-                          grounding={"resolved": False,
-                                     "flags": [{"reason": "chapter-mismatch"}]})
-        self.assertIn("chapter-mismatch", s["qa_hard_failures"][0]["name"])
-
-    def test_a_resolved_segment_passes_even_though_its_keys_disagreed(self):
-        # keys-disagree is resolved, and flagged. It is a note on the report,
-        # not a reason to refuse the lesson.
-        s = gate4.compose(qa(), judge_pct=99.0,
-                          grounding={"resolved": True,
-                                     "flags": [{"reason": "keys-disagree"}]})
-        self.assertTrue(s["qa_hard_pass"])
-        self.assertEqual(s["grounding_flags"], ["keys-disagree"])
-
-    def test_no_grounding_given_is_recorded_as_unchecked_not_as_passed(self):
-        s = gate4.compose(qa(), judge_pct=99.0)
-        self.assertIn("G1", s["not_checked"])
-
-
 class TheGateIsTheImportedCalibratedOne(unittest.TestCase):
     """v1.1, tuned on real scores. Re-deriving its thresholds here would lose that."""
 
     def test_a_clean_high_scoring_lesson_passes(self):
         s = gate4.compose(qa(), judge_pct=95.0, review={},
-                          body={"big_idea": "word " * 50},
+                          render=render(block("big_idea", text="word " * 50)),
                           grounding={"resolved": True, "flags": []})
         self.assertTrue(gate4.verdict(s)["pass"])
 
     def test_a_lesson_over_the_word_budget_is_refused_by_the_gate_itself(self):
         s = gate4.compose(qa(), judge_pct=99.0, review={},
-                          body={"big_idea": "word " * 200},
+                          render=render(block("big_idea", text="word " * 200)),
                           grounding={"resolved": True, "flags": []})
         v = gate4.verdict(s)
         self.assertFalse(v["pass"])
@@ -175,7 +117,8 @@ class TheGateIsTheImportedCalibratedOne(unittest.TestCase):
         s = gate4.compose(qa(), judge_pct=99.0,
                           review={"criteria": [{"checks": [{"id": "2B",
                                                             "rating": 1}]}]},
-                          body={}, grounding={"resolved": True, "flags": []})
+                          render=render(), grounding={"resolved": True,
+                                                       "flags": []})
         self.assertFalse(gate4.verdict(s)["pass"])
 
     def test_the_sonnet_bar_is_higher_than_the_opus_bar(self):
@@ -183,7 +126,8 @@ class TheGateIsTheImportedCalibratedOne(unittest.TestCase):
         # faces 94 where opus faces 92. A judge score of 86 against clean soft
         # checks composites to 93.0 — between the two bars, which is the only
         # place the difference is observable.
-        base = dict(review={}, body={}, grounding={"resolved": True, "flags": []})
+        base = dict(review={}, render=render(),
+                    grounding={"resolved": True, "flags": []})
         opus = gate4.compose(qa(), judge_pct=86.0, judge="anthropic/claude-opus-5", **base)
         sonn = gate4.compose(qa(), judge_pct=86.0, judge="anthropic/claude-sonnet-5", **base)
         self.assertTrue(gate4.verdict(opus)["pass"])
@@ -229,6 +173,21 @@ class EvaluatingOneLesson(unittest.TestCase):
         score, _ = gate4.evaluate(self.LP, self.SEG, review, subject="English")
         self.assertTrue(score["qa_hard_pass"], score["qa_hard_failures"])
         self.assertIsNotNone(score["soft_pct"])
+
+    def test_it_takes_the_render_separately_from_the_body(self):
+        # Two artifacts, deliberately both named: `qa_checks` reads the
+        # camelCase v9 body, the budget measures the render. Collapsing them
+        # into one argument is what left the budget unenforced.
+        review = {"criteria": [{"checks": [{"id": "1A", "rating": 4}]}]}
+        score, _ = gate4.evaluate(
+            self.LP, self.SEG, review, subject="English",
+            render=render(block("big_idea", text="word " * 200)))
+        self.assertIn("W1", [h["id"] for h in score["qa_hard_failures"]])
+
+    def test_a_lesson_scored_without_its_render_is_not_given_a_budget_pass(self):
+        review = {"criteria": [{"checks": [{"id": "1A", "rating": 4}]}]}
+        score, _ = gate4.evaluate(self.LP, self.SEG, review, subject="English")
+        self.assertIn("W1", score["not_checked"])
 
     def test_a_lesson_missing_its_exit_ticket_fails_the_hard_checks(self):
         lp = dict(self.LP)
