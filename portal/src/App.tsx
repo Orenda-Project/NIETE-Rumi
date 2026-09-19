@@ -106,6 +106,10 @@ const App = () => {
                 rather than a revert. Listed first for readability only —
                 react-router v6 ranks by specificity, not source order. */}
             <Route path="/portal/training/v2" element={<PortalTrainingV2 />} />
+            {/* bd-60152 — a unit gets its own page and its own URL, so it can
+                be linked, reloaded and navigated with the browser's own back
+                button rather than living as a panel under the lists. */}
+            <Route path="/portal/training/v2/unit/:moduleId" element={<PortalTrainingV2 />} />
             <Route path="/portal/training" element={<PortalTraining />} />
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
