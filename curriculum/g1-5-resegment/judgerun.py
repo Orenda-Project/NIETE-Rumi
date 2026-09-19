@@ -29,14 +29,21 @@ for exactly those. Scored naively they become ratings of 1, and one rating of
 `qa_checks` produce six impossible hard failures on the same artefact before
 `_worksheet_qa` existed.
 
-The fix is NOT a new rubric. An assessment rubric is a pedagogical artefact
-and somebody's decision, not a thing to invent quietly inside a runner. The
-rubric already ships the seam: `build_reviewer_prompt(scope_note=...)`, which
-`build_multigrade_c9_prompt` uses for the same reason. The note says what the
-artefact is and points the judge at the rubric's own `notAssessable`, and
-`tally` then drops those checks from the numerator AND the denominator. No bar
-moves, no criterion is dropped, and what comes back is itself the evidence for
-whether a separate assessment rubric is owed.
+The scope note was the first answer and it was not enough. It said what the
+artefact was; it could not stop a lesson rubric asking lesson questions, and
+the lesson FRAME was meanwhile naming "a full-chapter assessment" among the
+unit-plan red flags and telling the judge not to reward what was inside one.
+The first paid batch measured the result (bd-cds95, 19 Sep 2026): eighteen
+checks not-assessable, the denominator down from 220 to 148 where the six
+sibling lessons sat at 204-216, and a gate failure at 90.55 with zero
+1-ratings and zero 2-ratings anywhere in it.
+
+So the evidence came back and the answer is yes: a worksheet is scored on
+`asmtrubric`, which drops the fourteen checks a sat paper structurally cannot
+answer, asks seven it can, and carries a frame that knows what it is looking
+at. The note is KEPT alongside it — only English's C8 was measured, so the
+other subjects' subject-specific checks stay whole and still need the
+rubric's own `notAssessable` path rather than a rating of 1.
 
 ONE JUDGE. `production_gate` corrects for judge bias per model — sonnet faces
 94.0 where opus faces 92.0 — so a batch judged by two models is a batch whose
@@ -50,6 +57,7 @@ import json
 import os
 import sys
 
+import asmtrubric
 import d0_route
 import gate4
 import pageres
@@ -190,6 +198,16 @@ def review_of(raw):
     return json.loads(raw[start:end])
 
 
+def _rated(check):
+    """One check with a digit-string rating turned into the int the gate reads."""
+    if not isinstance(check, dict):
+        return check
+    r = check.get("rating")
+    if isinstance(r, str) and r.strip().lstrip("+-").isdigit():
+        return dict(check, rating=int(r.strip()))
+    return check
+
+
 def normalise(review):
     """Rename the judge's keys to the ones `score_lp.tally` actually reads.
 
@@ -209,30 +227,59 @@ def normalise(review):
     normalisation that once existed, restored rather than designed, and a
     review already in that shape passes through untouched.
 
-    Renaming only. Ratings, nulls, `notAssessable` and `contextMissing` are
-    carried through exactly as the judge sent them, because dropping a
-    not-assessable check would stop it shrinking the denominator — which is
-    the entire mechanism the worksheet's scope note relies on.
+    Nulls, `notAssessable` and `contextMissing` are carried through exactly as
+    the judge sent them, because dropping a not-assessable check would stop it
+    shrinking the denominator — which is the entire mechanism the worksheet's
+    rubric relies on.
+
+    A rating the judge wrote as a digit STRING is coerced to int, and that is
+    not cosmetic (bd-fmw2t). `production_gate._low_checks` counts a check only
+    where `isinstance(rating, (int, float))`, so while every rating in this
+    tree was a string the gate's conditions (b) — no check rated 1, at most
+    MAX_TWOS rated 2 — never fired on a single artefact, and hard-QA plus the
+    composite were quietly the whole gate. Measured on the first paid batch:
+    seg5 carried five non-strict 2s, seg6 four, seg995 six, and all seven were
+    reported clean of them. The prior Stage-C corpus carries int ratings,
+    which is why nothing had noticed. `score_lp.tally` coerces internally, so
+    the composites were always right; only the gate was blind.
+
+    Anything that is not a whole number is left exactly as it arrived. "N/A"
+    is not a 0, and inventing one would fail a check the judge declined to
+    rate.
     """
     if not isinstance(review, dict) or "evaluation" not in review:
         return review
     out = dict(review)
     out["criteria"] = [
         dict(c, id=c.get("criterionId") or c.get("id") or c.get("criterion"),
-             checks=list(c.get("subCriteria") or c.get("checks") or []))
+             checks=[_rated(k) for k in
+                     (c.get("subCriteria") or c.get("checks") or [])])
         for c in (review.get("evaluation") or [])]
     return out
 
 
 def prompt_for(lp, segment, excerpt, subject, grade):
-    """The system and user messages for one artefact."""
+    """The system and user messages for one artefact.
+
+    The route picks the instrument. `d0_route.kind` reads both `skill_type`
+    and `lp_type` over the segment AND the enrichment envelope, which is what
+    makes this work outside English: Maths, Urdu and Science segments carry no
+    `lp_type` at all and declare themselves only through `skill_type`. Keying
+    off the 995 index instead would have scored every one of those on the
+    lesson rubric.
+    """
     sys.path.insert(0, REVIEWER) if REVIEWER not in sys.path else None
     from reviewer_prompt_v3 import build_reviewer_prompt
+    worksheet = d0_route.kind(lp or {}, segment) == "assessment"
     system = build_reviewer_prompt(
         subject, available_context=context_of(excerpt) or None,
-        scope_note=scope_note(segment, lp))
-    user = "GRADE: %s\nSUBJECT: %s\n\nLESSON PLAN TO REVIEW:\n%s" % (
-        grade, subject, json.dumps(lp, ensure_ascii=False, indent=2))
+        scope_note=scope_note(segment, lp),
+        active_override=(asmtrubric.assessment_rubric(subject)
+                         if worksheet else None),
+        frame_override=asmtrubric.FRAME if worksheet else None)
+    user = "GRADE: %s\nSUBJECT: %s\n\n%s TO REVIEW:\n%s" % (
+        grade, subject, "WORKSHEET" if worksheet else "LESSON PLAN",
+        json.dumps(lp, ensure_ascii=False, indent=2))
     if excerpt.strip():
         user += ("\n\nBOOK CONTENT (page-truth excerpt, for alignment checks):\n"
                  + excerpt)

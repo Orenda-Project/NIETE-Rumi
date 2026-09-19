@@ -32,6 +32,8 @@ import sys
 import tempfile
 import unittest
 
+import asmtrubric
+import gate4
 import judgerun
 
 
@@ -490,3 +492,136 @@ class FindingTheKey(unittest.TestCase):
         os.environ["OPENROUTER_ICT_ENRICH_KEY"] = ""
         os.environ["OPENROUTER_API_KEY"] = "sk-machine"
         self.assertEqual(judgerun.api_key(), "sk-machine")
+
+
+class WhichInstrumentTheArtefactIsScoredOn(unittest.TestCase):
+    """A worksheet is scored on the worksheet rubric, a lesson on the lesson one.
+
+    The scope note alone was the stopgap and it was not enough. Measured
+    19 Sep 2026 on the first paid batch: with the note in place, the chapter
+    assessment still lost EIGHTEEN checks to `notAssessable`, its denominator
+    collapsed from 220 to 148 where its six sibling lessons sat at 204-216,
+    and it failed the gate at 90.55 with zero 1-ratings and zero 2-ratings.
+    The note told the judge what the artefact was; it could not stop a lesson
+    rubric asking lesson questions, and the lesson FRAME was meanwhile naming
+    "a full-chapter assessment" as a 0F red flag and telling the judge not to
+    reward it.
+    """
+
+    def build(self, segment):
+        return judgerun.prompt_for(
+            {"title": "x"}, segment, "", "English", 1)[0]
+
+    def test_a_worksheet_is_not_asked_the_lesson_only_checks(self):
+        prompt = self.build(seg(i=995, lp_type="assessment", skill="assessment"))
+        for name in ("Opening Hook Relevant to SLO", "Prior Knowledge Activation",
+                     "Single-Lesson Scope (One Class Period)"):
+            self.assertNotIn(name, prompt, name)
+
+    def test_a_worksheet_is_asked_the_assessment_checks(self):
+        prompt = self.build(seg(i=995, lp_type="assessment", skill="assessment"))
+        self.assertIn(asmtrubric.ASSESSMENT_CRITERION, prompt)
+        self.assertIn("AS1", prompt)
+
+    def test_the_worksheet_frame_replaces_the_lesson_one(self):
+        # The clause this removes: the default frame lists "a chapter overview
+        # or full-chapter assessment" among the unit-plan red flags, calls it a
+        # 0F failure and says to NOT reward the quality of what is inside it.
+        prompt = self.build(seg(i=995, lp_type="assessment", skill="assessment"))
+        self.assertNotIn("full-chapter assessment", prompt)
+        self.assertIn("STUDENT WORKSHEET", prompt)
+
+    def test_a_lesson_still_gets_the_lesson_rubric_and_the_lesson_frame(self):
+        prompt = self.build(seg())
+        self.assertIn("Opening Hook Relevant to SLO", prompt)
+        self.assertNotIn(asmtrubric.ASSESSMENT_CRITERION, prompt)
+        self.assertNotIn("STUDENT WORKSHEET", prompt)
+
+    def test_a_worksheet_keeps_its_scope_note(self):
+        # Still load-bearing after the rubric swap. Only English's C8 was
+        # measured; Urdu, Maths and Science keep theirs whole, so their
+        # inapplicable subject checks still need the notAssessable path rather
+        # than a rating of 1.
+        prompt = self.build(seg(i=995, lp_type="assessment", skill="assessment"))
+        self.assertIn(judgerun.WORKSHEET_SCOPE.splitlines()[0], prompt)
+
+    def test_the_user_message_does_not_call_a_worksheet_a_lesson_plan(self):
+        _, user = judgerun.prompt_for(
+            {"title": "x"}, seg(i=995, lp_type="assessment", skill="assessment"),
+            "", "English", 1)
+        self.assertNotIn("LESSON PLAN TO REVIEW", user)
+        self.assertIn("WORKSHEET TO REVIEW", user)
+
+    def test_the_route_decides_it_not_the_segment_index(self):
+        # 995 is a convention, not a contract. `d0_route` reads skill_type and
+        # lp_type, and Maths/Urdu/Science segments carry no lp_type at all.
+        prompt = self.build(seg(i=7, lp_type=None, skill="jaiza"))
+        self.assertIn(asmtrubric.ASSESSMENT_CRITERION, prompt)
+
+
+class TheGateCanSeeTheRatings(unittest.TestCase):
+    """A rating the gate cannot read is a gate condition that does not exist.
+
+    `production_gate._low_checks` counts a check only when its rating
+    `isinstance(r, (int, float))`. The judge answers with strings, so on every
+    artefact this build has scored the walk returned [] and conditions (b) —
+    no check rated 1, at most MAX_TWOS rated 2 — never fired. Hard-QA and the
+    composite were the whole gate and nothing said so.
+
+    Measured on the first paid batch (19 Sep 2026): seg5 carried five
+    non-strict 2s, seg6 four, seg995 six, and all seven artefacts were
+    reported as clean of them. The prior Stage-C corpus carries `rating` as
+    int, which is why this never showed up there.
+
+    `score_lp.tally` coerces internally, so composites were and are correct.
+    Only the gate was blind.
+    """
+
+    def gate(self, review):
+        return gate4.reviewer("production_gate").gate(
+            {"qa_hard_pass": True, "composite_pct": 99.0,
+             "review": judgerun.normalise(review)})
+
+    def raw(self, *ratings):
+        return {"evaluation": [{"criterionId": "C1", "subCriteria": [
+            {"id": "1%s" % chr(66 + i), "rating": r}
+            for i, r in enumerate(ratings)]}]}
+
+    def test_a_string_two_is_counted_against_the_tolerance(self):
+        g = self.gate(self.raw("2", "2", "2"))
+        self.assertFalse(g["pass"])
+        self.assertTrue(any("rated 2" in r for r in g["reasons"]), g["reasons"])
+
+    def test_a_string_one_fails_outright(self):
+        g = self.gate(self.raw("1"))
+        self.assertFalse(g["pass"])
+        self.assertTrue(any("rated 1" in r for r in g["reasons"]), g["reasons"])
+
+    def test_two_string_twos_are_still_tolerated(self):
+        # The tolerance is the operator's, not an accident of the type.
+        self.assertTrue(self.gate(self.raw("2", "2", "4"))["pass"])
+
+    def test_the_judge_strict_check_is_still_excluded(self):
+        # 1A is excluded by measurement, whatever type carries it.
+        raw = {"evaluation": [{"criterionId": "C1", "subCriteria": [
+            {"id": "1A", "rating": "2"}, {"id": "1B", "rating": "2"},
+            {"id": "1C", "rating": "2"}]}]}
+        self.assertTrue(self.gate(raw)["pass"])
+
+    def test_an_int_rating_is_unchanged(self):
+        self.assertFalse(self.gate(self.raw(2, 2, 2))["pass"])
+
+    def test_a_not_assessable_check_is_not_turned_into_a_zero(self):
+        # Coercing None would score every impossible check as a failure and
+        # undo the whole denominator mechanism the worksheet rubric needs.
+        raw = {"evaluation": [{"criterionId": "C1", "subCriteria": [
+            {"id": "1B", "rating": None, "notAssessable": True}]}]}
+        check = judgerun.normalise(raw)["criteria"][0]["checks"][0]
+        self.assertIsNone(check["rating"])
+        self.assertTrue(self.gate(raw)["pass"])
+
+    def test_a_rating_that_is_not_a_number_at_all_is_left_alone(self):
+        # "N/A" is not a 0. Leave it unreadable rather than invent a score.
+        check = judgerun.normalise(
+            self.raw("N/A"))["criteria"][0]["checks"][0]
+        self.assertEqual(check["rating"], "N/A")
