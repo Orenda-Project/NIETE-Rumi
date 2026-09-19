@@ -46,8 +46,8 @@
  *     page with no history entry to come back to.
  */
 
-import { useState, useCallback } from 'react';
-import { Award, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Award, Download, Eye, Loader2, AlertCircle, Lock } from 'lucide-react';
 import api from '../services/api';
 import { getApiBaseUrl, isNativeApp } from '@/lib/runtime';
 
@@ -111,7 +111,35 @@ function formatIssued(iso: string | null): string {
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function CertificatesPanel() {
+/**
+ * A level the teacher can still earn a certificate for. Shaped from
+ * /training/levels, which the training pages already hold — the shelf adds no
+ * request of its own.
+ */
+export type CertifiableLevel = {
+  id: number;
+  name: string;
+  module_count: number;
+  completed_count: number;
+};
+
+export default function CertificatesPanel({
+  levels,
+  alwaysOpen = false,
+}: {
+  /**
+   * When given, the panel becomes THE SHELF (bd-60154): earned and unearned
+   * certificates in one list, so the next one is always in view.
+   *
+   * Omitted, the panel behaves exactly as it always has — a collapsed drawer
+   * of earned certificates only. v1 (/portal/training) passes nothing and is
+   * deliberately untouched.
+   */
+  levels?: CertifiableLevel[];
+  /** The shelf does not hide; a drawer that hides its own subject taught nothing. */
+  alwaysOpen?: boolean;
+} = {}) {
+  const shelf = Array.isArray(levels);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -124,9 +152,7 @@ export default function CertificatesPanel() {
   // native shell cannot change under a running app.
   const native = isNativeApp();
 
-  const toggle = useCallback(async () => {
-    if (open) { setOpen(false); return; }
-    setOpen(true);
+  const load = useCallback(async () => {
     if (loaded || loading) return;      // fetched once per session
     setLoading(true);
     setError(false);
@@ -139,10 +165,43 @@ export default function CertificatesPanel() {
     } finally {
       setLoading(false);
     }
-  }, [open, loaded, loading]);
+  }, [loaded, loading]);
+
+  const toggle = useCallback(async () => {
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    await load();
+  }, [open, load]);
+
+  // The shelf is open from the start, so it fetches on mount rather than on a
+  // click that never comes.
+  const expanded = alwaysOpen || open;
+  useEffect(() => {
+    if (alwaysOpen) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alwaysOpen]);
+
+  // Earned level names, so a level is never listed as both earned and pending.
+  const earnedNames = new Set(
+    certificates.map(c => (c.level_name || '').trim().toLowerCase()).filter(Boolean),
+  );
+  const pending = (levels || []).filter(
+    l => !earnedNames.has((l.name || '').trim().toLowerCase()),
+  );
 
   return (
     <div className="mb-6">
+      {shelf && (
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-[17px] font-semibold text-foreground">Certificates</h2>
+          {loaded && (
+            <span className="text-sm text-muted-foreground" data-testid="certificates-earned-count">
+              {certificates.length} of {certificates.length + pending.length} earned
+            </span>
+          )}
+        </div>
+      )}
+      {!shelf && (
       <button
         type="button"
         onClick={toggle}
@@ -153,9 +212,15 @@ export default function CertificatesPanel() {
         <Award className="w-4 h-4 text-green-700" />
         My certificates
       </button>
+      )}
 
-      {open && (
-        <div className="mt-3 rounded-lg border border-border bg-card p-4" data-testid="certificates-panel">
+      {expanded && (
+        <div
+          className={shelf
+            ? 'rounded-lg border border-border bg-card p-4'
+            : 'mt-3 rounded-lg border border-border bg-card p-4'}
+          data-testid="certificates-panel"
+        >
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="certificates-loading">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading your certificates…
@@ -169,9 +234,9 @@ export default function CertificatesPanel() {
             </div>
           )}
 
-          {!loading && !error && certificates.length === 0 && (
+          {!loading && !error && certificates.length === 0 && !shelf && (
             <p className="text-sm text-muted-foreground" data-testid="certificates-empty">
-              No certificates yet. Pass a level exam on WhatsApp to earn your first one.
+              No certificates yet. Finish a level's sessions and pass its module exams to earn your first one.
             </p>
           )}
 
@@ -252,6 +317,69 @@ export default function CertificatesPanel() {
                 </li>
               ))}
             </ul>
+          )}
+
+          {/*
+            THE SHELF (bd-60154). Levels the teacher has not finished, in the
+            same list as the ones she has.
+
+            The old panel showed earned certificates and nothing else, so a
+            teacher with none saw an empty box and a dead sentence. Naming what
+            is still outstanding turns the section from a record into a route:
+            the next certificate is always in view, with its remaining work
+            stated rather than implied.
+
+            No new request — /training/levels is already loaded by the page
+            that renders this, and its module counts are the same ones the
+            level list is drawn from.
+          */}
+          {!loading && !error && shelf && pending.length > 0 && (
+            <ul className={certificates.length > 0 ? 'space-y-3 mt-3' : 'space-y-3'} data-testid="certificates-pending">
+              {pending.map((l) => {
+                const total = l.module_count || 0;
+                const done = Math.min(l.completed_count || 0, total);
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                const left = Math.max(0, total - done);
+                return (
+                  <li
+                    key={l.id}
+                    data-testid="certificate-pending-row"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">{l.name}</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <div
+                          className="h-1.5 w-40 rounded-full bg-muted overflow-hidden"
+                          role="progressbar"
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${l.name} progress`}
+                        >
+                          <div className="h-full rounded-full bg-green-600" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {total > 0
+                            ? `${done} of ${total} sessions${left > 0 ? ` · ${left} to go` : ''}`
+                            : 'Not started'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">Not yet earned</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {shelf && (
+            <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+              Certificates are issued automatically once you finish every session in a level and pass each module exam.
+            </p>
           )}
         </div>
       )}
