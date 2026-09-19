@@ -32,7 +32,12 @@ test("no new options → today's request: one argument, key order, the assistant
   expect(r).toMatchObject({ success: true, finishReason: 'stop' });
   expect(mockCalls[0]).toHaveLength(1);
   const p = mockCalls[0][0];
-  expect(Object.keys(p)).toEqual(['model', 'messages', 'max_tokens', 'temperature']);
+  // `job` is metadata, not an option: llm-client reads it, records it on api.cost.incurred,
+  // and DELETES it before the request goes to the vendor (bd-27ort). It is listed here
+  // because this guard pins the exact key set on purpose — a new key must be justified, not
+  // waved through. That it never reaches the wire is proved separately, in
+  // bot/tests/llm-cost-attributed.test.js, by asserting on the vendor mock's own payload.
+  expect(Object.keys(p)).toEqual(['model', 'job', 'messages', 'max_tokens', 'temperature']);
   expect(p.max_tokens).toBe(1000);
   expect(p.temperature).toBe(0.7);
   expect(p.messages[0].content).toMatch(/^You are the NIETE Teaching Assistant/);
