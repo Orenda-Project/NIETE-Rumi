@@ -171,11 +171,13 @@ const COACHING_MESSAGES = {
     ...en("✅ Your Classroom Observation Report is ready! 📄"),
     ur: '✅ آپ کی کلاس روم مشاہدہ رپورٹ تیار ہے! 📄',
   },
-  // Voice summary delivery prefix
-  voiceSummaryReady: {
-    ...en("🎤 Here's your personalized voice summary:"),
-    ur: '🎤 یہ آپ کے لیے آواز میں تیار کیا گیا خلاصہ ہے:',
-  },
+  // bd-sk206 (feedback row 132): `voiceSummaryReady` — "🎤 Here's your personalized
+  // voice summary:" — is GONE, not merely unused. Its Urdu restated step5_voiceDebrief
+  // almost word for word (both "a summary … in audio", differing only in verb aspect at
+  // the end of the sentence), so an Urdu teacher read Step 5 as the same message sent
+  // twice. The audio now follows the Step 5/5 announcement with no caption in between.
+  // Do not reinstate a caption here without re-reading that row: any second Step-5 line
+  // has to be distinguishable from the announcement in URDU, at the FRONT of the string.
   // Reflective conversation graceful close. Urdu translation so the
   // fallback closer isn't voiced in English (gender-neutral — no addressee-gendered
   // verb). The primary closer is now the contextual acknowledgement (voiced).
