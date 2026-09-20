@@ -34,6 +34,7 @@ failure is FABRICATION from no grounding" — a brief that asks for a lesson and
 supplies no page is that failure, pre-authorised.
 """
 import bodysurface
+import cbriefbasics
 import d0_route
 import lessonrules
 
@@ -174,9 +175,10 @@ def _envelope(segment, pages, book, day, total_days):
 def _spiral(segment, prev):
     """What the warm-up may rehearse, and what it may not."""
     forbidden = [c for c, _ in _slo(segment)]
+    basics = cbriefbasics.spiral_reason(segment)
     if prev is None:
         return {"previous": None, "forbidden": forbidden,
-                "reason": "first lesson of this chapter — the warm-up reaches "
+                "reason": basics or "first lesson of this chapter — the warm-up reaches "
                           "back to prior knowledge, not to a named SLO"}
     return {
         "previous": {"segment_index": prev.get("segment_index"),
@@ -184,7 +186,7 @@ def _spiral(segment, prev):
                      "slo_refs": [c for c, _ in _slo(prev)],
                      "slo": _slo(prev)},
         "forbidden": forbidden,
-        "reason": None,
+        "reason": basics,
     }
 
 
@@ -246,6 +248,9 @@ def context(segment, pages, book, prev=None, day=None, total_days=None):
         # builds a lesson, a worksheet or a revision page, not a "content".
         "shape": SHAPE.get(d0_route.kind({}, segment), "lesson"),
     }
+    basics = cbriefbasics.section(segment)
+    if basics:
+        brief["basics"] = basics
 
     # Grounding is the same question whatever is being built, so `source` and
     # `spiral` above are unconditional. What is built from it is not: the five
