@@ -1,22 +1,23 @@
-"""What an author is told when the day has no syllabus objective.
+"""What an author is told about a day that rehearses the lesson beside it.
 
 `basicseg` mints a row for a period the book never claimed, and that row
-claims no SLO on purpose: the FDE syllabus has no objective for number
-fluency, so borrowing the chapter's codes would report the syllabus as
-covered by a day that never taught it.
+states the SLOs of the book day it is grounded on -- Amena, 20 Sep 2026:
+*"slo codes should cover the SLOs that the lesson states."* Those codes
+reach the author on their own through `cbrief._slo`, and on their own they
+are misleading in two ways an author cannot detect.
 
-That decision has a cost, and this is where it is paid. The brief's whole
-guarantee is that Stage C invents nothing, which it keeps by handing the
-author everything a lesson may be built from. Hand an author an empty `slo`
-list and nothing else and the guarantee inverts: the one part of the lesson
-that is NOT on the page -- what today is actually for -- is the part left
-blank, and an author with a blank there fills it. `cbrief`'s own rule for
-the spiral says how to avoid that: "an absent key reads as an oversight, a
-`None` with a reason reads as a fact."
+They read as today's NEW objectives, so the lesson gets written as first
+teaching rather than as practice. And `_spiral` puts them in `forbidden`,
+which for an ordinary lesson means "the warm-up may not reach here" -- the
+opposite of what a drill wants, since reaching back to the lesson it
+rehearses is the whole point. Both are cases of `cbrief`'s own rule: "an
+absent key reads as an oversight, a `None` with a reason reads as a fact."
 
-So the row's own objective, the chapter objectives it feeds, and the reason
-it claims none of them have to reach the brief. Law 18: mirror every engine
-refusal in the free lint AND write the shape into the authoring brief.
+The period length is the third. The teacher's slot is 40 minutes and the
+plan says 40, but the steps are budgeted shorter on purpose, and an author
+told only "40" writes the plan teachers say they cannot finish. Law 18:
+mirror every engine refusal in the free lint AND write the shape into the
+authoring brief.
 """
 import unittest
 
@@ -37,11 +38,14 @@ def book(grade=2, subject="Maths"):
 def basics_row(skill="number_fluency", **kw):
     d = {"segment_index": 801, "chapter_number": 4, "skill_type": skill,
          "topic": "Number Fluency, anchored in Numberland",
-         "day_label": "Number Fluency 1", "duration_min": 30,
-         "slo_codes": [], "slo_descriptions": [],
+         "day_label": "Number Fluency 1",
+         "duration_min": 40, "content_min": 30,
+         "slo_codes": ["M-02-NS-03"],
+         "slo_descriptions": ["Order numbers up to 99"],
          "supports_slo_codes": ["M-02-NS-01", "M-02-NS-03"],
-         "objective": "Children work quickly and confidently with this "
-                      "chapter's own numbers, out loud and in pairs.",
+         "objective": "I can order numbers up to 99. Today I work on it fast "
+                      "and out loud, with a partner, using this chapter's "
+                      "own numbers.",
          "is_basics": True, "basics_id": "grade_2_math_ch4_nf1",
          "basics_kind": "fill"}
     d.update(kw)
@@ -77,22 +81,23 @@ class TheBriefSaysWhatTodayIsFor(unittest.TestCase):
         self.assertEqual(b["basics"]["supports_slo"],
                          ["M-02-NS-01", "M-02-NS-03"])
 
-    def test_the_empty_slo_list_is_explained_rather_than_left_blank(self):
-        # The defect this test exists to prevent: an author handed `slo: []`
-        # with no reason reads it as a field somebody forgot to fill, and
-        # writes a lesson against the chapter's SLOs instead of the skill.
-        why = brief(basics_row())["basics"]["no_slo_reason"]
+    def test_the_stated_slo_is_named_as_already_taught(self):
+        # The defect this test exists to prevent: an author handed a code
+        # with no reason writes the day as first teaching of it, and the
+        # drill becomes the lesson the class already had.
+        why = brief(basics_row())["basics"]["slo_reason"]
         self.assertTrue(why)
-        self.assertIn("syllabus", why.lower())
+        self.assertIn("rehears", why.lower())
 
-    def test_the_envelope_still_claims_no_code(self):
-        # Coverage arithmetic reads `slo_codes`. Nothing here may put a code
-        # back into it by a side door.
+    def test_the_envelope_carries_the_slos_of_the_lesson_it_rehearses(self):
         b = brief(basics_row())
-        self.assertEqual(b["envelope"]["slo"], [])
-        self.assertEqual(b["envelope"]["slo_refs"], [])
+        self.assertEqual(b["envelope"]["slo_refs"], ["M-02-NS-03"])
+        self.assertEqual(b["envelope"]["slo"],
+                         [("M-02-NS-03", "Order numbers up to 99")])
 
-    def test_the_supports_list_is_not_offered_as_todays_objective(self):
+    def test_the_wider_supports_set_is_not_offered_as_todays_objective(self):
+        # M-02-NS-01 belongs to another day of the chapter. The skill feeds
+        # it over the weeks; this period does not teach it.
         b = brief(basics_row())
         self.assertNotIn("M-02-NS-01", b["envelope"]["slo_refs"])
 
@@ -110,13 +115,14 @@ class ANormalLessonIsUntouched(unittest.TestCase):
 
 class TheWarmUpKnowsWhatItMayRehearse(unittest.TestCase):
 
-    def test_a_basics_day_forbids_nothing_but_says_why(self):
-        # `forbidden` is empty because the day claims no SLO -- not because
-        # anything goes. Same rule as the first-lesson spiral: say which and
-        # why rather than going quiet.
+    def test_a_basics_day_may_reach_back_to_the_lesson_it_rehearses(self):
+        # `forbidden` now holds the day's own codes, and for an ordinary
+        # lesson that means "the warm-up may not go here". For a drill it is
+        # exactly where the warm-up belongs, so the reason has to say so --
+        # otherwise the list silently forbids the one thing that works.
         s = brief(basics_row(), prev=normal_row())["spiral"]
-        self.assertEqual(s["forbidden"], [])
-        self.assertTrue(s["reason"])
+        self.assertEqual(s["forbidden"], ["M-02-NS-03"])
+        self.assertIn("reach", s["reason"].lower())
 
     def test_the_reason_points_the_warm_up_at_the_skill(self):
         s = brief(basics_row(), prev=normal_row())["spiral"]
@@ -145,6 +151,31 @@ class TheAnchorRuleReachesTheAuthor(unittest.TestCase):
         for skill in basicseg.SLOT:
             b = brief(basics_row(skill=skill))
             self.assertTrue(b["basics"]["skill_name"], skill)
+
+
+class ThePeriodShownIsNotTheContentBudget(unittest.TestCase):
+    """Amena, 20 Sep 2026: "what we assume as perfect 40 is too long for
+    teachers, so we make it shorter and show the teacher 40, something she
+    can practically implement. The opening and explanation take [the rest]."
+    """
+
+    def test_the_author_is_given_both_numbers(self):
+        b = brief(basics_row())["basics"]
+        self.assertEqual(b["period_min"], 40)
+        self.assertEqual(b["content_min"], 30)
+
+    def test_the_author_is_told_which_one_the_steps_sum_to(self):
+        # The defect: an author given 40 and 30 with no rule picks whichever
+        # reads as the period, and that is the plan teachers cannot finish.
+        why = brief(basics_row())["basics"]["timing"]
+        self.assertIn("30", why)
+        self.assertIn("40", why)
+
+    def test_a_row_that_does_not_say_still_gets_a_content_budget(self):
+        # Every minted row carries both. A hand-written one may not, and a
+        # missing budget must not read as "spend the whole period".
+        b = brief(basics_row(content_min=None))["basics"]
+        self.assertEqual(b["content_min"], 30)
 
 
 class ItIsStillALesson(unittest.TestCase):

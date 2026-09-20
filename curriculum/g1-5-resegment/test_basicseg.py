@@ -14,14 +14,21 @@ or re-paced, and the authored work would re-attach to the wrong day in
 silence. So the index is computed from (skill, ordinal) -- the same identity
 `basics` already guarantees -- inside a band no real day uses.
 
-The SLO has to be honest. A number-fluency period is not an FDE SLO; the
-syllabus has no such objective, and stamping the anchor chapter's codes on it
-would inflate coverage with days that never taught them. The Coverage Map is
-deliberately built the other way round -- it shows these skills as zeros and
-invents no number for them -- and a row that claimed otherwise would put the
-two in disagreement. So a basics row carries NO `slo_codes`. It carries its
-own formative objective, and it names the chapter SLOs it FEEDS in a separate
-field that no coverage arithmetic reads.
+The SLO has to be the one the lesson states. Amena, 20 Sep 2026: *"slo codes
+should cover the SLOs that the lesson states, support slos make sense,
+objective is student facing SLO."* A basics period is not a free-floating
+drill -- it is grounded on ONE teaching day, works on that day's pages, and
+rehearses what that day taught -- so it states that day's codes, not the
+chapter's and not none. `supports_slo_codes` stays the chapter union: what
+the skill feeds over the weeks, which is a wider claim and a separate field.
+
+The period the teacher is SHOWN is not the period the content is budgeted
+for. Amena, same day: *"what we assume as perfect 40 is too long for
+teachers, so we make it shorter and show the teacher 40, something she can
+practically implement. The opening and explanation take"* -- the timetabled
+period is 40 minutes and the plan says so, while the steps are authored to
+fit the working core that is left once settling the class and explaining the
+task have taken their share.
 """
 import unittest
 
@@ -37,19 +44,23 @@ def rec(skill="number_fluency", ordinal=1, chapter=4, stem="grade_2_math",
             "position": 30, "of": 150}
 
 
-def chapter(pages=((2, 7), (3, 8)), title="Numberland", codes=("M-02-NS-03",)):
+def chapter(pages=((2, 7), (3, 8)), title="Numberland", codes=("M-02-NS-03",),
+            descriptions=("I can count on in tens.",)):
     return [{"chapter_number": 4, "chapter_title": title,
              "pages_printed": [p for p, _ in pages],
              "pages_pdf": [q for _, q in pages],
-             "slo_codes": list(codes), "segment_index": 1}]
+             "slo_codes": list(codes),
+             "slo_descriptions": list(descriptions), "segment_index": 1}]
 
 
-def days(spec, title="Numberland", codes=("M-02-NS-03",)):
+def days(spec, title="Numberland", codes=("M-02-NS-03",),
+         descriptions=("I can count on in tens.",)):
     """A multi-day chapter: `{segment_index: [printed pages]}`."""
     return [{"chapter_number": 4, "chapter_title": title,
              "pages_printed": list(pages),
              "pages_pdf": [p + 5 for p in pages],
-             "slo_codes": list(codes), "segment_index": i}
+             "slo_codes": list(codes),
+             "slo_descriptions": list(descriptions), "segment_index": i}
             for i, pages in sorted(spec.items())]
 
 
@@ -199,26 +210,57 @@ class TheIndexBand(unittest.TestCase):
             basicseg.index_of("telepathy", 1)
 
 
-class TheRowIsHonestAboutSLOs(unittest.TestCase):
+class TheRowStatesTheSLOsOfTheLessonItRehearses(unittest.TestCase):
+    """Amena, 20 Sep 2026: "slo codes should cover the SLOs that the lesson
+    states, support slos make sense, objective is student facing SLO."
 
-    def test_it_claims_no_fde_slo_of_its_own(self):
-        # Coverage arithmetic reads `slo_codes`. A basics day did not teach
-        # the chapter's objectives, and saying it did would overstate the
-        # syllabus as covered.
-        s = basicseg.segment(rec(), chapter(codes=("M-02-NS-03", "M-02-NS-01")))
-        self.assertEqual(s["slo_codes"], [])
+    Which lesson is not a choice this makes: grounding already picked one
+    teaching day, and it is the day whose pages the drill works on. Measured
+    the same day, all 366 basics rows ground on a day that carries both codes
+    and descriptions, and none falls back to the whole chapter.
+    """
+
+    def test_it_states_the_codes_of_the_day_it_is_grounded_on(self):
+        rows = days({1: [7], 2: [9]})
+        rows[0]["slo_codes"] = ["M-02-NS-03"]
+        rows[1]["slo_codes"] = ["M-02-NS-04"]
+        s = basicseg.segment(dict(rec(), near=2), rows)
+        self.assertEqual(s["slo_codes"], ["M-02-NS-04"])
+
+    def test_it_does_not_stamp_the_whole_chapters_codes_on_itself(self):
+        # The wider claim belongs in `supports_slo_codes`. Coverage
+        # arithmetic reads `slo_codes`, and a drill on day 2 did not teach
+        # day 1.
+        rows = days({1: [7], 2: [9]})
+        rows[0]["slo_codes"] = ["M-02-NS-03"]
+        rows[1]["slo_codes"] = ["M-02-NS-04"]
+        s = basicseg.segment(dict(rec(), near=2), rows)
+        self.assertNotIn("M-02-NS-03", s["slo_codes"])
+
+    def test_it_carries_that_days_descriptions_beside_the_codes(self):
+        # `cbrief._slo` pairs the two lists by position. Codes with no
+        # descriptions would hand the author a bare code to guess from.
+        rows = days({1: [7], 2: [9]})
+        rows[1]["slo_descriptions"] = ["I can add two tens."]
+        s = basicseg.segment(dict(rec(), near=2), rows)
+        self.assertEqual(s["slo_descriptions"], ["I can add two tens."])
 
     def test_it_names_the_chapter_slos_it_feeds_in_a_separate_field(self):
         s = basicseg.segment(rec(), chapter(codes=("M-02-NS-03", "M-02-NS-01")))
         self.assertEqual(sorted(s["supports_slo_codes"]),
                          ["M-02-NS-01", "M-02-NS-03"])
 
-    def test_it_carries_its_own_formative_objective(self):
-        # The day still has to tell a teacher what it is for. It is ours and
-        # formative, not FDE's and summative, so it is worded as its own.
+    def test_its_objective_is_that_slo_in_the_childs_voice(self):
+        rows = days({1: [7], 2: [9]})
+        rows[1]["slo_descriptions"] = ["Order numbers up to 100."]
+        s = basicseg.segment(dict(rec(), near=2), rows)
+        self.assertTrue(s["objective"].startswith("I can order numbers up to 100."))
+
+    def test_the_objective_says_what_this_period_does_with_it(self):
+        # Otherwise the drill and the lesson beside it read identically.
+        import basicslo
         s = basicseg.segment(rec(), chapter())
-        self.assertTrue(s["objective"])
-        self.assertNotIn("slo", s["objective"].lower())
+        self.assertIn(basicslo.LENS["number_fluency"], s["objective"])
 
 
 class TheRowIsAnchoredInTheBook(unittest.TestCase):
@@ -270,20 +312,31 @@ class TheRowRoutesToATeacherLessonPlan(unittest.TestCase):
         for skill in basicseg.SLOT:
             self.assertIn(skill, basicseg.NAME)
 
-    def test_it_takes_its_period_length_from_the_book_it_sits_in(self):
-        # docs/05-basics-build.md assumes a 40-minute period throughout. No
-        # book in the corpus does: measured 20 Sep 2026 the only lengths are
-        # 30 (1,635 days), 35 (372) and 25 (32). A basics period is a slot in
-        # the same timetable as the days either side of it, so it is as long
-        # as they are -- writing a 40-minute plan into a 30-minute slot is the
-        # "too long to do in the period" complaint, manufactured. Tracked as a
-        # correction to the spec.
+    def test_the_teacher_is_shown_her_own_timetabled_period(self):
+        # Amena, 20 Sep 2026: "show the teacher 40, something she can
+        # practically implement". The ICT primary period is 40 minutes and
+        # the plan says 40, whatever the corpus row beside it happens to say
+        # -- measured the same day the corpus only ever says 30 (1,635 days),
+        # 35 (372) or 25 (32), which is the authored length of a lesson, not
+        # the length of the slot it is taught in.
         rows = chapter()
         rows[0]["duration_min"] = 35
-        self.assertEqual(basicseg.segment(rec(), rows)["duration_min"], 35)
+        self.assertEqual(basicseg.segment(rec(), rows)["duration_min"], 40)
 
-    def test_a_chapter_that_does_not_say_falls_back_to_the_corpus_norm(self):
-        self.assertEqual(basicseg.segment(rec(), chapter())["duration_min"], 30)
+    def test_the_content_is_budgeted_shorter_than_the_period(self):
+        # "what we assume as perfect 40 is too long for teachers, so we make
+        # it shorter ... The opening and explanation take [the rest]". The
+        # steps are authored to the working core, not to the whole slot.
+        s = basicseg.segment(rec(), chapter())
+        self.assertEqual(s["content_min"], 30)
+        self.assertLess(s["content_min"], s["duration_min"])
+
+    def test_the_budget_does_not_move_with_the_book(self):
+        # One reusable shape per skill. A drill whose length changed book to
+        # book is not a routine a teacher runs from memory by week two.
+        rows = chapter()
+        rows[0]["duration_min"] = 25
+        self.assertEqual(basicseg.segment(rec(), rows)["content_min"], 30)
 
 
 if __name__ == "__main__":

@@ -17,16 +17,31 @@ inside a band no real day occupies. Measured 20 Sep 2026: no real
 corpus are the tail sentinels 990 (review) and 995 (assessment), 233 of each.
 The band below them is free.
 
-THE SLO MUST BE HONEST. A number-fluency period is not an FDE objective --
-the syllabus has no such SLO -- so the row claims none. Stamping the anchor
-chapter's codes on it would report the syllabus as covered by days that never
-taught it, and would put the row in direct disagreement with the Coverage
-Map, which deliberately shows these skills as zeros and invents no number for
-them. Instead the row carries its own formative objective and names the
-chapter SLOs it FEEDS in `supports_slo_codes`, a field no coverage
-arithmetic reads. FDE's assessments are summative; ours are the formative
-spiral underneath them, and the row says so rather than borrowing a code.
+THE SLO IS THE ONE THE LESSON STATES. Amena, 20 Sep 2026: *"slo codes should
+cover the SLOs that the lesson states, support slos make sense, objective is
+student facing SLO."* A basics period is not free-floating. `_grounding` has
+already tied it to ONE teaching day -- the day whose pages it works on -- and
+what it rehearses is what that day taught. So the row states that day's codes
+and descriptions. Measured the same day, all 366 periods ground on a day that
+carries both, and none falls back to the whole chapter.
+
+`supports_slo_codes` stays the chapter union: the wider claim, that the skill
+feeds these objectives over the weeks, in the separate field it has always
+been in. The objective is the day's own SLO said in the child's voice --
+`basicslo` holds that wording, so the rule is arguable on its own.
+
+THE PERIOD SHOWN IS NOT THE CONTENT BUDGET. Amena, same day: *"what we assume
+as perfect 40 is too long for teachers, so we make it shorter and show the
+teacher 40, something she can practically implement. The opening and
+explanation take"* [the rest]. `d0_primary` renders `duration_min` as the
+`period_minutes` the teacher reads, so the row says 40 -- her timetabled
+period. The steps are authored to `content_min`, the working core left once
+settling the class and explaining the task have taken their share. 30 is the
+corpus's own dominant authored length (1,635 of 2,039 days), so the split is
+the shape the books already have rather than one invented here.
 """
+
+import basicslo
 
 # One 20-wide lane per skill, so an index depends only on (skill, ordinal)
 # and never on the year. Adding a skill appends a lane; it never renumbers an
@@ -53,36 +68,17 @@ NAME = {
     "engage_hook": "Engage Hook",
 }
 
-# What the period is for, in the teacher's terms. Ours and formative, so it
-# is worded as its own objective rather than borrowed from the syllabus.
-OBJECTIVE = {
-    "number_fluency": "Children work quickly and confidently with this "
-                      "chapter's own numbers, out loud and in pairs.",
-    "concrete": "Children build this chapter's idea with objects they can "
-                "hold before they meet it on the page.",
-    "word_problem": "Children turn this chapter's situations into a "
-                    "calculation, and say how they knew which one.",
-    "communicative": "Children use this chapter's language to say something "
-                     "real to another child, and are understood.",
-    "phonics": "Children hear, say and blend the sounds in this chapter's "
-               "own words.",
-    "arkaan_saazi": "بچے اس باب کے اپنے الفاظ کو ارکان میں توڑتے اور جوڑتے "
-                    "ہیں۔",
-    "investigate_handson": "Children test this chapter's claim themselves "
-                           "and say what they saw.",
-    "engage_hook": "Children raise their own question about this chapter "
-                   "before it is explained to them.",
-}
-
 LANE = 20
 BASE = 800
 MAX_ORDINAL = LANE - 1          # 1..19; the largest real group is 16
 
-# docs/05-basics-build.md assumes 40 minutes everywhere. No book does: the
-# corpus holds 30 (1,635 days), 35 (372) and 25 (32), and nothing at 40. A
-# basics period is a slot in the same timetable as the days either side of
-# it, so it inherits their length and the spec is the thing that is wrong.
-FALLBACK_MIN = 30
+# What the teacher is shown, and what the steps are actually budgeted for.
+# See the docstring: the period is hers, the content is shorter than it on
+# purpose. Flat for every basics row -- one reusable shape per skill, only
+# the numbers changing week to week, is what makes the routine runnable from
+# memory by week two. A design decision, not a measurement.
+PERIOD_MIN = 40
+CONTENT_MIN = 30
 
 
 def index_of(skill, ordinal):
@@ -160,6 +156,23 @@ def _grounding(record, chapter_rows):
     return [pick], pick["segment_index"]
 
 
+def _slos(ground):
+    """The grounding rows' codes and descriptions, paired by position.
+
+    `cbrief._slo` zips the two lists, so a row whose description list is
+    shorter than its code list would slide every later description onto the
+    wrong code. Measured 20 Sep 2026 eight of the 366 do exactly that, so
+    each row is padded to its own length before the next is appended.
+    """
+    codes, descriptions = [], []
+    for r in ground:
+        c = list(r.get("slo_codes") or [])
+        d = list(r.get("slo_descriptions") or [])[:len(c)]
+        codes.extend(c)
+        descriptions.extend(d + [""] * (len(c) - len(d)))
+    return codes, descriptions
+
+
 def segment(record, chapter_rows):
     """A `corpus/seg`-shaped row for one `basics.records()` entry.
 
@@ -183,7 +196,7 @@ def segment(record, chapter_rows):
                          % (record["id"], record["chapter"]))
 
     titles = [r.get("chapter_title") for r in chapter_rows if r.get("chapter_title")]
-    lengths = [r.get("duration_min") for r in chapter_rows if r.get("duration_min")]
+    codes, descriptions = _slos(ground)
 
     return {
         "segment_index": index_of(skill, record["ordinal"]),
@@ -195,14 +208,15 @@ def segment(record, chapter_rows):
         "skill_type": skill,
         "pages_printed": printed,
         "pages_pdf": pdf,
-        # Empty on purpose. See the module docstring: coverage arithmetic
-        # reads this field, and this day did not teach the chapter's SLOs.
-        "slo_codes": [],
-        "slo_descriptions": [],
+        # The grounding day's own SLOs -- what this period rehearses. The
+        # chapter's wider set is a different claim and lives one line down.
+        "slo_codes": codes,
+        "slo_descriptions": descriptions,
         "supports_slo_codes": sorted({c for r in chapter_rows
                                       for c in (r.get("slo_codes") or [])}),
-        "objective": OBJECTIVE[skill],
-        "duration_min": lengths[0] if lengths else FALLBACK_MIN,
+        "objective": basicslo.objective(skill, descriptions),
+        "duration_min": PERIOD_MIN,
+        "content_min": CONTENT_MIN,
         "new_or_revision": "new",
         "prev_segment_id": None,
         "next_segment_id": None,
