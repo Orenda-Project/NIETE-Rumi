@@ -112,11 +112,33 @@ def _teaches(row):
     return (row.get("skill_type") or "") not in BOOKKEEPING
 
 
-def _usable(rows):
-    return bool(_pages(rows, "pages_printed") or _pages(rows, "pages_pdf"))
+def _usable(rows, closer=None):
+    """Is there anything here to build a drill from?
+
+    Page numbers are the first question and used to be the only one. The
+    second is whether those pages carry anything to drill: measured 20 Sep
+    2026, 43 of the 366 periods ground on a chapter's Connect-and-Create tail
+    and nothing else -- a materials list and a multi-day instruction, no
+    worked content and no keyed exercises. `grade_3_math_ch7_nf1` is the
+    clearest: a number-fluency period on tenths and hundredths anchored on
+    printed page 137, which prints no numbers at all, while the chapter's own
+    practice pages 133 to 136 carry fourteen keyed exercises and go unused.
+
+    `closer(printed_page)` is how the caller lends this module its page truth.
+    It is optional and the default is page-blind, because this module imports
+    nothing -- that is what lets it be tested without the gitignored corpus.
+    A day that merely runs onto the tail page keeps its own pages; only a day
+    that is nothing but tail is refused.
+    """
+    printed = _pages(rows, "pages_printed")
+    if not printed and not _pages(rows, "pages_pdf"):
+        return False
+    if closer is not None and printed and all(closer(p) for p in printed):
+        return False
+    return True
 
 
-def _grounding(record, chapter_rows):
+def _grounding(record, chapter_rows, closer=None):
     """The rows this period is built from: one teaching day where there is one.
 
     The whole chapter is the fallback, not the intent. Measured 20 Sep 2026 it
@@ -141,12 +163,12 @@ def _grounding(record, chapter_rows):
         # disagree. Walking to a "nearest" day would be inventing a neighbour
         # out of an inconsistency; the chapter is broad but it is true.
         return chapter_rows, None
-    if _teaches(day[0]) and _usable(day):
+    if _teaches(day[0]) and _usable(day, closer):
         return day, near
 
     teaching = [r for r in chapter_rows
                 if _teaches(r) and r.get("segment_index") is not None
-                and _usable([r])]
+                and _usable([r], closer)]
     if not teaching:
         return chapter_rows, None
     # Distance first, then the earlier day on a tie: a period sitting between
@@ -173,7 +195,7 @@ def _slos(ground):
     return codes, descriptions
 
 
-def segment(record, chapter_rows):
+def segment(record, chapter_rows, closer=None):
     """A `corpus/seg`-shaped row for one `basics.records()` entry.
 
     `chapter_rows` are the real segments of the chapter the period is
@@ -189,7 +211,7 @@ def segment(record, chapter_rows):
             "leaves the book -- so an ungrounded basics row is not buildable"
             % (record["id"], record["chapter"]))
 
-    ground, near = _grounding(record, chapter_rows)
+    ground, near = _grounding(record, chapter_rows, closer)
     printed, pdf = _pages(ground, "pages_printed"), _pages(ground, "pages_pdf")
     if not printed and not pdf:
         raise ValueError("%s: chapter %s carries no page numbers at all"

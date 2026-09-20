@@ -92,6 +92,29 @@ class Period(object):
                                    else self.error)
 
 
+# The tail of a chapter: a project set over several days, given as a materials
+# list and an instruction, with no worked content and no keyed exercises. It is
+# the same class of day as the 990 and 995 sentinels `basicseg` already walks
+# past -- a drill built from it is built from the project, not the lesson --
+# but it is a normal teaching row with real page numbers, so `basicseg` cannot
+# see it without being lent the book's page truth. That is what `closer` is.
+CLOSER_HEADING = "connect and create"
+CLOSER_TYPES = ("chapter_closer",)
+
+
+def closer(idx):
+    """A `basicseg` predicate over one book's printed pages."""
+    def is_closer(printed):
+        pages = idx.by_printed.get(printed) or []
+        if not pages:
+            return False
+        return all(
+            CLOSER_HEADING in " ".join(pg.get("headings") or []).lower()
+            or (pg.get("page_type") or "") in CLOSER_TYPES
+            for pg in pages)
+    return is_closer
+
+
 def one(record, chapter_rows, idx, meta):
     """Brief a single period. Never raises for a period that cannot ground.
 
@@ -105,7 +128,7 @@ def one(record, chapter_rows, idx, meta):
     one brief is one chapter, and `cbrief` takes it off the book.
     """
     try:
-        segment = basicseg.segment(record, chapter_rows)
+        segment = basicseg.segment(record, chapter_rows, closer(idx))
     except ValueError as exc:
         return Period(record, error=str(exc))
     name = artefact(meta["stem"], segment)
