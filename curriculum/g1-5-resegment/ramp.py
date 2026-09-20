@@ -65,6 +65,9 @@ def run_of(segments, syllabus):
         ch = s.get("chapter_number")
         out.append({"chapter": ch,
                     "skill": s.get("skill_type") or "revision",
+                    # Kept so a basics period can be grounded on the lesson it
+                    # sits beside rather than on the whole chapter.
+                    "day": s.get("segment_index"),
                     "kind": "omitted" if syllabus is not None
                             and ch not in syllabus else "book"})
     return out
@@ -172,14 +175,20 @@ def _anchor(periods):
     the book period before it, or — for the first weeks of Grade 1, before any
     book period has happened — of the one coming next. The band stays
     continuous and the day still says "we are in Chapter 4".
+
+    It also carries `near`: that neighbour's own day. The chapter is what the
+    calendar shows; the day is what the lesson is built from. Grounding on the
+    chapter hands an author every page of it -- a median of 13 against a real
+    day's 2 -- including, for a period early in a chapter, pages the class has
+    not yet opened.
     """
-    last = None
+    last, last_day = None, None
     for p in periods:
         if p["chapter"] is not None:
-            last = p["chapter"]
+            last, last_day = p["chapter"], p.get("day")
         elif last is not None:
-            p["chapter"], p["anchored"] = last, True
-    ahead = None
+            p["chapter"], p["anchored"], p["near"] = last, True, last_day
+    ahead, ahead_day = None, None
     for p in reversed(periods):
         # A Foundations period is NOT "before Chapter 1 in the book": it is
         # a phase the book has no page for, and stamping the coming chapter
@@ -187,9 +196,9 @@ def _anchor(periods):
         if p.get("kind") == "foundations":
             continue
         if p["chapter"] is not None and not p.get("anchored"):
-            ahead = p["chapter"]
+            ahead, ahead_day = p["chapter"], p.get("day")
         elif p["chapter"] is None and ahead is not None:
-            p["chapter"], p["anchored"] = ahead, True
+            p["chapter"], p["anchored"], p["near"] = ahead, True, ahead_day
     return periods
 
 

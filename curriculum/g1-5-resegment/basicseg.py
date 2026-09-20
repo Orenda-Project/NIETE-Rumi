@@ -104,6 +104,62 @@ def _pages(rows, key):
     return out
 
 
+# The two days at the end of every chapter. Written out rather than imported
+# because this module imports nothing -- which is what lets it be tested
+# without the corpus, and the corpus is gitignored. `covdata.BOOKKEEPING` is
+# the same set, and a test pins the two together so the copy cannot drift.
+BOOKKEEPING = {"revision", "assessment", "review_assess", "duhrai", "jaiza"}
+
+
+def _teaches(row):
+    """Is this a day the chapter is taught on, rather than tested on?"""
+    return (row.get("skill_type") or "") not in BOOKKEEPING
+
+
+def _usable(rows):
+    return bool(_pages(rows, "pages_printed") or _pages(rows, "pages_pdf"))
+
+
+def _grounding(record, chapter_rows):
+    """The rows this period is built from: one teaching day where there is one.
+
+    The whole chapter is the fallback, not the intent. Measured 20 Sep 2026 it
+    gives a median of 13 pages against a real day's 2, and for a period early
+    in a chapter those pages include ones the class has not opened. `near` is
+    the book day the allocator anchored this period to.
+
+    It walks past the chapter's own 990 revision and 995 assessment days. They
+    are the last periods of a chapter, so the allocator stamps them on 62 of
+    the 366 periods; their page spans are the whole chapter, and a drill built
+    from the assessment is built from the test rather than from the lesson.
+    The nearest teaching day is taken instead, preferring the one before --
+    the class has been there.
+    """
+    near = record.get("near")
+    if near is None:
+        return chapter_rows, None
+
+    day = [r for r in chapter_rows if r.get("segment_index") == near]
+    if not day:
+        # The stamp names a day this chapter does not have, so the two
+        # disagree. Walking to a "nearest" day would be inventing a neighbour
+        # out of an inconsistency; the chapter is broad but it is true.
+        return chapter_rows, None
+    if _teaches(day[0]) and _usable(day):
+        return day, near
+
+    teaching = [r for r in chapter_rows
+                if _teaches(r) and r.get("segment_index") is not None
+                and _usable([r])]
+    if not teaching:
+        return chapter_rows, None
+    # Distance first, then the earlier day on a tie: a period sitting between
+    # two lessons rehearses the one that has already happened.
+    pick = min(teaching, key=lambda r: (abs(r["segment_index"] - near),
+                                        r["segment_index"]))
+    return [pick], pick["segment_index"]
+
+
 def segment(record, chapter_rows):
     """A `corpus/seg`-shaped row for one `basics.records()` entry.
 
@@ -120,7 +176,8 @@ def segment(record, chapter_rows):
             "leaves the book -- so an ungrounded basics row is not buildable"
             % (record["id"], record["chapter"]))
 
-    printed, pdf = _pages(chapter_rows, "pages_printed"), _pages(chapter_rows, "pages_pdf")
+    ground, near = _grounding(record, chapter_rows)
+    printed, pdf = _pages(ground, "pages_printed"), _pages(ground, "pages_pdf")
     if not printed and not pdf:
         raise ValueError("%s: chapter %s carries no page numbers at all"
                          % (record["id"], record["chapter"]))
@@ -150,6 +207,9 @@ def segment(record, chapter_rows):
         "prev_segment_id": None,
         "next_segment_id": None,
         "is_basics": True,
+        # The book day the pages came from, or None where the row fell back to
+        # the whole chapter. Stated so a reader can tell the two apart.
+        "basics_near": near,
         "basics_id": record["id"],
         "basics_kind": record["kind"],
     }

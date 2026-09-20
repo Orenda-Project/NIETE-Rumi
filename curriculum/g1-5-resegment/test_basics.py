@@ -153,6 +153,31 @@ class AnUnanchoredBasicsPeriod(unittest.TestCase):
                            [p(None, "concrete", anchored=False)])
 
 
+class TheRecordNamesTheLessonItSitsBeside(unittest.TestCase):
+    """The chapter is where the period falls; `near` is what it is built from.
+
+    `ramp._anchor` walks to the book period next door to find the chapter, and
+    knows that period's own day while it is standing there. Dropping it costs
+    the grounding: a row built from the whole chapter hands an author a median
+    of 13 pages against a real day's 2, and -- for a period early in a chapter
+    -- pages the class has not yet opened.
+    """
+
+    def test_it_carries_the_day_the_allocator_anchored_it_to(self):
+        rows = basics.records("grade_2_math", 2, "Maths",
+                              [{"chapter": 4, "skill": "concrete",
+                                "kind": "fill", "anchored": True, "near": 7}])
+        self.assertEqual(rows[0]["near"], 7)
+
+    def test_a_period_with_no_neighbour_says_so_rather_than_guessing(self):
+        # An absent key reads as an oversight; a None with a chapter beside it
+        # reads as "ground on the chapter", which is what the builder then does.
+        rows = basics.records("grade_2_math", 2, "Maths",
+                              [p(4, "concrete")])
+        self.assertIn("near", rows[0])
+        self.assertIsNone(rows[0]["near"])
+
+
 class TheRecordCarriesWhatAuthoringNeeds(unittest.TestCase):
 
     def test_it_names_the_grade_the_subject_and_the_book(self):

@@ -44,6 +44,119 @@ def chapter(pages=((2, 7), (3, 8)), title="Numberland", codes=("M-02-NS-03",)):
              "slo_codes": list(codes), "segment_index": 1}]
 
 
+def days(spec, title="Numberland", codes=("M-02-NS-03",)):
+    """A multi-day chapter: `{segment_index: [printed pages]}`."""
+    return [{"chapter_number": 4, "chapter_title": title,
+             "pages_printed": list(pages),
+             "pages_pdf": [p + 5 for p in pages],
+             "slo_codes": list(codes), "segment_index": i}
+            for i, pages in sorted(spec.items())]
+
+
+class ItIsGroundedInOneLessonNotAWholeChapter(unittest.TestCase):
+    """A basics period is taught beside a lesson, and built from that lesson.
+
+    Measured 20 Sep 2026, grounding a basics row on its whole anchor chapter
+    gave it a median of 13 pages where a real day carries 2, and 300 of the 366
+    carried ten or more -- Grade 5 Maths Chapter 6 handed an author 36 pages
+    and 124 exercises for a 30-minute drill. That is a brief six times the size
+    it should be on every one of 366 paid calls, and it is wrong in the
+    classroom besides: a period falling early in a chapter would be built from
+    pages the class has not opened yet.
+
+    `ramp._anchor` already walked to the neighbouring book day to find the
+    chapter. `basics` now carries that day as `near`, and this uses it.
+    """
+
+    def test_it_takes_the_pages_of_the_day_it_sits_beside(self):
+        r = dict(rec(), near=2)
+        out = basicseg.segment(r, days({1: [7, 8], 2: [9, 10], 3: [11, 12]}))
+        self.assertEqual(out["pages_printed"], [9, 10])
+
+    def test_it_does_not_carry_pages_the_class_has_not_opened(self):
+        r = dict(rec(), near=1)
+        out = basicseg.segment(r, days({1: [7], 2: [9], 3: [11]}))
+        self.assertNotIn(11, out["pages_printed"])
+
+    def test_the_pdf_pages_follow_the_same_day(self):
+        r = dict(rec(), near=3)
+        out = basicseg.segment(r, days({1: [7], 3: [11]}))
+        self.assertEqual(out["pages_pdf"], [16])
+
+    def test_with_no_neighbour_it_falls_back_to_the_whole_chapter(self):
+        # Stated behaviour, not an accident: a row with nothing to narrow to
+        # is still buildable, just broadly. Better than an ungrounded row,
+        # which `cbrief` refuses outright.
+        out = basicseg.segment(dict(rec(), near=None),
+                               days({1: [7], 2: [9]}))
+        self.assertEqual(out["pages_printed"], [7, 9])
+
+    def test_a_neighbour_that_is_not_in_this_chapter_falls_back_too(self):
+        out = basicseg.segment(dict(rec(), near=99), days({1: [7], 2: [9]}))
+        self.assertEqual(out["pages_printed"], [7, 9])
+
+    def test_a_pageless_neighbour_falls_back_rather_than_grounding_on_nothing(self):
+        rows = days({1: [7], 2: []})
+        self.assertEqual(basicseg.segment(dict(rec(), near=2), rows)["pages_printed"],
+                         [7])
+
+    def test_what_it_feeds_is_still_the_whole_chapter(self):
+        # The pages narrow; the SLOs it feeds do not. A skill is built over the
+        # chapter's weeks, and `supports_slo_codes` is the record of that.
+        rows = days({1: [7], 2: [9]})
+        rows[0]["slo_codes"] = ["M-02-NS-03"]
+        rows[1]["slo_codes"] = ["M-02-NS-04"]
+        out = basicseg.segment(dict(rec(), near=2), rows)
+        self.assertEqual(out["supports_slo_codes"], ["M-02-NS-03", "M-02-NS-04"])
+
+    def test_it_does_not_build_a_drill_from_the_chapter_assessment(self):
+        """The sentinel days span the whole chapter, and teach none of it.
+
+        Measured 20 Sep 2026: 62 of the 366 basics periods fall next to their
+        chapter's 990 revision or 995 assessment day, because those are the
+        last periods of a chapter and the allocator stamps whatever is
+        adjacent. Their page spans are the whole chapter -- the worst row in
+        the corpus, `grade_2_english_ch2_cl2`, took 14 pages this way -- and a
+        drill built from the assessment is built from the test, not the
+        lesson. So grounding walks past them to the nearest teaching day.
+        """
+        rows = days({1: [7], 2: [9], 995: [7, 8, 9, 10, 11]})
+        rows[-1]["skill_type"] = "assessment"
+        out = basicseg.segment(dict(rec(), near=995), rows)
+        self.assertEqual(out["pages_printed"], [9])
+        self.assertEqual(out["basics_near"], 2)
+
+    def test_the_revision_sentinel_is_walked_past_too(self):
+        rows = days({3: [11], 990: [7, 8, 9, 10, 11]})
+        rows[-1]["skill_type"] = "revision"
+        self.assertEqual(basicseg.segment(dict(rec(), near=990), rows)["basics_near"], 3)
+
+    def test_an_urdu_bookkeeping_day_is_recognised_by_its_own_name(self):
+        # `jaiza` and `duhrai` are the Urdu books' words for the same two days.
+        rows = days({2: [9], 995: [7, 8, 9]})
+        rows[-1]["skill_type"] = "jaiza"
+        self.assertEqual(basicseg.segment(dict(rec(), near=995), rows)["basics_near"], 2)
+
+    def test_a_chapter_that_is_only_bookkeeping_still_grounds(self):
+        # Nothing to walk to. Better a broad row than an ungrounded one.
+        rows = days({995: [7, 8]})
+        rows[-1]["skill_type"] = "assessment"
+        out = basicseg.segment(dict(rec(), near=995), rows)
+        self.assertEqual(out["pages_printed"], [7, 8])
+
+    def test_the_bookkeeping_names_are_the_same_ones_coverage_counts(self):
+        # basicseg imports nothing on purpose, so the set is written out here
+        # rather than borrowed. This is the guard that keeps the copy honest.
+        import covdata
+        self.assertEqual(basicseg.BOOKKEEPING, set(covdata.BOOKKEEPING))
+
+    def test_it_records_which_day_it_was_grounded_on(self):
+        # So a reader of the row can tell a narrowed row from a fallback one
+        # without re-deriving it.
+        out = basicseg.segment(dict(rec(), near=2), days({1: [7], 2: [9]}))
+        self.assertEqual(out["basics_near"], 2)
+
+
 class TheIndexBand(unittest.TestCase):
 
     def test_it_sits_above_every_real_day_and_below_the_tail_sentinels(self):

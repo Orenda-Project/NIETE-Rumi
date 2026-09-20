@@ -84,6 +84,12 @@ def records(stem, grade, subject, periods):
             "chapter": chapter,
             "skill": skill,
             "kind": period["kind"],
+            # The book day this period sits beside, from `ramp._anchor`. The
+            # chapter says where the period falls; this says what it is built
+            # from. None where the allocator found no neighbour -- stated
+            # rather than absent, because the builder falls back to the whole
+            # chapter and that is a decision, not an oversight.
+            "near": period.get("near"),
             "ordinal": ordinal,
             "position": i + 1,
             "of": len(periods),

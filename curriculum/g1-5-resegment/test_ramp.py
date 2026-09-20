@@ -238,3 +238,66 @@ class TakePerWeekKeepsItsOldAnswer(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheNearestBookDay(unittest.TestCase):
+    """A basics period is taught beside a lesson, not beside a whole chapter.
+
+    Anchoring to the chapter was enough for the calendar, which only needed to
+    say "we are in Chapter 4". It is not enough for grounding. Measured 20 Sep
+    2026, a basics row grounded on its whole anchor chapter carries a median
+    of 13 pages where a real day carries 2, and 300 of the 366 carry ten or
+    more -- Grade 5 Maths Chapter 6 hands an author 36. That is a brief six
+    times the size it should be, on every one of 366 paid calls, and it is
+    also wrong in the classroom: a period early in a chapter would be built
+    from pages the class has not opened yet.
+
+    The allocator already knows the answer -- `_anchor` walks to the book
+    period next door -- it simply threw it away. So `run_of` keeps each day's
+    index and `_anchor` stamps the one it anchored to.
+    """
+
+    def test_run_of_keeps_the_day_each_period_came_from(self):
+        segs = [{"chapter_number": 1, "skill_type": "concrete",
+                 "segment_index": 1},
+                {"chapter_number": 1, "skill_type": "pictorial",
+                 "segment_index": 2}]
+        self.assertEqual([p["day"] for p in ramp.run_of(segs, None)], [1, 2])
+
+    def test_a_basics_period_is_stamped_with_the_day_before_it(self):
+        periods = [{"chapter": 4, "skill": "pictorial", "kind": "book",
+                    "day": 7},
+                   {"chapter": None, "skill": "number_fluency", "kind": "fill"}]
+        self.assertEqual(ramp._anchor(periods)[1]["near"], 7)
+
+    def test_it_takes_the_day_coming_next_where_none_has_happened(self):
+        # Early Grade 1: the reverse pass. Same rule as the chapter stamp.
+        periods = [{"chapter": None, "skill": "phonics", "kind": "onramp"},
+                   {"chapter": 1, "skill": "pre_reading", "kind": "book",
+                    "day": 1}]
+        out = ramp._anchor(periods)
+        self.assertEqual(out[0]["near"], 1)
+        self.assertEqual(out[0]["chapter"], 1)
+
+    def test_a_book_day_is_not_given_a_near(self):
+        periods = [{"chapter": 4, "skill": "pictorial", "kind": "book",
+                    "day": 7}]
+        self.assertNotIn("near", ramp._anchor(periods)[0])
+
+    def test_a_foundations_period_is_still_left_alone(self):
+        # It is not "before Chapter 1": the book has no page for it at all.
+        periods = [{"chapter": None, "skill": "phonics", "kind": "foundations"},
+                   {"chapter": 1, "skill": "pre_reading", "kind": "book",
+                    "day": 1}]
+        out = ramp._anchor(periods)
+        self.assertIsNone(out[0]["chapter"])
+        self.assertNotIn("near", out[0])
+
+    def test_the_whole_year_carries_one_for_every_basics_period(self):
+        segs = [{"chapter_number": c, "skill_type": "concrete",
+                 "segment_index": i + 1}
+                for c in (1, 2, 3) for i in range(8)]
+        periods, _ = ramp.allocate(2, "Maths", segs, {1, 2, 3})
+        basics = [p for p in periods if p["kind"] in ("onramp", "fill")]
+        self.assertTrue(basics)
+        self.assertTrue(all(p.get("near") is not None for p in basics))
