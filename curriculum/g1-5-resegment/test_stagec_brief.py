@@ -80,3 +80,18 @@ class TheBriefStatesTheRulesItIsJudgedBy(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheBriefCarriesTheCrossColumnRule(unittest.TestCase):
+    """Interaction and Gap are judged together, so the brief must say so --
+    a worker told only the per-column rules cannot see that check coming."""
+
+    def test_it_quotes_the_choral_threshold_the_gate_uses(self):
+        self.assertIn("more than %d%% of your"
+                      % int(stagec_verify.CHORAL_MAX * 100), brief_text())
+
+    def test_it_names_the_failure(self):
+        self.assertIn("choral practice in pairs", brief_text())
+
+    def test_it_forbids_relabelling_gaps_to_pass(self):
+        self.assertIn("not to relabel gaps upward", brief_text())

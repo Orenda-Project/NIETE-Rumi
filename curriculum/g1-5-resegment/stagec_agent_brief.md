@@ -127,8 +127,10 @@ What the day is doing usually points at the structure:
 | work alone, or watch a demonstration | `individual-only`, `whole-class-only` |
 
 **A slice is checked for flatness.** If one value lands on more than 60% of your
-rows, or a skill type with 8 or more days sits on a single value, the slice is
-rejected and reworked. Do NOT respond to this by sprinkling variety: a flat
+rows *and nothing else reaches 25%*, the column is dead and the slice is
+rejected. A dominant value with a real runner-up is fine — it still tells days
+apart. Separately, for this column only, a skill type with 8 or more days
+sitting on a single value is rejected. Do NOT respond to this by sprinkling variety: a flat
 column is a symptom of reading the spine instead of the day, and the fix is to
 go back and read the days. Genuine repetition inside a *small* skill type is
 fine and is not counted against you.
@@ -179,6 +181,15 @@ term of `pair` at `Gap: none` is choral practice in pairs, and only both columns
 together reveal it. **Never** replace either with a high/medium/low
 "communicative focus" scale: it is unauditable and it hides the failure it is
 meant to surface. Any such value is rejected.
+
+**And they are checked together, not only separately.** If more than 60% of your
+rows put children together (`pair`, `group`, `mingle`) at `Gap: none`, the slice
+is rejected as choral practice in pairs. Neither column is wrong on its own
+there — the pair of them is.
+
+The honest response is not to relabel gaps upward. It is to notice that children
+saying the same thing side by side have no information gap, then check whether
+the day's activity really is that, or whether you read it too quickly.
 
 `Gap` asks what the children do not already know about each other's answer:
 - `none` — everyone can see or predict the answer (choral repetition, copying)

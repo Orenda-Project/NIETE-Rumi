@@ -194,3 +194,95 @@ class ADeadColumnIsADefect(unittest.TestCase):
                    + ["round-robin", "numbered-heads"] * 4)
         s, w = self.slice_of(structs, skills)
         self.assertEqual(v.verify_slice(s, w), [])
+
+
+class FlatnessDependsOnHowBigTheVocabularyIs(unittest.TestCase):
+    """One share-cap cannot serve a 14-value column and a 5-value one.
+
+    Collaboration structure offers fourteen values, so one of them on 97% of
+    days is dead. Interaction offers five, two of which (individual,
+    teacher<->class) are what the spec discourages on oral days -- capping the
+    top value there at the same 60% pushes toward a forced pair/group split,
+    which is inventing. What actually distinguishes a live column from a dead
+    one is whether the SECOND value has real presence.
+    """
+
+    def slice_of(self, interactions, gaps=None, skills=None):
+        rows, cells = [], {}
+        for i, inter in enumerate(interactions):
+            row = 10 + i
+            rows.append({"row": row, "day": i + 1,
+                         "skill_type": (skills[i] if skills else "Writing"),
+                         "slo": "E-01-%02d" % (i + 1), "prior_slos_available": []})
+            cells[str(row)] = {
+                "Reading strategy": "n/a", "Collaboration structure":
+                    ["think-pair-share", "peer-check", "jigsaw"][i % 3],
+                "Function": "I can do it.", "Interaction": inter,
+                "Gap": (gaps[i] if gaps else ["none", "opinion", "reasoning"][i % 3]),
+                "Recycles": "", "Prerequisite SLOs": "none"}
+        return ({"slice": "t", "subject": "English", "rows": rows,
+                 "columns_to_fill": ["Reading strategy", "Collaboration structure",
+                                     "Function", "Interaction", "Gap", "Recycles",
+                                     "Prerequisite SLOs"]},
+                {"slice": "t", "cells": cells})
+
+    def test_a_dominant_value_with_a_strong_runner_up_is_not_flat(self):
+        """pair 63%, group 30% differentiates; it is not one answer for
+        every day."""
+        s, w = self.slice_of(["pair"] * 19 + ["group"] * 9 + ["mingle"] * 2)
+        self.assertFalse([f for f in v.verify_slice(s, w) if "Interaction" in f])
+
+    def test_a_dominant_value_whose_runner_up_is_a_token_is_flat(self):
+        s, w = self.slice_of(["pair"] * 28 + ["group", "mingle"])
+        self.assertTrue([f for f in v.verify_slice(s, w) if "Interaction" in f])
+
+    def test_a_small_vocabulary_column_is_not_forced_to_vary_per_skill_type(self):
+        """Nine Phonics days with no information gap between the children is
+        a true statement about phonics drills, not inattention."""
+        s, w = self.slice_of(["pair"] * 9 + ["group"] * 12 + ["mingle"] * 9,
+                             gaps=["none"] * 9 + ["opinion", "reasoning"] * 10 + ["none"],
+                             skills=["Phonics"] * 9 + ["Writing"] * 21)
+        self.assertFalse([f for f in v.verify_slice(s, w)
+                          if "Phonics" in f and "Gap" in f])
+
+
+class ChoralPracticeInPairs(unittest.TestCase):
+    """The spec's own named failure, which the gate had only approximated:
+
+        "a whole term of `pair` at `Gap: none` is choral practice in pairs,
+         and only both columns together reveal it"
+
+    Neither column alone is wrong in that case. The pair of them is.
+    """
+
+    def slice_of(self, combos):
+        rows, cells = [], {}
+        for i, (inter, gap) in enumerate(combos):
+            row = 10 + i
+            rows.append({"row": row, "day": i + 1, "skill_type": "Writing",
+                         "slo": "E-01-%02d" % (i + 1), "prior_slos_available": []})
+            cells[str(row)] = {
+                "Reading strategy": "n/a",
+                "Collaboration structure": ["think-pair-share", "peer-check",
+                                            "jigsaw"][i % 3],
+                "Function": "I can do it.", "Interaction": inter, "Gap": gap,
+                "Recycles": "", "Prerequisite SLOs": "none"}
+        return ({"slice": "t", "subject": "English", "rows": rows,
+                 "columns_to_fill": ["Reading strategy", "Collaboration structure",
+                                     "Function", "Interaction", "Gap", "Recycles",
+                                     "Prerequisite SLOs"]},
+                {"slice": "t", "cells": cells})
+
+    def test_mostly_paired_work_with_no_information_gap_is_caught(self):
+        s, w = self.slice_of([("pair", "none")] * 21
+                             + [("group", "opinion"), ("pair", "reasoning")] * 4
+                             + [("mingle", "two-way")])
+        found = [f for f in v.verify_slice(s, w) if "choral" in f.lower()]
+        self.assertTrue(found, "pair-at-Gap-none not caught")
+
+    def test_paired_work_that_carries_real_gaps_passes(self):
+        s, w = self.slice_of([("pair", "none")] * 9
+                             + [("pair", "opinion")] * 7
+                             + [("group", "reasoning")] * 7
+                             + [("pair", "one-way")] * 7)
+        self.assertFalse([f for f in v.verify_slice(s, w) if "choral" in f.lower()])
