@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Shim: every existing clone of this repo has core.hooksPath=.githooks (set before the engine existed). The real
+# hook now lives in the vendored engine; this two-liner keeps those clones working with NO action after the merge.
+exec bash "$(git rev-parse --show-toplevel)/.claude/qa/engine/githooks/pre-push" "$@"

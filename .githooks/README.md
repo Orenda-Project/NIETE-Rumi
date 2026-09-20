@@ -16,3 +16,5 @@ Everything this repo owns about the pipeline — the tenant layer — is in `.cl
 `.claude/qa/config/feature-map.yaml`, `whatsapp-targets.yaml`, the specs under `tests/features/whatsapp/niete/`,
 the drivers under `.claude/qa/shared/features/`, and the `niete_*` tools beside them. Map of the whole system:
 [`docs/qa-automation.md`](../docs/qa-automation.md).
+
+`post-commit` and `pre-push` here are two-line shims that exec the engine's hooks, so a clone whose `core.hooksPath` is still `.githooks` (every clone from before the engine) keeps working after the merge with nothing to run. New clones get `core.hooksPath=.claude/qa/engine/githooks` from `npm install` (`prepare`) or from the first Claude session's SessionStart banner, which installs it automatically.
