@@ -68,7 +68,11 @@ RULES = (
     "[7B] check every answer key against its own stimulus, item by item. On "
     "an ordering or sorting task, confirm which items are ALREADY correct "
     "before writing a blanket key: a key that contradicts a child who is "
-    "right is worse than no key at all",
+    "right is worse than no key at all. Read the page truth's `exercises` "
+    "list and not its flattened `text_verbatim` -- the list says which "
+    "digit is UNDERLINED and what a picture shows, and the flattened "
+    "text loses both. Grade 2 Maths page 8 prints 199 with the ONES "
+    "nine underlined, worth 9, and it flattens to \"199 9 90 100\"",
 
     "[7A] every page reference is the number PRINTED in the book, and every "
     "key describes the stimulus the child is actually looking at -- words if "
@@ -121,4 +125,34 @@ RULES = (
     "sentence appears in both, the release never happens -- the We-Do is the "
     "part done WITH the class, and what the children then do alone has to be "
     "the next thing, not the same thing",
+    "[2I] the concrete and the pictorial belong in the MAIN arc and they "
+    "fade inside the period -- model it pictorially in the I-Do, make and "
+    "draw it in the first guided round, then digits alone for the rest. A "
+    "manipulative handed out only to the child who has already failed is a "
+    "repair, not CPA, and the rubric scores the bridge every child crosses. "
+    "Use what the chapter PRINTS before inventing anything: the block "
+    "pictures, the draw-or-make task, the picture-only question everybody "
+    "skips. It costs no money, it breaks no anchor rule, and it is already "
+    "in front of the children",
+
+    "[6C] a period owes TWO student-voice moments, not one. The rubric reads "
+    "a single beat as one opportunity rather than a habit. Put the first in "
+    "the warm-up -- name someone in your own house who does this -- and the "
+    "second INSIDE a round the lesson is already running, half a beat before "
+    "the pairs swap: in one word, what could this number be counting here? "
+    "The second costs no minutes because it rides on a round that was "
+    "already timed. Children supply the context only; the anchor rule still "
+    "governs every number and word the class works on",
+
+    "[3B] the You-Do gets at least 30% of content time -- nine minutes of "
+    "thirty. Below that the release reads as token however good the task "
+    "is. The I-Do wants about a sixth and no more, and the minute the You-Do "
+    "needs comes out of the We-Do, never out of the exit ticket. The shape "
+    "that measured well: warm-up 5, I-Do 5, We-Do 8, You-Do 9, exit 3",
+
+    "[7A] anything the lesson states twice is stated the same way twice. "
+    "The phase plan in `scope_declaration` and the minutes on the steps; the "
+    "round a number is worked in, in the script and in the partner activity; "
+    "the page a task sits on. Write the plan LAST, off the finished steps, "
+    "rather than writing it first and hoping the steps still agree",
 )

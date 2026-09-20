@@ -40,7 +40,7 @@ class TheEvidenceIsCarriedWithTheRule(unittest.TestCase):
         for rule in lessonrules.RULES:
             self.assertRegex(
                 rule,
-                r"\[(0A|0F|1E|1F|4A|5D|6B|7A|7B|8A|8C|9B|9F|9G|9H)\]", rule)
+                r"\[(0A|0F|1E|1F|2I|3B|4A|5D|6B|6C|7A|7B|8A|8C|9B|9F|9G|9H)\]", rule)
 
     def test_the_three_recurring_checks_are_all_covered(self):
         flat = " ".join(lessonrules.RULES)
@@ -152,8 +152,6 @@ class TheLessonBriefCarriesThem(unittest.TestCase):
         self.assertNotIn("rules", b)
 
 
-if __name__ == "__main__":
-    unittest.main()
 class WhatTheThirdPassFound(unittest.TestCase):
     """The re-judge of 19 Sep found something different from the two passes
     before it. Every finding left on seg5 -- 5D new context, 5D self-prediction,
@@ -214,3 +212,85 @@ class WhatTheBasicsPilotAdded(unittest.TestCase):
     def test_it_does_not_weaken_the_anchor_rule(self):
         flat = " ".join(lessonrules.RULES)
         self.assertNotIn("outside the chapter", flat)
+
+
+class WhatTheSecondBasicsLessonAdded(unittest.TestCase):
+    """The second Number Fluency period, judged three times on 20 Sep 2026.
+
+    The [8C] beat worked -- 5C, 6C and 8C all came off 2 and onto 3. None of
+    them reached 4, and the judge said in its own words why, which is the only
+    reason these are rules rather than guesses:
+
+      5C  "a single meaningful beat ... rather than a sustained authentic
+          context"
+      6C  "student voice appears once ... a single opportunity rather than
+          multiple"
+      8C  "concrete caps reserved as repair rather than a planned pictorial
+          bridge -- defensible for a rehearsal period but not exemplary CPA"
+      2I  "the book's base-ten block pictures are not exploited as a visual
+          bridge"
+
+    Two changes moved all four to 4 in one re-judge (94.6 -> 97.1, eleven
+    3-ratings down to six): a second voice beat inside the pair drill, and a
+    made-and-drawn first round that fades to digits by round three.
+
+    The third finding is the one that matters most for the other 364. Printed
+    page 7 of grade_2_math says, in the book's own words, "draw OR make each
+    number using coloured paper", and page 8 question 1 is a base-ten block
+    picture with no digits on it. The first draft turned both into a slate
+    drill. The book had already provided the concrete and the pictorial; the
+    lesson had thrown them away. That is how a primary maths period ends up
+    abstract-only while its author believes it is doing CPA.
+    """
+
+    def setUp(self):
+        self.flat = " ".join(lessonrules.RULES).lower()
+
+    def one(self, phrase):
+        # A code is not a key: 5D names three rules and 7A names three. A
+        # rule is found by something only that rule says.
+        hits = [r for r in lessonrules.RULES if phrase in r.lower()]
+        self.assertEqual(len(hits), 1, phrase)
+        return hits[0]
+
+    def test_the_concrete_step_is_planned_and_fades_rather_than_kept_as_repair(self):
+        # 9B CPA-Phase Fidelity. A cap handed only to the child who failed is
+        # a repair; the rubric scores a bridge every child crosses.
+        r = self.one("fade inside the period")
+        self.assertIn("fade", r.lower())
+        self.assertIn("repair", r.lower())
+
+    def test_the_books_own_pictures_are_used_before_anything_is_invented(self):
+        # 2I. Invented manipulatives cost money and break the anchor rule;
+        # the printed picture costs nothing and is already in front of them.
+        self.assertIn("what the chapter prints", self.one("fade inside the period").lower())
+
+    def test_a_period_owes_more_than_one_student_voice_moment(self):
+        r = self.one("two student-voice moments")
+        self.assertIn("not one", r.lower())
+
+    def test_the_second_voice_moment_costs_no_extra_minutes(self):
+        # The whole reason it is affordable in a 30-minute content budget.
+        self.assertIn("inside", self.one("two student-voice moments").lower())
+
+    def test_the_you_do_gets_at_least_thirty_percent_of_content_time(self):
+        r = self.one("30% of content time")
+        self.assertIn("30%", r)
+        self.assertIn("you-do", r.lower())
+
+    def test_an_underlined_digit_key_is_read_off_the_page_truth(self):
+        # 7B, caught on p.8 Q2c: 199 underlines the ONES 9, answer 9, and the
+        # lesson had written "the 9 in the tens place -- 90". Not a new rule;
+        # the existing 7A rule gains the shape the defect kept taking.
+        self.assertIn("underlin", self.flat)
+
+    def test_a_number_stated_twice_is_stated_the_same_way_twice(self):
+        # 7A, caught twice in one lesson: the phase plan in
+        # `scope_declaration` disagreed with the minutes on the steps, and the
+        # We-Do script put 470 in a different round from partnerActivity.
+        r = self.one("states twice")
+        self.assertIn("twice", r.lower())
+
+
+if __name__ == "__main__":
+    unittest.main()
