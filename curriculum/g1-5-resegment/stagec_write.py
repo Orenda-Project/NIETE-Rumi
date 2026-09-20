@@ -68,6 +68,42 @@ def build_payload(tab, header, rows, new_values, columns):
     return payload
 
 
+def _parse_range(rng):
+    """"'Tab'!C4:C6" -> ("C", 4). The tab name may itself contain a !."""
+    cells = rng.rsplit("!", 1)[-1]
+    start = cells.split(":")[0]
+    letter = "".join(ch for ch in start if ch.isalpha())
+    row = int("".join(ch for ch in start if ch.isdigit()))
+    return letter, row
+
+
+def readback_cells(sent_payload, header, value_ranges):
+    """Turn batchGet ranges back into {row: {column: value}}.
+
+    Anchored on what was SENT, not on what came back: Sheets truncates a
+    column whose trailing cells are empty, and can omit it altogether. Those
+    cells must read as empty so diff_readback reports them, because a write
+    that never landed looking clean is the one failure a read-back exists to
+    catch.
+    """
+    by_letter = {col_letter(i): h for i, h in enumerate(header)}
+    got = {}
+    for vr in sent_payload:
+        letter, first = _parse_range(vr["range"])
+        if letter not in by_letter:
+            raise KeyError("column %s is not in the header" % letter)
+        for i in range(len(vr["values"])):
+            got.setdefault(first + i, {})[by_letter[letter]] = ""
+    for vr in value_ranges:
+        letter, first = _parse_range(vr["range"])
+        if letter not in by_letter:
+            raise KeyError("column %s is not in the header" % letter)
+        for i, block in enumerate(vr.get("values") or []):
+            got.setdefault(first + i, {})[by_letter[letter]] = (
+                block[0] if block else "")
+    return got
+
+
 def diff_readback(sent, got):
     """Cells that did not land, as human-readable findings."""
     out = []

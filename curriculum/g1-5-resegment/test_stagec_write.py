@@ -162,3 +162,45 @@ class MergingDerivedWithWorkerCells(unittest.TestCase):
     def test_a_worker_cell_colliding_with_a_derived_column_is_refused(self):
         with self.assertRaises(ValueError):
             self.merged({6: {"Moves": "warm_up·40"}})
+
+
+class ReadingTheSheetBackIntoRowsAndColumns(unittest.TestCase):
+    """batchGet hands back ranges; diff_readback wants rows and columns.
+
+    The sheet also truncates: a column whose last cells are empty comes back
+    short, or missing entirely. Treating that as "matched" would let a write
+    that never landed look clean, which is the one thing a read-back exists
+    to prevent.
+    """
+    HEADER = ["Day #", "Topic", "Moves", "Reading strategy"]
+    SENT = [
+        {"range": "'Maths G1–5'!C4:C6", "values": [["a"], ["b"], ["c"]]},
+        {"range": "'Maths G1–5'!D4:D6", "values": [["x"], ["y"], ["z"]]},
+    ]
+
+    def test_ranges_become_rows_and_columns(self):
+        got = w.readback_cells(self.SENT, self.HEADER, self.SENT)
+        self.assertEqual(got[4], {"Moves": "a", "Reading strategy": "x"})
+        self.assertEqual(got[6], {"Moves": "c", "Reading strategy": "z"})
+
+    def test_a_short_column_leaves_the_missing_cells_empty(self):
+        short = [self.SENT[0], {"range": "'Maths G1–5'!D4:D6",
+                                "values": [["x"]]}]
+        got = w.readback_cells(self.SENT, self.HEADER, short)
+        self.assertEqual(got[6], {"Moves": "c", "Reading strategy": ""})
+
+    def test_a_column_the_sheet_omitted_entirely_is_not_silently_matched(self):
+        got = w.readback_cells(self.SENT, self.HEADER, [self.SENT[0]])
+        sent = {4: {"Reading strategy": "x"}}
+        self.assertTrue(w.diff_readback(sent, got))
+
+    def test_a_round_trip_that_landed_shows_no_difference(self):
+        got = w.readback_cells(self.SENT, self.HEADER, self.SENT)
+        sent = {4: {"Moves": "a"}, 6: {"Reading strategy": "z"}}
+        self.assertEqual(w.diff_readback(sent, got), [])
+
+    def test_an_unknown_column_letter_is_refused(self):
+        with self.assertRaises(KeyError):
+            w.readback_cells(self.SENT, self.HEADER,
+                             [{"range": "'Maths G1–5'!Z4:Z6",
+                               "values": [["?"]]}])
