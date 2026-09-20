@@ -31,6 +31,11 @@ ROOT=$(e2e_root 2>/dev/null) || { echo "mock-autorun: no tenants.yaml above $PWD
 PEND="$ROOT/.claude/.e2e-pending"; mkdir -p "$PEND"
 QUEUE="$PEND/mock-queue.jsonl"; LOCKDIR="$PEND/mock-autorun.lock"; PIDFILE="$LOCKDIR/pid"; LOG="$PEND/mock-autorun.log"
 COMMIT_E2E="${E2E_COMMIT_E2E_BIN:-$QA/commit-e2e.sh}"
+# Called from a git hook, we inherit git's hook environment (GIT_DIR=.git, GIT_INDEX_FILE, GIT_WORK_TREE, GIT_PREFIX …),
+# which is RELATIVE to the committing directory. Every git command the run makes elsewhere (the throwaway worktree
+# in the results dir) would then resolve against the wrong repo and fail — `git worktree add failed` (exit 11) on a
+# plain clone, invisible from a git worktree where those paths happen to be absolute (rehearsal, 2026-09-20).
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_QUARANTINE_PATH
 
 short() { printf '%s' "$1" | cut -c1-7; }
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }

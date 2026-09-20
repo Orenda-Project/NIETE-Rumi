@@ -53,6 +53,23 @@ say "no regression flagged" "$(python3 -c 'import json,sys; print(json.load(open
 has "--status prints the row" "$(bash "$MA" --status "$SHA1")" "DONE" yes
 [ "$NT" -gt 1 ] && ok "multi-tenant fixture: tenants are passed per run below" || ok "single-tenant fixture"
 
+echo "mock-autorun — launched from a git hook (GIT_DIR=.git in the environment), the run still works"
+printf '// hookenv\n' >> "$ROOT/README.md"; git -C "$ROOT" add -A >/dev/null; git -C "$ROOT" commit -qm "hookenv" >/dev/null 2>&1; SHAH=$(git -C "$ROOT" rev-parse HEAD)
+HOOKENV_FAKE="$PEND/fake-worktree.sh"
+cat > "$HOOKENV_FAKE" <<'SH2'
+#!/bin/bash
+# a stand-in that does what local-stack does first: a detached worktree of the sha, from a DIFFERENT cwd
+sha="$1"; root="$(git rev-parse --show-toplevel)"; out="$(dirname "$0")/wt-$$"
+cd /tmp && git -C "$root" worktree add --detach "$out" "$sha" >/dev/null 2>&1 || { echo "│  x menu CRITICAL pass=0 fail=1 worktree-add-failed"; exit 3; }
+git -C "$root" worktree remove --force "$out" >/dev/null 2>&1
+echo "│  x menu HEALTHY pass=1 fail=0 blocked=0 skipped=0"
+SH2
+chmod +x "$HOOKENV_FAKE"
+out=$(cd "$ROOT" && GIT_DIR=.git GIT_INDEX_FILE=.git/index GIT_PREFIX= E2E_COMMIT_E2E_BIN="$HOOKENV_FAKE" bash "$MA" "$SHAH" --features menu)
+has "launches under the hook env" "$out" "RUNNING in the background" yes
+wait_done "$SHAH" done || bad "hook-env run never finished (status $(status "$SHAH"))"
+has "…and the worktree add inside the run succeeded" "$(cat "$PEND/mock-${SHAH:0:7}.result")" "HEALTHY pass=1" yes
+
 echo "mock-autorun — the same sha is never run twice (both hooks fire on one commit)"
 out=$(bash "$MA" "$SHA1" --features menu)
 has "second request for a done sha is refused" "$out" "already done" yes
