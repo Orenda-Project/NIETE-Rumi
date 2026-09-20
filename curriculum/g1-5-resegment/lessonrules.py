@@ -106,6 +106,17 @@ RULES = (
     "the honest line; what it will not take is a pair task with nothing to "
     "find out",
 
+    "[8C] find the question the chapter asks and never answers, and answer "
+    "it out loud. Nearly every chapter opens with one -- where have you seen "
+    "such numbers, how do these help us every day, who in your house does "
+    "this -- and then walks straight past it. Give it a minute: children turn "
+    "to a bench partner and name a place from their own life, two or three "
+    "say it aloud by name, and you close it once yourself using a number or "
+    "word already on the page, so the drill has somewhere to land. The "
+    "children supply the CONTEXT and nothing else -- the anchor rule still "
+    "governs every number and word the class then works on, so do not write "
+    "a child's own example on the board as the thing to drill",
+
     "[7A] the We-Do does not repeat the You-Do word for word. If the same "
     "sentence appears in both, the release never happens -- the We-Do is the "
     "part done WITH the class, and what the children then do alone has to be "

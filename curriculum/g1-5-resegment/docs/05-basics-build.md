@@ -12,32 +12,34 @@
 
 Every template below runs **Open → Work → Share → Close**. What changes chapter to chapter is only the *content* (the chapter's own words/numbers); the *shape* stays fixed so a teacher who has run it once can run it cold the next week — critical at 40+ students where transition time is the enemy.
 
+**Every template also owes one real-world beat, about a minute, inside its Open.** Measured on the first Number Fluency period (20 Sep 2026): three of its four 2-ratings — 5C, 6C and 8C — were one defect, a drill that never said what the numbers were *for* and never let a child speak about their own life. Rehearsal has no story in it by default, so the beat has to be asked for. The material is already in the book: nearly every chapter opens with a question it then does nothing with — grade 2 Maths page 2 asks *“Can you think of a place where you have seen such numbers?”* and *“How do numbers help us in our daily life?”* and never returns to either. Children turn to a bench partner, name a place from their own life, two or three say it aloud by name; the teacher closes it once using a number or word **already printed on the page**. The children supply the context and nothing else — the anchor rule still governs every number and word the class then works on, so a child's own example is never written up as the thing to drill. Adding it took the same lesson from judge 91.2 to 95.6.
+
 ### A. Number Fluency (Maths NF)
-- **Arc (30 min of content):** Chant warm-up (4 min) → guided fluency drill using this chapter's own numbers (15 min) → rapid individual/choral check (8 min) → chant close (3 min).
+- **Arc (30 min of content):** Chant warm-up + real-world beat (5 min) → guided fluency drill using this chapter's own numbers (14 min) → rapid individual/choral check (8 min) → chant close (3 min).
 - **Talk split:** Teacher ~30% (models/calls), children ~70% (chorus, pair drill, individual recall). Fluency means child mouths moving, not teacher explaining.
 - **Materials:** fingers, chalk on desk/board, stones/bottle caps as counters, the textbook's own numbers/page numbers as a free number source.
 - **Anchor rule:** the number range or fact family drilled must come from numbers already appearing in this week's chapter — no new topic introduced, only faster recall of what the chapter already uses.
 
 ### B. Communicative Language (CL — English & Urdu)
-- **Arc (30 min of content):** Teacher models a sentence frame/dialogue chorally (4 min) → structured pair talk at existing seats (15 min) → stand-at-desk share, 6-8 children (8 min) → chorus close (3 min).
+- **Arc (30 min of content):** Teacher models a sentence frame/dialogue chorally + real-world beat (5 min) → structured pair talk at existing seats (14 min) → stand-at-desk share, 6-8 children (8 min) → chorus close (3 min).
 - **Talk split:** Teacher ~20% (gives the frame, no lecturing), children ~80%. This is the anti-rote lever — the point is volume of child talk, not teacher content delivery.
 - **Materials:** chalk to write the frame on the board; no props. The chapter's own key-word list supplies the vocabulary that fills the frame's blanks.
 - **Anchor rule:** every sentence frame is built only from that week's chapter theme/vocabulary (a self-intro chapter yields "My name is ___, I feel ___ today"; a conversation chapter yields its own two-line exchange).
 
 ### C. Phonics (English PH)
-- **Arc (30 min of content):** Sound/blend drill (4 min) → isolate-blend-read chapter key words on the board (15 min) → paired or row read-aloud check (8 min) → choral close (3 min).
+- **Arc (30 min of content):** Sound/blend drill + real-world beat (5 min) → isolate-blend-read chapter key words on the board (14 min) → paired or row read-aloud check (8 min) → choral close (3 min).
 - **Talk split:** Teacher ~40% (models the sound), children ~60% (chorus then individual read-aloud).
 - **Materials:** chalk + blackboard, the chapter's own word list, finger air-writing, desk-tracing. Nothing printed beyond the textbook.
 - **Anchor rule:** only words that actually appear in the current chapter's text are drilled — no outside phonics word lists, so a weak-in-English teacher only ever has to pronounce words already sitting in the book in front of them.
 
 ### D. ارکان سازی / Syllables (Urdu AS)
-- **Arc (30 min of content):** Clap-count model on one chapter word (4 min) → build/segment more chapter words by clapping ارکان (15 min) → partner clap-check (8 min) → chant close (3 min).
+- **Arc (30 min of content):** Clap-count model on one chapter word + real-world beat (5 min) → build/segment more chapter words by clapping ارکان (14 min) → partner clap-check (8 min) → chant close (3 min).
 - **Talk split:** same shape as Phonics — teacher models briefly, children do the repeated clapping/saying.
 - **Materials:** claps, desk-taps, chalk to mark syllable breaks under words on the board, the chapter's own text as the only word source.
 - **Anchor rule:** syllable-building only ever uses words drawn from that week's Urdu chapter (its title, its key vocabulary, or its riddle/rhyme lines).
 
 ### E. Concrete Maths (Maths C)
-- **Arc (30 min of content):** Teacher models with real objects (4-6 min) → children manipulate found objects to solve the chapter's own numbers (15 min) → 2-3 children demonstrate their method (6-8 min) → close (3 min).
+- **Arc (30 min of content):** Teacher models with real objects + real-world beat (5-7 min) → children manipulate found objects to solve the chapter's own numbers (14 min) → 2-3 children demonstrate their method (6-8 min) → close (3 min).
 - **Talk split:** teacher demonstrates once, children's hands are on materials for 70%+ of the period.
 - **Materials:** stones, bottle caps, twigs, torn scrap-paper strips (for fraction folding), body parts (hand-spans, footsteps) for measurement, chalk for board/floor diagrams.
 - **Anchor rule:** the exact numbers/quantities in play are the chapter's own — concrete work represents the same numbers the textbook will ask for abstractly, immediately before or alongside the book page. The class never leaves the book; the objects are a bridge to it.
@@ -272,3 +274,4 @@ Ranked by impact (size of gap × how directly it serves the anti-rote/engagement
 7. **Weak-English-teacher safe** (English CL/PH especially) — the teacher-facing script gives the exact model sentence/sound to say aloud, not an instruction to "explain"; scripted so a teacher can read it cold.
 8. **Observable success check** — the closing check is verifiable by the teacher in the room in under 2 minutes (cold-call count, thumbs-up/down, clap-count accuracy), never a written test requiring take-home grading.
 9. **Fits the content budget** — the timed steps sum to the row's `content_min` (30), not to the `duration_min` (40) the teacher is shown. The ten-minute difference is settling the class and explaining the task. A plan whose steps fill the whole period fails this check even if every other check passes — it is the specific complaint this rebuild exists to answer.
+10. **Carries a real-world beat in its Open** — about a minute in which the children name, in their own words, where this skill shows up in their life, seeded by a question the chapter itself asks and leaves hanging. The teacher closes it with a number or word already printed on the page. A basics period with no beat is the single most likely way this build loses 5C, 6C and 8C at once — and the beat costs one minute out of the thirty, taken from the drill.

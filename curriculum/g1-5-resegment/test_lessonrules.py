@@ -39,7 +39,8 @@ class TheEvidenceIsCarriedWithTheRule(unittest.TestCase):
     def test_every_rule_names_the_check_it_came_from(self):
         for rule in lessonrules.RULES:
             self.assertRegex(
-                rule, r"\[(0A|0F|1E|1F|4A|5D|6B|7A|7B|8A|9B|9F|9G|9H)\]", rule)
+                rule,
+                r"\[(0A|0F|1E|1F|4A|5D|6B|7A|7B|8A|8C|9B|9F|9G|9H)\]", rule)
 
     def test_the_three_recurring_checks_are_all_covered(self):
         flat = " ".join(lessonrules.RULES)
@@ -174,3 +175,42 @@ class WhatTheThirdPassFound(unittest.TestCase):
     def test_the_rules_the_third_pass_broke_were_already_there(self):
         for phrase in ("new context", "self_prediction", "mostly demands"):
             self.assertIn(phrase, self.flat)
+
+
+class WhatTheBasicsPilotAdded(unittest.TestCase):
+    """The first Number Fluency period, judged 20 Sep 2026 (bd-uh2dt).
+
+    One artefact, and three of its four 2-ratings were one defect wearing
+    three hats -- 5C, 6C and 8C all came off for a drill that never said what
+    the numbers were FOR and never let a child speak about their own life.
+    A basics period is the likeliest place in the build for that to happen,
+    because rehearsal has no story in it by default.
+
+    What makes it a rule rather than one lesson's fix is where the remedy came
+    from. Printed page 2 of grade_2_math asks 'Can you think of a place where
+    you have seen such numbers?' and 'How do numbers help us in our daily
+    life?', and the chapter then does nothing with either. The book had
+    already written the beat; the lesson had walked past it. That shape --
+    an opener the textbook asks and never answers -- is in nearly every
+    chapter of all seventeen books, so the rule is to go and use it.
+    """
+
+    def rule(self):
+        return [r for r in lessonrules.RULES if r.startswith("[8C]")]
+
+    def test_the_real_world_beat_is_asked_for(self):
+        self.assertEqual(len(self.rule()), 1)
+
+    def test_it_sends_the_author_to_the_books_own_unused_question(self):
+        one = self.rule()[0]
+        self.assertIn("already on the page", one)
+
+    def test_the_children_supply_the_context_and_not_the_numbers(self):
+        # The whole reason this is safe to add: it buys student voice without
+        # spending the anchor rule, which is the one thing a teacher notices.
+        one = self.rule()[0]
+        self.assertIn("anchor", one)
+
+    def test_it_does_not_weaken_the_anchor_rule(self):
+        flat = " ".join(lessonrules.RULES)
+        self.assertNotIn("outside the chapter", flat)
