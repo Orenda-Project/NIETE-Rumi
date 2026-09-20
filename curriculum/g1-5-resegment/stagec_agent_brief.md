@@ -78,9 +78,26 @@ One value, exactly:
 
 `n/a` is a legitimate answer and an honest one — a Maths `Concrete` day teaching
 place value with counters has no reading strategy, and saying so is better than
-inventing one. Use it. But a `comprehension` shape day that says `n/a` is a
-defect: english-skill-types.md requires an explicit strategy taught I-do / we-do
-/ you-do on every reading-comprehension day.
+inventing one. Use it.
+
+**But `n/a` is a claim that the children met no text that day, and on four
+kinds of day that claim is false.** These are rejected:
+
+| Skill type | Why `n/a` is wrong | Strategies that fit |
+| --- | --- | --- |
+| `Reading comprehension`, `تفہیم · Comprehension` | english-skill-types.md requires an explicit strategy taught I-do / we-do / you-do on every comprehension day | `question-generate`, `infer`, `summarise`, `visualise`, `clarify`, `retell`, `text-structure`, `skim-scan` |
+| `Pre-reading` | the whole point of the day is walking into a text | `activate-prior-knowledge`, `predict`, `set-purpose`, `pre-teach-vocabulary` |
+| `Phonics`, `ارکان سازی · Syllables` | sounding words out is a taught strategy, not the absence of one | `decode-blend`, `sight-word-recognition` |
+| `بلند خوانی · Reading aloud` | the child is reading connected print off a page | `choral-echo-read`, `repeated-read-fluency`, `partner-read` |
+
+Reading aloud is the one to watch. Its move spine looks like an oral day's —
+mouths open, little writing — but the child is reading, and the spine is not
+what decides this. The skill type is.
+
+Everywhere else, hold the line the other way: an `Oral communication` day, a
+Science `Investigate` day and a Maths `Concrete` day genuinely handle no text,
+and naming a strategy on one to satisfy a gate is exactly the invention this
+brief forbids.
 
 ### `Collaboration structure`
 One value, exactly:

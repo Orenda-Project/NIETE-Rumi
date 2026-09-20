@@ -95,3 +95,50 @@ class TheBriefCarriesTheCrossColumnRule(unittest.TestCase):
 
     def test_it_forbids_relabelling_gaps_to_pass(self):
         self.assertIn("not to relabel gaps upward", brief_text())
+
+
+class TheBriefNamesEveryDayThatMayNotSayNotApplicable(unittest.TestCase):
+    """The strategy rule is the one a worker cannot infer from the spine.
+
+    Both directions are pinned. A skill type the gate rejects `n/a` on must be
+    named in the brief, or the worker fails for a reason it was never told;
+    and a skill type the brief holds up as genuinely text-free must really be
+    one the gate accepts, or the brief is teaching the invention it forbids.
+    """
+
+    REJECTED = (
+        ("English", "Reading comprehension"),
+        ("English", "Pre-reading"),
+        ("English", "Phonics"),
+        ("Urdu", u"تفہیم · Comprehension"),
+        ("Urdu", u"ارکان سازی · Syllables"),
+        ("Urdu", u"بلند خوانی · Reading aloud"),
+    )
+    ALLOWED = (
+        ("English", "Oral communication"),
+        ("Science", "Investigate"),
+        ("Maths", "Concrete"),
+    )
+
+    def test_every_skill_type_the_gate_rejects_is_named(self):
+        text = brief_text()
+        for subject, skill_type in self.REJECTED:
+            self.assertTrue(
+                stagec_verify.needs_strategy(skill_type, subject),
+                "%s is in the fixture but the gate allows n/a on it" % skill_type)
+            self.assertIn(skill_type, text)
+
+    def test_the_days_it_calls_text_free_really_are(self):
+        text = brief_text()
+        for subject, skill_type in self.ALLOWED:
+            self.assertFalse(
+                stagec_verify.needs_strategy(skill_type, subject),
+                "the brief calls %s text-free but the gate rejects n/a on it"
+                % skill_type)
+            self.assertIn(skill_type, text)
+
+    def test_it_warns_that_reading_aloud_looks_oral(self):
+        self.assertIn("The skill type is.", brief_text())
+
+    def test_it_still_says_not_applicable_is_a_real_answer(self):
+        self.assertIn("legitimate answer and an honest one", brief_text())

@@ -14,7 +14,27 @@ FORBIDDEN = ("Moves", "Teacher-primary min (of 40)", "Strand")
 
 # A comprehension day without an explicit strategy is the defect
 # english-skill-types.md names: the strategy must be taught I-do/we-do/you-do.
-_NEEDS_STRATEGY = ("comprehension",)
+# The same is true of every day children meet print: sounding words out and
+# walking into a text are taught strategies too, and `n/a` on such a day is a
+# claim that no text was handled, which the skill tag contradicts.
+_NEEDS_STRATEGY = ("comprehension", "pre_reading", "decoding")
+
+# Reading aloud shares a move spine with oral work -- both are mouths open,
+# little writing -- so the shape cannot separate them. The curriculum's own
+# tag can: on a reading-aloud day the child is reading connected print, and
+# the spec makes that tag authoritative where it exists. Matched on the
+# English gloss the Urdu tags carry.
+_READING_ALOUD = "reading aloud"
+
+
+def needs_strategy(skill_type, subject):
+    """True where `n/a` would deny text the skill tag says is there."""
+    if _READING_ALOUD in (skill_type or "").lower():
+        return True
+    try:
+        return sp.shape_for(skill_type or "", subject) in _NEEDS_STRATEGY
+    except KeyError:
+        return False
 
 
 def _split(value):
@@ -41,11 +61,7 @@ def verify_row(row, subject, cells, columns):
         elif not value:
             out.append("%s: %s is empty" % (tag, col))
     strategy = (cells.get("Reading strategy") or "").strip()
-    try:
-        shape = sp.shape_for(row.get("skill_type", ""), subject)
-    except KeyError:
-        shape = None
-    if shape in _NEEDS_STRATEGY and strategy == "n/a":
+    if strategy == "n/a" and needs_strategy(row.get("skill_type", ""), subject):
         out.append("%s: Reading strategy cannot be n/a on a %s day"
                    % (tag, row.get("skill_type", "")))
     if "Prerequisite SLOs" in columns:
