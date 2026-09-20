@@ -103,6 +103,36 @@ One value, exactly:
 `whole-class-only` and `individual-only` are real answers for days that genuinely
 are that. Use them honestly rather than dressing a choral drill as `think-pair-share`.
 
+**Choose on the day's own activity — the Topic, the SLO, what the children are
+actually asked to produce.** Read the row before you answer it.
+
+**The move spine is NOT evidence here.** Moves are derived from skill type and
+grade band, so every day of a given skill type carries the same phases. A
+`peer_review` step appears on nearly every row by construction. Reasoning "the
+spine has peer_review, so the structure is `peer-check`" is reasoning from a
+constant, and it produces a column that is identical on every day and therefore
+useless. That is the single most common way this column is failed.
+
+What the day is doing usually points at the structure:
+
+| The day asks children to | Structures that fit |
+| --- | --- |
+| handle objects, count or build something together | `group-task`, `round-robin`, `describe-and-guess` |
+| commit to an answer, then compare it | `think-pair-share`, `peer-check`, `numbered-heads` |
+| tell a partner something the partner cannot see | `info-gap-pairs`, `describe-and-guess` |
+| split a text or task and teach each other the parts | `jigsaw`, `group-task` |
+| hear, say and check sounds, spellings or words | `partner-dictation`, `partner-sound-check` |
+| read connected text to or with someone | `partner-read` is a reading strategy; pair it with `peer-check` |
+| speak in role, or use the language socially | `role-play`, `mingle-find-someone` |
+| work alone, or watch a demonstration | `individual-only`, `whole-class-only` |
+
+**A slice is checked for flatness.** If one value lands on more than 60% of your
+rows, or a skill type with 8 or more days sits on a single value, the slice is
+rejected and reworked. Do NOT respond to this by sprinkling variety: a flat
+column is a symptom of reading the spine instead of the day, and the fix is to
+go back and read the days. Genuine repetition inside a *small* skill type is
+fine and is not counted against you.
+
 ### `Prerequisite SLOs`
 Comma-separated SLO codes **from `prior_slos_available` only** — that list is
 every code taught on a strictly earlier day in this grade and subject. A code
