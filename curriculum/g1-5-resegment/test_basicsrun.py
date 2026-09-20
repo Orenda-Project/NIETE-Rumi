@@ -16,6 +16,14 @@ The second is what a period that cannot be grounded does. One of the pilot's
 36 is expected to fail — `grade_3_math_ch14_nf3` resolves to no page, the
 pdf-257 mislabel on bd-pglby. A run that stops there delivers nothing; a run
 that drops it silently delivers 35 and calls it 36. It carries its reason.
+
+The third is quieter than either. `cbrief` reads the book it is handed under
+the keys `stem` and `chapter_title`; hand it `book_stem` instead and it does
+not complain, it emits `null`. The brief still looks complete -- every other
+field is there -- and the author is told the grade and the subject but not
+which of the five Maths books this is, or what the chapter is called. The
+first pilot brief shipped exactly that, so the envelope's own naming is under
+test beside the artefact's.
 """
 import unittest
 
@@ -48,7 +56,7 @@ def index(printed=7, pdf=10):
                            "text": "Count on in tens: 10, 20, 30."}])
 
 
-META = {"grade": 2, "subject": "Maths", "book_stem": "grade_2_math"}
+META = {"grade": 2, "subject": "Maths", "stem": "grade_2_math"}
 
 
 class TheArtefactNameIsWhatTheJudgeLooksFor(unittest.TestCase):
@@ -132,6 +140,25 @@ class ReportingARun(unittest.TestCase):
         got = basicsrun.one(rec(), chapter_rows(), pageres.index([]), META)
         self.assertNotIn("OK", got.line())
         self.assertIn("page", got.line().lower())
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class TheBriefNamesTheBookItComesFrom(unittest.TestCase):
+    """An author briefed on "Grade 2, Maths" cannot tell which book it is."""
+
+    def brief(self):
+        return basicsrun.one(rec(), chapter_rows(), index(), META).brief
+
+    def test_the_envelope_carries_the_book_stem(self):
+        self.assertEqual(self.brief()["envelope"]["book_stem"], "grade_2_math")
+
+    def test_the_envelope_carries_the_chapter_title(self):
+        # It lives on the chapter's own rows, not on the book-level meta --
+        # one brief is one chapter, so the title is read from the rows.
+        self.assertEqual(self.brief()["envelope"]["chapter_title"], "Numberland")
 
 
 if __name__ == "__main__":

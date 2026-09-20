@@ -99,15 +99,20 @@ def one(record, chapter_rows, idx, meta):
     numbers; `cbrief` raises Ungrounded where the pages do not resolve. Both
     mean "this period has nothing behind it" and both have to be survivable,
     so both come back as a reason on the Period.
+
+    `meta` is the book, in the keys `cbrief` reads it under -- `stem`, `grade`,
+    `subject`. The chapter title is added here rather than passed in because
+    one brief is one chapter, and `cbrief` takes it off the book.
     """
     try:
         segment = basicseg.segment(record, chapter_rows)
     except ValueError as exc:
         return Period(record, error=str(exc))
-    name = artefact(meta["book_stem"], segment)
+    name = artefact(meta["stem"], segment)
+    book = dict(meta, chapter_title=segment.get("chapter_title"))
     try:
         res = pageres.resolve(segment, idx)
-        brief = cbrief.context(segment, res.pages, meta)
+        brief = cbrief.context(segment, res.pages, book)
     except (cbrief.Ungrounded, ValueError) as exc:
         return Period(record, name=name, segment=segment, error=str(exc))
     return Period(record, name=name, segment=segment, brief=brief)
@@ -121,7 +126,7 @@ def book(stem, skill=None, truth=pagecheck.TRUTH, seg=pagecheck.SEG):
     periods, _ = ramp.allocate(grade, subject, segments,
                                set(rec["chapters"]) if rec else None)
     idx = pageres.index(pagecheck.load_pages(os.path.join(truth, stem)))
-    meta = {"grade": grade, "subject": subject, "book_stem": stem}
+    meta = {"grade": grade, "subject": subject, "stem": stem}
     out = []
     for r in wanted(basics.records(stem, grade, subject, periods), skill):
         rows = [s for s in segments if s.get("chapter_number") == r["chapter"]]
