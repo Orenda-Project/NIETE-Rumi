@@ -25,9 +25,6 @@ const { extractJsonFromResponse } = require('./assessment-json.util');
 
 const PROMPTS = require('./ict-prompts.json');
 
-// Both slots are the same model today, as they were upstream. They stay separate
-// because the day one language needs a different model, that is a config change
-// and not a code change.
 /** One question, one answer: what this family should run right now. */
 function modelFor(family) {
   return resolveModelForJob('assessment.generate', { cfg: configForRequest(), family }).model;
@@ -45,6 +42,12 @@ function modelFor(family) {
  * MODELS.eng asks the registry the same question the call below asks, so a settings row moves
  * both together. With nothing written and neither variable set, both return the same literal
  * they always did.
+ *
+ * Both slots are still the same model today, as they were upstream, and they stay separate for
+ * the same reason as before: the day one language needs a different model, that is a config
+ * change and not a code change. That sentence used to be an intention; with the registry behind
+ * it, it is now literally true — ASSESSMENT_GEN_MODEL_URDU, or a per-language settings row,
+ * moves Urdu alone with no deploy.
  */
 const MODELS = {
   get eng() { return modelFor('eng'); },
