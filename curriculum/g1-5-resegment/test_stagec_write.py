@@ -135,11 +135,16 @@ class MergingDerivedWithWorkerCells(unittest.TestCase):
         self.assertIn("Teacher-primary min (of 40)", m)
         self.assertEqual(m["Gap"], "one-way")
 
+    def test_moves_arrive_as_a_cell_value_not_a_python_list(self):
+        """These dicts go straight to build_payload and on to the sheet."""
+        self.assertIsInstance(self.merged()[6]["Moves"], str)
+
     def test_teacher_primary_is_derived_from_the_moves_it_ships_with(self):
         import stagec
         m = self.merged()[6]
         self.assertEqual(int(m["Teacher-primary min (of 40)"]),
-                         stagec.teacher_primary_min(m["Moves"]))
+                         stagec.teacher_primary_min(
+                             stagec.parse_moves(m["Moves"])))
 
     def test_an_assessment_row_gets_moves_and_nothing_else(self):
         self.assertEqual(list(self.merged()[7]), ["Moves"])

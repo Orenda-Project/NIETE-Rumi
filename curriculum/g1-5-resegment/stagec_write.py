@@ -105,7 +105,11 @@ def merge_cells(rows, subject, worker_cells):
             moves = stagec_spines.SPINES[(shape, stagec_spines.band(r["grade"]))]
         else:
             continue
-        cells = {"Moves": moves}
+        # The cell value is the formatted spine: these dicts go straight to
+        # build_payload, which sends them to the sheet. Teacher-primary is
+        # computed from the spine before it is formatted, so the number and
+        # the string in the neighbouring column describe the same day.
+        cells = {"Moves": stagec.format_moves(moves)}
         if kind == "day":
             cells["Teacher-primary min (of 40)"] = str(
                 stagec.teacher_primary_min(moves))
