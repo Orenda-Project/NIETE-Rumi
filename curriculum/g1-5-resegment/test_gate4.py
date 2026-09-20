@@ -198,6 +198,34 @@ class EvaluatingOneLesson(unittest.TestCase):
         self.assertFalse(v["pass"])
 
 
+class TheContentBudgetReachesTheGate(unittest.TestCase):
+    """C1 is only worth writing if the single Stage-C call actually runs it."""
+
+    LP = dict(EvaluatingOneLesson.LP,
+              warmUp={"minutes": 5, "script": "Count on in tens."},
+              steps=[{"phase": "I-Do", "minutes": 12,
+                      "cfu": {"question": "What is the value of 4 in 342?"}},
+                     {"phase": "We-Do", "minutes": 15,
+                      "cfu": {"question": "Say 602 in hundreds, tens and ones."}}])
+    SEG = {"pages_printed": [2, 3], "slo_codes": ["M-02-NS-03"],
+           "duration_min": 40, "content_min": 30}
+    REVIEW = {"criteria": [{"checks": [{"id": "1A", "rating": 4}]}]}
+
+    def test_a_basics_plan_budgeted_to_the_whole_period_fails(self):
+        # 5 + 12 + 15 = 32 against a 30-minute content budget. The period the
+        # teacher is SHOWN is 40, which is exactly the number an author
+        # budgets to by mistake.
+        score, _ = gate4.evaluate(self.LP, self.SEG, self.REVIEW,
+                                  subject="Maths")
+        self.assertIn("C1", [f["id"] for f in score["qa_hard_failures"]])
+
+    def test_a_lesson_whose_segment_states_no_budget_is_untouched(self):
+        score, _ = gate4.evaluate(self.LP, {"pages_printed": [2],
+                                            "slo_codes": ["M-02-NS-03"]},
+                                  self.REVIEW, subject="Maths")
+        self.assertNotIn("C1", [f["id"] for f in score["qa_hard_failures"]])
+
+
 class TheReviewerItDependsOn(unittest.TestCase):
     """It lives outside this repo, so the dependency is explicit and loud."""
 

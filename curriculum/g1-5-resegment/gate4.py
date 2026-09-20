@@ -12,7 +12,7 @@ What never existed is the join. `score_lp.py` writes `score_pct`;
 first, so the calibrated gate has never actually run end to end. That join is
 `compose`, and it is deliberately the dullest function here.
 
-Two hard checks are added, both things this build knows and the imported
+Three hard checks are added, all things this build knows and the imported
 reviewer cannot:
 
   W1, the word budget. `spec/07-lp-production.md` §4, DECIDED B. Over cap
@@ -37,9 +37,18 @@ reviewer cannot:
   prints pages 130-137 twice, so those are different questions, and the whole
   no-fabrication guarantee rests on the second one.
 
-Both enter as entries in `qa_hard_failures` rather than as a forked gate. The
+  C1, the content budget. A basics period is 40 minutes long and the plan
+  is budgeted to 30, because settling a class and explaining the task take
+  the rest — Amena, 20 Sep 2026: *"what we assume as perfect 40 is too long
+  for teachers, so we make it shorter and show the teacher 40."* The rendered
+  plan still prints 40, so the only place the shorter number can be enforced
+  is here. It applies to a segment that states `content_min` and to no other,
+  which is every lesson outside the basics build. `contentbudget` holds the
+  rule; this file only carries its findings through.
+
+All three enter as entries in `qa_hard_failures` rather than as a forked gate. The
 thresholds in `production_gate` were calibrated on real scores; re-deriving
-them here to bolt on two checks would throw that calibration away for nothing.
+them here to bolt on three checks would throw that calibration away for nothing.
 
 What a check did NOT look at is recorded in `not_checked` rather than counted
 as a pass. A document carrying no capped block has not been measured — on a
@@ -51,6 +60,7 @@ did.
 import os
 import sys
 
+import contentbudget
 import d0_route
 import wordbudget
 import wslint
@@ -119,16 +129,18 @@ def worksheet_findings(lp, segment):
 
 
 def compose(qa, judge_pct=None, judge="", review=None, render=None,
-            grounding=None, lint=None):
+            grounding=None, lint=None, content=None):
     """Build the score dict `production_gate.gate` reads.
 
     `qa` is a `qa_checks.run_checks` result, run over the Stage-C body it was
     written for. `judge_pct` is the v3 rubric percentage from `score_lp`.
     `render` is the D0 document the word budget measures. `render` and
     `grounding` are optional; leaving one out records its check as not looked
-    at, never as passed.
+    at, never as passed. `content` is `contentbudget.failures`, already run,
+    and it is empty for every segment that states no content budget.
     """
     failures = list(qa.get("hard_failures") or [])
+    failures.extend(content or [])
     not_checked = []
 
     if judge_pct is None:
@@ -244,5 +256,6 @@ def evaluate(lp, segment, review, judge="", subject=None, grounding=None,
         else (0, 0, [])
     judge_pct = round(100.0 * total / denom, 1) if denom else None
     score = compose(checks, judge_pct=judge_pct, judge=judge, review=review,
-                    render=render, grounding=grounding, lint=lint)
+                    render=render, grounding=grounding, lint=lint,
+                    content=contentbudget.failures(lp, segment))
     return score, verdict(score)
