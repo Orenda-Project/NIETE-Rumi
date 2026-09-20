@@ -59,6 +59,59 @@ def verify_row(row, subject, cells, columns):
     return out
 
 
+# A value that dominates a whole slice tells us nothing about any day in it.
+# These are the columns that exist to DIFFERENTIATE -- the spec keeps
+# Interaction and Gap apart for exactly this reason, because only both
+# together reveal a term of pair work with no information gap in it.
+DIVERSITY_COLUMNS = ("Collaboration structure", "Interaction", "Gap")
+MIN_DISTINCT = 3          # any smaller and the column cannot separate anything
+MAX_SHARE = 0.60          # one value past this and the slice is effectively flat
+MIN_ROWS_FOR_DIVERSITY = 12
+MIN_ROWS_PER_SKILL = 8    # below this, insisting on variety is inventing
+
+
+def check_diversity(rows, cells, columns):
+    """Findings for columns that have gone flat across a slice.
+
+    Small skill types are exempt: four Word-problem days that genuinely suit
+    one structure are honest, and forcing a second value there would be
+    inventing to fill a blank.
+    """
+    out = []
+    present = [r for r in rows if str(r["row"]) in cells]
+    if len(present) < MIN_ROWS_FOR_DIVERSITY:
+        return out
+    for col in columns:
+        if col not in DIVERSITY_COLUMNS:
+            continue
+        seen = [cells[str(r["row"])].get(col) for r in present]
+        seen = [s for s in seen if s]
+        if not seen:
+            continue
+        counts = {}
+        for s in seen:
+            counts[s] = counts.get(s, 0) + 1
+        if len(counts) < MIN_DISTINCT:
+            out.append("%s uses only %d distinct values across %d rows"
+                       % (col, len(counts), len(seen)))
+        top, n = max(counts.items(), key=lambda kv: (kv[1], kv[0]))
+        share = float(n) / len(seen)
+        if share > MAX_SHARE:
+            out.append("%s is %r on %d of %d rows (%.0f%%): the column is flat"
+                       % (col, top, n, len(seen), share * 100))
+        by_skill = {}
+        for r in present:
+            v = cells[str(r["row"])].get(col)
+            if v:
+                by_skill.setdefault(r.get("skill_type", "?"), set()).add(v)
+        for skill in sorted(by_skill):
+            total = len([r for r in present if r.get("skill_type") == skill])
+            if total >= MIN_ROWS_PER_SKILL and len(by_skill[skill]) < 2:
+                out.append("%s is a single value on all %d %r days"
+                           % (col, total, skill))
+    return out
+
+
 def verify_slice(slice_doc, worker_out):
     """Findings for a whole slice. Empty list means it may be written."""
     out = []
@@ -75,4 +128,5 @@ def verify_slice(slice_doc, worker_out):
         out.append("row %s is missing from the output" % key)
     for key in sorted(set(expected) & set(cells), key=int):
         out += verify_row(expected[key], subject, cells[key], columns)
+    out += check_diversity(slice_doc["rows"], cells, columns)
     return out
