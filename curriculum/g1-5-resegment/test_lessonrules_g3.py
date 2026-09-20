@@ -172,6 +172,16 @@ class WhatTheFirstGradeThreePeriodAdded(unittest.TestCase):
         r = self.one("number-sense work")
         self.assertIn("without giving it away", r)
 
+    def test_the_i_do_script_and_the_worked_example_share_one_budget(self):
+        r = self.one("share one word budget")
+        self.assertIn("[7A]", r)
+        self.assertIn("470", r)
+        self.assertIn("sums", r.lower())
+
+    def test_the_worked_example_field_is_preparation_not_a_second_telling(self):
+        r = self.one("share one word budget")
+        self.assertIn("before she says it", r)
+
 
 if __name__ == "__main__":
     unittest.main()

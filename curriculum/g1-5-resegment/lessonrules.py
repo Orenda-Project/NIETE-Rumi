@@ -242,6 +242,16 @@ RULES = (
     "answer is taught as deliberately as the right one, so it is checked as "
     "hard",
 
+    "[7A] the I-Do script and `workedExample` share one word budget. The "
+    "render seats both as `worked_example` blocks and the budget SUMS every "
+    "block of a type, against a single cap of 470 -- so a full telling in "
+    "the step and a second full telling in the field breaks the cap before a "
+    "teacher has read a word. Measured on grade_3_math chapter 7, 20 Sep "
+    "2026: the pair came to 558 against the 470. Let the step BE the "
+    "teaching the teacher says out loud, and let `workedExample` be what she "
+    "needs before she says it -- the model in her hands, the columns on the "
+    "board, the order to take them in. Two tellings is one telling too many",
+
     "[7A] anything the lesson states twice is stated the same way twice. "
     "The phase plan in `scope_declaration` and the minutes on the steps; the "
     "round a number is worked in, in the script and in the partner activity; "
