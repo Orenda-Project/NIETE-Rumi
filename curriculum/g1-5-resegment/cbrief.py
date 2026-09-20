@@ -190,6 +190,24 @@ def _spiral(segment, prev):
     }
 
 
+def _says(text_in_image):
+    """The words printed inside an illustration, however the page said them.
+
+    A string on almost every page, and a list of labels on fifteen of them --
+    Grade 3 Maths pdf 228 names four places on one map. Both are faithful
+    descriptions; assuming the first raised `AttributeError` on eight real
+    segments before a word was authored.
+
+    The labels join with a newline, not a space: they are separate things named
+    on one picture, and " ".join hands an author "COMMUNITY CENTRE LIBRARY",
+    which reads as one place that is not there.
+    """
+    if isinstance(text_in_image, (list, tuple)):
+        return "\n".join(w for w in (str(t).strip() for t in text_in_image)
+                          if w)
+    return (text_in_image or "").strip()
+
+
 def _source(pages):
     """Everything on the paper, split the way an author may use it."""
     out = {"pages": [], "exercises": [], "voices": [], "silent": []}
@@ -205,7 +223,7 @@ def _source(pages):
         for ex in p.get("exercises") or []:
             out["exercises"].append(dict(ex, printed_page=printed))
         for ill in p.get("illustrations") or []:
-            words = (ill.get("text_in_image") or "").strip()
+            words = _says(ill.get("text_in_image"))
             base = {"printed_page": printed,
                     "description": ill.get("description"),
                     "objects": ill.get("objects") or [],
