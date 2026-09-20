@@ -56,6 +56,23 @@ const JOBS = {
     env: 'TRANSCRIPT_QUIZ_MODEL', default: 'google/gemini-2.5-flash',
     site: 'shared/services/quiz/transcript-quiz-llm.js:22',
   },
+  'assessment.generate': {
+    // bd-jntcx. Found from the first production spend data, not by reading the code: at
+    // $11.34/day this is the second largest line in NIETE, behind only lp.author — and it was
+    // not in this table at all. Picked the way vision.analyse used to be, from a constant
+    // evaluated once at import, so no settings row, changed variable or incident could move it.
+    //
+    // BOTH language variables live in familyEnv, and `env` is a THIRD name that nothing sets
+    // today. The service reads ASSESSMENT_GEN_MODEL_ENG for English and
+    // ASSESSMENT_GEN_MODEL_URDU for Urdu, each falling back to the literal and NEVER to each
+    // other. Naming one of them as `env` would make it the other's fallback, so setting
+    // English alone would silently move Urdu too. Pointing `env` at a new, unset name keeps
+    // that exactness and earns a useful level: ASSESSMENT_GEN_MODEL moves BOTH languages at
+    // once, while either family variable still overrides it.
+    env: 'ASSESSMENT_GEN_MODEL', default: 'google/gemini-3.1-pro-preview',
+    site: 'shared/services/assessment/assessment-generation.service.js:29',
+    familyEnv: { eng: 'ASSESSMENT_GEN_MODEL_ENG', urdu: 'ASSESSMENT_GEN_MODEL_URDU' },
+  },
   'hcp.feedback': {
     // falls through to the platform default today, which is why it has no literal of its own
     env: 'HCP_FEEDBACK_MODEL', default: null,
@@ -99,6 +116,7 @@ const FALLBACK = {
   'vision.analyse':   'openai/gpt-4.1-mini',
   'roster.extract':   'google/gemini-3.1-flash-lite-preview',
   'quiz.transcript':  'google/gemini-2.5-flash',
+  'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
   'platform.default': null,  // the floor
 };
