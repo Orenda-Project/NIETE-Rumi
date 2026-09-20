@@ -35,6 +35,7 @@ import d0_diagram
 import d0_hook
 import d0_page2
 import d0_route
+import d0_routine
 
 # v9's `lp_type` is a G6-12 vocabulary and primary's is a different axis
 # (content / revision / assessment). The schema enum is closed, so D0 maps onto
@@ -104,8 +105,18 @@ def _intro(g, page):
     # opening header"*. The band names the PHASE of the lesson and the warm-up and the hook are
     # both contents of it (SYNC 3.22 made the opening ONE box, settle then provoke), so naming
     # the band after its two parts said twice what the box already labels once.
+    # THE PERIOD STARTS BEFORE THE WARM-UP. Class in, books out, right page --
+    # five real minutes that no step used to own, so the bar said 5 while the
+    # header said 40 (bd-p4ulq). The routine text opens the box because it is
+    # what she does first, and its minutes join the bar because the bar is what
+    # a Digital Coach reads her against.
+    settle = d0_routine.block(d0_routine.steps(g, "introduction"))
+    if settle:
+        blocks.insert(0, settle)
     sec = {"id": "introduction", "title": "Opening",
-           "minutes": int(warm.get("minutes") or 0), "blocks": blocks}
+           "minutes": int(warm.get("minutes") or 0)
+                      + d0_routine.minutes(g, "introduction"),
+           "blocks": blocks}
     if items:
         sec["warmup"] = {"items": items}
     return sec
@@ -117,7 +128,13 @@ def _development(g):
     # THE BIG IDEA opens EXPLANATION, ahead of I Do: a teacher cannot model a distinction
     # she has not been told. Printed after the worked example it reads as a footnote to
     # teaching that already happened, which is why the seat is index 0 and not appended.
-    blocks = [d0_bigidea.big_idea_block(g.get("bigIdea"))]
+    # SETTING THE TASK IS THE EXPLANATION STARTING, not the warm-up ending: it
+    # is the teacher talking before any child starts. It sits ahead of the Big
+    # Idea for the same reason the Big Idea sits ahead of I Do -- she reads this
+    # page in the order she performs it.
+    blocks = [b for b in
+              [d0_routine.block(d0_routine.steps(g, "development"))] if b]
+    blocks.append(d0_bigidea.big_idea_block(g.get("bigIdea")))
     ido_blk = B.i_do_block(ido)
     if ido_blk:
         blocks.append(ido_blk)
@@ -137,7 +154,8 @@ def _development(g):
     # which a single string cannot carry. The renderer prints `move` as an amber pill after the
     # minutes; see bar() in template.js, SYNC 3.28.
     return {"id": "development", "title": "Explanation", "move": B.MOVE_TITLE["I-Do"],
-            "minutes": B.minutes_of(ido), "blocks": blocks}
+            "minutes": B.minutes_of(ido) + d0_routine.minutes(g, "development"),
+            "blocks": blocks}
 
 
 def _activity(g):
@@ -226,6 +244,9 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
                 d0_close.conclusion(g), d0_close.homework(g)]
     dia_gaps = d0_diagram.apply_slots(sections, g.get("diagrams"))
     d0_close.seat_the_check(sections, g)
+    # The halfway landmark is seated last because which section owns minute 20
+    # is a fact about the whole timeline, not about any one section (bd-p4ulq).
+    d0_routine.seat_the_checkpoint(sections, g)
 
     doc = {
         "lesson_id": enr["lesson_id"].upper(),

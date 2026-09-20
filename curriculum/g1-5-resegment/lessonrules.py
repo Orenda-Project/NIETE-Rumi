@@ -152,6 +152,25 @@ PEDAGOGY = (
     "needs comes out of the We-Do, never out of the exit ticket. The shape "
     "that measured well: warm-up 5, I-Do 5, We-Do 8, You-Do 9, exit 3",
 
+    "[3B] the plan prints a 40-minute period, so its steps have to add up to "
+    "40, not to the 30 of teaching. Write the other ten as two real steps "
+    "carrying kind: 'routine' -- 'Settle and open' 5 (class in, books out, "
+    "open at the right page) and 'Set the task' 5 (the teacher explains what "
+    "the children are about to do, before any child starts). Routine steps "
+    "print in the timeline and count toward the period; they are NOT charged "
+    "to the 30-minute content budget and carry no cfu. Leaving them out is "
+    "not a tidier plan, it is ten minutes no step owns: a teacher exactly on "
+    "design then reads to a coach as ten minutes behind, and the fidelity "
+    "score she loses for it is the same score the field log already ties to "
+    "the thumbs-down ratings",
+
+    "[3B] say where the class should be halfway through. One line in the "
+    "step that straddles minute 20 -- 'by now the class should be starting "
+    "the We-Do' -- turns being on time from a judgement into a fact the "
+    "teacher and the observer read off the same page. Neither of them should "
+    "have to add up the minutes themselves to know whether the lesson is "
+    "late",
+
     "[6B] when the chapter's pages print no characters of their own, "
     "`hookCharacters` stays empty -- but the period still owes the class "
     "NAMED children. Put balanced Pakistani names into the lines the teacher "

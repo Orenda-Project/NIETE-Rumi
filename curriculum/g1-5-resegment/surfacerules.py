@@ -9,7 +9,7 @@ surface is capped. Two fields that read as separate in the JSON can land in one
 block and share one budget; a field that looks expensive can cost nothing;
 and one surface is charged before the author has written a word.
 
-The measured map, from `bodysurface.FEEDS` and `contentbudget.CAPS`:
+The measured map, from `bodysurface.FEEDS` and `wordbudget.CAPS`:
 
     key_points      120   <- hookStory narration, hookCharacters,
                              steps[You-Do] (action AND say), homework,

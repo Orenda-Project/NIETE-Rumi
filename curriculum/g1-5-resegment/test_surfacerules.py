@@ -1,7 +1,7 @@
 """The render-surface rules say true things about the renderer they describe.
 
 Prose in a brief is not testable the way a function is, but the FACTS these
-rules assert are: the caps are real numbers in `contentbudget`, the surfaces
+rules assert are: the caps are real numbers in `wordbudget`, the surfaces
 are real keys in `bodysurface`, and `cbrief` still receives one flat tuple.
 A rule that quotes a cap the code no longer has is worse than no rule, because
 an author will budget against it. So every number here is checked against

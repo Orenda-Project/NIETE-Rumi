@@ -42,7 +42,15 @@ def conclusion(g):
     # No key_points echo of keyFact (it is the outcome) and no `checkpoint`:
     # v9's checkpoint is a board-style NEW-context question, and primary's
     # exitTicket is already exactly that. spec/01-format.md: ONE exit ticket.
-    sec = {"id": "conclusion", "title": "Check", "minutes": 0, "blocks": blocks}
+    # THE CHECK'S MINUTES ARE THE CHECK'S. This was hardcoded to 0, so three of
+    # the thirteen minutes missing from the rendered plan were the exit
+    # ticket's own -- a bar reading 0 above a task that takes three minutes
+    # (bd-p4ulq).
+    try:
+        mins = int(et.get("minutes") or 0)
+    except (TypeError, ValueError):
+        mins = 0
+    sec = {"id": "conclusion", "title": "Check", "minutes": mins, "blocks": blocks}
     if len(task) >= 5 and criteria:
         sec["exit_ticket"] = [{"q": task, "a": criteria}]
     return sec
