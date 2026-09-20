@@ -20,9 +20,11 @@ QA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT=$(e2e_root) || { echo "ERROR: no .claude/qa/config/tenants.yaml above $PWD (or CLAUDE_PROJECT_DIR) — not a guarded repo"; exit 2; }
 E2E_CMD=$(e2e_cmd); E2E_SCRIPTS="$ROOT/$(e2e_get e2e_scripts)"; DB_PREFIX=$(e2e_get db.env_prefix); DB_PREFIX="${DB_PREFIX:-E2E_SUPABASE}"
 # Per-repo seed/reset tools (tenant_tools: in tenants.yaml). Absent = the step is logged as skipped, never a crash.
-run_tool() { local name="$1" p; shift; p=$(e2e_get "tenant_tools.$name" 2>/dev/null)
-  if [ -z "$p" ] || [ ! -f "$ROOT/$p" ]; then echo "seed: tenant tool '$name' not configured in tenants.yaml — skipped"; return 0; fi
-  python3 "$ROOT/$p" "$@"; }
+run_tool() { local name="$1" p; shift; p=$(e2e_tool "$name" 2>/dev/null)
+  if [ -z "$p" ] || [ ! -f "$p" ]; then echo "seed: tenant tool '$name' not configured in tenants.yaml — skipped"; return 0; fi
+  python3 "$p" "$@"; }
+# Layout-independent locations (repo mode: <repo>/.claude/qa/…; workspace mode: the tenant layer above the clone)
+CONFIG_ABS=$(e2e_abs config_abs); RESULTS_ABS=$(e2e_abs results_abs); FIXTURES_ABS=$(e2e_abs fixtures_abs)
 # Keep the Mac awake for the whole run. On 2026-09-02 the laptop went into Maintenance Sleep /
 # DarkWake cycles mid-suite (pmset log 20:36 PKT): a /status reply "waited" 946s, the CDP socket to
 # the frozen tab died, and coaching recorded 225 minutes for one scenario. caffeinate -dims needs
@@ -52,7 +54,7 @@ while [ $# -gt 0 ]; do case "$1" in
 e2e_tenants | grep -qx "$TENANT" || { echo "ERROR: unknown tenant '$TENANT' (known: $(e2e_tenants | paste -sd, -))"; exit 2; }
 TMATCH=$(e2e_tenant_get "$TENANT" targets_match); TMATCH="${TMATCH:-$TENANT}"
 export E2E_TENANT="$TENANT" E2E_PHONE_NUMBER_ID="$(e2e_tenant_get "$TENANT" phone_number_id)"
-if [ -z "$METHOD" ]; then METHOD=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where "env=$ENV" --where "tenant~$TMATCH" --get method 2>/dev/null); METHOD="${METHOD:-chrome}"; fi
+if [ -z "$METHOD" ]; then METHOD=$(python3 "$QA/targets_lite.py" "$CONFIG_ABS/whatsapp-targets.yaml" --where "env=$ENV" --where "tenant~$TMATCH" --get method 2>/dev/null); METHOD="${METHOD:-chrome}"; fi
 case "$METHOD" in chrome|mock) ;; *) echo "ERROR: --method must be chrome or mock (got '$METHOD')"; exit 2;; esac
 if [ "$METHOD" = mock ]; then
   [ "$ENV" = staging ] && ENV=sandbox      # the mock lane's DB is the sandbox; never staging or prod
@@ -69,7 +71,7 @@ if [ "$METHOD" = mock ]; then
 fi
 if [ -n "$PRINT_DRIVER" ]; then [ -n "$DRIVER" ] && { echo "$DRIVER"; exit 0; } || { echo "ERROR: no driver resolved"; exit 2; }; fi
 [ -n "$DRIVER" ] || { echo "ERROR: --driver <digits> is required (the runner's OWN linked WhatsApp number — bd-2748)"; exit 2; }
-if [ -z "$TARGET" ]; then TARGET=$(python3 - "$ENV" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" "$TMATCH" <<'PY'
+if [ -z "$TARGET" ]; then TARGET=$(python3 - "$ENV" "$CONFIG_ABS/whatsapp-targets.yaml" "$TMATCH" <<'PY'
 import re,sys; env,path,match=sys.argv[1],sys.argv[2],sys.argv[3]
 try: txt=open(path).read()
 except OSError: sys.exit(0)
@@ -83,7 +85,7 @@ PY
 [ "$METHOD" = mock ] && [ -z "$TARGET" ] && TARGET="local"
 [ -n "$TARGET" ] || { echo "ERROR: no target for env=$ENV in whatsapp-targets.yaml"; exit 2; }
 RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M)-$MODE}"
-export RUN_DIR="$ROOT/.claude/qa/results/whatsapp/$TENANT/$RUN_ID" E2E_ENV="$ENV" E2E_DRIVER="$DRIVER" CDP_PORT="$PORT" E2E_METHOD="$METHOD"
+export RUN_DIR="$RESULTS_ABS/whatsapp/$TENANT/$RUN_ID" E2E_ENV="$ENV" E2E_DRIVER="$DRIVER" CDP_PORT="$PORT" E2E_METHOD="$METHOD"
 mkdir -p "$RUN_DIR"; LOG="$RUN_DIR/runner.log"
 say() { echo "$*" | tee -a "$LOG"; }
 T0=$(date +%s)
@@ -102,7 +104,7 @@ if [ "$METHOD" = mock ]; then
   export E2E_MOCK_URL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["mock_url"])' "$RUN_DIR/stack.json")
   # The Flow emulator (phase 4): stored FLOW_JSON + the run's public key + the bot to send data-exchange to.
   export E2E_BOT_URL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bot_url"])' "$RUN_DIR/stack.json")
-  export E2E_FLOWS_DIR="$ROOT/.claude/qa/fixtures/flows" E2E_FLOW_PUBLIC_KEY_B64="$(cat "$RUN_DIR/flow-public-key.b64" 2>/dev/null)"
+  export E2E_FLOWS_DIR="$FIXTURES_ABS/flows" E2E_FLOW_PUBLIC_KEY_B64="$(cat "$RUN_DIR/flow-public-key.b64" 2>/dev/null)"
   # The DB tooling (driver ensure/reset, api.db lookups) resolves the E2E DB creds from <db.env_prefix>_*;
   # feed them from the same keys file (keys.local in tenants.yaml) the stack composed the bot's .env from.
   KEYS_FILE=$(python3 - "$ROOT" "$(e2e_get keys.local)" <<'PY'

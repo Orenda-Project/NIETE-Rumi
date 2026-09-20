@@ -170,11 +170,32 @@ def trailers(repo, rng, pr_body=""):
     return out
 
 
-def ledger_rows_added(repo, rng):
-    """{feature: status} for runs.jsonl rows ADDED in the range — the proof an
-    E2E run was driven for this change and recorded the way every run is."""
+def _ledger_rows_in_range(repo, rng):
+    """The runs.jsonl rows that belong to this range, oldest first.
+    repo mode      the ledger is tracked in the bot repo → the rows ADDED by the range (`git diff rng -- runs.jsonl`)
+    workspace mode the ledger lives in the tenant layer above the clone (another git repo) → every row in the file
+                   whose commit_sha is one of the range's commits"""
+    try:
+        m = _tl.load(repo)
+    except _tl.ManifestError:
+        m = None
+    rows = []
+    if m is not None and m.workspace_mode:
+        shas = set(_git(repo, "rev-list", rng).stdout.split())
+        path = os.path.join(m.ledgers_abs, "runs.jsonl")
+        if os.path.isfile(path):
+            for line in open(path, encoding="utf-8"):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(row, dict) and (row.get("commit_sha") or "") in shas:
+                    rows.append(row)
+        return rows
     r = _git(repo, "diff", rng, "--", LEDGER)
-    out = {}
     for line in r.stdout.splitlines():
         if not line.startswith("+") or line.startswith("+++"):
             continue
@@ -182,47 +203,38 @@ def ledger_rows_added(repo, rng):
             row = json.loads(line[1:])
         except ValueError:
             continue
-        if isinstance(row, dict) and row.get("feature"):
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
+
+
+def ledger_rows_added(repo, rng):
+    """{feature: status} for runs.jsonl rows ADDED in the range — the proof an
+    E2E run was driven for this change and recorded the way every run is."""
+    out = {}
+    for row in _ledger_rows_in_range(repo, rng):
+        if row.get("feature"):
             out[row["feature"]] = row.get("status") or "recorded"
     return out
 
 
 def ledger_misses(repo, rng):
     """{feature: misses} for the MOST RECENT runs.jsonl row of each feature in the range whose latest
-    run still has missing cassettes. A mock-lane run that could not replay a vendor answer records the
-    count under the nested `cassette.misses` (see .claude/qa/shared/ledger_row.py — there is no
-    top-level `cassette_misses`); the PR comment turns it into an @-mention so the cassette owner
-    records/updates the fixture. Last row wins, matching ledger_rows_added: a later clean run (misses 0)
-    means the cassettes were recorded since, so the feature drops out and we do not nag."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
+    run still has missing cassettes (nested `cassette.misses`, stamped by ledger_row.py). Last row wins,
+    matching ledger_rows_added: a later clean run means the cassettes were recorded since."""
     latest = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
-        if isinstance(row, dict) and row.get("feature"):
+    for row in _ledger_rows_in_range(repo, rng):
+        if row.get("feature"):
             latest[row["feature"]] = int((row.get("cassette") or {}).get("misses") or 0)
     return {f: m for f, m in latest.items() if m}
 
 
 def ledger_regression(repo, rng):
     """{feature: regression dict} from the MOST RECENT row per feature that carries the known-findings
-    verdict (ledger_row.py stamps `regression` = {gate, new_failures, known, fixed}). Rows without it
-    (chrome runs, rows written before this field) contribute nothing, so the report simply falls back
-    to the raw status for those. Last row wins, matching ledger_rows_added."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
+    verdict (ledger_row.py stamps `regression` = {gate, new_failures, known, fixed}). Last row wins."""
     out = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
-        if isinstance(row, dict) and row.get("feature") and isinstance(row.get("regression"), dict):
+    for row in _ledger_rows_in_range(repo, rng):
+        if row.get("feature") and isinstance(row.get("regression"), dict):
             out[row["feature"]] = row["regression"]
     return out
 
@@ -249,9 +261,9 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
     except ImportError as e:  # PyYAML missing, most likely
         return _empty(base, head, "QA tooling unavailable: %s" % e)
 
-    qa = os.path.join(repo, ".claude", "qa")
-    map_path = os.path.join(qa, "config", "feature-map.yaml")
-    agents_dir = os.path.join(qa, "agents")
+    _lm = _tl.load(repo)
+    map_path = os.path.join(_lm.config_abs, "feature-map.yaml")
+    agents_dir = _lm.agents_abs
     if not os.path.isfile(map_path):
         return _empty(base, head, "no feature map at %s" % map_path)
 

@@ -30,6 +30,15 @@ OUT=$(cd "$D" && bash "$OLDPWD/githooks/post-commit" 2>&1); RC=$?
 [ "$RC" = 0 ] && [ -z "$OUT" ] && ok "post-commit: silent, exit 0" || bad "post-commit: rc=$RC out=$(printf '%s' "$OUT" | head -c 160)"
 OUT=$(cd "$D" && printf 'refs/heads/main %s refs/heads/main %s\n' "$(git -C "$D" rev-parse HEAD)" "0000000000000000000000000000000000000000" | bash "$OLDPWD/githooks/pre-push" origin x 2>&1); RC=$?
 [ "$RC" = 0 ] && [ -z "$OUT" ] && ok "pre-push: silent, exit 0" || bad "pre-push: rc=$RC out=$(printf '%s' "$OUT" | head -c 160)"
+# a git hook acts ONLY for the repo the commit is in: a guarded CLAUDE_PROJECT_DIR (or the engine's own guarded
+# repo, when the engine is vendored) must not arm QA for a commit made in some other, unguarded repo
+G=$(mktemp -d); mkdir -p "$G/.claude/qa/config"
+printf 'version: 1\nrepo: x\ncommand: /x-e2e\nspec_suite: x\nruntime_scope:\n  - bot/**\ntenants:\n  x:\n    region_code: default\n' > "$G/.claude/qa/config/tenants.yaml"
+OUT=$(cd "$D" && CLAUDE_PROJECT_DIR="$G" bash "$OLDPWD/githooks/post-commit" 2>&1); RC=$?
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "post-commit: silent when CLAUDE_PROJECT_DIR names ANOTHER guarded repo" || bad "post-commit (foreign CLAUDE_PROJECT_DIR): rc=$RC out=$(printf '%s' "$OUT" | head -c 160)"
+OUT=$(cd "$D" && printf 'refs/heads/main %s refs/heads/main %s\n' "$(git -C "$D" rev-parse HEAD)" "0000000000000000000000000000000000000000" | CLAUDE_PROJECT_DIR="$G" bash "$OLDPWD/githooks/pre-push" origin x 2>&1); RC=$?
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "pre-push: silent when CLAUDE_PROJECT_DIR names ANOTHER guarded repo" || bad "pre-push (foreign CLAUDE_PROJECT_DIR): rc=$RC out=$(printf '%s' "$OUT" | head -c 160)"
+rm -rf "$G"
 # the python entry points say so on stderr and exit non-zero, never traceback
 for s in select_e2e.py spec_sync.py; do
   OUT=$(cd "$D" && env -u CLAUDE_PROJECT_DIR python3 "$OLDPWD/bin/$s" --repo "$D" --json --committed 2>&1); RC=$?

@@ -231,6 +231,112 @@ def test_cli():
     assert r.returncode == 1
 
 
+
+# ── WORKSPACE mode (2026-09-20): the tenant layer lives ABOVE the bot clone, in <ws>/.claude/qa/tenants/<name>/ ──
+def mkworkspace():
+    """<ws>/.claude/qa/tenants/niete/config/tenants.yaml + a nested git clone NIETE-Rumi/ whose origin names the repo."""
+    ws = tempfile.mkdtemp(prefix="ws-")
+    layer = os.path.join(ws, ".claude", "qa", "tenants", "niete")
+    os.makedirs(os.path.join(layer, "config")); os.makedirs(os.path.join(layer, "agents"))
+    with open(os.path.join(layer, "config", "tenants.yaml"), "w") as fh:
+        fh.write(NIETE)
+    clone = os.path.join(ws, "NIETE-Rumi")
+    os.makedirs(os.path.join(clone, "tests", "features", "whatsapp", "niete"))
+    subprocess.run(["git", "-C", clone, "init", "-q"], check=True)
+    subprocess.run(["git", "-C", clone, "remote", "add", "origin", "https://github.com/Orenda-Project/NIETE-Rumi.git"], check=True)
+    subprocess.run(["git", "-C", clone, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init"], check=True)
+    return ws, layer, clone
+
+
+def _no_env():
+    saved = os.environ.pop("CLAUDE_PROJECT_DIR", None)
+    return saved
+
+
+def test_workspace_mode_from_inside_the_nested_clone():
+    ws, layer, clone = mkworkspace(); saved = _no_env()
+    try:
+        root, got_layer = tl.discover(os.path.join(clone, "tests"))
+        assert root == clone, root
+        assert got_layer == layer, got_layer
+        m = tl.load(clone)
+        assert m.workspace_mode is True
+        assert m.root == clone and m.layer_dir == layer
+        assert m.agents_abs == os.path.join(layer, "agents")
+        assert m.config_abs == os.path.join(layer, "config")
+        assert m.fixtures_abs == os.path.join(layer, "fixtures")
+        assert m.ledgers_abs == os.path.join(layer, "ledgers")
+        assert m.spec_abs == os.path.join(clone, "tests", "features", "whatsapp", "niete"), m.spec_abs
+        assert m.drivers_abs == os.path.join(clone, ".claude", "qa", "shared", "features")
+        assert m.pending_abs == os.path.join(clone, ".claude", ".e2e-pending")
+        assert m.get("layer_dir") == layer and m.get("workspace_mode") is True
+    finally:
+        if saved is not None: os.environ["CLAUDE_PROJECT_DIR"] = saved
+
+
+def test_workspace_mode_via_claude_project_dir_from_the_workspace_root():
+    ws, layer, clone = mkworkspace(); saved = _no_env()
+    try:
+        os.environ["CLAUDE_PROJECT_DIR"] = clone
+        root, got_layer = tl.discover(ws)          # cwd is the WORKSPACE, the session points at the clone
+        assert (root, got_layer) == (clone, layer), (root, got_layer)
+    finally:
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        if saved is not None: os.environ["CLAUDE_PROJECT_DIR"] = saved
+
+
+def test_workspace_clone_named_by_claude_project_dir_beats_a_guarded_cwd():
+    """A vendored engine's tests run with cwd INSIDE a guarded bot repo. The session's CLAUDE_PROJECT_DIR names a
+    nested clone in a workspace: that clone must win over whatever guarded repo the cwd happens to sit in."""
+    ws, layer, clone = mkworkspace(); other = mkroot(NIETE); saved = _no_env(); cwd = os.getcwd()
+    try:
+        os.chdir(os.path.join(other, "sub", "dir"))
+        os.environ["CLAUDE_PROJECT_DIR"] = clone
+        root, got_layer = tl.discover()
+        assert (root, got_layer) == (clone, layer), (root, got_layer)
+        assert tl.repo_root() == clone
+    finally:
+        os.chdir(cwd)
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        if saved is not None: os.environ["CLAUDE_PROJECT_DIR"] = saved
+
+
+def test_workspace_mode_refuses_a_clone_whose_origin_matches_no_tenant():
+    ws, layer, clone = mkworkspace(); saved = _no_env()
+    other = os.path.join(ws, "other-repo"); os.makedirs(other)
+    subprocess.run(["git", "-C", other, "init", "-q"], check=True)
+    subprocess.run(["git", "-C", other, "remote", "add", "origin", "https://x/y/other-repo.git"], check=True)
+    try:
+        try:
+            tl.discover(other)
+        except tl.ManifestError as e:
+            assert "workspace" in str(e)
+        else:
+            raise AssertionError("an unmatched clone resolved to a tenant layer")
+    finally:
+        if saved is not None: os.environ["CLAUDE_PROJECT_DIR"] = saved
+
+
+def test_repo_mode_reports_no_workspace():
+    root = mkroot(RUMI)
+    m = tl.load(root)
+    assert m.workspace_mode is False
+    assert m.layer_dir == os.path.join(root, ".claude", "qa")
+    assert m.agents_abs == os.path.join(root, ".claude", "qa", "agents")
+
+
+def test_tool_path_prefers_the_layer_then_the_repo():
+    ws, layer, clone = mkworkspace(); saved = _no_env()
+    try:
+        with open(os.path.join(layer, "config", "tenants.yaml"), "w") as fh:
+            fh.write(NIETE.replace("tenants:\n", "tenant_tools:\n  training_db: .claude/qa/shared/niete_training_db.py\ntenants:\n", 1))
+        os.makedirs(os.path.join(layer, "shared")); open(os.path.join(layer, "shared", "niete_training_db.py"), "w").close()
+        m = tl.load(clone)
+        assert m.tool_path("training_db") == os.path.join(layer, "shared", "niete_training_db.py")
+        assert m.tool_path("coaching_db") is None
+    finally:
+        if saved is not None: os.environ["CLAUDE_PROJECT_DIR"] = saved
+
 if __name__ == "__main__":
     for n, f in sorted(globals().items()):
         if n.startswith("test_") and callable(f):

@@ -685,8 +685,8 @@ def main(argv):
     # E2E_SELECT_MAP is a test/manual override; an empty value means "unset", so
     # a caller can pass it through unconditionally without special-casing.
     map_path = (os.environ.get("E2E_SELECT_MAP") or "").strip() \
-        or os.path.join(root, ".claude", "qa", "config", "feature-map.yaml")
-    agents_dir = os.path.join(root, manifest.agents_dir)
+        or os.path.join(manifest.config_abs, "feature-map.yaml")
+    agents_dir = manifest.agents_abs
 
     try:
         if use_stdin:

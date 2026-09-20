@@ -30,20 +30,29 @@ run bash tests/no-tenant-literals.test.sh     # Task 7 — engine code names no 
 run bash tests/no-manifest.test.sh            # Task 7 — every hook is silent in an unguarded repo
 run bash hooks/qa-engine-guard.test.sh        # Task 8 — the downstream read-only guard
 run python3 bin/test_mock_driver.py             # per-machine (and per-tenant) mock driver
+run bash hooks/lib/tenants-workspace.test.sh     # workspace mode: the tenant layer above the bot clone (bash reader)
+run node bin/test_tenant_cjs_workspace.js       # workspace mode (node reader)
 [ -f ../../scripts/port_qa.test.py ] && run python3 ../../scripts/port_qa.test.py   # Task 8 — the porter (parent workspace only)
 
-for shape in niete rumi; do
+ENGINE_ABS="$PWD"
+# Three fixture shapes: niete and rumi carry the manifest INSIDE the repo (repo mode); workspace is the niete shape
+# re-laid with the tenant layer and the engine ABOVE a nested clone (workspace mode). E2E_FIXTURE is always the
+# GUARDED REPO — for workspace that is <fixture>/NIETE-Rumi — and the shape id the tests assert against stays niete.
+for shape in niete rumi workspace; do
   D=$(mktemp -d)
   bash tests/mkfixture.sh "$shape" "$D" >/dev/null || { echo "cannot build $shape fixture"; RC=1; continue; }
-  export E2E_FIXTURE="$D" E2E_FIXTURE_SHAPE="$shape"
+  FIX="$D"; SID="$shape"
+  [ "$shape" = workspace ] && { FIX="$D/NIETE-Rumi"; SID=niete; }
+  export E2E_FIXTURE="$FIX" E2E_FIXTURE_SHAPE="$SID"
+  printf '\n\033[1m-- fixture shape: %s --\033[0m\n' "$shape"
   # Task 4 — the Python engine reads tenants.yaml (both shapes)
-  run env E2E_FIXTURE="$D" E2E_FIXTURE_SHAPE="$shape" python3 bin/test_engine_tenancy.py
+  run env E2E_FIXTURE="$FIX" E2E_FIXTURE_SHAPE="$SID" python3 bin/test_engine_tenancy.py
   # Task 5 — the bash engine (hooks, lib, git hooks) reads tenants.yaml (both shapes)
-  run env E2E_FIXTURE="$D" E2E_FIXTURE_SHAPE="$shape" bash hooks/e2e-tenancy.test.sh
+  run env E2E_FIXTURE="$FIX" E2E_FIXTURE_SHAPE="$SID" bash hooks/e2e-tenancy.test.sh
   # Task 6 — the Node runner/driver read tenants.yaml through tenant.cjs (both shapes; no bot seams needed)
-  run env E2E_FIXTURE="$D" E2E_FIXTURE_SHAPE="$shape" node bin/test_tenant_cjs.js
-  run env E2E_FIXTURE="$D" bash -c "cd '$D' && bash .claude/qa/engine/bin/run-suite-mock-driver.test.sh"
-  run env E2E_FIXTURE="$D" bash -c "cd '$D' && bash .claude/qa/engine/bin/mock-autorun.test.sh"
+  run env E2E_FIXTURE="$FIX" E2E_FIXTURE_SHAPE="$SID" node bin/test_tenant_cjs.js
+  run env E2E_FIXTURE="$FIX" bash -c "cd '$FIX' && bash '$ENGINE_ABS/bin/run-suite-mock-driver.test.sh'"
+  run env E2E_FIXTURE="$FIX" bash -c "cd '$FIX' && bash '$ENGINE_ABS/bin/mock-autorun.test.sh'"
   # Task 7 appends its fixture-driven tests below this line.
   unset E2E_FIXTURE E2E_FIXTURE_SHAPE
   rm -rf "$D"

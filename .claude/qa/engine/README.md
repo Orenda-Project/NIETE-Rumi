@@ -42,6 +42,26 @@ Every engine script resolves the repo root and every tenant fact through `bin/te
 the engine's own vendored parent. Never a script's own ancestors, and never through symlinks. A repo with no
 manifest is not guarded: every hook exits 0 silently (`tests/no-manifest.test.sh`).
 
+## Two layouts: repo mode and workspace mode
+
+The engine finds its tenant layer in one of two places, and every script uses the manifest's absolute paths
+(`spec_abs`, `drivers_abs`, `config_abs`, `agents_abs`, `fixtures_abs`, `ledgers_abs`, `results_abs`, `pending_abs`)
+so it never cares which:
+
+| | repo mode | workspace mode |
+|---|---|---|
+| manifest | `<repo>/.claude/qa/config/tenants.yaml` | `<workspace>/.claude/qa/tenants/<name>/config/tenants.yaml` |
+| how the repo is matched | it carries the manifest | the nested clone's `origin` basename equals the layer's `repo:` (folder name as fallback) |
+| engine | `<repo>/.claude/qa/engine` (vendored copy) | `<workspace>/.claude/qa/engine` (the one copy) |
+| specs, drivers, command doc | with the bot code | with the bot code (`<repo>/tests/features/…`, `<repo>/.claude/qa/shared/features/`) |
+| config, agents, fixtures, ledgers, results | `<repo>/.claude/qa/…` | the tenant layer dir |
+| pending markers, per clone | `<repo>/.claude/.e2e-pending` | same |
+| git hooks | `core.hooksPath=.claude/qa/engine/githooks` | `core.hooksPath=<workspace>/.claude/qa/engine/githooks`; the hook finds the engine from its own path |
+
+Workspace mode is what lets the harness live once, in the workspace repo, with the bot repos carrying only what
+must sit beside their code. `tenants_lite.py --get workspace_mode` says which layout a checkout is in; the fixture
+builder's `workspace` shape (`tests/mkfixture.sh workspace <dir>`) exercises it.
+
 ## Tenancy in the selection
 
 `select_e2e.py --json` carries `tenant_features: {tenant: [features]}` — every tenant whose manifest lists a

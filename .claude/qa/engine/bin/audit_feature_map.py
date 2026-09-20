@@ -95,7 +95,7 @@ def main(argv):
     for i, a in enumerate(args):
         if a == "--repo" and i + 1 < len(args):
             repo = args[i + 1]
-    if not repo or not os.path.isfile(os.path.join(repo, ".claude", "qa", "config", "tenants.yaml")):
+    if not repo or not os.path.isdir(repo):
         print("usage: audit_feature_map.py --repo <bot repo carrying tenants.yaml> [--json] [--fix-hints]",
               file=sys.stderr)
         return 2
@@ -107,9 +107,11 @@ def main(argv):
     import tenants_lite as tl
     # The map, the agents and the bot's layout all come from the REPO's tenant layer (bd-9157r) — never from
     # a directory beside this vendored file.
-    m = tl.load(repo)
-    fmap = se.load_map(os.path.join(repo, ".claude", "qa", "config", "feature-map.yaml"),
-                       os.path.join(repo, m.agents_dir), m)
+    try:
+        m = tl.load(repo)
+    except tl.ManifestError as e:
+        print("audit_feature_map: %s" % e, file=sys.stderr); return 2
+    fmap = se.load_map(os.path.join(m.config_abs, "feature-map.yaml"), m.agents_abs, m)
     bot_root = m.bot_root
 
     files = bot_files(repo, bot_root)

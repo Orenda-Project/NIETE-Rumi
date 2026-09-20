@@ -22,7 +22,7 @@ import sys, os, glob, json, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tenants_lite as _tl  # noqa: E402
 _M = _tl.load(_tl.repo_root())
-AGENTS_DIR = os.path.join(_M.root, _M.agents_dir)
+AGENTS_DIR = _M.agents_abs
 
 
 def parse_frontmatter(path):

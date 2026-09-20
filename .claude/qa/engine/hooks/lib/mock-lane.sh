@@ -29,7 +29,7 @@ E2E_MOCK_FEATURES_DEFAULT="menu,language,status,lesson-plan,coaching,training,re
 
 e2e_mock_features() {
   if [ -n "${E2E_MOCK_FEATURES:-}" ]; then printf '%s' "$E2E_MOCK_FEATURES"; return; fi
-  local dir; dir="$(e2e_root 2>/dev/null)/$(e2e_get drivers_dir 2>/dev/null)"
+  local dir; dir="$(e2e_abs drivers_abs 2>/dev/null)"
   [ -n "$dir" ] || { printf '%s' "$E2E_MOCK_FEATURES_DEFAULT"; return; }
   local out="" f
   for f in "$dir"/*.cjs; do
@@ -51,7 +51,7 @@ e2e_chrome_paused() { [ "${E2E_CHROME_ON:-0}" != "1" ]; }
 # Phase 1, but a mock driver must be written. e2e_needs_driver names those so the gap is visible
 # rather than silently skipped.
 e2e_needs_driver() {
-  local dir; dir="$(e2e_root 2>/dev/null)/$(e2e_get drivers_dir 2>/dev/null)"
+  local dir; dir="$(e2e_abs drivers_abs 2>/dev/null)"
   [ -n "$dir" ] && [ ! -f "$dir/$1.cjs" ]
 }
 

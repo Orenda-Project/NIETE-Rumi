@@ -2,7 +2,10 @@
 # mkfixture.sh — build a throwaway repo shaped like NIETE-Rumi or whatsapp-ai-bot, with the LIVE engine
 # symlinked in, so every engine test runs against both shapes (bd-9157r).
 #
-#   bash .claude/qa/engine/tests/mkfixture.sh niete|rumi <dir> [--real]      # prints <dir>
+#   bash .claude/qa/engine/tests/mkfixture.sh niete|rumi|workspace <dir> [--real]      # prints <dir>
+#   workspace = the niete shape re-laid as a WORKSPACE: <dir>/.claude/qa/{engine,tenants/niete/…} + nested clone <dir>/NIETE-Rumi/
+#               (specs + drivers in the clone, config/agents/fixtures/ledgers in the tenant layer). The printed <dir> is the
+#               workspace; the guarded repo is <dir>/NIETE-Rumi.
 #
 # The fixture carries the whole TENANT LAYER a real repo would: tenants.yaml, feature-map.yaml,
 # known-findings.json, one agent per feature, one mock-capable driver, two specs, a runtime tree, the three
@@ -18,7 +21,8 @@ set -euo pipefail
 SHAPE="${1:-}"; D="${2:-}"; REAL=0
 shift 2 2>/dev/null || true
 for a in "$@"; do case "$a" in --real) REAL=1;; *) echo "unknown flag $a" >&2; exit 2;; esac; done
-[ -n "$SHAPE" ] && [ -n "$D" ] || { echo "usage: mkfixture.sh niete|rumi <dir> [--real]" >&2; exit 2; }
+[ -n "$SHAPE" ] && [ -n "$D" ] || { echo "usage: mkfixture.sh niete|rumi|workspace <dir> [--real]" >&2; exit 2; }
+WORKSPACE=0; [ "$SHAPE" = workspace ] && { WORKSPACE=1; SHAPE=niete; }
 ENGINE=$(cd "$(dirname "$0")/.." && pwd)
 NIETE_SHA="${E2E_NIETE_SHA:-de93aee5}"
 find_niete() {
@@ -255,3 +259,19 @@ git -C "$D" remote add origin "https://github.com/fixture/$REMOTE.git"
 git -C "$D" add -A >/dev/null
 git -C "$D" commit -qm baseline
 printf '%s\n' "$D"
+
+# ── workspace re-layout: the tenant layer moves ABOVE the clone, the engine with it ──────────────────────────────
+if [ "$WORKSPACE" = 1 ]; then
+  WS="$D.ws.$$"; mkdir -p "$WS/.claude/qa/tenants/niete"
+  mv "$D/.claude/qa/config" "$D/.claude/qa/agents" "$D/.claude/qa/ledgers" "$WS/.claude/qa/tenants/niete/"
+  [ -d "$D/.claude/qa/fixtures" ] && mv "$D/.claude/qa/fixtures" "$WS/.claude/qa/tenants/niete/"
+  rm -f "$D/.claude/qa/engine"; ln -s "$ENGINE" "$WS/.claude/qa/engine"
+  # the clone must name its repo by origin, like a real developer clone
+  git -C "$D" remote add origin https://github.com/Orenda-Project/NIETE-Rumi.git 2>/dev/null || true
+  # the shims inside the clone point at the workspace's engine
+  for h in e2e-autorun.sh e2e-autorun-stop.sh e2e-pending-banner.sh; do
+    printf '#!/bin/bash\nexec bash "$(cd "$(dirname "$0")/../.." && pwd)/../.claude/qa/engine/hooks/%s" "$@"\n' "$h" > "$D/.claude/hooks/$h"
+  done
+  git -C "$D" add -A >/dev/null 2>&1; git -C "$D" -c user.email=fixture@e2e -c user.name=fixture commit -qm "workspace re-layout" >/dev/null 2>&1 || true
+  mv "$D" "$WS/NIETE-Rumi"; mv "$WS" "$D"
+fi

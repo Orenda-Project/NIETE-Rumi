@@ -127,7 +127,7 @@ say "Flow id from the dump" "$(sed -nE 's/^TEACHER_TRAINING_FLOW_ID=(.*)$/\1/p' 
 has "vendor keys in the dump still left behind" "$(cat "$K4/niete-local.env")" "SONIOX" no
 
 echo "provision — the result satisfies the lane's own resolver"
-. "$ROOT/.claude/hooks/lib/mock-lane.sh"
+. "$ROOT/.claude/qa/engine/hooks/lib/mock-lane.sh"   # the readiness helpers live in the engine since 1.1.0
 mkdir -p "$TMP/ws/main"; cp -R "$K3" "$TMP/ws/keys"
 say "e2e_keys_dir finds the provisioned workspace-level file" "$(e2e_keys_dir "$TMP/ws/main")" "$TMP/ws/keys"
 

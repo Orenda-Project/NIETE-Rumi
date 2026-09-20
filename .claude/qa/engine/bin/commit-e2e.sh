@@ -131,12 +131,12 @@ for T in $TENANTS; do
   rc=$?; [ "$rc" -ne 0 ] && RC=$rc
   echo
   echo "┌ runs.jsonl rows for $RUN_ID:"
-  grep "\"run_id\": *\"$RUN_ID\"" "$ROOT/.claude/qa/ledgers/runs.jsonl" 2>/dev/null | python3 -c '
+  grep "\"run_id\": *\"$RUN_ID\"" "$(e2e_abs ledgers_abs)/runs.jsonl" 2>/dev/null | python3 -c '
 import json,sys
 for l in sys.stdin:
     r=json.loads(l); print("│  %-6s %-10s %-8s pass=%d fail=%d blocked=%d skipped=%d  commit=%s dirty=%s cassette_misses=%s" % (
         r.get("tenant",""), r["feature"], r["status"], r["summary"]["passed"], r["summary"]["failed"], r["summary"]["blocked"], r["summary"].get("skipped",0),
         (r.get("commit_sha") or "")[:12], r.get("dirty"), (r.get("cassette") or {}).get("misses")))' || echo "│  (no rows — the run did not reach the ledger)"
-  echo "└ evidence: .claude/qa/results/whatsapp/$T/$RUN_ID/"
+  echo "└ evidence: $(e2e_abs results_abs)/whatsapp/$T/$RUN_ID/"
 done
 exit $RC

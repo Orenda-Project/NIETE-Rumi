@@ -45,7 +45,7 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 ## Setup (automatic — no manual step)
 
 1. `keys/niete-local.env` is **provisioned for you**. The SessionStart banner, `.githooks/post-commit` and
-   `commit-e2e.sh` all call `e2e_mock_lane_autofix` (`.claude/hooks/lib/mock-lane.sh`), which runs
+   `commit-e2e.sh` all call `e2e_mock_lane_autofix` (`.claude/qa/engine/hooks/lib/mock-lane.sh`), which runs
    `bot/scripts/e2e/provision-local-keys.sh --quiet` whenever the file is missing:
    - the two sandbox Supabase lines come from the **Railway sandbox environment** (or from a hand-made
      `keys/niete-sandbox.env` if one exists); the project ref is asserted against `ENV_REFS` in

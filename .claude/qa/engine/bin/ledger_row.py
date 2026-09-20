@@ -17,6 +17,7 @@ import argparse, datetime, json, os, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
+import tenants_lite as _tl  # noqa: E402
 
 
 def git(root, *args):
@@ -92,7 +93,7 @@ def build_row(a):
     # allowed to break row building — a QA helper that can fail a commit gets switched off.
     try:
         import check_known_findings as kf  # noqa: E402  (same dir, already on sys.path)
-        known = kf.load_known(os.path.join(a.root, ".claude", "qa", "config", "known-findings.json"))
+        known = kf.load_known(os.path.join(_tl.load(a.root).config_abs, "known-findings.json"))
         regs, exp, fixed = kf.classify_results(a.feature, res, known)
         row["regression"] = {
             "gate": "fail" if regs else "pass",
@@ -173,7 +174,7 @@ def main(argv=None):
     except FileNotFoundError as e:
         print("    ledger: no result json for %s (%s) — no row appended" % (a.feature, e))
         return 0
-    path = os.path.join(a.root, ".claude", "qa", "ledgers", "runs.jsonl")
+    path = os.path.join(_tl.load(a.root).ledgers_abs, "runs.jsonl")
     if a.dry_run:
         print(json.dumps(row, ensure_ascii=False))
         return 0

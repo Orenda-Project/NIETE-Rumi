@@ -32,6 +32,13 @@ def _lock_root():
     job firing from the root. `--git-common-dir` resolves to the main repo's .git
     from anywhere inside it; its parent is the main checkout."""
     here = os.path.dirname(os.path.abspath(__file__))
+    # The manifest knows where results live (repo mode: the checkout's .claude/qa/results; workspace mode: the tenant
+    # layer's results/). One lock per tenant layer, whatever worktree started the run.
+    try:
+        sys.path.insert(0, here); import tenants_lite as _tl
+        return _tl.load(_tl.repo_root()).results_abs
+    except Exception:
+        pass
     try:
         out = subprocess.run(["git", "rev-parse", "--git-common-dir"],
                              cwd=here, capture_output=True, text=True, timeout=5)

@@ -404,14 +404,14 @@ def main(argv):
     # this vendored file's location. Explicit --spec-dir/--agents-dir still win (the tests use them).
     try:
         m = _tl.load(_tl.repo_root())
-        root, spec_default, agents_default, tenants = m.root, m.spec_dir, m.agents_dir, set(m.tenants)
+        root, spec_default, agents_default, tenants = m.root, m.spec_abs, m.agents_abs, set(m.tenants)
         EXTRA_KNOWN_TAGS.update({m.spec_suite} | set(m.tenants))
     except _tl.ManifestError:
-        m, root, spec_default, agents_default, tenants = None, os.getcwd(), "", os.path.join(".claude", "qa", "agents"), None
+        m, root, spec_default, agents_default, tenants = None, os.getcwd(), "", os.path.join(os.getcwd(), ".claude", "qa", "agents"), None
 
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--spec-dir", default=os.path.join(root, spec_default) if spec_default else "")
-    ap.add_argument("--agents-dir", default=os.path.join(root, agents_default))
+    ap.add_argument("--spec-dir", default=spec_default)
+    ap.add_argument("--agents-dir", default=agents_default)
     ap.add_argument("--only", default="", help="comma-separated feature names")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv[1:])

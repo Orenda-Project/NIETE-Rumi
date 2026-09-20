@@ -677,7 +677,7 @@ function makeApi(c) {
       botWaitStats: stats, ...(flowEmulator ? { flowEmulator } : {}), results
     };
     const outDir = process.env.RUN_DIR
-      || path.join(REPO, '.claude', 'qa', 'results', 'whatsapp', TENANT.id, 'feature-runner');
+      || path.join(T.resultsAbs, 'whatsapp', TENANT.id, 'feature-runner');
     try {
       mkdirSync(outDir, { recursive: true });
       writeFileSync(path.join(outDir, FEATURE + '.json'), JSON.stringify(payload, null, 1));

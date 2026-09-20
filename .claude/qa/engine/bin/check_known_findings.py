@@ -74,7 +74,12 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("run_dir")
     here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--config", default=os.path.join(here, "..", "config", "known-findings.json"))
+    try:
+        sys.path.insert(0, here); import tenants_lite as _tl
+        default_cfg = os.path.join(_tl.load(_tl.repo_root()).config_abs, "known-findings.json")
+    except Exception:
+        default_cfg = os.path.join(here, "..", "config", "known-findings.json")
+    ap.add_argument("--config", default=default_cfg)
     ap.add_argument("--features", default="")
     a = ap.parse_args(argv)
 

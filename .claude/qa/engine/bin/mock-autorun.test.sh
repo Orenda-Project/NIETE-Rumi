@@ -2,19 +2,23 @@
 # mock-autorun.sh — the mock lane runs itself after a commit (operator, 2026-09-20: nothing to type).
 # Runs inside a fixture repo (tests/mkfixture.sh) with a STAND-IN for commit-e2e.sh: no bot, no redis, no vendor.
 #
-# Run:  cd <fixture> && bash .claude/qa/engine/bin/mock-autorun.test.sh
+# Run:  cd <fixture> && bash $ENGINE/bin/mock-autorun.test.sh
 set -u
-cd "$(dirname "$0")/../../../.." || exit 1
-ROOT="$PWD"
+# The guarded repo is wherever the manifest says (repo mode: the engine's grandparent; workspace mode: the nested
+# clone this test was started in). ENGINE is this file's own engine, whichever layout.
+ENGINE="$(cd "$(dirname "$0")/.." && pwd)"
+. "$ENGINE/hooks/lib/tenants.sh"
+ROOT=$(e2e_root "$PWD" 2>/dev/null) || ROOT=$(cd "$ENGINE/../../.." && pwd)
+cd "$ROOT" || exit 1
 FAILED=0
 ok()  { printf '  ok    %s\n' "$1"; }
 bad() { printf '  FAIL  %s\n' "$1"; FAILED=$((FAILED + 1)); }
 say() { [ "$2" = "$3" ] && ok "$1" || bad "$1 (got '$2', want '$3')"; }
 has() { case "$2" in *"$3"*) got=yes ;; *) got=no ;; esac; say "$1" "$got" "$4"; }
-MA=.claude/qa/engine/bin/mock-autorun.sh
+MA=$ENGINE/bin/mock-autorun.sh
 PEND="$ROOT/.claude/.e2e-pending"
 rm -rf "$PEND"; mkdir -p "$PEND"
-. .claude/qa/engine/hooks/lib/tenants.sh; TEN=$(e2e_tenants | head -1); NT=$(e2e_tenants | wc -l | tr -d ' ')
+TEN=$(e2e_tenants | head -1); NT=$(e2e_tenants | wc -l | tr -d ' ')
 status() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",""))' "$PEND/mock-$(printf '%s' "$1" | cut -c1-7).result" 2>/dev/null; }
 wait_done() { local i; for i in $(seq 1 100); do [ "$(status "$1")" = "$2" ] && return 0; sleep 0.2; done; return 1; }
 
@@ -113,7 +117,7 @@ say "not ready: result status" "$(status "$SHA6")" "not-ready"
 [ -f "$PEND/fake-calls.log" ] && ! grep -q "$SHA6" "$PEND/fake-calls.log" && ok "not ready: the stand-in was never called for it" || bad "stand-in called on an unready machine"
 
 echo "mock-autorun — the helpers the hooks use"
-. .claude/qa/engine/hooks/lib/mock-lane.sh
+. "$ENGINE/hooks/lib/mock-lane.sh"
 has "e2e_mock_result_block: done → 'RAN AUTOMATICALLY'" "$(e2e_mock_result_block "$SHA1" menu)" "RAN AUTOMATICALLY" yes
 say "e2e_mock_result_block: not-ready → empty (the order text stays)" "$(e2e_mock_result_block "$SHA6" menu 2>/dev/null)" ""
 say "e2e_mock_result_block: unknown sha → empty" "$(e2e_mock_result_block 0000000000000000000000000000000000000000 menu 2>/dev/null)" ""

@@ -33,7 +33,7 @@ REPO = _M.root
 QA = os.path.join(REPO, ".claude", "qa")
 _TENANT = (os.environ.get("E2E_TENANT") or "").strip() or list(_M.tenants)[0]
 SPECS = os.path.join(REPO, _M.spec_dir)
-RESULTS = os.path.join(QA, "results", "whatsapp", _TENANT)
+RESULTS = os.path.join(_M.results_abs, "whatsapp", _TENANT)
 
 # observe/attendance are runnable BY NAME but excluded from `all` (operator, 2026-08-18):
 # every one of their scenarios needs a precondition nobody has set up, so including them

@@ -6,6 +6,7 @@
 #
 # Runs under bash (lib/tenants.sh needs BASH_SOURCE). The trigger words are assembled at runtime
 # (`G="git"; P="push"`) because hooks that match on that phrase read this file too.
+ENGINE_DIR="$(cd "$(dirname "$0")/.." && pwd)"   # this test's engine — inside the repo (repo mode) or the workspace (workspace mode)
 set -uo pipefail
 cd "$(dirname "$0")" || exit 1
 F=0; ok(){ printf '  ok    %s\n' "$1"; }; bad(){ printf '  FAIL  %s\n' "$1"; F=$((F+1)); }
@@ -65,7 +66,7 @@ fi
 
 # ── git hooks: post-commit arms the same marker shape; pre-push consults manifest branches ───────
 printf '// touched again\n' >> "$D/${RT}shared/services/status.service.js"; git -C "$D" add -A >/dev/null
-( cd "$D" && GIT_DIR="$D/.git" git commit -qm "touch status" && bash "$D/.claude/qa/engine/githooks/post-commit" >/dev/null 2>&1 )
+( cd "$D" && GIT_DIR="$D/.git" git commit -qm "touch status" && bash "$ENGINE_DIR/githooks/post-commit" >/dev/null 2>&1 )
 GM=$(ls -t "$D"/.claude/.e2e-pending/git-*.json 2>/dev/null | head -1)
 [ -n "$GM" ] && ok "$S: post-commit wrote a git marker" || bad "$S: post-commit wrote no marker"
 if [ -n "$GM" ]; then
