@@ -111,3 +111,49 @@ class TheReadBack(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MergingDerivedWithWorkerCells(unittest.TestCase):
+    """The sheet gets one write per column, so the derived columns and the
+    swarm's columns must be assembled before anything is sent."""
+
+    ROWS = [
+        {"_row": 5, "kind": "chapter_header", "grade": 1, "cells": {}},
+        {"_row": 6, "kind": "day", "grade": 1,
+         "cells": {"Skill type": "Vocabulary & grammar"}},
+        {"_row": 7, "kind": "assessment", "grade": 1, "cells": {}},
+        {"_row": 8, "kind": "review", "grade": 1, "cells": {}},
+    ]
+
+    def merged(self, worker=None):
+        return w.merge_cells(self.ROWS, "English",
+                             worker if worker is not None else {6: {"Gap": "one-way"}})
+
+    def test_a_day_row_gets_moves_and_teacher_primary_and_the_worker_cells(self):
+        m = self.merged()[6]
+        self.assertIn("Moves", m)
+        self.assertIn("Teacher-primary min (of 40)", m)
+        self.assertEqual(m["Gap"], "one-way")
+
+    def test_teacher_primary_is_derived_from_the_moves_it_ships_with(self):
+        import stagec
+        m = self.merged()[6]
+        self.assertEqual(int(m["Teacher-primary min (of 40)"]),
+                         stagec.teacher_primary_min(m["Moves"]))
+
+    def test_an_assessment_row_gets_moves_and_nothing_else(self):
+        self.assertEqual(list(self.merged()[7]), ["Moves"])
+
+    def test_a_review_row_gets_moves_and_nothing_else(self):
+        self.assertEqual(list(self.merged()[8]), ["Moves"])
+
+    def test_a_chapter_header_gets_nothing(self):
+        self.assertNotIn(5, self.merged())
+
+    def test_worker_cells_for_a_non_day_row_are_refused(self):
+        with self.assertRaises(ValueError):
+            self.merged({7: {"Gap": "one-way"}})
+
+    def test_a_worker_cell_colliding_with_a_derived_column_is_refused(self):
+        with self.assertRaises(ValueError):
+            self.merged({6: {"Moves": "warm_up·40"}})

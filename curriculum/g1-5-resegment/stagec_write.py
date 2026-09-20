@@ -10,6 +10,10 @@ can be compared cell for cell.
 The cost of that strategy is that a bug here blanks rows rather than skipping
 them, which is why every pass-through case is pinned in the tests.
 """
+import stagec
+import stagec_spines
+
+_DERIVED = ("Moves", "Teacher-primary min (of 40)")
 
 
 def col_letter(idx):
@@ -76,4 +80,43 @@ def diff_readback(sent, got):
             if have != want:
                 out.append("row %s %s: sent %r, sheet holds %r"
                            % (row, col, want, have))
+    return out
+
+
+def merge_cells(rows, subject, worker_cells):
+    """Assemble the derived columns and the swarm's columns into one write.
+
+    `Moves` and `Teacher-primary min (of 40)` are DERIVED here, from skill type
+    x grade band, and the teacher-primary figure is computed from the very
+    spine the row ships with -- the two can never disagree because only one of
+    them is authored. A worker that reaches for either column is refused
+    rather than overridden, so the collision is visible instead of silent.
+    """
+    out = {}
+    by_row = {}
+    for r in rows:
+        by_row[r["_row"]] = r
+        kind = r.get("kind")
+        shape = stagec_spines.shape_for_kind(kind)
+        if kind == "day":
+            moves = stagec_spines.spine_for(
+                r["cells"].get("Skill type"), subject, r["grade"])
+        elif shape is not None:
+            moves = stagec_spines.SPINES[(shape, stagec_spines.band(r["grade"]))]
+        else:
+            continue
+        cells = {"Moves": moves}
+        if kind == "day":
+            cells["Teacher-primary min (of 40)"] = str(
+                stagec.teacher_primary_min(moves))
+        out[r["_row"]] = cells
+
+    for row, given in (worker_cells or {}).items():
+        target = out.get(row)
+        if target is None or by_row.get(row, {}).get("kind") != "day":
+            raise ValueError("row %s takes no authored cells" % row)
+        for col, value in given.items():
+            if col in _DERIVED:
+                raise ValueError("row %s: %s is derived, not authored" % (row, col))
+            target[col] = value
     return out
