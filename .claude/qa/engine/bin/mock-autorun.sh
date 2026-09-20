@@ -73,7 +73,9 @@ PY
 # ── --status ──────────────────────────────────────────────────────────────────────────────────────────────────────
 if [ "${1:-}" = "--status" ]; then
   want="${2:-}"
-  for f in $(ls -t "$PEND"/mock-*.result 2>/dev/null); do
+  # glob, not `ls` — a workspace path with spaces would otherwise be split into words
+  for f in "$PEND"/mock-*.result; do
+    [ -f "$f" ] || continue
     [ -n "$want" ] && case "$f" in *"mock-$(short "$want").result") ;; *) continue ;; esac
     python3 - "$f" <<'PY'
 import json, sys
