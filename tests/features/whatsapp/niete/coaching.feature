@@ -49,11 +49,33 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   @e2e @content-driven @P2
   Scenario: Confirming analysis walks a 5-step pipeline with optional-context prompts
     Given the NIETE bot chat is open
+    # UPDATED 2026-09-20 (DC row 130): the account language is now stated. Every
+    # quoted step below is the ENGLISH string, and steps 1 and 2 used to be
+    # English for everyone regardless of preference — so this scenario passed for
+    # an Urdu teacher too, by way of the bug. It is an English-account scenario
+    # now that all five steps follow the preference; the Urdu path is its own
+    # scenario below.
+    And my account language is English
     And I have uploaded a classroom recording and it was detected
     When I tap "Yes, Analyze"
     Then the bot posts "Step 1/5: Transcribing your classroom audio"
-    And for a long recording it warns "Long Lesson Detected" and that analysis will take longer
-    And it acknowledges the lesson (e.g. "Great job, Teacher! …engaging <N>-minute lesson")
+    # UPDATED 2026-09-18 (bd-di5ap): the "Long Lesson Detected" step that stood
+    # here is gone, and the acknowledgement no longer praises the lesson. Both
+    # were sent before any analysis had run — the second was a GPT-4o line that
+    # invented a verdict ("your 29-minute lesson was engaging and impactful") on
+    # a transcript nothing had read. DC sheet row 129.
+    #
+    # UPDATED 2026-09-20 (bd-59840): the acknowledgement is gone too. Row 129
+    # asked for NO extra messages between Step 1/5 and the photo prompt, and an
+    # acknowledgement is still an extra message. The same change made Step 1/5
+    # state the real wait: nothing shorter than 15 minutes reaches this pipeline
+    # (CLASSROOM_AUDIO_THRESHOLD = 900) and transcription was measured in the
+    # 880-990s band, so "30-60 seconds" was wrong by more than an order of
+    # magnitude — and the warning that used to qualify it had just been removed.
+    And that step states the wait in minutes and does NOT promise "30-60 seconds"
+    And it does NOT warn "Long Lesson Detected" — that engineering threshold is telemetry only
+    And it sends NO acknowledgement of the recording at all before the photo prompt
+    And in particular no message carries a verdict on the teaching — no "engaging", "impactful" or similar
     And it asks whether I want to add up to 3 photos, naming the useful ones (the board with the objective/task, a student's notebook or worksheet, the materials used) and that a photo of the class at their desks does not help
     And when I decline it asks whether I have a lesson plan for this class
     And when I decline it replies "No problem! I'll analyze your classroom audio without the lesson plan."
@@ -72,8 +94,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have confirmed analysis and answered the optional-context prompts
     When the async worker finishes steps 4/5 and 5/5
     Then it returns coaching feedback referencing the FICO / ICT rubric
-    # @wip @slow: for a LONG (~26-min) recording the worker takes 10+ minutes —
-    # "Long Lesson Detected" is the bot warning you of exactly this. Driven live
+    And Step 5/5 is followed by the voice note ITSELF — exactly one message stands
+    And that one message is the Step 5/5 announcement, in my own language, not a second line restating it
+    # UPDATED 2026-09-20 (bd-sk206, DC row 132): a caption used to sit between
+    # Step 5/5 and the audio — "🎤 Here's your personalized voice summary:". In
+    # Urdu it restated the announcement almost word for word (both "a summary …
+    # in audio"), differing only by verb aspect at the END of the sentence, so
+    # the reporter read Step 5 as one message sent twice. English hid it: there
+    # the step label and "Creating…" vs "Here's…" separate them up front. The
+    # caption is gone; the ANNOUNCEMENT stays, because it covers a real wait —
+    # median 39.7s between the two across 586 sessions on 18 Sep 2026 (niete-logs;
+    # min 15s, p95 55s, max 242s). Assert the COUNT and which one survived, not
+    # the wording of the removed line.
+    # @wip @slow: for a LONG (~26-min) recording the worker takes 10+ minutes. The
+    # bot no longer says so (bd-di5ap removed that warning — it fired for the
+    # majority of sessions and contradicted the 30-60s promise). Driven live
     # 2026-08-04: reached Step 3/5 ("Let's reflect on your teaching together") ~6 min
     # in; the final graded report had not landed within the run window. Rubric:
     # bot/shared/services/observe/observe-framework.js.
@@ -251,6 +286,33 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # ignored, so a failed voice note left the teacher waiting for a question that never
     # came. Now: voice → on false, the question text → delivery recorded as voice/text/none.
 
+  @e2e @wip @draft @P1
+  Scenario: An Urdu teacher's five step messages are all in Urdu, counted in digits
+    Given the NIETE bot chat is open
+    And my account language is Urdu
+    And I have uploaded a classroom recording and it was detected
+    When I tap the confirm-analysis button
+    Then every one of the five step messages is in Urdu — steps 1 and 2 included
+    And no step message is in English
+    And each counter reads "مرحلہ 1/5" through "مرحلہ 5/5" — standard digits, only the word translated
+    And no counter uses Urdu numeral glyphs such as "۱ از ۵"
+    And the digits render left-to-right inside the Urdu sentence, not reordered
+    # ADDED 2026-09-20 (DC rows 130 + 131). Row 130: steps 1 and 2 were sent with
+    # no language argument at all, so `languageCode = 'en'` addressed every
+    # teacher in English while steps 3/4/5 resolved her preference — one session,
+    # two languages. transcription-processor.service.js and
+    # analysis-processor.service.js now pass the resolved language, and their
+    # defaults are offerDefaultLanguage() (Urdu here), not 'en'.
+    #
+    # Row 131: the counter was Urdu numeral glyphs. It is digits now, wrapped in
+    # LRI…PDI (U+2066…U+2069) — the last step matters because a bare "1/5" is a
+    # neutral run with a neutral separator, which an RTL paragraph reorders. That
+    # is why the reordering assertion is separate from the glyph one: the string
+    # can be right in the source and wrong on the screen.
+    #
+    # A teacher who never picked a language belongs on THIS path, not the English
+    # one: LANGUAGE_OFFER is ['ur','en'], so the floor is Urdu.
+
   @e2e @wip @draft @content-driven @P2
   Scenario: An English-account teacher's reflective question is written in English
     Given the NIETE bot chat is open
@@ -306,6 +368,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # audio-document-router.js classifyAudioDocument → reject_too_large
     # (buildTooLargeMessage). NB the reject copy still says "25MB"/"Whisper" though
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
+
+  @e2e @wip @draft @P2
+  Scenario: The coaching session says it is over before the quiz offer arrives
+    Given the NIETE bot chat is open
+    And I have received a coaching report with a commitment card
+    When the commitment question arrives
+    Then the bot tells me the coaching session is complete
+    And that line arrives before any quiz offer
+    And that line is in my selected language
+    # bd-x3k1q / DC row 133. report-generator.service.js sends
+    # getCoachingMessage('sessionComplete', outputLanguage) straight after
+    # completeSession() — i.e. after the commit-prompt buttons and before
+    # scheduleTranscriptQuiz() / FeatureLinkerService.suggestNext(). Without it
+    # teachers and coaches read the quiz as step 6 of the coaching session.
 
   @e2e @wip @draft @negative @known-fail @P3
   Scenario: The commitment-card buttons on the report are handled

@@ -118,8 +118,14 @@ class AnalysisProcessorService {
         analysis_started_at: new Date().toISOString()
       });
 
-      // Send progress update
-      await this.sendProgressUpdate(from, 2);
+      // Send progress update.
+      //
+      // bd-jbjrx — this call used to pass no language, so the parameter default
+      // ('en') addressed every teacher in English while step 3 below resolved
+      // hers three hundred lines later in the same file. `_resolveSessionLanguage`
+      // is that same resolver: no new one is introduced here, because a second
+      // resolver is a second thing to forget.
+      await this.sendProgressUpdate(from, 2, await _resolveSessionLanguage(coachingSessionId));
 
       // Fetch and compress prior feedback
       const ReportGeneratorService = require('./report-generator.service');
@@ -437,7 +443,7 @@ class AnalysisProcessorService {
         return;
       }
 
-      // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16/bd-19) — leader
+      // Ported from the main bot — leader
       // observations NEVER auto-flow to the reflective conversation or the teacher
       // report. Instead: freeze v1 (autofill_analysis_data) and send the observer
       // the editable pre-filled FICO Flow. The report renders later, from the
@@ -489,7 +495,7 @@ class AnalysisProcessorService {
    * @param {number} step - Current step (1-5)
    * @returns {Promise<void>}
    */
-  static async sendProgressUpdate(phoneNumber, step, languageCode = 'en') {
+  static async sendProgressUpdate(phoneNumber, step, languageCode = offerDefaultLanguage()) {
     try {
       // Step 2 catalog string carries the canonical "2/5" — we tolerate
       // callers passing other step numbers (e.g. legacy callers) and

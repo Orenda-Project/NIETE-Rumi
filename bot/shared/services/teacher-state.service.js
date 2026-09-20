@@ -36,6 +36,11 @@ const SIX_HOURS_AGO = () => new Date(Date.now() - 6 * 60 * 60 * 1000).toISOStrin
 const COACHING_TERMINAL = ['completed', 'failed', 'cancelled', 'report_sent'];
 const LP_IN_FLIGHT = ['pending', 'processing', 'extracting'];
 
+// The 6-12 lesson-plan path keeps its own in-flight state: one render row per
+// (segment, language, template version), 'authoring' until the PDF exists.
+const LP612_RENDERS = 'niete_lp612_renders';
+const LP612_SEGMENTS = 'niete_lp612_segments';
+
 /**
  * Flows that are a GLANCE, not work in flight.
  *
@@ -98,6 +103,24 @@ async function probeTeacherBusy(userId) {
   } catch (err) {
     logToFile('⚠️ probeTeacherBusy: LP probe failed (defaulting to not-busy)', { userId, error: err.message });
   }
+
+  // KNOWN DIVERGENCE FROM listActiveResources, AND IT IS NOT YET A DECISION.
+  //
+  // The branch above reads `lesson_plan_requests`, which the 6-12 path never
+  // writes, so a teacher waiting on a 6-12 lesson plan reads as NOT busy here.
+  // listActiveResources now probes `niete_lp612_renders` for exactly that case;
+  // this function deliberately does not, YET.
+  //
+  // Not because the two questions want different answers — they do not, it is one
+  // blind spot — but because closing it here changes report SCHEDULING at a volume
+  // nobody has signed off: the table this branch reads takes ~25 rows a week, the
+  // one listActiveResources now reads takes ~18,196. Every one of those becomes a
+  // potential 5-minute deferral of a quiz report that ships immediately today.
+  // That is a product call about deferral volume, not a bug fix, so it is written
+  // down rather than slipped in. Close it or reject it — do not leave it drifting.
+  //
+  // See GLANCE_FLOWS above: two lists nobody kept in step is how the /status
+  // defect shipped in the first place.
 
   // 4. Reading assessment in flight
   try {
@@ -241,6 +264,70 @@ async function listActiveResources(userId) {
     }
   } catch (err) {
     logToFile('⚠️ listActiveResources: LP probe failed', { error: err.message });
+  }
+
+  // The 6-12 lesson plan she is actually waiting on.
+  //
+  // The probe above reads `lesson_plan_requests`, and the 6-12 Flow picker — the
+  // way lesson plans are really requested on this deployment — never writes there.
+  // Seven days of production: 18,196 rows from the path a teacher uses, 25 from
+  // the table /status was reading. For the ~2 minutes she waits, the surface built
+  // to answer "what is running" answered "nothing".
+  //
+  // `waiters`, not `requested_by`. One render serves everyone who taps the same
+  // lesson while it is being authored; the later tappers are appended to `waiters`
+  // by `lp612_join_waiters` and never become `requested_by`. They are waiting just
+  // as much as the first. The claim path writes the requester into `waiters` too,
+  // so containment covers both without a second clause — and, being per-teacher,
+  // it is also what stops a deployment-wide 'authoring' state from showing one
+  // teacher another teacher's lesson.
+  //
+  // `status` + `started_at` are exactly the partial index idx_lp612_renders_inflight.
+  try {
+    const { data: renders } = await supabase
+      .from(LP612_RENDERS)
+      .select('id, segment_id, started_at')
+      .eq('status', 'authoring')
+      .gte('started_at', THIRTY_MIN_AGO())
+      // JSON.stringify, NOT the bare array. postgrest-js serialises an Array
+      // argument through `value.join(',')`, which on an array of objects is the
+      // literal text "[object Object]" — so the bare array sends
+      // `waiters=cs.{[object Object]}`: a Postgres ARRAY literal, against a JSONB
+      // column, holding a string no row will ever contain. It matched nothing, on
+      // every call, and reported "nothing is running" to a teacher mid-wait.
+      // A string argument is passed through untouched and is the only form that
+      // reaches Postgres as jsonb containment.
+      .contains('waiters', JSON.stringify([{ user_id: userId }]))
+      .order('started_at', { ascending: false })
+      .limit(2);
+
+    const inFlight = renders || [];
+    // Second query only when there is something to name — the common answer here
+    // is the empty list, and that must stay one round trip.
+    const titleFor = new Map();
+    const segmentIds = [...new Set(inFlight.map((r) => r.segment_id).filter(Boolean))];
+    if (segmentIds.length > 0) {
+      const { data: segments } = await supabase
+        .from(LP612_SEGMENTS)
+        .select('segment_id, menu_title')
+        .in('segment_id', segmentIds);
+      for (const s of (segments || [])) titleFor.set(s.segment_id, s.menu_title);
+    }
+
+    for (const r of inFlight) {
+      const lesson = titleFor.get(r.segment_id);
+      items.push({
+        id: `lp612_${r.id}`,
+        title: (lesson ? `Lesson plan · ${lesson}` : 'Lesson plan').slice(0, 70),
+        kind: 'lesson_plan',
+        refId: r.id,
+        // Listed, never offered. A render is shared: stopping it would discard a
+        // lesson every other teacher in `waiters` is queued behind.
+        summaryOnly: true,
+      });
+    }
+  } catch (err) {
+    logToFile('⚠️ listActiveResources: LP 6-12 probe failed', { error: err.message });
   }
 
   // Whatever the conversation store says she is mid-way through — and now she can
