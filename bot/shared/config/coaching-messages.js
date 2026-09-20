@@ -82,7 +82,7 @@ const COACHING_MESSAGES = {
   },
   // Lesson-plan branch: the uploaded document doesn't look like a lesson plan
   // (e.g. a leave letter). We still analyse the recording; we just can't use
-  // this file as a plan. (bd-2372 — Irum, ICT, DC-9.)
+  // this file as a plan. (field report — Irum, ICT, DC-9.)
   lessonPlan_notLessonPlan: {
     ...en("📄 Thanks — but this file doesn't look like a lesson plan, so I won't reference it. I'll go ahead and analyse your classroom recording. If you meant to send a lesson plan, please resend it as a PDF, Word file, or clear page photos."),
     ur: '📄 شکریہ — مگر یہ فائل سبق کے منصوبے جیسی نہیں لگتی، اس لیے اس کا حوالہ نہیں دیا جائے گا۔ آپ کی کلاس روم ریکارڈنگ کا تجزیہ جاری رہے گا۔ اگر سبق کا منصوبہ بھیجنا تھا تو اسے دوبارہ بھیج دیں — PDF، Word فائل یا صفحات کی صاف تصویروں کی صورت میں۔',
@@ -98,7 +98,7 @@ const COACHING_MESSAGES = {
     ur: 'کوئی بات نہیں! آئندہ کبھی کلاس روم آڈیو کا تجزیہ کروانا ہو تو صرف ریکارڈنگ بھیج دیں۔',
   },
   // A new classroom recording arrived while an analysis is already running for
-  // her — reassure, don't restart (bd-2376 — M. Salman, ICT, DC-5).
+  // her — reassure, don't restart (field report — M. Salman, ICT, DC-5).
   // bd-0c80s: nothing re-queues a deferred recording — after the 30-minute
   // mid-flight window the ONLY path to a report is the teacher resending, so
   // the ack must say so instead of promising "no need to resend".
@@ -111,42 +111,86 @@ const COACHING_MESSAGES = {
     ...en("⏳ I'm still analysing your previous recording. If your report hasn't arrived in 30 minutes, please send this recording again."),
     ur: '⏳ میں ابھی آپ کی پچھلی ریکارڈنگ کا تجزیہ کر رہی ہوں۔ اگر 30 منٹ میں رپورٹ نہ ملے تو براہِ کرم یہ ریکارڈنگ دوبارہ بھیج دیں۔',
   },
-  // Step 1/5 — transcription kickoff
+  // Step 1/5 — transcription kickoff.
+  //
+  // DC row 129 residue: this used to promise "30-60 seconds", and the
+  // Urdu "تقریباً ایک منٹ" (about one minute). Both were wrong by more than an
+  // order of magnitude, for every teacher who has ever seen this message:
+  // CLASSROOM_AUDIO_THRESHOLD = 900 means nothing SHORTER than 15 minutes is
+  // routed into this job, and sqs-worker.js measured 28 transcription runs in the
+  // 880-990s band over nine days — which is why its visibility extension is now
+  // unconditional at 1200s. The "Long Lesson Detected" warning that used to
+  // follow was the only thing walking the promise back, and bd-di5ap correctly
+  // removed it (it fired on 58% of sessions — an engineering threshold, not a
+  // teacher-meaningful one). That left the promise standing alone, so it is
+  // fixed here instead of being patched one message later.
+  //
+  // "up to 15 minutes" is the measured band, not a guess. The teacher is also
+  // told she does not have to sit and watch — the pipeline messages her at every
+  // step, and this is the longest silence in it.
+  //
+  // The step counter reads `مرحلہ ⁦1/5⁩` — standard digits, only the LABEL
+  // translated. That is DC row 131, and it now applies to all five steps, so the
+  // `۱ از ۵` form this comment used to defend is gone.
+  //
+  // The digits are wrapped in LRI (U+2066) … PDI (U+2069). `1/5` is a neutral
+  // run with a neutral separator, and an RTL paragraph reorders such a run — the
+  // same reason `coaching_confirmAudio` isolates its `{minutes}`. The isolate is
+  // invisible in review and easy to drop on the next edit, so
+  // bd-jbjrx-step-language.test.js asserts the pair on every one of the five.
+  //
+  // Keep the literal `N/5` intact: AnalysisProcessorService.sendProgressUpdate
+  // renumbers a non-2 step by replacing `2/5`, which silently no-opped for the
+  // whole life of the `۲ از ۵` form.
   step1_transcribing: {
-    ...en("🔄 Step 1/5: Transcribing your classroom audio. This may take 30-60 seconds...hang in there!"),
-    ur: '🔄 مرحلہ ۱ از ۵: آپ کی کلاس روم آڈیو کو تحریر میں منتقل کیا جا رہا ہے۔ اس میں تقریباً ایک منٹ لگ سکتا ہے — تھوڑا انتظار کریں!',
+    ...en("🔄 Step 1/5: Transcribing your classroom audio. For a full lesson this can take up to 15 minutes — no need to wait here, I'll message you as each step finishes."),
+    ur: '🔄 مرحلہ ⁦1/5⁩: آپ کی کلاس روم آڈیو کو تحریر میں منتقل کیا جا رہا ہے۔ مکمل سبق کے لیے اس میں 15 منٹ تک لگ سکتے ہیں — یہیں انتظار کرنے کی ضرورت نہیں، ہر مرحلہ مکمل ہونے پر اطلاع دی جائے گی۔',
   },
   // Step 2/5 — pedagogy analysis kickoff (templated; `${step}` resolved by caller via interpolation OR by passing the number 2 when constant)
   step2_analyzing: {
     ...en("🔄 Step 2/5: Analyzing your teaching using research-based pedagogical frameworks..."),
-    ur: '🔄 مرحلہ ۲ از ۵: تحقیق پر مبنی تدریسی فریم ورک کے ذریعے آپ کی تدریس کا تجزیہ کیا جا رہا ہے...',
+    ur: '🔄 مرحلہ ⁦2/5⁩: تحقیق پر مبنی تدریسی فریم ورک کے ذریعے آپ کی تدریس کا تجزیہ کیا جا رہا ہے...',
   },
   // Step 3/5 — reflective conversation kickoff
   step3_reflecting: {
     ...en("🔄 Step 3/5: Let's reflect on your teaching together..."),
-    ur: '🔄 مرحلہ ۳ از ۵: آئیے مل کر آپ کی تدریس پر غور کریں...',
+    ur: '🔄 مرحلہ ⁦3/5⁩: آئیے مل کر آپ کی تدریس پر غور کریں...',
   },
   // Step 4/5 — report generation kickoff
   step4_generatingReport: {
     ...en("🔄 Step 4/5: Generating your comprehensive observation report with visualizations..."),
-    ur: '🔄 مرحلہ ۴ از ۵: خاکوں کے ساتھ آپ کی مکمل مشاہدہ رپورٹ تیار کی جا رہی ہے...',
+    ur: '🔄 مرحلہ ⁦4/5⁩: خاکوں کے ساتھ آپ کی مکمل مشاہدہ رپورٹ تیار کی جا رہی ہے...',
   },
   // Step 5/5 — voice debrief generation kickoff
   step5_voiceDebrief: {
     ...en("🔄 Step 5/5: Creating your personalized voice debrief..."),
-    ur: '🔄 مرحلہ ۵ از ۵: آپ کے لیے آواز میں خصوصی خلاصہ تیار کیا جا رہا ہے...',
+    ur: '🔄 مرحلہ ⁦5/5⁩: آپ کے لیے آواز میں خصوصی خلاصہ تیار کیا جا رہا ہے...',
+  },
+  // bd-x3k1q (DC row 133): the coaching session has to announce its own END.
+  // Qurat, 2026-09-18: the quiz offer used to land immediately after the
+  // commitment question with nothing between them, so teachers and coaches read
+  // the quiz as still part of the coaching session. This line is the boundary —
+  // sent after the commit prompt and before anything the quiz or the feature
+  // linker says. Keep it ONE short line led by the ✅ — bd-sk206 (row 132) is the
+  // warning: an Urdu reader scans the FRONT of the string, so the closing marker
+  // has to be visible there, not buried at the end of a paragraph.
+  sessionComplete: {
+    ...en("✅ That completes your coaching session. Anything I send after this is separate from it."),
+    ur: '✅ آپ کا کوچنگ سیشن مکمل ہو گیا۔ اس کے بعد جو پیغام آئے گا وہ اس سیشن کا حصہ نہیں ہے۔',
   },
   // Final report delivery
   reportReady: {
     ...en("✅ Your Classroom Observation Report is ready! 📄"),
     ur: '✅ آپ کی کلاس روم مشاہدہ رپورٹ تیار ہے! 📄',
   },
-  // Voice summary delivery prefix
-  voiceSummaryReady: {
-    ...en("🎤 Here's your personalized voice summary:"),
-    ur: '🎤 یہ آپ کے لیے آواز میں تیار کیا گیا خلاصہ ہے:',
-  },
-  // Reflective conversation graceful close. bd-2414: Urdu translation so the
+  // bd-sk206 (feedback row 132): `voiceSummaryReady` — "🎤 Here's your personalized
+  // voice summary:" — is GONE, not merely unused. Its Urdu restated step5_voiceDebrief
+  // almost word for word (both "a summary … in audio", differing only in verb aspect at
+  // the end of the sentence), so an Urdu teacher read Step 5 as the same message sent
+  // twice. The audio now follows the Step 5/5 announcement with no caption in between.
+  // Do not reinstate a caption here without re-reading that row: any second Step-5 line
+  // has to be distinguishable from the announcement in URDU, at the FRONT of the string.
+  // Reflective conversation graceful close. Urdu translation so the
   // fallback closer isn't voiced in English (gender-neutral — no addressee-gendered
   // verb). The primary closer is now the contextual acknowledgement (voiced).
   reflectionsThanks: { ...en("Thank you for your thoughtful reflections! 🙏"), ur: "آپ کے سوچ بھرے جوابات کا شکریہ! 🙏" },
@@ -160,29 +204,21 @@ const COACHING_MESSAGES = {
     ...en("Note: Voice summary could not be generated, but your written report is complete! You can review it in the PDF above. 📄"),
     ur: 'نوٹ: آواز کا خلاصہ تیار نہیں ہو سکا، مگر آپ کی تحریری رپورٹ مکمل ہے! اوپر دی گئی PDF میں اسے دیکھا جا سکتا ہے۔ 📄',
   },
-  // Post-transcription acknowledgement (bd-di5ap / DC row 129).
+  // There is deliberately NO post-transcription acknowledgement key here.
   //
-  // This REPLACES a GPT-4o call that was handed only a name and a duration and
-  // told to be "authentic and specific". With no transcript and no analysis to
-  // be specific about, it invented the specificity — one teacher was told "your
-  // 29-minute lesson was engaging and impactful" before a single word had been
-  // analysed, and read it as her feedback. A fixed sentence cannot form an
-  // opinion, so the defect is removed at its source rather than guarded.
+  // bd-di5ap replaced the GPT-4o "encouraging message" with a fixed catalog
+  // acknowledgement ("Transcription complete, {{name}}! You taught for N
+  // minutes."). DC row 129 removed that too, by operator decision on 2026-09-20:
+  // DC row 129 asked for the stretch between Step 1/5 and the photo prompt to
+  // carry no extra messages at all, and an acknowledgement is still an extra
+  // message. Transcription now runs straight into the photo prompt, which is
+  // itself the teacher's signal that her audio arrived and was read.
   //
-  // It is an ACKNOWLEDGEMENT, not praise: it confirms the audio landed and how
-  // long it ran, and stops there. {{minutes}} stays in standard digits in both
-  // languages — the count is data, only the words around it translate.
-  transcriptionComplete: {
-    ...en('✅ Transcription complete, {{name}}! You taught for {{minutes}} minutes.'),
-    ur: '✅ {{name}}، آپ کی آڈیو تحریر میں منتقل ہو گئی۔ آپ نے {{minutes}} منٹ پڑھایا۔',
-  },
-  // Same message for the 6,282-of-15,552 teachers whose `users.name` is NULL
-  // (bd-gc1ge). A separate key, not an empty {{name}} slot, so neither language
-  // is left with a dangling comma.
-  transcriptionComplete_noName: {
-    ...en('✅ Transcription complete! You taught for {{minutes}} minutes.'),
-    ur: '✅ آپ کی آڈیو تحریر میں منتقل ہو گئی۔ آپ نے {{minutes}} منٹ پڑھایا۔',
-  },
+  // If a confirmation is ever wanted back here, it belongs in this catalog with
+  // an `ur` variant from the start — the original defect was a model call with
+  // no language instruction at all, and re-adding an English literal at the send
+  // site would reopen it (the no-hardcoded-coaching-strings ratchet also refuses
+  // that).
   // Agency follow-up: remind the teacher of their prior commitment.
   // {{action}} is substituted at the call site (kept distinct from
   // ${} JS interpolation so this string can be translated 1:1).

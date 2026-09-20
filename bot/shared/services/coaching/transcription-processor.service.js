@@ -24,6 +24,8 @@ const { TEMP_DIR, LISTENING_ANIMATION_MEDIA_ID } = require('../../utils/constant
 const { getUserLanguage, setUserLanguage } = require('../../utils/language-cache');
 const { analyzeLanguage } = require('../../utils/language-detector');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const { clampLanguage } = require('../../config/ux-strings');
+const { offerDefaultLanguage } = require('../../config/languages');
 const { buildDiarizationFromTokens, detectSilences, assembleDiarizedTranscription } = require('./diarization-from-tokens');
 
 class TranscriptionProcessorService {
@@ -47,7 +49,10 @@ class TranscriptionProcessorService {
       // Get session data
       const { data: session, error: sessionError } = await supabase
         .from('coaching_sessions')
-        .select('*, users!inner(phone_number, name)')
+        // `preferred_language` is here so the Step 1/5 message below can be sent
+        // in her language (bd-jbjrx). PostgREST embeds only what the select
+        // names, so dropping it silently reverts that fix to English.
+        .select('*, users!inner(phone_number, name, preferred_language)')
         .eq('id', coachingSessionId)
         .single();
 
@@ -62,8 +67,20 @@ class TranscriptionProcessorService {
         transcription_started_at: new Date().toISOString()
       });
 
-      // Send progress update with listening animation
-      await this.sendProgressUpdate(from, 1);
+      // Send progress update with listening animation.
+      //
+      // bd-jbjrx — this call used to pass no language, so the parameter default
+      // ('en') addressed every teacher in English while steps 3/4/5 resolved
+      // hers. One session, two languages. Same shape as
+      // report-generator's `_languageFromSession`: her stored preference,
+      // floored to what the deployment offers FIRST. We hold her row here, so
+      // "nothing can be determined" is not the situation and the emergency
+      // 'en' floor would be the wrong one.
+      await this.sendProgressUpdate(
+        from,
+        1,
+        clampLanguage(session.users.preferred_language || offerDefaultLanguage())
+      );
 
       // Download audio from WhatsApp
       const audioId = payload.audioId;
@@ -136,7 +153,7 @@ class TranscriptionProcessorService {
         currentLanguage
       );
 
-      // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-31): NEVER re-language a
+      // Ported from the main bot: NEVER re-language a
       // school leader from the classroom they walked into. On a leader observation
       // the audio is SOMEONE ELSE'S lesson — the observer's own interface language
       // is their preference, not a function of the teacher they happened to observe.
@@ -204,7 +221,7 @@ class TranscriptionProcessorService {
         // message to the teacher goes.
       }
 
-      // bd-2139 — backfill the true duration when the webhook never gave us one.
+      // Backfill the true duration when the webhook never gave us one.
       // WhatsApp reports a duration for voice notes but NOT for documents, and a
       // recording sent as a file (.m4a/.mp4) is the normal case for a 40-minute
       // lesson. A null duration surfaced to Riffat as "your 0-minute recording"
@@ -277,7 +294,7 @@ class TranscriptionProcessorService {
         return;
       }
 
-      // FEAT-102 bd-2138 (ported from main-bot FEAT-053 bd-16): leader observations
+      // Ported from the main bot: leader observations
       // skip every teacher interstitial (encouraging message, agency reminder) — those
       // are teacher-praise, not coach UI. bd-9hzdn.1 (observe parity): when
       // OBSERVE_CAPTURE_GATES_ENABLED, the COACH now gets the same photo → LP gates the
@@ -294,19 +311,20 @@ class TranscriptionProcessorService {
         return;
       }
 
-      // Acknowledge the recording — the receipt, not a review. bd-di5ap: this
-      // was a GPT-4o call that invented a verdict on a lesson nothing had read
-      // yet. Language is resolved HERE, at send time, rather than reusing the
-      // `currentLanguage` read before the transcript was analysed — teacher-
-      // addressed text follows her current preference.
-      const CoachingHelpersService = require('./coaching-helpers.service');
-      const ackLanguage = await getUserLanguage(session.user_id) || 'en';
-      const encouragingMessage = await CoachingHelpersService.generateEncouragingMessage(
-        session.users.name,
-        session.audio_duration_seconds,
-        ackLanguage
-      );
-      await WhatsAppService.sendMessage(from, encouragingMessage);
+      // DC row 129: nothing is sent here.
+      //
+      // This slot held an acknowledgement — first a GPT-4o "encouraging message"
+      // that invented a verdict on a lesson nothing had read (bd-di5ap), then a
+      // fixed catalog line in its place. Row 129 asked for the stretch between
+      // Step 1/5 and the photo prompt to carry no extra messages at all, so the
+      // slot is empty and the photo prompt below follows transcription directly.
+      //
+      // Step 1/5 now states the real wait ("up to 15 minutes") rather than
+      // "30-60 seconds", which is what made this silence feel like a fault.
+      // Anything re-added here must come from coaching-messages.js with an `ur`
+      // variant — an English literal at this send site is refused by the
+      // no-hardcoded-coaching-strings ratchet, and a model call is the shape
+      // that caused row 129 in the first place.
 
       // Phase 3: Agency follow-up — remind teacher of prior commitment
       try {
@@ -377,7 +395,7 @@ class TranscriptionProcessorService {
   /**
    * bd-9hzdn.1 (observe parity) — what happens after an /observe transcription.
    *
-   * Flag OFF (legacy): queue analysis directly — the FEAT-102 behaviour.
+   * Flag OFF (legacy): queue analysis directly — the original behaviour.
    * Flag ON (OBSERVE_CAPTURE_GATES_ENABLED='true'): the COACH gets the same
    * photo → LP gates the teacher flow has. The prompt goes to the coach's phone
    * (`from` is the coach in the observe path) in the COACH's language (the
@@ -445,7 +463,7 @@ class TranscriptionProcessorService {
    * @param {number} step - Current step (1-5)
    * @returns {Promise<void>}
    */
-  static async sendProgressUpdate(phoneNumber, step, languageCode = 'en') {
+  static async sendProgressUpdate(phoneNumber, step, languageCode = offerDefaultLanguage()) {
     try {
       await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('step1_transcribing', languageCode));
 

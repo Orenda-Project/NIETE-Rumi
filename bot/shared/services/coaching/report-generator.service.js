@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const supabase = require('../../config/supabase');
-const { logToFile } = require('../../utils/logger');
+const { logToFile, logWarn } = require('../../utils/logger');
 const { reflectionProgress } = require('./reflection-progress');
 const GPT5MiniService = require('../gpt5-mini.service');
 const AudioService = require('../audio.service');
@@ -520,6 +520,24 @@ class ReportGeneratorService {
       await this.completeSession(session, coachingSessionId);
 
       logToFile('✅ Report generation complete', { coachingSessionId });
+
+      // bd-x3k1q (DC row 133): close the session OUT LOUD before the next
+      // feature speaks. Everything below this point — the transcript-quiz offer,
+      // the feature linker — belongs to a different feature, and without a
+      // spoken boundary teachers and coaches read the quiz as step 6 of the
+      // coaching session. Sent after the commit prompt (above) and before the
+      // first of those asks, in her language via the unified resolver. Never
+      // fatal: a failed boundary line must not fail a completed session.
+      try {
+        await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
+      } catch (error) {
+        // Class N: degraded-but-recovered — the session IS complete, she just
+        // did not get the line saying so. logWarn, not a bare info logToFile.
+        logWarn('⚠️ Session-complete boundary line failed to send (non-fatal)', {
+          coachingSessionId,
+          error: error.message,
+        });
+      }
 
       // Transcript quiz: schedule the offer AFTER the survey's reply window.
       // Replaces the dead "Trigger 3" (it needed a lesson plan, a class and
@@ -1659,8 +1677,20 @@ class ReportGeneratorService {
         });
       }
 
-      // Send voice debrief
-      await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('voiceSummaryReady', _languageFromSession(session)));
+      // Send voice debrief.
+      //
+      // bd-sk206 (feedback row 132) — NO caption precedes the audio. There used
+      // to be one (`voiceSummaryReady`), and in Urdu it restated the Step 5/5
+      // announcement above almost word for word: both read "a summary has been /
+      // is being prepared for you in audio", differing only in verb aspect
+      // (تیار کیا گیا ہے vs تیار کیا جا رہا ہے) at the END of the sentence. The
+      // reporter read them as one message sent twice. English hid it — there the
+      // step label and "Creating…" vs "Here's…" carry the distinction up front.
+      //
+      // The ANNOUNCEMENT is the half that stays: production sits a median 39.7s
+      // between the two (586 sessions, 18 Sep 2026; p95 55s, max 242s), so
+      // dropping it instead would leave the teacher waiting in silence. The audio
+      // arriving after it needs no caption.
       await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl);
 
       logToFile('✅ Voice debrief sent successfully', { coachingSessionId });

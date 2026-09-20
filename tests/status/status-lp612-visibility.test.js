@@ -87,6 +87,22 @@ function load({ activeState = null, tables = {}, fromImpl = null } = {}) {
   };
 }
 
+/**
+ * postgrest-js's own `contains()` serialisation, mirrored verbatim from
+ * @supabase/postgrest-js so this suite can assert the WIRE FORMAT rather than the
+ * argument. Kept as a copy on purpose: the real module lives in bot/node_modules,
+ * and root suites run before that is installed.
+ *
+ *   string -> cs.<value>                (correct for jsonb)
+ *   Array  -> cs.{<value.join(',')}>    (a Postgres ARRAY literal — wrong for jsonb)
+ *   object -> cs.<JSON.stringify(value)>
+ */
+function pgContains(value) {
+  if (typeof value === 'string') return `cs.${value}`;
+  if (Array.isArray(value)) return `cs.{${value.join(',')}}`;
+  return `cs.${JSON.stringify(value)}`;
+}
+
 const RENDER = { id: 'rnd-1', segment_id: 'seg-9', started_at: new Date().toISOString() };
 const SEGMENT = { segment_id: 'seg-9', menu_title: 'World War I: Causes' };
 
@@ -135,7 +151,24 @@ describe('/status sees a 6-12 lesson plan being authored', () => {
     const call = seen.find((c) => c.table === RENDERS);
     expect(call).toBeDefined();
     expect(call.args[0]).toBe('waiters');
-    expect(call.args[1]).toEqual([{ user_id: 'u-77' }]);
+
+    // ASSERTED ON THE SERIALISED FORM, NOT THE ARGUMENT — and that distinction is
+    // the entire lesson of this bug. The first version of this test asserted
+    // `args[1]` equalled `[{ user_id: 'u-77' }]`. It passed. The shipped query
+    // still matched nothing, on every call, for every teacher.
+    //
+    // postgrest-js serialises `contains(column, value)` three different ways, and
+    // an ARRAY goes through `value.join(',')` — which on an array of objects is
+    // the literal text "[object Object]". So the query that actually went out was
+    // `waiters=cs.{[object Object]}`: a Postgres ARRAY literal, against a JSONB
+    // column, containing a string no row will ever hold.
+    //
+    // The argument looked perfectly correct. Only the wire format was wrong, and
+    // a mock of the supabase CLIENT sits above the layer that produces it — which
+    // is exactly what this repo's own rule means by "mock at the network boundary,
+    // never the module you are changing".
+    expect(pgContains(call.args[1])).toBe('cs.[{"user_id":"u-77"}]');
+    expect(pgContains(call.args[1])).not.toContain('[object Object]');
   });
 
   // A render is 'ready' the moment the PDF exists and 'failed' when it gave up.
