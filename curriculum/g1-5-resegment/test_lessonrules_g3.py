@@ -183,5 +183,37 @@ class WhatTheFirstGradeThreePeriodAdded(unittest.TestCase):
         self.assertIn("before she says it", r)
 
 
+class WhatChapterElevenAdded(unittest.TestCase):
+    """grade_3_math_ch11_seg801, 20 Sep 2026: PASS 98.3 with one check at 2.
+
+    The capacity pages print Bunty and Babloo and nobody else. 6B was already
+    stated -- a quiet page still owes named children -- and the lesson obeyed
+    it, because the page was not quiet: it handed over two names and the
+    lesson used them. The judge still rated Cultural Relevance 2, and the
+    rationale says why: "representation is limited to the textbook's two male
+    characters ... no female name appears anywhere in the warm-up, examples,
+    partner frames or exit ticket". Naming the printed children is not the
+    same thing as the class seeing itself, and a chapter whose printed cast is
+    all boys cannot be fixed by borrowing a girl from another chapter -- the
+    anchor forbids it. It is fixed in the teacher's instructions, where the
+    real classroom supplies the names the book did not.
+    """
+
+    one = WhatTheFirstGradeThreePeriodAdded.one
+
+    def test_the_printed_cast_being_all_one_gender_is_the_authors_problem(self):
+        r = self.one("printed cast is all boys")
+        self.assertIn("[6B]", r)
+
+    def test_the_fix_is_in_the_teacher_instructions_not_a_borrowed_character(self):
+        r = self.one("printed cast is all boys")
+        self.assertIn("anchor forbids", r)
+        self.assertIn("girls and boys", r)
+
+    def test_naming_the_printed_children_is_not_enough_on_its_own(self):
+        r = self.one("printed cast is all boys")
+        self.assertIn("not the same thing as the class seeing itself", r)
+
+
 if __name__ == "__main__":
     unittest.main()

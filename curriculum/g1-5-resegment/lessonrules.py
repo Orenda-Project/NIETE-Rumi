@@ -160,6 +160,20 @@ RULES = (
     "A lesson with no name in it anywhere is rated 2 on representation "
     "however Pakistani its slates, sticks and bus numbers are",
 
+    "[6B] when the chapter's printed cast is all boys, obeying the rule "
+    "above is not enough. Measured on grade_3_math chapter 11, 20 Sep 2026: "
+    "the capacity pages hand over Bunty and Babloo, the lesson named them "
+    "throughout, and Cultural Relevance was still rated 2 -- \"no female "
+    "name appears anywhere in the warm-up, examples, partner frames or exit "
+    "ticket\". Naming the printed children is not the same thing as the "
+    "class seeing itself. The repair is never to borrow a girl from another "
+    "chapter, because the anchor forbids leaving this chapter's pages; it "
+    "is to put girls and boys into the instructions the teacher acts on -- "
+    "tell her which pairs to take by name and to take them in balance, and "
+    "give `partnerActivity.teacher_words.set_up` the pairing rule. The "
+    "book's cast is fixed. The classroom's is not, and it is the one in "
+    "the room",
+
     "[7B] write the answer key FIRST and the prompt off the key, then read "
     "every 'the only ...' in the artefact back against all of the segment's "
     "pages. Both halves of that came off one lesson: an extension asking "
