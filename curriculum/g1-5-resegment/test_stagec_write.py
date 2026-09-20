@@ -204,3 +204,52 @@ class ReadingTheSheetBackIntoRowsAndColumns(unittest.TestCase):
             w.readback_cells(self.SENT, self.HEADER,
                              [{"range": "'Maths G1–5'!Z4:Z6",
                                "values": [["?"]]}])
+
+
+class FoldingSeventeenSliceOutputsIntoOneWrite(unittest.TestCase):
+    """Each tab is written once, from five slices that were authored apart.
+
+    The row number is the only thing tying a worker's answer to a day, and
+    it is a sheet row -- the same integers appear in every tab. A Maths
+    answer folded into the English write would land on a real English day
+    and look entirely plausible there, so the fold refuses any row it was
+    not handed, rather than trusting the slice to have come from this tab.
+    """
+
+    ROWS = [
+        {"_row": 5, "kind": "chapter_header", "grade": 1, "cells": {}},
+        {"_row": 6, "kind": "day", "grade": 1, "cells": {}},
+        {"_row": 7, "kind": "day", "grade": 1, "cells": {}},
+        {"_row": 8, "kind": "assessment", "grade": 1, "cells": {}},
+    ]
+
+    def fold(self, *outs):
+        return w.collect_worker_cells(self.ROWS, list(outs))
+
+    def test_two_slices_fold_into_one_mapping(self):
+        got = self.fold({"cells": {"6": {"Gap": "none"}}},
+                        {"cells": {"7": {"Gap": "two-way"}}})
+        self.assertEqual(got, {6: {"Gap": "none"}, 7: {"Gap": "two-way"}})
+
+    def test_the_same_row_answered_twice_is_refused(self):
+        with self.assertRaises(ValueError):
+            self.fold({"cells": {"6": {"Gap": "none"}}},
+                      {"cells": {"6": {"Gap": "two-way"}}})
+
+    def test_a_row_this_tab_does_not_have_is_refused(self):
+        with self.assertRaises(ValueError):
+            self.fold({"cells": {"9999": {"Gap": "none"}}})
+
+    def test_a_row_that_is_not_a_teaching_day_is_refused(self):
+        for row in ("5", "8"):
+            with self.assertRaises(ValueError):
+                self.fold({"cells": {row: {"Gap": "none"}}})
+
+    def test_it_names_the_day_rows_nobody_answered(self):
+        got = self.fold({"cells": {"6": {"Gap": "none"}}})
+        self.assertEqual(w.uncovered(self.ROWS, got), [7])
+
+    def test_a_complete_fold_leaves_nothing_uncovered(self):
+        got = self.fold({"cells": {"6": {"Gap": "none"},
+                                   "7": {"Gap": "two-way"}}})
+        self.assertEqual(w.uncovered(self.ROWS, got), [])

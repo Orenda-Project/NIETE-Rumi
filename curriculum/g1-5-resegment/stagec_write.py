@@ -119,6 +119,38 @@ def diff_readback(sent, got):
     return out
 
 
+def collect_worker_cells(rows, slice_outputs):
+    """Fold per-grade worker outputs into one {row: {column: value}}.
+
+    The row number is the only thing tying an answer to a day, and it is a
+    SHEET row -- row 40 exists in every tab. A Maths answer folded into the
+    English write would land on a real English day and read plausibly there,
+    so a row this tab does not hold as a teaching day is refused outright
+    rather than trusted to have come from the right slice.
+    """
+    days = set(r["_row"] for r in rows if r.get("kind") == "day")
+    known = set(r["_row"] for r in rows)
+    out = {}
+    for doc in slice_outputs:
+        for key, given in (doc.get("cells") or {}).items():
+            row = int(key)
+            if row in out:
+                raise ValueError("row %s answered by two slices" % row)
+            if row not in known:
+                raise ValueError("row %s is not in this tab" % row)
+            if row not in days:
+                raise ValueError("row %s is not a teaching day" % row)
+            out[row] = dict(given)
+    return out
+
+
+def uncovered(rows, worker_cells):
+    """Day rows nobody answered. A write is not complete while this is
+    non-empty: those cells would stay `pending` with nothing saying so."""
+    return sorted(r["_row"] for r in rows
+                  if r.get("kind") == "day" and r["_row"] not in worker_cells)
+
+
 def merge_cells(rows, subject, worker_cells):
     """Assemble the derived columns and the swarm's columns into one write.
 
