@@ -217,3 +217,27 @@ class WhatChapterElevenAdded(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WhatChapterTwelveAdded(unittest.TestCase):
+    """grade_3_math_ch12_seg801, 20 Sep 2026: PASS 95.6 with 5D rated 2.
+
+    The exit ticket was built from the two times the class had just worked,
+    which lessons 26 and 27 had done successfully -- but there the TASK
+    changed (a reversal, a carry never met all period). Here the numbers and
+    the operation were both the same, so nothing was cold.
+    """
+
+    one = WhatTheFirstGradeThreePeriodAdded.one
+
+    def test_reusing_the_class_own_answers_is_not_automatically_cold(self):
+        r = self.one("same numbers and the same operation")
+        self.assertIn("[1E]", r)
+
+    def test_what_makes_it_cold_is_a_changed_task_not_a_changed_number(self):
+        r = self.one("same numbers and the same operation")
+        self.assertIn("direction", r)
+
+    def test_the_anchor_still_forbids_inventing_an_unseen_number(self):
+        r = self.one("same numbers and the same operation")
+        self.assertIn("anchor", r)

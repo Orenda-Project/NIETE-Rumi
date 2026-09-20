@@ -160,6 +160,19 @@ RULES = (
     "A lesson with no name in it anywhere is rated 2 on representation "
     "however Pakistani its slates, sticks and bus numbers are",
 
+    "[1E] building the exit ticket out of the class's own answers is cold "
+    "ONLY when the task changes with them. Measured on grade_3_math chapter "
+    "12, 20 Sep 2026: the exit ticket reused the two times the class had just "
+    "worked and asked for the same conversion again -- same numbers and the "
+    "same operation -- and Deeper Learning was rated 2, \"it does not test the "
+    "SLO in a new context\". Chapters 10 and 11 reused class answers and were "
+    "not marked down, because there the task had turned over: a reversal, and "
+    "the one carry the class met all period. So reuse the numbers freely, but "
+    "change the direction of the work, or the form asked for, or the "
+    "discrimination being made. The anchor forbids solving this by inventing "
+    "an unseen number, so hunt the printed pages for a pair the lesson has "
+    "not yet touched -- on these pages a labelled day-bar had four of them "
+    "sitting unused",
     "[6B] when the chapter's printed cast is all boys, obeying the rule "
     "above is not enough. Measured on grade_3_math chapter 11, 20 Sep 2026: "
     "the capacity pages hand over Bunty and Babloo, the lesson named them "
