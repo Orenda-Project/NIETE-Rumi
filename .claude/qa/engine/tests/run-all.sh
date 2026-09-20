@@ -43,6 +43,7 @@ for shape in niete rumi; do
   # Task 6 — the Node runner/driver read tenants.yaml through tenant.cjs (both shapes; no bot seams needed)
   run env E2E_FIXTURE="$D" E2E_FIXTURE_SHAPE="$shape" node bin/test_tenant_cjs.js
   run env E2E_FIXTURE="$D" bash -c "cd '$D' && bash .claude/qa/engine/bin/run-suite-mock-driver.test.sh"
+  run env E2E_FIXTURE="$D" bash -c "cd '$D' && bash .claude/qa/engine/bin/mock-autorun.test.sh"
   # Task 7 appends its fixture-driven tests below this line.
   unset E2E_FIXTURE E2E_FIXTURE_SHAPE
   rm -rf "$D"

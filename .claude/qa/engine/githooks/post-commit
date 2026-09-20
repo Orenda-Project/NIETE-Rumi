@@ -92,6 +92,18 @@ json.dump({
 }, open(marker, "w"), indent=1)
 PY
 
+# ── Auto-run the mock lane for THIS commit (operator, 2026-09-20: nothing to type). mock-autorun.sh checks the
+# machine (keys via the bot's provisioner, redis via brew), queues the sha and runs commit-e2e.sh detached, so
+# the commit returns immediately; the result lands in .claude/.e2e-pending/mock-<sha7>.result. Off: E2E_MOCK_AUTORUN=off.
+AUTORUN_LINE=""
+if . "$ENGINE/hooks/lib/mock-lane.sh" 2>/dev/null && type e2e_mock_launch >/dev/null 2>&1; then
+  _F=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(",".join(json.load(sys.stdin).get("features") or []))' 2>/dev/null)
+  e2e_split_lanes "$_F"
+  if [ -n "${E2E_LANE_MOCK:-}" ]; then
+    _T=$(printf '%s' "$SEL" | python3 -c 'import json,sys; d=json.load(sys.stdin).get("tenant_features") or {}; print(",".join(d) if len(d)>1 else "")' 2>/dev/null)
+    AUTORUN_LINE=$(e2e_mock_launch "$FULL_SHA" "$E2E_LANE_MOCK" "$_T")
+  fi
+fi
 [ "${QA_HOOKS_QUIET:-}" = "1" ] && exit 0
 FEATURES=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(", ".join(json.load(sys.stdin).get("features") or []))' 2>/dev/null)
 CMDS=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print("   ".join(json.load(sys.stdin).get("commands") or []))' 2>/dev/null)
@@ -111,6 +123,7 @@ REL_SYNC=".claude/.e2e-pending/git-$SHA.sync.json"
   e2e_split_lanes "$(printf '%s' "$FEATURES" | tr -d ' ')"
   if [ -n "${E2E_LANE_MOCK:-}" ]; then
     echo "│ Mock lane (tests THIS commit, no browser) →  bash .claude/qa/engine/bin/commit-e2e.sh $SHA --features $E2E_LANE_MOCK"
+    [ -n "$AUTORUN_LINE" ] && echo "│ ▶ $AUTORUN_LINE"
     # Can this machine actually run it? FIX it here (keys auto-provisioned from Railway) — no manual step.
     # Only what cannot be fixed (railway not logged in) is printed. Inline fallback = no lib = silent.
     if type e2e_mock_lane_autofix >/dev/null 2>&1; then

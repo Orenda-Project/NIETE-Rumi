@@ -107,6 +107,74 @@ rendered here — Flow scenarios record BLOCKED, not PASS. Read the rows it prin
 EOF
 }
 
+# ── Auto-run (2026-09-20) ─────────────────────────────────────────────────────────────────────
+# The mock lane RUNS ITSELF after a commit: bin/mock-autorun.sh queues the sha and a detached drainer runs
+# commit-e2e.sh in the background. These two helpers give every caller one way to start it and one way to
+# read what happened (<repo>/.claude/.e2e-pending/mock-<sha7>.result).
+
+# e2e_mock_launch "<sha>" "<mock csv>" "<tenants csv or empty>" → mock-autorun's one-line answer on stdout.
+e2e_mock_launch() {
+  local sha="$1" mock="$2" tenants="${3:-}" qa
+  qa="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../bin" 2>/dev/null && pwd)"
+  [ -x "$qa/mock-autorun.sh" ] || [ -f "$qa/mock-autorun.sh" ] || { printf 'mock lane: auto-run unavailable (no bin/mock-autorun.sh in this engine)'; return 1; }
+  bash "$qa/mock-autorun.sh" "$sha" --features "$mock" ${tenants:+--tenants "$tenants"} 2>&1 | tail -1
+}
+
+# e2e_mock_autorun_status "<sha>" → "" when nothing is known for that sha, else the status word on the first
+# line (queued|running|done|superseded|not-ready|off) followed by the result rows, one per line.
+e2e_mock_autorun_status() {
+  local sha="$1" root f
+  root=$(e2e_root 2>/dev/null) || return 1
+  f="$root/.claude/.e2e-pending/mock-$(printf '%s' "$sha" | cut -c1-7).result"
+  [ -f "$f" ] || return 1
+  python3 - "$f" <<'PY2'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print(r.get("status", ""))
+for row in r.get("rows") or []: print(row.strip())
+if r.get("regression"): print("REGRESSION")
+if r.get("note"): print("note: " + r["note"])
+PY2
+}
+
+# e2e_mock_result_block "<sha>" "<mock csv>" → the text the Stop hook / banner show INSTEAD of "type this command"
+# once the lane has run (or is running) for the sha. Empty when there is no result yet (caller keeps the order text).
+e2e_mock_result_block() {
+  local sha="$1" mock="$2" st rows short; short=$(printf '%s' "$sha" | cut -c1-7)
+  st=$(e2e_mock_autorun_status "$sha") || return 1
+  rows=$(printf '%s\n' "$st" | sed '1d')
+  case "$(printf '%s\n' "$st" | head -1)" in
+    done)
+      cat <<EOF
+━━ MOCK LANE — RAN AUTOMATICALLY for $short ($mock) — nothing to type ━━━━━━━━━━━━
+$rows
+Full output: .claude/.e2e-pending/mock-$short*.log · rows in .claude/qa/ledgers/runs.jsonl.
+REGRESSION above means a scenario NOT in known-findings.json failed: fix it, or add it there with
+a reason if it is a genuine known finding. Report the rows as they are. To drive it again by hand:
+  bash .claude/qa/engine/bin/commit-e2e.sh $sha --features $mock
+EOF
+      ;;
+    running|queued)
+      cat <<EOF
+━━ MOCK LANE — $(printf '%s\n' "$st" | head -1 | tr a-z A-Z) IN THE BACKGROUND for $short ($mock) ━━━━━━━━━━━━━━━━
+Do NOT start a second run (commit-e2e.sh is already running for this sha). The result lands in
+.claude/.e2e-pending/mock-$short.result and the rows in runs.jsonl; the SessionStart banner reports it
+next time, or check now with
+  bash .claude/qa/engine/bin/mock-autorun.sh --status $short
+EOF
+      ;;
+    superseded)
+      cat <<EOF
+━━ MOCK LANE — $short was SUPERSEDED by a newer commit that contains it; that run covers it ━━━━━━━━━━
+$rows
+EOF
+      ;;
+    not-ready|off)
+      # nothing ran: the caller keeps the ORDER text (commit-e2e.sh …) — the machine-readiness block says what is missing
+      return 1 ;;
+  esac
+}
+
 # ── Machine readiness (2026-09-18) ────────────────────────────────────────────────────────────
 # The lane is "part of the hook" only if the hook can SAY, before an agent's turn, whether this
 # machine can run it. Until now the first signal was exit 14 deep inside local-stack.sh — after the

@@ -290,6 +290,17 @@ if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ] && type e2e_split_lanes >/d
     MOCK_BLOCK=$(e2e_mock_block "$COMMIT_SHA" "$E2E_LANE_MOCK" \
       "$(printf '%s' "$SEL" | jq -r 'if ((.tenant_features // {}) | length) > 1 then ((.tenant_features // {}) | keys | join(",")) else "" end' 2>/dev/null)")
     CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
+    # Auto-run (operator, 2026-09-20): start the mock lane NOW, detached — the agent does not type the command.
+    # A git post-commit hook in the same clone may have queued this sha already; mock-autorun dedups by sha.
+    if type e2e_mock_launch >/dev/null 2>&1; then
+      AUTORUN_LINE=$(e2e_mock_launch "$COMMIT_SHA" "$E2E_LANE_MOCK" \
+        "$(printf '%s' "$SEL" | jq -r 'if ((.tenant_features // {}) | length) > 1 then ((.tenant_features // {}) | keys | join(",")) else "" end' 2>/dev/null)")
+      [ -n "$AUTORUN_LINE" ] && MOCK_BLOCK="▶ $AUTORUN_LINE
+It is ALREADY RUNNING — do not run commit-e2e.sh yourself. When the turn ends, the Stop hook reports
+the result if it is in (or says it is still running). By hand any time:
+  bash .claude/qa/engine/bin/mock-autorun.sh --status $(printf '%s' "$COMMIT_SHA" | cut -c1-7)
+$MOCK_BLOCK"
+    fi
   fi
 fi
 if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then

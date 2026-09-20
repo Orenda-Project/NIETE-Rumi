@@ -89,6 +89,9 @@ while IFS= read -r f; do
     e2e_split_lanes "$(printf '%s' "$feats" | tr -d ' ')"
     if [ -n "${E2E_LANE_MOCK:-}" ] && [ -n "$sha" ]; then
       mockline="  mock lane (tests THIS commit):  bash .claude/qa/engine/bin/commit-e2e.sh $sha --features $E2E_LANE_MOCK"
+      if type e2e_mock_autorun_status >/dev/null 2>&1; then
+        _st=$(e2e_mock_autorun_status "$sha" 2>/dev/null) && [ -n "$_st" ] && mockline="  mock lane AUTO-RAN ($(printf '%s\n' "$_st" | head -1)):  $(printf '%s\n' "$_st" | sed '1d' | tr '\n' ' ' | cut -c1-300)"
+      fi
       # the same split the Stop hook applies: those features leave the WhatsApp Web line
       cmds=$(e2e_filter_chrome_cmds "$(jq -r '(.commands // [])[]' "$f" 2>/dev/null)" "$E2E_LANE_MOCK" | awk 'NF{a[++n]=$0} END{for(i=1;i<=n;i++) printf "%s%s", (i>1?"   ":""), a[i]}')
     fi

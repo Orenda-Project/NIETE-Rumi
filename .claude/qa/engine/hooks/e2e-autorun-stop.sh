@@ -196,6 +196,10 @@ if [ "$TRIGGER" = "commit" ] && [ -n "$SHA" ] && type e2e_split_lanes >/dev/null
   if [ -n "$E2E_LANE_MOCK" ]; then
     MOCK_BLOCK=$(e2e_mock_block "$SHA" "$E2E_LANE_MOCK" \
       "$(jq -r 'if ((.tenants // {}) | length) > 1 then ((.tenants // {}) | keys | join(",")) else "" end' "$MARKER" 2>/dev/null)")
+    # Auto-run (2026-09-20): if mock-autorun already ran (or is running) this sha, REPORT it instead of ordering a run.
+    if type e2e_mock_result_block >/dev/null 2>&1; then
+      RESULT_BLOCK=$(e2e_mock_result_block "$SHA" "$E2E_LANE_MOCK" 2>/dev/null) && [ -n "$RESULT_BLOCK" ] && MOCK_BLOCK="$RESULT_BLOCK"
+    fi
     CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
   fi
 fi
