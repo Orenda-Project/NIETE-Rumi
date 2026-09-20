@@ -34,7 +34,9 @@ children have not already met" turned out to be abstract enough to be read as
 satisfied by a word that had been chalked on the board for twenty minutes.
 """
 
-RULES = (
+import surfacerules
+
+PEDAGOGY = (
     "[9G] write the teacher's own words for every pair or group activity -- "
     "the verbatim sentence that sets it up, the one that starts it, the one "
     "that stops it, and one repair line for a pair that has stalled. The "
@@ -268,20 +270,10 @@ RULES = (
     "digit, left to right, so the teacher cannot restate it; the wrong "
     "answer is taught as deliberately as the right one, so it is checked as "
     "hard",
-
-    "[7A] the I-Do script and `workedExample` share one word budget. The "
-    "render seats both as `worked_example` blocks and the budget SUMS every "
-    "block of a type, against a single cap of 470 -- so a full telling in "
-    "the step and a second full telling in the field breaks the cap before a "
-    "teacher has read a word. Measured on grade_3_math chapter 7, 20 Sep "
-    "2026: the pair came to 558 against the 470. Let the step BE the "
-    "teaching the teacher says out loud, and let `workedExample` be what she "
-    "needs before she says it -- the model in her hands, the columns on the "
-    "board, the order to take them in. Two tellings is one telling too many",
-
-    "[7A] anything the lesson states twice is stated the same way twice. "
-    "The phase plan in `scope_declaration` and the minutes on the steps; the "
-    "round a number is worked in, in the script and in the partner activity; "
-    "the page a task sits on. Write the plan LAST, off the finished steps, "
-    "rather than writing it first and hoping the steps still agree",
 )
+
+# `surfacerules` holds the rules about the RENDER SURFACE -- what the renderer
+# pours which field into, and what that costs. They live apart because they
+# change when the renderer changes, not when the rubric does. `cbrief` imports
+# RULES and must keep seeing one flat tuple, so they are concatenated here.
+RULES = PEDAGOGY + surfacerules.SURFACE
