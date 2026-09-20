@@ -150,6 +150,98 @@ RULES = (
     "needs comes out of the We-Do, never out of the exit ticket. The shape "
     "that measured well: warm-up 5, I-Do 5, We-Do 8, You-Do 9, exit 3",
 
+    "[6B] when the chapter's pages print no characters of their own, "
+    "`hookCharacters` stays empty -- but the period still owes the class "
+    "NAMED children. Put balanced Pakistani names into the lines the teacher "
+    "says out loud: the pair roles in the We-Do script and in "
+    "`partnerActivity.teacher_words`, and two of the `problems` prompts. "
+    "Those four places cost nothing on the capped surfaces and break no "
+    "anchor rule, because the numbers stay exactly as the page prints them. "
+    "A lesson with no name in it anywhere is rated 2 on representation "
+    "however Pakistani its slates, sticks and bus numbers are",
+
+    "[7B] write the answer key FIRST and the prompt off the key, then read "
+    "every 'the only ...' in the artefact back against all of the segment's "
+    "pages. Both halves of that came off one lesson: an extension asking "
+    "which number belongs in NO column, whose own key then named the column "
+    "it does belong in, and a scope claim about the only numbers carrying an "
+    "interior zero, contradicted by two numbers the warm-up had just used. A "
+    "prompt that disagrees with its key teaches the class something false, "
+    "and an 'only' is a claim about every page, not about the page that was "
+    "open when it was written",
+
+    "[2I] the warm-up opens on PRIOR learning, not on today's skill. A "
+    "basics period is allowed to reach straight back to the codes its own "
+    "day teaches -- that is what the spiral inverts -- but a warm-up that "
+    "only rehearses today's move offers the class no retrieval, and the "
+    "judge scores active retrieval separately from everything else the "
+    "warm-up does well. Open with a short peer-mediated round on the facts "
+    "today leans on, name the prior SLO it recalls, and write the expected "
+    "answer beside each item so the teacher has a success check before the "
+    "new work starts",
+
+    "[9B] a maths warm-up must do number-sense work, not only skill work. "
+    "Counting how many questions a word problem asks is reading practice and "
+    "a fine beat, but it handles no quantities, and a period that never asks "
+    "a child to place the size of an answer leaves them unable to tell "
+    "whether their own chain came out sensibly. Add sixty to ninety seconds "
+    "of magnitude work on the segment's own numbers, with calculating "
+    "forbidden and the expected answer stated -- is 296 divided by 8 nearer "
+    "thirty or nearer forty, is 6 times 120 nearer seven hundred or nearer a "
+    "thousand -- and choose numbers whose exact values the period does not "
+    "later test, so estimating primes the work without giving it away",
+
+    "[1E] a cold exit item must be a NEW PRESENTATION of what the period "
+    "taught, never a printed rule the period never reached. Holding back the "
+    "one item on the segment's pages that no phase touches is right only "
+    "while that item is an instance of the taught skill: a division lesson "
+    "that drilled the properties off the wheel and then closed on page 75's "
+    "separate Division by 0 box tested something outside its own stated "
+    "objective, and was marked down for it even though every number was "
+    "grounded. Teach every printed rule the period leans on, then ask it "
+    "back with the scaffold removed -- no wheel to look at, or an error "
+    "already written down waiting to be caught",
+
+    "[1E] when the brief names two SLO codes, keep both in slo_refs and write "
+    "ONE student-facing objective. The second code is folded in as warm-up "
+    "retrieval of prior learning that today's rule is built on, and named as "
+    "such in the slo_statement. A statement that bundles instant recall of "
+    "two properties AND a rule about order is two objectives wearing one "
+    "sentence, and the period cannot confirm both at closure in three beats",
+
+    "[5D] success criteria are SAID to the children, in the words the teacher "
+    "should use, before a single slate is collected -- not written as marking "
+    "notes for the teacher alone. Give the sentence in full and in quotes, "
+    "child-facing: 'you have it right if you wrote 1 for the first one, and "
+    "if you said three divided by zero cannot be done, because there are no "
+    "groups to share into.' Then let them mark their own. A child who has "
+    "never heard what a right answer looks like cannot check their own work, "
+    "and all three exit-ticket elements -- new context, criteria spoken "
+    "aloud, self-prediction -- must be explicitly instructed, not implied",
+
+    "[6C] one talk beat in the period must ask for the child's OWN life, not "
+    "for a fact about the numbers. A lesson can carry rupee prices, clay "
+    "pots, a mela, balanced Pakistani names and respectful language "
+    "throughout and still be rated 2 on Student Voice, because every beat it "
+    "offered was mathematical -- 'tell your partner what happens when you "
+    "jump one more from 3,999' is rehearsal, not voice. Put the beat in the "
+    "warm-up, where it costs no capped words, ask for something the child "
+    "brings from home or from the bazaar, and then USE what two pairs say: "
+    "a price they name becomes the spare sum for the fast finishers. Local "
+    "CONTEXT is the book's; student VOICE is the child's, and the judge "
+    "scores them separately",
+
+    "[7B] a deliberate error must be worked out as carefully as the right "
+    "answer, and then written identically everywhere it appears. Writing 10 "
+    "into the tens box of 3456 + 1153 leaves the boxes reading 4, 5, 1, 0, "
+    "9, which is 45,109 -- a lesson that called it 46,109 in the worked "
+    "example, in the `bigIdea` misconception and in the set-up check put a "
+    "figure on the teacher's tongue that the board does not show, and broke "
+    "the one demonstration it was built on. Script the misreading digit by "
+    "digit, left to right, so the teacher cannot restate it; the wrong "
+    "answer is taught as deliberately as the right one, so it is checked as "
+    "hard",
+
     "[7A] anything the lesson states twice is stated the same way twice. "
     "The phase plan in `scope_declaration` and the minutes on the steps; the "
     "round a number is worked in, in the script and in the partner activity; "
