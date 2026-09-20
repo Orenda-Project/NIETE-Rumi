@@ -172,6 +172,9 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
 
     const request = {
       model: analysisModel,
+      // bd-27ort: names the spender. llm-client reads this, records it on
+      // api.cost.incurred, and strips it before the request goes out.
+      job: 'vision.analyse',
       messages: [
         { role: 'system', content: systemPrompt },
         {
