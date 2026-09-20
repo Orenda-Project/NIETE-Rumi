@@ -3,7 +3,6 @@
  * Utility functions for coaching workflow
  *
  * Responsibilities:
- * - Generate encouraging messages
  * - Determine output language
  * - Record quality metrics
  * - Calculate costs
@@ -11,66 +10,29 @@
  * Extracted from coaching.service.js as part of Phase 2 refactoring
  */
 
-const OpenAI = require('openai');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
-const { OPENAI_API_KEY } = require('../../utils/constants');
 const { getUserLanguage } = require('../../utils/language-cache');
 const { clampLanguage } = require('../../config/ux-strings');
 
 class CoachingHelpersService {
-  /**
-   * Generate encouraging message after transcription using GPT-4o
-   * @param {string} firstName - Teacher's first name
-   * @param {number} durationSeconds - Audio duration in seconds
-   * @returns {Promise<string>} Encouraging message
-   */
-  static async generateEncouragingMessage(firstName, durationSeconds) {
-    // bd-gc1ge — `firstName` arrives as `session.users.name`, which is NULL for
-    // 6,282 of 15,552 prod users. Taken raw it reached the teacher as
-    // "Transcription complete, null!" on the fallback path AND the model as
-    // "Teacher's name: null" on the success path, which the model then echoed
-    // back as her name. Normalised once here, so both callers are covered —
-    // transcription-processor and the coaching-orchestrator pass-through.
-    const name = String(firstName == null ? '' : firstName).trim();
-    try {
-      const durationMinutes = Math.round(durationSeconds / 60);
-      const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a supportive teaching coach in Pakistan. Generate a brief, warm, encouraging message (1-2 sentences max) acknowledging a teacher after they complete a classroom recording. Be authentic and specific, using their name and the lesson duration.'
-          },
-          {
-            role: 'user',
-            content: `${name
-              ? `Teacher's name: ${name}\n`
-              : 'The teacher\'s name is not on record — greet the teacher warmly without using a name, and do not invent one.\n'
-            }Lesson duration: ${durationMinutes} minutes\n\nGenerate an encouraging message.`
-          }
-        ],
-        max_tokens: 100,
-        temperature: 0.8
-      });
-
-      return `✅ ${response.choices[0].message.content.trim()}`;
-    } catch (error) {
-      logToFile('Warning: Failed to generate encouraging message, using fallback', {
-        error: error.message
-      });
-
-      // Fallback message if LLM call fails
-      const durationMinutes = Math.round(durationSeconds / 60);
-      // A nameless teacher gets the same sentence without the greeting slot —
-      // not "complete, !", which is what a bare helper swap would leave.
-      return name
-        ? `✅ Transcription complete, ${name}! You taught for ${durationMinutes} minutes - that's great stamina! 💪`
-        : `✅ Transcription complete! You taught for ${durationMinutes} minutes - that's great stamina! 💪`;
-    }
-  }
+  // bd-59840 (DC row 129): there is deliberately no post-transcription
+  // acknowledgement here any more.
+  //
+  // It began as a GPT-4o call handed only a name and a duration and told to be
+  // "authentic and specific". With no transcript and no analysis to be specific
+  // about, it invented the specificity — a teacher was told "your 29-minute
+  // lesson was engaging and impactful" before a single word had been analysed
+  // and reasonably read it as her feedback. bd-di5ap removed the model and left
+  // a fixed, translated catalog line in its place; bd-59840 removed that too,
+  // because row 129 asked for NO extra messages in the stretch between Step 1/5
+  // and the photo prompt, and an acknowledgement is still an extra message.
+  //
+  // The photo prompt now follows transcription directly and is itself the
+  // teacher's signal that her audio arrived. If a confirmation is ever wanted
+  // back, it belongs in coaching-messages.js with an `ur` variant from the
+  // start — never as an English literal at the send site, and never as a model
+  // call, which is the shape that caused this.
 
   /**
    * Determine output language for the report + voice debrief.

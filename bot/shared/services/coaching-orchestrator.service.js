@@ -133,14 +133,6 @@ class CoachingOrchestrator {
   // ============================================================================
 
   /**
-   * Generate encouraging message
-   * ✅ Delegated to CoachingHelpersService
-   */
-  static async generateEncouragingMessage(firstName, durationSeconds) {
-    return await CoachingHelpersService.generateEncouragingMessage(firstName, durationSeconds);
-  }
-
-  /**
    * Determine output language
    * ✅ Delegated to CoachingHelpersService
    */
