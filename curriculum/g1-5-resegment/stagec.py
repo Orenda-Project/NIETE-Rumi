@@ -15,6 +15,8 @@ Nothing here is invented. Sources, in order of authority:
 A column we cannot honestly derive stays "pending". A blank on an assessment or
 review row is a legitimate not-applicable, never a gap to be filled.
 """
+import re
+
 PENDING = "pending"
 PERIOD_MIN = 40
 MOVES_MIN = 10
@@ -31,8 +33,14 @@ PHASES = ("warm_up", "hook", "recall", "announce", "explain",
 
 # Who is the primary actor. The design-spec period table calls I Do "yes",
 # the opening "partly", and We Do / You Do / Exit "no".
-_FULL = frozenset({"announce", "explain"})
-_SHARED = frozenset({"warm_up", "hook", "recall"})
+# Calibrated against the spec's own reference day: I Do 8 min "yes" plus the
+# 5-min opening "partly" must land on its stated <=10 ceiling. 8*1.0 + 5*0.5
+# = 10.5, which rounds to exactly 10. `announce` is the "Set the task" routine
+# step (d0_routine.SECTION) -- the teacher organising, not the teacher
+# teaching -- so it weighs half. Putting it at full breaks that calibration
+# and the ceiling becomes unreachable on every honest day.
+_FULL = frozenset({"explain"})
+_SHARED = frozenset({"warm_up", "hook", "recall", "announce"})
 _STUDENT = frozenset({"guided", "independent", "peer_review", "exit", "homework"})
 
 # Minutes in which the children, not the teacher, are producing.
@@ -66,6 +74,34 @@ LANG_SUBJECTS = ("English", "Urdu")
 _ORAL = ("oral", "speaking", "listening", "تقریر",
          "گفتگو", "سننا",
          "بولنا")
+
+
+# Row grammar. Column A is the ONLY witness -- an assessment row also carries a
+# Topic reading "Chapter N Assessment Worksheet", and a classifier that consults
+# the Topic files every assessment row as a chapter header. That bug dropped 171
+# rows out of a 1,923-row census silently, which is why this lives under test.
+_ROW_FORMS = (
+    ("day", re.compile(r"^Day\s+\d+", re.U)),
+    ("chapter_header", re.compile(r"^Chapter\s+\d+\s*:", re.U)),
+    ("grade_banner", re.compile(r"^GRADE\s+\d+", re.U)),
+    ("assessment", re.compile(u"^\u2705\\s*Ch\\.\\s*Assessment", re.U)),
+    ("review", re.compile(u"^\U0001f4cb\\s*Ch\\.\\s*Review", re.U)),
+)
+
+
+def classify_row(col_a, topic=None):
+    """Row kind from column A, or None if this is not one of the five forms.
+
+    `topic` is accepted and deliberately ignored, so a caller that passes it
+    cannot accidentally reintroduce the misclassification.
+    """
+    text = (col_a or "").strip()
+    if not text:
+        return None
+    for kind, pattern in _ROW_FORMS:
+        if pattern.match(text):
+            return kind
+    return None
 
 
 def _weight(phase):

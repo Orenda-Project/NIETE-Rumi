@@ -55,8 +55,20 @@ class TheMoveSpine(unittest.TestCase):
 
 class TeacherPrimaryMinutes(unittest.TestCase):
     def test_it_is_derived_from_the_moves_never_defaulted(self):
-        # announce 5 + explain 5 = 10 full; warm_up 5 + hook 5 = 10 shared -> 5
-        self.assertEqual(stagec.teacher_primary_min(FORTY), 15)
+        # explain 3+2 = 5 full; warm_up 5 + hook 5 + announce 5 = 15 shared -> 7.5
+        self.assertEqual(stagec.teacher_primary_min(FORTY), 12)
+
+    def test_the_specs_own_reference_day_lands_on_its_own_ceiling(self):
+        """The calibration. Spec table: opening 5 "partly", I Do 8 "yes",
+        We Do 10 / You Do 12 / Exit 3 "no", buffer 2, ceiling <=10 min.
+        If this stops equalling the ceiling exactly, a weight has drifted."""
+        spec_day = [("warm_up", 3), ("hook", 2), ("explain", 4), ("explain", 4),
+                    ("guided", 5), ("guided", 5), ("independent", 4),
+                    ("independent", 4), ("independent", 4), ("exit", 3),
+                    ("homework", 2)]
+        self.assertEqual(sum(m for _, m in spec_day), stagec.PERIOD_MIN)
+        self.assertEqual(stagec.teacher_primary_min(spec_day),
+                         stagec.TEACHER_PRIMARY_CEILING)
 
     def test_student_phases_contribute_nothing(self):
         only = [("guided", 20), ("independent", 20)]
@@ -75,6 +87,11 @@ class TeacherPrimaryMinutes(unittest.TestCase):
 
     def test_a_declared_value_that_disagrees_with_the_spine_is_refused(self):
         self.assertTrue(stagec.check_teacher_primary(stagec.format_moves(FORTY), 8))
+
+    def test_announce_is_shared_not_teacher_primary(self):
+        """"Set the task" organises the room; it is not instruction."""
+        self.assertEqual(stagec._weight("announce"), 0.5)
+        self.assertEqual(stagec._weight("explain"), 1.0)
 
     def test_a_non_numeric_declaration_is_refused(self):
         self.assertTrue(stagec.check_teacher_primary(stagec.format_moves(FORTY),
@@ -158,6 +175,51 @@ class WhichRowsTakeWhichColumns(unittest.TestCase):
     def test_strand_is_never_written_by_stage_c(self):
         self.assertNotIn("Strand", stagec.LANG_COLUMNS)
         self.assertNotIn("Strand", stagec.CORE_COLUMNS)
+
+
+class TheRowGrammar(unittest.TestCase):
+    """Column A alone decides the row kind.
+
+    An earlier classifier also tested the Topic column, and every
+    "Chapter 3 Assessment Worksheet" row was silently reclassified as a
+    chapter header -- 171 rows dropped out of a 1,923-row census without
+    an error. These tests pin column A as the only witness.
+    """
+
+    def test_a_teaching_day(self):
+        self.assertEqual(stagec.classify_row("Day 12"), "day")
+
+    def test_a_chapter_header(self):
+        self.assertEqual(stagec.classify_row("Chapter 3: Hello Friends"), "chapter_header")
+
+    def test_a_grade_banner(self):
+        self.assertEqual(stagec.classify_row("GRADE 2"), "grade_banner")
+
+    def test_an_assessment_row(self):
+        self.assertEqual(stagec.classify_row("\u2705 Ch. Assessment"), "assessment")
+
+    def test_a_review_row(self):
+        self.assertEqual(stagec.classify_row("\U0001f4cb Ch. Review"), "review")
+
+    def test_an_assessment_row_is_not_a_chapter_header(self):
+        """The regression that cost 171 rows. Topic is not consulted."""
+        self.assertEqual(
+            stagec.classify_row("\u2705 Ch. Assessment",
+                                topic="Chapter 3 Assessment Worksheet \u2014 'Hello'"),
+            "assessment")
+
+    def test_a_blank_row_is_not_a_row(self):
+        self.assertIsNone(stagec.classify_row(""))
+        self.assertIsNone(stagec.classify_row("   "))
+
+    def test_an_unrecognised_form_is_refused_not_guessed(self):
+        self.assertIsNone(stagec.classify_row("Week 4 catch-up"))
+
+    def test_only_day_rows_take_the_full_column_set(self):
+        for kind in ("assessment", "review"):
+            self.assertEqual(stagec.columns_for(kind, "English"), ("Moves",))
+        for kind in ("grade_banner", "chapter_header"):
+            self.assertEqual(stagec.columns_for(kind, "English"), ())
 
 
 class PrerequisiteSlos(unittest.TestCase):
