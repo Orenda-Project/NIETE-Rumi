@@ -25,17 +25,13 @@ TRACES = ["A Page truth", "B Segmentation", "C Enrichment", "C-gate Enrich gate"
 
 REVIEW = ["Human reviewer", "Review status"]
 
-# stage that fills each pending column — shown on Navigation
+# stage that fills each pending column — shown on Navigation.
+# Stage C ran on 2026-09-21: Moves, Reading strategy, Collaboration structure,
+# Function, Interaction, Gap, Recycles, Prerequisite SLOs and Teacher-primary
+# min are written and left here. A column in this map is greyed, noted and
+# COLLAPSED, so leaving a written column in it hides the data from the person
+# who asked for it.
 FILLED_BY = {
-    "Moves": "C — enrichment (10–15 moves per day)",
-    "Reading strategy": "C — enrichment",
-    "Collaboration structure": "C — enrichment",
-    "Function": "B2 — curriculum functions section",
-    "Interaction": "C — enrichment",
-    "Gap": "C — enrichment",
-    "Recycles": "B2 — once Function is in",
-    "Prerequisite SLOs": "B2 — SLO ordering check",
-    "Teacher-primary min (of 40)": "C — enrichment",
     "Video": "B2 — video→SLO mapping",
 }
 
@@ -223,6 +219,12 @@ STANDFIRST = {
 
 
 def standfirst(subject):
-    return (STANDFIRST[subject] + "  Grey headers are columns a later stage "
-            "fills; they are collapsed — click the + above them to open. "
-            "Hover a grey header for which stage fills it.")
+    return (STANDFIRST[subject] + "  Stage C is filled: Moves, Reading "
+            "strategy, Collaboration structure" + (
+                ", Function, Interaction, Gap, Recycles"
+                if subject in LANG_SUBJECTS else "") +
+            ", Prerequisite SLOs and Teacher-primary min hold values on every "
+            "teaching day. Moves reads phase·minutes and is clipped to one "
+            "line — click the cell for the whole sequence. The grey group to "
+            "the right is a later stage and is still collapsed; hover a grey "
+            "header for which stage fills it.")
