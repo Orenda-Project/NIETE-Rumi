@@ -175,6 +175,15 @@ the day, and the fix is to go back and read the days — never sprinkling variet
 until a count drops. Annotate each day from what it asks children to do;
 the gate does the counting.
 
+**And the finished column is read for the opposite shape too.** A column
+split into exact equal parts — four values landing on exactly three days
+each — is rejected. Days are uneven, so a column derived from them comes out
+uneven: one answer that fits a lot of days and a tail of ones. An exact tie
+is what balancing produces rather than reading, and it is the one shape that
+looks varied on every other measure. Near-even is fine and always was —
+three days, three days, three days, two days is what honestly annotating a
+repetitive stretch of curriculum looks like, and the gate leaves it alone.
+
 ### `Prerequisite SLOs`
 Comma-separated SLO codes **from `prior_slos_available` only** — that list is
 every code taught on a strictly earlier day in this grade and subject. A code

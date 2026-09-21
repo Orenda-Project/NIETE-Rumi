@@ -7,6 +7,13 @@ reason about than an unwritten one.
 """
 import stagec
 import stagec_spines as sp
+from stagec_columns import (CLOSED_VOCAB_COLUMNS, DIVERSITY_COLUMNS,
+                            MIN_DISTINCT, MAX_SHARE, SECOND_MIN,
+                            MIN_ROWS_FOR_DIVERSITY, MIN_ROWS_PER_SKILL,
+                            BIG_VOCABULARY, SKILL_SHARE_COLUMNS,
+                            CHORAL_MAX, EVEN_MIN_VALUES, EVEN_MIN_ROWS,
+                            check_diversity, check_choral_pairs,
+                            check_copied_columns, check_even_split)
 
 # Columns Stage C derives or that were filled upstream. A worker emitting any
 # of these is overreaching, and the reach is the finding -- not the value.
@@ -101,144 +108,6 @@ def verify_row(row, subject, cells, columns):
 # These are the columns that exist to DIFFERENTIATE -- the spec keeps
 # Interaction and Gap apart for exactly this reason, because only both
 # together reveal a term of pair work with no information gap in it.
-DIVERSITY_COLUMNS = ("Collaboration structure", "Interaction", "Gap")
-MIN_DISTINCT = 3          # any smaller and the column cannot separate anything
-MAX_SHARE = 0.60          # a value past this is only flat if nothing rivals it
-SECOND_MIN = 0.25         # ...and this is what "rivals it" means
-MIN_ROWS_FOR_DIVERSITY = 12
-MIN_ROWS_PER_SKILL = 8    # below this, insisting on variety is inventing
-BIG_VOCABULARY = 8        # only here is within-skill-type variety expected
-# Share, not count, decides whether a skill type has gone flat. An absolute
-# cap means opposite things at different sizes -- seven of thirty-six Concrete
-# days is variety, seven of eleven is a column that stopped reading the days --
-# and a published count is a number workers aim at rather than describe toward.
-# Only structure columns are judged this way: `Gap` and `Interaction` state
-# facts about the task, and nine decoding days really may carry no information
-# gap. Uniformity there is a finding for a curriculum lead, not a defect.
-SKILL_SHARE_COLUMNS = ("Collaboration structure",)
-CHORAL_MAX = 0.60         # paired work carrying no information gap
-_PAIRED = ("pair", "group", "mingle")
-
-
-def check_diversity(rows, cells, columns):
-    """Findings for columns that have gone flat across a slice.
-
-    Small skill types are exempt: four Word-problem days that genuinely suit
-    one structure are honest, and forcing a second value there would be
-    inventing to fill a blank.
-    """
-    out = []
-    present = [r for r in rows if str(r["row"]) in cells]
-    if len(present) < MIN_ROWS_FOR_DIVERSITY:
-        return out
-    for col in columns:
-        if col not in DIVERSITY_COLUMNS:
-            continue
-        seen = [cells[str(r["row"])].get(col) for r in present]
-        seen = [s for s in seen if s]
-        if not seen:
-            continue
-        counts = {}
-        for s in seen:
-            counts[s] = counts.get(s, 0) + 1
-        if len(counts) < MIN_DISTINCT:
-            out.append("%s uses only %d distinct values across %d rows"
-                       % (col, len(counts), len(seen)))
-        ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-        top, n = ranked[0]
-        share = float(n) / len(seen)
-        runner = float(ranked[1][1]) / len(seen) if len(ranked) > 1 else 0.0
-        # A dominant value with a real runner-up still tells days apart. One
-        # whose rivals are tokens does not -- that is the dead column.
-        if share > MAX_SHARE and runner < SECOND_MIN:
-            out.append("%s is %r on %d of %d rows (%.0f%%) and nothing rivals "
-                       "it: the column is flat"
-                       % (col, top, n, len(seen), share * 100))
-        if len(stagec.VOCAB.get(col, ())) < BIG_VOCABULARY:
-            # Five values, two of which the spec discourages on oral days.
-            # Nine Phonics days with no information gap between the children
-            # is a true statement about phonics, not inattention.
-            continue
-        by_skill = {}
-        for r in present:
-            val = cells[str(r["row"])].get(col)
-            if val:
-                by_skill.setdefault(r.get("skill_type", "?"), []).append(val)
-        for skill in sorted(by_skill):
-            vals = by_skill[skill]
-            total = len(vals)
-            if total < MIN_ROWS_PER_SKILL:
-                continue
-            tally = {}
-            for s in vals:
-                tally[s] = tally.get(s, 0) + 1
-            if len(tally) < 2:
-                out.append("%s is a single value on all %d %r days"
-                           % (col, total, skill))
-                continue
-            if col not in SKILL_SHARE_COLUMNS:
-                continue
-            ranked = sorted(tally.items(), key=lambda kv: (-kv[1], kv[0]))
-            share = float(ranked[0][1]) / total
-            runner = float(ranked[1][1]) / total
-            if share > MAX_SHARE and runner < SECOND_MIN:
-                out.append("%s is %r on %d of %d %r days (%.0f%%) and nothing "
-                           "rivals it: the column has stopped reading the days"
-                           % (col, ranked[0][0], ranked[0][1], total, skill,
-                              100 * share))
-    return out
-
-
-
-def check_choral_pairs(rows, cells):
-    """The spec's own named failure, verbatim:
-
-        "a whole term of `pair` at `Gap: none` is choral practice in pairs,
-         and only both columns together reveal it"
-
-    Neither column alone is wrong there. The pair of them is, which is why
-    this cannot be folded into the per-column flatness checks.
-    """
-    present = [r for r in rows if str(r["row"]) in cells]
-    if len(present) < MIN_ROWS_FOR_DIVERSITY:
-        return []
-    hollow = 0
-    for r in present:
-        c = cells[str(r["row"])]
-        if c.get("Interaction") in _PAIRED and c.get("Gap") == "none":
-            hollow += 1
-    share = float(hollow) / len(present)
-    if share > CHORAL_MAX:
-        return ["%d of %d rows (%.0f%%) put children together with no "
-                "information gap between them: this is choral practice in "
-                "pairs" % (hollow, len(present), share * 100)]
-    return []
-
-def check_copied_columns(cells, columns):
-    """Columns that never depart from one another are one column, not two.
-
-    Each column is a separate question, and a slice that answers two of them
-    identically on every row has answered one. The rows must actually vary:
-    two columns honestly reading `none` throughout are a finding about the
-    curriculum, which the dead-column rules already make, not a copy.
-    """
-    out = []
-    rows = sorted(cells, key=int)
-    for i, first in enumerate(columns):
-        for second in columns[i + 1:]:
-            pairs = [((cells[r].get(first) or "").strip(),
-                      (cells[r].get(second) or "").strip()) for r in rows]
-            pairs = [p for p in pairs if p[0] or p[1]]
-            if not pairs or any(a != b for a, b in pairs):
-                continue
-            if len(set(a for a, _ in pairs)) < 2:
-                continue
-            out.append("%s and %s hold the same value on all %d rows: one of "
-                       "them is not answering its own question"
-                       % (first, second, len(pairs)))
-    return out
-
-
 def verify_slice(slice_doc, worker_out):
     """Findings for a whole slice. Empty list means it may be written."""
     out = []
@@ -257,6 +126,7 @@ def verify_slice(slice_doc, worker_out):
         out += verify_row(expected[key], subject, cells[key], columns)
     out += check_diversity(slice_doc["rows"], cells, columns)
     out += check_copied_columns(cells, columns)
+    out += check_even_split(slice_doc["rows"], cells, columns)
     if "Interaction" in columns and "Gap" in columns:
         out += check_choral_pairs(slice_doc["rows"], cells)
     return out

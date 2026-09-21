@@ -187,5 +187,30 @@ class TheBriefCarriesTheTwoRulesTheUrduPilotBroke(unittest.TestCase):
                       low)
 
 
+class TheBriefWarnsAgainstBalancingACounted(unittest.TestCase):
+    """The gate now rejects a column split into exact equal parts, and the
+    brief has to say so before a worker meets it as a rejection.
+
+    english_G4 annotated its twelve Pre-reading days `pre-teach-vocabulary` 3,
+    `predict` 3, `activate-prior-knowledge` 3, `set-purpose` 3, while its four
+    sibling grades all landed lopsided. The brief already tells workers not to
+    sprinkle variety until a count drops; it never said that the finished
+    column is read for the opposite shape too.
+    """
+
+    def setUp(self):
+        self.text = brief_text()
+
+    def test_it_says_an_exact_tie_is_rejected(self):
+        low = self.text.lower()
+        self.assertIn("split into exact equal parts", low)
+
+    def test_it_says_an_honest_column_is_lopsided(self):
+        """Without this, a worker reads the rule as a demand for variety and
+        balances harder, which is the failure itself."""
+        low = self.text.lower()
+        self.assertIn("days are uneven", low)
+
+
 if __name__ == "__main__":
     unittest.main()
