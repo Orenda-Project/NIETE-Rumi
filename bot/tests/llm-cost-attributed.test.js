@@ -73,6 +73,24 @@ describe('model spend is attributed to a job (bd-9b58p)', () => {
     expect(Object.keys(CREATED[0])).not.toContain('job');
   });
 
+  // bd-27ort. The four call sites that name themselves take the BARE getClient(), not
+  // getClientForModel — two of them behind a dependency-injection seam their tests rely on.
+  // So the contract has to hold on that path too: the wrapper reads `params.job`, records it,
+  // and strips it. If it ever stopped stripping, an unknown field would ride out to the vendor
+  // on every vision, OCR, roster and fidelity call at once.
+  test('the bare getClient() path records a job from params and does NOT send it', async () => {
+    const { getClient } = require('../shared/services/llm-client');
+    const client = getClient();
+    await client.chat.completions.create({
+      model: 'openai/gpt-4.1-mini', messages: [], job: 'vision.analyse',
+    });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].extra.job).toBe('vision.analyse');
+    expect(CREATED).toHaveLength(1);
+    expect(Object.keys(CREATED[0])).not.toContain('job');
+  });
+
   test('a caller that names no job behaves exactly as before', async () => {
     const { client, model } = getClientForModel('google/gemini-2.5-flash');
     await client.chat.completions.create({ model, messages: [] });

@@ -66,6 +66,8 @@ async function visionOcrImage(imageBuffer, mimeType, deps = {}) {
   const dataUrl = `data:${mimeType || 'image/png'};base64,${imageBuffer.toString('base64')}`;
   const resp = await getClient().chat.completions.create({
     model: visionModel(),
+    // bd-27ort: names the spender; llm-client records it and strips it before the wire.
+    job: 'lp.extractVision',
     temperature: 0,
     messages: [{
       role: 'user',

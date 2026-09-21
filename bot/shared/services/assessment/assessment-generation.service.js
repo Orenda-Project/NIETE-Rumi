@@ -18,17 +18,40 @@
  */
 
 const { getClient } = require('../llm-client');
+const { resolveModelForJob } = require('../../config/model-registry');
+const { configForRequest } = require('../../config/model-settings');
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 
 const PROMPTS = require('./ict-prompts.json');
 
-// Both slots are the same model today, as they were upstream. They stay separate
-// because the day one language needs a different model, that is a config change
-// and not a code change.
+/** One question, one answer: what this family should run right now. */
+function modelFor(family) {
+  return resolveModelForJob('assessment.generate', { cfg: configForRequest(), family }).model;
+}
+
+/**
+ * bd-jntcx — resolved PER REQUEST through the registry, not captured at import.
+ *
+ * This used to be two `process.env.X || 'literal'` expressions evaluated once when the module
+ * was first required, which fixed the model for the life of the process: no settings row, no
+ * changed variable and no incident could move it. Production spend showed this to be the second
+ * largest line in NIETE at $11.34/day, and the one job of that size nobody could steer.
+ *
+ * Getters, so the export stays truthful rather than becoming a second source of truth: reading
+ * MODELS.eng asks the registry the same question the call below asks, so a settings row moves
+ * both together. With nothing written and neither variable set, both return the same literal
+ * they always did.
+ *
+ * Both slots are still the same model today, as they were upstream, and they stay separate for
+ * the same reason as before: the day one language needs a different model, that is a config
+ * change and not a code change. That sentence used to be an intention; with the registry behind
+ * it, it is now literally true — ASSESSMENT_GEN_MODEL_URDU, or a per-language settings row,
+ * moves Urdu alone with no deploy.
+ */
 const MODELS = {
-  eng: process.env.ASSESSMENT_GEN_MODEL_ENG || 'google/gemini-3.1-pro-preview',
-  urdu: process.env.ASSESSMENT_GEN_MODEL_URDU || 'google/gemini-3.1-pro-preview',
+  get eng() { return modelFor('eng'); },
+  get urdu() { return modelFor('urdu'); },
 };
 
 // Whatever the caller calls a subject, we answer to one name internally.
@@ -374,7 +397,7 @@ async function generateExam(args) {
           totalMarks = null } = args;
 
   const key = canonical(subject) || 'eng';
-  const model = URDU_MEDIUM.has(key) ? MODELS.urdu : MODELS.eng;
+  const model = modelFor(URDU_MEDIUM.has(key) ? 'urdu' : 'eng');
   const plan = planCounts({ contentSource, questionCount, questionTypes });
 
   const messages = [
@@ -393,6 +416,9 @@ async function generateExam(args) {
   try {
     response = await getClient().chat.completions.create({
       model,
+      // bd-jntcx: names the spender. llm-client records it on api.cost.incurred and strips it
+      // before the request goes out, so this job stops being $11.34/day of anonymous spend.
+      job: 'assessment.generate',
       messages,
       temperature: 0.7,
       response_format: { type: 'json_object' },

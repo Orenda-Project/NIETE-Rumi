@@ -22,13 +22,19 @@ const TODAY = {
   'vision.analyse':   () => process.env.VISION_MODEL || 'gpt-4.1-mini',
   'roster.extract':   () => process.env.ROSTER_VISION_MODEL || 'google/gemini-3.1-flash-lite-preview',
   'quiz.transcript':  () => (process.env.TRANSCRIPT_QUIZ_MODEL || '').trim() || 'google/gemini-2.5-flash',
+  // bd-jntcx. The shipping code had no family-less path — it always chose eng or urdu — so
+  // this reproduces the floor the registry adds: the job-level variable, else the same literal
+  // both families already fell back to. The per-family behaviour is pinned separately, in
+  // model-assessment-registry.test.js, including that neither language inherits the other's.
+  'assessment.generate': () => process.env.ASSESSMENT_GEN_MODEL || 'google/gemini-3.1-pro-preview',
   'hcp.feedback':     () => process.env.HCP_FEEDBACK_MODEL || (process.env.LLM_MODEL || 'openai/gpt-4o'),
   'platform.default': () => process.env.LLM_MODEL || 'openai/gpt-4o',
 };
 
 const VARS = ['LP_AUTHOR_MODEL', 'LP_AUTHOR_MODEL_MATHS_PHYSICS', 'LP_FIDELITY_MODEL',
               'LP_EXTRACTION_VISION_MODEL', 'VISION_MODEL', 'ROSTER_VISION_MODEL',
-              'TRANSCRIPT_QUIZ_MODEL', 'HCP_FEEDBACK_MODEL', 'LLM_MODEL'];
+              'TRANSCRIPT_QUIZ_MODEL', 'HCP_FEEDBACK_MODEL', 'LLM_MODEL',
+              'ASSESSMENT_GEN_MODEL', 'ASSESSMENT_GEN_MODEL_ENG', 'ASSESSMENT_GEN_MODEL_URDU'];
 let saved;
 beforeEach(() => { saved = {}; VARS.forEach((v) => { saved[v] = process.env[v]; delete process.env[v]; }); });
 afterEach(() => VARS.forEach((v) => { if (saved[v] === undefined) delete process.env[v]; else process.env[v] = saved[v]; }));
