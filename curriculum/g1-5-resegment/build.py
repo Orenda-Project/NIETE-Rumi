@@ -2,6 +2,7 @@
 
     python3 build.py            # all four subjects
     python3 build.py English    # one subject (the others are left untouched)
+    python3 build.py --derived  # only what the corpus derives; no subject tab
 """
 import os
 import sys
@@ -43,6 +44,12 @@ TAB_ORDER = ["Navigation", "Teaching Calendar",
              "All Segments + SLOs", "Skill Taxonomy", "Pipeline Stages",
              "Samples Review", "QA Checklist"]
 
+# The tabs computed from the corpus and holding nothing a human put there.
+# `--derived` repaints exactly these, and `reset_tabs` drops only the titles
+# it is handed, so a subject tab's Stage C enrichment is out of reach of the
+# mode by construction — see test_build_derived.
+DERIVED = tuple(t for t in TAB_ORDER if t not in set(SUBJECT_TABS.values()))
+
 NAV_LABEL_TO_TAB = {v: v for v in SUBJECT_TABS.values()}
 NAV_LABEL_TO_TAB.update({t: t for t in ("All Segments + SLOs", "Skill Taxonomy",
                                         "Pipeline Stages", "Navigation",
@@ -63,7 +70,13 @@ def send(svc, requests, size=200):
 
 
 def main():
-    only = sys.argv[1] if len(sys.argv) > 1 else None
+    arg = sys.argv[1] if len(sys.argv) > 1 else None
+    # A subject tab holds 12,655 Stage C cells this build writes as PENDING,
+    # so repainting one to refresh a calendar that moved under it would cost
+    # more than the staleness. `--derived` is the way to take the second
+    # without the first.
+    derived_only = arg == "--derived"
+    only = None if derived_only else arg
     # `books` is rebound per subject below, so the whole-corpus list keeps
     # its own name. It is the only list carrying the FDE record per book.
     corpus, runs, all_books, breaks = buildload.load_corpus()
@@ -79,7 +92,9 @@ def main():
 
     svc = sheetio.client()
     titles = list(payload)
-    if not only:
+    if derived_only:
+        titles = list(DERIVED)
+    elif not only:
         titles = TAB_ORDER
     cols = {t: len(v[0][0]) for t, v in payload.items()}
     cal_rows, cal_plan = caltab.build(runs)
@@ -123,6 +138,12 @@ def main():
         values, head = sheetio.titled(
             values, f"{title.upper()}  ·  {n_days} teaching days",
             tabs.standfirst(subject))
+        if derived_only:
+            # Sized, not written. The index quotes what a full build WOULD
+            # put here, which is what the tab already holds -- the fold
+            # edited these four in place rather than repainting them.
+            sizes[title] = (len(values), len(values[0]))
+            continue
         sheetio.write_values(svc, title, values)
         sheetio.format_grid(
             svc, ids[title], len(values), len(values[0]),
