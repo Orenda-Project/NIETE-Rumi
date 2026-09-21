@@ -94,6 +94,18 @@ Reading aloud is the one to watch. Its move spine looks like an oral day's —
 mouths open, little writing — but the child is reading, and the spine is not
 what decides this. The skill type is.
 
+**But the tag does not promise text.** It says what skill the day trains, not
+that print is in front of the child, and some days carry it while the topic
+and the SLO describe talking and nothing else — an opener where children say
+their name, or discuss a picture, with nothing to read. On such a day every
+strategy name is a fabrication and `n/a` contradicts the tag, so neither is
+available to you. Write `pending`, fill the row's other columns normally, and
+name the row in your report. The gate treats that as a question for the
+curriculum lead rather than a defect in your work, and an honest `pending`
+with the row named is worth more to me than a filled cell. Do not reach for
+it anywhere else: on a day that does put a text in front of a child, pending
+is you declining to read the day.
+
 Everywhere else, hold the line the other way: an `Oral communication` day, a
 Science `Investigate` day and a Maths `Concrete` day genuinely handle no text,
 and naming a strategy on one to satisfy a gate is exactly the invention this
@@ -235,6 +247,14 @@ Earlier functions or vocabulary this day re-meets, so that encounters-per-item
 become computable. Short comma-separated phrases or codes, or `none` on a day
 that genuinely introduces without recycling. Ground it in the earlier days of
 your own slice — you can see them all.
+
+**Never restate the prerequisite here.** `Prerequisite SLOs` is what the day
+depends on to be teachable at all; `Recycles` is what it re-meets in passing,
+and a day can rest on one objective while recycling words from three other
+places, or recycle nothing while resting on plenty. The first Urdu slice set
+the two columns equal on all 124 rows and was rejected:
+**two columns that hold the same value on every row are one column, and
+the gate says so.**
 
 ---
 

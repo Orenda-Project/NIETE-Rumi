@@ -2,6 +2,7 @@
 """A worker's slice output is not trusted until it survives this."""
 import unittest
 
+import stagec
 import stagec_verify as v
 
 SLICE = {
@@ -164,6 +165,76 @@ class TheReadingStrategyRuleForTextDays(unittest.TestCase):
 
     def test_a_text_day_that_names_a_real_strategy_passes(self):
         self.assertFalse(self.strategy("English", "Phonics", "decode-blend"))
+
+
+class AReadingAloudDayWithNoTextToRead(unittest.TestCase):
+    """Some days carry the curriculum's reading-aloud tag while the topic and
+    SLO describe purely oral work -- an opener where children talk about
+    themselves, with nothing printed to read. The gate rejected `n/a` there,
+    on the reasoning that the tag is evidence text is present. It is not: the
+    tag is evidence about the SKILL, and eight of G1 Urdu's twenty-six
+    reading-aloud days have no text at all.
+
+    That left a worker no honest value, so it invented one -- `choral-echo-read`
+    on a day whose SLO is "can talk about my family". A gate that leaves only
+    dishonest answers available is the defect, not the worker.
+
+    `pending` is the honest answer, and it must reach the curriculum lead
+    rather than be quietly written, so it is surfaced as a note rather than
+    accepted in silence. It is still not a free pass: pending anywhere else,
+    and pending on a day that really does have text, stay defects.
+    """
+
+    ALOUD = u"\u0628\u0644\u0646\u062f \u062e\u0648\u0627\u0646\u06cc \u00b7 Reading aloud"
+
+    def row(self, skill_type):
+        return {"row": 6, "day": 1, "skill_type": skill_type,
+                "slo": "U-01-RD-01", "prior_slos_available": []}
+
+    def check(self, skill_type, strategy):
+        cells = {"Reading strategy": strategy,
+                 "Collaboration structure": "group-task",
+                 "Prerequisite SLOs": "none"}
+        return v.verify_row(
+            self.row(skill_type), "Urdu", cells,
+            ["Reading strategy", "Collaboration structure",
+             "Prerequisite SLOs"])
+
+    def test_pending_on_a_reading_aloud_day_is_not_a_defect(self):
+        found = self.check(self.ALOUD, stagec.PENDING)
+        self.assertEqual([], v.defects(found), found)
+
+    def test_but_it_is_surfaced_as_a_note(self):
+        """Silence would let a mis-tagged day pass unnoticed into the sheet."""
+        found = self.check(self.ALOUD, stagec.PENDING)
+        self.assertTrue([f for f in found
+                         if f.startswith(v.NOTE)], found)
+
+    def test_n_a_on_a_reading_aloud_day_is_still_a_defect(self):
+        """`n/a` asserts no text was handled. Pending asserts nobody knows."""
+        found = self.check(self.ALOUD, "n/a")
+        self.assertTrue(v.defects(found), found)
+
+    def test_a_real_strategy_still_passes(self):
+        found = self.check(self.ALOUD, "choral-echo-read")
+        self.assertEqual([], found)
+
+    def test_pending_on_another_column_is_still_a_defect(self):
+        cells = {"Reading strategy": "choral-echo-read",
+                 "Collaboration structure": stagec.PENDING,
+                 "Prerequisite SLOs": "none"}
+        found = v.verify_row(
+            self.row(self.ALOUD), "Urdu", cells,
+            ["Reading strategy", "Collaboration structure",
+             "Prerequisite SLOs"])
+        self.assertTrue(v.defects(found), found)
+
+    def test_pending_on_a_comprehension_day_is_still_a_defect(self):
+        """Comprehension days always have text. Pending there is a worker
+        declining to read the day, not a finding about the curriculum."""
+        found = self.check(u"\u062a\u0641\u06c1\u06cc\u0645 \u00b7 Comprehension",
+                           stagec.PENDING)
+        self.assertTrue(v.defects(found), found)
 
 
 if __name__ == "__main__":

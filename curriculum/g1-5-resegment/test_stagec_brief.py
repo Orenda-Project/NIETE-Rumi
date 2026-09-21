@@ -87,8 +87,6 @@ class TheBriefStatesTheRulesItIsJudgedBy(unittest.TestCase):
         self.assertIn("sprinkling variety", self.text.lower())
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TheBriefCarriesTheCrossColumnRule(unittest.TestCase):
@@ -151,3 +149,43 @@ class TheBriefNamesEveryDayThatMayNotSayNotApplicable(unittest.TestCase):
 
     def test_it_still_says_not_applicable_is_a_real_answer(self):
         self.assertIn("legitimate answer and an honest one", brief_text())
+
+
+class TheBriefCarriesTheTwoRulesTheUrduPilotBroke(unittest.TestCase):
+    """The G1 Urdu pilot produced two defects that traced back to this file.
+
+    It wrote a reading strategy on eight days whose topic and SLO are purely
+    oral -- an opener where children talk about their family -- because the
+    brief said the skill tag decides and never said the tag is silent about
+    whether text is present. And it set `Recycles` equal to `Prerequisite
+    SLOs` on all 124 rows, because the brief described what Recycles means
+    without ever saying it is a different question from the prerequisite.
+    """
+
+    def setUp(self):
+        self.text = brief_text()
+
+    def test_it_says_a_textless_reading_aloud_day_takes_pending(self):
+        low = self.text.lower()
+        self.assertIn("the tag does not promise text", low)
+        self.assertIn(stagec.PENDING, self.text)
+
+    def test_it_does_not_leave_the_skill_type_as_the_only_word(self):
+        """The old wording ended on "The skill type is." with nothing after
+        it, and a worker reading only that overrides the day it can see."""
+        self.assertNotIn("what decides this. The skill type is.\n\nEverywhere",
+                         self.text)
+
+    def test_it_forbids_recycles_restating_the_prerequisite(self):
+        low = self.text.lower()
+        self.assertIn("never restate the prerequisite", low)
+
+    def test_the_copied_column_rule_is_stated_where_the_gate_enforces_it(self):
+        """A gate rule absent from the brief fails a worker invisibly."""
+        low = self.text.lower()
+        self.assertIn("two columns that hold the same value on every row",
+                      low)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -26,6 +26,17 @@ _NEEDS_STRATEGY = ("comprehension", "pre_reading", "decoding")
 # English gloss the Urdu tags carry.
 _READING_ALOUD = "reading aloud"
 
+# Two channels, one return value. A defect holds the slice; a note travels
+# with it to a human. The distinction exists because some findings are about
+# the curriculum rather than the annotation, and a gate that can only reject
+# forces a worker to invent its way past them.
+NOTE = "NOTE: "
+
+
+def defects(findings):
+    """The findings that hold a slice. Notes are for a curriculum lead."""
+    return [f for f in findings if not f.startswith(NOTE)]
+
 
 def needs_strategy(skill_type, subject):
     """True where `n/a` would deny text the skill tag says is there."""
@@ -54,7 +65,18 @@ def verify_row(row, subject, cells, columns):
             continue
         value = (cells[col] or "").strip()
         if value == stagec.PENDING:
-            out.append("%s: %s left pending" % (tag, col))
+            # A reading-aloud tag says what skill the day trains, not that
+            # print is in front of the child. Where the day is oral through
+            # and through, every strategy name is a fabrication and `n/a`
+            # denies the tag, so pending is the only honest cell -- and it
+            # is a question for whoever tagged the day, not for the worker.
+            if col == "Reading strategy" and _READING_ALOUD in (
+                    row.get("skill_type") or "").lower():
+                out.append("%s%s: %s pending -- tagged %s but the day may "
+                           "carry no text; for the curriculum lead"
+                           % (NOTE, tag, col, row.get("skill_type", "")))
+            else:
+                out.append("%s: %s left pending" % (tag, col))
             continue
         if col in stagec.VOCAB:
             out += ["%s: %s" % (tag, m) for m in stagec.check_enum(col, value)]
@@ -192,6 +214,31 @@ def check_choral_pairs(rows, cells):
                 "pairs" % (hollow, len(present), share * 100)]
     return []
 
+def check_copied_columns(cells, columns):
+    """Columns that never depart from one another are one column, not two.
+
+    Each column is a separate question, and a slice that answers two of them
+    identically on every row has answered one. The rows must actually vary:
+    two columns honestly reading `none` throughout are a finding about the
+    curriculum, which the dead-column rules already make, not a copy.
+    """
+    out = []
+    rows = sorted(cells, key=int)
+    for i, first in enumerate(columns):
+        for second in columns[i + 1:]:
+            pairs = [((cells[r].get(first) or "").strip(),
+                      (cells[r].get(second) or "").strip()) for r in rows]
+            pairs = [p for p in pairs if p[0] or p[1]]
+            if not pairs or any(a != b for a, b in pairs):
+                continue
+            if len(set(a for a, _ in pairs)) < 2:
+                continue
+            out.append("%s and %s hold the same value on all %d rows: one of "
+                       "them is not answering its own question"
+                       % (first, second, len(pairs)))
+    return out
+
+
 def verify_slice(slice_doc, worker_out):
     """Findings for a whole slice. Empty list means it may be written."""
     out = []
@@ -209,6 +256,7 @@ def verify_slice(slice_doc, worker_out):
     for key in sorted(set(expected) & set(cells), key=int):
         out += verify_row(expected[key], subject, cells[key], columns)
     out += check_diversity(slice_doc["rows"], cells, columns)
+    out += check_copied_columns(cells, columns)
     if "Interaction" in columns and "Gap" in columns:
         out += check_choral_pairs(slice_doc["rows"], cells)
     return out
