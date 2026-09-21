@@ -78,7 +78,7 @@ resolve_scope() {   # prints the scope; exit 3 = nothing bot-facing changed, dec
     echo "scope: ledger anchor $anchor is not a commit in this clone — falling back to the full suite (all)" >&2
     printf 'all'; return 0
   fi
-  feats=$(python3 .claude/qa/shared/select_e2e.py --repo . --range "$anchor...HEAD" --json 2>/dev/null \
+  feats=$(python3 .claude/qa/engine/bin/select_e2e.py --repo . --range "$anchor...HEAD" --json 2>/dev/null \
           | python3 -c '
 import json, sys
 try:
@@ -156,7 +156,7 @@ if [ "${NIETE_E2E_PULL:-1}" != "0" ]; then
 fi
 
 # ── precondition 1: is a run already in progress? ───────────────────────────
-LOCK_STATUS="$(python3 .claude/qa/shared/driver_lock.py status --driver "$DRIVER" 2>&1)"
+LOCK_STATUS="$(python3 .claude/qa/engine/bin/driver_lock.py status --driver "$DRIVER" 2>&1)"
 if ! grep -qi "no active driver lock" <<<"$LOCK_STATUS"; then
   say "DECLINED: a run is already in progress — $LOCK_STATUS"
   say "This is expected: a full 'all' run takes ~3h15m on a 2h cadence, so"
@@ -232,9 +232,9 @@ rc=$?
 say "claude exited rc=$rc"
 
 # the run should release its own lock; make sure a crash never wedges the schedule
-if ! python3 .claude/qa/shared/driver_lock.py status --driver "$DRIVER" 2>&1 | grep -qi "no active"; then
+if ! python3 .claude/qa/engine/bin/driver_lock.py status --driver "$DRIVER" 2>&1 | grep -qi "no active"; then
   say "lock still held after exit — releasing so the next fire is not blocked forever"
-  python3 .claude/qa/shared/driver_lock.py release --driver "$DRIVER" >/dev/null 2>&1
+  python3 .claude/qa/engine/bin/driver_lock.py release --driver "$DRIVER" >/dev/null 2>&1
 fi
 # ── post-run guard: never let a fire leave nothing behind ───────────────────
 # The 2026-08-17/18 fires produced EMPTY directories and therefore looked like
@@ -250,7 +250,7 @@ if [ ! -s "$PS" ]; then
 else
   n="$(grep -cE '^\| [A-Z]{1,2}[0-9]{1,2} ' "$PS" 2>/dev/null || echo 0)"
   say "run produced $n scenario rows"
-  python3 .claude/qa/shared/validate-run.py "$RUNDIR" 2>&1 | tail -3
+  python3 .claude/qa/engine/bin/validate-run.py "$RUNDIR" 2>&1 | tail -3
 fi
 
 say "done"

@@ -1,6 +1,6 @@
 # feature-map.yaml — changed source file → affected NIETE E2E feature(s)
 #
-# Consumed by `.claude/qa/shared/select_e2e.py`, which the pre-push hook calls to
+# Consumed by `.claude/qa/engine/bin/select_e2e.py`, which the pre-push hook calls to
 # print the TARGETED `/niete-e2e <feature>` commands for a push instead of leaving
 # you to run the whole suite (bd-43512).
 #
@@ -302,7 +302,7 @@ shared:
   # selection, only widen it.
   #
   # Re-run after any refactor:
-  #   python3 .claude/qa/shared/audit_feature_map.py --repo NIETE-Rumi
+  #   python3 .claude/qa/engine/bin/audit_feature_map.py --repo NIETE-Rumi
 
   bot/shared/services/coaching/reflective-questions/**:
     [coaching, observe]

@@ -42,7 +42,7 @@ last-green, duration, coverage. Never rewritten.
 - `run_id` format: `<ts>-<tenant>-<feature>-<short>` — globally unique, sortable, human-readable
 - `commit` (optional string, **additive, 2026-09-09**): short sha of the checkout the ledger
   lives in, stamped by `ledger.append_run` when the caller does not set it. Lets a proof row
-  be tied to the build it drove (`scripts/qa/impact.py`). Readers must ignore unknown keys.
+  be tied to the build it drove (`.claude/qa/engine/bin/impact.py`). Readers must ignore unknown keys.
 
 ---
 

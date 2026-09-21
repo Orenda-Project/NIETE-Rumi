@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:menu @persona:teacher
 Feature: NIETE (ICT) WhatsApp bot — the /menu surface
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
   # Target: the NIETE bot (E2E_TARGET_NUMBER) driven from a linked WhatsApp Web
   # session via Chrome MCP. Region: ICT / Islamabad — ICT-region features ONLY.
   # This file covers the /menu surface itself (the list rows) plus the ancillary
@@ -264,3 +264,5 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # and `users` has NO such column (prod: "column users.language does not
     # exist"). Every menu tap had been handled in English for every Urdu teacher.
     # Now reads preferred_language (whatsapp-bot.js, both dispatch sites).
+
+  # 2026-09-20: this spec is driven on the mock lane automatically by the post-commit hook (engine 1.2.0).

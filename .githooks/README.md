@@ -1,28 +1,36 @@
-# `.githooks/` — the QA pipeline for commits made from a terminal
+# `.githooks/` → shims into the SHARED E2E engine
 
-Git does not run hooks from a tracked directory by itself. These travel with the
-clone; one local setting makes git use them:
+`post-commit` and `pre-push` here are four-line shims. The harness they run is not in this repo: it is
+authored once in **rumi-agent-home** at `.claude/qa/engine`, and this repo borrows it through a
+gitignored symlink at `.claude/qa/engine` (operator, 2026-09-21: *"One shared engine in
+rumi-agent-home; commit hook runs the mock lane locally; each bot owns its Gherkin and mock drivers,
+cassette fixtures"*).
+
+One command does both halves of the setup, and `npm install` runs it for you via the `prepare` script:
 
 ```bash
-bash scripts/qa/install-hooks.sh      # sets core.hooksPath = .githooks (idempotent)
+bash scripts/qa/link-engine.sh      # borrow the engine + set core.hooksPath = .githooks (idempotent)
+bash scripts/qa/link-engine.sh --unlink
 ```
 
-`npm install` at the repo root runs the same thing through the `prepare` script,
-so a normal setup already has them. `--uninstall` removes the setting; `--force`
-takes over a `core.hooksPath` that points somewhere else (by default it refuses
-and tells you).
+It looks for the engine in `$E2E_ENGINE`, then in any ancestor directory's `.claude/qa/engine`, then in
+a sibling `rumi-agent-home` clone. On a machine that has none of those it prints one sentence saying
+where the harness lives, exits 0, and commits here behave exactly as they did before the pipeline
+existed: they land, and nothing is armed.
 
-| Hook | Fires on | Does | Never |
-|---|---|---|---|
-| `post-commit` | every commit | maps the commit's files to E2E features (`feature-map.yaml`), builds the Gherkin sync brief, writes `.claude/.e2e-pending/git-<sha>.json` + `.sync.json`, prints the affected features and the two commands | fails the commit; writes anything outside `.claude/.e2e-pending/` (gitignored) |
-| `pre-push` | a push to `develop` / `main` / `staging` | runs `scripts/qa/impact.py` over the commits being sent: affected features, whether their `.feature` files were synced, the commands | blocks, unless `QA_HOOKS_STRICT=1` |
+`core.hooksPath` stays **inside** this repo on purpose. Pointing it into another tree breaks the moment
+that tree moves, and that has already cost one wedged push.
 
-What happens next is in [`docs/qa-automation.md`](../docs/qa-automation.md): the
-next Claude Code session in the clone is told about the pending marker at start
-and held once at end of turn until the specs are synced and the targeted E2E is
-driven. There is no CI counterpart by design: the pipeline is hooks only.
+## What this repo owns
 
-Switches: `QA_HOOKS_OFF=1` (both hooks silent) · `QA_HOOKS_QUIET=1` (post-commit
-arms but prints nothing) · `QA_HOOKS_STRICT=1` (pre-push blocks on a stale spec).
+| path | what it is |
+|---|---|
+| `tests/features/whatsapp/niete/*.feature` | the Gherkin, beside the code it describes |
+| `.claude/qa/shared/features/*.cjs` | the mock-lane drivers, one per feature |
+| `.claude/qa/fixtures/**` | cassettes, Flow JSON, WhatsApp copy |
+| `.claude/qa/config/**` | `tenants.yaml`, `feature-map.yaml`, `whatsapp-targets.yaml`, known findings |
+| `.claude/qa/agents/**`, `.claude/qa/ledgers/**` | the E2E agent prompts and the run ledger |
+| `.claude/qa/shared/niete_*.py` | the NIETE-only database tools the lane calls |
 
-Tests: `bash .githooks/githooks.test.sh`.
+Everything else about the pipeline comes from the shared engine. Map of the whole system:
+[`docs/qa-automation.md`](../docs/qa-automation.md).

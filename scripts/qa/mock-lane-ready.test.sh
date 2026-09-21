@@ -5,9 +5,9 @@
 # and a ledger reading `e2e: missing` (PR #1084). These cases pin the preflight: the resolver, the
 # readiness check, and commit-e2e.sh refusing up front with the one-command fix.
 #
-# Run:  bash .claude/hooks/lib/mock-lane-ready.test.sh
+# Run:  bash scripts/qa/mock-lane-ready.test.sh
 set -u
-cd "$(dirname "$0")/../../.." || exit 1
+cd "$(dirname "$0")/../.." || exit 1
 ROOT="$PWD"
 FAILED=0
 ok()  { printf '  ok    %s\n' "$1"; }
@@ -15,7 +15,13 @@ bad() { printf '  FAIL  %s\n' "$1"; FAILED=$((FAILED + 1)); }
 say() { [ "$2" = "$3" ] && ok "$1" || bad "$1 (got '$2', want '$3')"; }
 has() { case "$2" in *"$3"*) got=yes ;; *) got=no ;; esac; say "$1" "$got" "$4"; }
 
-. "$ROOT/.claude/hooks/lib/mock-lane.sh"
+. "$ROOT/.claude/qa/engine/hooks/lib/mock-lane.sh"
+# The engine is SHARED: .claude/qa/engine is a symlink whose relative target means nothing from a temp
+# dir, and `cp -R` copies the link rather than the tree. Every throwaway clone below re-points it at
+# the resolved engine. (The readiness helpers moved into the engine in 1.1.0; there is no
+# .claude/hooks/lib in this repo any more.)
+ENG_REAL=$(cd "$ROOT/.claude/qa/engine" 2>/dev/null && pwd -P) || { echo "no shared engine linked — run: bash scripts/qa/link-engine.sh" >&2; exit 2; }
+relink() { rm -f "$1/.claude/qa/engine"; ln -s "$ENG_REAL" "$1/.claude/qa/engine"; }
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/mocklane.XXXXXX"); trap 'rm -rf "$TMP"' EXIT
 
 echo "mock-lane — keys dir resolution (mirrors local-stack.sh)"
@@ -80,26 +86,26 @@ has "the not-ready text now points at railway login, not at a script to run by h
 
 echo "mock-lane — commit-e2e.sh AUTO-FIXES instead of refusing when railway is available"
 R2="$TMP/clone auto"; mkdir -p "$R2/bot/shared/services" "$R2/bot/scripts/e2e" "$R2/.claude/hooks" "$R2/tests/features/whatsapp"
-cp -R "$ROOT/.claude/qa" "$R2/.claude/qa"; cp -R "$ROOT/.claude/hooks/lib" "$R2/.claude/hooks/lib"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$R2/bot/scripts/e2e/"
+cp -R "$ROOT/.claude/qa" "$R2/.claude/qa"; relink "$R2"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$R2/bot/scripts/e2e/"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R2/tests/features/whatsapp/niete"; rm -rf "$R2/.claude/qa/results" "$R2/.claude/.e2e-pending"
 printf 'module.exports = { ROWS: [] };\n' > "$R2/bot/shared/services/menu.service.js"
 git -C "$R2" init -q -b sandbox; git -C "$R2" config user.email t@l; git -C "$R2" config user.name t; git -C "$R2" add -A >/dev/null; git -C "$R2" commit -qm baseline
 printf '// change\n' >> "$R2/bot/shared/services/menu.service.js"; git -C "$R2" add -A >/dev/null; git -C "$R2" commit -qm "feat(menu): x"
-out=$(cd "$R2" && PATH="$TMP/abin:/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin" E2E_SPEC_SYNC_OFF=1 bash .claude/qa/shared/commit-e2e.sh HEAD --features menu 2>&1); rc=$?
+out=$(cd "$R2" && PATH="$TMP/abin:/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin" E2E_SPEC_SYNC_OFF=1 bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features menu 2>&1); rc=$?
 has "commit-e2e auto-provisioned the keys" "$out" "auto-provisioned" yes
 has "…and did NOT print the not-ready block" "$out" "NOT READY" no
 [ -f "$R2/keys/niete-local.env" ] && ok "keys file exists in the repo's keys/ afterwards" || bad "keys file missing after commit-e2e"
 
 echo "mock-lane — commit-e2e.sh refuses UP FRONT on an unready machine"
 R="$TMP/clone with space"; mkdir -p "$R/bot/shared/services" "$R/.claude/hooks" "$R/tests/features/whatsapp"
-cp -R "$ROOT/.claude/qa" "$R/.claude/qa"; cp -R "$ROOT/.claude/hooks/lib" "$R/.claude/hooks/lib"
+cp -R "$ROOT/.claude/qa" "$R/.claude/qa"; relink "$R"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
 rm -rf "$R/.claude/qa/results" "$R/.claude/.e2e-pending"
 printf 'module.exports = { ROWS: [] };\n' > "$R/bot/shared/services/menu.service.js"
 git -C "$R" init -q -b sandbox; git -C "$R" config user.email t@l; git -C "$R" config user.name t
 git -C "$R" add -A >/dev/null; git -C "$R" commit -qm baseline
 printf '// change\n' >> "$R/bot/shared/services/menu.service.js"; git -C "$R" add -A >/dev/null; git -C "$R" commit -qm "feat(menu): x"
-out=$(cd "$R" && PATH="/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin" E2E_AUTOFIX_OFF=1 E2E_SPEC_SYNC_OFF=1 bash .claude/qa/shared/commit-e2e.sh HEAD --features menu 2>&1); rc=$?
+out=$(cd "$R" && PATH="/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin" E2E_AUTOFIX_OFF=1 E2E_SPEC_SYNC_OFF=1 bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features menu 2>&1); rc=$?
 say "exit 3 (blocked) — nothing was driven" "$rc" "3"
 has "the output names the missing keys file" "$out" "niete-local.env" yes
 has "…and the one remaining manual fact" "$out" "railway login" yes

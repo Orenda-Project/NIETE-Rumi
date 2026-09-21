@@ -9,8 +9,8 @@ results at a stable link, and nobody has to hunt for "which run was that".
 
 ```bash
 RUN=.claude/qa/results/whatsapp/niete/<run-id>
-python3 .claude/qa/shared/parse-per-scenario.py "$RUN"     # PER-SCENARIO.md -> scenarios.json
-python3 .claude/qa/shared/build-run-artifact.py "$RUN"     # -> $RUN/artifact.html
+python3 .claude/qa/engine/bin/parse-per-scenario.py "$RUN"     # PER-SCENARIO.md -> scenarios.json
+python3 .claude/qa/engine/bin/build-run-artifact.py "$RUN"     # -> $RUN/artifact.html
 ```
 
 Then publish with the **Artifact** tool:

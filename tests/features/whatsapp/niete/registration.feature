@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:registration @persona:teacher
 Feature: NIETE (ICT) WhatsApp bot — Registration
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
   # ICT-region only. Driven from a linked WhatsApp Web session via Chrome MCP.
   # /register opens a native onboarding Flow (REGISTRATION_FLOW_ID is set on PROD).
   # Flow screens (registration-endpoint.js): INIT → PERSONAL_INFO (full_name,

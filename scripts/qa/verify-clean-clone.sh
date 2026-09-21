@@ -1,8 +1,10 @@
 #!/bin/bash
-# verify-clean-clone.sh — prove the QA pipeline works from a FRESH CLONE of this
-# repo on a machine that has nothing else: no parent workspace, no Claude session,
-# no pre-set git config. This is the "any developer, any machine" claim, tested
-# rather than asserted.
+# verify-clean-clone.sh — prove the QA pipeline works from a FRESH CLONE of this repo, on a machine
+# with no Claude session and no pre-set git config, sitting in a workspace that carries the SHARED
+# engine. That is the real claim since 2026-09-21: the harness is authored once in rumi-agent-home,
+# this repo commits no copy of it, and a clone borrows it through the gitignored symlink that
+# scripts/qa/link-engine.sh creates. Section 7 covers the other case — a clone with no workspace at
+# all — where the honest outcome is that commits land and nothing is armed.
 #
 #   bash scripts/qa/verify-clean-clone.sh                 # clone THIS checkout's HEAD
 #   bash scripts/qa/verify-clean-clone.sh <url-or-path> [branch]
@@ -17,6 +19,7 @@
 #                                                none-needed; a runs.jsonl row records proof
 #   5. pre-push to develop                     → advisory report; strict mode blocks
 #   6. every QA test suite, inside the clone   → green
+#   7. the same clone with NO workspace above  → commits land, nothing armed, nothing errors
 # Nothing here touches WhatsApp or any database.
 set -u
 SRC="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
@@ -31,7 +34,10 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/niete clean clone.XXXXXX")   # a path with spac
 trap 'rm -rf "$TMP"' EXIT
 export HOME="$TMP/home"; mkdir -p "$HOME"                      # no user git config, no ~/.claude
 unset CLAUDE_PROJECT_DIR E2E_AUTORUN_OFF E2E_SPEC_SYNC_OFF QA_HOOKS_OFF QA_HOOKS_STRICT QA_HOOKS_QUIET CI
-C="$TMP/NIETE-Rumi"
+# the workspace that owns the one engine, exactly as rumi-agent-home does on a developer machine
+ENG_REAL=$(cd "$SRC/.claude/qa/engine" 2>/dev/null && pwd -P) || { echo "no shared engine linked in $SRC — run: bash scripts/qa/link-engine.sh" >&2; exit 2; }
+WS="$TMP/workspace"; mkdir -p "$WS/.claude/qa"; ln -s "$ENG_REAL" "$WS/.claude/qa/engine"
+C="$WS/NIETE-Rumi"
 
 echo "clean clone — $SRC ${BRANCH:+($BRANCH)}"
 if [ -n "$BRANCH" ]; then git clone -q --branch "$BRANCH" "$SRC" "$C" 2>&1 | tail -2
@@ -42,24 +48,33 @@ git -C "$C" checkout -q -b develop 2>/dev/null || git -C "$C" checkout -q develo
 git -C "$C" remote set-url origin https://github.com/Orenda-Project/NIETE-Rumi.git
 git -C "$C" branch -f origin-develop-marker >/dev/null 2>&1
 git -C "$C" update-ref refs/remotes/origin/develop HEAD  # branch-guard-allow: fixture builds a throwaway clone
-say "selector works without PyYAML (scrubbed HOME)" "$(cd "$C" && HOME=$HOME python3 -c "import sys; sys.path.insert(0, \".claude/qa/shared\"); import select_e2e as se; m=se.load_map(\".claude/qa/config/feature-map.yaml\", \".claude/qa/agents\"); print(len(se.select([\"bot/shared/services/menu.service.js\"], m, se.load_feature_order(\".claude/qa/agents\")).features))" 2>/dev/null)" "1"
 say "no hooksPath before install" "$(git -C "$C" config --get core.hooksPath)" ""
-for f in .claude/qa/config/feature-map.yaml .claude/qa/shared/select_e2e.py .claude/qa/shared/spec_sync.py \
-         .claude/qa/shared/validate_specs.py .claude/hooks/e2e-autorun.sh .claude/hooks/e2e-autorun-stop.sh \
-         .claude/hooks/e2e-pending-banner.sh .claude/commands/niete-e2e.md .claude/commands/sync-specs.md \
+say "no engine committed to this repo" "$(git -C "$C" ls-files .claude/qa/engine | wc -l | tr -d ' ')" "0"
+# borrow the shared engine, the way `npm install` does — every engine path below depends on this
+out=$(cd "$C" && bash scripts/qa/link-engine.sh 2>&1); say "link-engine exit" "$?" "0"
+has "…and it says it linked one" "$out" "engine linked" yes
+say "the engine is reachable from the clone" "$(cd "$C/.claude/qa/engine" && pwd -P)" "$ENG_REAL"
+say "selector works without PyYAML (scrubbed HOME)" "$(cd "$C" && HOME=$HOME python3 -c "import sys; sys.path.insert(0, \".claude/qa/engine/bin\"); import select_e2e as se; m=se.load_map(\".claude/qa/config/feature-map.yaml\", \".claude/qa/agents\"); print(len(se.select([\"bot/shared/services/menu.service.js\"], m, se.load_feature_order(\".claude/qa/agents\")).features))" 2>/dev/null)" "1"
+for f in .claude/qa/config/feature-map.yaml .claude/qa/engine/bin/select_e2e.py .claude/qa/engine/bin/spec_sync.py \
+         .claude/qa/engine/bin/validate_specs.py .claude/qa/engine/hooks/e2e-autorun.sh .claude/qa/engine/hooks/e2e-autorun-stop.sh \
+         .claude/qa/engine/hooks/e2e-pending-banner.sh .claude/commands/niete-e2e.md .claude/commands/sync-specs.md \
          .claude/skills/gherkin-spec-sync/SKILL.md .claude/skills/gherkin-test-cases/SKILL.md \
-         tests/features/whatsapp/niete/menu.feature .githooks/post-commit .githooks/pre-push \
-         scripts/qa/install-hooks.sh scripts/qa/impact.py; do
+         tests/features/whatsapp/niete/menu.feature .claude/qa/engine/githooks/post-commit .claude/qa/engine/githooks/pre-push \
+         .claude/qa/engine/scripts/install-hooks.sh .claude/qa/engine/bin/impact.py; do
   [ -f "$C/$f" ] || bad "missing in clone: $f"
 done
 ok "every QA artefact is in the clone (map, tooling, hooks, commands, skills, specs)"
 has "settings.json wires the E2E hooks" "$(cat "$C/.claude/settings.json")" "e2e-autorun-stop.sh" yes
-n=$(grep -rl -E "rumi-agent-home|Rumi 10 April|/Users/[a-z]+/" "$C/.claude/qa" "$C/.claude/hooks/e2e-autorun.sh" "$C/.claude/hooks/e2e-autorun-stop.sh" "$C/.claude/hooks/lib/git-push-match.sh" "$C/.claude/commands" "$C/scripts/qa" "$C/.githooks" 2>/dev/null | grep -v -E "\.test\.|test_|verify-clean-clone" | wc -l | tr -d ' ')
-say "no workspace paths in the shipped tooling (tests excepted)" "$n" "0"
+# Only this repo's OWN tooling: the engine is borrowed through a symlink and carries its own
+# no-tenant-literals test in rumi-agent-home.
+n=$(grep -rl -E "Rumi 10 April|/Users/[a-z]+/" "$C/.claude/qa/config" "$C/.claude/qa/shared" "$C/.claude/hooks" "$C/.githooks" "$C/scripts/qa" 2>/dev/null | grep -v "/tests\?/" | grep -v "\.test\." | grep -v "verify-clean-clone" | wc -l | tr -d ' ')
+say "no machine-specific paths in the shipped tooling (naming rumi-agent-home is correct now)" "$n" "0"
 
 echo "1 · install (what npm install's prepare runs)"
-out=$(cd "$C" && bash scripts/qa/install-hooks.sh --quiet 2>&1); say "installer exit" "$?" "0"
+out=$(cd "$C" && bash scripts/qa/link-engine.sh --quiet 2>&1); say "installer exit" "$?" "0"
+say "installer is silent the second time" "$out" ""
 say "core.hooksPath" "$(git -C "$C" config --get core.hooksPath)" ".githooks"
+say "the borrowed engine stays out of git" "$(cd "$C" && git status --porcelain --untracked-files=all .claude/qa/engine | wc -l | tr -d ' ')" "0"
 
 echo "2 · a terminal commit to a mapped bot file"
 PEND="$C/.claude/.e2e-pending"
@@ -71,9 +86,11 @@ SHA=$(git -C "$C" rev-parse --short=12 HEAD)
 [ -f "$PEND/git-$SHA.sync.json" ] && ok "…with the Gherkin sync brief" || bad "no brief"
 has "terminal told the developer which feature" "$err" "menu" yes
 has "…and the phase-1 command" "$err" "/sync-specs --brief" yes
-has "…and the phase-2 command" "$err" "/niete-e2e menu" yes
+has "…and the phase-2 command (the mock lane — chrome is paused)" "$err" "commit-e2e.sh $SHA --features menu" yes
 brief_feat=$(python3 -c "import json;b=json.load(open('$PEND/git-$SHA.sync.json'));print(b['features'][0]['feature'], b['features'][0]['action'], b['features'][0]['scenario_count'])" 2>/dev/null)
-say "brief says: update the menu spec (12 scenarios today)" "$brief_feat" "menu update 12"
+say "brief says: update the menu spec" "$(printf '%s' "$brief_feat" | awk '{print $1, $2}')" "menu update"
+case "$brief_feat" in *' '[0-9]*) ok "…and counts the scenarios it has today ($(printf '%s' "$brief_feat" | awk '{print $3}'))" ;;
+                     *) bad "brief carries no scenario count: '$brief_feat'" ;; esac
 
 echo "3 · a docs-only commit"
 printf '\nprobe\n' >> "$C/README.md"; git -C "$C" add -A >/dev/null
@@ -84,33 +101,36 @@ say "silent, no marker" "$(ls "$PEND" | wc -l | tr -d ' '):$err" "$before:"
 echo "4 · the Claude Code hooks, as a session in this clone would run them"
 S="verify-$$"
 pay() { printf '{"session_id":"%s","cwd":"%s","hook_event_name":"%s","tool_name":"Bash","tool_input":{"command":%s}}' "$S" "$C" "$1" "$(printf '%s' "$2" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))')"; }
-out=$(pay SessionStart "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-pending-banner.sh" 2>/dev/null)
+out=$(pay SessionStart "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/qa/engine/hooks/e2e-pending-banner.sh" 2>/dev/null)
 has "SessionStart announces the terminal commit" "$out" "git-$SHA" yes
 has "…with its brief" "$out" "git-$SHA.sync.json" yes
 printf '\n// session probe\n' >> "$C/bot/shared/services/training/x.js" 2>/dev/null || { mkdir -p "$C/bot/shared/services/training"; printf '// session probe\n' > "$C/bot/shared/services/training/x.js"; }
 git -C "$C" add -A >/dev/null; QA_HOOKS_QUIET=1 git -C "$C" commit -qm "feat(training): session probe" 2>/dev/null
-out=$(pay PostToolUse "cd \"$C\" && git commit -qm \"feat(training): session probe\"" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-autorun.sh" 2>/dev/null)
-has "a session commit arms this session's run" "$out" "/niete-e2e training" yes
+out=$(pay PostToolUse "cd \"$C\" && git commit -qm \"feat(training): session probe\"" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/qa/engine/hooks/e2e-autorun.sh" 2>/dev/null)
+has "a session commit arms this session's run" "$out" "covered by: training" yes
+has "…and orders the Gherkin sync before any driving" "$out" "/sync-specs --brief" yes
 [ -f "$PEND/$S.json" ] && ok "session marker written" || bad "session marker missing"
-out=$(pay Stop "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-autorun-stop.sh" 2>/dev/null)
+out=$(pay Stop "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/qa/engine/hooks/e2e-autorun-stop.sh" 2>/dev/null)
 has "Stop blocks once for the session's own run" "$out" '"decision": "block"' yes
-has "…naming training" "$out" "/niete-e2e training" yes
-out=$(pay Stop "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-autorun-stop.sh" 2>/dev/null)
-has "next Stop adopts the newest terminal-commit marker" "$out" "git-" yes
-has "…flagged as made outside any session" "$out" "outside any Claude session" yes
-bash "$C/.claude/hooks/e2e-autorun.sh" --clear --session "$S" 2>/dev/null
+has "…naming training" "$out" "training" yes
+out=$(pay Stop "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/qa/engine/hooks/e2e-autorun-stop.sh" 2>/dev/null)
+# Phase 1 is still owed, so the next Stop keeps holding rather than moving on to the terminal
+# commit's marker. The hold is bounded (3) so a session can never wedge.
+has "a second Stop keeps holding while the Gherkin sync is owed" "$out" "PHASE 1 IS NOT DONE" yes
+has "…and says which hold this is, so the turn cannot wedge" "$out" "hold 1 of 3" yes
+bash "$C/.claude/qa/engine/hooks/e2e-autorun.sh" --clear --session "$S" 2>/dev/null
 [ -f "$PEND/$S.json" ] && bad "--clear removes the session marker" || ok "--clear removes the session marker"
 
 echo "5 · impact over the range (what pre-push computes)"
 BASE=$(git -C "$C" rev-list --max-parents=0 HEAD | tail -1); BASE=$(git -C "$C" rev-parse "HEAD~3")
-out=$(cd "$C" && python3 scripts/qa/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
+out=$(cd "$C" && python3 .claude/qa/engine/bin/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
 say "menu is pulled in by its own file" "$(printf '%s' "$out" | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d["per_feature"]["menu"]["only_shared"])')" "False"
 say "…and its spec is STALE (menu.feature untouched)" "$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin)["per_feature"]["menu"]["spec_status"])')" "stale"
-rc=$(cd "$C" && python3 scripts/qa/impact.py --repo . --base "$BASE" --head HEAD --format md --freshness block --proof off >/dev/null 2>&1; echo $?)
+rc=$(cd "$C" && python3 .claude/qa/engine/bin/impact.py --repo . --base "$BASE" --head HEAD --format md --freshness block --proof off >/dev/null 2>&1; echo $?)
 say "block mode would fail the PR check" "$rc" "1"
 printf '\n# clean-clone verify: synced\n' >> "$C/tests/features/whatsapp/niete/menu.feature"
 git -C "$C" add -A >/dev/null; QA_HOOKS_QUIET=1 git -C "$C" commit -qm "test(menu): sync spec" 2>/dev/null
-out=$(cd "$C" && python3 scripts/qa/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
+out=$(cd "$C" && python3 .claude/qa/engine/bin/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
 say "a .feature change in the range makes it synced" "$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin)["per_feature"]["menu"]["spec_status"])')" "synced"
 say "training still stale (no spec, no declaration)" "$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin)["per_feature"]["training"]["spec_status"])')" "stale"
 git -C "$C" commit -q --allow-empty -m "chore: declare\n\nSpec-Sync: training=none-needed (probe file only, no teacher-visible change)" 2>/dev/null
@@ -119,31 +139,48 @@ chore: declare
 
 Spec-Sync: training=none-needed (probe file only, no teacher-visible change)
 MSG
-out=$(cd "$C" && python3 scripts/qa/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
+out=$(cd "$C" && python3 .claude/qa/engine/bin/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
 say "a Spec-Sync trailer declares training none-needed" "$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin)["per_feature"]["training"]["spec_status"])')" "none-needed"
 say "spec freshness verdict" "$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin)["verdict"]["spec_freshness"])')" "synced"
 say "E2E proof still missing (no run recorded)" "$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin)["verdict"]["e2e_proof"])')" "missing"
 printf '{"run_id":"verify","ts":"2026-09-07T00:00:00Z","surface":"whatsapp","tenant":"niete","env":"staging","method":"chrome","feature":"menu","summary":{"total":12,"passed":12,"failed":0,"blocked":0},"status":"HEALTHY"}\n{"run_id":"verify","ts":"2026-09-07T00:00:00Z","surface":"whatsapp","tenant":"niete","env":"staging","method":"chrome","feature":"training","summary":{"total":23,"passed":23,"failed":0,"blocked":0},"status":"HEALTHY"}\n' >> "$C/.claude/qa/ledgers/runs.jsonl"
 git -C "$C" add -A >/dev/null; QA_HOOKS_QUIET=1 git -C "$C" commit -qm "qa: record run" 2>/dev/null
-out=$(cd "$C" && python3 scripts/qa/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
+out=$(cd "$C" && python3 .claude/qa/engine/bin/impact.py --repo . --base "$BASE" --head HEAD --format json 2>/dev/null)
 say "ledger rows in the range = E2E proof recorded" "$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin)["verdict"]["e2e_proof"])')" "recorded"
-rc=$(cd "$C" && python3 scripts/qa/impact.py --repo . --base "$BASE" --head HEAD --format md --freshness block --proof block >/dev/null 2>&1; echo $?)
+rc=$(cd "$C" && python3 .claude/qa/engine/bin/impact.py --repo . --base "$BASE" --head HEAD --format md --freshness block --proof block >/dev/null 2>&1; echo $?)
 say "block mode now passes" "$rc" "0"
 
 echo "6 · pre-push to develop"
 HEAD=$(git -C "$C" rev-parse HEAD)
-out=$(cd "$C" && printf 'refs/heads/develop %s refs/heads/develop %s\n' "$HEAD" "$BASE" | bash .githooks/pre-push origin x 2>&1); rc=$?  # branch-guard-allow: synthetic ref fed to the pre-push hook
+out=$(cd "$C" && printf 'refs/heads/develop %s refs/heads/develop %s\n' "$HEAD" "$BASE" | bash .claude/qa/engine/githooks/pre-push origin x 2>&1); rc=$?  # branch-guard-allow: synthetic ref fed to the pre-push hook
 say "advisory exit 0" "$rc" "0"; has "reports the features" "$out" "menu" yes
 
 echo "7 · the QA test suites, inside the clone"
-for t in "python3 .claude/qa/shared/test_select_e2e.py" "python3 .claude/qa/shared/test_spec_sync.py" \
-         "python3 .claude/qa/shared/test_validate_specs.py" "python3 .claude/qa/shared/test_yaml_lite.py" "python3 scripts/qa/test_impact.py" \
-         "python3 .claude/qa/shared/check-all-mode-counts.py" "python3 .claude/qa/shared/validate_specs.py" \
-         "bash .claude/hooks/lib/git-push-match.test.sh" "bash .githooks/githooks.test.sh" \
-         "bash .claude/hooks/e2e-autorun-gitmarker.test.sh" "bash .claude/hooks/spec-sync-pipeline.test.sh" \
-         "bash .claude/hooks/e2e-autorun.test.sh"; do
+# The engine's OWN suites (hook behaviour, git hooks, spec-sync pipeline) are proven in
+# rumi-agent-home by `tests/run-all.sh`, which knows which assertions are known-red at the source
+# sha. From a bot clone the useful question is narrower: does every engine entry point this repo
+# depends on run here, against this repo's tenant layer?
+for t in "python3 .claude/qa/engine/bin/test_select_e2e.py" "python3 .claude/qa/engine/bin/test_spec_sync.py" \
+         "python3 .claude/qa/engine/bin/test_validate_specs.py" "python3 .claude/qa/engine/bin/test_yaml_lite.py" \
+         "python3 .claude/qa/engine/bin/test_impact.py" "python3 .claude/qa/engine/bin/check-all-mode-counts.py" \
+         "python3 .claude/qa/engine/bin/validate_specs.py" "python3 .claude/qa/engine/bin/audit_feature_map.py --repo ."; do
   (cd "$C" && $t >/dev/null 2>&1); say "$t" "$?" "0"
 done
+
+echo "8 · the same clone with NO workspace above it (the honest limit of a shared engine)"
+NW="$TMP/no-workspace"; mkdir -p "$NW"
+git clone -q "$C" "$NW/NIETE-Rumi" 2>/dev/null
+N2="$NW/NIETE-Rumi"
+git -C "$N2" config user.email dev@example.org; git -C "$N2" config user.name "Another Developer"
+out=$(cd "$N2" && bash scripts/qa/link-engine.sh 2>&1); say "link-engine still exits 0" "$?" "0"
+has "…and says where the harness lives" "$out" "rumi-agent-home" yes
+say "nothing was linked" "$( [ -e "$N2/.claude/qa/engine" ] && echo linked || echo none)" "none"
+git -C "$N2" config core.hooksPath .githooks
+printf '\n// no-workspace probe\n' >> "$N2/bot/shared/services/menu.service.js"
+git -C "$N2" add -A >/dev/null
+err=$(git -C "$N2" commit -qm "feat(menu): probe with no workspace" 2>&1); say "the commit lands" "$?" "0"
+say "…silently" "$err" ""
+say "…and arms nothing" "$(ls "$N2/.claude/.e2e-pending" 2>/dev/null | wc -l | tr -d ' ')" "0"
 
 echo "  ---"
 if [ "$FAILED" -eq 0 ]; then echo "  CLEAN-CLONE VERIFICATION PASSED ($N checks)"; else echo "  $FAILED of $N checks failing"; exit 1; fi
