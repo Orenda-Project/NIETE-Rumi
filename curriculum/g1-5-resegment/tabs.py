@@ -25,6 +25,14 @@ TRACES = ["A Page truth", "B Segmentation", "C Enrichment", "C-gate Enrich gate"
 
 REVIEW = ["Human reviewer", "Review status"]
 
+# Traces (traces.md, binding): save, publish, link, stamp. Three stages have
+# run and their cells hold links -- page truth relinked from the previous
+# build's published objects, segmentation and enrichment anchored back into
+# the row that holds them. Those three must stay visible. The other seven
+# have genuinely not run at day scale and stay grey, noted and collapsed.
+LINKED_TRACES = TRACES[:3]
+PENDING_TRACES = TRACES[3:]
+
 # stage that fills each pending column — shown on Navigation.
 # Stage C ran on 2026-09-21: Moves, Reading strategy, Collaboration structure,
 # Function, Interaction, Gap, Recycles, Prerequisite SLOs and Teacher-primary
@@ -176,7 +184,7 @@ def pending_notes(subject):
     for i, c in enumerate(cols):
         if c in FILLED_BY:
             notes[i] = f"Empty on purpose. Filled by {FILLED_BY[c]}."
-        elif c in TRACES:
+        elif c in PENDING_TRACES:
             stage = c.split(" ", 1)[0]
             notes[i] = (f"Trace column. A link lands here when stage {stage} "
                         "runs for that day. Empty means the stage has not run.")
@@ -188,7 +196,8 @@ def pending_notes(subject):
 def dead_columns(subject):
     """Indices with nothing in them yet — pending columns and unrun traces."""
     cols = header(subject)
-    return [i for i, c in enumerate(cols) if c in FILLED_BY or c in TRACES]
+    return [i for i, c in enumerate(cols)
+            if c in FILLED_BY or c in PENDING_TRACES]
 
 
 def groups(subject, min_run=2):
