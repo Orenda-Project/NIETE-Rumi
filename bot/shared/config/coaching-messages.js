@@ -58,9 +58,11 @@ const COACHING_MESSAGES = {
     ur: 'کوئی بات نہیں! سبق کے منصوبے کے بغیر ہی کلاس روم آڈیو کا تجزیہ کیا جائے گا۔',
   },
   // Lesson-plan branch: teacher said yes but didn't send the document
+  // bd-we73k: the copy now names the paste route too — it was accurate about
+  // what the code accepted and teachers still pasted, so the gap was in BOTH.
   lessonPlan_request: {
-    ...en("Great! Please send your lesson plan as a document (PDF, Word, or image).\n\nTap 📎 → Document to upload it."),
-    ur: 'بہت خوب! اپنا سبق کا منصوبہ بطور دستاویز بھیجیں (PDF، Word یا تصویر)۔\n\nاپلوڈ کے لیے 📎 → Document پر ٹیپ کریں۔',
+    ...en("Great! Send your lesson plan as a document (PDF, Word, or image) — or just paste it here as a message.\n\nTo attach a file, tap 📎 → Document."),
+    ur: 'بہت خوب! اپنا سبق کا منصوبہ بطور دستاویز بھیجیں (PDF، Word یا تصویر) — یا اسے یہیں پیغام میں لکھ کر بھیج دیں۔\n\nفائل بھیجنے کے لیے 📎 → Document پر ٹیپ کریں۔',
   },
   // Lesson-plan branch: a recent Taleemabad LP was linked from the selection list
   // (bd-wa5io — the fidelity pass scores against exactly this plan).
@@ -80,12 +82,22 @@ const COACHING_MESSAGES = {
     ...en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
     ur: '📄 سبق کا منصوبہ موصول ہو گیا! اسے پس منظر میں پڑھا جا رہا ہے اور تجزیے میں شامل کر دیا جائے گا۔',
   },
+  // Lesson-plan branch: the plan was PASTED as a chat message rather than
+  // attached (bd-we73k). Named separately from lessonPlan_received so she can
+  // tell we read what she typed — the old copy says "received", which reads as
+  // a file she never sent.
+  lessonPlan_receivedText: {
+    ...en("📄 Got your lesson plan — thanks for typing it out. I'm reading it now and will weave it into your analysis."),
+    ur: '📄 آپ کا سبق کا منصوبہ مل گیا — لکھ کر بھیجنے کا شکریہ۔ اسے ابھی پڑھا جا رہا ہے اور تجزیے میں شامل کر دیا جائے گا۔',
+  },
   // Lesson-plan branch: the uploaded document doesn't look like a lesson plan
   // (e.g. a leave letter). We still analyse the recording; we just can't use
   // this file as a plan. (field report — Irum, ICT, DC-9.)
+  // bd-we73k: a PASTE can land here too now, so the copy no longer says "file"
+  // and the retry routes name the paste as well.
   lessonPlan_notLessonPlan: {
-    ...en("📄 Thanks — but this file doesn't look like a lesson plan, so I won't reference it. I'll go ahead and analyse your classroom recording. If you meant to send a lesson plan, please resend it as a PDF, Word file, or clear page photos."),
-    ur: '📄 شکریہ — مگر یہ فائل سبق کے منصوبے جیسی نہیں لگتی، اس لیے اس کا حوالہ نہیں دیا جائے گا۔ آپ کی کلاس روم ریکارڈنگ کا تجزیہ جاری رہے گا۔ اگر سبق کا منصوبہ بھیجنا تھا تو اسے دوبارہ بھیج دیں — PDF، Word فائل یا صفحات کی صاف تصویروں کی صورت میں۔',
+    ...en("📄 Thanks — but this doesn't look like a lesson plan, so I won't reference it. I'll go ahead and analyse your classroom recording. If you meant to send a lesson plan, send it again as a PDF, a Word file, clear page photos, or pasted straight into a message."),
+    ur: '📄 شکریہ — مگر یہ سبق کے منصوبے جیسا نہیں لگتا، اس لیے اس کا حوالہ نہیں دیا جائے گا۔ آپ کی کلاس روم ریکارڈنگ کا تجزیہ جاری رہے گا۔ اگر سبق کا منصوبہ بھیجنا تھا تو دوبارہ بھیج دیں — PDF، Word فائل، صفحات کی صاف تصویریں، یا پیغام میں لکھ کر۔',
   },
   // Lesson-plan branch: legacy ack
   lessonPlan_included: {

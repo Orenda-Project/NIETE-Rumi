@@ -95,7 +95,10 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
     {
       id: `lp_upload_${coachingSessionId}`,
       title: isUrdu ? 'نیا اپلوڈ کریں' : 'Upload new',
-      description: isUrdu ? 'اپنا سبق کا منصوبہ بھیجیں' : 'Send your lesson plan document',
+      // bd-we73k: a typed-out plan counts now, so the row stops saying
+      // "document" — that word is why teachers who had their plan in text form
+      // thought this row was not for them. 30/36 code points against the 72 cap.
+      description: isUrdu ? 'اپنا سبق کا منصوبہ بھیجیں یا لکھ دیں' : 'Send or paste your lesson plan',
     },
     {
       id: `lp_none_${coachingSessionId}`,

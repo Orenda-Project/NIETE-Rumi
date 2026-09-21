@@ -424,3 +424,40 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # ⚠ ORPHAN BUG: card_yes_/later_/no_ have NO handler (card-response.service.js is
     # never called) → prioritized_action.teacher_response never becomes 'yes' and the
     # agency reminder can't fire. Expected to FAIL until wired.
+
+  @e2e @wip @draft @P1
+  Scenario: A lesson plan typed into the chat is attached to the waiting observation
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I paste my lesson plan into the chat as an ordinary message
+    Then the bot tells me it has my lesson plan and is reading it
+    And the bot does not ask me again to send it as a document
+    And the observation records that it has a lesson plan
+    # Every other way in needs a WhatsApp media id (document webhook, LP-as-photo),
+    # so a typed plan used to reach generic AI chat and the observation stayed
+    # without one. lp-text-paste.service.js pre-filters the text, resolves the
+    # session through media-session-resolver (kind 'lp'), and hands it to
+    # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
+    # lesson_plan_text with lesson_plan_link_method='pasted'.
+
+  @e2e @wip @draft @negative @P2
+  Scenario: A short reply at the lesson-plan step is not mistaken for a plan
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I send a short reply such as "no" or the teacher's name
+    Then the bot does not treat it as a lesson plan
+    And the observation still has no lesson plan attached
+    # The pre-filter is deliberately strict — a paste must clear a length floor
+    # AND name several parts of a plan. A false positive would eat the message,
+    # so short answers keep the existing behaviour (the LP prompt is re-sent).
+
+  @e2e @wip @draft @negative @P3
+  Scenario: Pasted text that is not a lesson plan gets the same rejection as a file
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I paste a long message that is not a lesson plan
+    Then the bot tells me it is not a lesson plan rather than referencing it
+    And the classroom recording is still analysed
+    # The authoritative verdict is not the pre-filter: a paste runs the SAME
+    # extraction job as an upload, so isLikelyLessonPlan decides, and the
+    # not-a-lesson-plan reply now names the paste route among the retry options.
