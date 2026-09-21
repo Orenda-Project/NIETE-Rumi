@@ -134,7 +134,9 @@ e2e_mock_lane_ready() {
 # e2e_mock_lane_autofix "<main>" [--with-redis]  → FIX the machine instead of asking (operator, 2026-09-18:
 # "no manual interventions"). Missing keys file → run provision-local-keys.sh (sandbox DB lines from Railway's
 # sandbox env, Flow/storage ids from staging). --with-redis and no redis-server → `brew install redis` when brew
-# exists. Prints one line per action; returns 0 iff the machine is ready afterwards. The ONE thing it cannot
+# exists, else `apt-get install redis-server redis-tools` when apt-get exists AND root needs no
+# password (bd-vqp9g: an Ubuntu box with no brew could not self-fix). Prints one line per action;
+# returns 0 iff the machine is ready afterwards. The ONE thing it cannot
 # create is `railway login`. E2E_AUTOFIX_OFF=1 disables it (CI, tests).
 e2e_mock_lane_autofix() {
   local main="$1" with_redis="" kd prov rc=0 out
@@ -162,8 +164,22 @@ e2e_mock_lane_autofix() {
       else
         echo "redis-server not on PATH (brew install redis failed — see \`brew install redis\` by hand)"; rc=1
       fi
+    elif command -v apt-get >/dev/null 2>&1; then
+      # Ubuntu/Debian. apt-get needs root, and this runs from HOOKS: it must never prompt, or the
+      # agent's turn hangs on a password prompt nobody can see. Install only when we are already
+      # root or sudo -n works without one; otherwise name the command and stop (bd-vqp9g).
+      local as_root=""
+      if [ "$(id -u)" = "0" ]; then as_root="env"
+      elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then as_root="sudo -n"
+      fi
+      if [ -n "$as_root" ] && $as_root apt-get install -y redis-server redis-tools >/dev/null 2>&1 \
+         && command -v redis-server >/dev/null 2>&1; then
+        echo "auto-installed redis-server via apt-get"
+      else
+        echo "redis-server not on PATH (needs root: sudo apt-get install -y redis-server redis-tools)"; rc=1
+      fi
     else
-      echo "redis-server not on PATH (no brew to auto-install it)"; rc=1
+      echo "redis-server not on PATH (no brew or apt-get to auto-install it)"; rc=1
     fi
   fi
   e2e_mock_lane_ready "$main" >/dev/null || rc=1
@@ -181,6 +197,10 @@ e2e_mock_not_ready_block() {
     echo "    railway login        # an account with access to the \"NIETE-Rumi Staging\" project; the keys file is then provisioned automatically on the next commit / session" ;;
   esac
   case "$why" in *redis-server*)
-    echo "    brew install redis   # commit-e2e.sh installs it automatically when brew is present" ;;
+    if command -v brew >/dev/null 2>&1 || ! command -v apt-get >/dev/null 2>&1; then
+      echo "    brew install redis   # commit-e2e.sh installs it automatically when brew is present"
+    else
+      echo "    sudo apt-get install -y redis-server redis-tools   # commit-e2e.sh installs it automatically when it can sudo without a password"
+    fi ;;
   esac
 }
