@@ -32,6 +32,34 @@ CHORAL_MAX = 0.60         # paired work carrying no information gap
 _PAIRED = ("pair", "group", "mingle")
 
 
+def has_signal(group):
+    """Did the source give an annotator anything to tell these days apart?
+
+    Sixteen assessment rows carrying one sentence between them, differing
+    only in the lesson number, are one day written sixteen times. A uniform
+    column over them is a transcription, not a lapse, and faulting it pushes
+    a worker to invent a split -- which is the failure the flatness rules
+    exist to prevent, arrived at by the rule itself.
+
+    Digits are stripped because the lesson counter is not a difference
+    between days. Topic and description are read together: signal is
+    whatever the row actually carries, not one privileged field.
+    """
+    seen, saw_text = set(), False
+    for r in group:
+        topic = (r.get("topic") or "").strip()
+        desc = (r.get("slo_desc") or "").strip()
+        saw_text = saw_text or bool(topic or desc)
+        text = u"%s\u241f%s" % (topic, desc)
+        seen.add(u"".join(ch for ch in text if not ch.isdigit()))
+        if len(seen) > 1:
+            return True
+    # Nothing recorded is not the same as recorded and identical. A group
+    # carrying no text at all is unread, not undifferentiated, so it keeps
+    # the complaint rather than inheriting an exemption it never earned.
+    return not saw_text
+
+
 def check_diversity(rows, cells, columns):
     """Findings for columns that have gone flat across a slice.
 
@@ -75,9 +103,10 @@ def check_diversity(rows, cells, columns):
         for r in present:
             val = cells[str(r["row"])].get(col)
             if val:
-                by_skill.setdefault(r.get("skill_type", "?"), []).append(val)
+                by_skill.setdefault(r.get("skill_type", "?"), []).append((r, val))
         for skill in sorted(by_skill):
-            vals = by_skill[skill]
+            group = by_skill[skill]
+            vals = [v for _, v in group]
             total = len(vals)
             if total < MIN_ROWS_PER_SKILL:
                 continue
@@ -85,8 +114,9 @@ def check_diversity(rows, cells, columns):
             for s in vals:
                 tally[s] = tally.get(s, 0) + 1
             if len(tally) < 2:
-                out.append("%s is a single value on all %d %r days"
-                           % (col, total, skill))
+                if has_signal([r for r, _ in group]):
+                    out.append("%s is a single value on all %d %r days"
+                               % (col, total, skill))
                 continue
             if col not in SKILL_SHARE_COLUMNS:
                 continue
