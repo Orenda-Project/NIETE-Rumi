@@ -48,10 +48,27 @@ style rather than a defect; `SLACK` is set from that measurement. A plan at
 half the budget is a different thing -- the class is left with ten empty
 minutes and the teacher improvises them.
 
-A segment that states no `content_min` states no budget, and has none of these
-failures. The rule belongs to the row, not to the gate: every lesson outside
-the basics build is scored exactly as it was before this module existed.
+WHICH ROWS ARE SCORED. Until bd-jfkl0 this module asked the row for
+`content_min` and scored nothing when it did not find it. No corpus segment
+spells `content_min` -- 0 of 2,039 -- so the check applied to the six basics
+lessons and to nothing else, and every ordinary Stage C lesson was authored
+against a 30-minute budget and then measured against none. That is the same
+shape as the `gate4` failure two paragraphs up, arrived at from the other
+direction: not an artifact missing the surfaces, but a rule missing the rows.
+
+So the pair is resolved the way the author's envelope resolves it, through
+`cbriefbasics.minutes()` -- one place, so what the gate scores and what the
+brief printed cannot drift apart. The corpus states one number, calls it
+`duration_min`, and that number is 25, 30 or 35: it is the budget wearing the
+period's name, and the period beside it is 40.
+
+What still belongs to the row is whether it is scored at all. A row naming no
+minutes has not tacitly agreed to thirty of them, and is left alone -- see
+`_states_time`. Widening a check to a shape it was not written for is one step
+from scoring every row against a default nobody wrote down.
 """
+
+import cbriefbasics
 
 # Measured 20 Sep 2026 across the six authored grade_1_english lessons: 28,
 # 28, 28, 28, 27, 27 minutes against a 30-minute plan. Two or three minutes
@@ -123,11 +140,26 @@ def structural(lp):
     return spent(lp) + routine(lp)
 
 
+def _states_time(segment):
+    """Has this row named a number of minutes under either name?
+
+    Either one is enough. A row naming only the period has still said
+    something the plan can be held to; a row naming neither has not, and
+    `failures` leaves it alone rather than resolving it a default.
+    """
+    seg = segment or {}
+    for key in ("duration_min", "content_min"):
+        v = seg.get(key)
+        if isinstance(v, int) and not isinstance(v, bool) and v > 0:
+            return True
+    return False
+
+
 def failures(lp, segment):
-    """`gate4`-shaped findings, or [] where the segment states no budget."""
-    budget = (segment or {}).get("content_min")
-    if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0:
+    """`gate4`-shaped findings, or [] where the row states no minutes."""
+    if not _states_time(segment):
         return []
+    period, budget = cbriefbasics.minutes(segment)
     total = spent(lp)
     if total == 0:
         return [{"id": "C1",
@@ -138,17 +170,16 @@ def failures(lp, segment):
                  "name": "the timed steps sum to %d minutes, content budget %d "
                          "(over by %d) — the period is %d minutes long but the "
                          "rest of it is settling the class and explaining the "
-                         "task" % (total, budget, total - budget,
-                                   segment.get("duration_min") or 0)}]
+                         "task" % (total, budget, total - budget, period)}]
     if total < budget - SLACK:
         return [{"id": "C1",
                  "name": "the timed steps sum to only %d minutes of a %d-minute "
                          "content budget, leaving %d minutes the teacher has to "
                          "fill" % (total, budget, budget - total)}]
-    return _accounted(lp, segment)
+    return _accounted(lp, period)
 
 
-def _accounted(lp, segment):
+def _accounted(lp, period):
     """Does the period the plan PRINTS match the minutes its steps claim?
 
     Reported after the content budget on purpose. When a plan is both over on
@@ -159,10 +190,11 @@ def _accounted(lp, segment):
     already allows -- it was measured off authored lessons, not chosen, and a
     period that reconciles to within it reads as on time to an observer. Ten
     unaccounted minutes does not.
+
+    `period` is the resolved one -- what the envelope printed -- not whatever
+    the row happened to spell. A corpus row says 30 and the plan prints 40,
+    and it is the 40 an observer watches the teacher against.
     """
-    period = (segment or {}).get("duration_min")
-    if not isinstance(period, int) or isinstance(period, bool) or period <= 0:
-        return []
     total = structural(lp)
     if total == period or period - SLACK <= total < period:
         return []

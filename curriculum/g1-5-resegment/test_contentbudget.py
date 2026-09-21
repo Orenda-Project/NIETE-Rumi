@@ -81,17 +81,9 @@ class TheTwoShapesALessonArrivesIn(unittest.TestCase):
         self.assertEqual(contentbudget.spent({"warmUp": {"minutes": 4}}), 4)
 
 
-class ASegmentThatStatesNoBudget(unittest.TestCase):
-    """Every lesson outside the basics build. There is nothing to break."""
-
-    def test_it_has_no_findings(self):
-        self.assertEqual(contentbudget.failures(lp(), seg(content_min=None)), [])
-
-    def test_not_even_when_the_plan_carries_no_timings_at_all(self):
-        # The rule is the segment's, not the gate's. A row that never claimed
-        # a content budget is not silently held to one.
-        self.assertEqual(
-            contentbudget.failures({"generated": {}}, seg(content_min=None)), [])
+# Which rows are scored at all now lives in `test_contentbudget_rows`. The
+# class that sat here asserted a row without `content_min` is never scored,
+# which was true of all 2,039 corpus rows and is the defect bd-jfkl0 fixed.
 
 
 class APlanThatFitsItsBudget(unittest.TestCase):
@@ -249,10 +241,16 @@ class ThePeriodThePlanPrintsHasToAddUp(unittest.TestCase):
         self.assertTrue(contentbudget.failures(
             self._lp(routine=(8, 8)), seg(30)))
 
-    def test_a_segment_with_no_duration_is_not_held_to_one(self):
+    def test_a_segment_with_no_duration_is_held_to_the_forty_it_prints(self):
+        # bd-jfkl0. This asserted the opposite: omit `duration_min` and the
+        # accounting was skipped. But the period is not the row's to waive --
+        # `cbriefbasics` prints 40 on the envelope whatever the row omits, so
+        # the ten unowned minutes are still on the teacher's clock.
         s = seg(30)
         del s["duration_min"]
-        self.assertEqual(contentbudget.failures(self._lp(routine=()), s), [])
+        f = contentbudget.failures(self._lp(routine=()), s)
+        self.assertEqual([x["id"] for x in f], ["C1"])
+        self.assertIn("40-minute period", f[0]["name"])
 
     def test_a_content_overrun_is_reported_before_the_accounting(self):
         # Cutting teaching time is the author's first move; being told about

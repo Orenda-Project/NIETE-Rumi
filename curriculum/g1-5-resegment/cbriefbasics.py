@@ -75,9 +75,10 @@ def minutes(segment):
     design. A row that states `content_min` has already learned both words
     and is taken at it.
 
-    This resolves what the AUTHOR is told. What the GATE scores is still
-    `contentbudget`'s own question, and it still asks it only of a row that
-    spells `content_min` -- see bd-jfkl0.
+    This resolves what the AUTHOR is told, and since bd-jfkl0 it is also what
+    the GATE scores: `contentbudget.failures` calls this rather than reading
+    the two keys itself, so a lesson cannot be briefed against one pair of
+    numbers and measured against another.
     """
     seg = segment or {}
 
