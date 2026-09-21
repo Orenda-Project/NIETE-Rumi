@@ -34,6 +34,7 @@ import house
 
 DEFAULT_PX = 100       # what Sheets gives a column nobody sized
 EM = 0.55              # a character's width as a fraction of the point size
+PX_PER_PT = 4.0 / 3.0  # a point is 4/3 of a pixel at the 96dpi Sheets assumes
 LEAD = 5               # line spacing on top of the point size
 PAD = 10               # the cell's own top and bottom padding
 MIN_CHARS = 20         # never claim a line holds less than this
@@ -89,8 +90,14 @@ def height(text, width_px, floor, pt=house.SUB_PT):
 
     `floor` is the tab's own house height for the row — the answer stays at
     it for the ordinary one-line case, so conforming tabs do not all grow.
+
+    `width_px` is pixels and `pt` is points, so the two are converted before
+    they are divided. Leaving that out is how this module arrived at its own
+    failure mode on 21 Sep 2026: it claimed a third more characters per line
+    than fit, sized the English G1–5 standfirst at one 28px line when its 638
+    characters needed two, and cut the last clause off the sentence.
     """
-    per_line = max(MIN_CHARS, int(width_px / (pt * EM)))
+    per_line = max(MIN_CHARS, int(width_px / (pt * PX_PER_PT * EM)))
     lines = -(-len(str(text or "")) // per_line)
     return max(floor, lines * (pt + LEAD) + PAD)
 

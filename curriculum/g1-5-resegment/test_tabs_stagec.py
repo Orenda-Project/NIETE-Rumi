@@ -182,6 +182,17 @@ class TheStandfirst(unittest.TestCase):
             for col in ("Moves", "Collaboration structure"):
                 self.assertIn(col, text, subject)
 
+    def test_every_folded_subject_says_where_its_revision_days_went(self):
+        """A teacher counting a chapter's days finds one fewer than the book
+        prints. Urdu has said why since it was built; English and Maths
+        joined the fold on 2026-09-21 (bd-2ctk6) and have to say it too.
+        Science does not fold, so it must not claim to."""
+        for subject in ("English", "Urdu", "Maths"):
+            text = tabs.standfirst(subject)
+            self.assertIn("folded into its last teaching day", text, subject)
+            self.assertIn("Flags", text, subject)
+        self.assertNotIn("folded", tabs.standfirst("Science"))
+
 
 if __name__ == "__main__":
     unittest.main()

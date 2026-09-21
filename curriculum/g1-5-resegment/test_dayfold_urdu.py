@@ -136,10 +136,14 @@ class TheFoldRefusesTheCasesWhereItWouldLoseSomething(unittest.TestCase):
         self.assertEqual(freed, 0)
         self.assertEqual(len(out), 2)
 
-    def test_english_and_maths_revision_rows_are_out_of_scope(self):
-        rows = [seg(1, "Day 1", "reading_comprehension"),
+    def test_science_revision_rows_are_out_of_scope(self):
+        # This used to read "English and Maths". Those two joined the fold
+        # on 2026-09-21 (bd-2ctk6); Science did not, and Rule 4 is why --
+        # its chapters sit at the period ceiling and a 5E cycle is completed
+        # by swapping a period, not by freeing one.
+        rows = [seg(1, "Day 1", "investigate_handson"),
                 seg(1, "Day 2", "revision"), seg(1, "Day 3", "assessment")]
-        out, freed = dayfold.fold_revision(rows, "English")
+        out, freed = dayfold.fold_revision(rows, "Science")
         self.assertEqual(freed, 0)
         self.assertEqual(out, rows)
 

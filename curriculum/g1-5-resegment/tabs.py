@@ -254,7 +254,8 @@ def groups(subject, min_run=2):
 
 STANDFIRST = {
     "English": "One row per teaching day, rebuilt from the printed pages. "
-               "Grades 1-5, in grade then chapter then day order.",
+               "Grades 1-5, in grade then chapter then day order."
+               " Each chapter's revision is folded into its last teaching day, which carries the extra SLOs and says so in Flags — so a chapter's days run 1..n with no revision day among them, and the Chapter Review tail is gone.",
     "Urdu": "One row per teaching day. The Urdu day boundaries are the ones "
             "already in production — only the day-integrity fields were "
             "repaired. جائزہ (assessment) is an ordinary Day row here, not a "
@@ -264,7 +265,8 @@ STANDFIRST = {
             "days run 1..n with no revision day among them.",
     "Maths": "One row per teaching day, rebuilt from the printed pages. Skill "
              "type IS the CPA phase — concrete, pictorial, the bridge, "
-             "abstract, word problem.",
+             "abstract, word problem."
+             " Each chapter's revision is folded into its last teaching day, which carries the extra SLOs and says so in Flags — so a chapter's days run 1..n with no revision day among them, and the Chapter Review tail is gone.",
     "Science": "One row per teaching day, Grades 4-5 General Science. The day "
                "boundaries are production's; only the day-integrity fields "
                "were repaired.",

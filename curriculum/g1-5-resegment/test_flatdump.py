@@ -151,7 +151,12 @@ class TheLiveBuildAgreesWithItsOwnRowTypes(unittest.TestCase):
         self.assertEqual(len(matched), len(self.kinds("day")))
 
     def test_the_chapter_tails_are_counted_where_they_belong(self):
-        self.assertEqual(len(self.kinds("review")), 121)
+        # Review tails used to be 121. Rule 3 opened to Grades 2-5 English
+        # and Maths on 2026-09-21 (bd-2ctk6) and folded 103 of them into the
+        # day beside them, so the 18 left are Science's -- the only subject
+        # the fold gate still shuts on. Assessments are untouched: the fold
+        # takes the revision row, never the assessment that follows it.
+        self.assertEqual(len(self.kinds("review")), 18)
         self.assertEqual(len(self.kinds("assessment")), 145)
 
     def test_urdu_contributes_no_chapter_tail_and_that_is_by_design(self):

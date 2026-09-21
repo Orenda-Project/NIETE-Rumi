@@ -13,12 +13,17 @@ each one buying the most teaching it can?
            and the review work move onto that day, only the separate period
            goes. The assessment keeps its own period; a check that shares a day
            with the teaching it checks is not a check.
-           Grade 1 English and Maths take the same fold, for a different
-           reason: six weeks of Foundations cost 99 periods against a spare of
-           66, and the 27 revision rows (E 12, M 15) are the cheapest thing in
-           the book to give up. FOLDS below is the whole gate. Grades 2-5
-           English and Maths hold 130 more such rows; folding them is a
-           pedagogy decision, filed, not a flag to flip here.
+           English and Maths take the same fold. Grade 1 took it first and
+           for a different reason: six weeks of Foundations cost 99 periods
+           against a spare of 66, and its 27 revision rows (E 12, M 15) were
+           the cheapest thing in the book to give up. The other 103 (G2-5,
+           E 50 / M 53) were held back as a pedagogy question rather than a
+           gate setting, and Amena answered it on 2026-09-21: fold them
+           (bd-2ctk6). Read the count off the books, not off this comment --
+           it said 130 for months, which was every English and Maths revision
+           row in Grades 1-5 with Grade 1's own 27 counted a second time.
+           None of the 103 is a chapter-OPENING recap, so each folds into
+           the day it sits beside, which is also its chapter's last.
 
   Rule 4 — a 5E cycle is completed by swapping a period, never by adding one.
            Science is taught on 5E and no chapter runs the whole cycle: Grade 4
@@ -62,10 +67,12 @@ INVESTIGATE = "investigate_handson"
 APPLY = "apply_connect"
 
 # Which grades Rule 3 folds, per subject. None means every grade; a subject
-# not listed is never folded. The Grade 1 entries pay for the Foundations
-# block (foundations.py) and are the ONLY thing standing between the fold and
-# the 130 revision periods of Grades 2-5 English and Maths.
-FOLDS = {"Urdu": None, "English": frozenset({1}), "Maths": frozenset({1})}
+# not listed is never folded, and Science is the only subject that isn't --
+# Rule 4 below is why. English and Maths were `frozenset({1})` until
+# 2026-09-21: the fold paid the Grade 1 Foundations bill (foundations.py) and
+# Grades 2-5 waited on a pedagogy decision, which came back "fold them"
+# (bd-2ctk6, 103 further periods).
+FOLDS = {"Urdu": None, "English": None, "Maths": None}
 
 # Stored on the host row as well as in `notes`, because `notes` may already
 # hold something of its own and the tab shows this one in `Flags`: the fold
@@ -120,13 +127,22 @@ def _absorb(host, revision, note=FOLD_NOTE):
     descs = list(host.get("slo_descriptions") or [])
     from_rev = revision.get("slo_descriptions") or []
     by_code = dict(zip(revision.get("slo_codes") or [], from_rev))
+    # What arrives from the revision is spiralled, not taught, and the host
+    # has to be able to say which is which afterwards. dayrules names a day's
+    # primary SLO by "first day listing this code", and a revision row is not
+    # a day -- so without this mark its codes look brand new on the host and
+    # take the day away from the SLO it actually teaches. See
+    # test_dayfold_roles.
+    folded = list(host.get("folded_slo_codes") or [])
     for code in revision.get("slo_codes") or []:
         if code in codes:
             continue
         codes.append(code)
+        folded.append(code)
         if descs or from_rev:
             descs.append(by_code.get(code, ""))
     host["slo_codes"] = codes
+    host["folded_slo_codes"] = folded
     if descs:
         host["slo_descriptions"] = descs
 

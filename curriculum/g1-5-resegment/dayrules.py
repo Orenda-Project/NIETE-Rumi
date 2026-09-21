@@ -30,6 +30,20 @@ FLUENCY_SKILLS = {"buland_khwani"}
 # Rule 1 — every SLO has one introducing day; later days develop it
 # --------------------------------------------------------------------------
 
+def _taught(day):
+    """The codes a day teaches in its own right.
+
+    Everything except what dayfold Rule 3 folded into it from a chapter
+    revision: those are spiralled, and a spiral is by definition a second
+    sighting even when it is the first one in the book. Excluding them from
+    `first_seen` as well as from the primary keeps the introduction where the
+    teaching is -- a later day that genuinely teaches the code still gets to
+    say `introduces`.
+    """
+    folded = set(day.get("folded_slo_codes") or [])
+    return [c for c in (day.get("slo_codes") or []) if c not in folded]
+
+
 def assign_slo_roles(days):
     """Name each day's primary SLO and what the day does with it.
 
@@ -43,7 +57,7 @@ def assign_slo_roles(days):
     """
     first_seen = {}
     for idx, day in enumerate(days):
-        for code in day.get("slo_codes") or []:
+        for code in _taught(day):
             first_seen.setdefault(code, idx)
 
     out = []
@@ -51,8 +65,9 @@ def assign_slo_roles(days):
         codes = day.get("slo_codes") or []
         descs = day.get("slo_descriptions") or []
         by_code = dict(zip(codes, descs))
-        new = [c for c in codes if first_seen.get(c) == idx]
-        primary = (new or codes or [None])[0]
+        own = _taught(day)
+        new = [c for c in own if first_seen.get(c) == idx]
+        primary = (new or own or codes or [None])[0]
         out.append({
             "primary_slo": primary,
             "primary_slo_desc": by_code.get(primary, ""),

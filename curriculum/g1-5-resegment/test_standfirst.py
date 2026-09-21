@@ -117,6 +117,23 @@ class HeightFromTheTextItHolds(unittest.TestCase):
         # the case a glance at the tab does NOT catch.
         self.assertGreater(standfirst.height("y" * 163, 970, floor=28), 28)
 
+    def test_a_point_is_wider_than_a_pixel(self):
+        """The width is in pixels and the size is in points, so the two have
+        to be converted before they are divided. A point is 4/3 of a pixel at
+        96dpi, so treating them as equal claims a third more characters per
+        line than fit -- which is this module's own failure mode, arrived at
+        from inside. A line of 11pt may hold at most 1000 / (11 * 4/3 * 0.55)
+        = 124 characters in 1000px; 130 must therefore wrap.
+        """
+        self.assertGreater(standfirst.height("y" * 130, 1000, floor=28), 28)
+
+    def test_the_english_standfirst_needs_two_lines(self):
+        # The live one, 2026-09-21: 638 characters merged across C2:Y2, which
+        # is 3920px on the English G1-5 tab. Measured as one 28px line, so
+        # "...Nothing on this tab is hidden or collapsed" never rendered.
+        px = standfirst.height("y" * 638, 3920, floor=28)
+        self.assertGreaterEqual(px, 2 * (house.SUB_PT + 5) + 10)
+
 
 class TheWholeQuestionInOneCall(unittest.TestCase):
     """row_px answers what a painter actually wants to know."""
