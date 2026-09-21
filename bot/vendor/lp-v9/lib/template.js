@@ -26,6 +26,7 @@ const { LABELS } = require("./overlay");
 const { fontCss, katexCss, REPO_ROOT } = require("./fonts");
 const { toV3 } = require("./migrate");
 const { questionIndex } = require("./questions");
+const { prunePending } = require("./pending");
 
 // ── diagram-type badge: the enum is OURS, the badge is the TEACHER'S ─────────
 // The figure badge used to print `spec.type` raw, under `text-transform:uppercase`, so the
@@ -1882,16 +1883,29 @@ function makeBlockRenderer(ctx) {
        has to print as a labelled blank, not vanish into a shorter list. */
     big_idea: (b) => {
       const label = b.title === undefined ? L.bigIdea : b.title;
+      // bd-7l7ne. The labelled blank above is the 6-12 law and still holds there: an EMPTY string
+      // is an author's omission and prints as a blank so it gets written. A MISSING key is a
+      // different thing -- only the primary prune removes one, and a label with nothing behind it
+      // is the apology the operator asked us to stop printing.
       const para = (key, text) =>
-        `<p class="bip"><span class="bil">${esc(L[key])}</span>${rich(text || "")}</p>`;
+        text === undefined || text === null
+          ? ""
+          : `<p class="bip"><span class="bil">${esc(L[key])}</span>${rich(text || "")}</p>`;
+      const paras = para("biDistinction", b.distinction) + para("biMisconception", b.misconception)
+        + para("biDemo", b.demo);
+      if (!paras) return "";
       return `<div class="blk bigidea">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
-      ${para("biDistinction", b.distinction)}${para("biMisconception", b.misconception)}${para("biDemo", b.demo)}</div>`;
+      ${paras}</div>`;
     },
 
     key_points: (b) => {
       const label = b.title === undefined ? L.keyPoints : b.title;
+      // bd-7l7ne -- `items` is required by the schema and only the primary prune can remove it.
+      // A heading over an empty list is not a lesson surface, so the block goes with it.
+      const items = b.items || [];
+      if (!items.length) return "";
       return `<div class="blk">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
-      <ul class="kp"${label ? "" : ' style="margin-top:0"'}>${b.items.map((i) => `<li>${rich(i)}</li>`).join("")}</ul></div>`;
+      <ul class="kp"${label ? "" : ' style="margin-top:0"'}>${items.map((i) => `<li>${rich(i)}</li>`).join("")}</ul></div>`;
     },
 
     /* bd-a8veu.21 — the same facts, one attribute name instead of one per sentence. A ragged
@@ -2694,7 +2708,7 @@ function page1(doc, ctx, secIndex) {
   const HALF_COL = Math.floor((PAGE_INNER_W - 12) / 2) - FIG_CHROME;
   const whole = (s, colPx) => `<div class="sec">${bar(s.id, s.title || L[s.id], s.minutes, L, "", null, s.move)}
       ${before(s).map((x) => x.html).join("\n")}
-      ${s.blocks.map((b) => blk(b, colPx)).join("\n")}
+      ${(s.blocks || []).map((b) => blk(b, colPx)).join("\n")}
       ${after(s).map((x) => x.html).join("\n")}</div>`;
 
   // Which blocks get the wider rung: the loudest boxes on the page, and anything with a
@@ -2813,10 +2827,10 @@ function page1(doc, ctx, secIndex) {
   const moveSplit = (s) => {
     if (!PRIMARY || s.id !== "activity") return null;
     const key = (b) => String(b.id || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
-    const at = s.blocks.findIndex((b) => key(b).startsWith("youdo"));
+    const at = (s.blocks || []).findIndex((b) => key(b).startsWith("youdo"));
     if (at <= 0) return null;
     const minsOf = (pre, type) => {
-      const b = s.blocks.find((x) => key(x).startsWith(pre) && (!type || x.type === type));
+      const b = (s.blocks || []).find((x) => key(x).startsWith(pre) && (!type || x.type === type));
       return b && b.minutes;
     };
     return { at, we: minsOf("wedo"), you: minsOf("youdo", "practice") };
@@ -2832,12 +2846,16 @@ function page1(doc, ctx, secIndex) {
       { sec: id, first: true, glue: true, sp: 4 })];
     let sec = id;
     for (const x of before(s)) out.push(atom(x.html, { sec, glue: x.glue, soft: x.soft, sp: x.sp }));
-    for (const b of s.blocks) {
+    // bd-7l7ne -- `blocks` is required by the schema, and the ONLY thing that removes it is the
+    // primary prune emptying it. The section is still here because something else in it is real:
+    // on the G3 Maths sample the Check bar survives on its authored exit ticket while its one
+    // wholly-pending list goes. Read it defensively, like every other painter on this path.
+    for (const b of s.blocks || []) {
       // the key words are printed once, in the resources card at the top of the page
       if (kwHoisted && b === kwHoisted) continue;
       // and the board is printed once, as the last panel of the set-up furniture (SYNC 3.25)
       if (bdHoisted && b === bdHoisted) continue;
-      if (split && b === s.blocks[split.at]) {
+      if (split && b === (s.blocks || [])[split.at]) {
         // The sub-band is a FIRST atom under its own continuation key, so the packer probes and
         // charges for its height like any other bar, and a page resuming here repaints YOU DO.
         secIndex[YOU_SUB] = { kind: "p1", id, title: L.youDo };
@@ -3059,16 +3077,27 @@ function flowHosts(doc) {
 }
 
 /** One authored misconception: what the pupil writes, and the question you ask back. */
-const misCard = (m, L) => `<div class="mis">
-      <div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>
-      <div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div></div>`;
+const misCard = (m, L) => {
+  // bd-7l7ne -- the halves are painted independently because the primary prune can take one and
+  // leave the other: on the G3 Maths sample the question the teacher asks back is authored and
+  // only what the pupil writes is pending. Half a card is worth keeping; a labelled blank is not.
+  const x = m.pupil_says == null ? ""
+    : `<div class="x"><span class="lbl">&#10007; ${esc(L.pupilSays)}</span><p>${rich(m.pupil_says)}</p></div>`;
+  const v = m.you_ask == null ? ""
+    : `<div class="v"><span class="lbl">&#10003; ${esc(L.youAsk)}</span><p>${rich(m.you_ask)}</p></div>`;
+  return x || v ? `<div class="mis">
+      ${x}
+      ${v}</div>` : "";
+};
 
 /** The three differentiation cards, in the order a teacher reaches for them mid-practice. */
 const diffCards = (D, L) => [
-  `<div class="card"><span class="lbl">${esc(L.stuck)}</span><p>${rich(D.stuck)}</p></div>`,
-  `<div class="card"><span class="lbl">${esc(L.barrier)}</span><p>${rich(D.barrier)}</p></div>`,
-  `<div class="card"><span class="lbl">${esc(L.early)}</span><p>${rich(D.early)}</p></div>`,
-];
+  ["stuck", D.stuck], ["barrier", D.barrier], ["early", D.early],
+]
+  // bd-7l7ne -- a missing key means the primary prune took that card; the other two still print,
+  // and `gridRows` already sizes a short row (render-law 15), so nothing downstream has to know.
+  .filter(([, text]) => text != null)
+  .map(([key, text]) => `<div class="card"><span class="lbl">${esc(L[key])}</span><p>${rich(text)}</p></div>`);
 
 /**
  * A labelled card group as FLOW atoms — the shape `gridRows` gives the support page, plus the
@@ -3352,6 +3381,7 @@ function page2(doc, ctx, secIndex) {
   // 853px across the study's 24 lessons — and therefore the single biggest source of stranded
   // space. It splits by row, and when `homework_key` is absent (bd-s19g8) it is not painted.
   S(L.p2Hw, gridRows("grid2", (P.homework_key || [])
+    .filter((h) => h.answer != null)  // bd-7l7ne: the primary prune can take the answer itself
     .map((h) => {
       const it = h.ref ? Q.get(h.ref) : null;
       return `<div class="card mk"><span class="lbl">${h.ref ? esc(h.ref) : ""}${h.marks ? ` &middot; ${h.marks} ${esc(L.marks)}` : ""}</span>
@@ -3379,7 +3409,7 @@ function page2(doc, ctx, secIndex) {
   // FURNITURE — the number lives in the label pack and nowhere else, so it cannot drift document
   // to document and costs nothing against the word budget. K-5 learned the last step the hard
   // way: a CTA that does not say what comes BACK is just a request (FEEDBACK_LEDGER #13).
-  S(L.p2Coach, [`<div class="coach"><p>${rich(P.coaching_lookfor)}</p>
+  S(L.p2Coach, [`<div class="coach">${P.coaching_lookfor == null ? "" : `<p>${rich(P.coaching_lookfor)}</p>`}
     ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
     <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`]);
 
@@ -3528,9 +3558,18 @@ function buildHtml(input, opts = {}) {
   const fonts = fontCss({ urdu: rtl || urduScript });
   if (fonts.missing.length) warnings.push(`font file(s) not embedded, falling back to system: ${fonts.missing.join(", ")}`);
 
+  // bd-7l7ne -- GRADES 1-5 ONLY. Operator: "what is pending is not relevant for Primary."
+  // `lib/pending.js` carries the whole rule and the reasoning; the gate is `ctx.primary`, read off
+  // `provenance.grade`, so a 6-12 document never enters it and `content` is `doc` by reference.
+  // Every drop becomes a build warning, because a silent drop and an authoring gap look identical
+  // from the outside.
+  const pruned = ctx.primary ? prunePending(doc) : { doc, dropped: [] };
+  for (const what of pruned.dropped) warnings.push(`primary: dropped design-pending ${what}`);
+  const content = pruned.doc;
+
   const secIndex = {};
-  const teach = page1(doc, ctx, secIndex);
-  const support = page2(doc, ctx, secIndex);
+  const teach = page1(content, ctx, secIndex);
+  const support = page2(content, ctx, secIndex);
   const breaks = opts.breaks || { teach: [], support: [] };
   const teachPages = (breaks.teach || []).length + 1;
   const supportPages = (breaks.support || []).length + 1;
