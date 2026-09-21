@@ -324,3 +324,68 @@ describe('bd-we73k · text-handler wiring (source)', () => {
     expect(call).toBeLessThan(examChecker);
   });
 });
+
+// ------------------------------------------------------------------
+// 6. BOTH FLOWS — self-serve DC and a HITL /observe observation.
+//    The resolver is REAL here (only the DB and the writer are stubbed), so
+//    this proves the ownership rule end to end rather than trusting the mock
+//    used in section 2.
+// ------------------------------------------------------------------
+describe('bd-we73k · the paste reaches DC and HITL alike, and nothing else', () => {
+  function load(rows) {
+    jest.resetModules();
+    const pasted = [];
+    jest.doMock('../../bot/shared/services/coaching/media-target.service', () => ({
+      getTarget: async () => null, clearTarget: async () => {}, setTarget: async () => {},
+    }));
+    jest.doMock('../../bot/shared/config/supabase', () => ({
+      from: () => {
+        const b = { select: () => b, or: () => b, in: () => b, order: async () => ({ data: rows, error: null }) };
+        return b;
+      },
+    }));
+    jest.doMock('../../bot/shared/services/coaching/lesson-plan-processor.service', () => ({
+      handlePastedLessonPlan: async (sid) => { pasted.push(sid); },
+    }));
+    return { svc: require('../../bot/shared/services/coaching/lp-coaching/lp-text-paste.service'), pasted };
+  }
+
+  const AT_LP_STEP = { status: 'awaiting_lesson_plan' };
+  const dcSession = { id: 'dc-1', ...AT_LP_STEP, user_id: 'teacher-1', observer_user_id: null, observation_type: null };
+  const observation = { id: 'obs-1', ...AT_LP_STEP, user_id: 'teacher-2', observer_user_id: 'coach-1', observation_type: 'leader_observation' };
+
+  afterEach(() => {
+    jest.dontMock('../../bot/shared/services/coaching/media-target.service');
+    jest.dontMock('../../bot/shared/config/supabase');
+    jest.dontMock('../../bot/shared/services/coaching/lesson-plan-processor.service');
+    jest.resetModules();
+  });
+
+  it('DC self-serve: the teacher pastes into her OWN session and it attaches', async () => {
+    const { svc, pasted } = load([dcSession]);
+    await expect(svc.tryAttachPastedLessonPlan({ user: { id: 'teacher-1' }, from: '92300', text: PASTED_LP })).resolves.toBe(true);
+    expect(pasted).toEqual(['dc-1']);
+  });
+
+  it('HITL /observe: the COACH pastes the observed teacher\'s plan and it attaches', async () => {
+    // The row is OWNED by the observed teacher; the coach drives it.
+    const { svc, pasted } = load([observation]);
+    await expect(svc.tryAttachPastedLessonPlan({ user: { id: 'coach-1' }, from: '92301', text: PASTED_LP })).resolves.toBe(true);
+    expect(pasted).toEqual(['obs-1']);
+  });
+
+  it('HITL: the OBSERVED teacher\'s own paste never lands in the coach\'s observation', async () => {
+    // She is the subject of the row, not its driver — the failure bd-wwcgf fixed
+    // for photos and texts, reached here by a third route.
+    const { svc, pasted } = load([observation]);
+    await expect(svc.tryAttachPastedLessonPlan({ user: { id: 'teacher-2' }, from: '92302', text: PASTED_LP })).resolves.toBe(false);
+    expect(pasted).toEqual([]);
+  });
+
+  it('a coach running two observations at the LP step is asked, not guessed at', async () => {
+    const second = { ...observation, id: 'obs-2', user_id: 'teacher-3' };
+    const { svc, pasted } = load([observation, second]);
+    await expect(svc.tryAttachPastedLessonPlan({ user: { id: 'coach-1' }, from: '92301', text: PASTED_LP })).resolves.toBe(false);
+    expect(pasted).toEqual([]);
+  });
+});
