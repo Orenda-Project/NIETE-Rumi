@@ -358,3 +358,101 @@ describe('failure is bounded in both directions', () => {
     await expect(backfillUrduOverlays()).rejects.toThrow(/permission denied/);
   });
 });
+
+// ── 5. the pictures — bd-u8ii8 ────────────────────────────────────────────────
+
+/**
+ * THE REPAIR MUST NOT COST THE LESSON ITS DIAGRAMS.
+ *
+ * The renderer inlines a book crop from `<outDir>/<ref>.jpg` and the directory this driver hands
+ * it is brand new every time. The authoring worker stages the crops into that directory before it
+ * renders (lp612-author.worker.js:1051-1053); this driver did not. A `textbook_figure` whose crop
+ * is absent renders as an empty framed box — badge and caption, no picture — and the renderer
+ * reports it through `ctx.warn`, which no delivery verdict ever reads. So the repair would have
+ * written a lesson with a hole in it over the live PDF, and reported success.
+ *
+ * Measured on the population this driver was queued against: 53 of the 81 rows carry a
+ * `textbook_figure`, 67 figures in all.
+ */
+describe('the repair carries the lesson\'s pictures through with it', () => {
+  const FIG_REF = 'grade_9_mathematics/pg_024_f0';
+  const JPEG = Buffer.from('ffd8ffe000104a464946', 'hex');
+
+  const storedDocWithFigure = () => {
+    const d = storedDoc();
+    d.sections[0].blocks.push({ type: 'textbook_figure', ref: FIG_REF, caption: 'Figure 1' });
+    return d;
+  };
+
+  /** R2 as it actually is on this population: the document, and the crop beside it. */
+  const bucketHolding = ({ crop = JPEG } = {}) => downloadFromR2.mockImplementation(async (key) => {
+    if (key.endsWith('.lp.json')) return Buffer.from(JSON.stringify(storedDocWithFigure()));
+    if (key.startsWith('lp612/page-truth/')) {
+      if (!crop) throw Object.assign(new Error('NoSuchKey'), { name: 'NoSuchKey' });
+      return crop;
+    }
+    return null;
+  });
+
+  beforeEach(() => {
+    bucketHolding();
+    create.mockImplementation(async (params) => {
+      const user = params.messages[1].content;
+      const asked = missingOverlayPointers(storedDocWithFigure()).filter((p) => user.includes(p));
+      return reply(urduFor(asked));
+    });
+  });
+
+  test('THE RED TEST — the crop is on disk in the directory the renderer is handed', async () => {
+    supabase.__state.rows = [row('grade_9_maths.c01.p024-025')];
+
+    // Checked INSIDE the render call: the directory is deleted the moment the row is done, and
+    // "it was there afterwards" is not the question. The question is whether Chromium could see it.
+    let cropVisibleAtRenderTime = null;
+    renderLessonPlan.mockImplementation(async ({ outDir }) => {
+      cropVisibleAtRenderTime = fs.existsSync(path.join(outDir, `${FIG_REF}.jpg`));
+      return { pdfPath: tmpPdf, pageCount: 5, warnings: [] };
+    });
+
+    const out = await backfillUrduOverlays({ dryRun: false });
+
+    expect(cropVisibleAtRenderTime).toBe(true);
+    expect(out.repaired).toBe(1);
+  });
+
+  test('it fetches the crop from the page-truth key, not from the lesson\'s own prefix', async () => {
+    supabase.__state.rows = [row('grade_9_maths.c01.p024-025')];
+
+    await backfillUrduOverlays({ dryRun: false });
+
+    const keys = downloadFromR2.mock.calls.map((c) => c[0]);
+    expect(keys).toContain(`lp612/page-truth/grade_9_mathematics/figures/pg_024_f0.jpg`);
+  });
+
+  test('A CROP IT CANNOT FETCH LEAVES THE LIVE PDF ALONE — a hole is worse than the bug', async () => {
+    // The lesson on the teacher's phone today has the picture in it. Overwriting it with a
+    // framed empty box is a regression she would have to report, and nothing would tell her
+    // why. The row is left for a later run and counted by name in the summary.
+    supabase.__state.rows = [row('grade_9_maths.c01.p024-025')];
+    bucketHolding({ crop: null });
+
+    const out = await backfillUrduOverlays({ dryRun: false });
+
+    expect(uploadBuffer).not.toHaveBeenCalled();
+    expect(supabase.__state.updates).toEqual([]);
+    expect(out.repaired).toBe(0);
+    expect(out.skipped.figures_missing).toBe(1);
+  });
+
+  test('a lesson with no figures at all is repaired exactly as before', async () => {
+    supabase.__state.rows = [row('grade_9_maths.c01.p024-025')];
+    downloadFromR2.mockResolvedValue(Buffer.from(JSON.stringify(storedDoc())));
+    answerInUrdu();
+
+    const out = await backfillUrduOverlays({ dryRun: false });
+
+    expect(out.repaired).toBe(1);
+    expect(downloadFromR2.mock.calls.map((c) => c[0]).some((k) => k.includes('page-truth')))
+      .toBe(false);
+  });
+});
