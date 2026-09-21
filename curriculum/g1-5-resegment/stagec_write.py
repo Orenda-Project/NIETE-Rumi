@@ -26,6 +26,23 @@ def col_letter(idx):
     return out
 
 
+def wire(value):
+    """The form a value must take to arrive as itself under USER_ENTERED.
+
+    Sheets reads a leading apostrophe as its own "force text" prefix and
+    consumes it, so "'تقریر کا فن' کے" lands with its opening quote gone
+    and its closing one orphaned. Doubling spends one apostrophe on the
+    prefix and delivers the other. Only the first is special: an apostrophe
+    anywhere else in the value is ordinary text and is left alone.
+
+    RAW would also deliver it, and is not available here -- stagec_send
+    records why USER_ENTERED is load-bearing.
+    """
+    if isinstance(value, str) and value.startswith("'"):
+        return "'" + value
+    return value
+
+
 def build_payload(tab, header, rows, new_values, columns):
     """ValueRanges for `columns`, with untouched rows carrying current values.
 
@@ -61,7 +78,7 @@ def build_payload(tab, header, rows, new_values, columns):
                 # through. A cell still reading "pending" stays pending --
                 # a whole-column write must not quietly blank an unfilled gap.
                 value = r["cells"].get(col, "")
-            block.append([value])
+            block.append([wire(value)])
         payload.append({"range": u"'%s'!%s%d:%s%d" % (tab, letter, first,
                                                       letter, last),
                         "values": block})
