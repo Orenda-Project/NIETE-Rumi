@@ -823,8 +823,12 @@ async function deliverRender({
   if (userId) {
     try {
       const Lp612Feedback = require('./lp612-feedback.service');
+      // renderId rides along so the verdict names the ARTIFACT, not just the lesson. Two
+      // teachers rating the same segment may have received different documents — one capped,
+      // one degraded, one on a newer template — and without this a 👎 cannot be walked back
+      // to the thing that was rated. bd-jsong.
       Lp612Feedback.scheduleFeedbackPrompt({
-        segmentId: segment.segment_id, userId, phone, lang,
+        segmentId: segment.segment_id, userId, phone, lang, renderId,
       });
     } catch (err) {
       logToFile('LP 6-12: could not schedule the feedback prompt', {
