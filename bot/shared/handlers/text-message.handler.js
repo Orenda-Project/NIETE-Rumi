@@ -704,6 +704,35 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
 
   // ============================================================
+  // PASTED LESSON PLAN (bd-we73k)
+  //
+  // A teacher (or a coach mid-/observe) who types her plan into the chat
+  // instead of attaching it. Every other LP door needs a WhatsApp media id, so
+  // this text used to reach generic AI chat — which answered it with its own
+  // invented "coaching feedback" while the session sat at awaiting_lesson_plan
+  // with has_lesson_plan=false and Section B scored on nothing.
+  //
+  // Placed HERE deliberately:
+  //  - ungated by _isLeader: a plain teacher on self-serve DC pastes plans too,
+  //    and the leader-only re-prompt (bd-5azz0) sits further down;
+  //  - ahead of the exam checker, so a plan is never claimed as an exam.
+  // The pre-filter inside is pure and DB-free, so ordinary chat pays nothing.
+  // ============================================================
+  if (user) {
+    try {
+      const { tryAttachPastedLessonPlan } = require('../services/coaching/lp-coaching/lp-text-paste.service');
+      if (await tryAttachPastedLessonPlan({ user, from, text: messageBody })) {
+        typingController.stop();
+        return;
+      }
+    } catch (pasteErr) {
+      logToFile('⚠️ pasted-LP check failed (falling through to normal routing)', {
+        userId: user && user.id, error: pasteErr.message,
+      });
+    }
+  }
+
+  // ============================================================
   // EXAM CHECKER DETECTION: Check for exam check trigger
   //
   // Skip for slash commands — they're explicit user intent and take
