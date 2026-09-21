@@ -37,7 +37,7 @@ CREATE EXTENSION IF NOT EXISTS "vector" SCHEMA public;
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    phone_number VARCHAR(20) NOT NULL,
+    phone_number VARCHAR(64) NOT NULL,  -- 64: also holds 'merged:<uuid>' (43) — bd-60104
     name VARCHAR(100),
     grades_taught VARCHAR(100),
     registration_completed BOOLEAN DEFAULT false,
@@ -4682,7 +4682,10 @@ CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
 -- dashboard_users, and the actor here is a coach in `users`.
 CREATE TABLE IF NOT EXISTS leader_roster_audit (
   id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move')),
+  action                  text NOT NULL
+                            CHECK (action IN ('add', 'remove', 'move',
+                                              'edit_name', 'edit_level', 'edit_phone',
+                                              'edit_role', 'edit_phone_escalated')),
   actor_user_id           uuid NOT NULL REFERENCES users(id),
   affected_leader_user_id uuid REFERENCES users(id),
   -- The teacher is denormalised on purpose: she may have no users row at all,
@@ -4964,7 +4967,10 @@ CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
 -- dashboard_users, and the actor here is a coach in `users`.
 CREATE TABLE IF NOT EXISTS leader_roster_audit (
   id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move')),
+  action                  text NOT NULL
+                            CHECK (action IN ('add', 'remove', 'move',
+                                              'edit_name', 'edit_level', 'edit_phone',
+                                              'edit_role', 'edit_phone_escalated')),
   actor_user_id           uuid NOT NULL REFERENCES users(id),
   affected_leader_user_id uuid REFERENCES users(id),
   -- The teacher is denormalised on purpose: she may have no users row at all,
