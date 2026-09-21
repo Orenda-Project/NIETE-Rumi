@@ -138,9 +138,14 @@ class EvaluatingOneLesson(unittest.TestCase):
     """The single call Stage C makes, against the real migrated reviewer."""
 
     # Shaped for the imported `qa_checks`, which reads a camelCase v9 body.
+    # Every cfu carries its `pass_signal`: since bd-ieesv the gate fails a
+    # lesson that asks the class a question it does not answer, so a fixture
+    # standing in for a GOOD lesson has to answer its own questions.
     LP = {"warmUp": "Ask two children what they ate for breakfast today.",
-          "steps": [{"cfu": {"question": "Which sound does 'cat' start with?"}},
-                    {"cfu": {"question": "Point to the word that rhymes."}}],
+          "steps": [{"cfu": {"question": "Which sound does 'cat' start with?",
+                             "pass_signal": "Says /k/."}},
+                    {"cfu": {"question": "Point to the word that rhymes.",
+                             "pass_signal": "Points to 'mat'."}}],
           "exitTicket": "Write one word that begins with the letter C and read it aloud.",
           "problems": [{"solution": "c-a-t"}],
           "keyWords": ["cat"], "homework": "Read page 3 aloud at home.",

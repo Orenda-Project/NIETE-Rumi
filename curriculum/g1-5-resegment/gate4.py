@@ -60,6 +60,7 @@ did.
 import os
 import sys
 
+import answerslot
 import contentbudget
 import d0_route
 import wordbudget
@@ -129,7 +130,7 @@ def worksheet_findings(lp, segment):
 
 
 def compose(qa, judge_pct=None, judge="", review=None, render=None,
-            grounding=None, lint=None, content=None):
+            grounding=None, lint=None, content=None, answers=None):
     """Build the score dict `production_gate.gate` reads.
 
     `qa` is a `qa_checks.run_checks` result, run over the Stage-C body it was
@@ -138,9 +139,12 @@ def compose(qa, judge_pct=None, judge="", review=None, render=None,
     `grounding` are optional; leaving one out records its check as not looked
     at, never as passed. `content` is `contentbudget.failures`, already run,
     and it is empty for every segment that states no content budget.
+    `answers` is `answerslot.failures`, the same shape and arriving the same
+    way: the questions the lesson puts to the class and does not answer.
     """
     failures = list(qa.get("hard_failures") or [])
     failures.extend(content or [])
+    failures.extend(answers or [])
     not_checked = []
 
     if judge_pct is None:
@@ -257,5 +261,6 @@ def evaluate(lp, segment, review, judge="", subject=None, grounding=None,
     judge_pct = round(100.0 * total / denom, 1) if denom else None
     score = compose(checks, judge_pct=judge_pct, judge=judge, review=review,
                     render=render, grounding=grounding, lint=lint,
-                    content=contentbudget.failures(lp, segment))
+                    content=contentbudget.failures(lp, segment),
+                    answers=answerslot.failures(lp))
     return score, verdict(score)

@@ -121,5 +121,47 @@ class PageGroundingIsAHardFailure(unittest.TestCase):
         self.assertIn("G1", s["not_checked"])
 
 
+class TheAnswerSlotIsAHardFailure(unittest.TestCase):
+    """bd-ieesv. The gate has to receive it the same way it receives the
+    content budget: a pure function the caller runs, handed in as findings.
+
+    It enters here rather than as its own gate because the answer slot is a
+    property of the same body `qa_checks` already scored, and because a
+    forked gate would need its own thresholds calibrated on nothing. The
+    reason it is HARD and not soft: an unanswered question is the No.1
+    written complaint teachers make about the v8 plans, and a soft score
+    would let a lesson ship at 92% while carrying the defect that generated
+    the complaint.
+    """
+
+    def test_unanswered_questions_fail_hard(self):
+        s = gate4.compose(qa(), judge_pct=99.0,
+                          answers=[{"id": "A1", "name": "8 of 11 questions "
+                                                        "carry no answer"}])
+        self.assertFalse(s["qa_hard_pass"])
+        self.assertIn("A1", [h["id"] for h in s["qa_hard_failures"]])
+
+    def test_the_finding_survives_into_the_report_verbatim(self):
+        # The author reads this string to find the place in the JSON, so the
+        # gate must not summarise it away.
+        s = gate4.compose(qa(), judge_pct=99.0,
+                          answers=[{"id": "A1", "name": u"…e.g. “How many "
+                                                        u"tens?”"}])
+        self.assertIn(u"How many tens?", s["qa_hard_failures"][0]["name"])
+
+    def test_an_answered_lesson_passes(self):
+        s = gate4.compose(qa(), judge_pct=99.0, answers=[])
+        self.assertTrue(s["qa_hard_pass"])
+
+    def test_the_content_budget_and_the_answer_slot_both_land(self):
+        # Two body-level checks arriving by the same door must not displace
+        # each other -- `content` was the only one until bd-ieesv.
+        s = gate4.compose(qa(), judge_pct=99.0,
+                          content=[{"id": "C1", "name": "over budget"}],
+                          answers=[{"id": "A1", "name": "no answers"}])
+        self.assertEqual(sorted(h["id"] for h in s["qa_hard_failures"]),
+                         ["A1", "C1"])
+
+
 if __name__ == "__main__":
     unittest.main()
