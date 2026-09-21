@@ -16,9 +16,19 @@ OMITTED = "Omitted by FDE"
 # by its own banner row; an empty `Human reviewer` already says unreviewed.
 CORE = ["Day #", "Topic", "Skill type", "Pages (printed)",
         "Page overlap",
-        "Primary SLO", "SLO role", "Primary SLO description",
-        "Supporting SLOs", "Supporting SLO descriptions",
-        "Bloom's", "Moves"]
+        "Primary SLO", "SLO role", "Primary SLO description"]
+
+# What THIS day teaches, in the child's own voice -- next to the code's
+# sentence, because one code covers many unlike days and on most of them
+# the code's sentence describes a different one. `U-05-CO-01` reads
+# "explain the couplets of a poem" on all 33 of its days, among them a
+# formal letter, two interviews and a bakery recipe. Language tabs only
+# for now: the objectives are written per book, and the two written so
+# far are G4 English and G5 Urdu. See dayobj and dayobjsheet.
+OBJECTIVE = ["Day objective"]
+
+CORE_TAIL = ["Supporting SLOs", "Supporting SLO descriptions",
+             "Bloom's", "Moves"]
 
 COLLAB = ["Collaboration structure"]
 
@@ -65,6 +75,9 @@ def header(subject):
     """
     cols = list(CORE)
     if subject in LANG_SUBJECTS:
+        cols += OBJECTIVE
+    cols += CORE_TAIL
+    if subject in LANG_SUBJECTS:
         cols += READING
     cols += COLLAB
     if subject in LANG_SUBJECTS:
@@ -75,9 +88,13 @@ def header(subject):
 def _day_row(r, subject, ncols):
     out = [r["day_label"], r["topic"], r["skill_type"], r["pages"],
            r["overlap"],
-           r["primary_slo"], r["slo_role"], r["primary_slo_desc"],
-           r["supporting_slos"], r["supporting_descs"],
-           r["blooms"], PENDING]
+           r["primary_slo"], r["slo_role"], r["primary_slo_desc"]]
+    if subject in LANG_SUBJECTS:
+        # Empty, not `pending`: a day nobody has written an objective for
+        # is a fact about the build, and `pending` would claim a stage is
+        # coming for it.
+        out += [r.get("objective") or ""]
+    out += [r["supporting_slos"], r["supporting_descs"], r["blooms"], PENDING]
     if subject in LANG_SUBJECTS:
         out += [PENDING]
     out += [PENDING]
@@ -108,8 +125,10 @@ def tail_label(kind):
 def _tail_row(r, subject, ncols):
     label = tail_label(r["kind"])
     out = [label, r["topic"], r["skill_type"], r["pages"], "",
-           "", "", "", r["supporting_slos"], "", r["blooms"],
-           PENDING]
+           "", "", ""]
+    if subject in LANG_SUBJECTS:
+        out += [""]        # a review or assessment day teaches no new one
+    out += [r["supporting_slos"], "", r["blooms"], PENDING]
     if subject in LANG_SUBJECTS:
         out += [""]
     out += [""]
@@ -172,8 +191,8 @@ def subject_tab(subject, book_rows):
 def wrap_columns(subject):
     """Long-prose columns. Topic and the two SLO description columns."""
     cols = header(subject)
-    want = {"Topic", "Primary SLO description", "Supporting SLO descriptions",
-            "Page overlap", "Flags"}
+    want = {"Topic", "Primary SLO description", "Day objective",
+            "Supporting SLO descriptions", "Page overlap", "Flags"}
     return [i for i, c in enumerate(cols) if c in want]
 
 
@@ -190,6 +209,7 @@ def widths(subject):
     px = {"Day #": 140, "Topic": 300, "Skill type": 160,
           "Pages (printed)": 100, "Page overlap": 180, "Primary SLO": 110,
           "SLO role": 90, "Primary SLO description": 320,
+          "Day objective": 320,
           "Supporting SLOs": 130, "Supporting SLO descriptions": 300,
           "Flags": 250, "Moves": 300, TRACES_COLUMN: 150}
     return {i: px[c] for i, c in enumerate(cols) if c in px}

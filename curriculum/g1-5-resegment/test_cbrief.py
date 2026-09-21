@@ -246,13 +246,16 @@ class ItStaysPure(unittest.TestCase):
         # `d0_route` is itself import-free, so asking it which route a segment
         # takes costs this module nothing, and `lessonrules` is a tuple of
         # strings and a docstring. `cbriefbasics` is strings plus `basicseg`,
-        # which imports nothing at all. Widened deliberately on 2026-09-19 and
-        # again on 2026-09-20, rather than silently: the list is the guarantee.
+        # which imports nothing at all. `dayobj` reaches `dayfold` -> `skills`
+        # -> `colorsys`, all stdlib or constants, with no file read anywhere in
+        # the chain. Widened deliberately on 2026-09-19, 2026-09-20 and
+        # 2026-09-21, rather than silently: the list is the guarantee.
         with open("cbrief.py") as fh:
             imports = [l for l in fh.read().splitlines()
                        if l.startswith(("import ", "from "))]
         self.assertEqual(imports, ["import bodysurface", "import cbriefbasics",
-                                   "import d0_route", "import lessonrules"])
+                                   "import d0_route", "import dayobj",
+                                   "import lessonrules"])
 
     def test_it_does_not_mutate_the_segment_it_was_given(self):
         s = seg(1)

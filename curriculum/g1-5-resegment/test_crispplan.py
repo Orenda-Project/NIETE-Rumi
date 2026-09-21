@@ -26,11 +26,26 @@ LIVE_CORE = [c for c in LIVE_LANG
              if c not in ("Function", "Interaction", "Gap", "Strand",
                           "Recycles")]
 
+# Columns added to `tabs.header()` AFTER the crisp migration ran.
+#
+# This planner models a migration that has already happened: a 36-column
+# tab cut down to 24 on 2026-09-21. `tabs.header()` keeps growing -- it
+# gained `Day objective` later the same day -- and a column that did not
+# exist when the migration ran was never in the live header it deleted
+# from. Pinning the two together would make every future column fail a
+# test about a past event, so the target is the header as it was then.
+AFTER_CRISP = ("Day objective",)
+
+
+def crisped(subject):
+    """The header the crisp migration actually produced."""
+    return [c for c in tabs.header(subject) if c not in AFTER_CRISP]
+
 
 class ThePlan(unittest.TestCase):
 
     def test_english_cuts_exactly_the_measured_dead_columns(self):
-        plan = crispplan.plan(LIVE_LANG, tabs.header("English"))
+        plan = crispplan.plan(LIVE_LANG, crisped("English"))
         self.assertEqual(
             set(LIVE_LANG[i] for i in plan.deletes),
             {"Period (min)", "FDE syllabus", "Review status",
@@ -39,29 +54,29 @@ class ThePlan(unittest.TestCase):
              "J Pedagogy review", "J Design review", "F LP (latest PDF)"})
 
     def test_maths_also_loses_reading_strategy(self):
-        plan = crispplan.plan(LIVE_CORE, tabs.header("Maths"))
+        plan = crispplan.plan(LIVE_CORE, crisped("Maths"))
         self.assertIn("Reading strategy",
                       [LIVE_CORE[i] for i in plan.deletes])
 
     def test_english_keeps_reading_strategy(self):
-        plan = crispplan.plan(LIVE_LANG, tabs.header("English"))
+        plan = crispplan.plan(LIVE_LANG, crisped("English"))
         self.assertNotIn("Reading strategy",
                          [LIVE_LANG[i] for i in plan.deletes])
 
     def test_page_truth_becomes_the_traces_column(self):
-        plan = crispplan.plan(LIVE_LANG, tabs.header("English"))
+        plan = crispplan.plan(LIVE_LANG, crisped("English"))
         self.assertEqual(plan.renames,
                          {LIVE_LANG.index("A Page truth"): tabs.TRACES_COLUMN})
 
     def test_the_deletes_come_back_highest_first(self):
         # Applied left to right they would shift each other's indices.
-        plan = crispplan.plan(LIVE_LANG, tabs.header("English"))
+        plan = crispplan.plan(LIVE_LANG, crisped("English"))
         self.assertEqual(plan.deletes, sorted(plan.deletes, reverse=True))
 
     def test_applying_the_plan_gives_exactly_the_target_header(self):
         for subject, live in (("English", LIVE_LANG), ("Urdu", LIVE_LANG),
                               ("Maths", LIVE_CORE), ("Science", LIVE_CORE)):
-            target = tabs.header(subject)
+            target = crisped(subject)
             plan = crispplan.plan(live, target)
             got = list(live)
             for i, label in plan.renames.items():
@@ -71,7 +86,7 @@ class ThePlan(unittest.TestCase):
             self.assertEqual(got, target, subject)
 
     def test_a_second_run_is_a_no_op(self):
-        target = tabs.header("English")
+        target = crisped("English")
         plan = crispplan.plan(target, target)
         self.assertEqual(plan.deletes, [])
         self.assertEqual(plan.renames, {})

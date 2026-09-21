@@ -36,6 +36,7 @@ supplies no page is that failure, pre-authorised.
 import bodysurface
 import cbriefbasics
 import d0_route
+import dayobj
 import lessonrules
 
 # The shape of a chapter assessment, handed to the author rather than only
@@ -156,6 +157,12 @@ def _envelope(segment, pages, book, day, total_days):
         "chapter_number": segment.get("chapter_number"),
         "chapter_title": book.get("chapter_title"),
         "topic": segment.get("topic"),
+        # What THIS day claims, beside the code it rolls up to. Codes are
+        # shared -- 23 across G4 English's 99 teaching days -- so on many
+        # days `slo_refs` describes a different day. None where none is
+        # written: an absent objective is a fact, an invented one is the
+        # defect. See dayobj.
+        "objective": segment.get(dayobj.FIELD),
         "skill_type": segment.get("skill_type"),
         "lp_type": segment.get("lp_type"),
         "cpa_phase": segment.get("cpa_phase"),
