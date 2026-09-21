@@ -1,31 +1,39 @@
 # -*- coding: utf-8 -*-
-"""The trace-block plan: which rows get a cell, and what goes in it."""
+"""The trace-block plan: which rows get a cell, and what goes in it.
+
+Rewritten 2026-09-21. The block used to be ten columns; nine of them held
+either nothing or the same string on all 1,923 traced rows, so it is one
+`Traces` column holding a JSON object keyed by pipeline stage. The tests
+read the header from `tabs` rather than pinning a fixture, because the
+whole point of the change is that the column set moved.
+"""
+import json
 import unittest
 
-import tracelinks as tl
+import tabs
 import tracerun as tr
 
-HEADER = (["Day #", "Topic", "Skill type", "Pages (printed)", "Page overlap",
-           "Primary SLO", "SLO role", "Primary SLO description",
-           "Supporting SLOs", "Supporting SLO descriptions", "Bloom's",
-           "Period (min)", "Moves", "Reading strategy",
-           "Collaboration structure", "FDE syllabus", "Prerequisite SLOs",
-           "Teacher-primary min (of 40)", "Flags", "A Page truth",
-           "B Segmentation", "C Enrichment", "C-gate Enrich gate"])
+HEADER = tabs.header("Science")
 URLMAP = {("grade_4_general_science", 6): "https://pub-x.r2.dev/a/pg_006.json",
           ("grade_4_general_science", 7): "https://pub-x.r2.dev/a/pg_007.json"}
 BOOKS = set(b for b, _ in URLMAP)
 GID = 99
 STAMP = "2026-09-21"
+TRACES_I = HEADER.index(tabs.TRACES_COLUMN)
 
 
 def rows(*specs):
     """specs: (column A, printed pages). Header is row 3, so body starts at 4."""
-    return [[a] + [""] * 2 + [pg] + [""] * 19 for a, pg in specs]
+    return [[a] + [""] * 2 + [pg] + [""] * (len(HEADER) - 4) for a, pg in specs]
 
 
 def plan(*specs):
     return tr.plan("Science", GID, HEADER, rows(*specs), URLMAP, BOOKS, STAMP)
+
+
+def value(req):
+    return req["updateCells"]["rows"][0]["values"][0]["userEnteredValue"][
+        "stringValue"]
 
 
 class TheColumnLetters(unittest.TestCase):
@@ -39,10 +47,10 @@ class TheColumnLetters(unittest.TestCase):
 
 
 class TheRowsThatGetATrace(unittest.TestCase):
-    def test_a_day_an_assessment_and_a_review_all_carry_all_three(self):
+    def test_a_day_an_assessment_and_a_review_all_carry_one_cell(self):
         _, t = plan(("GRADE 4", ""), ("Day 1", "6"),
                     (u"✅ Ch. Assessment", "7"), (u"\U0001f4cb Ch. Review", "6"))
-        self.assertEqual((t["rows"], t["A"], t["B"], t["C"]), (3, 3, 3, 3))
+        self.assertEqual((t["rows"], t["traced"]), (3, 3))
 
     def test_a_chapter_header_gets_nothing(self):
         _, t = plan(("GRADE 4", ""), ("Chapter 1: Matter", "6-7"), ("Day 1", "6"))
@@ -55,47 +63,40 @@ class TheRowsThatGetATrace(unittest.TestCase):
 
 
 class TheCellsThatGetBuilt(unittest.TestCase):
-    def test_the_three_headers_are_stamped_and_nothing_else_is(self):
+    def test_one_header_is_stamped_and_nothing_else_is(self):
         reqs, _ = plan(("GRADE 4", ""))
-        titles = [r["updateCells"]["rows"][0]["values"][0]
-                   ["userEnteredValue"]["stringValue"] for r in reqs]
-        self.assertEqual(titles, ["%s (%s)" % (c, STAMP) for c in tl.LINKED_STAGES])
+        self.assertEqual([value(r) for r in reqs],
+                         ["%s (%s)" % (tabs.TRACES_COLUMN, STAMP)])
 
-    def test_a_day_writes_into_the_three_trace_columns_only(self):
+    def test_a_day_writes_into_the_traces_column_only(self):
         reqs, _ = plan(("GRADE 4", ""), ("Day 1", "6-7"))
-        cols = sorted(r["updateCells"]["range"]["startColumnIndex"]
-                      for r in reqs[3:])
-        self.assertEqual(cols, [HEADER.index(c) for c in tl.LINKED_STAGES])
+        cols = [r["updateCells"]["range"]["startColumnIndex"] for r in reqs]
+        self.assertEqual(cols, [TRACES_I, TRACES_I])
 
-    def test_page_truth_carries_one_link_per_printed_page(self):
+    def test_the_cell_is_json_with_one_url_per_published_page(self):
         reqs, t = plan(("GRADE 4", ""), ("Day 1", "6-7"))
-        cell = reqs[3]["updateCells"]["rows"][0]["values"][0]
-        self.assertEqual(cell["userEnteredValue"]["stringValue"], u"pg 6·7")
+        cell = json.loads(value(reqs[1]))
+        self.assertEqual(cell, {"page_truth": [URLMAP[("grade_4_general_science", 6)],
+                                               URLMAP[("grade_4_general_science", 7)]]})
         self.assertEqual(t["links"], 2)
 
-    def test_an_unpublished_page_is_counted_and_left_unlinked(self):
-        _, t = plan(("GRADE 4", ""), ("Day 1", "6-8"))
+    def test_an_unpublished_page_is_counted_and_named_in_the_cell(self):
+        reqs, t = plan(("GRADE 4", ""), ("Day 1", "6-8"))
+        cell = json.loads(value(reqs[1]))
+        self.assertEqual(cell["pages_unpublished"], [8])
         self.assertEqual((t["links"], t["gaps"]), (2, 1))
 
-    def test_segmentation_and_enrichment_anchor_into_this_row(self):
+    def test_the_cell_is_plain_text_and_carries_no_format_runs(self):
+        """The URLs are in the JSON; a textFormatRun would be a second copy."""
         reqs, _ = plan(("GRADE 4", ""), ("Day 1", "6"))
-        seg, enr = reqs[4], reqs[5]
-        v = lambda r: r["updateCells"]["rows"][0]["values"][0]
-        self.assertEqual(v(seg)["userEnteredValue"]["stringValue"], "row 5")
-        self.assertEqual(v(enr)["userEnteredValue"]["stringValue"], u"cols M–R")
-        uri = lambda r: v(r)["textFormatRuns"][0]["format"]["link"]["uri"]
-        self.assertTrue(uri(seg).endswith("&range=A5"), uri(seg))
-        self.assertTrue(uri(enr).endswith("&range=M5"), uri(enr))
+        self.assertNotIn("textFormatRuns", reqs[1]["updateCells"]["rows"][0]
+                                               ["values"][0])
 
-    def test_a_day_with_no_published_page_still_gets_b_and_c(self):
-        """The enrichment is on the row whether or not the page was uploaded."""
+    def test_a_day_with_nothing_published_gets_no_cell_at_all(self):
+        """An empty object down a column is the constant this replaced."""
         reqs, t = plan(("GRADE 4", ""), ("Day 1", "99"))
-        self.assertEqual((t["A"], t["A missing"], t["B"]), (0, 1, 1))
-        self.assertEqual(len(reqs), 5)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        self.assertEqual((t["traced"], t["no artefact"]), (0, 1))
+        self.assertEqual(len(reqs), 1)
 
 
 class TheRegroup(unittest.TestCase):
@@ -114,23 +115,33 @@ class TheRegroup(unittest.TestCase):
 
     def test_the_whole_tab_is_unhidden_before_anything_is_regrouped(self):
         r = self.reqs()
-        first_add = min(i for i, q in enumerate(r) if "addDimensionGroup" in q)
+        adds = [i for i, q in enumerate(r) if "addDimensionGroup" in q]
         unhide = [i for i, q in enumerate(r)
                   if "updateDimensionProperties" in q
                   and q["updateDimensionProperties"]["properties"] == {
                       "hiddenByUser": False}]
         self.assertEqual(len(unhide), 1)
-        self.assertLess(unhide[0], first_add)
+        self.assertTrue(all(unhide[0] < i for i in adds))
 
-    def test_the_new_group_skips_the_three_linked_stages(self):
-        import tabs
+    def test_the_crisped_tab_has_nothing_left_to_collapse(self):
+        """Every remaining column carries values, so none of them hide.
+
+        This is the answer to "i dont see it on my sheet": the old tab put
+        Stage C inside collapsed groups, and the reviewer could not see
+        what had been written.
+        """
+        for subject in ("English", "Urdu", "Maths", "Science"):
+            self.assertEqual(tabs.groups(subject), [], subject)
+            self.assertEqual(
+                [r for r in tr.regroup(subject, GID, [], 24)
+                 if "addDimensionGroup" in r], [], subject)
+
+    def test_the_new_groups_leave_the_traces_column_out(self):
         added = [(r["addDimensionGroup"]["range"]["startIndex"],
                   r["addDimensionGroup"]["range"]["endIndex"])
                  for r in self.reqs() if "addDimensionGroup" in r]
         self.assertEqual(added, [tuple(g) for g in tabs.groups("Science")])
-        cols = tabs.header("Science")
-        for c in tl.LINKED_STAGES:
-            self.assertTrue(all(not (a <= cols.index(c) < b) for a, b in added))
+        self.assertTrue(all(not (a <= TRACES_I < b) for a, b in added))
 
     def test_each_new_group_ships_collapsed(self):
         n_add = sum(1 for r in self.reqs() if "addDimensionGroup" in r)
@@ -138,26 +149,51 @@ class TheRegroup(unittest.TestCase):
                      for r in self.reqs() if "updateDimensionGroup" in r]
         self.assertEqual(collapsed, [True] * n_add)
 
-    def test_the_three_headers_lose_the_pending_grey_and_the_note(self):
+    def test_the_traces_header_loses_the_pending_grey_and_the_note(self):
         cells = [r["repeatCell"] for r in self.reqs() if "repeatCell" in r]
-        self.assertEqual(len(cells), 3)
-        for c in cells:
-            self.assertEqual(c["cell"]["note"], "")
-            self.assertTrue(c["cell"]["userEnteredFormat"]["textFormat"]["bold"])
-            self.assertFalse(
-                c["cell"]["userEnteredFormat"]["textFormat"]["italic"])
-            self.assertEqual(c["range"]["startRowIndex"], tr.HEAD_ROW - 1)
+        self.assertEqual(len(cells), 1)
+        c = cells[0]
+        self.assertEqual(c["cell"]["note"], "")
+        self.assertTrue(c["cell"]["userEnteredFormat"]["textFormat"]["bold"])
+        self.assertFalse(c["cell"]["userEnteredFormat"]["textFormat"]["italic"])
+        self.assertEqual(c["range"]["startRowIndex"], tr.HEAD_ROW - 1)
+        self.assertEqual(c["range"]["startColumnIndex"], TRACES_I)
 
 
-class TheTraceColumnWidths(unittest.TestCase):
-    def test_each_linked_column_is_sized(self):
-        import tabs
-        cols = tabs.header("Science")
+class TheTraceColumnWidth(unittest.TestCase):
+    def test_the_traces_column_is_sized(self):
         sized = dict(
             (r["updateDimensionProperties"]["range"]["startIndex"],
              r["updateDimensionProperties"]["properties"]["pixelSize"])
             for r in tr.regroup("Science", GID, [], 31)
             if "pixelSize" in r.get("updateDimensionProperties", {})
                               .get("properties", {}))
-        self.assertEqual(sized, dict((cols.index(c), tr.WIDTHS[c])
-                                     for c in tl.LINKED_STAGES))
+        self.assertEqual(sized, {TRACES_I: tr.WIDTH})
+
+
+class TheClipAndTheRowHeights(unittest.TestCase):
+    """A wrapped traces cell is fifteen lines tall and hides the rest."""
+
+    def reqs(self):
+        return tr.retighten(GID, TRACES_I, 200)
+
+    def test_only_the_traces_column_is_clipped(self):
+        r = self.reqs()[0]["repeatCell"]
+        self.assertEqual(r["cell"]["userEnteredFormat"]["wrapStrategy"], "CLIP")
+        self.assertEqual((r["range"]["startColumnIndex"],
+                          r["range"]["endColumnIndex"]), (TRACES_I, TRACES_I + 1))
+
+    def test_it_starts_below_the_header_so_the_label_keeps_its_format(self):
+        self.assertEqual(self.reqs()[0]["repeatCell"]["range"]["startRowIndex"],
+                         tr.HEAD_ROW)
+
+    def test_the_rows_are_resized_after_the_clip_not_before(self):
+        kinds = [list(q)[0] for q in self.reqs()]
+        self.assertEqual(kinds, ["repeatCell", "autoResizeDimensions"])
+        d = self.reqs()[1]["autoResizeDimensions"]["dimensions"]
+        self.assertEqual((d["dimension"], d["startIndex"], d["endIndex"]),
+                         ("ROWS", tr.HEAD_ROW, 200))
+
+
+if __name__ == "__main__":
+    unittest.main()

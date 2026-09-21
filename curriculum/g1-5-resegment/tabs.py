@@ -8,30 +8,39 @@ PENDING = "pending"
 # is labelled here and stays in the plan; nothing is silently deleted.
 OMITTED = "Omitted by FDE"
 
+# Measured over the 1,923 traced rows on all four tabs before cutting:
+# `Period (min)` was "40" on every one of them, `FDE syllabus` was
+# "In FDE syllabus", `Review status` was "not reviewed". A column with one
+# value cannot be filtered, sorted or reviewed on. The period is in the
+# standfirst and in `Teacher-primary min (of 40)`; FDE omission is announced
+# by its own banner row; an empty `Human reviewer` already says unreviewed.
 CORE = ["Day #", "Topic", "Skill type", "Pages (printed)",
         "Page overlap",
         "Primary SLO", "SLO role", "Primary SLO description",
         "Supporting SLOs", "Supporting SLO descriptions",
-        "Bloom's", "Period (min)", "Moves",
-        "Reading strategy", "Collaboration structure"]
+        "Bloom's", "Moves"]
+
+COLLAB = ["Collaboration structure"]
+
+# 18 distinct strategies on English, 19 on Urdu -- and "n/a" on all 785 Maths
+# and Science rows, because the column asks a reading question of a subject
+# that is not teaching reading.
+READING = ["Reading strategy"]
 
 LANG = ["Function", "Interaction", "Gap", "Strand", "Recycles"]
 
-MID = ["FDE syllabus", "Prerequisite SLOs", "Teacher-primary min (of 40)", "Flags"]
+MID = ["Prerequisite SLOs", "Teacher-primary min (of 40)", "Flags"]
 
-TRACES = ["A Page truth", "B Segmentation", "C Enrichment", "C-gate Enrich gate",
-          "D0 Slide script", "D Render meta", "E Voicenote script",
-          "J Pedagogy review", "J Design review", "F LP (latest PDF)"]
+# Traces (traces.md, binding): save, publish, link, stamp. Ten columns, of
+# which nine held either nothing or the same string on every row, are one
+# column holding a JSON object of stage -> artefact. A stage appears in the
+# cell when it has an artefact and is absent when it does not, so the cell
+# cannot decay into a constant the way the ten columns did, and a stage that
+# runs later adds a key instead of a column.
+TRACES_COLUMN = "Traces"
+TRACES = [TRACES_COLUMN]
 
-REVIEW = ["Human reviewer", "Review status"]
-
-# Traces (traces.md, binding): save, publish, link, stamp. Three stages have
-# run and their cells hold links -- page truth relinked from the previous
-# build's published objects, segmentation and enrichment anchored back into
-# the row that holds them. Those three must stay visible. The other seven
-# have genuinely not run at day scale and stay grey, noted and collapsed.
-LINKED_TRACES = TRACES[:3]
-PENDING_TRACES = TRACES[3:]
+REVIEW = ["Human reviewer"]
 
 # stage that fills each pending column — shown on Navigation.
 # Stage C ran on 2026-09-21: Moves, Reading strategy, Collaboration structure,
@@ -47,7 +56,17 @@ LANG_SUBJECTS = {"English", "Urdu"}
 
 
 def header(subject):
+    """Column order is the live order minus what was cut, never a reshuffle.
+
+    `Reading strategy` keeps its place between Moves and Collaboration
+    structure on the tabs that still have it, so migrating the live sheet is
+    a sequence of column deletes. Reordering would mean rewriting every cell
+    and would put Stage C's 12,655 written values at risk for cosmetics.
+    """
     cols = list(CORE)
+    if subject in LANG_SUBJECTS:
+        cols += READING
+    cols += COLLAB
     if subject in LANG_SUBJECTS:
         cols += LANG
     return cols + MID + TRACES + REVIEW
@@ -58,12 +77,15 @@ def _day_row(r, subject, ncols):
            r["overlap"],
            r["primary_slo"], r["slo_role"], r["primary_slo_desc"],
            r["supporting_slos"], r["supporting_descs"],
-           r["blooms"], r["period_min"], PENDING, PENDING, PENDING]
+           r["blooms"], PENDING]
+    if subject in LANG_SUBJECTS:
+        out += [PENDING]
+    out += [PENDING]
     if subject in LANG_SUBJECTS:
         out += [PENDING, PENDING, PENDING, r["strand"] or PENDING, PENDING]
-    out += [r["fde"], PENDING, PENDING, r["flags"]]
+    out += [PENDING, PENDING, r["flags"]]
     out += [""] * len(TRACES)
-    out += ["", "not reviewed"]
+    out += [""]
     assert len(out) == ncols, f"{len(out)} != {ncols}"
     return out
 
@@ -86,13 +108,16 @@ def tail_label(kind):
 def _tail_row(r, subject, ncols):
     label = tail_label(r["kind"])
     out = [label, r["topic"], r["skill_type"], r["pages"], "",
-           "", "", "", r["supporting_slos"], "", r["blooms"], r["period_min"],
-           PENDING, "", ""]
+           "", "", "", r["supporting_slos"], "", r["blooms"],
+           PENDING]
+    if subject in LANG_SUBJECTS:
+        out += [""]
+    out += [""]
     if subject in LANG_SUBJECTS:
         out += ["", "", "", "", ""]
-    out += [r["fde"], "", "", ""]
+    out += ["", "", ""]
     out += [""] * len(TRACES)
-    out += ["", "not reviewed"]
+    out += [""]
     assert len(out) == ncols, f"{len(out)} != {ncols}"
     return out
 
@@ -152,10 +177,6 @@ def wrap_columns(subject):
     return [i for i, c in enumerate(cols) if c in want]
 
 
-def fde_column(subject):
-    return header(subject).index("FDE syllabus")
-
-
 def flag_column(subject):
     return header(subject).index("Flags")
 
@@ -170,7 +191,7 @@ def widths(subject):
           "Pages (printed)": 100, "Page overlap": 180, "Primary SLO": 110,
           "SLO role": 90, "Primary SLO description": 320,
           "Supporting SLOs": 130, "Supporting SLO descriptions": 300,
-          "Flags": 250, "FDE syllabus": 130}
+          "Flags": 250, "Moves": 300, TRACES_COLUMN: 150}
     return {i: px[c] for i, c in enumerate(cols) if c in px}
 
 
@@ -184,20 +205,20 @@ def pending_notes(subject):
     for i, c in enumerate(cols):
         if c in FILLED_BY:
             notes[i] = f"Empty on purpose. Filled by {FILLED_BY[c]}."
-        elif c in PENDING_TRACES:
-            stage = c.split(" ", 1)[0]
-            notes[i] = (f"Trace column. A link lands here when stage {stage} "
-                        "runs for that day. Empty means the stage has not run.")
+        elif c == TRACES_COLUMN:
+            notes[i] = ("The day's artefacts as JSON, one key per pipeline "
+                        "stage that has produced something. A stage missing "
+                        "from the object has not run for that day.")
         elif c == "Human reviewer":
             notes[i] = "Type your name here when you review the row."
     return notes
 
 
 def dead_columns(subject):
-    """Indices with nothing in them yet — pending columns and unrun traces."""
+    """Indices with nothing in them yet. Traces is no longer one of them —
+    it carries the stages that HAVE run, so it is never uniformly empty."""
     cols = header(subject)
-    return [i for i, c in enumerate(cols)
-            if c in FILLED_BY or c in PENDING_TRACES]
+    return [i for i, c in enumerate(cols) if c in FILLED_BY]
 
 
 def groups(subject, min_run=2):
@@ -228,12 +249,12 @@ STANDFIRST = {
 
 
 def standfirst(subject):
-    return (STANDFIRST[subject] + "  Stage C is filled: Moves, Reading "
-            "strategy, Collaboration structure" + (
+    return (STANDFIRST[subject] + "  Stage C is filled: Moves" + (
+                ", Reading strategy" if subject in LANG_SUBJECTS else "") +
+            ", Collaboration structure" + (
                 ", Function, Interaction, Gap, Recycles"
                 if subject in LANG_SUBJECTS else "") +
             ", Prerequisite SLOs and Teacher-primary min hold values on every "
-            "teaching day. Moves reads phase·minutes and is clipped to one "
-            "line — click the cell for the whole sequence. The grey group to "
-            "the right is a later stage and is still collapsed; hover a grey "
-            "header for which stage fills it.")
+            "teaching day. Moves and Traces are JSON, clipped to one line — "
+            "click the cell to read the whole value. Nothing on this tab is "
+            "hidden or collapsed.")

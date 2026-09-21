@@ -17,6 +17,7 @@ links were written.
 """
 import unittest
 
+import stagec
 import tabs
 
 SUBJECTS = ("English", "Urdu", "Maths", "Science")
@@ -50,14 +51,6 @@ class StageCIsNoLongerPending(unittest.TestCase):
                 self.assertEqual(inside, [],
                                  "%s collapses %s out of sight" % (subject, inside))
 
-    def test_the_unrun_trace_columns_stay_pending(self):
-        """A stage that has not run is still a stage that has not run."""
-        cols = tabs.header("Urdu")
-        dead = set(tabs.dead_columns("Urdu"))
-        for c in tabs.PENDING_TRACES:
-            self.assertIn(cols.index(c), dead,
-                          "%s is not written and must stay collapsed" % c)
-
     def test_the_standfirst_no_longer_sends_her_looking_for_a_plus(self):
         for subject in SUBJECTS:
             s = tabs.standfirst(subject)
@@ -65,51 +58,130 @@ class StageCIsNoLongerPending(unittest.TestCase):
             self.assertIn("Stage C", s)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
-class TheLinkedTraceColumns(unittest.TestCase):
-    """A, B and C carry links now, so they must not ship collapsed.
+class TheTracesColumn(unittest.TestCase):
+    """One column holding JSON, not ten columns of which nine were dead.
 
-    Page truth is relinked from the previous build's published objects;
-    segmentation and enrichment anchor back into the row. The other seven
-    stages have not run and stay grey, noted and collapsed.
+    The ten-column block was measured on 2026-09-21: seven were empty on
+    every row of every tab, `C Enrichment` held one constant string, and
+    `B Segmentation` restated the row number. Only `A Page truth` carried
+    anything -- and its links 403 today (bd-10ccr), so even that is a
+    promise rather than an artefact.
     """
 
-    def test_the_three_linked_stages_are_named(self):
-        self.assertEqual(tabs.LINKED_TRACES,
-                         ["A Page truth", "B Segmentation", "C Enrichment"])
-        self.assertEqual(len(tabs.PENDING_TRACES), 7)
+    def test_it_is_named_and_present_once_per_tab(self):
+        for subject in SUBJECTS:
+            self.assertEqual(tabs.header(subject).count(tabs.TRACES_COLUMN), 1)
 
-    def test_they_are_not_dead(self):
+    def test_it_is_not_dead(self):
+        # Dead columns are greyed and collapsed. This one holds the stages
+        # that HAVE run, so hiding it hides the evidence.
+        for subject in SUBJECTS:
+            i = tabs.header(subject).index(tabs.TRACES_COLUMN)
+            self.assertNotIn(i, tabs.dead_columns(subject))
+
+    def test_it_is_outside_every_collapsed_group(self):
+        for subject in SUBJECTS:
+            i = tabs.header(subject).index(tabs.TRACES_COLUMN)
+            for a, b in tabs.groups(subject):
+                self.assertFalse(a <= i < b)
+
+    def test_its_note_explains_that_a_missing_key_means_a_stage_has_not_run(self):
+        for subject in SUBJECTS:
+            i = tabs.header(subject).index(tabs.TRACES_COLUMN)
+            note = tabs.pending_notes(subject).get(i, "")
+            self.assertIn("has not run", note)
+
+class TheCrispedHeader(unittest.TestCase):
+    """Columns that carried one value on all 1,923 traced rows are gone.
+
+    Amena, 2026-09-21: "i think there is alot of redundancy in this sheet ...
+    remove fde syllabus columns pls". Measured before cutting: FDE syllabus
+    was 'In FDE syllabus' on 100% of rows on all four tabs, Period (min) was
+    '40', Review status was 'not reviewed', and Reading strategy was 'n/a' on
+    every Maths and Science row. A column with one value cannot be filtered,
+    sorted or reviewed on -- it is furniture.
+    """
+
+    GONE = ("FDE syllabus", "Period (min)", "Review status")
+
+    def test_the_constant_columns_are_gone_from_every_tab(self):
         for subject in SUBJECTS:
             cols = tabs.header(subject)
-            dead = set(tabs.dead_columns(subject))
-            for c in tabs.LINKED_TRACES:
-                self.assertNotIn(cols.index(c), dead,
-                                 "%s: %s is written, not dead" % (subject, c))
+            for dead in self.GONE:
+                self.assertNotIn(dead, cols, "%s still has %s" % (subject, dead))
 
-    def test_they_are_outside_every_collapsed_group(self):
+    def test_reading_strategy_survives_only_where_it_varies(self):
+        # English 18 distinct values, Urdu 19. Maths and Science: 'n/a', always.
+        for subject in ("English", "Urdu"):
+            self.assertIn("Reading strategy", tabs.header(subject))
+        for subject in ("Maths", "Science"):
+            self.assertNotIn("Reading strategy", tabs.header(subject))
+
+    def test_stage_c_does_not_write_a_column_the_tab_no_longer_has(self):
+        for subject in SUBJECTS:
+            cols = set(tabs.header(subject))
+            for c in stagec.columns_for("day", subject):
+                self.assertIn(c, cols,
+                              "%s: Stage C writes %s, which is not a column" % (subject, c))
+
+    def test_omission_is_still_surfaced_even_though_the_column_went(self):
+        # "Dark stages stay dark" -- dropping the column must not drop the
+        # fact. An FDE-omitted chapter is announced by its own banner row.
+        self.assertTrue(hasattr(tabs, "OMITTED"))
+
+    def test_the_ten_trace_columns_are_one(self):
         for subject in SUBJECTS:
             cols = tabs.header(subject)
-            for c in tabs.LINKED_TRACES:
-                i = cols.index(c)
-                for a, b in tabs.groups(subject):
-                    self.assertFalse(a <= i < b,
-                                     "%s: %s is inside group %d-%d"
-                                     % (subject, c, a, b))
+            self.assertEqual(cols.count(tabs.TRACES_COLUMN), 1)
+            for old in ("A Page truth", "B Segmentation", "C Enrichment",
+                        "C-gate Enrich gate", "D0 Slide script",
+                        "F LP (latest PDF)"):
+                self.assertNotIn(old, cols)
 
-    def test_they_carry_no_pending_note(self):
-        for subject in SUBJECTS:
-            cols = tabs.header(subject)
-            notes = tabs.pending_notes(subject)
-            for c in tabs.LINKED_TRACES:
-                self.assertNotIn(cols.index(c), notes, "%s: %s" % (subject, c))
+    def test_the_language_tabs_stay_wider_than_the_others(self):
+        self.assertGreater(len(tabs.header("English")), len(tabs.header("Maths")))
 
-    def test_the_seven_unrun_stages_stay_pending(self):
+    def test_every_row_builder_still_matches_the_header_width(self):
+        # _day_row and _tail_row assert on this, so a miscount raises here.
         for subject in SUBJECTS:
-            cols = tabs.header(subject)
-            notes = tabs.pending_notes(subject)
-            for c in tabs.PENDING_TRACES:
-                self.assertIn(cols.index(c), notes, "%s: %s" % (subject, c))
+            n = len(tabs.header(subject))
+            row = tabs._day_row(_DAY, subject, n)
+            self.assertEqual(len(row), n)
+            self.assertEqual(len(tabs._tail_row(_TAIL, subject, n)), n)
+
+
+_DAY = {"day_label": "Day 1", "topic": "t", "skill_type": "s", "pages": "2",
+        "overlap": "", "primary_slo": "E-01", "slo_role": "new",
+        "primary_slo_desc": "d", "supporting_slos": "", "supporting_descs": "",
+        "blooms": "Understand", "period_min": 40, "strand": "input",
+        "fde": "In FDE syllabus", "flags": "", "kind": "day"}
+_TAIL = dict(_DAY, kind="review")
+
+
+class TheStandfirst(unittest.TestCase):
+    """It is the first thing a reviewer reads, so it cannot name a ghost.
+
+    It promised `Reading strategy` on Maths and Science after the column
+    was cut from both, and promised a collapsed grey group after the last
+    of them was deleted.
+    """
+
+    def test_it_names_no_column_the_tab_does_not_have(self):
+        for subject in ("English", "Urdu", "Maths", "Science"):
+            text = tabs.standfirst(subject)
+            self.assertNotIn("grey group", text, subject)
+            for col in ("Reading strategy", "Function", "Recycles"):
+                if col not in tabs.header(subject):
+                    self.assertNotIn(col, text, "%s: %s" % (subject, col))
+
+    def test_it_names_the_stage_c_columns_the_tab_does_have(self):
+        for subject in ("English", "Urdu", "Maths", "Science"):
+            text = tabs.standfirst(subject)
+            for col in ("Moves", "Collaboration structure"):
+                self.assertIn(col, text, subject)
+
+
+if __name__ == "__main__":
+    unittest.main()

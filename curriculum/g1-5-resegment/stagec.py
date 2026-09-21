@@ -15,6 +15,7 @@ Nothing here is invented. Sources, in order of authority:
 A column we cannot honestly derive stays "pending". A blank on an assessment or
 review row is a legitimate not-applicable, never a gap to be filled.
 """
+import json
 import re
 
 PENDING = "pending"
@@ -62,7 +63,9 @@ VOCAB = {
         "role-play", "whole-class-only", "individual-only"),
 }
 
-CORE_COLUMNS = ("Moves", "Reading strategy", "Collaboration structure",
+# Maths and Science have no `Reading strategy` column: it was "n/a" on all
+# 785 of their rows, which is a question the subject does not answer.
+CORE_COLUMNS = ("Moves", "Collaboration structure",
                 "Prerequisite SLOs", "Teacher-primary min (of 40)")
 LANG_COLUMNS = ("Moves", "Reading strategy", "Collaboration structure",
                 "Function", "Interaction", "Gap", "Recycles",
@@ -113,11 +116,17 @@ def _weight(phase):
 
 
 def format_moves(pairs):
-    return SEP.join("%s%s%d" % (p, DOT, m) for p, m in pairs)
+    """The move spine as JSON, which is what the cell is for.
+
+    A pairs array, not an object keyed by phase: every one of the 22 spines
+    repeats a phase (two `guided` blocks either side of a `peer_review`, for
+    instance), and an object would silently keep only the last of them.
+    """
+    return json.dumps([[p, int(m)] for p, m in pairs], separators=(",", ":"))
 
 
 def parse_moves(cell):
-    """'warm_up·5 | explain·8' -> [('warm_up', 5), ('explain', 8)].
+    """'[["warm_up",5],["explain",8]]' -> [('warm_up', 5), ('explain', 8)].
 
     Raises ValueError on anything that is not a spine, so callers that need a
     verdict use check_moves() instead of guessing.
@@ -125,6 +134,14 @@ def parse_moves(cell):
     text = (cell or "").strip()
     if not text or text == PENDING:
         raise ValueError("not a move spine: %r" % cell)
+    if text.startswith("["):
+        try:
+            loaded = json.loads(text)
+            return [(str(p), int(m)) for p, m in loaded]
+        except (ValueError, TypeError) as exc:
+            raise ValueError("not a move spine: %r (%s)" % (cell, exc))
+    # Cells written before 2026-09-21 hold the pipe-and-middot form. They
+    # still have to read, or the verifier calls every existing row broken.
     out = []
     for part in text.split("|"):
         part = part.strip()

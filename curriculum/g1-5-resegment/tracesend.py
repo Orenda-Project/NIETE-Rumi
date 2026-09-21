@@ -49,12 +49,21 @@ def link_cell(sid, row, col, label, uri):
                  [{"startIndex": 0, "format": _fmt(uri)}])
 
 
-def header_cell(sid, row, col, title):
+def text_cell(sid, row, col, value):
+    """A plain-text cell, with no run formatting at all.
+
+    The traces cell is JSON and carries its own URLs, so a link run would
+    be a second copy of the same address and the first thing to go stale.
+    """
     return {"updateCells": {
         "range": {"sheetId": sid, "startRowIndex": row, "endRowIndex": row + 1,
                   "startColumnIndex": col, "endColumnIndex": col + 1},
-        "rows": [{"values": [{"userEnteredValue": {"stringValue": title}}]}],
+        "rows": [{"values": [{"userEnteredValue": {"stringValue": value}}]}],
         "fields": "userEnteredValue"}}
+
+
+def header_cell(sid, row, col, title):
+    return text_cell(sid, row, col, title)
 
 
 def chunks(items, size=BATCH):

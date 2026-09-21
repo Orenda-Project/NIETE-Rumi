@@ -21,6 +21,7 @@ decision: B at column A, C at the first enrichment column. A stage that
 has not run gets no cell at all -- an empty trace is readable, a trace
 pointing at a 404 is worse than nothing (traces.md caught 3 of those).
 """
+import json
 import unittest
 
 import tracelinks as t
@@ -136,8 +137,6 @@ class TheStagesThatHaveNotRun(unittest.TestCase):
             self.assertNotIn(c, t.LINKED_STAGES)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TheHeaderIsFoundAgainOnTheNextBuild(unittest.TestCase):
@@ -152,3 +151,56 @@ class TheHeaderIsFoundAgainOnTheNextBuild(unittest.TestCase):
         once = t.stamped("C Enrichment", "2026-09-21")
         self.assertEqual(t.stamped(once, "2026-10-01"),
                          "C Enrichment (2026-10-01)")
+
+
+class TheTracesCell(unittest.TestCase):
+    """One JSON object per row, holding only the stages that have an artefact.
+
+    The ten-column block decayed into nine dead columns because a column
+    exists whether or not its stage ran. A key does not: it is written when
+    there is something to point at, and absent otherwise, so "no key" reads
+    as "this stage has not run" rather than as a blank someone forgot.
+    """
+
+    URLS = ["https://pub-x.r2.dev/pt/a/pg_006.json",
+            "https://pub-x.r2.dev/pt/a/pg_007.json"]
+
+    def test_it_is_json(self):
+        cell = t.traces_cell({"page_truth": self.URLS})
+        self.assertEqual(json.loads(cell), {"page_truth": self.URLS})
+
+    def test_a_stage_with_no_artefact_is_absent_not_empty(self):
+        cell = json.loads(t.traces_cell({"page_truth": self.URLS,
+                                         "enrichment": None,
+                                         "voicenote": []}))
+        self.assertEqual(list(cell), ["page_truth"])
+
+    def test_a_row_with_nothing_published_is_an_empty_cell_not_empty_json(self):
+        # "{}" in 1,923 cells is exactly the constant this replaces.
+        self.assertEqual(t.traces_cell({"page_truth": []}), "")
+        self.assertEqual(t.traces_cell({}), "")
+
+    def test_the_stage_order_is_the_pipeline_order(self):
+        cell = t.traces_cell({"lesson_plan": "u4", "page_truth": ["u1"],
+                              "enrichment": "u3", "segmentation": "u2"})
+        self.assertEqual(list(json.loads(cell)),
+                         ["page_truth", "segmentation", "enrichment",
+                          "lesson_plan"])
+
+    def test_an_unknown_stage_is_refused_rather_than_silently_written(self):
+        with self.assertRaises(KeyError):
+            t.traces_cell({"vibes": "https://pub-x.r2.dev/x.json"})
+
+    def test_the_gap_is_named_when_some_pages_are_unpublished(self):
+        cell = json.loads(t.traces_cell({"page_truth": self.URLS},
+                                        unpublished=[8, 9]))
+        self.assertEqual(cell["pages_unpublished"], [8, 9])
+
+    def test_no_gap_key_when_every_page_is_published(self):
+        cell = json.loads(t.traces_cell({"page_truth": self.URLS},
+                                        unpublished=[]))
+        self.assertNotIn("pages_unpublished", cell)
+
+
+if __name__ == "__main__":
+    unittest.main()

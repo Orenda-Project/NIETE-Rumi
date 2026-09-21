@@ -3,6 +3,7 @@
 Red-first for bd-20n98. Every rule here is one a worker can violate silently,
 so each gets a test that fails loudly on the violation, not just on the happy path.
 """
+import json
 import unittest
 
 import stagec
@@ -168,9 +169,12 @@ class WhichRowsTakeWhichColumns(unittest.TestCase):
         self.assertEqual(stagec.columns_for("grade_banner", "English"), ())
         self.assertEqual(stagec.columns_for("chapter_header", "Urdu"), ())
 
-    def test_the_language_tabs_carry_four_columns_the_core_tabs_do_not(self):
+    def test_the_language_tabs_carry_five_columns_the_core_tabs_do_not(self):
+        # `Reading strategy` joined the four on 2026-09-21: it was "n/a" on
+        # all 785 Maths and Science rows, so those tabs no longer have it.
         extra = set(stagec.LANG_COLUMNS) - set(stagec.CORE_COLUMNS)
-        self.assertEqual(extra, {"Function", "Interaction", "Gap", "Recycles"})
+        self.assertEqual(extra, {"Function", "Interaction", "Gap", "Recycles",
+                                 "Reading strategy"})
 
     def test_strand_is_never_written_by_stage_c(self):
         self.assertNotIn("Strand", stagec.LANG_COLUMNS)
@@ -237,6 +241,53 @@ class PrerequisiteSlos(unittest.TestCase):
     def test_several_codes_are_each_checked(self):
         earlier = {"E-01-A-01"}
         self.assertTrue(stagec.check_prereq("E-01-A-01, E-09-Z-99", earlier))
+
+
+
+
+class TheMovesAreJson(unittest.TestCase):
+    """A Moves cell is the artefact, so it has to parse as JSON.
+
+    Amena, 2026-09-21: "the mopves should have the moves in a json format,
+    no?" -- the pipe-and-middot string needed a bespoke parser, which is
+    what made the cell a label rather than an artefact.
+    """
+
+    SPINE = [("warm_up", 3), ("guided", 5), ("guided", 4), ("exit", 3)]
+
+    def test_format_moves_emits_parseable_json(self):
+        cell = stagec.format_moves(self.SPINE)
+        self.assertEqual(json.loads(cell), [["warm_up", 3], ["guided", 5],
+                                            ["guided", 4], ["exit", 3]])
+
+    def test_a_repeated_phase_survives_the_round_trip(self):
+        # Every one of the 22 spines repeats a phase, so a JSON object keyed
+        # by phase would silently drop minutes.
+        self.assertEqual(stagec.parse_moves(stagec.format_moves(self.SPINE)),
+                         self.SPINE)
+
+    def test_the_order_survives_the_round_trip(self):
+        spine = [("exit", 3), ("warm_up", 3), ("guided", 34)]
+        self.assertEqual(stagec.parse_moves(stagec.format_moves(spine)), spine)
+
+    def test_the_legacy_pipe_form_still_parses(self):
+        # Cells written before today still have to be readable, or the
+        # verifier reports every existing row as broken.
+        self.assertEqual(stagec.parse_moves("warm_up·3 | guided·5"),
+                         [("warm_up", 3), ("guided", 5)])
+
+    def test_json_moves_reach_the_gate_and_the_derivation(self):
+        spine = [("warm_up", 5), ("explain", 8), ("guided", 10),
+                 ("independent", 6), ("peer_review", 4), ("recall", 2),
+                 ("hook", 1), ("announce", 1), ("exit", 2), ("homework", 1)]
+        cell = stagec.format_moves(spine)
+        self.assertEqual(stagec.check_moves(cell), [])
+        self.assertEqual(stagec.teacher_primary_min(cell),
+                         stagec.teacher_primary_min(spine))
+
+    def test_a_non_json_non_spine_cell_is_still_refused(self):
+        with self.assertRaises(ValueError):
+            stagec.parse_moves("{\"warm_up\": 3}")
 
 
 if __name__ == "__main__":

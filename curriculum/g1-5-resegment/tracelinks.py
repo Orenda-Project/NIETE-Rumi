@@ -20,6 +20,7 @@ voicenotes, judge verdicts and the delivered PDF -- have not run at day
 scale, and get no cell. traces.md is explicit that a cell pointing at
 something that is not there is worse than an empty one.
 """
+import json
 import re
 
 PAGE_TRUTH = "A Page truth"
@@ -116,3 +117,40 @@ def unstamped(header):
 def stamped(header, date):
     """Re-derived every build, so an old stamp is replaced, never stacked."""
     return "%s (%s)" % (_STAMP.sub("", header), date)
+
+
+# traces.md names ten stages. They are keys in one JSON object now, not ten
+# columns: a column exists whether or not its stage ran, which is how nine of
+# the ten came to hold nothing or the same string on all 1,923 rows. A key is
+# written only when there is an artefact to point at.
+TRACE_STAGES = ("page_truth", "segmentation", "enrichment", "enrich_gate",
+                "slide_script", "render_meta", "voicenote", "pedagogy_review",
+                "design_review", "lesson_plan")
+
+
+def traces_cell(artefacts, unpublished=()):
+    """The row's artefacts as one JSON object, or "" when it has none.
+
+    `artefacts` maps a stage in TRACE_STAGES to its URL, or to a list of URLs
+    where a row spans several objects (page truth is one object per printed
+    page). A stage whose value is empty is left out entirely -- "{}" repeated
+    down a column is the same constant this replaces.
+
+    `unpublished` names the printed pages with no page-truth object, so the
+    cell states its own gap rather than quietly listing fewer pages than the
+    day teaches.
+    """
+    out = {}
+    for stage in artefacts:
+        if stage not in TRACE_STAGES:
+            raise KeyError("not a traces.md stage: %r" % (stage,))
+    for stage in TRACE_STAGES:
+        value = artefacts.get(stage)
+        if not value:
+            continue
+        out[stage] = list(value) if isinstance(value, (list, tuple)) else value
+    if not out:
+        return ""
+    if unpublished:
+        out["pages_unpublished"] = list(unpublished)
+    return json.dumps(out, ensure_ascii=False, separators=(",", ":"))

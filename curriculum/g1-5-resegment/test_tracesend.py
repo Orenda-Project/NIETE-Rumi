@@ -76,5 +76,24 @@ class TheBatching(unittest.TestCase):
         self.assertEqual(list(s.chunks([], 400)), [])
 
 
+class ThePlainTextCell(unittest.TestCase):
+    """The traces JSON goes in unformatted: the URLs live in the value."""
+
+    def cell(self):
+        return s.text_cell(7, 4, 9, '{"page_truth":["https://x/pg_006.json"]}')
+
+    def test_it_writes_the_value_and_only_the_value(self):
+        self.assertEqual(self.cell()["updateCells"]["fields"],
+                         "userEnteredValue")
+
+    def test_it_carries_no_format_runs(self):
+        v = self.cell()["updateCells"]["rows"][0]["values"][0]
+        self.assertEqual(list(v), ["userEnteredValue"])
+
+    def test_a_header_is_the_same_request_with_a_title_in_it(self):
+        self.assertEqual(s.header_cell(7, 4, 9, "Traces"),
+                         s.text_cell(7, 4, 9, "Traces"))
+
+
 if __name__ == "__main__":
     unittest.main()
