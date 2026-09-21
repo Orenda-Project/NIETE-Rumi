@@ -160,7 +160,10 @@ def _envelope(segment, pages, book, day, total_days):
         "lp_type": segment.get("lp_type"),
         "cpa_phase": segment.get("cpa_phase"),
         "bloom": segment.get("blooms"),
-        "duration_min": segment.get("duration_min"),
+        # The period the teacher is shown and the coach reads, then the
+        # budget the timed steps may fill. See cbriefbasics.minutes.
+        "duration_min": cbriefbasics.minutes(segment)[0],
+        "content_min": cbriefbasics.minutes(segment)[1],
         "day_num": day,
         "total_days": total_days,
         # What resolved, not what was asked for. A segment naming three pages

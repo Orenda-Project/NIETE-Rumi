@@ -64,13 +64,45 @@ CONTENT_MIN = 30
 PERIOD_MIN = 40
 
 
+def minutes(segment):
+    """The period the lesson prints, and the budget its timed steps may fill.
+
+    They are two numbers and the corpus only ever learned one. Every segment
+    outside the basics build states `duration_min` 25, 30 or 35 and never 40,
+    so the field named after the period is in fact carrying the budget --
+    handed on unread it tells an author the lesson is 30 minutes long, and
+    tells the Digital Coach to mark a teacher slow for teaching exactly to
+    design. A row that states `content_min` has already learned both words
+    and is taken at it.
+
+    This resolves what the AUTHOR is told. What the GATE scores is still
+    `contentbudget`'s own question, and it still asks it only of a row that
+    spells `content_min` -- see bd-jfkl0.
+    """
+    seg = segment or {}
+
+    def number(value):
+        ok = isinstance(value, int) and not isinstance(value, bool) and value > 0
+        return value if ok else None
+
+    stated = number(seg.get("duration_min"))
+    budget = number(seg.get("content_min"))
+    if budget:
+        period = stated or PERIOD_MIN
+        return period, min(budget, period)
+    if stated and stated < PERIOD_MIN:
+        # The corpus number is the budget, whatever the key is called.
+        return PERIOD_MIN, stated
+    # A row stating the period and no budget has not granted the whole of it.
+    return PERIOD_MIN, CONTENT_MIN
+
+
 def section(segment):
     """The basics half of a brief, or None where the day is an ordinary one."""
     if not segment.get("is_basics"):
         return None
     skill = segment.get("skill_type")
-    period = segment.get("duration_min") or PERIOD_MIN
-    content = segment.get("content_min") or CONTENT_MIN
+    period, content = minutes(segment)
     return {
         "skill": skill,
         "skill_name": basicseg.NAME.get(skill, skill),
