@@ -257,8 +257,11 @@ STANDFIRST = {
                "Grades 1-5, in grade then chapter then day order.",
     "Urdu": "One row per teaching day. The Urdu day boundaries are the ones "
             "already in production — only the day-integrity fields were "
-            "repaired. جائزہ and دہرائی days are ordinary Day rows here, not "
-            "chapter tails.",
+            "repaired. جائزہ (assessment) is an ordinary Day row here, not a "
+            "chapter tail. دہرائی is not a row at all: each chapter's "
+            "revision is folded into its last teaching day, which carries "
+            "the extra SLOs and says so in Flags. That is why a chapter's "
+            "days run 1..n with no revision day among them.",
     "Maths": "One row per teaching day, rebuilt from the printed pages. Skill "
              "type IS the CPA phase — concrete, pictorial, the bridge, "
              "abstract, word problem.",

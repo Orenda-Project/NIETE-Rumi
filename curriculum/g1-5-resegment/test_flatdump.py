@@ -155,8 +155,10 @@ class TheLiveBuildAgreesWithItsOwnRowTypes(unittest.TestCase):
         self.assertEqual(len(self.kinds("assessment")), 145)
 
     def test_urdu_contributes_no_chapter_tail_and_that_is_by_design(self):
-        # Urdu's جائزہ and دہرائی days sit on ordinary Day rows; both tabs say
-        # so. A zero here is the documented shape, not a row the fix dropped.
+        # Urdu's جائزہ sits on an ordinary Day row, and its دہرائی is
+        # folded into the last teaching day (Rule 3) rather than being a
+        # row at all. The tab standfirst says both. A zero here is the
+        # documented shape, not a row the fix dropped.
         urdu = [r for r in self.body
                 if r[self.head.index("Subject")] == "Urdu"]
         self.assertTrue(urdu)

@@ -66,6 +66,34 @@ class TheGateOpensForGradeOneEnglishAndMaths(unittest.TestCase):
         self.assertEqual(out[0]["slo_codes"], ["M-01-NO-01", "M-01-NO-02"])
         self.assertEqual(len(out), 2)
 
+    def test_a_recap_that_opens_a_chapter_folds_into_its_first_day(self):
+        # Grade 1 Maths chapters 2-4 open with a "Memory Lane recap" of the
+        # chapter before, printed on the opening page and carrying the
+        # COMING chapter's SLOs. It is prerequisite activation, so it folds
+        # into the day it sits beside. Folding it into the chapter's last
+        # teaching day would run the warm-up after the learning and strand
+        # page 31 on a day that teaches page 52.
+        rows = [seg(2, "Day 1", "revision", slo_codes=["M-01-PV-03"],
+                    pages_printed=[31], topic="Memory Lane recap"),
+                seg(2, "Day 2", "concrete", slo_codes=["M-01-PV-01"],
+                    pages_printed=[32]),
+                seg(2, "Day 3", "pictorial", slo_codes=["M-01-PV-02"],
+                    pages_printed=[52]),
+                seg(2, "Chapter Review", "revision",
+                    slo_codes=["M-01-PV-04"], pages_printed=[53])]
+        out, freed = dayfold.fold_revision(rows, "Maths", 1)
+        self.assertEqual(freed, 2)
+        self.assertEqual(len(out), 2)
+        # The recap landed on the first teaching day, the chapter review on
+        # the last, and each says so.
+        self.assertEqual(out[0]["slo_codes"], ["M-01-PV-01", "M-01-PV-03"])
+        self.assertEqual(out[1]["slo_codes"], ["M-01-PV-02", "M-01-PV-04"])
+        self.assertTrue(out[0].get("fold_note"))
+        self.assertTrue(out[1].get("fold_note"))
+        # Rule 2 still holds: no printed page was reassigned.
+        self.assertEqual(out[0]["pages_printed"], [32])
+        self.assertEqual(out[1]["pages_printed"], [52])
+
 
 class TheGateStaysShutEverywhereElse(unittest.TestCase):
 

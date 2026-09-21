@@ -152,7 +152,15 @@ def load_book(path):
     stem = doc["_meta"]["book_stem"]
     grade, subject = book_meta(stem)
     segments = order_segments(doc["segments"])
+    # Read off the book as written, before the fold removes the Grade 1
+    # Maths revision days that open chapters 2 onward captioned `Day 1`.
+    scheme = dayfold.numbering_scheme(segments)
     segments, _freed = dayfold.fold_revision(segments, subject, grade)
+    # Immediately, and here rather than in the allocator, for the same
+    # reason the fold itself lives behind this door: a chapter whose days
+    # are numbered differently on the calendar and on the subject tab is
+    # worse than either numbering. See bd-6kp1a.
+    segments = dayfold.renumber_days(segments, scheme)
     segments, _swaps = dayfold.complete_5e(segments, subject)
     segments, _read = cpatrust.trust_page(segments, subject)
     segments, _opened = cpaopen.open_concrete(segments, subject)
@@ -165,6 +173,12 @@ REVIEW_SKILLS = {"revision", "duhrai", "assessment", "review_assess"}
 
 def day_flags(day, role, shared):
     flags = []
+    if day.get("fold_note"):
+        # First, because it explains the row. A day that absorbed a
+        # revision carries SLOs its siblings do not, and without this the
+        # only evidence on the tab is that the last teaching day of the
+        # chapter has four supporting codes for no stated reason.
+        flags.append(day["fold_note"])
     if not day.get("slo_codes"):
         flags.append("no SLO in source — human review")
     elif len(role["new_codes"]) > 1 and day.get("skill_type") not in REVIEW_SKILLS:
