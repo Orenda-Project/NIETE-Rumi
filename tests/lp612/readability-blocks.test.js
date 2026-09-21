@@ -22,7 +22,7 @@
  *      from the tint to the strong colour, and the text turns white.
  *
  *   2. EVERY SMALL-CAPS LABEL IS THE SAME LABEL. `WARM-UP`, `KEY WORDS`, `KEY POINTS`,
- *      `DIFFERENTIATION` and `COMMON MISTAKES…` head a GROUP of sibling cards; `ON THE BOARD`,
+ *      `DIFFERENTIATION` and `COMMON MISTAKES…` head a GROUP of sibling cards; `WRITE ON THE BOARD`,
  *      `WATCH OUT`, `EXIT TICKET` and `IF STUCK` name a single leaf. All ten are one 14px
  *      uppercase `.lbl`. The concept of a group heading already existed — three call sites had
  *      already reached for `style="color:var(--navy2)"` / `style="color:#8A5F04"` by hand — so
@@ -39,6 +39,9 @@ const path = require('path');
 const VENDOR = path.join(__dirname, '..', '..', 'bot', 'vendor', 'lp-v9');
 const { buildHtml } = require(path.join(VENDOR, 'lib', 'template'));
 const { lint } = require(path.join(VENDOR, 'lint_lp.js'));
+// bd-f6opy -- the colour arithmetic moved to a shared helper when primary-moves.test.js
+// needed the same law for the three gradual-release MOVE pills. Same functions, same values.
+const { rule, fillOf, resolved, deltaE, contrastWithWhite } = require('./__helpers__/colour');
 
 const FIXTURE = path.join(__dirname, '__fixtures__', 'v9_gate_base.lp.json');
 const baseDoc = () => JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
@@ -46,21 +49,6 @@ const baseDoc = () => JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
 const render = (doc, opts = {}) => buildHtml(doc, { docDir: path.dirname(FIXTURE), ...opts }).html;
 const sheet = (out) => out.slice(0, out.indexOf('</style>'));
 const body = (out) => out.slice(out.indexOf('</style>'));
-
-/** The declaration block of one rule, by exact selector text.
- *  The boundary check is load-bearing: a bare `indexOf('p{')` matches inside `.wrap{`, and the
- *  body-floor assertion would then be reading some other rule entirely and passing by accident. */
-function rule(css, selector) {
-  const needle = selector + '{';
-  let i = -1;
-  for (;;) {
-    i = css.indexOf(needle, i + 1);
-    if (i < 0) return null;
-    if (i === 0 || !/[A-Za-z0-9_.#)\]-]/.test(css[i - 1])) break;
-  }
-  const j = css.indexOf('}', i);
-  return j < 0 ? null : css.slice(i + needle.length, j);
-}
 
 /** Every font-size in a declaration block, as numbers. The sheet is SCALED (scaledPx ≈ 1.1667), */
 /*  so these are only ever compared to one another, never to the source value.                  */
@@ -71,13 +59,14 @@ const CSS = sheet(OUT);
 const HTML = body(OUT);
 
 /**
- * The seven sections, and the strong colour each one's BADGE already carried.
+ * The section bands, and the strong colour each one's BADGE already carried. There are EIGHT for
+ * seven sections, because activity prints two -- see .s-we below.
  *
  * These are TOKEN SPELLINGS, not hexes, since bd-a8veu.23 collapsed the sheet onto the surface
  * ladder: a band names a role and the role owns the value. The values themselves did not move —
  * the test below re-reads each token out of `:root` and pins it to the hex it has always been, so
  * this pair of tests still proves "a band is a solid block of the strong colour", which is the
- * invariant, while leaving the sheet free to say it once instead of seven times.
+ * invariant, while leaving the sheet free to say it once instead of once per band.
  */
 const SECTIONS = [
   ['.s-o', 'var(--s-note-ink)'], // objectives — the amber the band's own text already used
@@ -85,63 +74,33 @@ const SECTIONS = [
   ['.s-i', 'var(--band-i)'],     // introduction — was a navy 8.8 dE from development's
   ['.s-d', 'var(--navy)'],       // development
   ['.s-a', 'var(--leaf)'],       // activity
+  // bd-f6opy -- WE DO's own band. The operator asked for the three gradual-release moves to be
+  // three colours and for the shared 'We Do / You Do' band to split, so activity now prints two:
+  // this one over the class-practises half, and .s-a's green over the pupils-alone half.
+  ['.s-we', 'var(--band-we)'],   // activity, first half — WE DO
   ['.s-c', 'var(--band-c)'],     // conclusion — the one band fill with no pale role behind it
   ['.s-h', 'var(--mut)'],        // homework
 ];
 
-/** What each band token must still resolve to in `:root`. */
+/** What each band token must still resolve to in `:root`.
+ *
+ * `--navy` and `--leaf` are the two bands that also carry the NIETE brand, so they moved to
+ * kie.ai's ink and green when the brand layer landed (SYNC §3.15). This table is a SNAPSHOT --
+ * it catches an accidental edit, it is not the property. The properties are the two tests below
+ * it: ≥15 dE between every pair of fills, and ≥4.5:1 for the white name each fill prints. Both were
+ * re-measured against the new values before this table was rewritten, and both still hold.
+ */
 const BAND_VALUES = {
   '--s-note-ink': '#8A5F04',
-  '--navy2': '#13315C',
-  '--navy': '#0B2545',
-  '--leaf': '#1F7A4D',
+  '--navy2': '#2A3550',
+  '--navy': '#303749',
+  '--leaf': '#298157',
   '--band-c': '#584A93',
   '--band-w': '#9E3B52',
   '--band-i': '#0F6A73',
+  '--band-we': '#2E5E90',
   '--mut': '#5b6472',
 };
-
-/** The `background:` a band rule declares, token spelling and all. */
-function fillOf(css, cls) {
-  const m = (rule(css, cls) || '').match(/background:\s*([^;]+);/);
-  expect(m).not.toBeNull();
-  return m[1].trim();
-}
-
-/** A value chased through `:root` until it is a literal — `var(--s-note-ink)` -> `#8A5F04`. */
-function resolved(css, value) {
-  const root = css.match(/:root\{([\s\S]*?)\}/)[1];
-  let v = String(value).trim();
-  for (let i = 0; i < 8 && v.startsWith('var('); i += 1) {
-    const token = v.slice(4, v.indexOf(')')).trim();
-    const m = root.match(new RegExp(`${token}\\s*:\\s*([^;]+);`));
-    expect(m).not.toBeNull();
-    v = m[1].trim();
-  }
-  return v;
-}
-
-/** CIE L*a*b*, so two fills can be compared by how far apart they LOOK, not by how they are spelled. */
-function lab(hex) {
-  const f = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  const [r, g, b] = [1, 3, 5].map((i) => f(parseInt(hex.slice(i, i + 2), 16) / 255));
-  const xyz = [
-    (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
-    0.2126 * r + 0.7152 * g + 0.0722 * b,
-    (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
-  ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116));
-  return [116 * xyz[1] - 16, 500 * (xyz[0] - xyz[1]), 200 * (xyz[1] - xyz[2])];
-}
-
-const deltaE = (a, b) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
-
-/** WCAG 2.x contrast of a hex fill against the #fff the band's name and minutes are printed in. */
-function contrastWithWhite(hex) {
-  const ch = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  const [r, g, b] = [1, 3, 5].map((i) => ch(parseInt(hex.slice(i, i + 2), 16) / 255));
-  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return 1.05 / (L + 0.05);
-}
 
 /** The pale tints the bands used to be filled with. None may survive as a band fill. */
 const OLD_TINTS = ['#E1EAF6', '#EAF0F8', '#FBF1DF', '#ECE8F6', '#EFF1F4', 'var(--amber-soft)', 'var(--leaf-soft)'];
@@ -182,8 +141,8 @@ describe('the section band is a block of colour, not a wash', () => {
   });
 
   test('the badge is a translucent chip on the fill, not a second solid', () => {
-    // One rule for all seven, because a per-section solid is now the band's own colour on itself:
-    // a navy badge on a navy band is a hole. Translucent white reads on every one of the seven.
+    // One rule for every band, because a per-section solid is now the band's own colour on itself:
+    // a navy badge on a navy band is a hole. Translucent white reads on every one of them.
     const decl = rule(CSS, '.bar .badge');
     expect(decl).toMatch(/background:\s*rgba\(255,\s*255,\s*255,/);
     for (const [cls] of SECTIONS) expect(CSS).not.toContain(`${cls} .badge`);
@@ -214,7 +173,8 @@ describe('the section band is a block of colour, not a wash', () => {
      * a duplicate however it is written — and it is a DISTANCE, not an inequality, because the
      * second collision was never two equal strings. Two hexes that differ are still one colour to
      * a teacher; CIE L*a*b* is the cheapest thing that says so. The floor is 15: the old navies
-     * measure 8.8 apart and the old ambers 0.0, while the tightest pair the seven now hold is 21.
+     * measure 8.8 apart and the old ambers 0.0, while the tightest pair now held is 21 (and the
+     * WE DO blue bd-f6opy added sits 23.6 from its nearest neighbour).
      */
     const MIN_DELTA_E = 15;
     const fills = SECTIONS.map(([cls]) => {
@@ -233,7 +193,7 @@ describe('the section band is a block of colour, not a wash', () => {
   });
 
   test('every band still carries its white name and minutes at 4.5:1', () => {
-    // `.bar .nm,.bar .mins{color:#fff}` is one rule for all seven, so a fill that fails contrast
+    // `.bar .nm,.bar .mins{color:#fff}` is one rule for every band, so a fill that fails contrast
     // does not look wrong — it prints the move name in white on a colour too pale to hold it.
     const weak = SECTIONS.map(([cls]) => [cls, contrastWithWhite(resolved(CSS, fillOf(CSS, cls)))])
       .filter(([, ratio]) => ratio < 4.5)
@@ -279,7 +239,11 @@ describe('a group heading and a leaf label are two different things', () => {
     expect(HTML).toMatch(re);
   });
 
-  const LEAVES = ['WATCH OUT', 'ON THE BOARD', 'EXIT TICKET'];
+  // WRITE ON THE BOARD, not ON THE BOARD (SYNC §3.16): the operator's own words for this
+  // block are an instruction -- *"the write on the board should be rendered"* -- and the label
+  // is the only place the teacher is told to pick up the chalk. The leaf/group rule below is
+  // unchanged; only the wording of this one leaf moved.
+  const LEAVES = ['WATCH OUT', 'WRITE ON THE BOARD', 'EXIT TICKET'];
   test.each(LEAVES)('%s names one leaf, so it stays a plain label', (label) => {
     const re = new RegExp(`<div class="lbl">(&#9888; )?${label}`, 'i');
     expect(HTML).toMatch(re);

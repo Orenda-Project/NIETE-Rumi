@@ -102,9 +102,15 @@ describe('the surface ladder', () => {
   });
 
   test('every corner radius is one of the three tokens, or a circle', () => {
+    // A SEAM IS NOT A FOURTH RADIUS (bd-ilzfs, SYNC 3.18). A worked example that outgrows a page
+    // now paints as N sibling boxes, and each piece squares the two corners it shares with the
+    // next -- `var(--r-2) var(--r-2) 0 0`. The card still has exactly ONE radius; `0` is the
+    // absence of a corner, not an eleventh one-off choice. A px literal is still refused, and so
+    // is a fourth token.
+    const ok = /^(?:var\(--r-(?:1|2|pill)\)|0)(?:\s+(?:var\(--r-(?:1|2|pill)\)|0)){0,3}$/;
     const offenders = [...rules().matchAll(/border-radius:\s*([^;}]+)/g)]
       .map((m) => m[1].trim())
-      .filter((v) => !/^var\(--r-(1|2|pill)\)$/.test(v) && v !== '50%');
+      .filter((v) => !ok.test(v) && v !== '50%');
     expect(offenders).toEqual([]);
   });
 

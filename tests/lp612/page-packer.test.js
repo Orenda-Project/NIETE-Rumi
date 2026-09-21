@@ -33,6 +33,7 @@ const A = (h, o = {}) => ({
   h,
   mt: o.mt || 0,
   glue: !!o.glue,
+  soft: !!o.soft,
   sec: o.sec || null,
   first: !!o.first,
 });
@@ -343,5 +344,41 @@ describe('packAtoms — the exact page packer', () => {
         });
       }
     });
+  });
+});
+
+/**
+ * bd-usirc — A SOFT SEAM: PREFER NOT TO BREAK HERE, NEVER AT THE COST OF A PAGE.
+ *
+ * `glue` is nearly hard: a break after a glued atom is legal only when that atom stands alone
+ * on its page, so gluing two atoms that a reader wants together BUYS A PAGE whenever the pair
+ * does not fit where it lands. Measured on the 38-lesson G1-5 corpus, gluing the one opening
+ * box's two bands cost +7 pages -- while on A4 the packer was splitting that box and leaving
+ * 500px of blank underneath it, because at an equal page count the comparator front-loads.
+ *
+ * `soft` is the missing middle: a break after it is always legal, and is counted. Ranked below
+ * `pages` it can never buy paper; ranked above `used` it wins every tie that front-loading used
+ * to win. An atom that does not declare it is packed exactly as before.
+ */
+describe('a soft seam', () => {
+  test('the break moves off the seam when that costs no page', () => {
+    // 130px over a 100px box needs two pages either way. Front-loading would fill page 1 to 80
+    // and break on the seam; the seam is worth more than the 30px.
+    const r = packAtoms([A(50), A(30, { soft: true }), A(30), A(20)], 100);
+    expect(pageCount(r)).toBe(2);
+    expect(r.breaks).toEqual([1]);
+  });
+
+  test('but the seam breaks rather than spend a page', () => {
+    // 155px over a 100px box: the only two-page packing puts the break on the seam, because
+    // 45 + 60 does not fit. A soft seam yields; it is a preference, not a constraint.
+    const r = packAtoms([A(50), A(45, { soft: true }), A(60)], 100);
+    expect(pageCount(r)).toBe(2);
+    expect(r.breaks).toEqual([2]);
+  });
+
+  test('an atom that declares neither flag packs exactly as it always did', () => {
+    const plain = [A(50), A(30), A(30), A(20)];
+    expect(packAtoms(plain, 100).breaks).toEqual([2]);
   });
 });
