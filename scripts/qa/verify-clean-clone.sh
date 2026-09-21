@@ -1,8 +1,10 @@
 #!/bin/bash
-# verify-clean-clone.sh — prove the QA pipeline works from a FRESH CLONE of this
-# repo on a machine that has nothing else: no parent workspace, no Claude session,
-# no pre-set git config. This is the "any developer, any machine" claim, tested
-# rather than asserted.
+# verify-clean-clone.sh — prove the QA pipeline works from a FRESH CLONE of this repo, on a machine
+# with no Claude session and no pre-set git config, sitting in a workspace that carries the SHARED
+# engine. That is the real claim since 2026-09-21: the harness is authored once in rumi-agent-home,
+# this repo commits no copy of it, and a clone borrows it through the gitignored symlink that
+# scripts/qa/link-engine.sh creates. Section 7 covers the other case — a clone with no workspace at
+# all — where the honest outcome is that commits land and nothing is armed.
 #
 #   bash scripts/qa/verify-clean-clone.sh                 # clone THIS checkout's HEAD
 #   bash scripts/qa/verify-clean-clone.sh <url-or-path> [branch]
@@ -17,6 +19,7 @@
 #                                                none-needed; a runs.jsonl row records proof
 #   5. pre-push to develop                     → advisory report; strict mode blocks
 #   6. every QA test suite, inside the clone   → green
+#   7. the same clone with NO workspace above  → commits land, nothing armed, nothing errors
 # Nothing here touches WhatsApp or any database.
 set -u
 SRC="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
@@ -31,7 +34,10 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/niete clean clone.XXXXXX")   # a path with spac
 trap 'rm -rf "$TMP"' EXIT
 export HOME="$TMP/home"; mkdir -p "$HOME"                      # no user git config, no ~/.claude
 unset CLAUDE_PROJECT_DIR E2E_AUTORUN_OFF E2E_SPEC_SYNC_OFF QA_HOOKS_OFF QA_HOOKS_STRICT QA_HOOKS_QUIET CI
-C="$TMP/NIETE-Rumi"
+# the workspace that owns the one engine, exactly as rumi-agent-home does on a developer machine
+ENG_REAL=$(cd "$SRC/.claude/qa/engine" 2>/dev/null && pwd -P) || { echo "no shared engine linked in $SRC — run: bash scripts/qa/link-engine.sh" >&2; exit 2; }
+WS="$TMP/workspace"; mkdir -p "$WS/.claude/qa"; ln -s "$ENG_REAL" "$WS/.claude/qa/engine"
+C="$WS/NIETE-Rumi"
 
 echo "clean clone — $SRC ${BRANCH:+($BRANCH)}"
 if [ -n "$BRANCH" ]; then git clone -q --branch "$BRANCH" "$SRC" "$C" 2>&1 | tail -2
@@ -44,6 +50,11 @@ git -C "$C" branch -f origin-develop-marker >/dev/null 2>&1
 git -C "$C" update-ref refs/remotes/origin/develop HEAD  # branch-guard-allow: fixture builds a throwaway clone
 say "selector works without PyYAML (scrubbed HOME)" "$(cd "$C" && HOME=$HOME python3 -c "import sys; sys.path.insert(0, \".claude/qa/shared\"); import select_e2e as se; m=se.load_map(\".claude/qa/config/feature-map.yaml\", \".claude/qa/agents\"); print(len(se.select([\"bot/shared/services/menu.service.js\"], m, se.load_feature_order(\".claude/qa/agents\")).features))" 2>/dev/null)" "1"
 say "no hooksPath before install" "$(git -C "$C" config --get core.hooksPath)" ""
+say "no engine committed to this repo" "$(git -C "$C" ls-files .claude/qa/engine | wc -l | tr -d ' ')" "0"
+# borrow the shared engine, the way `npm install` does — every engine path below depends on this
+out=$(cd "$C" && bash scripts/qa/link-engine.sh 2>&1); say "link-engine exit" "$?" "0"
+has "…and it says it linked one" "$out" "engine linked" yes
+say "the engine is reachable from the clone" "$(cd "$C/.claude/qa/engine" && pwd -P)" "$ENG_REAL"
 for f in .claude/qa/config/feature-map.yaml .claude/qa/engine/bin/select_e2e.py .claude/qa/engine/bin/spec_sync.py \
          .claude/qa/engine/bin/validate_specs.py .claude/qa/engine/hooks/e2e-autorun.sh .claude/qa/engine/hooks/e2e-autorun-stop.sh \
          .claude/qa/engine/hooks/e2e-pending-banner.sh .claude/commands/niete-e2e.md .claude/commands/sync-specs.md \
@@ -54,12 +65,16 @@ for f in .claude/qa/config/feature-map.yaml .claude/qa/engine/bin/select_e2e.py 
 done
 ok "every QA artefact is in the clone (map, tooling, hooks, commands, skills, specs)"
 has "settings.json wires the E2E hooks" "$(cat "$C/.claude/settings.json")" "e2e-autorun-stop.sh" yes
-n=$(grep -rl -E "rumi-agent-home|Rumi 10 April|/Users/[a-z]+/" "$C/.claude/qa" "$C/.claude/qa/engine/hooks/e2e-autorun.sh" "$C/.claude/qa/engine/hooks/e2e-autorun-stop.sh" "$C/.claude/qa/engine/hooks/lib/git-push-match.sh" "$C/.claude/commands" "$C/scripts/qa" "$C/.githooks" 2>/dev/null | grep -v -E "\.test\.|test_|verify-clean-clone" | wc -l | tr -d ' ')
+# Only this repo's OWN tooling: the engine is borrowed through a symlink and carries its own
+# no-tenant-literals test in rumi-agent-home.
+n=$(grep -rl -E "rumi-agent-home|Rumi 10 April|/Users/[a-z]+/" "$C/.claude/qa/config" "$C/.claude/qa/shared" "$C/.claude/hooks" "$C/.githooks" "$C/scripts/qa" 2>/dev/null | grep -v "/tests\?/" | grep -v "\.test\." | grep -v "verify-clean-clone" | wc -l | tr -d ' ')
 say "no workspace paths in the shipped tooling (tests excepted)" "$n" "0"
 
 echo "1 · install (what npm install's prepare runs)"
-out=$(cd "$C" && bash .claude/qa/engine/scripts/install-hooks.sh --quiet 2>&1); say "installer exit" "$?" "0"
+out=$(cd "$C" && bash scripts/qa/link-engine.sh --quiet 2>&1); say "installer exit" "$?" "0"
+say "installer is silent the second time" "$out" ""
 say "core.hooksPath" "$(git -C "$C" config --get core.hooksPath)" ".githooks"
+say "the borrowed engine stays out of git" "$(cd "$C" && git status --porcelain --untracked-files=all .claude/qa/engine | wc -l | tr -d ' ')" "0"
 
 echo "2 · a terminal commit to a mapped bot file"
 PEND="$C/.claude/.e2e-pending"
@@ -144,6 +159,21 @@ for t in "python3 .claude/qa/shared/test_select_e2e.py" "python3 .claude/qa/engi
          "bash .claude/qa/engine/hooks/e2e-autorun.test.sh"; do
   (cd "$C" && $t >/dev/null 2>&1); say "$t" "$?" "0"
 done
+
+echo "8 · the same clone with NO workspace above it (the honest limit of a shared engine)"
+NW="$TMP/no-workspace"; mkdir -p "$NW"
+git clone -q "$C" "$NW/NIETE-Rumi" 2>/dev/null
+N2="$NW/NIETE-Rumi"
+git -C "$N2" config user.email dev@example.org; git -C "$N2" config user.name "Another Developer"
+out=$(cd "$N2" && bash scripts/qa/link-engine.sh 2>&1); say "link-engine still exits 0" "$?" "0"
+has "…and says where the harness lives" "$out" "rumi-agent-home" yes
+say "nothing was linked" "$( [ -e "$N2/.claude/qa/engine" ] && echo linked || echo none)" "none"
+git -C "$N2" config core.hooksPath .githooks
+printf '\n// no-workspace probe\n' >> "$N2/bot/shared/services/menu.service.js"
+git -C "$N2" add -A >/dev/null
+err=$(git -C "$N2" commit -qm "feat(menu): probe with no workspace" 2>&1); say "the commit lands" "$?" "0"
+say "…silently" "$err" ""
+say "…and arms nothing" "$(ls "$N2/.claude/.e2e-pending" 2>/dev/null | wc -l | tr -d ' ')" "0"
 
 echo "  ---"
 if [ "$FAILED" -eq 0 ]; then echo "  CLEAN-CLONE VERIFICATION PASSED ($N checks)"; else echo "  $FAILED of $N checks failing"; exit 1; fi

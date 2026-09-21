@@ -320,7 +320,7 @@ The hooks guarantee you're *asked* and can't quietly skip; they can't scan a QR 
 
 Feature-branch *pushes* don't arm (nothing deploys) — but a commit on any branch does, since a
 commit deploys nothing regardless of branch. A commit made from a plain terminal arms too, through
-`.githooks/post-commit` (installed by `npm install` / `bash scripts/qa/install-hooks.sh`): it writes a
+`.githooks/post-commit` (installed by `npm install` / `bash scripts/qa/link-engine.sh`): it writes a
 `git-<sha>` marker that the next Claude session in that clone announces at start and is held for once.
 A push to `develop`/`main` also gets a pre-push report of affected features and spec freshness
 (`.githooks/pre-push`) — see [`docs/qa-automation.md`](../../docs/qa-automation.md).

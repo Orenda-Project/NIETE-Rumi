@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/qa/engine/hooks/qa-engine-guard.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/qa-engine-guard.sh",
             "timeout": 5
           }
         ]
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/qa/engine/hooks/e2e-autorun.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/e2e-autorun.sh",
             "timeout": 15000
           }
         ]
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/qa/engine/hooks/e2e-autorun-stop.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/e2e-autorun-stop.sh",
             "timeout": 10000
           }
         ]
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/qa/engine/hooks/e2e-pending-banner.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/e2e-pending-banner.sh",
             "timeout": 5000
           }
         ]

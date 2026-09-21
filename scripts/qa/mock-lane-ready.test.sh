@@ -16,6 +16,12 @@ say() { [ "$2" = "$3" ] && ok "$1" || bad "$1 (got '$2', want '$3')"; }
 has() { case "$2" in *"$3"*) got=yes ;; *) got=no ;; esac; say "$1" "$got" "$4"; }
 
 . "$ROOT/.claude/qa/engine/hooks/lib/mock-lane.sh"
+# The engine is SHARED: .claude/qa/engine is a symlink whose relative target means nothing from a temp
+# dir, and `cp -R` copies the link rather than the tree. Every throwaway clone below re-points it at
+# the resolved engine. (The readiness helpers moved into the engine in 1.1.0; there is no
+# .claude/hooks/lib in this repo any more.)
+ENG_REAL=$(cd "$ROOT/.claude/qa/engine" 2>/dev/null && pwd -P) || { echo "no shared engine linked — run: bash scripts/qa/link-engine.sh" >&2; exit 2; }
+relink() { rm -f "$1/.claude/qa/engine"; ln -s "$ENG_REAL" "$1/.claude/qa/engine"; }
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/mocklane.XXXXXX"); trap 'rm -rf "$TMP"' EXIT
 
 echo "mock-lane — keys dir resolution (mirrors local-stack.sh)"
@@ -80,7 +86,7 @@ has "the not-ready text now points at railway login, not at a script to run by h
 
 echo "mock-lane — commit-e2e.sh AUTO-FIXES instead of refusing when railway is available"
 R2="$TMP/clone auto"; mkdir -p "$R2/bot/shared/services" "$R2/bot/scripts/e2e" "$R2/.claude/hooks" "$R2/tests/features/whatsapp"
-cp -R "$ROOT/.claude/qa" "$R2/.claude/qa"; cp -R "$ROOT/.claude/hooks/lib" "$R2/.claude/hooks/lib"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$R2/bot/scripts/e2e/"
+cp -R "$ROOT/.claude/qa" "$R2/.claude/qa"; relink "$R2"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$R2/bot/scripts/e2e/"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R2/tests/features/whatsapp/niete"; rm -rf "$R2/.claude/qa/results" "$R2/.claude/.e2e-pending"
 printf 'module.exports = { ROWS: [] };\n' > "$R2/bot/shared/services/menu.service.js"
 git -C "$R2" init -q -b sandbox; git -C "$R2" config user.email t@l; git -C "$R2" config user.name t; git -C "$R2" add -A >/dev/null; git -C "$R2" commit -qm baseline
@@ -92,7 +98,7 @@ has "…and did NOT print the not-ready block" "$out" "NOT READY" no
 
 echo "mock-lane — commit-e2e.sh refuses UP FRONT on an unready machine"
 R="$TMP/clone with space"; mkdir -p "$R/bot/shared/services" "$R/.claude/hooks" "$R/tests/features/whatsapp"
-cp -R "$ROOT/.claude/qa" "$R/.claude/qa"; cp -R "$ROOT/.claude/hooks/lib" "$R/.claude/hooks/lib"
+cp -R "$ROOT/.claude/qa" "$R/.claude/qa"; relink "$R"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
 rm -rf "$R/.claude/qa/results" "$R/.claude/.e2e-pending"
 printf 'module.exports = { ROWS: [] };\n' > "$R/bot/shared/services/menu.service.js"

@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "build:portal": "npm ci --prefix portal && npm run build --prefix portal && rm -rf dashboard/portal-frontend/dist && cp -r portal/dist dashboard/portal-frontend/dist && npm install --prefix dashboard",
-    "prepare": "bash .claude/qa/engine/scripts/install-hooks.sh --quiet || true",
-    "qa:hooks": "bash .claude/qa/engine/scripts/install-hooks.sh",
+    "prepare": "bash scripts/qa/link-engine.sh --quiet || true",
+    "qa:hooks": "bash scripts/qa/link-engine.sh",
     "qa:impact": "python3 .claude/qa/engine/bin/impact.py --repo . --format text --base origin/sandbox --head HEAD",
     "qa:test": "E2E_NIETE_CHECKOUT=. E2E_NIETE_SHA=HEAD bash .claude/qa/engine/tests/run-all.sh && python3 .claude/qa/shared/test_niete_sandbox_driver.py && python3 .claude/qa/shared/test_niete_training_db.py && python3 .claude/qa/shared/test_niete_registration_db.py && python3 .claude/qa/shared/niete_coaching_db_reset_conversations.test.py && node .claude/qa/engine/bin/test_mock_api.js && bash bot/scripts/e2e/local-stack-keys.test.sh && bash scripts/qa/test_niete_e2e_schedule.sh && bash bot/scripts/e2e/provision-local-keys.test.sh && bash scripts/qa/mock-lane-ready.test.sh",
     "test": "node tests/baseline-gate.js",

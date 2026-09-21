@@ -6,22 +6,30 @@
  * env var's stem when the routes file declares it, and refuses anything the bot does not mount.
  * Red-first: fails on develop — endpointPathFor is not exported.
  */
-const { endpointPathFor } = require('../../.claude/qa/engine/bin/mock-api.cjs');
+// The harness is SHARED: .claude/qa/engine is a gitignored symlink into rumi-agent-home, created by
+// scripts/qa/link-engine.sh. A checkout without it (CI, a machine with no workspace) has no adapter
+// to test, so these cases announce themselves as skipped rather than failing on a missing module.
+const fs = require('fs');
+const path = require('path');
+const ADAPTER = path.join(__dirname, '..', '..', '.claude', 'qa', 'engine', 'bin', 'mock-api.cjs');
+const HAVE_ENGINE = fs.existsSync(ADAPTER);
+const endpointPathFor = HAVE_ENGINE ? require(ADAPTER).endpointPathFor : null;
+const t = HAVE_ENGINE ? test : test.skip;
 const ROUTES = `
 router.post('/settings', async (req, res) => {});
 router.post('/teacher-training', async (req, res) => {});
 router.post('/pakistan-lp', async (req, res) => {});
 `;
 
-test('the registry wins when it has the Flow', () => {
+t('the registry wins when it has the Flow', () => {
   expect(endpointPathFor('SETTINGS_FLOW_ID', { SETTINGS_FLOW_ID: '/api/flows/settings-v2' }, ROUTES)).toBe('/api/flows/settings-v2');
 });
 
-test('a Flow missing from the registry resolves to /api/flows/<stem> when the bot mounts that route', () => {
+t('a Flow missing from the registry resolves to /api/flows/<stem> when the bot mounts that route', () => {
   expect(endpointPathFor('TEACHER_TRAINING_FLOW_ID', {}, ROUTES)).toBe('/api/flows/teacher-training');
   expect(endpointPathFor('PAKISTAN_LP_FLOW_ID', {}, ROUTES)).toBe('/api/flows/pakistan-lp');
 });
 
-test('a Flow the bot does not mount stays unresolved — the scenario must say NO_ENDPOINT_PATH, not guess', () => {
+t('a Flow the bot does not mount stays unresolved — the scenario must say NO_ENDPOINT_PATH, not guess', () => {
   expect(endpointPathFor('READING_ASSESSMENT_FLOW_ID', {}, ROUTES)).toBe(null);
 });

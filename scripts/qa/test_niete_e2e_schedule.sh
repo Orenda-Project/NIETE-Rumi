@@ -24,6 +24,11 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/e2esched.XXXXXX"); trap 'rm -rf "$TMP"' EXIT
 R="$TMP/niete-e2e"
 mkdir -p "$R/bot/shared/services" "$R/tests/features/whatsapp" "$R/.claude" "$R/scripts"
 cp -R "$ROOT/.claude/qa" "$R/.claude/qa"; cp -R "$ROOT/scripts/qa" "$R/scripts/qa"
+# The engine is SHARED: .claude/qa/engine is a symlink whose relative target means nothing from a
+# temp dir, and `cp -R` copies the link, not the tree. Re-point it at the resolved engine.
+rm -f "$R/.claude/qa/engine"
+ENG=$(cd "$ROOT/.claude/qa/engine" 2>/dev/null && pwd -P) || { echo "no shared engine linked — run: bash scripts/qa/link-engine.sh" >&2; exit 2; }
+ln -s "$ENG" "$R/.claude/qa/engine"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
 rm -rf "$R/.claude/qa/results"; mkdir -p "$R/.claude/qa/ledgers" "$R/.claude/qa/results/whatsapp/niete"
 printf 'module.exports={ROWS:["Teacher Training"]};\n' > "$R/bot/shared/services/menu.service.js"

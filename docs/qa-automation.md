@@ -46,7 +46,7 @@ developer changes bot code
 
 | Mechanism | Fires for | Can do | Cannot do |
 |---|---|---|---|
-| **Git hooks** (`.claude/qa/engine/githooks/`, installed by `npm install` via `prepare`, or `bash .claude/qa/engine/scripts/install-hooks.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
+| **Git hooks** (`.githooks/`, shims into the shared engine; installed by `npm install` via `prepare`, or `bash scripts/qa/link-engine.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
 | **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; **hold the turn until the Gherkin is synced and valid, or declared none-needed** (phase 1 — a gate, bounded to 3 holds, `--clear` refuses while open); order the E2E **once** (phase 2) — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
 | **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
@@ -72,7 +72,7 @@ By hand, for a terminal-only developer:
 ```bash
 npm install                          # root — its `prepare` script installs the git hooks
 # or, explicitly:
-bash .claude/qa/engine/scripts/install-hooks.sh     # sets core.hooksPath = .claude/qa/engine/githooks; --uninstall / --force
+bash scripts/qa/link-engine.sh                     # borrows the shared engine + sets core.hooksPath = .githooks; --unlink
 ```
 
 Nothing else. Python 3 is the only runtime the tooling needs; PyYAML is used when
@@ -154,7 +154,7 @@ Nothing server-side enforces either verdict.
 | Gherkin specs (nine features) + suite notes | `tests/features/whatsapp/niete/*.feature` · `_suite.md` |
 | Per-feature executor agents · fixtures · targets · ledgers | `.claude/qa/agents/` · `.claude/qa/fixtures/` · `.claude/qa/config/whatsapp-targets.yaml` · `.claude/qa/ledgers/` |
 | Runner | `.claude/qa/engine/bin/feature-runner.cjs` (+ `features/*.cjs`, `wa-drive.js`, `flow-lib.cjs`) |
-| Git hooks + installer | `.claude/qa/engine/githooks/post-commit` · `.claude/qa/engine/githooks/pre-push` · `.claude/qa/engine/scripts/install-hooks.sh` |
+| Git hooks + installer | `.githooks/post-commit` · `.githooks/pre-push` (shims) · `scripts/qa/link-engine.sh` |
 | Claude Code hooks | `.claude/qa/engine/hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` · `lib/git-push-match.sh` |
 | Commands / skills | `/niete-e2e` · `/sync-specs` · `/testcases` · `/apply-discoveries` · `gherkin-spec-sync` · `gherkin-test-cases` · `chrome-mcp-whatsapp-e2e` |
 | Pre-push range report (`npm run qa:impact`) | `.claude/qa/engine/bin/impact.py` |

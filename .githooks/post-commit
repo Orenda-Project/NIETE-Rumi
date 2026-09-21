@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
-# Shim: every existing clone of this repo has core.hooksPath=.githooks (set before the engine existed). The real
-# hook now lives in the vendored engine; this two-liner keeps those clones working with NO action after the merge.
-exec bash "$(git rev-parse --show-toplevel)/.claude/qa/engine/githooks/post-commit" "$@"
+# Shim. git runs this (core.hooksPath=.githooks); the harness itself is the SHARED engine, authored in
+# rumi-agent-home and linked in at .claude/qa/engine by scripts/qa/link-engine.sh, which `npm install` runs.
+# No engine on this machine means there is nothing to arm — and never a blocked commit.
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+H="$ROOT/.claude/qa/engine/githooks/post-commit"
+[ -f "$H" ] || exit 0
+exec bash "$H" "$@"

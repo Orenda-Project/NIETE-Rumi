@@ -162,4 +162,7 @@ bot/vendor/lp-v9/.figcache/
 
 # QA automation (.claude/qa) — disposable run output and per-machine pending markers
 .claude/qa/results/
+# The E2E engine is SHARED, authored in rumi-agent-home. scripts/qa/link-engine.sh symlinks it in
+# here; it is never committed to this repo, so it cannot drift from its source.
+/.claude/qa/engine
 .claude/.e2e-pending/

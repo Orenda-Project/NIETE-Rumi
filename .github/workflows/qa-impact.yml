@@ -27,6 +27,11 @@ name: qa-impact
 # A PR touching no mapped bot feature (docs, portal, tests, infra) succeeds quietly
 # and posts nothing — so this is safe to mark as a REQUIRED check.
 #
+# WHERE THE ENGINE COMES FROM. It is not in this repo: the harness is shared, authored in
+# rumi-agent-home. The first step below clones it with the RUMI_AGENT_HOME_TOKEN secret. Without
+# that secret this job cannot analyse anything, and it says so in the job summary instead of
+# reporting a pass.
+#
 # WHAT IT CANNOT DO. Author a scenario or drive WhatsApp. It tells the author, in
 # the PR, exactly which `/sync-specs` and `/niete-e2e` to run in Claude Code.
 
@@ -51,13 +56,51 @@ jobs:
           # pass, guarding nothing.
           fetch-depth: 0
 
+      # The harness is SHARED: authored in hyasin270/rumi-agent-home at .claude/qa/engine, and this
+      # repo commits no copy of it (operator, 2026-09-21). CI therefore has to fetch it. With the
+      # RUMI_AGENT_HOME_TOKEN secret — a read-only token with contents:read on that repo — this gate
+      # runs exactly as it does on a developer machine. Without the secret it CANNOT run, and it says
+      # so loudly in the summary rather than passing quietly, which is the failure mode this whole
+      # workflow exists to prevent.
+      - name: Fetch the shared E2E engine
+        id: engine
+        env:
+          TOKEN: ${{ secrets.RUMI_AGENT_HOME_TOKEN }}
+        run: |
+          set -u
+          if [ -z "${TOKEN:-}" ]; then echo "present=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          AH="$RUNNER_TEMP/agent-home"
+          git clone -q --depth 1 --filter=blob:none --sparse \
+            "https://x-access-token:$TOKEN@github.com/hyasin270/rumi-agent-home.git" "$AH" \
+            || { echo "present=0" >> "$GITHUB_OUTPUT"; exit 0; }
+          git -C "$AH" sparse-checkout set .claude/qa/engine >/dev/null 2>&1 || true
+          if [ ! -f "$AH/.claude/qa/engine/ENGINE_VERSION" ]; then echo "present=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          mkdir -p .claude/qa && ln -sfn "$AH/.claude/qa/engine" .claude/qa/engine
+          echo "present=1" >> "$GITHUB_OUTPUT"
+          echo "shared engine $(cat .claude/qa/engine/ENGINE_VERSION)"
+
+      - name: This gate could not run — no shared engine in CI
+        if: steps.engine.outputs.present != '1'
+        run: |
+          {
+            echo "### Gherkin sync + E2E impact — NOT RUN"
+            echo
+            echo "The harness lives in \`hyasin270/rumi-agent-home\` at \`.claude/qa/engine\`, and this repo"
+            echo "deliberately commits no copy of it. CI needs a read-only token to read it."
+            echo
+            echo "Add a repository secret named \`RUMI_AGENT_HOME_TOKEN\` to switch this gate back on."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning::Gherkin spec-freshness gate did not run: without RUMI_AGENT_HOME_TOKEN, CI cannot read the shared engine."
+
       - name: PR body to a file (Spec-Sync declarations may live there)
+        if: steps.engine.outputs.present == '1'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.txt"
 
       - name: Analyse the PR range
         id: impact
+        if: steps.engine.outputs.present == '1'
         env:
           BASE_REF: ${{ github.base_ref || 'sandbox' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -76,7 +119,7 @@ jobs:
           cat "$RUNNER_TEMP/impact.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post or update the PR comment
-        if: github.event_name == 'pull_request' && steps.impact.outputs.features != '0'
+        if: steps.engine.outputs.present == '1' && github.event_name == 'pull_request' && steps.impact.outputs.features != '0'
         uses: actions/github-script@v7
         env:
           MD_PATH: ${{ runner.temp }}/impact.md
@@ -96,6 +139,7 @@ jobs:
             }
 
       - name: Gate — stale Gherkin spec fails the PR
+        if: steps.engine.outputs.present == '1'
         run: |
           rc="${{ steps.impact.outputs.rc }}"
           if [ "$rc" != "0" ]; then
