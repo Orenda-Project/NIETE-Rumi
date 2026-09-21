@@ -146,11 +146,22 @@ What the day is doing usually points at the structure:
 **A slice is checked for flatness.** If one value lands on more than 60% of your
 rows *and nothing else reaches 25%*, the column is dead and the slice is
 rejected. A dominant value with a real runner-up is fine — it still tells days
-apart. Separately, for this column only, a skill type with 8 or more days
-sitting on a single value is rejected. Do NOT respond to this by sprinkling variety: a flat
-column is a symptom of reading the spine instead of the day, and the fix is to
-go back and read the days. Genuine repetition inside a *small* skill type is
-fine and is not counted against you.
+apart.
+
+**Each skill type is checked the same way, on the same terms.** If one value
+dominates the days of a single skill type and nothing else rivals it, that
+skill type is rejected — a column that gives every `Concrete` day the same
+answer has stopped describing them, even when the slice as a whole looks
+varied. Skill types with fewer than 8 days are exempt entirely: genuine
+repetition in a small skill type is honest and is not counted against you.
+
+**Do not count your own rows and move days until a number clears.** Nine of
+ten slices in the first wave did exactly that, each landing on seven identical
+days inside some skill type, and a column shaped to a threshold is not a column
+that read the days. A flat column is a symptom of reading the spine instead of
+the day, and the fix is to go back and read the days — never sprinkling variety
+until a count drops. Annotate each day from what it asks children to do;
+the gate does the counting.
 
 ### `Prerequisite SLOs`
 Comma-separated SLO codes **from `prior_slos_available` only** — that list is

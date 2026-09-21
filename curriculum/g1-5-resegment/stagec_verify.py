@@ -86,6 +86,14 @@ SECOND_MIN = 0.25         # ...and this is what "rivals it" means
 MIN_ROWS_FOR_DIVERSITY = 12
 MIN_ROWS_PER_SKILL = 8    # below this, insisting on variety is inventing
 BIG_VOCABULARY = 8        # only here is within-skill-type variety expected
+# Share, not count, decides whether a skill type has gone flat. An absolute
+# cap means opposite things at different sizes -- seven of thirty-six Concrete
+# days is variety, seven of eleven is a column that stopped reading the days --
+# and a published count is a number workers aim at rather than describe toward.
+# Only structure columns are judged this way: `Gap` and `Interaction` state
+# facts about the task, and nine decoding days really may carry no information
+# gap. Uniformity there is a finding for a curriculum lead, not a defect.
+SKILL_SHARE_COLUMNS = ("Collaboration structure",)
 CHORAL_MAX = 0.60         # paired work carrying no information gap
 _PAIRED = ("pair", "group", "mingle")
 
@@ -131,14 +139,31 @@ def check_diversity(rows, cells, columns):
             continue
         by_skill = {}
         for r in present:
-            v = cells[str(r["row"])].get(col)
-            if v:
-                by_skill.setdefault(r.get("skill_type", "?"), set()).add(v)
+            val = cells[str(r["row"])].get(col)
+            if val:
+                by_skill.setdefault(r.get("skill_type", "?"), []).append(val)
         for skill in sorted(by_skill):
-            total = len([r for r in present if r.get("skill_type") == skill])
-            if total >= MIN_ROWS_PER_SKILL and len(by_skill[skill]) < 2:
+            vals = by_skill[skill]
+            total = len(vals)
+            if total < MIN_ROWS_PER_SKILL:
+                continue
+            tally = {}
+            for s in vals:
+                tally[s] = tally.get(s, 0) + 1
+            if len(tally) < 2:
                 out.append("%s is a single value on all %d %r days"
                            % (col, total, skill))
+                continue
+            if col not in SKILL_SHARE_COLUMNS:
+                continue
+            ranked = sorted(tally.items(), key=lambda kv: (-kv[1], kv[0]))
+            share = float(ranked[0][1]) / total
+            runner = float(ranked[1][1]) / total
+            if share > MAX_SHARE and runner < SECOND_MIN:
+                out.append("%s is %r on %d of %d %r days (%.0f%%) and nothing "
+                           "rivals it: the column has stopped reading the days"
+                           % (col, ranked[0][0], ranked[0][1], total, skill,
+                              100 * share))
     return out
 
 

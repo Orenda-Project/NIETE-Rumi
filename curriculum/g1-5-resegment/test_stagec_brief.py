@@ -64,8 +64,17 @@ class TheBriefStatesTheRulesItIsJudgedBy(unittest.TestCase):
         to aim at the wrong target."""
         self.assertIn("more than %d%% of your" % int(stagec_verify.MAX_SHARE * 100),
                       self.text)
-        self.assertIn("skill type with %d or more days"
-                      % stagec_verify.MIN_ROWS_PER_SKILL, self.text)
+        self.assertIn("fewer than %d days" % stagec_verify.MIN_ROWS_PER_SKILL,
+                      self.text)
+
+    def test_it_publishes_no_count_a_worker_can_aim_at(self):
+        """Nine of ten slices in the first wave landed on exactly seven
+        identical days inside some skill type, because the brief named eight.
+        A threshold a worker can count toward is a threshold it will stop one
+        short of, and the column is then shaped by the number, not the days."""
+        self.assertNotIn("8 or more days", self.text)
+        low = self.text.lower()
+        self.assertIn("the gate does the counting", low)
 
     def test_it_warns_that_the_spine_is_not_evidence(self):
         """The maths_G1 pilot failed exactly here: it read peer_review off a
