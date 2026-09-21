@@ -1074,7 +1074,7 @@ async function process(payload) {
       // card, exactly as it does today.
       const figRefs = refsFromDoc(authored.lpDoc);
       if (figRefs.length) {
-        await stageFigures({ refs: figRefs, outDir: tmpDir, correlationId });
+        await stageFigures({ refs: figRefs, outDir: tmpDir, correlationId, segmentId, renderId });
       }
 
       const final = await renderFinal(authored.lpDoc, 'final');
