@@ -341,25 +341,105 @@ async function capstonePointsForLevel(levelId) {
  *        well as the clamp: telling the model "score 0-5" and then clamping to
  *        10 would silently cap every I-SAPS CRQ at half marks.
  */
+/**
+ * Render a per-question rubric into the marking prompt.
+ *
+ * Shape as stored on training_questions.rubric:
+ *   { total_marks, criteria: [ { name, marks, bands: { "4": "...", ... } } ] }
+ *
+ * A band missing from `bands` is UNREACHABLE for that criterion — the partner
+ * source prints "-" there. It is stated to the model explicitly, because a
+ * marker that invents an Exemplary band for a criterion that has none awards
+ * marks the rubric cannot give.
+ *
+ * @param {object} rubric
+ * @returns {string|null} prompt text, or null when the rubric is unusable
+ */
+function renderRubric(rubric) {
+  const criteria = rubric && Array.isArray(rubric.criteria) ? rubric.criteria : null;
+  if (!criteria || criteria.length === 0) return null;
+  const lines = [];
+  for (let i = 0; i < criteria.length; i += 1) {
+    const c = criteria[i] || {};
+    const bands = c.bands && typeof c.bands === 'object' ? c.bands : {};
+    const keys = Object.keys(bands).map(Number).filter(Number.isFinite).sort((a, b) => b - a);
+    if (keys.length === 0) return null;
+    lines.push(`\nCRITERION ${i + 1}: ${c.name} (max ${c.marks} marks)`);
+    for (const k of keys) lines.push(`  ${k} marks: ${bands[k]}`);
+    const lowest = keys[keys.length - 1];
+    if (lowest > 0) lines.push(`  (No band below ${lowest} exists for this criterion — never award less.)`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Grade one constructed-response answer.
+ *
+ * WHEN THE QUESTION CARRIES A RUBRIC, MARK AGAINST IT.
+ *
+ * I-SAPS writes a different rubric for every CRQ — 36 in Level 1, each with
+ * its own criteria and band descriptions. Until this change the seeder stored
+ * only the question, so this function graded every answer with one generic
+ * "is this practical classroom writing?" instruction. Against 46 hand-graded
+ * answers that sat at 0.80 mean absolute error and 0.26 run-to-run drift; the
+ * same model given the real rubric reached 0.22 and 0.02. It also passed a
+ * fluent, confident, off-task answer two runs out of three — fluency read as
+ * quality because nothing told it what quality meant for THAT question.
+ *
+ * The partner's §4.3 permits AI marking only against the rubric and notes, so
+ * the generic path is out of policy as well as less accurate.
+ *
+ * The generic prompt REMAINS the fallback, deliberately: a question with no
+ * rubric (every Beacon House answer, any CRQ whose import failed) must still
+ * be gradable. Degrading to the old behaviour is correct; refusing to mark is
+ * not.
+ *
+ * @param {object} question training_questions row; `rubric` used when present
+ * @param {string} answerText the teacher's answer
+ * @param {number} maxPoints per-answer scale for this vendor
+ * @returns {Promise<{score:number, feedback:string}>}
+ */
 async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION) {
   const { logToFile } = deps();
   const { getClient, getDefaultModel } = deps().llm;
   const client = getClient();
   const top = Number.isInteger(maxPoints) && maxPoints > 0 ? maxPoints : POINTS_PER_QUESTION;
+  const rubricText = renderRubric(question && question.rubric);
+  const rubricTotal = Number(question && question.rubric && question.rubric.total_marks);
+  // The rubric's own total wins over the vendor scale: marking out of 10 and
+  // then reporting it out of 5 would silently halve every CRQ.
+  const cap = rubricText && Number.isFinite(rubricTotal) && rubricTotal > 0 ? rubricTotal : top;
+
+  const system = rubricText
+    ? ('You are marking one constructed-response answer from a teacher-training course, '
+      + 'against the official rubric supplied below. Follow the rubric exactly.\n\n'
+      + 'RULES\n'
+      + '- Score EACH criterion independently by choosing the single band whose description '
+      + 'best matches the answer. Award exactly the marks of that band.\n'
+      + '- A band not listed for a criterion is unavailable; never award it.\n'
+      + '- Judge the substance, not fluency or length. A confident, well-written answer that '
+      + 'misses what the band asks for scores the lower band.\n'
+      + '- Do not reward naming a term unless the answer does what the band describes.\n'
+      + `Reply ONLY with JSON: {"criteria":[{"n":1,"marks":<int>}],"total":<0-${cap} integer>,`
+      + '"feedback":"<1-2 encouraging, specific sentences for the teacher>"}')
+    : (`You grade a teacher-training open-ended answer. Score 0-${cap} (${cap} = specific, `
+      + 'practical, grounded in classroom practice; 0 = empty/off-topic). Reply '
+      + `ONLY with JSON: {"score": <0-${cap} integer>, "feedback": "<1-2 encouraging, `
+      + 'specific sentences>"}');
+
+  const user = rubricText
+    ? `QUESTION\n${question.question_text}\n\nRUBRIC (total ${cap} marks)\n${rubricText}\n\nTEACHER'S ANSWER\n${answerText}`
+    : `Question: ${question.question_text}\n\nTeacher's answer: ${answerText}`;
+
   const response = await client.chat.completions.create({
     model: getDefaultModel(),
     temperature: 0,
-    max_tokens: 200,
+    // A rubric reply carries per-criterion marks, so it needs more room than
+    // the generic one. Too small a cap truncates the JSON and scores 0.
+    max_tokens: rubricText ? 700 : 200,
     messages: [
-      {
-        role: 'system',
-        content:
-          `You grade a teacher-training open-ended answer. Score 0-${top} (${top} = specific, ` +
-          'practical, grounded in classroom practice; 0 = empty/off-topic). Reply ' +
-          `ONLY with JSON: {"score": <0-${top} integer>, "feedback": "<1-2 encouraging, ` +
-          'specific sentences>"}',
-      },
-      { role: 'user', content: `Question: ${question.question_text}\n\nTeacher's answer: ${answerText}` },
+      { role: 'system', content: system },
+      { role: 'user', content: user },
     ],
   });
   let parsed = { score: 0, feedback: 'Thank you for your answer.' };
@@ -369,7 +449,9 @@ async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION
   } catch (e) {
     logToFile('⚠️ Capstone LLM response unparseable — scoring 0', { error: e.message });
   }
-  const score = Math.max(0, Math.min(top, Math.round(Number(parsed.score) || 0)));
+  // The rubric path returns `total`; the generic path returns `score`.
+  const raw_score = parsed.total !== undefined && parsed.total !== null ? parsed.total : parsed.score;
+  const score = Math.max(0, Math.min(cap, Math.round(Number(raw_score) || 0)));
   const feedback = String(parsed.feedback || 'Thank you for your answer.').slice(0, 600);
   return { score, feedback };
 }
@@ -670,6 +752,7 @@ module.exports = {
   routeTextAnswer,
   // bd-2673 — the portal's capstone path. Pure: no WhatsApp, no phone number.
   scoreAnswer,
+  renderRubric,
   decideCapstonePass,
   meetsAnswerFloor,
   MIN_ANSWER_CHARS,
