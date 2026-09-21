@@ -7,8 +7,10 @@
 # What `up` guarantees, in order:
 #   1. The code under test is a DETACHED GIT WORKTREE at exactly <sha> (<run_dir>/src). The developer's
 #      working tree — dirty or not — is never executed. `git status --porcelain` there is asserted empty.
-#   2. bot/node_modules is the main checkout's, symlinked, and ONLY if bot/package-lock.json at <sha> is
-#      byte-identical to the one those modules were installed from. Otherwise exit 10 — no silent skew.
+#   2. node_modules is built from <sha>'s OWN lockfile — no silent skew, ever. The main checkout's
+#      installed set is symlinked when its lockfile is byte-identical; otherwise the lane provisions a
+#      private tree keyed to that lockfile (provision-local-modules.sh, bd-vaee9). It never asks for
+#      `npm ci` in the shared clone, which every other worktree and session is mid-flight on.
 #   3. The bot's .env is composed from keys/niete-local.env (sandbox DB + placeholders, never a real
 #      WhatsApp token) plus the run's own values: WHATSAPP_API_BASE → the mock, E2E_COMMIT_SHA=<sha>,
 #      E2E_CASSETTE=replay-strict (a vendor miss FAILS, never goes live).
@@ -16,7 +18,7 @@
 #      queue worker on QUEUE_DRIVER=bullmq — coaching and lesson-plan jobs run through it exactly as
 #      on Railway, minus AWS. Readiness is polled; then /health must report commit == <sha> or exit 13.
 #
-# Exit codes: 10 lockfile mismatch · 11 worktree failed · 12 bot not healthy in time · 13 /health sha
+# Exit codes: 10 modules unavailable for this commit · 11 worktree failed · 12 bot not healthy in time · 13 /health sha
 # mismatch · 14 keys/niete-local.env missing · 15 mock not healthy · 16 redis-server missing/unhealthy ·
 # 17 worker not healthy.
 set -uo pipefail
@@ -31,8 +33,9 @@ main_checkout() {
   dirname "$common"
 }
 MAIN="$(main_checkout)"
-# Where the installed dependency sets come from (default: the main checkout). Override when the main
-# checkout's install is stale or you want a freshly `npm ci`-ed tree: E2E_NODE_MODULES_ROOT (root set,
+# Where an ALREADY-INSTALLED dependency set may be borrowed from, when its lockfile matches this commit
+# (default: the main checkout). A mismatch is not an error — see provision-local-modules.sh. Point these
+# at a tree you installed yourself to skip the cache: E2E_NODE_MODULES_ROOT (root set,
 # openai/@anthropic-ai/sdk/express/ioredis) and E2E_BOT_NODE_MODULES_ROOT (bot/node_modules).
 NM_ROOT="${E2E_NODE_MODULES_ROOT:-$MAIN}"
 NM_BOT="${E2E_BOT_NODE_MODULES_ROOT:-$MAIN}"
@@ -54,23 +57,18 @@ up() {
   [ "$got" = "$full" ] || { log "worktree is at $got, wanted $full"; exit 11; }
   [ -z "$(git -C "$src" status --porcelain)" ] || { log "worktree at $full is not clean"; exit 11; }
 
-  # 2. node_modules: the installed set must match THIS commit's lockfile
-  local want have; want=$(git -C "$REPO" rev-parse "$full:bot/package-lock.json" 2>/dev/null || echo none)
-  have=$(git -C "$MAIN" hash-object "$NM_BOT/bot/package-lock.json" 2>/dev/null || echo none)
-  if [ "$want" != "$have" ] || [ ! -d "$NM_BOT/bot/node_modules" ]; then
-    log "bot/package-lock.json at $full ($want) differs from the installed one in $NM_BOT ($have) — run npm ci in $NM_BOT/bot first"
-    exit 10
-  fi
-  ln -s "$NM_BOT/bot/node_modules" "$src/bot/node_modules"
-  # The bot also resolves ROOT deps (openai, @anthropic-ai/sdk, express, ioredis live in the root
-  # package.json, as on Railway where both installs exist). Same lockfile rule for the root set.
-  local rwant rhave; rwant=$(git -C "$REPO" rev-parse "$full:package-lock.json" 2>/dev/null || echo none)
-  rhave=$(git -C "$MAIN" hash-object "$NM_ROOT/package-lock.json" 2>/dev/null || echo none)
-  if [ "$rwant" != "$rhave" ] || [ ! -d "$NM_ROOT/node_modules" ]; then
-    log "package-lock.json at $full ($rwant) differs from the installed root set in $NM_ROOT ($rhave) — run npm ci in $NM_ROOT first"
-    exit 10
-  fi
-  ln -s "$NM_ROOT/node_modules" "$src/node_modules"
+  # 2. node_modules built from THIS commit's lockfile: the borrowed set when it matches, else a private
+  #    tree keyed to the lockfile. The bot also resolves ROOT deps (openai, @anthropic-ai/sdk, express,
+  #    ioredis live in the root package.json, as on Railway where both installs exist) — same rule.
+  local prov="$HERE/provision-local-modules.sh"
+  local want bot_root root_root
+  want=$(git -C "$REPO" rev-parse "$full:bot/package-lock.json" 2>/dev/null || echo none)
+  bot_root=$(bash "$prov" --repo "$REPO" --sha "$full" --kind bot --installed-root "$NM_BOT") \
+    || { log "no bot modules for $full — see above"; exit 10; }
+  ln -s "$bot_root/bot/node_modules" "$src/bot/node_modules"
+  root_root=$(bash "$prov" --repo "$REPO" --sha "$full" --kind root --installed-root "$NM_ROOT") \
+    || { log "no root modules for $full — see above"; exit 10; }
+  ln -s "$root_root/node_modules" "$src/node_modules"
 
   # 3. env
   # Flow encryption keypair, PER RUN: the bot decrypts data-exchange requests with the private half
@@ -166,7 +164,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local running; running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")')
   if [ "$running" != "$full" ]; then log "/health reports commit '${running:-null}', wanted $full — refusing to drive"; down "$run_dir"; exit 13; fi
 
-  STACK_CASSETTE_MODE="$cassette_mode" python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$NM_BOT/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
+  STACK_CASSETTE_MODE="$cassette_mode" python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$bot_root/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
 import json, sys, datetime, os
 p, sha, src, bot, mock, phone, lock, nm, cas, pubkey_file, flows_dir = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
