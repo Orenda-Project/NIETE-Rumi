@@ -1269,6 +1269,14 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted tq_lang_ button', { buttonId, from });
         }
       }
+      // The 15:00 quiz offer on the lessons a teacher planned (lpquiz_yes_/
+      // lpquiz_no_). Its class-list rows arrive as list_reply, routed there.
+      else if (buttonId.startsWith('lpquiz_')) {
+        const LpQuizOffer = require('./shared/services/nudges/lp-quiz-offer.service');
+        if (!(await LpQuizOffer.handleButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted lpquiz_ button', { buttonId, from });
+        }
+      }
       // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
       // /quiz actions (tq_link_/tq_report_). Its own prefix on purpose —
       // never `quiz_` (parent quiz) or `vq_` (video quiz).
@@ -1828,6 +1836,16 @@ app.post('/webhook', async (req, res) => {
       if (listId.startsWith('att_class_') || listId.startsWith('att_method_')
           || listId.startsWith('att_voice_')) {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
+      }
+
+      // The 15:00 quiz offer: a class picked from its list, or Not today.
+      if (listId.startsWith('lpquiz_')) {
+        const LpQuizOffer = require('./shared/services/nudges/lp-quiz-offer.service');
+        if (!(await LpQuizOffer.handleListPick(listId, from, user))) {
+          logToFile('⚠️ unrouted lpquiz_ list row', { listId, from });
+        }
+        ack();
+        return;
       }
 
       // Transcript quiz: a row tapped in the /quiz lesson list.

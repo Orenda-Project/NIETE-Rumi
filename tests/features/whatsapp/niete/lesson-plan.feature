@@ -207,3 +207,67 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I open the LP Flow
     Then the Flow screens and the "Sending…" ack are shown in English
     # English is the deliberate floor for this asset-poor surface (F-LP-i18n).
+
+  # ──────────────── The 15:00 quiz offer on the lessons a teacher planned ───────────────
+  # A quiz written from the slide script of the exact lesson version the teacher received —
+  # no recording anywhere in it. Gated by LP_QUIZ_OFFER_ENABLED + TEACHER_NUDGES_ENABLED on
+  # the worker that owns the `main` queue. On sandbox the send time can be moved
+  # (LP_QUIZ_OFFER_SEND_HOUR_PKT / _MINUTE_PKT) so a run does not wait for 15:00.
+  # The driver number must have users.role='teacher' and must have written to the bot
+  # within 24 hours (the free-form window), or the offer is skipped as window_closed.
+
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: At the send hour a teacher who planned one lesson is offered a quiz
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    And the teacher has not recorded a lesson or made a quiz today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot says the teacher planned that lesson's topic today and offers a short quiz on it
+    And the message has the buttons "Make the quiz" and "No thanks"
+    And the message says "planned", never "taught" or "recorded"
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A teacher who planned lessons for two classes gets a list to pick from
+    Given the NIETE bot chat is open on a teacher who took lesson plans for Grade 4 Maths and Grade 5 Urdu today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot sends a list with a "Choose a class" button
+    And the list has one row per class titled like "Grade 4 · Mathematics", each showing that class's lesson topics
+    And the last row is "Not today"
+
+  @e2e @quiz @wip @draft @config-gated @negative @P2
+  Scenario: A teacher coached today is not offered the afternoon quiz
+    Given the NIETE bot chat is open on a teacher who took a lesson plan today
+    And the teacher sent a classroom recording for coaching today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then no afternoon quiz offer arrives
+    And the teacher's lp_quiz_offer row for today is skipped with reason coached_today
+
+  @e2e @quiz @wip @draft @config-gated @edge @P2
+  Scenario: A lesson planned after 14:00 is offered on the next school day
+    Given the NIETE bot chat is open on a teacher who took a lesson plan today at 16:00 PKT and none before 14:00
+    When the send hour passes today
+    Then no afternoon quiz offer arrives today
+    And at the send hour on the next school day the offer names that lesson
+    # Friday after 14:00 lands on Monday.
+
+  @e2e @quiz @wip @draft @config-gated @negative @P3
+  Scenario: An assessment day is not offered a quiz
+    Given the NIETE bot chat is open on a teacher whose only lesson plan today is an assessment segment
+    When the send hour passes and the teacher-nudge sweep runs
+    Then no afternoon quiz offer arrives
+    And the teacher's lp_quiz_offer row for today is skipped with reason no_lesson
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: Make the quiz produces an lp_v8 quiz with a share link
+    Given the NIETE bot chat is open and the afternoon quiz offer has arrived
+    When I tap "Make the quiz"
+    Then the bot says the quiz is being made
+    And a quiz arrives with a link to forward to the class
+    And the quizzes row has quiz_source lp_v8, no coaching session, and meta.lessons carrying the served lesson's version
+    And tapping "Make the quiz" again says the quiz is already on its way and makes no second quiz
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: No thanks is remembered
+    Given the NIETE bot chat is open and the afternoon quiz offer has arrived
+    When I tap "No thanks"
+    Then the bot replies that there is no quiz for today and that /quiz shows the teacher's quizzes
+    And the teacher's lp_quiz_offer row records the choice no and no quiz is made

@@ -1617,6 +1617,57 @@ const UX_STRINGS = {
     en: 'Already on it — the quiz is coming.',
     ur: 'پہلے ہی تیار ہو رہا ہے — بس آ رہا ہے۔',
   },
+  // ── the 15:00 quiz offer on the lessons a teacher PLANNED (PLAN_R8 §5) ──
+  // No recording exists on this path, so the copy says "planned", never
+  // "taught". {topic} is the catalog topic of the lesson the quiz is written
+  // from; in Urdu it is first-strong isolated because it may be either script.
+  // Digits passed into the Urdu variants are Urdu digits (the caller converts).
+  lpQuizOfferOne: {
+    en: 'You planned “{topic}” for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج «⁨{topic}⁩» کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  // A lesson the catalog has no topic for — named by its class instead.
+  lpQuizOfferOneUntitled: {
+    en: 'You planned a Grade {grade} {subject} lesson for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  // Several lessons, one class. The quiz is written from ONE lesson (the first
+  // planned), so the copy names it rather than promising all of them.
+  lpQuizOfferClass: {
+    en: 'You planned {n} Grade {grade} {subject} lessons for today. I can make a short 8-question quiz on the first one, “{topic}”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کے {n} اسباق پلان کیے۔ پہلے سبق «⁨{topic}⁩» پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  lpQuizOfferListBody: {
+    en: 'You planned lessons for {n} classes today. Pick a class and I will make a short 8-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach.',
+    ur: 'آپ نے آج {n} کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر ۸ سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔',
+  },
+  lpQuizOfferListButton: { en: 'Choose a class', ur: 'کلاس چنیں' },
+  // List row title, 24 code points. The caller shortens a long subject first.
+  lpQuizOfferRowTitle: { en: 'Grade {grade} · {subject}', ur: 'جماعت {grade} · {subject}' },
+  lpQuizOfferRowDesc: { en: '{topics}', ur: '⁨{topics}⁩' },
+  lpQuizOfferNone: { en: 'Not today', ur: 'آج نہیں' },
+  // Footer, 60 code points: classes beyond the list's nine rows.
+  lpQuizOfferMore: { en: 'And {n} more classes not shown here', ur: 'مزید {n} کلاسیں یہاں نہیں دکھائی گئیں' },
+  lpQuizYes: { en: 'Make the quiz', ur: '‏quiz بنائیں' },
+  lpQuizNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+  lpQuizMaking: {
+    en: 'Making it now — about a minute. The quiz will arrive here with the message to forward to your class.',
+    ur: '‏quiz ابھی تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور کلاس کو آگے بھیجنے والا پیغام آئے گا۔',
+  },
+  lpQuizDeclined: {
+    en: 'No problem — no quiz for today. Send /quiz anytime to see your quizzes.',
+    ur: 'کوئی بات نہیں — آج کوئی quiz نہیں۔ اپنے quiz دیکھنے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
+  },
+  // quiz_generate could not be queued. The offer is spent (its claim is taken),
+  // so the copy does not invite a re-tap that would only say "already on it".
+  lpQuizCouldNotStart: {
+    en: 'I couldn’t start that quiz just now — sorry. The next lessons you plan will get a new offer.',
+    ur: 'معذرت، وہ quiz ابھی شروع نہیں ہو سکا۔ آپ کے اگلے پلان کیے گئے اسباق پر نئی پیشکش آئے گی۔',
+  },
+  lpQuizExpired: {
+    en: 'That offer has expired. Send /quiz anytime to see your quizzes.',
+    ur: 'وہ پیشکش اب ختم ہو چکی ہے۔ اپنے quiz دیکھنے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
+  },
   tqAlreadySent: {
     en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
     ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے ⁦/quiz⁩ بھیجیں۔',

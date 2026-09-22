@@ -314,6 +314,37 @@ async function todayRow(userId, kind, nudgeDate) {
   return data || null;
 }
 
+/**
+ * Attach the quiz an answer produced — ONCE. The conditional `quiz_id IS NULL`
+ * on the UPDATE is the claim: two taps (or two replicas handling one tap) each
+ * insert a quiz, and only the one whose UPDATE returned the row may queue it.
+ * `recordAnswer` sets `quiz_id` unconditionally and is not a claim.
+ *
+ * @returns {Promise<boolean>} true only for the caller that won.
+ */
+async function claimQuiz(id, quizId) {
+  const { data, error } = await supabase.from(TABLE)
+    .update({ quiz_id: quizId, updated_at: nowIso() })
+    .eq('id', id)
+    .is('quiz_id', null)   // ← the claim. Never remove this.
+    .select('id');
+  if (error) {
+    logDbError('claimQuiz failed', error, { id });
+    return false;
+  }
+  return (data || []).length > 0;
+}
+
+/** One row by id — or null. Serves a button tap, which carries only the id. */
+async function byId(id) {
+  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  if (error) {
+    logDbError('byId failed', error, { id });
+    return null;
+  }
+  return data || null;
+}
+
 module.exports = {
   TABLE,
   KINDS,
@@ -330,4 +361,6 @@ module.exports = {
   recordAnswer,
   rowsFor,
   todayRow,
+  claimQuiz,
+  byId,
 };
