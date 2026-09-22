@@ -3675,10 +3675,16 @@ function buildHtml(input, opts = {}) {
     : "";
 
   const brandHex = doc.provenance.brand && doc.provenance.brand.primary_hex;
+  // bd-n96t1. The viewport meta names PAGE.w, not `device-width`: this is a fixed-width print
+  // document (`.page` is `width:var(--page-w)`), so a handset must scale the design width to fit
+  // rather than lay 520px out inside a 390px viewport and scroll the rest off the side. Without
+  // the tag a phone assumes ~980px and renders the whole type scale at about half size, which is
+  // the operator's *"the html on the phone is too big"*. Desktop browsers ignore it.
   const html = `<!doctype html>
 <html lang="${rtl ? "ur" : "en"}" dir="${rtl ? "rtl" : "ltr"}"${isPrimary(doc) ? ' class="pri"' : ""}>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=${PAGE.w}">
 <title>${rich(doc.provenance.topic)} &middot; ${esc(L.grade)} ${doc.provenance.grade} ${rich(doc.provenance.subject)}</title>
 <meta name="subject" content="lesson_id=${esc(doc.lesson_id)}">
 <meta name="keywords" content="${esc(doc.provenance.book_stem)}; lp_doc ${esc(doc.schema_version)}; ${esc(doc.lp_type)}">
