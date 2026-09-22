@@ -19,6 +19,7 @@
 
 const mockSendMessage = jest.fn(async () => true);
 const mockSendDocumentFromUrl = jest.fn(async () => true);
+const mockSendImageFromUrl = jest.fn(async () => true);
 const mockSendImage = jest.fn(async () => true);
 const mockDownloadMedia = jest.fn(async () => Buffer.from('identical classroom audio bytes'));
 const mockUploadClassroomAudio = jest.fn(async () => 'https://r2.example/new.ogg');
@@ -28,7 +29,10 @@ const PRIOR = {
   id: 'prior-session',
   created_at: '2026-09-15T05:59:46.391Z',
   analysis_data: { framework: 'fico', scores: { overall_marks: 85, overall_max_marks: 148 } },
-  report_pdf_url: 'https://r2.example/prior-report.pdf',
+  // bd-5tgzv — production stores the hero PNG here, never a PDF (12,749 of
+  // 12,754 completed DC sessions). The fixture has to be the real shape or
+  // this suite certifies a delivery path that never runs.
+  report_pdf_url: 'https://r2.example/reports/u1/prior_report.png',
 };
 
 const mockSessionRow = {
@@ -69,6 +73,7 @@ jest.mock('../../bot/shared/config/supabase', () => ({
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: (...a) => mockSendMessage(...a),
   sendDocumentFromUrl: (...a) => mockSendDocumentFromUrl(...a),
+  sendImageFromUrl: (...a) => mockSendImageFromUrl(...a),
   sendImage: (...a) => mockSendImage(...a),
   sendInteractiveButtons: jest.fn(async () => true),
   downloadMedia: (...a) => mockDownloadMedia(...a),
@@ -144,9 +149,12 @@ describe('an identical resubmission never reaches transcription', () => {
     expect(mockSendMessage).toHaveBeenCalledWith(
       '923497552393', getCoachingMessage('duplicateRecording', 'ur'),
     );
-    expect(mockSendDocumentFromUrl).toHaveBeenCalledWith(
+    // bd-5tgzv — an IMAGE, because that is what the artefact is. Sending the
+    // hero PNG as a .pdf document is what made the resent report unopenable.
+    expect(mockSendImageFromUrl).toHaveBeenCalledWith(
       '923497552393', PRIOR.report_pdf_url, expect.any(String),
     );
+    expect(mockSendDocumentFromUrl).not.toHaveBeenCalled();
   });
 });
 

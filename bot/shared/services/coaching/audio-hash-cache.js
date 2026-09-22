@@ -31,6 +31,35 @@
 const crypto = require('crypto');
 
 /**
+ * How the prior report must be delivered, decided by what the artefact actually
+ * IS rather than by the column's name.
+ *
+ * `report_pdf_url` is a misnomer on this deployment: the FICO hero renderer
+ * returns a PNG and `uploadReportImage` stores it as `{session}_report.png`
+ * with ContentType image/png. Production, completed DC sessions since 1 Aug
+ * 2026: 12,749 hold a `.png`, 5 hold nothing, ZERO hold a `.pdf`.
+ *
+ * Sending those PNG bytes as a `.pdf` document is FEAT-098 — see the warning at
+ * report-generator.service.js:877: "WhatsApp delivered a PDF that WAS actually
+ * PNG bytes, so every PDF reader rejected it as corrupt."
+ *
+ * @param {string} url
+ * @returns {'image'|'document'|'none'}
+ */
+function priorReportDelivery(url) {
+  if (!url) return 'none';
+  // Strip query/fragment before looking at the extension — an R2 URL can carry
+  // a signature, and `...report.png?sig=` must not read as "no extension".
+  const path = String(url).split(/[?#]/)[0].toLowerCase();
+  if (path.endsWith('.pdf')) return 'document';
+  // Anything else is treated as an image. Deliberate: the hero PNG is the only
+  // artefact this deployment produces, and guessing "document" on an unknown
+  // URL is precisely what shipped a file that would not open. An image that is
+  // not an image fails visibly; a PDF that is not a PDF fails silently.
+  return 'image';
+}
+
+/**
  * SHA-256 hex digest of a Buffer of audio bytes.
  * @param {Buffer} buffer
  * @returns {string} 64-char hex
@@ -135,15 +164,23 @@ async function resolveDuplicateSubmission(ctx, opts) {
   const lang = (await opts.getLanguage(userId)) || 'en';
   await opts.sendMessage(from, opts.getMessage('duplicateRecording', lang));
 
+  // Deliver it the SAME WAY the first report was delivered. The original send
+  // branches on the rendered shape (hero PNG → sendImage, PDFKit → sendDocument);
+  // this branches on the stored artefact, which is the same decision one step later.
   const priorReport = duplicate.report_pdf_url;
-  if (priorReport) {
+  const delivery = priorReportDelivery(priorReport);
+  if (delivery !== 'none') {
     try {
-      await opts.sendDocumentFromUrl(from, priorReport, 'classroom-observation.pdf');
+      if (delivery === 'image') {
+        await opts.sendImageFromUrl(from, priorReport, '');
+      } else {
+        await opts.sendDocumentFromUrl(from, priorReport, 'classroom-observation.pdf');
+      }
     } catch (err) {
       // The score has already been reused, which is the point of the feature.
       // A missing R2 object must not turn that into a failed session.
       warn('⚠️ could not resend the prior report (non-fatal)', {
-        coachingSessionId, error: err && err.message,
+        coachingSessionId, delivery, error: err && err.message,
       });
     }
   }
@@ -156,6 +193,7 @@ async function resolveDuplicateSubmission(ctx, opts) {
 
 module.exports = {
   computeAudioHash,
+  priorReportDelivery,
   findRecentDuplicateSession,
   resolveDuplicateSubmission,
 };

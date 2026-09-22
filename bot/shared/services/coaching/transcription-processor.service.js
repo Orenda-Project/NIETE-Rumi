@@ -136,6 +136,11 @@ class TranscriptionProcessorService {
               {
                 updateIfNotTerminal,
                 sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
+                // bd-5tgzv — the stored report is a PNG on this deployment, so the
+                // resend needs the image sender too; without it the branch would
+                // hit `undefined` at runtime.
+                sendImageFromUrl: (to, url, caption) =>
+                  WhatsAppService.sendImageFromUrl(to, url, caption),
                 sendDocumentFromUrl: (to, url, filename) =>
                   WhatsAppService.sendDocumentFromUrl(to, url, filename),
                 getMessage: getCoachingMessage,

@@ -215,6 +215,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I upload that exact same recording file again
     Then the bot tells me it has heard this recording before
     And the bot sends back the report it already made for that recording
+    And it comes back as an IMAGE, the same way the first report arrived — openable, not a .pdf that will not render
     And no new 5-step analysis is started
     # bd-7beiz — audio-hash-cache.js: SHA-256 of the downloaded audio, matched against
     # this teacher's own completed DC sessions inside a 7-day window.
@@ -223,6 +224,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # rubric pass runs at temperature 1 with no seed, so re-scoring identical audio
     # moved the overall by a mean of 5.9 points across 1,515 measured duplicate
     # groups — one lesson must not yield a teacher two different numbers.
+    # bd-5tgzv — delivery must MATCH the original. `report_pdf_url` holds a hero
+    # PNG on this deployment (12,749 of 12,754 completed DC sessions; zero PDFs),
+    # so resending it as 'classroom-observation.pdf' shipped PNG bytes labelled as
+    # a PDF and no reader would open it — FEAT-098 again.
 
   @e2e @wip @draft @P2
   Scenario: A recording the bot has not scored before is still analysed normally
