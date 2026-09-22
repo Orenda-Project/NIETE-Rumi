@@ -4838,6 +4838,62 @@ router.get('/training/module/:id/exam/questions', requirePortalAuth, async (req,
  * the rubric score landing when the model replies. A ~10s LLM call must never
  * be the reason a teacher's typed answer is lost.
  */
+/**
+ * PUT /api/portal/training/module/:id/exam/draft
+ * Body { attempt_id, question_id, question_index, chosen_option?, answer_text? }
+ *   -> { success, saved }
+ *
+ * bd-60169 — autosave one answer mid-paper.
+ *
+ * Answers used to live in React state until Submit, so a closed tab, a phone
+ * call or a backgrounded app lost the whole paper — including an
+ * ~1,800-character written answer. One-question-per-page made that worse
+ * rather than better, because a teacher can no longer see what she would lose.
+ *
+ * ALWAYS 200. A failed autosave is reported as `saved: false` and never as an
+ * error status: the answer is still on her screen, and an error toast
+ * mid-exam over work that is not actually lost is worse than the silence.
+ */
+router.put('/training/module/:id/exam/draft', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const b = req.body || {};
+    if (!b.attempt_id || b.question_id === undefined || b.question_index === undefined) {
+      return res.status(400).json({ success: false, error: 'attempt_id, question_id and question_index are required' });
+    }
+    const saved = await TrainingRules.saveModuleExamDraft(userId, b.attempt_id, {
+      questionId: b.question_id,
+      questionIndex: b.question_index,
+      chosenOption: b.chosen_option ?? null,
+      answerText: b.answer_text ?? null,
+    });
+    return res.json({ success: true, saved });
+  } catch (error) {
+    console.error('training/module/:id/exam/draft error:', error?.message);
+    return res.json({ success: true, saved: false });
+  }
+});
+
+/**
+ * GET /api/portal/training/module/:id/exam/draft?attempt_id=…
+ *   -> { success, answers[] }
+ *
+ * bd-60169 — what she has already answered, so resuming an attempt shows her
+ * own work instead of a blank paper.
+ */
+router.get('/training/module/:id/exam/draft', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const attemptId = req.query.attempt_id;
+    if (!attemptId) return res.status(400).json({ success: false, error: 'attempt_id is required' });
+    const answers = await TrainingRules.loadModuleExamDraft(userId, String(attemptId));
+    return res.json({ success: true, answers });
+  } catch (error) {
+    console.error('training/module/:id/exam/draft GET error:', error?.message);
+    return res.json({ success: true, answers: [] });
+  }
+});
+
 router.post('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;

@@ -502,6 +502,61 @@ router.post('/training/module-exam-start', requireInternalKey, async (req, res) 
  * Certification runs afterwards through the shared guard, so finishing the
  * last module on the portal certifies the level exactly as it does on WhatsApp.
  */
+/**
+ * POST /api/internal/training/module-exam-draft
+ * Body { userId, attemptId, questionId, questionIndex, chosenOption?, answerText? }
+ *   -> { success, ok, reason? }
+ *
+ * bd-60169 — save one answer mid-paper. Never grades, never marks.
+ *
+ * Called on every answer change, so it must be cheap and must never throw at
+ * the caller: a failed autosave degrades to "unsaved", it does not interrupt
+ * a teacher mid-exam.
+ */
+router.post('/training/module-exam-draft', requireInternalKey, async (req, res) => {
+  const b = req.body || {};
+  if (!b.userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (!b.attemptId) return res.status(400).json({ success: false, error: 'attemptId is required' });
+  if (num(b.questionId) === null) return res.status(400).json({ success: false, error: 'questionId is required' });
+  if (num(b.questionIndex) === null) return res.status(400).json({ success: false, error: 'questionIndex is required' });
+
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const out = await QuizDelivery.saveModuleExamDraft({
+      userId: b.userId,
+      attemptId: b.attemptId,
+      questionId: num(b.questionId),
+      questionIndex: num(b.questionIndex),
+      chosenOption: b.chosenOption ?? null,
+      answerText: b.answerText ?? null,
+    });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    logToFile('❌ Internal training API failed', { route: 'module-exam-draft', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Draft save failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/module-exam-draft-load
+ * Body { userId, attemptId } -> { success, ok, answers[] }
+ *
+ * bd-60169 — what she has already answered, so resuming shows her own work.
+ */
+router.post('/training/module-exam-draft-load', requireInternalKey, async (req, res) => {
+  const b = req.body || {};
+  if (!b.userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (!b.attemptId) return res.status(400).json({ success: false, error: 'attemptId is required' });
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const out = await QuizDelivery.loadModuleExamDraft({ userId: b.userId, attemptId: b.attemptId });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    logToFile('❌ Internal training API failed', { route: 'module-exam-draft-load', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Draft load failed' });
+  }
+});
+
 router.post('/training/module-exam-submit', requireInternalKey, async (req, res) => {
   const { userId, attemptId } = req.body || {};
   const answers = Array.isArray((req.body || {}).answers) ? req.body.answers : null;
