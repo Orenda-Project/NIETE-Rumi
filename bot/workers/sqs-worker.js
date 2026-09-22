@@ -1584,6 +1584,8 @@ function startWorker() {
     const teacherNudges = require('../shared/services/nudges/teacher-nudges.sweeper');
     const nudgeQueues = SQSCoachingWorker._enabledQueues();
     if (teacherNudges.isEnabled() && nudgeQueues.has('main')) {
+      // Each kind's handler registers itself with the sweeper at load.
+      require('../shared/services/nudges/lp-coaching-ask.service');
       // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the
       // one-minute floor is refused rather than clamped, and the default stands.
       const TEACHER_NUDGES_SWEEP_MS = (() => {
