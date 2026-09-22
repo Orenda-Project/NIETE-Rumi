@@ -441,6 +441,7 @@ async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSu
   const html = render({
     topic: quiz.topic, teacherName, grade, date, link, digest, questions, lessonSummary,
     language, contentLanguage: contentLanguage || quiz.language || language,
+    quizSource: quiz.quiz_source || null,
   });
   const buffer = await htmlToPdf(html, {
     timeout: 45000,

@@ -40,6 +40,7 @@
  * depends on a font that covers it).
  */
 
+const { LP_V8 } = require('../services/quiz/quiz-sources');
 const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
@@ -210,6 +211,17 @@ const CHROME = {
 };
 
 /**
+ * An lp_v8 quiz was written from the lesson PLAN the teacher was served —
+ * nobody heard the lesson — so the two lines that say where the sheet came
+ * from say so (PLAN_R8 §3.6). Only these keys differ; everything else is the
+ * CHROME above.
+ */
+const LP_CHROME = {
+  en: { taught: 'What you planned', footer: 'Made from your lesson plan · NIETE Teaching Assistant' },
+  ur: { taught: 'آپ کے سبق کا منصوبہ', footer: 'آپ کے lesson plan سے تیار · NIETE Teaching Assistant' },
+};
+
+/**
  * Isolate every Latin run inside RTL prose.
  *
  * The run must be ONE span. Two consecutive spans are two isolates, and an
@@ -253,14 +265,15 @@ function renderTranscriptQuizTeacherHtml(d) {
   const a = assets();
   const {
     topic = '', teacherName = '', grade = '', date = '', link = '', digest = {}, questions = [],
-    language = 'en', lessonSummary = '',
+    language = 'en', lessonSummary = '', quizSource = null,
   } = d || {};
   // D1: the document is written in the quiz's language. `language` is what a
   // single-language caller passes; `contentLanguage` is what the two-argument
   // callers pass, and it wins.
   const docLang = (d && d.contentLanguage) || language;
   const RTL = RTL_LANGS.has(docLang);
-  const C = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
+  const C0 = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
+  const C = quizSource === LP_V8 ? { ...C0, ...(LP_CHROME[docLang] || (RTL ? LP_CHROME.ur : LP_CHROME.en)) } : C0;
   // L() only isolates, never re-escapes — a trusted chrome string may carry a
   // real <b> that must survive. K() additionally escapes and turns x^2 / H2O
   // into real super/subscripts (richNotation only adds tags, which wrapLatin
