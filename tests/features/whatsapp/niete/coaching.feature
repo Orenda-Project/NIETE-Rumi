@@ -436,7 +436,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
     # lesson_plan_text with lesson_plan_link_method='pasted'.
 
-  @e2e @wip @draft @negative @P2
+  @e2e @wip @draft @negative @P2 @obsolete
   Scenario: A short reply at the lesson-plan step is not mistaken for a plan
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -446,6 +446,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The pre-filter is deliberately strict — a paste must clear a length floor
     # AND name several parts of a plan. A false positive would eat the message,
     # so short answers keep the existing behaviour (the LP prompt is re-sent).
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so the length floor it rests on is gone.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.
 
   @e2e @wip @draft @negative @P3
   Scenario: Pasted text that is not a lesson plan gets the same rejection as a file
@@ -470,7 +474,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the session sat waiting for one. What makes a paste a plan is the
     # evidence in it, not its size; the floor only keeps one-liners out.
 
-  @e2e @wip @draft @negative @P2
+  @e2e @wip @draft @negative @P2 @obsolete
   Scenario: Saying I have no lesson plan is not the same as sending one
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -479,8 +483,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # A teacher explaining she has no plan NAMES one, so she clears the marker
     # bar; the old length floor excluded her only by accident. Checked in
     # English, Roman Urdu and Urdu.
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so she now reaches the same judge a PDF does and gets the No-button outcome.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.
 
-  @e2e @wip @draft @negative @P2
+  @e2e @wip @draft @negative @P2 @obsolete
   Scenario: Talking about a lesson plan is not the same as sending one
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -490,3 +498,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # teacher narrating her lesson names the topic, an activity and how she
     # checked learning, all in one flowing sentence. A plan that short is
     # LAID OUT: a label, a line per step, a numbered list.
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so the layout rule it rests on is gone.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.

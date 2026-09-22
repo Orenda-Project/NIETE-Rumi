@@ -71,43 +71,6 @@ const PASTED_LP_URDU = [
 
 // ------------------------------------------------------------------
 // 1. The pre-filter
-// ------------------------------------------------------------------
-describe('bd-we73k · looksLikePastedLessonPlan (pure, no I/O)', () => {
-  const { looksLikePastedLessonPlan } = require('../../bot/shared/services/coaching/lp-coaching/lp-text-paste.service');
-
-  it('accepts a pasted English lesson plan', () => {
-    expect(looksLikePastedLessonPlan(PASTED_LP)).toBe(true);
-  });
-
-  it('accepts a pasted Urdu lesson plan', () => {
-    expect(looksLikePastedLessonPlan(PASTED_LP_URDU)).toBe(true);
-  });
-
-  it('rejects the short replies teachers actually send at this step', () => {
-    for (const s of ['no', 'No', 'nahi', 'wait', 'Sana Bibi 03001234567', 'ok thank you', '']) {
-      expect(looksLikePastedLessonPlan(s)).toBe(false);
-    }
-  });
-
-  it('rejects a long reflective answer that is not a plan', () => {
-    // A real reflective-question answer, prod shape: long, but no plan structure.
-    const reflection = 'Us waqt mere zehan mein yeh tha ke student ne jo answer diya hai woh '
-      + 'correct concept ko show nahi kar raha tha, isliye maine usko turant correct kar diya. '
-      + 'Baad mein mujhe laga ke shayad behtar hota agar main pehle doosre bachon se poochta ke '
-      + 'unka kya khayal hai, phir hum mil kar us par baat karte, taake sab ko sochne ka mauqa milta '
-      + 'aur woh khud apni galti pehchan lete.';
-    expect(reflection.length).toBeGreaterThan(280);
-    expect(looksLikePastedLessonPlan(reflection)).toBe(false);
-  });
-
-  it('rejects a slash command however long', () => {
-    expect(looksLikePastedLessonPlan('/observe ' + PASTED_LP)).toBe(false);
-  });
-
-  it('rejects an LP-shaped text that is too short to be a plan', () => {
-    expect(looksLikePastedLessonPlan('Lesson plan: objectives, activities, assessment.')).toBe(false);
-  });
-});
 
 // ------------------------------------------------------------------
 // 2. tryAttachPastedLessonPlan — session resolution + hand-off
@@ -158,11 +121,20 @@ describe('bd-we73k · tryAttachPastedLessonPlan', () => {
     expect(pasted).toEqual([]);
   });
 
-  it('never touches the database for ordinary chat', async () => {
+  it('never consumes a slash command — those belong to another feature', async () => {
     const svc = load({ outcome: 'single', session: { id: 'sess-1' } });
-    await expect(svc.tryAttachPastedLessonPlan({ user, from: '92300', text: 'no' })).resolves.toBe(false);
-    expect(resolveCalls).toEqual([]);   // the pre-filter ran first
+    await expect(svc.tryAttachPastedLessonPlan({ user, from: '92300', text: '/menu' })).resolves.toBe(false);
+    expect(resolveCalls).toEqual([]);
     expect(pasted).toEqual([]);
+  });
+
+  it('consumes a SHORT reply too — what counts as a plan is not decided here', async () => {
+    // operator, 2026-09-22: whatever she sends at this step is considered.
+    // "no" reaches the same judge an uploaded PDF faces, and she gets the same
+    // outcome the No button would have given her.
+    const svc = load({ outcome: 'single', session: { id: 'sess-1', status: 'awaiting_lesson_plan' } });
+    await expect(svc.tryAttachPastedLessonPlan({ user, from: '92300', text: 'no' })).resolves.toBe(true);
+    expect(pasted).toEqual([{ sid: 'sess-1', from: '92300', text: 'no' }]);
   });
 });
 
@@ -401,38 +373,6 @@ describe('bd-we73k · the paste reaches DC and HITL alike, and nothing else', ()
 //
 // Her exact text is the fixture: the bug is what a real teacher actually typed,
 // not a shape we imagined.
-// ------------------------------------------------------------------
-describe('bd-cq1go · a short but real lesson plan is still a lesson plan', () => {
-  const { looksLikePastedLessonPlan } = require('../../bot/shared/services/coaching/lp-coaching/lp-text-paste.service');
-
-  // Sandbox, 2026-09-22 06:01:58, user 44206d3b — 222 code points, verbatim.
-  const REAL_SHORT_LP = 'Lesson plan: shairi , tashreeh ko bacho ko explain krna.\n'
-    + 'Bacho ko mashoor shairoo k bary mai btana or shairi k impact ke batien\n'
-    + ' Aik activity rkhwana jis mai shairi krwaye jsye do bacho ke pair mai interactove bnany k lye.';
-
-  it('accepts the 222-char Roman-Urdu plan that the first live test rejected', () => {
-    expect([...REAL_SHORT_LP].length).toBe(222);
-    expect(looksLikePastedLessonPlan(REAL_SHORT_LP)).toBe(true);
-  });
-
-  it('still rejects a teacher SAYING she has no plan, however she phrases it', () => {
-    // The danger of a lower floor. Each of these names a plan and would clear
-    // the marker bar, so length alone can no longer be what saves us.
-    for (const s of [
-      "I don't have a lesson plan for this class today, sorry — the lesson was on poetry and I taught it from the textbook directly without writing anything down.",
-      'Sorry sir, lesson plan nahi hai is class ka, maine textbook se hi parhaya tha aaj, koi plan likha nahi tha is lesson ke liye.',
-      'اس کلاس کے لیے سبق کا منصوبہ نہیں ہے، میں نے کتاب سے ہی پڑھایا تھا اور کوئی تحریری منصوبہ نہیں بنایا تھا۔',
-    ]) {
-      expect(looksLikePastedLessonPlan(s)).toBe(false);
-    }
-  });
-
-  it('still rejects ordinary short replies at the lesson-plan step', () => {
-    for (const s of ['no', 'nahi', 'wait', 'Sana Bibi 03001234567', 'ok thank you']) {
-      expect(looksLikePastedLessonPlan(s)).toBe(false);
-    }
-  });
-});
 
 // ------------------------------------------------------------------
 // 8. bd-cq1go — prose ABOUT a plan is not a plan.
@@ -441,42 +381,51 @@ describe('bd-cq1go · a short but real lesson plan is still a lesson plan', () =
 // narrating the lesson she just taught, or asking how to write a plan, names
 // three parts of one in a single flowing sentence. Under 250 points, markers
 // alone are no longer enough — the text must also be LAID OUT like a plan.
+
 // ------------------------------------------------------------------
-describe('bd-cq1go · short prose about a plan is not a plan', () => {
-  const { looksLikePastedLessonPlan } = require('../../bot/shared/services/coaching/lp-coaching/lp-text-paste.service');
+// 7. Whatever she sends at this step is considered (operator, 2026-09-22).
+//
+// The module shipped with a content pre-filter — a length floor, a count of
+// plan words, a layout rule. Each was a guess about how a teacher writes, and
+// the first real one it met it threw away: a 222-code-point Roman-Urdu plan,
+// refused by a 280-point floor while her session sat waiting for it.
+//
+// The gate is now STATE, not CONTENT. These pin that the module no longer
+// measures her plan before agreeing to read it — a guard removed on purpose
+// is worth a test, or it grows back.
+// ------------------------------------------------------------------
+describe('bd-cq1go · eligibility is not a judgement about the content', () => {
+  const { isEligiblePastedText } = require('../../bot/shared/services/coaching/lp-coaching/lp-text-paste.service');
 
-  it('ignores a teacher narrating the lesson she just taught', () => {
-    expect(looksLikePastedLessonPlan(
-      'Today I taught grade 5 the lesson on poetry, I did one activity with them and checked with questions at the end. The children enjoyed it a lot.'
-    )).toBe(false);
+  // The paste that started this, verbatim: sandbox, 2026-09-22 06:01:58.
+  const REAL_SHORT_LP = 'Lesson plan: shairi , tashreeh ko bacho ko explain krna.\n'
+    + 'Bacho ko mashoor shairoo k bary mai btana or shairi k impact ke batien\n'
+    + ' Aik activity rkhwana jis mai shairi krwaye jsye do bacho ke pair mai interactove bnany k lye.';
+
+  it('accepts the 222-char plan that the first live test rejected', () => {
+    expect([...REAL_SHORT_LP].length).toBe(222);
+    expect(isEligiblePastedText(REAL_SHORT_LP)).toBe(true);
   });
 
-  it('ignores a teacher ASKING how to write one', () => {
-    expect(looksLikePastedLessonPlan(
-      'Can you tell me how to make a good lesson plan for grade 5 English? I want to include an activity and some assessment at the end of the class.'
-    )).toBe(false);
+  it('no longer measures length — a one-line plan is eligible', () => {
+    expect(isEligiblePastedText('Aaj ka lesson plan: shairi parhani hai')).toBe(true);
   });
 
-  it('ignores feedback about a plan we sent her', () => {
-    expect(looksLikePastedLessonPlan(
-      'The lesson plan you sent me for grade 5 was quite good but the activity was too long for a 35 minute class and the assessment part was not clear to me.'
-    )).toBe(false);
+  it('no longer requires plan-shaped words or layout', () => {
+    for (const s of [
+      'Today I taught grade 5 the lesson on poetry and did one activity with them.',
+      'shairi, phir sawal jawab, phir bache apna sher sunain ge',
+      'no',
+    ]) {
+      expect(isEligiblePastedText(s)).toBe(true);
+    }
   });
 
-  it('still accepts a one-LINE plan that is laid out with a label', () => {
-    // One line, but labelled and specific — a plan, not prose about one.
-    expect(looksLikePastedLessonPlan(
-      'Lesson plan for grade 5 English chapter 7: read the poem aloud, explain what it means, then an activity where each child recites a favourite sher and we check understanding.'
-    )).toBe(true);
-  });
-
-  it('exempts a LONG plan written as prose — volume is its own evidence', () => {
-    const longProse = 'For this class I will begin by asking the children what kindness means to them and '
-      + 'collect their answers on the board, then I will read the first two paragraphs of the passage aloud '
-      + 'so they hear the intonation, after that they will read in pairs one paragraph each, and finally '
-      + 'every child writes two sentences about the moral of the lesson which I will check, and for homework '
-      + 'they read the passage once at home and underline five new words from the chapter.';
-    expect([...longProse].length).toBeGreaterThan(250);
-    expect(looksLikePastedLessonPlan(longProse)).toBe(true);
+  it('excludes only what is not a message at all, or belongs to another feature', () => {
+    for (const s of ['', '   ', '\n', '/menu', '/coaching', '/reading test']) {
+      expect(isEligiblePastedText(s)).toBe(false);
+    }
+    expect(isEligiblePastedText(null)).toBe(false);
+    expect(isEligiblePastedText(undefined)).toBe(false);
   });
 });
