@@ -36,12 +36,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { GraduationCap, Loader2, CheckCircle2, XCircle, Clock, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Textarea } from '@/components/ui/textarea';
+import QuestionPager from './QuestionPager';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
-const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 /** What the gate (GET /training/modules → `exam`) tells us. */
 export type ExamGate = {
@@ -265,62 +263,35 @@ export default function ModuleExamPanel({
             <Progress value={questions.length ? (answeredCount / questions.length) * 100 : 0} />
           </div>
 
-          {questions.map((q, i) => (
-            <div key={q.id} className="space-y-2">
-              <p className="text-sm font-medium whitespace-pre-line">
-                {i + 1}. {q.question_text}
-              </p>
-
-              {q.is_open_ended ? (
-                <>
-                  <Textarea
-                    rows={8}
-                    placeholder="Write your response here…"
-                    value={answers[q.id] || ''}
-                    onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))}
-                    data-testid={`exam-answer-${q.id}`}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Written answer — marked against the I-SAPS rubric. Take your time.
+          {/* bd-60168 — one shared renderer, and pagination where it helps.
+              Both quiz surfaces used to own this markup and both produced the
+              same hierarchy complaint. */}
+          <QuestionPager
+            questions={questions}
+            answers={answers}
+            onAnswer={(id, v) => setAnswers(p => ({ ...p, [id]: v }))}
+            disabled={phase === 'submitting'}
+            footer={({ unanswered }) => (
+              <div className="space-y-3">
+                {unanswered.length > 0 && (
+                  <p className="text-sm text-amber-700 dark:text-amber-500" data-testid="exam-unanswered">
+                    {unanswered.length === 1
+                      ? `Question ${unanswered[0]} still needs an answer before you can submit.`
+                      : `Questions ${unanswered.join(', ')} still need answers before you can submit.`}
                   </p>
-                </>
-              ) : (
-                <RadioGroup
-                  value={answers[q.id] || ''}
-                  onValueChange={v => setAnswers(p => ({ ...p, [q.id]: v }))}
+                )}
+                <Button
+                  onClick={submit}
+                  disabled={!allAnswered || phase === 'submitting'}
+                  data-testid="module-exam-submit"
                 >
-                  {(q.options || []).map((opt, idx) => {
-                    const value = String(idx + 1);
-                    return (
-                      <label
-                        key={value}
-                        className="flex items-start gap-3 rounded-md border p-3 text-sm cursor-pointer hover:bg-muted/50"
-                      >
-                        <RadioGroupItem value={value} id={`q${q.id}-${value}`} className="mt-0.5" />
-                        <span>
-                          <span className="font-medium mr-2">{OPTION_LETTERS[idx]}.</span>
-                          {opt}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </RadioGroup>
-              )}
-            </div>
-          ))}
-
-          <Button
-            onClick={submit}
-            disabled={!allAnswered || phase === 'submitting'}
-            data-testid="module-exam-submit"
-          >
-            {phase === 'submitting'
-              ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>)
-              : 'Submit exam'}
-          </Button>
-          {!allAnswered && (
-            <p className="text-xs text-muted-foreground">Answer every question before submitting.</p>
-          )}
+                  {phase === 'submitting'
+                    ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>)
+                    : 'Submit exam'}
+                </Button>
+              </div>
+            )}
+          />
         </div>
       )}
 
