@@ -25,6 +25,35 @@ const Author = require('./transcript-quiz-author.service');
 const { validate, MIN_QUESTIONS } = require('./transcript-quiz-validator');
 const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
+const { TRANSCRIPT, LP_V8 } = require('./quiz-sources');
+const LpDigest = require('./lp-quiz-digest.service');
+
+/** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
+const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
+
+/**
+ * The slide script an lp_v8 quiz is written from: the EXACT served version,
+ * named by the row's first lesson (PLAN_R8 D13). `null` on every kind of miss —
+ * no lesson on the row, no source ingested for that version, or the store
+ * failing — because each of them means the same thing to the teacher: there is
+ * nothing to write this quiz from. The store is lane S's module and is
+ * required lazily, so a deploy without it degrades to `source_missing` rather
+ * than taking the worker down at boot.
+ */
+async function resolveLessonSource(quiz) {
+  const lesson = ((quiz.meta && quiz.meta.lessons) || [])[0];
+  if (!lesson || !lesson.lesson_id) return null;
+  try {
+    const Store = require('./lp-asset-source.store');
+    const hit = await Store.resolveSlideScript({
+      lessonId: lesson.lesson_id, versionStamp: lesson.version_stamp, contentHash: lesson.content_hash,
+    });
+    return (hit && hit.slideScript) || null;
+  } catch (err) {
+    logToFile('❌ lp quiz: slide-script lookup failed', { quizId: quiz.id, lessonId: lesson.lesson_id, error: err.message }, 'error');
+    return null;
+  }
+}
 
 const N_QUESTIONS = 8;
 /**
@@ -424,9 +453,37 @@ async function updateQuiz(quizId, patch) {
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
-async function tellTeacherFailed(phone, lang, quizId, reason) {
-  await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotMake', { language: lang }));
-  logEvent('transcript_quiz.failed', { quizId, reason });
+/**
+ * WHICH failure sentence the teacher gets.
+ *
+ * `tqCouldNotMake` names "this lesson's recording" and "the transcript" — true
+ * of a quiz written from a coaching recording, and a state that never existed
+ * for a quiz written from the lesson PLAN a teacher was served. One shared
+ * fallback across distinct failures is also what misdirected a whole fix cycle
+ * before (root CLAUDE.md rule 24d), so the LP path names the step that stopped.
+ *
+ * Exported and pure so the copy can be asserted without a send.
+ *
+ * @param {string} reason      the `transcript_quiz.failed` reason
+ * @param {string} quizSource  `quizzes.quiz_source`
+ * @returns {string} a ux-strings key
+ */
+const LP_FAILURE_COPY = {
+  source_missing: 'tqFailedLpSource',
+  digest_failed: 'tqFailedLpDigest',
+  validator_failed: 'tqFailedLpAuthor',
+};
+function failureCopyKey(reason, quizSource) {
+  if (quizSource !== LP_V8) return 'tqCouldNotMake';
+  // An LP quiz never falls back to the transcript copy: a reason nobody has
+  // written copy for is still an LP failure, and "the questions did not come
+  // out" is the honest general case of one.
+  return LP_FAILURE_COPY[reason] || 'tqFailedLpAuthor';
+}
+
+async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT) {
+  await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
+  logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource });
 }
 
 // ─── the step ────────────────────────────────────────────────────────────────
@@ -507,7 +564,7 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
 async function process(quizId, payload = {}) {
   const api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
-    .select('id, teacher_id, coaching_session_id, topic, subject, language, status, meta, grade')
+    .select('id, teacher_id, coaching_session_id, quiz_source, topic, subject, language, status, meta, grade')
     .eq('id', quizId).maybeSingle();
   if (error || !quiz) {
     logToFile('⚠️ transcript quiz: generate — quiz not found', { quizId, error: error?.message });
@@ -516,37 +573,79 @@ async function process(quizId, payload = {}) {
   if (quiz.status === 'sent' || quiz.status === 'report_sent') return { skipped: 'already_sent' };
   if (!['generating', 'ready', 'offered'].includes(quiz.status)) return { skipped: `status_${quiz.status}` };
 
-  const { data: session } = await supabase.from('coaching_sessions')
-    .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
-  if (!session) {
-    await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'session_missing' } });
-    return { failed: true, reason: 'session_missing' };
+  // ── WHAT THE QUIZ IS WRITTEN FROM ─────────────────────────────────────────
+  // A transcript quiz has a coaching session. An lp_v8 quiz has none — it is
+  // written from the lesson PLAN the teacher was served — so its teacher comes
+  // from quizzes.teacher_id and its "session" is only the lesson date, which is
+  // all the hand-off ever reads from one (PLAN_R8 §3.2/§3.3).
+  const quizSource = quiz.quiz_source || TRANSCRIPT;
+  const isLp = quizSource === LP_V8;
+  let session;
+  let user;
+  if (isLp) {
+    const { data: teacher } = await supabase.from('users')
+      .select(LP_USER_SELECT).eq('id', quiz.teacher_id).maybeSingle();
+    if (!teacher) {
+      await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'teacher_missing' } });
+      logEvent('transcript_quiz.failed', { quizId, reason: 'teacher_missing', quiz_source: quizSource });
+      return { failed: true, reason: 'teacher_missing' };
+    }
+    user = teacher;
+    session = require('./transcript-quiz-handoff.service').lessonSessionFor(quiz);
+  } else {
+    const { data: found } = await supabase.from('coaching_sessions')
+      .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
+    if (!found) {
+      await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'session_missing' } });
+      return { failed: true, reason: 'session_missing' };
+    }
+    session = found;
+    user = session.users || {};
   }
-  const user = session.users || {};
   const phone = payload.phone || user.phone_number;
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = user.name || null;
   let meta = { ...(quiz.meta || {}) };
 
+  // The slide script is needed wherever the author still has to run; a quiz
+  // resuming at the hand-off (`ready`/`ready`) has its questions and does not.
+  let slideScript = null;
+  if (isLp && !(quiz.status === 'ready' && meta.step === 'ready')) {
+    slideScript = await resolveLessonSource(quiz);
+    if (!slideScript) {
+      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_missing' } });
+      await tellTeacherFailed(phone, teacherLang, quizId, 'source_missing', quizSource);
+      return { failed: true, reason: 'source_missing' };
+    }
+  }
+
   // ── digest (already there when the offer path claimed the row; /quiz path lands here without one)
   if (!meta.digest) {
     try {
-      const r = await Digest.run({ session, user });
+      // The lp_v8 quiz's language is settled from the catalog subject BEFORE
+      // the digest (the digest writes its SLO statements for it), with the
+      // slide script's own language as the tie-break a transcript would give.
+      const lpLanguage = isLp
+        ? (quiz.language || quizLanguageFor(quiz.subject, slideScript && slideScript.meta && slideScript.meta.language))
+        : null;
+      const r = isLp
+        ? await LpDigest.run({ slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject })
+        : await Digest.run({ session, user });
       meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
         digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
       // The teacher's own choice, stored on the row when the language ask was
       // answered, outranks the subject rule. The rule is what a legacy row (or
       // a skipped ask) falls back to.
-      const language = quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
+      const language = lpLanguage || quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
       quiz.language = language;
       quiz.subject = r.digest.subject;
-      quiz.topic = topicFor(r.digest, language);
-      quiz.grade = r.grade;
+      quiz.topic = topicFor(r.digest, language) || quiz.topic;
+      quiz.grade = r.grade || quiz.grade;
       await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
     } catch (err) {
       logToFile('❌ transcript quiz: digest failed in generate', { quizId, error: err.message }, 'error');
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: `digest: ${err.message}` } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'digest_failed');
+      await tellTeacherFailed(phone, teacherLang, quizId, 'digest_failed', quizSource);
       return { failed: true, reason: 'digest_failed' };
     }
   }
@@ -573,8 +672,12 @@ async function process(quizId, payload = {}) {
       let out;
       try {
         out = await Author.author({
-          digest, transcript: session.transcript_text, language, n: N_QUESTIONS,
+          digest, transcript: isLp ? null : session.transcript_text, language, n: N_QUESTIONS,
           gradeBand: digest.grade_band || meta.grade, previousErrors, quizId,
+          // An lp_v8 quiz has no transcript: the author reads the planned
+          // lesson — the same picker the digest used, so the exit MCQ and the
+          // plan's gendered prose are absent here too.
+          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript) } : {}),
         });
       } catch (err) {
         attempts.push({ attempt, error: err.message });
@@ -814,7 +917,7 @@ async function process(quizId, payload = {}) {
     meta.author_attempts = attempts;
     if (!questions) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed' } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed');
+      await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed', quizSource);
       return { failed: true, reason: 'validator_failed', attempts };
     }
     const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
@@ -833,7 +936,9 @@ async function process(quizId, payload = {}) {
         ? { digest: { ...(meta.digest || {}), checks_summary: lastExtras.checks_summary } } : {}),
     };
     await updateQuiz(quizId, { status: 'ready', meta });
-    logEvent('transcript_quiz.ready', { quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd });
+    logEvent('transcript_quiz.ready', {
+      quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd, quiz_source: quizSource,
+    });
   }
 
   // ── hand-off (mint or reuse the share code, PDF, the three paced messages —
@@ -855,6 +960,7 @@ async function process(quizId, payload = {}) {
 
 module.exports = {
   salvageWithoutBadFigures,
+  failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
   figureRequiredError,

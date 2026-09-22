@@ -1482,6 +1482,25 @@ const UX_STRINGS = {
     en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
     ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد /quiz آزمائیں۔',
   },
+  // ── the LP-born quiz's own failure reasons (PLAN_R8 §3.6) ────────────────
+  // `tqCouldNotMake` above names "this lesson's recording" and "the transcript".
+  // A quiz written from the lesson PLAN a teacher was served has neither, so
+  // that copy would name a state that never existed — and one shared fallback
+  // across several distinct failures is what sent a whole fix cycle at the
+  // wrong layer before (root CLAUDE.md rule 24d). Three reasons, three
+  // sentences, each saying which step actually stopped.
+  tqFailedLpSource: {
+    en: 'I couldn’t open that lesson plan, so there was nothing to write the quiz from. Send /quiz to pick another lesson.',
+    ur: 'اس سبق کا lesson plan نہیں کھل سکا، اس لیے quiz بنانے کے لیے کچھ نہیں تھا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqFailedLpDigest: {
+    en: 'I couldn’t read enough of that lesson plan to write a good quiz. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan سے اتنا نہیں پڑھا جا سکا کہ اچھا quiz بن سکے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqFailedLpAuthor: {
+    en: 'I couldn’t make a good quiz from that lesson plan — the questions didn’t come out clear enough. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan سے اچھا quiz نہیں بن سکا — سوالات کافی واضح نہیں بنے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
