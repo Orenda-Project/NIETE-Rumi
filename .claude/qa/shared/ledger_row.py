@@ -26,6 +26,94 @@ def git(root, *args):
         return ""
 
 
+def _git_rc(root, *args):
+    """Exit code only — `git` above swallows it, and add/commit need to be checked."""
+    try:
+        return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, timeout=30).returncode
+    except Exception:
+        return 1
+
+
+def commit_row(root, ledger_path, feature, status, commit_sha, method):
+    """Commit the row we just appended. Returns a short word for the log line (bd-2jdxj).
+
+    The row is the durable proof a run happened: impact.py measures
+    `git diff <base>...<head> -- .claude/qa/ledgers/runs.jsonl`, so a row left in the working tree
+    is invisible to CI and a real run reads as "E2E run recorded: missing". That is how PRs #1139,
+    #1151 and #1155 each ran the lane and still showed no proof.
+
+    Deliberately narrow:
+      · ONLY this path, never `git add -A` — a run must not sweep up work the developer had in flight.
+      · never on a detached HEAD — that commit is an orphan nobody will find.
+      · never fatal — a lane run must not fail because git refused.
+      · does NOT push. Pushing is outward-facing and stays with whoever is driving.
+      · --no-verify: one generated line in a file no gate governs; an unrelated pre-commit failure
+        must not swallow the only proof the run happened.
+    E2E_LEDGER_COMMIT_OFF=1 disables it (CI, tests).
+    """
+    if os.environ.get("E2E_LEDGER_COMMIT_OFF") == "1":
+        return "not committed (switched off)"
+    try:
+        if git(root, "rev-parse", "--is-inside-work-tree").strip() != "true":
+            return "not committed (not a git repo)"
+        if not git(root, "symbolic-ref", "-q", "HEAD").strip():
+            return "not committed (detached HEAD)"
+        rel = os.path.relpath(ledger_path, root)
+        if not git(root, "status", "--porcelain", "--", rel).strip():
+            return "nothing to commit"
+        if _git_rc(root, "add", "--", rel) != 0:
+            return "not committed (git add failed)"
+        msg = "qa(%s): %s-lane run row for %s (%s)" % (
+            feature, method, (commit_sha or "")[:12] or "HEAD", status)
+        if _git_rc(root, "commit", "--no-verify", "-m", msg, "--", rel) != 0:
+            return "not committed (git commit failed)"
+        return "committed"
+    except Exception as e:
+        return "not committed (%s)" % type(e).__name__
+
+
+# Branches a run must never push to on its own: shared lines several agents have checked out, plus
+# `develop`, which is a frozen rollback anchor (root CLAUDE.md rule 7).
+PROTECTED_BRANCHES = ("sandbox", "staging", "main", "master", "develop")
+
+
+def push_row(root):
+    """Push the ledger commit, so qa-impact can actually see it (bd-wvu2y).
+
+    `commit_row` alone is not enough: the workflow runs on pull_request/synchronize and resolves the
+    range on the REMOTE, so a committed-but-unpushed row still reads "E2E run recorded: missing".
+
+    Guards, in order:
+      · E2E_LEDGER_PUSH_OFF=1 disables it.
+      · never on a detached HEAD.
+      · never onto a PROTECTED branch — a run on a checked-out sandbox must not push to sandbox.
+      · never without an existing upstream — it must not conjure a remote branch nobody asked for.
+      · never fatal.
+
+    Two things it deliberately does NOT do. It does not pass --no-verify: a refusing pre-push gate
+    is a decision, and bypassing it here would bypass it for every commit already on the branch, so
+    the refusal is reported and the retry is left to a human. And it cannot push the ledger commit
+    alone — git pushes a branch, so anything else already committed here goes with it.
+    """
+    if os.environ.get("E2E_LEDGER_PUSH_OFF") == "1":
+        return "not pushed (switched off)"
+    try:
+        branch = git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
+        if not branch or branch == "HEAD":
+            return "not pushed (detached HEAD)"
+        if branch in PROTECTED_BRANCHES:
+            return "not pushed (%s is protected)" % branch
+        upstream = git(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}").strip()
+        if not upstream or "/" not in upstream:
+            return "not pushed (no upstream)"
+        remote = upstream.split("/", 1)[0]
+        if _git_rc(root, "push", remote, "HEAD:" + branch) != 0:
+            return "not pushed (the remote or a pre-push gate refused — the row IS committed; push it yourself)"
+        return "pushed"
+    except Exception as e:
+        return "not pushed (%s)" % type(e).__name__
+
+
 def _attribute_misses(misses, progress_log):
     """Which scenario was running when each cassette miss happened?
 
@@ -172,8 +260,11 @@ def main(argv=None):
         print(json.dumps(row, ensure_ascii=False))
         return 0
     ledger.append_run(row, path)
-    print("    ledger: %s %s → runs.jsonl (%s%s)" % (a.feature, row["status"], a.method,
-                                                   (" @" + a.commit[:12]) if a.commit else ""))
+    committed = commit_row(a.root, path, a.feature, row["status"], a.commit, a.method)
+    if committed == "committed":
+        committed = "committed, " + push_row(a.root)
+    print("    ledger: %s %s → runs.jsonl (%s%s) — %s" % (a.feature, row["status"], a.method,
+                                                   (" @" + a.commit[:12]) if a.commit else "", committed))
     return 0
 
 
