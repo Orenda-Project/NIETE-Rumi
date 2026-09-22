@@ -76,7 +76,10 @@ function _voiceFidelity(analysis, notAssessed) {
   };
 }
 
-function _projectAnalysisForVoice(analysis) {
+function _projectAnalysisForVoice(rawAnalysis) {
+  // bd-b3pop: the grading's runs, spread and photo readings stay on the stored analysis for the watch; the voice never
+  // sees them, or it could speak a run's percentage beside the card's.
+  const analysis = require('./fidelity/fidelity-telemetry').stripFidelityTelemetry(rawAnalysis);
   const sectionB = analysis && analysis.domains && analysis.domains.lesson_plan_fidelity;
   const measuresOwnFidelity = !!(analysis && analysis.lp_fidelity);
 
@@ -1819,5 +1822,7 @@ class ReportGeneratorService {
 // Exposed so the step-message language resolver can be driven directly by a
 // test instead of through a whole report render. Not part of the public surface.
 ReportGeneratorService._languageFromSession = _languageFromSession;
+// Same reason: the voice projection is tested directly (bd-b3pop telemetry strip).
+ReportGeneratorService._projectAnalysisForVoice = _projectAnalysisForVoice;
 
 module.exports = ReportGeneratorService;
