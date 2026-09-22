@@ -204,7 +204,7 @@ describe('computeLpFidelity — the flag survives to the persisted blob', () => 
 
   test('the contradiction is persisted under moderators, with low_confidence', async () => {
     const res = await computeLpFidelity(
-      { corpusKey: { lesson_id: 'grade_4_urdu_ch8_seg3' }, transcript: 't' },
+      { corpusKey: { lesson_id: 'grade_4_urdu_ch8_seg3' }, transcript: '[00:10] t' },
       deps(INCONSISTENT.verdicts, { note: INCONSISTENT.note, plan_navigability: 'clear' }),
     );
     expect(res.status).toBe('ok');
@@ -216,11 +216,11 @@ describe('computeLpFidelity — the flag survives to the persisted blob', () => 
 
   test('and the score is the same number it would have been', async () => {
     const flagged = await computeLpFidelity(
-      { corpusKey: { lesson_id: 'x' }, transcript: 't' },
+      { corpusKey: { lesson_id: 'x' }, transcript: '[00:10] t' },
       deps(INCONSISTENT.verdicts, { note: INCONSISTENT.note }),
     );
     const plain = await computeLpFidelity(
-      { corpusKey: { lesson_id: 'x' }, transcript: 't' },
+      { corpusKey: { lesson_id: 'x' }, transcript: '[00:10] t' },
       deps(INCONSISTENT.verdicts, { note: 'lesson_mismatch' }),
     );
     expect(flagged.fidelity_pct).toBe(plain.fidelity_pct);
@@ -231,7 +231,7 @@ describe('computeLpFidelity — the flag survives to the persisted blob', () => 
 
   test('a grader that gave no note leaves moderators null and no flag', async () => {
     const res = await computeLpFidelity(
-      { corpusKey: { lesson_id: 'x' }, transcript: 't' },
+      { corpusKey: { lesson_id: 'x' }, transcript: '[00:10] t' },
       deps(INCONSISTENT.verdicts, null),
     );
     expect(res.moderators).toBeNull();
