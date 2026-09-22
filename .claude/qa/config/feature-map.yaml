@@ -107,6 +107,7 @@ features:
     - bot/shared/routes/teacher-training-endpoint.js
     - bot/shared/routes/training-msq-endpoint.js
     - bot/shared/routes/quiz-flow-endpoint.js
+    - bot/shared/routes/transcript-quiz-flow-endpoint.js      # the /quiz Flow (lp_v8 + transcript quizzes, one list)
     - bot/shared/services/quiz/**
     - bot/shared/services/exam/**
     - bot/shared/services/exam-checker/**
@@ -121,6 +122,7 @@ features:
     - bot/shared/templates/quiz-report.template.js
     - bot/shared/templates/video-quiz-report.template.js
     - bot/shared/templates/video-quiz-scorecard.template.js
+    - bot/shared/templates/transcript-quiz-teacher.template.js  # the teacher sheet sent with every lesson quiz
     # The transcript-quiz figure/card modules render through the same vendored
     # engine the LP-612 lane uses — see the note under `lesson-plan:`. Owned by
     # both on purpose; not `shared:`.
