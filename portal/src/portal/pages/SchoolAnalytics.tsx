@@ -139,7 +139,7 @@ const SchoolAnalytics = () => {
     stroke: { curve: 'smooth', width: 3 },
     colors: ['hsl(15, 85%, 60%)'],
     grid: { borderColor: 'hsl(220, 13%, 91%)', strokeDashArray: 4 },
-    // bd-60174: both axes drew ticks and neither said what it was — dates along
+    // both axes drew ticks and neither said what it was — dates along
     // the bottom, percentages up the side, and nothing naming the quantity. A
     // principal reported the chart as unreadable at a glance. The titles are
     // the whole fix; the data was never wrong.

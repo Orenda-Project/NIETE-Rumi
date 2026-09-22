@@ -4,7 +4,6 @@ import { CalendarDays, MessageSquare, CheckCircle2, ChevronRight, AlertCircle } 
 import { leader } from "../services/api";
 import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
-import ScoreIndicator from "../components/ScoreIndicator";
 import type { LeaderObservationsData, LeaderObservationSession, LeaderPatchTeacher } from "../types/portal";
 
 /**
@@ -219,9 +218,8 @@ const LeaderObservations = () => {
                         <p className="font-medium">{d.teacherName || "Unassigned observation"}</p>
                         <p className="text-muted-foreground text-sm">{observationSubline(d)}</p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {d.score != null && <ScoreIndicator percentage={d.score} size="small" />}
-                      </div>
+                      {/* no score chip — the visit is identified by
+                          teacher and date, which is what the row is for. */}
                     </li>
                   ))}
                 </ul>
@@ -246,7 +244,7 @@ const LeaderObservations = () => {
                           <p className="text-muted-foreground text-sm">{observationSubline(d)}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          {d.score != null && <ScoreIndicator percentage={d.score} size="small" />}
+                          {/* score chip removed. */}
                           {d.teacherUserId && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                         </div>
                       </>

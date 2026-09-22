@@ -252,6 +252,10 @@ export interface LeaderPatchTeacher {
   coachingSessions: number;   // sessions the teacher recorded herself
   observations: number;       // bd-2671: visits by a coach (/observe)
   lessonPlans: number;
+  // per-feature engagement, so the landing view can be organised by
+  // feature. attendanceSessions is registers SHE took, not her own presence.
+  attendanceSessions: number;
+  trainingModules: number;    // COMPLETED modules, distinct
   lastSessionAt: string | null;
   lastScore: number | null;   // framework-agnostic %, null if never coached
   focusArea: string | null;   // bd-2672: the named area, not just "Focus Area"
@@ -266,6 +270,13 @@ export interface LeaderOverview {
   notOnRumi: number;
   totalCoachingSessions: number;
   totalLessonPlans: number;
+  // patch-wide feature engagement for the landing tiles, plus the
+  // reach counts, which are the honest figure: 21 registers across 19 teachers
+  // reads healthy until you learn one teacher took all 21.
+  totalAttendanceSessions: number;
+  totalTrainingModules: number;
+  teachersMarkingAttendance: number;
+  teachersInTraining: number;
   scoredTeachers: number;
   avgLastScore: number | null;
   focus: LeaderPatchTeacher[];
@@ -454,7 +465,13 @@ export interface LeaderTeacherDetail {
     coachingSessions: number;
     lessonPlans: number;
     readingAssessments: number;
+    /**
+     * still computed, still sent, NOT rendered in the leader UI.
+     * Hiding is a render decision; the pipeline that produces this is untouched.
+     */
     lastScore: number | null;
+    /** The newest written summary — what the leader reads instead. */
+    lastSummary: string | null;
   };
   sessions: Array<{
     id: string;
@@ -462,6 +479,8 @@ export interface LeaderTeacherDetail {
     score: number | null;
     points: number | null;
     maxPoints: number | null;
+    /** analysis_data.executive_summary — prose, 2-3 lines. Null on old rows. */
+    summary: string | null;
   }>;
 }
 

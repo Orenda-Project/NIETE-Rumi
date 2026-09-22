@@ -85,6 +85,18 @@ const COUNTS_SQL = `
  *   proof (bd-60117). Omitted ⇒ the coach proof, exactly as before.
  * @returns {Promise<object|null>}  detail, or null if the teacher isn't in the leader's patch
  */
+/**
+ * The written feedback the leader UI shows in place of the score.
+ * Trimmed, and empty-string-safe: a blank summary must read as "none" rather
+ * than render an empty panel with a heading above it.
+ */
+function summaryOf(analysisData) {
+  const raw = analysisData && analysisData.executive_summary;
+  if (typeof raw !== 'string') return null;
+  const text = raw.trim();
+  return text || null;
+}
+
 async function getPatchTeacherDetail(query, leaderUserId, teacherUserId, opts = {}) {
   const { rows: member } = await query(membershipSqlFor(opts.role), [leaderUserId, teacherUserId]);
   if (!member || member.length === 0) return null;   // not in patch → caller 404s
@@ -100,9 +112,19 @@ async function getPatchTeacherDetail(query, leaderUserId, teacherUserId, opts = 
     return {
       id: s.id,
       date: s.created_at,
+      // score/points/maxPoints STAY on the payload. The operator's
+      // decision (2026-09-22) is to hide the number in the leader UI, not to
+      // stop computing it — dropping it here would reach the coach's debrief,
+      // the analytics trend and every export, none of which were complained
+      // about. Hiding is a render decision and lives in the components.
       score: o && o.percentage != null ? o.percentage : null,
       points: o ? o.points : null,
       maxPoints: o ? o.maxPoints : null,
+      // ...and this is what the leader UI shows INSTEAD. Already written by the
+      // analysis: present on 200 of 200 recent prod sessions (median 382 chars,
+      // p90 606), naming a strength and a growth area in prose. No new column,
+      // no generation step. Null on sessions written before the field existed.
+      summary: summaryOf(s.analysis_data),
     };
   });
   const counts = (countRows && countRows[0]) || {};
@@ -114,6 +136,10 @@ async function getPatchTeacherDetail(query, leaderUserId, teacherUserId, opts = 
       lessonPlans: Number(counts.lesson_plans) || 0,
       readingAssessments: Number(counts.reading_assessments) || 0,
       lastScore: sessions.length ? sessions[0].score : null,
+      // The header's written line — the newest summary that actually has one,
+      // rather than the newest session, so one summary-less session does not
+      // blank a teacher who has plenty of written feedback behind it.
+      lastSummary: (sessions.find((x) => x.summary) || {}).summary || null,
     },
     sessions,
   };

@@ -68,7 +68,18 @@ describe("SchoolLessons", () => {
     await waitFor(() => expect(screen.getByTestId("lessons-list")).toBeInTheDocument());
     const rows = screen.getAllByTestId(/^lesson-row-/);
     // trend() is oldest-first; the page reverses it.
-    expect(rows[0].textContent).toMatch(/73/);
+    //
+    // bd-60174: this asserted on the score "73", which the leader view no
+    // longer renders. The DATE is the better proxy for ordering anyway — it is
+    // the thing being ordered BY, where the score was only correlated with it.
+    // Pull the date off the row rather than slicing a fixed width — "1 Sept"
+    // and "24 Sept" are different lengths, and a fixed slice reads as NaN.
+    const dateOf = (el: Element) => {
+      const m = (el.textContent || "").match(/(\d{1,2} \w+ \d{4})/);
+      return m ? Date.parse(m[1].replace("Sept", "Sep")) : NaN;
+    };
+    expect(rows[0].textContent).toMatch(/24 Sept 2026/);
+    expect(dateOf(rows[0])).toBeGreaterThan(dateOf(rows[rows.length - 1]));
   });
 
   it("names the teacher on each row across the whole school", async () => {

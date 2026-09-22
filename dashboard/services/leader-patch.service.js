@@ -63,7 +63,12 @@ const PATCH_SELECT = `
     COALESCE(lpc.plans, 0) AS lesson_plans,
     ls.analysis_data      AS last_analysis_data,
     ls.created_at         AS last_session_at,
-    sch.name              AS school_name
+    sch.name              AS school_name,
+    -- the two features the row could not previously speak for. The
+    -- principal is asked to track her teachers feature by feature, so every
+    -- feature needs a number here or the view cannot be organised by one.
+    COALESCE(att.n, 0)    AS attendance_sessions,
+    COALESCE(trn.n, 0)    AS training_modules
 `;
 
 // The four per-person stat LATERALs. Identical for every caller: they key on
@@ -95,6 +100,33 @@ const PATCH_LATERALS = `
     ORDER BY c.created_at DESC
     LIMIT 1
   ) ls ON true
+  -- registers SHE took, keyed on user_id. Deliberately NOT
+  -- teacher_attendance_records, which is somebody marking HER present — a
+  -- different question, a different key (teacher_id), and counting it here
+  -- would report her own presence as her use of the feature.
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS n
+    FROM attendance_sessions a
+    WHERE a.user_id = u.id
+  ) att ON true
+  -- modules COMPLETED, counted DISTINCT. Assignment is not
+  -- engagement — 89 people were assigned I-SAPS on prod and 88 could not reach
+  -- it, so counting teacher_training_assignments would report a busy school in
+  -- which nothing happened.
+  --
+  -- Two things measured on prod 2026-09-22 rather than assumed. First,
+  -- completed_at is non-null on all 706,892 rows: this table only ever records
+  -- a completion, so the IS NOT NULL guard below is belt-and-braces against a
+  -- future nullable write, not a filter that does work today. Second, the
+  -- heaviest user holds 130 rows over 130 DISTINCT modules against a 438-module
+  -- catalogue — so there is no duplicate-row inflation to correct for, and
+  -- DISTINCT is what keeps it that way if a module is ever re-completed.
+  LEFT JOIN LATERAL (
+    SELECT count(DISTINCT tp.module_id) AS n
+    FROM teacher_training_progress tp
+    WHERE tp.user_id = u.id
+      AND tp.completed_at IS NOT NULL
+  ) trn ON true
 `;
 
 // ── entry point 1: a COACH, via her school assignments ──────────────────────
@@ -186,6 +218,11 @@ function shapeTeacher(r) {
     // (a coach visited her) from a self-recorded coaching session.
     observations: Number(r.observations) || 0,
     lessonPlans: Number(r.lesson_plans) || 0,
+    // per-feature engagement for the principal's landing view.
+    // `|| 0` is load-bearing: a caller on a stale deploy sends no such column,
+    // and Number(undefined) is NaN, which renders as a broken tile.
+    attendanceSessions: Number(r.attendance_sessions) || 0,
+    trainingModules: Number(r.training_modules) || 0,
     lastSessionAt: r.last_session_at || null,
     // percentage is the framework-agnostic headline; null when never coached.
     lastScore: overall && overall.percentage != null ? overall.percentage : null,

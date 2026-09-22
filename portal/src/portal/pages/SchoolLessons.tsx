@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
-import ScoreIndicator from '../components/ScoreIndicator';
 import { leader } from '../services/api';
 import type { SchoolAnalyticsResponse } from '../types/portal';
 
@@ -167,14 +166,12 @@ const SchoolLessons = () => {
                     <p className="text-muted-foreground text-sm truncate">
                       {/* Whose lesson — but not when the view is already one
                           teacher, where repeating her name on every row is noise. */}
+                      {/* the "71 / 148 marks" line is gone — it was
+                          the "total marks" the feedback asked us to remove. */}
                       {!focusTeacher && p.teacherName && <>{p.teacherName}</>}
-                      {!focusTeacher && p.teacherName && p.points != null && <> · </>}
-                      {p.points != null && p.maxPoints != null && (
-                        <>{p.points} / {p.maxPoints} marks</>
-                      )}
                     </p>
                   </div>
-                  <ScoreIndicator percentage={p.percentage} size="small" />
+                  {/* score chip removed from the per-lesson list. */}
                 </li>
               ))}
             </ul>
