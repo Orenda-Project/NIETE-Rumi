@@ -419,7 +419,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (buildTooLargeMessage). NB the reject copy still says "25MB"/"Whisper" though
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
 
-  @e2e @wip @draft @P2
+  @e2e @wip @draft @P2 @COA16
   Scenario: The coaching session says it is over before the quiz offer arrives
     Given the NIETE bot chat is open
     And I have received a coaching report with a commitment card

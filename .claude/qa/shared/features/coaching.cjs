@@ -34,6 +34,9 @@ const EXPECT = {
   photoPrompt       : /(classroom photo|share a .*photo|تصویر)/i,
   lpPrompt          : /(lesson plan for this class|do you have a lesson plan|سبق کا منصوبہ)/i,
   notLessonPlan     : /not a lesson plan|doesn'?t look like|isn'?t a lesson plan|نہیں لگتا/i,
+  // COA16 (bd-x3k1q): coaching-messages.js sessionComplete, en + ur.
+  sessionComplete   : /coaching session (is )?(now )?complete|session is over|کوچنگ سیشن (مکمل|ختم)/i,
+  quizOffer         : /quiz|کوئز/i,
   reflectiveQ       : /(reflect|what (do|did) you|how (did|do) you|think about)/i,
   rubric            : /FICO|ICT|rubric|indicator|classroom (practice|management)|questioning/i,
   // Live card copy (staging, Urdu account, 2026-09-02 19:09Z): "کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟"
@@ -354,6 +357,12 @@ exports.run = async ({ api, rec, sleep }) => {
         continue;
       }
 
+      // COA16 — the session-complete boundary, and whether a quiz offer beat it here.
+      if (obs.report && EXPECT.sessionComplete.test(x) && !obs.sessionComplete)
+        obs.sessionComplete = { at: Date.now(), text: x.slice(0, 200), quizSeenFirst: !!obs.quizOffer };
+      if (obs.report && EXPECT.quizOffer.test(x) && !obs.quizOffer)
+        obs.quizOffer = { at: Date.now(), text: x.slice(0, 200) };
+
       // COA15 — the commitment card
       if (obs.report && !obs.commitment && EXPECT.commitmentCard.test(x)
           && r.btns.some(b => EXPECT.commitAny.test(b))) {
@@ -495,6 +504,17 @@ exports.run = async ({ api, rec, sleep }) => {
       { reason: 'unreachable via WhatsApp: reject threshold (100MB) = WhatsApp document ceiling, so no '
               + 'upload can exceed it. Covered by unit test bot/tests/coa14-audio-size-cap.test.js.',
         note: 'the reject copy still says "25MB"/"Whisper" though the real cap is 100MB — stale (bd-60026).' }, 0);
+
+  // ══ COA16 — the session-complete line lands before any quiz offer (bd-x3k1q) ══
+  deepOnly('COA16', 'The coaching session says it is over before the quiz offer arrives',
+      ...(obs.sessionComplete
+          ? V(!obs.sessionComplete.quizSeenFirst,
+              { boundary: obs.sessionComplete.text, quizSeenFirst: obs.sessionComplete.quizSeenFirst,
+                quizOffer: obs.quizOffer ? obs.quizOffer.text : null })
+          : ['BLOCKED', { reason: obs.report
+                            ? 'the report arrived but no session-complete line was seen before the run ended'
+                            : (stallNote || ('no report within ' + elapsed + 's')),
+                          sawQuizOffer: !!obs.quizOffer, stepsSeen: obs.steps }]));
 
   if (DEEP)
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',
