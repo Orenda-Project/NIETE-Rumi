@@ -139,12 +139,28 @@ const SchoolAnalytics = () => {
     stroke: { curve: 'smooth', width: 3 },
     colors: ['hsl(15, 85%, 60%)'],
     grid: { borderColor: 'hsl(220, 13%, 91%)', strokeDashArray: 4 },
+    // bd-60174: both axes drew ticks and neither said what it was — dates along
+    // the bottom, percentages up the side, and nothing naming the quantity. A
+    // principal reported the chart as unreadable at a glance. The titles are
+    // the whole fix; the data was never wrong.
     xaxis: {
       categories: analytics.scoreTrend.map((p) =>
         new Date(p.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })),
       labels: { style: { colors: 'hsl(220, 9%, 46%)', fontSize: '12px' } },
+      title: {
+        text: 'Date observed — one point per observed lesson',
+        style: { color: 'hsl(220, 9%, 46%)', fontSize: '12px', fontWeight: 500 },
+      },
     },
-    yaxis: { min: 0, max: 100, labels: { formatter: (v) => `${v}%` } },
+    yaxis: {
+      min: 0,
+      max: 100,
+      labels: { formatter: (v) => `${v}%` },
+      title: {
+        text: 'Lesson score (% of the rubric)',
+        style: { color: 'hsl(220, 9%, 46%)', fontSize: '12px', fontWeight: 500 },
+      },
+    },
     tooltip: { y: { formatter: (v) => `${v}%` } },
     dataLabels: { enabled: false },
     markers: { size: 4 },
