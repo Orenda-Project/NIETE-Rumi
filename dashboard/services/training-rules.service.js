@@ -160,6 +160,24 @@ async function getModuleQuizVerdict(moduleId, score, totalQuestions) {
   return { is_passed: data.is_passed === true, status: data.status, pass_pct: data.pass_pct, achieved_pct: data.achieved_pct };
 }
 
+/**
+ * The I-SAPS weighted composite for a level: 25/50/25 with per-component bars.
+ *
+ * Returns `null` when the level is not assessed this way, which is the signal
+ * to fall through to the vendor's own rule rather than treat 0 as a fail.
+ *
+ * DENIES on failure (returns null), because the only consumer is a certificate
+ * gate: a lookup failure must read as "cannot confirm", never as a pass.
+ */
+async function getIsapsLevelGrade(userId, levelId) {
+  try {
+    const data = await ask('level-grade', { userId, levelId });
+    return data && data.grade ? data.grade : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** The exam's presentation state for a level. Denies on any failure. */
 async function getGrandQuizState(userId, levelId) {
   return gate('grand-quiz-state', () => ask('grand-quiz-state', { userId, levelId }));
@@ -241,6 +259,34 @@ async function startModuleExam(userId, courseId, programId = null) {
 }
 
 /**
+ * Autosave one answer mid-paper. bd-60169.
+ *
+ * DOES NOT THROW, unlike every marking call here — and that difference is the
+ * point. A marking verdict has no safe default, so those must throw. A draft
+ * save that fails is an inconvenience: the answer is still on her screen. If
+ * this threw, a flaky network would interrupt a teacher mid-exam over work
+ * that is not actually lost.
+ */
+async function saveModuleExamDraft(userId, attemptId, draft) {
+  try {
+    const data = await ask('module-exam-draft', { userId, attemptId, ...draft });
+    return data && data.ok === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** The answers already saved, so resuming shows her own work. bd-60169. */
+async function loadModuleExamDraft(userId, attemptId) {
+  try {
+    const data = await ask('module-exam-draft-load', { userId, attemptId });
+    return Array.isArray(data?.answers) ? data.answers : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
  * Submit the paper. THROWS on failure, like the other marking calls and for
  * the same reason: a marking result has no safe default in either direction,
  * so the caller must abandon the write rather than record a pass or a fail it
@@ -308,7 +354,10 @@ module.exports = {
   moduleExamGate,
   startModuleExam,
   submitModuleExam,
+  saveModuleExamDraft,
+  loadModuleExamDraft,
   getModuleQuizVerdict,
   getGrandQuizState,
+  getIsapsLevelGrade,
   UNAVAILABLE,
 };

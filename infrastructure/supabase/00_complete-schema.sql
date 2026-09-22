@@ -3624,6 +3624,10 @@ CREATE TABLE IF NOT EXISTS training_vendors (
     -- NULL for vendors whose written work is not separately weighted; I-SAPS
     -- marks each CRQ out of 10 (their process document, §5.1).
     capstone_points_per_question INTEGER,
+    -- I-SAPS formative quizzes carry no minimum score: the unit check is a
+    -- learning tool, and the certificate composite is the only bar that
+    -- gates anything (V1.5.0, bd-60163).
+    module_quiz_ungated  BOOLEAN NOT NULL DEFAULT FALSE,
     is_active            BOOLEAN NOT NULL DEFAULT TRUE,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );

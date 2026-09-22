@@ -32,16 +32,14 @@
  * this page re-derives the SAME questions rather than dealing a fresh hand.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { GraduationCap, Loader2, CheckCircle2, XCircle, Clock, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Textarea } from '@/components/ui/textarea';
+import QuestionPager from './QuestionPager';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
-const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 /** What the gate (GET /training/modules → `exam`) tells us. */
 export type ExamGate = {
@@ -101,6 +99,11 @@ export default function ModuleExamPanel({
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  // bd-60169 — autosave state. 'saved' is the last successful write; it is
+  // shown quietly rather than announced, because a teacher mid-exam does not
+  // need a running commentary, only the reassurance that she can leave.
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const [result, setResult] = useState<Result | null>(null);
   const { toast } = useToast();
 
@@ -117,6 +120,30 @@ export default function ModuleExamPanel({
       const { data } = await api.get(`/training/module/${courseId}/exam/questions`);
       setQuestions(data.questions || []);
       setAttemptId(data.attempt_id || null);
+
+      // bd-60169 — an attempt can be RESUMED (openModuleExamAttempt returns
+      // the existing in-progress row), so a returning teacher must see her own
+      // answers rather than a blank paper. Restoring is best-effort: if it
+      // fails she starts from what she can see, which is the old behaviour.
+      if (data.attempt_id) {
+        try {
+          const { data: draft } = await api.get(
+            `/training/module/${courseId}/exam/draft`,
+            { params: { attempt_id: data.attempt_id } },
+          );
+          const restored: Record<number, string> = {};
+          for (const a of draft?.answers || []) {
+            const v = a.answer_text ?? a.chosen_option;
+            if (v !== null && v !== undefined && String(v).length > 0) {
+              restored[Number(a.question_id)] = String(v);
+            }
+          }
+          if (Object.keys(restored).length > 0) {
+            setAnswers(restored);
+            setSaveState('saved');
+          }
+        } catch { /* best-effort: a blank paper is the old behaviour */ }
+      }
       setPhase('taking');
     } catch (err: any) {
       // 409 means the gate refused — show its reason rather than a generic error.
@@ -137,6 +164,47 @@ export default function ModuleExamPanel({
 
   const answeredCount = questions.filter(q => (answers[q.id] || '').trim().length > 0).length;
   const allAnswered = questions.length > 0 && answeredCount === questions.length;
+
+  /**
+   * bd-60169 — save one answer, debounced.
+   *
+   * Debounced per QUESTION rather than globally: typing a long written answer
+   * must not delay the save of an MCQ she picked a moment ago. 800ms is long
+   * enough that a sentence is not fifteen requests and short enough that
+   * closing the tab mid-thought loses at most a clause.
+   *
+   * Never surfaces an error toast. A failed save is shown as a small
+   * "Not saved" and retried on the next keystroke — the answer is still on
+   * screen, so interrupting her over it would be the worse bug.
+   */
+  const saveDraft = useCallback((questionId: number, value: string) => {
+    if (!attemptId) return;
+    const q = questions.find(x => x.id === questionId);
+    if (!q) return;
+    const index = questions.findIndex(x => x.id === questionId);
+
+    clearTimeout(saveTimers.current[questionId]);
+    saveTimers.current[questionId] = setTimeout(async () => {
+      setSaveState('saving');
+      try {
+        const { data } = await api.put(`/training/module/${courseId}/exam/draft`, {
+          attempt_id: attemptId,
+          question_id: questionId,
+          question_index: index,
+          chosen_option: q.is_open_ended ? null : value,
+          answer_text: q.is_open_ended ? value : null,
+        });
+        setSaveState(data?.saved ? 'saved' : 'error');
+      } catch {
+        setSaveState('error');
+      }
+    }, 800);
+  }, [attemptId, questions, courseId]);
+
+  // Clear pending timers on unmount so a save cannot fire into a dead tree.
+  useEffect(() => () => {
+    Object.values(saveTimers.current).forEach(t => clearTimeout(t));
+  }, []);
 
   const submit = useCallback(async () => {
     if (!attemptId || !allAnswered) return;
@@ -177,14 +245,30 @@ export default function ModuleExamPanel({
   if (!exam.available && phase === 'idle') {
     if (!exam.body?.trim()) return null;
     if (asListRow) {
+      // bd-60166 — the ROW must say what the gate says, like the panel below
+      // it already does. It used to hardcode a padlock and "Locked", which
+      // was a lie in every closed state except one: a PASSED exam rendered
+      // "🔒 Locked" while the server was saying "🏆 you passed this module".
+      // The teacher is told she is blocked from something she has finished.
+      //
+      // `cta` is the gate's own short label ("✓ Passed", "🔒 Locked",
+      // "⏳ Cooldown (3h)"), so the row carries the server's word for its own
+      // state and cannot drift from it again.
+      const passed = /passed/i.test(exam.cta || '') || /passed/i.test(exam.body || '');
       return (
         <div
-          className="w-full rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 opacity-60"
-          data-testid="module-exam-locked"
+          className={`w-full rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 ${passed ? '' : 'opacity-60'}`}
+          data-testid={passed ? 'module-exam-passed' : 'module-exam-locked'}
         >
-          <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
-          <span className="flex-1 text-[15px] truncate text-muted-foreground">Module exam</span>
-          <span className="text-sm text-muted-foreground shrink-0">Locked</span>
+          {passed
+            ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            : <Lock className="w-4 h-4 text-muted-foreground shrink-0" />}
+          <span className={`flex-1 text-[15px] truncate ${passed ? 'text-foreground' : 'text-muted-foreground'}`}>
+            Module exam
+          </span>
+          <span className={`text-sm shrink-0 ${passed ? 'text-green-700' : 'text-muted-foreground'}`}>
+            {(exam.cta || '').replace(/^[^\w]+\s*/, '').trim() || 'Locked'}
+          </span>
         </div>
       );
     }
@@ -249,62 +333,45 @@ export default function ModuleExamPanel({
             <Progress value={questions.length ? (answeredCount / questions.length) * 100 : 0} />
           </div>
 
-          {questions.map((q, i) => (
-            <div key={q.id} className="space-y-2">
-              <p className="text-sm font-medium whitespace-pre-line">
-                {i + 1}. {q.question_text}
-              </p>
-
-              {q.is_open_ended ? (
-                <>
-                  <Textarea
-                    rows={8}
-                    placeholder="Write your response here…"
-                    value={answers[q.id] || ''}
-                    onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))}
-                    data-testid={`exam-answer-${q.id}`}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Written answer — marked against the I-SAPS rubric. Take your time.
+          {/* bd-60168 — one shared renderer, and pagination where it helps.
+              Both quiz surfaces used to own this markup and both produced the
+              same hierarchy complaint. */}
+          <QuestionPager
+            questions={questions}
+            answers={answers}
+            onAnswer={(id, v) => {
+              setAnswers(p => ({ ...p, [id]: v }));
+              saveDraft(Number(id), v);
+            }}
+            disabled={phase === 'submitting'}
+            footer={({ unanswered }) => (
+              <div className="space-y-3">
+                {/* Quiet, not announced: she needs to know she can leave, not
+                    a running commentary on every keystroke. */}
+                <p className="text-xs text-muted-foreground" data-testid="exam-save-state">
+                  {saveState === 'saving' && 'Saving…'}
+                  {saveState === 'saved' && 'Your answers are saved — you can close this and come back.'}
+                  {saveState === 'error' && 'Not saved yet — we will try again as you type.'}
+                </p>
+                {unanswered.length > 0 && (
+                  <p className="text-sm text-amber-700 dark:text-amber-500" data-testid="exam-unanswered">
+                    {unanswered.length === 1
+                      ? `Question ${unanswered[0]} still needs an answer before you can submit.`
+                      : `Questions ${unanswered.join(', ')} still need answers before you can submit.`}
                   </p>
-                </>
-              ) : (
-                <RadioGroup
-                  value={answers[q.id] || ''}
-                  onValueChange={v => setAnswers(p => ({ ...p, [q.id]: v }))}
+                )}
+                <Button
+                  onClick={submit}
+                  disabled={!allAnswered || phase === 'submitting'}
+                  data-testid="module-exam-submit"
                 >
-                  {(q.options || []).map((opt, idx) => {
-                    const value = String(idx + 1);
-                    return (
-                      <label
-                        key={value}
-                        className="flex items-start gap-3 rounded-md border p-3 text-sm cursor-pointer hover:bg-muted/50"
-                      >
-                        <RadioGroupItem value={value} id={`q${q.id}-${value}`} className="mt-0.5" />
-                        <span>
-                          <span className="font-medium mr-2">{OPTION_LETTERS[idx]}.</span>
-                          {opt}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </RadioGroup>
-              )}
-            </div>
-          ))}
-
-          <Button
-            onClick={submit}
-            disabled={!allAnswered || phase === 'submitting'}
-            data-testid="module-exam-submit"
-          >
-            {phase === 'submitting'
-              ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>)
-              : 'Submit exam'}
-          </Button>
-          {!allAnswered && (
-            <p className="text-xs text-muted-foreground">Answer every question before submitting.</p>
-          )}
+                  {phase === 'submitting'
+                    ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>)
+                    : 'Submit exam'}
+                </Button>
+              </div>
+            )}
+          />
         </div>
       )}
 

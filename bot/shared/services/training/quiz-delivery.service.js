@@ -2221,13 +2221,60 @@ async function decideModuleQuizPass(moduleId, score, totalQuestions) {
   const passingPct = await getVendorPassingPct(moduleId, 'module');
   const total = Number(totalQuestions) || 0;
   const pct = total > 0 ? (Number(score) / total) * 100 : 0;
-  const isPassed = total > 0 && pct >= passingPct;
+
+  // bd-60163 — a vendor may run its unit quizzes as PURE FORMATIVE: answer,
+  // see the right answer, move on, no bar.
+  //
+  // I-SAPS asked for this in its Sept 2026 guide: the unit quizzes are the
+  // 25% formative component of a level-wide composite, so gating each one
+  // individually double-counts the same work and blocks a teacher on an item
+  // the level rule would have forgiven.
+  //
+  // It cannot be expressed as `module_passing_pct = 0`: the lookup treats a
+  // non-positive value as a broken row and falls back to 100, the STRICTEST
+  // bar — so 0 would have demanded a perfect score, the exact opposite. The
+  // flag is therefore its own column, and the fallback guard stays as it is.
+  const ungated = await vendorUngatesModuleQuiz(moduleId);
+  const isPassed = total > 0 && (ungated || pct >= passingPct);
   return {
     is_passed: isPassed,
     status: isPassed ? 'passed' : 'failed',
     pass_pct: passingPct,
     achieved_pct: Math.round(pct),
   };
+}
+
+/**
+ * Does this module's vendor run unit quizzes WITHOUT a pass bar? bd-60163.
+ *
+ * Reads training_vendors.module_quiz_ungated. Absent, null or unreadable means
+ * FALSE — the gate stays on, because every vendor that has one today relies on
+ * it and a lookup failure must not quietly remove a pass requirement.
+ *
+ * @param {number} moduleId training_modules.id
+ * @returns {Promise<boolean>}
+ */
+async function vendorUngatesModuleQuiz(moduleId) {
+  if (!moduleId) return false;
+  try {
+    const { data: mod } = await supabase
+      .from('training_modules').select('course_id').eq('id', moduleId).maybeSingle();
+    if (!mod?.course_id) return false;
+    const { data: course } = await supabase
+      .from('training_courses').select('level_id').eq('id', mod.course_id).maybeSingle();
+    if (!course?.level_id) return false;
+    const { data: level } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', course.level_id).maybeSingle();
+    if (!level?.vendor_id) return false;
+    const { data: vendor } = await supabase
+      .from('training_vendors').select('module_quiz_ungated').eq('id', level.vendor_id).maybeSingle();
+    return vendor?.module_quiz_ungated === true;
+  } catch (err) {
+    logToFile('⚠️ Could not read module_quiz_ungated — keeping the gate', {
+      moduleId, error: err?.message,
+    });
+    return false;
+  }
 }
 
 /**
@@ -2275,6 +2322,84 @@ async function decideExamPass(levelId, score, totalQuestions) {
  * @returns {Promise<{ok:boolean, reason?:string, attempt_id?:string,
  *   total_questions?:number, questions?:Array}>}
  */
+/**
+ * Save ONE answer mid-paper, without grading anything. bd-60169.
+ *
+ * Until this existed, answers lived in the browser's React state until Submit:
+ * a closed tab, a phone call or a backgrounded app lost the whole paper,
+ * including an ~1,800-character written answer. Pagination made that worse
+ * rather than better, because she can no longer see everything she would lose.
+ *
+ * NO SCHEMA CHANGE. Drafts go in `training_assessment_answers` — the real
+ * table — against the `UNIQUE (attempt_id, question_index)` key that already
+ * exists and that the WhatsApp path has upserted against since bd-2233. A
+ * draft is a row whose is_correct/answer_score are still null, which is also
+ * what an ungraded submitted row looks like, so nothing downstream learns a
+ * new state.
+ *
+ * MARKING IS NOT DONE HERE, deliberately: a teacher may change an answer any
+ * number of times before submitting, so grading a draft would burn rubric
+ * calls and make a half-finished paper look marked.
+ *
+ * Refuses unless the attempt is still in progress, so a late autosave landing
+ * after Submit cannot overwrite a graded answer.
+ *
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+async function saveModuleExamDraft({
+  userId, attemptId, questionId, questionIndex, chosenOption = null, answerText = null,
+}) {
+  const { data: attempt } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id, status')
+    .eq('id', attemptId).maybeSingle();
+  if (!attempt || attempt.user_id !== userId) return { ok: false, reason: 'not_found' };
+  if (attempt.status !== 'in_progress') return { ok: false, reason: 'not_in_progress' };
+
+  const { error } = await supabase
+    .from('training_assessment_answers')
+    .upsert({
+      attempt_id: attemptId,
+      question_index: Number(questionIndex),
+      question_id: Number(questionId),
+      chosen_option: chosenOption === null ? null : String(chosenOption),
+      answer_text: answerText === null ? null : String(answerText),
+      is_correct: null,
+      answer_score: null,
+      answered_at: new Date().toISOString(),
+    }, { onConflict: 'attempt_id,question_index' });
+  if (error) {
+    logError('Module-exam draft save failed', {
+      attemptId, questionIndex, error: error.message,
+    });
+    return { ok: false, reason: 'write_failed' };
+  }
+
+  await supabase.from('training_assessment_attempts')
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq('id', attemptId);
+  return { ok: true };
+}
+
+/**
+ * The answers already saved for an attempt, so a returning teacher sees her
+ * own work rather than a blank paper. bd-60169.
+ */
+async function loadModuleExamDraft({ userId, attemptId }) {
+  const { data: attempt } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id')
+    .eq('id', attemptId).maybeSingle();
+  if (!attempt || attempt.user_id !== userId) return { ok: false, answers: [] };
+
+  const { data } = await supabase
+    .from('training_assessment_answers')
+    .select('question_id, question_index, chosen_option, answer_text')
+    .eq('attempt_id', attemptId)
+    .order('question_index', { ascending: true });
+  return { ok: true, answers: data || [] };
+}
+
 async function openModuleExamAttempt({ userId, courseId, programId = null }) {
   const courseIdNum = parseInt(String(courseId), 10);
   if (!Number.isFinite(courseIdNum)) return { ok: false, reason: 'bad_course' };
@@ -2327,13 +2452,25 @@ async function openModuleExamAttempt({ userId, courseId, programId = null }) {
     // is 'sizing' because the attempt id does not exist yet, and LENGTH is the
     // same whichever CRQ the real draw picks.
     total = selectPaperWithOneCrq(bank, 'sizing').length;
+    // bd-60167 — total_score is MARKS, total_questions is a COUNT. They are
+    // not the same number on a mixed paper and storing the count in both made
+    // the attempt read "9 / 3".
+    //
+    // The grading path already knew better (gradeAttempt recomputes the
+    // denominator as mixedPossible), which is exactly why this stayed hidden:
+    // the verdict was right while the stored row was wrong, so only a surface
+    // that DISPLAYS total_score sees it. The course page is about to.
+    //
+    // A paper is (n - 1) one-mark MCQs plus one rubric-marked CRQ.
+    const crqMarks = await crqPointsForLevel(course.level_id);
+    const totalMarks = Math.max(0, total - 1) + crqMarks;
     const now = new Date().toISOString();
     const { data: created, error: aErr } = await supabase
       .from('training_assessment_attempts')
       .insert({
         user_id: userId, program_id: pid, quiz_kind: KIND_GRAND,
         grand_quiz_id: mcqQuiz.id, level_id: course.level_id,
-        current_question_index: 0, total_questions: total, total_score: total,
+        current_question_index: 0, total_questions: total, total_score: totalMarks,
         status: 'in_progress', started_at: now, last_activity_at: now,
       })
       .select('id').single();
@@ -2430,7 +2567,13 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     }
   });
   if (rows.length) {
-    const { error } = await supabase.from('training_assessment_answers').insert(rows);
+    // bd-60169 — UPSERT, not insert. Autosave writes draft rows against the
+    // same (attempt_id, question_index) key as she types, so a plain insert
+    // throws duplicate-key on submit and loses the paper at the one moment it
+    // must not fail.
+    const { error } = await supabase
+      .from('training_assessment_answers')
+      .upsert(rows, { onConflict: 'attempt_id,question_index' });
     if (error) throw new Error(`could not store answers: ${error.message}`);
   }
 
@@ -2474,6 +2617,8 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
 
 module.exports = {
   openModuleExamAttempt,
+  saveModuleExamDraft,
+  loadModuleExamDraft,
   submitModuleExamPaper,
   startGrandQuiz,
   startModuleExam,
@@ -2483,6 +2628,7 @@ module.exports = {
   handleQuizButton,
   gradeAttempt,
   decideModuleQuizPass,
+  vendorUngatesModuleQuiz,
   decideExamPass,
   getVendorPassingPctByLevel,
   // Multi-answer Flow surface

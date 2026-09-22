@@ -1,0 +1,18 @@
+-- Certificates no longer belong to a single attempt.
+--
+-- Under I-SAPS composite certification a certificate is earned by clearing
+-- three independent bars (formative 25% / MCQ 50% / CRQ 25%) across a whole
+-- level. There is no one originating attempt to point at, so the portal's
+-- claim path has nothing to put in attempt_id and every insert failed with
+-- 23502 — silently, because the insert error was swallowed.
+--
+-- PRODUCTION IS ALREADY NULLABLE HERE and holds 918 certificates with a null
+-- attempt_id (the backfill wrote them that way). This migration is not a
+-- loosening of production; it removes a NOT NULL that only sandbox carried,
+-- so the environments agree.
+--
+-- The column is kept, not dropped: the WhatsApp quiz and capstone paths do
+-- have a genuine originating attempt and still record it. Nothing READS it —
+-- idempotency has been per (user_id, level_id) since bd-2670 — so a null is
+-- only ever an absence of provenance, never a broken invariant.
+ALTER TABLE training_certificates ALTER COLUMN attempt_id DROP NOT NULL;
