@@ -587,6 +587,11 @@ p{ font-size:18px; }
    and case, never size, and lowercase is also the narrower of the two, so the float shrinks. */
 .wu .kind{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:700; letter-spacing:.02em;
       color:var(--mut); }
+/* bd-7oxt5. The one named move the teacher is running with these rows. It reads BEFORE the items
+   and is not one of them, so it takes neither the item's box nor the item's 18px: 15px, the note
+   ink, and its own line above the list. A teacher who reads only this line still knows what to do. */
+.wu .wstrat{ font-size:15px; font-weight:700; color:var(--s-note-ink); margin-bottom:5px; }
+.wu .wstrat .wsl{ font-weight:800; letter-spacing:.02em; color:var(--mut); margin-${end}:6px; }
 
 /* ── blocks ─────────────────────────────────────────────────────────────── */
 .hook{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:9px 14px; }
@@ -2759,7 +2764,17 @@ function page1(doc, ctx, secIndex) {
 
   // The warm-up is ONE ROW inside the Introduction (spec §2) — not a section, not a band of
   // its own. The scaffold item comes first and says so; prior knowledge alone is not a warm-up.
-  const warmupBody = (wu) => `<div class="blk wu"><div class="lbl g">${esc(L.warmup)}</div>${wu.items
+  const warmupBody = (wu) => `<div class="blk wu"><div class="lbl g">${esc(L.warmup)}</div>${
+    // bd-7oxt5. OPERATOR: *"warm up should beprior knowledge activation strategy, not just 3
+    // questions"*, then *"it should be just 1 not multiple strategies since opening is a whole
+    // provocation on its own"*. Printed alone, q/a pairs read as a quiz; the same rows under the
+    // name of the move read as a strategy, which is what a coach observes and what the research
+    // is about. Carried only when authored -- a blank chip where a name belongs is worse than
+    // no chip, so an unauthored warm-up renders exactly as it did before.
+    String(wu.strategy || "").trim()
+      ? `<div class="wstrat"><span class="wsl">${esc(L.strategy)}</span>${rich(wu.strategy)}</div>`
+      : ""
+  }${wu.items
     .map(
       (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
         <span class="q">${rich(it.q)} <span class="a">${AR} ${rich(it.a)}</span></span>

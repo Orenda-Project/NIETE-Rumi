@@ -172,7 +172,7 @@ function applyOverlay(lpDoc, lang) {
 // ── printed label packs ──────────────────────────────────────────────────────
 const LABELS = {
   en: {
-    objectives: "Learning objectives", warmup: "Warm-up",
+    objectives: "Learning objectives", warmup: "Warm-up", strategy: "Strategy",
     introduction: "Introduction", development: "Development", activity: "Activity",
     conclusion: "Conclusion", homework: "Home work",
     min: "min", say: "Say", ask: "Open with this question", askPlain: "Ask this", lookFor: "Look for",
@@ -264,7 +264,7 @@ const LABELS = {
     coachBack: "Same-day tips back: what worked, and one thing to try",
   },
   ur: {
-    objectives: "تدریسی مقاصد", warmup: "ابتدائی دہرائی",
+    objectives: "تدریسی مقاصد", warmup: "ابتدائی دہرائی", strategy: "طریقہ کار",
     introduction: "تعارف", development: "تدریس", activity: "سرگرمی",
     conclusion: "اختتام", homework: "گھر کا کام",
     min: "منٹ", say: "کہیے", ask: "اس سوال سے آغاز کریں", askPlain: "یہ سوال پوچھیں", lookFor: "جواب میں یہ دیکھیں",
