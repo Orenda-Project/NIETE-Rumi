@@ -111,16 +111,21 @@ function buildModuleExamSlot({
     };
   }
 
-  const left = Math.max(0, total - done);
-  if (left > 0) {
-    return {
-      ok: false,
-      body: `🔒 Module exam — finish the remaining ${left} of ${total} sessions first.`,
-      caption: 'The exam opens once every session in this module is done.',
-      cta: '🔒 Locked',
-    };
-  }
-
+  // bd-60164 — the exam does NOT wait for the sessions.
+  //
+  // Operator, Sept 2026, after the partner's revised guide: "Anything can be
+  // given in any order. The only important thing is that the certificate
+  // issues only if the requirements are complete."
+  //
+  // So sequencing is gone at every level — units no longer chain, and the
+  // exam no longer waits for them. The gate that used to live here has moved
+  // to where it belongs: the LEVEL certificate, which is refused until all
+  // three weighted components clear their bars (bd-60163). Blocking the exam
+  // as well was gating the same work twice, and it stranded a teacher who
+  // wanted to sit an assessment she was ready for.
+  //
+  // `unitsTotal`/`unitsDone` stay in the signature: the caller still uses them
+  // for the progress line, and a future vendor may want the lock back.
   const parts = [];
   if (mcq > 0) parts.push(`${mcq} scenario question${mcq === 1 ? '' : 's'}`);
   if (crq > 0) parts.push('1 written answer');
@@ -161,11 +166,12 @@ function shouldOfferModuleExam(input) {
   } = input;
   if (String(vendorKey || '').trim().toUpperCase() !== 'ISAPS') return false;
   if (alreadyPassed) return false;
+  // A module with no units at all has no content yet; offering its exam would
+  // be offering an assessment for nothing. But a module whose units are only
+  // PARTLY done is fair game — bd-60164 removed that wait, since the
+  // certificate is now the only thing that checks completeness.
   const total = Number(unitsTotal) || 0;
-  const done = Number(unitsDone) || 0;
-  // 0/0 would otherwise read as "complete" and offer an exam for a module with
-  // no content yet.
-  if (total <= 0 || done < total) return false;
+  if (total <= 0) return false;
   return (Number(mcqCount) || 0) + (Number(crqCount) || 0) > 0;
 }
 
