@@ -459,6 +459,7 @@ Return JSON with these fields:
 
       const response = await client.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'lp.extractText',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 1200

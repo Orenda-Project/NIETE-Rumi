@@ -157,6 +157,7 @@ as keys; never include the correct option as a key).`;
       try {
         const response = await openai.chat.completions.create({
           model: 'gpt-4o',
+          job: 'quiz.generate',
           messages: [{ role: 'user', content: systemPrompt }],
           temperature: attempts === 0 ? 0.7 : 0.9,
           response_format: { type: 'json_object' }

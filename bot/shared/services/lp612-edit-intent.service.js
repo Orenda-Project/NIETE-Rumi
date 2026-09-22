@@ -151,6 +151,7 @@ async function classifyEditIntent({ text, language, correlationId, model } = {})
   try {
     res = await getClient().chat.completions.create({
       model: chosen,
+      job: 'lp.editIntent',
       temperature: 0,
       max_tokens: MAX_TOKENS,
       // Same reason as the author service: reasoning bills as completion tokens and, against a

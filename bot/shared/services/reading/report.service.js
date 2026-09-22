@@ -63,6 +63,7 @@ class ReadingReportService {
     try {
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.translate',
         messages: [
           {
             role: 'system',
