@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import cbriefbasics
 import d0_blocks as B
+import d0_crux
 import d0_bigidea
 import d0_board
 import d0_close
@@ -121,6 +122,15 @@ def _intro(g, page):
            "blocks": blocks}
     if items:
         sec["warmup"] = {"items": items}
+        # bd-7oxt5. OPERATOR: *"warm up should beprior knowledge activation strategy, not just
+        # 3 questions"*, and then *"it should be just 1 not multiple strategies since opening
+        # is a whole provocation on its own"*. The band printed the q/a pairs and never named
+        # what the teacher was DOING with them, so the move looked like a quiz. ONE authored
+        # name, carried only when authored -- the schema forbids extra properties and a blank
+        # chip where a name belongs is worse than no chip.
+        strategy = (warm.get("strategy") or "").strip()
+        if strategy:
+            sec["warmup"]["strategy"] = strategy
     return sec
 
 
@@ -250,6 +260,11 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
     # THE VIDEO (bd-v2ikv). Same additive contract as the diagram slots: no mapped row
     # means no `video` key, and the renderer's videoRow() then prints nothing at all.
     vid_gaps = d0_media.apply_video(sections, media)
+    # THE CRUX (bd-pcbed). Same additive contract again: no `crux` key means no
+    # block gains one and the renderer prints nothing. OPERATOR: *"the crux of what
+    # should be done should be highlighted in the move since there is alot of script
+    # to go through"*.
+    crux_gaps = d0_crux.apply_crux(sections, g.get("crux"))
     d0_close.seat_the_check(sections, g)
     # The halfway landmark is seated last because which section owns minute 20
     # is a fact about the whole timeline, not about any one section (bd-p4ulq).
@@ -291,7 +306,8 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
         "one_screen": _one_screen(g),
         "notes": {
             "supplied": [f"primary lp_type: {enr.get('lp_type') or 'content'}"],
-            "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)] + dia_gaps + vid_gaps,
+            "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)]
+                    + dia_gaps + vid_gaps + crux_gaps,
         },
         "needs_human_review": bool(enr.get("needs_human_review")),
     }

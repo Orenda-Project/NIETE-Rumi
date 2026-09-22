@@ -32,8 +32,6 @@ The other five have NO primary source of their own:
     model_answers — the textbook problems and their solutions print once, on the
                     teach page, beside the YOU DO items where the teacher needs them.
     homework_key  — primary sets no answerable homework; the task prints in §HW.
-    coaching_lookfor — the only candidate is `cfuExplain`, which is a teach-time
-                    check the teacher runs in front of the class, so it prints there.
     mistakes      — `subject_elements.misconception_preempt` is the nearest thing
                     and it is present in 13 of 38 segments.
     exam_bank     — primary has no board exam at all.
@@ -49,8 +47,7 @@ from d0_blocks import DESIGN_PENDING
 
 # The five surfaces v9 requires and primary cannot fill. Kept as data so the
 # render, the gate report and the enrichment backlog all read the same list.
-NO_PRIMARY_SOURCE = ("model_answers", "homework_key", "coaching_lookfor",
-                     "exam_bank", "mistakes")
+NO_PRIMARY_SOURCE = ("model_answers", "homework_key", "exam_bank", "mistakes")
 
 
 def _mistakes(g):
@@ -102,10 +99,16 @@ def build(g):
         },
         "next_period": (g.get("nextTopicPreview") or "").strip() or DESIGN_PENDING,
         "coaching_reflection": (g.get("coachingReflection") or "").strip() or DESIGN_PENDING,
+        # bd-18os1. OPERATOR: *"coaching corner should hve a look for"*. This field carried
+        # DESIGN_PENDING in every document ever built, and the docstring above explains why:
+        # the only candidate was `cfuExplain`, a teach-time check that already prints in front
+        # of the class. Enrichment now authors `coachingLookfor` -- what a COACH watching the
+        # lesson looks for -- which is a different question from the one `coachingReflection`
+        # asks the teacher to count afterwards. A field with a source of its own is not dark.
+        "coaching_lookfor": (g.get("coachingLookfor") or "").strip() or DESIGN_PENDING,
         # --- the five with no primary source (see module docstring) ---
         "model_answers": [{"ref": DESIGN_PENDING, "answer": DESIGN_PENDING}],
         "homework_key": [{"ref": DESIGN_PENDING, "answer": DESIGN_PENDING}],
-        "coaching_lookfor": DESIGN_PENDING,
         "mistakes": _mistakes(g),
         "exam_bank": {},
     }
