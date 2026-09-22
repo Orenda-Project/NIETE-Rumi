@@ -134,6 +134,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # awaiting_form, sends the FICO Flow (OBSERVE_MEWAKA_FLOW_ID, flowToken
     # observerId:sessionId). buildScreenPrefill:87 binds s_/e_/i_ per domain screen.
 
+  @e2e @wip @content-driven @flow @destructive @config-gated @P1
+  Scenario: Every Section B move on the form says why the grader rated it that way
+    Given a leader observation has finished analysis with a measured Section B
+    When the observer opens the FICO form's Section B screen
+    Then each move's read-only line carries the grader's one-sentence reason under the prescribed move, whether the move was executed, partial or not done
+    And the editable evidence box below it still holds the timestamped quote (or the reason alone when nothing was heard)
+    And leaving the evidence box untouched and submitting does not count as an edit
+    # observe-draft.service.js composeEditableFidelity — the reason (rationale) rides on the
+    # mv_k TextBody line above the fid_e_k box; rescoreFidelityFromEdits compares the box
+    # against the same prefill it served, so an untouched box is never an "edit".
+
   @e2e @wip @flow @destructive @config-gated @P1
   Scenario: The observer edits ratings then submits the FICO form
     Given the FICO form is open with the draft pre-filled
