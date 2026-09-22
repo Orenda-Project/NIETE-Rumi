@@ -75,6 +75,7 @@ const DIAGRAM_LABELS = {
   grid:               { en: "Grid",            ur: "خانہ دار جدول" },
   area_model:         { en: "Area model",      ur: "رقبے کا ماڈل" },
   hundred_square:     { en: "Hundred square",  ur: "سو خانوں کا مربع" },
+  match:              { en: "Matching",        ur: "جوڑ ملائیں" },
   illustrative:       { en: "Illustration",    ur: "تصویری وضاحت" },
   ai_art:             { en: "Illustration",    ur: "تصویری وضاحت" },
   placeholder:        { en: "Illustration",    ur: "تصویری وضاحت" },
@@ -760,6 +761,20 @@ p{ font-size:18px; }
 .exq .tag{ display:inline-block; font-size:14px; font-weight:800; letter-spacing:.08em;
       text-transform:uppercase; padding:3px 10px; border-radius:var(--r-pill); color:#fff; background:var(--amber); }
 .exq.we .tag{ background:var(--leaf); }
+/* bd-yjmxh -- AND THE MOVE ITSELF, AT THE END OF THE HEADING. The .tag above carries whatever
+   the author titled the block; this carries the rung of the ladder, which is the thing the
+   operator could not find. Floated to the READING END, so RTL mirrors it to the left rather
+   than parking it at the start of an Urdu line. Float, not absolute: a long title must push
+   past it, never under it. The three fills are the ones bd-f6opy already costed for the three
+   moves -- one hue per move, never per subject -- and amber takes navy ink because white on
+   amber is 2.0:1. NO line-height, so Nastaliq keeps its descenders (R6), and no tracking in
+   Urdu, because letter-spacing breaks the joins. */
+.mvt{ float:${end}; margin-${start}:var(--sp-2); display:inline-block;
+      font-size:14px; font-weight:800; letter-spacing:${rtl ? "0" : ".08em"};
+      text-transform:uppercase; padding:3px 10px; border-radius:var(--r-pill);
+      background:var(--amber); color:var(--navy); }
+.mvt.we{ background:var(--band-we); color:#fff; }
+.mvt.you{ background:var(--leaf); color:#fff; }
 .exq h4{ font-size:18px; color:var(--navy); margin-top:var(--sp-1); line-height:${rtl ? "1.85" : "1.45"}; }
 .exq .prompt{ font-size:18px; margin-top:var(--sp-1); }
 .exq .setup{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
@@ -1852,6 +1867,57 @@ const BI_MARK = '<svg class="bimark" viewBox="0 0 24 24" aria-hidden="true" focu
   + '<path d="M9.5 18.5h5M10.5 21.5h3M12 2.5a6.5 6.5 0 0 0-3.9 11.7c.7.5 1.1 1.2 1.3 2l.1.3h5l.1-.3'
   + 'c.2-.8.6-1.5 1.3-2A6.5 6.5 0 0 0 12 2.5Z"/></svg>';
 
+/* bd-yjmxh -- THE MOVE TAG. OPERATOR: *"In teacher Models Section - It should have an I Do tag
+   on the right for clarity"*.
+
+   bd-hlk39 built a move pill on the SECTION BAR and fed it from `section.move`. No document in
+   the corpus authors that field, so it has never printed once -- which is why the feedback came
+   back. The move is therefore DERIVED here, from the one thing every document already carries:
+   the block id. Ids are normalised the way the atomiser already normalises them (punctuation
+   stripped, lowercased), so `i-do`, `ido` and `i_do` are one key.
+
+   The vocabulary is CLOSED. An id outside it -- `hook`, `big-idea`, `halfway`, `board-plan`,
+   `keywords`, `remember`, `hw` -- carries no move and renders exactly as it did.
+
+   THE LABELS ARE NOT HELD HERE. They are `L.iDo` / `L.weDo` / `L.youDo` in lib/overlay.js, in
+   both language blocks, because language is data (root rule 20) and because TWO surfaces print
+   this vocabulary and they must not be able to disagree. They did disagree: the bar pill echoed
+   the authored English "I DO" onto an Urdu page while the block chip beside it said the Urdu.
+   `moveLabel` below is the other half of that fix. */
+const MOVE_PREFIX = [["worked", "i"], ["ido", "i"], ["wedo", "we"], ["youdo", "you"]];
+const MOVE_KEY = { i: "iDo", we: "weDo", you: "youDo" };
+
+/** The gradual-release move a block belongs to, off its id -- "i" | "we" | "you" | null. */
+function moveOf(id) {
+  const k = String(id == null ? "" : id).replace(/[^a-z0-9]/gi, "").toLowerCase();
+  if (!k) return null;
+  for (const [prefix, move] of MOVE_PREFIX) if (k.startsWith(prefix)) return move;
+  return null;
+}
+
+/**
+ * The text a `section.move` should PRINT, in the document's language.
+ *
+ * The schema calls this field free text "authored at D0 in the lesson language", and bd-hlk39
+ * echoed it verbatim. Urdu documents author it in English, so Urdu pages printed "I DO" in
+ * Latin letters next to the block chip's Urdu. A three-value vocabulary the renderer owns is
+ * data, not prose, so when the authored string NAMES one of the three it is replaced by that
+ * move's label in the render language.
+ *
+ * Matching is EXACT after normalisation, not prefix -- `moveOf` may prefix-match because block
+ * ids are machine keys, but this is a human-authored sentence and "I do not have chalk" is not
+ * the I DO move. Anything the table does not recognise passes through untouched: translating a
+ * move is in scope, swallowing an author's words never is.
+ */
+function moveLabel(text, L) {
+  const t = String(text == null ? "" : text).trim();
+  if (!t) return "";
+  const k = t.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  const move = MOVE_PREFIX.find(([p]) => p === k);
+  const key = move && MOVE_KEY[move[1]];
+  return key && L && L[key] ? L[key] : t;
+}
+
 function makeBlockRenderer(ctx) {
   const L = ctx.L;
   const AR = arrowFor(ctx);
@@ -2178,14 +2244,28 @@ function makeBlockRenderer(ctx) {
       .join("")}</div>`;
   };
 
+  /* bd-yjmxh. ONE PLACE, because a per-type tag would have to be repeated in worked_example,
+     faded_example and practice -- and would then be missed by the ATOMISER, which rebuilds the
+     first two of those three itself when a long block splits across pages. The pill is the
+     box's FIRST child so that it floats onto the heading's own line, beside the title rather
+     than under it. Primary only, like every move surface before it (bd-f6opy 6): the grade 9
+     sheet has no rule to paint it, and no operator asked for it there. */
+  const movePill = (b) => {
+    const mv = ctx.primary ? moveOf(b && b.id) : null;
+    return mv ? `<span class="mvt${mv === "i" ? "" : " " + mv}">${esc(L[MOVE_KEY[mv]])}</span>` : "";
+  };
+
   const render = (b, colPx) => {
     const fn = R[b.type];
     if (!fn) {
       ctx.warn(`unknown block type "${b.type}" — skipped`);
       return "";
     }
-    return fn(b, colPx == null ? FULL_COL : colPx);
+    const out = fn(b, colPx == null ? FULL_COL : colPx);
+    if (!/^\s*<[a-zA-Z][\w-]*/.test(out)) return out;
+    return out.replace(/^(\s*<[a-zA-Z][\w-]*(?:"[^"]*"|'[^']*'|[^>"'])*>)/, "$1" + movePill(b));
   };
+  render.movePill = movePill;
   render.practiceTag = practiceTag;
   render.practiceItem = practiceItem;
   return render;
@@ -2250,7 +2330,7 @@ function atom(html, o = {}) {
  *  hue of its own while keeping the section's letter, because it IS still that section. */
 function bar(id, name, minutes, L, extraCls = "", fill = null, move = null) {
   const m = SECTION_META[id];
-  const mv = String(move || "").trim();
+  const mv = moveLabel(move, L);
   return `<div class="bar ${fill || m.cls}${extraCls ? " " + extraCls : ""}" data-sec="${esc(id)}">
     <span class="badge">${m.letter}</span><span class="nm">${rich(name)}</span>
     ${minutes ? `<span class="mins">${minutes} ${esc(L.min)}</span>` : ""}${
@@ -2299,7 +2379,7 @@ function contBarHtml(key, ctx, secIndex) {
   // `info.move` repeats the pill on resume (bd-hlk39): a teacher who lands on page 4 mid-
   // EXPLANATION needs to know which move she is in, which is the entire reason the tag exists.
   // Same reasoning as `info.fill` below, and the same place to carry it.
-  const mv = String(info.move || "").trim();
+  const mv = moveLabel(info.move, L);
   // `info.fill` for a sub-band (bd-f6opy): a page resuming inside YOU DO must repaint YOU DO's
   // green and say YOU DO's name, not the WE DO band that opened the section five pages earlier.
   return `<div class="bar ${info.fill || m.cls} cont" data-sec="${esc(info.id)}">
@@ -2744,6 +2824,14 @@ function page1(doc, ctx, secIndex) {
     if (s.id === flowHost.differentiation && P2.differentiation) {
       out.push(...groupAtoms(L.p2Diff, diffCards(P2.differentiation, L)));
     }
+    // bd-yjmxh. The corner closes the teaching. It is ONE ordinary atom, so the exact packer
+    // decides its page the way it decides every other atom's: it joins the last teach page when
+    // that page has room, and only opens a page when it genuinely does not. Nothing here writes
+    // a page number down, and nothing measures -- the pass-1 probe already charges the furniture.
+    // It registers no `sec`, so it adds no continuation bar to that probe and costs it nothing.
+    // ONE atom rather than three because the card is four lines that answer each other: a break
+    // inside it would put the question on one page and the offer that answers it on the next.
+    if (s.id === flowHost.coaching) out.push({ html: coachCard(doc, ctx, true), sp: 4 });
     if (s.id === "conclusion") {
       if (s.checkpoint) {
         const c = s.checkpoint;
@@ -2845,7 +2933,7 @@ function page1(doc, ctx, secIndex) {
       : (b.result ? `<div class="res">${rich(b.result)}</div>` : "")) + cfuRow(b, rich, L);
     const piece = (cls, inner, o) => ({ html: `<div class="blk exq${we} pc ${cls}">${inner}</div>`, ...o });
     const last = r.rows.length - 1;
-    const out = [piece("pc-a", `${tag}${setup}<div class="scr">${r.head}${r.rows[0]}</div>`,
+    const out = [piece("pc-a", `${blk.movePill(b)}${tag}${setup}<div class="scr">${r.head}${r.rows[0]}</div>`,
       { sp: 2, glue: true })];
     for (let i = 1; i < last; i++) out.push(piece("pc-m", `<div class="scr">${r.rows[i]}</div>`, { sp: 0 }));
     out.push(piece("pc-z", `<div class="scr">${r.rows[last]}</div>${tail}`, { sp: 0 }));
@@ -2870,7 +2958,7 @@ function page1(doc, ctx, secIndex) {
       const seam = (cls) => (PRIMARY ? ` pc ${cls}` : "");
       const last = b.items.length - 1;
       const out = [{
-        html: `<div class="blk pr${seam("pc-a")}"><span class="tag">${rich(blk.practiceTag(b))}</span>
+        html: `<div class="blk pr${seam("pc-a")}">${blk.movePill(b)}<span class="tag">${rich(blk.practiceTag(b))}</span>
           <div class="items">${blk.practiceItem(b.items[0], 0)}</div></div>`,
         sp: 2, glue: true,
       }];
@@ -3160,7 +3248,58 @@ function flowHosts(doc) {
   return {
     mistakes: secs.some((s) => s.id === "development") ? "development" : null,
     differentiation: practice ? practice.id : null,
+    // bd-yjmxh. The coaching corner is addressed to the teacher about the lesson she has just
+    // finished, so its host is simply the LAST section of the flow -- Conclusion in the canonical
+    // shape, whatever closes the lesson in a plan that does not have one. It is looked up rather
+    // than named for the same reason `differentiation` is: an LP whose flow ends somewhere else
+    // still gets the corner at the end of its teaching, and a document with no flow at all
+    // answers null, which keeps the corner in Reference exactly as it was printed before.
+    //
+    // PRIMARY ONLY, and for a reason that is about the page and not about the grade. On G6-12
+    // the support part is a real index -- exam bank, homework key, the mistakes fallback -- and
+    // the corner is one section among several on a sheet that exists anyway, so it costs no page
+    // turn and moving it would only re-letter a render nobody asked to change. On primary the
+    // prune takes most of that sheet away, which is how four lines came to own a page. The
+    // operator's three reports were all primary (Maths, then English, then Urdu).
+    // ...AND ONLY IF THERE IS SOMETHING TO MOVE. `coaching_lookfor` is the corner's one required
+    // field, and on the very lessons this was built for it is a `design pending -- not carried`
+    // sentinel that `prunePending` strips before this runs (the render warns
+    // `dropped design-pending page2/coaching_lookfor`). With the optional reflection absent too,
+    // the card is a heading over the 1-2-3 offer strip -- renderer furniture, nothing the lesson
+    // says. Spending teach-page height on that would be inventing a proxy for a dark stage, and
+    // on Urdu, at its 12-page cap, it could cost a page to print nothing. An empty corner stays
+    // on the Reference sheet exactly as it always has.
+    coaching: isPrimary(doc) && secs.length && hasCoachBody(doc)
+      ? secs[secs.length - 1].id : null,
   };
+}
+
+/** Whether the coaching corner says anything this LESSON authored, as opposed to furniture. */
+function hasCoachBody(doc) {
+  const P = (doc && doc.page2) || {};
+  return P.coaching_lookfor != null || P.coaching_reflection != null;
+}
+
+/**
+ * bd-yjmxh -- THE COACHING CORNER, wherever it is painted.
+ *
+ * OPERATOR, for Maths, then English, then Urdu: *"pls put the coaching corner in the previous
+ * page"*, *"coaching corner can come in the same page if there is space, no need for new page"*.
+ * It is four short lines and it was the last section of the SUPPORT part, which `paginate` gives
+ * a sheet of its own by construction -- so a lesson whose last teach page was 7% full still
+ * turned a page to read them.
+ *
+ * ONE SOURCE FOR THE CARD, two places that may print it. `heading` is the difference: in the
+ * flow the card has to name itself, because there is no lettered bar above it; on the support
+ * page the bar already does, and adding a second name there would change a render nobody asked
+ * to change. `.coach .lbl` is already amber-on-navy, so the heading needs no new paint.
+ */
+function coachCard(doc, ctx, heading) {
+  const L = ctx.L;
+  const P = doc.page2;
+  return `<div class="coach">${heading ? `<div class="lbl">${esc(L.p2Coach)}</div>` : ""}${P.coaching_lookfor == null ? "" : `<p>${rich(P.coaching_lookfor)}</p>`}
+    ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
+    <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`;
 }
 
 /** One authored misconception: what the pupil writes, and the question you ask back. */
@@ -3496,9 +3635,13 @@ function page2(doc, ctx, secIndex) {
   // FURNITURE — the number lives in the label pack and nowhere else, so it cannot drift document
   // to document and costs nothing against the word budget. K-5 learned the last step the hard
   // way: a CTA that does not say what comes BACK is just a request (FEEDBACK_LEDGER #13).
-  S(L.p2Coach, [`<div class="coach">${P.coaching_lookfor == null ? "" : `<p>${rich(P.coaching_lookfor)}</p>`}
-    ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
-    <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`]);
+  // bd-yjmxh: the corner normally prints in the FLOW, at the end of the last teaching section,
+  // so a teacher does not turn a page for four lines about the lesson she has just given. See
+  // flowHosts and the `after(s)` hook. What is left here is the FALLBACK, on the same rule the
+  // other two hosted groups follow: a document with no section to host it still prints its
+  // corner, in Reference, exactly as it always did. `S` paints nothing for an empty body list,
+  // so the support index closes up on its own (render-law 15) when the flow takes the group.
+  S(L.p2Coach, hosts.coaching ? [] : [coachCard(doc, ctx, false)]);
 
   return { part: "support", atoms: A };
 }

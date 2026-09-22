@@ -187,7 +187,12 @@ const LABELS = {
     // band still carries the whole sentence ("WE DO \u00b7 class practises together"); the band is
     // the landmark a teacher aims at while flipping, so it is two words. These are furniture, so
     // they are translated -- unlike a block title, which the author wrote and which is frozen.
-    weDo: "We Do", youDo: "You Do",
+    // bd-yjmxh. iDo COMPLETES THE LADDER. weDo/youDo have lived here since bd-f6opy, but I DO
+    // had no label, so the one surface that printed it -- the bar pill, fed verbatim from the
+    // authored `section.move` -- echoed the document's English "I DO" onto an Urdu page. A
+    // closed three-value vocabulary is DATA (rule 20), not author prose: it is translated
+    // here, in both blocks, and the renderer normalises the authored string to it.
+    iDo: "I Do", weDo: "We Do", youDo: "You Do",
     guided: "Guided practice", independent: "Independent practice",
     practice: "Practice", answer: "Answer", support: "Support", extension: "Extension",
     teacher: "Teacher", classSays: "Class says",
@@ -267,7 +272,7 @@ const LABELS = {
     keyPoints: "اہم نکات", worked: "حل شدہ مثال", faded: "نیم حل شدہ مثال",
     bigIdea: "بنیادی تصور", biDistinction: "وہ فرق جو واضح کرنا ہے",
     biMisconception: "بچے کیا غلط سمجھتے ہیں", biDemo: "یوں کر کے دکھائیں",
-    weDo: "مل کر کریں", youDo: "خود کریں",
+    iDo: "کر کے دکھائیں", weDo: "مل کر کریں", youDo: "خود کریں",
     guided: "رہنمائی کے ساتھ مشق", independent: "انفرادی مشق",
     practice: "مشق", answer: "جواب", support: "مدد", extension: "اضافی کام",
     teacher: "استاد", classSays: "جماعت کہتی ہے",

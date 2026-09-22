@@ -29,8 +29,16 @@
  *   3. IT REPEATS ON THE CONTINUATION BAR. A teacher landing on page 4 mid-EXPLANATION
  *      must still see which move she is in; that is the whole point of the tag.
  *      (Precedent: SYNC 3.23's `info.fill` repainting YOU DO's band on resume.)
- *   4. THE TEXT IS THE DOCUMENT'S. No renderer-side label table, so Urdu needs no second
- *      translation and an author can name a move we have not thought of.
+ *   4. THE TEXT IS THE DOCUMENT'S -- EXCEPT FOR THE THREE WORDS THE RENDERER OWNS.
+ *      CORRECTED by bd-yjmxh against render evidence. The original claim was "no
+ *      renderer-side label table, so Urdu needs no second translation". The second half
+ *      did not survive contact: Urdu documents author this field in ENGLISH, so Urdu_seg4
+ *      page 4 printed a Latin "I DO" chip on the bar directly above an Urdu
+ *      "کر کے دکھائیں" chip on the box -- one move, one page, two scripts. A closed
+ *      three-value vocabulary is DATA (root rule 20), so I DO / WE DO / YOU DO now come
+ *      from `L.iDo` / `L.weDo` / `L.youDo` in both overlay language blocks. The half that
+ *      DID survive is kept and still tested: anything outside those three passes through
+ *      verbatim, so an author can still name a move we have not thought of.
  *   5. IT OBEYS THE SURFACE LADDER: radius from the three tokens, no hex in a border.
  */
 
@@ -40,6 +48,10 @@ const path = require('path');
 const VENDOR = path.join(__dirname, '..', '..', 'bot', 'vendor', 'lp-v9');
 const T = require(path.join(VENDOR, 'lib', 'template'));
 const { buildHtml, setPageFormat } = T;
+// bd-yjmxh -- the three move words are DATA (rule 20). Asserting a literal here would let
+// the en and ur blocks drift apart again without a single test going red.
+const { LABELS } = require(path.join(VENDOR, 'lib', 'overlay'));
+const I_DO = LABELS.en.iDo;
 
 const FIXTURE = path.join(__dirname, '__fixtures__', 'v9_gate_base.lp.json');
 const baseDoc = () => JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
@@ -94,13 +106,13 @@ describe('the move prints as a pill on the section bar', () => {
   test('the tag is inside the bar, not beside it', () => {
     const b = devBar(body(build(doc())));
     expect(b).toBeTruthy();
-    expect(b).toContain('<span class="mv">I DO</span>');
+    expect(b).toContain(`<span class="mv">${I_DO}</span>`);
   });
 
   test('the band says the phase and the tag says the move', () => {
     const b = devBar(body(build(doc())));
     expect(b).toContain('>Explanation<');
-    expect(b.indexOf('Explanation')).toBeLessThan(b.indexOf('I DO'));
+    expect(b.indexOf('Explanation')).toBeLessThan(b.indexOf(I_DO));
   });
 
   test('the tag comes after the minutes, so the extreme right is the move', () => {
@@ -123,10 +135,28 @@ describe('the move prints as a pill on the section bar', () => {
 
 describe('the tag text comes from the document', () => {
   test('a move we have never seen prints verbatim', () => {
-    expect(body(build(doc({ move: 'WE DO' })))).toContain('<span class="mv">WE DO</span>');
+    expect(body(build(doc({ move: 'Pair talk' })))).toContain('<span class="mv">Pair talk</span>');
   });
 
-  test('Urdu needs no second label table', () => {
+  // bd-yjmxh. This case USED to be the one above, asserting that the authored 'WE DO' printed
+  // verbatim. It is no longer an unknown move: the renderer owns those three words now, so the
+  // authored string is replaced by the label. In English the rendered text changes case only
+  // ('WE DO' -> 'We Do') and `.bar .mv` uppercases it, so the printed page is unchanged -- which
+  // the next test pins, because a silent visual change is the thing that would make this wrong.
+  test('an authored move that NAMES one of the three prints the label instead', () => {
+    expect(body(build(doc({ move: 'WE DO' })))).toContain(`<span class="mv">${LABELS.en.weDo}</span>`);
+  });
+
+  test('...and the page still reads the same, because the bar uppercases the pill', () => {
+    const rule = sheet(build(doc())).replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('.bar .mv{')[1].split('}')[0];
+    expect(rule).toContain('text-transform:uppercase');
+    expect(I_DO.toUpperCase()).toBe('I DO');
+    expect(LABELS.en.weDo.toUpperCase()).toBe('WE DO');
+    expect(LABELS.en.youDo.toUpperCase()).toBe('YOU DO');
+  });
+
+  test('an Urdu move the renderer does not own is still the document\'s own words', () => {
     const d = doc({ move: 'میں کرتا ہوں', title: 'وضاحت' });
     d.provenance = { ...d.provenance, medium: 'ur' };
     expect(body(build(d, { lang: 'ur' }))).toContain('<span class="mv">میں کرتا ہوں</span>');
@@ -147,7 +177,7 @@ describe('the tag repeats when the section resumes on the next page', () => {
     const h = body(build(doc(), { probeCont: true }));
     const dev = contBars(h).filter((b) => b.includes('data-sec="development"'));
     expect(dev.length).toBeGreaterThan(0);
-    for (const b of dev) expect(b).toContain('<span class="mv">I DO</span>');
+    for (const b of dev) expect(b).toContain(`<span class="mv">${I_DO}</span>`);
   });
 
   test('so does the real one, on a page that resumes mid-EXPLANATION', () => {
@@ -157,7 +187,7 @@ describe('the tag repeats when the section resumes on the next page', () => {
     const h = body(build(doc(), { breaks: { teach: [at], support: [] } }));
     const dev = contBars(h).filter((b) => b.includes('data-sec="development"'));
     expect(dev.length).toBe(1);
-    expect(dev[0]).toContain('<span class="mv">I DO</span>');
+    expect(dev[0]).toContain(`<span class="mv">${I_DO}</span>`);
     expect(dev[0]).toContain('Explanation');
   });
 
