@@ -255,6 +255,7 @@ async function localisePair(commitment, action, lang) {
     const prompt = `Translate the following two teacher-coaching messages into ${langName}, warm and natural. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. "open-ended questions", "wait time", "scaffolding"). ${genderRule}\n\n${codeSwitch}\n\nReturn STRICT JSON: {"commitment":"...","action":"..."}.\n\nMESSAGES:\ncommitment: ${commitment}\naction: ${action}`;
     const r = await GPT5MiniService.openai.chat.completions.create({
       model: MODEL,
+      job: 'coaching.cardLocalise',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
     });
@@ -368,6 +369,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   const ask = async (prompt) => {
     const r = await GPT5MiniService.openai.chat.completions.create({
       model: MODEL,
+      job: 'coaching.commitmentCard',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
     });

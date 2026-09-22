@@ -613,7 +613,7 @@
       "bot/shared/services/feature-registration.service.js:237",
       "bot/shared/services/flow-encryption.service.js:192",
       "bot/shared/services/gpt5-mini.service.js:5",
-      "bot/shared/services/gpt5-mini.service.js:698",
+      "bot/shared/services/gpt5-mini.service.js:702",
       "bot/shared/services/helper-agent.service.js:309",
       "bot/shared/services/lesson-plan-queue.service.js:17",
       "bot/shared/services/lp-browse-entry.service.js:9",

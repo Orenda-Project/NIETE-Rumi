@@ -121,6 +121,46 @@ const FALLBACK = {
   'platform.default': null,  // the floor
 };
 
+/**
+ * Jobs that are LABELLED BUT NOT ROUTED. bd-jntcx.
+ *
+ * These names exist so spend can be attributed; they are deliberately NOT in `JOBS`, and that
+ * distinction is the whole point. A name in `JOBS` is a promise that setting its env var or a
+ * settings row changes which model runs. These call sites still carry their own model literal
+ * and do not consult the registry, so making that promise here would be exactly the
+ * "defined is not working" trap: an operator sets COACHING_PEDAGOGY_MODEL, nothing happens,
+ * and nothing says why.
+ *
+ * What they DO buy, today: the first production day showed $85.76 of $173.97 spent with no
+ * `job` at all, $54.35 of it on gpt-5-mini from this one cluster. A name turns that into a
+ * line you can read.
+ *
+ * Promoting one is a separate, deliberate change: move the call site onto
+ * getClientForModel(model, { job }) or resolveModelForJob(), add it to JOBS with its current
+ * model as the default and to FALLBACK with that same model frozen, and drop it from here.
+ * Until then the label is telemetry and nothing else -- `fallbackForJob` still rejects these
+ * names, which is correct: an unrouted job has no fallback to arm.
+ */
+const TELEMETRY_ONLY_JOBS = Object.freeze([
+  // GPT5MiniService statics -- the gpt-5-mini/gpt-4o cluster
+  'coaching.pedagogy',           // analyzePedagogy, incl. the photo-less retry
+  'coaching.completeJson',       // generic JSON helper: observe debrief/feedback, remark narrative
+  'coaching.fidelityFallback',   // _generateFidelityAssessment
+  'coaching.enhance',            // enhanceAnalysisWithReflections
+  'coaching.reflectiveQuestion',
+  'coaching.inferTopic',
+  'coaching.inferSubject',
+  'coaching.priorFeedback',
+  'coaching.voiceDebrief',
+  // services sharing GPT5MiniService's client
+  'coaching.acknowledgement',    // reflective-conversation
+  'coaching.narrative',          // report-v2/narrative
+  'coaching.commitmentCard',     // commitment-card
+  'coaching.cardLocalise',       // commitment-card, translation pass
+  // the ninth call site, found from spend rather than from reading the code
+  'lp.extractUpload',            // coaching/fidelity/lp-upload-extractor
+]);
+
 /** The model this job is known to work with, or null when it has nothing behind it. */
 function fallbackForJob(job) {
   if (!JOBS[job]) throw new Error(`unknown job: ${job}`);
@@ -217,4 +257,4 @@ function resolveModelForJob(job, ctx = {}) {
   return { job, model, source, env: JOBS[job].env, site: JOBS[job].site };
 }
 
-module.exports = { JOBS, FALLBACK, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel };
+module.exports = { JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel };
