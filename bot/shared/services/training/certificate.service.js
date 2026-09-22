@@ -26,7 +26,7 @@
  * (CERT_CODE_PREFIX, else BOT_NAME, else ORG_NAME), never a hardcoded
  * deployment name.
  */
-const { logToFile } = require('../../utils/logger');
+const { logToFile, logError } = require('../../utils/logger');
 const { allModuleExamsPassed } = require('./isaps-module-exam.rules');
 
 const FALLBACK_PREFIX = 'CERT';
@@ -55,16 +55,20 @@ function generateCertificateCode(now = new Date()) {
 }
 
 /**
- * Issue (or return the already-issued) certificate for a passed grand-quiz
- * attempt. Idempotent per attempt_id: re-issuing for the same attempt returns
- * the existing row instead of minting a duplicate code.
+ * Issue (or return the already-issued) certificate for a completed level.
+ * Idempotent per (user_id, level_id) — NOT per attempt; see the guard below
+ * and bd-2670 for why that distinction cost production 3,113 surplus rows.
  *
  * @param {object} supabase - configured Supabase client (caller-injected)
  * @param {object} params
  * @param {string} params.userId    - users.id (uuid)
  * @param {string} params.programId - training_programs.id (uuid)
  * @param {number} params.levelId   - training_levels.id
- * @param {string} params.attemptId - training_assessment_attempts.id (uuid)
+ * @param {string} [params.attemptId] - training_assessment_attempts.id (uuid),
+ *   or null. Provenance only, never read back. The quiz and capstone paths
+ *   have one originating attempt; I-SAPS composite certification is earned
+ *   across many attempts and three independent bars, so it passes null
+ *   (bd-60171 — sandbox carried a NOT NULL here that production never had).
  * @returns {Promise<{certificate_code: string, teacher_name: string, level_name: string, issued_at: string, already_issued: boolean, pdf_r2_key: string|null}>}
  */
 async function issueCertificate(supabase, { userId, programId, levelId, attemptId }) {
@@ -119,9 +123,23 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
     level_name_snapshot: levelName,
   });
   if (error) {
-    // Same tolerance the WhatsApp path always had: the pass is already
-    // recorded on the attempt row; a cert-row failure must not fail the pass.
-    logToFile('❌ Certificate insert failed', { userId, levelId, attemptId, error: error.message });
+    // bd-60170 — a failed insert must not be reported as an issued
+    // certificate.
+    //
+    // This used to log and fall through, and the function returned
+    // `issued: true` with a freshly generated code regardless. The portal
+    // showed "Certificate issued — NIETESANDBOX-…", the teacher went looking
+    // for it, and there was no row anywhere: the code named a certificate
+    // that had never existed. Reported from sandbox as "it gave me a toast
+    // but nothing anywhere on the certificates".
+    //
+    // The tolerance below it was right for its own case — a PDF that fails to
+    // render must not cost a teacher the certificate — but a missing ROW is
+    // not a cosmetic failure, it is the certificate.
+    logError('Certificate insert failed — reporting NOT issued', {
+      userId, levelId, attemptId, error: error.message,
+    });
+    return { issued: false, reason: 'insert_failed' };
   }
 
   // Best-effort PDF. Only attempted when the row actually landed — with no row

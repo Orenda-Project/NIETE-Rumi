@@ -25,7 +25,7 @@ function deps(over = {}) {
 
 describe('fidelity-orchestrator · computeLpFidelity (deps injected)', () => {
   test('corpus path: resolves move-list by key → grades → scores → status ok', async () => {
-    const r = await computeLpFidelity({ corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, transcript: 't' }, deps());
+    const r = await computeLpFidelity({ corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, transcript: '[00:10] t' }, deps());
     expect(r.status).toBe('ok');
     expect(r.source).toBe('corpus');
     expect(r.fidelity_pct).toBe(50);
@@ -33,7 +33,7 @@ describe('fidelity-orchestrator · computeLpFidelity (deps injected)', () => {
   });
 
   test('uploaded path: no corpus key, has LP text → extracts → grades → scores', async () => {
-    const r = await computeLpFidelity({ uploadedText: 'a long uploaded lesson plan text', transcript: 't' }, deps());
+    const r = await computeLpFidelity({ uploadedText: 'a long uploaded lesson plan text', transcript: '[00:10] t' }, deps());
     expect(r.status).toBe('ok');
     expect(r.source).toBe('uploaded');
   });
@@ -41,7 +41,7 @@ describe('fidelity-orchestrator · computeLpFidelity (deps injected)', () => {
   test('corpus is preferred when both a corpus key and uploaded text are present', async () => {
     let extracted = false;
     const r = await computeLpFidelity(
-      { corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, uploadedText: 'x', transcript: 't' },
+      { corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, uploadedText: 'x', transcript: '[00:10] t' },
       deps({ extractUploadedLp: async () => { extracted = true; return { moves: MOVES }; } })
     );
     expect(r.source).toBe('corpus');
@@ -50,19 +50,19 @@ describe('fidelity-orchestrator · computeLpFidelity (deps injected)', () => {
 
   test('no LP at all (no key, no text) → lp_absent, no grader call', async () => {
     let graded = false;
-    const r = await computeLpFidelity({ transcript: 't' }, deps({ analyzeFidelity: async () => { graded = true; return goodVerdicts; } }));
+    const r = await computeLpFidelity({ transcript: '[00:10] t' }, deps({ analyzeFidelity: async () => { graded = true; return goodVerdicts; } }));
     expect(r.status).toBe('lp_absent');
     expect(graded).toBe(false);
   });
 
   test('corpus key that resolves to nothing, with no upload → lp_absent', async () => {
-    const r = await computeLpFidelity({ corpusKey: { lesson_id: 'Z' }, transcript: 't' }, deps({ resolveMoveList: async () => null }));
+    const r = await computeLpFidelity({ corpusKey: { lesson_id: 'Z' }, transcript: '[00:10] t' }, deps({ resolveMoveList: async () => null }));
     expect(r.status).toBe('lp_absent');
   });
 
   test('NON-BLOCKING: a grader throw becomes fidelity_unavailable, never throws', async () => {
     const r = await computeLpFidelity(
-      { corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, transcript: 't' },
+      { corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, transcript: '[00:10] t' },
       deps({ analyzeFidelity: async () => { const e = new Error('boom'); e.code = 'fidelity_unavailable'; throw e; } })
     );
     expect(r.status).toBe('fidelity_unavailable'); // returned, not thrown
@@ -70,7 +70,7 @@ describe('fidelity-orchestrator · computeLpFidelity (deps injected)', () => {
 
   test('NON-BLOCKING: an extractor throw becomes fidelity_unavailable', async () => {
     const r = await computeLpFidelity(
-      { uploadedText: 'scanned image lp', transcript: 't' },
+      { uploadedText: 'scanned image lp', transcript: '[00:10] t' },
       deps({ extractUploadedLp: async () => { const e = new Error('lp_unparseable'); e.code = 'lp_unparseable'; throw e; } })
     );
     expect(r.status).toBe('fidelity_unavailable');
@@ -95,7 +95,7 @@ describe('fidelity-orchestrator · upload_hash (bd-2kxxa.4)', () => {
   test('uploaded path stamps upload_hash = hash of the (capped) text it graded, and keeps it out of meta', async () => {
     let promptMeta = null;
     const r = await computeLpFidelity(
-      { uploadedText: 'a long uploaded lesson plan text', transcript: 't' },
+      { uploadedText: 'a long uploaded lesson plan text', transcript: '[00:10] t' },
       deps({ analyzeFidelity: async (m, t, meta) => { promptMeta = meta; return goodVerdicts; } }),
     );
     expect(r.status).toBe('ok');
@@ -111,7 +111,7 @@ describe('fidelity-orchestrator · upload_hash (bd-2kxxa.4)', () => {
   });
 
   test('corpus path has no upload_hash', async () => {
-    const r = await computeLpFidelity({ corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, transcript: 't' }, deps());
+    const r = await computeLpFidelity({ corpusKey: { lesson_id: 'L', version_stamp: 'v', content_hash: 'h' }, transcript: '[00:10] t' }, deps());
     expect(r.upload_hash).toBeNull();
   });
 });

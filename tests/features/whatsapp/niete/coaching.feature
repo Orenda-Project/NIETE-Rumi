@@ -352,6 +352,23 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # excluded the same way (reason instruction_text). Eval 9 found a teacher's upload that was a screenshot of an
     # earlier coaching report; the Eval 10 v2 prompt classified that image not_a_classroom_photo.
 
+  @e2e @wip @draft @negative @P1
+  Scenario: A recording whose transcript carries no timestamps is "not scored", never 0%
+    Given the NIETE bot chat is open
+    And I link a lesson plan to my classroom recording
+    When the transcription comes back without a single [MM:SS] timestamp and the analysis finishes
+    Then the lesson-plan section of the report says the recording could not be matched to the plan move by move, and shows no percentage
+    And Section B carries no fidelity score and the coach's editable draft shows the not-assessable explanation instead of per-move ratings
+    And the session's lp_fidelity has status ok, fidelity_pct null, recording_unusable true, every move not_adjudicable, moderators.note "recording_unusable" and unusable_guard "no_timestamps"
+    And no fidelity grader call was made for the session (lp_fidelity.model is null and runs is empty)
+    # bd-b3pop.31 (Eval 12 §4/§8): fidelity-orchestrator decides this in code right after describeRecording — every
+    # verdict above not_done must quote a stamped span, so a stamp-less transcript cannot be adjudicated move by move
+    # (D19: "not scored", never 0%). Luna already returned recording_unusable on the D19 fixture; Gemini 3.8 Flash
+    # returned 0% + lesson_mismatch in 9 of 12 runs, which would have shown a teacher 0/40 and a mismatch line for a bad
+    # recording. On prod (2,685 graded sessions, 15–22 Sep) 2 transcripts had no stamps and both were already unscored.
+    # The substitution rules added to grader-prompt.js in the same change (bd-b3pop.32, Eval 12 D37) are a calibration
+    # of the grader's verdicts, not a new user-visible flow: Spec-Sync coaching=none-needed for that part.
+
   @e2e @wip @draft @negative @P2
   Scenario: A non-lesson-plan document is rejected, not silently analysed
     Given the NIETE bot chat is open

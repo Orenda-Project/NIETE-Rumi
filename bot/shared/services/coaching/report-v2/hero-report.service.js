@@ -12,7 +12,7 @@
 const { buildScoreViewModel } = require('./score-adapter.service');
 const { generateReportNarrative } = require('./narrative.service');
 const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.template');
-const { buildClassroomPhotoVm } = require('./classroom-photo-vm');
+const { buildClassroomPhotoVm, excludedPhotoNumbers } = require('./classroom-photo-vm');
 const { applyPhotoCaptions } = require('./photo-note');
 const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
@@ -126,6 +126,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
       downloadFn: downloadFromR2,
       extractKey: extractKeyFromUrl,
       downscale: (buf) => sharp(buf).rotate().resize({ width: 720, withoutEnlargement: true }).jpeg({ quality: 72 }).toBuffer(),
+      // bd-b3pop.17: an upload the vision pass kept away from both scorers is not framed in the report either.
+      skipPhotoNumbers: excludedPhotoNumbers(analysis),
     });
     // bd-8s2xb → bd-1mcpe: a caption under EACH framed photo, from that photo's own vision
     // description (first clause only — never the scorer's critique), matched by the photo's

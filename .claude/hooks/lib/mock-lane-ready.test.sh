@@ -78,6 +78,47 @@ has "…and names the ONE remaining manual fact" "$out" "railway login" yes
 blk=$(e2e_mock_not_ready_block "$(printf 'keys/niete-local.env missing (auto-provision failed: railway not logged in)')")
 has "the not-ready text now points at railway login, not at a script to run by hand" "$blk" "railway login" yes
 
+echo "mock-lane — autofix: apt-get is the Linux path when there is no brew (bd-vqp9g)"
+# An Ubuntu box with no brew and no docker could NOT self-fix: the autofix only knew brew, so
+# commit-e2e.sh exited 3 and told the operator to run `brew install redis` on a machine with no
+# brew (PR #1151, 2026-09-21). apt-get must never PROMPT — the autofix runs from hooks and a
+# password prompt would hang the agent's turn — so it installs only when sudo -n already works.
+mkdir -p "$TMP/dbin"; cp "$TMP/abin/railway" "$TMP/dbin/railway"
+cat > "$TMP/dbin/apt-get" <<AG
+#!/bin/sh
+case "\$*" in *install*redis*) printf '#!/bin/sh\necho ok\n' > "$TMP/dbin/redis-server"; chmod +x "$TMP/dbin/redis-server";; esac
+AG
+cat > "$TMP/dbin/sudo" <<SU
+#!/bin/sh
+[ "\$1" = "-n" ] && shift
+[ "\$1" = "true" ] && exit 0
+exec "\$@"
+SU
+chmod +x "$TMP/dbin/railway" "$TMP/dbin/apt-get" "$TMP/dbin/sudo"
+mk_machine() { mkdir -p "$1/bot/scripts/e2e" "$1/.claude/qa/shared"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$1/bot/scripts/e2e/"; cp "$ROOT/.claude/qa/shared/niete_training_db.py" "$1/.claude/qa/shared/"; git -C "$1" init -q >/dev/null 2>&1; }
+D="$TMP/apt/main"; mk_machine "$D"
+out=$(PATH="$TMP/dbin:/usr/bin:/bin" e2e_mock_lane_autofix "$D" --with-redis 2>&1); rc=$?
+say "no brew, but apt-get + passwordless sudo → autofix succeeds" "$rc" "0"
+has "…and says it installed redis via apt-get" "$out" "apt-get" yes
+[ -x "$TMP/dbin/redis-server" ] && ok "…and redis-server is now on PATH" || bad "the apt-get branch did not install redis-server"
+
+# apt-get present but sudo would prompt: fail CLEANLY and name the command, never hang.
+mkdir -p "$TMP/nbin"; cp "$TMP/abin/railway" "$TMP/nbin/railway"; cp "$TMP/dbin/apt-get" "$TMP/nbin/apt-get"
+printf '#!/bin/sh\nexit 1\n' > "$TMP/nbin/sudo"; chmod +x "$TMP/nbin/railway" "$TMP/nbin/apt-get" "$TMP/nbin/sudo"
+E="$TMP/apt2/main"; mk_machine "$E"
+out=$(PATH="$TMP/nbin:/usr/bin:/bin" e2e_mock_lane_autofix "$E" --with-redis 2>&1); rc=$?
+say "apt-get but no passwordless sudo → fails, does not hang" "$rc" "1"
+has "…and names the exact command to run by hand" "$out" "apt-get install" yes
+[ -x "$TMP/nbin/redis-server" ] && bad "installed redis although it could not sudo" || ok "…and installed nothing"
+
+# Neither package manager (D already has keys, so nothing external is needed): name BOTH.
+mkdir -p "$TMP/empty"
+out=$(PATH="$TMP/empty" e2e_mock_lane_autofix "$D" --with-redis 2>&1); rc=$?
+has "no brew and no apt-get → the message names both" "$out" "no brew or apt-get" yes
+
+blk=$(PATH="$TMP/nbin:/usr/bin:/bin" e2e_mock_not_ready_block "redis-server not on PATH")
+has "the not-ready block suggests apt-get on a machine that has it" "$blk" "apt-get install" yes
+
 echo "mock-lane — commit-e2e.sh AUTO-FIXES instead of refusing when railway is available"
 R2="$TMP/clone auto"; mkdir -p "$R2/bot/shared/services" "$R2/bot/scripts/e2e" "$R2/.claude/hooks" "$R2/tests/features/whatsapp"
 cp -R "$ROOT/.claude/qa" "$R2/.claude/qa"; cp -R "$ROOT/.claude/hooks/lib" "$R2/.claude/hooks/lib"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$R2/bot/scripts/e2e/"

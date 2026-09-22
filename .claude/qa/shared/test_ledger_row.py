@@ -152,6 +152,168 @@ def test_row_flags_a_regression_for_an_unlisted_fail():
     assert r["regression"]["known"] == [], r["regression"]
 
 
+# ── bd-2jdxj: the row is proof only if it is COMMITTED ───────────────────────────────────────────
+# runs.jsonl was appended to the working tree and left there. impact.py measures
+# `git diff <base>...<head> -- .claude/qa/ledgers/runs.jsonl`, so an uncommitted row is invisible to
+# CI and a successful run looks identical to a run that never happened (PRs #1139, #1151, #1155).
+
+
+def _git(root, *args):
+    import subprocess
+    return subprocess.run(["git", "-C", root] + list(args), capture_output=True, text=True).stdout.strip()
+
+
+def _git_fixture():
+    """A real git repo with the ledger tracked and one commit, plus the run-dir fixture."""
+    import subprocess
+    root, run = _fixture()
+    for a in (["init", "-q", "-b", "sandbox"], ["config", "user.email", "t@l"], ["config", "user.name", "t"]):
+        subprocess.run(["git", "-C", root] + a, capture_output=True)
+    led = os.path.join(root, ".claude", "qa", "ledgers", "runs.jsonl")
+    open(led, "w").close()
+    subprocess.run(["git", "-C", root, "add", "-A"], capture_output=True)
+    subprocess.run(["git", "-C", root, "commit", "-qm", "baseline"], capture_output=True)
+    return root, run, led
+
+
+def _main(root, run, **over):
+    kw = dict(root=root, run_dir=run, feature="menu", run_id="r1", env="sandbox", method="mock",
+              seconds="91", driver="923000000001", trigger="commit", commit="a" * 40,
+              spec_sync="none", validator_exit="0", dry_run=False)
+    kw.update(over)
+    argv = []
+    for k, v in kw.items():
+        if k == "dry_run":
+            continue
+        argv += ["--" + k.replace("_", "-"), str(v)]
+    return ledger_row.main(argv)
+
+
+def test_the_appended_row_is_committed():
+    root, run, led = _git_fixture()
+    os.environ.pop("E2E_LEDGER_COMMIT_OFF", None)
+    assert _main(root, run) == 0
+    assert "runs.jsonl" in _git(root, "log", "-1", "--name-only", "--format="), "the row was not committed"
+    assert _git(root, "status", "--porcelain", "--", led) == "", "the ledger is still dirty after the run"
+
+
+def test_the_commit_can_be_switched_off():
+    root, run, led = _git_fixture()
+    os.environ["E2E_LEDGER_COMMIT_OFF"] = "1"
+    try:
+        assert _main(root, run) == 0
+        assert json.loads(open(led).read().strip().splitlines()[-1])["feature"] == "menu", "row not appended"
+        assert _git(root, "status", "--porcelain", "--", led) != "", "committed although the switch was off"
+    finally:
+        os.environ.pop("E2E_LEDGER_COMMIT_OFF", None)
+
+
+def test_a_detached_head_is_left_alone():
+    """An auto-commit on a detached HEAD is an orphan nobody will find. Append, do not commit."""
+    root, run, led = _git_fixture()
+    sha = _git(root, "rev-parse", "HEAD")
+    import subprocess
+    subprocess.run(["git", "-C", root, "checkout", "-q", "--detach", sha], capture_output=True)
+    assert _main(root, run) == 0
+    assert _git(root, "status", "--porcelain", "--", led) != "", "committed onto a detached HEAD"
+
+
+def test_only_the_ledger_is_committed():
+    """Never -A: a run must not sweep up whatever the developer had in flight."""
+    root, run, led = _git_fixture()
+    open(os.path.join(root, "unrelated.txt"), "w").write("mine\n")
+    assert _main(root, run) == 0
+    assert "unrelated.txt" not in _git(root, "log", "-1", "--name-only", "--format="), "swept up an unrelated file"
+    assert "unrelated.txt" in _git(root, "status", "--porcelain"), "the unrelated file vanished"
+
+
+def test_a_non_git_root_still_returns_zero():
+    """A lane run must never fail because git refused."""
+    root, run = _fixture()
+    assert _main(root, run) == 0
+
+
+# ── bd-wvu2y: committed is not enough — qa-impact only reads what was PUSHED ────────────────────
+# The workflow runs on pull_request/synchronize and resolves the range on the remote, so a row that
+# is committed but unpushed still reads "E2E run recorded: missing".
+# NOTE the baseline commit already tracks an EMPTY runs.jsonl, so "does the remote have the file"
+# proves nothing. Every assertion below reads the remote's ledger CONTENT for this run's id.
+
+
+def _git_fixture_with_remote():
+    import subprocess
+    root, run, led = _git_fixture()
+    bare = tempfile.mkdtemp()
+    subprocess.run(["git", "init", "-q", "--bare", bare], capture_output=True)
+    subprocess.run(["git", "-C", root, "remote", "add", "origin", bare], capture_output=True)
+    subprocess.run(["git", "-C", root, "push", "-q", "-u", "origin", "sandbox"], capture_output=True)
+    subprocess.run(["git", "-C", root, "checkout", "-q", "-b", "bd-test-1"], capture_output=True)
+    subprocess.run(["git", "-C", root, "push", "-q", "-u", "origin", "bd-test-1"], capture_output=True)
+    return root, run, led, bare
+
+
+def _remote_ledger(bare, branch="bd-test-1"):
+    """The ledger as the REMOTE has it — empty string if the branch or file is absent."""
+    import subprocess
+    return subprocess.run(
+        ["git", "-C", bare, "show", "%s:.claude/qa/ledgers/runs.jsonl" % branch],
+        capture_output=True, text=True).stdout
+
+
+def test_the_committed_row_is_pushed():
+    root, run, led, bare = _git_fixture_with_remote()
+    os.environ.pop("E2E_LEDGER_PUSH_OFF", None)
+    assert '"r1"' not in _remote_ledger(bare), "fixture is not clean"
+    assert _main(root, run) == 0
+    assert '"r1"' in _remote_ledger(bare), "the row was committed but never pushed"
+
+
+def test_a_protected_branch_is_never_pushed_to():
+    """A run on a checked-out sandbox must not push to sandbox."""
+    import subprocess
+    root, run, led, bare = _git_fixture_with_remote()
+    subprocess.run(["git", "-C", root, "checkout", "-q", "sandbox"], capture_output=True)
+    before = subprocess.run(["git", "-C", bare, "rev-parse", "sandbox"], capture_output=True, text=True).stdout
+    assert _main(root, run) == 0
+    after = subprocess.run(["git", "-C", bare, "rev-parse", "sandbox"], capture_output=True, text=True).stdout
+    assert before == after, "pushed to a protected branch"
+    assert '"r1"' not in _remote_ledger(bare, "sandbox")
+
+
+def test_no_upstream_means_no_push():
+    """Never create a remote branch nobody asked for, and never fail the run over it."""
+    import subprocess
+    root, run, led, bare = _git_fixture_with_remote()
+    subprocess.run(["git", "-C", root, "checkout", "-q", "-b", "bd-no-upstream"], capture_output=True)
+    assert _main(root, run) == 0
+    assert subprocess.run(["git", "-C", bare, "rev-parse", "--verify", "-q", "bd-no-upstream"],
+                          capture_output=True).returncode != 0, "created a remote branch nobody asked for"
+
+
+def test_the_push_can_be_switched_off():
+    root, run, led, bare = _git_fixture_with_remote()
+    os.environ["E2E_LEDGER_PUSH_OFF"] = "1"
+    try:
+        assert _main(root, run) == 0
+        assert '"r1"' not in _remote_ledger(bare), "pushed although the switch was off"
+    finally:
+        os.environ.pop("E2E_LEDGER_PUSH_OFF", None)
+
+
+def test_a_refused_push_never_fails_the_run():
+    """The pre-push gate may refuse. The run still exits 0, and we do NOT retry with a bypass."""
+    import subprocess
+    root, run, led, bare = _git_fixture_with_remote()
+    hooks = os.path.join(root, ".githooks")
+    os.makedirs(hooks, exist_ok=True)
+    hp = os.path.join(hooks, "pre-push")
+    open(hp, "w").write("#!/bin/sh\necho 'BLOCKED by the gate' >&2\nexit 1\n")
+    os.chmod(hp, 0o755)
+    subprocess.run(["git", "-C", root, "config", "core.hooksPath", ".githooks"], capture_output=True)
+    assert _main(root, run) == 0, "a refused push failed the run"
+    assert '"r1"' not in _remote_ledger(bare), "bypassed a refusing pre-push gate"
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

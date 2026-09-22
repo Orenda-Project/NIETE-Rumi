@@ -1499,9 +1499,29 @@ async function loadModuleExamSlot(userId, levelId, courseId, modules) {
     const units = (modules || []).filter(x => x.course_title === course.title);
     const { data: attempts } = await supabase
       .from('training_assessment_attempts')
-      .select('is_passed, completed_at, cooldown_until, grand_quiz_id')
+      .select('is_passed, completed_at, cooldown_until, grand_quiz_id, score, total_score, status')
       .eq('user_id', userId).in('grand_quiz_id', ids.length ? ids : [-1]);
     const passed = (attempts || []).some(a => a.is_passed);
+
+    // bd-60167 — the MARK, so the course page can show it.
+    //
+    // Her best graded attempt, not her latest: retakes are unlimited, so a
+    // later weaker sitting must not overwrite a stronger one on screen. The
+    // composite counts best-per-question for the same reason.
+    //
+    // `status` is checked because an in-progress attempt has a null score, and
+    // a half-finished paper is not a mark.
+    const graded = (attempts || []).filter(
+      a => a.status !== 'in_progress' && Number.isFinite(Number(a.score)),
+    );
+    let best = null;
+    for (const a of graded) {
+      const poss = Number(a.total_score) || 0;
+      const pct = poss > 0 ? (Number(a.score) / poss) * 100 : 0;
+      if (!best || pct > best.pct) {
+        best = { score: Number(a.score), total: poss, pct, completedAt: a.completed_at };
+      }
+    }
     let cooldownHoursLeft = 0;
     for (const a of attempts || []) {
       if (a.is_passed || !a.cooldown_until) continue;
@@ -1525,6 +1545,10 @@ async function loadModuleExamSlot(userId, levelId, courseId, modules) {
       mcqCount: Math.min(MODULE_EXAM_MCQ_COUNT, mcqCount),
       crqCount: crqCount > 0 ? 1 : 0,
       passed, cooldownHoursLeft,
+      bestScore: best ? best.score : null,
+      bestTotal: best ? best.total : null,
+      bestPct: best ? Math.round(best.pct) : null,
+      lastAttemptAt: best ? best.completedAt : null,
     });
   } catch (err) {
     logToFile('⚠️ loadModuleExamSlot failed — falling back to no exam', {

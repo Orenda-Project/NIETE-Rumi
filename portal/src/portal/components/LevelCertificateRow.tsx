@@ -23,6 +23,9 @@ import { Award, Lock, Loader2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
+/** One weighted stream of the level composite. */
+type GradeComponent = { pct: number; bar: number; weight: number; passed: boolean };
+
 type CertState = {
   state: 'issued' | 'locked';
   certificate: { certificate_code: string; issued_at?: string } | null;
@@ -30,6 +33,25 @@ type CertState = {
   units_done: number;
   exams_total?: number;
   exams_done?: number;
+  /**
+   * bd-60163 — the weighted composite, when the level is assessed that way.
+   * null on a level with another rule (Beacon House capstone, Oxbridge) or
+   * when the bot could not be reached; the row then falls back to the session
+   * counts and says nothing it cannot stand behind.
+   */
+  grade?: {
+    is_passed: boolean;
+    composite_pct: number;
+    failed_components: string[];
+    components: Record<string, GradeComponent>;
+  } | null;
+};
+
+/** What a teacher calls each stream. The keys are the API's. */
+const COMPONENT_LABEL: Record<string, string> = {
+  formative: 'Session questions',
+  mcq: 'Module exam questions',
+  crq: 'Written answers',
 };
 
 export default function LevelCertificateRow({
@@ -68,7 +90,24 @@ export default function LevelCertificateRow({
         onIssued?.();
         return;
       }
-      // Refused: say what is outstanding, not just "not yet".
+      // Refused: say WHICH bar she is under and by how much — not just "not
+      // yet". The composite is three independent bars, so "you are short" is
+      // useless: she needs to know whether to re-sit an exam or go back to the
+      // sessions. Re-takes are unlimited, so this is actionable every time.
+      const g = data.grade;
+      if (g && Array.isArray(g.failed_components) && g.failed_components.length > 0) {
+        const parts = g.failed_components.map((k) => {
+          const c = g.components?.[k];
+          const label = COMPONENT_LABEL[k] || k;
+          return c ? `${label} ${Math.round(c.pct)}% (needs ${c.bar}%)` : label;
+        });
+        toast({
+          title: 'Not quite there yet',
+          description: `Still below the mark: ${parts.join(', ')}. You can retake these as many times as you need.`,
+        });
+        return;
+      }
+      // No composite for this level — fall back to the session counts.
       const unitsLeft = Math.max(0, (data.units_total || 0) - (data.units_done || 0));
       const examsLeft = Math.max(0, (data.exams_total || 0) - (data.exams_done || 0));
       const parts: string[] = [];
@@ -108,9 +147,14 @@ export default function LevelCertificateRow({
     );
   }
 
-  const ready = info.units_total > 0
-    && info.units_done >= info.units_total
-    && (info.exams_total || 0) <= (info.exams_done || 0);
+  // The composite is the real gate when the level has one; the session counts
+  // are only the hint for levels that do not. Either way the SERVER decides on
+  // tap — this just styles the row.
+  const ready = info.grade
+    ? info.grade.is_passed === true
+    : (info.units_total > 0
+      && info.units_done >= info.units_total
+      && (info.exams_total || 0) <= (info.exams_done || 0));
 
   return (
     <button
@@ -130,7 +174,12 @@ export default function LevelCertificateRow({
       <span className={`flex-1 text-[15px] ${ready ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
         Receive Certificate
       </span>
-      {!ready && info.units_total > 0 && (
+      {!ready && info.grade && (
+        <span className="text-sm text-muted-foreground shrink-0" data-testid="level-composite-pct">
+          {Math.round(info.grade.composite_pct)}%
+        </span>
+      )}
+      {!ready && !info.grade && info.units_total > 0 && (
         <span className="text-sm text-muted-foreground shrink-0">
           {info.units_done}/{info.units_total}
         </span>

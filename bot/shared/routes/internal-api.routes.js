@@ -337,6 +337,43 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
  * Idempotent: the guard refuses a second certificate for a (user, level), so a
  * retry or a double submit cannot mint two.
  */
+/**
+ * POST /api/internal/training/level-grade
+ * Body { userId, levelId } -> { success, grade }
+ *
+ * The I-SAPS weighted composite: formative 25 / MCQ 50 / CRQ 25, each with its
+ * own bar (50 / 60 / 50) that must be cleared independently. Returns the
+ * per-component detail so the portal can TELL A TEACHER WHAT IS MISSING rather
+ * than only that she is short.
+ *
+ * `grade: null` means the level is not assessed this way (no per-module
+ * exams). Beacon House and Oxbridge must fall through to their own rule, not
+ * be graded 0 by a model that does not describe them.
+ *
+ * Lives here, not in the portal, for the bd-2480 reason: the portal's previous
+ * local copies of training rules all drifted while their comments claimed
+ * parity. One implementation, two callers.
+ */
+router.post('/training/level-grade', requireInternalKey, async (req, res) => {
+  const body = req.body || {};
+  const { userId } = body;
+  const levelId = num(body.levelId);
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });
+
+  try {
+    const supabase = require('../config/supabase');
+    const { gradeLevelForUser } = require('../services/training/isaps-level-grade.service');
+    const grade = await gradeLevelForUser(supabase, { userId, levelId });
+    return res.json({ success: true, grade });
+  } catch (error) {
+    // Fail CLOSED, like certify-level: a lookup failure must never read as a
+    // pass. The caller renders "we could not check just now".
+    logError('Internal training API failed', { route: 'level-grade', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Grading failed' });
+  }
+});
+
 router.post('/training/certify-level', requireInternalKey, async (req, res) => {
   const body = req.body || {};
   const { userId } = body;
@@ -468,6 +505,61 @@ router.post('/training/module-exam-start', requireInternalKey, async (req, res) 
  * Certification runs afterwards through the shared guard, so finishing the
  * last module on the portal certifies the level exactly as it does on WhatsApp.
  */
+/**
+ * POST /api/internal/training/module-exam-draft
+ * Body { userId, attemptId, questionId, questionIndex, chosenOption?, answerText? }
+ *   -> { success, ok, reason? }
+ *
+ * bd-60169 — save one answer mid-paper. Never grades, never marks.
+ *
+ * Called on every answer change, so it must be cheap and must never throw at
+ * the caller: a failed autosave degrades to "unsaved", it does not interrupt
+ * a teacher mid-exam.
+ */
+router.post('/training/module-exam-draft', requireInternalKey, async (req, res) => {
+  const b = req.body || {};
+  if (!b.userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (!b.attemptId) return res.status(400).json({ success: false, error: 'attemptId is required' });
+  if (num(b.questionId) === null) return res.status(400).json({ success: false, error: 'questionId is required' });
+  if (num(b.questionIndex) === null) return res.status(400).json({ success: false, error: 'questionIndex is required' });
+
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const out = await QuizDelivery.saveModuleExamDraft({
+      userId: b.userId,
+      attemptId: b.attemptId,
+      questionId: num(b.questionId),
+      questionIndex: num(b.questionIndex),
+      chosenOption: b.chosenOption ?? null,
+      answerText: b.answerText ?? null,
+    });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    logError('Internal training API failed', { route: 'module-exam-draft', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Draft save failed' });
+  }
+});
+
+/**
+ * POST /api/internal/training/module-exam-draft-load
+ * Body { userId, attemptId } -> { success, ok, answers[] }
+ *
+ * bd-60169 — what she has already answered, so resuming shows her own work.
+ */
+router.post('/training/module-exam-draft-load', requireInternalKey, async (req, res) => {
+  const b = req.body || {};
+  if (!b.userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (!b.attemptId) return res.status(400).json({ success: false, error: 'attemptId is required' });
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const out = await QuizDelivery.loadModuleExamDraft({ userId: b.userId, attemptId: b.attemptId });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    logError('Internal training API failed', { route: 'module-exam-draft-load', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Draft load failed' });
+  }
+});
+
 router.post('/training/module-exam-submit', requireInternalKey, async (req, res) => {
   const { userId, attemptId } = req.body || {};
   const answers = Array.isArray((req.body || {}).answers) ? req.body.answers : null;

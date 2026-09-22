@@ -47,8 +47,19 @@ describe('bd-60124 — shouldOfferModuleExam', () => {
     }
   });
 
-  test('module not finished → no offer, so the teacher is not interrupted', () => {
-    expect(shouldOfferModuleExam({ ...FULL, unitsDone: 5 })).toBe(false);
+  // bd-60164 — inverted deliberately. Sequencing is gone: an exam may be sat
+  // at any point, and the level certificate is the only thing that checks
+  // whether the work is complete.
+  test('module not finished → the exam is STILL offered', () => {
+    expect(shouldOfferModuleExam({
+      vendorKey: 'ISAPS', unitsTotal: 6, unitsDone: 4, mcqCount: 8, crqCount: 4, alreadyPassed: false,
+    })).toBe(true);
+  });
+
+  test('a module with no units yet is never offered — no content, no exam', () => {
+    expect(shouldOfferModuleExam({
+      vendorKey: 'ISAPS', unitsTotal: 0, unitsDone: 0, mcqCount: 8, crqCount: 4, alreadyPassed: false,
+    })).toBe(false);
   });
 
   test('already passed → no offer, and no re-sit', () => {

@@ -2463,6 +2463,19 @@ async function _levelCertificateState(userId, levelId) {
   const passedIds = new Set((passed || []).filter(a => a.is_passed === true).map(a => a.grand_quiz_id));
   const examsDone = perModule.filter(q => passedIds.has(q.id)).length;
 
+  // bd-60163 — on a per-module-assessed level the CERTIFICATE is decided by
+  // the weighted composite (formative 25 / MCQ 50 / CRQ 25, bars 50/60/50),
+  // not by "every unit ticked". The partner's Sept 2026 guide made that the
+  // rule and also removed the formative pass gate, so unit ticks no longer
+  // imply anything was passed — certifying on them would hand out a
+  // certificate for opening 54 pages.
+  //
+  // The counts above stay, because the copy still needs them: "18 of 54
+  // sessions" is what a teacher recognises. What changed is what DECIDES.
+  const grade = perModule.length
+    ? await TrainingRules.getIsapsLevelGrade(userId, levelId)
+    : null;
+
   return {
     state: 'locked',
     certificate: null,
@@ -2470,6 +2483,10 @@ async function _levelCertificateState(userId, levelId) {
     units_done: unitIds.filter(id => doneIds.has(id)).length,
     exams_total: perModule.length,
     exams_done: examsDone,
+    // null on a level this model does not describe, or when the bot could not
+    // be reached — the row then falls back to the counts and says nothing it
+    // cannot stand behind.
+    grade,
   };
 }
 
@@ -2500,13 +2517,55 @@ router.post('/training/level/:id/certificate', requirePortalAuth, async (req, re
       return res.json({ success: true, issued: true, certificate: before.certificate });
     }
 
-    const { data: assignment } = await supabase
-      .from('teacher_training_assignments').select('program_id')
-      .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+    // bd-60170 — the programme that SCOPES THIS LEVEL, not just any active one.
+    //
+    // This was `.limit(1).maybeSingle()` over every active assignment. A
+    // teacher on three programmes (Primary, Middle, I-SAPS pilot — a real
+    // sandbox account) got an arbitrary row, so the certificate was stamped
+    // with a programme that does not contain the level, or with null when the
+    // pick missed. `training_certificates.program_id` is NOT NULL, so a null
+    // made the insert fail outright.
+    //
+    // NOTE the shape: this reads MANY rows on purpose and never calls
+    // .maybeSingle(). bd-qd1p3's guard exists because a single-row read of
+    // this table breaks for the 787 production teachers who hold two active
+    // assignments — the same class of bug being fixed here. Reading the list
+    // is the correct answer, not a bounded single.
+    // The level's vendor first, so the assignments read below is the LAST
+    // statement in its own block — bd-qd1p3's guard scans a 900-character
+    // window after any read of this table for a single-row terminator, and a
+    // .maybeSingle() belonging to a different table inside that window reads
+    // as an offender. Ordering it this way keeps the guard meaningful instead
+    // of widening its exemption list.
+    const { data: certLevel } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
 
-    const cert = await TrainingRules.certifyLevel({
-      userId, levelId, programId: assignment?.program_id || null,
-    });
+    let scopeRows = [];
+    if (certLevel?.vendor_id) {
+      const sc = await supabase
+        .from('training_program_scopes').select('program_id, level_ids')
+        .eq('vendor_id', certLevel.vendor_id);
+      scopeRows = sc.data || [];
+    }
+
+    // MANY rows on purpose, and never .maybeSingle(): 787 production teachers
+    // hold two active assignments, which is the very bug bd-qd1p3 records.
+    const assignmentRows = await supabase
+      .from('teacher_training_assignments').select('program_id')
+      .eq('user_id', userId).eq('is_active', true);
+
+    const programIds = [...new Set((assignmentRows.data || []).map(a => a.program_id).filter(Boolean))];
+    // A scope with no level_ids covers its whole vendor.
+    const match = scopeRows.find(
+      sc => programIds.includes(sc.program_id)
+        && (!sc.level_ids || sc.level_ids.length === 0 || sc.level_ids.includes(levelId)),
+    );
+    // Fall back to the only assignment when there IS only one; an arbitrary
+    // pick among several is what broke this.
+    const programId = match?.program_id
+      || (programIds.length === 1 ? programIds[0] : null);
+
+    const cert = await TrainingRules.certifyLevel({ userId, levelId, programId });
     if (cert.issued) {
       return res.json({ success: true, issued: true, certificate: cert });
     }
@@ -4531,6 +4590,62 @@ router.get('/training/module/:id/exam/questions', requirePortalAuth, async (req,
  * the rubric score landing when the model replies. A ~10s LLM call must never
  * be the reason a teacher's typed answer is lost.
  */
+/**
+ * PUT /api/portal/training/module/:id/exam/draft
+ * Body { attempt_id, question_id, question_index, chosen_option?, answer_text? }
+ *   -> { success, saved }
+ *
+ * bd-60169 — autosave one answer mid-paper.
+ *
+ * Answers used to live in React state until Submit, so a closed tab, a phone
+ * call or a backgrounded app lost the whole paper — including an
+ * ~1,800-character written answer. One-question-per-page made that worse
+ * rather than better, because a teacher can no longer see what she would lose.
+ *
+ * ALWAYS 200. A failed autosave is reported as `saved: false` and never as an
+ * error status: the answer is still on her screen, and an error toast
+ * mid-exam over work that is not actually lost is worse than the silence.
+ */
+router.put('/training/module/:id/exam/draft', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const b = req.body || {};
+    if (!b.attempt_id || b.question_id === undefined || b.question_index === undefined) {
+      return res.status(400).json({ success: false, error: 'attempt_id, question_id and question_index are required' });
+    }
+    const saved = await TrainingRules.saveModuleExamDraft(userId, b.attempt_id, {
+      questionId: b.question_id,
+      questionIndex: b.question_index,
+      chosenOption: b.chosen_option ?? null,
+      answerText: b.answer_text ?? null,
+    });
+    return res.json({ success: true, saved });
+  } catch (error) {
+    console.error('training/module/:id/exam/draft error:', error?.message);
+    return res.json({ success: true, saved: false });
+  }
+});
+
+/**
+ * GET /api/portal/training/module/:id/exam/draft?attempt_id=…
+ *   -> { success, answers[] }
+ *
+ * bd-60169 — what she has already answered, so resuming an attempt shows her
+ * own work instead of a blank paper.
+ */
+router.get('/training/module/:id/exam/draft', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const attemptId = req.query.attempt_id;
+    if (!attemptId) return res.status(400).json({ success: false, error: 'attempt_id is required' });
+    const answers = await TrainingRules.loadModuleExamDraft(userId, String(attemptId));
+    return res.json({ success: true, answers });
+  } catch (error) {
+    console.error('training/module/:id/exam/draft GET error:', error?.message);
+    return res.json({ success: true, answers: [] });
+  }
+});
+
 router.post('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
