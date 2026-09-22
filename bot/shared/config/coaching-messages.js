@@ -246,13 +246,22 @@ const COACHING_MESSAGES = {
   // audio moved the overall by a mean of 5.9 points across 1,515 measured
   // duplicate groups.
   //
-  // No date is interpolated. The prior report carries its own date, and a
-  // formatted date here would need a locale-correct rendering in both languages
-  // that nothing on this path currently has. Body message — no 60/20 field cap
-  // applies (language-protocol §3).
+  // No date is interpolated — operator's call (bd-uwf1a). The prior report
+  // carries its own date, so naming one here buys a locale-correct date
+  // rendering in two languages for something the teacher can already see.
+  //
+  // bd-uwf1a — the Urdu was rewritten into this file's own register. The first
+  // version described the bot's action in the GENDERED first person ("میں پہلے
+  // بنا چکی ہوں"), which nothing else here does: every other string puts what
+  // the bot did in the passive ("تجزیہ کیا جائے گا", "پڑھا جا رہا ہے",
+  // "موصول ہو گیا"). It also had a bare conditional with no اگر…تو frame and
+  // "نئی رائے" for feedback where the catalog says "تجزیہ". Keep the passive,
+  // keep object agreement (بھیجی agrees with ریکارڈنگ, never with the teacher),
+  // and reuse this file's vocabulary. Body message — no 60/20 field cap applies
+  // (language-protocol §3).
   duplicateRecording: {
     ...en("📋 I've heard this recording before — it's the same one you sent me earlier, so here is the report I already made for it.\n\nScoring it again would give you a slightly different number for the very same lesson, and that wouldn't be fair to you. Send a *new* recording whenever you'd like fresh feedback."),
-    ur: '📋 یہ ریکارڈنگ مجھے پہلے بھی مل چکی ہے — یہ وہی ہے جو آپ نے پہلے بھیجی تھی، اس لیے اسی کی رپورٹ حاضر ہے جو میں پہلے بنا چکی ہوں۔\n\nاسے دوبارہ جانچنے سے اُسی سبق کا نمبر تھوڑا مختلف آتا، اور یہ آپ کے ساتھ انصاف نہ ہوتا۔ نئی رائے کے لیے جب چاہیں *نئی* ریکارڈنگ بھیج دیجیے۔',
+    ur: '📋 یہ ریکارڈنگ پہلے بھی موصول ہو چکی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے اس سے پہلے بھیجی تھی، اس لیے اسی کی رپورٹ دوبارہ بھیجی جا رہی ہے۔\n\nاگر اسی آڈیو کا دوبارہ تجزیہ کیا جائے تو اُسی سبق کے نمبروں میں معمولی فرق آ سکتا ہے، جو آپ کے ساتھ انصاف نہیں ہوگا۔ نئے تجزیے کے لیے جب چاہیں *نئی* ریکارڈنگ بھیج دیجیے۔',
   },
 
   // ── The classroom-audio confirmation ──────────────────────────────────────
