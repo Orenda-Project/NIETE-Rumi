@@ -55,6 +55,23 @@ const NO_PLAN_RE = [
   /(?:منصوبہ|پلان)[^۔\n]{0,20}نہیں/,
 ];
 
+// Under this length, MARKERS ALONE ARE NOT ENOUGH — a teacher narrating the
+// lesson she just taught ("Today I taught grade 5 the lesson on poetry, I did
+// one activity and checked with questions") names three parts of a plan in one
+// flowing sentence and would otherwise be graded as her plan. What separates a
+// plan from prose about a plan, at this length, is that a plan is LAID OUT:
+// a label, a line per step, a numbered list. Long texts are exempt — volume is
+// its own evidence, and a long plan written as prose is still a plan.
+const STRUCTURE_REQUIRED_BELOW = 250;
+
+// A leading label ("Lesson plan:", "Objectives —"), any line break, or a
+// bulleted/numbered step.
+function hasPlanStructure(body) {
+  if (/\n/.test(body)) return true;
+  if (/^[^\n]{0,60}:/.test(body)) return true;
+  return /(^|\n)\s*(?:\d+[.)]|[-*\u2022])\s/.test(body);
+}
+
 // Above this, the sheer volume of content is its own evidence and a stray
 // negation inside a long plan ("no homework this week") must not veto it. The
 // ambiguity the guard exists for lives in the short texts.
@@ -110,6 +127,7 @@ function looksLikePastedLessonPlan(text) {
   const length = [...body].length;
   if (length < MIN_PASTED_LP_CHARS) return false;
   if (length < NO_PLAN_GUARD_CEILING && NO_PLAN_RE.some((re) => re.test(body))) return false;
+  if (length < STRUCTURE_REQUIRED_BELOW && !hasPlanStructure(body)) return false;
 
   const markers = LP_MARKERS.filter((re) => re.test(body)).length;
   if (markers >= MIN_MARKERS) return true;

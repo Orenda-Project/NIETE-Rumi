@@ -433,3 +433,50 @@ describe('bd-cq1go · a short but real lesson plan is still a lesson plan', () =
     }
   });
 });
+
+// ------------------------------------------------------------------
+// 8. bd-cq1go — prose ABOUT a plan is not a plan.
+//
+// Dropping the floor to 140 exposed the real false positive: a teacher
+// narrating the lesson she just taught, or asking how to write a plan, names
+// three parts of one in a single flowing sentence. Under 250 points, markers
+// alone are no longer enough — the text must also be LAID OUT like a plan.
+// ------------------------------------------------------------------
+describe('bd-cq1go · short prose about a plan is not a plan', () => {
+  const { looksLikePastedLessonPlan } = require('../../bot/shared/services/coaching/lp-coaching/lp-text-paste.service');
+
+  it('ignores a teacher narrating the lesson she just taught', () => {
+    expect(looksLikePastedLessonPlan(
+      'Today I taught grade 5 the lesson on poetry, I did one activity with them and checked with questions at the end. The children enjoyed it a lot.'
+    )).toBe(false);
+  });
+
+  it('ignores a teacher ASKING how to write one', () => {
+    expect(looksLikePastedLessonPlan(
+      'Can you tell me how to make a good lesson plan for grade 5 English? I want to include an activity and some assessment at the end of the class.'
+    )).toBe(false);
+  });
+
+  it('ignores feedback about a plan we sent her', () => {
+    expect(looksLikePastedLessonPlan(
+      'The lesson plan you sent me for grade 5 was quite good but the activity was too long for a 35 minute class and the assessment part was not clear to me.'
+    )).toBe(false);
+  });
+
+  it('still accepts a one-LINE plan that is laid out with a label', () => {
+    // One line, but labelled and specific — a plan, not prose about one.
+    expect(looksLikePastedLessonPlan(
+      'Lesson plan for grade 5 English chapter 7: read the poem aloud, explain what it means, then an activity where each child recites a favourite sher and we check understanding.'
+    )).toBe(true);
+  });
+
+  it('exempts a LONG plan written as prose — volume is its own evidence', () => {
+    const longProse = 'For this class I will begin by asking the children what kindness means to them and '
+      + 'collect their answers on the board, then I will read the first two paragraphs of the passage aloud '
+      + 'so they hear the intonation, after that they will read in pairs one paragraph each, and finally '
+      + 'every child writes two sentences about the moral of the lesson which I will check, and for homework '
+      + 'they read the passage once at home and underline five new words from the chapter.';
+    expect([...longProse].length).toBeGreaterThan(250);
+    expect(looksLikePastedLessonPlan(longProse)).toBe(true);
+  });
+});
