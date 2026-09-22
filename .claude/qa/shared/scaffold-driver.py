@@ -15,24 +15,47 @@ Writes .claude/qa/shared/features/<feature>.cjs   (only if absent, or --force)
 """
 import argparse, os, re, sys
 
+# Mirrors SCENARIO_ID_RE in validate_specs.py: letters then digits.
+ID_TAG_RE = re.compile(r"^[A-Za-z]{1,5}\d{1,3}$")
+PRIORITY_TAGS = frozenset({"p0", "p1", "p2", "p3"})
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
 
-def scenarios(feature_path):
-    """[(id, name)] for every @e2e scenario, id = <PREFIX><NN> from the feature name."""
+def scenarios(feature_path, px=None):
+    """[(id, name)] for every @e2e scenario.
+
+    The id comes from the scenario's OWN tag (`@COA16`) when it has one — that tag is the identity
+    that binds it to the driver (bd-bufzl). Positional ids are the fallback for a spec that has not
+    been tagged yet, and they are exactly why the tag exists: inserting a scenario renumbers every
+    id after it, so yesterday's COA07 silently becomes COA08.
+    """
     lines = open(feature_path, encoding="utf-8").read().splitlines()
-    out, pending_e2e = [], False
+    out, pending_e2e, pending_id, n = [], False, None, 0
     for ln in lines:
-        s = ln.strip()
-        if s.startswith("@"):
-            pending_e2e = "@e2e" in s
-        elif s.startswith("Scenario:") and pending_e2e:
-            out.append(s[len("Scenario:"):].strip())
-            pending_e2e = False
-        elif s and not s.startswith("#"):
-            pass
+        t = ln.strip()
+        if t.startswith("@"):
+            tags = t.split()
+            pending_e2e = "@e2e" in tags
+            # @P1/@P2/@P3 are priority, not identity, and they match the same letters-then-digits
+            # shape — so prefer a tag whose letters ARE this feature's prefix, and never take a
+            # priority tag as an id.
+            want = (px or prefix_for(feature_path)).lower()
+            cands = [x[1:] for x in tags
+                     if ID_TAG_RE.match(x[1:]) and x[1:].lower() not in PRIORITY_TAGS]
+            pending_id = next((c for c in cands if c.lower().startswith(want)), None) \
+                or next(iter(cands), None)
+        elif t.startswith("Scenario:") and pending_e2e:
+            n += 1
+            name = t[len("Scenario:"):].strip()
+            out.append((pending_id or "%s%02d" % (px or prefix_for(feature_path), n), name))
+            pending_e2e, pending_id = False, None
     return out
+
+
+def prefix_for(feature_path):
+    return prefix(os.path.splitext(os.path.basename(feature_path))[0])
 
 
 def prefix(feature):
@@ -40,17 +63,19 @@ def prefix(feature):
     return (base[:3] or "f").upper()
 
 
-def render(feature, names):
+def stub(sid, name):
+    esc = name.replace("'", "\\'")
+    return (
+
+        f"  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, {{ ...evidence }}).\n"
+        f"  rec('{sid}', '{esc}', 'BLOCKED',\n"
+        f"      {{ reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }}, 0);"
+    )
+
+
+def render(feature, pairs):
     px = prefix(feature)
-    stubs = []
-    for i, nm in enumerate(names, 1):
-        sid = f"{px}{i:02d}"
-        esc = nm.replace("'", "\\'")
-        stubs.append(
-            f"  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, {{ ...evidence }}).\n"
-            f"  rec('{sid}', '{esc}', 'BLOCKED',\n"
-            f"      {{ reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }}, 0);"
-        )
+    stubs = [stub(sid, nm) for sid, nm in pairs]
     body = "\n\n".join(stubs) if stubs else \
         "  rec('" + px + "01', 'TODO first scenario', 'BLOCKED', { reason: 'no @e2e scenarios found in the .feature yet' }, 0);"
     return f"""// @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
@@ -69,28 +94,80 @@ exports.run = async ({{ api, rec, sleep }}) => {{
 """
 
 
+RECORDED_ID_RE = re.compile(r"rec\(\s*'([A-Za-z0-9_-]+)'")
+
+
+def recorded_ids(driver_path):
+    """Every scenario id the driver already records. Read from rec() calls, because that is what the
+    runner actually collects — a comment mentioning COA07 proves nothing."""
+    return set(RECORDED_ID_RE.findall(open(driver_path, encoding="utf-8").read()))
+
+
+def sync(driver_path, pairs):
+    """Append a stub for each spec scenario the driver does not record. Returns the ids appended.
+
+    NEVER rewrites existing scenario code: the new stubs go in immediately before the closing brace
+    of exports.run, and everything above is copied byte for byte. A hand-written driver is worth
+    more than any stub, so the only safe edit is an additive one.
+    """
+    src = open(driver_path, encoding="utf-8").read()
+    have = recorded_ids(driver_path)
+    missing = [(sid, nm) for sid, nm in pairs if sid not in have]
+    if not missing:
+        return []
+    cut = src.rstrip().rfind("};")
+    if cut == -1:
+        raise SystemExit("cannot find the end of exports.run in %s — refusing to guess" % driver_path)
+    block = ("\n  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature\n"
+             "  //    but had no driver. Implement each one, then turn BLOCKED into V(...).\n"
+             + "\n\n".join(stub(sid, nm) for sid, nm in missing) + "\n\n")
+    open(driver_path, "w", encoding="utf-8").write(src[:cut] + block + src[cut:])
+    return [sid for sid, _ in missing]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("feature")
     ap.add_argument("--force", action="store_true", help="overwrite an existing driver (never a real one by accident)")
+    ap.add_argument("--sync", action="store_true",
+                    help="append stubs for spec scenarios the EXISTING driver does not record")
+    ap.add_argument("--root", default=ROOT, help="repo root (tests use a throwaway tree)")
     a = ap.parse_args(argv)
 
-    feature_path = os.path.join(ROOT, "tests", "features", "whatsapp", "niete", a.feature + ".feature")
-    driver_path = os.path.join(ROOT, ".claude", "qa", "shared", "features", a.feature + ".cjs")
+    feature_path = os.path.join(a.root, "tests", "features", "whatsapp", "niete", a.feature + ".feature")
+    driver_path = os.path.join(a.root, ".claude", "qa", "shared", "features", a.feature + ".cjs")
 
     if not os.path.isfile(feature_path):
-        print("no spec at %s — author it first (Phase 1 / gherkin-spec-sync)" % os.path.relpath(feature_path, ROOT))
+        print("no spec at %s — author it first (Phase 1 / gherkin-spec-sync)" % os.path.relpath(feature_path, a.root))
         return 2
+
+    pairs = scenarios(feature_path, prefix(a.feature))
+
+    if a.sync:
+        if not os.path.isfile(driver_path):
+            print("no driver at %s — run without --sync to create one"
+                  % os.path.relpath(driver_path, a.root))
+            return 2
+        added = sync(driver_path, pairs)
+        if not added:
+            print("%s is already in sync with its spec (%d scenario(s))"
+                  % (os.path.relpath(driver_path, a.root), len(pairs)))
+            return 0
+        print("appended %d stub(s) to %s: %s"
+              % (len(added), os.path.relpath(driver_path, a.root), ", ".join(added)))
+        print("  Each records BLOCKED until you implement it. A stub is NOT coverage.")
+        return 0
+
     if os.path.isfile(driver_path) and not a.force:
-        print("driver already exists: %s (use --force to overwrite — but a real driver should never be clobbered)"
-              % os.path.relpath(driver_path, ROOT))
+        print("driver already exists: %s — use --sync to append the scenarios it is missing "
+              "(--force overwrites, but a real driver should never be clobbered)"
+              % os.path.relpath(driver_path, a.root))
         return 1
 
-    names = scenarios(feature_path)
-    open(driver_path, "w", encoding="utf-8").write(render(a.feature, names))
+    open(driver_path, "w", encoding="utf-8").write(render(a.feature, pairs))
     print("scaffolded %s with %d scenario stub(s). Next: fill in the interactions, then run"
-          % (os.path.relpath(driver_path, ROOT), len(names)))
-    print("  bash .claude/qa/shared/commit-e2e.sh HEAD --features %s --record-missing   # if it calls vendors" % a.feature)
+          % (os.path.relpath(driver_path, a.root), len(pairs)))
+    print("  bash .claude/qa/shared/commit-e2e.sh HEAD --features %s" % a.feature)
     return 0
 
 
