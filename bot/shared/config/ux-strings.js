@@ -223,6 +223,59 @@ const UX_STRINGS = {
     ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں، اس لیے لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
   },
 
+  // ─── the coaching ask on the first lesson plan of the day ─────
+  //
+  // A teacher took a lesson plan this morning; a few minutes later they are
+  // asked whether they would like that lesson coached. The whole point is that it
+  // asks for nothing new — the lesson is going to be taught anyway, and two teachers
+  // in three already hold the WhatsApp mic button for their recordings (65.8%
+  // of 5,245 measured on production, 15-22 Sep). So the copy names the mic, not
+  // an attachment, and asks for 20-45 minutes, which is what a real lesson runs
+  // (median 19.9 min, p90 31.8).
+  //
+  // "You planned", never "you taught": the bot knows a PDF was delivered and
+  // nothing whatever about whether the class happened.
+  //
+  // Gender-neutral in both languages. The Urdu never inflects for the
+  // addressee: every verb is an imperative or subjunctive (kareN, bhejeN,
+  // karooN) or agrees with its own noun (report mil jaye gi, tajzia ho jaye ga).
+  // Bodies are 170-300 code points against the 1,024 cap; the two buttons are
+  // 15-17 code points against 20, measured in code points.
+  lpAskBody: {
+    en: "You planned a lesson with me today. If you record the class while you teach it, you will get a coaching report back — what worked, and one thing to try in the next lesson. Would you like to record today's lesson?",
+    ur: 'آج آپ نے میرے ساتھ ایک سبق کی تیاری کی۔ پڑھاتے وقت اگر کلاس ریکارڈ کر لیں تو آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کیا آج کا سبق ریکارڈ کرنا ہے؟',
+  },
+  lpAskBodyFirstTime: {
+    en: "You planned a lesson with me today. Here is something you may not have tried: record the class on your phone while you teach it, and you will get a coaching report back — what worked, and one thing to try in the next lesson. Nobody else needs to be in the room. Would you like to start with today's lesson?",
+    ur: 'آج آپ نے میرے ساتھ ایک سبق کی تیاری کی۔ ایک چیز جو شاید ابھی تک نہیں آزمائی: پڑھاتے وقت اپنے فون پر کلاس ریکارڈ کر لیں، اور آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کمرے میں کسی اور کا ہونا ضروری نہیں۔ کیا آج کے سبق سے شروع کریں؟',
+  },
+  lpAskYes: { en: 'Record my lesson', ur: 'سبق ریکارڈ کروں' },
+  lpAskNo: { en: 'Not today', ur: 'آج نہیں' },
+  // Sent on a tap of yes, and ALSO the copy the /menu Classroom Coaching entry
+  // now uses — one door, one instruction. The old menu line asked
+  // for "at least 15 minutes", which is the routing threshold, not an ask a
+  // teacher can act on; 20-45 minutes is the lesson.
+  lpAskYesReply: {
+    en: 'Record your lesson with the WhatsApp mic — hold the mic button, slide up to lock it, and send the recording when the class ends. 20 to 45 minutes of the lesson is ideal.',
+    ur: 'اپنا سبق واٹس ایپ کے مائیک سے ریکارڈ کریں — مائیک کا بٹن دبائے رکھیں، لاک کرنے کے لیے اوپر سلائیڈ کریں، اور کلاس ختم ہونے پر ریکارڈنگ بھیج دیں۔ سبق کے 20 سے 45 منٹ بہترین ہیں۔',
+  },
+  lpAskHowtoCaption: {
+    en: 'How to record a lesson with the WhatsApp mic — 30 seconds.',
+    ur: 'واٹس ایپ کے مائیک سے سبق ریکارڈ کرنے کا طریقہ — 30 سیکنڈ۔',
+  },
+  lpAskDeclined: {
+    en: 'No problem. Classroom Coaching is in the menu whenever you want it.',
+    ur: 'کوئی بات نہیں۔ جب بھی چاہیں، مینو میں کلاس روم کوچنگ موجود ہے۔',
+  },
+  // The teacher said yes and then sent part of a lesson. This is NOT the generic
+  // short-recording guidance: they are not answered as if they had asked a
+  // question, because they did not ask one — they sent a recording they expect to
+  // be coached, and the message has to say plainly that it was not.
+  lpAskTooShort: {
+    en: 'That recording is about {minutes} minutes, which is too short to coach — a report needs the whole lesson, 20 to 45 minutes. Record the full class and send it, and I will analyse that one. I have not analysed this recording.',
+    ur: 'یہ ریکارڈنگ تقریباً \u2066{minutes}\u2069 منٹ کی ہے، جو کوچنگ کے لیے بہت مختصر ہے — رپورٹ کے لیے پورا سبق درکار ہے، 20 سے 45 منٹ۔ پوری کلاس ریکارڈ کر کے بھیجیں، اس کا تجزیہ ہو جائے گا۔ اس ریکارڈنگ کا تجزیہ نہیں کیا گیا۔',
+  },
+
   // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's

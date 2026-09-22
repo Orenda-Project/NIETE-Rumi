@@ -287,6 +287,34 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     error_text: errorText,
   });
 
+  // ── The coaching ask ──────────────────────────────────────────
+  //
+  // The first lesson plan a teacher takes in a day books one ask: would they like this
+  // lesson recorded and coached. Here, straight after the 'sent' row, because
+  // this is the only place that knows WHICH version of WHICH lesson reached them
+  // — and only for the lesson itself: `sendAnswerKeyIfAny` below records its own
+  // download row and must never book a second ask.
+  //
+  // Required lazily and wrapped, deliberately. The nudges core lands in its own
+  // PR, and a teacher's lesson plan must not depend on a module that may not be
+  // there yet. Nothing in this block may cost the teacher the PDF.
+  if (ok) {
+    try {
+      const LpCoachingAsk = require('./nudges/lp-coaching-ask.service');
+      await LpCoachingAsk.onLessonDelivered({
+        userId,
+        lessonId,
+        assetId: asset.id,
+        versionStamp: asset.version_stamp,
+        contentHash: asset.content_hash,
+        deliveredAt: new Date().toISOString(),
+        assetKind: asset.asset_kind || 'lesson',
+      });
+    } catch (err) {
+      logToFile('LP v8: coaching ask not scheduled (non-fatal)', { userId, lessonId, error: err.message });
+    }
+  }
+
   // bd-wpupy F5: leave a trace of the hand-over in the dialogue itself, so a
   // later "give me this in text form" has a correct antecedent. Grade/chapter
   // only — deliberately no title or content (see the service header). Only on

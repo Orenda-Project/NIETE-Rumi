@@ -5860,3 +5860,41 @@ $$;
 
 REVOKE ALL ON FUNCTION public.roster_class_timeline(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.roster_class_timeline(uuid) TO service_role;
+
+-- ─── teacher_nudges (migration V1.5.3) — scheduled teacher asks ─────────────
+-- Mirrors infrastructure/supabase/migrations/V1.5.3__teacher_nudges.sql so a
+-- clone bootstrapped from this file has the table the nudge sweeper reads.
+CREATE TABLE IF NOT EXISTS teacher_nudges (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  nudge_date    date NOT NULL,                       -- PKT calendar date
+  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer')),
+  status        text NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending','sending','sent','failed','skipped','expired')),
+  scheduled_at  timestamptz NOT NULL,
+  sent_at       timestamptz,
+  answered_at   timestamptz,
+  choice        text,                                -- 'yes' | 'no' | 'ignored' | 'class:<key>'
+  context       jsonb NOT NULL DEFAULT '{}'::jsonb,  -- lessons, class groups, skip reason, message ids
+  quiz_id       uuid REFERENCES quizzes(id) ON DELETE SET NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT teacher_nudges_one_per_day UNIQUE (user_id, nudge_date, kind)
+);
+
+-- The sweeper's due-scan. PARTIAL on status = 'pending' because that is the only
+-- state it ever selects, and the partial index stays small as sent rows pile up.
+CREATE INDEX IF NOT EXISTS teacher_nudges_due ON teacher_nudges (scheduled_at) WHERE status = 'pending';
+
+-- The per-teacher reads: this week's asks (the weekly cap), yesterday's answer
+-- (the declined streak), today's row of the other kind (the "no offer on a day
+-- they said yes" rule).
+CREATE INDEX IF NOT EXISTS teacher_nudges_user_recent ON teacher_nudges (user_id, nudge_date DESC);
+
+COMMENT ON TABLE teacher_nudges IS
+  'One scheduled ask per teacher, per PKT calendar day, per kind. The UNIQUE (user_id, nudge_date, kind) makes cohort building idempotent across worker replicas; the pending -> sending claim makes sending single-flight.';
+COMMENT ON COLUMN teacher_nudges.context IS
+  'jsonb sidecar: the lessons the ask is about, the class groups offered, skip_reason when status = skipped, error when status = failed, and the WhatsApp message ids once sent. Merged, never replaced, by the services that write it.';
+COMMENT ON COLUMN teacher_nudges.choice IS
+  'What the teacher tapped: yes | no | ignored | class:<grade>_<subject>. A stable token, never the button title (button copy is translated and changes).';
+
