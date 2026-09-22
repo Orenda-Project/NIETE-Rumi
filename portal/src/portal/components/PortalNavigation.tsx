@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, UserCheck, BookOpen } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
@@ -38,13 +38,32 @@ const PortalNavigation = () => {
   // many schools (85 of 400 assigned schools have more than one coach), so the
   // same tab would show them one school's data labelled as theirs. The other
   // four keep the nav they have; the endpoint 403s them regardless of the nav.
+  //
+  // bd-60174 — Attendance and Lessons join Analytics here. All three are
+  // principal-gated routes that existed with no nav entry: they were reachable
+  // only by an in-page link from Analytics, so a principal who landed anywhere
+  // else had no way to them. Reported as "the navigation does not guide the
+  // user". This is the Training bug above, on two more pages — a route nobody
+  // can find is not shipped.
   const isPrincipal = resolveRole(user) === 'principal';
   if (isPrincipal) {
-    leaderNav.push({
-      title: 'Analytics',
-      path: '/portal/leader/school-analytics',
-      icon: TrendingUp,
-    });
+    leaderNav.push(
+      {
+        title: 'Analytics',
+        path: '/portal/leader/school-analytics',
+        icon: TrendingUp,
+      },
+      {
+        title: 'Attendance',
+        path: '/portal/leader/attendance',
+        icon: UserCheck,
+      },
+      {
+        title: 'Lessons',
+        path: '/portal/leader/lessons',
+        icon: BookOpen,
+      },
+    );
   }
   const teacherNav = [
     { title: 'Dashboard', path: '/portal/dashboard', icon: Home },

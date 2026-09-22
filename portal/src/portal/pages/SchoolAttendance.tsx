@@ -30,9 +30,12 @@ function fmtDay(iso: string) {
 }
 
 /** One merged row — the G3 bar. */
-function GroupRow({ g }: { g: AttendanceGroup }) {
+function GroupRow({ g, unit }: { g: AttendanceGroup; unit: 'student' | 'teacher' }) {
   const pct = (n: number) => (g.chances > 0 ? (n / g.chances) * 100 : 0);
   const never = g.markedDays === 0;
+  // bd-60174: the factors are named. "1 × 19" told the reader nothing about
+  // what either number counted; a principal reported it as unreadable.
+  const people = `${g.people} ${unit}${g.people === 1 ? '' : 's'}`;
   return (
     <div
       data-testid={`group-${g.name}`}
@@ -46,9 +49,11 @@ function GroupRow({ g }: { g: AttendanceGroup }) {
       <div className="w-32 text-sm font-medium truncate" title={g.name}>{g.name}</div>
       {/* The product IS the denominator — showing only the factors makes the
           reader do the multiplication, which is the arithmetic this view was
-          built to remove. */}
-      <div className="w-28 text-xs text-muted-foreground tabular-nums">
-        {g.people} × {g.days} = <span className="font-medium text-foreground">{g.chances}</span>
+          built to remove. bd-60174 names the factors too: the product was
+          already here, but "1 × 19" never said what was being multiplied. */}
+      <div className="w-36 text-xs text-muted-foreground tabular-nums leading-tight">
+        {people} × {g.days} day{g.days === 1 ? '' : 's'} ={' '}
+        <span className="font-medium text-foreground">{g.chances}</span>
       </div>
 
       <div className="flex-grow flex h-6 rounded-md overflow-hidden bg-muted">
@@ -77,18 +82,31 @@ function GroupRow({ g }: { g: AttendanceGroup }) {
           // Red text, but only when the block is wide enough to hold it.
         >
           <span style={{ color: '#ef4444' }}>
-            {pct(g.neverMarked) > 14 ? `${g.neverMarked} unknown` : ''}
+            {/* bd-60174: "80 unknown" did not say unknown WHAT. It is the
+                person-days nobody ever marked — never a count of people. */}
+            {pct(g.neverMarked) > 14 ? `${g.neverMarked} never marked` : ''}
           </span>
         </div>
       </div>
 
-      <div className="w-36 text-right text-xs tabular-nums">
+      {/* bd-60174: this was "{present} / {absent}", which every reader parses
+          as part-over-whole — so 220 absences out of 20 chances, which is
+          impossible and was reported as a bug. Same two numbers, each named,
+          and no slash between them to invite the reading. */}
+      <div className="w-44 text-right text-xs tabular-nums leading-tight">
         {never ? (
           <span className="text-red-700 font-semibold">never marked</span>
         ) : (
           <>
-            <span className="font-medium">{g.present} / {g.absent}</span>
-            <span className="text-muted-foreground"> · {g.markedDays}/{g.days} days</span>
+            <div>
+              <span className="font-medium">{g.present}</span>
+              <span className="text-muted-foreground"> present · </span>
+              <span className="font-medium">{g.absent}</span>
+              <span className="text-muted-foreground"> absent</span>
+            </div>
+            <div className="text-muted-foreground">
+              marked on {g.markedDays} of {g.days} day{g.days === 1 ? '' : 's'}
+            </div>
           </>
         )}
       </div>
@@ -347,7 +365,7 @@ const SchoolAttendance = () => {
                 data.students.groups.length === 0
                   ? <p className="text-muted-foreground text-sm">No class registers in this window.</p>
                   : <div className="flex flex-col gap-1.5">
-                      {data.students.groups.map((g) => <GroupRow key={g.name} g={g} />)}
+                      {data.students.groups.map((g) => <GroupRow key={g.name} g={g} unit="student" />)}
                     </div>
               ) : (
                 <ByDayTable rows={data.students.byDay} days={data.schoolDays} id="students" />
@@ -368,7 +386,7 @@ const SchoolAttendance = () => {
                 data.staff.groups.length === 0
                   ? <p className="text-muted-foreground text-sm">No teacher attendance in this window.</p>
                   : <div className="flex flex-col gap-1.5">
-                      {data.staff.groups.map((g) => <GroupRow key={g.name} g={g} />)}
+                      {data.staff.groups.map((g) => <GroupRow key={g.name} g={g} unit="teacher" />)}
                     </div>
               ) : (
                 <ByDayTable rows={data.staff.byDay} days={data.schoolDays} id="staff" />
