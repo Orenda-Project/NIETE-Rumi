@@ -1629,6 +1629,25 @@ const UX_STRINGS = {
     en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
     ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد ⁦/quiz⁩ آزمائیں۔',
   },
+  // ── the LP-born quiz's own failure reasons (PLAN_R8 §3.6) ────────────────
+  // `tqCouldNotMake` above names "this lesson's recording" and "the transcript".
+  // A quiz written from the lesson PLAN a teacher was served has neither, so
+  // that copy would name a state that never existed — and one shared fallback
+  // across several distinct failures is what sent a whole fix cycle at the
+  // wrong layer before (root CLAUDE.md rule 24d). Three reasons, three
+  // sentences, each saying which step actually stopped.
+  tqFailedLpSource: {
+    en: 'I couldn’t open that lesson plan, so there was nothing to write the quiz from. Send /quiz to pick another lesson.',
+    ur: 'اس سبق کا lesson plan نہیں کھل سکا، اس لیے quiz بنانے کے لیے کچھ نہیں تھا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqFailedLpDigest: {
+    en: 'I couldn’t read enough of that lesson plan to write a good quiz. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan سے اتنا نہیں پڑھا جا سکا کہ اچھا quiz بن سکے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqFailedLpAuthor: {
+    en: 'I couldn’t make a good quiz from that lesson plan — the questions didn’t come out clear enough. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan سے اچھا quiz نہیں بن سکا — سوالات کافی واضح نہیں بنے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد ⁦/quiz⁩ بھیج کر حاصل کریں۔',
@@ -1668,6 +1687,8 @@ const UX_STRINGS = {
   tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
   tqRowReportSent: { en: 'Report sent · {finished} done', ur: 'رپورٹ بھیجی، {finished} مکمل' },
   tqRowFailed: { en: 'Failed — tap to retry', ur: 'نہیں بنا — دوبارہ tap' },
+  // The lp_v8 row: tapping it cannot retry (no session), so it does not say so.
+  tqRowFailedLp: { en: 'Didn’t work', ur: 'نہیں بن سکا' },
   tqRowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
   tqRowOlderDesc: { en: 'The next 9, going back', ur: 'اگلے 9، اور پیچھے' },
   // The date is here because she is choosing between lessons, and two lessons
@@ -1787,6 +1808,12 @@ const UX_STRINGS = {
   tqFlowResultsMaking: {
     en: 'The quiz is being made — about a minute. It will arrive in your chat with the message to forward.',
     ur: '\u200Fquiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
+  },
+  // An lp_v8 quiz was written from the lesson PLAN — no recording to name.
+  // No "try again": /quiz cannot re-make it without a session (PLAN_R8 §3.4).
+  tqFlowResultsFailedLp: {
+    en: 'This quiz could not be made from the lesson plan. The next lesson you plan can have a quiz of its own.',
+    ur: 'اس lesson plan سے quiz نہیں بن سکا۔ اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
   },
   tqFlowResultsFailed: {
     en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',
