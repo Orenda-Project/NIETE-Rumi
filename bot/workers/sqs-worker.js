@@ -1542,6 +1542,65 @@ function startWorker() {
     }, STALE_RECOVERY_INTERVAL_MS);
 
 
+    // The teacher-nudge sweep — the periodic half of
+    // the LP-born coaching ask and the 15:00 quiz offer. Expire what is stuck,
+    // build each kind's cohort, claim what is due, hand it to that kind's handler.
+    //
+    // GATED ON THE QUEUE CLASS. `sqs-worker` and `sqs-worker-video` are two Railway
+    // services running THIS SAME FILE. An ungated interval would sweep every tick
+    // twice, on two services, for ever. The pending -> sending claim makes that
+    // harmless rather than double-sending — but "harmless because we win a race" is
+    // not a design. One owning worker class is, and `main` is it.
+    //
+    // GATED ON THE FLAG AT BOOT as well as inside runSweep: unset and this block
+    // registers nothing, so merging it changes nothing anywhere. Turning the flag
+    // OFF takes effect on the very next tick (runSweep re-reads it); turning it ON
+    // needs a restart, which is what changing a Railway variable does anyway.
+    //
+    // NOTE FOR THE HANDLER LANES: the sweeper claims only kinds that something in
+    // THIS process has registered. Whatever module calls `register()` must be
+    // loaded by the worker (or by its require chain) or its kind is never claimed.
+    const teacherNudges = require('../shared/services/nudges/teacher-nudges.sweeper');
+    const nudgeQueues = SQSCoachingWorker._enabledQueues();
+    if (teacherNudges.isEnabled() && nudgeQueues.has('main')) {
+      // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the
+      // one-minute floor is refused rather than clamped, and the default stands.
+      const TEACHER_NUDGES_SWEEP_MS = (() => {
+        const raw = process.env.TEACHER_NUDGES_SWEEP_MINUTES;
+        const mins = Number(raw);
+        if (raw === undefined || !Number.isFinite(mins) || mins < 1) return 5 * 60 * 1000;
+        return mins * 60 * 1000;
+      })();
+      const runTeacherNudgesSweep = async () => {
+        if (worker.isShuttingDown) return;
+        try {
+          await teacherNudges.runSweep({});
+        } catch (error) {
+          // runSweep never throws by contract; wrapped anyway, because a sweeper
+          // that can take the interval down takes both asks with it.
+          logToFile('Error in teacher-nudge sweep (non-fatal)', { error: error.message }, 'error');
+        }
+      };
+      // First run 90 s after boot: this service redeploys several times on a busy
+      // day and each restart resets the interval, so an interval alone can be reset
+      // for ever and never fire (Class P).
+      setTimeout(runTeacherNudgesSweep, 90 * 1000);
+      setInterval(runTeacherNudgesSweep, TEACHER_NUDGES_SWEEP_MS);
+      logToFile('Teacher-nudge sweep enabled', {
+        everyMinutes: TEACHER_NUDGES_SWEEP_MS / 60000,
+        firstRunSeconds: 90,
+        queues: [...nudgeQueues],
+      });
+    } else {
+      // Silent-by-default is how an unswept queue class stays invisible. Say which
+      // of the two gates closed, once, in the deploy log.
+      logToFile('Teacher-nudge sweep NOT enabled on this service', {
+        flag: teacherNudges.isEnabled(),
+        queues: [...nudgeQueues],
+        reason: !teacherNudges.isEnabled() ? 'TEACHER_NUDGES_ENABLED unset' : 'this worker class does not own the main queue',
+      });
+    }
+
     // Offer interrupted tasks back. Rides the same always-on worker as the sweeps
     // above (this deployment has no cron), on a deliberately slower interval: the
     // window we are detecting is measured in hours, and a teacher whose step timed
