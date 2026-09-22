@@ -268,3 +268,30 @@ if __name__ == "__main__":
                 print(f"  FAIL {name}: {type(e).__name__}: {e}")
     print("FAILED" if fails else "all passed")
     raise SystemExit(1 if fails else 0)
+
+
+def test_period_printed_is_the_timetabled_period_not_the_budget():
+    """bd-nddr1. The header prints the PERIOD; the steps are budgeted to less.
+
+    Every enrichment record in the corpus states `duration_min: 30` and no
+    `content_min` -- the field named after the period is in fact carrying the
+    budget. Trusting it printed "30 min" on a 40-minute lesson, which is the
+    one number on the page a teacher checks against her own timetable.
+
+    `cbriefbasics.minutes()` already resolves this pair for the author and,
+    since bd-jfkl0, for the gate. D0 must ask the same question of the same
+    resolver, or the plan is briefed against one period and printed with
+    another.
+    """
+    doc = build()
+    assert doc["period_minutes"] == 40, doc["period_minutes"]
+    total = sum(s["minutes"] for s in doc["sections"])
+    assert total <= 30, f"steps fill {total} of the 30-minute budget"
+
+
+def test_a_row_that_states_both_is_taken_at_its_word():
+    """A record that has learned both words keeps its own period."""
+    enr = json.loads(json.dumps(ENR))
+    enr["generated"]["duration_min"] = 35
+    enr["generated"]["content_min"] = 25
+    assert d0.to_lp_doc(enr, PT)["period_minutes"] == 35

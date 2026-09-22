@@ -27,11 +27,13 @@ that is the answer (spec/00-program.md, binding working rules).
 
 from __future__ import annotations
 
+import cbriefbasics
 import d0_blocks as B
 import d0_bigidea
 import d0_board
 import d0_close
 import d0_diagram
+import d0_media
 import d0_hook
 import d0_page2
 import d0_route
@@ -206,7 +208,7 @@ def _one_screen(g):
 
 
 def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
-              segment=None, force_lp=False):
+              segment=None, force_lp=False, media=None):
     """Build an lp_doc v3.0 from one gate-passed enrichment record.
 
     `enr`        the enrichment file (its `generated` payload)
@@ -221,6 +223,8 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
     `segment`    the curriculum-matrix row, for the route check. Optional
                  because the envelope carries the type too -- its absence may
                  not disable the check (d0_route).
+    `media`      this day's row from the `Videos <-> SLOs` map, or None. Keyed on
+                 SLO, so the same map serves both segmentations -- see d0_media.
     `force_lp`   render a review day as a lesson plan anyway. The deliberate,
                  named escape hatch; never the default.
     """
@@ -243,6 +247,9 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
     sections = [_intro(g, page), _development(g), _activity(g),
                 d0_close.conclusion(g), d0_close.homework(g)]
     dia_gaps = d0_diagram.apply_slots(sections, g.get("diagrams"))
+    # THE VIDEO (bd-v2ikv). Same additive contract as the diagram slots: no mapped row
+    # means no `video` key, and the renderer's videoRow() then prints nothing at all.
+    vid_gaps = d0_media.apply_video(sections, media)
     d0_close.seat_the_check(sections, g)
     # The halfway landmark is seated last because which section owns minute 20
     # is a fact about the whole timeline, not about any one section (bd-p4ulq).
@@ -270,7 +277,13 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
             "cognitive_level": BLOOM_TO_LEVEL.get((g.get("bloom") or "").lower(), "U"),
         },
         "lp_type": _lp_type(enr.get("lp_type"), pt.get("subject")),
-        "period_minutes": int(g.get("duration_min") or 0),
+        # bd-nddr1. The header prints the PERIOD, not the budget. Every corpus row
+        # states `duration_min: 30` and no `content_min`, so the field named after
+        # the period carries the budget; read raw it printed "30 min" on a
+        # 40-minute lesson. `cbriefbasics.minutes()` is the one resolver the author
+        # brief and the gate both already ask -- D0 asks it too, or the plan is
+        # briefed against one period and printed with another.
+        "period_minutes": cbriefbasics.minutes(g)[0],
         "materials": g.get("materials") or [],
         "objectives": _objectives(g),
         "sections": sections,
@@ -278,7 +291,7 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
         "one_screen": _one_screen(g),
         "notes": {
             "supplied": [f"primary lp_type: {enr.get('lp_type') or 'content'}"],
-            "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)] + dia_gaps,
+            "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)] + dia_gaps + vid_gaps,
         },
         "needs_human_review": bool(enr.get("needs_human_review")),
     }
