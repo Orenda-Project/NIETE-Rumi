@@ -29,31 +29,35 @@ const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
+const Store = require('./lp-asset-source.store');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
 
 /**
  * The slide script an lp_v8 quiz is written from: the EXACT served version,
- * named by the row's first lesson (PLAN_R8 D13). `null` on every kind of miss —
- * no lesson on the row, no source ingested for that version, or the store
- * failing — because each of them means the same thing to the teacher: there is
- * nothing to write this quiz from. The store is lane S's module and is
- * required lazily, so a deploy without it degrades to `source_missing` rather
- * than taking the worker down at boot.
+ * named by the row's first lesson (PLAN_R8 D13). `null` means there is nothing
+ * to write this quiz from — no lesson on the row, or no source ingested for
+ * that version — and the quiz fails `source_missing`.
+ *
+ * A store ERROR is not that. The store throws on a DB error precisely so it is
+ * never mistaken for "this lesson has no source"; it propagates from here, the
+ * row stays `generating`, and SQS redelivers the job (at-least-once) instead of
+ * the teacher being told, permanently, that the plan could not be opened.
  */
 async function resolveLessonSource(quiz) {
   const lesson = ((quiz.meta && quiz.meta.lessons) || [])[0];
   if (!lesson || !lesson.lesson_id) return null;
   try {
-    const Store = require('./lp-asset-source.store');
     const hit = await Store.resolveSlideScript({
       lessonId: lesson.lesson_id, versionStamp: lesson.version_stamp, contentHash: lesson.content_hash,
     });
     return (hit && hit.slideScript) || null;
   } catch (err) {
-    logToFile('❌ lp quiz: slide-script lookup failed', { quizId: quiz.id, lessonId: lesson.lesson_id, error: err.message }, 'error');
-    return null;
+    logToFile('❌ lp quiz: slide-script lookup failed — leaving the job to be redelivered', {
+      quizId: quiz.id, lessonId: lesson.lesson_id, error: err.message,
+    }, 'error');
+    throw err;
   }
 }
 
