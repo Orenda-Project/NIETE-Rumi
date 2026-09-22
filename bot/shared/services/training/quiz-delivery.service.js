@@ -2369,7 +2369,7 @@ async function saveModuleExamDraft({
       answered_at: new Date().toISOString(),
     }, { onConflict: 'attempt_id,question_index' });
   if (error) {
-    logToFile('❌ Module-exam draft save failed', {
+    logError('Module-exam draft save failed', {
       attemptId, questionIndex, error: error.message,
     });
     return { ok: false, reason: 'write_failed' };

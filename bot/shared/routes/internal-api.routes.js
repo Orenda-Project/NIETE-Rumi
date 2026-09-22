@@ -369,7 +369,7 @@ router.post('/training/level-grade', requireInternalKey, async (req, res) => {
   } catch (error) {
     // Fail CLOSED, like certify-level: a lookup failure must never read as a
     // pass. The caller renders "we could not check just now".
-    logToFile('❌ Internal training API failed', { route: 'level-grade', error: error?.message });
+    logError('Internal training API failed', { route: 'level-grade', error: error?.message });
     return res.status(500).json({ success: false, error: 'Grading failed' });
   }
 });
@@ -535,7 +535,7 @@ router.post('/training/module-exam-draft', requireInternalKey, async (req, res) 
     });
     return res.json({ success: true, ...out });
   } catch (error) {
-    logToFile('❌ Internal training API failed', { route: 'module-exam-draft', error: error?.message });
+    logError('Internal training API failed', { route: 'module-exam-draft', error: error?.message });
     return res.status(500).json({ success: false, error: 'Draft save failed' });
   }
 });
@@ -555,7 +555,7 @@ router.post('/training/module-exam-draft-load', requireInternalKey, async (req, 
     const out = await QuizDelivery.loadModuleExamDraft({ userId: b.userId, attemptId: b.attemptId });
     return res.json({ success: true, ...out });
   } catch (error) {
-    logToFile('❌ Internal training API failed', { route: 'module-exam-draft-load', error: error?.message });
+    logError('Internal training API failed', { route: 'module-exam-draft-load', error: error?.message });
     return res.status(500).json({ success: false, error: 'Draft load failed' });
   }
 });
