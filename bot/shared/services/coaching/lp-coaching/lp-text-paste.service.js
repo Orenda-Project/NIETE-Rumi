@@ -31,10 +31,34 @@
 
 const { logToFile } = require('../../../utils/logger');
 
-// A plan pasted into WhatsApp is long. Short answers at this step ("no",
-// "wait", a teacher's name and number) must never be mistaken for one.
-// Measured in CODE POINTS — `.length` over-counts Urdu and emoji.
-const MIN_PASTED_LP_CHARS = 280;
+// Short answers at this step ("no", "wait", a teacher's name and number) must
+// never be mistaken for a plan. Measured in CODE POINTS — `.length` over-counts
+// Urdu and emoji.
+//
+// bd-cq1go: this was 280, fitted to long formatted pastes (3,189 / 2,574 / 322
+// code points). The first real teacher to meet it on sandbox typed a compact
+// 3-line Roman-Urdu plan of 222 — three markers, unmistakably a plan — and it
+// was thrown away on LENGTH ALONE while her session sat waiting for one. A
+// number fitted to the longest samples is not a floor, it is a ceiling on who
+// gets served. 140 sits well under the shortest real plan seen (222) and well
+// over the conversational one-liners this step actually receives.
+const MIN_PASTED_LP_CHARS = 140;
+
+// The cost of a lower floor: a teacher SAYING she has no plan NAMES one, so she
+// clears the marker bar easily. Length used to exclude her by accident; now it
+// has to be said out loud. Anchored on the literal "lesson plan" (never a bare
+// "plan", which appears inside real plans — "students plan their answers") and
+// on a possession verb, so only "I don't have a lesson plan" shapes match.
+const NO_PLAN_RE = [
+  /\b(?:no|don'?t|do not|didn'?t|did not|haven'?t|have not|without (?:a|any))\b[^.\n]{0,25}\blesson\s*plan\b/i,
+  /\blesson\s*plan\b[^.\n]{0,20}\b(?:nahi|nai|nhi)\b/i,
+  /(?:منصوبہ|پلان)[^۔\n]{0,20}نہیں/,
+];
+
+// Above this, the sheer volume of content is its own evidence and a stray
+// negation inside a long plan ("no homework this week") must not veto it. The
+// ambiguity the guard exists for lives in the short texts.
+const NO_PLAN_GUARD_CEILING = 400;
 
 // Independent lesson-plan signals, English + Urdu. Counted DISTINCTLY: it is
 // how many different parts of a plan the text names, not how often.
@@ -83,7 +107,9 @@ function looksLikePastedLessonPlan(text) {
   // Slash commands are explicit intent and are matched further down the
   // handler; consuming one here would swallow it.
   if (body.startsWith('/')) return false;
-  if ([...body].length < MIN_PASTED_LP_CHARS) return false;
+  const length = [...body].length;
+  if (length < MIN_PASTED_LP_CHARS) return false;
+  if (length < NO_PLAN_GUARD_CEILING && NO_PLAN_RE.some((re) => re.test(body))) return false;
 
   const markers = LP_MARKERS.filter((re) => re.test(body)).length;
   if (markers >= MIN_MARKERS) return true;

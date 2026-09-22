@@ -389,3 +389,47 @@ describe('bd-we73k · the paste reaches DC and HITL alike, and nothing else', ()
     expect(pasted).toEqual([]);
   });
 });
+
+// ------------------------------------------------------------------
+// 7. bd-cq1go — the floor was fitted to the wrong sample.
+//
+// 280 code points was calibrated on long, formatted pastes (3,189 / 2,574 /
+// 322 chars). The first real teacher to try it on sandbox wrote a compact
+// 3-line Roman-Urdu plan of 222 — it cleared the evidence bar with 3 markers
+// and was rejected on LENGTH ALONE, so her session stayed without a plan and
+// generic routing told her to send a classroom recording she had already sent.
+//
+// Her exact text is the fixture: the bug is what a real teacher actually typed,
+// not a shape we imagined.
+// ------------------------------------------------------------------
+describe('bd-cq1go · a short but real lesson plan is still a lesson plan', () => {
+  const { looksLikePastedLessonPlan } = require('../../bot/shared/services/coaching/lp-coaching/lp-text-paste.service');
+
+  // Sandbox, 2026-09-22 06:01:58, user 44206d3b — 222 code points, verbatim.
+  const REAL_SHORT_LP = 'Lesson plan: shairi , tashreeh ko bacho ko explain krna.\n'
+    + 'Bacho ko mashoor shairoo k bary mai btana or shairi k impact ke batien\n'
+    + ' Aik activity rkhwana jis mai shairi krwaye jsye do bacho ke pair mai interactove bnany k lye.';
+
+  it('accepts the 222-char Roman-Urdu plan that the first live test rejected', () => {
+    expect([...REAL_SHORT_LP].length).toBe(222);
+    expect(looksLikePastedLessonPlan(REAL_SHORT_LP)).toBe(true);
+  });
+
+  it('still rejects a teacher SAYING she has no plan, however she phrases it', () => {
+    // The danger of a lower floor. Each of these names a plan and would clear
+    // the marker bar, so length alone can no longer be what saves us.
+    for (const s of [
+      "I don't have a lesson plan for this class today, sorry — the lesson was on poetry and I taught it from the textbook directly without writing anything down.",
+      'Sorry sir, lesson plan nahi hai is class ka, maine textbook se hi parhaya tha aaj, koi plan likha nahi tha is lesson ke liye.',
+      'اس کلاس کے لیے سبق کا منصوبہ نہیں ہے، میں نے کتاب سے ہی پڑھایا تھا اور کوئی تحریری منصوبہ نہیں بنایا تھا۔',
+    ]) {
+      expect(looksLikePastedLessonPlan(s)).toBe(false);
+    }
+  });
+
+  it('still rejects ordinary short replies at the lesson-plan step', () => {
+    for (const s of ['no', 'nahi', 'wait', 'Sana Bibi 03001234567', 'ok thank you']) {
+      expect(looksLikePastedLessonPlan(s)).toBe(false);
+    }
+  });
+});
