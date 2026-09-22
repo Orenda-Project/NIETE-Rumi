@@ -180,6 +180,7 @@ class ReadingAssessmentService {
 
       const gradeResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.assessLanguage',
         messages: [{ role: 'user', content: gradeLevelPrompt }],
         temperature: 0.3,
         max_tokens: 100
@@ -348,6 +349,7 @@ class ReadingAssessmentService {
 
       const generatingResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.assessGrade',
         messages: [{ role: 'user', content: generatingPrompt }],
         temperature: 0.3,
         max_tokens: 80
@@ -508,6 +510,7 @@ class ReadingAssessmentService {
 
       const analyzingResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.assessAudio',
         messages: [{ role: 'user', content: analyzingPrompt }],
         temperature: 0.3,
         max_tokens: 100

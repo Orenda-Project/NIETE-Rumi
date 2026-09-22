@@ -547,6 +547,7 @@ IMPORTANT: Return ONLY valid JSON, no explanations.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
+      job: 'reading.fluencyMatch',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.1,
       max_tokens: 500
