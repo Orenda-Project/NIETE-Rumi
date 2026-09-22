@@ -46,7 +46,7 @@
  *     page with no history entry to come back to.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Award, Download, Eye, Loader2, AlertCircle, Lock } from 'lucide-react';
 import api from '../services/api';
 import { getApiBaseUrl, isNativeApp } from '@/lib/runtime';
@@ -126,6 +126,7 @@ export type CertifiableLevel = {
 export default function CertificatesPanel({
   levels,
   alwaysOpen = false,
+  reloadKey = 0,
 }: {
   /**
    * When given, the panel becomes THE SHELF (bd-60154): earned and unearned
@@ -138,6 +139,16 @@ export default function CertificatesPanel({
   levels?: CertifiableLevel[];
   /** The shelf does not hide; a drawer that hides its own subject taught nothing. */
   alwaysOpen?: boolean;
+  /**
+   * bd-60172 — bump to refetch. The load below latches on `loaded` so that
+   * toggling the drawer does not re-hit the API, but the shelf mounts open
+   * and never unmounts, which turned that latch into "stale forever": a
+   * certificate minted after the first fetch could not appear until the
+   * teacher reloaded the page. She did. The parent owns the one event that
+   * invalidates this list — issuing a certificate — so it says so by
+   * changing this key.
+   */
+  reloadKey?: number;
 } = {}) {
   const shelf = Array.isArray(levels);
   const [open, setOpen] = useState(false);
@@ -152,8 +163,9 @@ export default function CertificatesPanel({
   // native shell cannot change under a running app.
   const native = isNativeApp();
 
-  const load = useCallback(async () => {
-    if (loaded || loading) return;      // fetched once per session
+  const load = useCallback(async (force = false) => {
+    if (loading) return;                 // never two in flight, forced or not
+    if (loaded && !force) return;        // otherwise fetched once per session
     setLoading(true);
     setError(false);
     try {
@@ -180,6 +192,17 @@ export default function CertificatesPanel({
     if (alwaysOpen) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alwaysOpen]);
+
+  // A changed reloadKey means the list this panel is showing is known to be
+  // out of date. Skipped on the first render — the effect above has already
+  // fetched, and a second identical request would only race it.
+  const firstKey = useRef(reloadKey);
+  useEffect(() => {
+    if (reloadKey === firstKey.current) return;
+    firstKey.current = reloadKey;
+    if (expanded) void load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   // Earned level names, so a level is never listed as both earned and pending.
   const earnedNames = new Set(

@@ -226,12 +226,15 @@ function VendorCards({
   selectedVendor,
   onSelect,
   levels,
+  certReloadKey = 0,
 }: {
   vendors: Vendor[];
   selectedVendor: string | null;
   onSelect: (key: string | null) => void;
   /** Every visible level; the shelf below narrows to the chosen provider. */
   levels: Level[];
+  /** bd-60172 — forwarded to the shelf so a just-earned certificate shows. */
+  certReloadKey?: number;
 }) {
   if (vendors.length === 0) return null;
   return (
@@ -384,6 +387,7 @@ function VendorCards({
         <div className="mt-4" data-testid="vendor-certificates">
           <CertificatesPanel
             alwaysOpen
+            reloadKey={certReloadKey}
             levels={levels
               .map(l => ({
                 id: l.id,
@@ -651,6 +655,16 @@ const PortalTrainingV2 = () => {
       setLevels(data.levels || []);
     } catch { /* silent — the next mount refetches anyway */ }
   }, []);
+
+  // bd-60172 — bumped when a certificate is issued, so the shelf refetches.
+  // Levels and certificates are two different reads; refreshing the first was
+  // never going to update the second, which is why a teacher who had just
+  // earned one had to reload the page to see it.
+  const [certReloadKey, setCertReloadKey] = useState(0);
+  const onCertificateIssued = useCallback(() => {
+    setCertReloadKey(k => k + 1);
+    void refreshLevels();
+  }, [refreshLevels]);
 
   // NO VENDOR, NO LEVELS. v1 showed every provider's levels at once when
   // nothing was picked, and v2 inherited it — which a dropdown survived and a
@@ -1017,6 +1031,7 @@ const PortalTrainingV2 = () => {
               selectedVendor={selectedVendor}
               onSelect={setSelectedVendor}
               levels={visibleLevels}
+              certReloadKey={certReloadKey}
             />
 
             {/* The gated state says what to do next, rather than ending the
@@ -1064,7 +1079,7 @@ const PortalTrainingV2 = () => {
                   levelId={selectedLevelObj.id}
                   levelName={selectedLevelObj.name}
                   levelOrderIndex={selectedLevelObj.order_index}
-                  onCertified={refreshLevels}
+                  onCertified={onCertificateIssued}
                 />
               </div>
             )}
@@ -1120,7 +1135,7 @@ const PortalTrainingV2 = () => {
                     <LevelCertificateRow
                       key={`cert-${selectedLevelObj.id}`}
                       levelId={selectedLevelObj.id}
-                      onIssued={refreshLevels}
+                      onIssued={onCertificateIssued}
                     />
                   )}
                 </div>
