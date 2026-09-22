@@ -381,6 +381,12 @@ describe('send-time re-checks — the day may have moved on since 15:00', () => 
     await expect(Offer.send(nudgeRow(), { now: SEND_AT })).rejects.toThrow(/user/i);
   });
 
+  test('a deleted teacher is a failure, not an offer — filtered in code, never named to PostgREST', async () => {
+    install(world({ users: [teacher({ deleted_at: '2026-09-01T00:00:00Z' })] }));
+    await expect(Offer.send(nudgeRow(), { now: SEND_AT })).rejects.toThrow(/user/i);
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+  });
+
   test('a WhatsApp refusal is raised, never marked sent', async () => {
     install(world());
     WhatsAppService.sendInteractiveButtons.mockResolvedValue(false);

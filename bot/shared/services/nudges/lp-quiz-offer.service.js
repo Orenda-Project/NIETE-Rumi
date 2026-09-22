@@ -283,16 +283,18 @@ async function teachersById(userIds) {
   const byId = new Map();
   for (const part of chunks(userIds)) {
     // eslint-disable-next-line no-await-in-loop
+    // `*`, not a column list: `deleted_at` is live on some environments and not
+    // in the repo schema, and a select naming a column the table lacks makes
+    // PostgREST refuse the WHOLE read. A missing column reads as undefined here.
     const rows = await pagedRows('lp quiz offer: teachers', () => supabase
       .from('users')
-      .select('id, phone_number, preferred_language, role, is_test_user, deleted_at, school_id, region, last_message_at')
+      .select('*')
       .in('id', part)
-      .eq('role', 'teacher')
-      .is('deleted_at', null));
+      .eq('role', 'teacher'));
     // `is_test_user` is filtered HERE, not with `.neq('is_test_user', true)`:
     // neq is SQL `<>`, which drops NULL rows, and the column is null for most
     // real teachers. A neq would quietly empty the cohort.
-    for (const row of rows) if (row.is_test_user !== true) byId.set(row.id, row);
+    for (const row of rows) if (row.is_test_user !== true && !row.deleted_at) byId.set(row.id, row);
   }
   return byId;
 }
@@ -537,7 +539,7 @@ function yesNoButtons(nudgeId, language) {
 
 async function teacherById(userId) {
   const { data, error } = await supabase.from('users')
-    .select('id, phone_number, preferred_language, last_message_at, role, deleted_at')
+    .select('*')              // see teachersById: never name deleted_at
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(`lp quiz offer: user read failed — ${error.message}`);

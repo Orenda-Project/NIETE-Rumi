@@ -324,6 +324,28 @@ describe('buildCohort', () => {
     expect(mockStore.rows).toHaveLength(0);
   });
 
+  test('the users read never names deleted_at to PostgREST — the column is not in the repo schema', async () => {
+    // A select naming a column the table lacks makes PostgREST refuse the WHOLE
+    // read (a dropped `users.grade` once failed every quiz offer for hours).
+    // `deleted_at` is live on one environment and absent from the checked-in
+    // schema, so it is read with `*` and filtered in code.
+    install(world());
+    const named = [];
+    const real = supabase.from.getMockImplementation();
+    supabase.from.mockImplementation((table) => {
+      const chain = real(table);
+      if (table !== 'users') return chain;
+      const select = chain.select;
+      const is = chain.is;
+      chain.select = (cols, opts) => { named.push(String(cols)); return select(cols, opts); };
+      chain.is = (col, v) => { named.push(col); return is(col, v); };
+      return chain;
+    });
+    await Offer.buildCohort({ nudgeDate: NUDGE_DATE, now: pkt(NUDGE_DATE, 15, 0) });
+    expect(named.length).toBeGreaterThan(0);
+    for (const n of named) expect(n).not.toMatch(/deleted_at/);
+  });
+
   test('with pilot sectors set, a teacher outside them gets sector_not_piloted (D10)', async () => {
     process.env.LP_QUIZ_OFFER_SECTORS = 'Sihala, Urban-II';
     install(world({
