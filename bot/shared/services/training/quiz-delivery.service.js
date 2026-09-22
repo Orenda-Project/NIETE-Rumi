@@ -2374,13 +2374,25 @@ async function openModuleExamAttempt({ userId, courseId, programId = null }) {
     // is 'sizing' because the attempt id does not exist yet, and LENGTH is the
     // same whichever CRQ the real draw picks.
     total = selectPaperWithOneCrq(bank, 'sizing').length;
+    // bd-60167 — total_score is MARKS, total_questions is a COUNT. They are
+    // not the same number on a mixed paper and storing the count in both made
+    // the attempt read "9 / 3".
+    //
+    // The grading path already knew better (gradeAttempt recomputes the
+    // denominator as mixedPossible), which is exactly why this stayed hidden:
+    // the verdict was right while the stored row was wrong, so only a surface
+    // that DISPLAYS total_score sees it. The course page is about to.
+    //
+    // A paper is (n - 1) one-mark MCQs plus one rubric-marked CRQ.
+    const crqMarks = await crqPointsForLevel(course.level_id);
+    const totalMarks = Math.max(0, total - 1) + crqMarks;
     const now = new Date().toISOString();
     const { data: created, error: aErr } = await supabase
       .from('training_assessment_attempts')
       .insert({
         user_id: userId, program_id: pid, quiz_kind: KIND_GRAND,
         grand_quiz_id: mcqQuiz.id, level_id: course.level_id,
-        current_question_index: 0, total_questions: total, total_score: total,
+        current_question_index: 0, total_questions: total, total_score: totalMarks,
         status: 'in_progress', started_at: now, last_activity_at: now,
       })
       .select('id').single();
