@@ -4,46 +4,9 @@
 // Reference implementation: every other type module follows this shape.
 //   module.exports = { type, aliases, summary, render(spec)->svgString, examples[] }
 
-const { Svg, C, SIZE, LEADING, urduBoxH, textBox, measure, wrap, hasUrdu } = require("../lib/svg");
-
-/**
- * Height `Svg.textBlock()` will consume for `s` wrapped to `w`, by the SAME arithmetic
- * textBlock uses. Reservation and drawing must never disagree — that is the whole bug
- * this module was carrying for cell text.
- */
-function blockH(s, size, w) {
-  const str = String(s ?? "");
-  if (!str) return 0;
-  if (hasUrdu(str)) {
-    const nLines = Math.max(1, Math.ceil(measure(str, size, { lang: "ur" }) / (w - 4)));
-    return size * LEADING.urdu * nLines + size * 0.4;
-  }
-  return wrap(str, size, w).length * size * LEADING.latin;
-}
-
-/** Reduce a fraction for the auto caption. */
-function gcd(a, b) {
-  return b ? gcd(b, a % b) : a;
-}
-
-function resolveShaded(spec, rows, cols) {
-  const total = rows * cols;
-  const s = spec.shaded;
-  const set = new Set();
-  if (typeof s === "number") {
-    for (let i = 0; i < Math.min(s, total); i++) set.add(i);
-  } else if (Array.isArray(s)) {
-    for (const v of s) {
-      if (Array.isArray(v)) set.add(v[0] * cols + v[1]);
-      else set.add(Number(v));
-    }
-  } else if (typeof s === "string" && s.includes("/")) {
-    const [num, den] = s.split("/").map(Number);
-    const count = Math.round((num / den) * total);
-    for (let i = 0; i < count; i++) set.add(i);
-  }
-  return set;
-}
+const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
+const { resolveColLabels, resolveRegroup, regroupSizing, drawRegroup } = require("../lib/grid_notation");
+const { blockH, resolveShaded, autoLegend, edgeLabelMetrics } = require("../lib/grid_cells");
 
 function render(spec) {
   const rows = spec.rows ?? 10;
@@ -56,36 +19,20 @@ function render(spec) {
   const second2Color = spec.shade2Color || C.cool;
 
   // ── Edge-label gutters ─────────────────────────────────────────────────────
-  // Edge labels need their own gutter or an end-anchored Urdu box lands at a
-  // negative x and is clipped away by the viewBox.
-  //
-  // The gutter used to be the FIXED 26 wide / 22 tall (54 / 44 for Urdu) that an area
-  // model's "4" needs. But an edge label is not always a digit: "Duties (required by
-  // law)" measures 71 units, so an end-anchored label at `x0 - 8` reached 45 units to
-  // the LEFT of the canvas and printed across the grid's own first column; the Urdu
-  // rowLabel of a 3-word phrase did the same at 78. Measured with the engine's own
-  // estimators — and for Urdu with the EXACT box arithmetic `_urduText` will use, or the
-  // reservation and the drawing disagree again — floored at the old constants so every
-  // existing area model keeps its geometry to the unit.
-  const labelW = (s2) => {
-    const str = String(s2 ?? "");
-    if (!str) return 0;
-    if (spec.lang === "ur" || hasUrdu(str)) {
-      return Math.max(measure(str, SIZE.small, { lang: "ur" }) * 1.25 + SIZE.small, SIZE.small * 3);
-    }
-    return measure(str, SIZE.small, { weight: 700 }) * 1.02;
-  };
-  const labelH = (s2) => {
-    const str = String(s2 ?? "");
-    if (!str) return 0;
-    if (spec.lang !== "ur" && !hasUrdu(str)) return textBox(str, SIZE.small, 0, 0, {}).h;
-    return urduBoxH(str, SIZE.small, labelW(str));
-  };
+  // Measured (grid_cells.edgeLabelMetrics) rather than fixed, then floored at the old
+  // 26/22 (54/44 Urdu) constants so every existing area model keeps its geometry to the
+  // unit while a long phrase label stops printing across the grid's own first column.
+  const { labelW, labelH } = edgeLabelMetrics(spec);
   const gutterL = spec.rowLabel
     ? Math.max(spec.lang === "ur" ? 54 : 26, Math.ceil(labelW(spec.rowLabel)) + 10)
     : 0;
-  const gutterT = spec.colLabel
-    ? Math.max(spec.lang === "ur" ? 44 : 22, Math.ceil(labelH(spec.colLabel)) + 5)
+  // One header per COLUMN TRACK when the spec gives (or implies) one, else the single
+  // centred label this type has always drawn. grid_notation.resolveColLabels owns the
+  // decision and the refusal; here it is just a list of labels to reserve room for.
+  const colHead = resolveColLabels(spec, cols);
+  const heads = colHead.perColumn || (colHead.single ? [colHead.single] : []);
+  const gutterT = heads.length
+    ? Math.max(spec.lang === "ur" ? 44 : 22, Math.ceil(Math.max(...heads.map((s2) => labelH(s2)))) + 5)
     : 0;
 
   // ── Cell text decides the cell size ────────────────────────────────────────
@@ -121,22 +68,28 @@ function render(spec) {
     ch = Math.max(cell, Math.ceil(Math.max(...cellStrings.map((s) => blockH(s, textSize, cw - 12)))) + 8);
   }
 
+  // Same law once more, for the two place-value notations: THE CELL MUST FIT WHAT IT
+  // CARRIES. A per-column header wider than its track, or a renamed value that does not
+  // clear the digit it sits beside, grows the cell rather than printing over its neighbour.
+  // Neither branch can fire for a spec that uses neither key, so the corpus is untouched.
+  const cellAt = new Map(
+    (Array.isArray(spec.cellText) ? spec.cellText : [])
+      .filter((t) => t && t[2] != null && String(t[2]) !== "")
+      .map((t) => [`${t[0]},${t[1]}`, String(t[2])])
+  );
+  if (colHead.perColumn)
+    cw = Math.max(cw, Math.ceil(Math.max(...colHead.perColumn.map((s) => labelW(s)))) + 6);
+  const marks = resolveRegroup(spec);
+  if (marks.length) {
+    const need = regroupSizing(marks, cellAt, textSize);
+    cw = Math.max(cw, need.minW);
+    ch = Math.max(ch, need.minH);
+  }
+
   const gw = cols * cw;
   const gh = rows * ch;
 
-  // legend line, auto-built when not supplied
-  let legend = spec.legend;
-  if (legend === undefined && shaded.size) {
-    const k = shaded.size;
-    const t = rows * cols;
-    const g = gcd(k, t) || 1;
-    const pct = (k / t) * 100;
-    const parts = [`${k}/${t}`];
-    if (g > 1) parts.push(`= ${k / g}/${t / g}`);
-    parts.push(`= ${Number(pct.toFixed(2))}%`);
-    parts.push(`= ${Number((k / t).toFixed(4))}`);
-    legend = parts.join(" ");
-  }
+  const legend = autoLegend(spec, shaded.size, rows, cols);
 
   const legendH = legend ? SIZE.label * (spec.lang === "ur" ? 3.2 : 1.9) : 0;
   // THE CANVAS MUST FIT THE READOUT THIS TYPE GENERATES FOR ITSELF.
@@ -156,7 +109,8 @@ function render(spec) {
     : 0;
   // ...and the colLabel is a readout too. It is centred on the GRID's centre, which sits
   // `gutterL / 2` right of the canvas centre, so the gutter is part of its reservation.
-  const colLabelW = labelW(spec.colLabel);
+  // A per-column header row is never wider than the grid itself — `cw` grew to hold it.
+  const colLabelW = colHead.perColumn ? 0 : labelW(colHead.single);
   const bodyW = Math.max(
     gw + pad * 2 + gutterL,
     Math.ceil(legendW) + pad * 2,
@@ -240,15 +194,20 @@ function render(spec) {
     });
   }
 
+  // Regrouping marks go on TOP of the digits they rename — document order is what puts the
+  // strike over the glyph rather than under it.
+  if (marks.length)
+    drawRegroup(svg, marks, { x0, y0, cw, ch, cellAt, textSize, lang: spec.lang });
+
   // edge labels for area models: {rowLabel:'4', colLabel:'6'}
   // The label's BOX has to clear the grid, not just its baseline. An Urdu box is
   // ~2.2 em tall and hangs below the baseline, so `y0 - 6` put the digit inside
   // the first row of cells. Height comes from the shared estimators.
   // (`labelH` is declared with the gutters above — the reservation and the draw have to be
   // the same number, so they share one helper.)
-  if (spec.colLabel) {
-    const h = labelH(spec.colLabel);
-    svg.text(x0 + gw / 2, y0 - 5 - h / 2, spec.colLabel, {
+  const head = (x, s2) => {
+    const h = labelH(s2);
+    svg.text(x, y0 - 5 - h / 2, s2, {
       size: SIZE.small,
       anchor: "middle",
       baseline: "middle",
@@ -257,7 +216,10 @@ function render(spec) {
       lang: spec.lang,
       h,
     });
-  }
+  };
+  if (colHead.perColumn)
+    colHead.perColumn.forEach((s2, c) => s2 && head(x0 + c * cw + cw / 2, s2));
+  else if (colHead.single) head(x0 + gw / 2, colHead.single);
   if (spec.rowLabel)
     svg.text(x0 - 8, y0 + gh / 2, spec.rowLabel, {
       size: SIZE.small,
