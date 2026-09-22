@@ -232,3 +232,47 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open and a module question has an option longer than about 70 characters
     Then that option is written out as a lettered line and can still be chosen
     # sendQuestion long-option handling (OPTION_DESC_MAX=72). @wip.
+
+  # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
+  # The generator is mapped to this feature (feature-map.yaml: training) because it sits
+  # with the exam/quiz surfaces, but it had no scenarios until bd-60175. It is its own
+  # native Flow: CLASS → COVERAGE/PAGES → QUESTIONS → TYPES → COUNTS → CONFIRM.
+
+  @e2e @flow @P1
+  Scenario: She sets how many of EACH kind of question, not one total we split for her
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen a class, a subject and the pages to cover
+    When I choose "New questions on the same topics" and continue
+    And I tick "MCQs" and "Brief Answers" and continue
+    Then I am asked how many of each, one box per kind I ticked, named after that kind
+    When I ask for 10 MCQs and 2 Brief Answers
+    Then the recap says "10 MCQs, 2 Brief Answers" and 12 in total, not 6 and 6
+    # bd-60175. It used to ask for ONE total on the previous screen and spread it evenly over
+    # the kinds ticked, so 10-and-2 came back 6-and-6. The count boxes are a fixed bank of 8
+    # slots labelled and hidden by the server (a Flow cannot grow a component at runtime), so
+    # assert one box PER TICKED KIND — never a fixed number of boxes.
+
+  @e2e @flow @negative @P2
+  Scenario Outline: A count she cannot have is refused on the screen, naming the kind
+    Given the NIETE bot chat is open and I have reached the "how many of each" screen with "MCQs" ticked
+    When I put <value> against MCQs and continue
+    Then I stay on that screen and it names MCQs in what it tells me
+    # Refused, never clamped — quietly turning 40 into 25 hands her a paper she did not ask
+    # for and never says so. The ceiling is checked on the SUM too: several kinds that are
+    # each allowed can still add up to a paper the generator pads its way through.
+    Examples:
+      | value     |
+      | nothing   |
+      | "0"       |
+      | "abc"     |
+      | "40"      |
+
+  @e2e @flow @P2
+  Scenario: Questions taken from the book never ask her to count by kind
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen a class, a subject and the pages to cover
+    When I choose "From the book" and say how many questions I want
+    Then I go straight to the recap, with no kind-picking and no per-kind counts
+    # The book's own exercises carry their own kinds, so a choice of kinds there is a question
+    # whose answer cannot be used — planCounts() discards types on the seen path. This is the
+    # one path where a single total is still the right thing to ask for.
