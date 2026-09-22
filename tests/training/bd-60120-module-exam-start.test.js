@@ -60,7 +60,7 @@ describe('bd-60120 — startModuleExam preconditions', () => {
     jest.resetModules();
     sent = [];
     jest.doMock('../../bot/shared/config/supabase', () => ({ from: table, rpc: jest.fn() }));
-    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
     jest.doMock('../../bot/shared/utils/structured-logger', () => ({
       logEvent: jest.fn(), getCurrentCorrelationId: () => null,
       logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
