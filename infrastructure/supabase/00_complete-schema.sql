@@ -3629,6 +3629,10 @@ CREATE TABLE IF NOT EXISTS training_vendors (
     has_diagnostic       BOOLEAN NOT NULL DEFAULT FALSE,
     cert_code_prefix     VARCHAR(8) NOT NULL,
     unlock_logic         VARCHAR(16) NOT NULL DEFAULT 'chain',
+    -- I-SAPS formative quizzes carry no minimum score: the unit check is a
+    -- learning tool, and the certificate composite is the only bar that
+    -- gates anything (V1.5.0, bd-60163).
+    module_quiz_ungated  BOOLEAN NOT NULL DEFAULT FALSE,
     is_active            BOOLEAN NOT NULL DEFAULT TRUE,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
