@@ -457,3 +457,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The authoritative verdict is not the pre-filter: a paste runs the SAME
     # extraction job as an upload, so isLikelyLessonPlan decides, and the
     # not-a-lesson-plan reply now names the paste route among the retry options.
+
+  @e2e @wip @draft @P1
+  Scenario: A brief typed lesson plan counts — length is not the test
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I type a three-line plan naming the topic, an activity and how I will check learning
+    Then the bot tells me it has my lesson plan and is reading it
+    And the observation records that it has a lesson plan
+    # The first live attempt failed here: a real 222-code-point Roman-Urdu plan
+    # was refused by a 280-point floor fitted to long formatted pastes, while
+    # the session sat waiting for one. What makes a paste a plan is the
+    # evidence in it, not its size; the floor only keeps one-liners out.
+
+  @e2e @wip @draft @negative @P2
+  Scenario: Saying I have no lesson plan is not the same as sending one
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I reply that I do not have a lesson plan for this class
+    Then the bot does not record that reply as my lesson plan
+    # A teacher explaining she has no plan NAMES one, so she clears the marker
+    # bar; the old length floor excluded her only by accident. Checked in
+    # English, Roman Urdu and Urdu.
