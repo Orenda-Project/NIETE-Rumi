@@ -24,7 +24,7 @@ jest.mock('../../bot/shared/services/quiz/transcript-quiz-digest.service', () =>
 jest.mock('../../bot/shared/services/quiz/lp-quiz-digest.service', () => ({
   run: jest.fn(), lessonExcerpts: jest.fn().mockReturnValue('WHAT THE CLASS WAS TO LEARN: add with carrying'),
 }));
-jest.mock('../../bot/shared/services/quiz/lp-asset-source.store', () => ({ resolveSlideScript: jest.fn() }), { virtual: true });
+jest.mock('../../bot/shared/services/quiz/lp-asset-source.store', () => ({ resolveSlideScript: jest.fn() }));
 jest.mock('../../bot/shared/services/quiz/transcript-quiz-author.service', () => ({
   author: jest.fn(), excerptsFor: jest.fn().mockReturnValue('…'),
 }));
@@ -163,12 +163,12 @@ describe('process — an lp_v8 quiz has no coaching session', () => {
     expect(ev[1]).toEqual(expect.objectContaining({ reason: 'source_missing', quiz_source: 'lp_v8' }));
   });
 
-  test('a store that throws is a source_missing too, never an unhandled job failure', async () => {
-    Store.resolveSlideScript.mockRejectedValue(new Error('connection reset'));
+  test('a store ERROR is not source_missing: the job throws so SQS redelivers it, and the teacher is told nothing', async () => {
+    Store.resolveSlideScript.mockRejectedValue(new Error('niete_lp_asset_sources: connection reset'));
     wire();
-    const r = await Gen.process(QID, {});
-    expect(r.reason).toBe('source_missing');
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(USER.phone_number, UX_STRINGS.tqFailedLpSource.en);
+    await expect(Gen.process(QID, {})).rejects.toThrow(/connection reset/);
+    expect(quizUpdates().some((u) => u.status === 'failed')).toBe(false);
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
   });
 
   test('an lp_v8 row with no lessons in meta is source_missing', async () => {
