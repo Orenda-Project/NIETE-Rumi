@@ -55,16 +55,20 @@ function generateCertificateCode(now = new Date()) {
 }
 
 /**
- * Issue (or return the already-issued) certificate for a passed grand-quiz
- * attempt. Idempotent per attempt_id: re-issuing for the same attempt returns
- * the existing row instead of minting a duplicate code.
+ * Issue (or return the already-issued) certificate for a completed level.
+ * Idempotent per (user_id, level_id) — NOT per attempt; see the guard below
+ * and bd-2670 for why that distinction cost production 3,113 surplus rows.
  *
  * @param {object} supabase - configured Supabase client (caller-injected)
  * @param {object} params
  * @param {string} params.userId    - users.id (uuid)
  * @param {string} params.programId - training_programs.id (uuid)
  * @param {number} params.levelId   - training_levels.id
- * @param {string} params.attemptId - training_assessment_attempts.id (uuid)
+ * @param {string} [params.attemptId] - training_assessment_attempts.id (uuid),
+ *   or null. Provenance only, never read back. The quiz and capstone paths
+ *   have one originating attempt; I-SAPS composite certification is earned
+ *   across many attempts and three independent bars, so it passes null
+ *   (bd-60171 — sandbox carried a NOT NULL here that production never had).
  * @returns {Promise<{certificate_code: string, teacher_name: string, level_name: string, issued_at: string, already_issued: boolean, pdf_r2_key: string|null}>}
  */
 async function issueCertificate(supabase, { userId, programId, levelId, attemptId }) {
