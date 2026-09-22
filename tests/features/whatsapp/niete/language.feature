@@ -373,3 +373,16 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     Then the bot does NOT show the "Languages" picker (it replies conversationally / via the AI handler)
     # Only "/language" (case-insensitive) matches text-message.handler.js:1715. Bare "language"
     # falls through to the general/AI handler. Counterpart to menu.feature's bare-"menu" negative.
+
+  @e2e @language @wip @draft @P2
+  Scenario: A lesson-plan-born quiz that cannot be written says so in the teacher's language
+    Given my account is set to Urdu
+    And a quiz is being written from a lesson plan I was served
+    When the lesson's slide script cannot be resolved for the exact version I hold
+    Then the bot tells me in Urdu that it could not make a quiz from that lesson plan
+    And the message does NOT say "recording" or "transcript" — no recording was involved
+    And the same failure on an English account reads in English
+    # R8 D4/D12. tqFailedLpSource / tqFailedLpDigest / tqFailedLpAuthor are en+ur in ux-strings.js and
+    # are chosen by quizzes.quiz_source, so a lesson-plan quiz never inherits the recording copy
+    # (transcript-quiz-generate.service.js failureCopyKey). Rule 24d: the copy names the state that
+    # actually stopped. @wip — authored with the change, driven and promoted by the sandbox E2E run.
