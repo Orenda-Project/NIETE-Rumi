@@ -2322,6 +2322,84 @@ async function decideExamPass(levelId, score, totalQuestions) {
  * @returns {Promise<{ok:boolean, reason?:string, attempt_id?:string,
  *   total_questions?:number, questions?:Array}>}
  */
+/**
+ * Save ONE answer mid-paper, without grading anything. bd-60169.
+ *
+ * Until this existed, answers lived in the browser's React state until Submit:
+ * a closed tab, a phone call or a backgrounded app lost the whole paper,
+ * including an ~1,800-character written answer. Pagination made that worse
+ * rather than better, because she can no longer see everything she would lose.
+ *
+ * NO SCHEMA CHANGE. Drafts go in `training_assessment_answers` — the real
+ * table — against the `UNIQUE (attempt_id, question_index)` key that already
+ * exists and that the WhatsApp path has upserted against since bd-2233. A
+ * draft is a row whose is_correct/answer_score are still null, which is also
+ * what an ungraded submitted row looks like, so nothing downstream learns a
+ * new state.
+ *
+ * MARKING IS NOT DONE HERE, deliberately: a teacher may change an answer any
+ * number of times before submitting, so grading a draft would burn rubric
+ * calls and make a half-finished paper look marked.
+ *
+ * Refuses unless the attempt is still in progress, so a late autosave landing
+ * after Submit cannot overwrite a graded answer.
+ *
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+async function saveModuleExamDraft({
+  userId, attemptId, questionId, questionIndex, chosenOption = null, answerText = null,
+}) {
+  const { data: attempt } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id, status')
+    .eq('id', attemptId).maybeSingle();
+  if (!attempt || attempt.user_id !== userId) return { ok: false, reason: 'not_found' };
+  if (attempt.status !== 'in_progress') return { ok: false, reason: 'not_in_progress' };
+
+  const { error } = await supabase
+    .from('training_assessment_answers')
+    .upsert({
+      attempt_id: attemptId,
+      question_index: Number(questionIndex),
+      question_id: Number(questionId),
+      chosen_option: chosenOption === null ? null : String(chosenOption),
+      answer_text: answerText === null ? null : String(answerText),
+      is_correct: null,
+      answer_score: null,
+      answered_at: new Date().toISOString(),
+    }, { onConflict: 'attempt_id,question_index' });
+  if (error) {
+    logToFile('❌ Module-exam draft save failed', {
+      attemptId, questionIndex, error: error.message,
+    });
+    return { ok: false, reason: 'write_failed' };
+  }
+
+  await supabase.from('training_assessment_attempts')
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq('id', attemptId);
+  return { ok: true };
+}
+
+/**
+ * The answers already saved for an attempt, so a returning teacher sees her
+ * own work rather than a blank paper. bd-60169.
+ */
+async function loadModuleExamDraft({ userId, attemptId }) {
+  const { data: attempt } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id')
+    .eq('id', attemptId).maybeSingle();
+  if (!attempt || attempt.user_id !== userId) return { ok: false, answers: [] };
+
+  const { data } = await supabase
+    .from('training_assessment_answers')
+    .select('question_id, question_index, chosen_option, answer_text')
+    .eq('attempt_id', attemptId)
+    .order('question_index', { ascending: true });
+  return { ok: true, answers: data || [] };
+}
+
 async function openModuleExamAttempt({ userId, courseId, programId = null }) {
   const courseIdNum = parseInt(String(courseId), 10);
   if (!Number.isFinite(courseIdNum)) return { ok: false, reason: 'bad_course' };
@@ -2489,7 +2567,13 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     }
   });
   if (rows.length) {
-    const { error } = await supabase.from('training_assessment_answers').insert(rows);
+    // bd-60169 — UPSERT, not insert. Autosave writes draft rows against the
+    // same (attempt_id, question_index) key as she types, so a plain insert
+    // throws duplicate-key on submit and loses the paper at the one moment it
+    // must not fail.
+    const { error } = await supabase
+      .from('training_assessment_answers')
+      .upsert(rows, { onConflict: 'attempt_id,question_index' });
     if (error) throw new Error(`could not store answers: ${error.message}`);
   }
 
@@ -2533,6 +2617,8 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
 
 module.exports = {
   openModuleExamAttempt,
+  saveModuleExamDraft,
+  loadModuleExamDraft,
   submitModuleExamPaper,
   startGrandQuiz,
   startModuleExam,

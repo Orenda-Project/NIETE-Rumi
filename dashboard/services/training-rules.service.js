@@ -259,6 +259,34 @@ async function startModuleExam(userId, courseId, programId = null) {
 }
 
 /**
+ * Autosave one answer mid-paper. bd-60169.
+ *
+ * DOES NOT THROW, unlike every marking call here — and that difference is the
+ * point. A marking verdict has no safe default, so those must throw. A draft
+ * save that fails is an inconvenience: the answer is still on her screen. If
+ * this threw, a flaky network would interrupt a teacher mid-exam over work
+ * that is not actually lost.
+ */
+async function saveModuleExamDraft(userId, attemptId, draft) {
+  try {
+    const data = await ask('module-exam-draft', { userId, attemptId, ...draft });
+    return data && data.ok === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** The answers already saved, so resuming shows her own work. bd-60169. */
+async function loadModuleExamDraft(userId, attemptId) {
+  try {
+    const data = await ask('module-exam-draft-load', { userId, attemptId });
+    return Array.isArray(data?.answers) ? data.answers : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
  * Submit the paper. THROWS on failure, like the other marking calls and for
  * the same reason: a marking result has no safe default in either direction,
  * so the caller must abandon the write rather than record a pass or a fail it
@@ -326,6 +354,8 @@ module.exports = {
   moduleExamGate,
   startModuleExam,
   submitModuleExam,
+  saveModuleExamDraft,
+  loadModuleExamDraft,
   getModuleQuizVerdict,
   getGrandQuizState,
   getIsapsLevelGrade,
