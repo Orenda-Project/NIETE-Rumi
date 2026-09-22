@@ -141,6 +141,17 @@ const MAX_QUESTIONS = 25;
 const DEFAULT_QUESTIONS = 15;
 
 /**
+ * How many types she may pick, and therefore how many count boxes the COUNTS
+ * screen holds.
+ *
+ * A Flow cannot grow a component at runtime, so the boxes are a fixed bank that
+ * the server labels and hides. Eight is above what a paper of 25 questions can
+ * meaningfully carry — eight types is already three questions each — and keeps
+ * the published screen small.
+ */
+const MAX_TYPE_SLOTS = 8;
+
+/**
  * Read the number she typed.
  *
  * A Flow TextInput has no min or max — `input-type: number` only picks the
@@ -164,6 +175,67 @@ function parseQuestionCount(raw) {
     return { ok: false, message: `A paper can hold up to ${MAX_QUESTIONS} questions. ${range}` };
   }
   return { ok: true, count: n };
+}
+
+/**
+ * Read the count she typed against EACH type she picked.
+ *
+ * The counterpart to parseQuestionCount, for the screen that replaced it on the
+ * unseen path. She picked her types on TYPES, so this receives one box per pick
+ * (`count_1`…`count_N`, positional, in the order she ticked them) and returns
+ * the `{ id, count, category }` list the generator already speaks.
+ *
+ * Every box is REQUIRED: a type she ticked and then left blank is a
+ * contradiction, and the two ways out of it are both worse than asking. Filling
+ * it with a default hands her a number she never chose; dropping the type
+ * quietly deletes a section she asked for. So a blank bounces, and it bounces
+ * naming the type rather than the slot — "MCQs" is hers, "count_1" is ours.
+ *
+ * The paper ceiling is checked on the SUM, because that is the paper. Fifteen
+ * MCQs and fifteen Short Questions are each individually reasonable and
+ * together are a paper the generator pads its way through.
+ *
+ * Refused, never clamped — the same rule the single count already followed.
+ */
+function parsePerTypeCounts(pickedIds, data, subject, grade) {
+  const ids = (pickedIds || []).filter(Boolean);
+  if (ids.length === 0) {
+    return { ok: false, message: 'Please choose at least one kind of question.' };
+  }
+
+  const out = [];
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = ids[i];
+    const raw = data?.[`count_${i + 1}`];
+    const text = String(raw ?? '').trim();
+    const range = `Type a number between 1 and ${MAX_QUESTIONS}.`;
+
+    if (!text || !/^\d+$/.test(text)) {
+      return { ok: false, message: `How many ${id}? ${range}` };
+    }
+    const n = Number(text);
+    if (!Number.isInteger(n) || n < 1) {
+      return { ok: false, message: `How many ${id}? ${range}` };
+    }
+    if (n > MAX_QUESTIONS) {
+      return {
+        ok: false,
+        message: `A paper can hold up to ${MAX_QUESTIONS} questions, so ${id} cannot be ${n}. ${range}`,
+      };
+    }
+    out.push({ id, count: n, category: categoryOf(id, subject, grade) });
+  }
+
+  const total = out.reduce((s, t) => s + t.count, 0);
+  if (total > MAX_QUESTIONS) {
+    return {
+      ok: false,
+      message: `That is ${total} questions in total. A paper can hold up to ${MAX_QUESTIONS} — `
+        + 'please lower one of the numbers.',
+    };
+  }
+
+  return { ok: true, types: out, total };
 }
 
 /**
@@ -208,4 +280,4 @@ function parseTotalMarks(raw) {
 
 module.exports = {
   parseQuestionCount, MAX_QUESTIONS, DEFAULT_QUESTIONS, forSubject, categoryOf, withCounts, defaultMix, CATALOGUE,
-  parseTotalMarks, MAX_TOTAL_MARKS };
+  parseTotalMarks, MAX_TOTAL_MARKS, parsePerTypeCounts, MAX_TYPE_SLOTS };
