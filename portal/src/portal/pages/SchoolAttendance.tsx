@@ -33,8 +33,8 @@ function fmtDay(iso: string) {
 function GroupRow({ g, unit }: { g: AttendanceGroup; unit: 'student' | 'teacher' }) {
   const pct = (n: number) => (g.chances > 0 ? (n / g.chances) * 100 : 0);
   const never = g.markedDays === 0;
-  // bd-60174: the factors are named. "1 × 19" told the reader nothing about
-  // what either number counted; a principal reported it as unreadable.
+  // Name the factors. "1 × 19" told the reader nothing about what either
+  // number counted; a principal reported the label as unreadable.
   const people = `${g.people} ${unit}${g.people === 1 ? '' : 's'}`;
   return (
     <div
@@ -49,8 +49,8 @@ function GroupRow({ g, unit }: { g: AttendanceGroup; unit: 'student' | 'teacher'
       <div className="w-32 text-sm font-medium truncate" title={g.name}>{g.name}</div>
       {/* The product IS the denominator — showing only the factors makes the
           reader do the multiplication, which is the arithmetic this view was
-          built to remove. bd-60174 names the factors too: the product was
-          already here, but "1 × 19" never said what was being multiplied. */}
+          built to remove. The factors are named for the same reason: the
+          product was already here, but "1 × 19" never said what was multiplied. */}
       <div className="w-36 text-xs text-muted-foreground tabular-nums leading-tight">
         {people} × {g.days} day{g.days === 1 ? '' : 's'} ={' '}
         <span className="font-medium text-foreground">{g.chances}</span>
@@ -82,14 +82,14 @@ function GroupRow({ g, unit }: { g: AttendanceGroup; unit: 'student' | 'teacher'
           // Red text, but only when the block is wide enough to hold it.
         >
           <span style={{ color: '#ef4444' }}>
-            {/* bd-60174: "80 unknown" did not say unknown WHAT. It is the
+            {/* "80 unknown" did not say unknown WHAT. These are the
                 person-days nobody ever marked — never a count of people. */}
             {pct(g.neverMarked) > 14 ? `${g.neverMarked} never marked` : ''}
           </span>
         </div>
       </div>
 
-      {/* bd-60174: this was "{present} / {absent}", which every reader parses
+      {/* This was "{present} / {absent}", which every reader parses
           as part-over-whole — so 220 absences out of 20 chances, which is
           impossible and was reported as a bug. Same two numbers, each named,
           and no slash between them to invite the reading. */}

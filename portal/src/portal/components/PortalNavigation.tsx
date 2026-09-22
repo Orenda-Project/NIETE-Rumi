@@ -39,7 +39,7 @@ const PortalNavigation = () => {
   // same tab would show them one school's data labelled as theirs. The other
   // four keep the nav they have; the endpoint 403s them regardless of the nav.
   //
-  // bd-60174 — Attendance and Lessons join Analytics here. All three are
+  // Attendance and Lessons join Analytics here. All three are
   // principal-gated routes that existed with no nav entry: they were reachable
   // only by an in-page link from Analytics, so a principal who landed anywhere
   // else had no way to them. Reported as "the navigation does not guide the

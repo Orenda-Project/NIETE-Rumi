@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Users, MessageSquare, BookOpen, TrendingUp, ChevronRight } from "lucide-react";
+import { Users, MessageSquare, BookOpen, TrendingUp, ChevronRight, UserCheck, GraduationCap } from "lucide-react";
 import { leader } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
 import PortalLayout from "../components/PortalLayout";
 import StatCard from "../components/StatCard";
 import LoadingState from "../components/LoadingState";
-import ScoreIndicator from "../components/ScoreIndicator";
 import type { LeaderOverview } from "../types/portal";
 
 /**
@@ -61,18 +60,29 @@ const LeaderHome = () => {
               <StatCard title="Lesson plans" value={overview.totalLessonPlans} icon={BookOpen} />
             </div>
 
-            {/* Average recent score */}
-            {overview.avgLastScore != null && (
-              <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-medium">Average recent coaching score</h2>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    Across {overview.scoredTeachers} teacher{overview.scoredTeachers === 1 ? "" : "s"} with a recent session.
-                  </p>
-                </div>
-                <ScoreIndicator percentage={overview.avgLastScore} size="large" />
-              </section>
-            )}
+            {/* one tile per STEPS feature, so the patch can be read
+                feature by feature. Each shows REACH (how many teachers have
+                used it) over the total, not just a volume: 21 registers across
+                19 teachers reads healthy until you learn one teacher took all
+                21, and the total alone cannot tell those apart. */}
+            <div className="grid grid-cols-2 gap-4 mb-8" data-testid="feature-reach">
+              <StatCard
+                title="Marking attendance"
+                value={`${overview.teachersMarkingAttendance}/${overview.totalTeachers}`}
+                icon={UserCheck}
+              />
+              <StatCard
+                title="In training"
+                value={`${overview.teachersInTraining}/${overview.totalTeachers}`}
+                icon={GraduationCap}
+              />
+            </div>
+
+            {/* the "Average recent coaching score" panel is gone.
+                It was the headline number against which teachers were read, and
+                it is the thing this ticket hides. The score is still computed
+                and still on the payload; a leader simply no longer reads it.
+                School-level numbers live on Analytics, where they are labelled. */}
 
             {/* Focus list — where attention pays off most */}
             <section className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
@@ -80,7 +90,10 @@ const LeaderHome = () => {
                 <div>
                   <h2 className="text-lg font-medium">Needs attention</h2>
                   <p className="text-muted-foreground text-sm mt-1">
-                    Teachers with the lowest recent coaching scores.
+                    {/* the ORDER is still by lowest recent score —
+                        that is computation and it stays. The copy no longer
+                        names a number the reader cannot see on this page. */}
+                    Where coaching time pays off most, based on the most recent visit.
                   </p>
                 </div>
                 <Link to="/portal/leader/teachers" className="text-accent text-sm font-medium flex items-center gap-1">
@@ -89,7 +102,7 @@ const LeaderHome = () => {
               </div>
               {overview.focus.length === 0 ? (
                 <p className="px-6 pb-6 text-muted-foreground text-sm">
-                  No coaching scores yet — nothing to flag.
+                  No completed visits yet — nothing to flag.
                 </p>
               ) : (
                 <ul className="divide-y divide-border">
@@ -106,7 +119,13 @@ const LeaderHome = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          {t.lastScore != null && <ScoreIndicator percentage={t.lastScore} size="small" />}
+                          {/* The named area, not a number: "what to work on"
+                              is the actionable half of what the score implied. */}
+                          {t.focusArea && (
+                            <span className="text-sm text-accent max-w-[14rem] truncate" title={t.focusArea}>
+                              {t.focusArea}
+                            </span>
+                          )}
                           <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         </div>
                       </Link>
