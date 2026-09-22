@@ -108,7 +108,17 @@ const ALLOWLIST = {
   // training_assessment_answers row is built from a mapped `answerRows` variable
   // and only touches (attempt_id, question_index, question_id, chosen_option,
   // is_correct, answered_at) — all defined in the schema.
-  training_assessment_answers: ['user_id', 'module_id', 'completed_at'],
+  // `onconflict` joins the list for the same reason as exam_grades above: the
+  // exam-answer upsert passes a mapped `rows` variable, so the first object
+  // literal after `.upsert(` is the OPTIONS object —
+  //   .upsert(rows, { onConflict: 'attempt_id,question_index' })
+  // (bd-60169 made answer writes idempotent so a resumed paper overwrites its
+  // own draft rather than duplicating it).
+  training_assessment_answers: ['user_id', 'module_id', 'completed_at', 'onconflict'],
+  // Same options-object artifact on the single-answer draft save, which upserts
+  // one row literal plus `{ onConflict: 'attempt_id,question_index' }`; `data`
+  // is a destructured result var from the neighbouring select, not a column.
+  training_assessment_attempts: ['onconflict', 'data'],
   // ── hcp.routes.js parser artifacts ────────────────────────────────────────
   // The 6-box feedback + schedule endpoints follow the pattern:
   //   .from('hcp_visit_schedules').insert(insertRow).select('...').single()
