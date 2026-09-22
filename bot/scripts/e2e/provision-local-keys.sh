@@ -59,9 +59,16 @@ TARGET="$KEYS_DIR/niete-local.env"
 railway_kv() {  # $1 = environment → the --kv dump on stdout, or exit 5 with the ONE manual fact named
   command -v railway >/dev/null 2>&1 || { log "railway CLI not on PATH. Install it and \`railway login\` (access to \"$PROJECT\"), or pass --from-kv <file> for the staging half."; exit 5; }
   local errf="${TMPDIR:-/tmp}/provision-railway.$$.err" out
-  if ! out=$(railway variables -p "$PROJECT" -s "$SERVICE" --environment "$1" --kv 2>"$errf"); then
+  # Railway CLI 4.x dropped `-p`/`-s` from `railway variables` — it resolves the
+  # project from the linked directory and takes `--service` by name. On 4.44.0
+  # the old form fails with "unexpected argument '-p' found", which the catch
+  # below then reported as a login problem: the advice was `railway login`, and
+  # no amount of logging in could ever fix an argument the CLI had removed.
+  # Try the modern form first, fall back to the old one for an older CLI.
+  if ! out=$(railway variables --service "$SERVICE" --environment "$1" --kv 2>"$errf") \
+     && ! out=$(railway variables -p "$PROJECT" -s "$SERVICE" --environment "$1" --kv 2>"$errf"); then
     log "railway variables ($1) failed: $(head -c 200 "$errf" | tr '\n' ' ')"
-    log "Run \`railway login\` with an account that has access to the \"$PROJECT\" project — the only per-machine fact this script cannot create (or pass --from-kv <file> for the staging half)."
+    log "Check \`railway status\` links this directory to \"$PROJECT\" and that \`railway login\` has access to it (or pass --from-kv <file> for the staging half)."
     rm -f "$errf"; exit 5
   fi
   rm -f "$errf"; printf '%s\n' "$out"
