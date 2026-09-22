@@ -279,8 +279,9 @@ lesson_plan:
 
 # Classroom Coaching — audio upload + FICO/ICT analysis (verified live 2026-08-04).
 coaching:
-  menu_prompt_contains: "upload your classroom recording"
-  min_minutes: 15
+  menu_prompt_contains: "Record your lesson with the WhatsApp mic"
+  menu_asks_minutes: "20 to 45"
+  min_minutes: 15   # the routing threshold (CLASSROOM_AUDIO_THRESHOLD), unchanged
   # Classroom fixtures (Attach → Document; the Audio item fails under Chrome-MCP). All derived from
   # the one sanctioned real recording (hameeda) — do NOT repurpose real teachers' DB recordings (privacy, Rule 1).
   audio_fixture: ".claude/qa/fixtures/whatsapp/niete/media/hameeda_classroom.m4a"        # 25 MB, ~1575s (~26 min) — TRIGGERS "Long Lesson Detected" (10+ min analysis)
