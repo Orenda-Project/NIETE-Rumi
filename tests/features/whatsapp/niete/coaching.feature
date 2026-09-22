@@ -208,6 +208,34 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # gpt-5.6-luna stays inside its run-to-run noise. @content-driven: which move a photo credits depends on the lesson;
     # assert the contract (a "[photo N]" citation on a credited move), never a specific move or score.
 
+  @e2e @wip @draft @P1
+  Scenario: The same recording sent twice returns the report already made, not a second score
+    Given the NIETE bot chat is open
+    And I have already received a coaching report for a classroom recording
+    When I upload that exact same recording file again
+    Then the bot tells me it has heard this recording before
+    And the bot sends back the report it already made for that recording
+    And no new 5-step analysis is started
+    # bd-7beiz — audio-hash-cache.js: SHA-256 of the downloaded audio, matched against
+    # this teacher's own completed DC sessions inside a 7-day window.
+    # transcription-processor short-circuits BEFORE the R2 upload and before
+    # transcription, so a duplicate costs neither ASR nor LLM. Why it matters: the
+    # rubric pass runs at temperature 1 with no seed, so re-scoring identical audio
+    # moved the overall by a mean of 5.9 points across 1,515 measured duplicate
+    # groups — one lesson must not yield a teacher two different numbers.
+
+  @e2e @wip @draft @P2
+  Scenario: A recording the bot has not scored before is still analysed normally
+    Given the NIETE bot chat is open
+    And I have already received a coaching report for a classroom recording
+    When I upload a different classroom recording
+    Then the 5-step analysis starts as usual
+    And the bot does NOT say it has heard this recording before
+    # bd-7beiz — the match is on the exact bytes, so only a bit-for-bit identical
+    # resubmission is short-circuited; a re-recorded or new lesson hashes differently
+    # and takes the normal path. Guards the failure mode where a lookup matches too
+    # broadly and silently swallows new work.
+
   # ── EDGE ──
   @e2e @wip @draft @edge @P2
   Scenario: A second recording sent mid-analysis is deferred, not started fresh
