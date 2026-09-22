@@ -237,6 +237,12 @@ const LABELS = {
     // ── v9 furniture (the closed heading system) ──────────────────────────
     outcome: "Learning outcome", locallyAdded: "locally added",
     kind: { scaffold: "scaffold for today", prerequisite: "prerequisite", spaced: "spaced review" },
+    /* bd-3jemp. The eight Digital Coach phases this sheet has a surface for, of the ten its
+       fidelity extractor enumerates. `recall` and `peer_review` are absent on purpose: no block
+       in the primary inventory is either, and a label without a surface is a promise the page
+       does not keep. Short words -- the chip sits beside a heading and must not outrun it. */
+    dcPhase: { warm_up: "Warm-up", hook: "Hook", announce: "Announce", explain: "Explain",
+      guided: "Guided", independent: "Independent", exit: "Exit", homework: "Homework" },
     seqPrev: "Last", seqNext: "Next", seqCheck: "Checkpoint",
     fromBook: "Teaching from", video: "Video",
     // bd-vbs5w — G1-5 page 1. The primary band restates the same three periods `seqPrev`/`this`/
@@ -298,6 +304,8 @@ const LABELS = {
     continues: "اگلے صفحات معاون مواد ہیں — یہ آپ کی تیاری کے لیے ہیں، کلاس میں پڑھ کر نہ سنائیں۔", continued: "جاری ہے",
     outcome: "تدریسی نتیجہ", locallyAdded: "مقامی اضافہ",
     kind: { scaffold: "آج کے سبق کی بنیاد", prerequisite: "سابقہ علم", spaced: "دہرائی" },
+    dcPhase: { warm_up: "ابتدائی دہرائی", hook: "تجسس", announce: "مقصد", explain: "وضاحت",
+      guided: "رہنمائی", independent: "خود کام", exit: "اختتامی جانچ", homework: "ہوم ورک" },
     seqPrev: "پچھلا", seqNext: "اگلا", seqCheck: "جانچ",
     fromBook: "تدریس بمطابق", video: "ویڈیو",
     // bd-vbs5w — the primary band. See the English note.

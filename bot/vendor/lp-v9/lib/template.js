@@ -780,6 +780,18 @@ p{ font-size:18px; }
       background:var(--amber); color:var(--navy); }
 .mvt.we{ background:var(--band-we); color:#fff; }
 .mvt.you{ background:var(--leaf); color:#fff; }
+/* bd-3jemp. The DC phase. It sits on the SAME line as the move pill and is quieter than it on
+   purpose: the pill is what the teacher plans by, the chip is what the coach scores by, and the
+   chip is the one that must not shout over a heading. Outline rather than fill, so a block
+   carrying both reads as one object with two labels instead of two competing badges. */
+.dct{ float:${end}; margin-${start}:var(--sp-2); display:inline-block;
+      font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+      padding:1px 7px; border-radius:var(--r-pill); border:1px solid var(--line); color:var(--mut); }
+/* The crux. Full width under the badges, above the script: the one line a teacher who reads
+   nothing else still acts on. Heading weight, body ink, and a leading rule so the eye lands on
+   it before the paragraph beneath. */
+.crux{ clear:both; font-size:16px; font-weight:800; line-height:1.35; color:var(--ink);
+      border-${start}:3px solid var(--amber); padding-${start}:9px; margin:6px 0 8px; }
 .exq h4{ font-size:18px; color:var(--navy); margin-top:var(--sp-1); line-height:${rtl ? "1.85" : "1.45"}; }
 .exq .prompt{ font-size:18px; margin-top:var(--sp-1); }
 .exq .setup{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
@@ -1464,7 +1476,7 @@ p, li, figcaption,
    for with a target. */
 body, .hook .q, .hook .lf, .slo p, .tn, .ck .q, .srq .q, .exq h4, .exq .cfu,
 .band > div .t, .ord li, .tbl td, .cont, .tnote, .seq, .mathb,
-.kwtab .kr > *, figure.dg figcaption{ line-height:2.4; }
+.kwtab .kr > *, figure.dg figcaption, .crux{ line-height:2.4; }
 .hero .kicker, .hero .h-title, .hero .h-sub, .hero .h-meta, .hero .tchip,
 .bar .nm, .lbl, .p2head .t, .p2head .r, .p2bar .nm, .foot{ line-height:2.05; }
 ` : ""}`;
@@ -1892,6 +1904,46 @@ const BI_MARK = '<svg class="bimark" viewBox="0 0 24 24" aria-hidden="true" focu
 const MOVE_PREFIX = [["worked", "i"], ["ido", "i"], ["wedo", "we"], ["youdo", "you"]];
 const MOVE_KEY = { i: "iDo", we: "weDo", you: "youDo" };
 
+/* bd-3jemp. THE MOVES THE DIGITAL COACH ACTUALLY GRADES.
+   The vocabulary above is gradual release, and it is not what the DC detects. Its move enum is
+   ten `phase` values, hard-coded in the fidelity extractor
+   (bot/shared/services/coaching/fidelity/lp-upload-extractor.js:15-17):
+
+     warm_up · hook · recall · announce · explain · guided · independent · peer_review ·
+     exit · homework
+
+   and the score follows those, not these. `applyLpFidelity` (fico-framework.js:700-745)
+   OVERWRITES the whole of FICO Section B with round(fidelity_pct/100 * 40) as soon as a plan is
+   linked and its fidelity is usable: 40 of 148 points, 27% of the teacher's score, on one dial
+   of executed-over-prescribed moves. Gradual release survives in FICO only as the level-3
+   descriptor of indicator B2, worth 4/148 = 2.7%, and B2 is one of the ten indicators that
+   overwrite discards. The pills therefore named the 2.7% and were silent about the 27%.
+
+   EXACT MATCH AFTER NORMALISATION, not prefix. `you-do` and `you-do-task` are both the
+   independent phase and are listed separately rather than collapsed to a prefix, because a
+   prefix rule is how `worked` came to also mean `i` and the next id that merely starts with
+   "hook" -- `hook-characters`, which is cast list, not a move -- would silently become one.
+
+   TWO PHASES ARE DELIBERATELY ABSENT. Nothing in the primary block inventory is `recall` or
+   `peer_review`. Minting a surface for them would be a proxy for a stage that is genuinely
+   dark; the honest map is the short one. Labels live in lib/overlay.js, both language blocks. */
+const DC_PHASE = {
+  hook: "hook",
+  bigidea: "announce",
+  ido: "explain",
+  wedo: "guided",
+  youdo: "independent",
+  youdotask: "independent",
+  remember: "exit",
+  hw: "homework",
+};
+
+/** The DC phase a block belongs to, off its id -- one of DC_PHASE's values, or null. */
+function dcPhaseOf(id) {
+  const k = String(id == null ? "" : id).replace(/[^a-z0-9]/gi, "").toLowerCase();
+  return (k && DC_PHASE[k]) || null;
+}
+
 /** The gradual-release move a block belongs to, off its id -- "i" | "we" | "you" | null. */
 function moveOf(id) {
   const k = String(id == null ? "" : id).replace(/[^a-z0-9]/gi, "").toLowerCase();
@@ -2257,7 +2309,23 @@ function makeBlockRenderer(ctx) {
      sheet has no rule to paint it, and no operator asked for it there. */
   const movePill = (b) => {
     const mv = ctx.primary ? moveOf(b && b.id) : null;
-    return mv ? `<span class="mvt${mv === "i" ? "" : " " + mv}">${esc(L[MOVE_KEY[mv]])}</span>` : "";
+    const grr = mv ? `<span class="mvt${mv === "i" ? "" : " " + mv}">${esc(L[MOVE_KEY[mv]])}</span>` : "";
+    /* bd-3jemp. The DC phase rides the same seam as the gradual-release pill, for the same
+       reason the comment above gives: one place, so the ATOMISER cannot rebuild a split block
+       without it. It does not replace the pill -- a teacher already reads I DO / WE DO / YOU DO,
+       and both are true of the same block -- and it reaches the seven blocks the pill never
+       could: hook, big-idea, remember, hw. No block is starred as "the scored one": the core
+       denominator (fidelity-scorer.js:93-121) is must_happen plus the adaptive_set members that
+       applied, every phase this sheet prints is core, so a marker on all of them would carry no
+       information. The lever is doing all of them, and the crux line below says what "doing" is. */
+    const ph = ctx.primary ? dcPhaseOf(b && b.id) : null;
+    const dc = ph ? `<span class="dct">${esc((L.dcPhase || {})[ph] || ph)}</span>` : "";
+    /* The crux. OPERATOR: *"the crux of what should be done should be highlighted in the move
+       since there is alot of script to go through"*. Authored, never derived -- one line per
+       move, at heading weight, ahead of the script. Unauthored blocks render as they did. */
+    const cx = String((b && b.crux) || "").trim();
+    const crux = ctx.primary && cx ? `<div class="crux">${esc(cx)}</div>` : "";
+    return grr + dc + crux;
   };
 
   const render = (b, colPx) => {
@@ -3898,7 +3966,7 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
 // This does NOT rescue a consumer that destructures at require time — destructuring calls the
 // getter once, there and then. `render_lp.js` is that consumer, and it is fixed the only way
 // that works: the geometry is passed to it as an argument off `buildHtml`'s return value.
-module.exports = { buildHtml, setPageFormat, isPrimary, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META,
+module.exports = { buildHtml, setPageFormat, isPrimary, dcPhaseOf, TYPE_SCALE, BODY_PX, BODY_PX_V91, scaledPx, scaleTypeCss, SECTION_META,
   PAGE_A4, PAGE_FORMATS, pageScaled, DIAGRAM_MIN_PX_A4,
   FIG_CHROME, FULL_COL_A4,
   PRIMARY_DIAGRAM_MIN_PX, PHONE_FULL_COL, PRIMARY_FIG_MAX_H,
