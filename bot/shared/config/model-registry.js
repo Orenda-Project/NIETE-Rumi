@@ -159,6 +159,57 @@ const TELEMETRY_ONLY_JOBS = Object.freeze([
   'coaching.cardLocalise',       // commitment-card, translation pass
   // the ninth call site, found from spend rather than from reading the code
   'lp.extractUpload',            // coaching/fidelity/lp-upload-extractor
+
+  // ---- phase 2 (bd-8xmp9): the rest of the LIVE call sites --------------------------------
+  // Scoped by reachability from the three Procfile entry points. Four other files hold model
+  // calls and are deliberately NOT here: transcript-enhancer, name-extractor, and both
+  // pic-to-lp extractors are required by nothing in NIETE. See bd-8xmp9.
+  'chat.respond',                // openai.service getResponseWithFormat -- the main reply
+  'chat.intent',                 // openai.service detectIntent
+  'chat.topic',                  // openai.service extractTopic
+  'chat.completion',             // openai.service createChatCompletion -- a DEFAULT, callers override
+  'helper.guidance',
+  'helper.stuckRecovery',
+  'helper.capabilityDetect',
+  'helper.capabilityGuidance',
+  'helper.capabilityDefault',
+  'exam.grade',                  // exam-checker/grading
+  'coaching.questionRouter',     // coaching/reflective-questions/llm-router
+  'quiz.generate',
+  'quiz.insight',                // quiz-report
+  'quiz.session',
+  'quiz.videoReport',
+  'reading.analyse',
+  'reading.diagnosticSummary',
+  'reading.report',
+  'reading.reportEnhance',       // the second pass inside generateReport
+  'reading.sendResults',
+  'reading.comprehensionStart',
+  'reading.combinedReport',
+  'reading.comprehensionQuestions',
+  'reading.evaluateText',
+  'reading.evaluateAnswer',
+  'reading.comprehensionGuidance',
+  'reading.wordCategories',
+  'reading.levelWelcome',
+  'reading.levelPassed',
+  'reading.levelRetry',
+  'reading.levelTransition',
+  'reading.levelLowest',
+  'reading.passageSend',         // two sites, one job: same send on two branches
+  'reading.passageText',
+  'reading.fluencyMatch',
+  'reading.voiceFeedback',
+  'reading.translate',           // reading/report _translateToEnglish
+  'reading.assessLanguage',
+  'reading.assessGrade',
+  'reading.assessAudio',
+  'reading.wordGrid',            // utils/word-grid-generator
+  'lp.editIntent',               // lp612-edit-intent
+  'lp.extractText',              // workers/lesson-plan-extraction
+  'lang.detect',                 // language-detector
+  'training.capstoneScore',
+  'attendance.voiceExtract',
 ]);
 
 /** The model this job is known to work with, or null when it has nothing behind it. */

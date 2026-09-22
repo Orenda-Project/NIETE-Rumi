@@ -210,6 +210,7 @@ class GradingService {
     try {
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
+        job: 'exam.grade',
         messages: [
           { role: 'system', content: GRADING_SYSTEM_PROMPT },
           {

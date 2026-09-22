@@ -409,6 +409,7 @@ ${hasComprehension ? '- ¡Equilibra errores de pronunciación y orientación de 
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
+        job: 'reading.voiceFeedback',
         messages: [
           {
             role: 'system',
