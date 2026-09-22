@@ -19,7 +19,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
-const { LP_V8 } = require('./quiz-sources');
+const { LP_V8, lessonSessionFor } = require('./quiz-sources');
 
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -32,21 +32,6 @@ const QUIZ_QUESTIONS_SELECT = 'external_id, question_text, option_a, option_b, o
 async function updateQuiz(quizId, patch) {
   const { error } = await supabase.from('quizzes').update(patch).eq('id', quizId);
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
-}
-
-/**
- * The only thing the hand-off reads from a "session" is the lesson's date. An
- * lp_v8 quiz has no coaching session: its date is `meta.lesson_date`, the PKT
- * school day the lesson was planned for (PLAN_R8 §2.3, D2), and it is printed
- * where a transcript quiz prints the recording's date.
- *
- * A bare `YYYY-MM-DD` is pinned to noon PKT, so no reading of the offset can
- * move it across midnight onto the neighbouring day.
- */
-function lessonSessionFor(quiz) {
-  const d = quiz && quiz.meta && quiz.meta.lesson_date;
-  if (!d) return {};
-  return { created_at: /^\d{4}-\d{2}-\d{2}$/.test(String(d)) ? `${d}T12:00:00+05:00` : d };
 }
 
 /**

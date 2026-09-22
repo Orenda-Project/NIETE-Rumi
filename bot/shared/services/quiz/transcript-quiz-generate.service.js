@@ -25,7 +25,9 @@ const Author = require('./transcript-quiz-author.service');
 const { validate, MIN_QUESTIONS } = require('./transcript-quiz-validator');
 const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
-const { TRANSCRIPT, LP_V8 } = require('./quiz-sources');
+const {
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey,
+} = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
@@ -453,34 +455,6 @@ async function updateQuiz(quizId, patch) {
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
-/**
- * WHICH failure sentence the teacher gets.
- *
- * `tqCouldNotMake` names "this lesson's recording" and "the transcript" — true
- * of a quiz written from a coaching recording, and a state that never existed
- * for a quiz written from the lesson PLAN a teacher was served. One shared
- * fallback across distinct failures is also what misdirected a whole fix cycle
- * before (root CLAUDE.md rule 24d), so the LP path names the step that stopped.
- *
- * Exported and pure so the copy can be asserted without a send.
- *
- * @param {string} reason      the `transcript_quiz.failed` reason
- * @param {string} quizSource  `quizzes.quiz_source`
- * @returns {string} a ux-strings key
- */
-const LP_FAILURE_COPY = {
-  source_missing: 'tqFailedLpSource',
-  digest_failed: 'tqFailedLpDigest',
-  validator_failed: 'tqFailedLpAuthor',
-};
-function failureCopyKey(reason, quizSource) {
-  if (quizSource !== LP_V8) return 'tqCouldNotMake';
-  // An LP quiz never falls back to the transcript copy: a reason nobody has
-  // written copy for is still an LP failure, and "the questions did not come
-  // out" is the honest general case of one.
-  return LP_FAILURE_COPY[reason] || 'tqFailedLpAuthor';
-}
-
 async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT) {
   await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
   logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource });
@@ -591,7 +565,7 @@ async function process(quizId, payload = {}) {
       return { failed: true, reason: 'teacher_missing' };
     }
     user = teacher;
-    session = require('./transcript-quiz-handoff.service').lessonSessionFor(quiz);
+    session = lessonSessionFor(quiz);
   } else {
     const { data: found } = await supabase.from('coaching_sessions')
       .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
