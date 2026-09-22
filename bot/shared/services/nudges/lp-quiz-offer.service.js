@@ -44,6 +44,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subject-order');
 const { teacherLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
+const { LP_V8 } = require('../quiz/quiz-sources');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -466,7 +467,7 @@ const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_CLASS_ROWS = 9;
 /** WhatsApp field caps, in code points. */
 const CAPS = Object.freeze({ rowTitle: 24, rowDesc: 72, button: 20, footer: 60 });
-const QUIZ_SOURCE = 'lp_v8';          // PLAN_R8 D12 — quiz-sources.LP_V8
+const QUIZ_SOURCE = LP_V8;            // never 'lesson_plan', the column default
 /** A language's own digits, where its prose uses them (Urdu: U+06F0–06F9, never ٠١٢٣). */
 const NATIVE_DIGITS = Object.freeze({ ur: '۰۱۲۳۴۵۶۷۸۹' });
 /** A language's own subject names, keyed on the lp612 canonical name. English is the name itself. */
