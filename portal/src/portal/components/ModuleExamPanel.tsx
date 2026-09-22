@@ -177,14 +177,30 @@ export default function ModuleExamPanel({
   if (!exam.available && phase === 'idle') {
     if (!exam.body?.trim()) return null;
     if (asListRow) {
+      // bd-60166 — the ROW must say what the gate says, like the panel below
+      // it already does. It used to hardcode a padlock and "Locked", which
+      // was a lie in every closed state except one: a PASSED exam rendered
+      // "🔒 Locked" while the server was saying "🏆 you passed this module".
+      // The teacher is told she is blocked from something she has finished.
+      //
+      // `cta` is the gate's own short label ("✓ Passed", "🔒 Locked",
+      // "⏳ Cooldown (3h)"), so the row carries the server's word for its own
+      // state and cannot drift from it again.
+      const passed = /passed/i.test(exam.cta || '') || /passed/i.test(exam.body || '');
       return (
         <div
-          className="w-full rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 opacity-60"
-          data-testid="module-exam-locked"
+          className={`w-full rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 ${passed ? '' : 'opacity-60'}`}
+          data-testid={passed ? 'module-exam-passed' : 'module-exam-locked'}
         >
-          <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
-          <span className="flex-1 text-[15px] truncate text-muted-foreground">Module exam</span>
-          <span className="text-sm text-muted-foreground shrink-0">Locked</span>
+          {passed
+            ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            : <Lock className="w-4 h-4 text-muted-foreground shrink-0" />}
+          <span className={`flex-1 text-[15px] truncate ${passed ? 'text-foreground' : 'text-muted-foreground'}`}>
+            Module exam
+          </span>
+          <span className={`text-sm shrink-0 ${passed ? 'text-green-700' : 'text-muted-foreground'}`}>
+            {(exam.cta || '').replace(/^[^\w]+\s*/, '').trim() || 'Locked'}
+          </span>
         </div>
       );
     }
