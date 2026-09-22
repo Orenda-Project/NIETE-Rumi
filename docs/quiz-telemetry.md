@@ -283,3 +283,35 @@ level guidance needs work, not the budget.
 | where ev in ('transcript_quiz.author_done','transcript_quiz.teacher_fields_repaired','transcript_quiz.rewrite_attempted','transcript_quiz.figure_salvage','transcript_quiz.shipped_with_soft_faults','transcript_quiz.ready','transcript_quiz.failed')
 | summarize n = count() by ev
 ```
+
+## Scheduled teacher asks: `teacher_nudges.*`
+
+Two asks reach a teacher on a schedule instead of in reply to a message: the coaching
+ask after the day's first lesson plan (`coaching_after_lp`) and the afternoon offer to
+make a quiz from the day's planned lessons (`lp_quiz_offer`). Both are rows in
+`teacher_nudges`, one per teacher per PKT day per kind, and both are sent by one sweeper
+(`bot/shared/services/nudges/teacher-nudges.sweeper.js`) that runs on the worker class
+that owns the `main` queue, every `TEACHER_NUDGES_SWEEP_MINUTES` (default 5) and once
+90 s after boot. With `TEACHER_NUDGES_ENABLED` unset the sweeper does nothing, and the
+worker's boot log says `Teacher-nudge sweep NOT enabled on this service` with the reason.
+
+| Event | When | Fields worth reading |
+|-------|------|----------------------|
+| `teacher_nudges.sweep` | once per tick, with the flag on, after every registered kind has been claimed and handled | `claimed` (rows this replica won from `pending`), `sent`, `skipped` (a rule fired: `context.skip_reason` on the row), `failed` (the handler threw, or returned neither `sent` nor `skipped`), `expired` (rows stuck in `sending` for 10+ minutes, flipped to `failed` with `context.error = 'stuck_sending'`) |
+
+The per-kind events (`lp_ask.*`, `lp_quiz.*`) are emitted by the kind's own service, not by
+the sweeper.
+
+Healthy is: one `teacher_nudges.sweep` line per tick on exactly one service; `claimed`
+equal to `sent + skipped + failed`; `expired` at zero. A non-zero `expired` means a tick
+died between the claim and the mark. `claimed` at zero all afternoon on a school day,
+with lesson plans being delivered, means no kind is registered in the worker process.
+
+```apl
+['niete-logs']
+| where data_json contains 'teacher_nudges.sweep'
+| extend d = parse_json(data_json)
+| summarize ticks = count(), claimed = sum(toint(d.claimed)), sent = sum(toint(d.sent)),
+            skipped = sum(toint(d.skipped)), failed = sum(toint(d.failed)), expired = sum(toint(d.expired))
+  by bin(_time, 1h), service
+```

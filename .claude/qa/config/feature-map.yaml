@@ -163,6 +163,12 @@ features:
     - bot/shared/utils/html-to-pdf.js
     - bot/shared/utils/html-to-docx.js
     - bot/shared/services/aws-textract.service.js   # only consumer: lesson-plan-extraction.worker.js
+    # The scheduled teacher asks (store, sweeper, PKT clock, and the two kinds'
+    # services). Owned by BOTH lesson-plan and coaching, like lp-v9 above: the
+    # coaching ask fires off a delivered lesson plan, and the afternoon quiz offer
+    # is made from the day's planned lessons. Not `shared:`, whose default leaves
+    # the spec alone; these files ARE teacher-visible behaviour.
+    - bot/shared/services/nudges/**
 
   coaching:
     - bot/shared/services/coaching/**
@@ -179,6 +185,7 @@ features:
     - bot/06_MMS_Inference_Service/**    # the Modal ASR service behind coaching transcription
     - bot/shared/constants/scoring.constants.js   # "scoring constants for classroom coaching reports"
     - bot/database/migrations/coaching_*.sql      # coaching schema; the columns the dedupe matches on (bd-7beiz)
+    - bot/shared/services/nudges/**               # the coaching ask after a lesson plan (see lesson-plan:)
 
   language:
     - bot/shared/config/languages.js
