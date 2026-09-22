@@ -219,3 +219,80 @@ describe('it obeys the surface ladder', () => {
     }
   });
 });
+
+/* --------------------------------------------- 6. kie.ai's pedagogical-heart treatment */
+
+/* bd-c74u3. Operator, on seeing the first G1-5 render beside a kie.ai plan: *"the pedagogical
+   heart was rendered differently in kie.ai, can we take that formatting?"* -- "pedagogical
+   heart" is kie.ai's own word for this block (`role: 'pedagogical-heart'`, its prompt builder
+   at `kieai-prompt-builder.service.js:103`). Four things differ there. Two are taken here and
+   two are NOT, and the split is the whole point of this section:
+
+     TAKEN   a mark on the heading (kie.ai: a lightbulb) -- our surfaces are otherwise
+             distinguished by colour alone, and this one is asking to be found on the page.
+     TAKEN   the three paragraphs read as PROSE, not as three headed sub-sections. kie.ai
+             prints them unlabelled; we keep the label but run it INLINE as a lead-in, which
+             is the same page economy without losing the signpost. On an 80-word block three
+             `display:block` labels were three of its ~7 lines: furniture outweighing content,
+             on the page the operator had already called "too much text dump".
+     NOT     kie.ai's subject colour (Maths #059669, English/Urdu #7c3aed). bd-z4xkl put this
+             surface on the TEACH rung of the ladder deliberately, and clause 5 above holds it
+             there. A per-subject hue is a decision about the whole ladder, not about one block.
+     NOT     its ~22% fixed share of page 1. Our page is flow-laid, and a height floor on one
+             block is how the other blocks get squeezed.
+
+   PRIMARY ONLY. G6-12 keeps the headed sub-sections: there the block sits on a denser page
+   whose reader is scanning for the sub-heading, and `primary-pending.test.js` still holds the
+   labelled-blank law that those labels exist to make visible. */
+
+describe("it takes kie.ai's pedagogical-heart treatment, on primary only", () => {
+  const css = () => sheet(build(doc()));
+  /* The declarations that actually reach `.bigidea .bil`, in source order -- the last one wins,
+     so a primary override has to come AFTER the base rule, and reading them in order is the
+     only way to assert that rather than assume it. */
+  const bilRules = (c) =>
+    c.split('}').map((r) => r.trim()).filter((r) => /\.bigidea\b[^{]*\.bil\b/.test(r));
+  const displayOf = (rule) => (rule.match(/display\s*:\s*([a-z-]+)/) || [])[1];
+
+  test('the paragraph label runs INLINE with its sentence on a primary plan', () => {
+    const applying = bilRules(css()).filter((r) => !/\.pri\b/.test(r) || true);
+    const primaryLast = applying.filter((r) => displayOf(r));
+    expect(primaryLast.length).toBeGreaterThan(0);
+    // The winning declaration for a `.pri` page must not put the label on its own line.
+    const last = primaryLast[primaryLast.length - 1];
+    expect(last).toMatch(/\.pri\b/);
+    expect(['inline', 'inline-block']).toContain(displayOf(last));
+  });
+
+  test('G6-12 keeps its label on its own line -- the base rule is untouched', () => {
+    const base = bilRules(css()).filter((r) => !/\.pri\b/.test(r) && displayOf(r));
+    expect(base).toHaveLength(1);
+    expect(displayOf(base[0])).toBe('block');
+  });
+
+  test('the heading carries a drawn mark, not a font character', () => {
+    const html = body(build(doc()));
+    const from = html.indexOf('<div data-atom class="blk bigidea');
+    const head = html.slice(from, html.indexOf('</div>', from));
+    expect(head).toMatch(/<svg[^>]*class="[^"]*bimark/);
+    // The page ships its own font subset (see the .mi checkbox comment) -- a glyph would be a
+    // font dependency, and 💡 is exactly the kind that renders as tofu on a teacher's phone.
+    expect(head).not.toMatch(/[\u{1F000}-\u{1FAFF}☀-➿]/u);
+  });
+
+  test('the mark is absent from a G6-12 plan', () => {
+    const d = baseDoc();
+    d.provenance = { ...d.provenance, grade: 9 };
+    const dev = d.sections.find((s) => s.id === 'development');
+    dev.blocks = [BI, ...dev.blocks];
+    expect(body(build(d))).not.toMatch(/class="[^"]*bimark/);
+  });
+
+  test('taking the treatment did not take the subject colour with it', () => {
+    // Guards the half we deliberately left behind: kie.ai's SUBJECT_COLOR values, anywhere.
+    const c = css();
+    for (const hex of ['#059669', '#7c3aed', '#dc2626', '#ea580c', '#0891b2']) {
+      expect(c.toLowerCase()).not.toContain(hex);
+    }
+  });
+});

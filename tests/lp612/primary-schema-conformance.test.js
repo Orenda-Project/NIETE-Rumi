@@ -161,3 +161,50 @@ describe('section.move — the gradual-release tag on the bar (bd-hlk39)', () =>
     expect(ok(withMove(1)).ok).toBe(false);
   });
 });
+
+describe('development.video.confidence — how sure the join is (bd-v2ikv)', () => {
+  /* The video join is the first thing that ever WROTE `development.video`, and the first
+     mapped document it produced was refused outright: `video` is `additionalProperties:
+     false`, so the two columns the map carries and v9 had never heard of -- `source` and
+     `confidence` -- killed the render, lesson and all. `source` was a naming gap and maps onto
+     the existing `channel`. `confidence` is a fact v9 has no home for, and dropping it is not
+     available: spec/05-media.md says "Low confidence is shown, not hidden", because a teacher
+     who can see we were unsure is a teacher who can tell us we chose wrong.
+
+     An enum rather than free text, unlike `section.move`: the three grades come from a column
+     the map fills itself, not from an author writing in the lesson language, and a fourth
+     value would mean the harvest changed shape without anyone noticing. */
+  const withVideo = (extra) => {
+    const d = baseDoc();
+    const dev = d.sections.find((s) => s.id === 'development');
+    dev.video = Object.assign({
+      url: 'https://pub-0edccec5d5bd419782ba389c59faecac.r2.dev/videos/X.mp4',
+      title: 'Addition and Subtraction',
+    }, extra || {});
+    return d;
+  };
+
+  test('the base fixture is still valid, with no video anywhere — the control', () => {
+    expect(ok(baseDoc()).errors).toEqual([]);
+  });
+
+  test('a mapped video with no confidence still validates — the property is optional', () => {
+    expect(ok(withVideo()).errors).toEqual([]);
+  });
+
+  test('each of the three grades the map assigns validates', () => {
+    for (const c of ['high', 'medium', 'low']) {
+      expect(ok(withVideo({ confidence: c })).errors).toEqual([]);
+    }
+  });
+
+  test('a fourth grade is refused, because it means the harvest changed shape', () => {
+    expect(ok(withVideo({ confidence: 'probably' })).ok).toBe(false);
+    expect(ok(withVideo({ confidence: 'HIGH' })).ok).toBe(false);
+  });
+
+  test("the map's `source` column has no home of its own — it maps onto `channel`", () => {
+    expect(ok(withVideo({ channel: 'Taleemabad library' })).errors).toEqual([]);
+    expect(ok(withVideo({ source: 'Taleemabad library' })).ok).toBe(false);
+  });
+});

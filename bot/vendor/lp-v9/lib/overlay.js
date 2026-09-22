@@ -58,6 +58,13 @@ const MACHINE_KEYS = new Set([
   // frozen — because a hand-maintained list is exactly what let `formula` and `closed_by` through.
   "closed_by", "level", "format", "layout", "cognitive_level", "assessment_status",
   "textbook_page", "page", "unit", "units",
+  // `confidence` (bd-v2ikv) is the join grade on `sections[].video`, and freezing it is not
+  // belt-and-braces: the schema pins it to the enum `high|medium|low`, so an overlay that
+  // translated "high" into Urdu would produce a document the validator then REFUSES — the render
+  // of the Urdu plan dies on a field no teacher was ever meant to read. `overlay-machine-fields`
+  // derived this from the schema and failed the moment the property was spliced in, which is the
+  // whole reason that test derives the set instead of trusting this list.
+  "confidence",
 ]);
 
 /** The four the renderer feeds to a PARSER or a fixed geometry, as opposed to the identifiers. */
@@ -235,7 +242,6 @@ const LABELS = {
     journey: "Journey so far", journeyNone: "Starting fresh today",
     today: "Today", comingUp: "Coming up",
     toPrepare: "To prepare", videoRes: "Video resource",
-    videoPending: "design pending — no video mapped yet",
     checkpoint: "Board question", exitTicket: "Exit ticket", reteach: "Re-teach rule",
     markAbbr: "m", teacherNote: "Teacher note —", distractors: "what each wrong option catches",
     refMissing: "\u26a0 this answer names no question in the plan",
@@ -293,7 +299,6 @@ const LABELS = {
     journey: "اب تک کا سفر", journeyNone: "آج نئی شروعات",
     today: "آج", comingUp: "آگے کیا",
     toPrepare: "تیاری کیجیے", videoRes: "ویڈیو وسیلہ",
-    videoPending: "ڈیزائن زیرِ تکمیل — ویڈیو ابھی متعین نہیں",
     checkpoint: "بورڈ کے انداز کا سوال", exitTicket: "اختتامی پرچی", reteach: "دوبارہ پڑھانے کا اصول",
     markAbbr: "نمبر", teacherNote: "استاد کے لیے نوٹ —", distractors: "ہر غلط جواب کس غلط فہمی کو پکڑتا ہے",
     refMissing: "\u26a0 اس جواب کا سوال منصوبے میں موجود نہیں",

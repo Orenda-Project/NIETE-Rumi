@@ -39,11 +39,16 @@
 /**
  * The sentinel `d0_blocks.DESIGN_PENDING` writes, matched on its stable head rather than in full.
  *
- * `L.videoPending` -- "design pending -- no video mapped yet" -- deliberately does NOT match. It
- * is a different sentinel with a different rationale (bd-a8veu: the video sheet is 403 to the
- * build account, so a blank row would read as "no video needed" rather than "not chosen yet"),
- * it is a LABEL the renderer paints rather than a string the document carries, and it is the
- * operator's to rule on separately.
+ * There WAS a second sentinel, `L.videoPending` -- "design pending -- no video mapped yet" --
+ * which this pattern deliberately did not match: it was a LABEL the renderer painted on an
+ * unmapped day rather than a string the document carried, so it was the operator's to rule on
+ * separately. She has (bd-jka9b): *"what is pending is not relevant for Primary."* The row and the
+ * label are both gone, and the rationale recorded for them here was false anyway -- the videos
+ * sheet was never 403 to the build account, and the SLO join reads it (bd-v2ikv).
+ *
+ * The distinction that outlives it is the one worth keeping: this module prunes pending content
+ * OUT OF THE DOCUMENT, where "dark stages stay dark" governs and every drop is reported. Page
+ * furniture the renderer paints around the document is a separate decision each time.
  */
 const PENDING = /^\s*design pending\s*[—–-]\s*not carried\b/i;
 

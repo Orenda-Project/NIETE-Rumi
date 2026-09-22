@@ -2202,6 +2202,101 @@ own constants are unchanged, so `warn = max - 1` still holds there and is still 
 
 **When the content lands**, turning the target into a gate is one constant.
 
+### 3.32 `lib/template.js`, `lib/overlay.js`, `schema/lp_doc.schema.json`, `lib/pending.js` — the primary video row says what the clip covers, and nothing is pending (bd-v2ikv / bd-jka9b / bd-nsv74 / bd-s429u, 2026-09-21..22)
+
+Operator, on the first primary render carrying a mapped video: *"what is pending is not relevant for
+Primary."*
+
+**What was wrong.** Two things, both surfaced the day the SLO→video join (bd-v2ikv) first wrote
+`sections[].video` on a primary document.
+
+1. **The pending marker was addressed to us, not to her.** The primary branch of the resources card
+   pushed `videoRow(L.videoRes) || "<design pending — no video mapped yet>"`, so an unmapped day
+   printed a warn-inked design note into a teacher's lesson plan. The comment that justified it said
+   the videos sheet was *"403 to the build account"*, so a blank row would read as "no video needed"
+   rather than "not chosen yet". **That reason was false.** The sheet was never 403 — the 403 was a
+   User-Agent block on `r2.dev`, which rejects `Python-urllib/3.x` and accepts a browser UA — and
+   the join now reads the sheet on every build. G6-12 has always printed nothing here
+   (`video-resources-slot.test.js`, *"NO pick means NO line and no empty label"*).
+2. **Two thirds of the mapping were invisible.** `spec/05-media.md` gives a mapped day three columns
+   in Resources — the video, how well it matches, and why — and is explicit about the third:
+   *"'Why it maps here' is not optional and is not generated prose. It quotes what the video says. A
+   teacher who disagrees with a mapping can see, in one line, what we thought the video taught — and
+   tell us we were wrong."* `videoRow()` printed the title and (on primary) the duration, and
+   dropped both `confidence` and `why` on the floor.
+
+**The fix, and why.**
+
+| Site | Change |
+|---|---|
+| `schema/lp_doc.schema.json` | `sections[].video.confidence`, an enum `high\|medium\|low`. `video` is `additionalProperties:false`, so the first mapped render was refused outright — no lesson written at all. |
+| `lib/overlay.js` | `MACHINE_KEYS` gains `confidence`; the dead `videoPending` removed from both tables. `videoMatch` + `confHigh/confMedium/confLow` were added here by bd-nsv74 and removed again by bd-s429u — see *The operator narrowed it* below. |
+| `lib/template.js` | `videoRow()` appends a full-width `.vwhy` line, PRIMARY-only; the `|| pending` fallback is gone; `.pri .vres{flex-wrap:wrap}`; the two dead `.pend` rules and their false-403 rationale deleted. The `.mtch` pill bd-nsv74 added beside it, and its `.dur + .mtch` reset, were removed again by bd-s429u. |
+| `lib/pending.js` | Its paragraph on `L.videoPending` rewritten — the label is gone and the reason recorded for it was false. |
+
+**An enum, not free text like `section.move` (§3.28).** The three grades come from a column the
+harvest fills itself, not from an author writing in the lesson's language, so a fourth value means
+the harvest changed shape rather than that someone phrased it differently.
+
+**Freezing `confidence` is load-bearing, and the schema test found it, not a reviewer.**
+`overlay-machine-fields.test.js` derives the frozen set from `lp_doc.schema.json` and failed the
+moment the property was spliced in. Without it the Urdu overlay would translate `"high"` into the
+document data and the validator would then **refuse the Urdu render** — a field no teacher ever
+reads killing her lesson. This is the `closed_by` class of failure and the reason that test derives
+its set rather than trusting the hand-written list.
+
+**The operator narrowed it one day later (bd-s429u, 2026-09-22).** On seeing the row:
+*"for the video, just its URL and a description of what it entails is enough."* So the
+`Match: high|medium|low` pill bd-nsv74 had just shipped came straight back out — the pill, its four
+labels in both `overlay.js` tables, the `.mtch` / `.dur + .mtch` / `.m-low` / `.pri .vres .mtch`
+rules, and the parity entries in `primary-page1-furniture.test.js`.
+
+**`confidence` stays on the document and in `MACHINE_KEYS`; it is simply never painted.** It is what
+ranked the candidates at harvest time (`mediamap.best()` sorts by `_RANK`), so it is the join's own
+provenance — dropping the property to match the render would lose why a given video won. The
+`.vwhy` description survives, and does the job the grade was doing less well: a teacher who can read
+what the clip actually covers can tell us we picked wrong, which a one-word grade never let her do.
+`spec/05-media.md` carries the same correction, against the three-column table it used to specify
+and its *"Low confidence is shown, not hidden"* rule.
+
+**What made the description worth keeping and the grade not.** Measured across all 1,461 catalogue
+entries: `why` is min 34 chars, **median 101**, p90 410, max 860, never empty; 635 of them also
+carry a trailing *"matching '<SLO>'"* clause. It is a sentence, which is why it takes a line of its
+own (`.pri .vres{flex-wrap:wrap}` + `flex:1 0 100%`) rather than sharing the baseline row and
+squeezing the title it explains. It is printed VERBATIM — including that clause, on the 43% of rows
+that have one — because `spec/05-media.md` is explicit that it *"is not optional and is not
+generated prose. It quotes what the video says"*, and trimming an evidence quote by regex is surgery
+on the evidence.
+
+**A THIRD false-403 comment was still in the sheet.** The bd-jka9b sweep searched for *"design
+pending"* and so missed `template.js`'s *"A GAP IS A GAP. The video sheet is 403 to the build
+account…"* — a CSS comment inside the `<style>` template literal, which means it is **published**, in
+every rendered page. Deleted, and pinned by an assertion that the whole document never matches
+`/403/`, since the next stale copy will not use the words the last sweep looked for either.
+
+**Why primary only, and why G6-12 is the control.** `video-resources-slot.test.js` deliberately pins
+the 6-12 line as compact — no channel, no why, `res.length < 400` — because there it is furniture on
+a card already at its page cap. That decision stands untouched: the split rides the `PRIMARY`
+predicate `videoRow()` already used for the duration, and `primary-video-row.test.js` asserts a
+G6-12 document renders byte-identically. **Measured cost on the G3 Maths Ch.2 Day 5 sample: zero
+pages.** Teach stays at 6/9 and the PDF at 7; page 1 absorbs the two extra lines into ~230px of
+existing slack.
+
+**A behaviour test was REVERSED, not deleted.** `primary-page1-furniture.test.js`'s *"no video
+prints the gap and never a link"* asserted the old marker. It now asserts the row is absent, with
+the operator's ruling and the false-403 correction recorded in place, so the reversal is legible
+rather than looking like a weakened test. The wider law it resembled — *"Dark stages stay dark.
+Surface 'design pending', never invent proxies"* — still governs the document's own content, which
+`lib/pending.js` handles; this was page furniture around it.
+
+**Tests.** `tests/lp612/primary-video-row.test.js` (14 after bd-s429u's rewrite — 8 red first on
+bd-nsv74, 4 more red first on the narrowing),
+`primary-schema-conformance.test.js` (+5 for the enum, 1 red first), `overlay-machine-fields.test.js`
+(schema-derived, failed on the splice), `primary-page1-furniture.test.js` (reversed + parity list),
+and on the producer side `curriculum/g1-5-resegment/test_d0_media.py` (14). Full `tests/lp612`
+after bd-s429u: **174 suites / 2333 passing, 5 skipped, 0 failing**. **The D0 Python suites need `LP_V9` pointed at this worktree** until the
+splice merges — same caveat as line 2096 for §3.26–§3.31.
+
 ### 3.8 Nothing else
 
 Every other file in `lib/` is **byte-identical to upstream**. `lib/template.js` is not: it carries the
@@ -2211,12 +2306,15 @@ rules (§3.18), the two board grid tracks (§3.19), primary's page-1 furniture w
 `isPrimary` predicate (§3.20), the board connector renderer (§3.21), the one opening box (§3.22) and
 the three move surfaces with the split activity band (§3.23), the primary diagram floor
 with its phone-first canvas (§3.24), the board hoisted onto page 1 (§3.25), the phase/move split on the
-band (§3.28), the check that closes the worked example (§3.29) and the grid row that is a row (§3.30).
-`render_lp.js` additionally carries primary's page target (§3.31). `lib/overlay.js` carries the
-two board labels (§3.16), the two script column heads (§3.17), page 1's seven labels (§3.20) and the
-two band names `weDo` / `youDo` (§3.23). `schema/lp_doc.schema.json`
+band (§3.28), the check that closes the worked example (§3.29), the grid row that is a row (§3.30)
+and the primary video row's description with no pending fallback and no grade (§3.32).
+`render_lp.js` additionally carries primary's page target (§3.31). `lib/pending.js` carries only a
+corrected comment (§3.32). `lib/overlay.js` carries the
+two board labels (§3.16), the two script column heads (§3.17), page 1's labels (§3.20 — seven, less
+`videoPending`; the four match labels §3.32 briefly added came out again with the column), the
+two band names `weDo` / `youDo` (§3.23) and `confidence` in `MACHINE_KEYS` (§3.32). `schema/lp_doc.schema.json`
 carries two additive hunks — the `board` variant's optional `title` and `panels` (§3.16) and the two
-example variants' optional `turns` (§3.17) and `sequence`'s optional `day` / `of` (§3.20) — **all five were actually spliced in on 2026-09-18 by §3.27, not by the entries that named them**, along with the `big_idea` variant (§3.26), `section.move` (§3.28), `worked_example.cfu` (§3.29) and the `script_turn` / `board_panel` definitions; `lp_doc.v2.schema.json` is untouched. The `diagrams/` tree is
+example variants' optional `turns` (§3.17) and `sequence`'s optional `day` / `of` (§3.20) — **all five were actually spliced in on 2026-09-18 by §3.27, not by the entries that named them**, along with the `big_idea` variant (§3.26), `section.move` (§3.28), `worked_example.cfu` (§3.29), `video.confidence` (§3.32) and the `script_turn` / `board_panel` definitions; `lp_doc.v2.schema.json` is untouched. The `diagrams/` tree is
 byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes, and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's

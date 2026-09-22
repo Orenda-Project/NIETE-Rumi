@@ -226,12 +226,22 @@ describe('video resources is its own table, after to prepare', () => {
     expect(h).toContain('<span class="dur">4:12</span>');
   });
 
-  test('no video prints the gap and never a link', () => {
+  /* REVERSED BY THE OPERATOR (bd-jka9b). This test used to require the opposite: an unmapped day
+     printed "design pending — no video mapped yet" in warn ink, so that a blank row could not read
+     as "no video needed" rather than "not chosen yet". Two things were wrong with it. The reason
+     given for it was false -- the videos sheet was never 403 to the build account, and the SLO
+     join now reads it (bd-v2ikv) -- and the note was addressed to us, not to her. OPERATOR,
+     verbatim: *"what is pending is not relevant for Primary."* The row is now absent, which is
+     what G6-12 has always done ('NO pick means NO line and no empty label',
+     tests/lp612/video-resources-slot.test.js). The wider rule it looked like an instance of --
+     *"Dark stages stay dark. Surface 'design pending', never invent proxies"* -- still governs the
+     document's own content, which `lib/pending.js` handles; this was page furniture. */
+  test('no video prints NOTHING — not a gap note, not an empty row', () => {
     const d = primaryDoc();
     delete d.sections.find((s) => s.id === 'development').video;
     const h = body(build(d));
-    expect(hasClass(h, 'vres')).toBe(true);
-    expect(h).toContain(L.videoPending);
+    expect(hasClass(h, 'vres')).toBe(false);
+    expect(h).not.toMatch(/design pending/i);
     expect(h).not.toContain('youtube.com');
   });
 });
@@ -352,7 +362,11 @@ describe('primary\'s page-1 panels pack independently', () => {
 /* ----------------------------------------------------------- 8. both label dictionaries */
 
 describe('every new label exists in both dictionaries', () => {
-  test.each(['journey', 'journeyNone', 'today', 'comingUp', 'toPrepare', 'videoRes', 'videoPending'])(
+  // `videoPending` was in this list until bd-jka9b removed the one row that painted it, and
+  // `videoMatch` + the three grades joined it for one bead (bd-nsv74) before the operator cut that
+  // column again (bd-s429u). A label in the catalog that no site can paint is exactly the drift
+  // Rule 20 exists to catch, so each time a row goes, its labels go with it.
+  test.each(['journey', 'journeyNone', 'today', 'comingUp', 'toPrepare', 'videoRes'])(
     '%s is in en and ur', (k) => {
       expect(typeof LABELS.en[k]).toBe('string');
       expect(LABELS.en[k].length).toBeGreaterThan(0);

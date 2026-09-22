@@ -228,6 +228,7 @@
               "channel": { "type": "string" },
               "duration": { "type": "string", "description": "e.g. '4:12'" },
               "why": { "type": "string", "description": "One line: what the teacher plays it FOR." },
+              "confidence": { "type": "string", "enum": ["high", "medium", "low"], "description": "bd-v2ikv. How sure the SLO->video join is, from the map's own column. spec/05-media.md: 'Low confidence is shown, not hidden' -- a teacher who can see we were unsure is a teacher who can tell us we chose wrong. An enum, not free text like `section.move`: the grades come from a harvested column rather than an author, so a fourth value means the harvest changed shape." },
               "checked_at": { "type": "string" }
             }
           },

@@ -641,8 +641,10 @@ p{ font-size:18px; }
 /* bd-i44jn: the joint between two boards. Centred because it belongs to neither column. */
 .board .bcon{ text-align:center; font-weight:800; font-size:15px; color:var(--warn);
   letter-spacing:.04em; margin-top:5px; }
+/* bd-vxmj1: unitless, per R6 -- a px leading does not survive scaleTypeCss, and the
+   law bans it outright. 1.5 is the same 18px box at this font-size. */
 .board .bn{ background:var(--navy); color:#fff; font-size:12px; font-weight:800; text-align:center;
-   line-height:18px; border-radius:var(--r-pill); }
+   line-height:1.5; border-radius:var(--r-pill); }
 .board .bhd{ font-weight:800; font-size:16.5px; color:var(--navy2); text-transform:uppercase;
    letter-spacing:.05em; }
 /* NOTHING RUNS OFF THE SHEET -- VENDOR DIVERGENCE (SYNC §3.19), bd-59vvo. A max-content track
@@ -695,6 +697,29 @@ p{ font-size:18px; }
 .bigidea .bip{ margin:var(--sp-1) 0 0; font-size:18px; }
 .bigidea .bil{ display:block; font-size:15.5px; font-weight:800; letter-spacing:.05em;
   text-transform:uppercase; color:var(--s-teach-ink); }
+/* VENDOR DIVERGENCE (SYNC 3.27), bd-c74u3 -- KIE.AI'S PEDAGOGICAL-HEART TREATMENT, PRIMARY ONLY.
+   Operator, on the first G1-5 render beside a kie.ai plan: *"the pedagogical heart was rendered
+   differently in kie.ai, can we take that formatting?"* -- "pedagogical heart" is kie.ai's own
+   'role' for this block. It prints the three paragraphs UNLABELLED under a lightbulb card; the
+   rule above prints three uppercase lines over ~80 words, so on a primary page three of the
+   block's ~7 lines were furniture -- on the page that same operator had called "too much text
+   dump". The label is kept and run INLINE as a lead-in: the same page economy without losing
+   the signpost, and clause 2 of primary-big-idea.test.js (the label prints, from LABELS,
+   never hardcoded in the renderer) still holds. G6-12 is untouched -- there the block sits on
+   a denser page whose reader scans for the sub-heading, and the labelled-blank law leans on
+   those labels standing clear of the prose. NOT taken: kie.ai's per-subject hue (bd-z4xkl put
+   this surface on the TEACH rung of the ladder deliberately, and that is a decision about the
+   whole ladder, not this block) and its fixed ~22% share of page 1 (our page is flow-laid, and
+   a height floor on one block is how every other block gets squeezed). */
+.pri .bigidea .bil{ display:inline; letter-spacing:0; text-transform:none; }
+/* ASCII colon, not an em dash: the separator is the one character here that no LABELS entry
+   supplies, so it has to be one that cannot be missing from the page's own font subset. */
+.pri .bigidea .bil::after{ content:":\u00a0"; }
+/* Drawn, not a glyph -- the same reason the .mi checkbox is drawn. A lightbulb emoji is exactly
+   the codepoint that lands as a tofu box on a teacher's phone. */
+.bigidea .bimark{ width:1em; height:1em; vertical-align:-.13em; margin-${end}:7px;
+  fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round;
+  stroke-linejoin:round; }
 /* bd-a8veu.21 — N cases that share attributes, as a shape instead of as repeated sentences.
    The sizes here are SOURCE sizes: every font-size in this sheet is multiplied by TYPE_SCALE
    (1.1667) on the way out, so 18px emits at 21px = BODY_FLOOR_PX, and 14px emits at 16.33px =
@@ -1206,17 +1231,14 @@ ${PAGE.oneColumn ? ".band > .today{ grid-column:1 / -1; order:-1; }" : ""}
    bottom would print half a rectangle at the foot of a sheet. Closed on all four sides, with
    the shared corners squared, a split reads as continued rather than as unfinished. */
 .pri .blk.wu.opn{ background:#fff; border:1px solid var(--s-teach-line); padding:5px 9px 7px; }
-/* A GAP IS A GAP. The video sheet is 403 to the build account, so a day with no mapped video
-   prints this and never a link. Warn ink, because an absence a teacher has to work around is a
-   warning and not a note. */
-.vres .pend{ color:var(--warn); font-weight:700; font-style:italic; min-width:0; }
-/* The pending line is an ABSENCE, and an absence that takes three lines of a page at its cap is
-   the wrong trade: the row said "design pending -- no video is mapped to this day yet" over 452px
-   and cost 129px, which is more than the lesson's first two steps. Shortened in overlay.js and set
-   one step down, it says the same thing on one line. It stays warn-inked and it stays printed --
-   the video sheet is still 403 to the build account, and a blank row would read as "no video
-   needed" rather than "not chosen yet". */
-.pri .vres .pend{ font-size:17px; }
+/* THE PRIMARY VIDEO ROW (bd-nsv74, narrowed in bd-s429u): the link, and under it a description of
+   what the clip covers. The description takes a line of its own -- it is a sentence, median 101
+   characters across the catalogue, so sharing the baseline row would squeeze the title it is
+   explaining -- so the row wraps, which it can only do on primary: G6-12's is a single-line card
+   row, never gets a description, and stays exactly as wide as it was. */
+.pri .vres{ flex-wrap:wrap; }
+/* Full width, so it is a line under the link rather than a column beside it. */
+.pri .vres .vwhy{ flex:1 0 100%; color:var(--s-note-ink); font-size:16px; font-style:italic; min-width:0; }
 .vres .dur{ flex:0 0 auto; margin-${start}:auto; font-size:16px; font-weight:800;
       color:var(--s-note-ink); font-variant-numeric:tabular-nums; }
 .vid{ display:flex; gap:8px; align-items:baseline; background:var(--s-teach); border:1px solid var(--s-teach-line);
@@ -1395,6 +1417,36 @@ p, li, figcaption,
 .wu .q, .pr .q, .hw .q, .mcq .q, .exq h4, .exq .prompt,
 .tn .tx, .tn .pl, .tn .rn,
 .exit .it > span, .vres a, .tnote, .crit, .bythe, .how, .refq{ unicode-bidi:plaintext; }
+
+/* ── NASTALIQ LEADING (bd-vxmj1) ─────────────────────────────────────────────
+   Law R6 at the top of this file has always said Urdu leading is unitless and
+   >= 2.0. It was written down and not enforced, and the sheet broke it two ways:
+   rules that DID branch but sat under the floor ('.hook .q' at 1.95 -- the
+   loudest box on page 1 and the longest run of Urdu prose in the plan), and
+   rules that never branched at all, so a Latin 1.35 was applied to Nastaliq.
+   The operator saw the result on the first G3 Urdu plan rendered from live ICT
+   traces: "the urdu nastaliq script is overlapping on pages" ... "some places
+   its too congested".
+
+   It is one block rather than 28 edited numbers because the failure mode is a
+   rule that FORGETS to branch, and a helper you must remember to call does not
+   catch the rule that forgot. Emitted last and under RTL only, so it wins on
+   equal specificity and the English sheet stays byte-identical.
+
+   Two floors, because one does not fit. R6's 2.0 is the value below which the
+   face clips; it is not the value at which a PARAGRAPH reads. Nastaliq's ink box
+   runs past 3em once a line carries the common descenders, so a caption that
+   survives at 2.0 is a paragraph that collides at 2.0. Prose gets 2.4; short
+   furniture keeps R6's own floor. urdu-nastaliq-leading.test.js holds both
+   against the sheet that ships. This costs pages, and the Urdu plan is already
+   past its soft target -- the page target is a target and the renderer says so
+   in its own warning. Overlapping script is a defect, and a defect is not paid
+   for with a target. */
+body, .hook .q, .hook .lf, .slo p, .tn, .ck .q, .srq .q, .exq h4, .exq .cfu,
+.band > div .t, .ord li, .tbl td, .cont, .tnote, .seq, .mathb,
+.kwtab .kr > *, figure.dg figcaption{ line-height:2.4; }
+.hero .kicker, .hero .h-title, .hero .h-sub, .hero .h-meta, .hero .tchip,
+.bar .nm, .lbl, .p2head .t, .p2head .r, .p2bar .nm, .foot{ line-height:2.05; }
 ` : ""}`;
   return `${fonts}\n${katex}\n${scaleTypeCss(sheet, TYPE_SCALE)}`;
 }
@@ -1790,6 +1842,16 @@ function cfuRow(b, rich, L) {
   return b.cfu ? `<div class="cfu"><span class="cl">${esc(L.askPlain)}</span>${rich(b.cfu)}</div>` : "";
 }
 
+/* bd-c74u3. THE BIG IDEA'S MARK -- kie.ai's lightbulb, drawn rather than typed. `.mi` already
+   settled the principle ("a checkbox character would be a font dependency on a page that already
+   ships its own subset"), and a lightbulb is the worse bet of the two: the emoji is outside every
+   subset we ship and lands as a tofu box. Sized in `em` and stroked in `currentColor`, so it
+   inherits the label's size and the TEACH ink and never needs a colour of its own. Decorative --
+   the label beside it already names the surface -- hence aria-hidden. */
+const BI_MARK = '<svg class="bimark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+  + '<path d="M9.5 18.5h5M10.5 21.5h3M12 2.5a6.5 6.5 0 0 0-3.9 11.7c.7.5 1.1 1.2 1.3 2l.1.3h5l.1-.3'
+  + 'c.2-.8.6-1.5 1.3-2A6.5 6.5 0 0 0 12 2.5Z"/></svg>';
+
 function makeBlockRenderer(ctx) {
   const L = ctx.L;
   const AR = arrowFor(ctx);
@@ -1894,7 +1956,11 @@ function makeBlockRenderer(ctx) {
       const paras = para("biDistinction", b.distinction) + para("biMisconception", b.misconception)
         + para("biDemo", b.demo);
       if (!paras) return "";
-      return `<div class="blk bigidea">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
+      // bd-c74u3. kie.ai marks this card with a lightbulb. Our surfaces are otherwise told apart
+      // by colour alone, and this is the one the teacher is meant to find first; primary only,
+      // for the same reason the inline lead-in is -- it is the crowded page that needs an anchor.
+      const mark = ctx.primary ? BI_MARK : "";
+      return `<div class="blk bigidea">${label ? `<div class="lbl g">${mark}${rich(label)}</div>` : ""}
       ${paras}</div>`;
     },
 
@@ -2438,7 +2504,24 @@ function page1(doc, ctx, secIndex) {
     // title cannot -- whether the clip fits the period she is planning; G6-12's row is one line
     // of a card already at its page cap, so it stays title-only there.
     const dur = PRIMARY && v.duration ? `<span class="dur">${esc(String(v.duration))}</span>` : "";
-    return `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(label)}</span><a href="${esc(href)}">${esc(shown)}</a>${dur}</div>`;
+    // PRIMARY also gets WHAT THE VIDEO COVERS (bd-nsv74, narrowed in bd-s429u). OPERATOR:
+    // *"for the video, just its URL and a description of what it entails is enough."* bd-nsv74
+    // shipped the spec's third column too -- a `Match: high|medium|low` pill -- and she cut it.
+    // `v.confidence` still rides on the document: it is what ranked the candidates at harvest
+    // time, so it is the join's own provenance and dropping it from the schema would lose that.
+    // It is simply never painted.
+    //
+    // The description is VERBATIM and UNLABELLED. Verbatim because spec/05-media.md is explicit
+    // -- *"not optional and is not generated prose. It quotes what the video says"* -- and a
+    // teacher who can read what the clip actually covers can tell us we picked wrong, which is
+    // the job the grade was doing less well. Unlabelled because a second label on a row that
+    // already says "Video resource" spends a line's width saying nothing.
+    //
+    // Both stay off G6-12's row, which is deliberately one compact line on a card already at its
+    // page cap (tests/lp612/video-resources-slot.test.js).
+    const whyText = PRIMARY ? String(v.why || "").trim() : "";
+    const why = whyText ? `<span class="vwhy">${esc(whyText)}</span>` : "";
+    return `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(label)}</span><a href="${esc(href)}">${esc(shown)}</a>${dur}${why}</div>`;
   };
   const resourcesLine = videoRow(L.video);
 
@@ -2520,12 +2603,16 @@ function page1(doc, ctx, secIndex) {
         ? `<div class="rmat"><span class="lbl">${esc(L.toPrepare)}</span><div class="mlist">${doc.materials.map((m) => `<span class="mi">${rich(m)}</span>`).join("")}</div></div>`
         : `<div class="rmat"><span class="ico">&#129520;</span><span class="lbl">${esc(L.materials)}</span><span>${doc.materials.map((m) => rich(m)).join(" &middot; ")}</span></div>`);
     }
-    // PRIMARY: her second table, and it prints whether or not there is a video — a day with no
-    // mapped video says so, because the video sheet is 403 to the build account and a blank row
-    // would read as "no video needed" rather than "not chosen yet".
+    // PRIMARY: her second table, printed only when there IS a video (bd-jka9b). It used to fall
+    // back to "design pending — no video mapped yet" on an unmapped day, on the reasoning that a
+    // blank row would read as "no video needed" rather than "not chosen yet". Two things were
+    // wrong with that. The reason given was false — the videos sheet was never 403 to the build
+    // account, and the SLO join now reads it (bd-v2ikv) — and the note was aimed at us, not at
+    // her. OPERATOR, verbatim: *"what is pending is not relevant for Primary."* So an unmapped day
+    // prints no video row at all, which is what G6-12 has always done.
     if (PRIMARY) {
-      rows.push(videoRow(L.videoRes)
-        || `<div class="vres"><span class="ico">&#128250;</span><span class="lbl">${esc(L.videoRes)}</span><span class="pend">${esc(L.videoPending)}</span></div>`);
+      const vr = videoRow(L.videoRes);
+      if (vr) rows.push(vr);
     } else {
       // The pacing SUM is a third statement of a number page 1 already carries in the hero and
       // every section bar carries again on its own line. Primary's page 1 is the one she called
