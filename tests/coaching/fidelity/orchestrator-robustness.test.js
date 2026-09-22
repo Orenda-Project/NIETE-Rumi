@@ -15,7 +15,7 @@ describe('version drift → fallbackToCurrent', () => {
   it('resolves the CURRENT move-list when the exact version is gone, and flags the drift', async () => {
     const calls = [];
     const res = await computeLpFidelity(
-      { corpusKey: { lesson_id: 'g3_ch5_seg995', version_stamp: 'v8-20260818T0201' }, transcript: 't' },
+      { corpusKey: { lesson_id: 'g3_ch5_seg995', version_stamp: 'v8-20260818T0201' }, transcript: '[00:10] t' },
       {
         resolveMoveList: async (key, opts) => {
           calls.push(opts);
@@ -38,7 +38,7 @@ describe('transient analyzer failure → one retry', () => {
   it('a single throw is retried and succeeds', async () => {
     let attempts = 0;
     const res = await computeLpFidelity(
-      { uploadedText: 'a plan', transcript: 't' },
+      { uploadedText: 'a plan', transcript: '[00:10] t' },
       {
         extractUploadedLp: async () => ({ moves: [{ text: 'm' }] }),
         analyzeFidelity: async () => { attempts += 1; if (attempts === 1) throw new Error('flake'); return { moves: [{ text: 'm', verdict: 'done', counted: true }] }; },
@@ -54,7 +54,7 @@ describe('uploaded text cap', () => {
   it('a megabyte of text is capped before extraction, at a sane bound', async () => {
     let seen = null;
     await computeLpFidelity(
-      { uploadedText: 'word '.repeat(300000), transcript: 't' },
+      { uploadedText: 'word '.repeat(300000), transcript: '[00:10] t' },
       {
         extractUploadedLp: async (text) => { seen = text; return { moves: [] }; },
         analyzeFidelity: OK_ANALYSIS,
