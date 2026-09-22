@@ -64,6 +64,22 @@ SURFACE = (
     "moved second -- same sentences, same order of ideas, 51 words of "
     "difference, against a room of 110",
 
+    "[7A] `bigIdea` is an OBJECT with three NAMED parts, and it is the "
+    "block that opens EXPLANATION on page 2, ahead of the I-Do. Write "
+    "`distinction` -- the thing the pages do and never say out loud, the one "
+    "pupils confuse; `misconception` -- what they will get wrong here and WHY "
+    "they get it wrong; and `demo` -- one sentence on how this period teaches "
+    "that distinction, which is the explanation script the field asked for, at "
+    "its smallest useful size. 80 words for all three together, and the three "
+    "are named rather than a free list because a free list gets filled with "
+    "three restatements of the outcome, which is the defect the surface exists "
+    "to remove. Leaving it out is not a smaller block, it is NO block: every "
+    "unwritten part fills with the pending sentinel and primary prunes the "
+    "whole thing, so the 80 words stay booked against the page and print "
+    "nothing. Do not restate it in `keyFact` or in the slip warning -- one "
+    "home per source field, and if `misconception` and the slip say the same "
+    "sentence, one of the two is wrong",
+
     "[7A] when a surface is over, move the words to a field that is free "
     "before you cut them. `flex_note` and `cfu` on a step cost nothing, and "
     "so do `boardWork`, `keyFact`, `warmUp`, `exitTicket`, "

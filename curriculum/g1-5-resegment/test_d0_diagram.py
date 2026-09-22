@@ -183,3 +183,43 @@ if __name__ == "__main__":
                 print(f"  FAIL {name}: {type(e).__name__}: {e}")
     print("FAILED" if fails else "all passed")
     raise SystemExit(1 if fails else 0)
+
+
+# ── bd-1nv5q: the hook slot IS the board plan ────────────────────────────────
+
+GRID = {"type": "grid", "rows": 2, "cols": 4, "shaded": 0,
+        "colLabels": ["Th", "H", "T", "O"],
+        "cellText": [[0, 0, "3"], [0, 1, "6"], [0, 2, "0"], [0, 3, "0"]],
+        "alt": "Place-value chart showing 3,600 before any renaming."}
+
+
+def test_the_hook_slot_replaces_the_board_plan_so_the_board_is_drawn_not_described():
+    """OPERATOR, three times over, most recently *"On the board should be an image, why
+    are you still writing words there?"*.
+
+    The brief now REQUIRES `diagrams.hook` on every lesson and points it at `board-plan`
+    (rule 36/37). That target had never been exercised: every corpus lesson carries a
+    `dia-explanation` and a `dia-practice`, and not one has ever replaced the board block,
+    so the path the new rule sends every future author down was the one path with no test
+    on it. The placement engine is generic and this passes on first run -- it is a contract
+    guard, not a red-first bug fix. The bug was a missing key in the brief, which has no
+    test surface; the proof for that half is a render.
+    """
+    doc = build({"hook": dict(GRID, replaces="board-plan")})
+    intro = _kinds(doc, "introduction")
+
+    # the board prose is gone -- not appended beside, replaced
+    assert ("board", "board-plan") not in intro
+    # and the drawing sits in its exact seat, last in the introduction
+    assert ("diagram", "dia-hook") in intro
+    assert intro[-1] == ("diagram", "dia-hook")
+    # nothing else in the section moved
+    assert [b for b in intro if b[0] != "diagram"] == [
+        ("ask", "hook"), ("key_points", "hook-characters"), ("keywords", "keywords")]
+    # routing never reaches the engine
+    spec = [b for s in doc["sections"] for b in s["blocks"]
+            if b.get("id") == "dia-hook"][0]["spec"]
+    assert "replaces" not in spec
+    assert spec["colLabels"] == ["Th", "H", "T", "O"]
+    # a real placement is silent
+    assert not [g for g in doc["notes"]["gaps"] if "hook" in g]

@@ -11,6 +11,7 @@ import re
 import unittest
 
 import bodysurface
+import d0_bigidea
 import wordbudget
 import lessonrules
 import surfacerules
@@ -90,6 +91,48 @@ class TheFactsTheyAssert(unittest.TestCase):
         for surface, cap in wordbudget.CAPS.items():
             self.assertRegex(self.doc, r"%s\s+%d" % (surface, cap),
                              "docstring cap for %s is stale" % surface)
+
+
+class TheBigIdeaShapeIsStated(unittest.TestCase):
+    """bd-uuxuu. Every part of this surface was built on 18 Sep 2026 -- the
+    schema variant, the 80-word cap, the renderer, `d0_bigidea` -- except the
+    one sentence that tells an author to write it.
+
+    What an author is handed today is `bodysurface.targets()`, which says
+    `big_idea` 80 `<- bigIdea` and stops. That is a name with no shape: it does
+    not say the field is an object, does not name its three parts, and does not
+    say what each part is for. So `bigIdea` was never written -- 38 of 38
+    corpus lessons carry none -- every part fills with DESIGN_PENDING, the
+    primary prune drops the whole block, and 80 words of a tight page budget
+    stay held open for a block that never prints. A capped surface with no
+    authoring rule is the one kind of surface that cannot be authored.
+    """
+
+    def setUp(self):
+        self.rules = [r for r in surfacerules.SURFACE if "`bigIdea`" in r]
+
+    def test_exactly_one_rule_owns_the_field(self):
+        self.assertEqual(len(self.rules), 1,
+                         "one home per source field; found %d" % len(self.rules))
+
+    def test_it_names_all_three_parts(self):
+        rule = self.rules[0]
+        for part in d0_bigidea.BIG_IDEA_PARTS:
+            self.assertIn("`%s`" % part, rule, part)
+
+    def test_it_quotes_the_live_cap(self):
+        self.assertEqual(wordbudget.CAPS["big_idea"], 80)
+        self.assertIn("80", self.rules[0])
+
+    def test_the_field_it_names_is_the_one_that_feeds_the_surface(self):
+        self.assertEqual(bodysurface.FEEDS["bigIdea"], "big_idea")
+
+    def test_an_unwritten_big_idea_really_does_cost_the_whole_block(self):
+        """The claim the rule is there to make, measured rather than quoted:
+        nothing authored is not a partial block, it is no block at all."""
+        blank = d0_bigidea.big_idea_block(None)
+        self.assertEqual([blank[p] for p in d0_bigidea.BIG_IDEA_PARTS],
+                         [d0_bigidea.DESIGN_PENDING] * 3)
 
 
 if __name__ == "__main__":
