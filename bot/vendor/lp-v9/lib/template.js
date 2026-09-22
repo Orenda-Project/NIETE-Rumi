@@ -3643,6 +3643,18 @@ function page2(doc, ctx, secIndex) {
   // so the support index closes up on its own (render-law 15) when the flow takes the group.
   S(L.p2Coach, hosts.coaching ? [] : [coachCard(doc, ctx, false)]);
 
+  // bd-aixwl -- NO SECTION, NO SHEET. Operator, on the three grade-3 renders: *"last page as an
+  // empty reference page should be deleted completely"*. Every group above now has a flow host
+  // or is not painted at all, and a primary lesson carries neither an exam bank nor, after the
+  // prune, a homework key -- so `nS` reaches here at zero and the only atom in `A` is the
+  // running head. `S` already refuses to paint a bar over an empty body (render-law 15); this is
+  // the same rule one level up, because a running head is furniture and not content, and
+  // `paginate` gives any non-empty atom list a page of its own. Returning nothing removes the
+  // page, and `buildHtml` then counts the part as zero pages so the footers do not promise a
+  // sheet that was never built. One painted section is enough to keep the sheet, masthead and
+  // all: then it has something on it.
+  if (!nS) return { part: "support", atoms: [] };
+
   return { part: "support", atoms: A };
 }
 
@@ -3802,7 +3814,9 @@ function buildHtml(input, opts = {}) {
   const support = page2(content, ctx, secIndex);
   const breaks = opts.breaks || { teach: [], support: [] };
   const teachPages = (breaks.teach || []).length + 1;
-  const supportPages = (breaks.support || []).length + 1;
+  // bd-aixwl: a support part with no atoms builds no page, so it contributes none to the total
+  // the footers print. Every other part of the arithmetic is unchanged.
+  const supportPages = support.atoms.length ? (breaks.support || []).length + 1 : 0;
   const total = teachPages + supportPages;
 
   // The measure pass carries a THROWAWAY page holding every piece of page FURNITURE the
