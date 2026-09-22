@@ -1289,6 +1289,14 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted tq_ button', { buttonId, from });
         }
       }
+      // The coaching ask on the first lesson plan of the day (lpask_yes_/lpask_no_).
+      // Its own prefix: "yes" opens the menu's Classroom Coaching door.
+      else if (buttonId.startsWith('lpask_')) {
+        const LpCoachingAsk = require('./shared/services/nudges/lp-coaching-ask.service');
+        if (!(await LpCoachingAsk.handleButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted lpask_ button', { buttonId, from });
+        }
+      }
       // Edit-class multi-class picker: open the edit-class flow for the chosen class.
       else if (buttonId.startsWith('edit_class_')) {
         const listId = buttonId.replace('edit_class_', '');
@@ -2383,6 +2391,13 @@ async function handleDocumentMessage(message, from, user) {
             });
             if (shortDocHandled) return;
           }
+        }
+        // After "Record my lesson": a 5–15 minute file is part of a lesson, too
+        // short to coach — say so from the probed length in hand, before it is
+        // handed on and transcribed as a chat question.
+        if (user) {
+          const LpCoachingAsk = require('./shared/services/nudges/lp-coaching-ask.service');
+          if (await LpCoachingAsk.catchShortRecording({ user, from, seconds: audioDurationRounded, path: 'document' })) return;
         }
         logToFile('🎤 Audio document < 15 min, routing to voice handler for transcription', {
           duration: audioDuration,

@@ -1584,6 +1584,8 @@ function startWorker() {
     const teacherNudges = require('../shared/services/nudges/teacher-nudges.sweeper');
     const nudgeQueues = SQSCoachingWorker._enabledQueues();
     if (teacherNudges.isEnabled() && nudgeQueues.has('main')) {
+      // Each kind's handler registers itself with the sweeper at load.
+      require('../shared/services/nudges/lp-coaching-ask.service');
       // The 15:00 quiz offer registers its kind (handler + cohort prepare) at load.
       require('../shared/services/nudges/lp-quiz-offer.service');
       // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the

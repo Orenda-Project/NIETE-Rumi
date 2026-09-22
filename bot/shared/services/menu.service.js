@@ -433,11 +433,12 @@ class MenuService {
    * @private
    */
   static async _handleClassroomCoachingChoice(userId, sessionId, from, language) {
-    const message = language === 'ur'
-      ? 'بہترین! اپنے کلاس روم کی آڈیو ریکارڈنگ بھیجیں تاکہ میں تدریسی تجزیہ شروع کر سکوں۔\n\nآڈیو فائل 15 منٹ سے زیادہ ہونی چاہیے۔'
-      : "Great! Please upload your classroom recording audio to get started with pedagogical analysis.\n\nThe audio should be at least 15 minutes long.";
-
-    await WhatsAppService.sendMessage(from, message);
+    // One door, one instruction: the menu row, the /coaching command and the
+    // "Record my lesson" tap on the lesson-plan ask all land here. The copy
+    // names the WhatsApp mic (two teachers in three already record with it) and
+    // asks for 20–45 minutes, the length of a real lesson; the old "at least 15
+    // minutes" was the routing threshold, not something to act on.
+    await WhatsAppService.sendMessage(from, resolveUx('lpAskYesReply', { language }));
 
     // Update state to await classroom audio
     await this._updateConversationState(userId, sessionId, {
