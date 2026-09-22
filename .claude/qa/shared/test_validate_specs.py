@@ -362,6 +362,36 @@ def test_the_real_niete_specs_pass():
     assert vs.run(spec_dir, agents_dir) == 0
 
 
+# ── bd-bufzl: a scenario-ID tag is structural vocabulary, not an unknown tag ────────────────────
+# The id tag (@COA16, @M09, @OBS04) is what binds a Gherkin scenario to its mock driver — without
+# it nothing can tell that a scenario has no driver. Treating every id as undocumented vocabulary
+# would put one W-UNKNOWNTAG on EVERY scenario in all nine specs, and a gate that fires on
+# everything is one somebody disables by Friday.
+
+
+def _tag_codes(tag):
+    return [pr["code"] for pr in vs.tag_problems(tag, "x.feature", 1)]
+
+
+def test_a_scenario_id_tag_is_known_vocabulary():
+    assert _tag_codes("m09") == [], "an id tag was not recognised: %r" % (_tag_codes("m09"),)
+
+
+def test_an_id_tag_is_recognised_for_every_feature_prefix():
+    for tag in ("coa16", "obs04", "l05", "sta14", "reg12"):
+        assert _tag_codes(tag) == [], "%s was not recognised: %r" % (tag, _tag_codes(tag))
+
+
+def test_a_genuinely_unknown_tag_still_warns():
+    """The id allowance must not become a blanket pass."""
+    assert "W-UNKNOWNTAG" in _tag_codes("totallymadeup"), "an unknown tag stopped warning"
+
+
+def test_the_id_shape_does_not_swallow_a_gating_typo():
+    """@e2ee must still be caught: an id is letters THEN digits, nothing else."""
+    assert "E-TAGTYPO" in _tag_codes("e2ee"), "a gating typo slipped through the id allowance"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
