@@ -239,6 +239,22 @@ const COACHING_MESSAGES = {
     ur: '💡 *مختصر یاد دہانی:* پچھلی بار آپ نے یہ عہد کیا تھا:\n\n_"{{action}}"_\n\nآئیے دیکھیں اس بار کیا ہوا!',
   },
 
+  // bd-7beiz — sent when the teacher submits a recording we have already
+  // scored (identical bytes, same teacher, within 7 days). She gets the report
+  // she already has rather than a second, differently-sampled score for the
+  // same lesson: the rubric pass runs at temperature 1, and re-scoring the same
+  // audio moved the overall by a mean of 5.9 points across 1,515 measured
+  // duplicate groups.
+  //
+  // No date is interpolated. The prior report carries its own date, and a
+  // formatted date here would need a locale-correct rendering in both languages
+  // that nothing on this path currently has. Body message — no 60/20 field cap
+  // applies (language-protocol §3).
+  duplicateRecording: {
+    ...en("📋 I've heard this recording before — it's the same one you sent me earlier, so here is the report I already made for it.\n\nScoring it again would give you a slightly different number for the very same lesson, and that wouldn't be fair to you. Send a *new* recording whenever you'd like fresh feedback."),
+    ur: '📋 یہ ریکارڈنگ مجھے پہلے بھی مل چکی ہے — یہ وہی ہے جو آپ نے پہلے بھیجی تھی، اس لیے اسی کی رپورٹ حاضر ہے جو میں پہلے بنا چکی ہوں۔\n\nاسے دوبارہ جانچنے سے اُسی سبق کا نمبر تھوڑا مختلف آتا، اور یہ آپ کے ساتھ انصاف نہ ہوتا۔ نئی رائے کے لیے جب چاہیں *نئی* ریکارڈنگ بھیج دیجیے۔',
+  },
+
   // ── The classroom-audio confirmation ──────────────────────────────────────
   // The most-sent message in the flow: every detected classroom recording is
   // followed by it. It was built from English literals inline, with no language
