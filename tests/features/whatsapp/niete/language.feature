@@ -399,3 +399,16 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # are chosen by quizzes.quiz_source, so a lesson-plan quiz never inherits the recording copy
     # (transcript-quiz-generate.service.js failureCopyKey). Rule 24d: the copy names the state that
     # actually stopped. @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  @e2e @language @quiz @wip @draft @config-gated @P2
+  Scenario: The afternoon quiz offer, and the list of classes it may show, arrive in my language
+    Given my account is set to Urdu
+    And I planned lessons for two classes today
+    When the afternoon quiz offer is sent
+    Then the message, the list button and every class row read in Urdu
+    And the row titles name the grade and subject in Urdu
+    When I pick a class
+    Then the confirmation that the quiz is being made reads in Urdu
+    And the same exchange on an English account reads in English
+    # R8 §5.2. lpQuizOffer* live in ux-strings.js in en+ur and are fitted to the WhatsApp caps in code
+    # points (list row title 24, description 72). @wip — driven and promoted by the sandbox E2E run.
