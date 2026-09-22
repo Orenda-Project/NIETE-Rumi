@@ -563,3 +563,90 @@ describe('a failed teacher lookup is reported, never mistaken for an unknown tea
     expect(logEvent).not.toHaveBeenCalledWith('transcript_quiz.flow_lookup_failed', expect.anything());
   });
 });
+
+// ---------------------------------------------------------------------------
+// R8 lane D task 3.4 — ONE list: a quiz written from a lesson PLAN (lp_v8) has
+// no coaching session, and still belongs in /quiz beside the recorded lessons.
+describe('an lp_v8 quiz in the /quiz Flow (PLAN_R8 D11)', () => {
+  const LP = {
+    id: 'lpq-1', teacher_id: TEACHER, coaching_session_id: null, quiz_source: 'lp_v8',
+    status: 'sent', topic: 'Add a 3-digit and a 2-digit number', subject: 'maths', language: 'en',
+    // between session(1) (31 Aug) and session(3) (29 Aug)
+    created_at: '2026-08-30T10:00:00Z',
+    meta: { lesson_date: '2026-08-30', share_code_id: 'sc-lp', student_message: 'forward me' },
+  };
+  const KIDS = [
+    { id: 'qs-a', quiz_id: 'lpq-1', user_id: null, invited_by_student_id: null, student_name: 'Sana', student_class: '2-B', status: 'completed', total_questions_answered: 8, correct_answers: 6, mastery_percentage: 75 },
+  ];
+
+  test('LESSONS lists it newest-first among the coaching lessons, as `date · subject` with the full topic', async () => {
+    stub({ users, coaching_sessions: [session(1), session(3)], quizzes: [LP], quiz_sessions: KIDS });
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+    expect(out.data.items.map((i) => i.id)).toEqual(['s-1', 'lp_lpq-1', 's-3']);
+    const item = out.data.items[1];
+    expect(item['main-content'].title).toMatch(/^30 Aug · /);
+    expect(item['main-content'].metadata).toBe('Add a 3-digit and a 2-digit number');
+    expect(item['on-click-action']).toEqual({ name: 'data_exchange', payload: { step: 'lesson', session_id: 'lp_lpq-1' } });
+    out.data.items.forEach((i) => {
+      expect(cp(i['main-content'].title)).toBeLessThanOrEqual(endpoint.TITLE_MAX);
+      expect(cp(i['main-content'].description)).toBeLessThanOrEqual(endpoint.DESC_MAX);
+    });
+  });
+
+  test('another teacher’s lp_v8 quiz is never listed', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [{ ...LP, teacher_id: OTHER }], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+    expect(out.data.items.map((i) => i.id)).toEqual(['__empty__']);
+  });
+
+  test('its LESSON screen shows the live results and offers Generate report / Resend link — never Make', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [LP], quiz_sessions: KIDS });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });
+    expect(out.screen).toBe('LESSON');
+    expect(out.data.heading).toContain('Add a 3-digit');
+    expect(out.data.results).toContain('Sana');
+    expect(out.data.actions.map((a) => a.id)).toEqual(['report', 'link']);
+    expect(out.data.session_id).toBe('lp_lpq-1');
+    expect(out.data.quiz_id).toBe('lpq-1');
+    expect(out.data.subline).toContain('30 Aug');
+  });
+
+  test('Resend link on it runs the same hand-off, after the response', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [LP], quiz_sessions: KIDS });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', { step: 'action', session_id: 'lp_lpq-1', quiz_id: 'lpq-1', tq_action: 'link' });
+    expect(out.screen).toBe('DONE');
+    await new Promise((r) => setImmediate(r));
+    expect(Handoff.sendHandoff).toHaveBeenCalledWith('lpq-1', '923001112222', { firstSend: false });
+  });
+
+  test('Generate report on it refetches the report for its share code', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [LP], quiz_sessions: KIDS });
+    await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', { step: 'action', session_id: 'lp_lpq-1', quiz_id: 'lpq-1', tq_action: 'report' });
+    await new Promise((r) => setImmediate(r));
+    expect(Report.generate).toHaveBeenCalledWith('sc-lp', { reason: 'requested', force: true });
+  });
+
+  test('a make_ action on it is refused — there is no session to make it from', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [{ ...LP, status: 'failed', meta: { lesson_date: '2026-08-30', error: 'source_missing' } }], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', { step: 'action', session_id: 'lp_lpq-1', quiz_id: 'lpq-1', tq_action: 'make_en' });
+    expect(out.screen).not.toBe('SUCCESS');
+    expect(writes).toEqual([]);
+    expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
+  });
+
+  test('a failed lp_v8 quiz shows LP copy — never "this lesson’s recording"', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [{ ...LP, status: 'failed', meta: { lesson_date: '2026-08-30', error: 'validator_failed' } }], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });
+    expect(out.screen).toBe('LESSON');
+    expect(out.data.results.toLowerCase()).toContain('lesson plan');
+    expect(out.data.results.toLowerCase()).not.toMatch(/recording|transcript/);
+    expect(out.data.actions).toEqual([]);
+  });
+
+  test('an lp_ id of another teacher’s quiz is not yours', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [{ ...LP, teacher_id: OTHER }], quiz_sessions: KIDS });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });
+    expect(out.screen).toBe('LESSONS');
+    expect(out.data.error_message).toBeTruthy();
+  });
+});

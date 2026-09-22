@@ -16,7 +16,7 @@ const { UX_STRINGS, resolveUx } = require('../../bot/shared/config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../bot/shared/config/languages');
 const { genderedTeacherForms } = require('../../bot/shared/services/quiz/transcript-quiz-pedagogy');
 
-const LP_KEYS = ['tqFailedLpSource', 'tqFailedLpDigest', 'tqFailedLpAuthor'];
+const LP_KEYS = ['tqFailedLpSource', 'tqFailedLpDigest', 'tqFailedLpAuthor', 'tqFlowResultsFailedLp'];
 const cp = (s) => [...String(s)].length;
 
 describe('LP-born quiz failure copy', () => {
@@ -61,6 +61,19 @@ describe('LP-born quiz failure copy', () => {
       expect(new Set(texts).size).toBe(LP_KEYS.length);
       // and none of them is the transcript copy wearing a new key
       expect(texts).not.toContain(UX_STRINGS.tqCouldNotMake[lang]);
+    }
+  });
+});
+
+describe('the lp_v8 row status in /quiz', () => {
+  test('tqRowFailedLp exists in both languages, does not promise a retry /quiz cannot give, and is gender-neutral', () => {
+    for (const lang of LANGUAGE_OFFER) {
+      const s = UX_STRINGS.tqRowFailedLp[lang];
+      expect(typeof s).toBe('string');
+      expect(s.toLowerCase()).not.toMatch(/retry|tap|دوبارہ/);
+      expect(genderedTeacherForms(s, lang)).toEqual([]);
+      // status half of a 72-code-point row description
+      expect(cp(s)).toBeLessThanOrEqual(30);
     }
   });
 });
