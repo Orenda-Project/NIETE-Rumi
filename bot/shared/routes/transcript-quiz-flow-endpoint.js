@@ -43,6 +43,10 @@ const {
   teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk,
 } = require('../services/quiz/transcript-quiz-language');
 const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
+const { TRANSCRIPT, LP_V8, lessonSessionFor } = require('../services/quiz/quiz-sources');
+
+/** An lp_v8 quiz's key in the Flow: it has no session id to carry. */
+const LP_KEY_PREFIX = 'lp_';
 
 // Meta's NavigationList caps.
 const NAV_MAX_ITEMS = 20;
@@ -154,8 +158,10 @@ async function lessonsScreen(teacher, page, extra = {}) {
   if (!teacher?.id) return base;
 
   const p = Number.isFinite(Number(page)) && Number(page) > 0 ? Math.floor(Number(page)) : 1;
-  const { sessions } = await List.loadEligibleSessions(teacher.id, p * PER_PAGE + 1);
-  const sorted = [...(sessions || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  // ONE list (PLAN_R8 D11): the recorded lessons and the lp_v8 quizzes, in the
+  // one order the list message uses too — see List.lessonItems.
+  const { sessions, quizzes, counts } = await List.loadLessonPage(teacher.id, p * PER_PAGE + 1);
+  const sorted = List.lessonItems(sessions, quizzes);
   const total = sorted.length;
   let start = (p - 1) * PER_PAGE;
   let pageNo = p;
@@ -166,29 +172,17 @@ async function lessonsScreen(teacher, page, extra = {}) {
   const slice = sorted.slice(start, start + PER_PAGE);
   if (!slice.length) return base;
 
-  const ids = slice.map((s) => s.id);
-  const { data: quizRows } = await supabase.from('quizzes')
-    .select('id, coaching_session_id, status, topic, subject, meta')
-    .eq('teacher_id', teacher.id).eq('quiz_source', 'transcript').in('coaching_session_id', ids);
-  const quizzes = quizRows || [];
-  const counts = await List.countsFor(
-    quizzes.filter((q) => ['sent', 'report_sent'].includes(q.status)).map((q) => q.id),
-    teacher.id,
-  );
-  const byId = new Map(quizzes.map((q) => [q.coaching_session_id, q]));
-
-  const items = slice.map((s) => {
-    const quiz = byId.get(s.id) || null;
+  const items = slice.map(({ key, session: s, quiz, date: when }) => {
     const subject = subjectLabel(quiz?.subject || s.analysis_data?.subject, language);
-    const date = formatLessonDate(s.created_at, language);
+    const date = formatLessonDate(when, language);
     return {
-      id: s.id,
+      id: key,
       'main-content': {
         title: composeTitle({ date, subject }, TITLE_MAX),
         description: truncateWords(flowStatus(quiz, language, quiz && counts.get(quiz.id)), DESC_MAX),
         metadata: fitIsolated(topicOf(quiz, s, language), META_MAX, language),
       },
-      'on-click-action': { name: 'data_exchange', payload: { step: 'lesson', session_id: s.id } },
+      'on-click-action': { name: 'data_exchange', payload: { step: 'lesson', session_id: key } },
     };
   });
 
@@ -229,14 +223,24 @@ async function lessonsScreen(teacher, page, extra = {}) {
  *  teacher's: both reads are filtered on the owner, not checked afterwards. */
 async function loadLesson(teacher, sessionId) {
   if (!teacher?.id || !sessionId) return null;
+  if (String(sessionId).startsWith(LP_KEY_PREFIX)) {
+    // An lp_v8 quiz: the quiz IS the lesson. Its "session" is the lesson date
+    // and the key it travelled with, so every screen below reads it unchanged.
+    const { data: lpQuiz } = await supabase.from('quizzes')
+      .select('id, teacher_id, coaching_session_id, quiz_source, status, topic, subject, language, meta')
+      .eq('id', String(sessionId).slice(LP_KEY_PREFIX.length)).eq('teacher_id', teacher.id)
+      .eq('quiz_source', LP_V8).maybeSingle();
+    if (!lpQuiz) return null;
+    return { session: { id: sessionId, ...lessonSessionFor(lpQuiz) }, quiz: lpQuiz };
+  }
   const { data: session } = await supabase.from('coaching_sessions')
     .select('id, user_id, created_at, transcript_text, transcript_language, analysis_data')
     .eq('id', sessionId).eq('user_id', teacher.id).maybeSingle();
   if (!session) return null;
   const { data: quiz } = await supabase.from('quizzes')
-    .select('id, teacher_id, coaching_session_id, status, topic, subject, language, meta')
+    .select('id, teacher_id, coaching_session_id, quiz_source, status, topic, subject, language, meta')
     .eq('coaching_session_id', sessionId).eq('teacher_id', teacher.id)
-    .eq('quiz_source', 'transcript').maybeSingle();
+    .eq('quiz_source', TRANSCRIPT).maybeSingle();
   return { session, quiz: quiz || null };
 }
 
@@ -275,9 +279,12 @@ function studentLine(s, language) {
 }
 
 /** The live results block, in the teacher's language. */
-function resultsText(state, students, language) {
+function resultsText(state, students, language, quiz = null) {
   if (state === 'making') return resolveUx('tqFlowResultsMaking', { language });
-  if (state === 'failed') return resolveUx('tqFlowResultsFailed', { language });
+  if (state === 'failed') {
+    // The transcript copy names "this lesson's recording"; an lp_v8 quiz had none.
+    return resolveUx(quiz?.quiz_source === LP_V8 ? 'tqFlowResultsFailedLp' : 'tqFlowResultsFailed', { language });
+  }
   if (state !== 'sent' && state !== 'report_sent') return resolveUx('tqFlowResultsNoQuiz', { language });
   if (!students.length) return resolveUx('tqFlowResultsNobody', { language });
 
@@ -334,6 +341,9 @@ function actionsFor({ state, quiz, session, language }) {
     }
     return out;
   }
+  // An lp_v8 quiz exists because the teacher said yes to the afternoon offer;
+  // there is no coaching session to make one FROM here (PLAN_R8 §3.4).
+  if (quiz?.quiz_source === LP_V8) return [];
 
   // none / offered / failed → make it. The subject rule seeds the order; only
   // Urdu and Islamiyat leave no real choice and so get a single option.
@@ -375,7 +385,7 @@ function lessonScreenFrom({ teacher, session, quiz, students, language, extra = 
       subline: subject
         ? resolveUx('tqFlowLessonSub', { language, params: { date, subject, status } })
         : resolveUx('tqFlowLessonSubNoSubject', { language, params: { date, status } }),
-      results: resultsText(state, students, language),
+      results: resultsText(state, students, language, quiz),
       actions_label: resolveUx('tqFlowActionsLabel', { language }),
       actions,
       actions_visible: actions.length > 0,
@@ -471,7 +481,10 @@ async function stepLesson(teacher, screenData) {
   // A quiz still being written has nothing to tap. Sending it to the terminal
   // screen says so plainly instead of serving a lesson whose only control is an
   // empty, hidden chooser.
-  if (!actionsFor({ state, quiz, session, language }).length) {
+  // (A failed lp_v8 quiz has no action either, and is not "still being made":
+  // it gets its LESSON screen, whose results line says what happened.)
+  const lpFailed = quiz?.quiz_source === LP_V8 && state === 'failed';
+  if (!lpFailed && !actionsFor({ state, quiz, session, language }).length) {
     return doneScreen('wait', language, { userId: teacher.id, quizId: quiz?.id || null });
   }
   return lessonScreenFrom({ teacher, session, quiz, students, language });
