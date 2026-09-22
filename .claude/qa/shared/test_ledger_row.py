@@ -233,6 +233,87 @@ def test_a_non_git_root_still_returns_zero():
     assert _main(root, run) == 0
 
 
+# ── bd-wvu2y: committed is not enough — qa-impact only reads what was PUSHED ────────────────────
+# The workflow runs on pull_request/synchronize and resolves the range on the remote, so a row that
+# is committed but unpushed still reads "E2E run recorded: missing".
+# NOTE the baseline commit already tracks an EMPTY runs.jsonl, so "does the remote have the file"
+# proves nothing. Every assertion below reads the remote's ledger CONTENT for this run's id.
+
+
+def _git_fixture_with_remote():
+    import subprocess
+    root, run, led = _git_fixture()
+    bare = tempfile.mkdtemp()
+    subprocess.run(["git", "init", "-q", "--bare", bare], capture_output=True)
+    subprocess.run(["git", "-C", root, "remote", "add", "origin", bare], capture_output=True)
+    subprocess.run(["git", "-C", root, "push", "-q", "-u", "origin", "sandbox"], capture_output=True)
+    subprocess.run(["git", "-C", root, "checkout", "-q", "-b", "bd-test-1"], capture_output=True)
+    subprocess.run(["git", "-C", root, "push", "-q", "-u", "origin", "bd-test-1"], capture_output=True)
+    return root, run, led, bare
+
+
+def _remote_ledger(bare, branch="bd-test-1"):
+    """The ledger as the REMOTE has it — empty string if the branch or file is absent."""
+    import subprocess
+    return subprocess.run(
+        ["git", "-C", bare, "show", "%s:.claude/qa/ledgers/runs.jsonl" % branch],
+        capture_output=True, text=True).stdout
+
+
+def test_the_committed_row_is_pushed():
+    root, run, led, bare = _git_fixture_with_remote()
+    os.environ.pop("E2E_LEDGER_PUSH_OFF", None)
+    assert '"r1"' not in _remote_ledger(bare), "fixture is not clean"
+    assert _main(root, run) == 0
+    assert '"r1"' in _remote_ledger(bare), "the row was committed but never pushed"
+
+
+def test_a_protected_branch_is_never_pushed_to():
+    """A run on a checked-out sandbox must not push to sandbox."""
+    import subprocess
+    root, run, led, bare = _git_fixture_with_remote()
+    subprocess.run(["git", "-C", root, "checkout", "-q", "sandbox"], capture_output=True)
+    before = subprocess.run(["git", "-C", bare, "rev-parse", "sandbox"], capture_output=True, text=True).stdout
+    assert _main(root, run) == 0
+    after = subprocess.run(["git", "-C", bare, "rev-parse", "sandbox"], capture_output=True, text=True).stdout
+    assert before == after, "pushed to a protected branch"
+    assert '"r1"' not in _remote_ledger(bare, "sandbox")
+
+
+def test_no_upstream_means_no_push():
+    """Never create a remote branch nobody asked for, and never fail the run over it."""
+    import subprocess
+    root, run, led, bare = _git_fixture_with_remote()
+    subprocess.run(["git", "-C", root, "checkout", "-q", "-b", "bd-no-upstream"], capture_output=True)
+    assert _main(root, run) == 0
+    assert subprocess.run(["git", "-C", bare, "rev-parse", "--verify", "-q", "bd-no-upstream"],
+                          capture_output=True).returncode != 0, "created a remote branch nobody asked for"
+
+
+def test_the_push_can_be_switched_off():
+    root, run, led, bare = _git_fixture_with_remote()
+    os.environ["E2E_LEDGER_PUSH_OFF"] = "1"
+    try:
+        assert _main(root, run) == 0
+        assert '"r1"' not in _remote_ledger(bare), "pushed although the switch was off"
+    finally:
+        os.environ.pop("E2E_LEDGER_PUSH_OFF", None)
+
+
+def test_a_refused_push_never_fails_the_run():
+    """The pre-push gate may refuse. The run still exits 0, and we do NOT retry with a bypass."""
+    import subprocess
+    root, run, led, bare = _git_fixture_with_remote()
+    hooks = os.path.join(root, ".githooks")
+    os.makedirs(hooks, exist_ok=True)
+    hp = os.path.join(hooks, "pre-push")
+    open(hp, "w").write("#!/bin/sh\necho 'BLOCKED by the gate' >&2\nexit 1\n")
+    os.chmod(hp, 0o755)
+    subprocess.run(["git", "-C", root, "config", "core.hooksPath", ".githooks"], capture_output=True)
+    assert _main(root, run) == 0, "a refused push failed the run"
+    assert '"r1"' not in _remote_ledger(bare), "bypassed a refusing pre-push gate"
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
