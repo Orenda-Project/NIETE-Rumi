@@ -479,3 +479,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # A teacher explaining she has no plan NAMES one, so she clears the marker
     # bar; the old length floor excluded her only by accident. Checked in
     # English, Roman Urdu and Urdu.
+
+  @e2e @wip @draft @negative @P2
+  Scenario: Talking about a lesson plan is not the same as sending one
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I describe in one sentence the lesson I just taught, or ask how to write a plan
+    Then the bot does not record what I typed as my lesson plan
+    # Naming the parts of a plan is not enough on its own at this length — a
+    # teacher narrating her lesson names the topic, an activity and how she
+    # checked learning, all in one flowing sentence. A plan that short is
+    # LAID OUT: a label, a line per step, a numbered list.
