@@ -103,9 +103,15 @@ describe('the QUESTIONS screen, end to end', () => {
     expect(saved.questionCount).toBe(12);
   });
 
+  // bd-60175 took the total box off this screen for unseen/both: she names a
+  // count per TYPE on COUNTS instead, so on those paths there is no total here
+  // to refuse. The rule these tests protect — refused, never clamped — did not
+  // go away with it, it moved to the screen that now owns the number (asserted
+  // in assessment-per-type-counts.test.js). `seen` still asks here, and is what
+  // the bounds are checked against below.
   test('over the cap comes STRAIGHT BACK to the same screen with the reason', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '40' }, 'u1:assessment-gen:1');
+      { content_source: 'seen', question_count: '40' }, 'u1:assessment-gen:1');
     expect(res.screen).toBe('QUESTIONS');
     expect(res.data.has_error).toBe(true);
     expect(res.data.error).toMatch(/25/);
@@ -114,21 +120,29 @@ describe('the QUESTIONS screen, end to end', () => {
   test('a refused count is NOT written to the session', async () => {
     // Otherwise she backs out, comes in again, and silently gets 40.
     await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '999' }, 'u1:assessment-gen:1');
+      { content_source: 'seen', question_count: '999' }, 'u1:assessment-gen:1');
     const saved = mockRedis.set.mock.calls.at(-1)[1];
     expect(saved.questionCount).toBeUndefined();
   });
 
   test('junk is refused the same way, not coerced to a default', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: 'abc' }, 'u1:assessment-gen:1');
+      { content_source: 'seen', question_count: 'abc' }, 'u1:assessment-gen:1');
     expect(res.screen).toBe('QUESTIONS');
     expect(res.data.has_error).toBe(true);
   });
 
   test('the screen tells her the range BEFORE she submits', async () => {
     const res = await exchange('u1', 'QUESTIONS',
-      { content_source: 'unseen', question_count: '0' }, 'u1:assessment-gen:1');
-    expect(res.data.count_hint).toMatch(/1 and 25/);
+      { content_source: 'seen', question_count: '0' }, 'u1:assessment-gen:1');
+    expect(res.data.error).toMatch(/1 and 25/);
+  });
+
+  test('unseen is not held to a total this screen no longer asks for', async () => {
+    // The box is gone on that path, so an absent value must carry her forward
+    // to TYPES rather than bounce her for leaving a field blank that is not there.
+    const res = await exchange('u1', 'QUESTIONS',
+      { content_source: 'unseen' }, 'u1:assessment-gen:1');
+    expect(res.screen).toBe('TYPES');
   });
 });

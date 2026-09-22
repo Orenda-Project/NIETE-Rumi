@@ -823,15 +823,34 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
 
   // ── QUESTIONS → TYPES | CONFIRM ──────────────────────────────────────────
   if (screenId === 'QUESTIONS') {
-    // She types the number now, and a Flow TextInput enforces no bounds at all,
-    // so this is the only thing standing between "999" and a request for 999
-    // questions. Refused on the screen rather than clamped: quietly turning 40
-    // into 25 gives her a paper she never asked for and never says so.
-    const parsed = QuestionTypes.parseQuestionCount(data.question_count);
-    if (!parsed.ok) {
-      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
-      await writeSession(flowToken, state);
-      return questionsScreen(state, parsed.message);
+    const contentSource = String(data.content_source || 'unseen');
+    const needsTypes = contentSource === 'unseen' || contentSource === 'both';
+
+    // The size of the paper is asked for in ONE place, and which place depends
+    // on the category — because on one path she is about to name the types and
+    // on the other she never will.
+    //
+    //   unseen / both → she picks types next, and then a count for each. The
+    //                   paper's size is the sum of those, so asking for a total
+    //                   here would be asking her to do the addition herself and
+    //                   then holding her to it. The box is gone from the screen;
+    //                   a stale client still sending one is ignored.
+    //   seen          → the questions are lifted from the book and carry their
+    //                   own types, so there is nothing to count per type and
+    //                   this is the only chance to ask how big the paper is.
+    let questionCount = null;
+    if (!needsTypes) {
+      // A Flow TextInput enforces no bounds at all, so this is the only thing
+      // standing between "999" and a request for 999 questions. Refused on the
+      // screen rather than clamped: quietly turning 40 into 25 gives her a
+      // paper she never asked for and never says so.
+      const parsed = QuestionTypes.parseQuestionCount(data.question_count);
+      if (!parsed.ok) {
+        Object.assign(state, { contentSource });
+        await writeSession(flowToken, state);
+        return questionsScreen(state, parsed.message);
+      }
+      questionCount = parsed.count;
     }
 
     // The marks budget beside it. Optional, so a blank box is an answer ("no
@@ -839,15 +858,20 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     // range and bounced back the same way the count is, rather than clamped.
     const budget = QuestionTypes.parseTotalMarks(data.total_marks);
     if (!budget.ok) {
-      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
+      Object.assign(state, { contentSource });
       await writeSession(flowToken, state);
       return questionsScreen(state, budget.message);
     }
 
     Object.assign(state, {
-      contentSource: String(data.content_source || 'unseen'),
-      questionCount: parsed.count,
+      contentSource,
+      questionCount,
       totalMarks: budget.marks,
+      // A second pass through this screen must not leave the previous pass's
+      // picks behind: she may have changed the category, and the types that
+      // were valid for the old one are not necessarily valid for the new.
+      pickedTypes: null,
+      questionTypes: null,
     });
     await writeSession(flowToken, state);
 
@@ -862,29 +886,51 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     // type from. That makes the choice load-bearing, so it is a step rather than
     // an opt-in: unticked, the common path fell through to our defaultMix()
     // guess instead of the paper she wanted. TYPES refuses an empty selection.
-    const needsTypes = state.contentSource === 'unseen' || state.contentSource === 'both';
-    if (needsTypes) {
-      return screen('TYPES', {
-        summary: summaryOf(state),
-        types: QuestionTypes.forSubject(state.subject, state.grade)
-          .map((t) => ({ id: t.id, title: t.id })),
-        error: '',
-      });
-    }
+    if (needsTypes) return typesScreen(state);
     return confirmScreen(state);
   }
 
-  // ── TYPES → CONFIRM ──────────────────────────────────────────────────────
+  // ── TYPES → COUNTS ───────────────────────────────────────────────────────
+  // The types she ticked no longer go straight to the recap. She names how many
+  // of each next, which is the whole point of picking them separately: a total
+  // divided evenly over her picks was our arithmetic, not her paper.
   if (screenId === 'TYPES') {
-    const picked = Array.isArray(data.question_types) ? data.question_types : [];
+    const offered = QuestionTypes.forSubject(state.subject, state.grade).map((t) => t.id);
+    // Order is HERS — the COUNTS boxes are labelled in the order she ticked, so
+    // the list she reads there matches the list she just left. Ids are filtered
+    // against what this subject actually offers: a stale or hand-made payload
+    // must not create a box for a type the prompts have never heard of.
+    const picked = (Array.isArray(data.question_types) ? data.question_types : [])
+      .map((id) => String(id))
+      .filter((id, i, all) => offered.includes(id) && all.indexOf(id) === i);
+
     if (picked.length === 0) {
-      return screen('TYPES', {
-        summary: summaryOf(state),
-        types: QuestionTypes.forSubject(state.subject, state.grade).map((t) => ({ id: t.id, title: t.id })),
-        error: 'Please choose at least one kind of question.',
-      });
+      return typesScreen(state, 'Please choose at least one kind of question.');
     }
+    // The count boxes are a fixed bank, so more picks than boxes would silently
+    // drop the tail of her selection. Say so instead.
+    if (picked.length > QuestionTypes.MAX_TYPE_SLOTS) {
+      return typesScreen(state,
+        `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} kinds of question.`);
+    }
+
     state.pickedTypes = picked;
+    await writeSession(flowToken, state);
+    return countsScreen(state);
+  }
+
+  // ── COUNTS → CONFIRM ─────────────────────────────────────────────────────
+  // One number per type she picked. The paper's size is their sum, so
+  // `questionCount` stops being something she types and becomes something we
+  // derive — which is what makes the counts below survive planCounts().
+  if (screenId === 'COUNTS') {
+    const picked = Array.isArray(state.pickedTypes) ? state.pickedTypes : [];
+    if (picked.length === 0) return typesScreen(state);
+
+    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade);
+    if (!parsed.ok) return countsScreen(state, parsed.message);
+
+    Object.assign(state, { questionTypes: parsed.types, questionCount: parsed.total });
     await writeSession(flowToken, state);
     return confirmScreen(state);
   }
@@ -1042,6 +1088,39 @@ function questionsScreen(state, error = '') {
   });
 }
 
+/** The types this subject and grade support, as she sees them. */
+function typesScreen(state, error = '') {
+  return screen('TYPES', {
+    summary: summaryOf(state),
+    types: QuestionTypes.forSubject(state.subject, state.grade)
+      .map((t) => ({ id: t.id, title: t.id })),
+    error,
+  });
+}
+
+/**
+ * One count box per type she picked, in the order she picked them.
+ *
+ * A Flow has no in-screen reactivity, so "a box per pick" is a fixed bank of
+ * slots whose label and visibility are data-bound and resolved here. A slot
+ * past her pick count is hidden AND blanked: a hidden field that keeps a label
+ * from an earlier pass will show it the moment she goes back and picks more.
+ */
+function countsScreen(state, error = '') {
+  const picked = (state.pickedTypes || []).slice(0, QuestionTypes.MAX_TYPE_SLOTS);
+  const data = {
+    summary: summaryOf(state),
+    hint: `Up to ${QuestionTypes.MAX_QUESTIONS} questions in total.`,
+    error,
+  };
+  for (let i = 1; i <= QuestionTypes.MAX_TYPE_SLOTS; i += 1) {
+    const id = picked[i - 1];
+    data[`show_${i}`] = Boolean(id);
+    data[`label_${i}`] = id ? `How many ${id}?` : '';
+  }
+  return screen('COUNTS', data);
+}
+
 async function confirmScreen(state) {
   const source = {
     seen: 'Questions from the book',
@@ -1050,8 +1129,18 @@ async function confirmScreen(state) {
   }[state.contentSource] || 'New questions';
   // Server-driven so the docx flag can hide Word without republishing the Flow.
   const { formatsOnOffer } = require('../services/assessment/assessment-format');
+
+  // The breakdown is the last chance to catch a slip before the paper is made,
+  // and it is the number she typed rather than a total she has to trust us to
+  // have split her way. On the seen path there is no breakdown to show — the
+  // book decides the types — so it stays the single total it has always been.
+  const breakdown = (state.questionTypes || []).map((t) => `${t.count} ${t.id}`);
+  const size = breakdown.length
+    ? `${breakdown.join(', ')} · ${state.questionCount} in total`
+    : `${state.questionCount} questions`;
+
   return screen('CONFIRM', {
-    recap: [summaryOf(state), `${source} · ${state.questionCount} questions`].join('\n'),
+    recap: [summaryOf(state), `${source} · ${size}`].join('\n'),
     formats: await formatsOnOffer(),
     // Supplied HERE, on the render — the Footer can only send back data the
     // screen was drawn with.
@@ -1119,9 +1208,18 @@ async function submit(state) {
   // (chapter_number IS NOT NULL OR page_ranges IS NOT NULL) is satisfied.
   const single = chapters.length === 1 ? chapters[0].number : null;
 
-  const types = (state.pickedTypes && state.pickedTypes.length)
-    ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
-    : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount);
+  // Her numbers, untouched. `state.questionTypes` is what COUNTS wrote down —
+  // one count per type, as she typed them — and re-spreading a total over those
+  // ids here is exactly the behaviour this screen exists to remove.
+  //
+  // The two fallbacks below are for the paths that never reach COUNTS: a `seen`
+  // paper (no types to count, so the default mix sizes it) and a session that
+  // predates this change but is still inside its fifteen minutes.
+  const types = (state.questionTypes && state.questionTypes.length)
+    ? state.questionTypes
+    : ((state.pickedTypes && state.pickedTypes.length)
+      ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
+      : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount));
 
   // The row and the job are built in ONE place now, because they
   // have to agree with each other on eleven fields and the portal needs the
@@ -1153,7 +1251,16 @@ async function submit(state) {
 
 async function handleBack(userId, screenId, flowToken) {
   const state = await readSession(flowToken);
-  if (screenId === 'CONFIRM' || screenId === 'TYPES') return questionsScreen(state);
+  // Back goes to the screen she actually came from, which on the unseen path is
+  // no longer QUESTIONS: COUNTS sits between TYPES and CONFIRM now. Sending her
+  // two screens back would quietly discard the picks and counts she just made.
+  if (screenId === 'COUNTS') return typesScreen(state);
+  if (screenId === 'CONFIRM') {
+    return (state.pickedTypes && state.pickedTypes.length)
+      ? countsScreen(state)
+      : questionsScreen(state);
+  }
+  if (screenId === 'TYPES') return questionsScreen(state);
   if (screenId === 'QUESTIONS' || screenId === 'PAGES') {
     return screen('COVERAGE', {
       summary: summaryOf(state), has_chapters: true,
