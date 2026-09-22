@@ -255,3 +255,109 @@ def test_no_why_in_the_real_corpus_can_leak():
         if out and ("MANAGER" in out or "||" in out):
             bad.append(out[:120])
     assert not bad, f"{len(bad)} of {len(rows)} still leak, e.g. {bad[:2]}"
+
+
+# ── bd-v2ikv: cap the teacher-facing caption for a phone page row ────────────
+#
+# Operator, twice: "urdu video caption too long", then in English, "the video still has too
+# long a caption" -- so the cap is NOT a script branch. The corpus's longest kept caption
+# (after teacher_half) is 860 code points; `.vwhy` (lib/template.js) carries no CSS overflow
+# rule of its own, unlike the title (`.vres a`, one-line clamped), so nothing stops it wrapping
+# the row down the page today.
+
+LONG_EN = ("This clip works through the borrowing procedure for two-digit subtraction step by "
+           "step, showing the regrouping with base-ten blocks before moving to the written "
+           "column method, then closes with three worked examples pupils can check against.")
+
+LONG_UR = ("ویڈیو اسم معرفہ اور نکرہ کی تمیز کو مثالوں سے واضح کرتی ہے اور طالب علم کو ہر مثال "
+           "کے بعد خود شناخت کرنے کا موقع دیتی ہے، پھر آخر میں ۰۱۲۳ جیسے اردو ہندسوں والی مشقی "
+           "سوالات کے ساتھ اختتام کرتی ہے تاکہ سمجھ مکمل اور پختہ ہو جائے۔")
+
+
+def test_a_caption_under_the_cap_comes_back_byte_identical():
+    assert M.cap_caption(LIB["why"]) == LIB["why"]
+    assert M.cap_caption("x" * M.CAPTION_CAP) == "x" * M.CAPTION_CAP
+
+
+def test_a_caption_over_the_cap_is_capped_in_code_points():
+    assert len([*LONG_EN]) > M.CAPTION_CAP
+    assert len([*M.cap_caption(LONG_EN)]) <= M.CAPTION_CAP
+
+
+def test_the_cut_lands_on_a_word_boundary_never_mid_word():
+    body = M.cap_caption(LONG_EN).rstrip("…").rstrip(",;:-–—")
+    kept = body.split(" ")
+    assert LONG_EN.split(" ")[:len(kept)] == kept, "a kept token was not a whole source word"
+
+
+def test_the_ellipsis_is_one_code_point_at_the_logical_end():
+    out = M.cap_caption(LONG_EN)
+    assert out.endswith("…") and out.count("…") == 1
+
+
+def test_urdu_is_capped_the_same_way_not_urdu_only():
+    """The cap applies uniformly; text stays in LOGICAL order (never reversed for RTL) --
+    Unicode bidi rendering puts a neutral "…" at the visually correct edge on its own."""
+    out = M.cap_caption(LONG_UR)
+    assert len([*out]) <= M.CAPTION_CAP
+    assert out.endswith("…")
+    assert LONG_UR.startswith(out.rstrip("…").rstrip(",;:-–— "))
+
+
+def test_urdu_digits_in_a_capped_caption_are_never_rescripted():
+    """۰۱۲۳ (U+06F0+) must not be coerced to Arabic ٠١٢٣ (U+0660+) by anything in the cut."""
+    out = M.cap_caption(LONG_UR)
+    assert not any("٠" <= ch <= "٩" for ch in out)
+
+
+def test_a_combining_sequence_is_never_split():
+    """'café' is base+combining-acute -- two code points, one grapheme. A word-boundary
+    cut can only keep or drop the whole token, never bisect it."""
+    word = "café"
+    out = M.cap_caption(" ".join([word] * 60))
+    for token in out.rstrip("…").strip().split(" "):
+        assert token in ("", word)
+
+
+def test_length_is_measured_in_code_points_not_utf16_units():
+    """An astral character is ONE code point in Python 3 -- the failure mode Rule 20 exists
+    to rule out is treating it as two (a UTF-16-unit assumption)."""
+    text = "\U0001F600 " + "w" * (M.CAPTION_CAP - 2)
+    assert len([*text]) == M.CAPTION_CAP
+    assert M.cap_caption(text) == text
+
+
+def test_the_video_block_carries_the_capped_why_not_the_raw_one():
+    v = _dev(build(dict(LIB, why=LONG_EN)))["video"]
+    assert len([*v["why"]]) <= M.CAPTION_CAP
+    assert v["why"] != LONG_EN
+
+
+def test_how_many_real_rows_the_cap_actually_truncates():
+    """Corpus-wide: every capped why fits the cap, and at least one real row needed it."""
+    import os
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "videos-by-slo.json")
+    if not os.path.exists(p):
+        return
+    rows = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            if isinstance(o.get("why"), str):
+                rows.append(o["why"])
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    walk(json.load(open(p, encoding="utf-8")))
+    capped = 0
+    for raw in rows:
+        half = M.teacher_half(raw)
+        if not half:
+            continue
+        out = M.cap_caption(half)
+        assert len([*out]) <= M.CAPTION_CAP
+        capped += out != half
+    assert capped > 0, "no real row exercised the cap"

@@ -43,24 +43,45 @@ Because both sides carry an SLO, this is an **SLO-to-SLO match**, not a
 title-keyword search. That is the whole reason it can be trusted enough to put
 in front of a class.
 
-Each mapped day gets three columns in the Resources section:
+Each mapped day gets TWO things in the Resources section:
 
-| Column | Holds |
+| What | Holds |
 |---|---|
-| **Video** | Title and link, as its own column in Resources |
-| **Confidence** | How well the video's transcript-SLO matches the day's SLO |
-| **Why it maps here** | One line, quoting the video's own evidence line |
+| **Video** | Title and link |
+| **What it covers** | One line, quoting the video's own evidence line |
 
-**"Why it maps here" is not optional and is not generated prose.** It quotes
+This was three columns for one bead (bd-nsv74), the third being a
+`Match: high|medium|low` grade. The operator cut it (bd-s429u): *"for the video,
+just its URL and a description of what it entails is enough."*
+
+`confidence` still rides on the document and stays in the schema — it is what
+ranked the candidates at harvest time, so it is the join's own provenance and
+dropping it would lose that. It is simply never painted.
+
+**The description is not optional and is not generated prose.** It quotes
 what the video says. A teacher who disagrees with a mapping can see, in one
-line, what we thought the video taught — and tell us we were wrong.
+line, what we thought the video taught — and tell us we were wrong. That is the
+job the grade was doing less well.
 
 ## Rules
 
-- **An unmapped day says so.** No loosely-related video is promoted to fill the
-  column. A blank video cell is information; a wrong one costs a period.
-- **Low confidence is shown, not hidden.** If the best match is weak, the row
-  shows it as weak rather than dropping to blank or rounding up to strong.
+- **No loosely-related video is promoted to fill the column.** A day with no
+  honest match stays unmapped; a wrong video costs a period in front of fifty
+  children.
+- **An unmapped day prints no video row at all** — not an empty row, not a
+  "design pending" note. This half of the rule was REVERSED by the operator
+  (bd-jka9b): *"what is pending is not relevant for Primary."* The renderer used
+  to paint "design pending — no video mapped yet" on an unmapped day, on the
+  reasoning that a blank cell is itself information. It is information for US,
+  not for her — she cannot act on it, and the rationale given for it (the 403
+  corrected below) was false. Primary now behaves as G6-12 always has: no pick, no line.
+- **No grade is shown at any level.** The rule here used to read *"Low
+  confidence is shown, not hidden"* — if the best match is weak, show it weak
+  rather than rounding up. It went with the column in bd-s429u: we no longer
+  paint a grade at any level, so there is no level at which one could be hidden.
+  What the teacher gets instead is the description — she can read what the clip
+  actually covers and judge the match herself, which is stronger evidence than a
+  one-word grade.
 - **Electives will come out mostly unmapped** — 16 GK videos and 11 Islamic
   Studies against 236 Maths. That is a finding to report, not a gap to fill with
   approximations. See [02-electives.md](02-electives.md).
@@ -68,13 +89,37 @@ line, what we thought the video taught — and tell us we were wrong.
   video already has 10 SLO-aligned questions; whether those become the exit
   check or a homework send is a later decision.
 
-## Known blocker
+## There was never a blocker — what the 403 actually was
 
-The build service account **cannot read the video sheet** — it is owned by
-`rumi@hellorumi.ai` and shared with the operator, not with the SA, so the Sheets
-API returns 403. Either the sheet is shared with the service account, or the
-catalogue is exported to a local CSV through the operator's own Drive access.
-**Nothing in the mapping can run until one of those happens.**
+This section used to say the build service account **could not read the video
+sheet**, that the Sheets API returned 403, and that *"nothing in the mapping can
+run until"* the sheet was reshared. All three claims were wrong, and they sat
+here long enough to be quoted as a reason in four other places (bd-v2ikv,
+bd-jka9b). The correction, so nobody re-derives the false version:
+
+- **The Sheet was never 403 to the build account.** It reads fine. The mapping
+  ran against it and produced `data/videos-by-slo.json` — 658 SLOs, 1,461 videos.
+- **The 403 was a User-Agent block on `r2.dev`**, the CDN the video FILES sit
+  behind — a different host from the Sheet entirely. `r2.dev` rejects
+  `Python-urllib/3.x` and accepts a browser UA. It is a fetch-time header
+  problem, not a permissions problem, and it never touched the catalogue.
+
+## Resolving a video to a URL
+
+The catalogue carries two link shapes and both have to be handled:
+
+| Shape | Rows | Resolution |
+|---|---|---|
+| A full URL | 617 | Used as-is |
+| A bare library key | 844 | `https://pub-0edccec5d5bd419782ba389c59faecac.r2.dev/videos/<key>.mp4` |
+
+## The join key, measured
+
+**SLO alone is the key** — not grade, not subject, not the day number. Measured
+on the catalogue: keying on SLO gives **658** distinct keys; keying on
+grade+subject+SLO gives **659**. The one-key difference is the whole argument —
+the SLO code already encodes its grade and subject, so adding them to the key
+buys nothing and couples the mapping to fields that a boundary rebuild changes.
 
 ---
 

@@ -99,6 +99,65 @@ def teacher_half(why) -> str:
     return s.strip().rstrip("-\u2013\u2014;:,").strip()
 
 
+# bd-v2ikv. Operator, twice: "urdu video caption too long", then in English, "the video still
+# has too long a caption" -- so the cap is NOT a script-specific fix. `teacher_half` strips the
+# internal half above; this caps what is left, because the corpus's longest KEPT caption still
+# runs 860 code points, and `.vwhy` (lib/template.js) carries no CSS overflow rule of its own --
+# unlike the video's title (`.vres a`), which IS clamped to one line for exactly this reason,
+# `.vwhy` just wraps the row down the page as far as the string makes it go.
+#
+# The number is read off the page the caption sits on. `PAGE_FORMATS.phone` in lib/template.js
+# is `{w: 520, padX: 21}` -- a 478px content column -- and `.vwhy` renders at
+# `font-size:16px; font-style:italic`. Proportional Latin body text at that size averages
+# roughly 0.5em (~8px) per glyph, so about 58 code points fit one line; three lines -- the most
+# a caption under an already one-line-clamped title should cost -- is ~174. That lines up with
+# the corpus's own 75th percentile (179 code points) almost exactly: the quarter of captions
+# above it is the quarter this caps.
+CAPTION_CAP = 175
+
+# U+2026, one code point, bidi class ON (neutral) -- it takes its rendered position from
+# whatever direction surrounds it rather than carrying one of its own. See `cap_caption`.
+_ELLIPSIS = "…"
+
+
+def cap_caption(text, cap=CAPTION_CAP) -> str:
+    """`text` capped to `cap` CODE POINTS -- never a partial word, never a split grapheme.
+
+    Measured with `len([*s])`, never `len(s)`: Rule 20 (language-protocol) is explicit that a
+    string's length is taken in code points, never bytes and never a UTF-16-unit assumption --
+    on the record of a WhatsApp field cap that took `/language` down for hours when it wasn't.
+
+    Cuts on a WORD boundary by keeping whole space-separated tokens up to the budget, which is
+    also the grapheme guarantee for free: a combining mark always sits INSIDE a token, never
+    floating after a bare space, so a cut that never lands inside a token never lands inside a
+    grapheme either.
+
+    The ellipsis goes at the LOGICAL end, always -- `text[:cut] + "…"`, never reversed.
+    That is correct for Urdu for the same reason it is correct for English: Unicode text is
+    stored in logical (reading) order regardless of script, and a bidi-neutral mark appended
+    there renders at the visually correct edge under the Unicode Bidi Algorithm without this
+    function knowing or caring which script it is looking at. "Flipping" the ellipsis for RTL
+    would be the bug, not the fix -- it would reverse word order on top of an already-neutral
+    mark that did not need help.
+    """
+    if len([*text]) <= cap:
+        return text
+    budget = cap - len([*_ELLIPSIS])
+    words = text.split(" ")
+    kept, used = [], 0
+    for w in words:
+        add = len([*w]) + (1 if kept else 0)
+        if used + add > budget:
+            break
+        kept.append(w)
+        used += add
+    if not kept:
+        # No single word fits under the budget -- not observed anywhere in the 1,455-row
+        # corpus, but keeping the whole first word beats cutting it mid-grapheme to comply.
+        return words[0]
+    return " ".join(kept).rstrip(",;:-–—") + _ELLIPSIS
+
+
 def video_block(media) -> dict | None:
     """One map row -> the `video` object `videoRow()` reads, or None.
 
@@ -121,7 +180,7 @@ def video_block(media) -> dict | None:
                      ("confidence", "confidence"), ("why", "why"), ("duration", "duration")):
         val = str(media.get(src) or "").strip()
         if src == "why":
-            val = teacher_half(val)
+            val = cap_caption(teacher_half(val))
         if val:
             out[dst] = val
     return out
