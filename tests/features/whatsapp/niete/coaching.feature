@@ -436,7 +436,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
     # lesson_plan_text with lesson_plan_link_method='pasted'.
 
-  @e2e @wip @draft @negative @P2
+  @e2e @wip @draft @negative @P2 @obsolete
   Scenario: A short reply at the lesson-plan step is not mistaken for a plan
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -446,6 +446,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The pre-filter is deliberately strict — a paste must clear a length floor
     # AND name several parts of a plan. A false positive would eat the message,
     # so short answers keep the existing behaviour (the LP prompt is re-sent).
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so the length floor it rests on is gone.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.
 
   @e2e @wip @draft @negative @P3
   Scenario: Pasted text that is not a lesson plan gets the same rejection as a file
@@ -457,3 +461,44 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The authoritative verdict is not the pre-filter: a paste runs the SAME
     # extraction job as an upload, so isLikelyLessonPlan decides, and the
     # not-a-lesson-plan reply now names the paste route among the retry options.
+
+  @e2e @wip @draft @P1
+  Scenario: A brief typed lesson plan counts — length is not the test
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I type a three-line plan naming the topic, an activity and how I will check learning
+    Then the bot tells me it has my lesson plan and is reading it
+    And the observation records that it has a lesson plan
+    # The first live attempt failed here: a real 222-code-point Roman-Urdu plan
+    # was refused by a 280-point floor fitted to long formatted pastes, while
+    # the session sat waiting for one. What makes a paste a plan is the
+    # evidence in it, not its size; the floor only keeps one-liners out.
+
+  @e2e @wip @draft @negative @P2 @obsolete
+  Scenario: Saying I have no lesson plan is not the same as sending one
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I reply that I do not have a lesson plan for this class
+    Then the bot does not record that reply as my lesson plan
+    # A teacher explaining she has no plan NAMES one, so she clears the marker
+    # bar; the old length floor excluded her only by accident. Checked in
+    # English, Roman Urdu and Urdu.
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so she now reaches the same judge a PDF does and gets the No-button outcome.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.
+
+  @e2e @wip @draft @negative @P2 @obsolete
+  Scenario: Talking about a lesson plan is not the same as sending one
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I describe in one sentence the lesson I just taught, or ask how to write a plan
+    Then the bot does not record what I typed as my lesson plan
+    # Naming the parts of a plan is not enough on its own at this length — a
+    # teacher narrating her lesson names the topic, an activity and how she
+    # checked learning, all in one flowing sentence. A plan that short is
+    # LAID OUT: a label, a line per step, a numbered list.
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so the layout rule it rests on is gone.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.
