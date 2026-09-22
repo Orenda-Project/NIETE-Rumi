@@ -2221,13 +2221,60 @@ async function decideModuleQuizPass(moduleId, score, totalQuestions) {
   const passingPct = await getVendorPassingPct(moduleId, 'module');
   const total = Number(totalQuestions) || 0;
   const pct = total > 0 ? (Number(score) / total) * 100 : 0;
-  const isPassed = total > 0 && pct >= passingPct;
+
+  // bd-60163 — a vendor may run its unit quizzes as PURE FORMATIVE: answer,
+  // see the right answer, move on, no bar.
+  //
+  // I-SAPS asked for this in its Sept 2026 guide: the unit quizzes are the
+  // 25% formative component of a level-wide composite, so gating each one
+  // individually double-counts the same work and blocks a teacher on an item
+  // the level rule would have forgiven.
+  //
+  // It cannot be expressed as `module_passing_pct = 0`: the lookup treats a
+  // non-positive value as a broken row and falls back to 100, the STRICTEST
+  // bar — so 0 would have demanded a perfect score, the exact opposite. The
+  // flag is therefore its own column, and the fallback guard stays as it is.
+  const ungated = await vendorUngatesModuleQuiz(moduleId);
+  const isPassed = total > 0 && (ungated || pct >= passingPct);
   return {
     is_passed: isPassed,
     status: isPassed ? 'passed' : 'failed',
     pass_pct: passingPct,
     achieved_pct: Math.round(pct),
   };
+}
+
+/**
+ * Does this module's vendor run unit quizzes WITHOUT a pass bar? bd-60163.
+ *
+ * Reads training_vendors.module_quiz_ungated. Absent, null or unreadable means
+ * FALSE — the gate stays on, because every vendor that has one today relies on
+ * it and a lookup failure must not quietly remove a pass requirement.
+ *
+ * @param {number} moduleId training_modules.id
+ * @returns {Promise<boolean>}
+ */
+async function vendorUngatesModuleQuiz(moduleId) {
+  if (!moduleId) return false;
+  try {
+    const { data: mod } = await supabase
+      .from('training_modules').select('course_id').eq('id', moduleId).maybeSingle();
+    if (!mod?.course_id) return false;
+    const { data: course } = await supabase
+      .from('training_courses').select('level_id').eq('id', mod.course_id).maybeSingle();
+    if (!course?.level_id) return false;
+    const { data: level } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', course.level_id).maybeSingle();
+    if (!level?.vendor_id) return false;
+    const { data: vendor } = await supabase
+      .from('training_vendors').select('module_quiz_ungated').eq('id', level.vendor_id).maybeSingle();
+    return vendor?.module_quiz_ungated === true;
+  } catch (err) {
+    logToFile('⚠️ Could not read module_quiz_ungated — keeping the gate', {
+      moduleId, error: err?.message,
+    });
+    return false;
+  }
 }
 
 /**
@@ -2483,6 +2530,7 @@ module.exports = {
   handleQuizButton,
   gradeAttempt,
   decideModuleQuizPass,
+  vendorUngatesModuleQuiz,
   decideExamPass,
   getVendorPassingPctByLevel,
   // Multi-answer Flow surface

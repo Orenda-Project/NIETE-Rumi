@@ -160,6 +160,24 @@ async function getModuleQuizVerdict(moduleId, score, totalQuestions) {
   return { is_passed: data.is_passed === true, status: data.status, pass_pct: data.pass_pct, achieved_pct: data.achieved_pct };
 }
 
+/**
+ * The I-SAPS weighted composite for a level: 25/50/25 with per-component bars.
+ *
+ * Returns `null` when the level is not assessed this way, which is the signal
+ * to fall through to the vendor's own rule rather than treat 0 as a fail.
+ *
+ * DENIES on failure (returns null), because the only consumer is a certificate
+ * gate: a lookup failure must read as "cannot confirm", never as a pass.
+ */
+async function getIsapsLevelGrade(userId, levelId) {
+  try {
+    const data = await ask('level-grade', { userId, levelId });
+    return data && data.grade ? data.grade : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** The exam's presentation state for a level. Denies on any failure. */
 async function getGrandQuizState(userId, levelId) {
   return gate('grand-quiz-state', () => ask('grand-quiz-state', { userId, levelId }));
@@ -310,5 +328,6 @@ module.exports = {
   submitModuleExam,
   getModuleQuizVerdict,
   getGrandQuizState,
+  getIsapsLevelGrade,
   UNAVAILABLE,
 };

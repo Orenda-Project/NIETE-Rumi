@@ -337,6 +337,43 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
  * Idempotent: the guard refuses a second certificate for a (user, level), so a
  * retry or a double submit cannot mint two.
  */
+/**
+ * POST /api/internal/training/level-grade
+ * Body { userId, levelId } -> { success, grade }
+ *
+ * The I-SAPS weighted composite: formative 25 / MCQ 50 / CRQ 25, each with its
+ * own bar (50 / 60 / 50) that must be cleared independently. Returns the
+ * per-component detail so the portal can TELL A TEACHER WHAT IS MISSING rather
+ * than only that she is short.
+ *
+ * `grade: null` means the level is not assessed this way (no per-module
+ * exams). Beacon House and Oxbridge must fall through to their own rule, not
+ * be graded 0 by a model that does not describe them.
+ *
+ * Lives here, not in the portal, for the bd-2480 reason: the portal's previous
+ * local copies of training rules all drifted while their comments claimed
+ * parity. One implementation, two callers.
+ */
+router.post('/training/level-grade', requireInternalKey, async (req, res) => {
+  const body = req.body || {};
+  const { userId } = body;
+  const levelId = num(body.levelId);
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (levelId === null) return res.status(400).json({ success: false, error: 'levelId is required' });
+
+  try {
+    const supabase = require('../config/supabase');
+    const { gradeLevelForUser } = require('../services/training/isaps-level-grade.service');
+    const grade = await gradeLevelForUser(supabase, { userId, levelId });
+    return res.json({ success: true, grade });
+  } catch (error) {
+    // Fail CLOSED, like certify-level: a lookup failure must never read as a
+    // pass. The caller renders "we could not check just now".
+    logToFile('❌ Internal training API failed', { route: 'level-grade', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Grading failed' });
+  }
+});
+
 router.post('/training/certify-level', requireInternalKey, async (req, res) => {
   const body = req.body || {};
   const { userId } = body;

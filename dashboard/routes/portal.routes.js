@@ -2463,6 +2463,19 @@ async function _levelCertificateState(userId, levelId) {
   const passedIds = new Set((passed || []).filter(a => a.is_passed === true).map(a => a.grand_quiz_id));
   const examsDone = perModule.filter(q => passedIds.has(q.id)).length;
 
+  // bd-60163 — on a per-module-assessed level the CERTIFICATE is decided by
+  // the weighted composite (formative 25 / MCQ 50 / CRQ 25, bars 50/60/50),
+  // not by "every unit ticked". The partner's Sept 2026 guide made that the
+  // rule and also removed the formative pass gate, so unit ticks no longer
+  // imply anything was passed — certifying on them would hand out a
+  // certificate for opening 54 pages.
+  //
+  // The counts above stay, because the copy still needs them: "18 of 54
+  // sessions" is what a teacher recognises. What changed is what DECIDES.
+  const grade = perModule.length
+    ? await TrainingRules.getIsapsLevelGrade(userId, levelId)
+    : null;
+
   return {
     state: 'locked',
     certificate: null,
@@ -2470,6 +2483,10 @@ async function _levelCertificateState(userId, levelId) {
     units_done: unitIds.filter(id => doneIds.has(id)).length,
     exams_total: perModule.length,
     exams_done: examsDone,
+    // null on a level this model does not describe, or when the bot could not
+    // be reached — the row then falls back to the counts and says nothing it
+    // cannot stand behind.
+    grade,
   };
 }
 
