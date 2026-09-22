@@ -448,3 +448,34 @@ describe('recordAnswer / rowsFor / todayRow', () => {
     expect(errorLogs().length).toBeGreaterThanOrEqual(2);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('claimQuiz / byId — the answer that makes a quiz makes exactly one', () => {
+  test('the first claim wins and attaches its quiz; a second claim loses and changes nothing', async () => {
+    const row = seed({ status: 'sent' });
+    await expect(store.claimQuiz(row.id, 'q-first')).resolves.toBe(true);
+    await expect(store.claimQuiz(row.id, 'q-second')).resolves.toBe(false);
+    expect(db.rows.find((r) => r.id === row.id).quiz_id).toBe('q-first');
+  });
+
+  test('the claim is conditional ON THE UPDATE — quiz_id IS NULL, not a read first', async () => {
+    const row = seed({ status: 'sent' });
+    await store.claimQuiz(row.id, 'q-1');
+    const update = findCall((c) => c.op === 'update' && c.patch && c.patch.quiz_id === 'q-1');
+    expect(update.filters).toEqual(expect.arrayContaining([['eq', 'id', row.id], ['is', 'quiz_id', null]]));
+    expect(db.calls.filter((c) => c.op === 'select' && c.columns === '*')).toHaveLength(0);
+  });
+
+  test('Class D: an update error is a lost claim, logged at error level', async () => {
+    const row = seed({ status: 'sent' });
+    db.failures.push({ op: 'update', error: { message: 'timeout' } });
+    await expect(store.claimQuiz(row.id, 'q-1')).resolves.toBe(false);
+    expect(errorLogs().length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('byId returns the row, or null for an unknown id', async () => {
+    const row = seed();
+    await expect(store.byId(row.id)).resolves.toEqual(expect.objectContaining({ id: row.id }));
+    await expect(store.byId('nope')).resolves.toBeNull();
+  });
+});

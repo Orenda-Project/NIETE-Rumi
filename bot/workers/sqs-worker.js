@@ -1565,6 +1565,8 @@ function startWorker() {
     if (teacherNudges.isEnabled() && nudgeQueues.has('main')) {
       // Each kind's handler registers itself with the sweeper at load.
       require('../shared/services/nudges/lp-coaching-ask.service');
+      // The 15:00 quiz offer registers its kind (handler + cohort prepare) at load.
+      require('../shared/services/nudges/lp-quiz-offer.service');
       // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the
       // one-minute floor is refused rather than clamped, and the default stands.
       const TEACHER_NUDGES_SWEEP_MS = (() => {

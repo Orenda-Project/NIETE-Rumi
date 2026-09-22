@@ -603,3 +603,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I send a 20-minute recording with the WhatsApp mic button
     Then the bot detects a classroom recording and starts the coaching flow
     And no message tells me to send the recording as a document
+
+  @e2e @coaching @quiz @wip @draft @config-gated @negative @P2
+  Scenario: Saying yes to the coaching ask means no quiz offer arrives that afternoon
+    Given the NIETE bot chat is open on a teacher who took a lesson plan this morning
+    And the coaching ask that followed it arrived
+    When I tap "Record my lesson"
+    Then the bot asks for the recording
+    And when the afternoon quiz offer is built I am left out of it, with the reason recorded as coaching_yes_today
+    And I am not asked twice in one day
+    # R8 D5, the operator's message-budget rule: a teacher who has agreed to record gets the
+    # coaching-born quiz offer after her report, so offering an LP-born one the same afternoon would
+    # be the second ask of the day for the same thing. teacher_nudges carries the skip and its reason,
+    # so a teacher who was deliberately left alone is countable, not invisible.
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
