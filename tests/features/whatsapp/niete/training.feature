@@ -276,3 +276,30 @@ Feature: NIETE (ICT) Teacher Training
     # The book's own exercises carry their own kinds, so a choice of kinds there is a question
     # whose answer cannot be used — planCounts() discards types on the seen path. This is the
     # one path where a single total is still the right thing to ask for.
+
+  # ════════════ CERTIFYING OFF A MODULE EXAM, AND WHAT THE SCORE IS OUT OF ════════════
+  # d130827d (bd-60142, bd-60143). Synced late: the commit's marker was still unhandled
+  # when a later session picked it up. The grand-quiz certification path above was already
+  # covered; the module-exam path that bd-60142 fixed was not.
+
+  @e2e @flow @quiz @certificates @destructive @wip @draft @P1
+  Scenario: The level certifies when the LAST thing passed is a module exam, not a grand quiz
+    Given the NIETE bot chat is open on a teacher who has finished every unit and every module exam but one
+    When I take that last module exam and pass it
+    Then the bot congratulates me, gives me a certificate code, and sends the certificate PDF
+    # bd-60142. The module-exam branch returned without ever attempting issuance — the only
+    # call sat in the unit quick-check branch — so a teacher could satisfy every gate and be
+    # certified by nothing, because the last thing she did was pass a module exam. Confirmed
+    # on sandbox: every gate satisfied, no certificate. Assert by ROLE ("the last one
+    # outstanding"), never by module name or a fixed module count — the guard decides whether
+    # the level is complete and must not pre-judge which module is last. @wip — needs a level
+    # seeded to one-exam-from-done.
+
+  @e2e @quiz @copy @P2
+  Scenario: A module exam score is out of its MARKS, not its question count
+    Given the NIETE bot chat is open and I have just passed a module exam that carries a written question
+    Then the score I am shown is out of the same total the pass decision was made against
+    # bd-60143. `score` is already a mark total (2 MCQs at 1 each + a CRQ out of 10) and was
+    # being divided by the QUESTION count, so a teacher read "12/3". Assert the CONTRACT —
+    # the denominator matches the pass/fail total — never a fixed "12/12": what a module
+    # carries varies by module.
