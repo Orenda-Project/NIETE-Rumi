@@ -58,13 +58,25 @@ describe('bd-60120 — per-module quiz ids', () => {
 describe('bd-60120 — buildModuleExamSlot', () => {
   const OPEN = { moduleTitle: 'Module 1 - Philosophical Foundations', unitsTotal: 6, unitsDone: 6 };
 
-  test('units unfinished → the exam is announced but NOT offered', () => {
+  // bd-60164 — this used to assert the OPPOSITE: unfinished units locked the
+  // exam. The operator removed every sequencing gate ("anything can be given
+  // in any order; the only important thing is that the certificate issues
+  // only if the requirements are complete"), so the wait moved to the level
+  // certificate and the exam opens on demand.
+  test('units unfinished → the exam is STILL offered; nothing sequences', () => {
     const slot = buildModuleExamSlot({
       ...OPEN, unitsDone: 4, mcqCount: 8, crqCount: 4, passed: false,
     });
+    expect(slot.ok).toBe(true);
+    expect(slot.cta).toMatch(/take|start/i);
+  });
+
+  test('a module with NO units at all is still not examinable', () => {
+    // The one completeness check that survives: no content, no assessment.
+    const slot = buildModuleExamSlot({
+      ...OPEN, unitsTotal: 0, unitsDone: 0, mcqCount: 0, crqCount: 0, passed: false,
+    });
     expect(slot.ok).toBe(false);
-    expect(slot.body).toMatch(/2 of 6/);
-    expect(slot.cta).not.toMatch(/take|start/i);
   });
 
   test('every unit done → the exam opens, and says what it contains', () => {
