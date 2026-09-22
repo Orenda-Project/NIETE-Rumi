@@ -92,4 +92,24 @@ describe('bd-7oxt5: the warm-up names the one strategy it runs', () => {
     expect(b).not.toContain('<script>x</script>');
     expect(b).toContain('&lt;script&gt;');
   });
+
+  /**
+   * THE RENDER IS NOT THE GATE -- THE VALIDATOR IS.
+   *
+   * `buildHtml` never validates, so every assertion above passes on a document that
+   * `render_lp.js` then refuses with `should NOT have additional properties ('strategy')`.
+   * That is exactly what happened: the property was added to `lp_doc.v2.schema.json`, the
+   * frozen v8 file, while every document the primary builder writes is `schema_version: "3.0"`
+   * and is judged by `lp_doc.schema.json`. The suite was green and the feature could not ship.
+   */
+  test('a document carrying one validates against the schema it declares', () => {
+    const { validateDoc, SCHEMA_PATH } = require('../../bot/vendor/lp-v9/lib/validate.js');
+    const doc = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
+    const intro = doc.sections.find((s) => s.id === 'introduction');
+    intro.warmup = { strategy: STRAT, items: [{ q: 'What is 8 + 2?', a: '10', kind: 'prerequisite' }] };
+    const v = validateDoc(doc);
+    expect(path.basename(SCHEMA_PATH)).toBe('lp_doc.schema.json');
+    expect(v.errors).toEqual([]);
+    expect(v.ok).toBe(true);
+  });
 });

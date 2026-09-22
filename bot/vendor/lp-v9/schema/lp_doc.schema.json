@@ -190,6 +190,12 @@
             "required": ["items"],
             "description": "INTRODUCTION ONLY. The warm-up is one row inside the Introduction, never its own section (spec §2). The scaffold for TODAY'S concept comes first.",
             "properties": {
+              "strategy": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 60,
+                "description": "bd-7oxt5. ONE named prior-knowledge move the teacher is running with these items -- e.g. 'Prerequisite retrieval -- partner whisper'. It names what the teacher DOES; without it the band reads as a quiz rather than a strategy a coach can observe. ONE, not a list: the opening is already settle-then-provoke and a second label competes with the hook for the same centimetres. Optional -- an unauthored warm-up prints exactly as before, with no empty chip."
+              },
               "items": {
                 "type": "array",
                 "minItems": 1,
@@ -546,6 +552,13 @@
         "alt": { "type": "string" }
       }
     },
+    "crux": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 140,
+      "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged. Primary only: `movePill` emits it under `isPrimary(doc)`."
+    },
+
     "block": {
       "type": "object",
       "required": ["type"],
@@ -555,6 +568,7 @@
           "properties": {
             "type": { "const": "paragraph" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "text": { "type": "string", "minLength": 1 },
             "closes_hook": { "type": "boolean", "description": "true = this paragraph's FIRST SENTENCE closes the lesson's hook (spec §3 D). Development's first block must carry it." }
           },
@@ -566,6 +580,7 @@
           "properties": {
             "type": { "const": "ask" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "question": { "type": "string", "minLength": 3 },
             "look_for": { "type": "string", "description": "The `Look for:` line — what a right answer sounds like (spec §3 I)." },
             "hook": { "type": "boolean", "description": "true = the lesson's provocation. Exactly one per LP, in the introduction." },
@@ -579,6 +594,7 @@
           "properties": {
             "type": { "const": "watch_out" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "text": { "type": "string", "minLength": 3 },
             "misconception": { "type": "boolean" }
           },
@@ -590,6 +606,7 @@
           "properties": {
             "type": { "const": "board" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "text": { "type": "string", "minLength": 1 }
             ,
             "title": { "type": "string", "description": "A heading over the whole board." },
@@ -603,6 +620,7 @@
           "properties": {
             "type": { "const": "keywords" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "page": { "type": "string", "description": "The printed page the words are pre-taught from. Required in the introduction by lint." },
             "items": {
               "type": "array",
@@ -624,6 +642,7 @@
           "properties": {
             "type": { "const": "key_points" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string", "description": "Overrides the printed \"Key points\" label. Pass \"\" to print no label." },
             "items": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "type": "string", "minLength": 3 } }
           },
@@ -636,6 +655,7 @@
           "properties": {
             "type": { "const": "big_idea" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string",
               "description": "Overrides the printed \"The Big Idea\" label. Pass \"\" to print no label." },
             "distinction": { "type": "string", "minLength": 3,
@@ -653,6 +673,7 @@
           "properties": {
             "type": { "const": "table" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string", "description": "Optional heading above the table. Omit it — or pass \"\" — when the column headers already say what each column is, which is the usual case." },
             "columns": {
               "type": "array",
@@ -683,6 +704,7 @@
           "properties": {
             "type": { "const": "worked_example" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string" },
             "prompt": { "type": "string", "description": "The question, FULLY WORDED. A page citation alone is not a question (lint's UNWORDED_Q)." },
             "minutes": { "type": "integer", "minimum": 0 },
@@ -700,6 +722,7 @@
           "properties": {
             "type": { "const": "faded_example" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string" },
             "prompt": { "type": "string" },
             "minutes": { "type": "integer", "minimum": 0 },
@@ -716,6 +739,7 @@
           "properties": {
             "type": { "const": "practice" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string" },
             "mode": { "type": "string", "enum": ["guided", "independent"] },
             "minutes": { "type": "integer", "minimum": 0, "description": "Both the guided and the independent beat carry their own minutes (spec §3 A)." },
@@ -746,6 +770,7 @@
           "properties": {
             "type": { "const": "support_extension" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "support": { "type": "string", "minLength": 3 },
             "extension": { "type": "string", "minLength": 3 }
           },
@@ -757,6 +782,7 @@
           "properties": {
             "type": { "const": "split" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "left": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/block" } },
             "right": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/block" } },
             "ratio": { "type": "number", "minimum": 0.25, "maximum": 0.75, "default": 0.5 }
@@ -769,6 +795,7 @@
           "properties": {
             "type": { "const": "diagram" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "spec": { "$ref": "#/definitions/diagram_spec" }
           },
           "required": ["type", "spec"],
@@ -779,6 +806,7 @@
           "properties": {
             "type": { "const": "textbook_figure" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "ref": { "type": "string" },
             "src": { "type": "string" },
             "caption": { "type": "string" },
@@ -794,6 +822,7 @@
           "properties": {
             "type": { "const": "latex" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "tex": { "type": "string", "minLength": 1 },
             "caption": { "type": "string" }
           },
@@ -805,6 +834,7 @@
           "properties": {
             "type": { "const": "chem" },
             "id": { "type": "string" },
+            "crux": { "$ref": "#/definitions/crux" },
             "tex": { "type": "string", "minLength": 1 },
             "caption": { "type": "string" }
           },

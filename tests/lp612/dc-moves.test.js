@@ -193,11 +193,33 @@ describe('bd-3jemp: the sheet names the moves the Digital Coach grades', () => {
       expect(html).not.toContain('<b>no</b>');
     });
 
+    /**
+     * THE SCHEMA THIS ASSERTS AGAINST IS THE ONE THE DOCUMENT CHOOSES.
+     *
+     * `validate.js` maps `schema_version` to a file: "3.0" -> `lp_doc.schema.json`, "2.0" ->
+     * `lp_doc.v2.schema.json` (v8, frozen). Every document the primary builder writes is 3.0, so
+     * the live file is the only one that can admit a new property -- and the first version of
+     * this test asserted against the FROZEN one, passed, and shipped a document that could not
+     * render (`should NOT have additional properties ('crux')`). A property assertion on a
+     * schema nothing validates against is a green test over a broken feature.
+     */
     test('the schema admits it on every block type', () => {
-      const schema = require('../../bot/vendor/lp-v9/schema/lp_doc.v2.schema.json');
+      const schema = require('../../bot/vendor/lp-v9/schema/lp_doc.schema.json');
       for (const branch of schema.definitions.block.oneOf) {
         expect(branch.properties).toHaveProperty('crux');
       }
+    });
+
+    /** The gate the property assertion above cannot be: a real doc through the real validator. */
+    test('a document carrying one validates', () => {
+      const { validateDoc, SCHEMA_PATH } = require('../../bot/vendor/lp-v9/lib/validate.js');
+      const doc = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
+      const blk = doc.sections.flatMap((s) => s.blocks || [])[0];
+      blk.crux = 'Work it on the board while they watch. Nobody copies yet.';
+      const v = validateDoc(doc);
+      expect(path.basename(SCHEMA_PATH)).toBe('lp_doc.schema.json');
+      expect(v.errors).toEqual([]);
+      expect(v.ok).toBe(true);
     });
   });
 });

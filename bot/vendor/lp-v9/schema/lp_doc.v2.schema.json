@@ -250,12 +250,6 @@
           "default": "full",
           "description": "'half' puts the W band beside the FIRST section when that section is also 'half' — the introduction. Saves ~50px on page 1."
         },
-        "strategy": {
-          "type": "string",
-          "minLength": 3,
-          "maxLength": 60,
-          "description": "bd-7oxt5. ONE named prior-knowledge move the teacher is running with these items — e.g. 'Prerequisite retrieval — partner whisper'. It names what the teacher DOES; without it the band reads as a quiz rather than a strategy a coach can observe. ONE, not a list: the opening is already settle-then-provoke and a second label competes with the hook for the same centimetres. Optional — an unauthored warm-up prints exactly as before, with no empty chip."
-        },
         "items": {
           "type": "array",
           "minItems": 1,
@@ -279,11 +273,9 @@
               "kind": {
                 "type": "string",
                 "enum": [
-                  "scaffold",
                   "prerequisite",
                   "spaced"
-                ],
-                "description": "Why this row is here. 'scaffold' = today's foundation, laid first; 'prerequisite' = assumed prior knowledge; 'spaced' = retrieval of something older. All three are labelled in both languages by lib/overlay.js; the enum previously omitted 'scaffold' and rejected documents that render correctly."
+                ]
               },
               "from": {
                 "type": "string",
@@ -746,12 +738,6 @@
             "text": {
               "type": "string",
               "minLength": 1
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -773,12 +759,6 @@
             "text": {
               "type": "string",
               "minLength": 1
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -808,12 +788,6 @@
             "closed_by": {
               "type": "string",
               "description": "The `id` of the later block that ANSWERS this hook (L3 ask 3). The most repeated teacher complaint across v7 was an opening question the lesson never closes; naming the closing beat is what lets lint check it."
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -835,12 +809,6 @@
             "misconception": {
               "type": "boolean",
               "description": "true = this states a named pupil misconception (lint requires >=1 in development)."
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -858,12 +826,6 @@
             "text": {
               "type": "string",
               "minLength": 1
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -897,12 +859,6 @@
                   }
                 }
               }
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -929,12 +885,6 @@
                 "type": "string",
                 "minLength": 3
               }
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -965,12 +915,6 @@
             },
             "result": {
               "type": "string"
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1002,12 +946,6 @@
             "answer": {
               "type": "string",
               "description": "What the blanked steps come to. Required by lint — every closed item is solved."
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1076,12 +1014,6 @@
                   }
                 }
               }
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1103,12 +1035,6 @@
             "extension": {
               "type": "string",
               "minLength": 3
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1144,12 +1070,6 @@
               "maximum": 0.75,
               "default": 0.5,
               "description": "Fraction of the width the LEFT column takes."
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1167,12 +1087,6 @@
             },
             "spec": {
               "$ref": "#/definitions/diagram_spec"
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1208,12 +1122,6 @@
             "legend": {
               "type": "string",
               "description": "One line telling the teacher how to READ the figure."
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1233,12 +1141,6 @@
             },
             "caption": {
               "type": "string"
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
@@ -1259,12 +1161,6 @@
             },
             "caption": {
               "type": "string"
-            },
-            "crux": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 140,
-              "description": "bd-3jemp. ONE line of what the teacher must actually do in this move, printed above the script at heading weight. OPERATOR: \"the crux of what should be done should be highlighted in the move since there is alot of script to go through\". Authored, never derived from the script -- a derived crux is a summary, and a summary of a script is still a script. Optional; an unauthored block renders unchanged."
             }
           },
           "required": [
