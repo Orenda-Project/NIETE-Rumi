@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "repo": "bd-60147",
-  "range": "",
+  "repo": "bd-60175",
+  "range": "d130827d353a3d3ffa2d4b5ae8f15a7a941b68d2~1...d130827d353a3d3ffa2d4b5ae8f15a7a941b68d2",
   "spec_dir": "tests/features/whatsapp/niete",
   "full_suite": null,
   "sync_needed": true,
@@ -11,7 +11,7 @@
       "spec_path": "tests/features/whatsapp/niete/training.feature",
       "spec_exists": true,
       "action": "update",
-      "scenario_count": 23,
+      "scenario_count": 28,
       "scenarios": [
         {
           "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
@@ -377,15 +377,86 @@
             "@draft",
             "@p3"
           ]
+        },
+        {
+          "name": "She sets how many of EACH kind of question, not one total we split for her",
+          "line": 242,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A count she cannot have is refused on the screen, naming the kind",
+          "line": 256,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Questions taken from the book never ask her to count by kind",
+          "line": 271,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p2"
+          ]
+        },
+        {
+          "name": "The level certifies when the LAST thing passed is a module exam, not a grand quiz",
+          "line": 286,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@certificates",
+            "@destructive",
+            "@wip",
+            "@draft",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A module exam score is out of its MARKS, not its question count",
+          "line": 299,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@copy",
+            "@p2"
+          ]
         }
       ],
       "changed_files": [
-        {
-          "path": "bot/shared/services/training/certificate.service.js",
-          "pattern": "bot/shared/services/training/**",
-          "shared": false,
-          "kind": "map"
-        },
         {
           "path": "bot/shared/services/training/quiz-delivery.service.js",
           "pattern": "bot/shared/services/training/**",
@@ -394,7 +465,7 @@
         }
       ],
       "only_shared": false,
-      "diff": "diff --git a/bot/shared/services/training/certificate.service.js b/bot/shared/services/training/certificate.service.js\nindex a0bb347a..213cc4d6 100644\n--- a/bot/shared/services/training/certificate.service.js\n+++ b/bot/shared/services/training/certificate.service.js\n@@ -174,17 +174,43 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI\n  */\n const QUIZ_CERT_PASS_PCT = 0.7;\n \n-async function maybeIssueQuizScoreCertificate(supabase, { userId, moduleId, attemptId, programId }) {\n+async function maybeIssueQuizScoreCertificate(\n+  supabase, { userId, moduleId, levelId = null, attemptId, programId },\n+) {\n   try {\n-    const { data: mod } = await supabase\n-      .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();\n-    if (!mod || !mod.course_id) return { issued: false };\n-    const { data: course } = await supabase\n-      .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();\n-    if (!course) return { issued: false };\n-    const { data: level } = await supabase\n-      .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();\n-    if (!level) return { issued: false };\n+    // bd-60144 \u2014 the level can arrive DIRECTLY, because a module exam has no\n+    // module to resolve it through.\n+    //\n+    // This function was written for the unit quick-check path, where the only\n+    // thing in hand is the module that was just completed, so it walked\n+    // module \u2192 course \u2192 level. A module EXAM attempt stores\n+    // training_module_id = NULL (it is keyed by grand_quiz_id), so passing that\n+    // value made the FIRST query return nothing and the guard returned\n+    // { issued: false } before reaching a single gate. A teacher could finish\n+    // all 54 units and all 9 exams and be certified by nothing \u2014 the gates were\n+    // right, but none of them ever ran.\n+    //\n+    // The caller that knows its level now says so. The quick-check path passes\n+    // no levelId and resolves through the module exactly as before, so every\n+    // other vendor is untouched.\n+    let levelRow = null;\n+    if (levelId !== null && levelId !== undefined) {\n+      const { data: lvl } = await supabase\n+        .from('training_levels').select('id, name, vendor_id').eq('id', levelId).maybeSingle();\n+      levelRow = lvl || null;\n+    } else {\n+      const { data: mod } = await supabase\n+        .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();\n+      if (!mod || !mod.course_id) return { issued: false };\n+      const { data: course } = await supabase\n+        .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();\n+      if (!course) return { issued: false };\n+      const { data: lvl } = await supabase\n+        .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();\n+      levelRow = lvl || null;\n+    }\n+    if (!levelRow) return { issued: false };\n+    const level = levelRow;\n     const { data: vendor } = await supabase\n       .from('training_vendors').select('id, unlock_logic').eq('id', level.vendor_id).maybeSingle();\n     if ((vendor?.unlock_logic || 'chain') === 'chain') return { issued: false };\ndiff --git a/bot/shared/services/training/quiz-delivery.service.js b/bot/shared/services/training/quiz-delivery.service.js\nindex 09b8a958..24ac8d1e 100644\n--- a/bot/shared/services/training/quiz-delivery.service.js\n+++ b/bot/shared/services/training/quiz-delivery.service.js\n@@ -2150,7 +2150,11 @@ async function gradeAttempt(attemptId, phoneNumber) {\n     const { maybeIssueQuizScoreCertificate } = require('./certificate.service');\n     const levelCert = await maybeIssueQuizScoreCertificate(supabase, {\n       userId: attempt.user_id,\n+      // bd-60144 \u2014 a module-exam attempt has training_module_id = NULL, so the\n+      // level must be handed over directly. Passing the null module made the\n+      // guard bail on its first lookup, before any gate.\n       moduleId: attempt.training_module_id,\n+      levelId: attempt.level_id,\n       attemptId: attempt.id,\n       programId: attempt.program_id,\n     });\n",
+      "diff": "diff --git a/bot/shared/services/training/quiz-delivery.service.js b/bot/shared/services/training/quiz-delivery.service.js\nindex 3d1f149e..09b8a958 100644\n--- a/bot/shared/services/training/quiz-delivery.service.js\n+++ b/bot/shared/services/training/quiz-delivery.service.js\n@@ -2114,7 +2114,11 @@ async function gradeAttempt(attemptId, phoneNumber) {\n       moduleTitle = c?.title || course?.title || null;\n     }\n     await WhatsAppService.sendMessage(phoneNumber, moduleExamPassMessage({\n-      moduleTitle, score, total: attempt.total_questions, hasCrq: Boolean(crqQuizId),\n+      // bd-60143 \u2014 MARKS, not the question count. `score` here is already a\n+      // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by\n+      // attempt.total_questions printed \"12/3\". examTotal is the same\n+      // denominator the pass/fail decision above is computed against.\n+      moduleTitle, score, total: examTotal, hasCrq: Boolean(crqQuizId),\n     }));\n     logToFile('\ud83c\udf93 Module exam passed \u2014 no level certificate', {\n       userId: attempt.user_id, attemptId, sourceQuizId: attemptQuiz?.source_quiz_id,\n@@ -2126,6 +2130,40 @@ async function gradeAttempt(attemptId, phoneNumber) {\n     // Auto-delivering the CRQ therefore needs that service made\n     // module-aware first; until then the teacher is told it is outstanding\n     // rather than being handed a broken flow or silently skipped.\n+\n+    // bd-60142 \u2014 the LEVEL certificate is decided here too.\n+    //\n+    // This branch used to return without ever attempting issuance, because the\n+    // only call to maybeIssueQuizScoreCertificate lived in the unit\n+    // quick-check branch above. A teacher could therefore finish all 54 units\n+    // AND all 9 module exams and be certified by nothing: the last thing they\n+    // did was pass a module exam, and this path had no opinion about\n+    // certificates. Confirmed on sandbox \u2014 every gate satisfied, no\n+    // certificate.\n+    //\n+    // bd-60139 added the gate that stops a certificate minting after ONE\n+    // module; that gate was necessary but not sufficient, because it guarded a\n+    // path a module exam never reached. The guard decides whether the level is\n+    // complete (all units done, every active per-module exam passed), so this\n+    // call site must NOT pre-judge which module is \"last\" \u2014 a level with a\n+    // different number of modules would break the moment it did.\n+    const { maybeIssueQuizScoreCertificate } = require('./certificate.service');\n+    const levelCert = await maybeIssueQuizScoreCertificate(supabase, {\n+      userId: attempt.user_id,\n+      moduleId: attempt.training_module_id,\n+      attemptId: attempt.id,\n+      programId: attempt.program_id,\n+    });\n+    if (levelCert.issued) {\n+      await WhatsAppService.sendMessage(\n+        phoneNumber,\n+        `\ud83c\udfc6 *Congratulations, ${levelCert.teacher_name}!*\\n\\n`\n+        + `You have completed every module of ${levelCert.level_name}.\\n\\n`\n+        + `Certificate code: \\`${levelCert.certificate_code}\\`\\n`\n+        + 'You can also download it from your portal.',\n+      );\n+      await deliverCertificatePdf(phoneNumber, levelCert);\n+    }\n     return true;\n   }\n \n",
       "diff_truncated": false
     }
   ],

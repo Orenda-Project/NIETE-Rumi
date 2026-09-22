@@ -1,0 +1,462 @@
+{
+  "version": 1,
+  "repo": "bd-60175",
+  "range": "9b63444634d790b0755b78f8f1390863711185df~1...9b63444634d790b0755b78f8f1390863711185df",
+  "spec_dir": "tests/features/whatsapp/niete",
+  "full_suite": null,
+  "sync_needed": true,
+  "features": [
+    {
+      "feature": "training",
+      "spec_path": "tests/features/whatsapp/niete/training.feature",
+      "spec_exists": true,
+      "action": "update",
+      "scenario_count": 26,
+      "scenarios": [
+        {
+          "name": "A teacher works through Teacher Training end to end \u2014 open, take a module check, pass, unlock the next",
+          "line": 39,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@quiz",
+            "@content-driven",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Teacher Training opens from any of its entry points",
+          "line": 64,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A teacher with no certificates yet is pointed back to training",
+          "line": 80,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@copy",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A PDF module arrives as a document",
+          "line": 89,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Finishing every module unlocks the level exam, and passing it certifies the level",
+          "line": 95,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@destructive",
+            "@p1"
+          ]
+        },
+        {
+          "name": "Asking for a certificate by its code sends the PDF",
+          "line": 103,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@certificates",
+            "@p2"
+          ]
+        },
+        {
+          "name": "For a Beacon House programme the level exam is written answers, not multiple choice",
+          "line": 110,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "For an Oxbridge programme a level is certified from module scores, with no exam",
+          "line": 117,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A locked level is selectable but the server refuses to open it",
+          "line": 129,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "A module further down the list can't be opened before the earlier ones",
+          "line": 136,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@known-issue",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Tapping the locked exam link explains what to finish first",
+          "line": 143,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry",
+          "line": 150,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@content-driven",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Asking for a certificate that isn't mine says it can't be found",
+          "line": 159,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A /certificate with a junk code just shows my certificates list",
+          "line": 167,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@certificates",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "\"/teacher training\" (two words) is not a training command",
+          "line": 174,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@edge",
+            "@negative",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Failing the level exam starts a wait before I can retry",
+          "line": 181,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@negative",
+            "@destructive",
+            "@p3"
+          ]
+        },
+        {
+          "name": "An Urdu teacher gets the Urdu question text and Urdu options",
+          "line": 188,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@i18n",
+            "@quiz",
+            "@wip",
+            "@draft",
+            "@p2"
+          ]
+        },
+        {
+          "name": "/training works even in the middle of something else",
+          "line": 197,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@edge",
+            "@p3"
+          ]
+        },
+        {
+          "name": "Pausing a module check saves my place",
+          "line": 204,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module retake serves a fresh set of questions",
+          "line": 211,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@content-driven",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A half-finished module quiz picks up where I left off",
+          "line": 218,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@wip",
+            "@draft",
+            "@flow",
+            "@quiz",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A module's button is named after what tapping it does",
+          "line": 225,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@copy",
+            "@p3"
+          ]
+        },
+        {
+          "name": "A very long answer option is shown in full, not cut off",
+          "line": 231,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@quiz",
+            "@edge",
+            "@wip",
+            "@draft",
+            "@p3"
+          ]
+        },
+        {
+          "name": "She sets how many of EACH kind of question, not one total we split for her",
+          "line": 242,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p1"
+          ]
+        },
+        {
+          "name": "A count she cannot have is refused on the screen, naming the kind",
+          "line": 256,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@negative",
+            "@p2"
+          ]
+        },
+        {
+          "name": "Questions taken from the book never ask her to count by kind",
+          "line": 271,
+          "tags": [
+            "@whatsapp",
+            "@ict",
+            "@profile:niete",
+            "@feature:training",
+            "@persona:teacher",
+            "@e2e",
+            "@flow",
+            "@p2"
+          ]
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "bot/shared/routes/assessment-gen-endpoint.js",
+          "pattern": "bot/shared/routes/assessment-gen-endpoint.js",
+          "shared": false,
+          "kind": "map"
+        }
+      ],
+      "only_shared": false,
+      "diff": "diff --git a/bot/shared/routes/assessment-gen-endpoint.js b/bot/shared/routes/assessment-gen-endpoint.js\nindex 82c004f8..b7755749 100644\n--- a/bot/shared/routes/assessment-gen-endpoint.js\n+++ b/bot/shared/routes/assessment-gen-endpoint.js\n@@ -823,15 +823,34 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {\n \n   // \u2500\u2500 QUESTIONS \u2192 TYPES | CONFIRM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n   if (screenId === 'QUESTIONS') {\n-    // She types the number now, and a Flow TextInput enforces no bounds at all,\n-    // so this is the only thing standing between \"999\" and a request for 999\n-    // questions. Refused on the screen rather than clamped: quietly turning 40\n-    // into 25 gives her a paper she never asked for and never says so.\n-    const parsed = QuestionTypes.parseQuestionCount(data.question_count);\n-    if (!parsed.ok) {\n-      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });\n-      await writeSession(flowToken, state);\n-      return questionsScreen(state, parsed.message);\n+    const contentSource = String(data.content_source || 'unseen');\n+    const needsTypes = contentSource === 'unseen' || contentSource === 'both';\n+\n+    // The size of the paper is asked for in ONE place, and which place depends\n+    // on the category \u2014 because on one path she is about to name the types and\n+    // on the other she never will.\n+    //\n+    //   unseen / both \u2192 she picks types next, and then a count for each. The\n+    //                   paper's size is the sum of those, so asking for a total\n+    //                   here would be asking her to do the addition herself and\n+    //                   then holding her to it. The box is gone from the screen;\n+    //                   a stale client still sending one is ignored.\n+    //   seen          \u2192 the questions are lifted from the book and carry their\n+    //                   own types, so there is nothing to count per type and\n+    //                   this is the only chance to ask how big the paper is.\n+    let questionCount = null;\n+    if (!needsTypes) {\n+      // A Flow TextInput enforces no bounds at all, so this is the only thing\n+      // standing between \"999\" and a request for 999 questions. Refused on the\n+      // screen rather than clamped: quietly turning 40 into 25 gives her a\n+      // paper she never asked for and never says so.\n+      const parsed = QuestionTypes.parseQuestionCount(data.question_count);\n+      if (!parsed.ok) {\n+        Object.assign(state, { contentSource });\n+        await writeSession(flowToken, state);\n+        return questionsScreen(state, parsed.message);\n+      }\n+      questionCount = parsed.count;\n     }\n \n     // The marks budget beside it. Optional, so a blank box is an answer (\"no\n@@ -839,15 +858,20 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {\n     // range and bounced back the same way the count is, rather than clamped.\n     const budget = QuestionTypes.parseTotalMarks(data.total_marks);\n     if (!budget.ok) {\n-      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });\n+      Object.assign(state, { contentSource });\n       await writeSession(flowToken, state);\n       return questionsScreen(state, budget.message);\n     }\n \n     Object.assign(state, {\n-      contentSource: String(data.content_source || 'unseen'),\n-      questionCount: parsed.count,\n+      contentSource,\n+      questionCount,\n       totalMarks: budget.marks,\n+      // A second pass through this screen must not leave the previous pass's\n+      // picks behind: she may have changed the category, and the types that\n+      // were valid for the old one are not necessarily valid for the new.\n+      pickedTypes: null,\n+      questionTypes: null,\n     });\n     await writeSession(flowToken, state);\n \n@@ -862,30 +886,52 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {\n     // type from. That makes the choice load-bearing, so it is a step rather than\n     // an opt-in: unticked, the common path fell through to our defaultMix()\n     // guess instead of the paper she wanted. TYPES refuses an empty selection.\n-    const needsTypes = state.contentSource === 'unseen' || state.contentSource === 'both';\n-    if (needsTypes) {\n-      return screen('TYPES', {\n-        summary: summaryOf(state),\n-        types: QuestionTypes.forSubject(state.subject, state.grade)\n-          .map((t) => ({ id: t.id, title: t.id })),\n-        error: '',\n-      });\n-    }\n+    if (needsTypes) return typesScreen(state);\n     return confirmScreen(state);\n   }\n \n-  // \u2500\u2500 TYPES \u2192 CONFIRM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n+  // \u2500\u2500 TYPES \u2192 COUNTS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n+  // The types she ticked no longer go straight to the recap. She names how many\n+  // of each next, which is the whole point of picking them separately: a total\n+  // divided evenly over her picks was our arithmetic, not her paper.\n   if (screenId === 'TYPES') {\n-    const picked = Array.isArray(data.question_types) ? data.question_types : [];\n+    const offered = QuestionTypes.forSubject(state.subject, state.grade).map((t) => t.id);\n+    // Order is HERS \u2014 the COUNTS boxes are labelled in the order she ticked, so\n+    // the list she reads there matches the list she just left. Ids are filtered\n+    // against what this subject actually offers: a stale or hand-made payload\n+    // must not create a box for a type the prompts have never heard of.\n+    const picked = (Array.isArray(data.question_types) ? data.question_types : [])\n+      .map((id) => String(id))\n+      .filter((id, i, all) => offered.includes(id) && all.indexOf(id) === i);\n+\n     if (picked.length === 0) {\n-      return screen('TYPES', {\n-        summary: summaryOf(state),\n-        types: QuestionTypes.forSubject(state.subject, state.grade).map((t) => ({ id: t.id, title: t.id })),\n-        error: 'Please choose at least one kind of question.',\n-      });\n+      return typesScreen(state, 'Please choose at least one kind of question.');\n+    }\n+    // The count boxes are a fixed bank, so more picks than boxes would silently\n+    // drop the tail of her selection. Say so instead.\n+    if (picked.length > QuestionTypes.MAX_TYPE_SLOTS) {\n+      return typesScreen(state,\n+        `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} kinds of question.`);\n     }\n+\n     state.pickedTypes = picked;\n     await writeSession(flowToken, state);\n+    return countsScreen(state);\n+  }\n+\n+  // \u2500\u2500 COUNTS \u2192 CONFIRM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n+  // One number per type she picked. The paper's size is their sum, so\n+  // `questionCount` stops being something she types and becomes something we\n+  // derive \u2014 which is what makes the counts below survive planCounts().\n+  if (screenId === 'COUNTS') {\n+    const picked = Array.isArray(state.pickedTypes) ? state.pickedTypes : [];\n+    if (picked.length === 0) return typesScreen(state);\n+\n+    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade);\n+    if (!parsed.ok) return countsScreen(state, parsed.message);\n+\n+    Object.assign(state, { questionTypes: parsed.types, questionCount: parsed.total });\n+    await writeSession(flowToken, state);\n     return confirmScreen(state);\n   }\n \n@@ -1042,6 +1088,39 @@ function questionsScreen(state, error = '') {\n   });\n }\n \n+/** The types this subject and grade support, as she sees them. */\n+function typesScreen(state, error = '') {\n+  return screen('TYPES', {\n+    summary: summaryOf(state),\n+    types: QuestionTypes.forSubject(state.subject, state.grade)\n+      .map((t) => ({ id: t.id, title: t.id })),\n+    error,\n+  });\n+}\n+\n+/**\n+ * One count box per type she picked, in the order she picked them.\n+ *\n+ * A Flow has no in-screen reactivity, so \"a box per pick\" is a fixed bank of\n+ * slots whose label and visibility are data-bound and resolved here. A slot\n+ * past her pick count is hidden AND blanked: a hidden field that keeps a label\n+ * from an earlier pass will show it the moment she goes back and picks more.\n+ */\n+function countsScreen(state, error = '') {\n+  const picked = (state.pickedTypes || []).slice(0, QuestionTypes.MAX_TYPE_SLOTS);\n+  const data = {\n+    summary: summaryOf(state),\n+    hint: `Up to ${QuestionTypes.MAX_QUESTIONS} questions in total.`,\n+    error,\n+  };\n+  for (let i = 1; i <= QuestionTypes.MAX_TYPE_SLOTS; i += 1) {\n+    const id = picked[i - 1];\n+    data[`show_${i}`] = Boolean(id);\n+    data[`label_${i}`] = id ? `How many ${id}?` : '';\n+  }\n+  return screen('COUNTS', data);\n+}\n+\n async function confirmScreen(state) {\n   const source = {\n     seen: 'Questions from the book',\n@@ -1050,8 +1129,18 @@ async function confirmScreen(state) {\n   }[state.contentSource] || 'New questions';\n   // Server-driven so the docx flag can hide Word without republishing the Flow.\n   const { formatsOnOffer } = require('../services/assessment/assessment-format');\n+\n+  // The breakdown is the last chance to catch a slip before the paper is made,\n+  // and it is the number she typed rather than a total she has to trust us to\n+  // have split her way. On the seen path there is no breakdown to show \u2014 the\n+  // book decides the types \u2014 so it stays the single total it has always been.\n+  const breakdown = (state.questionTypes || []).map((t) => `${t.count} ${t.id}`);\n+  const size = breakdown.length\n+    ? `${breakdown.join(', ')} \u00b7 ${state.questionCount} in total`\n+    : `${state.questionCount} questions`;\n+\n   return screen('CONFIRM', {\n-    recap: [summaryOf(state), `${source} \u00b7 ${state.questionCount} questions`].join('\\n'),\n+    recap: [summaryOf(state), `${source} \u00b7 ${size}`].join('\\n'),\n     formats: await formatsOnOffer(),\n     // Supplied HERE, on the render \u2014 the Footer can only send back data the\n     // screen was drawn with.\n@@ -1119,9 +1208,18 @@ async function submit(state) {\n   // (chapter_number IS NOT NULL OR page_ranges IS NOT NULL) is satisfied.\n   const single = chapters.length === 1 ? chapters[0].number : null;\n \n-  const types = (state.pickedTypes && state.pickedTypes.length)\n-    ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)\n-    : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount);\n+  // Her numbers, untouched. `state.questionTypes` is what COUNTS wrote down \u2014\n+  // one count per type, as she typed them \u2014 and re-spreading a total over those\n+  // ids here is exactly the behaviour this screen exists to remove.\n+  //\n+  // The two fallbacks below are for the paths that never reach COUNTS: a `seen`\n+  // paper (no types to count, so the default mix sizes it) and a session that\n+  // predates this change but is still inside its fifteen minutes.\n+  const types = (state.questionTypes && state.questionTypes.length)\n+    ? state.questionTypes\n+    : ((state.pickedTypes && state.pickedTypes.length)\n+      ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)\n+      : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount));\n \n   // The row and the job are built in ONE place now, because they\n   // have to agree with each other on eleven fields and the portal needs the\n@@ -1153,7 +1251,16 @@ async function submit(state) {\n \n async function handleBack(userId, screenId, flowToken) {\n   const state = await readSession(flowToken);\n-  if (screenId === 'CONFIRM' || screenId === 'TYPES') return questionsScreen(state);\n+  // Back goes to the screen she actually came from, which on the unseen path is\n+  // no longer QUESTIONS: COUNTS sits between TYPES and CONFIRM now. Sending her\n+  // two screens back would quietly discard the picks and counts she just made.\n+  if (screenId === 'COUNTS') return typesScreen(state);\n+  if (screenId === 'CONFIRM') {\n+    return (state.pickedTypes && state.pickedTypes.length)\n+      ? countsScreen(state)\n+      : questionsScreen(state);\n+  }\n+  if (screenId === 'TYPES') return questionsScreen(state);\n   if (screenId === 'QUESTIONS' || screenId === 'PAGES') {\n     return screen('COVERAGE', {\n       summary: summaryOf(state), has_chapters: true,\n",
+      "diff_truncated": false
+    }
+  ],
+  "gaps": [
+    {
+      "path": "bot/shared/services/assessment/question-types.js",
+      "action": "map-gap",
+      "diff": "diff --git a/bot/shared/services/assessment/question-types.js b/bot/shared/services/assessment/question-types.js\nindex b707c492..3ef44b10 100644\n--- a/bot/shared/services/assessment/question-types.js\n+++ b/bot/shared/services/assessment/question-types.js\n@@ -140,6 +140,17 @@ function defaultMix(subject, grade, total) {\n const MAX_QUESTIONS = 25;\n const DEFAULT_QUESTIONS = 15;\n \n+/**\n+ * How many types she may pick, and therefore how many count boxes the COUNTS\n+ * screen holds.\n+ *\n+ * A Flow cannot grow a component at runtime, so the boxes are a fixed bank that\n+ * the server labels and hides. Eight is above what a paper of 25 questions can\n+ * meaningfully carry \u2014 eight types is already three questions each \u2014 and keeps\n+ * the published screen small.\n+ */\n+const MAX_TYPE_SLOTS = 8;\n+\n /**\n  * Read the number she typed.\n  *\n@@ -166,6 +177,67 @@ function parseQuestionCount(raw) {\n   return { ok: true, count: n };\n }\n \n+/**\n+ * Read the count she typed against EACH type she picked.\n+ *\n+ * The counterpart to parseQuestionCount, for the screen that replaced it on the\n+ * unseen path. She picked her types on TYPES, so this receives one box per pick\n+ * (`count_1`\u2026`count_N`, positional, in the order she ticked them) and returns\n+ * the `{ id, count, category }` list the generator already speaks.\n+ *\n+ * Every box is REQUIRED: a type she ticked and then left blank is a\n+ * contradiction, and the two ways out of it are both worse than asking. Filling\n+ * it with a default hands her a number she never chose; dropping the type\n+ * quietly deletes a section she asked for. So a blank bounces, and it bounces\n+ * naming the type rather than the slot \u2014 \"MCQs\" is hers, \"count_1\" is ours.\n+ *\n+ * The paper ceiling is checked on the SUM, because that is the paper. Fifteen\n+ * MCQs and fifteen Short Questions are each individually reasonable and\n+ * together are a paper the generator pads its way through.\n+ *\n+ * Refused, never clamped \u2014 the same rule the single count already followed.\n+ */\n+function parsePerTypeCounts(pickedIds, data, subject, grade) {\n+  const ids = (pickedIds || []).filter(Boolean);\n+  if (ids.length === 0) {\n+    return { ok: false, message: 'Please choose at least one kind of question.' };\n+  }\n+\n+  const out = [];\n+  for (let i = 0; i < ids.length; i += 1) {\n+    const id = ids[i];\n+    const raw = data?.[`count_${i + 1}`];\n+    const text = String(raw ?? '').trim();\n+    const range = `Type a number between 1 and ${MAX_QUESTIONS}.`;\n+\n+    if (!text || !/^\\d+$/.test(text)) {\n+      return { ok: false, message: `How many ${id}? ${range}` };\n+    }\n+    const n = Number(text);\n+    if (!Number.isInteger(n) || n < 1) {\n+      return { ok: false, message: `How many ${id}? ${range}` };\n+    }\n+    if (n > MAX_QUESTIONS) {\n+      return {\n+        ok: false,\n+        message: `A paper can hold up to ${MAX_QUESTIONS} questions, so ${id} cannot be ${n}. ${range}`,\n+      };\n+    }\n+    out.push({ id, count: n, category: categoryOf(id, subject, grade) });\n+  }\n+\n+  const total = out.reduce((s, t) => s + t.count, 0);\n+  if (total > MAX_QUESTIONS) {\n+    return {\n+      ok: false,\n+      message: `That is ${total} questions in total. A paper can hold up to ${MAX_QUESTIONS} \u2014 `\n+        + 'please lower one of the numbers.',\n+    };\n+  }\n+\n+  return { ok: true, types: out, total };\n+}\n+\n /**\n  * The most marks a paper may be asked to carry.\n  *\n@@ -208,4 +280,4 @@ function parseTotalMarks(raw) {\n \n module.exports = {\n   parseQuestionCount, MAX_QUESTIONS, DEFAULT_QUESTIONS, forSubject, categoryOf, withCounts, defaultMix, CATALOGUE,\n-  parseTotalMarks, MAX_TOTAL_MARKS };\n+  parseTotalMarks, MAX_TOTAL_MARKS, parsePerTypeCounts, MAX_TYPE_SLOTS };\n",
+      "diff_truncated": false
+    }
+  ],
+  "existing_features": [
+    "attendance",
+    "coaching",
+    "language",
+    "lesson-plan",
+    "menu",
+    "observe",
+    "registration",
+    "status",
+    "training"
+  ],
+  "map_gaps": [
+    "bot/shared/services/assessment/question-types.js"
+  ],
+  "fallback": true,
+  "fallback_reason": "1 changed file is unmapped \u2014 no rule in feature-map.yaml claims it, so which surface it may affect is unknown. The SAFE subset was selected in addition to any narrowed feature."
+}
