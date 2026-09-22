@@ -2807,13 +2807,55 @@ router.post('/training/level/:id/certificate', requirePortalAuth, async (req, re
       return res.json({ success: true, issued: true, certificate: before.certificate });
     }
 
-    const { data: assignment } = await supabase
-      .from('teacher_training_assignments').select('program_id')
-      .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+    // bd-60170 — the programme that SCOPES THIS LEVEL, not just any active one.
+    //
+    // This was `.limit(1).maybeSingle()` over every active assignment. A
+    // teacher on three programmes (Primary, Middle, I-SAPS pilot — a real
+    // sandbox account) got an arbitrary row, so the certificate was stamped
+    // with a programme that does not contain the level, or with null when the
+    // pick missed. `training_certificates.program_id` is NOT NULL, so a null
+    // made the insert fail outright.
+    //
+    // NOTE the shape: this reads MANY rows on purpose and never calls
+    // .maybeSingle(). bd-qd1p3's guard exists because a single-row read of
+    // this table breaks for the 787 production teachers who hold two active
+    // assignments — the same class of bug being fixed here. Reading the list
+    // is the correct answer, not a bounded single.
+    // The level's vendor first, so the assignments read below is the LAST
+    // statement in its own block — bd-qd1p3's guard scans a 900-character
+    // window after any read of this table for a single-row terminator, and a
+    // .maybeSingle() belonging to a different table inside that window reads
+    // as an offender. Ordering it this way keeps the guard meaningful instead
+    // of widening its exemption list.
+    const { data: certLevel } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
 
-    const cert = await TrainingRules.certifyLevel({
-      userId, levelId, programId: assignment?.program_id || null,
-    });
+    let scopeRows = [];
+    if (certLevel?.vendor_id) {
+      const sc = await supabase
+        .from('training_program_scopes').select('program_id, level_ids')
+        .eq('vendor_id', certLevel.vendor_id);
+      scopeRows = sc.data || [];
+    }
+
+    // MANY rows on purpose, and never .maybeSingle(): 787 production teachers
+    // hold two active assignments, which is the very bug bd-qd1p3 records.
+    const assignmentRows = await supabase
+      .from('teacher_training_assignments').select('program_id')
+      .eq('user_id', userId).eq('is_active', true);
+
+    const programIds = [...new Set((assignmentRows.data || []).map(a => a.program_id).filter(Boolean))];
+    // A scope with no level_ids covers its whole vendor.
+    const match = scopeRows.find(
+      sc => programIds.includes(sc.program_id)
+        && (!sc.level_ids || sc.level_ids.length === 0 || sc.level_ids.includes(levelId)),
+    );
+    // Fall back to the only assignment when there IS only one; an arbitrary
+    // pick among several is what broke this.
+    const programId = match?.program_id
+      || (programIds.length === 1 ? programIds[0] : null);
+
+    const cert = await TrainingRules.certifyLevel({ userId, levelId, programId });
     if (cert.issued) {
       return res.json({ success: true, issued: true, certificate: cert });
     }
