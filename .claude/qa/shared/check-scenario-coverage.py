@@ -40,8 +40,13 @@ DRIVER_DIR = os.path.join(".claude", "qa", "shared", "features")
 # Mirrors SCENARIO_ID_RE in validate_specs.py and ID_TAG_RE in scaffold-driver.py: letters then digits.
 ID_TAG_RE = re.compile(r"^[A-Za-z]{1,5}\d{1,3}$")
 PRIORITY_TAGS = frozenset({"p0", "p1", "p2", "p3"})
-# What the runner actually collects. A comment mentioning COA07 proves nothing.
-RECORDED_ID_RE = re.compile(r"rec\(\s*'([A-Za-z0-9_-]+)'")
+# Any call whose FIRST argument is a scenario-id string literal. Not just `rec(` — coaching.cjs
+# records 8 of its 17 scenarios through a `deepOnly(id, name, …)` wrapper, and a checker blind to
+# wrappers reports all eight as missing on the day it lands. The id shape does the discriminating,
+# so a future wrapper needs no change here.
+# Uppercase prefix on purpose: getAttribute('aria-label') and ('data-id') match the same shape
+# otherwise, and would surface as phantom scenarios the driver 'records'.
+RECORDED_ID_RE = re.compile(r"\b[A-Za-z_$][\w$]*\(\s*'([A-Z]{1,5}(?:\d{1,3}|-[a-z]+))'")
 NO_DRIVER_TAG = "no-mock-driver"
 
 

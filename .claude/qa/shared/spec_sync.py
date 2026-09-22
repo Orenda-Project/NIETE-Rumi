@@ -47,6 +47,7 @@ surface changed, you were pulled in by a shared file" the honest response (leave
 the spec alone) is indistinguishable from the wrong one (rewrite it).
 """
 import argparse
+import re
 import json
 import os
 import subprocess
@@ -103,6 +104,36 @@ def read_spec(spec_dir, feature):
 
 
 # ── the brief ────────────────────────────────────────────────────────────────
+
+DRIVER_DIR = os.path.join(".claude", "qa", "shared", "features")
+# Any call whose FIRST argument is a scenario-id string literal. Not just `rec(` — coaching.cjs
+# records 8 of its 17 scenarios through a `deepOnly(id, name, …)` wrapper, and a checker blind to
+# wrappers reports all eight as missing on the day it lands. The id shape does the discriminating,
+# so a future wrapper needs no change here.
+# Uppercase prefix on purpose: getAttribute('aria-label') and ('data-id') match the same shape
+# otherwise, and would surface as phantom scenarios the driver 'records'.
+_RECORDED_ID_RE = re.compile(r"\b[A-Za-z_$][\w$]*\(\s*'([A-Z]{1,5}(?:\d{1,3}|-[a-z]+))'")
+
+
+def driver_facts(repo, feature):
+    """Where the mock driver is, whether it exists, and which scenario ids it records.
+
+    The brief is what the spec-sync agent reads. Without this it carried everything about the spec
+    and nothing about the driver, so the agent was never made aware that a scenario also needs
+    executable code — a spec-shaped brief produces a spec-shaped deliverable, and the scenario ships
+    as prose that never runs (bd-bufzl).
+    """
+    rel = os.path.join(DRIVER_DIR, feature + ".cjs")
+    path = os.path.join(repo, rel)
+    if not os.path.isfile(path):
+        return {"driver_path": rel, "driver_exists": False, "driver_ids": []}
+    try:
+        src = open(path, encoding="utf-8").read()
+    except OSError:
+        return {"driver_path": rel, "driver_exists": False, "driver_ids": []}
+    return {"driver_path": rel, "driver_exists": True,
+            "driver_ids": sorted(set(_RECORDED_ID_RE.findall(src)))}
+
 
 def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LINES,
                 repo="", rev_range=""):
@@ -161,6 +192,8 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
             "only_shared": bool(changed) and all(c["shared"] for c in changed),
             "diff": diff,
             "diff_truncated": truncated,
+            # The driver is half the deliverable: a scenario with no driver code never runs.
+            **driver_facts(repo, feature),
         })
 
     # ── map gaps ─────────────────────────────────────────────────────────────

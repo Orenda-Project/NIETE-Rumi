@@ -50,7 +50,15 @@ Full procedure: [`gherkin-spec-sync`](../skills/gherkin-spec-sync/SKILL.md).
    Exit 1 → do NOT run the suite. Fix, or say phase 2 is skipped and why.
 8. If a scenario count changed, update the counts in
    [`niete-e2e.md`](niete-e2e.md) and re-run `check-all-mode-counts.py`.
-9. **Commit the spec, in its own commit.** The PR check (`qa-impact.yml`) and the
+9. **Give every new scenario an id tag and a driver — they are one deliverable.**
+   `@COA16` on the scenario, then `python3 .claude/qa/shared/scaffold-driver.py <feature> --sync`
+   to append the stub, then IMPLEMENT the interaction (the brief's diff tells you the strings and
+   ids; copy patterns from `menu.cjs`). A stub left BLOCKED is the fallback for when you cannot
+   implement it safely — say why in the `reason` — not the normal outcome. Verify with
+   `python3 .claude/qa/shared/check-scenario-coverage.py --only <feature>`. See
+   [`gherkin-spec-sync`](../skills/gherkin-spec-sync/SKILL.md) §7.
+
+10. **Commit the spec AND the driver, in its own commit.** The PR check (`qa-impact.yml`) and the
    Stop-hook gate both judge COMMITS — a `.feature` edited in the working tree does
    not count, and the gate keeps holding until it is committed:
    ```bash

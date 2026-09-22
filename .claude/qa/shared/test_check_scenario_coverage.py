@@ -114,6 +114,19 @@ def test_main_exits_nonzero_only_on_a_real_gap():
     assert cov.main(["--root", _tree(spec=UNTAGGED_SPEC)]) == 0, "an unenrolled feature failed the gate"
 
 
+def test_an_id_recorded_through_a_WRAPPER_counts_as_driven():
+    """coaching.cjs records 8 of its 17 scenarios through deepOnly(), not rec() directly. A checker
+    that only sees rec() calls them all missing and fires eight false failures on the day it lands —
+    which is how a gate loses its credibility in one PR."""
+    driver = DRIVER_BOTH.replace(
+        "  rec('COA16', 'The session says it is over before the quiz offer', 'PASS', {});",
+        "  const deepOnly = (id, name, v, ev) => rec(id, name, v, ev);\n"
+        "  deepOnly('COA16', 'The session says it is over before the quiz offer', 'PASS', {});")
+    fs = cov.check_feature(_tree(driver=driver), "coaching")
+    assert not [f for f in fs if f["code"] == "E-NODRIVER"], \
+        "a wrapper-recorded scenario was reported missing: %r" % (fs,)
+
+
 if __name__ == "__main__":
     fns = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0

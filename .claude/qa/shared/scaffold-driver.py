@@ -94,7 +94,13 @@ exports.run = async ({{ api, rec, sleep }}) => {{
 """
 
 
-RECORDED_ID_RE = re.compile(r"rec\(\s*'([A-Za-z0-9_-]+)'")
+# Any call whose FIRST argument is a scenario-id string literal. Not just `rec(` — coaching.cjs
+# records 8 of its 17 scenarios through a `deepOnly(id, name, …)` wrapper, and a checker blind to
+# wrappers reports all eight as missing on the day it lands. The id shape does the discriminating,
+# so a future wrapper needs no change here.
+# Uppercase prefix on purpose: getAttribute('aria-label') and ('data-id') match the same shape
+# otherwise, and would surface as phantom scenarios the driver 'records'.
+RECORDED_ID_RE = re.compile(r"\b[A-Za-z_$][\w$]*\(\s*'([A-Z]{1,5}(?:\d{1,3}|-[a-z]+))'")
 
 
 def recorded_ids(driver_path):
