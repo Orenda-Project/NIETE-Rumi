@@ -77,7 +77,14 @@ function moduleFromSourceQuizId(sourceQuizId) {
  */
 function buildModuleExamSlot({
   moduleTitle, unitsTotal, unitsDone, mcqCount, crqCount, passed, cooldownHoursLeft,
+  // bd-60167 — her best graded mark, carried through so a surface can SHOW it.
+  // Optional: every caller that does not know a mark simply omits them, and
+  // the slot reads exactly as before.
+  bestScore = null, bestTotal = null, bestPct = null, lastAttemptAt = null,
 }) {
+  const mark = (Number.isFinite(Number(bestScore)) && Number(bestTotal) > 0)
+    ? { score: Number(bestScore), total: Number(bestTotal), pct: Number(bestPct), at: lastAttemptAt || null }
+    : null;
   const mcq = Number(mcqCount) || 0;
   const crq = Number(crqCount) || 0;
   const total = Number(unitsTotal) || 0;
@@ -95,9 +102,14 @@ function buildModuleExamSlot({
   if (passed) {
     return {
       ok: false,
-      body: '🏆 Module exam — you passed this module.',
+      // The mark belongs in the sentence: "you passed" without a number makes
+      // a teacher go looking for one.
+      body: mark
+        ? `🏆 Module exam — you passed this module with ${mark.score}/${mark.total}.`
+        : '🏆 Module exam — you passed this module.',
       caption: 'Your score counts towards the level certificate.',
-      cta: '✓ Passed',
+      cta: mark ? `✓ Passed · ${mark.score}/${mark.total}` : '✓ Passed',
+      mark,
     };
   }
 
@@ -129,11 +141,16 @@ function buildModuleExamSlot({
   const parts = [];
   if (mcq > 0) parts.push(`${mcq} scenario question${mcq === 1 ? '' : 's'}`);
   if (crq > 0) parts.push('1 written answer');
+  // An earlier FAILED sitting still has a mark worth showing — she is about to
+  // retake it, and "you scored 5/12 last time" is the reason to.
   return {
     ok: true,
     body: `🎓 Module exam — ${parts.join(' and ')}.`,
-    caption: 'Your written answer is marked against the I-SAPS rubric.',
+    caption: mark
+      ? `Last attempt: ${mark.score}/${mark.total}. Your written answer is marked against the I-SAPS rubric.`
+      : 'Your written answer is marked against the I-SAPS rubric.',
     cta: '📝 Take the module exam',
+    mark,
   };
 }
 
