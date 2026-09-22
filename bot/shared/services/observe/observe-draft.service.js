@@ -168,7 +168,7 @@ function composeEditableFidelity(lp, language) {
   const shown = all.slice(0, MAX_MOVE_SLOTS);
   const header = [
     `Measured lesson-plan fidelity: ${lp.fidelity_pct}%${bandLabel} · ${lp.prescribed_count ?? all.filter(m => m.counted).length} counted moves`,
-    'Below is each prescribed move, what the recording showed, and the credit the AI gave (✓ full · ◐ half · ✗ none · – not counted).',
+    'Below is each prescribed move, why the AI rated it the way it did, what the recording showed, and the credit it gave (✓ full · ◐ half · ✗ none · – not counted).',
     'Change any rating or evidence you disagree with — Section B recalculates from YOUR ratings.'
     + (all.length > MAX_MOVE_SLOTS ? ` (${all.length - MAX_MOVE_SLOTS} further moves are in the report and keep the AI's rating.)` : ''),
   ];
@@ -183,11 +183,22 @@ function composeEditableFidelity(lp, language) {
     if (recheck) header.push(recheck);
   }
   const headerText = header.join('\n');
-  const slots = shown.map((m, i) => ({
-    plan: clipWords(`${i + 1}/${all.length}${PHASE_LABEL[m.phase] ? ` · ${PHASE_LABEL[m.phase]}` : ''} — ${m.text}`, 260),
-    verdict: VALID_FIDELITY_VERDICTS.has(m.verdict) ? m.verdict : 'not_adjudicable',
-    evidence: clipWords(String(m.evidence || m.rationale || ''), PREFILL_TEXT_CAP),
-  }));
+  // The grader's one-sentence rationale rides on the READ-ONLY move line, for every verdict.
+  // Before, the only text a coach got per move was the evidence box (`evidence || rationale`),
+  // so the reason for a half credit, or for a full one, was never shown on an executed or
+  // partial move — only a not_done move (no evidence) happened to surface it. The line is a
+  // Flow TextBody the coach cannot edit, so the reason never enters the box and the
+  // untouched-box detection in rescoreFidelityFromEdits is unchanged. Caught on the 22 Sep
+  // staging E2E of the v2 grader.
+  const slots = shown.map((m, i) => {
+    const head = clipWords(`${i + 1}/${all.length}${PHASE_LABEL[m.phase] ? ` · ${PHASE_LABEL[m.phase]}` : ''} — ${m.text}`, 300);
+    const why = String(m.rationale || '').trim();
+    return {
+      plan: why ? `${head}\nWhy: ${clipWords(why, 250)}` : head,
+      verdict: VALID_FIDELITY_VERDICTS.has(m.verdict) ? m.verdict : 'not_adjudicable',
+      evidence: clipWords(String(m.evidence || m.rationale || ''), PREFILL_TEXT_CAP),
+    };
+  });
   return { header: headerText, slots };
 }
 
