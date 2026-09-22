@@ -26,6 +26,52 @@ def git(root, *args):
         return ""
 
 
+def _git_rc(root, *args):
+    """Exit code only — `git` above swallows it, and add/commit need to be checked."""
+    try:
+        return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, timeout=30).returncode
+    except Exception:
+        return 1
+
+
+def commit_row(root, ledger_path, feature, status, commit_sha, method):
+    """Commit the row we just appended. Returns a short word for the log line (bd-2jdxj).
+
+    The row is the durable proof a run happened: impact.py measures
+    `git diff <base>...<head> -- .claude/qa/ledgers/runs.jsonl`, so a row left in the working tree
+    is invisible to CI and a real run reads as "E2E run recorded: missing". That is how PRs #1139,
+    #1151 and #1155 each ran the lane and still showed no proof.
+
+    Deliberately narrow:
+      · ONLY this path, never `git add -A` — a run must not sweep up work the developer had in flight.
+      · never on a detached HEAD — that commit is an orphan nobody will find.
+      · never fatal — a lane run must not fail because git refused.
+      · does NOT push. Pushing is outward-facing and stays with whoever is driving.
+      · --no-verify: one generated line in a file no gate governs; an unrelated pre-commit failure
+        must not swallow the only proof the run happened.
+    E2E_LEDGER_COMMIT_OFF=1 disables it (CI, tests).
+    """
+    if os.environ.get("E2E_LEDGER_COMMIT_OFF") == "1":
+        return "not committed (switched off)"
+    try:
+        if git(root, "rev-parse", "--is-inside-work-tree").strip() != "true":
+            return "not committed (not a git repo)"
+        if not git(root, "symbolic-ref", "-q", "HEAD").strip():
+            return "not committed (detached HEAD)"
+        rel = os.path.relpath(ledger_path, root)
+        if not git(root, "status", "--porcelain", "--", rel).strip():
+            return "nothing to commit"
+        if _git_rc(root, "add", "--", rel) != 0:
+            return "not committed (git add failed)"
+        msg = "qa(%s): %s-lane run row for %s (%s)" % (
+            feature, method, (commit_sha or "")[:12] or "HEAD", status)
+        if _git_rc(root, "commit", "--no-verify", "-m", msg, "--", rel) != 0:
+            return "not committed (git commit failed)"
+        return "committed"
+    except Exception as e:
+        return "not committed (%s)" % type(e).__name__
+
+
 def _attribute_misses(misses, progress_log):
     """Which scenario was running when each cassette miss happened?
 
@@ -172,8 +218,9 @@ def main(argv=None):
         print(json.dumps(row, ensure_ascii=False))
         return 0
     ledger.append_run(row, path)
-    print("    ledger: %s %s → runs.jsonl (%s%s)" % (a.feature, row["status"], a.method,
-                                                   (" @" + a.commit[:12]) if a.commit else ""))
+    committed = commit_row(a.root, path, a.feature, row["status"], a.commit, a.method)
+    print("    ledger: %s %s → runs.jsonl (%s%s) — %s" % (a.feature, row["status"], a.method,
+                                                   (" @" + a.commit[:12]) if a.commit else "", committed))
     return 0
 
 

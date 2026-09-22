@@ -152,6 +152,87 @@ def test_row_flags_a_regression_for_an_unlisted_fail():
     assert r["regression"]["known"] == [], r["regression"]
 
 
+# ── bd-2jdxj: the row is proof only if it is COMMITTED ───────────────────────────────────────────
+# runs.jsonl was appended to the working tree and left there. impact.py measures
+# `git diff <base>...<head> -- .claude/qa/ledgers/runs.jsonl`, so an uncommitted row is invisible to
+# CI and a successful run looks identical to a run that never happened (PRs #1139, #1151, #1155).
+
+
+def _git(root, *args):
+    import subprocess
+    return subprocess.run(["git", "-C", root] + list(args), capture_output=True, text=True).stdout.strip()
+
+
+def _git_fixture():
+    """A real git repo with the ledger tracked and one commit, plus the run-dir fixture."""
+    import subprocess
+    root, run = _fixture()
+    for a in (["init", "-q", "-b", "sandbox"], ["config", "user.email", "t@l"], ["config", "user.name", "t"]):
+        subprocess.run(["git", "-C", root] + a, capture_output=True)
+    led = os.path.join(root, ".claude", "qa", "ledgers", "runs.jsonl")
+    open(led, "w").close()
+    subprocess.run(["git", "-C", root, "add", "-A"], capture_output=True)
+    subprocess.run(["git", "-C", root, "commit", "-qm", "baseline"], capture_output=True)
+    return root, run, led
+
+
+def _main(root, run, **over):
+    kw = dict(root=root, run_dir=run, feature="menu", run_id="r1", env="sandbox", method="mock",
+              seconds="91", driver="923000000001", trigger="commit", commit="a" * 40,
+              spec_sync="none", validator_exit="0", dry_run=False)
+    kw.update(over)
+    argv = []
+    for k, v in kw.items():
+        if k == "dry_run":
+            continue
+        argv += ["--" + k.replace("_", "-"), str(v)]
+    return ledger_row.main(argv)
+
+
+def test_the_appended_row_is_committed():
+    root, run, led = _git_fixture()
+    os.environ.pop("E2E_LEDGER_COMMIT_OFF", None)
+    assert _main(root, run) == 0
+    assert "runs.jsonl" in _git(root, "log", "-1", "--name-only", "--format="), "the row was not committed"
+    assert _git(root, "status", "--porcelain", "--", led) == "", "the ledger is still dirty after the run"
+
+
+def test_the_commit_can_be_switched_off():
+    root, run, led = _git_fixture()
+    os.environ["E2E_LEDGER_COMMIT_OFF"] = "1"
+    try:
+        assert _main(root, run) == 0
+        assert json.loads(open(led).read().strip().splitlines()[-1])["feature"] == "menu", "row not appended"
+        assert _git(root, "status", "--porcelain", "--", led) != "", "committed although the switch was off"
+    finally:
+        os.environ.pop("E2E_LEDGER_COMMIT_OFF", None)
+
+
+def test_a_detached_head_is_left_alone():
+    """An auto-commit on a detached HEAD is an orphan nobody will find. Append, do not commit."""
+    root, run, led = _git_fixture()
+    sha = _git(root, "rev-parse", "HEAD")
+    import subprocess
+    subprocess.run(["git", "-C", root, "checkout", "-q", "--detach", sha], capture_output=True)
+    assert _main(root, run) == 0
+    assert _git(root, "status", "--porcelain", "--", led) != "", "committed onto a detached HEAD"
+
+
+def test_only_the_ledger_is_committed():
+    """Never -A: a run must not sweep up whatever the developer had in flight."""
+    root, run, led = _git_fixture()
+    open(os.path.join(root, "unrelated.txt"), "w").write("mine\n")
+    assert _main(root, run) == 0
+    assert "unrelated.txt" not in _git(root, "log", "-1", "--name-only", "--format="), "swept up an unrelated file"
+    assert "unrelated.txt" in _git(root, "status", "--porcelain"), "the unrelated file vanished"
+
+
+def test_a_non_git_root_still_returns_zero():
+    """A lane run must never fail because git refused."""
+    root, run = _fixture()
+    assert _main(root, run) == 0
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
