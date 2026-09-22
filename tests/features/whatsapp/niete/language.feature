@@ -375,6 +375,19 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # falls through to the general/AI handler. Counterpart to menu.feature's bare-"menu" negative.
 
   @e2e @language @wip @draft @P2
+  Scenario: The coaching ask after a lesson plan, and its recording instructions, arrive in my language
+    Given my account is set to Urdu
+    When the coaching ask that follows my first lesson plan of the day is sent
+    Then the question and both buttons read in Urdu
+    When I tap the button that accepts
+    Then the recording instructions read in Urdu and ask for 20 to 45 minutes
+    And neither message addresses me with a gendered verb form
+    And the same exchange on an English account reads in English
+    # R8 D6/D7/D8. lpAsk* live in ux-strings.js in en+ur; the accept path reuses the menu's coaching
+    # door, whose inline English/Urdu ternary moved into the catalogue with this change. Gender-neutral
+    # is a standing operator rule, not a preference. @wip — driven and promoted by the sandbox E2E run.
+
+  @e2e @language @wip @draft @P2
   Scenario: A lesson-plan-born quiz that cannot be written says so in the teacher's language
     Given my account is set to Urdu
     And a quiz is being written from a lesson plan I was served

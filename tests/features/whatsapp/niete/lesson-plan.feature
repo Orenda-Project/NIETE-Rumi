@@ -391,3 +391,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I open the LP Flow
     Then the Flow screens and the "Sending…" ack are shown in English
     # English is the deliberate floor for this asset-poor surface (F-LP-i18n).
+
+  @e2e @lesson-plan @coaching @wip @draft @P2
+  Scenario: The first lesson plan of the day is followed by one coaching ask, and only the first
+    Given the NIETE bot chat is open on a teacher who has taken no lesson plan today
+    When I take a K-5 lesson plan before 14:00 PKT
+    Then the PDF arrives exactly as it does today
+    And a short while later the bot asks whether I would like that lesson recorded and coached
+    And the ask offers "Record my lesson" and "Not today"
+    When I take a second lesson plan the same day
+    Then no second ask arrives
+    # R8 §4.1. The ask is booked from lp-v8-delivery.service.js after the 'sent' download row, for
+    # asset_kind='lesson' only (an answer key books nothing), and "first of the day" is not a counter:
+    # it is teacher_nudges UNIQUE (user_id, nudge_date, kind), so the second booking collides and
+    # inserts nothing. Nothing here costs the teacher her PDF — the hook is wrapped and non-fatal.
+    # Gated on LP_COACHING_ASK_ENABLED; with the flag unset no row is written at all.
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
