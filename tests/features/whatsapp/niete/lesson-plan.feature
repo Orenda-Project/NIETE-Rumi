@@ -106,6 +106,31 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # decide is still withheld, which is the scenario below.
 
   @e2e @content-driven @P1
+  Scenario: An English-medium plan naming the Quaid is delivered, because the same review cleared the Latin spelling
+    Given the NIETE bot chat is open
+    And the G5c review has decided "Muhammad Ali Jinnah" is an ordinary person, and the bare name "Muhammad" is the Prophet
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Quaid-e-Azam Muhammad Ali Jinnah" with no honorific after it
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is not sent back for a revision round
+    # bd-5t71f. The scenario above gave the URDU lane its list; the Latin lane had none, so the same
+    # man passed as محمد علی جناح and was refused as Muhammad Ali Jinnah — an English-medium Pakistan
+    # Studies lesson naming the founder returned nothing at all. Measured on the Grades 6-12 corpus:
+    # 436 unhonorified Latin occurrences on 192 pages across 33 books, grade_7_history alone 93.
+    # What clears it is not a rule — gate G5c forbids an automated check clearing religious content —
+    # but the same native-speaker review, 134 Latin phrases decided by Amena Ahmed on 2026-09-23
+    # (119 ordinary people, 15 the Prophet), carried as data in bot/vendor/lp-v9/g5c_cleared_names_en.json.
+    # THIS SCENARIO IS THE LONGEST-PHRASE RULE. Matching is on the word sequence, case-folded with
+    # edge punctuation and an English possessive trimmed, and the longest decided phrase present
+    # rules; on equal length the blocking mark wins. So the three-word "Muhammad Ali Jinnah" clears
+    # even though the one-word "Muhammad" sitting inside it is marked as the Prophet — which is the
+    # only reason the reviewer could mark that bare token PROPHET to fail safe without re-refusing
+    # every ordinary person on her list. The segment must carry religious content or the gate is
+    # never reached: RELIGIOUS_MARKS runs only inside a religious-scope document, so an English
+    # maths lesson naming nobody religious would pass this proving nothing.
+
+  @e2e @content-driven @P1
   Scenario: An "Urdu" plan that is really English is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -168,6 +193,28 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-zipoe does not move this line: the cleared-name list only ever CLEARS, and only the exact
     # phrases the reviewer saw. An unreviewed name — even one shaped exactly like a cleared one —
     # is not cleared. Fail-closed, always.
+
+  @e2e @negative @content-driven @P1
+  Scenario Outline: A Latin name the G5c review did not clear still withholds the lesson
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "<name>" with no honorific after it
+    Then no lesson-plan PDF is delivered
+    Examples:
+      | name                    | why the review does not clear it                                  |
+      | Muhammad                | she ruled the bare token MIXED and marked it the Prophet to fail safe |
+      | Muhammad Zubair Farooqi | she never saw this name, and an unreviewed name is not a cleared name |
+    # bd-5t71f, the other direction of the scenario above, and the one that matters more. Only a
+    # phrase the reviewer marked as an ordinary PERSON clears; a phrase she marked as the Prophet
+    # never clears, and a name absent from her list is refused exactly as it was before this change.
+    # Fail-closed, always. Row 2 is the protection that a shape is not a clearance: "Muhammad Zubair
+    # Farooqi" is built like "Muhammad Ali Jinnah" and is still withheld, because the alternative —
+    # deciding by grammar which Muhammad is which — is the automated clearance G5c forbids. If this
+    # row ever delivers, the gate has started deciding on the reviewer's behalf.
+    # Known gap, guarded and not fixed here: she marked "Hazrat Muhammad PBUH" / "… SAW" as the
+    # Prophet, correctly, so a line the BOOK saluted in Latin stays withheld — the honorific test
+    # reads only ﷺ and the Arabic form. That is bd-b7txa, out of scope for this change.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message

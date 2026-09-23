@@ -919,11 +919,64 @@ sentence, longest-match arbitration) and `tests/lp612/religious-marks-cleared-na
 Upstream has neither the check nor the data file, and should not be sent the data file — it is this
 deployment's human review, not a general rule. Push nothing of §3.14 up at the next re-sync.
 
+### 3.15 `lint_lp.js` + `g5c_cleared_names_en.json` — the same G5c review, for the LATIN lane (2026-09-17)
+
+`bd-5t71f` (P0). §3.14 gave the Urdu lane a list. The Q2 ruling it executed — *"since we will have
+lots of Muhammads not the prophet but regular ppl, get a list approved from the page truths so we
+know which names can come up and dont need the salutation"* — was never executed for the other
+script. `g5c_cleared_names.json` is keyed on the **Urdu word sequence**, and exactly one of its 298
+decided phrases contains any Latin at all. Rule 1's ENGLISH branch (`TRANSLIT_PROPHET_RE`, medium
+`en`) has neither §3.11's `isCompoundGivenName` nor §3.14's `clearedByReview`, so it matches
+`Mohammad`, finds no honorific in the remainder `" Ali Jinnah"`, and refuses. The Urdu lane clears
+`محمد علی جناح`; the English lane refuses `Mohammad Ali Jinnah`, and an English-medium Pakistan
+Studies lesson naming the Quaid is refused outright — the teacher gets nothing. Measured against the
+live corpus: **436 unhonorified Latin occurrences on 192 pages across 33 books**, the largest being
+`grade_7_history` (93, every one of them bare), `grade_8_history` (48/48), `grade_6_english` (44/49)
+and `grade_12_pak_studies_english` (41/50).
+
+**The fix may not be a grammar rule.** Porting `isCompoundGivenName` into the Latin lane would be
+the automated clearance brief §4c forbids, wearing a Latin hat. So this lane is driven exactly as
+§3.14 drives the Urdu one — off the reviewer's approved list, and off nothing else.
+`clearedByReviewEn()` is §3.14's `clearedByReview()` with a Latin word key: `person` CLEARS,
+`prophet` never clears and only ARBITRATES overlapping phrases, longest decided phrase wins, and on
+equal length the blocking mark wins. **A name that matches nothing is not cleared — the gate fails,
+unchanged. Fail-closed, always.**
+
+The word key folds case and trims edge punctuation, and also trims a trailing English possessive
+(`Jinnah's` is the same NAME as `Jinnah`), because the books set the same name as prose, as a
+heading, and inside parentheses. That is orthography, not judgement — a word still has to equal a
+word the reviewer decided on. The slot test (which word of a decided phrase the rule can be standing
+on) is built from `TRANSLIT_PROPHET_RE.source` itself, so adding a token to that rule cannot silently
+make it unclearable; it is a separate `RegExp` object so it cannot disturb the global rule's
+`lastIndex` inside the `exec` loop.
+
+**`g5c_cleared_names_en.json` SHIPS EMPTY AND CLEARS NOTHING.** It is the socket, not the clearance.
+The candidate list is derived from the page truths by
+`08_Grades 6-12 LP Build/_g5c_english_name_lane_2026-09-17/probes/extract-english-names.js` — a
+read-only sweep that lifts `TRANSLIT_PROPHET_RE` and `TRANSLIT_HONORIFIC_RE` out of this file's own
+source text so it cannot drift from the rule it feeds — and is with Amena Ahmed for the G5c sign-off
+as `English-name-list-for-approval.md` (134 phrases, 467 occurrences, 198 pages, 0 unreadable).
+Until her marks come back, every Latin match is refused exactly as it is today and production
+behaviour is unchanged. Dropping her decided file into this path is the only remaining step.
+
+Covered by `tests/lp612/religious-marks-cleared-names-en.test.js` (11 tests against a FIXTURE
+clearance, since the real list is empty: cleared name, caps, possessive, parentheses, plus the
+regression half — bare `Mohammad`, an unreviewed name of the same shape, a `prophet`-marked phrase,
+equal-length arbitration, a cleared and an uncleared `Mohammad` in one sentence, the honorified
+form, and the Urdu lane proven untouched) and
+`tests/lp612/religious-marks-cleared-names-en.e2e.test.js` (5 tests through `authorLessonPlan`, both
+directions: delivered, and refused). The two `it.skip`/`test.skip` placeholders filed as bd-5t71f in
+`religious-marks-false-positives.test.js` and `religious-marks-delivery.e2e.test.js` are un-skipped
+by the same commit, as their notes asked.
+
+Upstream has neither the check nor the data file, and should not be sent the data file — it is this
+deployment's human review, not a general rule. Push nothing of §3.15 up at the next re-sync.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
