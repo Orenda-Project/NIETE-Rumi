@@ -8,8 +8,22 @@
 const BUTTON_TITLE_MAX = 20;
 const CARD_WIDTH = 1080;
 
-// Notation WhatsApp text cannot render, or renders badly.
-const NOTATION_RE = /[\^_]|[²³¹⁰⁴-⁹₀-₉]|[√∑∫π≤≥≠∈∉∪∩⊂⊆∞±°]|\{[^{}]*,[^{}]*\}|\b(?:[A-Z][a-z]?\d+)+[A-Z]?[a-z]?\b/;
+/**
+ * An inline TeX expression, `$…$` — how the author writes maths in a stem or an
+ * option (bd-mg9c7.159.19; transcript-quiz-contract.js MATH_NOTATION_RULE).
+ * The SAME span shape bot/shared/utils/tex-to-unicode.js converts, so the rule
+ * that makes a question a card and the rule that flattens it for a WhatsApp
+ * text can never disagree about where the maths is. Only the shape lives here:
+ * typesetting it (KaTeX) is quiz-math.js's job, and never this file's.
+ */
+const TEX_SPAN_RE = /\$([^$\n]+?)\$/g;
+const hasTex = (s) => /\$[^$\n]+?\$/.test(String(s == null ? '' : s));
+
+// Notation WhatsApp text cannot render, or renders badly. The last alternative
+// is typeset maths: a fraction written `$\frac{2}{9}$` has no ^, _ or symbol
+// for the older alternatives to catch, and WhatsApp can only flatten it to
+// "2/9", so it is drawn as a card.
+const NOTATION_RE = /[\^_]|[²³¹⁰⁴-⁹₀-₉]|[√∑∫π≤≥≠∈∉∪∩⊂⊆∞±°]|\{[^{}]*,[^{}]*\}|\b(?:[A-Z][a-z]?\d+)+[A-Z]?[a-z]?\b|\$[^$\n]+?\$/;
 
 const cp = (s) => [...String(s || '')].length;
 
@@ -76,4 +90,5 @@ function unicodeNotation(text) {
 
 module.exports = {
   TALL_FIGURE_TYPES,
-  figureTypeOf, needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTTON_TITLE_MAX };
+  figureTypeOf, needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTTON_TITLE_MAX,
+  TEX_SPAN_RE, hasTex };
