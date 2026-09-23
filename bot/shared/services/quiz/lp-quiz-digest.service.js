@@ -37,7 +37,7 @@ const { normaliseDigest } = require('./transcript-quiz-digest.service');
 const { canonicalSubject, LANG_NAME } = require('./transcript-quiz-language');
 const { logEvent } = require('../../utils/structured-logger');
 const { logToFile } = require('../../utils/logger');
-const { LP_V8 } = require('./quiz-sources');
+const { LP_V8, SOURCE_UNUSABLE_CODE } = require('./quiz-sources');
 const Catalog = require('../lp-v8-catalog.service');
 
 /**
@@ -270,7 +270,12 @@ async function run({
   if (!isUsable(slideScript)) {
     // Loudly, and before the LLM call: an empty digest authored into a quiz is
     // eight questions about nothing, and the teacher would be the one to find out.
-    throw new Error('lp digest: the slide script carries no lesson to digest');
+    // The code is what tells this — the one failure that IS the lesson plan's —
+    // apart from every failure of the model after it (quiz-sources
+    // `digestFailureReason`), so the teacher is told which one happened.
+    const err = new Error('lp digest: the slide script carries no lesson to digest');
+    err.code = SOURCE_UNUSABLE_CODE;
+    throw err;
   }
   const prompt = buildLpDigestPrompt({ slideScript, language, grade, subject });
   const {

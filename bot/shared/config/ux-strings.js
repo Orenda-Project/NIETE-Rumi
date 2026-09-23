@@ -227,9 +227,12 @@ const UX_STRINGS = {
     en: 'Record your lesson with the WhatsApp mic — hold the mic button, slide up to lock it, and send the recording when the class ends. 20 to 45 minutes of the lesson is ideal.',
     ur: 'اپنا سبق واٹس ایپ کے مائیک سے ریکارڈ کریں — مائیک کا بٹن دبائے رکھیں، لاک کرنے کے لیے اوپر سلائیڈ کریں، اور کلاس ختم ہونے پر ریکارڈنگ بھیج دیں۔ سبق کے 20 سے 45 منٹ بہترین ہیں۔',
   },
+  // The footer under the how-to clip, which is the coaching ask's video header
+  // (≤ 60 code points). It claims no length: the clip is ~18 s, it said "30
+  // seconds", and WhatsApp prints the real length on the video anyway.
   lpAskHowtoCaption: {
-    en: 'How to record a lesson with the WhatsApp mic — 30 seconds.',
-    ur: 'واٹس ایپ کے مائیک سے سبق ریکارڈ کرنے کا طریقہ — 30 سیکنڈ۔',
+    en: 'How to record a lesson with the WhatsApp mic',
+    ur: 'واٹس ایپ کے مائیک سے سبق ریکارڈ کرنے کا طریقہ',
   },
   lpAskDeclined: {
     en: 'No problem. Classroom Coaching is in the menu whenever you want it.',
@@ -1608,15 +1611,25 @@ const UX_STRINGS = {
   // A quiz written from the lesson PLAN a teacher was served has neither, so
   // that copy would name a state that never existed — and one shared fallback
   // across several distinct failures is what sent a whole fix cycle at the
-  // wrong layer before (root CLAUDE.md rule 24d). Three reasons, three
-  // sentences, each saying which step actually stopped.
+  // wrong layer before (root CLAUDE.md rule 24d). One reason, one sentence,
+  // each saying which step actually stopped — and whose problem it was.
   tqFailedLpSource: {
     en: 'I couldn’t open that lesson plan, so there was nothing to write the quiz from. Send /quiz to pick another lesson.',
     ur: 'اس سبق کا lesson plan نہیں کھل سکا، اس لیے quiz بنانے کے لیے کچھ نہیں تھا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
-  tqFailedLpDigest: {
-    en: 'I couldn’t read enough of that lesson plan to write a good quiz. Send /quiz to pick another lesson.',
-    ur: 'اس lesson plan سے اتنا نہیں پڑھا جا سکا کہ اچھا quiz بن سکے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  // source_unusable: the lesson plan was found and carries no lesson to write
+  // from — the one digest failure that IS the plan's.
+  tqFailedLpSourceUnusable: {
+    en: 'That lesson plan doesn’t have enough of the lesson in it for me to write a quiz from. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan میں اتنا سبق موجود نہیں کہ اس سے quiz بن سکے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // model_failed: the model gave nothing usable (empty, cut off or not JSON
+  // after its retry, or the provider refused the call), at the digest or the
+  // author. Ours — so the sentence says so, and says the plan was not the
+  // problem. The Urdu verbs agree with خرابی / quiz / مسئلہ, never the teacher.
+  tqFailedLpModel: {
+    en: 'Sorry — something went wrong on my side while writing that quiz, so it could not be finished. The problem was not your lesson plan. Send /quiz to pick another lesson.',
+    ur: 'معذرت — quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ lesson plan میں نہیں تھا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
   tqFailedLpAuthor: {
     en: 'I couldn’t make a good quiz from that lesson plan — the questions didn’t come out clear enough. Send /quiz to pick another lesson.',

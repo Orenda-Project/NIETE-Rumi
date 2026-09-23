@@ -28,7 +28,7 @@ const { validate, MIN_QUESTIONS } = require('./transcript-quiz-validator');
 const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey,
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
 const Store = require('./lp-asset-source.store');
@@ -465,9 +465,14 @@ async function updateQuiz(quizId, patch) {
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
-async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT) {
+/**
+ * `extra` rides on the `transcript_quiz.failed` event — `step` names which pass
+ * stopped when one reason can come from two of them (`model_failed`: the digest
+ * or the author).
+ */
+async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}) {
   await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
-  logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource });
+  logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
 }
 
 // ─── the step ────────────────────────────────────────────────────────────────
@@ -983,39 +988,49 @@ async function process(quizId, payload = {}) {
 
   // ── digest (already there when the offer path claimed the row; /quiz path lands here without one)
   if (!meta.digest) {
+    // The lp_v8 quiz's language is settled from the catalog subject BEFORE
+    // the digest (the digest writes its SLO statements for it), with the
+    // slide script's own language as the tie-break a transcript would give.
+    const lpLanguage = isLp
+      ? (quiz.language || quizLanguageFor(quiz.subject, slideScript && slideScript.meta && slideScript.meta.language))
+      : null;
+    // ONLY the digest call is caught here. What it throws is either the plan
+    // having no lesson in it (source_unusable) or the model/provider giving
+    // nothing usable (model_failed) — and the teacher is told which. A database
+    // error writing the result below is neither: it throws, so the queue
+    // redelivers the job, exactly as a slide-script store error does.
+    let r;
     try {
-      // The lp_v8 quiz's language is settled from the catalog subject BEFORE
-      // the digest (the digest writes its SLO statements for it), with the
-      // slide script's own language as the tie-break a transcript would give.
-      const lpLanguage = isLp
-        ? (quiz.language || quizLanguageFor(quiz.subject, slideScript && slideScript.meta && slideScript.meta.language))
-        : null;
       // The served lesson's id names the quiz from the catalog: the Urdu label
       // (topic_as_taught → quizzes.topic, the forward message, the PDF) is the
       // name on the lesson's own PDF, never the model's reading of the script.
-      const r = isLp
+      r = isLp
         ? await LpDigest.run({
           slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject,
           lessonId: (((quiz.meta && quiz.meta.lessons) || [])[0] || {}).lesson_id || null,
         })
         : await Digest.run({ session, user });
-      meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
-        digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
-      // The teacher's own choice, stored on the row when the language ask was
-      // answered, outranks the subject rule. The rule is what a legacy row (or
-      // a skipped ask) falls back to.
-      const language = lpLanguage || quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
-      quiz.language = language;
-      quiz.subject = r.digest.subject;
-      quiz.topic = topicFor(r.digest, language) || quiz.topic;
-      quiz.grade = r.grade || quiz.grade;
-      await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
     } catch (err) {
-      logToFile('❌ transcript quiz: digest failed in generate', { quizId, error: err.message }, 'error');
-      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: `digest: ${err.message}` } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'digest_failed', quizSource);
-      return { failed: true, reason: 'digest_failed' };
+      const reason = digestFailureReason(err);
+      logToFile('❌ transcript quiz: digest failed in generate', { quizId, reason, code: err.code || null, error: err.message }, 'error');
+      await updateQuiz(quizId, {
+        status: 'failed',
+        meta: { ...meta, step: 'failed', error: reason, error_detail: `digest: ${err.message}` },
+      });
+      await tellTeacherFailed(phone, teacherLang, quizId, reason, quizSource, { step: 'digest' });
+      return { failed: true, reason };
     }
+    meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
+      digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
+    // The teacher's own choice, stored on the row when the language ask was
+    // answered, outranks the subject rule. The rule is what a legacy row (or
+    // a skipped ask) falls back to.
+    const language = lpLanguage || quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
+    quiz.language = language;
+    quiz.subject = r.digest.subject;
+    quiz.topic = topicFor(r.digest, language) || quiz.topic;
+    quiz.grade = r.grade || quiz.grade;
+    await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
   }
   const digest = meta.digest;
   const language = quiz.language || quizLanguageFor(digest.subject, session.transcript_language);
@@ -1036,6 +1051,11 @@ async function process(quizId, payload = {}) {
     let readyLessonSummary = null;
     const attempts = [];
     const attemptsAllowed = maxAttempts();
+    // How many author attempts came back with ANY questions to judge. Zero means
+    // the model never gave a usable reply (empty, cut off or unparseable after
+    // completeJson's retry, or a refused call) — that is model_failed, not
+    // "the questions didn't come out clear enough".
+    let authorReplies = 0;
     for (let attempt = 1; attempt <= attemptsAllowed; attempt += 1) {
       let out;
       try {
@@ -1052,6 +1072,7 @@ async function process(quizId, payload = {}) {
         previousErrors = [`the previous reply was not valid JSON (${err.code || err.message})`];
         continue;
       }
+      authorReplies += 1;
       lastLessonSummary = out.lessonSummary;
       lastExtras = out.extras || lastExtras;
       let v = validate(out.questions, {
@@ -1286,9 +1307,12 @@ async function process(quizId, payload = {}) {
     }
     meta.author_attempts = attempts;
     if (!questions) {
-      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed' } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed', quizSource);
-      return { failed: true, reason: 'validator_failed', attempts };
+      // The reason is persisted on the row (it was not, for validator_failed),
+      // so /quiz repeats the same sentence later instead of inferring one.
+      const reason = authorReplies === 0 ? 'model_failed' : 'validator_failed';
+      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: reason } });
+      await tellTeacherFailed(phone, teacherLang, quizId, reason, quizSource, { step: 'author' });
+      return { failed: true, reason, attempts };
     }
     // ── THE KEY CHECK (lp_v8 only) ───────────────────────────────────────────
     // Every key held against the lesson it was written from, after every repair

@@ -17,6 +17,7 @@ const { envMenuGates } = require('../config/menu-gates');
  */
 const MAX_LIST_ROWS = 10;      // total across ALL sections, not per section
 const MAX_BUTTON_TITLE = 20;   // reply-button title
+const MAX_FOOTER = 60;         // interactive footer.text
 
 // Prefer ASSET_BASE_URL; fall back to legacy ASSETS_BASE_URL. Empty when
 // neither is set — the carousel template builder below guards against that.
@@ -101,6 +102,27 @@ class WhatsAppService {
       onError(error);
     } catch (_) {
       // A caller's error handler must never be able to break the send path.
+    }
+  }
+
+  /**
+   * Hand Meta's message id (the wamid) to a caller that asked for it — the
+   * success-side twin of `_reportSendError`. The boolean the sender returns is
+   * still the delivery verdict; the id is what lets a caller that RECORDS a send
+   * (a scheduled nudge) match it to a later status webhook. Callers that do not
+   * pass `onMessageId` are byte-for-byte unaffected.
+   */
+  static _reportMessageId(opts, responseData) {
+    const onMessageId = opts && opts.onMessageId;
+    if (typeof onMessageId !== 'function') return;
+    const id = responseData && responseData.messages && responseData.messages[0] && responseData.messages[0].id;
+    if (!id) return;
+    try {
+      onMessageId(id);
+    } catch (error) {
+      // A caller's callback must never be able to turn a delivered message into
+      // a failure — but a record that silently lost its id is a defect to see.
+      logToFile('❌ onMessageId callback threw; the message WAS delivered', { messageId: id, error: error.message }, 'error');
     }
   }
 
@@ -1145,9 +1167,10 @@ class WhatsAppService {
    * @param {Object} options - Button message options
    * @param {string} options.body - Message body text
    * @param {Array<{id: string, title: string}>} options.buttons - Array of buttons (max 3)
+   * @param {{onMessageId?: function(string)}} [opts] - receives Meta's message id on success
    * @returns {Promise<boolean>}
    */
-  static async sendInteractiveButtons(to, options) {
+  static async sendInteractiveButtons(to, options, opts = {}) {
     try {
       const { body, buttons } = options;
 
@@ -1196,6 +1219,7 @@ class WhatsAppService {
       );
 
       logToFile('Interactive button message sent successfully', { response: response.data });
+      WhatsAppService._reportMessageId(opts, response.data);
       return true;
     } catch (error) {
       logToFile('❌ Error sending interactive button message', {
@@ -1388,11 +1412,18 @@ class WhatsAppService {
    *
    * @param {string} to
    * @param {string} videoUrl   R2 key, R2 URL, or public https URL (mp4, ≤16 MB)
+   * Also the coaching ask's how-to clip: the clip IS the ask's header, so the
+   * two arrive as one message and the clip can never land after the question.
+   *
    * @param {string} bodyText
    * @param {Array<{id:string,title:string}>} buttons  max 3
+   * @param {{footer?: string, onMessageId?: function(string)}} [opts]
+   *   `footer` — a label under the video (clipped to WhatsApp's 60 code points;
+   *   absent, the payload has no footer, exactly as before). `onMessageId` —
+   *   receives Meta's message id on success.
    * @returns {Promise<boolean>}
    */
-  static async sendVideoWithButtons(to, videoUrl, bodyText, buttons) {
+  static async sendVideoWithButtons(to, videoUrl, bodyText, buttons, opts = {}) {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
     try {
@@ -1438,11 +1469,18 @@ class WhatsAppService {
           action: { buttons: formattedButtons },
         },
       };
+      const footer = opts && opts.footer ? String(opts.footer).trim() : '';
+      if (footer) {
+        // Meta refuses the WHOLE message over 60 code points, so it is clipped
+        // here rather than lost at the Graph API (language-protocol §3).
+        payload.interactive.footer = { text: [...footer].slice(0, MAX_FOOTER).join('') };
+      }
       const response = await axios.post(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`, payload,
         { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } },
       );
       logToFile('✅ Video with buttons sent', { response: response.data, buttonCount: buttons.length, usedMediaId: !isPublic });
+      WhatsAppService._reportMessageId(opts, response.data);
       return true;
     } catch (error) {
       logToFile('❌ Error sending video with buttons', {
@@ -1457,9 +1495,10 @@ class WhatsAppService {
    * Supports WhatsApp Interactive Lists with sections and rows
    * @param {string} to - WhatsApp phone number (with country code)
    * @param {object} listData - List configuration object
+   * @param {{onMessageId?: function(string)}} [opts] - receives Meta's message id on success
    * @returns {Promise<boolean>} Success status
    */
-  static async sendInteractiveMessage(to, listData) {
+  static async sendInteractiveMessage(to, listData, opts = {}) {
     try {
       // Extract from nested structure (reading-assessment.service.js passes action.sections)
       const { header, body, footer, action } = listData;
@@ -1526,6 +1565,7 @@ class WhatsAppService {
       );
 
       logToFile('✅ Interactive list message sent successfully', { response: response.data });
+      WhatsAppService._reportMessageId(opts, response.data);
       return true;
     } catch (error) {
       logToFile('❌ Error sending interactive list message', {

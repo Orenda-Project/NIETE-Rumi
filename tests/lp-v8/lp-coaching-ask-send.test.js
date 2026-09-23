@@ -28,6 +28,7 @@ jest.mock('../../bot/shared/services/nudges/teacher-nudges.sweeper', () => ({
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn().mockResolvedValue(true),
   sendInteractiveButtons: jest.fn().mockResolvedValue(true),
+  sendVideoWithButtons: jest.fn().mockResolvedValue(true),
   sendVideoByLink: jest.fn().mockResolvedValue(true),
   sendVideoFromUrl: jest.fn().mockResolvedValue(true),
 }));
@@ -234,33 +235,52 @@ describe('the skip ladder, in order', () => {
 });
 
 describe('the how-to clip', () => {
+  // The clip used to go out as its own video message BEFORE the ask. Meta
+  // fetches a linked video and delivers it after a text-sized message sent a
+  // moment later, so on a real phone the clip landed UNDER the ask (sandbox,
+  // 23 Sep). Now the clip is the ask's own header: one message, one delivery,
+  // an order that cannot flip.
+  const CLIP_EN = 'https://pub-example.r2.dev/howto_en.mp4';
+  const CLIP_UR = 'https://pub-example.r2.dev/howto_ur.mp4';
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask', 'performance'] });
     jest.setSystemTime(NOW);
     process.env.LP_COACHING_ASK_ENABLED = 'true';
-    process.env.LP_COACHING_HOWTO_VIDEO_EN = 'https://pub-example.r2.dev/howto_en.mp4';
+    process.env.LP_COACHING_HOWTO_VIDEO_EN = CLIP_EN;
     Store.rowsFor.mockResolvedValue([]);
     // clearAllMocks keeps implementations: without this, "never a third time"
     // leaves the count at 2 for every test after it.
     FeatureIntro.introShownCount.mockResolvedValue(0);
+    WhatsAppService.sendVideoWithButtons.mockResolvedValue(true);
     tables();
   });
   afterEach(() => {
     jest.useRealTimers();
     delete process.env.LP_COACHING_ASK_ENABLED;
     delete process.env.LP_COACHING_HOWTO_VIDEO_EN;
+    delete process.env.LP_COACHING_HOWTO_VIDEO_UR;
   });
 
-  test('rides the first send, before the ask, with the caption', async () => {
-    FeatureIntro.introShownCount.mockResolvedValue(0);
-    await Ask.send(askRow());
-    expect(WhatsAppService.sendVideoByLink).toHaveBeenCalledWith(
-      PHONE, 'https://pub-example.r2.dev/howto_en.mp4', UX_STRINGS.lpAskHowtoCaption.en,
-    );
-    const videoOrder = WhatsAppService.sendVideoByLink.mock.invocationCallOrder[0];
-    const buttonsOrder = WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0];
-    expect(videoOrder).toBeLessThan(buttonsOrder);
+  test('rides the ask as its VIDEO HEADER — one message, so the clip can never land after the ask', async () => {
+    const res = await Ask.send(askRow());
+
+    expect(WhatsAppService.sendVideoWithButtons).toHaveBeenCalledTimes(1);
+    const [to, clip, body, buttons, opts] = WhatsAppService.sendVideoWithButtons.mock.calls[0];
+    expect(to).toBe(PHONE);
+    expect(clip).toBe(CLIP_EN);
+    expect(body).toBe(UX_STRINGS.lpAskBody.en);
+    expect(buttons.map((b) => b.id)).toEqual([`lpask_yes_${NUDGE}`, `lpask_no_${NUDGE}`]);
+    expect(buttons.map((b) => b.title)).toEqual([UX_STRINGS.lpAskYes.en, UX_STRINGS.lpAskNo.en]);
+    // The caption that used to ride the separate clip is the footer under it.
+    expect(opts.footer).toBe(UX_STRINGS.lpAskHowtoCaption.en);
+    // No second message of any kind.
+    expect(WhatsAppService.sendVideoByLink).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendVideoFromUrl).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+
+    expect(res).toMatchObject({ sent: true, context: expect.objectContaining({ howto: true }) });
     expect(FeatureIntro.markVideoShown).toHaveBeenCalledWith(USER, 'lp_coaching_howto', { incrementIntroCount: true });
     expect(logEvent).toHaveBeenCalledWith('lp_ask.howto_shown', expect.objectContaining({ userId: USER }));
   });
@@ -268,37 +288,82 @@ describe('the how-to clip', () => {
   test('rides the second send too', async () => {
     FeatureIntro.introShownCount.mockResolvedValue(1);
     await Ask.send(askRow());
-    expect(WhatsAppService.sendVideoByLink).toHaveBeenCalledTimes(1);
+    expect(WhatsAppService.sendVideoWithButtons).toHaveBeenCalledTimes(1);
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
   });
 
-  test('never a third time', async () => {
+  test('never a third time — the plain ask goes, with no clip', async () => {
     FeatureIntro.introShownCount.mockResolvedValue(2);
-    await Ask.send(askRow());
+    const res = await Ask.send(askRow());
+    expect(WhatsAppService.sendVideoWithButtons).not.toHaveBeenCalled();
     expect(WhatsAppService.sendVideoByLink).not.toHaveBeenCalled();
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    expect(res.context.howto).toBe(false);
   });
 
   test('no clip variable for the teacher’s language means no clip, and the ask still goes', async () => {
     delete process.env.LP_COACHING_HOWTO_VIDEO_EN;
     await Ask.send(askRow());
-    expect(WhatsAppService.sendVideoByLink).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendVideoWithButtons).not.toHaveBeenCalled();
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
   });
 
-  test('a clip that fails to send never costs the teacher the ask', async () => {
-    WhatsAppService.sendVideoByLink.mockResolvedValueOnce(false);
+  test('a header that fails never costs the teacher the ask: the plain ask goes, and the clip is not counted', async () => {
+    WhatsAppService.sendVideoWithButtons.mockResolvedValueOnce(false);
     const res = await Ask.send(askRow());
-    expect(res).toMatchObject({ sent: true });
+    expect(res).toMatchObject({ sent: true, context: expect.objectContaining({ howto: false }) });
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    const [, opts] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
+    expect(opts.body).toBe(UX_STRINGS.lpAskBody.en);
+    expect(FeatureIntro.markVideoShown).not.toHaveBeenCalledWith(USER, 'lp_coaching_howto', { incrementIntroCount: true });
   });
 
-  test('an Urdu teacher gets the Urdu clip and caption', async () => {
-    process.env.LP_COACHING_HOWTO_VIDEO_UR = 'https://pub-example.r2.dev/howto_ur.mp4';
+  test('both failing is a failed row (the sweeper marks it), never a quiet success', async () => {
+    WhatsAppService.sendVideoWithButtons.mockResolvedValueOnce(false);
+    WhatsAppService.sendInteractiveButtons.mockResolvedValueOnce(false);
+    await expect(Ask.send(askRow())).rejects.toThrow(/not delivered/);
+  });
+
+  test('an Urdu teacher gets the Urdu clip, body and footer', async () => {
+    process.env.LP_COACHING_HOWTO_VIDEO_UR = CLIP_UR;
     tables({ user: { preferred_language: 'ur' } });
     await Ask.send(askRow());
-    expect(WhatsAppService.sendVideoByLink).toHaveBeenCalledWith(
-      PHONE, 'https://pub-example.r2.dev/howto_ur.mp4', UX_STRINGS.lpAskHowtoCaption.ur,
-    );
-    delete process.env.LP_COACHING_HOWTO_VIDEO_UR;
+    const [, clip, body, buttons, opts] = WhatsAppService.sendVideoWithButtons.mock.calls[0];
+    expect(clip).toBe(CLIP_UR);
+    expect(body).toBe(UX_STRINGS.lpAskBody.ur);
+    expect(buttons[0].title).toBe(UX_STRINGS.lpAskYes.ur);
+    expect(opts.footer).toBe(UX_STRINGS.lpAskHowtoCaption.ur);
+  });
+
+  test('the message id of the ask is kept on the row (context.message_ids)', async () => {
+    WhatsAppService.sendVideoWithButtons.mockImplementationOnce(async (_to, _clip, _body, _buttons, opts) => {
+      opts.onMessageId('wamid.ASK1');
+      return true;
+    });
+    const res = await Ask.send(askRow());
+    expect(res.messageIds).toEqual(['wamid.ASK1']);
+  });
+
+  test('…and so is the plain ask’s', async () => {
+    FeatureIntro.introShownCount.mockResolvedValue(2);
+    WhatsAppService.sendInteractiveButtons.mockImplementationOnce(async (_to, _payload, opts) => {
+      opts.onMessageId('wamid.ASK2');
+      return true;
+    });
+    const res = await Ask.send(askRow());
+    expect(res.messageIds).toEqual(['wamid.ASK2']);
+  });
+});
+
+describe('the how-to caption (the footer under the clip)', () => {
+  test('fits WhatsApp’s 60-code-point footer, in both languages', () => {
+    for (const lang of ['en', 'ur']) {
+      expect([...UX_STRINGS.lpAskHowtoCaption[lang]].length).toBeLessThanOrEqual(60);
+    }
+  });
+
+  test('claims no length — the clip runs about 18 s, and WhatsApp prints its real length on the video itself', () => {
+    expect(UX_STRINGS.lpAskHowtoCaption.en).not.toMatch(/\d|second|minute/i);
+    expect(UX_STRINGS.lpAskHowtoCaption.ur).not.toMatch(/[0-9۰-۹]|سیکنڈ|منٹ/);
   });
 });

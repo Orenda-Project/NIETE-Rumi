@@ -649,4 +649,31 @@ describe('an lp_v8 quiz in the /quiz Flow (PLAN_R8 D11)', () => {
     expect(out.screen).toBe('LESSONS');
     expect(out.data.error_message).toBeTruthy();
   });
+
+  // A quiz written from a PLANNED lesson must never say the lesson was taught.
+  // The one Flow string that does ("8 questions from what you taught in this
+  // lesson", tqFlowActionMakeDesc) is endpoint data — the published Flow JSON
+  // binds the actions from ${data.actions} and carries no copy of its own — and
+  // it rides only a make_ action, which no lp_v8 lesson offers today. This walks
+  // every lp_v8 state in both languages through the real endpoint, so the day a
+  // make_ action is added for one (an awaiting-language row), the copy on it has
+  // to say planned or this goes red.
+  test.each([
+    ['offered, awaiting its language', { status: 'offered', meta: { lesson_date: '2026-08-30', step: 'awaiting_language', awaiting_language: true } }],
+    ['being written', { status: 'generating', meta: { lesson_date: '2026-08-30', step: 'author' } }],
+    ['sent', {}],
+    ['report sent', { status: 'report_sent' }],
+    ['failed (model)', { status: 'failed', meta: { lesson_date: '2026-08-30', error: 'model_failed' } }],
+  ])('no screen of an lp_v8 lesson says "taught", in either language — %s', async (_label, over) => {
+    for (const lang of ['en', 'ur']) {
+      stub({
+        users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: lang }],
+        coaching_sessions: [], quizzes: [{ ...LP, ...over }], quiz_sessions: KIDS,
+      });
+      const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });
+      const text = JSON.stringify(out.data);
+      expect(text).not.toMatch(/taught/i);
+      expect(text).not.toMatch(/پڑھایا/);
+    }
+  });
 });
