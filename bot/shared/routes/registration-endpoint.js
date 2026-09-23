@@ -34,6 +34,7 @@
 
 const { logToFile } = require('../utils/logger');
 const redisService = require('../services/cache/railway-redis.service');
+const { findSchoolByEmis } = require('../services/schools/school-resolver.service');
 
 /**
  * Persist a completed screen's fields to the user row AS SOON AS the screen is
@@ -279,13 +280,29 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
  * Updates Redis with selected region, navigates to PROFESSIONAL_INFO
  */
 async function handleRegionInfoSubmit(userId, screenData, flowToken) {
-  const region = screenData.region || null;
+  const province = screenData.region || null;
 
-  // Get stored data and update with region
+  // The screen has always carried the school's EMIS code (form.emis_code) and this handler
+  // dropped it, storing only the province string. The EMIS is the one identifier the code
+  // links on (users.school_id -> schools), so resolve it here; the stored region becomes the
+  // school's sector, which is what every school-scoped read expects to find in users.region.
+  // A miss keeps the old behaviour (province stored, no link) and is logged so it can be counted.
+  const emisCode = String(screenData.emis_code == null ? '' : screenData.emis_code).trim();
+  let school = null;
+  if (emisCode) {
+    school = await findSchoolByEmis(emisCode);
+    if (!school) {
+      logToFile('⚠️ registration: emis_not_found — province stored, no school link', { userId, emis_code: emisCode, province });
+    }
+  }
+  const region = (school && school.region) || province;
+
+  // Get stored data and update with region (+ the school, once known)
   const stored = await getRegData(flowToken);
   stored.region = region;
+  if (school) stored.school_id = school.id;
   await storeRegData(flowToken, stored);
-  await persistToUser(userId, { region });
+  await persistToUser(userId, school ? { region, school_id: school.id } : { region });
 
   const response = {
     screen: 'PROFESSIONAL_INFO',
