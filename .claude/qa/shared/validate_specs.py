@@ -89,6 +89,12 @@ KNOWN_TAGS = frozenset(GATING_TAGS | {
 # `@profile:niete`, `@persona:teacher`, `@feature:menu` — the namespaced axes.
 KNOWN_PREFIXES = ("profile:", "persona:", "feature:")
 
+# A SCENARIO ID: `@COA16`, `@M09`, `@OBS04` — letters then digits, nothing else. It is what binds a
+# Gherkin scenario to its mock driver, so it is structural vocabulary rather than a label somebody
+# forgot to document (bd-bufzl). Checked AFTER the gating-typo rule on purpose: `@slow1` must still
+# error as one edit from `@slow`, and no real id is within one edit of a gating tag.
+SCENARIO_ID_RE = re.compile(r"^[a-z]{1,5}\d{1,3}$")
+
 # An @obsolete scenario must say why, on a comment line inside it. The sync never
 # deletes; it proposes. An unexplained proposal is indistinguishable from a bug
 # by the time anyone reads it.
@@ -214,6 +220,8 @@ def tag_problems(tag, path, line):
                             "@%s is one edit from the run-gating tag @%s. A mistyped "
                             "gating tag changes what the suite runs and never says so."
                             % (tag, gate))]
+    if SCENARIO_ID_RE.match(tag):
+        return []
     return [Problem("warn", "W-UNKNOWNTAG", path, line,
                     "@%s is not in the documented vocabulary (.claude/qa/config/tags.md). "
                     "Fine if deliberate — add it there." % tag)]

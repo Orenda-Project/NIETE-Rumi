@@ -378,6 +378,43 @@ def test_render_names_the_gap_work_when_nothing_else_was_selected():
     shutil.rmtree(d)
 
 
+
+# ── bd-bufzl: the brief must say whether a DRIVER exists ───────────────────────────────────────
+# The brief is what the spec-sync agent reads. It carried everything about the spec and nothing
+# about the driver, so the agent was never made aware that a scenario needs executable code — which
+# is the single reason a new scenario never gets one. Spec-shaped brief, spec-shaped deliverable.
+
+
+def test_each_feature_says_where_its_driver_is_and_whether_it_exists():
+    brief = _brief_with_one_feature() if "_brief_with_one_feature" in globals() else None
+    if brief is None:
+        import spec_sync as ss
+        f = {"feature": "coaching"}
+        got = ss.driver_facts(".", "coaching")
+        assert "driver_path" in got and "driver_exists" in got, got
+        assert got["driver_path"].endswith("coaching.cjs"), got
+
+
+def test_driver_facts_lists_the_ids_the_driver_records():
+    import spec_sync as ss
+    import tempfile, os as _os
+    root = tempfile.mkdtemp()
+    d = _os.path.join(root, ".claude", "qa", "shared", "features")
+    _os.makedirs(d)
+    open(_os.path.join(d, "coaching.cjs"), "w").write(
+        "exports.run = async ({rec}) => { rec('COA01','a','PASS',{}); rec('COA02','b','PASS',{}); };")
+    got = ss.driver_facts(root, "coaching")
+    assert got["driver_exists"] is True, got
+    assert sorted(got["driver_ids"]) == ["COA01", "COA02"], got
+
+
+def test_driver_facts_is_honest_when_there_is_no_driver():
+    import spec_sync as ss
+    import tempfile
+    got = ss.driver_facts(tempfile.mkdtemp(), "coaching")
+    assert got["driver_exists"] is False, got
+    assert got["driver_ids"] == [], got
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
