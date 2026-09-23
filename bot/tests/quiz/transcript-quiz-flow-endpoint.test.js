@@ -634,6 +634,46 @@ describe('an lp_v8 quiz in the /quiz Flow (PLAN_R8 D11)', () => {
     expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
   });
 
+  // A teacher who said yes to the afternoon offer but never answered the
+  // language ask: the row waits `offered` at `awaiting_language`. The Flow gave
+  // it no action and so sent the lesson to the "still being made" wait screen,
+  // while nothing was being made.
+  const WAIT_ID = 'a1b2c3d4-0000-4000-8000-00000000abcd';
+  const WAITING = {
+    ...LP, id: WAIT_ID, status: 'offered', language: null,
+    meta: { step: 'awaiting_language', awaiting_language: true, source: 'lp_offer', nudge_id: 'nudge-1', lesson_date: '2026-08-30' },
+  };
+  const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
+
+  test('an lp_v8 quiz still waiting for its language opens its LESSON screen with the language choices — not the wait screen', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [WAITING], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: `lp_${WAIT_ID}` });
+    expect(out.screen).toBe('LESSON');
+    // The subject rule (maths → Urdu) first, exactly as the chat ask orders it.
+    expect(out.data.actions.map((a) => a.id)).toEqual(['make_ur', 'make_en']);
+    // A planned lesson was not "taught".
+    out.data.actions.forEach((a) => expect(a.description.toLowerCase()).not.toContain('taught'));
+    expect(logEvent).not.toHaveBeenCalledWith('transcript_quiz.flow_closed', expect.objectContaining({ kind: 'wait' }));
+  });
+
+  test('choosing a language there makes it on the chat ask’s own path: generating in that language, the LP quiz job queued', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [WAITING], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
+      step: 'action', session_id: `lp_${WAIT_ID}`, quiz_id: WAIT_ID, tq_action: 'make_en',
+    });
+    expect(out.screen).toBe('SUCCESS');
+    await flush();
+    expect(writes).toContainEqual({
+      op: 'update', patch: expect.objectContaining({ status: 'generating', language: 'en' }),
+    });
+    // The LP job (source lp_offer) — never the transcript quiz's claim, which
+    // would re-label the row and queue a job for a coaching session it has not got.
+    expect(SQSQueueService.queueJob).toHaveBeenCalledTimes(1);
+    expect(SQSQueueService.queueJob).toHaveBeenCalledWith(
+      WAIT_ID, 'quiz_generate', expect.objectContaining({ quizId: WAIT_ID, source: 'lp_offer' }), expect.anything(),
+    );
+  });
+
   test('a failed lp_v8 quiz shows LP copy — never "this lesson’s recording"', async () => {
     stub({ users, coaching_sessions: [], quizzes: [{ ...LP, status: 'failed', meta: { lesson_date: '2026-08-30', error: 'validator_failed' } }], quiz_sessions: [] });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });

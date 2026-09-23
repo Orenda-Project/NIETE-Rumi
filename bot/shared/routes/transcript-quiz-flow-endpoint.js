@@ -342,14 +342,36 @@ function actionsFor({ state, quiz, session, language }) {
     return out;
   }
   // An lp_v8 quiz exists because the teacher said yes to the afternoon offer;
-  // there is no coaching session to make one FROM here (PLAN_R8 §3.4).
-  if (quiz?.quiz_source === LP_V8) return [];
+  // there is no coaching session to make one FROM here (PLAN_R8 §3.4). The one
+  // choice still open on it is its LANGUAGE, when the teacher never answered
+  // the ask: without these actions the lesson went to the "still being made"
+  // wait screen while nothing was being made. stepAction hands the choice to
+  // the ask's own handler (startGenerating), never the transcript claim.
+  if (quiz?.quiz_source === LP_V8) {
+    if (!List.isAwaitingLanguage(quiz)) return [];
+    return makeActions({
+      subject: quiz.subject,
+      rule: quiz.language || quizLanguageFor(quiz.subject, null),
+      description: resolveUx('tqFlowActionMakeDescLp', { language }),
+      language,
+    });
+  }
 
-  // none / offered / failed → make it. The subject rule seeds the order; only
-  // Urdu and Islamiyat leave no real choice and so get a single option.
+  // none / offered / failed → make it.
   const subject = quiz?.subject || session?.analysis_data?.subject || null;
-  const rule = quiz?.language || quizLanguageFor(subject, session?.transcript_language);
-  const description = resolveUx('tqFlowActionMakeDesc', { language });
+  return makeActions({
+    subject,
+    rule: quiz?.language || quizLanguageFor(subject, session?.transcript_language),
+    description: resolveUx('tqFlowActionMakeDesc', { language }),
+    language,
+  });
+}
+
+/**
+ * The make_<language> choices. The subject rule seeds the order; only Urdu and
+ * Islamiyat leave no real choice and so get a single option.
+ */
+function makeActions({ subject, rule, description, language }) {
   if (!needsLanguageAsk(subject)) {
     return [{ id: `make_${rule}`, title: resolveUx('tqFlowActionMake', { language }), description }];
   }
@@ -580,17 +602,30 @@ async function stepAction(teacher, screenData) {
   const teacherId = teacher.id;
   const sessionId = session.id;
   const phone = teacher.phone_number;
-  runAfterResponse('make', quiz?.id || null, async () => {
-    const claimed = await List.claimForGeneration({
-      userId: teacherId, sessionId, session, quiz, quizLanguage: chosen, source: 'flow',
+  if (quiz?.quiz_source === LP_V8) {
+    // An lp_v8 quiz waiting for its language: the chat ask's own path — the
+    // atomic offered → generating flip and the LP quiz job. The transcript
+    // claim below would queue it as a coaching-session quiz it is not.
+    const quizId = quiz.id;
+    runAfterResponse('make', quizId, async () => {
+      const Offer = require('../services/quiz/transcript-quiz-offer.service');
+      return Offer.startGenerating({
+        quizId, quiz, phone, teacherLang: language, language: chosen, source: 'flow',
+      });
     });
-    if (claimed.error) return false;
-    await List.enqueueGenerate(claimed.quizId, phone, language, 'flow');
-    logEvent('transcript_quiz.list_generate', {
-      userId: teacherId, quizId: claimed.quizId, from: claimed.from, source: 'flow', language: chosen,
+  } else {
+    runAfterResponse('make', quiz?.id || null, async () => {
+      const claimed = await List.claimForGeneration({
+        userId: teacherId, sessionId, session, quiz, quizLanguage: chosen, source: 'flow',
+      });
+      if (claimed.error) return false;
+      await List.enqueueGenerate(claimed.quizId, phone, language, 'flow');
+      logEvent('transcript_quiz.list_generate', {
+        userId: teacherId, quizId: claimed.quizId, from: claimed.from, source: 'flow', language: chosen,
+      });
+      return true;
     });
-    return true;
-  });
+  }
   // The chat already says "making it now" (enqueueGenerate sends tqMaking), so
   // a screen saying it again is the same sentence twice. Close the Flow from
   // the endpoint instead: SUCCESS is Meta's reserved endpoint-close, not a
