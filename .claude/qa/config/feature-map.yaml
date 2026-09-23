@@ -178,6 +178,7 @@ features:
     - bot/shared/services/vision.service.js
     - bot/06_MMS_Inference_Service/**    # the Modal ASR service behind coaching transcription
     - bot/shared/constants/scoring.constants.js   # "scoring constants for classroom coaching reports"
+    - bot/database/migrations/coaching_*.sql      # coaching schema; the columns the dedupe matches on (bd-7beiz)
 
   language:
     - bot/shared/config/languages.js

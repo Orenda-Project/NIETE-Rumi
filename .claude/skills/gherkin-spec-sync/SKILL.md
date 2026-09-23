@@ -233,7 +233,43 @@ python3 .claude/qa/shared/check-all-mode-counts.py
 
 ---
 
-## 7. Commit the spec — a working-tree edit is not done
+## 7. The driver — a scenario that cannot run is not synced
+
+**A scenario is not done until its mock driver exists and is executable, or it is explicitly
+declared unrunnable with a reason.** Writing the Gherkin does not make it run: `feature-runner.cjs`
+loads `.claude/qa/shared/features/<feature>.cjs` and collects whatever its `rec()` calls report — it
+never opens the `.feature`. So prose alone satisfies every check above and executes nothing. On
+2026-09-22 coaching held 33 `@e2e` scenarios against 15 implemented, and no run, row or gate said so.
+
+For every scenario you ADDED or RENAMED:
+
+1. **Give it an id tag** — `@COA16`, matching the ids that feature's driver already records
+   (`rec('COA15', …)` → the next is `COA16`). That tag is the identity; without it nothing can tell
+   the scenario from any other.
+2. **Append the stub**, which is mechanical:
+   ```bash
+   python3 .claude/qa/shared/scaffold-driver.py <feature> --sync
+   ```
+   It adds one `rec(<id>, <name>, 'BLOCKED', …)` per missing scenario and never rewrites existing
+   code. **A stub is not coverage** — it only makes the scenario visible instead of absent.
+3. **Implement it.** You already hold what this needs: the brief carries the changed files and a
+   bounded diff, so you know the strings, the button ids and the table the scenario asserts on.
+   Copy the interaction patterns from `menu.cjs` or `lesson-plan.cjs`; the whole vocabulary is
+   `api.sendWait` / `openList` / `pickRowAndWait` / `tapAndWait` / `upload` / `flowClick` / `fresh` /
+   `db`. Replace the `BLOCKED` with `...V(<condition>, { evidence })`. Never reach for the browser
+   DOM — that breaks the mock lane.
+4. **Leave it BLOCKED only when you genuinely cannot implement it safely**, and say why in the
+   `reason`. That is the honest fallback, not the default. If the scenario can never run on this
+   lane — a rendered Flow screen, a file above WhatsApp's upload ceiling — tag it
+   `@no-mock-driver` so it is declared rather than silently missing.
+
+Check yourself before committing; this is the same gate the PR runs:
+
+```bash
+python3 .claude/qa/shared/check-scenario-coverage.py --only <feature>
+```
+
+## 8. Commit the spec AND its driver — a working-tree edit is not done
 
 Everything downstream judges **commits**: the PR check (`.github/workflows/qa-impact.yml`)
 diffs the PR range, and the Stop-hook gate compares the spec *as committed at HEAD* with its
@@ -241,14 +277,18 @@ fingerprint from arming. A `.feature` you edited and validated but left uncommit
 nothing and the turn stays held. One commit, only the spec (and `niete-e2e.md` if counts moved):
 
 ```bash
-git add tests/features/whatsapp/niete/<feature>.feature .claude/commands/niete-e2e.md
-git commit -m "test(gherkin): sync <feature>.feature to <sha-of-the-change>"
+git add tests/features/whatsapp/niete/<feature>.feature \
+        .claude/qa/shared/features/<feature>.cjs \
+        .claude/commands/niete-e2e.md
+git commit -m "test(gherkin): sync <feature>.feature + driver to <sha-of-the-change>"
 ```
 
-The post-commit hook sees a spec-only change, marks it `validate-only`, and authors nothing —
-it cannot loop.
+The scenario and its driver are ONE deliverable — a commit carrying only the prose ships a test
+that never runs. Driver files are not in `feature-map.yaml`, so adding one selects no feature: the
+post-commit hook still sees a spec change, marks it `validate-only`, authors nothing, and cannot
+loop.
 
-## 8. Report, then release phase 2
+## 9. Report, then release phase 2
 
 State, briefly:
 
