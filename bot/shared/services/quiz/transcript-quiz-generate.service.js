@@ -2,7 +2,8 @@
 /**
  * Transcript quiz — GENERATE and HAND OFF (the worker step after "yes").
  *
- *   author → validate (one retry, with the validator's complaints) → store
+ *   author → validate (one retry, with the validator's complaints)
+ *   → [lp_v8 only: key check against the lesson — runKeyCheck] → store
  *   quiz_questions → teacher PDF → R2 → share code → three paced messages
  *
  * Idempotent per step, because the quiz queue is Standard SQS (at-least-once):
@@ -540,6 +541,187 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
   return { figureUrls, cardUrls };
 }
 
+/**
+ * THE KEY CHECK — an lp_v8 quiz's keys, held against the lesson it was written
+ * from, after every authoring and repair step and before a single row is stored.
+ *
+ * WHY. On sandbox an Urdu quiz keyed the lesson's own planted misconception as
+ * the correct answer (Grade 3 واحد اور جمع: "بہار keeps its form" — the lesson
+ * teaches بہار → بہاریں three times). The author is given that misconception to
+ * build wrong options from; once in 24 items it built the key from it. Nothing
+ * downstream compared a key with the lesson, so the quiz went out.
+ *
+ * WHAT. One LLM call (`lp-quiz-key-check.service`) returns a verdict per item.
+ * A `contradicts` item is re-authored ONCE through the same targeted rewrite
+ * every other rejected question goes through, with the lesson's quote as its
+ * complaint; the merged set goes through the whole validator and only the
+ * rewritten items are checked again. What still contradicts is dropped when the
+ * quiz keeps its floor (the salvage's own rule and re-validation); otherwise the
+ * quiz fails as `key_conflict`, persisted and told — never a silent send.
+ * `unclear` never blocks.
+ *
+ * FAIL-OPEN, deliberately. A checker that throws, times out or returns no
+ * verdicts costs the teacher nothing: the quiz ships exactly as authored — as
+ * every lp_v8 quiz did before this check existed — the failure is logged at
+ * ERROR and recorded as `meta.key_check.status = 'error'`, so the rate is
+ * visible. The same holds for the re-check of a rewritten item. Blocking a
+ * teacher's quiz on the checker's own outage would trade a rare wrong key for a
+ * certain lost quiz on every provider blip.
+ *
+ * @returns {Promise<{record:object, changed?:boolean, failed?:boolean,
+ *   questions?:object[], figureUrls?:object, cardUrls?:object, draftedRows?:object[],
+ *   softFaults?:string[]|null}>}
+ */
+async function runKeyCheck(api, {
+  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts,
+}) {
+  const KeyCheck = require('./lp-quiz-key-check.service');
+  const startedAt = Date.now();
+  const record = {
+    status: 'clean', model: null, checked: questions.length, contradicted: 0, fixed: 0, dropped: 0,
+    unclear: 0, missing: 0, ungrounded: 0, cost_usd: 0, conflicts: [],
+  };
+  const finish = (out) => {
+    record.latency_ms = Date.now() - startedAt;
+    record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
+    logEvent('transcript_quiz.key_check', {
+      quizId, quiz_source: LP_V8, status: record.status, model: record.model,
+      checked: record.checked, contradicted: record.contradicted, fixed: record.fixed, dropped: record.dropped,
+      unclear: record.unclear, missing: record.missing, ungrounded: record.ungrounded,
+      costUsd: record.cost_usd, latencyMs: record.latency_ms,
+    });
+    return { record, ...out };
+  };
+  const failOpen = (what, err) => {
+    const message = String((err && err.message) || err || 'unknown').slice(0, 200);
+    logToFile(`❌ lp quiz: key check ${what} failed — shipping without it (fail-open)`, { quizId, error: message }, 'error');
+    return message;
+  };
+
+  // ── 1. the check ──────────────────────────────────────────────────────────
+  let first;
+  try {
+    first = await api.checkKeys({ questions, slideScript, language, quizId });
+  } catch (err) {
+    record.status = 'error';
+    record.error = failOpen('call', err);
+    return finish({ changed: false });
+  }
+  if (first.skipped) {
+    record.status = first.skipped;
+    record.checked = 0;
+    return finish({ changed: false });
+  }
+  record.model = first.model || null;
+  record.cost_usd += Number(first.costUsd) || 0;
+  first.verdicts.forEach((v) => {
+    if (v.verdict === 'unclear') record.unclear += 1;
+    if (v.missing) record.missing += 1;
+    if (v.verdict === 'contradicts' && !v.grounded) record.ungrounded += 1;
+  });
+  const bad = first.verdicts.filter((v) => v.verdict === 'contradicts');
+  record.contradicted = bad.length;
+  if (!bad.length) return finish({ changed: false });
+
+  const complaints = bad.map((v) => KeyCheck.conflictComplaint(v, questions[v.index]));
+  record.conflicts = bad.map((v) => ({
+    index: v.index,
+    keyed: KeyCheck.keyedText(questions[v.index]).slice(0, 120),
+    quote: String(v.quote || '').slice(0, 200),
+    grounded: Boolean(v.grounded),
+  }));
+  attempts.push({ attempt: 'key_check', model: record.model, cost_usd: first.costUsd || null, latency_ms: first.latencyMs || null, errors: complaints });
+  logToFile('⚠️ lp quiz: the key check found answers the lesson contradicts', { quizId, indices: bad.map((v) => v.index) });
+
+  // ── 2. ONE targeted rewrite, with the lesson's quote as the complaint ──────
+  const stillBad = new Set(bad.map((v) => v.index));
+  let current = questions;
+  let softFaults = null;
+  const rw = await api.rewriteRejected({
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true,
+  });
+  if (rw.attempted) {
+    record.cost_usd += Number(rw.costUsd) || 0;
+    let verrs = null;
+    const replacedBad = (rw.replaced || []).filter((i) => stillBad.has(i));
+    if (rw.merged && replacedBad.length) {
+      const v = validate(rw.merged, {
+        language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+      });
+      verrs = v.errors;
+      // The same bar every other shipped set meets: no hard fault left.
+      if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+        let again = new Set();
+        try {
+          const re = await api.checkKeys({ questions: v.questions, slideScript, language, quizId, indices: replacedBad });
+          record.cost_usd += Number(re.costUsd) || 0;
+          again = new Set(re.verdicts.filter((x) => x.verdict === 'contradicts').map((x) => x.index));
+        } catch (err) {
+          record.recheck_error = failOpen('re-check', err);
+        }
+        current = v.questions;
+        softFaults = v.errors.length ? v.errors : null;
+        replacedBad.forEach((i) => {
+          if (again.has(i)) return;
+          stillBad.delete(i);
+          record.fixed += 1;
+        });
+      }
+    }
+    attempts.push({
+      attempt: 'rewrite', after: 'key_check', indices: rw.indices, replaced: rw.replaced,
+      model: rw.model || null, cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null,
+      errors: verrs || [rw.error || 'the rewrite returned no usable replacement'],
+    });
+    logEvent('transcript_quiz.rewrite_attempted', {
+      quizId, after: 'key_check', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0, errors: verrs ? verrs.length : null,
+    });
+  }
+
+  // ── 3. drop what still contradicts, or fail ─────────────────────────────────
+  const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
+  const dropFrom = (set, indices) => {
+    if (!indices.length) return { questions: set, dropped: [], softFaults };
+    const errs = indices.map((i) => `q${i}: KEY_CONFLICT — still contradicts the lesson`);
+    const s = salvageWithoutBadFigures(set, errs, ctx);
+    if (!s || s.refused) {
+      record.refused = (s && s.refused) || 'nothing could be dropped';
+      return null;
+    }
+    return { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : null };
+  };
+  const allBad = bad.map((v) => v.index);
+  const candidates = [{ gone: [...stillBad].sort((a, b) => a - b), make: () => dropFrom(current, [...stillBad].sort((a, b) => a - b)) }];
+  // Only if the repaired set cannot be DRAWN: the authored set minus every
+  // flagged item. (When nothing was repaired it is the same set — not retried.)
+  if (current !== questions) candidates.push({ gone: allBad, repairsLost: true, make: () => dropFrom(questions, allBad) });
+  for (const { gone, repairsLost, make } of candidates) {
+    const cand = make();
+    if (!cand) continue;
+    try {
+      const drafted = toRows(quizId, cand.questions);
+      // eslint-disable-next-line no-await-in-loop
+      const { figureUrls, cardUrls } = await renderFor(api, {
+        questions: cand.questions, rows: drafted, language, teacherId, quizId,
+      });
+      if (repairsLost) record.fixed = 0;
+      record.dropped = cand.dropped.length;
+      record.status = cand.dropped.length ? 'dropped' : 'fixed';
+      record.conflicts.forEach((c) => { c.outcome = gone.includes(c.index) ? 'dropped' : 'fixed'; });
+      attempts.push({ attempt: 'key_check_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
+      return finish({
+        changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
+      });
+    } catch (figErr) {
+      record.render_error = String(figErr.message || figErr).slice(0, 200);
+      logToFile('❌ lp quiz: the key-checked set could not be drawn', { quizId, error: record.render_error }, 'error');
+    }
+  }
+  record.status = 'failed';
+  record.conflicts.forEach((c) => { c.outcome = stillBad.has(c.index) ? 'failed' : 'fixed'; });
+  return finish({ failed: true });
+}
+
 async function process(quizId, payload = {}) {
   const api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
@@ -907,6 +1089,30 @@ async function process(quizId, payload = {}) {
       await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed', quizSource);
       return { failed: true, reason: 'validator_failed', attempts };
     }
+    // ── THE KEY CHECK (lp_v8 only) ───────────────────────────────────────────
+    // Every key held against the lesson it was written from, after every repair
+    // and before anything is stored (see runKeyCheck). A transcript quiz has no
+    // written source to check against and never comes here.
+    if (isLp) {
+      const kc = await runKeyCheck(api, {
+        questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
+        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts,
+      });
+      meta.key_check = kc.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);
+      if (kc.failed) {
+        await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'key_conflict' } });
+        await tellTeacherFailed(phone, teacherLang, quizId, 'key_conflict', quizSource);
+        return { failed: true, reason: 'key_conflict', attempts };
+      }
+      if (kc.changed) {
+        questions = kc.questions;
+        figureUrls = kc.figureUrls;
+        cardUrls = kc.cardUrls;
+        draftedRows = kc.draftedRows;
+        if (kc.softFaults) meta.soft_faults = kc.softFaults;
+      }
+    }
     const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
@@ -950,6 +1156,8 @@ module.exports = {
   failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
+  // lp_v8 only — the answer-key check against the lesson (lp-quiz-key-check.service).
+  checkKeys: (args) => require('./lp-quiz-key-check.service').checkKeys(args),
   figureRequiredError,
   SOFT_FAULT,
   isEarlyYearsBand,
