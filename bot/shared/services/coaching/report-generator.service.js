@@ -412,6 +412,30 @@ class ReportGeneratorService {
         await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis);
       }
 
+      // "Was this coaching report useful to you?" — RIGHT after the voice debrief, before
+      // the session-complete line and the commitment question (DC feedback, 2026-09-23). It
+      // used to be scheduled 90 s after completeSession(), so it arrived after the bot had
+      // already declared the session over. Awaited so it cannot overtake the commit prompt;
+      // sent from this ONE place, so it cannot go out twice. Never fatal.
+      //
+      // A tap can now land BEFORE completeSession() writes the metrics row. The survey
+      // creates that row on demand, and recordQualityMetrics updates it instead of inserting
+      // a second. The quiz offer a tap brings forward is refused until the session is
+      // 'completed', which happens after the commit prompt.
+      try {
+        const CoachingFeedbackService = require('./coaching-feedback.service');
+        await CoachingFeedbackService.sendFeedbackPrompt({
+          coachingSessionId,
+          userId: session.user_id,
+          phone: from,
+          language: outputLanguage,
+        });
+      } catch (surveyErr) {
+        logWarn('⚠️ Coaching survey failed to send (non-fatal)', {
+          coachingSessionId, error: surveyErr.message,
+        });
+      }
+
       // Phase 3: Commitment Card — Q3-derived commitment + lesson-rooted action.
       //
       // The commitment-card path replaces (does NOT stack on top of) the legacy
@@ -1743,27 +1767,9 @@ class ReportGeneratorService {
     const updatedSession = await CoachingSessionService.getSession(coachingSessionId);
     await CoachingHelpersService.recordQualityMetrics(updatedSession);
 
-    // The session has now SETTLED — report delivered, voice debrief attempted, metrics row
-    // written. Only now is it fair to ask whether any of it was useful. Scheduling is
-    // non-blocking and swallows its own errors: a survey must never fail a session.
-    try {
-      const CoachingFeedbackService = require('./coaching-feedback.service');
-      // The phone lives on the JOINED users row (the session query selects
-      // `users!inner(name, phone_number, ...)`), NOT as a column on coaching_sessions. Reading
-      // session.phone_number returns undefined and the survey silently never sends.
-      const phone = (session && session.users && session.users.phone_number)
-        || (updatedSession && updatedSession.users && updatedSession.users.phone_number);
-      CoachingFeedbackService.scheduleFeedbackPrompt({
-        coachingSessionId,
-        userId: (updatedSession && updatedSession.user_id) || session.user_id,
-        phone,
-        language: _languageFromSession(updatedSession || session),
-      });
-    } catch (surveyErr) {
-      logToFile('Coaching Feedback: could not schedule (non-fatal)', {
-        coachingSessionId, error: surveyErr.message,
-      });
-    }
+    // The "was this useful?" survey is no longer scheduled here — generateReport sends it
+    // straight after the voice debrief (DC feedback, 2026-09-23). Scheduling it here as well
+    // would send it twice.
   }
 
   /**
