@@ -237,11 +237,28 @@ const fallbackDisabled = () => String(process.env.LLM_FALLBACK_OFF || '').trim()
 function createLLMClient() {
   if (PROVIDER === 'openai') {
     // Direct OpenAI — no baseURL override
-    return new OpenAI({
+    const direct = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       timeout: resolveRequestTimeoutMs(),
       maxRetries: resolveMaxRetries(),
     });
+    // bd-3kv02. This branch used to hand back the bare SDK client, so a caller's `job` label (and a
+    // `fallbackModel: null`) went to api.openai.com as request fields -- and OpenAI rejects unknown
+    // top-level fields with a 400. No environment runs LLM_PROVIDER=openai today, so it never
+    // fired; but with 62 labelled call sites it was one variable away from failing every one of
+    // them at once. Strip both, on KEY PRESENCE for the same reason as the OpenRouter branch below,
+    // and change nothing else: no `openai/` prefix, no fallback, no cost recording -- this branch
+    // keeps exactly the behaviour it had, minus the two fields that would have broken it.
+    const directCreate = direct.chat.completions.create.bind(direct.chat.completions);
+    direct.chat.completions.create = (params, options) => {
+      if (params && ('job' in params || 'fallbackModel' in params)) {
+        params = { ...params };
+        delete params.job;
+        delete params.fallbackModel;
+      }
+      return directCreate(params, options);
+    };
+    return direct;
   }
 
   // Default: OpenRouter — uses OpenAI-compatible API

@@ -261,7 +261,6 @@ Give ONE specific, actionable teaching tip based on these results. Keep it under
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        job: 'quiz.insight',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         max_tokens: 150
