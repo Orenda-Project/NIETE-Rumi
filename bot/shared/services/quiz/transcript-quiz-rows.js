@@ -14,6 +14,7 @@
  */
 
 const { cpLen } = require('./religious-marks');
+const { mathToText } = require('./quiz-math');
 
 const ELLIPSIS = '…';
 
@@ -91,7 +92,10 @@ function isolateIfMixed(text, language) {
  * acids" must not become "Ph And Acids"), and a script without case is a no-op.
  */
 function normaliseTopic(topic) {
-  const t = String(topic || '').trim();
+  // A menu row is text: a topic carrying TeX maths reads "1/2", never
+  // "$\frac{1}{2}$" (bd-mg9c7.159.19). Plain Unicode only — the row's own
+  // isolateIfMixed() below already decides the bidi of the whole topic.
+  const t = String(mathToText(topic) || '').trim();
   if (!t || !LATIN_RE.test(t) || /[A-Z]/.test(t)) return t;
   return t.replace(/[a-z]/, (c) => c.toUpperCase());
 }

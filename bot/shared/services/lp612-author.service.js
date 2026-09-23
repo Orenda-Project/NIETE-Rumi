@@ -142,61 +142,9 @@ function fail(code, message, extra = {}) {
 // Ported from `extract_json` / `repair_backslashes`, plus `_literal_eval_object` — see
 // pythonDictToJson below for how that one is done without an `ast.literal_eval` equivalent.
 
-const VALID_ESCAPE = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
-
-// LaTeX/mhchem commands beginning with a letter that is ALSO a legal JSON escape (\b \f \n \r
-// \t). Everything else after a backslash — \ce, \left, \sqrt, \alpha … — is already an illegal
-// escape and gets doubled unconditionally. This whitelist is why a real "line\nbreak" survives.
-const LATEX_AMBIG = [
-  'begin', 'bmatrix', 'binom', 'bar', 'boxed', 'bullet', 'because', 'bigg',
-  'frac', 'forall', 'fbox', 'frown',
-  'nabla', 'neq', 'ne', 'notin', 'nu', 'nonumber', 'newline',
-  'rho', 'rightarrow', 'right', 'rangle', 'rm',
-  'times', 'text', 'textbf', 'textit', 'to', 'theta', 'tau', 'therefore', 'tan',
-  'triangle', 'tfrac', 'top',
-];
-
-const isAlpha = (c) => /[A-Za-z]/.test(c);
-
-/**
- * Double every backslash inside a string literal that is not a valid JSON escape.
- *
- * The failure this exists for is silent, not loud: `\f` is a LEGAL JSON escape, so
- * `"\frac{1}{2}"` PARSES — into a form feed followed by "rac{1}{2}" — and the formula is gone
- * with no error anywhere. Three revision passes were lost to that before the repair existed.
- */
-function repairBackslashes(s) {
-  const out = [];
-  let inStr = false;
-  let i = 0;
-  while (i < s.length) {
-    const c = s[i];
-    if (!inStr) {
-      out.push(c);
-      if (c === '"') inStr = true;
-      i += 1;
-      continue;
-    }
-    if (c === '\\') {
-      const nxt = i + 1 < s.length ? s[i + 1] : '';
-      let keep = VALID_ESCAPE.has(nxt);
-      if (keep && 'bfnrt'.includes(nxt)) {
-        let run = '';
-        let k = i + 1;
-        while (k < s.length && isAlpha(s[k])) { run += s[k]; k += 1; }
-        if (LATEX_AMBIG.some((cmd) => run.startsWith(cmd))) keep = false;
-      }
-      if (keep) { out.push(c, nxt); i += 2; continue; }
-      out.push('\\\\');
-      i += 1;
-      continue;
-    }
-    out.push(c);
-    if (c === '"') inStr = false;
-    i += 1;
-  }
-  return out.join('');
-}
+// The backslash repair now lives in utils/json-tex-backslashes.js (moved unchanged) so the
+// class-quiz JSON passes share it; required here and still exported below.
+const { repairBackslashes } = require('../utils/json-tex-backslashes');
 
 /**
  * Rescue a reply that came back as a PYTHON dict rather than JSON.

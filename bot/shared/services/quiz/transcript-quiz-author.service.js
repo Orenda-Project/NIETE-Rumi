@@ -20,7 +20,7 @@ const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const {
   languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
-  GENDER_NEUTRAL_RULE,
+  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
 } = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -122,7 +122,7 @@ HARD RULES
 - molecule draws only these formulas, and you write ONLY the "formula" — the structure is filled in from a fixed table, never from a SMILES you write: ${Object.keys(MOLECULE_DICTIONARY).join(', ')}.
 
 WORKED EXAMPLES (spec next to the question it serves):
-1. fraction_bar, read_off — stem "تصویر میں روٹی کا کتنا حصہ رنگا ہوا ہے؟", options ["3/4", "1/4", "4/3"], correct 0,
+1. fraction_bar, read_off — stem "تصویر میں روٹی کا کتنا حصہ رنگا ہوا ہے؟", options ["$\\\\frac{3}{4}$", "$\\\\frac{1}{4}$", "$\\\\frac{4}{3}$"], correct 0,
    "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}   (no label on the bar — the label would be the answer)
 2. numberline, read_off — stem "Which point is at −3?", options ["A", "B", "C"], correct 0,
    "figure": {"type":"numberline","from":-5,"to":5,"step":1,"points":[{"at":-3,"label":"A"},{"at":1,"label":"B"},{"at":4,"label":"C"}]}
@@ -148,6 +148,21 @@ function excerptsFor(transcript, digest, width = 1200) {
   return parts.join('\n---\n');
 }
 
+const TRANSCRIPT_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
+
+TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same second-person address:
+- "lesson_summary_short": ONE sentence, at most 25 words — what you taught, with your own first example. No list, no second sentence.`;
+
+/**
+ * The lp_v8 twin: the teacher PLANNED this lesson; nobody heard it taught. The
+ * voice (the lesson as the subject, never a teacher-verb) is the contract's
+ * LP_SUMMARY_VOICE, shared with the targeted rewrite.
+ */
+const LP_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child). ${LP_SUMMARY_VOICE} Do not summarise the quiz — summarise the LESSON PLAN.
+
+TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same voice:
+- "lesson_summary_short": ONE sentence, at most 25 words — what today's lesson plans to teach, with the plan's own first example, opening the same way ("Today's lesson plans …" / «آج کے سبق میں …»). No list, no second sentence.`;
+
 function buildAuthorPrompt({
   digest, excerpts, language, n = DEFAULT_QUESTIONS, gradeBand, previousErrors = null,
   // PLAN_R5 D4. Asking for a question we cannot deliver is worse than not
@@ -155,7 +170,14 @@ function buildAuthorPrompt({
   // Defaulted by the CALLER from the Flow id, not read here, so a test can ask
   // for either prompt without touching the environment.
   allowMulti = false,
+  // PLAN_R8 §3.2 — an lp_v8 quiz has no transcript. When `lessonPlan` is given
+  // the prompt reads the PLANNED lesson in the excerpts' place, and says so:
+  // "excerpts of the transcript" over a lesson plan would have the model
+  // inventing classroom talk, and the summary it writes to the teacher says
+  // "you planned", never "you taught".
+  lessonPlan = null,
 }) {
+  const lp = Boolean(lessonPlan);
   // How many of the n may actually be above bare recall on THIS lesson. A flat
   // "half" is unreachable when every SLO was taught at recall, and the model
   // reaches it by tagging questions two levels above — which the validator
@@ -166,13 +188,13 @@ function buildAuthorPrompt({
   // The language rule is restated in the tail of the prompt on every attempt.
   // `retryNote` already opens with it, so this is the attempt-1 half only.
   const langAgain = retry ? '' : languageAgain(language);
-  return `You are writing a short WhatsApp quiz for the children who sat in ONE real lesson. You have the lesson digest and excerpts of the transcript. The quiz is taken one question at a time on a phone: a stem, three tappable options, then feedback.
+  return `You are writing a short WhatsApp quiz for the children who sat in ONE real lesson. ${lp ? 'You have the lesson digest and the LESSON PLAN the teacher taught from — there is no recording of the class, so never invent what was said in it.' : 'You have the lesson digest and excerpts of the transcript.'} The quiz is taken one question at a time on a phone: a stem, three tappable options, then feedback.
 
 QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${rule}
 
 WHAT TO WRITE — exactly ${n} questions.
 
-THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were meant to LEARN; the transcript supplies the level the teacher pitched it at, the examples used and the words used. Write the question the SLO asks for, dressed in the lesson's own material. The lesson is where the question comes FROM, never what the question is ABOUT.
+THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were meant to LEARN; the ${lp ? 'lesson plan' : 'transcript'} supplies the level the teacher pitched it at, the examples used and the words used. Write the question the SLO asks for, dressed in the lesson's own material. The lesson is where the question comes FROM, never what the question is ABOUT.
 - Cover EVERY SLO in the digest at least once (tag each question with the SLO's exact "id"). Spread the rest across the SLOs the lesson spent most time on.
 - ANSWERABLE BY ANY CHILD WHO UNDERSTOOD THE CONCEPT — whatever that particular child was personally asked to do, which group they sat in, whether they were called to the board, whether they were listening at that minute. If answering needs to know what one child or one group was told, no answer can be just to the rest, and the question is unusable.
 - NEVER COUNT MENTIONS. A stem asking how many things were mentioned, named, discussed or talked about, with bare numbers as the options, tests how many times something was said — not what it is. Ask the child to PICK the thing instead. (Counting what a PICTURE shows is a different thing and is welcome.)
@@ -194,10 +216,7 @@ GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child
 
 ${questionContract({ gradeBand })}
 
-LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
-
-TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same second-person address:
-- "lesson_summary_short": ONE sentence, at most 25 words — what you taught, with your own first example. No list, no second sentence.
+${lp ? LP_SUMMARY_RULE : TRANSCRIPT_SUMMARY_RULE}
 - "checks_summary": ONE sentence, at most 30 words, beginning with what this quiz checks — the skills, not the question count (e.g. "This quiz checks whether the class can tell a proper fraction from an improper one and compare two with the same denominator."). Never name the teacher or the children; no gendered forms.
 
 ${SELECTED_BECAUSE_RULE}
@@ -224,8 +243,9 @@ Omit "figure" and "figure_role", or leave them null, on every question that does
 LESSON DIGEST:
 ${JSON.stringify(digest, null, 0)}
 
-TRANSCRIPT EXCERPTS (the passages around each SLO's evidence, plus the opening and closing of the lesson):
-${excerpts}`;
+${lp ? `THE LESSON PLAN (what the class was to learn, the worked example, the mistake it expects, the shape of the practice):
+${lessonPlan}` : `TRANSCRIPT EXCERPTS (the passages around each SLO's evidence, plus the opening and closing of the lesson):
+${excerpts}`}`;
 }
 
 /**
@@ -233,10 +253,12 @@ ${excerpts}`;
  */
 async function author({
   digest, transcript, language, n = DEFAULT_QUESTIONS, gradeBand = null, previousErrors = null,
-  quizId = null, allowMulti = Boolean(multiFlowId()),
+  quizId = null, allowMulti = Boolean(multiFlowId()), lessonPlan = null,
 }) {
-  const excerpts = excerptsFor(transcript, digest);
-  const prompt = buildAuthorPrompt({ digest, excerpts, language, n, gradeBand, previousErrors, allowMulti });
+  const excerpts = lessonPlan ? '' : excerptsFor(transcript, digest);
+  const prompt = buildAuthorPrompt({
+    digest, excerpts, language, n, gradeBand, previousErrors, allowMulti, lessonPlan,
+  });
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.author' });
   const questions = Array.isArray(json?.questions) ? json.questions : [];
   const lessonSummary = typeof json?.lesson_summary === 'string' ? json.lesson_summary : '';

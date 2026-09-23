@@ -972,11 +972,28 @@ by the same commit, as their notes asked.
 Upstream has neither the check nor the data file, and should not be sent the data file — it is this
 deployment's human review, not a general rule. Push nothing of §3.15 up at the next re-sync.
 
+### 3.16 `diagrams/lib/tokens.js` — the Urdu font stack names the family NIETE pages embed (2026-09-23)
+
+A figure's Urdu text is HTML inside a `foreignObject`, styled with `FONT.urdu`. Upstream's stack is
+`'Noto Nastaliq Urdu', 'Gulzar', 'Noto Naskh Arabic', serif` — right for the LP renderer, which
+embeds Nastaliq under that name. The NIETE page templates (the teacher's quiz PDF among them) embed
+the same font under the brand family `'NastaliqUrdu'`, so when a figure sat on such a page none of
+the four names resolved. A Mac has Noto Nastaliq Urdu installed system-wide and drew the letters;
+the Railway worker has no system Urdu font and drew **nothing**. Seen on sandbox: a `word_blank`
+question on سلام reached the child as س ل ☐ م and the teacher's PDF as four empty tiles.
+
+The fix adds `'NastaliqUrdu'` as the SECOND name in the stack. Where `'Noto Nastaliq Urdu'` exists
+(the LP renderer, the child's figure PNG, a Mac) nothing changes; on a NIETE page it resolves to the
+embedded face. Covered by `tests/quiz/transcript-quiz-teacher-figure-fonts.test.js`, which renders
+the real figure through the real teacher template and requires every Urdu stack in the figure to
+name a family that page embeds, ahead of any non-Nastaliq fallback. Upstream does not need it and
+should not be sent it: it is this deployment's family name. Keep it at the next re-sync.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`) and §3.16 (`lib/tokens.js`, the Urdu font stack). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

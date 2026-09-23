@@ -30,6 +30,25 @@ function languageRule(language) {
 }
 
 /**
+ * MATHS NOTATION (bd-mg9c7.159.19) — how an expression is written so the child
+ * meets it typeset on a card, as the 6-12 lesson plans print it, instead of as
+ * "2/9" in a line of text. Every language: the maths inside the dollars is the
+ * same in an Urdu quiz, with Western digits, and the sentence around it is Urdu.
+ *
+ * Enforced deterministically by the validator's MATH_TEX checks (quiz-math.js
+ * texFaults); stated here, inside the question contract, so the author prompt
+ * and the targeted rewrite carry the one wording. The figure half is the same
+ * split the LP authoring brief makes (its F5 rule): TeX in prose, plain Unicode
+ * inside a diagram spec — the drawing engine converts TeX to Unicode and draws
+ * its own stacked fractions, so TeX there prints as source.
+ */
+const MATH_NOTATION_RULE = 'MATHS NOTATION (every language). Write every mathematical expression in a stem or an option as inline TeX between single dollar signs, and it is typeset on the child\'s picture card exactly as a textbook prints it: a fraction $\\frac{2}{9}$, a mixed number $2\\frac{1}{3}$, a sum or product $3 \\times 4 = 12$, a division $12 \\div 3$, a power $5^2$, a comparison $\\frac{1}{2} > \\frac{1}{3}$, a unit $5\\,\\text{cm}$. '
+  + 'Everything else stays plain text: a bare whole number is 12, never $12$; words stay OUTSIDE the dollars, and in an Urdu quiz the Urdu sentence is outside and only the maths, with digits 0-9, is inside; "$" is never money (write Rs); only single dollars — never $$…$$, \\( \\) or \\[ \\]; chemistry stays plain (H2O, CO2), never TeX. '
+  + 'The explanation and the feedback may use the same $…$ for an expression; the phone shows it as plain text (2/9). '
+  + 'In the JSON you return, every backslash is doubled, as JSON requires: "$\\\\frac{2}{9}$". '
+  + 'NEVER TeX inside a "figure" spec: its labels are plain text ("3/4", "×"), because the drawing engine draws its own stacked fractions (a numberline with "labelFormat":"fraction").';
+
+/**
  * WHAT ONE QUESTION MUST CONTAIN — shared verbatim by the author prompt and by
  * the targeted rewrite, so the two cannot drift about the shape of a question
  * the validator will accept. Changing a rule here changes it in both.
@@ -43,6 +62,7 @@ function questionContract({ gradeBand } = {}) {
 - "option_feedback.wrong": an object whose KEYS are the two indices that are NOT "correct_index" (as strings), each with one or two sentences that (a) name the confusion that option represents, in plain child language, (b) point back to the lesson's own example, (c) end with the correct idea. Never say "wrong", never scold.
 - NEVER refer to options by letter ("option B", "the answer is C") anywhere — the letters are shuffled before display.
 - Tag every question with its "slo_id" and its "level".
+- ${MATH_NOTATION_RULE}
 
 STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.`;
@@ -70,6 +90,27 @@ const GENDER_NEUTRAL_RULE = 'THE TEACHER HAS NO GENDER. Never refer to the teach
   + 'impersonal reframe, or «آپ نے … پڑھایا», where the verb agrees with the object and '
   + 'says nothing about the teacher. Naming the class, the children, a child by name or the '
   + 'lesson\'s own examples is always fine; a pronoun for the teacher never is.';
+
+/**
+ * THE LESSON SUMMARY OF A QUIZ WRITTEN FROM A LESSON PLAN — stated once, here,
+ * and pasted into the author prompt and the targeted rewrite so the two cannot
+ * drift.
+ *
+ * Nobody heard an lp_v8 lesson: the bot knows a PDF was delivered, nothing
+ * about whether the class happened. The earlier rule asked for "you planned",
+ * but the gender rule beside it offers «آپ نے … پڑھایا» as the neutral Urdu form
+ * and the rewrite asked for "what you taught" outright; the live summary read
+ * «آپ نے … سکھایا». Making the LESSON the subject ("Today's lesson plans …",
+ * «آج کے سبق میں …») says what the plan covers, carries no gender, and leaves no
+ * teacher-verb to put in the past tense.
+ */
+const LP_SUMMARY_VOICE = 'This lesson was PLANNED, not heard: the teacher took the plan and knows what '
+  + 'actually happened in class, so the LESSON is the subject of every sentence, never the teacher. '
+  + 'Say what today\'s lesson plans to teach and in the order the plan sets it out, naming the plan\'s '
+  + 'own examples and numbers. Open with "Today\'s lesson plans …" in English and «آج کے سبق میں …» in '
+  + 'Urdu. Never write "you taught", "you explained" or "you showed", and in Urdu never «آپ نے … پڑھایا»، '
+  + '«آپ نے … سکھایا» or «آپ نے … بتایا» — each one says the lesson happened. For this field that '
+  + 'overrides the «آپ نے … پڑھایا» form the gender rule allows.';
 
 /**
  * THE RETRY NOTE. Two things it does beyond quoting the validator:
@@ -131,6 +172,6 @@ const SELECTED_BECAUSE_RULE = "SELECTED BECAUSE. Every question also carries a \
 const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ \"would say\".";
 
 module.exports = {
-  languageRule, questionContract, retryNote, languageAgain,
-  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
+  languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE,
+  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };

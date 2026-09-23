@@ -22,8 +22,11 @@
 
 // ── the mock surface ────────────────────────────────────────────────────────
 const EXPECT = {
-  menuAsksRecording : /upload your classroom recording|کلاس روم .*ریکارڈنگ/i,
-  menuFifteenMin    : /15 minutes|15 منٹ/i,
+  // One coaching door (menu row, /coaching, the lesson-plan ask's "Record my
+  // lesson"): the WhatsApp mic, 20–45 minutes. The old copy asked for "at least
+  // 15 minutes", which was the routing threshold, not an instruction.
+  menuAsksRecording : /WhatsApp mic|مائیک/i,
+  menuLengthAsk     : /20 to 45 minutes|20 سے 45 منٹ/i,
   detected          : /I detected a (\d+)-minute audio recording/i,
   yesAnalyze        : /Yes,? Analyze/i,
   cancelled         : /No problem|cancel|nothing will be analy|منسوخ/i,
@@ -185,9 +188,9 @@ exports.run = async ({ api, rec, sleep }) => {
   const row = await api.pickRowAndWait('Classroom Coaching');
   const rowTxt = row.txt || '';
   rec('COA01', 'The Classroom Coaching menu row asks for a classroom recording',
-      ...V(EXPECT.menuAsksRecording.test(rowTxt) && EXPECT.menuFifteenMin.test(rowTxt),
+      ...V(EXPECT.menuAsksRecording.test(rowTxt) && EXPECT.menuLengthAsk.test(rowTxt),
            { asksForRecording: EXPECT.menuAsksRecording.test(rowTxt),
-             statesFifteenMinutes: EXPECT.menuFifteenMin.test(rowTxt),
+             states20to45Minutes: EXPECT.menuLengthAsk.test(rowTxt),
              reply: rowTxt.slice(0, 220) }), t() - s);
 
   // ══ COA11 — a clip under the 15-minute gate must NOT start the pipeline ═══

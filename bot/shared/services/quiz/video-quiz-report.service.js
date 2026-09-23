@@ -20,6 +20,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -27,6 +28,10 @@ const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('.
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
+// A question the author wrote with TeX maths (`$\frac{2}{9}$`) reaches the
+// report flat ("2/9"): the chat lines, the guidance prompt and the report PDF
+// all read what the class saw, never the source.
+const { mathForChat } = require('./quiz-math');
 
 /**
  * ONE ATTEMPT PER CHILD.
@@ -364,7 +369,9 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   try {
     ({ data: quizRow } = await supabase.from('quizzes')
       .select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle());
-    const rawDigest = quizRow?.quiz_source === 'transcript' ? (quizRow?.meta?.digest || null) : null;
+    // A LESSON quiz — from a coaching recording or from the lesson plan the
+    // teacher was served (lp_v8) — carries the digest; nothing else does.
+    const rawDigest = isLessonQuiz(quizRow?.quiz_source) ? (quizRow?.meta?.digest || null) : null;
     if (rawDigest) {
       const slos = Array.isArray(rawDigest.slos) ? rawDigest.slos : [];
       // D1: the report reads in the quiz's language, so its goal lines do too.
@@ -955,7 +962,9 @@ async function generateGuidance(context) {
         // surfaces are covered: the PDF and the WhatsApp text fallback. (In the
         // fallback "**the**" is not even bold — WhatsApp bold is one asterisk —
         // so the teacher just saw the asterisks.)
-        const cleaned = stripEmphasis(String(parsed[key] || '').trim());
+        // …and flatten any TeX the model wrote back ("$\frac{2}{9}$" → "2/9"):
+        // both surfaces are text a teacher reads, the PDF and the chat.
+        const cleaned = mathForChat(stripEmphasis(String(parsed[key] || '').trim()));
         if (!cleaned) return null;
         built[key] = cleaned;
       }
@@ -1021,12 +1030,12 @@ async function markReportSent(shareCodeId, quizId = null) {
     await supabase.from('quiz_share_codes')
       .update({ report_sent_at: new Date().toISOString() })
       .eq('id', shareCodeId);
-    // A transcript quiz's /quiz row reads quizzes.status; "Report sent" is a
+    // A lesson quiz's /quiz row reads quizzes.status; "Report sent" is a
     // state of the quiz, not only of its share code.
     if (quizId) {
       await supabase.from('quizzes')
         .update({ status: 'report_sent' })
-        .eq('id', quizId).eq('quiz_source', 'transcript');
+        .eq('id', quizId).in('quiz_source', LESSON_SOURCES);
     }
   } catch (err) {
     logToFile('⚠️ video-quiz: could not stamp report_sent_at', {
@@ -1166,20 +1175,20 @@ async function hardestQuestions(shareCodeId, limit = 3, sessionIds = null) {
     }
 
     return {
-      question_text: q.question_text || '(question unavailable)',
+      question_text: mathForChat(q.question_text) || '(question unavailable)',
       external_id: q.external_id || null,
       wrong: t.wrong,
       total: t.total,
       top_wrong_option: clustered ? topWrong : null,
-      top_wrong_text: clustered ? optionText(q, topWrong) : null,
+      top_wrong_text: clustered ? mathForChat(optionText(q, topWrong)) : null,
       top_wrong_count: clustered ? topCount : 0,
       correct_option: q.correct_option || null,
-      correct_text: q.correct_option ? optionText(q, q.correct_option) : null,
-      misconception,
+      correct_text: q.correct_option ? mathForChat(optionText(q, q.correct_option)) : null,
+      misconception: mathForChat(misconception),
       // "Why this is the right answer" — authored per question, independent
       // of which distractor the class clustered on (that is `misconception`,
       // and stays exactly as it was).
-      explanation: teacherFacing(q.explanation) || null,
+      explanation: mathForChat(teacherFacing(q.explanation)) || null,
     };
   });
 }
@@ -1408,17 +1417,20 @@ function buildGuidancePrompt({
       : buildSecurePromptEn({ grade, topic, digest });
   }
 
+  // Flat, as the class saw it (hardestQuestions already flattens; a caller
+  // that passes rows straight from the table is flattened here): a model shown
+  // "$\frac{2}{9}$" writes TeX back into the teacher's WhatsApp.
   const evidence = missed.map((h, i) => {
     const lines = [
-      `${i + 1}. "${h.question_text}"`,
+      `${i + 1}. "${mathForChat(h.question_text)}"`,
       `   ${h.wrong} of ${h.total} answered this wrongly.`,
     ];
     if (h.top_wrong_text) {
-      lines.push(`   Most of them chose "${h.top_wrong_text}". `
-        + `The right answer was "${h.correct_text}".`);
+      lines.push(`   Most of them chose "${mathForChat(h.top_wrong_text)}". `
+        + `The right answer was "${mathForChat(h.correct_text)}".`);
     }
     if (h.misconception) {
-      lines.push(`   Explanation: ${h.misconception}`);
+      lines.push(`   Explanation: ${mathForChat(h.misconception)}`);
     }
     if (h.slo) {
       lines.push(`   Learning goal this checks: ${h.slo}`);

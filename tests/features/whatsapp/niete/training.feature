@@ -251,3 +251,63 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open and a module question has an option longer than about 70 characters
     Then that option is written out as a lettered line and can still be chosen
     # sendQuestion long-option handling (OPTION_DESC_MAX=72). @wip.
+
+  # ── the quiz written from a lesson PLAN (lp_v8) — PLAN_R8 §3.4/§3.5 ──────────────────────
+  # A quiz made from the lesson plan a teacher was served (the 15:00 offer) has no coaching
+  # recording behind it. It must still live in the ONE /quiz list, and its class report must
+  # still carry the objectives to reteach. Needs an lp_v8 quiz on the driver number first
+  # (answer "Make the quiz" on the afternoon offer, or seed one on sandbox). @wip until lane E
+  # drives it.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz made from my lesson plan is listed in /quiz among my coaching lessons
+    Given the NIETE bot chat is open and a quiz was made from a lesson plan I was served on an earlier day
+    And I also have a recorded coaching lesson
+    When I send "/quiz"
+    Then the list shows the lesson-plan quiz as a row "<date> · <subject>" with "<topic> · <status>" beneath it
+    And the rows are ordered newest lesson first, the lesson-plan quiz dated by the day it was planned for
+    And the recorded coaching lesson is still in the list
+    When I tap the lesson-plan quiz's row
+    Then I am offered "Resend the link", the report, and a way back — and nothing offers to make the quiz again
+    # transcript-quiz-list.service lessonItems + handleLpPick (row id tq_pick_lp_<quizId>); the /quiz Flow
+    # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: The class report of a quiz made from my lesson plan carries the objectives to reteach
+    Given the NIETE bot chat is open and children have finished a quiz that was made from my lesson plan
+    When I ask for the report from that quiz's row in /quiz
+    Then the class report arrives as a PDF
+    And it names the lesson's learning objectives next to the questions the class found hard
+    And afterwards that quiz's row in /quiz says the report was sent
+    # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A maths question with fractions reaches the child as a typeset card
+    Given the NIETE bot chat is open and a class quiz was made from a maths lesson on comparing fractions
+    When a child opens the quiz from its link and reaches a question about fractions
+    Then the question arrives as a picture card with the fractions drawn stacked, the way a textbook prints them
+    And the buttons under the card are the letters on the card, and tapping one answers the question
+    And after answering, the verdict writes each fraction as plain text like "2/3", never with "$" or a backslash
+    And the teacher's quiz PDF shows the same fractions drawn stacked
+    # bd-mg9c7.159.19 part A. The author writes maths as inline TeX ($\frac{2}{9}$); needsQuestionCard
+    # fires on it, so the question is a card (transcript-quiz-card, KaTeX via the 6-12 LP renderer's
+    # rich()) and the child answers with the lettered buttons. Every WhatsApp TEXT — the stem when
+    # sent as text, button and list titles, the verdict, the class report — passes through
+    # quiz-math.mathForChat (tex-to-unicode), and inside Urdu each expression is a left-to-right
+    # isolate. Same engine for transcript and lp_v8 quizzes. Content-driven: assert the SHAPE
+    # (a card, stacked fractions, no TeX source in any text), never a fixed question. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz never ships an answer key a blind solver disagrees with
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
+    When the quiz arrives
+    Then every question on my PDF has exactly one answer marked correct, and that answer is right
+    And no question offers two options that are both right, such as the same letters in a different order
+    And the class report built on that quiz teaches the right answer back to me
+    But when too few questions survive that check, I am told the quiz was held back because some answers were wrong or unclear, and nothing is sent to the class
+    # transcript-quiz-generate runKeyVerify + transcript-quiz-key-verify.service: every lesson quiz (from a
+    # coaching recording or a lesson plan, after the lp_v8 key check) is answered once by a solver that is not
+    # shown the keys. A disagreement, a second right answer or no right answer is rewritten once, else dropped
+    # (floor 6), else the quiz fails as key_disagreement (tqFailedKeyDisagreement / tqFailedLpKeyDisagreement).
+    # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
+    # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.

@@ -2,7 +2,9 @@
 /**
  * Transcript quiz — GENERATE and HAND OFF (the worker step after "yes").
  *
- *   author → validate (one retry, with the validator's complaints) → store
+ *   author → validate (one retry, with the validator's complaints)
+ *   → [lp_v8 only: key check against the lesson — runKeyCheck]
+ *   → blind solve of every key, both sources (runKeyVerify) → store
  *   quiz_questions → teacher PDF → R2 → share code → three paced messages
  *
  * Idempotent per step, because the quiz queue is Standard SQS (at-least-once):
@@ -25,6 +27,41 @@ const Author = require('./transcript-quiz-author.service');
 const { validate, MIN_QUESTIONS } = require('./transcript-quiz-validator');
 const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
+const {
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey,
+} = require('./quiz-sources');
+const LpDigest = require('./lp-quiz-digest.service');
+const Store = require('./lp-asset-source.store');
+
+/** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
+const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
+
+/**
+ * The slide script an lp_v8 quiz is written from: the EXACT served version,
+ * named by the row's first lesson (PLAN_R8 D13). `null` means there is nothing
+ * to write this quiz from — no lesson on the row, or no source ingested for
+ * that version — and the quiz fails `source_missing`.
+ *
+ * A store ERROR is not that. The store throws on a DB error precisely so it is
+ * never mistaken for "this lesson has no source"; it propagates from here, the
+ * row stays `generating`, and SQS redelivers the job (at-least-once) instead of
+ * the teacher being told, permanently, that the plan could not be opened.
+ */
+async function resolveLessonSource(quiz) {
+  const lesson = ((quiz.meta && quiz.meta.lessons) || [])[0];
+  if (!lesson || !lesson.lesson_id) return null;
+  try {
+    const hit = await Store.resolveSlideScript({
+      lessonId: lesson.lesson_id, versionStamp: lesson.version_stamp, contentHash: lesson.content_hash,
+    });
+    return (hit && hit.slideScript) || null;
+  } catch (err) {
+    logToFile('❌ lp quiz: slide-script lookup failed — leaving the job to be redelivered', {
+      quizId: quiz.id, lessonId: lesson.lesson_id, error: err.message,
+    }, 'error');
+    throw err;
+  }
+}
 
 const N_QUESTIONS = 8;
 /**
@@ -376,11 +413,14 @@ function teacherLabel(teacherName, language) {
 }
 
 function studentMessage({ teacherName, topic, date, link, language }) {
+  // The message a teacher forwards to the class is text: a topic carrying TeX
+  // maths reads "1/2", never "$\frac{1}{2}$" (quiz-math.js).
+  const { mathForChat } = require('./quiz-math');
   return resolveUx('tqStudentMessage', {
     language,
     params: {
       teacher: teacherLabel(teacherName, language),
-      topic: topic || resolveUx('tqTodaysLesson', { language }),
+      topic: mathForChat(topic) || resolveUx('tqTodaysLesson', { language }),
       date, link,
     },
   });
@@ -410,6 +450,7 @@ async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSu
   const html = render({
     topic: quiz.topic, teacherName, grade, date, link, digest, questions, lessonSummary,
     language, contentLanguage: contentLanguage || quiz.language || language,
+    quizSource: quiz.quiz_source || null,
   });
   const buffer = await htmlToPdf(html, {
     timeout: 45000,
@@ -424,9 +465,9 @@ async function updateQuiz(quizId, patch) {
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
-async function tellTeacherFailed(phone, lang, quizId, reason) {
-  await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotMake', { language: lang }));
-  logEvent('transcript_quiz.failed', { quizId, reason });
+async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT) {
+  await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
+  logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource });
 }
 
 // ─── the step ────────────────────────────────────────────────────────────────
@@ -504,10 +545,388 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
   return { figureUrls, cardUrls };
 }
 
+/**
+ * THE KEY CHECK — an lp_v8 quiz's keys, held against the lesson it was written
+ * from, after every authoring and repair step and before a single row is stored.
+ *
+ * WHY. On sandbox an Urdu quiz keyed the lesson's own planted misconception as
+ * the correct answer (Grade 3 واحد اور جمع: "بہار keeps its form" — the lesson
+ * teaches بہار → بہاریں three times). The author is given that misconception to
+ * build wrong options from; once in 24 items it built the key from it. Nothing
+ * downstream compared a key with the lesson, so the quiz went out.
+ *
+ * WHAT. One LLM call (`lp-quiz-key-check.service`) returns a verdict per item.
+ * A `contradicts` item is re-authored ONCE through the same targeted rewrite
+ * every other rejected question goes through, with the lesson's quote as its
+ * complaint; the merged set goes through the whole validator and only the
+ * rewritten items are checked again. What still contradicts is dropped when the
+ * quiz keeps its floor (the salvage's own rule and re-validation); otherwise the
+ * quiz fails as `key_conflict`, persisted and told — never a silent send.
+ * `unclear` never blocks.
+ *
+ * FAIL-OPEN, deliberately. A checker that throws, times out or returns no
+ * verdicts costs the teacher nothing: the quiz ships exactly as authored — as
+ * every lp_v8 quiz did before this check existed — the failure is logged at
+ * ERROR and recorded as `meta.key_check.status = 'error'`, so the rate is
+ * visible. The same holds for the re-check of a rewritten item. Blocking a
+ * teacher's quiz on the checker's own outage would trade a rare wrong key for a
+ * certain lost quiz on every provider blip.
+ *
+ * @returns {Promise<{record:object, changed?:boolean, failed?:boolean,
+ *   questions?:object[], figureUrls?:object, cardUrls?:object, draftedRows?:object[],
+ *   softFaults?:string[]|null}>}
+ */
+async function runKeyCheck(api, {
+  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts,
+}) {
+  const KeyCheck = require('./lp-quiz-key-check.service');
+  const startedAt = Date.now();
+  const record = {
+    status: 'clean', model: null, checked: questions.length, contradicted: 0, fixed: 0, dropped: 0,
+    unclear: 0, missing: 0, ungrounded: 0, cost_usd: 0, conflicts: [],
+  };
+  const finish = (out) => {
+    record.latency_ms = Date.now() - startedAt;
+    record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
+    logEvent('transcript_quiz.key_check', {
+      quizId, quiz_source: LP_V8, status: record.status, model: record.model,
+      checked: record.checked, contradicted: record.contradicted, fixed: record.fixed, dropped: record.dropped,
+      unclear: record.unclear, missing: record.missing, ungrounded: record.ungrounded,
+      costUsd: record.cost_usd, latencyMs: record.latency_ms,
+    });
+    return { record, ...out };
+  };
+  const failOpen = (what, err) => {
+    const message = String((err && err.message) || err || 'unknown').slice(0, 200);
+    logToFile(`❌ lp quiz: key check ${what} failed — shipping without it (fail-open)`, { quizId, error: message }, 'error');
+    return message;
+  };
+
+  // ── 1. the check ──────────────────────────────────────────────────────────
+  let first;
+  try {
+    first = await api.checkKeys({ questions, slideScript, language, quizId });
+  } catch (err) {
+    record.status = 'error';
+    record.error = failOpen('call', err);
+    return finish({ changed: false });
+  }
+  if (first.skipped) {
+    record.status = first.skipped;
+    record.checked = 0;
+    return finish({ changed: false });
+  }
+  record.model = first.model || null;
+  record.cost_usd += Number(first.costUsd) || 0;
+  first.verdicts.forEach((v) => {
+    if (v.verdict === 'unclear') record.unclear += 1;
+    if (v.missing) record.missing += 1;
+    if (v.verdict === 'contradicts' && !v.grounded) record.ungrounded += 1;
+  });
+  const bad = first.verdicts.filter((v) => v.verdict === 'contradicts');
+  record.contradicted = bad.length;
+  if (!bad.length) return finish({ changed: false });
+
+  const complaints = bad.map((v) => KeyCheck.conflictComplaint(v, questions[v.index]));
+  record.conflicts = bad.map((v) => ({
+    index: v.index,
+    keyed: KeyCheck.keyedText(questions[v.index]).slice(0, 120),
+    quote: String(v.quote || '').slice(0, 200),
+    grounded: Boolean(v.grounded),
+  }));
+  attempts.push({ attempt: 'key_check', model: record.model, cost_usd: first.costUsd || null, latency_ms: first.latencyMs || null, errors: complaints });
+  logToFile('⚠️ lp quiz: the key check found answers the lesson contradicts', { quizId, indices: bad.map((v) => v.index) });
+
+  // ── 2. ONE targeted rewrite, with the lesson's quote as the complaint ──────
+  const stillBad = new Set(bad.map((v) => v.index));
+  let current = questions;
+  let softFaults = null;
+  const rw = await api.rewriteRejected({
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true,
+  });
+  if (rw.attempted) {
+    record.cost_usd += Number(rw.costUsd) || 0;
+    let verrs = null;
+    const replacedBad = (rw.replaced || []).filter((i) => stillBad.has(i));
+    if (rw.merged && replacedBad.length) {
+      const v = validate(rw.merged, {
+        language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+      });
+      verrs = v.errors;
+      // The same bar every other shipped set meets: no hard fault left.
+      if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+        let again = new Set();
+        try {
+          const re = await api.checkKeys({ questions: v.questions, slideScript, language, quizId, indices: replacedBad });
+          record.cost_usd += Number(re.costUsd) || 0;
+          again = new Set(re.verdicts.filter((x) => x.verdict === 'contradicts').map((x) => x.index));
+        } catch (err) {
+          record.recheck_error = failOpen('re-check', err);
+        }
+        current = v.questions;
+        softFaults = v.errors.length ? v.errors : null;
+        replacedBad.forEach((i) => {
+          if (again.has(i)) return;
+          stillBad.delete(i);
+          record.fixed += 1;
+        });
+      }
+    }
+    attempts.push({
+      attempt: 'rewrite', after: 'key_check', indices: rw.indices, replaced: rw.replaced,
+      model: rw.model || null, cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null,
+      errors: verrs || [rw.error || 'the rewrite returned no usable replacement'],
+    });
+    logEvent('transcript_quiz.rewrite_attempted', {
+      quizId, after: 'key_check', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0, errors: verrs ? verrs.length : null,
+    });
+  }
+
+  // ── 3. drop what still contradicts, or fail ─────────────────────────────────
+  const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
+  const dropFrom = (set, indices) => {
+    if (!indices.length) return { questions: set, dropped: [], softFaults };
+    const errs = indices.map((i) => `q${i}: KEY_CONFLICT — still contradicts the lesson`);
+    const s = salvageWithoutBadFigures(set, errs, ctx);
+    if (!s || s.refused) {
+      record.refused = (s && s.refused) || 'nothing could be dropped';
+      return null;
+    }
+    return { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : null };
+  };
+  const allBad = bad.map((v) => v.index);
+  const candidates = [{ gone: [...stillBad].sort((a, b) => a - b), make: () => dropFrom(current, [...stillBad].sort((a, b) => a - b)) }];
+  // Only if the repaired set cannot be DRAWN: the authored set minus every
+  // flagged item. (When nothing was repaired it is the same set — not retried.)
+  if (current !== questions) candidates.push({ gone: allBad, repairsLost: true, make: () => dropFrom(questions, allBad) });
+  for (const { gone, repairsLost, make } of candidates) {
+    const cand = make();
+    if (!cand) continue;
+    try {
+      const drafted = toRows(quizId, cand.questions);
+      // eslint-disable-next-line no-await-in-loop
+      const { figureUrls, cardUrls } = await renderFor(api, {
+        questions: cand.questions, rows: drafted, language, teacherId, quizId,
+      });
+      if (repairsLost) record.fixed = 0;
+      record.dropped = cand.dropped.length;
+      record.status = cand.dropped.length ? 'dropped' : 'fixed';
+      record.conflicts.forEach((c) => { c.outcome = gone.includes(c.index) ? 'dropped' : 'fixed'; });
+      attempts.push({ attempt: 'key_check_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
+      return finish({
+        changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
+      });
+    } catch (figErr) {
+      record.render_error = String(figErr.message || figErr).slice(0, 200);
+      logToFile('❌ lp quiz: the key-checked set could not be drawn', { quizId, error: record.render_error }, 'error');
+    }
+  }
+  record.status = 'failed';
+  record.conflicts.forEach((c) => { c.outcome = stillBad.has(c.index) ? 'failed' : 'fixed'; });
+  return finish({ failed: true });
+}
+
+/**
+ * THE BLIND SOLVE — every lesson quiz's keys, transcript and lp_v8 alike, held
+ * against an independent solver's answers, after every authoring and repair step
+ * (and after the lp_v8 key check) and before a single row is stored.
+ *
+ * WHY. On sandbox a transcript quiz keyed «لفظ حال کے جوڑ توڑ میں کون سے حروف…»
+ * to «ہ، ا، ل» (حال is spelled ح ا ل) and offered two options for «سلام» that
+ * hold the same four letters — two right answers. The class report trusts the
+ * key, so it told the teacher the misspelling was right and planned tomorrow's
+ * drill on it. The key check cannot see this: a spelling is in no lesson source,
+ * and a transcript quiz has no source to check at all.
+ *
+ * WHAT. One LLM call (`transcript-quiz-key-verify.service`, its own stronger
+ * model) answers every item without its key; code compares. An item it answers
+ * differently (`disagree`), finds a second correct option in (`ambiguous`) or no
+ * correct option in (`none_correct`) is re-authored ONCE through the same
+ * targeted rewrite every other rejected question goes through, with the
+ * disagreement as its complaint; the merged set goes through the whole validator
+ * and only the rewritten items are solved again. What still disagrees is dropped
+ * when the quiz keeps its floor (the salvage's own rule and re-validation);
+ * otherwise the quiz fails as `key_disagreement`, persisted and told — never a
+ * silent send. `unclear` never blocks.
+ *
+ * FAIL-OPEN, for the reason the key check is: a solver that throws, times out or
+ * returns no answers ships the quiz exactly as authored — as every quiz shipped
+ * before this step existed — logged at ERROR and recorded as
+ * `meta.key_verify.status = 'error'`. A failed re-solve of a rewritten item
+ * keeps the rewrite (it already passed the validator), recorded as
+ * `recheck_error`.
+ *
+ * @returns {Promise<{record:object, changed?:boolean, failed?:boolean,
+ *   questions?:object[], figureUrls?:object, cardUrls?:object, draftedRows?:object[],
+ *   softFaults?:string[]|null}>}
+ */
+async function runKeyVerify(api, {
+  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts,
+}) {
+  const KeyVerify = require('./transcript-quiz-key-verify.service');
+  const startedAt = Date.now();
+  const record = {
+    status: 'clean', model: null, checked: questions.length, agreed: 0, disagreed: 0, ambiguous: 0, none_correct: 0,
+    unclear: 0, missing: 0, fixed: 0, dropped: 0, cost_usd: 0, disagreements: [],
+  };
+  const finish = (out) => {
+    record.latency_ms = Date.now() - startedAt;
+    record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
+    logEvent('transcript_quiz.key_verify', {
+      quizId, quiz_source: quizSource, status: record.status, model: record.model,
+      checked: record.checked, agreed: record.agreed, disagreed: record.disagreed, ambiguous: record.ambiguous,
+      none_correct: record.none_correct, unclear: record.unclear, missing: record.missing,
+      fixed: record.fixed, dropped: record.dropped, costUsd: record.cost_usd, latencyMs: record.latency_ms,
+    });
+    return { record, ...out };
+  };
+  const failOpen = (what, err) => {
+    const message = String((err && err.message) || err || 'unknown').slice(0, 200);
+    logToFile(`❌ transcript quiz: key verify ${what} failed — shipping without it (fail-open)`, {
+      quizId, quiz_source: quizSource, error: message,
+    }, 'error');
+    return message;
+  };
+  const solve = (qs, indices = null) => api.verifyKeys({
+    questions: qs, indices, language, grade, subject: digest.subject, digest, lessonSummary, quizId,
+  });
+  const flagged = (v) => KeyVerify.FLAGGED.has(v.verdict);
+
+  // ── 1. the solve ──────────────────────────────────────────────────────────
+  let first;
+  try {
+    first = await solve(questions);
+  } catch (err) {
+    record.status = 'error';
+    record.error = failOpen('call', err);
+    return finish({ changed: false });
+  }
+  if (first.skipped) {
+    record.status = first.skipped;
+    record.checked = 0;
+    return finish({ changed: false });
+  }
+  record.model = first.model || null;
+  record.cost_usd += Number(first.costUsd) || 0;
+  const COUNT = {
+    agree: 'agreed', disagree: 'disagreed', ambiguous: 'ambiguous', none_correct: 'none_correct', unclear: 'unclear',
+  };
+  first.verdicts.forEach((v) => {
+    if (COUNT[v.verdict]) record[COUNT[v.verdict]] += 1;
+    if (v.missing) record.missing += 1;
+  });
+  const bad = first.verdicts.filter(flagged);
+  if (!bad.length) return finish({ changed: false });
+
+  const complaints = bad.map((v) => KeyVerify.disagreementComplaint(v, questions[v.index]));
+  record.disagreements = bad.map((v) => ({
+    index: v.index,
+    verdict: v.verdict,
+    keyed: KeyVerify.optionText(questions[v.index], v.keyed).slice(0, 120),
+    blind: KeyVerify.optionText(questions[v.index], v.blind || []).slice(0, 120),
+    note: String(v.note || '').slice(0, 200),
+  }));
+  attempts.push({
+    attempt: 'key_verify', model: record.model, cost_usd: first.costUsd || null, latency_ms: first.latencyMs || null, errors: complaints,
+  });
+  logToFile('⚠️ transcript quiz: a blind solver disagrees with answer keys', {
+    quizId, quiz_source: quizSource, indices: bad.map((v) => v.index), verdicts: bad.map((v) => v.verdict),
+  });
+
+  // ── 2. ONE targeted rewrite, with the disagreement as the complaint ────────
+  const stillBad = new Set(bad.map((v) => v.index));
+  let current = questions;
+  let softFaults = null;
+  const rw = await api.rewriteRejected({
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8,
+  });
+  if (rw.attempted) {
+    record.cost_usd += Number(rw.costUsd) || 0;
+    let verrs = null;
+    const replacedBad = (rw.replaced || []).filter((i) => stillBad.has(i));
+    if (rw.merged && replacedBad.length) {
+      const v = validate(rw.merged, {
+        language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+      });
+      verrs = v.errors;
+      // The same bar every other shipped set meets: no hard fault left.
+      if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+        let again = new Set();
+        try {
+          const re = await solve(v.questions, replacedBad);
+          record.cost_usd += Number(re.costUsd) || 0;
+          again = new Set(re.verdicts.filter(flagged).map((x) => x.index));
+        } catch (err) {
+          record.recheck_error = failOpen('re-solve', err);
+        }
+        current = v.questions;
+        softFaults = v.errors.length ? v.errors : null;
+        replacedBad.forEach((i) => {
+          if (again.has(i)) return;
+          stillBad.delete(i);
+          record.fixed += 1;
+        });
+      }
+    }
+    attempts.push({
+      attempt: 'rewrite', after: 'key_verify', indices: rw.indices, replaced: rw.replaced,
+      model: rw.model || null, cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null,
+      errors: verrs || [rw.error || 'the rewrite returned no usable replacement'],
+    });
+    logEvent('transcript_quiz.rewrite_attempted', {
+      quizId, after: 'key_verify', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0, errors: verrs ? verrs.length : null,
+    });
+  }
+
+  // ── 3. drop what still disagrees, or fail ──────────────────────────────────
+  const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
+  const dropFrom = (set, indices) => {
+    if (!indices.length) return { questions: set, dropped: [], softFaults };
+    const errs = indices.map((i) => `q${i}: KEY_DISAGREEMENT — a blind solver still disagrees with the key`);
+    const s = salvageWithoutBadFigures(set, errs, ctx);
+    if (!s || s.refused) {
+      record.refused = (s && s.refused) || 'nothing could be dropped';
+      return null;
+    }
+    return { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : null };
+  };
+  const allBad = bad.map((v) => v.index);
+  const remaining = () => [...stillBad].sort((a, b) => a - b);
+  const candidates = [{ gone: remaining(), make: () => dropFrom(current, remaining()) }];
+  // Only if the repaired set cannot be DRAWN: the solved set minus every
+  // flagged item. (When nothing was repaired it is the same set — not retried.)
+  if (current !== questions) candidates.push({ gone: allBad, repairsLost: true, make: () => dropFrom(questions, allBad) });
+  for (const { gone, repairsLost, make } of candidates) {
+    const cand = make();
+    if (!cand) continue;
+    try {
+      const drafted = toRows(quizId, cand.questions);
+      // eslint-disable-next-line no-await-in-loop
+      const { figureUrls, cardUrls } = await renderFor(api, {
+        questions: cand.questions, rows: drafted, language, teacherId, quizId,
+      });
+      if (repairsLost) record.fixed = 0;
+      record.dropped = cand.dropped.length;
+      record.status = cand.dropped.length ? 'dropped' : 'fixed';
+      record.disagreements.forEach((d) => { d.outcome = gone.includes(d.index) ? 'dropped' : 'fixed'; });
+      attempts.push({ attempt: 'key_verify_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
+      return finish({
+        changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
+      });
+    } catch (figErr) {
+      record.render_error = String(figErr.message || figErr).slice(0, 200);
+      logToFile('❌ transcript quiz: the blind-solved set could not be drawn', { quizId, error: record.render_error }, 'error');
+    }
+  }
+  record.status = 'failed';
+  record.disagreements.forEach((d) => { d.outcome = stillBad.has(d.index) ? 'failed' : 'fixed'; });
+  return finish({ failed: true });
+}
+
 async function process(quizId, payload = {}) {
   const api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
-    .select('id, teacher_id, coaching_session_id, topic, subject, language, status, meta, grade')
+    .select('id, teacher_id, coaching_session_id, quiz_source, topic, subject, language, status, meta, grade')
     .eq('id', quizId).maybeSingle();
   if (error || !quiz) {
     logToFile('⚠️ transcript quiz: generate — quiz not found', { quizId, error: error?.message });
@@ -516,37 +935,85 @@ async function process(quizId, payload = {}) {
   if (quiz.status === 'sent' || quiz.status === 'report_sent') return { skipped: 'already_sent' };
   if (!['generating', 'ready', 'offered'].includes(quiz.status)) return { skipped: `status_${quiz.status}` };
 
-  const { data: session } = await supabase.from('coaching_sessions')
-    .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
-  if (!session) {
-    await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'session_missing' } });
-    return { failed: true, reason: 'session_missing' };
+  // ── WHAT THE QUIZ IS WRITTEN FROM ─────────────────────────────────────────
+  // A transcript quiz has a coaching session. An lp_v8 quiz has none — it is
+  // written from the lesson PLAN the teacher was served — so its teacher comes
+  // from quizzes.teacher_id and its "session" is only the lesson date, which is
+  // all the hand-off ever reads from one (PLAN_R8 §3.2/§3.3).
+  const quizSource = quiz.quiz_source || TRANSCRIPT;
+  const isLp = quizSource === LP_V8;
+  let session;
+  let user;
+  if (isLp) {
+    const { data: teacher } = await supabase.from('users')
+      .select(LP_USER_SELECT).eq('id', quiz.teacher_id).maybeSingle();
+    if (!teacher) {
+      await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'teacher_missing' } });
+      logEvent('transcript_quiz.failed', { quizId, reason: 'teacher_missing', quiz_source: quizSource });
+      return { failed: true, reason: 'teacher_missing' };
+    }
+    user = teacher;
+    session = lessonSessionFor(quiz);
+  } else {
+    const { data: found } = await supabase.from('coaching_sessions')
+      .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
+    if (!found) {
+      await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'session_missing' } });
+      return { failed: true, reason: 'session_missing' };
+    }
+    session = found;
+    user = session.users || {};
   }
-  const user = session.users || {};
   const phone = payload.phone || user.phone_number;
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = user.name || null;
   let meta = { ...(quiz.meta || {}) };
 
+  // The slide script is needed wherever the author still has to run; a quiz
+  // resuming at the hand-off (`ready`/`ready`) has its questions and does not.
+  let slideScript = null;
+  if (isLp && !(quiz.status === 'ready' && meta.step === 'ready')) {
+    slideScript = await resolveLessonSource(quiz);
+    if (!slideScript) {
+      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_missing' } });
+      await tellTeacherFailed(phone, teacherLang, quizId, 'source_missing', quizSource);
+      return { failed: true, reason: 'source_missing' };
+    }
+  }
+
   // ── digest (already there when the offer path claimed the row; /quiz path lands here without one)
   if (!meta.digest) {
     try {
-      const r = await Digest.run({ session, user });
+      // The lp_v8 quiz's language is settled from the catalog subject BEFORE
+      // the digest (the digest writes its SLO statements for it), with the
+      // slide script's own language as the tie-break a transcript would give.
+      const lpLanguage = isLp
+        ? (quiz.language || quizLanguageFor(quiz.subject, slideScript && slideScript.meta && slideScript.meta.language))
+        : null;
+      // The served lesson's id names the quiz from the catalog: the Urdu label
+      // (topic_as_taught → quizzes.topic, the forward message, the PDF) is the
+      // name on the lesson's own PDF, never the model's reading of the script.
+      const r = isLp
+        ? await LpDigest.run({
+          slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject,
+          lessonId: (((quiz.meta && quiz.meta.lessons) || [])[0] || {}).lesson_id || null,
+        })
+        : await Digest.run({ session, user });
       meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
         digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
       // The teacher's own choice, stored on the row when the language ask was
       // answered, outranks the subject rule. The rule is what a legacy row (or
       // a skipped ask) falls back to.
-      const language = quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
+      const language = lpLanguage || quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
       quiz.language = language;
       quiz.subject = r.digest.subject;
-      quiz.topic = topicFor(r.digest, language);
-      quiz.grade = r.grade;
+      quiz.topic = topicFor(r.digest, language) || quiz.topic;
+      quiz.grade = r.grade || quiz.grade;
       await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
     } catch (err) {
       logToFile('❌ transcript quiz: digest failed in generate', { quizId, error: err.message }, 'error');
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: `digest: ${err.message}` } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'digest_failed');
+      await tellTeacherFailed(phone, teacherLang, quizId, 'digest_failed', quizSource);
       return { failed: true, reason: 'digest_failed' };
     }
   }
@@ -573,8 +1040,12 @@ async function process(quizId, payload = {}) {
       let out;
       try {
         out = await Author.author({
-          digest, transcript: session.transcript_text, language, n: N_QUESTIONS,
+          digest, transcript: isLp ? null : session.transcript_text, language, n: N_QUESTIONS,
           gradeBand: digest.grade_band || meta.grade, previousErrors, quizId,
+          // An lp_v8 quiz has no transcript: the author reads the planned
+          // lesson — the same picker the digest used, so the exit MCQ and the
+          // plan's gendered prose are absent here too.
+          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript) } : {}),
         });
       } catch (err) {
         attempts.push({ attempt, error: err.message });
@@ -681,6 +1152,8 @@ async function process(quizId, payload = {}) {
       const rw = await api.rewriteRejected({
         questions: rejected, errors, digest, language,
         gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
+        // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
+        planned: isLp,
       });
       if (!rw.attempted) return { tried: false, ok: false, errors: null };
       {
@@ -814,8 +1287,56 @@ async function process(quizId, payload = {}) {
     meta.author_attempts = attempts;
     if (!questions) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed' } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed');
+      await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed', quizSource);
       return { failed: true, reason: 'validator_failed', attempts };
+    }
+    // ── THE KEY CHECK (lp_v8 only) ───────────────────────────────────────────
+    // Every key held against the lesson it was written from, after every repair
+    // and before anything is stored (see runKeyCheck). A transcript quiz has no
+    // written source to check against and never comes here.
+    if (isLp) {
+      const kc = await runKeyCheck(api, {
+        questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
+        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts,
+      });
+      meta.key_check = kc.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);
+      if (kc.failed) {
+        await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'key_conflict' } });
+        await tellTeacherFailed(phone, teacherLang, quizId, 'key_conflict', quizSource);
+        return { failed: true, reason: 'key_conflict', attempts };
+      }
+      if (kc.changed) {
+        questions = kc.questions;
+        figureUrls = kc.figureUrls;
+        cardUrls = kc.cardUrls;
+        draftedRows = kc.draftedRows;
+        if (kc.softFaults) meta.soft_faults = kc.softFaults;
+      }
+    }
+    // ── THE BLIND SOLVE (both sources) ──────────────────────────────────────
+    // Every key answered by an independent solver that is not shown it, after
+    // the key check and before anything is stored (see runKeyVerify). This is the
+    // only check that can see a key which is simply WRONG — a misspelling, a bad
+    // sum — or an item with two right answers.
+    const kv = await runKeyVerify(api, {
+      questions, digest, language, quizId, teacherId: quiz.teacher_id,
+      lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade,
+      grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts,
+    });
+    meta.key_verify = kv.record;
+    meta.cost_usd = (meta.cost_usd || 0) + (kv.record.cost_usd || 0);
+    if (kv.failed) {
+      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'key_disagreement' } });
+      await tellTeacherFailed(phone, teacherLang, quizId, 'key_disagreement', quizSource);
+      return { failed: true, reason: 'key_disagreement', attempts };
+    }
+    if (kv.changed) {
+      questions = kv.questions;
+      figureUrls = kv.figureUrls;
+      cardUrls = kv.cardUrls;
+      draftedRows = kv.draftedRows;
+      if (kv.softFaults) meta.soft_faults = kv.softFaults;
     }
     const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
@@ -833,7 +1354,9 @@ async function process(quizId, payload = {}) {
         ? { digest: { ...(meta.digest || {}), checks_summary: lastExtras.checks_summary } } : {}),
     };
     await updateQuiz(quizId, { status: 'ready', meta });
-    logEvent('transcript_quiz.ready', { quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd });
+    logEvent('transcript_quiz.ready', {
+      quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd, quiz_source: quizSource,
+    });
   }
 
   // ── hand-off (mint or reuse the share code, PDF, the three paced messages —
@@ -855,8 +1378,13 @@ async function process(quizId, payload = {}) {
 
 module.exports = {
   salvageWithoutBadFigures,
+  failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
+  // lp_v8 only — the answer-key check against the lesson (lp-quiz-key-check.service).
+  checkKeys: (args) => require('./lp-quiz-key-check.service').checkKeys(args),
+  // Both sources — the blind solve of every key (transcript-quiz-key-verify.service).
+  verifyKeys: (args) => require('./transcript-quiz-key-verify.service').verifyKeys(args),
   figureRequiredError,
   SOFT_FAULT,
   isEarlyYearsBand,
