@@ -16,10 +16,12 @@ import covtab
 import cpafind
 import fdefmt
 import flntab
+import navpaint
 import navtab
 import reviewtab
 import skillfmt
 import skillmap
+import spinetab
 import skills
 import sheetio
 import support
@@ -33,32 +35,8 @@ SKILLSMAP_JSON = buildload.SKILLSMAP_JSON
 SEG_DIR = buildload.SEG_DIR
 load_corpus = buildload.load_corpus
 
-SUBJECT_TABS = {"English": "English G1–5", "Urdu": "Urdu G1–5",
-                "Maths": "Maths G1–5", "Science": "Science G4–5"}
-
-TAB_ORDER = ["Navigation", "Teaching Calendar",
-             "Calendar — assumptions", "English G1–5",
-             "Urdu G1–5", "Maths G1–5", "Science G4–5",
-             "Coverage Map", "Coverage — gaps", "FLN Coverage",
-             "Skills Map",
-             "All Segments + SLOs", "Skill Taxonomy", "Pipeline Stages",
-             "Samples Review", "QA Checklist"]
-
-# The tabs computed from the corpus and holding nothing a human put there.
-# `--derived` repaints exactly these, and `reset_tabs` drops only the titles
-# it is handed, so a subject tab's Stage C enrichment is out of reach of the
-# mode by construction — see test_build_derived.
-DERIVED = tuple(t for t in TAB_ORDER if t not in set(SUBJECT_TABS.values()))
-
-NAV_LABEL_TO_TAB = {v: v for v in SUBJECT_TABS.values()}
-NAV_LABEL_TO_TAB.update({t: t for t in ("All Segments + SLOs", "Skill Taxonomy",
-                                        "Pipeline Stages", "Navigation",
-                                        "Teaching Calendar",
-                                        "Calendar — assumptions",
-                                        "Coverage Map", "Coverage — gaps",
-                                        "FLN Coverage", "Skills Map",
-                                        "Samples Review",
-                                        "QA Checklist")})
+from taborder import (DERIVED, LIVE_OWNED, NAV_LABEL_TO_TAB,
+                      SUBJECT_TABS, TAB_ORDER)
 
 
 def send(svc, requests, size=200):
@@ -105,6 +83,7 @@ def main():
     fln_rows, fln_plan = flntab.build(cal_rows, cal_plan)
     map_rows, map_plan = skillmap.build(skillmap.load(SKILLSMAP_JSON), corpus,
                                        cal_plan["onsets"])
+    spine_rows = spinetab.spine_rows()
     rev_rows, rev_plan = reviewtab.samples_review()
     qa_rows, qa_plan = reviewtab.qa_checklist()
     cols.update({"All Segments + SLOs": 15,
@@ -112,6 +91,7 @@ def main():
                  "Samples Review": rev_plan["n_cols"],
                  "QA Checklist": qa_plan["n_cols"],
                  "Skill Taxonomy": support.TAX_COLS, "Pipeline Stages": 6,
+                 "Move Spines": len(spinetab.COLUMNS),
                  "Teaching Calendar": cal_plan["n_cols"],
                  "Calendar — assumptions": over_plan["n_cols"],
                  "Coverage Map": cov_plan["n_cols"],
@@ -127,7 +107,8 @@ def main():
                     "Skills Map": len(map_rows),
                     "Samples Review": len(rev_rows),
                     "QA Checklist": len(qa_rows),
-                    "All Segments + SLOs": len(all_rows) + 12})
+                    "All Segments + SLOs": len(all_rows) + 12,
+                    "Move Spines": len(spine_rows) + 2})
     ids = sheetio.reset_tabs(svc, titles, cols, heights)
 
     sizes = {}                 # real size per tab, quoted by the index
@@ -245,6 +226,7 @@ def main():
     send(svc, skills.chip_requests(ids["Skill Taxonomy"], tax, 1,
                                    first_row=head + 1))
 
+    spines = spinetab.write(svc, sheetio, ids["Move Spines"], spine_rows)
     pipe, head = sheetio.titled(
         support.pipeline_tab(), "PIPELINE STAGES",
         "Every stage a teaching day passes through, its gate, and what it is "
@@ -278,11 +260,12 @@ def main():
         "All Segments + SLOs": (len(flat), 15),
         "Skill Taxonomy": (len(tax), support.TAX_COLS),
         "Pipeline Stages": (len(pipe), 6),
+        "Move Spines": (len(spines), len(spinetab.COLUMNS)),
         "Samples Review": (len(rev_rows), rev_plan["n_cols"]),
         "QA Checklist": (len(qa_rows), qa_plan["n_cols"])})
     nav_rows, nav_plan = navtab.build(sizes)
     sheetio.write_values(svc, "Navigation", nav_rows)
-    navtab.format_navigation(svc, sheetio, ids["Navigation"], nav_rows,
+    navpaint.format_navigation(svc, sheetio, ids["Navigation"], nav_rows,
                              nav_plan, ids)
     sheetio.order_tabs(svc, TAB_ORDER)
     print(f"Navigation: {len(nav_rows)} rows · {total['days']} teaching days, "

@@ -2,7 +2,7 @@
 
 Six formatters paint a title band — `sheetio.format_grid` for the header-plus-
 rows tabs, and bespoke passes in `calfmt` (twice), `covfmt`, `skillfmt`,
-`reviewtab` and `navtab`, because those tabs merge, freeze or band in ways the
+`reviewtab` and `navpaint`, because those tabs merge, freeze or band in ways the
 generic grid cannot. Each carried its own copy of the size, and the copies had
 already diverged: three tabs shipped a 13pt title, three a 14pt one, and §5.1
 asks for 16. Nothing failed, because nothing compared them.
@@ -22,7 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Every module that paints a title band, and must therefore read `house`.
 PAINTERS = ("sheetio.py", "calfmt.py", "calfde.py", "covfmt.py",
-            "skillfmt.py", "reviewtab.py", "navtab.py")
+            "skillfmt.py", "reviewtab.py", "navpaint.py")
 
 
 def source(name):
