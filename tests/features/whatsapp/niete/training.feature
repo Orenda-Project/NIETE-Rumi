@@ -416,6 +416,19 @@ Feature: NIETE (ICT) Teacher Training
     # Proven in tests/quiz/child-copy-urdu-grammar.test.js, child-card-subject-and-topic.test.js and
     # transcript-quiz-figure-frame.test.js. @wip until driven live.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A place-value question shows the bundles the class built, and never the number
+    Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson on tens and ones
+    When a child opens the quiz from its link and reaches a question asking what number the picture shows
+    Then the picture above the question has one headed column per place, bundles of ten sticks under the tens and loose sticks under the ones
+    And no digit and no count is written anywhere in the picture
+    And a place that holds nothing is an empty column under its heading
+    And in an Urdu quiz the column headings are in Urdu
+    # The base_ten figure type (vendor/lp-v9/diagrams/types/base_ten.js; SYNC.md §3.18); the headings
+    # come from the string catalog (tqPlaceHundreds / tqPlaceTens / tqPlaceOnes). The counters and
+    # tiles a counting lesson uses are drawn the same way, as the pictograms "counter" and "tile".
+    # Content-driven: assert the SHAPE (headed columns, bundles, no digits), never a fixed number. @wip.
+
   @e2e @quiz @wip @draft @P1
   Scenario: An Urdu quiz for a maths lesson full of English terms is made, with the terms in English letters
     Given the NIETE bot chat is open and I planned a maths lesson whose key terms are English, such as comparing unlike fractions

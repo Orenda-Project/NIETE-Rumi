@@ -58,6 +58,8 @@ const BRIEFS = [
 const EARLY_YEARS_TYPES = new Set([
   'word_blank', 'count_objects', 'count_frame', 'clock',
   'pattern', 'match', 'money', 'compare_size',
+  // The place-value mat (SYNC.md §3.18) — a grade 1-5 type like the eight above.
+  'base_ten',
 ]);
 
 /** The manifest minus the early-years eight — the roster these four briefs are responsible for. */
