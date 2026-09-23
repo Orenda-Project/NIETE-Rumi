@@ -158,6 +158,19 @@ const SOFT_FAULT = new RegExp('^('
   // stays visible instead of costing quizzes silently.
   + '|q\\d+: URDU_TEACHER_FIELDS\\b'
   + ')');
+
+/**
+ * A verb that speaks to the child with a gender (PEDAGOGY_GENDERED_CHILD —
+ * «کون سی علامت لگائیں گے؟», «آپ … سوچ رہے ہیں»). About one production Urdu
+ * item in ten carried one. The question around it is sound, so the fault is
+ * REPAIRED IN PLACE by one targeted rewrite and then shipped whatever that
+ * leaves: never a full re-roll (a second attempt can die of something that
+ * really is fatal — the production history of this pipeline), never a dropped
+ * question, never a failed quiz, over one verb. Every occurrence that ships is
+ * recorded in meta.soft_faults and counted on transcript_quiz.child_address.
+ */
+const ADDRESS_FAULT = /^q\d+: PEDAGOGY_GENDERED_CHILD\b/;
+const addressOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => ADDRESS_FAULT.test(String(e)));
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
 const LEVEL_DIFFICULTY = { recall: 2, understand: 3, apply: 4 };
@@ -512,6 +525,9 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   const bad = new Set();
   let other = false;
   errors.forEach((e) => {
+    // A misaddressed question is a sound question with one wrong verb: it is
+    // shipped with the fault recorded, never dropped (see ADDRESS_FAULT).
+    if (ADDRESS_FAULT.test(e)) return;
     const m = perQuestion.exec(e);
     if (m) bad.add(Number(m[1]));
     else if (!setLevelSoft.test(e) && !SOFT_FAULT.test(e)) other = true;
@@ -1101,15 +1117,33 @@ async function process(quizId, payload = {}) {
           logEvent('transcript_quiz.teacher_fields_repaired', { quizId, after: attempt, indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length });
         }
       }
+      // ── THE CHILD'S GENDER: REPAIRED IN PLACE, THEN SHIPPED ───────────────
+      // When the only complaints left are verbs that speak to the child with a
+      // gender, one targeted rewrite is asked to change exactly those verbs.
+      // Whatever it leaves, the quiz is not re-rolled for it: a clean repair
+      // ships from runRewrite, and otherwise THIS attempt ships as it stands,
+      // through the same picture and render checks as a clean attempt, with the
+      // faults recorded. Tried on every attempt, the last included.
+      let addressFaults = null;
+      if (!v.ok && addressOnly(v.errors)) {
+        logEvent('transcript_quiz.child_address', {
+          quizId, after: attempt, questions: v.errors.length, indices: v.errors.map((e) => Number(/^q(\d+)/.exec(e)[1])),
+        });
+        // eslint-disable-next-line no-await-in-loop
+        const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
+        if (fixed.ok) break;
+        addressFaults = v.errors;
+        v = { ...v, ok: true };
+      }
       if (v.ok) {
         const needFig = figureRequiredError({
           questions: v.questions, subject: digest.subject, attempt, maxAttempts: attemptsAllowed,
           gradeBand: digest.grade_band || meta.grade,
         });
         if (needFig) {
-          attempts[attempts.length - 1].errors = [needFig];
+          attempts[attempts.length - 1].errors = [needFig, ...(addressFaults || [])];
           logToFile('⚠️ transcript quiz: drawable lesson came back without a picture', { quizId, attempt });
-          previousErrors = [needFig];
+          previousErrors = [needFig, ...(addressFaults || [])];
           lastRejected = out.questions;
           lastErrors = [needFig];
           continue;
@@ -1132,6 +1166,11 @@ async function process(quizId, payload = {}) {
         }
         questions = v.questions;
         readyLessonSummary = out.lessonSummary;
+        if (addressFaults) {
+          meta.soft_faults = addressFaults;
+          attempts.push({ attempt: 'soft_ship', after: attempt, errors: addressFaults });
+          logEvent('transcript_quiz.shipped_with_soft_faults', { quizId, faults: addressFaults.length, kinds: ['PEDAGOGY_GENDERED_CHILD'] });
+        }
         break;
       }
       logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: v.errors.slice(0, 8) });
@@ -1189,7 +1228,10 @@ async function process(quizId, payload = {}) {
             language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
           })
           : null;
-        let ok = Boolean(v && v.ok);
+        // A repaired set whose only remaining complaints are verbs that speak
+        // to the child with a gender is shipped (ADDRESS_FAULT): the repair
+        // was the one attempt at them, and the rest of the set is sound.
+        let ok = Boolean(v && (v.ok || addressOnly(v.errors)));
         if (ok) {
           try {
             const drafted = toRows(quizId, v.questions);
@@ -1199,6 +1241,10 @@ async function process(quizId, payload = {}) {
             draftedRows = drafted;
             questions = v.questions;
             readyLessonSummary = rwSummary;
+            if (!v.ok) {
+              meta.soft_faults = v.errors;
+              logEvent('transcript_quiz.shipped_with_soft_faults', { quizId, faults: v.errors.length, kinds: ['PEDAGOGY_GENDERED_CHILD'] });
+            }
           } catch (figErr) {
             logToFile('⚠️ transcript quiz: the rewritten set could not be drawn', { quizId, error: figErr.message });
             ok = false;

@@ -49,6 +49,24 @@ const MATH_NOTATION_RULE = 'MATHS NOTATION (every language). Write every mathema
   + 'NEVER TeX inside a "figure" spec: its labels are plain text ("3/4", "×"), because the drawing engine draws its own stacked fractions (a numberline with "labelFormat":"fraction").';
 
 /**
+ * THE CHILD HAS NO GENDER (Urdu) — stated inside the question contract, so the
+ * author prompt and the targeted rewrite carry the one wording.
+ *
+ * About one production Urdu item in ten asked the child what they would do in
+ * the masculine («کون سی علامت لگائیں گے؟», «آپ اسے حوصلہ کیسے دیں گے؟», feedback
+ * opening «آپ سوچ رہے ہیں»). The old line asked for "plural-respectful verbs"
+ * and a model reads «آپ کرتے ہیں» as exactly that — respectful, and masculine.
+ * So the rule names the gendered forms of BOTH genders, and names the neutral
+ * ones to write instead. The deterministic half is PEDAGOGY_GENDERED_CHILD
+ * (transcript-quiz-address.js, wired in the validator).
+ */
+const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER (Urdu): the class is boys and girls, so a verb that speaks TO the child — in the stem, the options, the explanation or the feedback — never carries a gender. '
+  + 'Never «آپ … لگائیں گے» or «لگائیں گی», «آپ … جاتے ہیں» or «جاتی ہیں», «آپ … سوچ رہے ہیں» or «سوچ رہی ہیں», «آپ … کر سکتے ہیں» or «کر سکتی ہیں», and never «کون سی علامت لگائیں گے؟» with آپ left unsaid — the verb still guesses. '
+  + 'Write instead: the آپ-imperative or subjunctive («بتائیں»، «چنیں»، «آپ کون سی علامت لگائیں؟»); the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»، «9 میں 7 جمع کیا جائے گا»); or آپ نے + a verb that agrees with its object («آپ نے کون سا لفظ چنا؟»). '
+  + 'An option that answers "what would you do" is an infinitive or an imperative («آخر میں «یں» لگانا»), never «… لگائیں گے». Wrong-answer feedback opens «شاید آپ نے … سمجھا» or «یہ … کی الجھن ہے», never «آپ … سوچ رہے ہیں». '
+  + 'Describing someone else is fine («بچے کھیل رہے ہیں»، «پودے خوراک بناتے ہیں»): the rule is about the child being spoken to.';
+
+/**
  * WHAT ONE QUESTION MUST CONTAIN — shared verbatim by the author prompt and by
  * the targeted rewrite, so the two cannot drift about the shape of a question
  * the validator will accept. Changing a rule here changes it in both.
@@ -64,7 +82,8 @@ function questionContract({ gradeBand } = {}) {
 - Tag every question with its "slo_id" and its "level".
 - ${MATH_NOTATION_RULE}
 
-STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").
+STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu.
+${CHILD_ADDRESS_RULE}
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.`;
 }
 

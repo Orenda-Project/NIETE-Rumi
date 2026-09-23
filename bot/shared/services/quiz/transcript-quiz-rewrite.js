@@ -87,7 +87,17 @@ const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z
  * ship.
  */
 const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*\S/;
-const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER. Address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں). Never a feminine or masculine singular guess: no کرتی ہیں، سکتی ہیں، کریں گی، رہی ہوں گی، کرتے ہو. For a question rejected ONLY for this, keep the question and change the verb form.';
+/**
+ * A question rejected for PEDAGOGY_GENDERED_CHILD is a GOOD question with a
+ * verb that guesses the child's gender. Re-asking it would throw the question
+ * away over one verb, so this is a repair IN PLACE: the same question, the same
+ * options' meanings, the same answer, and only the verbs change. The neutral
+ * forms themselves are the contract's rule (questionContract, above in the
+ * prompt); this adds what is specific to a repair.
+ *
+ * It used to recommend «سمجھ سکتے ہیں» — itself masculine.
+ */
+const CHILD_ADDRESS_REPAIR = 'THE CHILD HAS NO GENDER — REPAIR IN PLACE. A question rejected for PEDAGOGY_GENDERED_CHILD is a good question whose verbs guess whether the child is a boy or a girl. Keep the SAME question: the same idea, the same three options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY the gendered verbs, in every field its complaint names — «کون سی علامت لگائیں گے؟» → «کون سی علامت لگانی چاہیے؟»; «آپ اسے حوصلہ کیسے دیں گے؟» → «آپ اسے حوصلہ کیسے دیں؟»; the option «آخر میں «یں» لگائیں گے» → «آخر میں «یں» لگانا»; the feedback «آپ سوچ رہے ہیں کہ …» → «شاید آپ نے سمجھا کہ …». No masculine and no feminine form for the child, anywhere.';
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
@@ -225,14 +235,14 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
     `REJECTED — write one new question for each.\n\n${rejected}`,
-    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length — see LENGTH below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
+    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, or ONLY for how it speaks to the child — see LENGTH and THE CHILD HAS NO GENDER below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
     'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
     STRUCTURAL_CAPS_RULE,
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /MULTI_[A-Z_]+/.test(e))) ? [STRUCTURAL_MULTI_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => OPTIONS_FAULT.test(e))) ? [DISTINCT_OPTIONS_RULE] : []),
-    ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),

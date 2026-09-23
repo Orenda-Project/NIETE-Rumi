@@ -16,7 +16,11 @@ const VOCAB_DEF = "بعض الفاظ کے آخر میں 'یں' لگانے سے �
 const PLANTED_CFU = "احمد کہتا ہے کہ 'بہار' کی جمع 'بہار' ہی رہے گی، بغیر کسی تبدیلی کے — کیا وہ درست ہے؟ کیوں یا کیوں نہیں؟";
 const HOMEWORK_ANSWER = 'بہاریں، بَسْتے؛ اس سال بہاریں آئیں۔';
 const WRONG_KEY = 'اس کی شکل نہیں بدلے گی';
-const BAHAR_STEM = "اگر آپ کو 'بہار' کی جمع بنانی ہو تو کیا کریں گے؟";
+// The item as it went out asked «… تو کیا کریں گے؟» and offered «… لگائیں گے»: a
+// verb that guesses the child is a boy, which the validator now repairs
+// (PEDAGOGY_GENDERED_CHILD). This suite is about the KEY, so the fixture carries
+// the neutral wording and the key fault alone.
+const BAHAR_STEM = "اگر آپ کو 'بہار' کی جمع بنانی ہو تو کیا کرنا چاہیے؟";
 
 const SLIDE_SCRIPT = {
   meta: {
@@ -106,7 +110,7 @@ const AUTHORED = [
   q('S2', 'understand', "'بستہ' کی جمع کیا ہے؟", ['بستے', 'بستیں', 'بستا']),
   q('S1', 'recall', "'گھڑیاں' واحد ہے یا جمع؟", ['جمع', 'واحد', 'مؤنث']),
   q('S2', 'understand', "'گھڑی' کی جمع کیا ہے؟", ['گھڑیاں', 'گھڑیں', 'گھڑے']),
-  q('S2', 'understand', BAHAR_STEM, [WRONG_KEY, "آخر میں 'یں' لگائیں گے", "آخر میں 'وں' لگائیں گے"]),
+  q('S2', 'understand', BAHAR_STEM, [WRONG_KEY, "آخر میں 'یں' لگانا", "آخر میں 'وں' لگانا"]),
   q('S1', 'recall', 'ان میں سے کون سا لفظ جمع ہے؟', ['بہاریں', 'بہار', 'کتاب']),
 ];
 
