@@ -365,6 +365,19 @@ describe('SOURCE ANSWERS — the lesson\'s own facts, and separately its planted
     ]);
     expect(() => KeyCheck.parseVerdicts({ questions: [] }, [0], '')).toThrow(/verdicts/);
   });
+
+  test('a quote is grounded through diacritics and punctuation; an invented one is not', () => {
+    const source = KeyCheck.renderSourceBlock(KeyCheck.sourceAnswers(F.SLIDE_SCRIPT));
+    const [withMarks, invented] = KeyCheck.parseVerdicts({ verdicts: [
+      // a zabar on the first letter and a comma the lesson does not have
+      { index: 0, verdict: 'contradicts', quote: 'ب\u064Eہار سے، بہاریں' },
+      { index: 1, verdict: 'contradicts', quote: 'بہار کی جمع بہاروں ہوتی ہے' },
+    ] }, [0, 1], source);
+    expect(withMarks.grounded).toBe(true);
+    expect(invented.grounded).toBe(false);
+    // A contradiction without its evidence still counts — it is recorded as ungrounded, not dropped.
+    expect(invented.verdict).toBe('contradicts');
+  });
 });
 
 describe('the failure copy', () => {

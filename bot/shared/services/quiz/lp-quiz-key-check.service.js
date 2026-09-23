@@ -248,7 +248,7 @@ Judge ONLY the marked answer against the LESSON. Do not re-solve the question fr
 /** Letters, digits and marks only — so a quote matches the lesson through punctuation, spacing and diacritics. */
 function squash(s) {
   return String(s || '').normalize('NFC').toLowerCase()
-    .replace(/[ً-ٰٟۖ-ۭ]/g, '')
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
     .replace(/[^\p{L}\p{N}]+/gu, '');
 }
 
