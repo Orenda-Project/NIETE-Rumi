@@ -77,6 +77,28 @@ describe('counter and tile — the two manipulatives the pictogram set lacked', 
   });
 });
 
+describe('comparing rows — each row stays on ONE line', () => {
+  /** The distinct heights pictograms are drawn at: one per line of the picture. */
+  const lines = (svg) => new Set([...svg.matchAll(/<g transform="translate\([\d.]+,([\d.]+)\) scale/g)].map((m) => m[1])).size;
+
+  test('four against six is TWO rows — the sixth is not wrapped into an unlabelled third', () => {
+    const svg = renderFigureSvg({
+      type: 'count_objects', rows: [{ picto: 'butterfly', count: 4, label: 'A' }, { picto: 'butterfly', count: 6, label: 'B' }],
+    }, 'en');
+    expect(lines(svg)).toBe(2);
+    expect(Gates.figureGateDefects(svg, 'count_objects')).toEqual([]);
+  });
+
+  test('the same holds in Urdu, and a single row still wraps at five for counting', () => {
+    const ur = renderFigureSvg({
+      type: 'count_objects', lang: 'ur', rows: [{ picto: 'counter', count: 9, label: 'کل' }, { picto: 'counter', count: 5, label: 'باقی' }],
+    }, 'ur');
+    expect(lines(ur)).toBe(2);
+    expect(Gates.figureGateDefects(ur, 'count_objects')).toEqual([]);
+    expect(lines(renderFigureSvg({ type: 'count_objects', picto: 'counter', count: 9 }, 'en'))).toBe(2);
+  });
+});
+
 describe('base_ten — a place-value picture drawn the way the class built it', () => {
   test('is on the quiz allowlist, in the early-years roster, and draws mathematics only', () => {
     expect(canonicalType('base_ten')).toBe('base_ten');
