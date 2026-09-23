@@ -98,3 +98,58 @@ describe('failureCopyKey — the failure copy is picked by the quiz SOURCE', () 
     expect(failureCopyKey('something_new', 'lp_v8')).toBe('tqFailedLpAuthor');
   });
 });
+
+// ── bd R8 copy: "planned", never "taught"; never "today" the next morning ───
+
+describe('the planned-not-taught copy (the lp_v8 caption and the next-morning coaching ask)', () => {
+  /** Every new key with the params its caller fills, at their longest plausible values. */
+  const NEW_KEYS = {
+    tqHandoffIntroLp: { lesson: 'x'.repeat(300), n: 8 },
+    lpAskBodyNextDay: { when: 'on 30 Sep' },
+    lpAskBodyFirstTimeNextDay: { when: 'on 30 Sep' },
+    lpAskWhenYesterday: undefined,
+    lpAskWhenOnDate: { date: '30 Sep' },
+  };
+
+  test.each(Object.keys(NEW_KEYS))('%s exists in every offered language and fills without throwing', (key) => {
+    for (const lang of LANGUAGE_OFFER) {
+      expect(typeof UX_STRINGS[key][lang]).toBe('string');
+      expect(UX_STRINGS[key][lang].trim().length).toBeGreaterThan(0);
+      expect(() => resolveUx(key, { language: lang, params: NEW_KEYS[key] })).not.toThrow();
+    }
+  });
+
+  test.each(Object.keys(NEW_KEYS))('%s is gender-neutral about the teacher, in both languages', (key) => {
+    for (const lang of LANGUAGE_OFFER) {
+      const s = UX_STRINGS[key][lang];
+      expect(s).not.toMatch(/\b(she|her|hers|herself|he|him|his|himself)\b/i);
+      expect(genderedTeacherForms(s, lang)).toEqual([]);
+    }
+  });
+
+  test.each(['tqHandoffIntroLp', 'lpAskBodyNextDay', 'lpAskBodyFirstTimeNextDay'])('%s fits a WhatsApp body/caption (1,024 code points) filled at its longest', (key) => {
+    for (const lang of LANGUAGE_OFFER) {
+      expect(cp(resolveUx(key, { language: lang, params: NEW_KEYS[key] }))).toBeLessThanOrEqual(1024);
+    }
+  });
+
+  test('the lp_v8 caption never says the lesson was taught — the transcript caption still does', () => {
+    expect(UX_STRINGS.tqHandoffIntroLp.en).not.toMatch(/taught/i);
+    expect(UX_STRINGS.tqHandoffIntroLp.ur).not.toMatch(/پڑھایا|سکھایا/);
+    expect(UX_STRINGS.tqHandoffIntro.en).toMatch(/what you taught/);
+  });
+
+  test('the next-day asks never say today, in either language', () => {
+    for (const key of ['lpAskBodyNextDay', 'lpAskBodyFirstTimeNextDay']) {
+      expect(UX_STRINGS[key].en).not.toMatch(/today/i);
+      expect(UX_STRINGS[key].ur).not.toMatch(/آج/);
+    }
+  });
+
+  test('handoffIntroKey picks the caption by the quiz source', () => {
+    const { handoffIntroKey } = require('../../bot/shared/services/quiz/quiz-sources');
+    expect(handoffIntroKey('lp_v8')).toBe('tqHandoffIntroLp');
+    expect(handoffIntroKey('transcript')).toBe('tqHandoffIntro');
+    expect(handoffIntroKey(undefined)).toBe('tqHandoffIntro');
+  });
+});

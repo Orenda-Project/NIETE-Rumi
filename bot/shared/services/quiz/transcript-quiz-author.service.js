@@ -20,7 +20,7 @@ const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const {
   languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
-  GENDER_NEUTRAL_RULE,
+  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
 } = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -153,11 +153,15 @@ const TRANSCRIPT_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson
 TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same second-person address:
 - "lesson_summary_short": ONE sentence, at most 25 words — what you taught, with your own first example. No list, no second sentence.`;
 
-/** The lp_v8 twin: the teacher PLANNED this lesson; nobody heard it taught. */
-const LP_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you planned for the class and in the order the plan sets it out, naming the plan's own examples and numbers. Write "you planned", never "you taught" — nobody heard this lesson, and the teacher knows what actually happened in it. Do not summarise the quiz — summarise the LESSON PLAN.
+/**
+ * The lp_v8 twin: the teacher PLANNED this lesson; nobody heard it taught. The
+ * voice (the lesson as the subject, never a teacher-verb) is the contract's
+ * LP_SUMMARY_VOICE, shared with the targeted rewrite.
+ */
+const LP_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child). ${LP_SUMMARY_VOICE} Do not summarise the quiz — summarise the LESSON PLAN.
 
-TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same second-person address:
-- "lesson_summary_short": ONE sentence, at most 25 words — what you planned, with the plan's own first example. No list, no second sentence.`;
+TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same voice:
+- "lesson_summary_short": ONE sentence, at most 25 words — what today's lesson plans to teach, with the plan's own first example, opening the same way ("Today's lesson plans …" / «آج کے سبق میں …»). No list, no second sentence.`;
 
 function buildAuthorPrompt({
   digest, excerpts, language, n = DEFAULT_QUESTIONS, gradeBand, previousErrors = null,

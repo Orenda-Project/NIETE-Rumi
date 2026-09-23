@@ -72,6 +72,27 @@ const GENDER_NEUTRAL_RULE = 'THE TEACHER HAS NO GENDER. Never refer to the teach
   + 'lesson\'s own examples is always fine; a pronoun for the teacher never is.';
 
 /**
+ * THE LESSON SUMMARY OF A QUIZ WRITTEN FROM A LESSON PLAN — stated once, here,
+ * and pasted into the author prompt and the targeted rewrite so the two cannot
+ * drift.
+ *
+ * Nobody heard an lp_v8 lesson: the bot knows a PDF was delivered, nothing
+ * about whether the class happened. The earlier rule asked for "you planned",
+ * but the gender rule beside it offers «آپ نے … پڑھایا» as the neutral Urdu form
+ * and the rewrite asked for "what you taught" outright; the live summary read
+ * «آپ نے … سکھایا». Making the LESSON the subject ("Today's lesson plans …",
+ * «آج کے سبق میں …») says what the plan covers, carries no gender, and leaves no
+ * teacher-verb to put in the past tense.
+ */
+const LP_SUMMARY_VOICE = 'This lesson was PLANNED, not heard: the teacher took the plan and knows what '
+  + 'actually happened in class, so the LESSON is the subject of every sentence, never the teacher. '
+  + 'Say what today\'s lesson plans to teach and in the order the plan sets it out, naming the plan\'s '
+  + 'own examples and numbers. Open with "Today\'s lesson plans …" in English and «آج کے سبق میں …» in '
+  + 'Urdu. Never write "you taught", "you explained" or "you showed", and in Urdu never «آپ نے … پڑھایا»، '
+  + '«آپ نے … سکھایا» or «آپ نے … بتایا» — each one says the lesson happened. For this field that '
+  + 'overrides the «آپ نے … پڑھایا» form the gender rule allows.';
+
+/**
  * THE RETRY NOTE. Two things it does beyond quoting the validator:
  *
  *  1. it RESTATES THE QUIZ LANGUAGE FIRST. The rule is stated once at the top
@@ -132,5 +153,5 @@ const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any me
 
 module.exports = {
   languageRule, questionContract, retryNote, languageAgain,
-  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
+  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };

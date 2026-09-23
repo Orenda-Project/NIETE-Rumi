@@ -559,6 +559,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot sends a message that begins "You planned a lesson with me today"
     And it has the buttons "Record my lesson" and "Not today"
 
+  @e2e @wip @draft @lp-ask @edge @P1
+  Scenario: A lesson planned after 14:00 is asked about the next morning without saying today
+    Given the NIETE bot chat is open
+    And no coaching ask has been sent to me today
+    When I take a lesson plan at 16:30 PKT
+    And the next school day reaches 07:30 PKT and one sweep runs
+    And my last message to the bot was under 24 hours before that sweep
+    Then the bot sends a message that begins "You planned this lesson with me yesterday"
+    And the message does not say "today"
+    And it has the buttons "Record my lesson" and "Not today"
+    # lp-coaching-ask send(): when the PKT day of the send is later than the PKT day of
+    # context.delivered_at, the NextDay bodies are used. Friday after 14:00 is asked on Monday
+    # and names the date instead ("You planned this lesson with me on 18 Sep").
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
   @e2e @wip @draft @lp-ask @negative @P1
   Scenario: A second lesson plan the same day brings no second ask
     Given the NIETE bot chat is open
