@@ -153,8 +153,9 @@ describe('the endpoint routes on the category', () => {
     const legacy = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
     expect(legacy.screen).toBe('QUESTIONS');
 
+    // Current Flow: seen reaches CONFIRM through its own Seen screen.
     mockRedis.get.mockResolvedValue({ ...SESSION, contentSource: 'seen' });
     const current = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
-    expect(current.screen).toBe('COUNTS');
+    expect(current.screen).toBe('SEEN_COUNT');
   });
 });

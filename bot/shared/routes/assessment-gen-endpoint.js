@@ -870,6 +870,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       // were valid for the old one are not necessarily valid for the new.
       pickedTypes: null,
       questionTypes: null,
+      seenCount: null,
     });
     await writeSession(flowToken, state);
 
@@ -877,13 +878,37 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     // `seen` lifts its questions out of the book, so each already IS a type and
     // planCounts() discards any choice; `unseen` and `both` have new questions to
     // write and nothing to inherit a type from, so the choice is a step.
-    if (needsTypes) return typesScreen(state);
+    // An old published Flow keeps its old journey whole (see legacyCounts above).
+    if (legacyCounts) return needsTypes ? typesScreen(state) : confirmScreen(state);
 
-    // `seen` on the current Flow: the size of the paper is still hers to name, and
-    // it is named on COUNTS like every other path's — one box, "how many". It used
-    // to be asked here, and when the box came off this screen for the per-type
-    // counts, the seen path was left demanding a number it had no box for.
-    if (!legacyCounts) return countsScreen(state);
+    // Current Flow, in the teacher's own words:
+    //   Seen   → how many Seen questions, then the recap
+    //   Unseen → which types, then how many of each
+    //   Both   → how many Seen FIRST, on its own screen, then the Unseen types
+    //            and their counts. Kept apart on purpose — "I would rather it be
+    //            clear" — so the two numbers are never mistaken for each other.
+    if (contentSource === 'unseen') return typesScreen(state);
+    return seenCountScreen(state);
+  }
+
+  // ── SEEN_COUNT → CONFIRM (Seen) | TYPES (Both) ───────────────────────────
+  if (screenId === 'SEEN_COUNT') {
+    const both = state.contentSource === 'both';
+    const parsed = QuestionTypes.parseQuestionCount(data.seen_count);
+    if (!parsed.ok) return seenCountScreen(state, parsed.message);
+    // On Both, Seen may not take the whole paper — the Unseen part needs at
+    // least one question, and the ceiling counts the two together.
+    if (both && parsed.count >= QuestionTypes.MAX_QUESTIONS) {
+      return seenCountScreen(state,
+        `Leave room for Unseen questions — Seen can be up to ${QuestionTypes.MAX_QUESTIONS - 1}.`);
+    }
+    if (both) {
+      Object.assign(state, { seenCount: parsed.count });
+      await writeSession(flowToken, state);
+      return typesScreen(state);
+    }
+    Object.assign(state, { questionCount: parsed.count, questionTypes: null, seenCount: null });
+    await writeSession(flowToken, state);
     return confirmScreen(state);
   }
 
@@ -902,13 +927,13 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       .filter((id, i, all) => offered.includes(id) && all.indexOf(id) === i);
 
     if (picked.length === 0) {
-      return typesScreen(state, 'Please choose at least one kind of question.');
+      return typesScreen(state, 'Please choose at least one type of Unseen question.');
     }
     // The count boxes are a fixed bank, so more picks than boxes would silently
     // drop the tail of her selection. Say so instead.
     if (picked.length > QuestionTypes.MAX_TYPE_SLOTS) {
       return typesScreen(state,
-        `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} kinds of question.`);
+        `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} types of Unseen question.`);
     }
 
     state.pickedTypes = picked;
@@ -925,23 +950,15 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   // `questionCount` stops being something she types and becomes something we
   // derive — which is what makes the counts below survive planCounts().
   if (screenId === 'COUNTS') {
-    // `seen` has no types to count by — the book decides them — so its COUNTS is a
-    // single box: how many questions. Held to the same bounds, refused not clamped.
-    if (state.contentSource === 'seen') {
-      const parsed = QuestionTypes.parseQuestionCount(data.count_1);
-      if (!parsed.ok) return countsScreen(state, parsed.message);
-      Object.assign(state, { questionCount: parsed.count, questionTypes: null });
-      await writeSession(flowToken, state);
-      return confirmScreen(state);
-    }
-
     const picked = Array.isArray(state.pickedTypes) ? state.pickedTypes : [];
     if (picked.length === 0) return typesScreen(state);
 
-    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade);
+    const seen = state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
+    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade, seen);
     if (!parsed.ok) return countsScreen(state, parsed.message);
 
-    Object.assign(state, { questionTypes: parsed.types, questionCount: parsed.total });
+    // The paper is Seen + Unseen. Her Unseen counts are stored exactly as typed.
+    Object.assign(state, { questionTypes: parsed.types, questionCount: parsed.total + seen });
     await writeSession(flowToken, state);
     return confirmScreen(state);
   }
@@ -1118,38 +1135,56 @@ function typesScreen(state, error = '') {
  * from an earlier pass will show it the moment she goes back and picks more.
  */
 function countsScreen(state, error = '') {
-  if (state.contentSource === 'seen') {
-    const data = {
-      summary: summaryOf(state),
-      hint: `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
-      error,
-    };
-    for (let i = 1; i <= QuestionTypes.MAX_TYPE_SLOTS; i += 1) {
-      data[`show_${i}`] = i === 1;
-      data[`label_${i}`] = i === 1 ? 'How many questions?' : '';
-    }
-    return screen('COUNTS', data);
-  }
   const picked = (state.pickedTypes || []).slice(0, QuestionTypes.MAX_TYPE_SLOTS);
+  const seen = state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
   const data = {
     summary: summaryOf(state),
-    hint: `Up to ${QuestionTypes.MAX_QUESTIONS} questions in total.`,
+    hint: seen
+      ? `You asked for ${seen} Seen. Seen + Unseen can be up to ${QuestionTypes.MAX_QUESTIONS}.`
+      : `Up to ${QuestionTypes.MAX_QUESTIONS} questions in total.`,
     error,
   };
   for (let i = 1; i <= QuestionTypes.MAX_TYPE_SLOTS; i += 1) {
     const id = picked[i - 1];
     data[`show_${i}`] = Boolean(id);
-    data[`label_${i}`] = id ? `How many ${id}?` : '';
+    // The box's own label IS the type, so she reads "MCQs", "Match the Column".
+    // A TextInput label is clipped by the device past 20 code points — "How many
+    // Match the Column?" arrived as "How many Match the C" — so the label is fitted
+    // and the full name is always spelled out in the helper line under the box.
+    data[`label_${i}`] = id ? fitLabel(id) : '';
+    data[`help_${i}`] = id ? `How many ${id}?` : '';
   }
   return screen('COUNTS', data);
 }
 
+/** The Seen number: one box. On Both it comes first, before the Unseen types. */
+function seenCountScreen(state, error = '') {
+  const both = state.contentSource === 'both';
+  return screen('SEEN_COUNT', {
+    summary: summaryOf(state),
+    hint: both
+      ? `Unseen questions come next. Up to ${QuestionTypes.MAX_QUESTIONS} in total.`
+      : `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
+    error,
+  });
+}
+
+const LABEL_MAX = 20;
+/** Fit a TextInput label to the device's 20-code-point cap, at a word boundary if close. */
+function fitLabel(text) {
+  const chars = [...String(text || '').replace(/\s+/g, ' ').trim()];
+  if (chars.length <= LABEL_MAX) return chars.join('');
+  const cut = chars.slice(0, LABEL_MAX - 1).join('');
+  const space = cut.lastIndexOf(' ');
+  return `${(space >= 10 ? cut.slice(0, space) : cut).trim()}…`;
+}
+
 async function confirmScreen(state) {
   const source = {
-    seen: 'Questions from the book',
-    unseen: 'New questions',
-    both: 'A mix',
-  }[state.contentSource] || 'New questions';
+    seen: 'Seen (from the book)',
+    unseen: 'Unseen (outside the book)',
+    both: 'Seen and Unseen',
+  }[state.contentSource] || 'Unseen (outside the book)';
   // Server-driven so the docx flag can hide Word without republishing the Flow.
   const { formatsOnOffer } = require('../services/assessment/assessment-format');
 
@@ -1157,10 +1192,16 @@ async function confirmScreen(state) {
   // and it is the number she typed rather than a total she has to trust us to
   // have split her way. On the seen path there is no breakdown to show — the
   // book decides the types — so it stays the single total it has always been.
-  const breakdown = (state.questionTypes || []).map((t) => `${t.count} ${t.id}`);
-  const size = breakdown.length
-    ? `${breakdown.join(', ')} · ${state.questionCount} in total`
-    : `${state.questionCount} questions`;
+  const breakdown = (state.questionTypes || []).map((t) => `${t.count} ${t.id}`).join(', ');
+  const seen = Number(state.seenCount) || 0;
+  let size;
+  if (state.contentSource === 'both' && seen && breakdown) {
+    size = `Seen: ${seen} · Unseen: ${breakdown} · ${state.questionCount} in total`;
+  } else if (breakdown) {
+    size = `${breakdown} · ${state.questionCount} in total`;
+  } else {
+    size = `${state.questionCount} questions`;
+  }
 
   return screen('CONFIRM', {
     recap: [summaryOf(state), `${source} · ${size}`].join('\n'),
@@ -1264,6 +1305,7 @@ async function submit(state) {
     pageRanges,
     contentSource: state.contentSource || 'unseen',
     questionCount: state.questionCount || 20,
+    seenCount: state.contentSource === 'both' ? (Number(state.seenCount) || null) : null,
     totalMarks: state.totalMarks ?? null,
     questionTypes: types,
     includeAnswerKey: !!state.answerKey,
@@ -1277,17 +1319,20 @@ async function handleBack(userId, screenId, flowToken) {
   // Back goes to the screen she actually came from, which on the unseen path is
   // no longer QUESTIONS: COUNTS sits between TYPES and CONFIRM now. Sending her
   // two screens back would quietly discard the picks and counts she just made.
-  if (screenId === 'COUNTS') {
-    return state.contentSource === 'seen' ? questionsScreen(state) : typesScreen(state);
-  }
+  if (screenId === 'COUNTS') return typesScreen(state);
+  if (screenId === 'SEEN_COUNT') return questionsScreen(state);
   if (screenId === 'CONFIRM') {
-    // An old client has no COUNTS; the current one reaches CONFIRM only through it.
+    // An old client has neither SEEN_COUNT nor COUNTS.
     if (state.legacyCounts) {
       return (state.pickedTypes && state.pickedTypes.length) ? typesScreen(state) : questionsScreen(state);
     }
-    return countsScreen(state);
+    return state.contentSource === 'seen' ? seenCountScreen(state) : countsScreen(state);
   }
-  if (screenId === 'TYPES') return questionsScreen(state);
+  if (screenId === 'TYPES') {
+    // On Both the screen before the Unseen types is the Seen count.
+    if (!state.legacyCounts && state.contentSource === 'both') return seenCountScreen(state);
+    return questionsScreen(state);
+  }
   if (screenId === 'QUESTIONS' || screenId === 'PAGES') {
     return screen('COVERAGE', {
       summary: summaryOf(state), has_chapters: true,
