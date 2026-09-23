@@ -131,6 +131,51 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # maths lesson naming nobody religious would pass this proving nothing.
 
   @e2e @content-driven @P1
+  Scenario: A chained Latin name the book saluted at the end of the chain is delivered
+    Given the NIETE bot chat is open
+    And the G5c review has decided the bare name "Muhammad" is the Prophet
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Hazrat Muhammad Rasulullah" with the Arabic salutation after the LAST word of that chain
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is not sent back for a revision round
+    # bd-6ld74. A chained name carries ONE salutation and it sits at the END of the chain, but the
+    # honorific test looked only immediately after the matched name token — so the gate demanded a
+    # second stamp mid-chain and refused a line the book had already saluted correctly. This is the
+    # single commonest shape left after bd-5t71f: of the 18 unresolved occurrences measured on the
+    # Grades 6-12 corpus, 15 are this one, 14 of them one unit title repeated across three pages in
+    # grade_8_english and 1 in grade_9_english. The Urdu lane was given this on the same G5c ruling;
+    # the Latin lane never was, so the same sentence passed in Urdu and was refused in English.
+    # THIS SCENARIO IS THE "WALK TO THE END OF THE CHAIN" RULE, and nothing more. It moves only
+    # WHERE the stamp is looked for, never WHETHER one is required: the words the gate is allowed to
+    # walk past are a closed list of romanised chain tokens, it walks at most four of them, and the
+    # salutation itself ends the walk. A chain that runs out with no salutation is still withheld —
+    # the outline below pins that, and it is the row that fails if this ever becomes a bypass.
+
+  @e2e @content-driven @P1
+  Scenario: A Latin honorific the book printed reaches the teacher as the Arabic stamp
+    Given the NIETE bot chat is open
+    And the G5c review has decided "Hazrat Muhammad PBUH" is the Prophet, correctly saluted
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Hazrat Muhammad" with the Latin honorific "(PBUH)" directly after it
+    Then a lesson-plan PDF is delivered to the chat
+    And the delivered plan carries the Arabic stamp after that name, not the Latin abbreviation
+    # bd-b7txa, the gap the outline below used to declare open. Two occurrences in the whole Grades
+    # 6-12 corpus — one "... SAW" in grade_9_mathematics and one "... PBUH" in
+    # grade_10_pak_studies_english — where the BOOK saluted the Prophet in Latin and the gate, which
+    # reads only the Arabic stamp, called the line unsaluted and withheld the lesson.
+    # THE GATE DID NOT MOVE, and that is the whole design. Asked whether a Latin PBUH/SAW should
+    # satisfy the gate, the G5c reviewer said it should; but the only way to do that INSIDE the gate
+    # is to stop refusing PBUH/SAW on sight, which reverses her own "what the teacher reads must be
+    # our stamp". So the fix sits ABOVE the gate: a normalisation pass rewrites the printed
+    # abbreviation to the Arabic stamp before the gate runs, and the gate then passes the line on
+    # its existing, unchanged rule. Both halves of her ruling survive — the salutation is no longer
+    # called absent, and what the teacher receives is the stamp.
+    # The second Then is the load-bearing half. If the plan were delivered still reading "(PBUH)",
+    # this scenario would be green and the ruling broken.
+
+  @e2e @content-driven @P1
   Scenario: An "Urdu" plan that is really English is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -212,9 +257,35 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Farooqi" is built like "Muhammad Ali Jinnah" and is still withheld, because the alternative —
     # deciding by grammar which Muhammad is which — is the automated clearance G5c forbids. If this
     # row ever delivers, the gate has started deciding on the reviewer's behalf.
-    # Known gap, guarded and not fixed here: she marked "Hazrat Muhammad PBUH" / "… SAW" as the
-    # Prophet, correctly, so a line the BOOK saluted in Latin stays withheld — the honorific test
-    # reads only ﷺ and the Arabic form. That is bd-b7txa, out of scope for this change.
+    # The gap this outline used to declare open is now CLOSED: she marked "Hazrat Muhammad PBUH" /
+    # "… SAW" as the Prophet, correctly, and a line the BOOK saluted in Latin no longer stays
+    # withheld — it is rewritten to the Arabic stamp before the gate reads it and DELIVERS, which is
+    # bd-b7txa and the scenario "A Latin honorific the book printed reaches the teacher as the
+    # Arabic stamp" above. The honorific test itself is unchanged and still reads only ﷺ and the
+    # Arabic form. Neither row here is touched by that: neither carries a salutation of any kind, in
+    # any script, so neither is rewritten and both stay withheld.
+
+  @e2e @negative @content-driven @P1
+  Scenario Outline: A Latin salutation the gate cannot reach still withholds the lesson
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body reads
+      "<body>"
+    Then no lesson-plan PDF is delivered
+    Examples:
+      | body                                          | why it is still withheld                                                |
+      | Hazrat Muhammad Rasulullah, the final Prophet | the chain runs out with no salutation at its end, so walking to the end finds nothing to read |
+      | Hazrat Muhammad Rasulullah (PBUH)             | the Latin honorific is not against the name, so the rewrite never reaches it, and a Latin salutation is not the stamp |
+      | Muhammad saw the crescent moon that evening   | a lower-case "saw" is ordinary English, never a salutation, so nothing is rewritten and the name stands unsaluted |
+    # The fail-closed half of the two scenarios above, one row per control. Row 1 bounds the walk:
+    # it may only find a salutation, never invent one. Row 2 bounds the rewrite: it fires only on an
+    # honorific printed directly against the name, so a chain is not laundered by an abbreviation
+    # sitting at the far end of it. Row 3 is the one a blind rewrite would get catastrophically
+    # wrong — "saw" is also the past tense of "see", so a rewrite that matched it case-insensitively
+    # would stamp scripture into an ordinary sentence about the sky. Bare "SAW" is excluded for the
+    # same reason; only the enclosed forms and "SAWW" are read as honorifics.
+    # If any row here ever delivers, the change has stopped being about WHERE the stamp is looked
+    # for and has started clearing religious content on the reviewer's behalf, which G5c forbids.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message
