@@ -122,7 +122,7 @@ HARD RULES
 - molecule draws only these formulas, and you write ONLY the "formula" — the structure is filled in from a fixed table, never from a SMILES you write: ${Object.keys(MOLECULE_DICTIONARY).join(', ')}.
 
 WORKED EXAMPLES (spec next to the question it serves):
-1. fraction_bar, read_off — stem "تصویر میں روٹی کا کتنا حصہ رنگا ہوا ہے؟", options ["3/4", "1/4", "4/3"], correct 0,
+1. fraction_bar, read_off — stem "تصویر میں روٹی کا کتنا حصہ رنگا ہوا ہے؟", options ["$\\\\frac{3}{4}$", "$\\\\frac{1}{4}$", "$\\\\frac{4}{3}$"], correct 0,
    "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}   (no label on the bar — the label would be the answer)
 2. numberline, read_off — stem "Which point is at −3?", options ["A", "B", "C"], correct 0,
    "figure": {"type":"numberline","from":-5,"to":5,"step":1,"points":[{"at":-3,"label":"A"},{"at":1,"label":"B"},{"at":4,"label":"C"}]}

@@ -40,6 +40,9 @@
 
 const { resolveUx } = require('../../config/ux-strings');
 const { truncateCodePoints, cpLen } = require('./religious-marks');
+// A leaf like this one: quiz-math's text path requires only quiz-notation and
+// tex-to-unicode, never KaTeX and never the render/sender cycle.
+const { mathForChat } = require('./quiz-math');
 
 const ANSWER_MODE_MULTI = 'multi';
 
@@ -256,7 +259,9 @@ function persistedOrder(row, labels) {
  */
 function buildMulti(row, { order, shown, language }) {
   const media = row.media || {};
-  const stem = String(row.question_text || '').trim();
+  // The Flow heading and the chat bubble are TEXT: a TeX stem is flattened here
+  // ("2/9"); the card riding as the header is where it is typeset.
+  const stem = mathForChat(String(row.question_text || '').trim());
   const cue = ux('vqMultiSelectAll', language);
   return [{
     phase: 'interaction',
@@ -387,9 +392,11 @@ function verdictText(row, { selectedIndices, labels, language }) {
   const fb = (row.option_feedback && typeof row.option_feedback === 'object') ? row.option_feedback : {};
   const expl = String(row.explanation || '').trim();
 
+  // The verdict is a WhatsApp text: the authored TeX ("$\frac{2}{9}$") in the
+  // option labels, the feedback and the explanation is flattened once, here.
   if (isCorrect) {
     const body = String(fb.correct || '').trim() || ux('vqMultiRight', language, { right: rightText });
-    return { text: [body, expl].filter(Boolean).join('\n\n'), isCorrect: true };
+    return { text: mathForChat([body, expl].filter(Boolean).join('\n\n')), isCorrect: true };
   }
 
   const lines = [ux('vqMultiWrong', language, { right: rightText })];
@@ -401,7 +408,7 @@ function verdictText(row, { selectedIndices, labels, language }) {
   const wrongFb = extra.slice(0, 2)
     .map((i) => String((fb.wrong || {})[String(i)] || (fb.wrong || {})[i] || '').trim())
     .filter(Boolean);
-  return { text: [lines.join(' '), ...wrongFb, expl].filter(Boolean).join('\n\n'), isCorrect: false };
+  return { text: mathForChat([lines.join(' '), ...wrongFb, expl].filter(Boolean).join('\n\n')), isCorrect: false };
 }
 
 // The two side-effecting halves of this feature — grading a submitted set and

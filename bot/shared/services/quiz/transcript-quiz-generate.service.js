@@ -412,11 +412,14 @@ function teacherLabel(teacherName, language) {
 }
 
 function studentMessage({ teacherName, topic, date, link, language }) {
+  // The message a teacher forwards to the class is text: a topic carrying TeX
+  // maths reads "1/2", never "$\frac{1}{2}$" (quiz-math.js).
+  const { mathForChat } = require('./quiz-math');
   return resolveUx('tqStudentMessage', {
     language,
     params: {
       teacher: teacherLabel(teacherName, language),
-      topic: topic || resolveUx('tqTodaysLesson', { language }),
+      topic: mathForChat(topic) || resolveUx('tqTodaysLesson', { language }),
       date, link,
     },
   });

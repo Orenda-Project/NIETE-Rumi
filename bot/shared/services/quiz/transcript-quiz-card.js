@@ -12,6 +12,12 @@
  * Everything here is deterministic: the display order comes from the same
  * seeded shuffle the sender uses (video-quiz-render.service), so the letters on
  * the card and the letters on the buttons always agree.
+ *
+ * MATHS IS TYPESET (bd-mg9c7.159.19). An expression the author wrote as `$…$`
+ * is drawn by KaTeX — the 6-12 lesson plans' own renderer — as a textbook
+ * prints it: a stacked fraction, a real ×, a raised power. Set in display
+ * style, so a fraction is as tall as the words beside it. KaTeX's stylesheet
+ * and faces ride in the page only when the card actually carries maths.
  */
 const fs = require('fs');
 const path = require('path');
@@ -27,6 +33,7 @@ function markB64() {
 const { fontCss } = require('../../../vendor/lp-v9/lib/fonts');
 
 const { needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTTON_TITLE_MAX } = require('./quiz-notation');
+const { mathHtml, mathCss, usesMath } = require('./quiz-math');
 const { letterListLabel } = require('./video-quiz-render.service');
 const { resolveUx } = require('../../config/ux-strings');
 
@@ -69,8 +76,16 @@ function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null,
   const multi = answerMode === 'multi';
   const fam = ur ? "'Noto Nastaliq Urdu','NastaliqUrdu','Noto Naskh Arabic','Inter',serif" : "'Inter','Helvetica Neue',Arial,sans-serif";
   const order = Array.isArray(displayOrder) && displayOrder.length === options.length ? displayOrder : options.map((_, i) => i);
+  // An option with no letter of any script (a fraction, "12 ÷ 3 = 4", a number)
+  // has no direction of its own: under dir="auto" it resolves left-to-right, and
+  // on an Urdu card it printed at the far left, ~850 px from its letter. It takes
+  // the card's direction so it sits beside its letter; its maths stays an LTR
+  // isolate. An option with words still decides its own direction.
+  const optDir = (o) => (dir === 'rtl' && !/\p{L}/u.test(String(o == null ? '' : o).replace(/\$[^$\n]+?\$/g, '')) ? 'rtl' : 'auto');
   const rows = order.map((stored, pos) => `
-      <div class="opt" data-letter="${LETTERS[pos]}"><div class="dia"><span>${LETTERS[pos]}</span></div><div class="opt-text" dir="auto">${richNotation(esc(options[stored]))}</div></div>`).join('');
+      <div class="opt" data-letter="${LETTERS[pos]}"><div class="dia"><span>${LETTERS[pos]}</span></div><div class="opt-text" dir="${optDir(options[stored])}">${mathHtml(options[stored], { display: true })}</div></div>`).join('');
+  const stemHtml = mathHtml(stem, { display: true });
+  const maths = usesMath(stemHtml) || usesMath(rows);
   const counter = questionNumber && total ? `<div class="counter">${ur ? `سوال ${questionNumber} از ${total}` : `Question ${questionNumber} of ${total}`}</div>` : '';
   // The footer names the letters THIS card actually draws — a two-option card
   // must never tell the child to tap a C that is not there, and a four-option
@@ -98,7 +113,7 @@ function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null,
   // will send.
   const footText = multi ? resolveUx('vqMultiCardFoot', { language }) : footer;
   return `<html lang="${ur ? 'ur' : 'en'}" dir="${dir}"><head><meta charset="utf-8"><style>
-${css}
+${css}${maths ? `\n${mathCss()}` : ''}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#FFFFFF}
 .card{${tokenCss()}width:${CARD_WIDTH}px;background:#FFFFFF;padding:44px 48px 40px;position:relative;overflow:hidden;
@@ -123,7 +138,7 @@ html,body{background:#FFFFFF}
 <svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${latticePaths()}</g></svg>
 <div class="top">${counter}<div class="mark">${markB64() ? `<img src="data:image/png;base64,${markB64()}">` : ''}</div></div>
 ${fig}
-<div class="stem" dir="${dir}">${richNotation(esc(stem))}</div>
+<div class="stem" dir="${dir}">${stemHtml}</div>
 ${cue}${rows}
 <div class="foot">${esc(footText)}</div>
 </div></body></html>`;

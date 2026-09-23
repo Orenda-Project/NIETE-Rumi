@@ -106,6 +106,15 @@ const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX
  */
 const KEY_CONFLICT_RULE = 'KEY CONFLICT. A question rejected for KEY_CONFLICT marked as correct an answer the lesson itself contradicts — usually the very mistake the lesson warns children about, quoted in its complaint. The correct option must say what the lesson says; the lesson\'s mistake may be a WRONG option, never the correct one. This is the one fault where you may keep the same question: fix the options and "correct_index" so the answer the lesson teaches is the one marked correct, and make "explanation" and "option_feedback" say the lesson\'s answer.';
 const KEY_CONFLICT = /^q\d+: KEY_CONFLICT\b/;
+/**
+ * A question rejected for its MATHS NOTATION (MATH_TEX — an unmatched "$", a
+ * word inside the dollars, TeX KaTeX cannot parse). The question itself was
+ * fine; re-asking a different one would throw good work away, so this is the
+ * other fault — beside length and a key conflict — where the question may stay.
+ * The notation rule itself is already in the question contract above it.
+ */
+const MATH_TEX_RULE = 'MATHS NOTATION. For a question rejected ONLY for MATH_TEX, keep the same question, the same options and the same answer, and rewrite only the notation: each expression between single dollars ($\\frac{2}{9}$), words and Urdu outside them, nothing but the maths inside, and every backslash doubled in the JSON you return.';
+const MATH_TEX = /^q\d+: MATH_TEX\b/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code points (characters) and every OPTION at most 72 — anything longer is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
@@ -218,6 +227,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -453,6 +463,6 @@ async function rewriteTeacherFields({ questions, errors, digest, language, quizI
 
 module.exports = {
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
-  QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT,
+  QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT, MATH_TEX_RULE, MATH_TEX,
   teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };
