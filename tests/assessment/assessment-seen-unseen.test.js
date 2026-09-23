@@ -133,7 +133,7 @@ describe('the endpoint', () => {
 
     test('a bad Seen count stays on the Seen screen, not clamped', async () => {
       await exchange('u1', 'QUESTIONS', { content_source: 'seen' }, TOKEN);
-      for (const bad of ['', 'abc', '0', '40']) {
+      for (const bad of ['', 'abc', '0', '60']) {
         const r = await exchange('u1', 'SEEN_COUNT', { seen_count: bad }, TOKEN);
         expect(r.screen).toBe('SEEN_COUNT');
         expect(r.data.error).toBeTruthy();
@@ -190,16 +190,16 @@ describe('the endpoint', () => {
       expect(c.data.recap).toMatch(/17/);
     });
 
-    test('the 25 ceiling counts Seen AND Unseen together', async () => {
-      await throughSeen(20);
+    test('the 50 ceiling counts Seen AND Unseen together', async () => {
+      await throughSeen(45);
       await exchange('u1', 'TYPES', { question_types: ['MCQs', 'Brief Answers'] }, TOKEN);
       const c = await exchange('u1', 'COUNTS', { count_1: '5', count_2: '2' }, TOKEN);
       expect(c.screen).toBe('COUNTS');
-      expect(c.data.error).toMatch(/25/);
+      expect(c.data.error).toMatch(/50/);
     });
 
     test('Seen may not take the whole paper — there must be room for Unseen', async () => {
-      const s = await throughSeen(25);
+      const s = await throughSeen(50);
       expect(s.screen).toBe('SEEN_COUNT');
       expect(s.data.error).toBeTruthy();
     });

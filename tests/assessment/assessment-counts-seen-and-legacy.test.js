@@ -82,7 +82,7 @@ describe('the endpoint', () => {
 
     test('a bad seen count is refused on the Seen screen, not clamped', async () => {
       await exchange('u1', 'QUESTIONS', { content_source: 'seen' }, TOKEN);
-      for (const bad of ['', 'abc', '0', '40']) {
+      for (const bad of ['', 'abc', '0', '60']) {
         const res = await exchange('u1', 'SEEN_COUNT', { seen_count: bad }, TOKEN);
         expect(res.screen).toBe('SEEN_COUNT');
         expect(res.data.error).toBeTruthy();
@@ -106,9 +106,9 @@ describe('the endpoint', () => {
 
     test('unseen still validates the total it was given', async () => {
       const res = await exchange('u1', 'QUESTIONS',
-        { content_source: 'unseen', question_count: '40' }, TOKEN);
+        { content_source: 'unseen', question_count: '60' }, TOKEN);
       expect(res.screen).toBe('QUESTIONS');
-      expect(res.data.error).toMatch(/25/);
+      expect(res.data.error).toMatch(/50/);
     });
 
     test('TYPES goes to CONFIRM — never to a COUNTS screen that client does not have', async () => {
