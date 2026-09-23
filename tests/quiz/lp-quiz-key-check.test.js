@@ -60,6 +60,8 @@ const { installFrom } = require('./helpers/supabase-chain');
 const F = require('./helpers/lp-key-check-fixture');
 const Handoff = require('../../bot/shared/services/quiz/transcript-quiz-handoff.service');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 
 const QID = '77777777-7777-4777-8777-777777777777';
 const LP_QUIZ = {
@@ -137,6 +139,7 @@ const keyCheckEvent = () => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
   jest.spyOn(Handoff, 'sleep').mockResolvedValue(undefined);
 });
 

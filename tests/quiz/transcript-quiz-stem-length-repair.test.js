@@ -47,6 +47,8 @@ jest.mock('../../bot/shared/services/llm-client', () => ({
 const supabase = require('../../bot/shared/config/supabase');
 const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 const RW = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
 
 describe('an over-long stem is one question to repair, exactly like an over-long option', () => {
@@ -163,6 +165,7 @@ describe('the pipeline ships the quiz that a single over-long stem killed', () =
     delete process.env.QUIZ_MULTI_FLOW_ID;
     delete process.env.TRANSCRIPT_QUIZ_MAX_ATTEMPTS;
     jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+    installAgreeingSolver(Gen);
     jest.spyOn(Gen, 'renderFigures').mockResolvedValue({});
     jest.spyOn(Gen, 'renderCards').mockResolvedValue({});
     installFrom(supabase.from, {
