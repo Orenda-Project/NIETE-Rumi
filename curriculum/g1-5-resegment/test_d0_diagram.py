@@ -218,9 +218,12 @@ def test_the_hook_slot_replaces_the_board_plan_so_the_board_is_drawn_not_describ
     # and the drawing sits in its exact seat, last in the introduction
     assert ("diagram", "dia-hook") in intro
     assert intro[-1] == ("diagram", "dia-hook")
-    # nothing else in the section moved
+    # nothing else in the section moved. `warmup-method` opens it (bd-t4iur): the fixture
+    # has no routine steps, so the warm-up's method is the first block, directly under
+    # the band it runs.
     assert [b for b in intro if b[0] != "diagram"] == [
-        ("ask", "hook"), ("key_points", "hook-characters"), ("keywords", "keywords")]
+        ("paragraph", "warmup-method"), ("ask", "hook"),
+        ("key_points", "hook-characters"), ("keywords", "keywords")]
     # routing never reaches the engine
     spec = [b for s in doc["sections"] for b in s["blocks"]
             if b.get("id") == "dia-hook"][0]["spec"]

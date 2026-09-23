@@ -18,8 +18,14 @@ ENR = {
         "bloom": "understand",
         "duration_min": 30,
         "materials": ["chalk", "board"],
-        "warmUp": {"minutes": 4, "script": "Turn to a partner.",
-                   "items": [{"peer_structure": "pair-check", "prompt": "Recall one word.",
+        # bd-c5miz / bd-t4iur. This read "Turn to a partner." -- a BANNED move, and the
+        # shared fixture is the next author's example. OPERATOR: *"teachers dont let
+        # students talk to each other, that too when the class begins"*. It now carries
+        # the method she named herself, which is also what d0_warmscript seats.
+        "warmUp": {"minutes": 4,
+                   "script": ("Write the word in your copy. When I clap, the whole class "
+                              "says it together and you tick or fix your own."),
+                   "items": [{"class_check": "whole-class", "prompt": "Recall one word.",
                               "expected_answer": "Varies."}]},
         "hookStory": "Show textbook p.102.",
         "hookCharacters": [

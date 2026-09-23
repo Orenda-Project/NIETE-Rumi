@@ -26,7 +26,12 @@ from test_d0_primary import ENR
 
 DP = d0_blocks.DESIGN_PENDING
 LOOK = "Does each child point to the line that proves the answer, or answer from memory?"
-STRAT = "Prerequisite retrieval — partner whisper"
+# NOT "partner whisper", which the schema's own description still offers as the
+# example. OPERATOR: *"teachers dont let students talk to each other, that too when
+# the class begins"*. A fixture is the next author's example, so it carries a
+# strategy she would actually run. The schema text is vendor-side -- reported, not
+# edited here.
+STRAT = "Prerequisite retrieval — write, walk, reveal"
 
 
 def _g(**over):

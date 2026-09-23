@@ -26,11 +26,57 @@ which is exactly why the renderer's `dcPhaseOf` matches ids EXACTLY rather than
 by prefix.
 """
 
+from __future__ import annotations
+
+import re
+
 # The renderer's DC_PHASE keys, in its own normalised form (lowercased, every
 # non-alphanumeric stripped). Duplicated rather than imported because that side
 # is JavaScript; `test_d0_crux.py` reads DC_PHASE out of template.js and asserts
 # the two sets are equal, so the duplication cannot drift silently.
 DC_IDS = {"hook", "bigidea", "ido", "wedo", "youdo", "youdotask", "remember", "hw"}
+
+# bd-rd65e. THE OPENING IS ONE MOVE, NOT FOUR. OPERATOR: *"If I see the Opening,
+# there is a strategy, then 3 questions then a hook and then a open with this
+# question, doesnt make sense what to do and what not to do"*, and *"the opening
+# makes no sense when you have added strategies for the sake of it"*.
+#
+# Four labelled things shared one three-minute slot and two of them were the same
+# move: the crux "See, Think, Wonder on the page 13 picture, written, before any
+# reading" sat directly above the question that spells SEE, THINK and WONDER out
+# in full. It was also a SECOND named strategy in a band the operator has ruled
+# carries one -- *"it should be just 1 not multiple strategies since opening is a
+# whole provocation on its own"* -- competing with the warm-up's own.
+#
+# THE REFUSAL IS ABOUT THE SHAPE OF THE BLOCK, NOT ABOUT SCORING. The charter
+# above is that a crux is a DIFFERENT, SHORTER instruction and never a summary,
+# because the complaint it answers is that there is too much script to read. The
+# scripted moves earn one: `i-do`, `we-do`, `you-do` and `hw` each print several
+# steps. An `ask` is a single utterance, so a line above it can only restate it.
+# `hook` therefore stays in DC_IDS and keeps its phase chip; it just prints its
+# provocation once.
+NO_CRUX = {"hook"}
+
+# bd-xa8cf. OPERATOR: *"You cant add No talking in the We Do tag"*.
+#
+# The renderer prints the crux inside the move's TAG CLUSTER, between the WE DO /
+# Guided chips and `WE DO · class practises together` (lp-v9 `movePill`). A tag
+# names the move. A prohibition set there reads as a label on the move itself --
+# the teacher sees "WE DO" and "No talking" as one heading and cannot tell which
+# of the two is the instruction.
+#
+# The rule is not lost with the clause. Every corpus crux that carried it opens
+# "Chalk Talk, silent." and the block's own prompt says "Nobody stands and nobody
+# speaks" -- the instruction text, which is where a classroom-management rule
+# belongs. So the trailing clause is CUT and the crux is kept: rewrite, never
+# empty. A crux that is nothing BUT the prohibition is left alone, because an
+# empty crux renders a gap in the tag cluster and says less than the line did.
+_BAN = re.compile(r"^(?:no\s+(?:talking|speaking)|nobody\s+(?:talks|speaks))\b", re.I)
+_SENTENCE = re.compile(r"(?<=[.!?])\s+")
+
+# The same rule said as what she DOES, anywhere in the block's own instruction.
+_SAYS_IT = re.compile(r"\bsilent|\bsilence\b|no\s+talking|nobody\s+(?:speaks|talks)"
+                      r"|without\s+talking|do(?:es)?\s+not\s+(?:talk|speak)", re.I)
 
 # The schema's own cap. `crux` is one shared `definitions.crux`, `$ref`d from all 17
 # block branches of lp_doc.schema.json -- the LIVE v9 file. Not lp_doc.v2.schema.json:
@@ -39,6 +85,25 @@ DC_IDS = {"hook", "bigidea", "ido", "wedo", "youdo", "youdotask", "remember", "h
 # Seating a longer line renders a sheet that then fails lint -- refused here,
 # where the author can still read why.
 MAX_LEN = 140
+
+
+def _cut_tag_ban(text):
+    """(line, cut) -- the crux without a trailing prohibition sentence."""
+    parts = _SENTENCE.split(text)
+    kept = list(parts)
+    while len(kept) > 1 and _BAN.match(kept[-1].strip()):
+        kept.pop()
+    return " ".join(kept).strip(), len(kept) < len(parts)
+
+
+def _instruction_of(block):
+    """Everything on the block a teacher reads as the instruction, flattened."""
+    out = [str(block.get("prompt") or ""), str(block.get("title") or "")]
+    for key in ("steps", "items"):
+        for v in block.get(key) or []:
+            out.append(v if isinstance(v, str) else " ".join(
+                str(x) for x in (v or {}).values() if isinstance(x, str)))
+    return " ".join(out)
 
 
 def _norm(block_id):
@@ -67,7 +132,11 @@ def apply_crux(sections, crux):
         text = str(line or "").strip()
         if not text:
             continue
-        if key not in DC_IDS:
+        if key in NO_CRUX:
+            gaps.append(
+                f"crux dropped for '{block_id}': the opening prints this "
+                f"provocation in full, so a line above it is the same move twice")
+        elif key not in DC_IDS:
             gaps.append(
                 f"crux dropped for '{block_id}': not a move the Digital Coach "
                 f"scores, so it would print as scored when it is not")
@@ -79,5 +148,11 @@ def apply_crux(sections, crux):
                 f"crux dropped for '{block_id}': {len(text)} characters, "
                 f"over the {MAX_LEN} the schema allows")
         else:
+            text, cut = _cut_tag_ban(text)
+            if cut and not _SAYS_IT.search(_instruction_of(blocks[key])):
+                gaps.append(
+                    f"crux for '{block_id}': the tag cannot carry a prohibition, "
+                    f"and this block's own instruction does not say it either -- "
+                    f"author it there as what the teacher DOES")
             blocks[key]["crux"] = text
     return gaps

@@ -39,6 +39,7 @@ import d0_hook
 import d0_page2
 import d0_route
 import d0_routine
+import d0_warmscript
 
 # v9's `lp_type` is a G6-12 vocabulary and primary's is a different axis
 # (content / revision / assessment). The schema enum is closed, so D0 maps onto
@@ -265,6 +266,13 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
     # should be done should be highlighted in the move since there is alot of script
     # to go through"*.
     crux_gaps = d0_crux.apply_crux(sections, g.get("crux"))
+    # THE WARM-UP'S METHOD (bd-t4iur). `warmUp.script` is the only authored field that
+    # says HOW the retrieval questions are run and nothing rendered it -- the band
+    # printed a strategy NAME and three questions. OPERATOR: *"It should just hold the
+    # scriopt WRITE the word in your copy. When I clap, the whole class says it together
+    # and you tick or fix your own"*: the positive instruction, without the prohibition
+    # that lint gate 10e now enforces anyway. Same additive contract as the three above.
+    warm_gaps = d0_warmscript.apply_method(sections, g.get("warmUp"))
     d0_close.seat_the_check(sections, g)
     # The halfway landmark is seated last because which section owns minute 20
     # is a fact about the whole timeline, not about any one section (bd-p4ulq).
@@ -307,7 +315,7 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
         "notes": {
             "supplied": [f"primary lp_type: {enr.get('lp_type') or 'content'}"],
             "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)]
-                    + dia_gaps + vid_gaps + crux_gaps,
+                    + dia_gaps + vid_gaps + crux_gaps + warm_gaps,
         },
         "needs_human_review": bool(enr.get("needs_human_review")),
     }

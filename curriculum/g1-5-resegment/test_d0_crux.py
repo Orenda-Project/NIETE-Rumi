@@ -119,3 +119,132 @@ def test_the_id_vocabulary_matches_the_renderers_own_dc_phase_map():
     assert body, "DC_PHASE is gone from template.js -- the seam moved"
     keys = set(re.findall(r"^\s*([A-Za-z0-9_]+)\s*:", body.group(1), re.M))
     assert keys == d0_crux.DC_IDS
+
+
+# ── bd-rd65e — THE OPENING IS ONE MOVE, NOT FOUR ────────────────────────────
+#
+# OPERATOR, three messages in a row:
+#   *"engliush opening warmup has a strategy, how do the teacher do it when you
+#    also have 3 questions added?"*
+#   *"the opening makes no sense when you have added strategies for the sake of it"*
+#   *"If I see the Opening, there is a strategy, then 3 questions then a hook and
+#    then a open with this question, doesnt make sense what to do and what not to do"*
+#
+# The rendered Opening stacked FOUR labelled things in one three-minute slot:
+# the warm-up's named strategy, its three retrieval questions, the hook's crux
+# line, and the hook question itself. Two of those four are the SAME move --
+# the crux `"See, Think, Wonder on the page 13 picture, written, before any
+# reading."` sits directly above the question that says SEE / THINK / WONDER in
+# full. It is also a SECOND named strategy inside an opening the operator has
+# ruled carries one: *"it should be just 1 not multiple strategies since opening
+# is a whole provocation on its own"*.
+#
+# WHY THE HOOK AND NOTHING ELSE. This module's own charter is that a crux is "a
+# different, shorter instruction", never a summary of the script -- because the
+# complaint it answers is that there is too much script. That holds for the
+# blocks that carry multi-step scripts (i-do, we-do, you-do, hw). The hook is not
+# one of them: an `ask` block is a single utterance, so a line above it can only
+# restate it. The refusal is therefore about the SHAPE of the block, not about
+# whether the Digital Coach scores it -- `hook` stays in DC_IDS and keeps its
+# phase chip.
+
+
+def _hook_only():
+    return [{"id": "intro", "blocks": [{"type": "ask", "id": "hook", "question": "q"}]}]
+
+
+def test_the_hook_takes_no_crux():
+    secs = _hook_only()
+    d0_crux.apply_crux(secs, {"hook": "See, Think, Wonder on the picture, written."})
+    assert "crux" not in secs[0]["blocks"][0]
+
+
+def test_the_refused_hook_crux_says_why():
+    """Dropped whole and reported, like every other refusal here -- an author who
+    wrote one must be able to tell that from a lesson nobody wrote one for."""
+    gaps = d0_crux.apply_crux(_hook_only(), {"hook": "See, Think, Wonder."})
+    assert len(gaps) == 1 and "hook" in gaps[0]
+
+
+def test_the_scripted_moves_still_take_their_crux():
+    """The seam guard. The hook is the ONE refusal; widening it would silently
+    strip the line the operator asked for off the blocks that need it most."""
+    secs = _sections()
+    gaps = d0_crux.apply_crux(secs, {"i-do": "Model it.", "big-idea": "Name it."})
+    assert _blocks(secs)["i-do"]["crux"] == "Model it."
+    assert _blocks(secs)["big-idea"]["crux"] == "Name it."
+    assert gaps == []
+
+
+def test_the_hook_keeps_its_dc_phase():
+    """It is refused for its SHAPE, not for being unscored. Dropping it out of
+    DC_IDS would break the renderer-drift guard below and would be a lie about
+    what the Digital Coach reads."""
+    assert "hook" in d0_crux.DC_IDS
+    assert d0_crux.NO_CRUX <= d0_crux.DC_IDS
+
+
+# ── bd-xa8cf — "No talking" is not a move tag ───────────────────────────────
+#
+# OPERATOR: *"You cant add No talking in the We Do tag"*.
+#
+# The crux prints inside the move's tag cluster (lp-v9 `movePill`), immediately
+# before `WE DO · class practises together`. A tag NAMES the move. A prohibition
+# there makes the move itself read as forbidden -- the teacher sees "WE DO" and
+# "No talking" set as one label and cannot tell which is the instruction.
+#
+# The rule is not lost: every crux that carried it opens `"Chalk Talk, silent."`
+# and the block's own prompt says `"Nobody stands and nobody speaks."` -- the
+# instruction text, which is where a classroom-management rule belongs. So the
+# trailing prohibition is CUT, never the block and never the whole crux.
+
+WEDO_CRUX = ("Chalk Talk, silent. They write, slide the copy one place, "
+             "mark a partner's columns, slide it back. No talking, nobody stands.")
+
+
+def _wedo(prompt="Whole class. Nobody stands and nobody speaks."):
+    return [{"id": "activity", "blocks": [
+        {"type": "faded_example", "id": "we-do", "prompt": prompt,
+         "steps": ["one"]}]}]
+
+
+def test_the_trailing_prohibition_is_cut_from_the_tag():
+    secs = _wedo()
+    d0_crux.apply_crux(secs, {"we-do": WEDO_CRUX})
+    assert "talking" not in secs[0]["blocks"][0]["crux"].lower()
+
+
+def test_what_the_teacher_does_survives_the_cut():
+    """Rewrite, never empty -- the move keeps its crux and keeps `silent`, which
+    says the same thing as what she DOES rather than as what is banned."""
+    secs = _wedo()
+    d0_crux.apply_crux(secs, {"we-do": WEDO_CRUX})
+    assert secs[0]["blocks"][0]["crux"] == (
+        "Chalk Talk, silent. They write, slide the copy one place, "
+        "mark a partner's columns, slide it back.")
+
+
+def test_a_crux_that_is_nothing_but_the_prohibition_is_left_alone():
+    """Never empty. With nothing else in it the line is all the teacher has, and
+    a blank crux renders a tag cluster with a gap in it."""
+    secs = _wedo()
+    d0_crux.apply_crux(secs, {"we-do": "No talking."})
+    assert secs[0]["blocks"][0]["crux"] == "No talking."
+
+
+def test_the_cut_is_reported_when_the_instruction_does_not_already_say_it():
+    """Moved, not deleted. If the block's own instruction never states the rule
+    the cut would lose it, so the gap names the block an author must fix."""
+    gaps = d0_crux.apply_crux(_wedo(prompt="Whole class, one copy each."),
+                              {"we-do": WEDO_CRUX})
+    assert len(gaps) == 1 and "we-do" in gaps[0]
+
+
+def test_no_gap_when_the_instruction_already_carries_the_rule():
+    assert d0_crux.apply_crux(_wedo(), {"we-do": WEDO_CRUX}) == []
+
+
+def test_an_ordinary_crux_is_not_touched():
+    secs = _sections()
+    d0_crux.apply_crux(secs, {"i-do": "Read p.14 aloud. Point at the apostrophe."})
+    assert _blocks(secs)["i-do"]["crux"] == "Read p.14 aloud. Point at the apostrophe."
