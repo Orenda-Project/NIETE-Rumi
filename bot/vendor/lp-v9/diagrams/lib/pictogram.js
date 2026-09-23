@@ -32,6 +32,31 @@ const MIN_STROKE_UNITS = 1.7;
 
 const cache = new Map();
 
+// VENDOR DIVERGENCE (SYNC.md §3.17): glyphs this deployment draws itself instead
+// of the vendored OpenMoji line art, because the line art does not read as the
+// noun at a child's phone size.
+//
+// THE BACKPACK (`bag`, `bag_school`). OpenMoji's black backpack is an arch with
+// a bar across it and a loop on top — no straps, no pocket — and a counting
+// question showing three of them ("تصویر میں کتنے بستے ہیں؟") was read as three
+// lanterns or birdcages. This one is drawn to the same contract as every built
+// glyph (72-unit grid, currentColor ink, stroke 2, round caps, data-ov="skip")
+// with the four things that make the silhouette a school bag: a rounded body,
+// the two shoulder straps bowing out at its sides, a carry handle, and a front
+// pocket with its flap and tab. `data-part` names each piece so a test can hold
+// the drawing to that description.
+const SKIP = 'data-ov="skip" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"';
+const BACKPACK = [
+  `<path data-part="strap" ${SKIP} d="M19,27 C12.5,31 11,45 13,56 C13.6,59.2 15.6,61 18.5,61"/>`,
+  `<path data-part="strap" ${SKIP} d="M53,27 C59.5,31 61,45 59,56 C58.4,59.2 56.4,61 53.5,61"/>`,
+  `<path data-part="handle" ${SKIP} d="M31,17 V12 A3,3 0 0 1 34,9 H38 A3,3 0 0 1 41,12 V17"/>`,
+  `<path data-part="body" ${SKIP} d="M19,60 V31 A14,14 0 0 1 33,17 H39 A14,14 0 0 1 53,31 V60 A4,4 0 0 1 49,64 H23 A4,4 0 0 1 19,60 Z"/>`,
+  `<path data-part="pocket" ${SKIP} d="M25,42 H47 V55 A3,3 0 0 1 44,58 H28 A3,3 0 0 1 25,55 Z"/>`,
+  `<path data-part="flap" ${SKIP} d="M25,42 C29,49 43,49 47,42"/>`,
+  `<path data-part="tab" ${SKIP} d="M36,47 V51"/>`,
+].join("");
+const OWN_GLYPHS = { bag: BACKPACK, bag_school: BACKPACK };
+
 /** 'Red Apple' / 'red-apple' / ' apple ' all address the same glyph. */
 function key(name) {
   return String(name == null ? "" : name).trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -50,6 +75,10 @@ function has(name) {
 function inner(name) {
   const k = key(name);
   if (cache.has(k)) return cache.get(k);
+  if (Object.prototype.hasOwnProperty.call(OWN_GLYPHS, k) && has(k)) {
+    cache.set(k, OWN_GLYPHS[k]);
+    return OWN_GLYPHS[k];
+  }
   const entry = INDEX.glyphs[k];
   if (!entry) {
     // BOUNDED on purpose. The full roster is already in the author prompt, and

@@ -276,6 +276,11 @@ function buildMulti(row, { order, shown, language }) {
     options: shown,
     optionIndices: order,
     headerImage: media.question_card || media.question_image || null,
+    // A question card, or a figure the generator framed, paints "Question n of
+    // N" into the header picture itself; the bubble must not print it again
+    // (render.attachCounter). An older, unframed figure still needs the line.
+    ...(media.question_card || (media.question_image && media.question_image_paints_counter === true)
+      ? { paintsOwnCounter: true } : {}),
     seq: 0,
   }];
 }

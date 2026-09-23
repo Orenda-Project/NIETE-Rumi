@@ -40,6 +40,16 @@ const JOIN_LOCK_SECS = 60;
 // Chrome a CHILD reads, in the quiz language.
 const ux = (key, language, params) => resolveUx(key, { language, params });
 
+/**
+ * The {who} of the greeting: the child's name, and their class when they gave
+ * one, joined the way the quiz language joins them (vqWhoNameClass — Urdu's
+ * comma is `،`, and each typed value is a bidi isolate).
+ */
+function whoLabel(name, className, language) {
+  const cls = String(className || '').trim();
+  return cls ? ux('vqWhoNameClass', language, { name, cls }) : name;
+}
+
 // bd-2477 #3: offerShare()'s send used to fire-and-forget — a WhatsApp
 // per-recipient rate limit (confirmed via Axiom, same session as bd-2477 #1)
 // silently dropped the "send to your class again?" offer with no retry and
@@ -469,7 +479,7 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
   });
 
   await WhatsAppService.sendMessage(phone,
-    ux('vqLetsBegin', lang, { who: `${name}${className ? `, ${className}` : ''}` }));
+    ux('vqLetsBegin', lang, { who: whoLabel(name, className, lang) }));
 
   await startForStudent(phone, {
     shareCodeId: sc.id, quizId: sc.quiz_id, videoId: sc.video_id,
@@ -558,7 +568,7 @@ async function consumeJoinReply(phone, text) {
     st.studentClass = value.slice(0, 40);
     await redisService.delete(JOIN_KEY(phone));
     await WhatsAppService.sendMessage(phone,
-      ux('vqLetsBegin', lang, { who: `${st.studentName}, ${st.studentClass}` }));
+      ux('vqLetsBegin', lang, { who: whoLabel(st.studentName, st.studentClass, lang) }));
 
     // bd-2337 — remember them, so the next quiz their teacher shares opens
     // straight at question 1. Best-effort: if this fails the quiz still runs,

@@ -2083,6 +2083,12 @@ const UX_STRINGS = {
   },
   vqLetsBegin: { en: 'Great — {who}. Let’s begin!', ur: 'بہت خوب — {who}۔ چلیں شروع کریں!' },
   vqLetsBeginName: { en: 'Let’s begin, {name}!', ur: '\u200F{name}، چلیں شروع کریں!' },
+  // The {who} of vqLetsBegin when the child gave a class too. Each typed value
+  // is a first-strong isolate (its script is whatever the child typed): a Latin
+  // class such as "1-B" after an Urdu word is otherwise painted "B-1", and an
+  // Urdu name in the English line drags the class to its left. The separator
+  // is language data — Urdu's comma is `،`, never `,`.
+  vqWhoNameClass: { en: '\u2068{name}\u2069, \u2068{cls}\u2069', ur: '\u2068{name}\u2069، \u2068{cls}\u2069' },
   vqExpired: {
     en: 'That quiz link has expired. Ask your teacher for a new one!',
     ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
@@ -2119,9 +2125,14 @@ const UX_STRINGS = {
     ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔\n\n{tier}',
   },
   vqScoreCaption: {
-    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%). You’ve earned {stars} {starWord}!\n\n{tier}',
-    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔ آپ کو {stars} {starWord} ملے!\n\n{tier}',
+    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%). {starsLine}\n\n{tier}',
+    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔ {starsLine}\n\n{tier}',
   },
+  // The caption's star sentence. Urdu inflects the noun AND the verb for one
+  // star (ستارہ ملا) against several (ستارے ملے), so each count is its own
+  // whole sentence here rather than a word swapped into one template.
+  vqStarsEarned: { en: 'You’ve earned {stars} stars!', ur: 'آپ کو {stars} ستارے ملے!' },
+  vqStarsEarnedOne: { en: 'You’ve earned {stars} star!', ur: 'آپ کو {stars} ستارہ ملا!' },
   vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },
   vqTierDeveloping: {
     en: 'Nicely done — a little more practice and you’ll have it.',
@@ -2203,12 +2214,17 @@ const UX_STRINGS = {
   // / آپ and is never described; the ordinal is built in code. An Urdu body
   // that opens with a number carries the right-to-left mark.
   vqClassEyebrow: { en: 'CLASS RESULTS', ur: 'کلاس کے نتائج' },
+  // {place} is the ordinal the template builds. In Urdu the TIE line puts it
+  // before a postposition (… نمبر پر), so there it is the OBLIQUE form
+  // (پہلے، پانچویں); the plain line keeps the direct form (پہلا، پانچواں).
   vqClassPlace: { en: 'You came {place} of {n}', ur: '\u200F{n} میں سے آپ کا {place} نمبر' },
   vqClassPlaceTie: { en: 'You are joint {place} of {n}', ur: '\u200F{n} میں سے آپ مشترکہ {place} نمبر پر' },
   vqClassYou: { en: 'you', ur: 'آپ' },
   vqClassAvg: { en: 'class average', ur: 'کلاس کا اوسط' },
   vqClassYours: { en: 'your score', ur: 'آپ کا اسکور' },
   vqClassOthers: { en: '{n} more in the class', ur: 'کلاس کے {n} اور بچے' },
+  // One hidden child: the noun and its postposition are singular (کا … بچہ).
+  vqClassOthersOne: { en: '{n} more in the class', ur: 'کلاس کا {n} اور بچہ' },
   vqClassFinished: { en: '{n} finished', ur: '\u200F{n} نے مکمل کیا' },
   // The one-line caption under the card, sent to the child. Names nobody.
   vqClassCardCaption: {
