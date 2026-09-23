@@ -384,19 +384,26 @@ function doneAction(language) {
  * made has nothing to read yet, and it goes to the terminal "still being made"
  * screen instead (lessonScreenFrom).
  */
-function actionsFor({ state, quiz, session, language }) {
+function actionsFor({ state, quiz, session, language, finished = 0 }) {
   if (state === 'making') return [];
-  const list = baseActions({ state, quiz, session, language });
+  const list = baseActions({ state, quiz, session, language, finished });
   return list.length ? list : [doneAction(language)];
 }
 
-function baseActions({ state, quiz, session, language }) {
+function baseActions({ state, quiz, session, language, finished = 0 }) {
   if (state === 'sent' || state === 'report_sent') {
     const out = [];
     // A report needs a class link to count sessions against; a resend needs the
     // student message that link was published with. A quiz that has never been
     // handed off has neither, and must not mint a new code here.
-    if (quiz?.meta?.share_code_id) {
+    //
+    // A report is offered only once a child has FINISHED (the teacher's own test
+    // run excluded, as the report service excludes it). Before that the service
+    // declines ("nothing_completed_yet") after the screen has already promised
+    // the report is on its way — so with nobody finished, the lesson leads with
+    // Resend link, the thing that actually gets children to finish, then Done.
+    const canReport = Boolean(quiz?.meta?.share_code_id) && finished > 0;
+    if (canReport) {
       out.push({
         id: 'report',
         title: resolveUx('tqFlowActionReport', { language }),
@@ -410,6 +417,7 @@ function baseActions({ state, quiz, session, language }) {
         description: resolveUx('tqFlowActionLinkDesc', { language }),
       });
     }
+    if (!canReport && out.length) out.push(doneAction(language));
     return out;
   }
   // An lp_v8 quiz exists because the teacher said yes to the afternoon offer;
@@ -469,7 +477,7 @@ function lessonScreenFrom({ teacher, session, quiz, students, language, extra = 
   // directly below already carries started/finished/average, and the caption
   // repeating it in longer words was the same sentence twice.
   const status = flowStatus(quiz, language, counts);
-  const actions = actionsFor({ state, quiz, session, language });
+  const actions = actionsFor({ state, quiz, session, language, finished: counts.finished });
   // The published LESSON screen draws a RadioButtonsGroup that is
   // `required: true` over ${data.actions} (literals since the chooser's
   // visible/required bindings made its value arrive empty). An empty list
@@ -608,7 +616,8 @@ async function stepAction(teacher, screenData) {
   const state = List.quizState(quiz);
   const students = (state === 'sent' || state === 'report_sent')
     ? await loadStudents(quiz.id, teacher.id) : [];
-  const available = actionsFor({ state, quiz, session, language }).map((a) => a.id);
+  const finished = students.filter((s) => s.status === 'completed').length;
+  const available = actionsFor({ state, quiz, session, language, finished }).map((a) => a.id);
 
   const refuse = (key) => lessonScreenFrom({
     teacher, session, quiz, students, language,
@@ -630,6 +639,19 @@ async function stepAction(teacher, screenData) {
     });
     return refuse('tqFlowErrPickAction');
   }
+  // Generate report on a screen drawn before anyone finished (or opened
+  // again from an old Flow): nothing to report. Say exactly that — the old
+  // path answered "on its way" and the report service then declined.
+  if (action === 'report' && (state === 'sent' || state === 'report_sent')
+      && quiz?.meta?.share_code_id && !finished) {
+    logEvent('transcript_quiz.flow_action_refused', {
+      userId: teacher.id, reason: 'nothing_to_report', quizId: quiz.id, started: students.length,
+    });
+    return lessonScreenFrom({
+      teacher, session, quiz, students, language,
+      extra: { results: resolveUx('tqFlowResultsNothingToReport', { language }) },
+    });
+  }
   if (!available.includes(action)) {
     logEvent('transcript_quiz.flow_action_refused', {
       userId: teacher.id, reason: 'action_unavailable', action, available: available.length,
@@ -644,9 +666,19 @@ async function stepAction(teacher, screenData) {
 
   if (action === 'report') {
     const shareCodeId = quiz.meta.share_code_id;
+    const phone = teacher.phone_number;
     runAfterResponse('report', quiz.id, async () => {
       const Report = require('../services/quiz/video-quiz-report.service');
-      return Report.generate(shareCodeId, { reason: 'requested', force: true });
+      const sent = await Report.generate(shareCodeId, { reason: 'requested', force: true });
+      if (!sent) {
+        // The screen already said the report is coming. For a teacher-asked
+        // report the service declines only when it counts no finished child
+        // (share code and teacher phone are both known here), so the chat says
+        // exactly that rather than leaving the promise unanswered.
+        const WhatsAppService = require('../services/whatsapp.service');
+        await WhatsAppService.sendMessage(phone, resolveUx('tqNoReportYet', { language }));
+      }
+      return sent;
     });
     return doneScreen('report', language, { userId: teacher.id, quizId: quiz.id });
   }

@@ -304,6 +304,18 @@ Feature: NIETE (ICT) Teacher Training
     # generic error. @wip — forcing a failure needs a seeded failed row.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: /quiz never promises a report when no student has finished
+    Given the NIETE bot chat is open and I have sent a class quiz that only my own test run has taken
+    When I open "/quiz" and tap that lesson
+    Then the lesson screen offers "Resend link" and "Done", and no "Generate report"
+    When a student finishes the quiz and I open the lesson again
+    Then "Generate report" is offered first, and choosing it brings the report to my chat
+    # transcript-quiz-flow-endpoint baseActions: report only when a non-self-test session is completed (the
+    # report service's own rule — it declines nothing_completed_yet otherwise). A stale Generate report tap
+    # answers tqFlowResultsNothingToReport on the lesson screen, never the DONE "on its way"; a decline after
+    # the screen was answered is told in chat (tqNoReportYet). @wip.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A question that cannot be sent is skipped, and the child is scored on the questions actually asked
     Given a class quiz one of whose questions cannot be sent to a child's phone
     When a child opens the quiz from its link and answers the questions before it
