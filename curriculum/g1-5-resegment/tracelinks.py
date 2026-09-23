@@ -138,7 +138,9 @@ def traces_cell(artefacts, unpublished=()):
 
     `unpublished` names the printed pages with no page-truth object, so the
     cell states its own gap rather than quietly listing fewer pages than the
-    day teaches.
+    day teaches. A day whose EVERY page is unpublished has no artefact at
+    all, and the gap is then the whole trace (bd-9hjsp) -- returning "" there
+    made such a row read as one the trace pass never reached.
     """
     out = {}
     for stage in artefacts:
@@ -149,8 +151,8 @@ def traces_cell(artefacts, unpublished=()):
         if not value:
             continue
         out[stage] = list(value) if isinstance(value, (list, tuple)) else value
-    if not out:
-        return ""
     if unpublished:
         out["pages_unpublished"] = list(unpublished)
+    if not out:
+        return ""
     return json.dumps(out, ensure_ascii=False, separators=(",", ":"))

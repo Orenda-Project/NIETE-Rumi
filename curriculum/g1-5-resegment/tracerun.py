@@ -89,9 +89,11 @@ def read_tab(svc, tab):
 def plan(subject, gid, header, body, urlmap, books, stamp):
     """Requests for one tab, plus the counts that go in the report.
 
-    One cell per traced row. A row whose pages are all unpublished gets no
-    cell at all rather than an empty object: "{}" repeated down a column
-    is the constant this whole change is removing.
+    One cell per traced row. A row with nothing to say -- no printed pages,
+    so neither a link nor a gap -- gets no cell at all rather than an empty
+    object: "{}" repeated down a column is the constant this whole change is
+    removing. A row whose pages are all UNPUBLISHED does have something to
+    say, and says it (bd-9hjsp): the cell names the pages still to upload.
     """
     idx = dict((tl.unstamped(h), i) for i, h in enumerate(header) if h)
     pages_i = idx["Pages (printed)"]

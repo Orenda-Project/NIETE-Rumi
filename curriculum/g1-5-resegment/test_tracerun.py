@@ -92,11 +92,22 @@ class TheCellsThatGetBuilt(unittest.TestCase):
         self.assertNotIn("textFormatRuns", reqs[1]["updateCells"]["rows"][0]
                                                ["values"][0])
 
-    def test_a_day_with_nothing_published_gets_no_cell_at_all(self):
+    def test_a_day_with_no_printed_pages_gets_no_cell_at_all(self):
         """An empty object down a column is the constant this replaced."""
-        reqs, t = plan(("GRADE 4", ""), ("Day 1", "99"))
+        reqs, t = plan(("GRADE 4", ""), ("Day 1", ""))
         self.assertEqual((t["traced"], t["no artefact"]), (0, 1))
         self.assertEqual(len(reqs), 1)
+
+    def test_a_day_whose_every_page_is_unpublished_still_gets_a_cell(self):
+        # bd-9hjsp. This row used to fall through the same door as a row with
+        # no pages, and the two are not the same row: this one names a page
+        # that still needs uploading, and a blank cell buries that. Only the
+        # EMPTY object was worth suppressing, not every cell without a link.
+        reqs, t = plan(("GRADE 4", ""), ("Day 1", "99"))
+        self.assertEqual((t["traced"], t["no artefact"]), (1, 0))
+        self.assertEqual(json.loads(value(reqs[1])),
+                         {"pages_unpublished": [99]})
+        self.assertEqual((t["links"], t["gaps"]), (0, 1))
 
 
 class TheRegroup(unittest.TestCase):

@@ -201,6 +201,15 @@ class TheTracesCell(unittest.TestCase):
                                         unpublished=[]))
         self.assertNotIn("pages_unpublished", cell)
 
+    def test_a_row_whose_every_page_is_unpublished_still_states_the_gap(self):
+        # bd-9hjsp. A blank cell and a cell reading "no page of this day has
+        # been published" say different things to a reviewer, and the second
+        # is the true one. Returning "" here made the one row on the sheet
+        # with a single unpublished page indistinguishable from a row the
+        # trace pass never reached -- dark stages stay dark, named.
+        cell = json.loads(t.traces_cell({}, unpublished=[9]))
+        self.assertEqual(cell, {"pages_unpublished": [9]})
+
 
 if __name__ == "__main__":
     unittest.main()
