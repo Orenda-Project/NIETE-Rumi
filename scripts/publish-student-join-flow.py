@@ -3,6 +3,14 @@
 Publish the Student Join Flow (name + class, shown to a child opening a quiz
 share link) to a WhatsApp Business Account.
 
+This publishes the LOCALIZED asset, docs/flows/student-join-flow-v2.json: every
+word on its screen is screen data the bot fills in the quiz language, so one
+Flow serves every child. Always CREATE it as a new Flow (no --flow-id) — do not
+upload it over the Flow STUDENT_JOIN_FLOW_ID points at: the bot sends that id
+only {teacher, topic}, which would leave the v2 screen blank. The generic
+bot/scripts/setup/register-one-flow.js --flow "Student Join Localized" does the
+same job with a before/after diff of the account, and is the preferred path.
+
 Shape copied from scripts/publish-assessment-gen-flow.py. Two deliberate
 differences, both forced by what this Flow IS:
 
@@ -10,10 +18,10 @@ differences, both forced by what this Flow IS:
     and its footer action is `complete`, so the whole payload arrives as an
     nfm_reply and is handled in-process. Setting an endpoint_uri would make
     Meta call a data_exchange route that does not exist.
-  * The flow id it prints goes into STUDENT_JOIN_FLOW_ID. With that env var
-    unset the join still works — the bot falls back to asking for the name in
-    chat (video-quiz-share.service.js) — it is just three round trips instead
-    of one screen.
+  * The flow id it prints goes into STUDENT_JOIN_LOCALIZED_FLOW_ID. With that
+    env var unset the join still works — an English child gets the legacy
+    STUDENT_JOIN_FLOW_ID screen, and everyone else is asked name and class in
+    chat (video-quiz-share.service.js), three round trips instead of one screen.
 
 Env vars, read from the repo-root .env of whichever deployment you are
 publishing to:
@@ -27,7 +35,7 @@ Usage:
   python3 scripts/publish-student-join-flow.py --flow-id <id> --publish # update + publish
 
 A Flow id is per-WABA by design: the same JSON published to a second WABA gets
-a different id, and each deployment sets its own STUDENT_JOIN_FLOW_ID.
+a different id, and each deployment sets its own STUDENT_JOIN_LOCALIZED_FLOW_ID.
 """
 from __future__ import annotations
 import argparse, json, sys, urllib.request, urllib.error, uuid
@@ -35,7 +43,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 ENV = REPO / ".env"
-FLOW_JSON = REPO / "docs" / "flows" / "student-join-flow.json"
+FLOW_JSON = REPO / "docs" / "flows" / "student-join-flow-v2.json"
+ENV_VAR = "STUDENT_JOIN_LOCALIZED_FLOW_ID"
 
 
 def env(k: str, required: bool = True):
@@ -85,7 +94,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--publish", action="store_true", help="Publish the Flow immediately (default: DRAFT)")
     ap.add_argument("--flow-id", help="Update an existing Flow instead of creating a new one")
-    ap.add_argument("--name", default="Student join — name and class", help="Flow name shown in the Meta dashboard")
+    ap.add_argument("--name", default="Student Join Localized", help="Flow name shown in the Meta dashboard")
     ap.add_argument("--dry-run", action="store_true", help="Validate the JSON and print the plan; call nothing")
     args = ap.parse_args()
 
@@ -127,7 +136,7 @@ def main() -> int:
     else:
         print("\n✅ Flow saved as a DRAFT. Publish it with --flow-id "
               f"{flow_id} --publish, then set:")
-    print(f"   STUDENT_JOIN_FLOW_ID={flow_id}")
+    print(f"   {ENV_VAR}={flow_id}")
     return 0
 
 

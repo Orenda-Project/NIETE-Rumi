@@ -2074,6 +2074,29 @@ const UX_STRINGS = {
     en: 'That quiz link has expired. Ask your teacher for a new one!',
     ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
   },
+
+  // ─── the join Flow a child we have never met opens (screen WHO) ─────────
+  // Every word on that screen arrives as navigate-mode screen data
+  // (docs/flows/student-join-flow-v2.json binds each one to ${data.*}), so one
+  // published asset speaks the quiz language. Caps, in code points: the Flow
+  // CTA 20, the screen title 30, TextHeading 80, a TextInput label 20 and its
+  // helper-text 80, the Footer label 35. The class example keeps the ASCII
+  // digit of vqAskClass, the chat path asking the same question, so the two
+  // paths suggest one way of writing a class.
+  vqJoinFlowButton: { en: 'Start', ur: 'شروع کریں' },
+  vqJoinTitle: { en: 'Before we start', ur: 'شروع کرنے سے پہلے' },
+  vqJoinHeading: {
+    en: '{teacher} has sent you a quiz',
+    ur: '‏{teacher} نے آپ کو quiz بھیجا ہے',
+  },
+  vqJoinNameLabel: { en: 'Your name', ur: 'آپ کا نام' },
+  vqJoinNameHelp: {
+    en: 'So your teacher can see how you did',
+    ur: 'تاکہ آپ کے استاد دیکھ سکیں کہ آپ نے کیسا کیا',
+  },
+  vqJoinClassLabel: { en: 'Your class', ur: 'آپ کی جماعت' },
+  vqJoinClassHelp: { en: 'For example: Grade 4, or 1-B', ur: 'مثلاً: جماعت 4' },
+  vqJoinSubmit: { en: 'Start the quiz', ur: '‏quiz شروع کریں' },
   vqHereWeGo: { en: 'Here we go — {n} questions. Take your time!', ur: 'چلیں — {n} سوال ہیں۔ آرام سے کریں!' },
   vqQuestionOf: { en: '*Question {i} of {n}*', ur: '*سوال {i} از {n}*' },
   vqChooseAnswer: { en: 'Choose answer', ur: 'جواب چنیں' },
@@ -2109,6 +2132,25 @@ const UX_STRINGS = {
   },
   vqInviteYes: { en: 'Invite a friend', ur: 'دوست کو بھیجیں' },
   vqInviteNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+  // What the child forwards after tapping vqInviteYes. The second message is
+  // read by the FRIEND, who is joining the same quiz, so it is in the quiz
+  // language too. {name} is the inviter's first name only. In Urdu it always
+  // sits before a postposition (کے خیال میں), so its fallback vqInviteFriend
+  // is written in the oblique form (آپ کے دوست, never آپ کا دوست). The verb
+  // agrees with "quiz" (آئے گا), never with either child.
+  vqInviteForwardThis: {
+    en: 'Here is the message — forward THIS one to your friend:',
+    ur: 'یہ رہا پیغام — یہی پیغام اپنے دوست کو forward کریں:',
+  },
+  vqInviteMessage: {
+    en: "📚 *Try this quiz!*\n\n{name} thinks you'd like this quiz on *{topic}*.\n\nTap here to start:\n{link}",
+    ur: '‏📚 *یہ quiz کر کے دیکھیں!*\n\n{name} کے خیال میں *{topic}* پر یہ quiz آپ کو پسند آئے گا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}',
+  },
+  vqInviteFriend: { en: 'Your friend', ur: 'آپ کے دوست' },
+  vqInviteLinkFailed: {
+    en: 'Sorry — I couldn\'t make that link just now. Try again in a moment.',
+    ur: 'معذرت — ابھی link نہیں بن سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
 
   // ─── the watch-more offer after the invite (bd-2yyry.8 / .9) ───────────
   // Read by CHILDREN, in the quiz language. Gender-neutral by construction:

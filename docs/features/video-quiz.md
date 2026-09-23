@@ -31,7 +31,10 @@ without a teacher having to generate anything.
    renders an image (score-tier background, stars, the taker's name) via Playwright.
 5. **Forward to class** — [video-quiz-share.service.js](../../bot/shared/services/quiz/video-quiz-share.service.js)
    mints a `quiz_share_codes` row + wa.me link. A child arriving via that link registers name+class through
-   `STUDENT_JOIN_FLOW_ID`, and can invite a friend in turn.
+   `STUDENT_JOIN_LOCALIZED_FLOW_ID` (docs/flows/student-join-flow-v2.json — every word on the screen is
+   screen data in the quiz language), and can invite a friend in turn; the invite they forward is in the
+   quiz language too. With that id unset, an English child gets the legacy English-only
+   `STUDENT_JOIN_FLOW_ID` screen and every other child is asked name and class in chat.
 6. **Class report** — [video-quiz-report.service.js](../../bot/shared/services/quiz/video-quiz-report.service.js)
    sends the teacher a PDF the next morning, once per share code (queued via `quiz_video_report` jobs in
    [sqs-worker.js](../../bot/workers/sqs-worker.js)).
@@ -51,7 +54,9 @@ so `r2_url` was copied verbatim.
 ## Enable it
 
 `VIDEO_QUIZ_FLOW_ID`, `QUIZ_MULTI_FLOW_ID` (optional — the select-all-that-apply Flow; publish it with
-`scripts/publish-quiz-multi-flow.py`, which is a per-WABA step), `STUDENT_JOIN_FLOW_ID`,
+`scripts/publish-quiz-multi-flow.py`, which is a per-WABA step), `STUDENT_JOIN_LOCALIZED_FLOW_ID` (publish
+per WABA with `bot/scripts/setup/register-one-flow.js --flow "Student Join Localized"`), `STUDENT_JOIN_FLOW_ID`
+(legacy, English only),
 `STUDENT_VIDEOS_FLOW_ID` (all registered PUBLISHED on NIETE's
 WABA as part of this port — `STUDENT_VIDEOS_FLOW_ID` had never been set before, so video browsing was
 unreachable dead code prior to 2026-08-04), `WHATSAPP_BOT_NUMBER` (so forwarded wa.me links open NIETE's own
