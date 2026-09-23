@@ -24,7 +24,7 @@ const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../../utils/text-format');
+const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -494,8 +494,13 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   if (done.length) {
     const sorted = [...done].sort((a, b) => (b.mastery_percentage || 0) - (a.mastery_percentage || 0));
     lines.push(`*${TX.howEach}*`);
+    // The same rule as the PDF roster: a child's class is printed only when the
+    // class differs between children, and then one way ("Class 5" / "جماعت 5"),
+    // never as the child typed it.
+    const perChildClass = classes.length > 1;
     sorted.forEach((s) => {
-      lines.push(`• ${s.student_name || 'Unnamed'}${s.student_class ? ` (${s.student_class})` : ''}`
+      const label = perChildClass ? classLabel(s.student_class, contentLang) : '';
+      lines.push(`• ${s.student_name || 'Unnamed'}${label ? ` (${label})` : ''}`
         + ` — ${s.correct_answers}/${s.total_questions_answered} (${s.mastery_percentage || 0}%)`);
     });
     lines.push('');
@@ -522,9 +527,14 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // ran an Urdu quiz gets Urdu guidance inside that Urdu document, not an
   // English paragraph glued onto it.
   const guidanceMode = hardest.length ? 'reteach' : 'secure';
+  // The grade the advice is pitched at. It used to be `sc.grade` — a column the
+  // share code has never had — so every prompt read "Grade primary". The quiz
+  // row carries the grade (the catalogue's for a lesson-plan quiz, the resolved
+  // one for a transcript quiz); failing that, the class the children entered.
+  const guidanceGrade = gradeText(quizRow && quizRow.grade) || classes.join('/') || null;
   const guidance = done.length
     ? await generateGuidance({
-      shareCodeId, topic: sc.topic, grade: sc.grade, average: avg,
+      shareCodeId, topic: sc.topic, grade: guidanceGrade, average: avg,
       finished: done.length, started: all.length, hardest, digest,
       language: contentLang, mode: guidanceMode,
     })
@@ -734,6 +744,25 @@ async function sendLateClassCards(shareCodeId) {
 }
 
 /**
+ * The report's HTML, printed to an A4 PDF buffer exactly as the teacher gets it:
+ * edge to edge (the hero is full-bleed, so the page carries no margin), the
+ * template's own break rules deciding where each page ends. One function so the
+ * layout tests print the same document the send does.
+ */
+async function renderReportPdf(data) {
+  const { htmlToPdf } = require('../../utils/html-to-pdf');
+  const renderHtml = require('../../templates/video-quiz-report.template');
+  return htmlToPdf(renderHtml(data), {
+    timeout: 30000,
+    pdfOptions: {
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    },
+  });
+}
+
+/**
  * Render and send the designed report. Returns false on any failure so the
  * caller falls back to the text summary rather than the teacher getting nothing.
  */
@@ -745,10 +774,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
   const path = require('path');
   let tempPath = null;
   try {
-    const { htmlToPdf } = require('../../utils/html-to-pdf');
-    const renderHtml = require('../../templates/video-quiz-report.template');
-
-    const html = renderHtml({
+    const buffer = await renderReportPdf({
       topic: shareCode.topic || 'Video quiz',
       teacherName: shareCode.teacher_name,
       started, finished, average,
@@ -759,15 +785,6 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       // the teacher PDF and the offer interstitial already use, and it is
       // PKT-anchored rather than container-local.
       generatedAt: formatLessonDate(new Date().toISOString(), language, { year: true }),
-    });
-
-    const buffer = await htmlToPdf(html, {
-      timeout: 30000,
-      pdfOptions: {
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      },
     });
     if (!buffer || !buffer.length) return false;
 
@@ -1456,6 +1473,6 @@ module.exports = {
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
-  classesTaught, guidanceShape,
+  classesTaught, guidanceShape, renderReportPdf,
   CLUSTER_THRESHOLD,
 };
