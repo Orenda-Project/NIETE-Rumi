@@ -4,7 +4,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
   # ICT-region only. Driven from a linked WhatsApp Web session via Chrome MCP.
   # /register opens a native onboarding Flow (REGISTRATION_FLOW_ID is set on PROD).
   # Flow screens (registration-endpoint.js): INIT → PERSONAL_INFO (full_name,
-  # country) → REGION_INFO (Pakistan only) → PROFESSIONAL_INFO (organization,
+  # country) → REGION_INFO (Pakistan only: province + emis_code → users.school_id) → PROFESSIONAL_INFO (organization,
   # school_name, grade, subjects) → ORG_DETAILS → SUCCESS. On submit the user row
   # is updated (first_name, registration_completed) and the bot sends a
   # "Thank you for registering, <name>!" message (flow-response.handler.js:822/826).
@@ -143,6 +143,20 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # Coordinator); it is the terminal-payload defect bd-2773, which drops every field
     # except organization. @known-fail until bd-2773 is fixed.
 
+  @e2e @flow @destructive @P1 @wip
+  Scenario: Typing the school's EMIS code on the region screen links the account to that school
+    Given the NIETE bot chat is open
+    And I am a fresh Pakistan test teacher on the REGION_INFO screen
+    When I select any province, type a real school EMIS code (e.g. "216") in the EMIS field, and complete the Flow
+    Then my account's school_id is the school with that EMIS and its region is that school's sector (e.g. "Urban-I"), not the province
+    # registration-endpoint.js handleRegionInfoSubmit resolves form.emis_code through
+    # school-resolver.findSchoolByEmis and persists { school_id, region: school.region };
+    # the flow-response.handler.js completion write no longer copies the payload's province
+    # onto users.region. bd-z8p96. The Flow has carried the emis_code TextInput all along
+    # (REGION_INFO, init_emis_code pre-fill) — verified on the PUBLISHED prod (2010172012940869)
+    # and staging (1492701779552399) Flows on 2026-09-23. @destructive: writes school_id/region.
+    # @wip: not yet driven live — the build is on the bd-z8p96 branch, not on staging.
+
   @e2e @flow @edge @P2
   Scenario: A non-Pakistan teacher skips the region screen
     Given the NIETE bot chat is open
@@ -164,3 +178,13 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # routed to ORG_DETAILS ("Enter Organization Name / Please type your organization
     # or partner name below."). Note: no inline "specify" field appears on
     # PROFESSIONAL_INFO — the extra screen only appears after submit.
+
+  @e2e @flow @negative @P3 @wip
+  Scenario: An unknown EMIS code leaves the account unlinked and keeps the province
+    Given the NIETE bot chat is open
+    And I am a fresh Pakistan test teacher on the REGION_INFO screen
+    When I type an EMIS code that matches no school (e.g. "999999") and complete the Flow
+    Then my account has no school_id, its region is the province I selected, and the bot logs "registration: emis_not_found" with the code
+    # registration-endpoint.js handleRegionInfoSubmit: a miss keeps the old behaviour
+    # (province stored, no link) and logs 'emis_not_found' so the mistype rate is
+    # measurable in Axiom. bd-z8p96. @wip: not yet driven live.
