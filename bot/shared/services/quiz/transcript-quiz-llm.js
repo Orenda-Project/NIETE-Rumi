@@ -18,6 +18,7 @@
 
 const { getClientForModel } = require('../llm-client');
 const { logToFile } = require('../../utils/logger');
+const { repairBackslashes } = require('../../utils/json-tex-backslashes');
 
 const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 const REASONING_RE = /(^|\/)(gpt-5|o[1-9]|gemini-3\.5-flash$|gemini-3-flash|claude|deepseek)/i;
@@ -26,13 +27,21 @@ function modelId() {
   return (process.env.TRANSCRIPT_QUIZ_MODEL || '').trim() || DEFAULT_MODEL;
 }
 
+/**
+ * A reply that carries maths (a `$` anywhere) has its TeX backslashes repaired
+ * BEFORE parsing, as the 6-12 LP lane does: `"$\frac{2}{9}$"` with one
+ * backslash is VALID JSON — `\f` is a form feed — so it parses silently into
+ * "rac{2}{9}" and the fraction is gone (bd-mg9c7.159.19: the author now writes
+ * stems and options as TeX). A reply with no `$` parses exactly as before.
+ */
 function extractJson(text) {
   let t = String(text || '').trim();
   t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const start = t.indexOf('{');
   const end = t.lastIndexOf('}');
   if (start < 0 || end < start) throw new Error('no JSON object in reply');
-  return JSON.parse(t.slice(start, end + 1));
+  const body = t.slice(start, end + 1);
+  return JSON.parse(body.includes('$') ? repairBackslashes(body) : body);
 }
 
 /**
