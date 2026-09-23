@@ -1256,6 +1256,78 @@ const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
 // The spelled-out English "(peace be upon him)" used to satisfy this and no longer does — Q3 keeps
 // the book's Latin NAME on an English page, it does not license an English SALUTATION.
 const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/i;
+// VENDOR DIVERGENCE (bd-5t71f, 2026-09-17). THE SAME G5c REVIEW, FOR THE LATIN LANE.
+//
+// The Q2 ruling (operator, 2026-09-17) — "since we will have lots of Muhammads not the prophet but
+// regular ppl, get a list approved from the page truths so we know which names can come up and dont
+// need the salutation" — was executed for URDU ONLY. `g5c_cleared_names.json` is keyed on the Urdu
+// WORD SEQUENCE (سید محمد جعفری …) and exactly one of its 298 decided phrases carries any Latin at
+// all. So the Urdu lane clears `محمد علی جناح` and the Latin lane refuses `Mohammad Ali Jinnah`:
+// an English-medium Pakistan Studies lesson naming the Quaid is refused OUTRIGHT and the teacher
+// gets nothing. That asymmetry is the bug. Live evidence: 436 unhonorified Latin occurrences on
+// 192 pages across 33 books of the Grades 6-12 page-truth corpus — grade_7_history 93, and every
+// one of its 93 bare.
+//
+// THE FIX MAY NOT BE A GRAMMAR RULE. `isCompoundGivenName()` above decides by grammar which `محمد`
+// is somebody's given name; porting it into this lane would be the automated clearance brief §4c
+// forbids, wearing a Latin hat. The Urdu lane is allowed to clear a name only because it reads the
+// reviewer's approved list, and this lane is driven exactly the same way — off her list, and off
+// nothing else.
+//
+// THIS FILE SHIPS EMPTY AND CLEARS NOTHING. It is the socket, not the clearance. The English
+// candidate list is derived from the page truths by
+// `08_Grades 6-12 LP Build/_g5c_english_name_lane_2026-09-17/probes/extract-english-names.js` and
+// is with Amena Ahmed for the G5c sign-off. Until her marks come back every Latin match is refused
+// exactly as it is today; dropping her decided file in here is the only remaining step.
+// FAIL-CLOSED, ALWAYS — an unreviewed name is not a cleared name.
+//
+// WHAT THE TWO HALVES DO, unchanged from the Urdu lane: `person` CLEARS and is the only thing here
+// that can clear anything; `prophet` never clears and never blocks on its own — it ARBITRATES where
+// two decided phrases cover the same word. The longest decided phrase present rules, and on equal
+// length the blocking mark wins.
+//
+// KEYED ON THE WORD SEQUENCE, NOT THE BYTES, for the reason the Urdu lane is: the books print
+// "QUAID-E-AZAM MOHAMMAD ALI JINNAH" in a heading and "Mohammad Ali Jinnah" in the prose, and a
+// byte-exact allowlist would clear the row and not the page. Each word is compared with its edge
+// punctuation trimmed and its case folded.
+const CLEARED_NAMES_EN = require("./g5c_cleared_names_en.json");
+const EN_EDGE = /^[^A-Za-z]+|[^A-Za-z]+$/g;
+// The English possessive, trimmed for the same reason the edge punctuation is: "Jinnah's vision"
+// is the same NAME as "Jinnah". This is orthography, not judgement — it decides nothing about who
+// the name belongs to, and a word still has to equal a word the reviewer decided on.
+const EN_POSS = /['\u2019]s$/i;
+const enWord = (w) => w.replace(EN_EDGE, "").replace(EN_POSS, "").toLowerCase();
+// Which word of a decided phrase this rule can be standing on — derived FROM the rule itself, so a
+// token added to TRANSLIT_PROPHET_RE cannot silently stop being clearable.
+const EN_SLOT_RE = new RegExp(`^(?:${TRANSLIT_PROPHET_RE.source})$`, "i");
+const decidedPhraseEn = (name, blocks) => {
+  const words = String(name).split(/\s+/).map(enWord).filter(Boolean);
+  return { words, blocks, slots: words.map((w, i) => (EN_SLOT_RE.test(w) ? i : -1)).filter((i) => i >= 0) };
+};
+const DECIDED_NAMES_EN = [
+  ...(CLEARED_NAMES_EN.person || []).map((n) => decidedPhraseEn(n, false)),
+  ...(CLEARED_NAMES_EN.prophet || []).map((n) => decidedPhraseEn(n, true)),
+].filter((p) => p.slots.length);
+/** True only when the native-speaker review decided THIS Latin occurrence is an ordinary person. */
+function clearedByReviewEn(s, idx) {
+  if (!DECIDED_NAMES_EN.length) return false;            // nothing reviewed yet: nothing clears
+  const toks = [];
+  for (const t of s.matchAll(/\S+/g)) toks.push({ w: enWord(t[0]), at: t.index, len: t[0].length });
+  const j = toks.findIndex((t) => idx >= t.at && idx < t.at + t.len);
+  if (j < 0) return false;
+  let best = null;
+  for (const p of DECIDED_NAMES_EN) {
+    for (const k of p.slots) {
+      const a = j - k;
+      if (a < 0 || a + p.words.length > toks.length) continue;
+      if (p.words.some((w, i) => toks[a + i].w !== w)) continue;
+      if (!best || p.words.length > best.n || (p.words.length === best.n && p.blocks)) {
+        best = { n: p.words.length, blocks: p.blocks };
+      }
+    }
+  }
+  return best !== null && !best.blocks;
+}
 // A COMPANION'S SALUTATION IS URDU SCRIPT IN EITHER MEDIUM (operator, 2026-09-14: "for companions
 // the salutation should be in urdu script as well"). The line above splits the Prophet's phrase in
 // two on an English page — the NAME keeps the Latin spelling the English book prints, the
@@ -1820,6 +1892,11 @@ function religiousMarks(doc, ctx) {
     let m;
     while ((m = TRANSLIT_PROPHET_RE.exec(s))) {
       if (TRANSLIT_HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      // VENDOR DIVERGENCE (bd-5t71f, 2026-09-17): the G5c native-speaker review, as data — the
+      // LATIN half, the same mechanism the Urdu lane got in bd-zipoe. Only a phrase the reviewer
+      // marked `person` clears; a `prophet` phrase never does, and a name she has not seen STILL
+      // FAILS. Nothing here decides anything (brief §4c, gate G5c).
+      if (clearedByReviewEn(s, m.index)) continue;
       fail("RELIGIOUS_MARKS", `${at || "/"} names the Prophet ("${m[0]}") with no honorific after it: "${s.slice(Math.max(0, m.index - 20), m.index + m[0].length + 25)}". Write "${m[0]} ﷺ" — an English lesson keeps the spelling the book prints, but never drops the honorific (brief §4c.5). ${HOLD}`);
     }
   }
