@@ -240,7 +240,7 @@ python3 .claude/qa/shared/run_efficiency.py "$RUN_DIR"     # still runs; snapsho
 
 ### `PER-SCENARIO.md` is generated — check it, don't type it
 
-An `all` run's report must account for **all 163** `@e2e` scenarios across its seven features — one
+An `all` run's report must account for **all 166** `@e2e` scenarios across its seven features — one
 row each, PASS / FAIL / SKIP with a reason. `check-all-mode-counts.py` keeps this number, the per-feature
 list in the `all` spec above, and the `.feature` files in agreement; update all three in one pass.
 
