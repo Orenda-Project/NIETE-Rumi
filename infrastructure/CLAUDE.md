@@ -12,7 +12,7 @@
 | `supabase/migrations/V*.sql` | Versioned upgrades, tracked in `schema_versions` |
 | `supabase/verify-schema.sql` | Sanity checks |
 | `scripts/bootstrap-db.js` | **`npm run bootstrap:db`** — applies schema → RLS → seed in order (idempotent, stops on first error) |
-| `scripts/migrate.js` | Applies pending `V*.sql` migrations via the `exec_sql` RPC |
+| `scripts/migrate.js` | Applies the pending `V*.sql` migration via the `exec_sql` RPC and records it in `schema_versions`; refuses a backlog of more than one (`--apply-all-pending` overrides). `scripts/schema-ledger-audit.py` (repo root) reports, read-only, what each environment really has vs what is recorded |
 | `scripts/test-connections.js` | `npm run validate:connections` |
 | `railway/` | Deployment configs |
 
