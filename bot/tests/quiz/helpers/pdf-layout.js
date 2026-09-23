@@ -11,8 +11,9 @@
  * grey past the end of the document) are all lighter than the ink threshold.
  *
  * These tests print through the real template and the real Chromium. They need
- * the browser the bot's postinstall downloads and poppler's pdftoppm; with
- * SKIP_PLAYWRIGHT_INSTALL=1 (the documented opt-out of the browser) they skip.
+ * the browser the bot's postinstall downloads and poppler's pdftoppm. A checkout
+ * installed without the browser (the postinstall's documented opt-out) skips
+ * them, saying so; one that has the browser but no pdftoppm fails, naming it.
  */
 const fs = require('fs');
 const os = require('os');
@@ -24,8 +25,18 @@ const MIN_DARK = 2;       // dark pixels a row needs to count as inked
 const SIDE = 0.12;        // share of the width ignored on each side
 const DPI = 30;
 
+/** True when no Chromium is installed for playwright-core to launch. */
 function renderOptOut() {
-  return process.env.SKIP_PLAYWRIGHT_INSTALL === '1';
+  let installed = false;
+  try {
+    const { chromium } = require('playwright-core');
+    installed = fs.existsSync(chromium.executablePath());
+  } catch { installed = false; }
+  if (!installed) {
+    // eslint-disable-next-line no-console
+    console.warn('pdf-layout: no Chromium installed for playwright-core — the printed-page tests are skipped');
+  }
+  return !installed;
 }
 
 function hasPoppler() {
