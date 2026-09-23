@@ -68,11 +68,17 @@ const _getOpenRouterRaw = lazyClient(OpenAI, ['OPENROUTER_API_KEY'], (env) => ({
 // sealed mock lane (no vendor keys) 401s, so corpus extraction fails, the question falls back to a
 // generic safe question, and the TTS of that fallback was never recorded → an unattributable cassette
 // miss (bd-yjyn0). Off by default and forced off on the prod DB (see e2e-cassette.js).
-let _cassetteApplied = false;
+let _wrapped = false;
 const getOpenRouter = () => {
   const client = _getOpenRouterRaw();
-  if (!_cassetteApplied) {
-    _cassetteApplied = true;
+  if (!_wrapped) {
+    _wrapped = true;
+    // bd-wgso2: this client never reached recordModelCost, so its spend was invisible. Spend
+    // recording goes on FIRST (inner) and the cassette SECOND (outer) -- the order getClient() uses.
+    // That way a cassette replay answers without reaching the recorder, so a replay records no
+    // spend (it cost nothing), and the cassette keys on the request minus its label (bd-t3u9t).
+    // Once per client, like the cassette: wrapping twice would record every call twice.
+    require('../../llm-client').withSpendRecording(client);
     try { const cassette = require('../../e2e-cassette'); if (cassette.mode() !== 'off') cassette.wrapChatCompletions(client); } catch (_) { /* cassette optional */ }
   }
   return client;
@@ -102,6 +108,7 @@ async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, t
     getOpenRouter().chat.completions.create(
       {
         model,
+        job: 'coaching.questionRouter',
         messages,
         response_format: { type: 'json_object' },
         max_tokens: maxTokens,
