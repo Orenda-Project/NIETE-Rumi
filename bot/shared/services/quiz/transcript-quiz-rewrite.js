@@ -480,7 +480,162 @@ async function rewriteTeacherFields({ questions, errors, digest, language, quizI
   }
 }
 
+// ─── ADD PICTURES — the one rewrite that may ADD a figure ───────────────────
+// A grade 1-5 maths quiz that came back with too few pictures (FIGURE_FEW, see
+// the validator's figureDensity) gets ONE call that adds a picture to the
+// questions a picture helps most. It is the mirror of the rewrite above, which
+// must never add one: here the picture is the point, and the QUESTION is what
+// must not move. Asserted in code (root rule 24c), not left to the prompt:
+//   - only a candidate index is taken, at most `need` of them, each once;
+//   - an entry without a figure object is discarded;
+//   - an entry that changes the options, their order or the key is discarded —
+//     the question was already checked, and a picture must not re-key it;
+//   - only the stem (to point at the picture), the figure and its role are
+//     taken; explanation, feedback, SLO and level stay as they were.
+// The merged set then goes through the whole validator like every rewrite.
+
+/** How many questions are offered to the call, best first. */
+const ADD_PICTURE_CANDIDATES = 5;
+
+/** Words that mark a question a picture can carry: counting, comparing, sharing, place, parts. */
+const PICTURE_WORDS = /\b(how many|more|fewer|less|count|groups?|share[ds]?|equal|shaded|fractions?|half|tens?|ones?|hundreds?|larger|smaller|bigger|greatest|smallest|compare|order|total|altogether|left|add|take away|subtract|times)\b|کتن|زیادہ|کم|حص|گروپ|دہائ|اکائ|سینکڑ|برابر|باقی|کل\s|بڑا|بڑی|بڑے|چھوٹا|چھوٹی|چھوٹے|موازن|ترتیب|رنگ/i;
+const COLUMN_SUM_TEX = /\\begin\{array\}/;
+
+/** The maths types a young class can be drawn with (the word types are for language lessons). */
+const ADD_PICTURE_TYPES = [
+  'count_objects', 'base_ten', 'fraction_bar', 'grid', 'numberline', 'count_frame', 'money', 'clock', 'compare_size', 'pattern', 'geometry',
+];
+
+/**
+ * The questions a picture would help most, best first: no question that
+ * already has one, no select-all question (its Flow draws no image), no column
+ * sum (arithmetic is typeset, never drawn). A question with numbers and a
+ * counting / comparing word ranks first; the easy first question ranks last.
+ * @returns {number[]}
+ */
+function pictureCandidates(questions, { limit = ADD_PICTURE_CANDIDATES } = {}) {
+  const Multi = require('./transcript-quiz-multi');
+  const qs = Array.isArray(questions) ? questions : [];
+  const scored = [];
+  qs.forEach((q, i) => {
+    if (!q || typeof q !== 'object' || q.figure) return;
+    if (Multi.isMultiQuestion(q)) return;
+    const stem = String(q.question || '');
+    if (COLUMN_SUM_TEX.test(stem)) return;
+    const all = [stem, ...(Array.isArray(q.options) ? q.options : [])].join(' ');
+    let score = 0;
+    if (/\d|\$/.test(all)) score += 2;
+    if (PICTURE_WORDS.test(stem)) score += 2;
+    if (q.level === 'understand' || q.level === 'apply') score += 1;
+    if (i === 0) score -= 1;
+    scored.push({ i, score });
+  });
+  return scored.sort((a, b) => b.score - a.score || a.i - b.i).slice(0, limit).map((s) => s.i);
+}
+
+function buildAddPicturePrompt({
+  digest, language, questions, indices, need, gradeBand = null, lessonDrew = '',
+}) {
+  const { minimalSpecBlock } = require('./transcript-quiz-figure');
+  const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
+  const qs = Array.isArray(questions) ? questions : [];
+  const figured = qs.filter((q) => q && q.figure).length;
+  const slos = (digest && Array.isArray(digest.slos)) ? digest.slos : [];
+  const items = indices.map((i) => {
+    const q = qs[i] || {};
+    const opts = (Array.isArray(q.options) ? q.options : []).map((o, k) => `[${k}] ${String(o)}`).join('  ');
+    return `q${i} · slo "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}"
+  stem: "${String(q.question || '').trim()}"
+  options: ${opts}   correct: ${q.correct_index}`;
+  }).join('\n\n');
+  return [
+    `You are ADDING PICTURES to a short WhatsApp maths quiz for the children of ONE grade ${gradeBand || digest?.grade_band || '1-5'} class. A young class learns maths through the picture — the objects first, then the picture of them, then the sum — and this quiz carries only ${figured} picture(s) in ${qs.length} questions. Add a picture to exactly ${need} of the questions below: the ${need} a picture helps most.`,
+    `QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${languageRule(language)}`,
+    'KEEP THE QUESTION. Its options, their order and its correct answer do not change — never return different ones. You write only "figure", "figure_role" and, when the question must now point at the picture, a new "question" stem in the quiz language.',
+    `TWO KINDS OF PICTURE:
+- "figure_role":"model" — the picture SHOWS the numbers the stem already states, the way the lesson drew them: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Keep the stem as it is.
+- "figure_role":"read_off" (or "count_compare" for counting and comparing objects) — the child reads the question's numbers OFF the picture ("How many counters are in the picture?"). The stem then says so and must NOT also state those numbers.`,
+    `HARD RULES — a picture that breaks one is thrown away and its question stays as it was:
+- The picture must NOT contain the answer: no option's text anywhere in it, no total, no result. A jump arc never lands on the answer; a fraction bar carries no label.
+- Labels are written in the quiz language; numerals stay 0-9. Never TeX or "$" inside a figure — its fractions are plain ("3/4").
+- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place.
+- Column arithmetic is never a picture.
+- A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
+    ...(lessonDrew ? [lessonDrew] : []),
+    `THE LESSON'S OBJECTIVES\n${slos.map((s) => `- ${s.id}: ${sloStatement(s, language)}`).join('\n') || '(none recorded)'}`,
+    `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
+    `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
+    `THE QUESTIONS YOU MAY ADD A PICTURE TO (q is its number in the quiz):\n\n${items}`,
+    `Return ONLY this JSON object, with exactly ${need} entr${need === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}.
+{ "pictures": [ { "index": ${indices[0]}, "question": "", "figure": { "type": "count_objects", "rows": [ { "picto": "counter", "count": 3 }, { "picto": "counter", "count": 4 } ] }, "figure_role": "model" } ] }
+Leave "question" empty to keep the stem exactly as it is.`,
+  ].join('\n\n');
+}
+
+const sameOptions = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length
+  && a.every((o, k) => String(o ?? '').trim() === String(b[k] ?? '').trim());
+
+/**
+ * @returns {{questions:object[], added:number[]}|null} null when nothing was added
+ */
+function mergeAddedPictures(questions, json, { indices, need }) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const list = Array.isArray(json && json.pictures) ? json.pictures : [];
+  const chosen = new Map();
+  list.forEach((r) => {
+    if (!r || typeof r !== 'object' || chosen.size >= need) return;
+    const idx = Number(r.index);
+    if (!indices.includes(idx) || chosen.has(idx)) return;
+    const orig = qs[idx];
+    if (!orig) return;
+    if (!r.figure || typeof r.figure !== 'object' || Array.isArray(r.figure) || typeof r.figure.type !== 'string') return;
+    if (r.options !== undefined && !sameOptions(r.options, orig.options)) return;
+    if (r.correct_index !== undefined && Number(r.correct_index) !== Number(orig.correct_index)) return;
+    const stem = typeof r.question === 'string' && r.question.trim() ? r.question.trim() : orig.question;
+    chosen.set(idx, {
+      ...orig, question: stem, figure: r.figure, figure_role: typeof r.figure_role === 'string' ? r.figure_role : null,
+    });
+  });
+  if (!chosen.size) return null;
+  return {
+    questions: qs.map((q, i) => (chosen.has(i) ? chosen.get(i) : q)),
+    added: [...chosen.keys()].sort((a, b) => a - b),
+  };
+}
+
+/**
+ * ONE call. Never throws: a repair that cannot be made is a repair that did not
+ * happen, and the quiz ships as it was.
+ * @returns {Promise<{attempted:boolean, indices:number[], merged:object[]|null, added:number[],
+ *   model?:string, costUsd?:number, latencyMs?:number, error?:string}>}
+ */
+async function addPictures({
+  questions, digest, language, gradeBand = null, lessonDrew = '', need,
+  // accepted and ignored: the outcome event belongs to the caller, which is the
+  // only place that knows whether the merged set validated
+  quizId = null, // eslint-disable-line no-unused-vars
+}) {
+  const indices = Number(need) > 0 ? pictureCandidates(questions) : [];
+  if (!indices.length) return { attempted: false, indices: [], merged: null, added: [] };
+  const n = Math.min(Number(need), indices.length);
+  const prompt = buildAddPicturePrompt({
+    digest, language, questions, indices, need: n, gradeBand, lessonDrew,
+  });
+  try {
+    const { json, model, costUsd, latencyMs } = await completeJson({ prompt, maxTokens: 8000, label: 'transcript_quiz.add_pictures' });
+    const m = mergeAddedPictures(questions, json, { indices, need: n });
+    return {
+      attempted: true, indices, merged: m ? m.questions : null, added: m ? m.added : [], model, costUsd, latencyMs,
+    };
+  } catch (err) {
+    return {
+      attempted: true, indices, merged: null, added: [], costUsd: 0, error: err.message,
+    };
+  }
+}
+
 module.exports = {
+  pictureCandidates, buildAddPicturePrompt, mergeAddedPictures, addPictures,
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT, MATH_TEX_RULE, MATH_TEX,
   KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT,
