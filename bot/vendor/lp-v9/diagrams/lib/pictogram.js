@@ -67,6 +67,8 @@ const OWN_GLYPHS = { bag: BACKPACK, bag_school: BACKPACK };
 // objects the class actually counted. OpenMoji has no counter (its "black
 // circle" is an emoji of a circle), and a counter is not art: it is a disc.
 //
+// A third, `stick`, overrides the OpenMoji glyph of that name (see below).
+//
 // Painted like the ten-frame's own counters (count_frame.js): an accent disc
 // with an ink rim, so a counter looks the same in every type that draws one.
 // The tile is a square in the cool token, so a row of tiles never reads as a
@@ -77,6 +79,10 @@ const LOCAL_GLYPHS = {
   counter: '<circle data-ov="skip" cx="36" cy="36" r="26" fill="var(--amber, #F2A20C)" stroke="currentColor" stroke-width="3"/>'
     + '<circle data-ov="skip" cx="36" cy="36" r="15" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="3"/>',
   tile: '<rect data-ov="skip" x="11" y="11" width="50" height="50" rx="5" fill="var(--cool, #1B6CA8)" fill-opacity="0.8" stroke="currentColor" stroke-width="3"/>',
+  // A counting STICK — the thin stick a class bundles into tens, painted like
+  // base_ten's loose sticks. It REPLACES the OpenMoji glyph filed under "stick",
+  // which is that set's "wood": a log, never what a maths lesson counted.
+  stick: '<rect data-ov="skip" x="31" y="5" width="10" height="62" rx="5" fill="var(--clay, #B5651D)" stroke="currentColor" stroke-width="2.5"/>',
 };
 
 // The lesson's own words for those two things. A slide script writes the same
@@ -97,7 +103,7 @@ function key(name) {
 
 /** Every pictogram name, sorted. This IS the roster an author is shown. */
 function names() {
-  return [...Object.keys(INDEX.glyphs), ...Object.keys(LOCAL_GLYPHS)].sort();
+  return [...new Set([...Object.keys(INDEX.glyphs), ...Object.keys(LOCAL_GLYPHS)])].sort();
 }
 
 function has(name) {

@@ -1023,8 +1023,10 @@ and the pictogram set had none of them (its `stick` is OpenMoji's *wood*, a log)
   `LOCAL_GLYPHS` table beside the OpenMoji index rather than in it, so `build_pictograms.js` (which
   rewrites `index.json`) can never drop them. Plus `ALIASES` — `dot`/`bead`/`marble`/`circle` →
   `counter`, `sq`/`square` → `tile` — resolved inside `key()` so every type that draws a pictogram
-  accepts the lesson's own word. `names()` lists the two new glyphs and never the aliases. Neither
-  glyph is licensed from anyone; the OpenMoji attribution is unchanged.
+  accepts the lesson's own word. `names()` lists the new glyphs and never the aliases. A third local
+  glyph, `stick` (a thin counting stick in the clay token, the stick `base_ten` bundles), REPLACES
+  the OpenMoji glyph filed under that name, which is its *wood* — a log. None of the three is
+  licensed from anyone; the OpenMoji attribution is unchanged.
 * **`types/base_ten.js`** (new) — a place-value mat: hundreds, tens and ones as loose sticks,
   bundles of ten and big bundles of a hundred (`model: "bundles"`, default) or as cubes, rods and
   flats (`model: "blocks"`). One headed column per place, hundreds → tens → ones left to right in
