@@ -365,7 +365,7 @@ class ReportGeneratorService {
       // Return shape is EITHER a Buffer (PDFKit/HTML renderers) OR
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
-      // on the shape (FEAT-098).
+      // on the shape.
       const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
@@ -393,7 +393,7 @@ class ReportGeneratorService {
       }
 
       // Deliver to WhatsApp — image+caption path (hero renderer) or document
-      // path (PDFKit/HTML renderers). See FEAT-098 for why this branch exists.
+      // path (PDFKit/HTML renderers).
       if (isHeroImage) {
         await this.sendHeroImageReport(
           from,
@@ -425,6 +425,11 @@ class ReportGeneratorService {
       //
       // Delivery order: report PNG (above) → voice debrief (above) → commitment
       // card here → response buttons → (optional follow-ups below).
+      //
+      // bd-fmr3s (DC row 137): the session-complete line LEADS the commit-prompt
+      // body — one message, completion first, then the closing question. When it
+      // rode along, the standalone boundary line below is skipped.
+      let completionAnnounced = false;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
         const { getCoachingCardCopy } = require('../../config/coaching-card.config');
@@ -475,14 +480,16 @@ class ReportGeneratorService {
           // prioritized_action DB write below — they drive the follow-up flow.
 
           // Response buttons follow regardless of which renderer ran.
+          const lead = cardCopy.sessionCompleteLead;
           await WhatsAppService.sendInteractiveButtons(from, {
-            body: cardCopy.commitPrompt,
+            body: lead ? `${lead}\n\n${cardCopy.commitPrompt}` : cardCopy.commitPrompt,
             buttons: [
               { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
               { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
               { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
             ],
           });
+          completionAnnounced = Boolean(lead);
 
           // Feedback-uptake loop: the record extends the card in place — the
           // target, the attempt and angle, the baseline for the NEXT verdict,
@@ -525,11 +532,14 @@ class ReportGeneratorService {
       // feature speaks. Everything below this point — the transcript-quiz offer,
       // the feature linker — belongs to a different feature, and without a
       // spoken boundary teachers and coaches read the quiz as step 6 of the
-      // coaching session. Sent after the commit prompt (above) and before the
-      // first of those asks, in her language via the unified resolver. Never
+      // coaching session. In her language via the unified resolver. Never
       // fatal: a failed boundary line must not fail a completed session.
+      // bd-fmr3s (DC row 137): only when the commit prompt did NOT already open
+      // with the completion line — never two completion messages back-to-back.
       try {
-        await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
+        if (!completionAnnounced) {
+          await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
+        }
       } catch (error) {
         // Class N: degraded-but-recovered — the session IS complete, she just
         // did not get the line saying so. logWarn, not a bare info logToFile.
@@ -876,7 +886,7 @@ class ReportGeneratorService {
     // and HTML renderers return a Buffer. The caller (generateReport) detects
     // the shape and dispatches to sendImage vs sendDocument accordingly.
     //
-    // FEAT-098 (2026-07-17): previously this method flattened the hero return
+    // 2026-07-17: previously this method flattened the hero return
     // into a bare buffer named `pdfBuffer` and the caller sent it as
     // application/pdf — WhatsApp delivered a PDF that WAS actually PNG bytes,
     // so every PDF reader rejected it as corrupt. Fix: preserve the shape and
@@ -1474,14 +1484,14 @@ class ReportGeneratorService {
    * @private
    */
   /**
-   * FEAT-098: Send the hero renderer's PNG output as a WhatsApp image with
+   * Send the hero renderer's PNG output as a WhatsApp image with
    * caption. Companion to sendPDFReport() for the image-return renderer path.
    *
    * The hero renderer builds a single tall PNG (the visual report) plus a
    * short caption. WhatsApp's image API takes a media upload + a caption in
    * one message, which is the correct delivery for this shape — sending it
    * as a document with a `.pdf` filename produces a corrupted-file experience
-   * (the original FEAT-098 bug).
+   * (the original hero-report bug).
    *
    * @param {string} phoneNumber - Recipient phone (E.164, digits only)
    * @param {string} coachingSessionId - Coaching session UUID (for logging)
