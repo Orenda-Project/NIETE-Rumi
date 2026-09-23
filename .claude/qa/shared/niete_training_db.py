@@ -374,6 +374,7 @@ def main():
         s = sub.add_parser(name, parents=[common]); s.add_argument("--phone", required=True); s.add_argument("--level", type=int, required=True); s.add_argument("--yes-write", action="store_true")
     mak = sub.add_parser("module-answer-key", parents=[common]); mak.add_argument("--phone"); mak.add_argument("--module", type=int); mak.add_argument("--title"); mak.add_argument("--yes-write", action="store_true")
     mm = sub.add_parser("module-media", parents=[common]); mm.add_argument("--title", action="append")
+    mm.add_argument("--phone")   # api.db always passes it; module-media does not use it
     apg = sub.add_parser("activate-program", parents=[common]); apg.add_argument("--phone", required=True); apg.add_argument("--program-key", required=True, dest="program_key"); apg.add_argument("--yes-write", action="store_true")
     smp = sub.add_parser("seed-module-pass", parents=[common]); smp.add_argument("--phone", required=True); smp.add_argument("--module", type=int, required=True); smp.add_argument("--program-key", default="niete_standard", dest="program_key"); smp.add_argument("--yes-write", action="store_true")
     a = p.parse_args()

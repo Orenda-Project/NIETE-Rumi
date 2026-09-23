@@ -429,7 +429,10 @@ exports.run = async ({ api, rec, sleep }) => {
       // The tool prints a '[niete_training_db] env=...' banner BEFORE its JSON, so slicing from the
       // FIRST '[' parses the banner and throws — which silently emptied this array on the first run
       // and made T04 block with no evidence behind its reason. Take the last non-empty line.
-      const raw = String(api.db('module-media', offered.flatMap(x => ['--title', x])) || '');
+      // api.db returns { ok, out, user } — String()ing the OBJECT yields '[object Object]',
+      // which is what actually emptied this array (not the banner). Read .out.
+      const res = api.db('module-media', offered.flatMap(x => ['--title', x])) || {};
+      const raw = String(res.out || '');
       const last = raw.split('\n').map(l => l.trim()).filter(Boolean).pop() || '[]';
       media = JSON.parse(last);
     } catch (e) { media = []; }
