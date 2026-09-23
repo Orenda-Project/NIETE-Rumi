@@ -335,7 +335,7 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
  * @param {string} phoneNumber
  */
 /**
- * bd-60124 — offer a finished I-SAPS module's own exam.
+ * Offer a finished I-SAPS module's own exam.
  *
  * Returns true when an offer was SENT, which tells onModuleCompleted to hold
  * the next module back. Returns false for every other vendor and for any
@@ -347,7 +347,7 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
   const {
     shouldOfferModuleExam, moduleExamOfferMessage, moduleSourceQuizId,
   } = require('./isaps-module-exam.rules');
-  // bd-60146 — the offer must promise the PAPER, not the bank.
+  // The offer must promise the PAPER, not the bank.
   const { MODULE_EXAM_MCQ_COUNT } = require('./isaps-crq-paper.rules');
 
   const { data: mod } = await supabase
@@ -406,13 +406,13 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
     alreadyPassed: (passedRows || []).length > 0,
   })) return false;
 
-  // bd-60146 — announce the paper the teacher will actually sit.
+  // Announce the paper the teacher will actually sit.
   //
   // mcqCount/crqCount above are BANK tallies, and they are the right input for
   // shouldOfferModuleExam, which only asks "does this module have any items?".
   // They are the wrong thing to say out loud: Module 9's bank holds 13 items,
   // so the offer read "The module exam is 13 scenario questions" while
-  // bd-60141's sampler served 3. The teacher was promised thirteen and given
+  // the sampler served 3. The teacher was promised thirteen and given
   // three.
   //
   // The paper is MODULE_EXAM_MCQ_COUNT scenario MCQs (ISAPS §5.1) plus one
@@ -449,12 +449,12 @@ async function onModuleCompleted(userId, moduleId, phoneNumber) {
       .catch((err) => logToFile('⚠️ Non-blocking capstone offer failed', { moduleId, error: err?.message }));
   }
 
-  // bd-60124 — the I-SAPS end-of-MODULE exam.
+  // The I-SAPS end-of-MODULE exam.
   //
   // Reported from sandbox: finishing Unit 106 delivered Unit 201's video
   // instead of Module 1's exam. The capstone offer above cannot cover it —
   // loadCapstoneQuiz looks for a LEVEL capstone and levelFullyComplete demands
-  // every unit of the level, so a per-module quiz (bd-60119) is invisible to
+  // every unit of the level, so a per-module quiz is invisible to
   // it.
   //
   // This runs BEFORE advancement and, when it fires, RETURNS — holding the next

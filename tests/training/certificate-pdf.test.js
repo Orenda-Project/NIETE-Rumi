@@ -58,6 +58,9 @@ function makePdfkitMock() {
     doc.fillAndStroke = chain;
     doc.save = chain;
     doc.restore = chain;
+    // The non-production watermark is set on a rotated axis about the page centre.
+    doc.translate = chain;
+    doc.rotate = chain;
     doc.addPage = chain;
     doc.image = (p) => { imageCalls.push(p); return doc; };
     doc.widthOfString = () => 100;

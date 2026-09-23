@@ -758,7 +758,7 @@ module.exports = {
   meetsAnswerFloor,
   MIN_ANSWER_CHARS,
   POINTS_PER_QUESTION,
-  // bd-60137 — the module-exam path needs the same per-vendor scale.
+  // The module-exam path needs the same per-vendor scale.
   capstonePointsForLevel,
   // exported for the certificate trigger tests
   levelFullyComplete,

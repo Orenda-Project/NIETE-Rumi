@@ -163,8 +163,10 @@ function compareSnapshots(now, base, opts = {}) {
     }
     const newT = missing(now[suite].failing, base[suite].failing);
     const gotT = missing(base[suite].failing, now[suite].failing);
-    const newO = missing(now[suite].offenders, base[suite].offenders);
-    const gotO = missing(base[suite].offenders, now[suite].offenders);
+    // Per violation, not per raw string: a guard that reports `path:line` moves an
+    // untouched violation whenever anything above it is edited. See offenderDelta.
+    const { added: newO, removed: gotO } =
+      offenderDelta(now[suite].offenders, base[suite].offenders);
     if (newT.length) r.newTests.push({ suite, tests: newT });
     if (gotT.length) r.fixedTests.push({ suite, tests: gotT });
     if (newO.length) r.newOffenders.push({ suite, offenders: newO });
@@ -314,6 +316,48 @@ function normaliseOffender(s) {
   return String(s).replace(/^([^\s:]+):\d+/, '$1:L');
 }
 
+/**
+ * Which offenders are genuinely NEW in `now`, and which are genuinely GONE from `base`.
+ *
+ * Judged by COUNT per normalised violation, not by raw string and not by set:
+ *
+ *   - raw strings cry wolf: an untouched violation that moved from line 198 to 202 is
+ *     "new". On 2026-09-23 the gate reported 432 new source-hygiene offenders on sandbox
+ *     itself, 129 of them real, so every PR that edited a file carrying an old ref went
+ *     red for everyone and the gate stopped carrying information.
+ *   - a set of normalised strings goes blind: `source-hygiene` reports a bare
+ *     `path:line`, so a SECOND violation in a file that already had one normalises to
+ *     the same string and disappears. That is exactly the incident this gate exists for.
+ *
+ * Counting keeps both properties: a file (a normalised violation) is flagged only when
+ * it carries MORE entries than the other side, and then every raw entry that does not
+ * appear verbatim on the other side is named — one of them is the new one, and a human
+ * chasing it needs a line number. Returns sorted arrays; inputs are not mutated.
+ */
+function offenderDelta(now = [], base = []) {
+  const group = (list) => {
+    const m = new Map();
+    for (const raw of list) {
+      const k = normaliseOffender(raw);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(raw);
+    }
+    return m;
+  };
+  const beyond = (from, against) => {
+    const other = group(against);
+    const out = [];
+    for (const [k, raws] of group(from)) {
+      const theirs = other.get(k) || [];
+      if (raws.length <= theirs.length) continue;
+      const verbatim = new Set(theirs);
+      out.push(...raws.filter((x) => !verbatim.has(x)));
+    }
+    return out.sort();
+  };
+  return { added: beyond(now, base), removed: beyond(base, now) };
+}
+
 function snapshotGrowth(before, after) {
   const list = (o, k, f) => (o[k] ? o[k][f] || [] : []);
   const addedSuites = Object.keys(after).filter((s) => !(s in before)).sort();
@@ -335,17 +379,15 @@ function snapshotGrowth(before, after) {
 
   const addedTests = grown('failing', 'tests');
 
-  // Offenders are compared on their normalised form so a violation that merely moved
-  // line is not reported as new. The RAW string is what gets reported, because a human
-  // chasing the finding needs the real line number.
+  // Offenders are compared per normalised violation, by count (offenderDelta), so a
+  // violation that merely moved line is not reported as new while a second one in the
+  // same file still is. The RAW string is what gets reported, because a human chasing
+  // the finding needs the real line number.
   const addedOffenders = [];
   for (const suite of Object.keys(after)) {
     if (!(suite in before)) continue;
-    const wasRaw = list(before, suite, 'offenders');
-    const nowRaw = list(after, suite, 'offenders');
-    const wasNorm = new Set(wasRaw.map(normaliseOffender));
-    const added = nowRaw.filter((x) => !wasNorm.has(normaliseOffender(x)));
-    if (added.length) addedOffenders.push({ suite, offenders: added.sort() });
+    const { added } = offenderDelta(list(after, suite, 'offenders'), list(before, suite, 'offenders'));
+    if (added.length) addedOffenders.push({ suite, offenders: added });
   }
   addedOffenders.sort((a, b) => a.suite.localeCompare(b.suite));
   return {
