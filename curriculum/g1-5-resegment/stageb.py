@@ -171,6 +171,15 @@ def load_book(path):
 REVIEW_SKILLS = {"revision", "duhrai", "assessment", "review_assess"}
 
 
+def undescribed(role):
+    """The day's codes that reached the row with no sentence beside them."""
+    pairs = list(zip(role.get("supporting_slos") or [],
+                     role.get("supporting_descs") or []))
+    if role.get("primary_slo"):
+        pairs.insert(0, (role["primary_slo"], role.get("primary_slo_desc")))
+    return [code for code, desc in pairs if code and not desc]
+
+
 def day_flags(day, role, shared):
     flags = []
     if day.get("fold_note"):
@@ -183,6 +192,15 @@ def day_flags(day, role, shared):
         flags.append("no SLO in source — human review")
     elif len(role["new_codes"]) > 1 and day.get("skill_type") not in REVIEW_SKILLS:
         flags.append(f"introduces {len(role['new_codes'])} SLOs in one period")
+    bare = day.get("slo_codes") and undescribed(role)
+    if bare:
+        # Three codes are listed only by days that summarise a whole chapter,
+        # so no teaching day ever states what they mean (bd-fkc3a). The
+        # lexicon leaves the cell empty rather than inventing a sentence, and
+        # an empty cell reads like a stage that has not run yet; this says the
+        # source is silent, so a reviewer knows to go and write the sentence.
+        flags.append(u"SLO description missing from source — "
+                     + u", ".join(bare))
     if "+" in (day.get("topic") or ""):
         flags.append("stapled topic — split candidate")
     pages = day.get("pages_printed") or []

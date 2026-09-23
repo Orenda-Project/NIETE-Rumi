@@ -30,6 +30,58 @@ FLUENCY_SKILLS = {"buland_khwani"}
 # Rule 1 — every SLO has one introducing day; later days develop it
 # --------------------------------------------------------------------------
 
+#: Row types whose `slo_descriptions` is ONE sentence about the whole day
+#: rather than one sentence per code -- an assessment worksheet and a
+#: chapter review both write "assesses/consolidates the chapter's SLOs"
+#: beside every code the chapter touched.
+DAY_LEVEL_TYPES = frozenset(("assessment", "revision"))
+
+
+def slo_lexicon(days):
+    """Every code's own sentence, as this book's teaching days state it.
+
+    A day carries `slo_codes` and `slo_descriptions` as two parallel lists,
+    and on 369 of the corpus's segments the second is shorter than the
+    first: 346 of them are assessments and chapter reviews carrying one
+    day-level sentence beside five codes, and 13 are Grade 5 Urdu days that
+    describe the first of two codes. Pairing the lists by position
+    therefore truncates, and 2,034 supporting codes reached the Curriculum
+    Matrix bare -- a code in one column and an empty cell beside it.
+
+    The sentence is not missing from the book; it is on the ordinary
+    teaching day that introduced the code. This collects those, and ONLY
+    those: a day-level summary describes no single code, so letting one in
+    would print "assesses the chapter's SLOs" beside a phonics code and the
+    sheet would look filled while saying nothing.
+
+    Keyed by chapter first, because 77 codes are worded differently in
+    different chapters (a vocabulary code names that chapter's new words).
+    The day's own chapter wins; the book is the fallback.
+    """
+    book, by_chapter = {}, {}
+    for day in days:
+        if (day.get("lp_type") or "") in DAY_LEVEL_TYPES:
+            continue
+        for code, desc in zip(day.get("slo_codes") or [],
+                              day.get("slo_descriptions") or []):
+            if desc:
+                book.setdefault(code, desc)
+                by_chapter.setdefault((day.get("chapter_number"), code), desc)
+    return book, by_chapter
+
+
+def _describe(code, own, chapter, book, by_chapter):
+    """What this day says about a code, or what the book says, or nothing.
+
+    Nothing, deliberately, where no teaching day describes it: three codes
+    (`E-05-LG-09`, `E-05-WR-27`, `U-05-PH-01 [DERIVED]`) are listed only by
+    days that summarise, and an invented sentence on the sheet is worse
+    than a visible gap -- the gap is a fact about the curriculum.
+    """
+    return (own.get(code) or by_chapter.get((chapter, code))
+            or book.get(code) or "")
+
+
 def _taught(day):
     """The codes a day teaches in its own right.
 
@@ -60,22 +112,32 @@ def assign_slo_roles(days):
         for code in _taught(day):
             first_seen.setdefault(code, idx)
 
+    book, by_chapter = slo_lexicon(days)
+
     out = []
     for idx, day in enumerate(days):
         codes = day.get("slo_codes") or []
         descs = day.get("slo_descriptions") or []
-        by_code = dict(zip(codes, descs))
+        # A day-level row's `descs` is one sentence about the day, not a
+        # list running parallel to `codes`; zipping it pins that sentence to
+        # whichever code happens to be listed first. Such a row describes no
+        # code of its own, so every code on it is read from the lexicon and
+        # the day-level sentence stays where it belongs, in Topic and Notes.
+        by_code = ({} if (day.get("lp_type") or "") in DAY_LEVEL_TYPES
+                   else dict(zip(codes, descs)))
+        chapter = day.get("chapter_number")
         own = _taught(day)
         new = [c for c in own if first_seen.get(c) == idx]
         primary = (new or own or codes or [None])[0]
+        said = lambda c: _describe(c, by_code, chapter, book, by_chapter)
         out.append({
             "primary_slo": primary,
-            "primary_slo_desc": by_code.get(primary, ""),
+            "primary_slo_desc": said(primary) if primary else "",
             "slo_role": "" if primary is None
                         else ("introduces" if new else "develops"),
             "new_codes": new,
             "supporting_slos": [c for c in codes if c != primary],
-            "supporting_descs": [by_code.get(c, "") for c in codes if c != primary],
+            "supporting_descs": [said(c) for c in codes if c != primary],
         })
     return out
 
