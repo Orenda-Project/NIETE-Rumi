@@ -353,6 +353,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # earlier coaching report; the Eval 10 v2 prompt classified that image not_a_classroom_photo.
 
   @e2e @wip @draft @negative @P1
+  Scenario: A grader answer that comes back empty is re-graded the same way, not on a more generous setting
+    Given the NIETE bot chat is open
+    And I link a lesson plan to my classroom recording
+    When the grader's first answer comes back empty and the second one succeeds
+    Then my lesson is graded on the same settings as everyone else's, not on a faster cheaper one
+    And the session's lp_fidelity records that the grading came from a retry, so a degraded answer is never invisible
+    # bd-29r3o: fidelity-analyzer used to add `reasoning: {effort:'low'}` to the retry after an empty first answer —
+    # written for GLM/DeepSeek, which answer empty without a reasoning budget (Eval 8), and never revisited when the
+    # model became Gemini 3.8 Flash, where `low` means thinking OFF: the arm Eval 12 §8 rejected (false credit on
+    # reader-not_done 15–17% against 5–9%, κ 0.45 against 0.56). Found on the first prod morning of D37 — session
+    # b9698b1d carried reasoning_effort "low" although the variable is unset on all three services; it had fired on 1 of
+    # the first 5 Gemini gradings. The retry now keeps the configuration; the coaxing retry lives behind
+    # LP_FIDELITY_EMPTY_RETRY_EFFORT (unset in prod) and the blob carries empty_retry.
+
+  @e2e @wip @draft @negative @P1
   Scenario: A recording whose transcript carries no timestamps is "not scored", never 0%
     Given the NIETE bot chat is open
     And I link a lesson plan to my classroom recording

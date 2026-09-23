@@ -94,12 +94,19 @@ describe('fidelity-analyzer · provider knobs, photo evidence, untrustworthy gra
     expect(client.calls[0].reasoning).toBeUndefined();
   });
 
-  test('empty content on the first attempt → the retry asks for low reasoning effort', async () => {
+  // bd-29r3o: this used to assert the retry asks for LOW reasoning effort. That was right for the model this path was
+  // written against (GLM/DeepSeek answer empty without a reasoning budget — Eval 8) and wrong for the one production
+  // actually runs: on Gemini 3.8 Flash `low` means thinking OFF, the arm Eval 12 §8 rejected (false credit 15–17%
+  // against 5–9%). A transient empty answer must not silently re-grade a teacher's lesson on a configuration we
+  // refused to ship. The coaxing retry now lives behind LP_FIDELITY_EMPTY_RETRY_EFFORT and is covered, with the rest
+  // of the contract, in fidelity-analyzer-empty-retry-effort.test.js.
+  test('empty content on the first attempt → the retry re-grades at the SAME configuration', async () => {
     const client = fakeClient([{ content: '', finish: 'length' }, GOOD]);
     const out = await analyzeFidelity(MOVES, 't', META, { client });
     expect(client.calls).toHaveLength(2);
     expect(client.calls[0].reasoning).toBeUndefined();
-    expect(client.calls[1].reasoning).toEqual({ effort: 'low' });
+    expect(client.calls[1].reasoning).toBeUndefined();
+    expect(out.empty_retry).toBe(true);
     expect(out.verdicts).toHaveLength(2);
   });
 

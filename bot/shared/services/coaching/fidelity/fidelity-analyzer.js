@@ -46,6 +46,13 @@ function reasoningEffort() {
   return EFFORTS.has(e) ? e : null;
 }
 
+// bd-29r3o. Unset (production) = an empty answer is retried at the same configuration. Set it only for a model that
+// answers with empty content unless it is given a reasoning budget (GLM/DeepSeek — Eval 8).
+function emptyRetryEffort() {
+  const e = String(process.env.LP_FIDELITY_EMPTY_RETRY_EFFORT || '').trim().toLowerCase();
+  return EFFORTS.has(e) ? e : null;
+}
+
 function maxTokens() {
   const n = Math.floor(Number(process.env.LP_FIDELITY_MAX_TOKENS));
   return Number.isFinite(n) && n >= 1 ? Math.min(n, MAX_TOKENS_CEILING) : DEFAULT_MAX_TOKENS;
@@ -120,6 +127,7 @@ async function analyzeFidelity(moves, transcript, meta = {}, opts = {}) {
 
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
+    const isEmptyRetry = Boolean(lastErr && lastErr.reason === 'empty_content');
     const request = {
       model,
       // bd-27ort: names the spender; llm-client records it and strips it before the wire.
@@ -132,7 +140,13 @@ async function analyzeFidelity(moves, transcript, meta = {}, opts = {}) {
       max_completion_tokens: maxTok,
       response_format: { type: 'json_object' },
     };
-    const retryEffort = !effort && lastErr && lastErr.reason === 'empty_content' ? 'low' : null;
+    // bd-29r3o: a retry re-grades at the SAME configuration. This used to hardcode `low` for an empty first answer —
+    // written for GLM/DeepSeek, which answer empty without a reasoning budget (Eval 8), and never revisited when the
+    // model became Gemini 3.8 Flash, where `low` means thinking OFF: the arm Eval 12 §8 REJECTED (false credit 15–17%
+    // against 5–9%, κ 0.45 against 0.56). One transient empty answer silently re-graded that teacher's lesson on the
+    // configuration we refused to ship, and the only trace was a stored field. The coaxing retry is still available
+    // for a model that needs it — it just has to be asked for.
+    const retryEffort = !effort && isEmptyRetry ? emptyRetryEffort() : null;
     if (effort || retryEffort) request.reasoning = { effort: effort || retryEffort };
     const response = await client.chat.completions.create(request);
     const choice = response.choices && response.choices[0];
@@ -157,6 +171,9 @@ async function analyzeFidelity(moves, transcript, meta = {}, opts = {}) {
         usage: response.usage || {},
         model,
         reasoning_effort: request.reasoning ? request.reasoning.effort : null,
+        // bd-29r3o: a grading produced after an empty first answer is marked, so a degraded answer can never again be
+        // invisible. The orchestrator persists it onto the blob beside reasoning_effort.
+        empty_retry: isEmptyRetry,
         missing_verdicts: missing,
       };
     } catch (e) {
