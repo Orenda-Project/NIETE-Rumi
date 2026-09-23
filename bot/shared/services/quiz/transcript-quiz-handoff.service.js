@@ -19,7 +19,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
-const { LP_V8, lessonSessionFor } = require('./quiz-sources');
+const { LP_V8, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
 
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -166,7 +166,8 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
 
   // ── send: document (or its text fallback), THEN the link alone, THEN (first
   // send only) the report promise — paced exactly as process() always paced it.
-  const caption = resolveUx('tqHandoffIntro', {
+  // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
+  const caption = resolveUx(handoffIntroKey(quiz.quiz_source), {
     language: teacherLang,
     params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
   });

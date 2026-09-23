@@ -89,6 +89,21 @@ function failureCopyKey(reason, quizSource) {
   return LP_FAILURE_COPY[reason] || 'tqFailedLpAuthor';
 }
 
+/**
+ * WHICH caption rides the teacher's PDF.
+ *
+ * `tqHandoffIntro` says "what you taught" / «آپ نے کیا پڑھایا» — true of a quiz
+ * written from a recording of the class. A quiz written from the lesson PLAN a
+ * teacher was served knows only that a PDF was delivered, so its caption says
+ * what was planned, matching the sheet's own "What you planned" heading.
+ *
+ * @param {string} quizSource `quizzes.quiz_source`
+ * @returns {string} a ux-strings key
+ */
+function handoffIntroKey(quizSource) {
+  return quizSource === LP_V8 ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
+}
+
 module.exports = {
-  TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey,
+  TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey, handoffIntroKey,
 };
