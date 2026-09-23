@@ -36,13 +36,15 @@ function extractJson(text) {
 }
 
 /**
- * @param {object} args
- * @param {string} args.prompt      the whole prompt (user turn)
- * @param {number} [args.maxTokens]
- * @param {string} [args.label]     for logs
- * @returns {Promise<{json:object, model:string, costUsd:number|null, latencyMs:number, usage:object}>}
+ * A reply the model can simply be asked for again: nothing came back, it was cut
+ * off, or it was not a JSON object. A thrown transport/API error is NOT in this
+ * set — the client and the fallback ladder own those.
  */
-async function completeJson({ prompt, maxTokens = 16000, label = 'transcript_quiz' }) {
+const RETRYABLE = new Set(['EMPTY', 'TRUNCATED', 'BAD_JSON']);
+/** One retry. The call is idempotent; it costs a second call only when the first was unusable. */
+const MAX_ATTEMPTS = 2;
+
+async function completeJsonOnce({ prompt, maxTokens, label }) {
   const requested = modelId();
   // bd-b8k7h: naming the job arms the fallback ladder with THIS job's frozen fallback, the
   // model it already works with. A no-op while TRANSCRIPT_QUIZ_MODEL still names that same
@@ -73,6 +75,7 @@ async function completeJson({ prompt, maxTokens = 16000, label = 'transcript_qui
     logToFile(`⚠️ ${label}: model returned ${why} reply`, { model: requested, finish: choice.finish_reason, usage });
     const err = new Error(`${label}: ${why} reply from ${requested}`);
     err.code = why.toUpperCase();
+    err.costUsd = costUsd;
     throw err;
   }
   let json;
@@ -82,9 +85,46 @@ async function completeJson({ prompt, maxTokens = 16000, label = 'transcript_qui
     logToFile(`⚠️ ${label}: unusable JSON`, { model: requested, error: e.message, preview: raw.slice(0, 200) });
     const err = new Error(`${label}: bad JSON from ${requested}: ${e.message}`);
     err.code = 'BAD_JSON';
+    err.costUsd = costUsd;
     throw err;
   }
   return { json, model: requested, costUsd, latencyMs, usage };
 }
 
-module.exports = { completeJson, modelId, extractJson, DEFAULT_MODEL, REASONING_RE };
+/**
+ * The call every quiz pass makes. A reply that came back empty, cut off or
+ * unparseable is asked for once more before anything fails: bd-mg9c7.159.17 — a
+ * single `{ "topic":` reply from a model that had answered the same lesson an
+ * hour earlier failed a teacher's quiz for good, and told them their lesson
+ * plan could not be read. The cost of every attempt is reported.
+ *
+ * @param {object} args
+ * @param {string} args.prompt      the whole prompt (user turn)
+ * @param {number} [args.maxTokens]
+ * @param {string} [args.label]     for logs
+ * @returns {Promise<{json:object, model:string, costUsd:number|null, latencyMs:number, usage:object}>}
+ */
+async function completeJson({ prompt, maxTokens = 16000, label = 'transcript_quiz' }) {
+  let spent = null;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const out = await completeJsonOnce({ prompt, maxTokens, label });
+      if (spent != null && out.costUsd != null) out.costUsd += spent;
+      else if (spent != null) out.costUsd = spent;
+      if (attempt > 1) logToFile(`✅ ${label}: usable reply on attempt ${attempt}`, { model: out.model });
+      return out;
+    } catch (err) {
+      if (!RETRYABLE.has(err && err.code)) throw err;
+      if (typeof err.costUsd === 'number') spent = (spent || 0) + err.costUsd;
+      lastErr = err;
+      if (attempt < MAX_ATTEMPTS) {
+        logToFile(`↻ ${label}: retrying after ${err.code}`, { attempt, error: err.message });
+      }
+    }
+  }
+  throw lastErr;
+}
+
+module.exports = { completeJson, modelId, extractJson, DEFAULT_MODEL, REASONING_RE, MAX_ATTEMPTS };

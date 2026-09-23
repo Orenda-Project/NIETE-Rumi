@@ -174,6 +174,76 @@ const UX_STRINGS = {
     ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں، اس لیے لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
   },
 
+  // ─── the coaching ask on the first lesson plan of the day ─────
+  //
+  // A teacher took a lesson plan this morning; a few minutes later they are
+  // asked whether they would like that lesson coached. The whole point is that it
+  // asks for nothing new — the lesson is going to be taught anyway, and two teachers
+  // in three already hold the WhatsApp mic button for their recordings (65.8%
+  // of 5,245 measured on production, 15-22 Sep). So the copy names the mic, not
+  // an attachment, and asks for 20-45 minutes, which is what a real lesson runs
+  // (median 19.9 min, p90 31.8).
+  //
+  // "You planned", never "you taught": the bot knows a PDF was delivered and
+  // nothing whatever about whether the class happened.
+  //
+  // Gender-neutral in both languages. The Urdu never inflects for the
+  // addressee: every verb is an imperative or subjunctive (kareN, bhejeN,
+  // karooN) or agrees with its own noun (report mil jaye gi, tajzia ho jaye ga).
+  // Bodies are 170-300 code points against the 1,024 cap; the two buttons are
+  // 15-17 code points against 20, measured in code points.
+  lpAskBody: {
+    en: "You planned a lesson with me today. If you record the class while you teach it, you will get a coaching report back — what worked, and one thing to try in the next lesson. Would you like to record today's lesson?",
+    ur: 'آج آپ نے میرے ساتھ ایک سبق کی تیاری کی۔ پڑھاتے وقت اگر کلاس ریکارڈ کر لیں تو آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کیا آج کا سبق ریکارڈ کرنا ہے؟',
+  },
+  lpAskBodyFirstTime: {
+    en: "You planned a lesson with me today. Here is something you may not have tried: record the class on your phone while you teach it, and you will get a coaching report back — what worked, and one thing to try in the next lesson. Nobody else needs to be in the room. Would you like to start with today's lesson?",
+    ur: 'آج آپ نے میرے ساتھ ایک سبق کی تیاری کی۔ ایک چیز جو شاید ابھی تک نہیں آزمائی: پڑھاتے وقت اپنے فون پر کلاس ریکارڈ کر لیں، اور آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کمرے میں کسی اور کا ہونا ضروری نہیں۔ کیا آج کے سبق سے شروع کریں؟',
+  },
+  // The same ask when it goes out on a LATER day than the lesson was planned: a
+  // lesson taken at or after 14:00 is asked about at 07:30 on the next school day,
+  // where "today" would name the wrong day. {when} is lpAskWhenYesterday or
+  // lpAskWhenOnDate (across a weekend). Same voice rules as above: the Urdu verb
+  // agrees with تیاری, never with the teacher; the rest is subjunctive/imperative.
+  lpAskBodyNextDay: {
+    en: 'You planned this lesson with me {when}. If you record the class when you teach it, you will get a coaching report back — what worked, and one thing to try in the next lesson. Would you like to record it?',
+    ur: 'آپ نے {when} میرے ساتھ اس سبق کی تیاری کی۔ جب یہ سبق پڑھائیں تو کلاس ریکارڈ کر لیں، آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کیا یہ سبق ریکارڈ کرنا ہے؟',
+  },
+  lpAskBodyFirstTimeNextDay: {
+    en: 'You planned this lesson with me {when}. Here is something you may not have tried: record the class on your phone when you teach it, and you will get a coaching report back — what worked, and one thing to try in the next lesson. Nobody else needs to be in the room. Would you like to start with this lesson?',
+    ur: 'آپ نے {when} میرے ساتھ اس سبق کی تیاری کی۔ ایک چیز جو شاید ابھی تک نہیں آزمائی: جب یہ سبق پڑھائیں تو اپنے فون پر کلاس ریکارڈ کر لیں، اور آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کمرے میں کسی اور کا ہونا ضروری نہیں۔ کیا اس سبق سے شروع کریں؟',
+  },
+  // {when} for the two bodies above. The date is the quiz date format
+  // ("18 Sep" / "18 ستمبر"), isolated in Urdu because it opens with digits.
+  lpAskWhenYesterday: { en: 'yesterday', ur: 'کل' },
+  lpAskWhenOnDate: { en: 'on {date}', ur: '⁨{date}⁩ کو' },
+  lpAskYes: { en: 'Record my lesson', ur: 'سبق ریکارڈ کروں' },
+  lpAskNo: { en: 'Not today', ur: 'آج نہیں' },
+  // Sent on a tap of yes, and ALSO the copy the /menu Classroom Coaching entry
+  // now uses — one door, one instruction. The old menu line asked
+  // for "at least 15 minutes", which is the routing threshold, not an ask a
+  // teacher can act on; 20-45 minutes is the lesson.
+  lpAskYesReply: {
+    en: 'Record your lesson with the WhatsApp mic — hold the mic button, slide up to lock it, and send the recording when the class ends. 20 to 45 minutes of the lesson is ideal.',
+    ur: 'اپنا سبق واٹس ایپ کے مائیک سے ریکارڈ کریں — مائیک کا بٹن دبائے رکھیں، لاک کرنے کے لیے اوپر سلائیڈ کریں، اور کلاس ختم ہونے پر ریکارڈنگ بھیج دیں۔ سبق کے 20 سے 45 منٹ بہترین ہیں۔',
+  },
+  lpAskHowtoCaption: {
+    en: 'How to record a lesson with the WhatsApp mic — 30 seconds.',
+    ur: 'واٹس ایپ کے مائیک سے سبق ریکارڈ کرنے کا طریقہ — 30 سیکنڈ۔',
+  },
+  lpAskDeclined: {
+    en: 'No problem. Classroom Coaching is in the menu whenever you want it.',
+    ur: 'کوئی بات نہیں۔ جب بھی چاہیں، مینو میں کلاس روم کوچنگ موجود ہے۔',
+  },
+  // The teacher said yes and then sent part of a lesson. This is NOT the generic
+  // short-recording guidance: they are not answered as if they had asked a
+  // question, because they did not ask one — they sent a recording they expect to
+  // be coached, and the message has to say plainly that it was not.
+  lpAskTooShort: {
+    en: 'That recording is about {minutes} minutes, which is too short to coach — a report needs the whole lesson, 20 to 45 minutes. Record the full class and send it, and I will analyse that one. I have not analysed this recording.',
+    ur: 'یہ ریکارڈنگ تقریباً \u2066{minutes}\u2069 منٹ کی ہے، جو کوچنگ کے لیے بہت مختصر ہے — رپورٹ کے لیے پورا سبق درکار ہے، 20 سے 45 منٹ۔ پوری کلاس ریکارڈ کر کے بھیجیں، اس کا تجزیہ ہو جائے گا۔ اس ریکارڈنگ کا تجزیہ نہیں کیا گیا۔',
+  },
+
   // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's
@@ -1470,6 +1540,57 @@ const UX_STRINGS = {
     en: 'Already on it — the quiz is coming.',
     ur: 'پہلے ہی تیار ہو رہا ہے — بس آ رہا ہے۔',
   },
+  // ── the 15:00 quiz offer on the lessons a teacher PLANNED (PLAN_R8 §5) ──
+  // No recording exists on this path, so the copy says "planned", never
+  // "taught". {topic} is the catalog topic of the lesson the quiz is written
+  // from; in Urdu it is first-strong isolated because it may be either script.
+  // Digits passed into the Urdu variants are Urdu digits (the caller converts).
+  lpQuizOfferOne: {
+    en: 'You planned “{topic}” for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج «⁨{topic}⁩» کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  // A lesson the catalog has no topic for — named by its class instead.
+  lpQuizOfferOneUntitled: {
+    en: 'You planned a Grade {grade} {subject} lesson for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  // Several lessons, one class. The quiz is written from ONE lesson (the first
+  // planned), so the copy names it rather than promising all of them.
+  lpQuizOfferClass: {
+    en: 'You planned {n} Grade {grade} {subject} lessons for today. I can make a short 8-question quiz on the first one, “{topic}”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کے {n} اسباق پلان کیے۔ پہلے سبق «⁨{topic}⁩» پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  lpQuizOfferListBody: {
+    en: 'You planned lessons for {n} classes today. Pick a class and I will make a short 8-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach.',
+    ur: 'آپ نے آج {n} کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر ۸ سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔',
+  },
+  lpQuizOfferListButton: { en: 'Choose a class', ur: 'کلاس چنیں' },
+  // List row title, 24 code points. The caller shortens a long subject first.
+  lpQuizOfferRowTitle: { en: 'Grade {grade} · {subject}', ur: 'جماعت {grade} · {subject}' },
+  lpQuizOfferRowDesc: { en: '{topics}', ur: '⁨{topics}⁩' },
+  lpQuizOfferNone: { en: 'Not today', ur: 'آج نہیں' },
+  // Footer, 60 code points: classes beyond the list's nine rows.
+  lpQuizOfferMore: { en: 'And {n} more classes not shown here', ur: 'مزید {n} کلاسیں یہاں نہیں دکھائی گئیں' },
+  lpQuizYes: { en: 'Make the quiz', ur: '‏quiz بنائیں' },
+  lpQuizNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+  lpQuizMaking: {
+    en: 'Making it now — about a minute. The quiz will arrive here with the message to forward to your class.',
+    ur: '‏quiz ابھی تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور کلاس کو آگے بھیجنے والا پیغام آئے گا۔',
+  },
+  lpQuizDeclined: {
+    en: 'No problem — no quiz for today. Send /quiz anytime to see your quizzes.',
+    ur: 'کوئی بات نہیں — آج کوئی quiz نہیں۔ اپنے quiz دیکھنے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
+  },
+  // quiz_generate could not be queued. The offer is spent (its claim is taken),
+  // so the copy does not invite a re-tap that would only say "already on it".
+  lpQuizCouldNotStart: {
+    en: 'I couldn’t start that quiz just now — sorry. The next lessons you plan will get a new offer.',
+    ur: 'معذرت، وہ quiz ابھی شروع نہیں ہو سکا۔ آپ کے اگلے پلان کیے گئے اسباق پر نئی پیشکش آئے گی۔',
+  },
+  lpQuizExpired: {
+    en: 'That offer has expired. Send /quiz anytime to see your quizzes.',
+    ur: 'وہ پیشکش اب ختم ہو چکی ہے۔ اپنے quiz دیکھنے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
+  },
   tqAlreadySent: {
     en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
     ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے /quiz بھیجیں۔',
@@ -1482,6 +1603,33 @@ const UX_STRINGS = {
     en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
     ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد /quiz آزمائیں۔',
   },
+  // ── the LP-born quiz's own failure reasons (PLAN_R8 §3.6) ────────────────
+  // `tqCouldNotMake` above names "this lesson's recording" and "the transcript".
+  // A quiz written from the lesson PLAN a teacher was served has neither, so
+  // that copy would name a state that never existed — and one shared fallback
+  // across several distinct failures is what sent a whole fix cycle at the
+  // wrong layer before (root CLAUDE.md rule 24d). Three reasons, three
+  // sentences, each saying which step actually stopped.
+  tqFailedLpSource: {
+    en: 'I couldn’t open that lesson plan, so there was nothing to write the quiz from. Send /quiz to pick another lesson.',
+    ur: 'اس سبق کا lesson plan نہیں کھل سکا، اس لیے quiz بنانے کے لیے کچھ نہیں تھا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqFailedLpDigest: {
+    en: 'I couldn’t read enough of that lesson plan to write a good quiz. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan سے اتنا نہیں پڑھا جا سکا کہ اچھا quiz بن سکے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqFailedLpAuthor: {
+    en: 'I couldn’t make a good quiz from that lesson plan — the questions didn’t come out clear enough. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan سے اچھا quiz نہیں بن سکا — سوالات کافی واضح نہیں بنے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // The key check (lp_v8): some answers marked correct disagreed with the
+  // lesson plan itself and too few were left once they were taken out. Named
+  // for what happened — the questions were fine, their answers were not — and
+  // the quiz was held back rather than sent.
+  tqFailedLpKeyConflict: {
+    en: 'I held this quiz back — some of its answers didn’t match what that lesson plan teaches, and I won’t send children a wrong answer. Send /quiz to pick another lesson.',
+    ur: 'یہ quiz روک لیا گیا — اس کے کچھ جوابات اس lesson plan کی بات سے میل نہیں کھاتے تھے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
@@ -1489,6 +1637,15 @@ const UX_STRINGS = {
   tqHandoffIntro: {
     en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you taught, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
     ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ نے کیا پڑھایا، کوئز کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+  },
+  // The lp_v8 twin of tqHandoffIntro. The quiz was written from the lesson PLAN
+  // the teacher was served — nobody heard the lesson — so the PDF is described
+  // by what was planned, in the words of the sheet's own heading ("What you
+  // planned" / «آپ کے سبق کا منصوبہ»). Never "what you taught". Gender-neutral:
+  // no verb agrees with the teacher; 'quiz' stays a Latin term of record.
+  tqHandoffIntroLp: {
+    en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you planned, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ کے سبق کا منصوبہ، quiz کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
   },
   tqForwardThis: {
     en: 'Forward THIS message to your students:',
@@ -1521,6 +1678,8 @@ const UX_STRINGS = {
   tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
   tqRowReportSent: { en: 'Report sent · {finished} done', ur: 'رپورٹ بھیجی، {finished} مکمل' },
   tqRowFailed: { en: 'Failed — tap to retry', ur: 'نہیں بنا — دوبارہ tap' },
+  // The lp_v8 row: tapping it cannot retry (no session), so it does not say so.
+  tqRowFailedLp: { en: 'Didn’t work', ur: 'نہیں بن سکا' },
   tqRowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
   tqRowOlderDesc: { en: 'The next 9, going back', ur: 'اگلے 9، اور پیچھے' },
   // The date is here because she is choosing between lessons, and two lessons
@@ -1640,6 +1799,12 @@ const UX_STRINGS = {
   tqFlowResultsMaking: {
     en: 'The quiz is being made — about a minute. It will arrive in your chat with the message to forward.',
     ur: '\u200Fquiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
+  },
+  // An lp_v8 quiz was written from the lesson PLAN — no recording to name.
+  // No "try again": /quiz cannot re-make it without a session (PLAN_R8 §3.4).
+  tqFlowResultsFailedLp: {
+    en: 'This quiz could not be made from the lesson plan. The next lesson you plan can have a quiz of its own.',
+    ur: 'اس lesson plan سے quiz نہیں بن سکا۔ اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
   },
   tqFlowResultsFailed: {
     en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',

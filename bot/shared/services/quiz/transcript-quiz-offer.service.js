@@ -32,6 +32,7 @@ const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
   needsLanguageAsk, languageAskButtons } = require('./transcript-quiz-language');
+const { LP_V8 } = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -372,18 +373,59 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
   // student message and in every later /quiz listing. A row without a digest
   // (legacy) keeps the label it has.
   const topic = topicFor(quiz.meta && quiz.meta.digest, language) || quiz.topic || 'Lesson';
+  // An LP-born quiz reaches here with no digest yet (the author digests the
+  // planned lesson first), so its next step is the digest, not the author.
+  const next = quiz.meta && quiz.meta.digest ? 'author' : 'digest';
   const { data: flipped } = await supabase.from('quizzes')
     .update({
       status: 'generating', language, topic,
-      meta: { ...(quiz.meta || {}), step: 'author', awaiting_language: false, language_choice: language, accepted_at: new Date().toISOString() },
+      meta: { ...(quiz.meta || {}), step: next, awaiting_language: false, language_choice: language, accepted_at: new Date().toISOString() },
     })
     .eq('id', quizId).eq('status', 'offered').select('id');
   if (!flipped || !flipped.length) return api.tellAlready(phone, quiz, teacherLang);
+
+  if (quiz.quiz_source === LP_V8) {
+    // The ask on the 15:00 LP offer (lp-quiz-offer): queued and announced by
+    // the same step a yes with no ask goes through.
+    await api.queueLpQuiz({ quizId, nudgeId: quiz.meta && quiz.meta.nudge_id, phone, language: teacherLang });
+    logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source, quiz_source: LP_V8 });
+    return true;
+  }
 
   const SQSQueueService = require('../queue/sqs-queue.service');
   await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: teacherLang }, { delaySeconds: 0 });
   await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: teacherLang }));
   logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source });
+  return true;
+}
+
+/**
+ * Queue the author for an LP-born (lp_v8) quiz and tell the teacher it is
+ * coming — or, when the queue refuses, fail the quiz and say so. The ONE place
+ * an lp_v8 quiz is queued: lp-quiz-offer's yes on an Urdu or Islamiyat lesson
+ * calls it, and so does startGenerating when the teacher answers the language
+ * ask on any other lesson, so the two can never queue a different job.
+ *
+ * @returns {Promise<boolean>} true when the job was queued
+ */
+async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
+  const say = async (key) => {
+    const ok = await WhatsAppService.sendMessage(phone, resolveUx(key, { language }));
+    if (!ok) logToFile('❌ lp quiz offer: reply not delivered', { key }, 'error');
+  };
+  try {
+    const SQSQueueService = require('../queue/sqs-queue.service');
+    await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, source: 'lp_offer' }, { delaySeconds: 0 });
+  } catch (err) {
+    logToFile('❌ lp quiz offer: quiz_generate could not be queued', { quizId, nudgeId, error: err.message }, 'error');
+    const { error } = await supabase.from('quizzes')
+      .update({ status: 'failed', meta: { step: 'failed', error: 'queue_failed', source: 'lp_offer', nudge_id: nudgeId } })
+      .eq('id', quizId);
+    if (error) logToFile('❌ lp quiz offer: could not mark the quiz failed', { quizId, error: error.message }, 'error');
+    await say('lpQuizCouldNotStart');
+    return false;
+  }
+  await say('lpQuizMaking');
   return true;
 }
 
@@ -399,8 +441,10 @@ async function handleLanguageButton(buttonId, phone, user) {
   const language = m[1];
   const quizId = m[2];
 
+  // quiz_source: the same ask answers an LP-born quiz, which startGenerating
+  // hands back to the LP offer to queue.
   const { data: quiz } = await supabase.from('quizzes')
-    .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
+    .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id, quiz_source')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', {
@@ -417,6 +461,6 @@ async function handleLanguageButton(buttonId, phone, user) {
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo, introVideoShows,
   scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
-  sendLanguageAsk, startGenerating, tellAlready,
+  sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };

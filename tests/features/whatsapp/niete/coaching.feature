@@ -14,11 +14,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I send "/menu"
     And I open the "View Features" list
     And I tap the "Classroom Coaching" row
-    Then the bot reply contains "upload your classroom recording"
-    And the bot reply says the audio should be at least 15 minutes long
-    # Verified: menu.service.js:265 — "Great! Please upload your classroom recording
-    # audio to get started with pedagogical analysis. The audio should be at least
-    # 15 minutes long."
+    Then the bot reply contains "Record your lesson with the WhatsApp mic"
+    And the bot reply asks for 20 to 45 minutes of the lesson
+    And the bot reply does not say "at least 15 minutes"
+    # UPDATED 2026-09-22: the menu door now sends the catalog
+    # string lpAskYesReply (menu.service _handleClassroomCoachingChoice) — the same
+    # instruction the lesson-plan coaching ask's "Record my lesson" sends. The old
+    # "at least 15 minutes" was the routing threshold, not an ask.
 
   @e2e @first-use @P2
   Scenario: Declining the intro on a coaching request asks for the class audio
@@ -117,10 +119,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   Scenario: The two coaching entry points quote different minimum audio lengths
     Given the NIETE bot chat is open
     When I reach coaching from the menu versus from a keyword request
-    Then the stated audio length differs (15 minutes vs up to 20 minutes)
-    # F4: menu.service.js:265 says "at least 15 minutes" while
-    # feature-keyword-detector.service.js says "up to 20 minutes" — one copy source
-    # should own the number. Documented, not asserted in the default run.
+    Then the stated audio length differs (20 to 45 minutes vs up to 20 minutes)
+    # F4: the menu door now asks for 20 to 45 minutes (lpAskYesReply, 2026-09-22)
+    # while feature-keyword-detector.service.js still says "up to 20 minutes" —
+    # one copy source should own the number. Documented, not asserted.
 
   # ═══════════ ADDED 2026-08-04 · draft coverage from the feature-map (code-grounded, @wip) ═══════════
   # The verified scenarios cover intake → confirm → the 5-step pipeline. These add
@@ -539,3 +541,94 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # teacher sends at the lesson-plan step is considered, so the layout rule it rests on is gone.
     # What counts as a plan is settled downstream by the extraction worker,
     # never by measuring her text before agreeing to read it.
+
+  # ═══════════ ADDED 2026-09-22 · the coaching ask on the first lesson plan of the day (@wip) ═══════════
+  # lp-coaching-ask.service: a lesson plan delivered before 14:00 PKT books ONE ask
+  # LP_COACHING_ASK_DELAY_MINUTES later (07:30 next school day after 14:00), one per
+  # teacher per PKT day by the teacher_nudges UNIQUE. Needs TEACHER_NUDGES_ENABLED and
+  # LP_COACHING_ASK_ENABLED on the sandbox bot + sqs-worker; the driver's role is
+  # 'teacher' (coaches are never asked). Driven and promoted by the E2E lane.
+
+  @e2e @wip @draft @lp-ask @P1
+  Scenario: The first lesson plan of the day brings one coaching ask
+    Given the NIETE bot chat is open
+    And no coaching ask has been sent to me today
+    And my last message to the bot was under 24 hours ago
+    When I take a lesson plan before 14:00 PKT
+    And I wait for the coaching-ask delay plus one sweep
+    Then the bot sends a message that begins "You planned a lesson with me today"
+    And it has the buttons "Record my lesson" and "Not today"
+
+  @e2e @wip @draft @lp-ask @edge @P1
+  Scenario: A lesson planned after 14:00 is asked about the next morning without saying today
+    Given the NIETE bot chat is open
+    And no coaching ask has been sent to me today
+    When I take a lesson plan at 16:30 PKT
+    And the next school day reaches 07:30 PKT and one sweep runs
+    And my last message to the bot was under 24 hours before that sweep
+    Then the bot sends a message that begins "You planned this lesson with me yesterday"
+    And the message does not say "today"
+    And it has the buttons "Record my lesson" and "Not today"
+    # lp-coaching-ask send(): when the PKT day of the send is later than the PKT day of
+    # context.delivered_at, the NextDay bodies are used. Friday after 14:00 is asked on Monday
+    # and names the date instead ("You planned this lesson with me on 18 Sep").
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  @e2e @wip @draft @lp-ask @negative @P1
+  Scenario: A second lesson plan the same day brings no second ask
+    Given the NIETE bot chat is open
+    And I took a lesson plan earlier today and the coaching ask was booked
+    When I take another lesson plan the same day
+    And I wait for the coaching-ask delay plus one sweep
+    Then no second coaching ask arrives today
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: Not today is remembered
+    Given the coaching ask is on screen
+    When I tap "Not today"
+    Then the bot replies that Classroom Coaching is in the menu whenever I want it
+    And nothing else about coaching is sent to me today
+    And my answer is stored as "no" on today's ask
+
+  @e2e @wip @draft @lp-ask @P1
+  Scenario: Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times
+    Given the coaching ask is on screen
+    And the how-to clip is configured for my language
+    When I tap "Record my lesson"
+    Then the bot reply contains "Record your lesson with the WhatsApp mic"
+    And the bot reply asks for 20 to 45 minutes of the lesson
+    And my conversation is waiting for a classroom recording
+    # The clip (LP_COACHING_HOWTO_VIDEO_EN/_UR) is sent before the ask on the first
+    # and second asks only (feature intro 'lp_coaching_howto', count < 2).
+
+  @e2e @wip @draft @lp-ask @negative @P1
+  Scenario: An 11-minute recording after yes is answered as too short
+    Given I tapped "Record my lesson" within the last 8 hours
+    When I send an 11-minute voice note
+    Then the bot replies that the recording is about 11 minutes and too short to coach
+    And the bot says it has not analysed this recording
+    And the recording is not answered as a chat question
+    # Keyed on the PROBED length (ffprobe runs on files >= 500 KB). Under 5 minutes
+    # is an ordinary voice message; 15 minutes and over starts coaching as always.
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: A classroom-length voice note gets no "send it as a document" warning
+    Given the NIETE bot chat is open
+    And I have chosen Classroom Coaching (awaiting audio)
+    When I send a 20-minute recording with the WhatsApp mic button
+    Then the bot detects a classroom recording and starts the coaching flow
+    And no message tells me to send the recording as a document
+
+  @e2e @coaching @quiz @wip @draft @config-gated @negative @P2
+  Scenario: Saying yes to the coaching ask means no quiz offer arrives that afternoon
+    Given the NIETE bot chat is open on a teacher who took a lesson plan this morning
+    And the coaching ask that followed it arrived
+    When I tap "Record my lesson"
+    Then the bot asks for the recording
+    And when the afternoon quiz offer is built I am left out of it, with the reason recorded as coaching_yes_today
+    And I am not asked twice in one day
+    # R8 D5, the operator's message-budget rule: a teacher who has agreed to record gets the
+    # coaching-born quiz offer after her report, so offering an LP-born one the same afternoon would
+    # be the second ask of the day for the same thing. teacher_nudges carries the skip and its reason,
+    # so a teacher who was deliberately left alone is countable, not invisible.
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.

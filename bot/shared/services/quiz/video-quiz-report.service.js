@@ -20,6 +20,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -364,7 +365,9 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   try {
     ({ data: quizRow } = await supabase.from('quizzes')
       .select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle());
-    const rawDigest = quizRow?.quiz_source === 'transcript' ? (quizRow?.meta?.digest || null) : null;
+    // A LESSON quiz — from a coaching recording or from the lesson plan the
+    // teacher was served (lp_v8) — carries the digest; nothing else does.
+    const rawDigest = isLessonQuiz(quizRow?.quiz_source) ? (quizRow?.meta?.digest || null) : null;
     if (rawDigest) {
       const slos = Array.isArray(rawDigest.slos) ? rawDigest.slos : [];
       // D1: the report reads in the quiz's language, so its goal lines do too.
@@ -1021,12 +1024,12 @@ async function markReportSent(shareCodeId, quizId = null) {
     await supabase.from('quiz_share_codes')
       .update({ report_sent_at: new Date().toISOString() })
       .eq('id', shareCodeId);
-    // A transcript quiz's /quiz row reads quizzes.status; "Report sent" is a
+    // A lesson quiz's /quiz row reads quizzes.status; "Report sent" is a
     // state of the quiz, not only of its share code.
     if (quizId) {
       await supabase.from('quizzes')
         .update({ status: 'report_sent' })
-        .eq('id', quizId).eq('quiz_source', 'transcript');
+        .eq('id', quizId).in('quiz_source', LESSON_SOURCES);
     }
   } catch (err) {
     logToFile('⚠️ video-quiz: could not stamp report_sent_at', {
