@@ -116,7 +116,12 @@ def test_at_most_one_diagram_per_slot():
 
 
 def test_all_three_slots_fill_at_once():
-    doc = build({"hook": dict(FLOW, replaces="hook"),
+    # The hook slot replaces `board-plan`, not `hook`. It was written the other way until
+    # bd-c93d6 added the sole-carrier guard, which refuses it: `hook` is the only block
+    # the renderer maps to the DC's `hook` move, so drawing over it deletes the move. The
+    # corpus has always pointed this slot at the board plan (rule 36/37) -- the fixture
+    # was the only place the losing placement appeared.
+    doc = build({"hook": dict(FLOW, replaces="board-plan"),
                  "explanation": dict(FLOW, replaces="worked"),
                  "practice": dict(FLOW, replaces="you-do-task")})
     got = [(s["id"], b["id"]) for s in doc["sections"]
@@ -223,3 +228,45 @@ def test_the_hook_slot_replaces_the_board_plan_so_the_board_is_drawn_not_describ
     assert spec["colLabels"] == ["Th", "H", "T", "O"]
     # a real placement is silent
     assert not [g for g in doc["notes"]["gaps"] if "hook" in g]
+
+
+# ── a drawing may not be the last word on a scored move ──────────────────────
+
+def test_a_diagram_may_not_replace_the_only_block_carrying_its_dc_phase():
+    """bd-c93d6 -- the Maths lesson shipped with NO We Do, and nothing said so.
+
+    Its enrichment authored `diagrams.practice.replaces: "we-do"`. `_place` overwrites
+    the target in place, so the numberline drawing did not illustrate the guided
+    practice, it DELETED it: `we-do` is the only block the renderer maps to the Digital
+    Coach's `guided` phase, so the lesson lost a scored move, the phase chip that names
+    it, and the script the teacher follows -- while the halfway check two blocks above
+    still read "By now the class should be starting WE DO". A page pointing at a phase
+    the document no longer contains.
+
+    The rule is not "never replace a scored block": `you-do-task` may go, because
+    `you-do` still carries `independent` and the move survives the swap. The rule is
+    that the LAST carrier of a phase may not be drawn over.
+    """
+    doc = build({"practice": dict(FLOW, replaces="we-do")})
+    ids = [b["id"] for s in doc["sections"] for b in s["blocks"]]
+    assert "we-do" in ids, "the guided move must survive a diagram aimed at it"
+    assert "dia-practice" not in ids
+    assert [g for g in doc["notes"]["gaps"] if "we-do" in g and "guided" in g], \
+        "a refusal the author cannot read is the same silence as the bug"
+
+
+def test_a_diagram_may_still_replace_a_scored_block_that_has_a_sibling():
+    """The control. `you-do-task` and `you-do` are both `independent`, so drawing over
+    one leaves the move standing -- and that is the placement the corpus actually uses."""
+    doc = build({"practice": dict(FLOW, replaces="you-do-task")})
+    ids = [b["id"] for s in doc["sections"] for b in s["blocks"]]
+    assert "dia-practice" in ids and "you-do" in ids
+    assert not [g for g in doc["notes"]["gaps"] if "practice" in g]
+
+
+def test_the_phase_map_covers_exactly_the_dc_scored_ids():
+    """The guard is only as good as its map. `d0_crux.DC_IDS` is already pinned to the
+    renderer's own `DC_PHASE` by `test_d0_crux.py`; keying off the same set means a
+    renderer that gains a phase cannot leave this guard silently half-blind."""
+    import d0_crux
+    assert set(D.DC_PHASE_OF) == d0_crux.DC_IDS

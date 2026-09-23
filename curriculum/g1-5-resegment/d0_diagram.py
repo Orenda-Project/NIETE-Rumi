@@ -44,6 +44,47 @@ SLOT_SECTION = {
 }
 
 # `replaces` is routing and never reaches the engine — see `_spec_of`.
+# The Digital Coach phase each scored block id carries, in `d0_crux`'s normalised form.
+# The KEYS are `d0_crux.DC_IDS` -- asserted by test, so the renderer's own `DC_PHASE`
+# (which `test_d0_crux.py` pins that set to) cannot gain a phase and leave this guard
+# blind. The VALUES are what `d0_crux` does not need and this module does: two ids may
+# share a phase, and that is exactly the difference between a drawing that costs a move
+# and one that does not.
+DC_PHASE_OF = {
+    "hook": "hook",
+    "bigidea": "announce",
+    "ido": "explain",
+    "wedo": "guided",
+    "youdo": "independent",
+    "youdotask": "independent",
+    "remember": "exit",
+    "hw": "homework",
+}
+
+
+def _norm(block_id):
+    """`d0_crux`'s normalisation, so `big-idea` and `bigIdea` resolve to one key."""
+    return "".join(c for c in str(block_id or "").lower() if c.isalnum())
+
+
+def _sole_carrier_of(sections, block):
+    """The DC phase `block` is the LAST block carrying, or None.
+
+    Replacing a scored block is legitimate -- `you-do-task` goes and `you-do` still
+    carries `independent`, which is the placement the corpus actually uses. Replacing the
+    only carrier is not: the phase, its chip and its script leave the document together
+    and nothing downstream says a move went missing.
+    """
+    phase = DC_PHASE_OF.get(_norm(block.get("id")))
+    if not phase:
+        return None
+    for sec in sections:
+        for b in sec.get("blocks") or []:
+            if b is not block and DC_PHASE_OF.get(_norm(b.get("id"))) == phase:
+                return None
+    return phase
+
+
 _ROUTING_KEYS = ("replaces",)
 
 
@@ -101,6 +142,14 @@ def _place(sections, slot, entry):
         # and "not found" without the section name sends the reader to the wrong file.
         return _gap(slot, f"block '{target}' is not in section '{sid}' "
                           f"(it holds: {', '.join(b.get('id') or b.get('type') or '?' for b in section.get('blocks') or []) or 'nothing'})")
+
+    phase = _sole_carrier_of(sections, section["blocks"][i])
+    if phase:
+        return _gap(slot, f"'{target}' is the only block carrying the Digital Coach's "
+                          f"'{phase}' move, and a diagram replaces what it names -- "
+                          f"seating it here would delete the move, its phase chip and "
+                          f"its script, leaving the lesson pointing at a phase it no "
+                          f"longer has")
 
     section["blocks"][i] = {"type": "diagram", "id": f"dia-{slot}", "spec": _spec_of(entry)}
     return None
