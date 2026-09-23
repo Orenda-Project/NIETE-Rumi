@@ -1995,9 +1995,20 @@ const UX_STRINGS = {
     en: 'Good effort — this one is worth another go.',
     ur: 'اچھی کوشش — یہ دوبارہ کرنے کے قابل ہے۔',
   },
+  // Sent when NOTHING can be sent any more and the session ends unfinished. It
+  // used to promise "here's how you did on the ones you got" and then score the
+  // child on them — one answered question of eight read as 100%. No score
+  // follows it now, so it must not promise one.
   vqTrouble: {
-    en: 'We’re having trouble sending more questions right now — here’s how you did on the ones you got!',
-    ur: 'ابھی مزید سوال بھیجنے میں مسئلہ ہو رہا ہے — جو سوال ملے، ان کا نتیجہ یہ رہا!',
+    en: 'I’m having trouble sending the questions right now, so this quiz has stopped here. Please try it again a little later.',
+    ur: 'ابھی سوال بھیجنے میں مسئلہ ہو رہا ہے، اس لیے یہ quiz یہیں روک دیا گیا ہے۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  // One question could not be sent and was skipped; the quiz carries on. {i} is
+  // its position, the same number "Question {i} of {n}" would have shown, so the
+  // gap in the numbering is explained. Passive in Urdu: gender-neutral.
+  vqQuestionSkipped: {
+    en: 'I couldn’t send question {i}, so I’ve skipped it.',
+    ur: 'سوال {i} نہیں بھیجا جا سکا، اس لیے اسے چھوڑ دیا گیا ہے۔',
   },
   vqNoQuestions: {
     en: 'Sorry — I couldn’t load that quiz just now. Please try again later.',
