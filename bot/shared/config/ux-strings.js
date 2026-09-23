@@ -1735,6 +1735,11 @@ const UX_STRINGS = {
   tqYourTeacher: { en: 'Your teacher', ur: 'آپ کے استاد' },
   tqTeacherNamed: { en: 'Teacher {name}', ur: 'استاد {name}' },
   tqTodaysLesson: { en: 'today’s lesson', ur: 'آج کا سبق' },
+  // The column heads of a place-value picture (the `base_ten` figure) on a
+  // child's question. Drawn above each column, never with a number beside them.
+  tqPlaceHundreds: { en: 'Hundreds', ur: 'سینکڑے' },
+  tqPlaceTens: { en: 'Tens', ur: 'دہائیاں' },
+  tqPlaceOnes: { en: 'Ones', ur: 'اکائیاں' },
   tqLessonWord: { en: 'Lesson', ur: 'سبق' },
   tqNudge: {
     en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',

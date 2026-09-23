@@ -57,24 +57,63 @@ const BACKPACK = [
 ].join("");
 const OWN_GLYPHS = { bag: BACKPACK, bag_school: BACKPACK };
 
-/** 'Red Apple' / 'red-apple' / ' apple ' all address the same glyph. */
+// ─── VENDOR DIVERGENCE — see SYNC.md §3.18 ───────────────────────────────────
+// Two MANIPULATIVES, drawn here as geometry rather than taken from OpenMoji.
+//
+// A grade 1-5 maths lesson counts with counters and tiles far more than with
+// any noun: across the ICT grade 1-5 maths slide scripts the token `counter`
+// alone appears 2,317 times, `dot` 604, `sq`/`square`/`tile` 347, `bead` 58,
+// `marble` 59 — and the set had none of them, so a quiz could not draw the
+// objects the class actually counted. OpenMoji has no counter (its "black
+// circle" is an emoji of a circle), and a counter is not art: it is a disc.
+//
+// Painted like the ten-frame's own counters (count_frame.js): an accent disc
+// with an ink rim, so a counter looks the same in every type that draws one.
+// The tile is a square in the cool token, so a row of tiles never reads as a
+// row of counters. Neither is licensed from anyone; both are listed by
+// `names()` beside the OpenMoji roster, and `build_pictograms.js` never
+// touches them (it rewrites only `index.json`).
+const LOCAL_GLYPHS = {
+  counter: '<circle data-ov="skip" cx="36" cy="36" r="26" fill="var(--amber, #F2A20C)" stroke="currentColor" stroke-width="3"/>'
+    + '<circle data-ov="skip" cx="36" cy="36" r="15" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="3"/>',
+  tile: '<rect data-ov="skip" x="11" y="11" width="50" height="50" rx="5" fill="var(--cool, #1B6CA8)" fill-opacity="0.8" stroke="currentColor" stroke-width="3"/>',
+};
+
+// The lesson's own words for those two things. A slide script writes the same
+// counter as [dot], [bead], [marble] or [circle], and a tile as [sq] or
+// [square]; an author reading the lesson will reach for the lesson's word.
+// Resolved here, once, so every type that draws a pictogram accepts them —
+// never listed in `names()`, which stays the roster of distinct pictures.
+const ALIASES = {
+  dot: "counter", bead: "counter", marble: "counter", circle: "counter",
+  sq: "tile", square: "tile",
+};
+
+/** 'Red Apple' / 'red-apple' / ' apple ' all address the same glyph; an alias addresses its picture. */
 function key(name) {
-  return String(name == null ? "" : name).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const k = String(name == null ? "" : name).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return Object.prototype.hasOwnProperty.call(ALIASES, k) ? ALIASES[k] : k;
 }
 
 /** Every pictogram name, sorted. This IS the roster an author is shown. */
 function names() {
-  return Object.keys(INDEX.glyphs).sort();
+  return [...Object.keys(INDEX.glyphs), ...Object.keys(LOCAL_GLYPHS)].sort();
 }
 
 function has(name) {
-  return Object.prototype.hasOwnProperty.call(INDEX.glyphs, key(name));
+  const k = key(name);
+  return Object.prototype.hasOwnProperty.call(INDEX.glyphs, k)
+    || Object.prototype.hasOwnProperty.call(LOCAL_GLYPHS, k);
 }
 
 /** The glyph's inner markup (no <svg> wrapper), cached. */
 function inner(name) {
   const k = key(name);
   if (cache.has(k)) return cache.get(k);
+  if (Object.prototype.hasOwnProperty.call(LOCAL_GLYPHS, k)) {
+    cache.set(k, LOCAL_GLYPHS[k]);
+    return LOCAL_GLYPHS[k];
+  }
   if (Object.prototype.hasOwnProperty.call(OWN_GLYPHS, k) && has(k)) {
     cache.set(k, OWN_GLYPHS[k]);
     return OWN_GLYPHS[k];
