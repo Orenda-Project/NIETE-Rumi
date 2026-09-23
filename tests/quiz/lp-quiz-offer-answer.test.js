@@ -11,6 +11,11 @@
  * The quiz row is asserted field by field against PLAN_R8 §2.3, because lane D's
  * generate step reads it: `quiz_source='lp_v8'`, no coaching session, no lesson
  * plan row, `meta.lessons[]` carrying the served version keys of the download.
+ *
+ * The default class here is an URDU lesson on purpose: Urdu and Islamiyat are
+ * the only subjects whose yes still queues `quiz_generate` at once. Every other
+ * subject is first asked which language the quiz is written in — that path,
+ * and the tap that answers it, is lp-quiz-language-ask.test.js.
  */
 
 const { makeSupabase } = require('./helpers/filtering-chain');
@@ -50,15 +55,15 @@ const SENT_AT = pkt(NUDGE_DATE, 15, 0);
 const TAP_AT = pkt(NUDGE_DATE, 15, 20);
 
 const lesson = (over = {}) => ({
-  lesson_id: 'grade_4_math_ch2_seg1',
+  lesson_id: 'grade_4_urdu_ch2_seg1',
   asset_id: 'asset-1',
   version_stamp: 'v8.2026-09-01',
   content_hash: 'hash-served-aaa',
   delivered_at: pkt(NUDGE_DATE, 9, 30).toISOString(),
-  topic: 'Fractions on a Number Line',
+  topic: 'Pyasa Kawwa',
   ...over,
 });
-const klass = (over = {}) => ({ key: 'g4_math', grade: 4, subject: 'math', lessons: [lesson()], ...over });
+const klass = (over = {}) => ({ key: 'g4_urdu', grade: 4, subject: 'urdu', lessons: [lesson()], ...over });
 
 function sentRow(over = {}) {
   return {
@@ -105,18 +110,18 @@ describe('Make the quiz — one lp_v8 quiz, queued once', () => {
       coaching_session_id: null,
       lesson_plan_id: null,
       status: 'generating',
-      topic: 'Fractions on a Number Line',
+      topic: 'Pyasa Kawwa',
       grade: '4',
-      subject: 'math',
+      subject: 'urdu',
     }));
     expect(quiz.meta).toEqual(expect.objectContaining({
       source: 'lp_offer',
       nudge_id: NID,
       lesson_date: NUDGE_DATE,
-      class: { grade: 4, subject: 'math' },
+      class: { grade: 4, subject: 'urdu' },
     }));
     expect(quiz.meta.lessons).toEqual([{
-      lesson_id: 'grade_4_math_ch2_seg1',
+      lesson_id: 'grade_4_urdu_ch2_seg1',
       asset_id: 'asset-1',
       version_stamp: 'v8.2026-09-01',
       content_hash: 'hash-served-aaa',
@@ -172,7 +177,11 @@ describe('Make the quiz — one lp_v8 quiz, queued once', () => {
     expect(quiz.grade).toBe('5');
     expect(quiz.meta.lessons[0].content_hash).toBe('hash-sci');
     expect(mockStore.rows[0].choice).toBe('class:g5_general_science');
-    expect(SQSQueueService.queueJob).toHaveBeenCalledTimes(1);
+    // Science is asked which language the quiz is in before anything is queued.
+    expect(quiz.status).toBe('offered');
+    expect(quiz.meta.step).toBe('awaiting_language');
+    expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
   });
 
   test('a pick for a class that is not on this offer makes nothing', async () => {

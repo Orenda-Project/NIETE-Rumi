@@ -1,7 +1,6 @@
 -- V1.5.2 — niete_lp_asset_sources: the slide script of the EXACT lesson version served.
 --
--- Applied by infrastructure/scripts/migrate.js (the repo's migration runner: schema_versions
--- ledger + exec_sql), in version order, once.
+-- Applied once, in version order, and recorded in the schema_versions ledger.
 --
 -- A quiz can be written from a lesson plan only if we hold the text of the PDF the
 -- teacher actually received. Three candidate artefacts were measured over every

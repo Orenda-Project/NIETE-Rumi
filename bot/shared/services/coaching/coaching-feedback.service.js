@@ -11,8 +11,10 @@
  * message. A teacher who has used one recognises the other.
  *
  * THREE THINGS ARE SPECIFIC TO COACHING:
- *   1. It fires only once the session has SETTLED — report AND voice debrief both delivered.
- *      Asking mid-delivery would rate a half-finished thing.
+ *   1. It fires once the report AND voice debrief have both been delivered — straight after
+ *      the audio, before the session-complete line and the commitment question (report-
+ *      generator sends it inline; DC feedback, 2026-09-23). Asking earlier would rate a
+ *      half-finished thing.
  *   2. It writes onto the `coaching_quality_metrics` row that already exists for the session
  *      (`user_satisfaction_rating`, `user_feedback`), so the answer is traceable straight back
  *      to the coaching session and its transcript, scores and report. No new table.
@@ -31,8 +33,8 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 
-// Fire once the report and the voice debrief have both landed, with a short pause so the
-// survey is not competing with the audio for her attention.
+// Default delay for scheduleFeedbackPrompt. The coaching report no longer uses it — the
+// survey is sent inline right after the voice debrief — but the scheduler stays available.
 const FEEDBACK_DELAY_MS = 90 * 1000;
 const REASON_WINDOW_SECS = 600; // 10 minutes to answer "what could we do better?"
 const REDIS_REASON_KEY = (userId) => `coaching_feedback_pending:${userId}`;

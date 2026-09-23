@@ -437,18 +437,34 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
 
   @e2e @wip @draft @P2
-  Scenario: The coaching session says it is over before the quiz offer arrives
+  Scenario: The "was this useful?" survey comes right after the voice debrief
+    Given the NIETE bot chat is open
+    And I have finished the reflective questions of a coaching session
+    When the voice debrief of my report arrives
+    Then the next message asks "Was this coaching report useful to you?" with a yes and a no button
+    And it arrives before the message saying my coaching session is complete
+    And it is asked only once for this session
+    # DC feedback 2026-09-23. report-generator sends it inline right after
+    # generateAndSendVoiceDebrief(); completeSession() no longer schedules the old
+    # +90 s copy. A tap before the session completes creates the metrics row, and
+    # recordQualityMetrics updates that row rather than inserting a second.
+
+  @e2e @wip @draft @P2
+  Scenario: The commitment question opens by saying the coaching session is over
     Given the NIETE bot chat is open
     And I have received a coaching report with a commitment card
     When the commitment question arrives
-    Then the bot tells me the coaching session is complete
-    And that line arrives before any quiz offer
-    And that line is in my selected language
-    # bd-x3k1q / DC row 133. report-generator.service.js sends
-    # getCoachingMessage('sessionComplete', outputLanguage) straight after
-    # completeSession() — i.e. after the commit-prompt buttons and before
-    # scheduleTranscriptQuiz() / FeatureLinkerService.suggestNext(). Without it
-    # teachers and coaches read the quiz as step 6 of the coaching session.
+    Then that same message first tells me the coaching session is complete
+    And then asks whether I will try it in my next class
+    And no separate session-complete message follows it
+    And the message arrives before any quiz offer
+    And the message is in my selected language
+    # bd-x3k1q / DC row 133 added the boundary; bd-fmr3s / DC row 137 merged it
+    # INTO the commit prompt: body = cardCopy.sessionCompleteLead + "\n\n" +
+    # cardCopy.commitPrompt (coaching-card.config.js, en/ur/ar/es). Urdu:
+    # "آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔" then "کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟".
+    # With no commitment card, the standalone getCoachingMessage('sessionComplete')
+    # line is still sent before scheduleTranscriptQuiz() / suggestNext().
 
   @e2e @wip @draft @negative @known-fail @P3
   Scenario: The commitment-card buttons on the report are handled
@@ -465,7 +481,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I paste my lesson plan into the chat as an ordinary message
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
+    And no separate "lesson plan received" message arrives before it
     And the bot does not ask me again to send it as a document
     And the observation records that it has a lesson plan
     # Every other way in needs a WhatsApp media id (document webhook, LP-as-photo),
@@ -473,7 +490,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # without one. lp-text-paste.service.js pre-filters the text, resolves the
     # session through media-session-resolver (kind 'lp'), and hands it to
     # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
-    # lesson_plan_text with lesson_plan_link_method='pasted'.
+    # lesson_plan_text with lesson_plan_link_method='pasted'. It sends NO ack of
+    # its own (DC feedback 2026-09-23): the old "thanks for typing it out" line
+    # arrived just before Step 2/5 and read as the same message twice.
 
   @e2e @wip @draft @negative @P2 @obsolete
   Scenario: A short reply at the lesson-plan step is not mistaken for a plan
@@ -506,7 +525,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I type a three-line plan naming the topic, an activity and how I will check learning
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
     And the observation records that it has a lesson plan
     # The first live attempt failed here: a real 222-code-point Roman-Urdu plan
     # was refused by a 280-point floor fitted to long formatted pastes, while
@@ -558,6 +577,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I wait for the coaching-ask delay plus one sweep
     Then the bot sends a message that begins "You planned a lesson with me today"
     And it has the buttons "Record my lesson" and "Not today"
+
+  @e2e @wip @draft @lp-ask @edge @P1
+  Scenario: A lesson planned after 14:00 is asked about the next morning without saying today
+    Given the NIETE bot chat is open
+    And no coaching ask has been sent to me today
+    When I take a lesson plan at 16:30 PKT
+    And the next school day reaches 07:30 PKT and one sweep runs
+    And my last message to the bot was under 24 hours before that sweep
+    Then the bot sends a message that begins "You planned this lesson with me yesterday"
+    And the message does not say "today"
+    And it has the buttons "Record my lesson" and "Not today"
+    # lp-coaching-ask send(): when the PKT day of the send is later than the PKT day of
+    # context.delivered_at, the NextDay bodies are used. Friday after 14:00 is asked on Monday
+    # and names the date instead ("You planned this lesson with me on 18 Sep").
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
 
   @e2e @wip @draft @lp-ask @negative @P1
   Scenario: A second lesson plan the same day brings no second ask

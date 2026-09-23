@@ -5,7 +5,7 @@
  * An lp_v8 quiz is written from the lesson plan. Handed an empty transcript,
  * the unchanged prompt said "excerpts of the transcript" over nothing and asked
  * for a summary of "what you taught" — the model then invents classroom talk.
- * With `lessonPlan` the prompt reads the planned lesson and says "you planned".
+ * With `lessonPlan` the prompt reads the planned lesson and describes what it plans to teach.
  */
 jest.mock('../../bot/shared/services/quiz/transcript-quiz-llm', () => ({ completeJson: jest.fn() }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
@@ -31,10 +31,13 @@ test('with lessonPlan, the model reads the planned lesson — not transcript exc
   expect(prompt).not.toContain('excerpts of the transcript');
 });
 
-test('with lessonPlan, the summary to the teacher says "you planned", never "what you taught"', async () => {
+// The voice moved from "you planned" to the lesson as the subject ("Today's
+// lesson plans …" / «آج کے سبق میں …»): "you planned" still rendered in Urdu as
+// «آپ نے … سکھایا» on sandbox. The rule it protects is unchanged — never "taught".
+test('with lessonPlan, the summary to the teacher describes the plan, never "what you taught"', async () => {
   await Author.author({ digest: DIGEST, transcript: null, language: 'en', lessonPlan: PLAN });
   const { prompt } = completeJson.mock.calls[0][0];
-  expect(prompt).toMatch(/you planned/);
+  expect(prompt).toMatch(/Today's lesson plans/);
   expect(prompt).not.toMatch(/say what you taught/);
   expect(prompt).not.toMatch(/what you taught, with your own first example/);
 });

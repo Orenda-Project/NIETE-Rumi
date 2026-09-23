@@ -36,7 +36,32 @@ const { completeJson } = require('./transcript-quiz-llm');
 const { normaliseDigest } = require('./transcript-quiz-digest.service');
 const { canonicalSubject, LANG_NAME } = require('./transcript-quiz-language');
 const { logEvent } = require('../../utils/structured-logger');
+const { logToFile } = require('../../utils/logger');
 const { LP_V8 } = require('./quiz-sources');
+const Catalog = require('../lp-v8-catalog.service');
+
+/**
+ * The lesson's own name, as its PDF caption prints it (`lesson.topic`, falling
+ * back to `topic_short`), or null when the catalog does not know the lesson.
+ *
+ * WHY NOT THE MODEL'S LABEL. The model fills `topic_as_taught` from the slide
+ * script's `meta.topic`, and on every script that field is the objective's first
+ * clause cut mid-sentence ("طالب علم واحد اور جمع کے فرق کو"). That label is what
+ * an Urdu quiz is called everywhere — quizzes.topic, the forward message the
+ * children read, /quiz, the PDF — so it is taken from the catalog, never guessed.
+ */
+function catalogLessonName(lessonId) {
+  if (!lessonId) return null;
+  try {
+    const hit = Catalog.lessonById(lessonId);
+    const name = hit && hit.lesson && (hit.lesson.topic || hit.lesson.topic_short);
+    return name && String(name).trim() ? String(name).trim() : null;
+  } catch (err) {
+    // No catalog means the model's label stands — never no quiz.
+    logToFile('lp digest: catalog unreadable — keeping the model\'s topic label', { lessonId, error: err.message }, 'error');
+    return null;
+  }
+}
 
 /** Bloom verb → the three levels the whole quiz pipeline speaks. */
 const BLOOM_LEVEL = {
@@ -231,12 +256,17 @@ ${lessonExcerpts(slideScript)}`;
  * @param {string}  args.language     the quiz language already settled on the row
  * @param {string|number} [args.grade]   the catalog grade (authoritative)
  * @param {string}  [args.subject]    the catalog subject
+ * @param {string}  [args.lessonId]   the served lesson (`quizzes.meta.lessons[0].lesson_id`);
+ *                                    names the quiz from the catalog. Falls back to the
+ *                                    slide script's own `meta.lessonId`.
  * @returns {Promise<{digest:object, grade:string|null, gradeSource:'catalog', lpHint:null,
  *                    model:string, costUsd:number|null, latencyMs:number}>}
  *   The same envelope `transcript-quiz-digest.service.run()` returns, so the
  *   generate step spreads one or the other without a second branch.
  */
-async function run({ slideScript, language = null, grade = null, subject = null }) {
+async function run({
+  slideScript, language = null, grade = null, subject = null, lessonId = null,
+}) {
   if (!isUsable(slideScript)) {
     // Loudly, and before the LLM call: an empty digest authored into a quiz is
     // eight questions about nothing, and the teacher would be the one to find out.
@@ -273,11 +303,20 @@ async function run({ slideScript, language = null, grade = null, subject = null 
   }
   if (!digest.subject || digest.subject === 'other') digest.subject = canonicalSubject(subject);
 
+  // The label is the lesson's catalog name, set AFTER the model and verbatim
+  // (see catalogLessonName). The model's English `topic` stays: it is what an
+  // English-language quiz is called, and the catalog has no English name for an
+  // Urdu lesson.
+  const servedLessonId = lessonId || (slideScript && slideScript.meta && slideScript.meta.lessonId) || null;
+  const lessonName = catalogLessonName(servedLessonId);
+  if (lessonName) digest.topic_as_taught = lessonName;
+
   const resolvedGrade = grade != null && String(grade).trim() ? String(grade).trim() : null;
 
   logEvent('transcript_quiz.digest_done', {
     quiz_source: LP_V8,
-    lessonId: (slideScript && slideScript.meta && slideScript.meta.lessonId) || null,
+    lessonId: servedLessonId,
+    topicSource: lessonName ? 'catalog' : 'model',
     model,
     costUsd,
     latencyMs,

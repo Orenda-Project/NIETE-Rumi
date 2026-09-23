@@ -536,4 +536,35 @@ exports.run = async ({ api, rec, sleep }) => {
       { reason: 'the watermark is drawn inside the PDF; the mock lane sees the document message, not its pages. Covered by '
               + 'tests/training/isaps-pilot-watermark.test.js + the rendered-page test in bd-60133.' }, 0);
 
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T28', 'A maths question with fractions reaches the child as a typeset card', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T29', 'A quiz never ships an answer key a blind solver disagrees with', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T30', 'For Unseen questions she sets how many of EACH type, not one total we split for her', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T31', 'A count she cannot have is refused on the screen, naming the type', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T32', 'Seen questions ask one thing — how many Seen', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T33', 'Both asks the Seen number first, on its own screen, then the Unseen types and counts', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T34', 'Going over 50 in total tells her why, where she can see it', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
 };

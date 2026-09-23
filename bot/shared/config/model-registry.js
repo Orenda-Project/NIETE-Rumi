@@ -56,6 +56,15 @@ const JOBS = {
     env: 'TRANSCRIPT_QUIZ_MODEL', default: 'google/gemini-2.5-flash',
     site: 'shared/services/quiz/transcript-quiz-llm.js:22',
   },
+  'quiz.keyVerify': {
+    // The blind solve: every lesson quiz (transcript and lp_v8) is answered once by a model
+    // that is NOT shown the keys, before a row is stored. It checks the author's work, so it
+    // runs on a DIFFERENT and stronger model than quiz.transcript by default -- a solver that
+    // shares the author's blind spots agrees with the author's mistakes. Claude Sonnet 5 is
+    // already served to this deployment through the same OpenRouter client (lp.author).
+    env: 'TRANSCRIPT_QUIZ_VERIFY_MODEL', default: 'anthropic/claude-sonnet-5',
+    site: 'shared/services/quiz/transcript-quiz-key-verify.service.js',
+  },
   'assessment.generate': {
     // bd-jntcx. Found from the first production spend data, not by reading the code: at
     // $11.34/day this is the second largest line in NIETE, behind only lp.author — and it was
@@ -116,6 +125,10 @@ const FALLBACK = {
   'vision.analyse':   'openai/gpt-4.1-mini',
   'roster.extract':   'google/gemini-3.1-flash-lite-preview',
   'quiz.transcript':  'google/gemini-2.5-flash',
+  // New job, no validated predecessor: a supplier outage fails the solve, and the solve
+  // FAILS OPEN (the quiz ships as authored, recorded as meta.key_verify.status 'error').
+  // Falling back to the author's own model would verify the author with itself.
+  'quiz.keyVerify':   null,
   'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
   'platform.default': null,  // the floor

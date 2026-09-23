@@ -21,6 +21,7 @@ const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-fi
 const Multi = require('./transcript-quiz-multi');
 const { pedagogyDefects } = require('./transcript-quiz-pedagogy');
 const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word-blank');
+const { mathToText, texFaults } = require('./quiz-math');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -93,6 +94,55 @@ const STEM_PROMISES_PICTURE =
 // No more than half the questions may carry a figure. A quiz that is mostly
 // pictures stops testing the lesson and starts testing picture-reading.
 const FIGURE_MAX_SHARE = 0.5;
+
+/**
+ * A question as the child READS it (bd-mg9c7.159.19). The author writes maths
+ * as TeX (`$\frac{2}{9}$`) and the row stores that source for the card and the
+ * PDF to typeset — but every rule below is about what reaches the child: a
+ * length cap, two options that look the same, a picture that gives the answer
+ * away, an English-script ratio. Measured on the TeX, `$\frac{2}{5}$` is not
+ * "2/5", so the figure gates silently stop seeing a fraction key at all, and
+ * `\frac` counts as four Latin letters in an Urdu quiz. So every check reads
+ * this view; the question returned (and stored) keeps its source.
+ */
+function plainView(q) {
+  if (!q || typeof q !== 'object') return q;
+  const fb = q.option_feedback || { correct: '', wrong: {} };
+  const wrong = {};
+  Object.entries(fb.wrong || {}).forEach(([k, v]) => { wrong[k] = mathToText(v); });
+  return {
+    ...q,
+    question: mathToText(q.question),
+    options: Array.isArray(q.options) ? q.options.map(mathToText) : q.options,
+    explanation: mathToText(q.explanation),
+    option_feedback: { ...fb, correct: mathToText(fb.correct), wrong },
+  };
+}
+
+/**
+ * MATH_TEX — the maths in one question, checked where the child will meet it:
+ * the stem and options (typeset on the card) and the explanation and feedback
+ * (flattened into WhatsApp text). One line per field, naming the field and the
+ * expression, so the targeted rewrite can fix exactly that; a q-prefixed fault,
+ * so the last-attempt salvage can drop the question rather than the quiz.
+ */
+function mathTexErrors(q, i) {
+  const fb = (q && q.option_feedback) || {};
+  const fields = [
+    ['stem', q && q.question],
+    ...(Array.isArray(q && q.options) ? q.options : []).map((o, k) => [`option ${k}`, o]),
+    ['explanation', q && q.explanation],
+    ['option_feedback.correct', fb.correct],
+    ...Object.entries(fb.wrong || {}).map(([k, v]) => [`option_feedback.wrong.${k}`, v]),
+  ];
+  const out = [];
+  fields.forEach(([name, value]) => {
+    if (typeof value !== 'string') return;
+    const faults = texFaults(value);
+    if (faults.length) out.push(`q${i}: MATH_TEX — ${name}: ${faults[0]}`);
+  });
+  return out;
+}
 
 function scriptRatio(s) {
   const letters = [...String(s || '')].filter((c) => /\p{L}/u.test(c));
@@ -191,9 +241,13 @@ function validate(rawQuestions, ctx = {}) {
   const scanReligious = canon === 'islamiat' || canon === 'urdu';
 
   qs.forEach((q, i) => {
-    const opts = Array.isArray(q.options) ? q.options.map((o) => String(o ?? '').trim()) : [];
+    // Every check below reads the question as the child SEES it (plainView);
+    // the MATH_TEX check reads the source, because that is what can be broken.
+    errs.push(...mathTexErrors(q, i));
+    const p = plainView(q);
+    const opts = Array.isArray(p.options) ? p.options.map((o) => String(o ?? '').trim()) : [];
     const multi = Multi.isMultiQuestion(q);
-    const fb = q.option_feedback || { correct: '', wrong: {} };
+    const fb = p.option_feedback || { correct: '', wrong: {} };
     // PLAN_R5 D4 — a "select all that apply" question has its own shape (3 or 4
     // options, a correct SET, feedback keyed on every wrong one). Its rules
     // live in transcript-quiz-multi so the author prompt, the validator and the
@@ -201,7 +255,7 @@ function validate(rawQuestions, ctx = {}) {
     // stem length, SLO coverage, level, script, figures — applies to both.
     const ci = multi ? Multi.authoredCorrectIndices(q)[0] : q.correct_index;
     if (multi) {
-      errs.push(...Multi.questionErrors(q, i));
+      errs.push(...Multi.questionErrors(p, i));
     } else {
       if (opts.length !== 3) errs.push(`q${i}: ${opts.length} options`);
       if (opts.some((o) => !o)) errs.push(`q${i}: empty option`);
@@ -213,7 +267,7 @@ function validate(rawQuestions, ctx = {}) {
       if (need.some((k) => !String(fb.wrong?.[k] || '').trim())) errs.push(`q${i}: empty wrong feedback`);
       if (!String(fb.correct || '').trim()) errs.push(`q${i}: empty correct feedback`);
     }
-    const stem = String(q.question || '').trim();
+    const stem = String(p.question || '').trim();
     if (!stem) errs.push(`q${i}: empty stem`);
     if (cpLen(stem) > STEM_MAX) errs.push(`q${i}: stem >${STEM_MAX} code points`);
     opts.forEach((o) => { if (cpLen(o) > OPTION_MAX) errs.push(`q${i}: option >${OPTION_MAX} code points`); });
@@ -240,7 +294,7 @@ function validate(rawQuestions, ctx = {}) {
     if (lv > tl + 1) errs.push(`q${i}: PEDAGOGY_LEVEL_ABOVE — level ${q.level} > taught ${slos.find((s) => s.id === q.slo_id)?.taught_level || 'understand'}+1`);
     levelGap.push({ i, gap: lv - tl, level: q.level, taught: slos.find((s) => s.id === q.slo_id)?.taught_level || 'recall' });
 
-    const texts = [stem, String(q.explanation || ''), String(fb.correct || ''), ...opts, ...Object.values(fb.wrong || {}).map(String)];
+    const texts = [stem, String(p.explanation || ''), String(fb.correct || ''), ...opts, ...Object.values(fb.wrong || {}).map(String)];
     if (language === 'en') {
       // The mirror of the Urdu script check. The teacher chose English on a
       // lesson taught in Urdu and the model answered in Urdu — nothing objected.
@@ -434,7 +488,7 @@ function validate(rawQuestions, ctx = {}) {
   // (PLAN_R6 D5): the summary is the field the operator caught a "She" on, and
   // it is quiz-level, so it is checked here beside the questions rather than in
   // a second pass a caller could forget.
-  pedagogyDefects(qs, {
+  pedagogyDefects(qs.map(plainView), {
     language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}),
   }).forEach((d) => errs.push(d.message));
 
@@ -458,4 +512,5 @@ module.exports = {
   rtlOpen,
   LETTER_REF,
   ROMAN_URDU,
+  plainView,
 };

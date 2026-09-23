@@ -80,15 +80,44 @@ const LP_FAILURE_COPY = {
   source_missing: 'tqFailedLpSource',
   digest_failed: 'tqFailedLpDigest',
   validator_failed: 'tqFailedLpAuthor',
+  // The key check found answers the lesson contradicts and could neither fix
+  // nor drop enough of them: the questions were clear, their KEYS were wrong.
+  key_conflict: 'tqFailedLpKeyConflict',
+  // The blind solve disagreed with too many keys (a wrong answer, or two right
+  // ones) to fix or drop and still send a quiz.
+  key_disagreement: 'tqFailedLpKeyDisagreement',
+};
+/**
+ * The transcript counterpart. Every transcript reason still reads
+ * `tqCouldNotMake` except the one that is not about the recording at all: the
+ * blind solve held the quiz back because its answers were wrong or unclear.
+ */
+const TRANSCRIPT_FAILURE_COPY = {
+  key_disagreement: 'tqFailedKeyDisagreement',
 };
 function failureCopyKey(reason, quizSource) {
-  if (quizSource !== LP_V8) return 'tqCouldNotMake';
+  if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMake';
   // An LP quiz never falls back to the transcript copy: a reason nobody has
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
   return LP_FAILURE_COPY[reason] || 'tqFailedLpAuthor';
 }
 
+/**
+ * WHICH caption rides the teacher's PDF.
+ *
+ * `tqHandoffIntro` says "what you taught" / «آپ نے کیا پڑھایا» — true of a quiz
+ * written from a recording of the class. A quiz written from the lesson PLAN a
+ * teacher was served knows only that a PDF was delivered, so its caption says
+ * what was planned, matching the sheet's own "What you planned" heading.
+ *
+ * @param {string} quizSource `quizzes.quiz_source`
+ * @returns {string} a ux-strings key
+ */
+function handoffIntroKey(quizSource) {
+  return quizSource === LP_V8 ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
+}
+
 module.exports = {
-  TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey,
+  TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey, handoffIntroKey,
 };

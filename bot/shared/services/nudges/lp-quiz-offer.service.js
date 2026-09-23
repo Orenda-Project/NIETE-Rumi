@@ -38,11 +38,12 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { pagedRows } = require('../../utils/postgrest-paged');
 const PktTime = require('./pkt-time');
+const { flagOn } = require('./flags');
 const Store = require('./teacher-nudges.store');
 const WhatsAppService = require('../whatsapp.service');
 const { resolveUx } = require('../../config/ux-strings');
 const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subject-order');
-const { teacherLanguageFor } = require('../quiz/transcript-quiz-language');
+const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
 const { LP_V8 } = require('../quiz/quiz-sources');
 
@@ -87,7 +88,7 @@ const SKIP_REASONS_USED = [
 // ─── flags ───────────────────────────────────────────────────────────────────
 
 function enabled() {
-  return process.env.LP_QUIZ_OFFER_ENABLED === 'true' || process.env.LP_QUIZ_OFFER_ENABLED === '1';
+  return flagOn('LP_QUIZ_OFFER_ENABLED');
 }
 
 /** An unreadable value falls back to the documented default rather than NaN. */
@@ -140,7 +141,16 @@ function classKey(grade, subject) {
   return `g${g}_${s}`;
 }
 
-/** lesson_id → catalog topic, built once. The catalog is static (2,038 K-5 lessons). */
+/**
+ * lesson_id → catalog topic, built once. The catalog is static (2,038 K-5 lessons).
+ *
+ * `topic` first: it is the clean name the lesson PDF's own caption prints
+ * ("Comparing & ordering unlike fractions"). `topic_short` is the row's run-on
+ * sub-headings cut at 80 code points ("Comparing / Ordering Unlike Fractions /
+ * Discovery / Skill Sharpener — Comparing…") — a name the teacher never saw on
+ * the lesson they took. It is only the fallback. The 72-code-point list-row cap
+ * is held by `rowDescription`'s clip, not by the choice of name.
+ */
 let topicIndex = null;
 function catalogTopic(lessonId) {
   if (!topicIndex) {
@@ -149,7 +159,7 @@ function catalogTopic(lessonId) {
       for (const book of Catalog.catalog().books || []) {
         for (const chapter of book.chapters || []) {
           for (const lesson of chapter.lessons || []) {
-            topicIndex.set(lesson.lesson_id, lesson.topic_short || lesson.topic || null);
+            topicIndex.set(lesson.lesson_id, lesson.topic || lesson.topic_short || null);
           }
         }
       }
@@ -699,8 +709,14 @@ async function answerable(nudgeId, user, at) {
   return { state: 'open', row };
 }
 
-/** The quizzes row for an LP-born quiz, exactly as PLAN_R8 §2.3 names it. */
-async function insertQuiz(row, cls) {
+/**
+ * The quizzes row for an LP-born quiz, exactly as PLAN_R8 §2.3 names it.
+ *
+ * `askLanguage`: the teacher has still to choose the quiz language, so the row
+ * waits `offered` at `awaiting_language` — the state the transcript quiz's ask
+ * leaves its own row in, which is what its tq_lang_ handler flips.
+ */
+async function insertQuiz(row, cls, { askLanguage = false } = {}) {
   const lessons = cls.lessons.map((l) => ({
     lesson_id: l.lesson_id,
     asset_id: l.asset_id,
@@ -718,9 +734,10 @@ async function insertQuiz(row, cls) {
       topic: first.topic || `${subjectName(cls.subject, 'en')} lesson`,
       grade: cls.grade == null ? null : String(cls.grade),
       subject: cls.subject || null,
-      status: 'generating',
+      status: askLanguage ? 'offered' : 'generating',
       meta: {
-        step: 'digest',
+        step: askLanguage ? 'awaiting_language' : 'digest',
+        ...(askLanguage ? { awaiting_language: true } : {}),
         source: 'lp_offer',
         nudge_id: row.id,
         lessons,
@@ -756,7 +773,10 @@ async function accept(nudgeId, key, from, user, at) {
   await Store.recordAnswer(row.id, { choice });
   logEvent('lp_quiz.offer_answered', { nudgeId, userId: row.user_id, choice });
 
-  const quizId = await insertQuiz(row, cls);
+  // The quiz language is the teacher's to choose, exactly as on the quiz born
+  // from a recording: every subject but Urdu and Islamiyat is asked first.
+  const askLanguage = needsLanguageAsk(cls.subject);
+  const quizId = await insertQuiz(row, cls, { askLanguage });
   if (!(await Store.claimQuiz(row.id, quizId))) {
     // Another tap (or replica) claimed this offer first; its quiz is the one.
     const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
@@ -766,21 +786,21 @@ async function accept(nudgeId, key, from, user, at) {
     return true;
   }
 
-  try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
-    await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone: from, source: 'lp_offer' }, { delaySeconds: 0 });
-  } catch (err) {
-    logToFile('❌ lp quiz offer: quiz_generate could not be queued', { quizId, nudgeId, error: err.message }, 'error');
-    const { error } = await supabase.from('quizzes')
-      .update({ status: 'failed', meta: { step: 'failed', error: 'queue_failed', source: 'lp_offer', nudge_id: row.id } })
-      .eq('id', quizId);
-    if (error) logToFile('❌ lp quiz offer: could not mark the quiz failed', { quizId, error: error.message }, 'error');
-    await reply(from, 'lpQuizCouldNotStart', language);
+  // The quiz's own state machine: the ask, its answer, and the one place an
+  // lp_v8 quiz is queued. Required here, never the other way round.
+  const TranscriptQuizOffer = require('../quiz/transcript-quiz-offer.service');
+  if (askLanguage) {
+    // The transcript quiz's own ask and buttons (tq_lang_<code>_<quizId>); its
+    // handler generates this row once the teacher answers. Nothing is queued
+    // until then. The subject rule is the first, easy tap.
+    await TranscriptQuizOffer.sendLanguageAsk(quizId, from, language, quizLanguageFor(cls.subject, null));
+    logEvent('lp_quiz.language_asked', { nudgeId, quizId, userId: row.user_id, class: cls.key });
+  } else if (!(await TranscriptQuizOffer.queueLpQuiz({ quizId, nudgeId: row.id, phone: from, language }))) {
     return true;
   }
-  await reply(from, 'lpQuizMaking', language);
   logEvent('lp_quiz.quiz_claimed', {
     nudgeId, quizId, won: true, userId: row.user_id, class: cls.key, lessons: cls.lessons.length, quiz_source: QUIZ_SOURCE,
+    awaiting_language: askLanguage,
   });
   return true;
 }
@@ -826,7 +846,7 @@ async function handleListPick(rowId, from, user, { now } = {}) {
 // break the require chain (the webhook loads this module for the taps), so it
 // is logged at error level: an unregistered kind is never claimed, silently.
 try {
-  require('./teacher-nudges.sweeper').register(KIND, (row) => send(row), { prepare });
+  require('./teacher-nudges.sweeper').register(KIND, (row, opts) => send(row, opts), { prepare });
 } catch (err) {
   logToFile('lp quiz offer: sweeper registration failed — no offers will be sent', { error: err.message }, 'error');
 }

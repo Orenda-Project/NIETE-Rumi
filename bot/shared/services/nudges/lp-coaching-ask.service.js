@@ -49,7 +49,9 @@ const FeatureIntro = require('../feature-intro.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { canSelfCoach } = require('../../config/role-features');
 const Caps = require('./caps');
+const { flagOn } = require('./flags');
 const { shouldDeferNewClassroomAudio } = require('../coaching/coaching-inflight-guard');
+const { formatLessonDate } = require('../quiz/transcript-quiz-language');
 
 /** The `teacher_nudges.kind` this service owns. */
 const KIND = 'coaching_after_lp';
@@ -65,7 +67,7 @@ const MORNING_MINUTE = 30;
 const DEFAULT_DELAY_MINUTES = 10;
 
 function enabled() {
-  return process.env.LP_COACHING_ASK_ENABLED === 'true';
+  return flagOn('LP_COACHING_ASK_ENABLED');
 }
 
 /**
@@ -295,6 +297,35 @@ async function offeredToday(userId, now, today) {
   });
 }
 
+/**
+ * PURE. The body the ask is sent with, and its params.
+ *
+ * A lesson delivered at or after 14:00 is asked about at 07:30 on the NEXT
+ * school day (scheduleFor), so the "today" bodies would tell an evening planner
+ * they planned the lesson that morning. When the PKT day of the send is later
+ * than the PKT day of `context.delivered_at`, the NextDay bodies say when it was
+ * planned: "yesterday", or the date when a weekend sits between. A row with no
+ * readable `delivered_at` keeps the "today" copy it was booked with.
+ *
+ * @param {{first_time?:boolean, delivered_at?:string}} context the row's context
+ * @param {string} today the PKT date the ask goes out, YYYY-MM-DD
+ * @param {string} language the teacher's language
+ * @returns {{key:string, params?:{when:string}}}
+ */
+function askBody(context, today, language) {
+  const firstTime = Boolean(context && context.first_time);
+  const delivered = context && context.delivered_at ? new Date(context.delivered_at) : null;
+  const plannedDay = delivered && !Number.isNaN(delivered.getTime()) ? pktDate(delivered) : null;
+  if (!plannedDay || plannedDay >= today) {
+    return { key: firstTime ? 'lpAskBodyFirstTime' : 'lpAskBody' };
+  }
+  const yesterday = pktDate(new Date(delivered.getTime() + 24 * 60 * 60 * 1000)) === today;
+  const when = yesterday
+    ? resolveUx('lpAskWhenYesterday', { language })
+    : resolveUx('lpAskWhenOnDate', { language, params: { date: formatLessonDate(delivered.toISOString(), language) } });
+  return { key: firstTime ? 'lpAskBodyFirstTimeNextDay' : 'lpAskBodyNextDay', params: { when } };
+}
+
 /** `extra` rides into the row's context via the sweeper's markSkipped. */
 function skip(row, reason, extra = {}) {
   logEvent('lp_ask.skipped', { nudgeId: row.id, userId: row.user_id, reason, ...extra });
@@ -361,9 +392,9 @@ async function send(row, { now = new Date() } = {}) {
     }
   }
 
-  const bodyKey = context.first_time ? 'lpAskBodyFirstTime' : 'lpAskBody';
+  const { key: bodyKey, params: bodyParams } = askBody(context, today, language);
   const delivered = await WhatsAppService.sendInteractiveButtons(to, {
-    body: resolveUx(bodyKey, { language }),
+    body: resolveUx(bodyKey, { language, params: bodyParams }),
     buttons: [
       { id: `lpask_yes_${row.id}`, title: resolveUx('lpAskYes', { language }) },
       { id: `lpask_no_${row.id}`, title: resolveUx('lpAskNo', { language }) },
@@ -537,6 +568,7 @@ module.exports = {
   delayMinutes,
   weeklyCap,
   scheduleFor,
+  askBody,
   hasCoachedBefore,
   selfCoaches,
   onLessonDelivered,

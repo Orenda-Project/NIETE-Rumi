@@ -49,6 +49,8 @@ const { logEvent } = require('../../bot/shared/utils/structured-logger');
 const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
 const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 
 const QID = '44444444-4444-4444-8444-444444444444';
 const LESSON = {
@@ -86,6 +88,7 @@ const EIGHT = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => goodQuestion(i, i % 2 ? 'S1' :
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
   Store.resolveSlideScript.mockResolvedValue({ slideScript: SLIDE_SCRIPT, verified: 'upload', assetId: 'a-1' });
   LpDigest.run.mockResolvedValue({
     digest: DIGEST, grade: '2', gradeSource: 'catalog', lpHint: null, model: 'dm', costUsd: 0.002, latencyMs: 10,
