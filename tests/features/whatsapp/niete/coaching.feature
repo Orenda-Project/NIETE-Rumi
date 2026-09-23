@@ -437,6 +437,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
 
   @e2e @wip @draft @P2
+  Scenario: The "was this useful?" survey comes right after the voice debrief
+    Given the NIETE bot chat is open
+    And I have finished the reflective questions of a coaching session
+    When the voice debrief of my report arrives
+    Then the next message asks "Was this coaching report useful to you?" with a yes and a no button
+    And it arrives before the message saying my coaching session is complete
+    And it is asked only once for this session
+    # DC feedback 2026-09-23. report-generator sends it inline right after
+    # generateAndSendVoiceDebrief(); completeSession() no longer schedules the old
+    # +90 s copy. A tap before the session completes creates the metrics row, and
+    # recordQualityMetrics updates that row rather than inserting a second.
+
+  @e2e @wip @draft @P2
   Scenario: The commitment question opens by saying the coaching session is over
     Given the NIETE bot chat is open
     And I have received a coaching report with a commitment card

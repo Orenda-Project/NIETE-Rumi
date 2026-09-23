@@ -8,10 +8,12 @@
  * that the path is /quiz. TRANSCRIPT_QUIZ_OFFER_MODE=every keeps the
  * alternative one env flip away.
  *
- * TIMING. The survey buttons go out ~90 s after the report. The offer is
- * queued for +240 s so it never competes with them, and the survey answer
- * itself brings it forward (triggerEarly) — whichever job runs first wins the
- * per-session claim, the other is a no-op.
+ * TIMING. The survey buttons go out straight after the voice debrief, before
+ * the commitment question. The offer is queued for +240 s so it never competes
+ * with them, and the survey answer itself brings it forward (triggerEarly) —
+ * whichever job runs first wins the per-session claim, the other is a no-op. A
+ * tap that lands before the session is 'completed' is refused by processOffer
+ * without claiming, so the offer can never arrive ahead of the commit prompt.
  *
  * STATE lives in `quizzes` (quiz_source='transcript', one row per coaching
  * session, enforced by a unique partial index). The offer job claims the row
