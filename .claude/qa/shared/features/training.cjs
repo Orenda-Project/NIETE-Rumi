@@ -426,8 +426,12 @@ exports.run = async ({ api, rec, sleep }) => {
       .map(x => (((x && x.text) || '').split(' · ')[0] || '').trim()).filter(Boolean);
     let media = [];
     try {
-      const raw = api.db('module-media', offered.flatMap(x => ['--title', x]));
-      media = JSON.parse(String(raw).slice(String(raw).indexOf('[')));
+      // The tool prints a '[niete_training_db] env=...' banner BEFORE its JSON, so slicing from the
+      // FIRST '[' parses the banner and throws — which silently emptied this array on the first run
+      // and made T04 block with no evidence behind its reason. Take the last non-empty line.
+      const raw = String(api.db('module-media', offered.flatMap(x => ['--title', x])) || '');
+      const last = raw.split('\n').map(l => l.trim()).filter(Boolean).pop() || '[]';
+      media = JSON.parse(last);
     } catch (e) { media = []; }
     const idx = media.findIndex(m => m && m.kind === 'pdf');
     if (idx < 0) {
