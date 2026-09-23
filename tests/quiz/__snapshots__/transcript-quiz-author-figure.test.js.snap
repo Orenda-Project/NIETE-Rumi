@@ -158,5 +158,13 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
     · \`model\` is "length" (horizontal bars), "height" (vertical bars) or "balance" (a scale, with \`left\`/\`right\` each {picto,count} or {size}).
     · \`size\` is a RELATIVE quantity and is NEVER printed — the moment a bar says "12 cm" the child reads instead of comparing.
     · 2 or 3 items, and they may not all be the same size. The balance tilts from the pan LOADS, never from an author's tilt, and refuses two equal pans unless allowEqual is set.
-    · Bars are one colour unless an item names one (ink | accent | leaf | cool | warn | plum | clay): a cycling palette once drew a navy bar labelled "سرخ ربن" (red ribbon)."
+    · Bars are one colour unless an item names one (ink | accent | leaf | cool | warn | plum | clay): a cycling palette once drew a navy bar labelled "سرخ ربن" (red ribbon).
+- base_ten — Place value as the class built it -- hundreds, tens and ones as bundles of sticks (or flats, rods and cubes) on a mat of labelled columns. The number is read off, never printed.
+  required: —
+  minimal: {"type":"base_ten","hundreds":2,"tens":4,"ones":7}
+  limits:
+    · \`hundreds\`, \`tens\` and \`ones\` are COUNTS of pieces, 0-20 each; at least one must be above 0. Above 9 is a regrouping picture (13 tens is thirteen bundles).
+    · A place holding 0 is drawn EMPTY, under its own heading -- the zero in 209 stays visible. The hundreds place appears only when there are hundreds (or with places: 3).
+    · \`model\` is "bundles" (default: loose sticks, bundles of ten tied once, big bundles of a hundred tied twice) or "blocks" (unit cubes, rods of ten, flats of a hundred). Draw the one the lesson used.
+    · No digit, count or total is ever drawn: the child reads the number off the picture. Each place is headed with its name in the figure's language; \`labels\` ({hundreds, tens, ones}) renames the heads."
 `;

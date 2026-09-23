@@ -1011,11 +1011,47 @@ are untouched: the names stay in the roster and the licence record, only the dra
 Covered by `tests/quiz/pictogram-school-bag.test.js`. Worth offering upstream (lp_html's early-years
 roster has the same glyph); keep it at the next re-sync unless upstream has taken it.
 
+### 3.18 The grade 1-5 maths manipulatives — `lib/pictogram.js`, `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`, `visual_check.js` (2026-09-24)
+
+A grade 1-5 maths quiz could not draw the objects its lesson counted with. Measured across the 421
+ICT grade 1-5 maths slide scripts, the diagram tokens are dominated by manipulatives — `counter`
+2,317, `dot` 604, `bundle` 547, `stick` 289, `sq`/`tile`/`square` 347, `bigbundle` 58, `flat` 43 —
+and the pictogram set had none of them (its `stick` is OpenMoji's *wood*, a log). Four edits:
+
+* **`lib/pictogram.js`** — beside §3.17's backpack (`OWN_GLYPHS`, untouched), two geometric glyphs, `counter` (an accent disc with an ink rim, painted
+  like `count_frame`'s own counters) and `tile` (a square in the cool token), held in a
+  `LOCAL_GLYPHS` table beside the OpenMoji index rather than in it, so `build_pictograms.js` (which
+  rewrites `index.json`) can never drop them. Plus `ALIASES` — `dot`/`bead`/`marble`/`circle` →
+  `counter`, `sq`/`square` → `tile` — resolved inside `key()` so every type that draws a pictogram
+  accepts the lesson's own word. `names()` lists the new glyphs and never the aliases. A third local
+  glyph, `stick` (a thin counting stick in the clay token, the stick `base_ten` bundles), REPLACES
+  the OpenMoji glyph filed under that name, which is its *wood* — a log. None of the three is
+  licensed from anyone; the OpenMoji attribution is unchanged.
+* **`types/base_ten.js`** (new) — a place-value mat: hundreds, tens and ones as loose sticks,
+  bundles of ten and big bundles of a hundred (`model: "bundles"`, default) or as cubes, rods and
+  flats (`model: "blocks"`). One headed column per place, hundreds → tens → ones left to right in
+  both languages; a zero is an empty column; no digit or count is ever drawn. `count_objects`
+  could not stand in: a place-value picture carries a 1 and a 0, and that type refuses both.
+* **`types/count_objects.js`** — rows being COMPARED (more than one row) stay on one line each, up to
+  ten: the default `perRow` was `min(5, count)` for every shape, so a compare row of six wrapped its
+  sixth thing onto an unlabelled line and "which row has more?" was drawn as three rows. A single
+  row still wraps at five, and an explicit `perRow` still wins.
+* **`types_manifest.json`** — the `base_ten` entry (count 28 → 29). Its limits avoid the word
+  "column" on purpose: the quiz lane filters manifest limits that match its LP-page pattern, and
+  those two lines are what tells a quiz author that a zero is drawn empty.
+* **`visual_check.js`** — `base_ten` and its aliases added to V5's legal set and to `CANON`, the
+  same way the early-years eight were: V5 accepts a figure the engine draws. No 6-12 brief offers
+  it (`tests/lp612/brief-field-coverage.test.js` lists it with the early-years types).
+
+Covered by `tests/quiz/transcript-quiz-figure-manipulatives.test.js` (through the quiz lane's own
+`renderFigureSvg` / `validate` / `buildAuthorPrompt`). Upstream does not have any of this; if the
+skill adopts the type, take its copy and drop this entry. Keep all four at the next re-sync.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack) and §3.17 (`lib/pictogram.js`, the school-bag glyph). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph) and §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

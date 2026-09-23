@@ -64,10 +64,15 @@ const ALLOWED_TYPES = [
   // 360 segments and `word_blank` 257, against 121 for every existing drawable
   // type put together (the option-space study).
   'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+  // Place value, drawn the way the class built it — bundles of sticks, or flats,
+  // rods and cubes. The grade 1-5 slide scripts draw it on nearly every
+  // place-value page and no other type could (a "1 hundred" or a "0 tens" is
+  // not something count_objects will draw).
+  'base_ten',
 ];
 
 /**
- * The eight above, on their own. They are offered to the AUTHOR only for a
+ * The early-years types, on their own. They are offered to the AUTHOR only for a
  * grade 1-5 lesson: a grade 9 chemistry quiz has no use for a ten-frame, and
  * every type in the prompt is tokens spent plus one more shape the model can
  * reach for wrongly. They stay on ALLOWED_TYPES for every grade, because the
@@ -75,9 +80,10 @@ const ALLOWED_TYPES = [
  */
 const EARLY_YEARS_TYPES = [
   'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+  'base_ten',
 ];
 
-/** ALLOWED_TYPES minus the early-years eight — the 6-12 roster. */
+/** ALLOWED_TYPES minus the early-years types — the 6-12 roster. */
 const CORE_TYPES = ALLOWED_TYPES.filter((t) => !EARLY_YEARS_TYPES.includes(t));
 
 /**
@@ -112,6 +118,26 @@ const TYPE_DEFAULTS = {
   // it; an author who wants it can pass one.
   grid: { legend: '' },
 };
+
+/**
+ * Defaults that depend on the QUIZ LANGUAGE. A place-value mat's column heads
+ * are words a child reads, so they come from the string catalog like every
+ * other child-facing word (root rule 20), never from the engine's own
+ * fallback. Anything the author sets wins; the stored spec is never changed,
+ * so the teacher PDF's re-draw injects the same heads again.
+ */
+function languageDefaults(type, language) {
+  if (type !== 'base_ten') return {};
+  const { resolveUx } = require('../../config/ux-strings');
+  const lang = clampLanguage(language);
+  return {
+    labels: {
+      hundreds: resolveUx('tqPlaceHundreds', { language: lang }),
+      tens: resolveUx('tqPlaceTens', { language: lang }),
+      ones: resolveUx('tqPlaceOnes', { language: lang }),
+    },
+  };
+}
 
 /** Keys whose value is a structural enum, not label text a child reads. */
 const STRUCTURAL_KEYS = new Set([
@@ -392,6 +418,8 @@ const PHONE_FONT_SCALE = {
   match: 1.6,
   money: 2.4,
   compare_size: 1.6,
+  // Its column heads are the only text, drawn well clear of every piece.
+  base_ten: 1.6,
 };
 
 // ─── render ──────────────────────────────────────────────────────────────────
@@ -415,7 +443,9 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_TYPE',
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
-  const merged = { ...(TYPE_DEFAULTS[type] || {}), ...spec, type, lang: clampLanguage(language) };
+  const merged = {
+    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, type, lang: clampLanguage(language),
+  };
   const ceiling = PHONE_FONT_SCALE[type] || 1;
   const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 
@@ -535,7 +565,7 @@ const GEOMETRY_KEYS = {
   rightangle: ['vertex', 'a', 'b'], line: ['from', 'to'], segment: ['from', 'to'], point: ['at'],
 };
 /** Only mathematics draws shapes; every other subject that reached for geometry drew a scene. */
-const MATHS_ONLY_TYPES = new Set(['geometry']);
+const MATHS_ONLY_TYPES = new Set(['geometry', 'base_ten']);
 
 /** A colour token the page never defines paints grey (or nothing). */
 function unknownColourToken(spec) {
@@ -567,6 +597,15 @@ function figureMismatch(spec, options, correctIndex) {
     if (bars.length > 1 && per.every(([p]) => p === per[0][0])) reachable.add(`${shaded}/${per[0][0]}`);
     const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
     return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${shaded} of ${parts} parts)`;
+  }
+  if (type === 'base_ten') {
+    // A place-value mat answers "what number?", "how many tens?", "what is the
+    // tens worth?" and "how many sticks in all?" — and nothing else.
+    const [h, t, o] = ['hundreds', 'tens', 'ones'].map((k) => Math.max(0, Math.floor(Number(spec[k]) || 0)));
+    const value = 100 * h + 10 * t + o;
+    const reachable = new Set([value, h, t, o, 10 * t, 100 * h, h + t + o].map(String));
+    return whole !== null && reachable.has(String(whole)) ? null
+      : `the picture cannot produce the answer "${correct}" (it shows ${h} hundreds, ${t} tens and ${o} ones)`;
   }
   if (type === 'grid') {
     const rows = Number(spec.rows) || 0; const cols = Number(spec.cols) || 0;
@@ -732,6 +771,9 @@ function figureDefiningNumbers(spec) {
       break;
     case 'geometry': (spec.shapes || []).forEach((sh) => (sh.sides || []).forEach(fromLabel)); break;
     case 'timeline': (spec.events || []).forEach((e) => fromLabel(e && e.date)); break;
+    // The counts, not the zeros: "0" matches inside half the numbers a stem can
+    // mention, and a stem that says "no tens" states nothing the mat is made of.
+    case 'base_ten': ['hundreds', 'tens', 'ones'].forEach((k) => { if (Number(spec[k]) > 0) push(spec[k]); }); break;
     default: break;
   }
   return [...new Set(nums)];
@@ -989,6 +1031,7 @@ module.exports = {
   CORE_TYPES,
   MATHS_ONLY_TYPES,
   unknownColourToken,
+  languageDefaults,
   figureMismatch,
   svgInkCount,
   figureIsRedundant,
