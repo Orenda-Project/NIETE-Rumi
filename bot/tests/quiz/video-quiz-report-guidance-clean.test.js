@@ -74,15 +74,18 @@ describe('bd-2611 — guidance reaches the teacher without markup', () => {
   });
 });
 
-describe('bd-2612 — the roster names the class the child gave, once', () => {
+describe('bd-2612 — the roster names the class the child gave, once, and one way', () => {
+  // The unit word is written once and always the same way ("Class", the word
+  // the hero uses); the value is the grade number read out of what the child
+  // typed. A section letter is not part of the grade.
   test.each([
-    ['3', 'Grade 3'],
-    ['4', 'Grade 4'],
-    ['Grade 3', 'Grade 3'],
-    ['grade 3', 'grade 3'],
+    ['3', 'Class 3'],
+    ['4', 'Class 4'],
+    ['Grade 3', 'Class 3'],
+    ['grade 3', 'Class 3'],
     ['Class 3', 'Class 3'],
-    ['4 B', 'Grade 4 B'],
-    ['Grade 4 B', 'Grade 4 B'],
+    ['4 B', 'Class 4'],
+    ['Grade 4 B', 'Class 4'],
     ['', ''],
     [null, ''],
   ])('classLabel(%p) -> %p', (input, expected) => {
