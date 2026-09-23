@@ -127,6 +127,48 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # alternative was an English page delivered under an Urdu claim, which is what 8 of the 23
     # attempted 6-12 repair rows were on 2026-09-18.
 
+  @e2e @content-driven @P1
+  Scenario: A سیرت lesson already held for review is delivered in Urdu when the overlay keeps the ﷺ
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    And the segment's English document already carries the G5c native-speaker review hold
+    When I complete it for that Grade 9 Islamiyat segment from an English-medium book, and the overlay
+      pass returns the topic title as "سیرت کا سبق: نبی کریم ﷺ کی زندگی"
+    Then a lesson-plan PDF is delivered to the chat
+    And what she receives is the Urdu page, not the English fallback
+    # The overlay pass now lints the MERGED page before it is allowed out, and this is the scenario
+    # that proves the hold DISCRIMINATES: same سیرت lesson, same Islamiyat chapter, same title — and
+    # it is delivered, because the honorific is there and the document was already a review item.
+    # The gate refuses the defect, not the subject. It is worth its own line because the failure it
+    # guards is invisible: a future widening of RELIGIOUS_MARKS could kill every Urdu Islamiyat
+    # overlay and nothing would say so — the fallback to English is silent by design, which is the
+    # kind outcome the scenario above describes. The review hold in the Given is load-bearing: an
+    # overlay that INTRODUCES religious content onto a document nobody flagged is refused even with
+    # the honorific, because then the Urdu page would be the first anyone saw of it.
+
+  @e2e @negative @content-driven @P1
+  Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a Grade 9 Islamiyat segment from an English-medium book, and the overlay
+      pass returns the topic title as "سیرت کا سبق: نبی کریم کی زندگی" — the Prophet named, the ﷺ dropped
+    Then a lesson-plan PDF is still delivered to the chat — the refusal is not silence
+    And what she receives is the English lesson, flagged by the honest caption
+    And she is never handed an Urdu page whose religious content no native speaker has cleared
+    # Gate G5c, on the lane that never asked it. The authoring climb refuses a document still
+    # carrying a RELIGIOUS_MARKS defect; the overlay pass had only two gates — is it Urdu, and does
+    # it cover enough pointers — and the coverage gate's own checker emits exactly one code,
+    # OVERLAY_MISSING. There was no religious code on this lane to trip. The strings the overlay
+    # translates include the chapter and topic TITLES, which on Islamiyat, Urdu and Pak Studies are
+    # exactly where a prophet or a companion gets named, so the model could put the Prophet on the
+    # page without the honorific and nothing between its reply and delivery would look.
+    # NOT a restatement of either scenario near it. "…is really English…" is the LANGUAGE gate — a
+    # different trigger. "…is still withheld" is the AUTHORING climb — a different OUTCOME: there
+    # she gets no PDF at all, here she gets the English one, because the worker keeps the English
+    # document intact as its fallback and this refusal lands in that same catch.
+    # An overlay that INTRODUCES religious content onto an unflagged document is held by the same
+    # rule and looks identical to her, so it is not a separate scenario.
+
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
     Given the NIETE bot chat is open
@@ -168,6 +210,30 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-zipoe does not move this line: the cleared-name list only ever CLEARS, and only the exact
     # phrases the reviewer saw. An unreviewed name — even one shaped exactly like a cleared one —
     # is not cleared. Fail-closed, always.
+
+  @e2e @negative @content-driven @coverage @P1
+  Scenario: A cache repair that cannot clear its religious content leaves my lesson exactly as it was
+    Given a 6-12 Urdu lesson I have already been served, stored and serving from the cache
+    And the overlay repair job tops that stored lesson up with the pointers the current gate offers
+    When the handful of strings it asks for come back clean, but the page they merge into still
+      names the Prophet without the honorific
+    Then nothing is written — the stored document and its PDF are left exactly as they are
+    And the renders row is not patched, so every later cache hit serves me the lesson I already had
+    And I am never quietly given a page whose religious content no native speaker has cleared
+    # The REPAIR lane, not the request lane. The backfill walks the renders table, pulls each stored
+    # document, tops its overlay up and writes back over the row's OWN R2 keys — so an uncleared
+    # translation here replaces the lesson permanently, for every future hit, with no teacher action
+    # to trigger it and nobody watching. Before this the whole chain mentioned religious content
+    # nowhere.
+    # What makes it its own scenario and not a restatement of the refusal above is WHERE the gate
+    # measures: on the MERGED document, never on the delta this call asked for. Judged on the delta
+    # alone the strings above are spotless and the repair ships with the defect still on the page.
+    # And the assertion here is the ABSENCE OF A WRITE, not the presence of an error — a hold that
+    # fires after the upload has already happened protects nobody.
+    # @coverage, not a live WhatsApp drive: the trigger is the operator-run backfill script, so no
+    # driver on this lane can reach it. Executed instead by the jest e2e over the real chain
+    # (tests/lp612/overlay-topup-religious-gate.e2e.test.js), which doubles only supabase, R2, the
+    # model and the renderer, and asserts the upload and row-update CALL COUNTS.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message
