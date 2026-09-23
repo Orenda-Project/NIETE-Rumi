@@ -211,5 +211,71 @@ class TheTracesCell(unittest.TestCase):
         self.assertEqual(cell, {"pages_unpublished": [9]})
 
 
+class LinkedTraceCell(unittest.TestCase):
+    """bd-960al. The URL leaves the text and moves onto a run.
+
+    A trace cell that spells its URLs out is 150 characters of which ~140
+    are the same content-addressed prefix on every row; the sheet carried
+    308,604 characters of them. Production already solved this -- its cells
+    read `pg 2` with the address on a textFormat.link run -- and the run is
+    not a second copy of the address, it is the only copy.
+    """
+
+    A = "https://pub-x.r2.dev/ict-k5/page-truth/3bb50195/grade_1_english/pg_002.json"
+    B = "https://pub-x.r2.dev/ict-k5/page-truth/3bb50195/grade_1_english/pg_003.json"
+
+    def test_the_label_is_what_the_reader_sees(self):
+        cell = t.traces_linked({"page_truth": [("pg 2", self.A),
+                                               ("pg 3", self.B)]})
+        self.assertEqual(json.loads(cell["text"]),
+                         {"page_truth": ["pg 2", "pg 3"]})
+
+    def test_the_url_is_on_a_run_and_not_in_the_text(self):
+        cell = t.traces_linked({"page_truth": [("pg 2", self.A)]})
+        self.assertNotIn(self.A, cell["text"])
+        self.assertEqual([r["uri"] for r in cell["runs"]], [self.A])
+
+    def test_each_run_covers_its_own_label_and_not_the_quotes(self):
+        cell = t.traces_linked({"page_truth": [("pg 2", self.A),
+                                               ("pg 3", self.B)]})
+        text = cell["text"]
+        got = [(text[r["start"]:r["end"]], r["uri"]) for r in cell["runs"]]
+        self.assertEqual(got, [("pg 2", self.A), ("pg 3", self.B)])
+
+    def test_a_label_that_is_a_prefix_of_the_next_gets_its_own_run(self):
+        # "pg 2" is a substring of "pg 23"; a run located by a plain search
+        # would put the page 23 link over the page 2 label.
+        cell = t.traces_linked({"page_truth": [("pg 2", self.A),
+                                               ("pg 23", self.B)]})
+        text = cell["text"]
+        self.assertEqual([text[r["start"]:r["end"]] for r in cell["runs"]],
+                         ["pg 2", "pg 23"])
+
+    def test_a_row_with_only_a_gap_is_a_cell_with_no_runs(self):
+        # bd-9hjsp holds: the gap is still a trace. It has nothing to link.
+        cell = t.traces_linked({}, unpublished=[9])
+        self.assertEqual(json.loads(cell["text"]), {"pages_unpublished": [9]})
+        self.assertEqual(cell["runs"], [])
+
+    def test_a_row_with_neither_artefact_nor_gap_gets_no_cell(self):
+        self.assertIsNone(t.traces_linked({}))
+
+    def test_the_compact_cell_is_a_third_of_the_spelt_out_one(self):
+        pairs = [("pg 2", self.A), ("pg 3", self.B)]
+        spelt = t.traces_cell({"page_truth": [self.A, self.B]})
+        self.assertLess(len(t.traces_linked({"page_truth": pairs})["text"]),
+                        len(spelt) / 3)
+
+    def test_a_stage_outside_traces_md_is_still_refused(self):
+        with self.assertRaises(KeyError):
+            t.traces_linked({"vibes": [("x", self.A)]})
+
+
+class PageLabel(unittest.TestCase):
+
+    def test_a_printed_page_reads_as_the_teacher_names_it(self):
+        self.assertEqual(t.page_label(2), u"pg 2")
+
+
 if __name__ == "__main__":
     unittest.main()

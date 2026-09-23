@@ -73,12 +73,18 @@ class TheCellsThatGetBuilt(unittest.TestCase):
         cols = [r["updateCells"]["range"]["startColumnIndex"] for r in reqs]
         self.assertEqual(cols, [TRACES_I, TRACES_I])
 
-    def test_the_cell_is_json_with_one_url_per_published_page(self):
+    def test_the_cell_is_json_with_one_label_per_published_page(self):
         reqs, t = plan(("GRADE 4", ""), ("Day 1", "6-7"))
         cell = json.loads(value(reqs[1]))
-        self.assertEqual(cell, {"page_truth": [URLMAP[("grade_4_general_science", 6)],
-                                               URLMAP[("grade_4_general_science", 7)]]})
+        self.assertEqual(cell, {"page_truth": [u"pg 6", u"pg 7"]})
         self.assertEqual(t["links"], 2)
+
+    def test_no_url_is_spelt_out_in_the_text(self):
+        """bd-960al. 308,604 characters of near-identical prefix, gone."""
+        reqs, _ = plan(("GRADE 4", ""), ("Day 1", "6-7"))
+        text = value(reqs[1])
+        for url in URLMAP.values():
+            self.assertNotIn(url, text)
 
     def test_an_unpublished_page_is_counted_and_named_in_the_cell(self):
         reqs, t = plan(("GRADE 4", ""), ("Day 1", "6-8"))
@@ -86,11 +92,24 @@ class TheCellsThatGetBuilt(unittest.TestCase):
         self.assertEqual(cell["pages_unpublished"], [8])
         self.assertEqual((t["links"], t["gaps"]), (2, 1))
 
-    def test_the_cell_is_plain_text_and_carries_no_format_runs(self):
-        """The URLs are in the JSON; a textFormatRun would be a second copy."""
-        reqs, _ = plan(("GRADE 4", ""), ("Day 1", "6"))
-        self.assertNotIn("textFormatRuns", reqs[1]["updateCells"]["rows"][0]
-                                               ["values"][0])
+    def test_each_page_label_carries_its_address_on_a_run(self):
+        """bd-960al, overturning the old rule that this cell took no runs.
+
+        The reasoning then was that a run would be a second copy of an
+        address the JSON already held. It is the other way round: the run
+        is now the only copy, and the text is a fifth of the width.
+        """
+        reqs, _ = plan(("GRADE 4", ""), ("Day 1", "6-7"))
+        runs = reqs[1]["updateCells"]["rows"][0]["values"][0]["textFormatRuns"]
+        linked = [r["format"]["link"]["uri"] for r in runs
+                  if r["format"].get("link")]
+        self.assertEqual(linked, [URLMAP[("grade_4_general_science", 6)],
+                                  URLMAP[("grade_4_general_science", 7)]])
+
+    def test_a_gap_only_cell_carries_no_link_run(self):
+        reqs, _ = plan(("GRADE 4", ""), ("Day 1", "99"))
+        runs = reqs[1]["updateCells"]["rows"][0]["values"][0]["textFormatRuns"]
+        self.assertEqual([r for r in runs if r["format"].get("link")], [])
 
     def test_a_day_with_no_printed_pages_gets_no_cell_at_all(self):
         """An empty object down a column is the constant this replaced."""

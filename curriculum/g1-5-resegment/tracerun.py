@@ -11,11 +11,16 @@ held one constant string and `B Segmentation` restated the row number.
 So the cell is a JSON object keyed by pipeline stage, and a stage appears
 in it only when it has an artefact -- which is a thing a column cannot do.
 
-Page truth is relinked from the previous ICT build's own sheet. Those
-objects are addressed but not reachable: every URL on the production
-matrix returns HTTP 403 today, because r2.dev public access is off for
-the whole `niete-content` bucket (bd-10ccr). The addresses are still the
-right ones to record; they will resolve when the hostname is re-enabled.
+Page truth is relinked from the previous ICT build's own sheet, and the
+address goes on a textFormat.link run over a short `pg 6` label rather
+than into the text (bd-960al). Spelt out, the column held 308,604
+characters of which all but a few thousand were the same content-addressed
+prefix repeated 1,658 times; the run is not a second copy of the address,
+it is the only one.
+
+Those objects are reachable. An earlier note here said every URL returned
+403 -- that was a bad probe, not a dead host: `r2.dev` refuses HTTP HEAD
+and serves GET (bd-10ccr, closed as a false alarm). Probe with GET.
 
 The previous build's block sits at a different column on every tab (AD,
 AE, AG), which is why the harvest resolves it by header label and never
@@ -93,7 +98,8 @@ def plan(subject, gid, header, body, urlmap, books, stamp):
     so neither a link nor a gap -- gets no cell at all rather than an empty
     object: "{}" repeated down a column is the constant this whole change is
     removing. A row whose pages are all UNPUBLISHED does have something to
-    say, and says it (bd-9hjsp): the cell names the pages still to upload.
+    say, and says it (bd-9hjsp): the cell names the pages still to upload,
+    and is the one cell here that carries no link run.
     """
     idx = dict((tl.unstamped(h), i) for i, h in enumerate(header) if h)
     pages_i = idx["Pages (printed)"]
@@ -114,15 +120,16 @@ def plan(subject, gid, header, body, urlmap, books, stamp):
         spec = raw[pages_i] if pages_i < len(raw) else ""
         pages = tl.parse_pages(spec)
         book = tl.book_slug(subject, grade, books)
-        urls = [urlmap[(book, p)] for p in pages if (book, p) in urlmap]
+        linked = [(tl.page_label(p), urlmap[(book, p)])
+                  for p in pages if (book, p) in urlmap]
         missing = [p for p in pages if (book, p) not in urlmap]
-        cell = tl.traces_cell({"page_truth": urls}, unpublished=missing)
+        cell = tl.traces_linked({"page_truth": linked}, unpublished=missing)
         if not cell:
             tally["no artefact"] += 1
             continue
-        reqs.append(ts.text_cell(gid, row - 1, traces_i, cell))
+        reqs.append(ts.rich_cell(gid, row - 1, traces_i, cell))
         tally["traced"] += 1
-        tally["links"] += len(urls)
+        tally["links"] += len(linked)
         tally["gaps"] += len(missing)
     return reqs, tally
 

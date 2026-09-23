@@ -156,3 +156,54 @@ def traces_cell(artefacts, unpublished=()):
     if not out:
         return ""
     return json.dumps(out, ensure_ascii=False, separators=(",", ":"))
+
+
+def page_label(page):
+    """What a page-truth link reads as: the page, as the teacher names it."""
+    return u"%s%d" % (PREFIX, page)
+
+
+def _stages(artefacts):
+    """The traces.md stages present, in traces.md order, refusing strangers."""
+    for stage in artefacts:
+        if stage not in TRACE_STAGES:
+            raise KeyError("not a traces.md stage: %r" % (stage,))
+    return [s for s in TRACE_STAGES if artefacts.get(s)]
+
+
+def traces_linked(artefacts, unpublished=()):
+    """The same JSON object, with the URLs moved off the text onto runs.
+
+    `artefacts` maps a stage to its (label, url) pairs. The cell reads
+    {"page_truth":["pg 2","pg 3"]} and each label carries its address on a
+    textFormat.link run -- the shape the production matrix has always used,
+    and about a fifth of the width of spelling the URL out. The run is not
+    a duplicate of the address; after this it is the only copy, which is
+    what makes the saving real rather than cosmetic.
+
+    Returns {"text": ..., "runs": [{"start","end","uri"}]}, or None when the
+    row has neither an artefact nor a gap to report. A row that has only a
+    gap is a cell with no runs and is still written (bd-9hjsp).
+    """
+    out = {}
+    pairs = []
+    for stage in _stages(artefacts):
+        value = artefacts[stage]
+        got = [value] if isinstance(value, tuple) else list(value)
+        out[stage] = [label for label, _ in got]
+        pairs.extend(got)
+    if unpublished:
+        out["pages_unpublished"] = list(unpublished)
+    if not out:
+        return None
+    text = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
+    runs, cursor = [], 0
+    for label, uri in pairs:
+        # Located by the QUOTED label and from a moving cursor: "pg 2" is a
+        # substring of "pg 23", and a plain search would hand page 23's
+        # address to page 2's label.
+        quoted = json.dumps(label, ensure_ascii=False)
+        at = text.index(quoted, cursor)
+        runs.append({"start": at + 1, "end": at + len(quoted) - 1, "uri": uri})
+        cursor = at + len(quoted)
+    return {"text": text, "runs": runs}

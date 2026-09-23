@@ -52,8 +52,11 @@ def link_cell(sid, row, col, label, uri):
 def text_cell(sid, row, col, value):
     """A plain-text cell, with no run formatting at all.
 
-    The traces cell is JSON and carries its own URLs, so a link run would
-    be a second copy of the same address and the first thing to go stale.
+    Headers, and any cell whose value is genuinely only text. The traces
+    cell used to come through here on the reasoning that its JSON already
+    carried the URLs, so a run would be a second copy of the address --
+    bd-960al inverted that: the label is the text and the run holds the
+    only copy of the address, so traces go through `rich_cell`.
     """
     return {"updateCells": {
         "range": {"sheetId": sid, "startRowIndex": row, "endRowIndex": row + 1,
