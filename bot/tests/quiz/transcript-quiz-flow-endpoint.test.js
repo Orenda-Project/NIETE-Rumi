@@ -308,7 +308,12 @@ describe('the actions run AFTER the response (operator item 3)', () => {
   };
 
   test('report: DONE comes back BEFORE Report.generate resolves, and force-refetches', async () => {
-    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [] });
+    // One child has finished: a report with nobody finished is not offered at
+    // all (see "a report is only promised when there is something to report").
+    stub({
+      users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ],
+      quiz_sessions: [{ id: 'qs-1', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Ayesha', status: 'completed', total_questions_answered: 8, correct_answers: 7, mastery_percentage: 88 }],
+    });
     let release;
     Report.generate.mockImplementation(() => new Promise((r) => { release = r; }));
 
@@ -908,5 +913,88 @@ describe('every lp_v8 state renders a screen the /quiz Flow can draw', () => {
       expectRenderable(out);
       expect(['LESSON', 'DONE']).toContain(out.screen);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Staging, 23 Sep: a sent lesson-plan quiz that only the teacher's own test run
+// had taken. Its lesson screen said nobody had opened it — and still offered
+// Generate report. The tap answered "Your report is on its way … in a minute or
+// two", and nothing ever came: the report service excluded the self-test and
+// declined (`video_quiz.report_suppressed {why:'nothing_completed_yet'}`), and
+// the endpoint had already promised it. The rule (root rule 24d): the screen
+// names the actual state, and a report is only promised when one will come.
+describe('a report is only promised when there is something to report', () => {
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const WhatsAppService = require('../../shared/services/whatsapp.service');
+  const SENT = {
+    id: 'q-1', coaching_session_id: 's-1', teacher_id: TEACHER, quiz_source: 'transcript',
+    status: 'sent', topic: 'Electric circuits', subject: 'science', language: 'en',
+    meta: { share_code_id: 'sc-1', student_message: 'forward me' },
+  };
+  const SELF_TEST_ONLY = [
+    { id: 'qs-self', quiz_id: 'q-1', user_id: TEACHER, invited_by_student_id: null, student_name: 'Me', status: 'completed', total_questions_answered: 8, correct_answers: 8, mastery_percentage: 100 },
+  ];
+  const STARTED_ONLY = [
+    { id: 'qs-2', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Bilal', status: 'in_progress', total_questions_answered: 2, correct_answers: 1, mastery_percentage: null },
+  ];
+  const ONE_FINISHED = [
+    { id: 'qs-1', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Ayesha', status: 'completed', total_questions_answered: 8, correct_answers: 7, mastery_percentage: 88 },
+  ];
+  const tapLesson = () => endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+  const submit = (tq_action) => endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
+    step: 'action', tq_action, session_id: 's-1', quiz_id: 'q-1',
+  });
+  const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
+
+  test.each([
+    ['only the teacher’s own test run', SELF_TEST_ONLY],
+    ['children started, none finished', STARTED_ONLY],
+    ['nobody at all', []],
+  ])('%s: the lesson offers Resend link first and Done — never Generate report', async (_label, kids) => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: kids });
+    const out = await tapLesson();
+    expect(out.screen).toBe('LESSON');
+    expect(out.data.actions.map((a) => a.id)).toEqual(['link', 'done']);
+  });
+
+  test('a Generate report tap with nobody finished (a stale screen) says so honestly — never "on its way"', async () => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: SELF_TEST_ONLY });
+    const out = await submit('report');
+    await flush();
+    expect(out.screen).toBe('LESSON');
+    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsNothingToReport.en);
+    expect(out.data.actions.map((a) => a.id)).toEqual(['link', 'done']);
+    expect(Report.generate).not.toHaveBeenCalled();
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
+      expect.objectContaining({ reason: 'nothing_to_report' }));
+    expect(logEvent).not.toHaveBeenCalledWith('transcript_quiz.flow_closed', expect.objectContaining({ kind: 'report' }));
+  });
+
+  test('the same, for an Urdu teacher, in Urdu', async () => {
+    stub({
+      users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: 'ur' }],
+      coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: SELF_TEST_ONLY,
+    });
+    const out = await submit('report');
+    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsNothingToReport.ur);
+  });
+
+  test('once one child has finished, Generate report comes first and runs', async () => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: ONE_FINISHED });
+    expect((await tapLesson()).data.actions.map((a) => a.id)).toEqual(['report', 'link']);
+    const out = await submit('report');
+    await flush();
+    expect(out.screen).toBe('DONE');
+    expect(Report.generate).toHaveBeenCalledWith('sc-1', { reason: 'requested', force: true });
+  });
+
+  test('if the report service still declines after the screen was answered, the teacher is told in chat', async () => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: ONE_FINISHED });
+    Report.generate.mockResolvedValueOnce(false);
+    await submit('report');
+    await flush();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.tqNoReportYet.en);
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_done', expect.objectContaining({ action: 'report', ok: false }));
   });
 });

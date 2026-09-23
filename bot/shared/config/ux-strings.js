@@ -1852,6 +1852,13 @@ const UX_STRINGS = {
     en: 'The quiz written from this lesson plan was held back: some of its questions or answers were not clear or right enough to send to children.',
     ur: 'اس lesson plan سے بنا quiz روک لیا گیا — اس کے کچھ سوالات یا جوابات اتنے واضح یا درست نہیں تھے کہ بچوں کو بھیجے جا سکیں۔',
   },
+  // Generate report on a quiz no child has finished (the teacher's own test run
+  // does not count): the report service would decline, so the screen says so
+  // instead of promising a report that never comes.
+  tqFlowResultsNothingToReport: {
+    en: 'No student has finished this quiz yet, so there is nothing to report. Resend the link — once students finish, the report can be made here.',
+    ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں — طلبہ کے مکمل کرنے کے بعد رپورٹ یہیں سے بن سکتی ہے۔',
+  },
   // A lesson-plan quiz that was never made (declined, skipped, cancelled).
   tqFlowResultsNoQuizLp: {
     en: 'No quiz was made for this lesson. The next lesson you plan can have a quiz of its own.',
