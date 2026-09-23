@@ -325,3 +325,33 @@ Feature: NIETE (ICT) Teacher Training
     # (floor 6), else the quiz fails as key_disagreement (tqFailedKeyDisagreement / tqFailedLpKeyDisagreement).
     # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
+
+  # ── a child reads the quiz's language from the link to the invite ──────────────────────
+  # A child who opens a class quiz link meets the join screen (name + class) and, after the
+  # quiz, can pass it to a friend. An Urdu quiz used to meet the child in English at both
+  # ends. Needs an Urdu class quiz link and a phone that has never joined a class quiz (a
+  # fresh driver number). @wip until driven.
+
+  @e2e @quiz @flow @copy @wip @draft @P2
+  Scenario: A child opening an Urdu quiz link is asked for name and class in Urdu
+    Given an Urdu class quiz link from a teacher, and a phone that has never joined a class quiz
+    When the child sends the link's "QUIZ-<code>" text
+    Then the greeting names the teacher and the topic in Urdu, and its button reads "شروع کریں"
+    When the child taps "شروع کریں"
+    Then the screen's title, heading, both field labels, both hints and its button are in Urdu, with no English word on it but "quiz"
+    When the child fills in a name and a class and taps the button
+    Then the quiz begins, in Urdu
+    # video-quiz-share beginFromCode: STUDENT_JOIN_LOCALIZED_FLOW_ID opens docs/flows/student-join-flow-v2.json,
+    # every word supplied as screen data from the vqJoin* catalog strings; flow_cta = vqJoinFlowButton. With only
+    # the legacy STUDENT_JOIN_FLOW_ID set, only an English child gets that (English) screen and an Urdu child is
+    # asked in Urdu chat — proven in bot/tests/quiz/student-join-language.test.js. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: After an Urdu quiz, the message a child forwards to a friend is in Urdu
+    Given a child has just finished an Urdu class quiz opened from its link
+    When the child taps "دوست کو بھیجیں"
+    Then the next message tells them in Urdu to forward the one after it
+    And the message after it invites the friend in Urdu, names the child by first name only, names the topic, and carries a "QUIZ-<code>" link
+    And the offer to watch more videos follows it
+    # video-quiz-invite handleInviteButton: vqInviteForwardThis + vqInviteMessage in the quiz language
+    # (the invite's own language, else its share code's). @wip.
