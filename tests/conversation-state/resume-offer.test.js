@@ -30,6 +30,8 @@ const mockState = {
   setState: jest.fn(),
   clearState: jest.fn(),
   sweepExpired: jest.fn(),
+  // The real store's ceiling: the offer's waking-hours ttl is capped at it.
+  MAX_TTL_SECONDS: 86400,
 };
 const mockWhatsApp = { sendMessage: jest.fn(), sendInteractiveButtons: jest.fn() };
 const mockSupabase = { from: jest.fn() };
@@ -93,6 +95,8 @@ describe('the sweeper offers an interrupted task back', () => {
       step: 'offered_resume',
       payload: expect.objectContaining({ resumeStep: 'awaiting_audio' }),
     }));
+    // With the quiet window lifted (above), six waking hours are six clock hours.
+    expect(mockState.setState.mock.calls[0][1].ttlSeconds).toBe(resume.OFFER_TTL_SECONDS);
   });
 
   it('does not offer twice — an already-offered row is skipped', async () => {

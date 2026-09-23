@@ -33,13 +33,35 @@ const ConversationState = require('./conversation-state.service');
 const WhatsAppService = require('./whatsapp.service');
 const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
-const { deferQuietHours } = require('./nudges/pkt-time');
+const { deferQuietHours, quietAwareDeadline } = require('./nudges/pkt-time');
 
 /** The step that marks "we have asked her". Also a real step, so it has a deadline. */
 const OFFERED = 'offered_resume';
 
-/** How long the OFFER itself stands before we stop waiting. One school day. */
+/**
+ * How long the OFFER itself stands before we stop waiting: six hours of the
+ * teacher's WAKING day, not of the clock. The quiet window's hours do not count
+ * (offerTtlSeconds below), so an offer made at 19:00 is still there for a
+ * "Pick up" at 08:30 the next morning, and one made at 10:00 still lapses at 16:00.
+ */
 const OFFER_TTL_SECONDS = 21600;
+
+/**
+ * The store's ttl for an offer made at `now`: OFFER_TTL_SECONDS of waking time,
+ * converted to clock seconds through the same quiet window every later-sent
+ * message keeps (pkt-time.quietAwareDeadline → transcript-quiz-nudge).
+ *
+ * Capped at the store's 24-hour ceiling (conversation-state refuses anything
+ * longer). With the default window six waking hours never need more than 16
+ * clock hours; only a configured window leaving under six waking hours a day can
+ * reach the cap, and a refused write there would fail the same offer on every
+ * tick for ever — so the cap is what keeps the offer going out.
+ */
+function offerTtlSeconds(now = new Date()) {
+  const ends = quietAwareDeadline(now, OFFER_TTL_SECONDS);
+  const seconds = Math.ceil((ends.getTime() - now.getTime()) / 1000);
+  return Math.min(seconds, ConversationState.MAX_TTL_SECONDS);
+}
 
 /** What a teacher gets back after tapping "Pick up" — enough to actually reply. */
 const RESUMED_TTL_SECONDS = 3600;
@@ -267,7 +289,7 @@ async function runSweep(tally, limit) {
         flow: row.flow,
         step: OFFERED,
         payload: { ...(row.payload || {}), resumeStep: row.step },
-        ttlSeconds: OFFER_TTL_SECONDS,
+        ttlSeconds: offerTtlSeconds(),   // at write time: the store stamps its deadline from now
         onlyIfStillExpired: true,
       });
 
