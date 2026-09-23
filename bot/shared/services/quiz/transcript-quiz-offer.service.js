@@ -31,7 +31,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
-  needsLanguageAsk, languageAskButtons } = require('./transcript-quiz-language');
+  needsLanguageAsk, languageAskButtons, languageAskBody } = require('./transcript-quiz-language');
 const { LP_V8, lpRemakeable, failureReasonOf } = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
@@ -338,7 +338,9 @@ async function handleOfferButton(buttonId, phone) {
       })
       .eq('id', quizId).eq('status', 'offered').select('id');
     if (!marked || !marked.length) return api.tellAlready(phone, quiz, lang);
-    await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage);
+    await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage, {
+      digest: quiz.meta && quiz.meta.digest, subject: quiz.subject,
+    });
     logEvent('transcript_quiz.language_asked', { quizId, userId: quiz.teacher_id, ruleLanguage, from: 'offer' });
     return true;
   }
@@ -353,10 +355,15 @@ async function tellAlready(phone, quiz, lang) {
   return true;
 }
 
-/** The ask itself — shared with /quiz, which reaches the same decision. */
-async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage) {
+/**
+ * The ask itself — shared with /quiz and the lesson-plan offer, which reach the
+ * same decision. `lesson` ({digest, subject}) is what its examples of English
+ * terms are taken from; a caller that knows neither gets an ask naming none,
+ * never another subject's.
+ */
+async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage, lesson = {}) {
   await WhatsAppService.sendInteractiveButtons(phone, {
-    body: resolveUx('tqAskLanguage', { language: teacherLang }),
+    body: languageAskBody(lesson, teacherLang),
     buttons: languageAskButtons(quizId, ruleLanguage),
   });
 }

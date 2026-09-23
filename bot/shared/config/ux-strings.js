@@ -2171,7 +2171,8 @@ const UX_STRINGS = {
   // carry 2 or 4 options, and the copy has to name exactly the buttons sent
   // (round 5). letterListLabel() builds "A, B or C" from these two pieces;
   // both are language data, not layout — Urdu's list comma is `،`, not `,`,
-  // and its "or" is `یا`.
+  // and its "or" is `یا`. vqLetterSep is also the list comma between the
+  // example terms of the quiz language ask (tqAskLanguage).
   vqLetterSep: { en: ', ', ur: '، ' },
   vqLetterOr: { en: 'or', ur: 'یا' },
   // The question card's OWN footer, painted into the image itself.
@@ -2480,9 +2481,19 @@ const TRANSCRIPT_QUIZ_R2_STRINGS = {
   // language registry (اردو / English), not from here — a language names itself
   // the same way in both catalogs, and the registry is what the /language and
   // /settings pickers already render.
+  //
+  // {examples} is one or two English terms FROM THE LESSON — the digest's own
+  // key terms, else a pair that fits the subject — each a first-strong isolate,
+  // joined by the language's list comma (transcript-quiz-language
+  // languageAskBody). A science lesson was being told "(fraction, numerator)".
+  // When nothing fits, the Plain form names no example at all.
   tqAskLanguage: {
-    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters (fraction, numerator).\nEnglish — the whole quiz in English.\n\nTap one.',
-    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں (fraction، numerator)۔\nEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
+    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters ({examples}).\nEnglish — the whole quiz in English.\n\nTap one.',
+    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں ({examples})۔\nEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
+  },
+  tqAskLanguagePlain: {
+    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters.\nEnglish — the whole quiz in English.\n\nTap one.',
+    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں۔\nEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
   },
   tqLessonOnSubject: { en: '{subject} lesson on {topic}', ur: '\u200F{subject} کا سبق — {topic}' },
   tqLessonNoTopic:   { en: '{subject} lesson',            ur: '\u200F{subject} کا سبق' },
