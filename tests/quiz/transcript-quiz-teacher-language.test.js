@@ -48,6 +48,8 @@ const { lessonLabel, formatLessonDate, teacherLanguageFor } = require('../../bot
 const Offer = require('../../bot/shared/services/quiz/transcript-quiz-offer.service');
 const List = require('../../bot/shared/services/quiz/transcript-quiz-list.service');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 const Nudge = require('../../bot/shared/services/quiz/transcript-quiz-nudge.service');
 
 const QID = '22222222-2222-4222-8222-222222222222';
@@ -100,6 +102,7 @@ beforeEach(() => {
   delete process.env.TRANSCRIPT_QUIZ_OFFER_MODE;
   delete process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO;
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
 });
 
 describe('teacherLanguageFor', () => {

@@ -83,9 +83,20 @@ const LP_FAILURE_COPY = {
   // The key check found answers the lesson contradicts and could neither fix
   // nor drop enough of them: the questions were clear, their KEYS were wrong.
   key_conflict: 'tqFailedLpKeyConflict',
+  // The blind solve disagreed with too many keys (a wrong answer, or two right
+  // ones) to fix or drop and still send a quiz.
+  key_disagreement: 'tqFailedLpKeyDisagreement',
+};
+/**
+ * The transcript counterpart. Every transcript reason still reads
+ * `tqCouldNotMake` except the one that is not about the recording at all: the
+ * blind solve held the quiz back because its answers were wrong or unclear.
+ */
+const TRANSCRIPT_FAILURE_COPY = {
+  key_disagreement: 'tqFailedKeyDisagreement',
 };
 function failureCopyKey(reason, quizSource) {
-  if (quizSource !== LP_V8) return 'tqCouldNotMake';
+  if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMake';
   // An LP quiz never falls back to the transcript copy: a reason nobody has
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
