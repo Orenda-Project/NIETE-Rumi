@@ -53,12 +53,20 @@ const RETRYABLE = new Set(['EMPTY', 'TRUNCATED', 'BAD_JSON']);
 /** One retry. The call is idempotent; it costs a second call only when the first was unusable. */
 const MAX_ATTEMPTS = 2;
 
-async function completeJsonOnce({ prompt, maxTokens, label }) {
-  const requested = modelId();
+async function completeJsonOnce({
+  prompt, maxTokens, label, model: modelOverride = null, job = null,
+}) {
+  // A pass that must NOT run on the author's model (the blind solve, which checks
+  // the author's keys) names its own model and its own registry job; every other
+  // pass runs on TRANSCRIPT_QUIZ_MODEL exactly as before.
+  const requested = (modelOverride && String(modelOverride).trim()) || modelId();
   // bd-b8k7h: naming the job arms the fallback ladder with THIS job's frozen fallback, the
   // model it already works with. A no-op while TRANSCRIPT_QUIZ_MODEL still names that same
-  // model; live protection the moment the job is moved to another supplier.
-  const { client, model } = getClientForModel(requested, { job: 'quiz.transcript' });
+  // model; live protection the moment the job is moved to another supplier. A pass that
+  // names its own registry job is billed and failed over as that job instead.
+  const { client, model } = job
+    ? getClientForModel(requested, { job: String(job) })
+    : getClientForModel(requested, { job: 'quiz.transcript' });
   const reasoning = REASONING_RE.test(requested);
   const params = {
     model,
@@ -111,15 +119,22 @@ async function completeJsonOnce({ prompt, maxTokens, label }) {
  * @param {string} args.prompt      the whole prompt (user turn)
  * @param {number} [args.maxTokens]
  * @param {string} [args.label]     for logs
+ * @param {string} [args.model]     a model id for THIS call instead of TRANSCRIPT_QUIZ_MODEL
+ * @param {string} [args.job]       the model-registry job the call is billed and failed over as
+ *                                  (default `quiz.transcript`)
  * @returns {Promise<{json:object, model:string, costUsd:number|null, latencyMs:number, usage:object}>}
  */
-async function completeJson({ prompt, maxTokens = 16000, label = 'transcript_quiz' }) {
+async function completeJson({
+  prompt, maxTokens = 16000, label = 'transcript_quiz', model = null, job = null,
+}) {
   let spent = null;
   let lastErr = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
       // eslint-disable-next-line no-await-in-loop
-      const out = await completeJsonOnce({ prompt, maxTokens, label });
+      const out = await completeJsonOnce({
+        prompt, maxTokens, label, model, job,
+      });
       if (spent != null && out.costUsd != null) out.costUsd += spent;
       else if (spent != null) out.costUsd = spent;
       if (attempt > 1) logToFile(`✅ ${label}: usable reply on attempt ${attempt}`, { model: out.model });

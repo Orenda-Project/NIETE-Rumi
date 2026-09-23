@@ -46,6 +46,8 @@ const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
 const { installFrom } = require('./helpers/supabase-chain');
 const LpDigest = require('../../bot/shared/services/quiz/lp-quiz-digest.service');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 
 const QID = '55555555-5555-4555-8555-555555555555';
 const LESSON_ID = 'grade_3_urdu_ch5_seg5';
@@ -136,6 +138,7 @@ const quizUpdates = () => supabase.from.callsFor('quizzes').flat().filter((c) =>
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
 });
 
 describe('the LP digest names the lesson from the catalog, not from the model', () => {

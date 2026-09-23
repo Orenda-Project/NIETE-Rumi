@@ -296,3 +296,18 @@ Feature: NIETE (ICT) Teacher Training
     # quiz-math.mathForChat (tex-to-unicode), and inside Urdu each expression is a left-to-right
     # isolate. Same engine for transcript and lp_v8 quizzes. Content-driven: assert the SHAPE
     # (a card, stacked fractions, no TeX source in any text), never a fixed question. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz never ships an answer key a blind solver disagrees with
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
+    When the quiz arrives
+    Then every question on my PDF has exactly one answer marked correct, and that answer is right
+    And no question offers two options that are both right, such as the same letters in a different order
+    And the class report built on that quiz teaches the right answer back to me
+    But when too few questions survive that check, I am told the quiz was held back because some answers were wrong or unclear, and nothing is sent to the class
+    # transcript-quiz-generate runKeyVerify + transcript-quiz-key-verify.service: every lesson quiz (from a
+    # coaching recording or a lesson plan, after the lp_v8 key check) is answered once by a solver that is not
+    # shown the keys. A disagreement, a second right answer or no right answer is rewritten once, else dropped
+    # (floor 6), else the quiz fails as key_disagreement (tqFailedKeyDisagreement / tqFailedLpKeyDisagreement).
+    # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
+    # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
