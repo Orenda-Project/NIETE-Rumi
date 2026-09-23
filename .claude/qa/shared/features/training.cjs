@@ -265,6 +265,9 @@ exports.run = async ({ api, rec, sleep }) => {
     if (m) { const letter = m[0]; const r = rows.find(x => x.title === letter); if (r) return r.id; }
     return null;
   };
+  // Questions as RENDERED, collected by the module-check runs below. Declared here because T23 is
+  // recorded at the end of the driver, outside the block where run1/run2 are scoped.
+  let renderedQuestions = [];
   const takeQuiz = async (key, { wrongAt = null } = {}) => {
     const seen = [];
     const pull = async () => { for (const r of await api.fresh()) seen.push(r); };
@@ -294,7 +297,14 @@ exports.run = async ({ api, rec, sleep }) => {
       if (!ids.length) return { first, trail, last: { err: 'NO_ROW_ID', qLine: qLine.slice(0, 80), rows: rows.map(r => ({ t: r.title, d: r.description })) } };
       for (const id of ids) { await api.tapId('list', id); await new Promise(r => setTimeout(r, 400)); }
       if (entry.multi && wrongAt !== qNo) { const done = rows.find(r => /_done$/.test(r.id) || /Done/i.test(r.title)); if (done) await api.tapId('list', done.id); }
-      trail.push({ q: qNo, ids, wrong: wrongAt === qNo });
+      // T23 needs the RENDERING, not just which row was tapped: a long option is moved into the
+      // message body as a lettered line instead of being truncated in the row description.
+      renderedQuestions.push({ q: qNo,
+                   body: String(hit.txt || ''),
+                   rows: rows.map(r => ({ title: r.title, desc: String(r.description || '') })) });
+      trail.push({ q: qNo, ids, wrong: wrongAt === qNo,
+                   body: String(hit.txt || ''),
+                   rows: rows.map(r => ({ title: r.title, desc: String(r.description || '') })) });
     }
     return { first, trail, last: { err: 'TOO_MANY_QUESTIONS' } };
   };
@@ -480,9 +490,34 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('T21', 'A half-finished module quiz picks up where I left off', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T23', 'A very long answer option is shown in full, not cut off', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  // ══ T23 — a long option is written out in full, not truncated ════════════
+  // OPTION_DESC_MAX=72: past that the option cannot live in a WhatsApp row description, so
+  // sendQuestion moves it into the message BODY as a lettered line and the row keeps just its
+  // letter. The failure this guards is the option being silently cut off with an ellipsis and the
+  // teacher choosing blind. Asserted on what the bot actually rendered, so it needs no DB lookup.
+  {
+    s = t();
+    const seenQs = renderedQuestions;
+    const longest = seenQs.reduce((mx, q) => Math.max(mx, ...(q.rows || []).map(r => r.desc.length)), 0);
+    const truncated = [];
+    for (const q of seenQs) {
+      for (const r of (q.rows || [])) {
+        if (!/[…]|\.\.\.$/.test(r.desc)) continue;
+        const stem = r.desc.replace(/\s*[…]\s*$|\.\.\.$/, '').trim();
+        const inBody = stem.length > 12 && String(q.body || '').includes(stem);
+        truncated.push({ q: q.q, letter: r.title, descLen: r.desc.length, writtenOutInBody: inBody,
+                         sample: r.desc.slice(0, 60) });
+      }
+    }
+    rec('T23', 'A very long answer option is shown in full, not cut off',
+        ...(truncated.length
+            ? V(truncated.every(x => x.writtenOutInBody),
+                { questionsSeen: seenQs.length, truncatedRows: truncated })
+            : ['BLOCKED', { reason: 'no question served to this account carried an option long enough to be '
+                                  + 'moved out of the row description (OPTION_DESC_MAX=72), so the long-option '
+                                  + 'path was never exercised',
+                            questionsSeen: seenQs.length, longestOptionSeen: longest }]), t() - s);
+  }
 
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T24', 'A quiz made from my lesson plan is listed in /quiz among my coaching lessons', 'BLOCKED',
