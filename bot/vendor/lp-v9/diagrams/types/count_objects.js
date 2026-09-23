@@ -21,7 +21,7 @@
 //   picto    "apple"          the pictogram (lib/pictogram.js) — or per row
 //   count    7                how many (at least 2)
 //   rows     [{picto,count,label}]  compare mode; overrides picto/count
-//   perRow   5                items per line (default: min(5, count))
+//   perRow   5                items per line (default: min(5, count); min(10, widest) when comparing rows)
 //   group    4                ring every `group` items (single-row specs only)
 //   lang     "en" | "ur"
 
@@ -58,9 +58,14 @@ function render(spec) {
   const PAD = 18;
   const LGAP = 16;                 // gutter between a row's name and its things
   const group = rows.length === 1 && Number(spec.group) > 1 ? Math.floor(Number(spec.group)) : 0;
+  // VENDOR DIVERGENCE — see SYNC.md §3.18. Rows being COMPARED stay on one line
+  // each (up to ten): wrapping a row of six at five put its sixth thing on a
+  // line of its own with no name, and "which row has more?" was drawn as three
+  // rows. A single row still wraps at five, which is how a child counts it.
+  const widest = Math.max(...rows.map((r) => r.count));
   const perRow = group
     ? group
-    : Math.max(1, Math.floor(Number(spec.perRow) || Math.min(5, Math.max(...rows.map((r) => r.count)))));
+    : Math.max(1, Math.floor(Number(spec.perRow) || Math.min(rows.length > 1 ? 10 : 5, widest)));
 
   const labelSize = SIZE.label * 1.5;
   const labelW = Math.max(
