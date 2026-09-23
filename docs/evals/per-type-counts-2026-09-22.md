@@ -1,6 +1,6 @@
 # Does the generator honour a count per question type?
 
-**bd-60175 · 22 Sep 2026 · `google/gemini-3.1-pro-preview` · 8 ICT books**
+**22 Sep 2026 · `google/gemini-3.1-pro-preview` · 8 ICT books**
 
 Run it yourself:
 
@@ -10,7 +10,7 @@ node scripts/assessment/eval-per-type-counts.js --out <dir> --cases 8 --concurre
 
 ## Why this was measured
 
-bd-60175 let a teacher name a number against each question type instead of typing
+The per-type counts change let a teacher name a number against each question type instead of typing
 one total that `withCounts()` divided evenly over her picks. That is only worth
 shipping if the number survives the model — a screen that collects "10 MCQs and
 2 Brief Answers" and returns six of each has moved the lie rather than fixed it.

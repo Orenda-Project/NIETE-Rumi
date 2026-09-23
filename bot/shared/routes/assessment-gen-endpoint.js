@@ -177,7 +177,7 @@ function navFit(text) {
   // Strip a dangling space or punctuation mark — and NOTHING else. This was
   // `[\s\W]+$`, and in JavaScript `\W` is "not [A-Za-z0-9_]", so every Urdu
   // letter matched: a cut Urdu row lost all its text and read as a bare "1".
-  // The same defect as optionTitle (bd-60041), one function along.
+  // The same defect as optionTitle, one function along.
   return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?—–\-·۔،]+$/u, '');
 }
 
@@ -996,7 +996,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
  * without this the teacher is told "Making your paper again — a few seconds"
  * by a step that never starts. She waits, and nothing arrives.
  *
- * Fixed once already for the NEW-paper path (bd-60030) and not carried across
+ * Fixed once already for the NEW-paper path and not carried across
  * to the rebuild; the shapes are identical because the cause is.
  *
  * Everything needed survives the close: the ticks are in the Redis session
