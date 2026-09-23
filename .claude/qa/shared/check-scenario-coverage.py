@@ -61,13 +61,13 @@ def spec_scenarios(path, prefix_hint=""):
         t = ln.strip()
         if t.startswith("@"):
             tags = t.split()
-        elif t.startswith("Scenario:") and "@e2e" in tags:
+        elif (t.startswith("Scenario:") or t.startswith("Scenario Outline:")) and "@e2e" in tags:
             bare = [x[1:] for x in tags]
             cands = [c for c in bare if ID_TAG_RE.match(c) and c.lower() not in PRIORITY_TAGS]
             sid = next((c for c in cands if c.lower().startswith(prefix_hint.lower())), None) \
                 or next(iter(cands), None)
             if sid:
-                out.append((sid, t[len("Scenario:"):].strip(), NO_DRIVER_TAG in bare))
+                out.append((sid, t.split(":", 1)[1].strip(), NO_DRIVER_TAG in bare))
             tags = []
         elif t and not t.startswith("#"):
             tags = []

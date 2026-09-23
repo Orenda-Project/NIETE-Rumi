@@ -35,7 +35,7 @@ Feature: NIETE (ICT) Teacher Training
 
   # ═════════════════════════════ POSITIVE — the complete flow ═════════════════════════════
 
-  @e2e @flow @quiz @content-driven @P1
+  @e2e @flow @quiz @content-driven @P1 @T01
   Scenario: A teacher works through Teacher Training end to end — open, take a module check, pass, unlock the next
     Given the NIETE bot chat is open
     When I send "/training"
@@ -60,7 +60,7 @@ Feature: NIETE (ICT) Teacher Training
     # shared staging number 923222482222. Exam caption observed "20 questions" (prod) / "62 questions"
     # (staging 923222482222) for the same account — see the config-discrepancy note in _suite.md.
 
-  @e2e @flow @copy @P1
+  @e2e @flow @copy @P1 @T02
   Scenario Outline: Teacher Training opens from any of its entry points
     Given the NIETE bot chat is open
     When I open training via "<entry>"
@@ -76,7 +76,7 @@ Feature: NIETE (ICT) Teacher Training
     # @copy. All six converge on the same card (menu row = same entry as the command). "training"
     # (no slash) DOES open it — unlike "menu". Verified live on PROD (2026-08-05).
 
-  @e2e @certificates @copy @P2
+  @e2e @certificates @copy @P2 @T03
   Scenario: A teacher with no certificates yet is pointed back to training
     Given the NIETE bot chat is open
     When I send "/certificates"
@@ -85,13 +85,13 @@ Feature: NIETE (ICT) Teacher Training
 
   # ── other positive branches (separate because they need a different content type / state / vendor) ──
 
-  @e2e @wip @draft @flow @P3
+  @e2e @wip @draft @flow @P3 @T04
   Scenario: A PDF module arrives as a document
     Given the NIETE bot chat is open and I have opened a module whose content is a PDF, not a video
     Then the bot sends the module as a PDF document with a button to the next one
     # content-delivery.service.js isPdfModule. @wip.
 
-  @e2e @wip @draft @flow @quiz @destructive @P1
+  @e2e @wip @draft @flow @quiz @destructive @P1 @T05
   Scenario: Finishing every module unlocks the level exam, and passing it certifies the level
     Given the NIETE bot chat is open on a teacher who has passed every module in a level
     When I open that level, start the now-unlocked grand quiz, and answer at least 80% correctly
@@ -99,21 +99,21 @@ Feature: NIETE (ICT) Teacher Training
     # loadGrandQuizState (unlocks once all modules done) + quiz-delivery grand-pass branch.
     # @destructive: certifies the level + unlocks the next. @wip — needs a fully-completed level.
 
-  @e2e @wip @draft @certificates @P2
+  @e2e @wip @draft @certificates @P2 @T06
   Scenario: Asking for a certificate by its code sends the PDF
     Given the NIETE bot chat is open on a teacher who holds a certificate
     When I send "/certificate <my certificate code>"
     Then the bot sends me that certificate as a PDF document
     # certificate-pdf.service.js (only my own certificates). @wip.
 
-  @e2e @wip @draft @flow @quiz @P3
+  @e2e @wip @draft @flow @quiz @P3 @T07
   Scenario: For a Beacon House programme the level exam is written answers, not multiple choice
     Given the NIETE bot chat is open on a teacher in a Beacon House programme who has finished every module in a level
     When I start the level exam
     Then it asks open-ended questions I answer in my own words, marked out of 5
     # capstone-delivery.service.js (open-ended, model-scored, 70% to pass, no cooldown). @wip.
 
-  @e2e @flow @P3
+  @e2e @flow @P3 @T08
   Scenario: For an Oxbridge programme a level is certified from module scores, with no exam
     Given a teacher in an Oxbridge programme who has finished every module with each best score at least 70%
     Then the level detail states "🎓 No level exam — finish all sessions to complete this level." with no grand-quiz row
@@ -125,28 +125,28 @@ Feature: NIETE (ICT) Teacher Training
 
   # ═══════════════════════════════════ NEGATIVE ═══════════════════════════════════
 
-  @e2e @flow @negative @known-issue @P2
+  @e2e @flow @negative @known-issue @P2 @T09
   Scenario: A locked level is selectable but the server refuses to open it
     Given the NIETE bot chat is open and I have opened the "NIETE" programme
     When I select a locked level (e.g. Level 1) and tap "Open level"
     Then the "Open level" button turns on client-side (the Flow can't disable the row) but the bot replies "Pass Level 0's grand quiz first to unlock this level."
     # @known-issue: the real gate is server-side. Verified live on PROD (2026-08-05). Names the previous level.
 
-  @e2e @flow @negative @known-issue @P2
+  @e2e @flow @negative @known-issue @P2 @T10
   Scenario: A module further down the list can't be opened before the earlier ones
     Given the NIETE bot chat is open and I have opened a level with earlier modules unfinished
     When I pick a locked module lower down and try to open it
     Then the bot replies "Finish \"<the Next-up module>\" first — modules open one at a time."
     # @known-issue: locked rows stay tappable; the server enforces order. Verified live on PROD (2026-08-05).
 
-  @e2e @flow @negative @P2
+  @e2e @flow @negative @P2 @T11
   Scenario: Tapping the locked exam link explains what to finish first
     Given the NIETE bot chat is open and the level still has modules to finish
     When I tap the "🔒 Locked" exam link in the level detail
     Then the bot replies "Finish every module in this level first — the exam unlocks once all 9 courses are complete."
     # Verified live on PROD (2026-08-05). Distinct wording from the locked-card caption in the main flow.
 
-  @e2e @quiz @negative @content-driven @P2
+  @e2e @quiz @negative @content-driven @P2 @T12
   Scenario: Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry
     Given the NIETE bot chat is open and I am taking a NIETE module check
     When I answer exactly one question with a deliberately-wrong option (not matching the key) and the rest correctly
@@ -155,7 +155,7 @@ Feature: NIETE (ICT) Teacher Training
     # You need 100% to move on…" All questions are asked FIRST, then graded. module_passing_pct=100 for
     # NIETE (TALEEMABAD); other partners 70%. Assert the shape, not "2/3".
 
-  @e2e @certificates @negative @copy @P3
+  @e2e @certificates @negative @copy @P3 @T13
   Scenario: Asking for a certificate that isn't mine says it can't be found
     Given the NIETE bot chat is open
     When I send "/certificate NIETE-L0-20260101-ZZZZ"
@@ -163,28 +163,28 @@ Feature: NIETE (ICT) Teacher Training
     # Verified live on PROD (2026-08-05). Owner-scoped: not-yours and not-exist both → not found. Code must
     # be well-formed (CERT_CODE_RE), else it falls through to the list (see edge below).
 
-  @e2e @certificates @negative @P3
+  @e2e @certificates @negative @P3 @T14
   Scenario: A /certificate with a junk code just shows my certificates list
     Given the NIETE bot chat is open
     When I send "/certificate not-a-code"
     Then the bot shows my certificates list, or the no-certificates nudge
     # Verified live on PROD (2026-08-05): a junk argument is ignored → list/nudge mode.
 
-  @e2e @edge @negative @P3
+  @e2e @edge @negative @P3 @T15
   Scenario: "/teacher training" (two words) is not a training command
     Given the NIETE bot chat is open
     When I send "/teacher training"
     Then the bot treats it as a normal question, not the Teacher Training Flow
     # Verified live on PROD (2026-08-05): AI reply, no card — the two-word phrase isn't a trigger.
 
-  @e2e @quiz @negative @destructive @P3
+  @e2e @quiz @negative @destructive @P3 @T16
   Scenario: Failing the level exam starts a wait before I can retry
     Given the NIETE bot chat is open and I have just failed a level's grand quiz
     When I try to start the grand quiz again
     Then the bot tells me to try again in a few hours
     # @destructive: a real failure locks the exam for hours — throwaway teacher only. @wip.
 
-  @e2e @i18n @quiz @wip @draft @P2
+  @e2e @i18n @quiz @wip @draft @P2 @T17
   Scenario: An Urdu teacher gets the Urdu question text and Urdu options
     Given my preferred_language is "ur" and a question has question_urdu + options[].urdu set
     When the question is delivered
@@ -193,41 +193,41 @@ Feature: NIETE (ICT) Teacher Training
 
   # ═══════════════════════════════════ EDGE cases ═════════════════════════════════
 
-  @e2e @flow @edge @P3
+  @e2e @flow @edge @P3 @T18
   Scenario: /training works even in the middle of something else
     Given the NIETE bot chat is open and I am part-way through another feature
     When I send "/training"
     Then the Teacher Training card is sent without my having to cancel first
     # Single, stateless entry point. Verified live on PROD (2026-08-05): opened from a pending register Welcome card.
 
-  @e2e @quiz @edge @copy @P3
+  @e2e @quiz @edge @copy @P3 @T19
   Scenario: Pausing a module check saves my place
     Given the NIETE bot chat is open and a module check is offering "🔄 Try again" and "⏸ Pause"
     When I tap "⏸ Pause"
     Then the bot replies "⏸ Paused. Send /training when you want to pick up where you left off."
     # @copy. Verified live on PROD (2026-08-05).
 
-  @e2e @quiz @edge @content-driven @P3
+  @e2e @quiz @edge @content-driven @P3 @T20
   Scenario: A module retake serves a fresh set of questions
     Given the NIETE bot chat is open and I have just missed a module check
     When I tap "🔄 Try again"
     Then the check restarts from Q1 and may serve different questions, in a different order, with the correct answer on a different letter
     # Verified live on PROD (2026-08-05): retry served different Q1-Q3, reshuffled. Assert the CONTRACT (restarts at Q1/<n>, still 100% to pass).
 
-  @e2e @wip @draft @flow @quiz @P3
+  @e2e @wip @draft @flow @quiz @P3 @T21
   Scenario: A half-finished module quiz picks up where I left off
     Given the NIETE bot chat is open and I started a module check and answered some questions
     When I re-open the module and tap "Take quiz" again
     Then the quiz continues at the next unanswered question, not from the beginning
     # quiz-delivery startTrainingQuiz resumes the same attempt. @wip.
 
-  @e2e @flow @copy @P3
+  @e2e @flow @copy @P3 @T22
   Scenario: A module's button is named after what tapping it does
     Given the NIETE bot chat is open and I have opened a module
     Then a module with a quiz shows "Take quiz", a video module shows "Next video", and a PDF module shows "Next module"
     # @copy. The button label follows the content type. @wip.
 
-  @e2e @quiz @edge @wip @draft @P3
+  @e2e @quiz @edge @wip @draft @P3 @T23
   Scenario: A very long answer option is shown in full, not cut off
     Given the NIETE bot chat is open and a module question has an option longer than about 70 characters
     Then that option is written out as a lettered line and can still be chosen
@@ -240,7 +240,7 @@ Feature: NIETE (ICT) Teacher Training
   # (answer "Make the quiz" on the afternoon offer, or seed one on sandbox). @wip until lane E
   # drives it.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T24
   Scenario: A quiz made from my lesson plan is listed in /quiz among my coaching lessons
     Given the NIETE bot chat is open and a quiz was made from a lesson plan I was served on an earlier day
     And I also have a recorded coaching lesson
@@ -253,7 +253,7 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-list.service lessonItems + handleLpPick (row id tq_pick_lp_<quizId>); the /quiz Flow
     # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T25
   Scenario: The class report of a quiz made from my lesson plan carries the objectives to reteach
     Given the NIETE bot chat is open and children have finished a quiz that was made from my lesson plan
     When I ask for the report from that quiz's row in /quiz
