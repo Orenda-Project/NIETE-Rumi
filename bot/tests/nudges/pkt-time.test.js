@@ -174,4 +174,20 @@ describe('deferQuietHours — nothing reaches a teacher between 21:00 and 07:00 
       expect(out.toISOString()).toBe('2031-01-01T00:00:00.000Z');
     });
   });
+
+  test('quietAwareDeadline DELEGATES to transcript-quiz-nudge.quietAwareDeadlineUtc, in milliseconds', () => {
+    jest.isolateModules(() => {
+      const spy = jest.fn(() => new Date('2031-01-01T00:00:00Z'));
+      jest.doMock('../../shared/services/quiz/transcript-quiz-nudge.service', () => ({
+        quietAwareDeadlineUtc: spy,
+      }));
+      const fresh = require('../../shared/services/nudges/pkt-time');
+      const start = new Date('2026-09-22T14:00:00Z');
+      const out = fresh.quietAwareDeadline(start, 21600);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].toISOString()).toBe(start.toISOString());
+      expect(spy.mock.calls[0][1]).toBe(21600 * 1000);
+      expect(out.toISOString()).toBe('2031-01-01T00:00:00.000Z');
+    });
+  });
 });

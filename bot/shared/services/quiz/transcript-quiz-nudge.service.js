@@ -76,6 +76,44 @@ function nudgeTargetUtc(when = new Date()) {
   return new Date(bump.getTime() - PKT_OFFSET_MIN * 60 * 1000);
 }
 
+/**
+ * The instant at which `ms` of WAKING time — time outside the quiet window — has
+ * passed since `start`. A wait that should not run down while the teacher is
+ * asleep: `ms` = 6 h from 19:00 is 21:00 (2 h) + 07:00–11:00 (4 h) = 11:00 the
+ * next morning; from 10:00 it is simply 16:00. With no window (`off`) it is
+ * `start + ms`. A start inside the window counts from the window's end.
+ *
+ * The same window as nudgeTargetUtc, read the same way, so the two can never
+ * disagree about when the night is.
+ *
+ * @param {Date} start
+ * @param {number} ms  waking milliseconds to count
+ * @returns {Date}
+ */
+function quietAwareDeadlineUtc(start = new Date(), ms = 0) {
+  const w = quietWindow();
+  let t = start.getTime();
+  let left = Math.max(0, Number(ms) || 0);
+  if (!w) return new Date(t + left);
+  const dayMs = 24 * 60 * 60 * 1000;
+  // Each pass either leaves a quiet stretch or spends one waking stretch, and
+  // every window has at least one waking hour a day, so this ends; the bound is
+  // only a backstop against a bug turning into a hung worker.
+  for (let pass = 0; pass < 64 && left > 0; pass++) {
+    const allowed = nudgeTargetUtc(new Date(t)).getTime();
+    if (allowed > t) { t = allowed; continue; }
+    // Awake at t: the window next opens at the coming `from`:00 PKT.
+    const pkt = new Date(t + PKT_OFFSET_MIN * 60 * 1000);
+    let opens = Date.UTC(pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate(), w.from, 0, 0)
+      - PKT_OFFSET_MIN * 60 * 1000;
+    if (opens <= t) opens += dayMs;
+    if (t + left <= opens) return new Date(t + left);
+    left -= opens - t;
+    t = opens;
+  }
+  return new Date(t + left);
+}
+
 
 /**
  * What the worker should do with a nudge job it has just picked up.
@@ -178,6 +216,6 @@ async function process(quizId) {
 }
 
 module.exports = {
-  process, NUDGE_BELOW, nudgeTargetUtc, nudgeDispatch, pktDayStartIso,
+  process, NUDGE_BELOW, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
   QUIET_FROM_PKT, QUIET_TO_PKT,
 };
