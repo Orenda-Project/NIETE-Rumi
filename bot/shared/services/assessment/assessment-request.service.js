@@ -70,6 +70,9 @@ async function createAndQueue(spec) {
     contentSource = 'unseen',
     questionCount,
     totalMarks = null,
+    // Both only: the Seen number she typed. Job payload only, like totalMarks —
+    // no column holds it, and question_count on the row is still the whole paper.
+    seenCount = null,
     questionTypes = [],
     includeAnswerKey = false,
     answerLines = true,
@@ -125,6 +128,7 @@ async function createAndQueue(spec) {
     contentSource,
     questionCount,
     totalMarks,
+    seenCount,
     questionTypes,
     includeAnswerKey: !!includeAnswerKey,
     answerLines: answerLines !== false,
