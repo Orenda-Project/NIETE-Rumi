@@ -147,6 +147,10 @@ features:
     # subset and authored no spec. Reached from pakistan-lp-endpoint.js and
     # text-message.handler.js, both already lesson-plan.
     - bot/shared/services/lp612-*.service.js
+    # Not every module on that lane carries the `.service.js` suffix, and the glob above
+    # misses the ones that do not. The pre-gate Latin-honorific normaliser is required only
+    # by lp612-author.service.js, so it is lesson-plan-owned like the rest of the lane.
+    - bot/shared/services/lp612-latin-honorific.js
     - bot/workers/lp612-*.worker.js
     # The vendored authoring/rendering engine behind that lane: the author briefs,
     # the diagram type manifest, the linter, the renderer.
