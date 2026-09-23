@@ -46,6 +46,18 @@ const resume = require('../../bot/shared/services/conversation-resume.service');
 const USER = '11111111-2222-3333-4444-555555555555';
 const PHONE = '923000000000';
 
+// This suite exercises the offer itself, on the real clock. The sweep keeps the
+// quiet hours (no offer between 21:00 and 07:00 PKT), so on the real clock these
+// offers would be deferred on any night-time run. The window is lifted here and
+// owns its own suite: resume-quiet-hours.test.js.
+const QUIET_KEY = 'NUDGE_QUIET_HOURS_PKT';
+const savedQuiet = process.env[QUIET_KEY];
+beforeAll(() => { process.env[QUIET_KEY] = 'off'; });
+afterAll(() => {
+  if (savedQuiet === undefined) delete process.env[QUIET_KEY];
+  else process.env[QUIET_KEY] = savedQuiet;
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockWhatsApp.sendInteractiveButtons.mockResolvedValue(true);
