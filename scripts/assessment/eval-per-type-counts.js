@@ -5,7 +5,7 @@
  *
  *     node scripts/assessment/eval-per-type-counts.js --out <dir> [--cases 6] [--concurrency 3]
  *
- * bd-60175 let a teacher name a number against each question type instead of one
+ * The per-type counts change let a teacher name a number against each question type instead of one
  * total we divided evenly. That is only worth shipping if the number survives
  * the model: a screen that collects "10 MCQs and 2 Brief Answers" and returns
  * six of each has moved the lie rather than fixed it.
