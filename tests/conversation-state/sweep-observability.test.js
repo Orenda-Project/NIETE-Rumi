@@ -45,9 +45,12 @@ describe('resume sweep observability (bd-43520)', () => {
     expect(condition).not.toBeNull();
 
     const guarded = condition[1];
-    // The four outcomes sweepAndOffer reports. `skippedLocked` is the one that was
+    // The outcomes sweepAndOffer reports. `skippedLocked` is the one that was
     // missing, and it is the only one that can be true on every single interval.
-    for (const field of ['offered', 'expired', 'failed', 'skippedLocked']) {
+    // `deferredQuietHours` is the only one a night-time tick produces at all (the
+    // behaviour itself is driven through the real worker in
+    // bot/tests/workers/resume-sweep-tick-line.test.js).
+    for (const field of ['offered', 'expired', 'failed', 'skippedLocked', 'deferredQuietHours']) {
       expect(guarded).toContain(field);
     }
   });

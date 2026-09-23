@@ -33,6 +33,7 @@ const ConversationState = require('./conversation-state.service');
 const WhatsAppService = require('./whatsapp.service');
 const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
+const { deferQuietHours } = require('./nudges/pkt-time');
 
 /** The step that marks "we have asked her". Also a real step, so it has a deadline. */
 const OFFERED = 'offered_resume';
@@ -143,10 +144,17 @@ function parseResumeButton(buttonId) {
  * Called on an interval from the always-on worker. Never throws: a sweep that dies
  * on one teacher must not stop the rest, and must not take the worker with it.
  *
- * @returns {Promise<{offered:number, expired:number, skipped:number, failed:number}>}
+ * Quiet hours: an offer is a message the bot starts, so it keeps the same night
+ * window as every other message sent to a teacher later — see runSweep.
+ *
+ * @returns {Promise<{offered:number, expired:number, skipped:number, failed:number,
+ *   skippedActive:number, skippedLocked:boolean, deferredQuietHours:number}>}
  */
 async function sweepAndOffer({ limit = 100 } = {}) {
-  const tally = { offered: 0, expired: 0, skipped: 0, failed: 0, skippedActive: 0, skippedLocked: false };
+  const tally = {
+    offered: 0, expired: 0, skipped: 0, failed: 0, skippedActive: 0, skippedLocked: false,
+    deferredQuietHours: 0,
+  };
 
   const lockId = `${process.pid}-${Date.now()}`;
   const gotLock = await RedisService.acquireLock(SWEEP_LOCK, lockId, SWEEP_LOCK_TTL_SECONDS);
@@ -165,6 +173,29 @@ async function sweepAndOffer({ limit = 100 } = {}) {
 }
 
 async function runSweep(tally, limit) {
+  // Quiet hours, decided once per tick through the ONE rule every later-sent
+  // teacher message uses (nudgeTargetUtc via deferQuietHours, configurable by
+  // NUDGE_QUIET_HOURS_PKT). Never a second copy of the hours here: a copy passes
+  // the day it is written and drifts the first time the window moves.
+  //
+  // Inside the window the sweep still does everything that sends nothing — it
+  // closes unanswered offers and lets go of flows it cannot name, both of which
+  // only write state. What it does NOT do is ask: that is a message, and a
+  // teacher asked "shall we pick up?" at 01:00 has been woken for nothing.
+  //
+  // The deferral needs no clock of its own. A row stays in the expired set until
+  // something changes it, and nothing below changes a deferred row, so the first
+  // tick after the window picks it up however long ago its step lapsed. A flow
+  // interrupted at 20:50 is asked about at 07:00, not dropped overnight.
+  //
+  // Load: deferred rows are re-read on each night tick (one bounded select, under
+  // the sweep lock, twice an hour). If more than `limit` offers are deferred at
+  // once they fill the batch — night-time expiry then waits for the morning, which
+  // is harmless because an expired row is invisible to every reader (getState
+  // applies the deadline), and the morning drains `limit` offers per tick.
+  const now = new Date();
+  const quiet = deferQuietHours(now).getTime() !== now.getTime();
+
   let rows = [];
   try {
     rows = await ConversationState.sweepExpired({ limit });
@@ -208,6 +239,14 @@ async function runSweep(tally, limit) {
       const user = byId.get(row.userId);
       if (!user || !user.phone_number) {
         tally.skipped += 1;
+        continue;
+      }
+
+      // Deferred, not dropped: no state change and no message, so the row is still
+      // expired — still offerable — when the window ends. Counted, so the worker's
+      // tick line can say why a night of ticks offered nothing.
+      if (quiet) {
+        tally.deferredQuietHours += 1;
         continue;
       }
 
