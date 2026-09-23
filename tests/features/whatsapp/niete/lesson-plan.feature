@@ -487,6 +487,39 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And a quiz arrives written in Urdu
     # Islamiyat follows the same rule, but no K-5 v8 lesson is Islamiyat, so only Urdu can be driven.
 
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: The quiz offer names the lesson the way its PDF caption does
+    Given the NIETE bot chat is open on a teacher who took the Grade 4 Maths chapter 5 lesson "Comparing & ordering unlike fractions" today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the offer names the lesson "Comparing & ordering unlike fractions", exactly as the lesson PDF's caption does
+    And the offer does not carry the catalog row's run-on sub-headings such as "Discovery / Skill Sharpener" or a trailing "…"
+    # lp-quiz-offer catalogTopic(): the catalog's clean `topic` first, `topic_short` only as a fallback.
+    # In a list, each row's description is the clean name clipped to 72 code points.
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: An Urdu LP-born quiz is called by the lesson's own name, never a clipped sentence
+    Given the NIETE bot chat is open on a teacher who took the Grade 3 Urdu lesson "واحد اور جمع" today before 14:00 PKT
+    And the afternoon quiz offer has arrived
+    When I tap "Make the quiz"
+    Then the quiz arrives and the message to forward to the class says the quiz is on "واحد اور جمع"
+    And no message names the quiz with a clipped objective such as "طالب علم واحد اور جمع کے فرق کو"
+    And the quizzes row's topic is "واحد اور جمع"
+    # lp-quiz-digest: topic_as_taught is set from the catalog lesson (meta.lessons[0]) after the model;
+    # the model's English topic is kept for an English-language quiz.
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: The PDF of an LP-born quiz says planned, never taught
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And the afternoon quiz offer on a Grade 3 Urdu lesson has arrived
+    When I tap "Make the quiz"
+    Then the quiz PDF arrives with a caption that says "what you planned"
+    And the caption never says "what you taught"
+    And the lesson summary at the top of the PDF describes what today's lesson plans to teach, never "you taught"
+    # An Urdu lesson is never asked the quiz language, so no question comes between the tap and the PDF.
+    # In Urdu the caption says «آپ کے سبق کا منصوبہ». A quiz written from a coaching recording keeps
+    # "what you taught" — that lesson was taught.
+
   @e2e @quiz @wip @draft @config-gated @P2
   Scenario: No thanks is remembered
     Given the NIETE bot chat is open and the afternoon quiz offer has arrived

@@ -607,8 +607,14 @@ async function process(quizId, payload = {}) {
       const lpLanguage = isLp
         ? (quiz.language || quizLanguageFor(quiz.subject, slideScript && slideScript.meta && slideScript.meta.language))
         : null;
+      // The served lesson's id names the quiz from the catalog: the Urdu label
+      // (topic_as_taught → quizzes.topic, the forward message, the PDF) is the
+      // name on the lesson's own PDF, never the model's reading of the script.
       const r = isLp
-        ? await LpDigest.run({ slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject })
+        ? await LpDigest.run({
+          slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject,
+          lessonId: (((quiz.meta && quiz.meta.lessons) || [])[0] || {}).lesson_id || null,
+        })
         : await Digest.run({ session, user });
       meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
         digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
@@ -763,6 +769,8 @@ async function process(quizId, payload = {}) {
       const rw = await api.rewriteRejected({
         questions: rejected, errors, digest, language,
         gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
+        // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
+        planned: isLp,
       });
       if (!rw.attempted) return { tried: false, ok: false, errors: null };
       {

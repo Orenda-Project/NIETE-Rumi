@@ -249,6 +249,23 @@ const UX_STRINGS = {
     en: "You planned a lesson with me today. Here is something you may not have tried: record the class on your phone while you teach it, and you will get a coaching report back — what worked, and one thing to try in the next lesson. Nobody else needs to be in the room. Would you like to start with today's lesson?",
     ur: 'آج آپ نے میرے ساتھ ایک سبق کی تیاری کی۔ ایک چیز جو شاید ابھی تک نہیں آزمائی: پڑھاتے وقت اپنے فون پر کلاس ریکارڈ کر لیں، اور آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کمرے میں کسی اور کا ہونا ضروری نہیں۔ کیا آج کے سبق سے شروع کریں؟',
   },
+  // The same ask when it goes out on a LATER day than the lesson was planned: a
+  // lesson taken at or after 14:00 is asked about at 07:30 on the next school day,
+  // where "today" would name the wrong day. {when} is lpAskWhenYesterday or
+  // lpAskWhenOnDate (across a weekend). Same voice rules as above: the Urdu verb
+  // agrees with تیاری, never with the teacher; the rest is subjunctive/imperative.
+  lpAskBodyNextDay: {
+    en: 'You planned this lesson with me {when}. If you record the class when you teach it, you will get a coaching report back — what worked, and one thing to try in the next lesson. Would you like to record it?',
+    ur: 'آپ نے {when} میرے ساتھ اس سبق کی تیاری کی۔ جب یہ سبق پڑھائیں تو کلاس ریکارڈ کر لیں، آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کیا یہ سبق ریکارڈ کرنا ہے؟',
+  },
+  lpAskBodyFirstTimeNextDay: {
+    en: 'You planned this lesson with me {when}. Here is something you may not have tried: record the class on your phone when you teach it, and you will get a coaching report back — what worked, and one thing to try in the next lesson. Nobody else needs to be in the room. Would you like to start with this lesson?',
+    ur: 'آپ نے {when} میرے ساتھ اس سبق کی تیاری کی۔ ایک چیز جو شاید ابھی تک نہیں آزمائی: جب یہ سبق پڑھائیں تو اپنے فون پر کلاس ریکارڈ کر لیں، اور آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کمرے میں کسی اور کا ہونا ضروری نہیں۔ کیا اس سبق سے شروع کریں؟',
+  },
+  // {when} for the two bodies above. The date is the quiz date format
+  // ("18 Sep" / "18 ستمبر"), isolated in Urdu because it opens with digits.
+  lpAskWhenYesterday: { en: 'yesterday', ur: 'کل' },
+  lpAskWhenOnDate: { en: 'on {date}', ur: '⁨{date}⁩ کو' },
   lpAskYes: { en: 'Record my lesson', ur: 'سبق ریکارڈ کروں' },
   lpAskNo: { en: 'Not today', ur: 'آج نہیں' },
   // Sent on a tap of yes, and ALSO the copy the /menu Classroom Coaching entry
@@ -1759,6 +1776,15 @@ const UX_STRINGS = {
   tqHandoffIntro: {
     en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you taught, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
     ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ نے کیا پڑھایا، کوئز کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+  },
+  // The lp_v8 twin of tqHandoffIntro. The quiz was written from the lesson PLAN
+  // the teacher was served — nobody heard the lesson — so the PDF is described
+  // by what was planned, in the words of the sheet's own heading ("What you
+  // planned" / «آپ کے سبق کا منصوبہ»). Never "what you taught". Gender-neutral:
+  // no verb agrees with the teacher; 'quiz' stays a Latin term of record.
+  tqHandoffIntroLp: {
+    en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you planned, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ کے سبق کا منصوبہ، quiz کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
   },
   tqForwardThis: {
     en: 'Forward THIS message to your students:',

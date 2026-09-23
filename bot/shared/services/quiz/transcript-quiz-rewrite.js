@@ -48,7 +48,7 @@ const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
   languageRule, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
-  GENDER_NEUTRAL_RULE,
+  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
 } = require('./transcript-quiz-contract');
 
 /** At most this many questions may be repaired; more than that is a re-roll. */
@@ -153,6 +153,9 @@ function optionLine(q) {
  */
 function buildRewritePrompt({
   digest, language, questions, targets, gradeBand = null, lessonSummary = null,
+  // An lp_v8 quiz: the lesson was PLANNED, so its summary is rewritten in the
+  // plan's voice (LP_SUMMARY_VOICE), never as "what you taught".
+  planned = false,
 }) {
   const qs = Array.isArray(questions) ? questions : [];
   const { indices, byIndex } = targets;
@@ -214,7 +217,9 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
   why it was rejected:
 ${summaryErrors.map((e) => `    - ${e}`).join('\n')}
 
-Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON. Keep everything the old summary got right about the lesson; change only what was rejected.`,
+${planned
+    ? `Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child). ${LP_SUMMARY_VOICE} Do not summarise the quiz — summarise the LESSON PLAN.`
+    : 'Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.'} Keep everything the old summary got right about the lesson; change only what was rejected.`,
   ] : [];
 
   const shape = `  { "index": ${indices[0]}, "slo_id": "${(qs[indices[0]] || {}).slo_id || 'S1'}", "level": "${(qs[indices[0]] || {}).level || 'understand'}",
@@ -321,7 +326,7 @@ function mergeReplacements(questions, json, targets) {
  *   latencyMs?:number, error?:string}>}
  */
 async function rewriteRejected({
-  questions, errors, digest, language, gradeBand = null, lessonSummary = null,
+  questions, errors, digest, language, gradeBand = null, lessonSummary = null, planned = false,
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
@@ -331,7 +336,9 @@ async function rewriteRejected({
   if (!targets.indices.length && !targets.summary.length) {
     return { attempted: false, indices: [], merged: null, replaced: [], lessonSummary: null };
   }
-  const prompt = buildRewritePrompt({ digest, language, questions, targets, gradeBand, lessonSummary });
+  const prompt = buildRewritePrompt({
+    digest, language, questions, targets, gradeBand, lessonSummary, planned,
+  });
   try {
     const { json, model, costUsd, latencyMs } = await completeJson({
       prompt, maxTokens: 8000, label: 'transcript_quiz.rewrite',

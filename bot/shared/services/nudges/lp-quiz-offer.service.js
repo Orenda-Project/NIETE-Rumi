@@ -141,7 +141,16 @@ function classKey(grade, subject) {
   return `g${g}_${s}`;
 }
 
-/** lesson_id → catalog topic, built once. The catalog is static (2,038 K-5 lessons). */
+/**
+ * lesson_id → catalog topic, built once. The catalog is static (2,038 K-5 lessons).
+ *
+ * `topic` first: it is the clean name the lesson PDF's own caption prints
+ * ("Comparing & ordering unlike fractions"). `topic_short` is the row's run-on
+ * sub-headings cut at 80 code points ("Comparing / Ordering Unlike Fractions /
+ * Discovery / Skill Sharpener — Comparing…") — a name the teacher never saw on
+ * the lesson they took. It is only the fallback. The 72-code-point list-row cap
+ * is held by `rowDescription`'s clip, not by the choice of name.
+ */
 let topicIndex = null;
 function catalogTopic(lessonId) {
   if (!topicIndex) {
@@ -150,7 +159,7 @@ function catalogTopic(lessonId) {
       for (const book of Catalog.catalog().books || []) {
         for (const chapter of book.chapters || []) {
           for (const lesson of chapter.lessons || []) {
-            topicIndex.set(lesson.lesson_id, lesson.topic_short || lesson.topic || null);
+            topicIndex.set(lesson.lesson_id, lesson.topic || lesson.topic_short || null);
           }
         }
       }
