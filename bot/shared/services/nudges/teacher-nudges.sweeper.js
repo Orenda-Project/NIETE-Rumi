@@ -91,10 +91,17 @@ function register(kind, handler, { prepare } = {}) {
   registry.set(kind, { handler, prepare: prepare || null });
 }
 
-/** One row, start to finish. Returns which counter to bump. */
-async function handleRow(kind, row, handler) {
+/**
+ * One row, start to finish. Returns which counter to bump.
+ *
+ * `now` is the sweep's own clock, handed to the handler so its send-time checks
+ * (the 24-hour window, "today") read the same instant the claim was made at —
+ * not a second, later reading of the wall clock. A handler that ignores it reads
+ * the real clock, as before.
+ */
+async function handleRow(kind, row, handler, now) {
   try {
-    const outcome = await handler(row);
+    const outcome = await handler(row, { now });
 
     if (outcome && outcome.sent) {
       const marked = await store.markSent(row.id, {
@@ -166,7 +173,7 @@ async function runSweep({ now = new Date(), limit = store.DEFAULT_CLAIM_LIMIT } 
 
     counts.claimed += rows.length;
     for (const row of rows) {
-      counts[await handleRow(kind, row, handler)] += 1;
+      counts[await handleRow(kind, row, handler, now)] += 1;
     }
   }
 
