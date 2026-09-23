@@ -223,6 +223,10 @@ async function computeLpFidelity(input = {}, deps = {}) {
       // bd-b3pop — additive: every existing reader keys on status / fidelity_pct / moves and is unaffected. The voice
       // note and the debrief guide strip these (fidelity-telemetry.js).
       reasoning_effort: graded.reasoning_effort || null,
+      // bd-29r3o: the analyzer marks a grading that only came back after an empty first answer. It has to survive this
+      // hop or the marker dies one hop short of the blob and the degradation is invisible again — which is how the
+      // hardcoded low-effort retry ran unnoticed until the first prod row was opened by hand.
+      empty_retry: Boolean(graded.empty_retry),
       recording,
       runs,
       runs_requested: runsRequested,
