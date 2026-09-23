@@ -94,19 +94,34 @@ class NoSkillTheCoverageMapCountsIsCalledNeverTaught(unittest.TestCase):
 
     def test_grade_4_concrete_and_abstract_are_still_named_somewhere(self):
         # Vetoing the false gap and stopping there would drop them off the tab.
-        # Concrete keeps its per-grade track and gets an honest G4 row in it;
-        # Abstract has no track in this snapshot at all, so it gets the third
-        # heading. Either way the reviewer is told where the days are counted.
-        named = {str(r[skillgrid.SKILL_C]): i
-                 for i, r in enumerate(self.rows)}
+        # Where they are named is the snapshot's business and moves under this
+        # test: with a stale file Abstract had no track at all and appeared
+        # only under the lag heading; regenerated from the corpus (bd-7j5rs)
+        # it has a G4 column like any other skill. What must hold either way
+        # is that the reviewer is told where the days are counted -- so the
+        # assertion is that both are named and neither is drawn as absent.
+        rows = [(i, r) for i, r in enumerate(self.rows)
+                if str(r[skillgrid.SKILL_C]).startswith("Maths \u00b7 ")]
         for label in ("Concrete", "Abstract"):
-            self.assertIn(f"Maths \u00b7 {label}", named)
-        i = next(i for i, r in enumerate(self.rows)
-                 if str(r[0]).startswith("TAUGHT, BUT NOT IN THIS SNAPSHOT"))
-        row = next(r for r in self.rows[i:]
-                   if str(r[skillgrid.SKILL_C]) == "Maths \u00b7 Abstract")
-        self.assertIn("Coverage Map", str(row[skillgrid.TRACK_C]))
-        self.assertNotIn(self.rows.index(row), self.plan["absent_rows"])
+            named = [(i, r) for i, r in rows
+                     if str(r[skillgrid.SKILL_C]) == f"Maths \u00b7 {label}"]
+            with self.subTest(label=label):
+                self.assertTrue(named, f"Maths \u00b7 {label} is on no row")
+                for i, _r in named:
+                    self.assertNotIn(i, self.plan["absent_rows"])
+                self.assertNotIn(
+                    f"Maths \u00b7 {label}",
+                    [str(r[skillgrid.SKILL_C]) for r in self.block])
+
+    def test_the_snapshot_is_not_lagging_the_corpus(self):
+        # bd-7j5rs. The lag section is the tab admitting its own input is out
+        # of date, and `skillsnap` exists so that admission is never needed:
+        # a row under this heading means the snapshot was taken before a build
+        # that changed what is taught. Regenerate it rather than paint it.
+        self.assertFalse(
+            [r for r in self.rows
+             if str(r[0]).startswith("TAUGHT, BUT NOT IN THIS SNAPSHOT")],
+            "skillsmap.json lags the corpus -- run `python3 skillsnap.py`")
 
     def test_science_revision_is_still_named_as_never_taught(self):
         # Correct and load-bearing: Science writes its chapter close as
