@@ -623,6 +623,11 @@ async function send(row, { now } = {}) {
   const shape = shapeOf(classes);
   const to = user.phone_number;
   const context = { shape, class_count: classes.length, language };
+  // Meta's message id, kept on the row (context.message_ids) so "did this
+  // teacher get the offer?" can be matched to a delivery webhook. Reported by
+  // the send; the boolean it returns stays the delivery verdict.
+  const messageIds = [];
+  const sendOpts = { onMessageId: (id) => messageIds.push(id) };
   let ok;
 
   if (shape === 'list') {
@@ -650,7 +655,7 @@ async function send(row, { now } = {}) {
       }), CAPS.footer);
       context.dropped_classes = dropped;
     }
-    ok = await WhatsAppService.sendInteractiveMessage(to, list);
+    ok = await WhatsAppService.sendInteractiveMessage(to, list, sendOpts);
   } else {
     const cls = classes[0];
     const first = cls.lessons[0];
@@ -667,7 +672,7 @@ async function send(row, { now } = {}) {
     } else {
       body = resolveUx('lpQuizOfferOneUntitled', { language, params: { grade, subject } });
     }
-    ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons: yesNoButtons(row.id, language) });
+    ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons: yesNoButtons(row.id, language) }, sendOpts);
   }
 
   if (!ok) {
@@ -678,7 +683,7 @@ async function send(row, { now } = {}) {
     nudgeId: row.id, userId: row.user_id, shape, classes: classes.length,
     dropped: (context.dropped_classes || []).length, language,
   });
-  return { sent: true, messageIds: [], context };
+  return { sent: true, messageIds, context };
 }
 
 // ─── the answer ──────────────────────────────────────────────────────────────

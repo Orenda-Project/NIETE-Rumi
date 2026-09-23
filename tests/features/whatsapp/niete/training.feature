@@ -281,6 +281,20 @@ Feature: NIETE (ICT) Teacher Training
     And afterwards that quiz's row in /quiz says the report was sent
     # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz the model could not write from my lesson plan says the problem was on our side
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I planned
+    When the model gives no usable reply while that quiz is being written
+    Then the bot apologises that something went wrong on its side and says the problem was not my lesson plan
+    And it never says my lesson plan could not be read
+    And tapping that quiz's row in /quiz later repeats the same sentence
+    But when the lesson plan itself carries no lesson to write from, the bot says the lesson plan has too little in it instead
+    # transcript-quiz-generate: a digest throw is source_unusable only when lp-quiz-digest finds no lesson
+    # in the slide script (err.code SOURCE_UNUSABLE); any other digest throw, or no usable author reply on
+    # any attempt, is model_failed (tqFailedLpModel). The reason is persisted as quizzes.meta.error and /quiz
+    # (handleLpPick) repeats it. A model failure cannot be forced live on demand; the behaviour is proven
+    # in tests/quiz/lp-quiz-failure-reasons.test.js. @wip.
+
   @e2e @quiz @wip @draft @P1
   Scenario: A maths question with fractions reaches the child as a typeset card
     Given the NIETE bot chat is open and a class quiz was made from a maths lesson on comparing fractions

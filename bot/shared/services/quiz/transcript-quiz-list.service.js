@@ -23,7 +23,7 @@ const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, nee
 const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
 const { isSelfTest } = require('./teacher-self-test');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey,
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf,
 } = require('./quiz-sources');
 
 const PICK_PREFIX = 'tq_pick_';
@@ -508,8 +508,9 @@ async function handleLpPick(quizId, phone, user) {
     return true;
   }
   if (state === 'failed') {
-    const reason = String(quiz.meta?.error || '').startsWith('digest') ? 'digest_failed' : (quiz.meta?.error || 'validator_failed');
-    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, LP_V8), { language: lang }));
+    // The reason the generate step persisted, so the sentence repeated here is
+    // the one the teacher was sent when it failed (model vs plan, never mixed).
+    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), LP_V8), { language: lang }));
   } else {
     await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
   }

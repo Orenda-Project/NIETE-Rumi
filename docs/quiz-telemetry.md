@@ -269,7 +269,7 @@ the `quizzes` row and emits one of these:
 | `transcript_quiz.figure_salvage` | the last attempt failed only on a few figure/pedagogy questions and the quiz ships without them | `dropped`, `kept` |
 | `transcript_quiz.shipped_with_soft_faults` | every attempt and repair ran and the ONLY complaints left are set-level ones (`only N/M at/below taught level`, `PEDAGOGY_LEVEL_MIX`, `FIGURE_SHARE`, a question one level above the lesson) — the quiz ships and `meta.soft_faults` records them | `faults`, `kinds` |
 | `transcript_quiz.ready` | the set that will be sent | `attempts` (count of full attempts), `costUsd` |
-| `transcript_quiz.failed` | nothing usable after every attempt and repair — the teacher is told honestly | `reason` (`validator_failed`, `digest_failed`, `session_missing`) |
+| `transcript_quiz.failed` | nothing usable after every attempt and repair — the teacher is told honestly | `reason` and, where one reason can come from two passes, `step` (`digest`/`author`). Reasons: `model_failed` (the model gave nothing usable — empty, cut off or not JSON after its retry, or the provider refused the call; never the lesson's fault), `source_unusable` (an lp_v8 slide script with no lesson in it), `source_missing`, `validator_failed` (the model replied; the questions never validated), `key_conflict`, `key_disagreement`, `session_missing`, `teacher_missing`. The same reason is persisted as `quizzes.meta.error` (the raw digest error in `meta.error_detail`), so `/quiz` repeats the sentence the teacher was sent. Rows before this split carry `digest: <message>` instead. |
 
 Healthy is: `author_done` once or twice per quiz, a `teacher_fields_repaired` on most Urdu
 quizzes, an occasional `rewrite_attempted`, `shipped_with_soft_faults` on a minority, and

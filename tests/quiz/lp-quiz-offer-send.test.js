@@ -448,3 +448,60 @@ describe('registered with the sweeper — the claimed row is sent and marked onc
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
   });
 });
+
+// ── the wamid is kept (context.message_ids) ──────────────────────────────────
+//
+// `teacher_nudges.context.message_ids` exists so a delivery question ("did this
+// teacher get the 15:00 offer?") has an answer that can be matched to a status
+// webhook. It was always [] — the send answered a boolean. The send now reports
+// Meta's message id through `onMessageId` (the network boundary is the mock
+// here; the real service's side is pinned in tests/unit/whatsapp-interactive-message-id.test.js).
+
+describe('the offer keeps the WhatsApp message id it was sent as', () => {
+  const Sweeper = require('../../bot/shared/services/nudges/teacher-nudges.sweeper');
+  const reporting = (id) => async (_to, _payload, opts) => {
+    if (opts && typeof opts.onMessageId === 'function') opts.onMessageId(id);
+    return true;
+  };
+
+  beforeEach(() => { process.env.TEACHER_NUDGES_ENABLED = 'true'; });
+  afterEach(() => { delete process.env.TEACHER_NUDGES_ENABLED; });
+
+  test('one lesson (buttons): the id rides back on the outcome and is written to the row', async () => {
+    WhatsAppService.sendInteractiveButtons.mockImplementation(reporting('wamid.OFFER1'));
+    mockStore = makeStore([nudgeRow({ status: 'pending' })]);
+    install(world());
+
+    const counts = await Sweeper.runSweep({ now: SEND_AT });
+
+    expect(counts).toMatchObject({ sent: 1 });
+    expect(mockStore.markSent).toHaveBeenCalledWith('nudge-1', expect.objectContaining({ messageIds: ['wamid.OFFER1'] }));
+    expect(mockStore.rows[0].context.message_ids).toEqual(['wamid.OFFER1']);
+  });
+
+  test('more than one class (list): the list message id is kept too', async () => {
+    WhatsAppService.sendInteractiveMessage.mockImplementation(reporting('wamid.LIST1'));
+    const row = nudgeRow({
+      status: 'pending',
+      context: {
+        classes: [
+          klass(),
+          klass({ key: 'g5_urdu', grade: 5, subject: 'urdu', lessons: [lesson({ lesson_id: 'grade_5_urdu_ch1_seg1', topic: 'واحد اور جمع' })] }),
+        ],
+      },
+    });
+    mockStore = makeStore([row]);
+    install(world());
+
+    const res = await Offer.send(row, { now: SEND_AT });
+
+    expect(res).toMatchObject({ sent: true, messageIds: ['wamid.LIST1'] });
+  });
+
+  test('a send that reports no id still counts as sent — the id is telemetry, never the delivery verdict', async () => {
+    WhatsAppService.sendInteractiveButtons.mockResolvedValue(true);
+    install(world());
+    const res = await Offer.send(nudgeRow(), { now: SEND_AT });
+    expect(res).toMatchObject({ sent: true, messageIds: [] });
+  });
+});

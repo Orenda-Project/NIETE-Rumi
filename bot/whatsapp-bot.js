@@ -537,7 +537,7 @@ app.post('/webhook', async (req, res) => {
       timestamp: messageTimestamp,
       hasText: !!message.text,
       hasAudio: !!message.audio,
-      hasVoice: !!message.voice,
+      isVoiceNote: !!message.audio?.voice, // a voice note is audio with audio.voice=true; there is no top-level voice field
       fullMessage: message
     });
 

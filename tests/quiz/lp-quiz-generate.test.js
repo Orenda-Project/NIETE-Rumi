@@ -181,12 +181,20 @@ describe('process — an lp_v8 quiz has no coaching session', () => {
     expect(Store.resolveSlideScript).not.toHaveBeenCalled();
   });
 
-  test('a digest failure tells the teacher with tqFailedLpDigest', async () => {
-    LpDigest.run.mockRejectedValue(new Error('lp digest: the slide script carries no lesson to digest'));
+  test('a slide script with no lesson in it tells the teacher with tqFailedLpSourceUnusable', async () => {
+    LpDigest.run.mockRejectedValue(Object.assign(new Error('lp digest: the slide script carries no lesson to digest'), { code: 'SOURCE_UNUSABLE' }));
     wire();
     const r = await Gen.process(QID, {});
-    expect(r.reason).toBe('digest_failed');
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(USER.phone_number, UX_STRINGS.tqFailedLpDigest.en);
+    expect(r.reason).toBe('source_unusable');
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(USER.phone_number, UX_STRINGS.tqFailedLpSourceUnusable.en);
+  });
+
+  test('any other digest throw is the model’s, and says so with tqFailedLpModel', async () => {
+    LpDigest.run.mockRejectedValue(Object.assign(new Error('lp_quiz.digest: empty reply from m'), { code: 'EMPTY' }));
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.reason).toBe('model_failed');
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(USER.phone_number, UX_STRINGS.tqFailedLpModel.en);
   });
 
   test('an author that never validates tells the teacher with tqFailedLpAuthor', async () => {

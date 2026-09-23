@@ -617,8 +617,23 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot reply contains "Record your lesson with the WhatsApp mic"
     And the bot reply asks for 20 to 45 minutes of the lesson
     And my conversation is waiting for a classroom recording
-    # The clip (LP_COACHING_HOWTO_VIDEO_EN/_UR) is sent before the ask on the first
-    # and second asks only (feature intro 'lp_coaching_howto', count < 2).
+    # The clip (LP_COACHING_HOWTO_VIDEO_EN/_UR) rides the ask itself as its video header
+    # on the first and second asks only (feature intro 'lp_coaching_howto', count < 2).
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: The how-to clip arrives as the coaching ask's own video, never after it
+    Given the how-to clip is configured for my language
+    And I have been shown the clip fewer than two times
+    When the coaching ask is sent to me
+    Then the ask arrives as one message: the clip on top, the question under it, and the buttons "Record my lesson" and "Not today"
+    And under the clip it says "How to record a lesson with the WhatsApp mic", with no length claimed
+    And no separate video message arrives before or after the ask
+    And my coaching_after_lp row for today is sent with howto true and the ask's WhatsApp message id in context.message_ids
+    # lp-coaching-ask send(): WhatsAppService.sendVideoWithButtons — an interactive button message whose
+    # header is the clip (header.type video) and whose footer is lpAskHowtoCaption. Sent as two messages,
+    # the clip arrived UNDER the ask on a real phone (Meta fetches a linked video before delivering it).
+    # A header send that fails falls back to the plain ask (howto false, not counted as shown); the third
+    # ask onwards carries no clip. @wip — authored with the change, driven by the sandbox E2E run.
 
   @e2e @wip @draft @lp-ask @negative @P1
   Scenario: An 11-minute recording after yes is answered as too short
