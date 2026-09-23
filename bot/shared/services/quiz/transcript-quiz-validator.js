@@ -117,10 +117,11 @@ const FIGURE_MAX_SHARE = 0.5;
  * as TeX (`$\frac{2}{9}$`) and the row stores that source for the card and the
  * PDF to typeset — but every rule below is about what reaches the child: a
  * length cap, two options that look the same, a picture that gives the answer
- * away, an English-script ratio. Measured on the TeX, `$\frac{2}{5}$` is not
- * "2/5", so the figure gates silently stop seeing a fraction key at all, and
- * `\frac` counts as four Latin letters in an Urdu quiz. So every check reads
- * this view; the question returned (and stored) keeps its source.
+ * away. Measured on the TeX, `$\frac{2}{5}$` is not "2/5", so the figure gates
+ * silently stop seeing a fraction key at all. So every check reads this view;
+ * the question returned (and stored) keeps its source. (The Urdu word share
+ * reads the source instead and leaves the maths out altogether: a flattened
+ * "5 cm" or "x" would still count as an English word — urduShareByPart.)
  */
 function plainView(q) {
   if (!q || typeof q !== 'object') return q;
@@ -161,12 +162,86 @@ function mathTexErrors(q, i) {
   return out;
 }
 
+/**
+ * Arabic-script LETTERS as a share of all letters. No longer what decides an
+ * Urdu quiz (urduShareByPart does, below); kept because it is the measure the
+ * word share was chosen against, and a test pins the failure it caused.
+ */
 function scriptRatio(s) {
   const letters = [...String(s || '')].filter((c) => /\p{L}/u.test(c));
   if (!letters.length) return 1;
   const ar = letters.filter((c) => /[؀-ۿﭐ-﷿ﹰ-﻿]/.test(c)).length;
   return ar / letters.length;
 }
+
+/**
+ * HOW MUCH OF AN URDU QUIZ IS URDU — counted in WORDS.
+ *
+ * The quiz-level check used to count LETTERS (scriptRatio above), and the
+ * language ask promises the teacher the opposite of what a letter count
+ * rewards: "English terms stay in English letters (fraction, numerator)". In a
+ * fractions lesson those terms are long — "denominator" is eleven letters,
+ * «کو» is two — so a correct Urdu quiz built around them is mostly Latin
+ * LETTERS while being mostly Urdu WORDS. A lesson-plan quiz on comparing
+ * unlike fractions died on all three attempts at 0.55, 0.59 and 0.57 against a
+ * 0.6 bar, and the teacher was told the lesson plan was the problem. The
+ * per-question teacher-fields rule below was moved to words for the same
+ * reason after a production loss; this is the quiz-level half.
+ *
+ * A word is a whitespace-separated run that carries a letter, and it is Urdu
+ * when one of its LETTERS is Arabic-script — «۔» and «،» sit in the Arabic
+ * block but are punctuation, so "numerator۔" is still an English word. The
+ * maths is removed first: `$\frac{2}{3}$` reads the same in either language,
+ * and a unit typeset inside it (`$5\,\text{cm}$`) is notation, not an English
+ * word. Bare numbers carry no letter and are not words either.
+ */
+const MATH_SPAN = /\$[^$\n]+?\$/g;             // the inline span, as quiz-math reads it
+const URDU_LETTER = /(?=\p{L})\p{Script=Arabic}/u;
+function urduWordShare(s) {
+  const prose = mathToText(String(s ?? '').replace(MATH_SPAN, ' '));
+  const words = String(prose ?? '').split(/\s+/).filter((w) => /\p{L}/u.test(w));
+  if (!words.length) return 1;
+  return words.filter((w) => URDU_LETTER.test(w)).length / words.length;
+}
+
+/**
+ * The share is taken PART BY PART — the questions a child reads, and the
+ * explanations and feedback a child reads — and the quiz is judged on the
+ * lower of the two. Pooled into one number, the feedback (three strings a
+ * question) outweighs the stem (one), so a quiz with every question in English
+ * and every piece of feedback in Urdu scores 0.64 and reads as Urdu. The
+ * options are left out of both parts: they are the answer choices, and in an
+ * Urdu maths or grammar quiz they are rightly the English terms themselves
+ * ("numerator", "masculine") or numbers.
+ */
+function urduShareByPart(questions) {
+  const stems = [];
+  const answers = [];
+  (Array.isArray(questions) ? questions : []).forEach((q) => {
+    if (!q || typeof q !== 'object') return;
+    const fb = (q.option_feedback && typeof q.option_feedback === 'object') ? q.option_feedback : {};
+    stems.push(q.question);
+    answers.push(q.explanation, fb.correct, ...Object.values(fb.wrong || {}));
+  });
+  const join = (xs) => xs.map((t) => (typeof t === 'string' ? t : '')).join('\n');
+  const share = { questions: urduWordShare(join(stems)), answers: urduWordShare(join(answers)) };
+  const part = share.questions <= share.answers ? 'questions' : 'answers';
+  return { ...share, part, min: share[part] };
+}
+
+/**
+ * The bar, chosen from real authored quizzes (both distributions are in the
+ * change that set it). The lower part's Urdu word share, on 241 real Urdu
+ * quizzes — nine models, forty lessons, the lesson-plan quizzes, 84 of them
+ * maths or science — was never below 0.58; the lowest are Urdu quizzes on
+ * English-grammar lessons, whose questions quote English sentences. The real
+ * Urdu fractions quizzes the letter bar passed by a hair (0.60 and 0.62 by
+ * letters) score 0.81 and 0.82. On 110 real English quizzes it was never
+ * above 0.04, Roman Urdu scores 0, and a quiz with its questions in one
+ * language and its feedback in the other scores 0. The bar sits in the middle
+ * of that gap, with more than 0.25 either side.
+ */
+const URDU_WORD_SHARE_MIN = 0.3;
 
 /**
  * Accept the shapes models actually emit for option_feedback and return the
@@ -486,8 +561,18 @@ function validate(rawQuestions, ctx = {}) {
 
   const joined = allText.join('\n');
   if (language === 'ur') {
-    const r = scriptRatio(joined);
-    if (r < 0.6) errs.push(`urdu script ratio ${r.toFixed(2)} < 0.6`);
+    // Counted in WORDS, part by part (urduShareByPart), on the questions as
+    // the author wrote them — maths still inside its dollars, so it can be
+    // left out rather than counted as flattened letters. The complaint keeps
+    // its "urdu script ratio " prefix: the retry note recognises a
+    // wrong-script attempt by it (WRONG_SCRIPT_RE in
+    // transcript-quiz-contract.js), and it is quoted to the model verbatim,
+    // so it also says what to do.
+    const byPart = urduShareByPart(qs);
+    if (byPart.min < URDU_WORD_SHARE_MIN) {
+      const where = byPart.part === 'questions' ? 'the questions' : 'the explanations and feedback';
+      errs.push(`urdu script ratio ${byPart.min.toFixed(2)} < ${URDU_WORD_SHARE_MIN.toFixed(2)} — only ${Math.round(byPart.min * 100)}% of the words in ${where} are in Urdu script; write every stem, option, explanation and feedback in Urdu, keeping only the lesson's technical terms in English letters`);
+    }
     const latinWords = joined.match(/\b[a-zA-Z]{2,}\b/g) || [];
     const roman = latinWords.filter((w) => ROMAN_URDU.has(w.toLowerCase()));
     if (roman.length >= 3) errs.push(`roman urdu tokens: ${roman.slice(0, 6).join(' ')}`);
@@ -516,6 +601,9 @@ module.exports = {
   STEM_PROMISES_PICTURE,
   FIGURE_MAX_SHARE,
   scriptRatio,
+  urduWordShare,
+  urduShareByPart,
+  URDU_WORD_SHARE_MIN,
   MIN_QUESTIONS,
   MAX_QUESTIONS,
   STEM_MAX,
