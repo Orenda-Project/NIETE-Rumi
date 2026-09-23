@@ -14,6 +14,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 jest.mock('../../bot/shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue('mid') }));
 jest.mock('../../bot/shared/services/quiz/lp-quiz-digest.service', () => ({
   run: jest.fn().mockRejectedValue(new Error('stop after the digest call')), lessonExcerpts: jest.fn().mockReturnValue(''),
+  lessonDrewBlock: jest.fn().mockReturnValue(''),
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));

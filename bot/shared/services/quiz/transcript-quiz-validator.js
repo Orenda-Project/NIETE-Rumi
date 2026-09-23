@@ -112,6 +112,59 @@ const STEM_PROMISES_PICTURE =
 // pictures stops testing the lesson and starts testing picture-reading.
 const FIGURE_MAX_SHARE = 0.5;
 
+// ─── PICTURES IN A GRADE 1-5 MATHS QUIZ ─────────────────────────────────────
+// A young class is taught maths through the picture: concrete, then pictorial,
+// then abstract. On production 5.5% of maths items carried one (49 of 884),
+// because nothing asked for more than one and "earn the figure" rejected every
+// picture that modelled numbers the stem states. Two rules, both grade 1-5
+// maths only; grade 6 and above are untouched.
+
+/** Pictures a grade 1-5 maths quiz aims for (never more than FIGURE_MAX_SHARE of it). */
+const FIGURE_TARGET = 3;
+
+/** Grade 1-5 (and KG/prep, however the band is spelled) — the author's own reading of a band. */
+function isEarlyBand(gradeBand) {
+  const g = String(gradeBand || '').toLowerCase();
+  if (/\b(kg|k|prep|nursery|ecce|katchi)\b/.test(g)) return true;
+  const nums = (g.match(/\d+/g) || []).map(Number);
+  return nums.length > 0 && nums.every((k) => k <= 5);
+}
+
+const earlyMaths = (subject, gradeBand) => canonSubj(subject) === 'maths' && isEarlyBand(gradeBand);
+
+/**
+ * How far a quiz is from its picture target. Too few is a SOFT complaint,
+ * FIGURE_FEW, and never a reason to refuse a quiz: a refused quiz is a teacher
+ * with nothing, and a quiz with one picture is still a quiz. The generate step
+ * answers it with ONE targeted "add a picture" repair and ships either way.
+ * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, complaint:string|null}}
+ */
+function figureDensity(questions, { subject, gradeBand } = {}) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const n = qs.length;
+  const figured = qs.filter((q) => q && q.figure && typeof q.figure === 'object' && !Array.isArray(q.figure)).length;
+  if (!earlyMaths(subject, gradeBand)) {
+    return { applies: false, figured, n, target: 0, need: 0, complaint: null };
+  }
+  const target = Math.min(FIGURE_TARGET, Math.floor(n * FIGURE_MAX_SHARE));
+  const need = Math.max(0, target - figured);
+  return {
+    applies: true, figured, n, target, need,
+    complaint: need ? `FIGURE_FEW — ${figured}/${n} questions carry a picture; a grade 1-5 maths quiz aims for at least ${target}` : null,
+  };
+}
+
+/**
+ * figure_role "model": the picture MODELS numbers the stem already states — the
+ * pictorial step the lesson itself used (fraction bars beside "which is larger,
+ * 2/3 or 3/5?", counters beside "3 + 4"). FIGURE_REDUNDANT exists to stop a
+ * decorative picture; for a young maths class this one is the lesson, so it is
+ * exempt. The answer-leak rule is not: no option, no result, in the drawing.
+ */
+function modelsTheStem(q, subject, gradeBand) {
+  return Boolean(q) && q.figure_role === 'model' && earlyMaths(subject, gradeBand);
+}
+
 /**
  * A question as the child READS it (bd-mg9c7.159.19). The author writes maths
  * as TeX (`$\frac{2}{9}$`) and the row stores that source for the card and the
@@ -293,6 +346,7 @@ function validate(rawQuestions, ctx = {}) {
   const {
     language, subject, digest, nExpected, lessonSummary, quizId,
   } = ctx;
+  const gradeBand = ctx.gradeBand || (digest && digest.grade_band) || null;
   const checkD4 = 'lessonSummary' in ctx;
   const errs = [];
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
@@ -525,7 +579,7 @@ function validate(rawQuestions, ctx = {}) {
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }
-    if (figureIsRedundant(q.figure, stem)) {
+    if (!modelsTheStem(q, subject, gradeBand) && figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
     }
     // The DRAWING is checked, not only the spec: several types compute a label
@@ -600,6 +654,8 @@ module.exports = {
   normaliseFeedback,
   STEM_PROMISES_PICTURE,
   FIGURE_MAX_SHARE,
+  FIGURE_TARGET,
+  figureDensity,
   scriptRatio,
   urduWordShare,
   urduShareByPart,

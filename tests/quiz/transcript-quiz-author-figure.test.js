@@ -93,7 +93,11 @@ describe('the author is TOLD to draw when the lesson is drawable (calibration af
   const digest = { topic: 'Types of fractions', subject: 'maths', grade_band: '3-5', slos: [{ id: 'S1', statement: 'x', taught_level: 'recall', evidence_quote: 'q' }] };
   const prompt = buildAuthorPrompt({ digest, excerpts: '', language: 'ur', n: 8, gradeBand: '3-5' });
   test('maths/science lessons are required to carry at least one picture question', () => {
-    expect(prompt).toMatch(/at least ONE picture question/i);
+    // A grade 1-5 MATHS lesson now aims higher — at least three (the density
+    // decision; see transcript-quiz-author-density.test.js). Science keeps one.
+    expect(prompt).toMatch(/AT LEAST THREE picture questions/);
+    const science = buildAuthorPrompt({ digest: { ...digest, subject: 'science', grade_band: '6-8' }, excerpts: '', language: 'ur', n: 8, gradeBand: '6-8' });
+    expect(science).toMatch(/at least ONE picture question/i);
   });
   test('three worked examples show a figure spec next to its stem and options', () => {
     expect(prompt).toMatch(/WORKED EXAMPLES/);
