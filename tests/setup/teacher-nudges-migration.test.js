@@ -120,12 +120,18 @@ describe('V1.5.3__teacher_nudges.sql', () => {
     expect(runner.extractVersion(filename)).toBe('1.5.3');
     // …and the directory scan's own filter accepts it (the runner filters twice).
     expect(/^V\d+\.\d+\.\d+__.*\.sql$/.test(filename)).toBe(true);
-    // It sorts AFTER the highest version already in the directory.
+    // No other file claims 1.5.3. The ledger is keyed by version alone, so a second
+    // file carrying the same number would be reported "already applied" and never run.
+    //
+    // (This used to assert that 1.5.3 sorts after EVERY other file, which was true the
+    // day it was written and stopped being true the moment the next migration landed.
+    // Uniqueness is the property that stays true, and it is the one the runner needs.)
     const versions = fs.readdirSync(path.dirname(MIGRATION))
       .filter((f) => /^V\d+\.\d+\.\d+__.*\.sql$/.test(f) && f !== filename)
       .map((f) => runner.extractVersion(f));
-    for (const v of versions) {
-      expect(runner.compareVersions('1.5.3', v)).toBeGreaterThan(0);
-    }
+    expect(versions).not.toContain('1.5.3');
+    // …and it still sorts after the migration before it.
+    expect(versions).toContain('1.5.2');
+    expect(runner.compareVersions('1.5.3', '1.5.2')).toBeGreaterThan(0);
   });
 });

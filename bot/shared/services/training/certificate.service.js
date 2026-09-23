@@ -57,7 +57,7 @@ function generateCertificateCode(now = new Date()) {
 /**
  * Issue (or return the already-issued) certificate for a completed level.
  * Idempotent per (user_id, level_id) — NOT per attempt; see the guard below
- * and bd-2670 for why that distinction cost production 3,113 surplus rows.
+ * for why that distinction cost production 3,113 surplus rows.
  *
  * @param {object} supabase - configured Supabase client (caller-injected)
  * @param {object} params
@@ -68,7 +68,7 @@ function generateCertificateCode(now = new Date()) {
  *   or null. Provenance only, never read back. The quiz and capstone paths
  *   have one originating attempt; I-SAPS composite certification is earned
  *   across many attempts and three independent bars, so it passes null
- *   (bd-60171 — sandbox carried a NOT NULL here that production never had).
+ *   (sandbox once carried a NOT NULL here that production never had).
  * @returns {Promise<{certificate_code: string, teacher_name: string, level_name: string, issued_at: string, already_issued: boolean, pdf_r2_key: string|null}>}
  */
 async function issueCertificate(supabase, { userId, programId, levelId, attemptId }) {
@@ -123,7 +123,7 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
     level_name_snapshot: levelName,
   });
   if (error) {
-    // bd-60170 — a failed insert must not be reported as an issued
+    // A failed insert must not be reported as an issued
     // certificate.
     //
     // This used to log and fall through, and the function returned
@@ -196,7 +196,7 @@ async function maybeIssueQuizScoreCertificate(
   supabase, { userId, moduleId, levelId = null, attemptId, programId },
 ) {
   try {
-    // bd-60144 — the level can arrive DIRECTLY, because a module exam has no
+    // The level can arrive DIRECTLY, because a module exam has no
     // module to resolve it through.
     //
     // This function was written for the unit quick-check path, where the only
@@ -243,7 +243,7 @@ async function maybeIssueQuizScoreCertificate(
       .maybeSingle();
     if (capstone) return { issued: false };
 
-    // bd-60139 — a per-module-assessed level certifies on its module EXAMS,
+    // A per-module-assessed level certifies on its module EXAMS,
     // not on its unit quick-checks.
     //
     // Everything below this point is the Oxbridge rule: all units complete,

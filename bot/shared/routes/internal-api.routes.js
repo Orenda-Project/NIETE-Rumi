@@ -318,20 +318,20 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
  * Body { userId, levelId, attemptId?, programId?, moduleId? }
  *   -> { success, issued, certificate_code?, level_name?, teacher_name?, pdf_r2_key? }
  *
- * bd-60145 — the portal's only way to certify a level.
+ * The portal's only way to certify a level.
  *
  * Before this, `dashboard/routes/portal.routes.js` called `issueCertificate`
  * DIRECTLY the moment an attempt passed, from the capstone and grand-quiz
  * routes. That skips every completeness check: it is the portal's copy of
- * bd-60139, where a single pass minted a certificate without asking whether
+ * the WhatsApp bug where a single pass minted a certificate without asking whether
  * the units were finished or the per-module exams passed. And no portal route
  * certified a per-module-assessed level at all, so an I-SAPS teacher who
- * finished everything was certified by nothing (bd-60142, one surface over).
+ * finished everything was certified by nothing (WhatsApp had the same gap).
  *
  * The guard is `maybeIssueQuizScoreCertificate`, unchanged and shared — the
  * portal gets the SAME decision WhatsApp gets, which is the whole point of
  * this internal API. `levelId` is accepted because a module-exam attempt
- * carries training_module_id = NULL (bd-60144); passing that null is what made
+ * carries training_module_id = NULL; passing that null is what made
  * the guard bail on its first lookup.
  *
  * Idempotent: the guard refuses a second certificate for a (user, level), so a
@@ -350,7 +350,7 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
  * exams). Beacon House and Oxbridge must fall through to their own rule, not
  * be graded 0 by a model that does not describe them.
  *
- * Lives here, not in the portal, for the bd-2480 reason: the portal's previous
+ * Lives here, not in the portal, for a reason already learned once: the portal's previous
  * local copies of training rules all drifted while their comments claimed
  * parity. One implementation, two callers.
  */
@@ -407,14 +407,14 @@ router.post('/training/certify-level', requireInternalKey, async (req, res) => {
  * POST /api/internal/training/module-exam-gate
  * Body { userId, courseId } -> { success, ok, body, caption, cta, module_no }
  *
- * bd-60149 — may this teacher sit this module's exam, and what should the
+ * May this teacher sit this module's exam, and what should the
  * screen say about it?
  *
  * The portal had no concept of a module exam at all: `source_quiz_id` appears
  * nowhere in its routes, so an I-SAPS teacher could finish all 54 units there
  * and never reach a summative assessment. This is the gate WhatsApp already
  * asks (`loadModuleExamSlot`), exposed so both surfaces answer identically —
- * re-deriving it portal-side is precisely the drift bd-2480 removed.
+ * re-deriving it portal-side is precisely the drift that was removed once already.
  */
 router.post('/training/module-exam-gate', requireInternalKey, async (req, res) => {
   const { userId } = req.body || {};
@@ -455,10 +455,10 @@ router.post('/training/module-exam-gate', requireInternalKey, async (req, res) =
  * POST /api/internal/training/module-exam-start
  * Body { userId, courseId, programId } -> { success, attempt_id, total_questions, questions[] }
  *
- * bd-60149 — opens (or RESUMES) the attempt and returns the served paper.
+ * Opens (or RESUMES) the attempt and returns the served paper.
  *
  * The paper is 2 MCQs + 1 CRQ sampled from the module's bank and seeded on the
- * attempt id (bd-60141), so a teacher who reloads the page gets the same paper
+ * attempt id, so a teacher who reloads the page gets the same paper
  * rather than a fresh draw. Resuming rather than starting a second attempt is
  * the same rule WhatsApp follows.
  */
@@ -489,7 +489,7 @@ router.post('/training/module-exam-start', requireInternalKey, async (req, res) 
  * Body { userId, attemptId, answers:[{question_id, chosen_option?, answer_text?}] }
  *   -> { success, attempt:{...}, certificate?:{...}, crq_pending:boolean }
  *
- * bd-60149 — marks the paper and decides the level.
+ * Marks the paper and decides the level.
  *
  * MCQs are marked against the stored key. The CRQ is marked by the SAME grader
  * WhatsApp uses (capstone-delivery.scoreAnswer, an LLM call against the
@@ -510,7 +510,7 @@ router.post('/training/module-exam-start', requireInternalKey, async (req, res) 
  * Body { userId, attemptId, questionId, questionIndex, chosenOption?, answerText? }
  *   -> { success, ok, reason? }
  *
- * bd-60169 — save one answer mid-paper. Never grades, never marks.
+ * Save one answer mid-paper. Never grades, never marks.
  *
  * Called on every answer change, so it must be cheap and must never throw at
  * the caller: a failed autosave degrades to "unsaved", it does not interrupt
@@ -544,7 +544,7 @@ router.post('/training/module-exam-draft', requireInternalKey, async (req, res) 
  * POST /api/internal/training/module-exam-draft-load
  * Body { userId, attemptId } -> { success, ok, answers[] }
  *
- * bd-60169 — what she has already answered, so resuming shows her own work.
+ * What the teacher has already answered, so resuming shows their own work.
  */
 router.post('/training/module-exam-draft-load', requireInternalKey, async (req, res) => {
   const b = req.body || {};

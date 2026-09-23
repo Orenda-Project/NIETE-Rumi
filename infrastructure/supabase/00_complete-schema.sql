@@ -3634,7 +3634,7 @@ CREATE TABLE IF NOT EXISTS training_vendors (
     capstone_points_per_question INTEGER,
     -- I-SAPS formative quizzes carry no minimum score: the unit check is a
     -- learning tool, and the certificate composite is the only bar that
-    -- gates anything (V1.5.0, bd-60163).
+    -- gates anything (V1.5.0).
     module_quiz_ungated  BOOLEAN NOT NULL DEFAULT FALSE,
     is_active            BOOLEAN NOT NULL DEFAULT TRUE,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
