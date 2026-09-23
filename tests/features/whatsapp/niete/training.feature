@@ -123,6 +123,25 @@ Feature: NIETE (ICT) Teacher Training
     # Module bar is 70% ("10 questions. You need 70%…") vs NIETE 100%. Cert NIETE-20260805-YA5IU7 + PDF issued
     # off the final module pass — no exam step. See F-OXB-examcopy (post-completion still nudges "take the level exam").
 
+  @e2e @wip @draft @quiz @destructive @P1
+  Scenario: For an I-SAPS programme passing the last module exam certifies the level, whatever units are left
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme who has passed eight of the nine module exams and has NOT finished every unit
+    When I take the remaining module exam and pass it
+    Then the bot says "You have completed every module of Level 1: Novice.", gives me a certificate code, and sends the certificate PDF
+    And no unit, unit quiz score or module order is asked about first
+    # Operator 2026-09-23: no chaining; the certificate waits on the module exams ONLY (PASSED — a failed
+    # submission does not count). certificate.service maybeIssueQuizScoreCertificate: per-module-exam level ->
+    # allModuleExamsPassed is the whole rule. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.
+
+  @e2e @wip @draft @certificates @P2
+  Scenario: An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot
+    Given a teacher in the I-SAPS programme has just been certified
+    When the certificate PDF arrives
+    Then it carries the diagonal "NOT A REAL CERTIFICATE" watermark, even on production
+    And a certificate from any other programme on production does not
+    # certificate-env.rules PILOT_WATERMARK_VENDORS = ['ISAPS'].
+    # TODO(NIETE-ISAPS-GO-LIVE): at go-live for all teachers this flips — production I-SAPS certificates are clean.
+
   # ═══════════════════════════════════ NEGATIVE ═══════════════════════════════════
 
   @e2e @flow @negative @known-issue @P2
