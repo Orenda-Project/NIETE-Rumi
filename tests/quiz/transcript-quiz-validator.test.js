@@ -163,9 +163,10 @@ describe('validate — Urdu', () => {
     expect(out2.questions[0].options[0]).toBe('numerator');
   });
 
-  test('feminine-stem address is rejected', () => {
+  test('a feminine address to the child is rejected, named on its question', () => {
     const qs = urEight(); qs[0].option_feedback.correct = 'آپ سمجھ سکتی ہیں کہ جڑ نیچے ہوتی ہے۔';
-    expect(V.validate(qs, urCtx).errors.some((e) => /feminine-stem/.test(e))).toBe(true);
+    const errs = V.validate(qs, urCtx).errors;
+    expect(errs.some((e) => /^q0: PEDAGOGY_GENDERED_CHILD — option_feedback speaks to the child with a gendered verb \("آپ … سکتی ہیں"\)/.test(e))).toBe(true);
   });
 
   test('Islamiyat: a Prophet mention without ﷺ fails; with it passes', () => {
