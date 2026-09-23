@@ -100,8 +100,12 @@ describe('DC:137 — session-complete leads the commitment question, in one mess
     await ReportGeneratorService.generateReport('sess-dc137', { from: '923016669553' });
 
     const copy = COACHING_CARD_COPY[lang];
-    expect(mockWA.sendInteractiveButtons).toHaveBeenCalledTimes(1);
-    const { body } = mockWA.sendInteractiveButtons.mock.calls[0][1];
+    // Only the commit prompt counts here — the "was this useful?" survey is also a
+    // buttons message and goes out just before it.
+    const commit = mockWA.sendInteractiveButtons.mock.calls
+      .filter((c) => c[1].buttons.some((btn) => btn.id.startsWith('card_')));
+    expect(commit).toHaveLength(1);
+    const { body } = commit[0][1];
     expect(body).toBe(`${copy.sessionCompleteLead}\n\n${copy.commitPrompt}`);
   });
 

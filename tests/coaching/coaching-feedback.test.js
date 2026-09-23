@@ -163,27 +163,30 @@ describe('language', () => {
   });
 });
 
-describe('the survey is wired to the place the session actually settles', () => {
+describe('the survey is wired to the right place in the delivery', () => {
+  // DC feedback 2026-09-23: it goes out straight after the voice debrief, not 90 s after
+  // completeSession(). The ordering itself is proven by running generateReport in
+  // bd-azzhu-survey-after-voice.test.js; these pin the wiring against a quiet revert.
   const SRC = require('fs').readFileSync(
-    require.resolve('../../bot/shared/services/coaching/report-generator.service'), 'utf8');
+    require.resolve('../../bot/shared/services/coaching/report-generator.service'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''); // code only, never comments
 
-  test('completeSession schedules the prompt', () => {
-    const body = SRC.slice(SRC.indexOf('static async completeSession'));
-    expect(body).toContain('scheduleFeedbackPrompt');
+  test('completeSession no longer schedules a second, delayed copy', () => {
+    const start = SRC.indexOf('static async completeSession');
+    expect(start).toBeGreaterThan(-1);
+    const body = SRC.slice(start, SRC.indexOf('static async', start + 1));
+    expect(body).not.toContain('scheduleFeedbackPrompt');
   });
 
-  test('it takes the phone from the JOINED users row, not a coaching_sessions column', () => {
-    // coaching_sessions has no phone_number column; the session query selects
-    // `users!inner(phone_number, ...)`. Reading session.phone_number yields undefined and
-    // the survey silently never sends — which is indistinguishable from nobody answering.
-    const body = SRC.slice(SRC.indexOf('static async completeSession'));
-    expect(body).toMatch(/session\.users\.phone_number/);
-    expect(body).not.toMatch(/updatedSession\.phone_number/);
-  });
-
-  test('it is scheduled AFTER the metrics row exists, so the answer has a row to land on', () => {
-    const body = SRC.slice(SRC.indexOf('static async completeSession'));
-    expect(body.indexOf('recordQualityMetrics')).toBeLessThan(body.indexOf('scheduleFeedbackPrompt'));
+  test('generateReport sends it after the voice debrief and before the commit prompt', () => {
+    const voice = SRC.indexOf('this.generateAndSendVoiceDebrief(');
+    const survey = SRC.indexOf('sendFeedbackPrompt(');
+    const commit = SRC.indexOf('cardCopy.commitPrompt');
+    expect(voice).toBeGreaterThan(-1);
+    expect(survey).toBeGreaterThan(-1);
+    expect(commit).toBeGreaterThan(-1);
+    expect(voice).toBeLessThan(survey);
+    expect(survey).toBeLessThan(commit);
   });
 });
 

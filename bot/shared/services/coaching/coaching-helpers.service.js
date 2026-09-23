@@ -96,19 +96,41 @@ class CoachingHelpersService {
       const transcriptionTime = new Date(session.transcription_completed_at) - new Date(session.transcription_started_at);
       const analysisTime = new Date(session.analysis_completed_at) - new Date(session.analysis_started_at);
 
-      await supabase
+      const metrics = {
+        diarization_confidence: session.diarization_confidence,
+        processing_time_seconds: Math.round(processingTime / 1000),
+        transcription_time_seconds: Math.round(transcriptionTime / 1000),
+        analysis_time_seconds: Math.round(analysisTime / 1000),
+        session_cost: session.total_cost,
+        had_errors: false,
+        retry_count: 0,
+      };
+
+      // ONE row per session. The "was this useful?" survey goes out before the session
+      // completes, and a tap creates this row on demand (coaching-feedback.service
+      // _writeMetrics). Inserting again would give the session two rows — the table has no
+      // unique key on coaching_session_id — so update the row that is there, leaving the
+      // teacher's rating on it untouched.
+      const { data: existing } = await supabase
         .from('coaching_quality_metrics')
-        .insert({
-          coaching_session_id: session.id,
-          diarization_confidence: session.diarization_confidence,
-          processing_time_seconds: Math.round(processingTime / 1000),
-          transcription_time_seconds: Math.round(transcriptionTime / 1000),
-          analysis_time_seconds: Math.round(analysisTime / 1000),
-          session_cost: session.total_cost,
-          had_errors: false,
-          retry_count: 0,
-          created_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('coaching_session_id', session.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('coaching_quality_metrics')
+          .update(metrics)
+          .eq('coaching_session_id', session.id);
+      } else {
+        await supabase
+          .from('coaching_quality_metrics')
+          .insert({
+            coaching_session_id: session.id,
+            ...metrics,
+            created_at: new Date().toISOString()
+          });
+      }
 
       logToFile('Quality metrics recorded', { coachingSessionId: session.id });
     } catch (error) {
