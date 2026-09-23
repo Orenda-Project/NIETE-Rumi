@@ -352,7 +352,36 @@ def test_a_prose_board_is_split_before_it_is_read_as_a_vocabulary_pair():
              "Draw three connected boxes with arrows below it. "
              "Write the six page words in two rows underneath. "
              "Circle the two words you want the class to copy first.")
-    rows = BD.board_panels(board)["panels"][0]["rows"]
-    assert len(rows) == 4, rows
-    assert rows[0] == {"term": "Write the heading: picture + words", "gloss": "main idea."}
-    assert rows[1] == {"text": "Draw three connected boxes with arrows below it."}
+    panels = BD.board_panels(board)["panels"]
+    assert len(panels) == 4, panels
+    assert panels[0]["rows"] == [
+        {"term": "Write the heading: picture + words", "gloss": "main idea."}
+    ]
+    assert panels[1]["rows"] == [{"text": "Draw three connected boxes with arrows below it."}]
+
+
+def test_each_build_step_of_a_prose_board_gets_its_own_numbered_panel():
+    """The renderer numbers PANELS, not rows -- so rows alone do not show the order.
+
+    Rasterising g3_ch9 Maths_seg2 page 2 settles it: its board carries badges 1-5,
+    one per blank-line group, and each group is a step the teacher chalks. A board
+    authored as one paragraph is one group, so six ordered sentences came out under
+    a single badge 1. The operator asked for a board that *"should show clearly how
+    it should be ordered"*, which is the numbering. Each sentence is a step, so each
+    sentence is a panel.
+    """
+    board = ("Write the title Moon Party in a circle in the middle. "
+             "Draw three lines out of it and label them. "
+             "Underneath write four numbered sentences with a gap in each. "
+             "Leave the right-hand third of the board clear for the answers.")
+    panels = BD.board_panels(board)["panels"]
+    assert len(panels) == 4, panels
+    assert panels[0]["rows"] == [{"text": "Write the title Moon Party in a circle in the middle."}]
+
+
+def test_a_structured_board_still_gets_one_panel_per_authored_group():
+    """The 240 boards that already arrive as blank-line groups must not move."""
+    board = "LENGTH UNITS\nkm = kilometre\n\nBirdhouse: 10 cm 3 mm\nBookshelf: 35 cm 5 mm"
+    panels = BD.board_panels(board)["panels"]
+    assert len(panels) == 2, panels
+    assert panels[0]["label"] == "LENGTH UNITS"

@@ -169,6 +169,19 @@ def board_panels(content: str) -> dict:
         if not _split_pair(first):
             title = first.rstrip(_HEADING_TAIL).strip()
             groups = groups[1:]
+    # The renderer numbers PANELS, not rows: rasterising g3_ch9 Maths_seg2 shows badges
+    # 1-5 down the left, one per blank-line group, each a step the teacher chalks. So a
+    # board authored as ONE paragraph arrived as one group and six ordered sentences came
+    # out under a single badge 1 -- ordered, but not *shown* to be ordered, which is what
+    # was asked for: *"it should show clearly how it should be ordered"* (operator). Its
+    # sentences are its build steps, so each becomes a panel and gets its own number.
+    # Only a lone line is split; a group that already has line breaks is a panel the
+    # author drew, and the 240 boards that arrive that way do not move.
+    groups = [
+        part
+        for g in groups
+        for part in (split_prose(g.strip()) if len(g.strip().split("\n")) == 1 else [g])
+    ]
     panels = []
     for g in groups:
         for lines, connector in _boards(g):
