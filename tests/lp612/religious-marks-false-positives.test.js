@@ -33,6 +33,20 @@
  *      narrowed.
  */
 
+// bd-5t71f. The English lane clears a name the same way the Urdu lane does: off the G5c
+// native-speaker review, carried as data. A FIXTURE clearance stands in here ON PURPOSE: this suite
+// proves the MECHANISM, and mocking the data keeps it honest if the real list later changes. The
+// fail-closed half of the design lives in `religious-marks-cleared-names-en.test.js`.
+//
+// The real list — `bot/vendor/lp-v9/g5c_cleared_names_en.json` — is no longer empty: it carries
+// Amena's 134 decided rows as of 2026-09-23. Because BOTH those suites mock it, neither can tell you
+// what the shipped file does. `religious-marks-cleared-names-en-realfile.test.js` deliberately does
+// not mock, and is the suite that guards the actual clearance.
+jest.mock('../../bot/vendor/lp-v9/g5c_cleared_names_en.json', () => ({
+  person: ['Mohammad Ali Jinnah'],
+  prophet: [],
+}));
+
 const {
   fails, religious, blocked, withProse, setSecondProse, cleanDoc,
 } = require('./helpers/religious-marks');
@@ -84,10 +98,8 @@ describe('B — Latin script is correct on an English page', () => {
     expect(blocked(d)).toBe(false);
   });
 
-  // SKIPPED, not deleted: this is a REAL and CURRENTLY LIVE gap, filed as bd-5t71f.
-  // The English lane has no isCompoundGivenName guard, so Latin "Mohammad" opening another person’s name is refused.
-  // Out of scope for bd-kpqu6's P0 — un-skip in the commit that fixes bd-5t71f.
-  it.skip('does not block Mohammad Ali Jinnah in English teacher prose', () => {
+  // bd-5t71f. Un-skipped by the commit that fixes it, exactly as the note above asked.
+  it('does not block Mohammad Ali Jinnah in English teacher prose', () => {
     const d = setSecondProse(withProse(TRIGGER), 'Quaid-e-Azam Mohammad Ali Jinnah founded Pakistan in 1947.');
     expect(blocked(d)).toBe(false);
   });

@@ -250,18 +250,23 @@ const COACHING_MESSAGES = {
   // carries its own date, so naming one here buys a locale-correct date
   // rendering in two languages for something the teacher can already see.
   //
-  // bd-uwf1a — the Urdu was rewritten into this file's own register. The first
-  // version described the bot's action in the GENDERED first person ("میں پہلے
-  // بنا چکی ہوں"), which nothing else here does: every other string puts what
-  // the bot did in the passive ("تجزیہ کیا جائے گا", "پڑھا جا رہا ہے",
-  // "موصول ہو گیا"). It also had a bare conditional with no اگر…تو frame and
-  // "نئی رائے" for feedback where the catalog says "تجزیہ". Keep the passive,
-  // keep object agreement (بھیجی agrees with ریکارڈنگ, never with the teacher),
-  // and reuse this file's vocabulary. Body message — no 60/20 field cap applies
-  // (language-protocol §3).
+  // bd-71qzn — the Urdu is the OPERATOR'S OWN WORDING, used verbatim. Do not
+  // "improve" it: it was written by the person who owns the voice, and the
+  // English was cut to match it.
+  //
+  // What was removed, deliberately (operator): the sentence explaining that
+  // re-scoring would produce a slightly different number. A teacher does not
+  // need to be told the scorer is non-deterministic to accept the report she
+  // already has; it invited a doubt the message exists to avoid.
+  //
+  // Gender is safe here: in "میں نے … سنی ہے" the verb agrees with ریکارڈنگ
+  // (the object), not with the speaker, so nothing commits Rumi to a gender —
+  // the same reason "بھیجی تھی" is correct for the teacher. `*نئی*` mirrors the
+  // English `*new*`; both render bold in WhatsApp. Body message — no 60/20
+  // field cap applies (language-protocol §3).
   duplicateRecording: {
-    ...en("📋 I've heard this recording before — it's the same one you sent me earlier, so here is the report I already made for it.\n\nScoring it again would give you a slightly different number for the very same lesson, and that wouldn't be fair to you. Send a *new* recording whenever you'd like fresh feedback."),
-    ur: '📋 یہ ریکارڈنگ پہلے بھی موصول ہو چکی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے اس سے پہلے بھیجی تھی، اس لیے اسی کی رپورٹ دوبارہ بھیجی جا رہی ہے۔\n\nاگر اسی آڈیو کا دوبارہ تجزیہ کیا جائے تو اُسی سبق کے نمبروں میں معمولی فرق آ سکتا ہے، جو آپ کے ساتھ انصاف نہیں ہوگا۔ نئے تجزیے کے لیے جب چاہیں *نئی* ریکارڈنگ بھیج دیجیے۔',
+    ...en("📋 I've heard this recording before \u2014 it's the same one you sent me earlier, so here is the report I already made for it.\n\nSend a *new* recording whenever you'd like fresh feedback."),
+    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔\n\nجب آپ نئی رائے چاہتے ہوں تو *نئی* ریکارڈنگ بھیج دیجیے۔',
   },
 
   // ── The classroom-audio confirmation ──────────────────────────────────────
