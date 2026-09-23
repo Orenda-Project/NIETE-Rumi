@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const supabase = require('../../config/supabase');
-const { logToFile } = require('../../utils/logger');
+const { logToFile, logWarn } = require('../../utils/logger');
 const AudioService = require('../audio.service');
 const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
@@ -95,6 +95,74 @@ class TranscriptionProcessorService {
         coachingSessionId,
         fileSize: audioData.length
       });
+
+      // bd-7beiz — the same recording must score the same. The rubric pass runs
+      // at temperature 1 with no seed, so re-submitting identical audio bought a
+      // second, different opinion on one lesson: 1,515 duplicate groups / 3,515
+      // DC sessions on production between 17 Aug and 20 Sep, mean overall spread
+      // 5.9 points. Short-circuit BEFORE the R2 upload and the transcription, so
+      // a duplicate costs neither ASR nor LLM.
+      //
+      // DC only. A leader observation drives a separate debrief state machine
+      // and is never deduped — the lookup filters `observation_type IS NULL` and
+      // this guard keeps the coach path out of the branch entirely.
+      const {
+        computeAudioHash, findRecentDuplicateSession, resolveDuplicateSubmission,
+      } = require('./audio-hash-cache');
+      // Stamped on EVERY session below, not only the deduped ones — a hash that
+      // is only written on a hit can never produce one.
+      const audioHash = computeAudioHash(audioData);
+
+      if (!session.observation_type) {
+        // Fail OPEN. Dedupe is an optimisation on top of a working pipeline: if
+        // the lookup throws (column not yet migrated in this environment, a
+        // PostgREST shape we did not expect), the teacher must still get her
+        // lesson analysed. The cost of a miss is one duplicate analysis; the
+        // cost of a throw here would be a lost session.
+        let handled = false;
+        try {
+          const { updateIfNotTerminal } = require('./session-terminal');
+
+          const duplicate = await findRecentDuplicateSession(supabase, {
+            userId: session.user_id,
+            audioHash,
+            windowDays: 7,
+            excludeSessionId: coachingSessionId,
+          });
+
+          if (duplicate) {
+            handled = await resolveDuplicateSubmission(
+              { coachingSessionId, from, userId: session.user_id, audioHash, duplicate },
+              {
+                updateIfNotTerminal,
+                sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
+                // bd-5tgzv — the stored report is a PNG on this deployment, so the
+                // resend needs the image sender too; without it the branch would
+                // hit `undefined` at runtime.
+                sendImageFromUrl: (to, url, caption) =>
+                  WhatsAppService.sendImageFromUrl(to, url, caption),
+                sendDocumentFromUrl: (to, url, filename) =>
+                  WhatsAppService.sendDocumentFromUrl(to, url, filename),
+                getMessage: getCoachingMessage,
+                getLanguage: (uid) => getUserLanguage(uid),
+                log: logToFile,
+                warn: logWarn,
+              },
+            );
+          }
+        } catch (dedupeErr) {
+          // Class N — degraded, not terminal, but the monitor must still see it:
+          // a dedupe that silently stops working costs money and reopens the bug.
+          logWarn('⚠️ audio dedupe check failed — analysing normally (non-fatal)', {
+            coachingSessionId, error: dedupeErr && dedupeErr.message,
+          });
+        }
+
+        if (handled) {
+          if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath);
+          return;
+        }
+      }
 
       // Upload to R2 storage
       const r2Url = await uploadClassroomAudio(
@@ -292,6 +360,28 @@ class TranscriptionProcessorService {
       if (!transcriptApplied) {
         logToFile('🚫 transcription finished but the session is over — not reopened', { coachingSessionId });
         return;
+      }
+
+      // bd-7beiz — stamp the hash a future resubmission matches on. Written in
+      // its OWN update, deliberately: `updateIfNotTerminal` reports `applied:
+      // true` on a Postgres error, so folding a brand-new column into the
+      // transcript write above would silently DISCARD the transcript in any
+      // environment where the migration has not run yet, and look like success.
+      // Isolated here, an unmigrated environment loses only the dedupe.
+      try {
+        const { error: hashErr } = await supabase
+          .from('coaching_sessions')
+          .update({ audio_hash: audioHash })
+          .eq('id', coachingSessionId);
+        if (hashErr) {
+          logWarn('⚠️ could not store audio_hash — has coaching_audio_hash.sql been applied here?', {
+            coachingSessionId, error: hashErr.message,
+          });
+        }
+      } catch (hashWriteErr) {
+        logWarn('⚠️ audio_hash write threw (non-fatal)', {
+          coachingSessionId, error: hashWriteErr && hashWriteErr.message,
+        });
       }
 
       // Ported from the main bot: leader observations

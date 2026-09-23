@@ -178,6 +178,70 @@ class LessonPlanProcessorService {
     }
   }
 
+  /**
+   * bd-we73k — the teacher PASTED her plan as a chat message instead of
+   * attaching a file. Same contract as handleLessonPlanUpload, minus the parts
+   * that only exist because a file does: no download, no R2 object, no format
+   * sniffing. The text IS the extraction result, so it goes straight onto the
+   * row and the same extraction job runs to structure and validate it —
+   * isLikelyLessonPlan, lesson_plan_structured and the post-
+   * extraction fidelity recompute all behave exactly as they do for an upload.
+   *
+   * Deliberately NOT writing lesson_plan_url / lesson_plan_r2_key: there is no
+   * object behind them, and a URL that 404s is worse than a null.
+   *
+   * @param {string} coachingSessionId
+   * @param {string} from - WhatsApp phone number (E.164 minus '+')
+   * @param {string} text - the pasted plan, already trimmed by the caller
+   */
+  static async handlePastedLessonPlan(coachingSessionId, from, text) {
+    const plan = String(text || '').trim();
+    if (!plan) return;
+
+    // The LP step's other writers all refuse a cancelled observation; a paste
+    // arriving after a cancel must not resurrect it.
+    const { data: gate } = await supabase
+      .from('coaching_sessions')
+      .select('status, user_id')
+      .eq('id', coachingSessionId)
+      .maybeSingle();
+    if (isTerminalStatus(gate && gate.status)) {
+      const gateLang = await _resolveSessionLanguage(coachingSessionId);
+      await WhatsAppService.sendMessage(from, resolveUx('coachingSessionCancelled', { language: gateLang }));
+      logToFile('🚫 Pasted lesson plan refused — the session is over', { coachingSessionId, status: gate.status });
+      return;
+    }
+
+    await supabase
+      .from('coaching_sessions')
+      .update({
+        has_lesson_plan: true,
+        lesson_plan_text: plan,
+        lesson_plan_format: 'text',
+        lesson_plan_link_method: 'pasted',
+        lesson_plan_extraction_status: 'pending',
+        lesson_plan_extraction_error: null
+      })
+      .eq('id', coachingSessionId);
+
+    await CoachingJobQueueService.queueLessonPlanExtraction(coachingSessionId, {
+      pastedText: plan,
+      fileType: 'text',
+      userId: gate && gate.user_id
+    });
+
+    const lang = await _resolveSessionLanguage(coachingSessionId);
+    await WhatsAppService.sendMessage(from, getCoachingMessage('lessonPlan_receivedText', lang));
+
+    // Same ordering as the upload path: analysis starts now, the plan is woven
+    // in as soon as the extraction job lands.
+    await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from, lpUploaded: true });
+
+    logToFile('📄 Pasted lesson plan stored and queued', {
+      coachingSessionId, chars: [...plan].length
+    });
+  }
+
   static detectFileType(buffer) {
     if (!buffer || buffer.length < 4) {
       return 'pdf';
