@@ -177,7 +177,7 @@ function navFit(text) {
   // Strip a dangling space or punctuation mark — and NOTHING else. This was
   // `[\s\W]+$`, and in JavaScript `\W` is "not [A-Za-z0-9_]", so every Urdu
   // letter matched: a cut Urdu row lost all its text and read as a bare "1".
-  // The same defect as optionTitle (bd-60041), one function along.
+  // The same defect as optionTitle, one function along.
   return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?—–\-·۔،]+$/u, '');
 }
 
@@ -821,17 +821,33 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     return questionsScreen(state);
   }
 
-  // ── QUESTIONS → TYPES | CONFIRM ──────────────────────────────────────────
+  // ── QUESTIONS → TYPES | COUNTS (| CONFIRM for an old client) ────────────
   if (screenId === 'QUESTIONS') {
-    // She types the number now, and a Flow TextInput enforces no bounds at all,
-    // so this is the only thing standing between "999" and a request for 999
-    // questions. Refused on the screen rather than clamped: quietly turning 40
-    // into 25 gives her a paper she never asked for and never says so.
-    const parsed = QuestionTypes.parseQuestionCount(data.question_count);
-    if (!parsed.ok) {
-      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
-      await writeSession(flowToken, state);
-      return questionsScreen(state, parsed.message);
+    const contentSource = String(data.content_source || 'unseen');
+    const needsTypes = contentSource === 'unseen' || contentSource === 'both';
+
+    // Which Flow is the device on? The previous published QUESTIONS screen always
+    // posts `question_count` (its Footer interpolates the box, empty or not); the
+    // current one has no such box and never sends the key. The code ships BEFORE
+    // the new Flow JSON — Meta will not publish a Flow whose endpoint does not
+    // answer — so for that window every device is on the old screens, and routing
+    // one to COUNTS, a screen its Flow does not contain, kills it on the device.
+    // An old client keeps the old journey, whole.
+    const legacyCounts = Object.prototype.hasOwnProperty.call(data, 'question_count');
+
+    let questionCount = null;
+    if (legacyCounts) {
+      // A Flow TextInput enforces no bounds at all, so this is the only thing
+      // standing between "999" and a request for 999 questions. Refused on the
+      // screen rather than clamped: quietly turning 40 into 25 gives her a
+      // paper she never asked for and never says so.
+      const parsed = QuestionTypes.parseQuestionCount(data.question_count);
+      if (!parsed.ok) {
+        Object.assign(state, { contentSource });
+        await writeSession(flowToken, state);
+        return questionsScreen(state, parsed.message);
+      }
+      questionCount = parsed.count;
     }
 
     // The marks budget beside it. Optional, so a blank box is an answer ("no
@@ -839,52 +855,93 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     // range and bounced back the same way the count is, rather than clamped.
     const budget = QuestionTypes.parseTotalMarks(data.total_marks);
     if (!budget.ok) {
-      Object.assign(state, { contentSource: String(data.content_source || 'unseen') });
+      Object.assign(state, { contentSource });
       await writeSession(flowToken, state);
       return questionsScreen(state, budget.message);
     }
 
     Object.assign(state, {
-      contentSource: String(data.content_source || 'unseen'),
-      questionCount: parsed.count,
+      contentSource,
+      questionCount,
       totalMarks: budget.marks,
+      legacyCounts,
+      // A second pass through this screen must not leave the previous pass's
+      // picks behind: she may have changed the category, and the types that
+      // were valid for the old one are not necessarily valid for the new.
+      pickedTypes: null,
+      questionTypes: null,
     });
     await writeSession(flowToken, state);
 
-    // The CATEGORY decides whether she is asked, not an opt-in she has to find.
-    //
-    // `seen` lifts its questions out of the book, so each one already IS a type
-    // — asking her to choose is a question whose answer cannot be used, and
-    // planCounts() proves it by returning `questionTypes: []` for seen. Behind
-    // the old tick-box she could pick four types and have all four discarded.
-    //
-    // `unseen` and `both` have new questions to write, and nothing to inherit a
-    // type from. That makes the choice load-bearing, so it is a step rather than
-    // an opt-in: unticked, the common path fell through to our defaultMix()
-    // guess instead of the paper she wanted. TYPES refuses an empty selection.
-    const needsTypes = state.contentSource === 'unseen' || state.contentSource === 'both';
-    if (needsTypes) {
-      return screen('TYPES', {
-        summary: summaryOf(state),
-        types: QuestionTypes.forSubject(state.subject, state.grade)
-          .map((t) => ({ id: t.id, title: t.id })),
-        error: '',
-      });
-    }
+    // The CATEGORY decides whether she picks types, not an opt-in she has to find.
+    // `seen` lifts its questions out of the book, so each already IS a type and
+    // planCounts() discards any choice; `unseen` and `both` have new questions to
+    // write and nothing to inherit a type from, so the choice is a step.
+    if (needsTypes) return typesScreen(state);
+
+    // `seen` on the current Flow: the size of the paper is still hers to name, and
+    // it is named on COUNTS like every other path's — one box, "how many". It used
+    // to be asked here, and when the box came off this screen for the per-type
+    // counts, the seen path was left demanding a number it had no box for.
+    if (!legacyCounts) return countsScreen(state);
     return confirmScreen(state);
   }
 
-  // ── TYPES → CONFIRM ──────────────────────────────────────────────────────
+  // ── TYPES → COUNTS ───────────────────────────────────────────────────────
+  // The types she ticked no longer go straight to the recap. She names how many
+  // of each next, which is the whole point of picking them separately: a total
+  // divided evenly over her picks was our arithmetic, not her paper.
   if (screenId === 'TYPES') {
-    const picked = Array.isArray(data.question_types) ? data.question_types : [];
+    const offered = QuestionTypes.forSubject(state.subject, state.grade).map((t) => t.id);
+    // Order is HERS — the COUNTS boxes are labelled in the order she ticked, so
+    // the list she reads there matches the list she just left. Ids are filtered
+    // against what this subject actually offers: a stale or hand-made payload
+    // must not create a box for a type the prompts have never heard of.
+    const picked = (Array.isArray(data.question_types) ? data.question_types : [])
+      .map((id) => String(id))
+      .filter((id, i, all) => offered.includes(id) && all.indexOf(id) === i);
+
     if (picked.length === 0) {
-      return screen('TYPES', {
-        summary: summaryOf(state),
-        types: QuestionTypes.forSubject(state.subject, state.grade).map((t) => ({ id: t.id, title: t.id })),
-        error: 'Please choose at least one kind of question.',
-      });
+      return typesScreen(state, 'Please choose at least one kind of question.');
     }
+    // The count boxes are a fixed bank, so more picks than boxes would silently
+    // drop the tail of her selection. Say so instead.
+    if (picked.length > QuestionTypes.MAX_TYPE_SLOTS) {
+      return typesScreen(state,
+        `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} kinds of question.`);
+    }
+
     state.pickedTypes = picked;
+    await writeSession(flowToken, state);
+    // An old published Flow has no COUNTS screen: routing there kills it on the
+    // device. That client offered her a total, not per-type boxes, so it keeps the
+    // old journey — straight to the recap, the total spread by submit().
+    if (state.legacyCounts) return confirmScreen(state);
+    return countsScreen(state);
+  }
+
+  // ── COUNTS → CONFIRM ─────────────────────────────────────────────────────
+  // One number per type she picked. The paper's size is their sum, so
+  // `questionCount` stops being something she types and becomes something we
+  // derive — which is what makes the counts below survive planCounts().
+  if (screenId === 'COUNTS') {
+    // `seen` has no types to count by — the book decides them — so its COUNTS is a
+    // single box: how many questions. Held to the same bounds, refused not clamped.
+    if (state.contentSource === 'seen') {
+      const parsed = QuestionTypes.parseQuestionCount(data.count_1);
+      if (!parsed.ok) return countsScreen(state, parsed.message);
+      Object.assign(state, { questionCount: parsed.count, questionTypes: null });
+      await writeSession(flowToken, state);
+      return confirmScreen(state);
+    }
+
+    const picked = Array.isArray(state.pickedTypes) ? state.pickedTypes : [];
+    if (picked.length === 0) return typesScreen(state);
+
+    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade);
+    if (!parsed.ok) return countsScreen(state, parsed.message);
+
+    Object.assign(state, { questionTypes: parsed.types, questionCount: parsed.total });
     await writeSession(flowToken, state);
     return confirmScreen(state);
   }
@@ -939,7 +996,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
  * without this the teacher is told "Making your paper again — a few seconds"
  * by a step that never starts. She waits, and nothing arrives.
  *
- * Fixed once already for the NEW-paper path (bd-60030) and not carried across
+ * Fixed once already for the NEW-paper path and not carried across
  * to the rebuild; the shapes are identical because the cause is.
  *
  * Everything needed survives the close: the ticks are in the Redis session
@@ -1042,6 +1099,51 @@ function questionsScreen(state, error = '') {
   });
 }
 
+/** The types this subject and grade support, as she sees them. */
+function typesScreen(state, error = '') {
+  return screen('TYPES', {
+    summary: summaryOf(state),
+    types: QuestionTypes.forSubject(state.subject, state.grade)
+      .map((t) => ({ id: t.id, title: t.id })),
+    error,
+  });
+}
+
+/**
+ * One count box per type she picked, in the order she picked them.
+ *
+ * A Flow has no in-screen reactivity, so "a box per pick" is a fixed bank of
+ * slots whose label and visibility are data-bound and resolved here. A slot
+ * past her pick count is hidden AND blanked: a hidden field that keeps a label
+ * from an earlier pass will show it the moment she goes back and picks more.
+ */
+function countsScreen(state, error = '') {
+  if (state.contentSource === 'seen') {
+    const data = {
+      summary: summaryOf(state),
+      hint: `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
+      error,
+    };
+    for (let i = 1; i <= QuestionTypes.MAX_TYPE_SLOTS; i += 1) {
+      data[`show_${i}`] = i === 1;
+      data[`label_${i}`] = i === 1 ? 'How many questions?' : '';
+    }
+    return screen('COUNTS', data);
+  }
+  const picked = (state.pickedTypes || []).slice(0, QuestionTypes.MAX_TYPE_SLOTS);
+  const data = {
+    summary: summaryOf(state),
+    hint: `Up to ${QuestionTypes.MAX_QUESTIONS} questions in total.`,
+    error,
+  };
+  for (let i = 1; i <= QuestionTypes.MAX_TYPE_SLOTS; i += 1) {
+    const id = picked[i - 1];
+    data[`show_${i}`] = Boolean(id);
+    data[`label_${i}`] = id ? `How many ${id}?` : '';
+  }
+  return screen('COUNTS', data);
+}
+
 async function confirmScreen(state) {
   const source = {
     seen: 'Questions from the book',
@@ -1050,8 +1152,18 @@ async function confirmScreen(state) {
   }[state.contentSource] || 'New questions';
   // Server-driven so the docx flag can hide Word without republishing the Flow.
   const { formatsOnOffer } = require('../services/assessment/assessment-format');
+
+  // The breakdown is the last chance to catch a slip before the paper is made,
+  // and it is the number she typed rather than a total she has to trust us to
+  // have split her way. On the seen path there is no breakdown to show — the
+  // book decides the types — so it stays the single total it has always been.
+  const breakdown = (state.questionTypes || []).map((t) => `${t.count} ${t.id}`);
+  const size = breakdown.length
+    ? `${breakdown.join(', ')} · ${state.questionCount} in total`
+    : `${state.questionCount} questions`;
+
   return screen('CONFIRM', {
-    recap: [summaryOf(state), `${source} · ${state.questionCount} questions`].join('\n'),
+    recap: [summaryOf(state), `${source} · ${size}`].join('\n'),
     formats: await formatsOnOffer(),
     // Supplied HERE, on the render — the Footer can only send back data the
     // screen was drawn with.
@@ -1119,9 +1231,18 @@ async function submit(state) {
   // (chapter_number IS NOT NULL OR page_ranges IS NOT NULL) is satisfied.
   const single = chapters.length === 1 ? chapters[0].number : null;
 
-  const types = (state.pickedTypes && state.pickedTypes.length)
-    ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
-    : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount);
+  // Her numbers, untouched. `state.questionTypes` is what COUNTS wrote down —
+  // one count per type, as she typed them — and re-spreading a total over those
+  // ids here is exactly the behaviour this screen exists to remove.
+  //
+  // The two fallbacks below are for the paths that never reach COUNTS: a `seen`
+  // paper (no types to count, so the default mix sizes it) and a session that
+  // predates this change but is still inside its fifteen minutes.
+  const types = (state.questionTypes && state.questionTypes.length)
+    ? state.questionTypes
+    : ((state.pickedTypes && state.pickedTypes.length)
+      ? QuestionTypes.withCounts(state.pickedTypes, state.questionCount, state.subject, state.grade)
+      : QuestionTypes.defaultMix(state.subject, state.grade, state.questionCount));
 
   // The row and the job are built in ONE place now, because they
   // have to agree with each other on eleven fields and the portal needs the
@@ -1153,7 +1274,20 @@ async function submit(state) {
 
 async function handleBack(userId, screenId, flowToken) {
   const state = await readSession(flowToken);
-  if (screenId === 'CONFIRM' || screenId === 'TYPES') return questionsScreen(state);
+  // Back goes to the screen she actually came from, which on the unseen path is
+  // no longer QUESTIONS: COUNTS sits between TYPES and CONFIRM now. Sending her
+  // two screens back would quietly discard the picks and counts she just made.
+  if (screenId === 'COUNTS') {
+    return state.contentSource === 'seen' ? questionsScreen(state) : typesScreen(state);
+  }
+  if (screenId === 'CONFIRM') {
+    // An old client has no COUNTS; the current one reaches CONFIRM only through it.
+    if (state.legacyCounts) {
+      return (state.pickedTypes && state.pickedTypes.length) ? typesScreen(state) : questionsScreen(state);
+    }
+    return countsScreen(state);
+  }
+  if (screenId === 'TYPES') return questionsScreen(state);
   if (screenId === 'QUESTIONS' || screenId === 'PAGES') {
     return screen('COVERAGE', {
       summary: summaryOf(state), has_chapters: true,
