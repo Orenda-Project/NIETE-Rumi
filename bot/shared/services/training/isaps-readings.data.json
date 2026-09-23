@@ -1,0 +1,691 @@
+{
+  "_source": "I-SAPS 'Reading Resources Level 1 (1).docx' (partner-supplied, Sept 2026). Items with url null are listed by I-SAPS as 'free resource not available'.",
+  "vendor": "I-SAPS",
+  "levels": {
+    "0": {
+      "1": [
+        {
+          "title": "Changing Education Paradigms — TED Talk / RSA Animate (2010)",
+          "author": "Sir Ken Robinson",
+          "type": "TED Talk / video",
+          "description": "A systemic critique of factory-model schooling and conventional approaches to education.",
+          "url": "https://www.ted.com/talks/sir_ken_robinson_changing_education_paradigms"
+        },
+        {
+          "title": "The New Meaning of Educational Change (5th ed., 2015)",
+          "author": "Michael Fullan",
+          "type": "Book",
+          "description": "Explores why meaningful educational transformation requires systemic thinking rather than isolated fixes at the individual teacher level.",
+          "url": "https://staibabussalamsula.ac.id/wp-content/uploads/2024/06/THE-NEW-MEANENG-OF-EDUCATIONAL-staibabussalamsula.ac_.id_.pdf"
+        },
+        {
+          "title": "Professional Capital (2012)",
+          "author": "Andy Hargreaves and Michael Fullan",
+          "type": "Book",
+          "description": "Argues for building teacher professional capacity within realistic system constraints.",
+          "url": "https://www.michaelfullan.ca/wp-content/uploads/2013/08/JSD-Power-of-Professional-Capital.pdf"
+        }
+      ],
+      "2": [
+        {
+          "title": "The Beautiful Risk of Education (2013)",
+          "author": "Gert Biesta",
+          "type": "Book",
+          "description": "Explores the idea of subjectification: education as supporting students in developing voice, agency, and the capacity to think for themselves.",
+          "url": "https://hetheory.wordpress.com/wp-content/uploads/2016/02/biesta-beautiful-risk-of-education.pdf"
+        },
+        {
+          "title": "Emotional Intelligence (1995)",
+          "author": "Daniel Goleman",
+          "type": "Book",
+          "description": "A foundational reference on the role of emotional awareness and emotional safety in learning.",
+          "url": "https://donainfo.wordpress.com/wp-content/uploads/2017/09/emotional-intelligence-daniel-goleman.pdf"
+        },
+        {
+          "title": "Good Education in an Age of Measurement (2010)",
+          "author": "Gert Biesta",
+          "type": "Book",
+          "description": "Chapter 3, “Participation, Play, and the Politics of Education,” provides a core reference for understanding meaningful participation in education.",
+          "url": null
+        },
+        {
+          "title": "Mindset (2006)",
+          "author": "Carol Dweck",
+          "type": "Book",
+          "description": "Introduces the distinction between fixed and growth mindsets and examines how beliefs about ability shape responses to student success and failure.",
+          "url": null
+        },
+        {
+          "title": "Those Who Understand: Knowledge Growth in Teaching (1986)",
+          "author": "Lee Shulman",
+          "type": "Article",
+          "description": "Introduces the concept of Pedagogical Content Knowledge (PCK), highlighting the importance of understanding how students engage with and respond to specific subject content.",
+          "url": "https://doi.org/10.3102/0013189X015002004"
+        },
+        {
+          "title": "Teaching Problems and the Problems of Teaching (2001)",
+          "author": "Magdalene Lampert",
+          "type": "Book",
+          "description": "Chapter 2 explores planning as a process of anticipating student thinking and responses in advance.",
+          "url": null
+        },
+        {
+          "title": "Visible Learning (2009)",
+          "author": "John Hattie",
+          "type": "Book",
+          "description": "A major synthesis of research on factors affecting student achievement, including classroom discussion and questioning.",
+          "url": "https://visible-learning.org/"
+        },
+        {
+          "title": "Designing Groupwork: Strategies for the Heterogeneous Classroom (1994)",
+          "author": "Elizabeth Cohen",
+          "type": "Book",
+          "description": "Examines the importance of structured roles and participation in preventing a small number of students from dominating group work.",
+          "url": "https://books.google.com.pk/books/about/Designing_Groupwork.html?id=NW7lAwAAQBAJ&redir_esc=y"
+        },
+        {
+          "title": "Embedded Formative Assessment (2011)",
+          "author": "Dylan Wiliam",
+          "type": "Book",
+          "description": "Chapter 4 focuses on classroom questioning strategies that help ensure all students participate in thinking and learning.",
+          "url": "https://cloudfront-s3.solutiontree.com/pdfs/Reproducibles_EFA/The-Main-Idea-Embedded-Formative-Assessment-March-2013.pdf"
+        },
+        {
+          "title": "Structured Classroom Management Research (2022)",
+          "author": "Wilkins",
+          "type": "Research",
+          "description": "Explores pre-emptive participation design and the role of clear expectations in increasing classroom engagement.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36464639/"
+        },
+        {
+          "title": "Tools for Teaching (2007)",
+          "author": "Fred Jones",
+          "type": "Book",
+          "description": "Focuses on proactive classroom management through the organisation of the physical environment, establishment of routines, and structured participation.",
+          "url": null
+        },
+        {
+          "title": "“Grit: The Power of Passion and Perseverance” — TED Talk (2013)",
+          "author": "Angela Duckworth",
+          "type": "TED Talk",
+          "description": "Explores the role of persistence and the conditions that shape sustained effort.",
+          "url": "https://www.ted.com/talks/angela_lee_duckworth_grit_the_power_of_passion_and_perseverance"
+        },
+        {
+          "title": "“Let's Teach for Mastery — Not Test Scores” — TED Talk (2015)",
+          "author": "Sal Khan",
+          "type": "TED Talk",
+          "description": "Challenges assumptions about student ability and argues for mastery-oriented learning.",
+          "url": "https://www.ted.com/talks/sal_khan_let_s_teach_for_mastery_not_test_scores"
+        },
+        {
+          "title": "“3 Rules to Spark Learning” — TED Talk (2013)",
+          "author": "Ramsey Musallam",
+          "type": "TED Talk",
+          "description": "Presents an approach centred on creating curiosity and questions before direct instruction.",
+          "url": "https://www.ted.com/talks/ramsey_musallam_3_rules_to_spark_learning"
+        },
+        {
+          "title": "“5 Principles of Extraordinary Math Teaching” (2016)",
+          "author": "Dan Finkel",
+          "type": "Video",
+          "description": "Explores questioning approaches designed to ensure that all students think and participate.",
+          "url": "https://www.youtube.com/watch?v=ytVneQUA5-c"
+        },
+        {
+          "title": "“Cold Call” Technique",
+          "author": "Doug Lemov",
+          "type": "Video",
+          "description": "Demonstrates a structured approach to whole-class participation.",
+          "url": "https://www.youtube.com/watch?v=Bg7qDczvVx8&list=PLc7qiAsR5B_Q1VVMlUrBZ6_axwsfGHNe7"
+        },
+        {
+          "title": "Sara's Grade 10 Factorization Lesson",
+          "author": "Sara",
+          "type": "Lesson plan",
+          "description": "Included in full in the storyboard table, this lesson demonstrates FBISE-aligned, SLO-based planning for Mathematics.",
+          "url": null
+        }
+      ],
+      "3": [
+        {
+          "title": "Discipline and Group Management in Classrooms (1970)",
+          "author": "Jacob Kounin",
+          "type": "Book",
+          "description": "A foundational text on classroom management, emphasising withitness, momentum, and smoothness rather than reactive discipline.",
+          "url": null
+        },
+        {
+          "title": "Promoting Inclusive Education Through Kounin's Theory: A Pathway to Achieving SDG 4",
+          "author": "Shalini Gupta and Harikrishnan M",
+          "type": "Research/article",
+          "description": "Reviews how Kounin’s classroom-management concepts can support inclusive education and engagement.",
+          "url": "https://kuey.net/index.php/kuey/article/view/8352"
+        },
+        {
+          "title": "Classroom Management That Works (2003)",
+          "author": "Robert Marzano",
+          "type": "Book",
+          "description": "A research synthesis examining effective classroom management strategies and their impact.",
+          "url": "https://www.ascd.org/books/classroom-management-that-works"
+        },
+        {
+          "title": "Classroom Management That Works (2003), Chapter 4",
+          "author": "Robert Marzano, Jana Marzano, and Debra Pickering",
+          "type": "Book chapter",
+          "description": "Examines teacher–student relationships as a major factor in effective classroom management.",
+          "url": "https://www.ascd.org/books/classroom-management-that-works"
+        },
+        {
+          "title": "Conscious Classroom Management (2004)",
+          "author": "Rick Smith",
+          "type": "Book",
+          "description": "Provides practical strategies for relationship-building and the use of “I” language in classroom interactions.",
+          "url": "https://consciousclassroom.com/"
+        },
+        {
+          "title": "“Teaching: The Greatest Job in the World” — TEDx Talk (2015)",
+          "author": "Joe Ruhl",
+          "type": "TEDx Talk",
+          "description": "Explores teacher burnout and the factors that can make classroom teaching energising or exhausting.",
+          "url": "https://www.youtube.com/watch?v=UCFg9bcW7Bk"
+        },
+        {
+          "title": "“Every Kid Needs a Champion” — TED Talk (2013)",
+          "author": "Rita Pierson",
+          "type": "TED Talk",
+          "description": "A reflection on the importance of teacher–student relationships in effective education.",
+          "url": "https://www.ted.com/talks/rita_pierson_every_kid_needs_a_champion"
+        },
+        {
+          "title": "AERO Classroom Management Practice Guide: Planning for Classroom Management",
+          "author": "Australian Education Research Organisation",
+          "type": "Resource",
+          "description": "",
+          "url": "https://www.edresearch.edu.au/sites/default/files/2023-12/planning-for-classroom-management-aa.pdf"
+        },
+        {
+          "title": "NCTQ Classroom Management Framework: Research Rationale",
+          "author": "National Council on Teacher Quality (NCTQ)",
+          "type": "Resource",
+          "description": "Research rationale for the NCTQ Classroom Management Framework.",
+          "url": null
+        },
+        {
+          "title": "The Art of Classroom Management: Theories, Practices, and Essentials for Effective Learning Environments",
+          "author": "Atlantic International University",
+          "type": "Resource",
+          "description": "A literature/resource overview of classroom-management theories, practices, and effective learning environments.",
+          "url": "https://www.academia.edu/128826746/THE_ART_OF_CLASSROOM_MANAGEMENT_THEORIES_PRACTICES_AND_ESSENTIALS_FOR_EFFECTIVE_LEARNING_ENVIRONMENTS"
+        },
+        {
+          "title": "Classroom Management: Creating and Maintaining Positive Learning Environments",
+          "author": "Centre for Education Statistics and Evaluation (CESE), NSW Department of Education",
+          "type": "Resource",
+          "description": "Literature review on creating and maintaining positive learning environments through classroom management.",
+          "url": null
+        },
+        {
+          "title": "Dialogic Pedagogies: Defining and Analyzing Four Types of Dialogue in Education",
+          "author": "Ben Kilby",
+          "type": "Resource",
+          "description": "",
+          "url": "https://files.eric.ed.gov/fulltext/EJ1452651.pdf"
+        },
+        {
+          "title": "Discipline and Social-Emotional Learning",
+          "author": "School Culture and Climate Initiative",
+          "type": "Resource",
+          "description": "Resource on using dialogue to manage difficult conversations and support positive school culture and climate.",
+          "url": null
+        }
+      ],
+      "4": [
+        {
+          "title": "Teaching in a Digital Age (2019)",
+          "author": "Tony Bates",
+          "type": "Book / open textbook",
+          "description": "A comprehensive open textbook. Chapter 1 distinguishes educational technology from technology in education.",
+          "url": "https://pressbooks.bccampus.ca/teachinginadigitalagev2/"
+        },
+        {
+          "title": "Technological Pedagogical Content Knowledge: A Framework for Teacher Knowledge (2006)",
+          "author": "Punya Mishra and Matthew Koehler",
+          "type": "Research article",
+          "description": "The original paper introducing the TPACK framework.",
+          "url": "https://doi.org/10.1111/j.1467-9620.2006.00684.x"
+        },
+        {
+          "title": "Teaching in a Digital Age — Chapter 5",
+          "author": "Tony Bates",
+          "type": "Book chapter",
+          "description": "Explores TPACK in practice.",
+          "url": "https://pressbooks.bccampus.ca/teachinginadigitalagev2/"
+        },
+        {
+          "title": "“Let's Use Video to Reinvent Education” — TED Talk (2011)",
+          "author": "Sal Khan",
+          "type": "TED Talk",
+          "description": "Explores how technology can transform learning when used intentionally rather than decoratively.",
+          "url": "https://www.ted.com/talks/sal_khan_let_s_use_video_to_reinvent_education"
+        },
+        {
+          "title": "TPACK Explained",
+          "author": "Matthew J. Koehler",
+          "type": "Video",
+          "description": "A visual overview of the three knowledge domains within TPACK and their intersection.",
+          "url": "https://www.youtube.com/watch?v=yMQiHJsePOM"
+        },
+        {
+          "title": "Technology in Education: A Tool on Whose Terms",
+          "author": "WISE On Air",
+          "type": "Video",
+          "description": "A video resource exploring the role and implications of technology in education.",
+          "url": "https://www.youtube.com/watch?v=1SOySp8QJtk&t=32s"
+        },
+        {
+          "title": "Distinguishing the Field of Educational Technology",
+          "author": "Laura Czerniewicz",
+          "type": "Resource",
+          "description": "A discussion of educational technology as a distinct field and its scope.",
+          "url": "https://academic-publishing.org/index.php/ejel/article/view/1542"
+        },
+        {
+          "title": "TPACK Explained",
+          "author": "",
+          "type": "Resource",
+          "description": "",
+          "url": null
+        },
+        {
+          "title": "TPACK Framework in Education and for Teachers: Technology Integration",
+          "author": "Matthew J. Koehler and Punya Mishra",
+          "type": "Resource",
+          "description": "",
+          "url": "https://www.matt-koehler.com/publications/Koehler_et_al_2013.pdf"
+        },
+        {
+          "title": "Learning Theory and Online Technologies",
+          "author": "Linda Harasim",
+          "type": "Resource",
+          "description": "Provides an overview of learning theory and online technologies, tracing the development of online learning and distinguishing major approaches to online learning.",
+          "url": "https://api.pageplace.de/preview/DT0400.9781317508182_A29976050/preview-9781317508182_A29976050.pdf"
+        },
+        {
+          "title": "A Review of Self-Regulated Learning: Six Models and Four Directions for Research",
+          "author": "Ernesto Panadero",
+          "type": "Resource",
+          "description": "Reviews six major models of self-regulated learning and directions for future research.",
+          "url": "https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2017.00422/full"
+        },
+        {
+          "title": "SpringerBriefs 2023 — Chapter 2",
+          "author": "",
+          "type": "Resource",
+          "description": "",
+          "url": "https://ludovico.lim.di.unimi.it/download/papers/SpringerBriefs2023_chap02.pdf"
+        },
+        {
+          "title": "Learning Theories: A Conceptual Framework for Learning and Instruction in Technology Education",
+          "author": "",
+          "type": "Resource",
+          "description": "",
+          "url": "https://journals.co.za/doi/pdf/10.10520/EJC37155"
+        },
+        {
+          "title": "What Do We Mean by Quality When Teaching in a Digital Age?",
+          "author": "Tony Bates",
+          "type": "Resource",
+          "description": "Clarifies what “quality” means in teaching and learning in a digital age.",
+          "url": "https://www.tonybates.ca/2015/02/23/what-do-we-mean-by-quality-when-teaching-in-a-digital-age/"
+        },
+        {
+          "title": "Chapter 11: Ensuring Quality Teaching in a Digital Age",
+          "author": "Tony Bates",
+          "type": "Resource",
+          "description": "Chapter 11 of Teaching in a Digital Age, bringing together practical principles for quality teaching in a digital age.",
+          "url": null
+        },
+        {
+          "title": "Clarifying Misconceptions between Technology Education and Educational Technology",
+          "author": "William E. Dugger",
+          "type": "Resource",
+          "description": "",
+          "url": "http://www.cet.edu/pdf/9-01Dugger2.pdf"
+        },
+        {
+          "title": "Evolution of Educational Technology: Technology of Education and Technology in Education",
+          "author": "",
+          "type": "Book",
+          "description": "",
+          "url": "https://www.egyankosh.ac.in/bitstream/123456789/47032/1/Unit-4.pdf"
+        },
+        {
+          "title": "Design Ed: Connecting Learning Science Research to Practice",
+          "author": "Angela Elkordy",
+          "type": "Book",
+          "description": "Chapter 2 discusses theories and implications of learning in the digital age",
+          "url": "https://cdn.iste.org/www-root/conference_med/excerpts/excerpts-4362.pdf"
+        },
+        {
+          "title": "“Review of the Concept “Self-Regulated Learning”: Defined and Used in Different Educational Contexts”",
+          "author": "Merja Sinkkonen",
+          "type": "Research Article",
+          "description": "",
+          "url": "https://files.eric.ed.gov/fulltext/EJ1415007.pdf"
+        },
+        {
+          "title": "9. Quality",
+          "author": "Commonwealth of Learning",
+          "type": "Video",
+          "description": "",
+          "url": "https://www.youtube.com/watch?v=TtL-azU9SJs&t=4s"
+        }
+      ],
+      "5": [
+        {
+          "title": "An Introduction to Assessment: The Basics",
+          "author": "College Level One (CL-1) Team",
+          "type": "Resource",
+          "description": "An introduction to classroom assessment, emphasizing assessment as a means of understanding and improving student learning.",
+          "url": "https://drvictoriadunnam.com/wp-content/uploads/OnlineModules/Module5_Assessments/IntroductiontoAssessments.pdf"
+        },
+        {
+          "title": "Introduction to Assessment",
+          "author": "Kingsborough Community College",
+          "type": "Resource",
+          "description": "Introduces the basic purposes, concepts, and processes of assessment.",
+          "url": "https://www.kbcc.cuny.edu/irap/Assessment/documents/2024/Intro-to-Assessment-Fall-2023.pdf"
+        },
+        {
+          "title": "Defining Assessment",
+          "author": "University of Michigan, Center for Research on Learning and Teaching",
+          "type": "Resource",
+          "description": "Defines assessment and distinguishes formative, summative, and authentic assessment approaches.",
+          "url": "https://crlt.umich.edu/sites/default/files/instructor_resources/Defining%20Assessment.pdf"
+        },
+        {
+          "title": "Core Concepts in Assessment",
+          "author": "Schools2030 / Oxford MeasurEd",
+          "type": "Resource",
+          "description": "Introduces core concepts in learning assessment, including purpose, validity, reliability, standardisation, constructs, bias, and fairness.",
+          "url": "https://schools2030.org/wp-content/uploads/2022/01/Handbook-01_Core-Concepts-in-Assessment.pdf"
+        },
+        {
+          "title": "10 Effective Assessment Methods Every Teacher Should Use",
+          "author": "",
+          "type": "Resource",
+          "description": "",
+          "url": "https://www.youtube.com/watch?v=RidUKycBRX0"
+        },
+        {
+          "title": "The Assessment Cycle",
+          "author": "Cox Campus",
+          "type": "Resource",
+          "description": "Presents assessment as a continuous cycle linking learning goals, instruction, evidence, reflection, and adjustment.",
+          "url": "https://files.coxcampus.org/The-Cycle-of-Assessment.pdf"
+        },
+        {
+          "title": "The Assessment Cycle Step-by-Step",
+          "author": "University of West Florida",
+          "type": "Resource",
+          "description": "Step-by-step guide to identifying learning outcomes, selecting assessment methods, collecting evidence, and using results.",
+          "url": "https://uwf.edu/media/university-of-west-florida/academic-affairs/departments/general-education/documents/The-Assessment-Cycle-Step-by-Step.pdf"
+        },
+        {
+          "title": "Formative Assessments: Using Feedback to Guide Instruction",
+          "author": "SanBdoCitySchools",
+          "type": "Resource",
+          "description": "Video showing how formative assessment and feedback can guide instructional decisions.",
+          "url": "https://www.youtube.com/watch?v=Ecp5tFwXA_M"
+        },
+        {
+          "title": "Formative Assessment and Good Feedback",
+          "author": "Oxford University Centre for Educational Assessment",
+          "type": "Resource",
+          "description": "Video discussion of formative assessment and effective feedback.",
+          "url": "https://vimeo.com/943679625"
+        },
+        {
+          "title": "Formative Assessment: Practical Ideas for Improving the Efficiency and Effectiveness of Feedback to Students",
+          "author": "Geraldine O’Neill",
+          "type": "Resource",
+          "description": "Practical guide to improving the efficiency and effectiveness of formative feedback to students.",
+          "url": "https://www.ucd.ie/teaching/t4media/formative_assessment_feedback.pdf"
+        },
+        {
+          "title": "Triangulating Data for Instructional Insights",
+          "author": "NWEA",
+          "type": "Resource",
+          "description": "Workbook on using multiple sources of evidence to develop instructional insights and plan next steps.",
+          "url": "https://dpdol.nwea.org/public/AL/TriangulatingData_Workbook.pdf"
+        },
+        {
+          "title": "Data Triangulation for Measuring SEL",
+          "author": "Teach For All",
+          "type": "Resource",
+          "description": "Resource on triangulating multiple data sources to measure social-emotional learning.",
+          "url": "https://learning.teachforall.org/sites/default/files/2024-06/datatriangulationformeasuringsocialemotionallearning.pdf"
+        },
+        {
+          "title": "Standards for Teacher Competence in Educational Assessment",
+          "author": "American Federation of Teachers, NCME, and NEA",
+          "type": "Resource",
+          "description": "Standards describing core competencies teachers need for educational assessment of students.",
+          "url": "https://behavioralinstitute.org/wp-content/uploads/2020/08/Teacher-standards-for-assessment.pdf"
+        }
+      ],
+      "6": [
+        {
+          "title": "The Beautiful Risk of Education (2013)",
+          "author": "Gert Biesta",
+          "type": "Book",
+          "description": "Explores the three functions of education: qualification, socialisation, and subjectification, with particular attention to the development of independent and thinking selves.",
+          "url": null
+        },
+        {
+          "title": "“The Linguistic Genius of Babies” — TED Talk (2010)",
+          "author": "Patricia Kuhl",
+          "type": "TED Talk",
+          "description": "Explores how expectations and environments shape cognitive development.",
+          "url": "https://www.ted.com/talks/patricia_kuhl_the_linguistic_genius_of_babies"
+        },
+        {
+          "title": "Active Learning",
+          "author": "Edutopia",
+          "type": "Video",
+          "description": "A video resource on active learning approaches.",
+          "url": "https://www.youtube.com/watch?v=QOEkwt97dGQ"
+        },
+        {
+          "title": "Learner-Centered Classroom",
+          "author": "Sociology Burger",
+          "type": "Video",
+          "description": "A video resource exploring learner-centred teaching and learning.",
+          "url": "https://www.youtube.com/watch?v=lBbDyHoJLzE"
+        }
+      ],
+      "7": [
+        {
+          "title": "Teachers Who Dare Teach — Pedagogy of Hope (1994)",
+          "author": "Paulo Freire",
+          "type": "Book",
+          "description": "Explores qualities and virtues associated with teaching, including humility, tolerance, decisiveness, and joy.",
+          "url": null
+        },
+        {
+          "title": "The Global Achievement Gap (2008)",
+          "author": "Tony Wagner",
+          "type": "Book",
+          "description": "Introduces the Seven Survival Skills, including critical thinking, collaboration, and effective communication, which inform the 5Cs framework.",
+          "url": null
+        },
+        {
+          "title": "Setting the Standard for Project Based Learning (2015)",
+          "author": "John Larmer and John Mergendoller",
+          "type": "Book",
+          "description": "A framework for rigorous Project-Based Learning design, associated with the Buck Institute.",
+          "url": null
+        },
+        {
+          "title": "From Preparation to Practice (2001)",
+          "author": "Sharon Feiman-Nemser",
+          "type": "Book",
+          "description": "Examines teacher learning as the development of pedagogical reasoning and professional vision rather than simply the completion of planning templates.",
+          "url": null
+        },
+        {
+          "title": "The Conditions of Learning (1985)",
+          "author": "Robert Gagné",
+          "type": "Book",
+          "description": "Introduces the Nine Events of Instruction, a foundational framework for structured lesson sequencing.",
+          "url": null
+        },
+        {
+          "title": "Teaching for Quality Learning (2003)",
+          "author": "John Biggs",
+          "type": "Book",
+          "description": "Explores Constructive Alignment, emphasising the alignment of learning objectives, teaching and learning activities, and assessment.",
+          "url": null
+        },
+        {
+          "title": "Taxonomy of Educational Objectives (1956/2001)",
+          "author": "Benjamin Bloom",
+          "type": "Book",
+          "description": "Explores the cognitive domain and the use of different verbs to represent varying levels of thinking.",
+          "url": null
+        },
+        {
+          "title": "“Creating Innovators” — Google Talk (2012)",
+          "author": "Tony Wagner",
+          "type": "Talk",
+          "description": "Explores why twenty-first-century skills should move beyond knowledge transmission as a central goal of schooling.",
+          "url": "https://www.youtube.com/watch?v=E4DTaTd8_nE"
+        },
+        {
+          "title": "“The Thoughtful Classroom: Prioritize Deep Understanding”",
+          "author": "Grant Wiggins",
+          "type": "Recorded lecture",
+          "description": "A recorded lecture exploring the importance of beginning instructional design with desired understanding.",
+          "url": "https://www.youtube.com/watch?v=4isSHf3SBuQ"
+        },
+        {
+          "title": "Every Drop Counts",
+          "author": "",
+          "type": "Project",
+          "description": "An interdisciplinary project linking a Science SLO on water quality with a Mathematics SLO on data and graphs. The full project plan is included in the storyboard table.",
+          "url": null
+        },
+        {
+          "title": "Grant Wiggins - Understanding by Design (2 of 2)",
+          "author": "Avenues The World School",
+          "type": "Video",
+          "description": "Educator Grant Wiggins leads a workshop at Avenues on Understanding by design (UbD), a framework for improving student achievement that helps teachers clarify learning goals, devise assessments that reveal student understanding, and craft effective learning activities.",
+          "url": "https://www.youtube.com/watch?v=vgNODvvsgxM"
+        }
+      ],
+      "8": [
+        {
+          "title": "Teach Like a Champion 3.0: 63 Techniques That Put Students on the Path to College",
+          "author": "Doug Lemov",
+          "type": "Book",
+          "description": "A practical guide to classroom teaching techniques for engagement, expectations, checking for understanding, discussion, writing, behaviour, and learning.",
+          "url": null
+        },
+        {
+          "title": "The Lazy Teacher’s Handbook – New Edition",
+          "author": "Jim Smith",
+          "type": "Book",
+          "description": "Practical strategies for shifting more of the work of learning to students while making teaching more efficient and sustainable.",
+          "url": null
+        },
+        {
+          "title": "Strange Pictures",
+          "author": "Uketsu",
+          "type": "Novel",
+          "description": "A mystery novel built around a series of unsettling drawings whose clues gradually reveal a connected story.",
+          "url": null
+        }
+      ],
+      "9": [
+        {
+          "title": "Leaders Mentoring Others: The Effects of Implicit Followership Theory on Leader Integrity and Mentoring",
+          "author": "Jeffrey Yip and Dayna O. H. Walker",
+          "type": "Resource",
+          "description": "Examines how leaders’ assumptions about followers relate to leader integrity, engagement, and mentoring effectiveness.",
+          "url": "https://cdn2.psychologytoday.com/assets/2025-05/Leaders%20mentoring%20others.pdf"
+        },
+        {
+          "title": "The Mentor Leader: Secrets to Building People and Teams That Win Consistently",
+          "author": "Tony Dungy and Nathan Whitaker",
+          "type": "Resource",
+          "description": "Presents a mentoring-oriented leadership approach focused on developing people and teams.",
+          "url": "https://files.tyndale.com/thpdata/FirstChapters/978-1-4143-3804-0.pdf"
+        },
+        {
+          "title": "Leadership Tips for Principals, Educators and School Leaders: How to Lead Schools in a Changing World",
+          "author": "",
+          "type": "Resource",
+          "description": "",
+          "url": "https://www.youtube.com/watch?v=cPYlSa0w-f4"
+        },
+        {
+          "title": "How to Break Through Fear and Become a Leader",
+          "author": "Valerie Montgomery Rice",
+          "type": "Resource",
+          "description": "TED Talk on vigilance, grit, resilience, overcoming fear, and leadership.",
+          "url": "https://www.youtube.com/watch?v=5uTDzBwwyho"
+        },
+        {
+          "title": "Effective Mentoring: A Resource and Guide for Mentors",
+          "author": "Ian Phillips, Ajay Bundy, and Jackee Holder",
+          "type": "Resource",
+          "description": "A practical guide for formal and informal mentors, including mentoring relationships, rapport, questioning, reflection, and inclusive mentoring.",
+          "url": "https://eoe.leadershipacademy.nhs.uk/wp-content/uploads/sites/31/2024/08/060824-V2-Exec-Career-Mentoring-Resource-EoETalentLeadership.pdf"
+        },
+        {
+          "title": "Professional Learning and Collaboration for Teachers",
+          "author": "Education Resource Strategies (ERS)",
+          "type": "Resource",
+          "description": "Guide to building sustainable professional learning and collaboration structures for educators.",
+          "url": "https://www.erstrategies.org/wp-content/uploads/2024/08/Professional-Learning-and-Collaboration-Guidebook.pdf"
+        },
+        {
+          "title": "The 6 Principles of Andragogy",
+          "author": "",
+          "type": "Resource",
+          "description": "",
+          "url": "https://www.youtube.com/watch?v=0Z02Wu0QAqo"
+        },
+        {
+          "title": "The Key to Powerful Leadership Communication",
+          "author": "Gregg Thompson / Bluepoint Leadership Development",
+          "type": "Resource",
+          "description": "Explores the difference between management communication and leadership communication and offers three dimensions for powerful leadership communication.",
+          "url": "https://www.youtube.com/watch?v=em6EJ7-MFcw"
+        },
+        {
+          "title": "A Leadership Coach's Guide to Communication in the Workplace — Linnita Hosten",
+          "author": "Linnita Hosten",
+          "type": "Resource",
+          "description": "TEDx talk on communication in the workplace, drawing on psychology, linguistics, emotional intelligence, and behavioural science.",
+          "url": "https://www.youtube.com/watch?v=8nGWfDRz3iU"
+        },
+        {
+          "title": "The Power of Teacher Leadership to Build Collaboration",
+          "author": "Pearly V. Villagracia",
+          "type": "Resource",
+          "description": "Discusses teacher leadership as a means of building collaboration, trust, professional learning, and school improvement.",
+          "url": "https://depedbataan.com/wp-content/uploads/2025/09/THE-POWER-OF-TEACHER-LEADERSHIP-TO-BUILD-COLLABORATION.pdf"
+        },
+        {
+          "title": "Teacher Leader Model Standards",
+          "author": "Teacher Leadership Exploratory Consortium",
+          "type": "Resource",
+          "description": "Standards describing seven domains of teacher leadership, including collaboration, professional learning, assessment/data use, and advocacy.",
+          "url": "https://www.nea.org/sites/default/files/2020-07/teacher_leader_model_standards.pdf"
+        }
+      ]
+    }
+  }
+}

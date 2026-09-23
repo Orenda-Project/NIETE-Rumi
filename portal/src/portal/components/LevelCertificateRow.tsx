@@ -12,8 +12,9 @@
  * certificate.
  *
  * THE DECISION IS NOT MADE HERE. The button always asks the server, which asks
- * the bot's shared guard (bd-60145): all units complete AND every active
- * per-module exam passed. A teacher could otherwise be told she is eligible by
+ * the bot's shared guard (bd-60145): on a level with per-module exams, every
+ * active one passed — and nothing else (operator, 2026-09-23: no chaining
+ * between units or modules; the certificate waits only on the module exams). A teacher could otherwise be told she is eligible by
  * one surface and refused by another. The locked/unlocked appearance is a
  * HINT computed from counts; the server is the answer.
  */
@@ -23,9 +24,6 @@ import { Award, Lock, Loader2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 
-/** One weighted stream of the level composite. */
-type GradeComponent = { pct: number; bar: number; weight: number; passed: boolean };
-
 type CertState = {
   state: 'issued' | 'locked';
   certificate: { certificate_code: string; issued_at?: string } | null;
@@ -33,25 +31,8 @@ type CertState = {
   units_done: number;
   exams_total?: number;
   exams_done?: number;
-  /**
-   * bd-60163 — the weighted composite, when the level is assessed that way.
-   * null on a level with another rule (Beacon House capstone, Oxbridge) or
-   * when the bot could not be reached; the row then falls back to the session
-   * counts and says nothing it cannot stand behind.
-   */
-  grade?: {
-    is_passed: boolean;
-    composite_pct: number;
-    failed_components: string[];
-    components: Record<string, GradeComponent>;
-  } | null;
-};
-
-/** What a teacher calls each stream. The keys are the API's. */
-const COMPONENT_LABEL: Record<string, string> = {
-  formative: 'Session questions',
-  mcq: 'Module exam questions',
-  crq: 'Written answers',
+  /** Retired with the composite (2026-09-23); the server now sends null. */
+  grade?: unknown;
 };
 
 export default function LevelCertificateRow({
@@ -90,29 +71,17 @@ export default function LevelCertificateRow({
         onIssued?.();
         return;
       }
-      // Refused: say WHICH bar she is under and by how much — not just "not
-      // yet". The composite is three independent bars, so "you are short" is
-      // useless: she needs to know whether to re-sit an exam or go back to the
-      // sessions. Re-takes are unlimited, so this is actionable every time.
-      const g = data.grade;
-      if (g && Array.isArray(g.failed_components) && g.failed_components.length > 0) {
-        const parts = g.failed_components.map((k) => {
-          const c = g.components?.[k];
-          const label = COMPONENT_LABEL[k] || k;
-          return c ? `${label} ${Math.round(c.pct)}% (needs ${c.bar}%)` : label;
-        });
-        toast({
-          title: 'Not quite there yet',
-          description: `Still below the mark: ${parts.join(', ')}. You can retake these as many times as you need.`,
-        });
-        return;
-      }
-      // No composite for this level — fall back to the session counts.
-      const unitsLeft = Math.max(0, (data.units_total || 0) - (data.units_done || 0));
-      const examsLeft = Math.max(0, (data.exams_total || 0) - (data.exams_done || 0));
+      // Refused: say WHAT is outstanding. On a module-exam level that is the
+      // exams and only the exams — units no longer gate anything there.
+      const examsTotal = data.exams_total || 0;
+      const examsLeft = Math.max(0, examsTotal - (data.exams_done || 0));
       const parts: string[] = [];
-      if (unitsLeft > 0) parts.push(`${unitsLeft} session${unitsLeft === 1 ? '' : 's'}`);
-      if (examsLeft > 0) parts.push(`${examsLeft} module exam${examsLeft === 1 ? '' : 's'}`);
+      if (examsTotal > 0) {
+        if (examsLeft > 0) parts.push(`${examsLeft} module exam${examsLeft === 1 ? '' : 's'}`);
+      } else {
+        const unitsLeft = Math.max(0, (data.units_total || 0) - (data.units_done || 0));
+        if (unitsLeft > 0) parts.push(`${unitsLeft} session${unitsLeft === 1 ? '' : 's'}`);
+      }
       toast({
         title: 'Please complete your training first',
         description: parts.length
@@ -147,14 +116,68 @@ export default function LevelCertificateRow({
     );
   }
 
-  // The composite is the real gate when the level has one; the session counts
-  // are only the hint for levels that do not. Either way the SERVER decides on
-  // tap — this just styles the row.
-  const ready = info.grade
-    ? info.grade.is_passed === true
-    : (info.units_total > 0
-      && info.units_done >= info.units_total
-      && (info.exams_total || 0) <= (info.exams_done || 0));
+  const examsTotal = info.exams_total || 0;
+  const examsDone = Math.min(examsTotal, info.exams_done || 0);
+
+  // A level with per-module exams: the card with its progress bar. Ready means
+  // every exam passed — units are not counted (operator, 2026-09-23). This is
+  // only the styling; the SERVER decides on tap.
+  if (examsTotal > 0) {
+    const ready = examsDone >= examsTotal;
+    return (
+      <div
+        className={`mt-2 mx-1.5 mb-1.5 rounded-xl p-3 ${
+          ready ? 'ring-1 ring-primary/30 bg-primary/5' : 'border border-dashed'
+        }`}
+        data-testid="level-certificate-card"
+      >
+        <div className="flex items-center gap-2">
+          {ready
+            ? <Award className="w-4 h-4 text-primary shrink-0" />
+            : <Lock className="w-4 h-4 text-muted-foreground shrink-0" />}
+          <span className="text-[15px] font-semibold text-foreground">Level certificate</span>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Issued once all {examsTotal} module exams are passed. Units can be taken in any order.
+        </p>
+        <div
+          className="h-1.5 rounded-full bg-muted overflow-hidden mt-2.5 mb-1"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={examsTotal}
+          aria-valuenow={examsDone}
+          aria-label="Module exams passed"
+        >
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-500"
+            style={{ width: `${Math.round((examsDone / examsTotal) * 100)}%` }}
+          />
+        </div>
+        <p className="text-sm text-muted-foreground" data-testid="level-certificate-progress">
+          {examsDone} of {examsTotal} module exams passed
+        </p>
+        <button
+          type="button"
+          onClick={claim}
+          disabled={claiming}
+          data-testid="level-certificate-claim"
+          data-ready={ready ? 'true' : 'false'}
+          className={`mt-2.5 w-full inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            ready
+              ? 'bg-primary text-primary-foreground hover:opacity-90'
+              : 'bg-muted text-muted-foreground hover:bg-muted/70'
+          }`}
+        >
+          {claiming && <Loader2 className="w-4 h-4 animate-spin" />}
+          Receive certificate
+        </button>
+      </div>
+    );
+  }
+
+  // No module exams (Beacon House, Oxbridge): the one-line row and its session
+  // counts, unchanged.
+  const ready = info.units_total > 0 && info.units_done >= info.units_total;
 
   return (
     <button
@@ -162,6 +185,7 @@ export default function LevelCertificateRow({
       onClick={claim}
       disabled={claiming}
       data-testid="level-certificate-claim"
+      data-ready={ready ? 'true' : 'false'}
       className={`w-full text-left rounded-lg px-3 py-2.5 mb-0.5 flex items-center gap-2.5 transition-colors ${
         ready ? 'ring-1 ring-primary/30 bg-primary/5 hover:bg-primary/10' : 'opacity-60 hover:bg-muted/50'
       }`}
@@ -174,12 +198,7 @@ export default function LevelCertificateRow({
       <span className={`flex-1 text-[15px] ${ready ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
         Receive Certificate
       </span>
-      {!ready && info.grade && (
-        <span className="text-sm text-muted-foreground shrink-0" data-testid="level-composite-pct">
-          {Math.round(info.grade.composite_pct)}%
-        </span>
-      )}
-      {!ready && !info.grade && info.units_total > 0 && (
+      {!ready && info.units_total > 0 && (
         <span className="text-sm text-muted-foreground shrink-0">
           {info.units_done}/{info.units_total}
         </span>

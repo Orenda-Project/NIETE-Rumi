@@ -53,6 +53,7 @@ const TrainingRules = require('../services/training-rules.service');
 // issueCertificate, already required from this file. Anything in it that needs a
 // DB read or the vendor's bar stays behind the internal API.
 const { isMultiKey } = require('../../bot/shared/services/training/paper-marking.service');
+const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 // bd-2460 — Assessment Generator availability. Fail-closed, shared with the
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
@@ -2416,8 +2417,9 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
  * module is done, and on tap it either says what is still outstanding or mints
  * the certificate.
  *
- * The DECISION is the bot's shared guard (bd-60145), unchanged — all units
- * complete AND every active per-module exam passed. This route adds no rule of
+ * The DECISION is the bot's shared guard (bd-60145): on a level with
+ * per-module exams, every active one passed (operator, 2026-09-23); otherwise
+ * the vendor's own rule. This route adds no rule of
  * its own; it reports what the guard already holds and asks it to issue.
  * Idempotent: the guard refuses a second certificate per (user, level), so a
  * double tap cannot mint two.
@@ -2463,18 +2465,12 @@ async function _levelCertificateState(userId, levelId) {
   const passedIds = new Set((passed || []).filter(a => a.is_passed === true).map(a => a.grand_quiz_id));
   const examsDone = perModule.filter(q => passedIds.has(q.id)).length;
 
-  // bd-60163 — on a per-module-assessed level the CERTIFICATE is decided by
-  // the weighted composite (formative 25 / MCQ 50 / CRQ 25, bars 50/60/50),
-  // not by "every unit ticked". The partner's Sept 2026 guide made that the
-  // rule and also removed the formative pass gate, so unit ticks no longer
-  // imply anything was passed — certifying on them would hand out a
-  // certificate for opening 54 pages.
-  //
-  // The counts above stay, because the copy still needs them: "18 of 54
-  // sessions" is what a teacher recognises. What changed is what DECIDES.
-  const grade = perModule.length
-    ? await TrainingRules.getIsapsLevelGrade(userId, levelId)
-    : null;
+  // Operator, 2026-09-23: on a per-module-assessed level the certificate is
+  // decided by the module exams ALONE — every active one passed. This replaces
+  // the weighted I-SAPS composite as the deciding rule, so the row no longer
+  // asks the bot for it: `exams_done / exams_total` is the whole answer, and
+  // the bot's guard (certify-level) still makes the final call on tap.
+  const grade = null;
 
   return {
     state: 'locked',
@@ -3234,7 +3230,7 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
 
     // Resolve course → level and gate on lockdown
     const { data: courseRow } = await supabase
-      .from('training_courses').select('level_id').eq('id', courseId).maybeSingle();
+      .from('training_courses').select('level_id, title').eq('id', courseId).maybeSingle();
     if (!courseRow) return res.status(404).json({ success: false, error: 'Course not found' });
     const gate = await _assertLevelUnlocked(userId, courseRow.level_id);
     if (!gate.ok) return res.status(gate.status).json({ success: false, error: gate.error, previous_level_order: gate.previous_level_order });
@@ -3315,7 +3311,25 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       }
     } catch (_) { /* leave exam null — the units still render */ }
 
-    res.json({ success: true, modules: enriched, exam });
+    // I-SAPS recommended reading for this module (operator, 2026-09-23).
+    // Optional material — gates nothing. Best effort like the exam: a failed
+    // lookup renders as "no reading list", never as a broken module page.
+    let readings = null;
+    try {
+      const { data: lvl } = await supabase
+        .from('training_levels').select('order_index, vendor_id').eq('id', courseRow.level_id).maybeSingle();
+      if (lvl?.vendor_id) {
+        const { data: vendor } = await supabase
+          .from('training_vendors').select('name').eq('id', lvl.vendor_id).maybeSingle();
+        readings = readingsForCourse({
+          vendorName: vendor?.name,
+          levelOrderIndex: lvl.order_index,
+          courseTitle: courseRow.title,
+        });
+      }
+    } catch (_) { /* leave readings null — the units still render */ }
+
+    res.json({ success: true, modules: enriched, exam, readings });
   } catch (error) {
     console.error('training/modules error:', error);
     res.status(500).json({ success: false, error: 'Failed to load modules' });
