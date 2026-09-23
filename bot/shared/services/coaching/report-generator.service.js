@@ -299,7 +299,7 @@ class ReportGeneratorService {
       // Return shape is EITHER a Buffer (PDFKit/HTML renderers) OR
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
-      // on the shape (FEAT-098).
+      // on the shape.
       const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
@@ -327,7 +327,7 @@ class ReportGeneratorService {
       }
 
       // Deliver to WhatsApp — image+caption path (hero renderer) or document
-      // path (PDFKit/HTML renderers). See FEAT-098 for why this branch exists.
+      // path (PDFKit/HTML renderers).
       if (isHeroImage) {
         await this.sendHeroImageReport(
           from,
@@ -831,7 +831,7 @@ class ReportGeneratorService {
     // and HTML renderers return a Buffer. The caller (generateReport) detects
     // the shape and dispatches to sendImage vs sendDocument accordingly.
     //
-    // FEAT-098 (2026-07-17): previously this method flattened the hero return
+    // 2026-07-17: previously this method flattened the hero return
     // into a bare buffer named `pdfBuffer` and the caller sent it as
     // application/pdf — WhatsApp delivered a PDF that WAS actually PNG bytes,
     // so every PDF reader rejected it as corrupt. Fix: preserve the shape and
@@ -1429,14 +1429,14 @@ class ReportGeneratorService {
    * @private
    */
   /**
-   * FEAT-098: Send the hero renderer's PNG output as a WhatsApp image with
+   * Send the hero renderer's PNG output as a WhatsApp image with
    * caption. Companion to sendPDFReport() for the image-return renderer path.
    *
    * The hero renderer builds a single tall PNG (the visual report) plus a
    * short caption. WhatsApp's image API takes a media upload + a caption in
    * one message, which is the correct delivery for this shape — sending it
    * as a document with a `.pdf` filename produces a corrupted-file experience
-   * (the original FEAT-098 bug).
+   * (the original hero-report bug).
    *
    * @param {string} phoneNumber - Recipient phone (E.164, digits only)
    * @param {string} coachingSessionId - Coaching session UUID (for logging)
