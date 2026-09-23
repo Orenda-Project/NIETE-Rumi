@@ -255,6 +255,14 @@ function pageCapsFor(lang, doc, format) {
 // is not enough on its own.
 const OVERFLOW_ABSORB_MAX_PX = 12;
 
+// THE FILL FLOOR — the operator's number, not a chosen one: "no page under ~85% except the last
+// page of each part". It is the packer's fourth objective (see `packAtoms`) AND the line the
+// report's `underfilled_pages` is measured against, so the packer and the report can never
+// disagree about what counts as a hole. A page's fill is measured on the PRINTED page —
+// continuation strip and repeated bar included, because a teacher reading it sees spent paper,
+// not furniture.
+const FILL_TARGET_PCT = 85;
+
 /**
  * Which pages may have their bottom furniture eaten, and by how much.
  *
@@ -530,9 +538,16 @@ function packAtomsGreedy(atoms, capacity, furn = {}) {
  *      then strictly "the same pagination, except where greedy was leaving a page on the
  *      table". On the 62-document corpus that is every part: pagination is unchanged.
  *
+ *   4. THE FILL FLOOR — bd-5jaag, added 2026-09-23 on the operator's third report of the same
+ *      defect ("too much space left empty, we should be accounting for all the space in the
+ *      LP"; "English too has wasted white space"; "Urdu has similar feedback to english and
+ *      Math with ... space wasted"). One term, BELOW everything above and ABOVE front-loading,
+ *      so it decides only the ties front-loading used to decide and the page count can never
+ *      move. See THE FILL FLOOR below.
+ *
  * THE TIE-BREAK WAS SUPPOSED TO BE "fill pages evenly / avoid a near-empty final page", and
- * it is NOT, because the measurement argued against it. Two even-fill variants were built and
- * run over all 62 documents first:
+ * for a year it was NOT, because the measurement argued against it. Two even-fill variants
+ * were built and run over all 62 documents first, and BOTH ARE STILL REJECTED:
  *
  *   • Σ slack² over every page. It levels the whole document. It pulled teach page 1 of
  *     grade_11_physics from 1064px (full) down to 741px, pushing the first teaching section
@@ -544,15 +559,118 @@ function packAtomsGreedy(atoms, capacity, furn = {}) {
  *     opening a 314px hole in the MIDDLE of it, which reads worse, and it still re-broke 33
  *     of 62 documents.
  *
- * Neither buys a single page. Re-paginating every teacher's lesson plan for a contested
- * aesthetic, with no page saved and a measured way to make some documents worse, is not a
- * trade worth making inside a packer change. The even-fill question is real — the corpus has
- * 43 final pages under half full — but it is a product decision with its own evidence, and it
- * should be taken on its own rather than smuggled in here.
+ * THE FILL FLOOR is the third objective, and it is designed against those two measurements
+ * rather than around them. The operator's own rule, already written into the report below, is
+ * "no page under ~85% except the last page of each part" — that sentence describes what the
+ * REPORT exempts (`underfilledPages`, below), not what the PACKER is allowed to ignore, and
+ * conflating the two was bd-l7vig:
+ *
+ *   `gapSq`   Σ (px a page falls short of the floor)², over every page in the part, final page
+ *             INCLUDED. The CLAMP at the floor is what kills the Σ slack² defect: a page at or
+ *             above 85% scores exactly zero, so a full page has nothing this term wants to take
+ *             and the gradient that emptied physics page 1 does not exist. The SQUARE is what
+ *             kills the c11 defect on its own, without needing to look away from the final page
+ *             to do it: moving one hole from the end into the middle trades one deficit for
+ *             another of the SAME rough size, and a single deficit of size d already costs d² —
+ *             cheaper than splitting it, per the same arithmetic that makes shallow-and-spread
+ *             beat one deep hole below. There is no longer a second term: an EARLIER version of
+ *             this objective (bd-5jaag) excluded the final page outright and ranked its own
+ *             deficit (`lastGap`) below `gapSq` as a tie-break-only exemption. That is exactly
+ *             what made the final page's shortfall invisible whenever every non-final page
+ *             already cleared the floor — which is the ONLY situation a part with too little
+ *             content to fill every page can ever be in. English_seg7 (bd-l7vig, measured
+ *             2026-09-23): four pages front-loaded to 89-99% and a fifth left with whatever
+ *             remained, 23%, because nothing scored that 23% against anything. Now it does: the
+ *             final page's clamped square sits in the same sum as every other page's, so the
+ *             DP will trade a shallow new deficit on an earlier page for closing a deep one on
+ *             the last whenever the squares say that trade is cheaper — which, being a sum of
+ *             squares, is exactly when it makes the shortfall shallower and more even rather
+ *             than moving a hole from one place to another (still the c11 guarantee, just no
+ *             longer needing a special case for the last page to keep it).
+ *
+ * A THIRD VARIANT WAS BUILT AND REJECTED HERE (bd-5jaag, 2026-09-23): the COUNT of non-final
+ * pages under the floor, ranked ABOVE their depth. It is the c11 variant's defect one level
+ * down. Over the 300-shape packer corpus it made the WORST page of 12 shapes worse — seed 28
+ * from 69/56/58% to 40/86/58%, seed 208 from 95/93/68/57/78/34% to 95/93/33/93/78/34% — by
+ * lifting one hole over the floor and digging the page in front of it twice as deep. A count
+ * cannot tell an invisible 84% page from a glaring 33% one; `gapSq` is scored so that it can.
+ * The deliberate consequence: over the 45 corpus shapes whose packing changes, the NUMBER of
+ * below-floor pages rises 196 → 215 while the worst non-final page improves on 22 shapes and
+ * worsens on none. Total whitespace in a document is fixed by its content and its page count;
+ * only its distribution is ours, and shallow-and-spread reads better on a desk than one page
+ * a teacher can see is half blank. This same trade-off is why bd-l7vig's fix is safe to make
+ * unconditionally rather than only when the final page is the worst one: it is the SAME
+ * squared-deficit term this variant was measured against, just no longer blind to one page.
+ *
+ * Charged on the PRINTED page: a continuation page's strip and repeated bar are paper already
+ * spent, and they are read from the measured `furn`, so shrinking that furniture changes the
+ * arithmetic without this packer knowing any of its heights.
+ *
+ * What it CANNOT do, stated plainly because the report must not claim otherwise: a page at 25%
+ * is sixty points short, and the page in front of it may give up fifteen before it becomes a
+ * hole itself. Deep troughs are structural — a tall atom that shares with nothing — and they
+ * come out of the AUTHORING, not out of the packer. `underfilled_pages` in the render report
+ * names every page still under the floor after packing, for exactly that reason.
  *
  * Same signature and same return shape as the greedy packer it replaces, so nothing
  * downstream changes.
  */
+/**
+ * The pages the packer could NOT get over the fill floor, named rather than glossed over.
+ *
+ * A page at 25% is sixty points short and the page in front of it may give up fifteen before it
+ * becomes a hole itself; those troughs are structural — a tall atom that shares with nothing —
+ * and they come out of the AUTHORING. The report has to say so, because a render that looks
+ * clean while a teacher's printout has a half-blank page in it is a regression mask (rule 24b).
+ *
+ * The threshold is `FILL_TARGET_PCT` — the SAME constant `packAtoms` optimises against, so the
+ * report and the packer can never disagree about what counts as a hole.
+ *
+ * bd-tqp5q. The last page of a part is not blindly exempt any more — a blanket exemption is
+ * exactly what let English_seg7's 23% fifth page pass through this function as `[]` while
+ * `page_fill_pct` printed it in plain sight two lines above. The operator's rule ("no page
+ * under ~85% except the last page of each part") is read here for what it actually says: the
+ * last page is forgiven WHEN there was structurally no way to have done better — i.e. when the
+ * part's own content, spread as evenly as physically possible, still could not have cleared the
+ * floor on every page. That is a testable claim, not an assumption: it is exactly "this part's
+ * AVERAGE fill is below the floor". A part whose average already clears the floor had enough
+ * paper to go around, so a low final page there means a boundary was chosen badly, not that the
+ * content ran out — and it is flagged like any other page.
+ *
+ * This still asks nothing of `packAtoms`: the average is computed from the same rendered
+ * `contentBottomPx`/`footTopPx` every other page in this function reads, so the report stays a
+ * read of the geometry that actually printed, never a second opinion on the packer's own DP
+ * state. Returns `[]` on a clean document and on a document with no probe — never undefined,
+ * because an absent field reads as "not measured".
+ *
+ * @param {Array<{id, part, contentBottomPx, footTopPx}>} pages `probe.pages`, in DOM order.
+ */
+function underfilledPages(pages, target = FILL_TARGET_PCT) {
+  if (!Array.isArray(pages)) return [];
+  const lastOfPart = new Map();
+  pages.forEach((p, i) => lastOfPart.set(p.part, i));
+
+  const withFill = pages.map((p, i) => (
+    { p, i, fill: Math.round((100 * p.contentBottomPx) / p.footTopPx) }
+  ));
+
+  const partAvg = new Map();      // part -> average fill of every page in it
+  withFill.forEach(({ p, fill }) => {
+    const s = partAvg.get(p.part) || { total: 0, n: 0 };
+    s.total += fill; s.n += 1;
+    partAvg.set(p.part, s);
+  });
+
+  return withFill
+    .filter(({ p, i, fill }) => {
+      if (fill >= target) return false;
+      if (lastOfPart.get(p.part) !== i) return true;    // not the last page: no exemption to check
+      const avg = partAvg.get(p.part);
+      return avg.total / avg.n >= target;               // content ran out vs. boundary chosen badly
+    })
+    .map(({ p, fill }) => ({ id: p.id, part: p.part, fill }));
+}
+
 /**
  * @param opts.slack  px a page may be overfilled by, RANKED BELOW page count and orphans and
  *   ABOVE front-loading — so it can only ever remove a page, never buy a fuller one. Zero by
@@ -572,6 +690,11 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
   const strip = furn.strip || 0;
   const contBar = furn.contBar || {};
   const slack = Math.max(0, opts.slack || 0);
+  // The floor, expressed as the px of whitespace a page may leave before it reads as a hole.
+  // Charged against `capacity` — the PRINTED page — so a continuation page's furniture counts
+  // as paper already spent and no furniture height is named here.
+  const allowance = capacity * (1 - (opts.fillTarget == null ? FILL_TARGET_PCT : opts.fillTarget) / 100);
+  const gapOf = (box, used) => Math.max(0, Math.round(box - used - allowance));
 
   // Which section's bar a page opening at atom i has to repeat — null when it opens on that
   // section's OWN bar, or when it is page 1.
@@ -600,15 +723,27 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
   // way `glue` does; ABOVE `used`, so it wins the ties that front-loading used to win, which
   // is where the gratuitous splits were. An atom that declares no `soft` scores zero here and
   // is packed by the comparison the exact packer has always used.
+  // bd-5jaag / bd-l7vig. `gapSq` — the fill floor — sits between `over` and front-loading. It
+  // is a SUM over the suffix, never a max, so the DP's optimal substructure is untouched:
+  // extending two suffix packings with the same page adds the same increment to both and cannot
+  // reverse their order. A document whose pages all clear the floor scores zero, and is then
+  // packed by the comparison the exact packer has always used — which is why a clean document
+  // is never re-broken. It used to be two terms, with the final page of a part scored on a
+  // separate `lastGap` ranked below `gapSq` so it could only ever win a tie — bd-l7vig found
+  // that a tie is the ONLY thing a struggling part ever produced (every non-final page already
+  // clamped to zero the moment it cleared the floor), so the final page's own shortfall never
+  // had anything to compete against. It is charged on the same term as everything else now: see
+  // THE FILL FLOOR in the header comment above for the full argument and the corpus case.
   const better = (a, b) =>
     a.pages !== b.pages ? a.pages < b.pages
       : a.orphans !== b.orphans ? a.orphans < b.orphans
         : a.splits !== b.splits ? a.splits < b.splits
           : a.over !== b.over ? a.over < b.over
-            : a.used > b.used;
+            : a.gapSq !== b.gapSq ? a.gapSq < b.gapSq
+              : a.used > b.used;
 
   const best = new Array(n + 1).fill(null);
-  best[n] = { pages: 0, orphans: 0, splits: 0, over: 0, used: 0, next: n };
+  best[n] = { pages: 0, orphans: 0, splits: 0, over: 0, gapSq: 0, used: 0, next: n };
 
   for (let i = n - 1; i >= 0; i--) {
     const box = boxOf(i);
@@ -623,11 +758,13 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
       const orphan = j + 1 < n && atoms[j].glue ? 1 : 0;
       if (orphan && j !== i) continue;      // glue may only be broken to stand alone on a page
       const rest = best[j + 1];
+      const gap = gapOf(box, used);                 // px this page leaves below the floor, final page included
       const cand = {
         pages: rest.pages + 1,
         orphans: rest.orphans + orphan,
         splits: rest.splits + (j + 1 < n && atoms[j].soft ? 1 : 0),
         over: rest.over + (used > box ? 1 : 0),
+        gapSq: rest.gapSq + gap * gap,
         used,
         next: j + 1,
       };
@@ -827,6 +964,7 @@ const PROBE = `() => {
     }
     pages.push({
       id: page.id,
+      part: page.dataset.part,          // which part a page ends is the fill floor's exemption
       contentHeight: Math.round(pad.scrollHeight),
       boxHeight: Math.round(pad.clientHeight),
       lastPaintedPx: Math.round(lastBottom - page.getBoundingClientRect().top),
@@ -1152,6 +1290,11 @@ async function renderDoc(a) {
     page_fill_pct: probe && probe.pages
       ? probe.pages.map((p) => ({ id: p.id, fill: Math.round((100 * p.contentBottomPx) / p.footTopPx) }))
       : null,
+    // bd-5jaag. The pages the packer could NOT lift over the floor, last-page-of-part exempt.
+    // `[]` on a clean document, never absent: this is the number that says the packer has
+    // stopped reaching, and the fix for those is authoring, not pagination.
+    underfilled_pages: underfilledPages(probe && probe.pages),
+    fill_target_pct: FILL_TARGET_PCT,
     pdf_metadata: pdfMeta,
     fonts_embedded: fontReport.resolved,
     fonts_missing: fontReport.missing,
@@ -1218,4 +1361,5 @@ module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtoms
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor, isPrimary,
   MAX_PAGES_PRIMARY, WARN_PAGES_PRIMARY, MAX_PAGES_PRIMARY_UR, WARN_PAGES_PRIMARY_UR,
   absorbPlan, OVERFLOW_ABSORB_MAX_PX,
+  underfilledPages, FILL_TARGET_PCT,
   BODY_FLOOR_PX, CHIP_FLOOR_PX };

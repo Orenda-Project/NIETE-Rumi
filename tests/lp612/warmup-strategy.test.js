@@ -7,7 +7,7 @@
  *
  * The W band printed the q/a pairs and a `kind` per row, and nothing on it named the MOVE the
  * teacher was making with them. Three questions with answers beside them read as a quiz; the
- * same three under "Prerequisite retrieval -- partner whisper" read as a strategy she is
+ * same three under "Prerequisite retrieval -- write, walk, reveal" read as a strategy she is
  * running, which is the thing a coach observes and the thing the research is about.
  *
  * ONE name, not a list. The opening is already a two-part box -- settle, then provoke (SYNC
@@ -25,7 +25,7 @@ const path = require('path');
 const { buildHtml } = require('../../bot/vendor/lp-v9/lib/template.js');
 
 const FIXTURE = path.join(__dirname, '__fixtures__', 'v9_gate_base.lp.json');
-const STRAT = 'Prerequisite retrieval — partner whisper';
+const STRAT = 'Prerequisite retrieval — write, walk, reveal';
 
 function render(mut, build = {}) {
   const doc = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));

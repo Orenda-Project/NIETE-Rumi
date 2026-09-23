@@ -240,8 +240,15 @@ const LABELS = {
     /* bd-3jemp. The eight Digital Coach phases this sheet has a surface for, of the ten its
        fidelity extractor enumerates. `recall` and `peer_review` are absent on purpose: no block
        in the primary inventory is either, and a label without a surface is a promise the page
-       does not keep. Short words -- the chip sits beside a heading and must not outrun it. */
-    dcPhase: { warm_up: "Warm-up", hook: "Hook", announce: "Announce", explain: "Explain",
+       does not keep. Short words -- the chip sits beside a heading and must not outrun it.
+
+       bd-7g300. THE KEY IS DC VOCABULARY, THE VALUE IS THE TEACHER'S WORD, AND THEY ARE ALLOWED TO
+       DIFFER. Operator: *"the hook tag should be opening instead"*. `hook` is a phase id shared with
+       the fidelity extractor, template.js's DC_PHASE and d0_crux.py's DC_IDS, so it does not move;
+       "Hook" was lesson-design jargon printed at a teacher with no referent on the page, so it did.
+       The Urdu followed in the same pass (rule 20) -- and not by translating the jargon: the old
+       تجسس is "curiosity", the word for the opening of a thing is آغاز. */
+    dcPhase: { warm_up: "Warm-up", hook: "Opening", announce: "Announce", explain: "Explain",
       guided: "Guided", independent: "Independent", exit: "Exit", homework: "Homework" },
     seqPrev: "Last", seqNext: "Next", seqCheck: "Checkpoint",
     fromBook: "Teaching from", video: "Video",
@@ -308,7 +315,7 @@ const LABELS = {
     continues: "اگلے صفحات معاون مواد ہیں — یہ آپ کی تیاری کے لیے ہیں، کلاس میں پڑھ کر نہ سنائیں۔", continued: "جاری ہے",
     outcome: "تدریسی نتیجہ", locallyAdded: "مقامی اضافہ",
     kind: { scaffold: "آج کے سبق کی بنیاد", prerequisite: "سابقہ علم", spaced: "دہرائی" },
-    dcPhase: { warm_up: "ابتدائی دہرائی", hook: "تجسس", announce: "مقصد", explain: "وضاحت",
+    dcPhase: { warm_up: "ابتدائی دہرائی", hook: "آغاز", announce: "مقصد", explain: "وضاحت",
       guided: "رہنمائی", independent: "خود کام", exit: "اختتامی جانچ", homework: "ہوم ورک" },
     seqPrev: "پچھلا", seqNext: "اگلا", seqCheck: "جانچ",
     fromBook: "تدریس بمطابق", video: "ویڈیو",

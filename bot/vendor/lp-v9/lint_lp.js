@@ -232,6 +232,9 @@ function oneScreenShapeDefects(oneScreen) {
 }
 oneScreenShapeDefects.BEATS = ONESCREEN_BEATS;
 
+// bd-c5miz. The banned-move vocabulary has ONE home; see lib/peertalk.js.
+const { PEER_TALK, peerTalkDefects } = require("./lib/peertalk.js");
+
 const PLACEHOLDERS = [
   { re: /\bTODO\b/i, name: "TODO" },
   { re: /\bFIXME\b/i, name: "FIXME" },
@@ -567,6 +570,40 @@ function lint(doc, docPath, opts = {}) {
         if (ownBrand && b.re.test(ownBrand)) continue;   // it IS this document's brand
         fail("BRANDLEAK", `${at || "/"} names "${b.name}"${ownBrand ? `, but this document's brand is "${ownBrand}"` : ", and this document carries no brand (white-label)"}. Render-law 13: no internal brand — the company's, the product's or a partner's — appears as content. Found in: "${s.slice(0, 60)}"`);
       }
+    }
+  }
+
+  // 10e — bd-c5miz. STUDENT-TO-STUDENT TALK. The banned move fails; it is not merely absent
+  //       from a worked example.
+  //
+  //       OPERATOR: *"why cant we add what we have set as rule? Coaches gave this feedback to
+  //       remove partner whisper, what Ive said should now be the pre-req"* — so this is field
+  //       feedback from coaches, promoted to the prerequisite standard, and the rule itself is
+  //       *"teachers dont let students talk to each other, that too when the class begins,
+  //       neither in Guided Practice, how else can we do retrieval?"*
+  //
+  //       SCOPE — THE WHOLE DOCUMENT, not the warm-up strategy alone. The rule names TWO places
+  //       by name, the start of class AND Guided Practice, and a banned move is authored in
+  //       whichever field carries the instruction: a block prompt, a step, a checkpoint, the
+  //       homework text, the one-screen body. Narrowing to `/sections/*/warmup/strategy` would
+  //       gate the label and leave the move.
+  //
+  //       WHAT IS SKIPPED, and why each one is not teacher-facing instruction:
+  //         /revisions   — the edit ladder's own log (skipped by every gate here)
+  //         /provenance  — config, not content
+  //         /notes       — the builder's gap notes, which QUOTE this rule verbatim
+  //                        (`Urdu_seg4.lp.json:/notes/gaps/6` states it in Urdu)
+  //
+  //       HARD FAIL, not a warning. The operator calls it the prerequisite standard; a warning
+  //       is a line an author scrolls past. The false-positive risk that a hard fail carries is
+  //       answered in lib/peertalk.js, not by softening this: the matcher names speech acts with
+  //       a classmate as the addressee (never the bare word "partner", which would refuse the
+  //       corpus's own written Chalk Talk), and it excludes a PROHIBITION of the move — which is
+  //       how 12 of the 20 live G1-5 documents phrase their compliance.
+  for (const { at, s } of harvest(doc)) {
+    if (at.startsWith("/revisions") || at.startsWith("/provenance") || at.startsWith("/notes")) continue;
+    for (const d of peerTalkDefects(s)) {
+      fail("PEER_TALK", `${at || "/"} instructs "${d.name}" — students talking to each other, which the coaches asked to have removed and the operator has made the prerequisite standard: teachers do not let students talk to each other at the start of class or in Guided Practice, and a class of 40+ runs ONE activity. Found in: "${d.quote}". Written peer exchange is still allowed (Chalk Talk: they write, slide the copy one place, write one line on a partner's answer, slide it back), and so is a child answering the whole class or the teacher — choral response, or "write, walk, reveal".`);
     }
   }
 
@@ -2418,6 +2455,9 @@ module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9G
   overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,
+  // bd-c5miz. Re-exported from lib/peertalk.js so a caller finds the banned-move list where
+  // every other gate vocabulary lives, without a second copy of it existing anywhere.
+  PEER_TALK, peerTalkDefects,
   // Exported so a test can assert the frozen set covers every enum/id field the SCHEMA declares
   // — a hand-maintained list is what let `formula` and `closed_by` through (bd-oak77.23).
   OVERLAY_SKIP_KEYS,

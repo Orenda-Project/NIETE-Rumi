@@ -251,32 +251,92 @@ describe('packAtoms — the exact page packer', () => {
    * packer reproduces greedy's breaks EXACTLY, and no break lands anywhere new.
    */
   describe('tie-break: front-loading, so no break lands where greedy would not have put one', () => {
+    /**
+     * bd-l7vig re-picked both atom shapes below (2026-09-23). The originals — [80,15,60] and
+     * [60,40,50,50,15] — each totalled to LESS than the floor could ever reach across every
+     * page including the last, so they were, without it being the point, ALSO cases of the
+     * exact defect bd-l7vig fixes: the fill floor now legitimately outweighs front-loading for
+     * them, and pins that belong to THAT behaviour now live in page-fill-floor.test.js instead.
+     * These two keep the shapes but raise the final atom so every page clears the floor under
+     * front-loading with no help needed — gapSq is zero either way, so the tie is front-loading's
+     * alone to decide, which is what this describe block is actually testing.
+     */
     it('packs the opening page as full as greedy did', () => {
-      const atoms = [A(80), A(15), A(60)];
+      const atoms = [A(80), A(15), A(90)];
       const packed = packAtoms(atoms, 100, {});
-      expect(pagesOf(atoms, packed).map((p) => p.reduce((s, a) => s + a.h, 0))).toEqual([95, 60]);
+      expect(pagesOf(atoms, packed).map((p) => p.reduce((s, a) => s + a.h, 0))).toEqual([95, 90]);
       expect(packed.breaks).toEqual(packAtomsGreedy(atoms, 100, {}).breaks);
     });
 
     it('leaves an already-full page alone rather than levelling', () => {
-      // Σ slack² scored [60, 90, 65] best here and emptied the opening page for nothing.
-      const atoms = [A(60), A(40), A(50), A(50), A(15)];
+      // Σ slack² scored [60, 90, 65] best on the pre-bd-l7vig shape here and emptied the opening
+      // page for nothing; that shape moved to page-fill-floor.test.js, where it is the floor's
+      // job now. This shape keeps every page at/above the floor either way, so there is nothing
+      // for gapSq to prefer and front-loading — not levelling — is what actually wins.
+      const atoms = [A(60), A(40), A(50), A(50), A(90)];
       const packed = packAtoms(atoms, 100, {});
-      expect(pagesOf(atoms, packed).map((p) => p.reduce((s, a) => s + a.h, 0))).toEqual([100, 100, 15]);
+      expect(pagesOf(atoms, packed).map((p) => p.reduce((s, a) => s + a.h, 0))).toEqual([100, 100, 90]);
       expect(packed.breaks).toEqual(packAtomsGreedy(atoms, 100, {}).breaks);
     });
 
-    it('reproduces greedy exactly on every shape where greedy was already page-optimal', () => {
-      // The whole safety argument for this change, asserted over the randomised corpus below.
-      const differing = [];
+    /**
+     * THE SAFETY ARGUMENT, narrowed to what is true since bd-5jaag (2026-09-23).
+     *
+     * Until the fill floor was added this asserted the strong form — wherever greedy was
+     * already page-optimal, the exact packer reproduced greedy's breaks EXACTLY. The floor
+     * deliberately breaks that on the documents the operator complained about ("too much space
+     * left empty, we should be accounting for all the space in the LP"), so the strong form is
+     * no longer the property we want; asserting it would only assert that the fix is absent.
+     *
+     * MEASURED over these 300 shapes, and what is asserted instead:
+     *   - 45 of the 235 page-optimal, non-overflowing shapes now pack differently;
+     *   - EVERY one of them is a shape where greedy had left a non-final page below the 85%
+     *     floor. A document whose pages all clear the floor is NEVER re-broken — that is the
+     *     grade_11_physics regression, and it is still zero;
+     *   - the worst non-final page improves on 22 of the 45 and is made worse on NONE. That is
+     *     the c11 regression (relieve one page by digging another), and it is also zero.
+     */
+    const fillsOfPages = (atoms, r, cap, furn) => {
+      const starts = [0, ...r.breaks];
+      return starts.map((start, i) => {
+        const end = i + 1 < starts.length ? starts[i + 1] : atoms.length;
+        const bar = r.pages[i].contBarSec;
+        const box = start === 0 ? cap : cap - (furn.strip || 0) - (bar ? furn.contBar[bar] : 0);
+        const used = atoms.slice(start, end)
+          .reduce((t, a, k) => t + a.h + (start + k === 0 ? 0 : a.mt || 0), 0);
+        return Math.round((100 * (cap - box + used)) / cap);
+      });
+    };
+    const worstOfAll = (f) => Math.min(...f);
+
+    /**
+     * bd-l7vig narrowed this AGAIN. `worstNonFinal` — the worst page EXCLUDING the last one of
+     * the part — was the right measure while the packer itself exempted the last page from the
+     * floor; it is now the wrong measure, because that exemption was the defect. A document
+     * whose four non-final pages all clear the floor and whose fifth does not (English_seg7,
+     * to the pixel) used to read as "clean" by this metric and was never re-broken — which is
+     * the whole bug. "Clean" now has to mean every page, final included, so `worstOfAll`
+     * replaces `worstNonFinal` in both checks below.
+     */
+    it('only ever differs from greedy where greedy left a page under the fill floor', () => {
+      const rebrokenThoughClean = [];
+      const worsened = [];
+      let differing = 0;
       for (const c of CORPUS) {
         const greedy = packAtomsGreedy(c.atoms, 200, c.furn);
         const packed = packAtoms(c.atoms, 200, c.furn);
         if (packed.breaks.length !== greedy.breaks.length) continue;   // greedy was not optimal
         if (worstOverflowOf(c.atoms, greedy, 200, c.furn) > 0) continue; // greedy cheated
-        if (JSON.stringify(packed.breaks) !== JSON.stringify(greedy.breaks)) differing.push(c.seed);
+        if (JSON.stringify(packed.breaks) === JSON.stringify(greedy.breaks)) continue;
+        differing++;
+        const before = fillsOfPages(c.atoms, greedy, 200, c.furn);
+        const after = fillsOfPages(c.atoms, packed, 200, c.furn);
+        if (worstOfAll(before) >= 85) rebrokenThoughClean.push(c.seed);
+        if (worstOfAll(after) < worstOfAll(before)) worsened.push(c.seed);
       }
-      expect(differing).toEqual([]);
+      expect(rebrokenThoughClean).toEqual([]);   // a document with every page already clear (final included) is never re-paginated
+      expect(worsened).toEqual([]);              // the worst page anywhere in the document never gets worse
+      expect(differing).toBeGreaterThan(0);      // ...and the floor is actually doing something
     });
   });
 

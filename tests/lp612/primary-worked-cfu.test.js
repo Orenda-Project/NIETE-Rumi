@@ -149,9 +149,29 @@ test("the closing rule is drawn from the surface tokens, never a hex", () => {
 // ONLY changes are those two wrappers. No word, no label, no other class moved, and the
 // PHONE digest below is unchanged to the byte -- `PAGE.oneColumn` already made a row a card
 // there. Nothing to do with `cfu`, which is still what this file exists to guard.
+//
+// BOTH DIGESTS MOVED ON 2026-09-23, and this is that explanation. bd-p5418 moved the page/
+// minutes locator out of the meta column and onto the kicker's own line, inside a new
+// `.hero .h-top` row -- operator: *"the header caption containing the page numbr and minutes
+// of the class can be on the right ... save space Claude!!!"*. Diffed body against body, both
+// formats: ONE hunk, six lines, and it is exactly that move --
+//
+//     -      <div class="kicker">Grade 9 &middot; Mathematics</div>
+//     +      <div class="h-top">
+//     +        <div class="kicker">Grade 9 &middot; Mathematics</div>
+//     +        <div class="h-loc">p.24-25 &middot; <b>40 min</b></div>
+//     +      </div>
+//            <div class="h-title">Multiplying two 2×2 matrices</div>
+//          <div class="h-meta">
+//            <div>Ch. 1 &middot; Matrices and Determinants</div>
+//     -      <div>p.24-25 &middot; <b>40 min</b></div>
+//
+// No word changed, nothing was added or dropped, the chapter and the board chip stayed in the
+// meta column, and no other class moved in either format. Nothing to do with `cfu`, which is
+// still what this file exists to guard.
 const G9_BODY_SHA = {
-  a4: "65a2e67b7473f938d413aa8415213a83518abc9a475d5103c020193c32a995b4",
-  phone: "cf3c9205a651fa94c2e68bce635896fc31a8eb2b20d2675a1d1d808209bb5744",
+  a4: "38da5e7556a797d60605a0ed427b7065733ba5e1c2c09e4e56192ff43de7e164",
+  phone: "2095867d2d593fbbbfdf75bac172aae650702ffb4a0a2aa01cfaabc669f686cb",
 };
 
 test.each(["a4", "phone"])("the grade-9 markup is byte-for-byte what it was (%s)", (format) => {

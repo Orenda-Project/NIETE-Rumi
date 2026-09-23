@@ -292,6 +292,14 @@ function css(rtl, fonts, katex, urduScript) {
   --navy:#303749; --navy2:#2A3550; --amber:#F2A20C; --amber-soft:#FDEBC8;
   --ink:#1a2233; --mut:#5b6472; --line:#e5e9f0; --leaf:#298157; --warn:#B4531F;
   --board-gold:#FFD05E;
+  /* bd-f445i. THE INK FOR THE QUIET LINE ON A NAVY BAND. --ink and --mut are page inks: they are
+     chosen against white and measure 1.34:1 and 1.99:1 on --navy, which is how the crux and the DC
+     chip came to be the least legible things on the Opening block. The sheet already had the answer
+     -- #c9d4e6 is what .hook .lf and .hero .h-sub print -- but only as a literal repeated at each
+     site, so a rule that landed on navy later had no token to reach for and reached for --ink.
+     Naming it is the fix that does not have to be re-made: loud things on navy stay #fff, quiet
+     ones take this (7.94:1). */
+  --ink-on-navy:#c9d4e6;
   --page-w:${PAGE.w}px; --page-h:${PAGE.h}px;
   /* THE SURFACE LADDER (v9.4, bd-a8veu.23). Operator, on the PDF review: "the readability of the
      LP should be better with colour blocks and formatting of text and font to hold the eye."
@@ -423,15 +431,24 @@ ${!rtl && urduScript ? `
    Stacking is the fix and it costs nothing measurable: the corpus page count is unchanged. */
 .hero{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:${rtl ? "12px" : "8px"} 14px ${rtl ? "9px" : "8px"};
        ${PAGE.oneColumn ? "display:block;" : "display:flex; justify-content:space-between; align-items:flex-start; gap:18px;"} }
+/* THE EYEBROW (bd-p5418). Two runs, one line box: the kicker and the page/minutes locator.
+   Which item yields is the whole design. The kicker is the flexible one (flex:1 1 auto,
+   min-width:0, so a long subject wraps INSIDE the kicker); the locator is flex:0 0 auto and
+   white-space:nowrap, so it can never become the wrapping meta column this replaced. Degrading
+   the other way round is the pathology the v9.3 note below records, not the length itself. */
+.hero .h-top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
 .hero .kicker{ color:var(--amber); font-weight:800; letter-spacing:.13em; font-size:14px;
-       text-transform:uppercase; line-height:1.3; }
+       text-transform:uppercase; line-height:1.3; flex:1 1 auto; min-width:0; }
+.hero .h-loc{ flex:0 0 auto; white-space:nowrap; font-size:14.5px; color:var(--ink-on-navy);
+       line-height:1.3; text-align:${end}; }
+.hero .h-loc b{ color:#fff; }
 /* The TITLE COLUMN. flex:1 1 auto with min-width:0 is load-bearing: without the min-width a
    flex item's floor is its own min-content width, which for a title is the longest WORD — that
    is how the column got down to 166px and printed "The / biological / method / —" one word per
    line on the G9 Bio plan. */
 .hero .h-col{ flex:1 1 auto; min-width:0; }
 .hero .h-title{ font-size:28.5px; font-weight:800; line-height:${rtl ? "1.7" : "1.05"}; margin-top:3px; }
-.hero .h-sub{ color:#c9d4e6; font-size:16.5px; margin-top:2px; font-weight:500; line-height:${rtl ? "1.9" : "1.35"}; }
+.hero .h-sub{ color:var(--ink-on-navy); font-size:16.5px; margin-top:2px; font-weight:500; line-height:${rtl ? "1.9" : "1.35"}; }
 /* The META COLUMN. It was flex:0 0 auto — "take your max-content width and NEVER shrink",
    and its max-content width is the CHIP ROW laid out on one line. So the board badge — an
    author-written string with no length cap — silently set the whole header's column split. The
@@ -440,7 +457,7 @@ ${!rtl && urduScript ? `
    lines; 49 -> 29%/7; 63 -> 23%/9 AND 50px of the badge hanging off the hero; 82 -> 119px off,
    past the page edge and over the chapter line. Hence: the meta column may shrink, and may
    never take more than 46% of the hero. */
-.hero .h-meta{ text-align:${PAGE.oneColumn ? start : end}; font-size:14.5px; color:#c9d4e6; line-height:${rtl ? "1.9" : "1.55"};
+.hero .h-meta{ text-align:${PAGE.oneColumn ? start : end}; font-size:14.5px; color:var(--ink-on-navy); line-height:${rtl ? "1.9" : "1.55"};
        flex:0 1 auto; min-width:0; max-width:${PAGE.oneColumn ? "100%" : "46%"};${PAGE.oneColumn ? " margin-top:6px;" : ""} }
 .hero .h-meta b{ color:#fff; }
 .hero .chips{ display:flex; gap:5px; justify-content:flex-${PAGE.oneColumn || rtl ? "start" : "end"}; margin-top:5px; flex-wrap:wrap; }
@@ -500,9 +517,18 @@ ${!rtl && urduScript ? `
    for it, and a G6-12 plan that never emits it renders byte-identically. */
 .s-we{ background:var(--band-we); }
 
+/* ONE LINE BOX, WHATEVER THE TOPIC HOLDS (bd-vvs8z). Both runs used to wrap, so a long topic
+   and a long tail cost the strip two lines on every continuation page. Same fix the footer
+   already carries, for the same reason: a nowrap block has exactly one line box whatever it
+   holds, and overflow+ellipsis is what keeps it from running off the page edge instead.
+   Clipping is safe here — the topic is printed in full in the hero on page 1 — and clamping
+   only ever SHRINKS the measured strip, so the packer's page budget cannot lose a pixel.
+   The runs are classed rather than selected as bare spans: .contstrip span also caught every
+   span rich() emits inside the topic, repainting a formula or a citation muted 14px. */
 .contstrip{ display:flex; align-items:baseline; gap:7px; font-size:15.5px; font-weight:800; color:var(--navy);
       border-bottom:2px solid var(--line); padding-bottom:5px; }
-.contstrip span{ font-weight:600; color:var(--mut); font-size:14px; }
+.contstrip .ct{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.contstrip .cc{ flex:0 0 auto; white-space:nowrap; font-weight:600; color:var(--mut); font-size:14px; }
 /* the repeated section bar on a page that opens mid-section. Same bar, muted, with the
    section's name suffixed "…continued" — so a continuation page is never an orphan. */
 .bar.cont{ opacity:.9; }
@@ -597,7 +623,21 @@ p{ font-size:18px; }
 .hook{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:9px 14px; }
 .hook .lbl{ color:var(--amber); }
 .hook .q{ font-size:19px; font-weight:700; line-height:${rtl ? "1.95" : "1.55"}; margin-top:3px; }
-.hook .lf{ font-size:16px; color:#c9d4e6; margin-top:3px; line-height:${rtl ? "1.9" : "1.55"}; }
+.hook .lf{ font-size:16px; color:var(--ink-on-navy); margin-top:3px; line-height:${rtl ? "1.9" : "1.55"}; }
+/* bd-f445i. THE TWO CHILDREN THE BAND DOES NOT AUTHOR. OPERATOR, three times over three subjects:
+   *"the font colour should be different, hard to read with a dark background"*. .crux and .dct
+   are not written by the block that renders this band -- movePill() injects them into whatever
+   container a block rendered as -- so they arrived here still wearing the page inks they were given
+   for a white surface (--ink 1.34:1, --mut 1.99:1 on --navy). Every child the band DID author
+   already had an on-navy ink; these two are simply the ones nobody scoped. The crux is the one line
+   a teacher acts on, so it takes the band's own #fff (11.88:1) at the heading weight it already has;
+   the chip stays deliberately quieter than the move pill beside it and takes --ink-on-navy (7.94:1)
+   with the on-navy outline the sheet already uses for a chip on navy (.hero .tchip.plain). The amber
+   rule on the crux is untouched -- it measures 5.63:1 here and is how the eye finds the line.
+   opening-band-contrast.test.js scans the RENDERED band rather than naming these two, so the next
+   global child injected onto navy fails there instead of on a teacher's phone. */
+.hook .crux{ color:#fff; }
+.hook .dct{ color:var(--ink-on-navy); border-color:rgba(255,255,255,.35); }
 /* Ask, script and board are all the TEACH role, and they used to be #F5F8FC, #F7F9FC and #EFF1F4 —
    three fills nobody can tell apart, doing the job of telling them apart. What actually separates
    them is the EDGE: ask carries the solid navy rule because it is the one a teacher has to say out
@@ -1477,7 +1517,7 @@ p, li, figcaption,
 body, .hook .q, .hook .lf, .slo p, .tn, .ck .q, .srq .q, .exq h4, .exq .cfu,
 .band > div .t, .ord li, .tbl td, .cont, .tnote, .seq, .mathb,
 .kwtab .kr > *, figure.dg figcaption, .crux{ line-height:2.4; }
-.hero .kicker, .hero .h-title, .hero .h-sub, .hero .h-meta, .hero .tchip,
+.hero .kicker, .hero .h-loc, .hero .h-title, .hero .h-sub, .hero .h-meta, .hero .tchip,
 .bar .nm, .lbl, .p2head .t, .p2head .r, .p2bar .nm, .foot{ line-height:2.05; }
 ` : ""}`;
   return `${fonts}\n${katex}\n${scaleTypeCss(sheet, TYPE_SCALE)}`;
@@ -1944,6 +1984,20 @@ function dcPhaseOf(id) {
   return (k && DC_PHASE[k]) || null;
 }
 
+/**
+ * Do two printed labels say the same word to a reader?
+ *
+ * Used to stop the DC phase chip repeating the section title it sits inside. Case and
+ * punctuation may not be what decides whether a name prints twice -- a section authored
+ * "OPENING!" is the same word as the chip's "Opening" to the teacher reading both -- so the
+ * comparison is on letters and digits in any script, which is what makes it work on the Urdu
+ * pair (آغاز / آغاز) as well as the English one.
+ */
+const sameLabel = (a, b) => {
+  const n = (s) => String(s == null ? "" : s).toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  return !!n(a) && n(a) === n(b);
+};
+
 /** The gradual-release move a block belongs to, off its id -- "i" | "we" | "you" | null. */
 function moveOf(id) {
   const k = String(id == null ? "" : id).replace(/[^a-z0-9]/gi, "").toLowerCase();
@@ -2319,7 +2373,16 @@ function makeBlockRenderer(ctx) {
        applied, every phase this sheet prints is core, so a marker on all of them would carry no
        information. The lever is doing all of them, and the crux line below says what "doing" is. */
     const ph = ctx.primary ? dcPhaseOf(b && b.id) : null;
-    const dc = ph ? `<span class="dct">${esc((L.dcPhase || {})[ph] || ph)}</span>` : "";
+    const phText = ph ? ((L.dcPhase || {})[ph] || ph) : "";
+    /* ...EXCEPT where it would print the section's own title a second time. Measured over the
+       twenty G3 documents: hook -> "Opening" inside the section titled Opening (the operator's
+       own rename, bd-7g300) and hw -> "Homework" inside Homework, which predates it -- two of
+       the seven phases, in every document. Three names over one block (bar, chip, block label)
+       is the repetition the operator has objected to twice. Suppressed by COMPARISON rather
+       than by renaming either label, because a rename re-breaks the next time a phase is given
+       the teacher's word for it; and only on a collision, because on the other five the chip is
+       the only thing on the page naming the move she is in (bd-hlk39). */
+    const dc = ph && !sameLabel(phText, ctx.secTitle) ? `<span class="dct">${esc(phText)}</span>` : "";
     /* The crux. OPERATOR: *"the crux of what should be done should be highlighted in the move
        since there is alot of script to go through"*. Authored, never derived -- one line per
        move, at heading weight, ahead of the script. Unauthored blocks render as they did. */
@@ -2463,7 +2526,12 @@ function contBarHtml(key, ctx, secIndex) {
 function contStripHtml(doc, ctx) {
   const p = doc.provenance;
   const L = ctx.L;
-  return `<div class="contstrip">${rich(p.topic)} <span>&middot; ${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${esc(L.continued)}</span></div>`;
+  // bd-vvs8z — THE GRADE AND SUBJECT ARE THE FOOTER'S JOB, and the footer is eight lines below
+  // on this same page. Printing them here answered a question that was already answered:
+  // operator, twice, *"why does it land twice? the name? just once should be enough, pls cut
+  // repetition"*. The strip's own job is narrower — it says which LESSON this loose sheet
+  // continues, and the lesson is named by its topic.
+  return `<div class="contstrip"><span class="ct">${rich(p.topic)}</span><span class="cc">&middot; ${esc(L.continued)}</span></div>`;
 }
 
 /**
@@ -2554,14 +2622,23 @@ function page1(doc, ctx, secIndex) {
   // opposite — it says what the topic is worth in the exam she is preparing them for — so it
   // stays; and where it too is absent (grades 6-8, outside FBISE's examining remit) the row is
   // not painted at all rather than left as an empty gapped flex box under the page line.
+  // bd-p5418 — THE LOCATOR RIDES THE KICKER'S LINE. Operator, with a phone screenshot: *"the
+  // header/footer has too many lines"*, *"the header caption containing the page numbr and
+  // minutes of the class can be on the right … save space Claude!!!"*. Of the four rows the
+  // masthead stacked, exactly one pair is short AND fixed in shape — `GRADE n · SUBJECT` and
+  // `p.<pages> · <n> min` — so the locator moves onto the kicker's own line, where it costs the
+  // title and the chapter nothing: both keep the full measure. This is NOT the v9.3 two-column
+  // split coming back (see the .hero comment): that pair wrapped, this one cannot.
   const hero = `<div class="hero">
     <div class="h-col">
-      <div class="kicker">${esc(L.grade)} ${p.grade} &middot; ${rich(p.subject)}</div>
+      <div class="h-top">
+        <div class="kicker">${esc(L.grade)} ${p.grade} &middot; ${rich(p.subject)}</div>
+        <div class="h-loc">${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)} &middot; <b>${doc.period_minutes} ${esc(L.min)}</b></div>
+      </div>
       <div class="h-title">${rich(p.topic)}</div>
     </div>
     <div class="h-meta">
       <div>${rich(p.chapter)}</div>
-      <div>${esc(L.page)}${isoAtom(esc(p.printed_pages), ctx)} &middot; <b>${doc.period_minutes} ${esc(L.min)}</b></div>
       ${doc.board_weight ? `<div class="chips">
         <span class="tchip plain">${rich(doc.board_weight)}</span>
       </div>` : ""}
@@ -2911,10 +2988,16 @@ function page1(doc, ctx, secIndex) {
     // decides its page the way it decides every other atom's: it joins the last teach page when
     // that page has room, and only opens a page when it genuinely does not. Nothing here writes
     // a page number down, and nothing measures -- the pass-1 probe already charges the furniture.
-    // It registers no `sec`, so it adds no continuation bar to that probe and costs it nothing.
+    // It registers no `sec` — `sec: null`, explicitly, and that explicitness is the bd-hqfq4
+    // fix. The claim above was written as if it were already true, but `sectionAtoms` stamps
+    // every atom from after(s) with the HOST section's key, so the corner silently inherited
+    // `sec:"homework", first:false` and a page it opened was labelled "Homework · continued"
+    // over a Coaching Corner. Operator: *"it says Homework continued and youve given a coaching
+    // corner instead!"*. The corner belongs to no section — it closes the teaching, it does not
+    // continue a part of it — so it takes no bar, on the page or in the probe.
     // ONE atom rather than three because the card is four lines that answer each other: a break
     // inside it would put the question on one page and the offer that answers it on the next.
-    if (s.id === flowHost.coaching) out.push({ html: coachCard(doc, ctx, true), sp: 4 });
+    if (s.id === flowHost.coaching) out.push({ html: coachCard(doc, ctx, true), sp: 4, sec: null });
     if (s.id === "conclusion") {
       if (s.checkpoint) {
         const c = s.checkpoint;
@@ -3100,6 +3183,8 @@ function page1(doc, ctx, secIndex) {
     const title = split ? L.weDo : (s.title || L[id]);
     const fill = split ? "s-we" : null;
     secIndex[id] = { kind: "p1", id, title, fill, move: s.move };
+    // what the bar above these blocks prints, so movePill can tell a phase chip that repeats it
+    ctx.secTitle = title;
     const out = [atom(bar(id, title, split ? split.we : s.minutes, L, "", fill, s.move),
       { sec: id, first: true, glue: true, sp: 4 })];
     let sec = id;
@@ -3119,6 +3204,7 @@ function page1(doc, ctx, secIndex) {
         secIndex[YOU_SUB] = { kind: "p1", id, title: L.youDo };
         out.push(atom(bar(id, L.youDo, split.you, L), { sec: YOU_SUB, first: true, glue: true, sp: 4 }));
         sec = YOU_SUB;
+        ctx.secTitle = L.youDo;
       }
       for (const a of blockAtoms(b, colPx)) out.push(atom(a.html, { sec, glue: a.glue, soft: a.soft, sp: a.sp }));
     }
@@ -3126,7 +3212,13 @@ function page1(doc, ctx, secIndex) {
     // sets it today, so this changes nothing — but the asymmetry was a trap: an atom that
     // declared glue would have had it dropped on the floor, silently, and now that the
     // packer chooses its breaks freely a dropped glue is a split a reader sees.
-    for (const x of after(s)) out.push(atom(x.html, { sec, glue: x.glue, soft: x.soft, sp: x.sp }));
+    // `sec` likewise: an atom placed in this section's FLOW is not necessarily OF this section
+    // (bd-hqfq4 — the coaching corner). An atom that declares its own `sec`, including `null`,
+    // keeps it; one that says nothing inherits the host's, which is what mistakes and
+    // differentiation want — they are labelled inside the section they differentiate.
+    for (const x of after(s)) {
+      out.push(atom(x.html, { sec: x.sec !== undefined ? x.sec : sec, glue: x.glue, soft: x.soft, sp: x.sp }));
+    }
     return out;
   };
 
