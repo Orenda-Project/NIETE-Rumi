@@ -273,6 +273,37 @@ Feature: NIETE (ICT) Teacher Training
     # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: A lesson-plan quiz still waiting for its language is asked again from /quiz, never "still being made"
+    Given the NIETE bot chat is open and I said yes to the afternoon quiz offer on a maths, science or English lesson plan but never tapped a language
+    When I send "/quiz"
+    Then that lesson's row says "Offered — tap to make"
+    When I tap that row
+    Then the bot asks again which language the quiz should be in, with an Urdu and an English button, and does not say the quiz is still being made
+    When I tap "English"
+    Then the bot says it is making the quiz now, and the quiz arrives with the message to forward to the class
+    And in the /quiz Flow, the same kind of lesson opens a lesson screen offering to make it in Urdu or in English — not a "still being made" screen
+    # The row waits offered + meta.awaiting_language until a language is tapped; nothing is queued before.
+    # handleLpPick re-sends the ask (sendLanguageAsk, tq_lang_ buttons); the Flow's actionsFor gives make_<lang>
+    # for that state and stepAction hands it to startGenerating (atomic offered → generating, then the
+    # lesson-plan quiz job) — the same path as answering the ask in chat. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A question that cannot be sent is skipped, and the child is scored on the questions actually asked
+    Given a class quiz one of whose questions cannot be sent to a child's phone
+    When a child opens the quiz from its link and answers the questions before it
+    Then the bot says it could not send that question and has skipped it, and the next question arrives
+    When the child answers every question that arrives
+    Then the child's score card counts only the questions that were asked, never full marks on a part of the quiz
+    And the teacher's class report shows that child with the same score
+    But when the questions stop getting through, or the child could be asked fewer than half of the quiz, the child is told the quiz has stopped and to try again later, no score card is sent, and the teacher's report lists the child as started but not finished
+    # video-quiz.service sendNextQuestion: 3 tries per question, then skipQuestion (vqQuestionSkipped, the
+    # "Question n of N" numbering left as it was); 5 failed pickers in a row across questions ends the session
+    # `incomplete` (endUnfinished, vqTrouble), never finish() on the answered subset; finish() itself refuses
+    # to score a child asked fewer than half the quiz (minAskedToScore). Same engine for video, transcript and
+    # lesson-plan quizzes. Forceable on an environment whose bot cannot fetch the question cards; otherwise
+    # proven in bot/tests/quiz/video-quiz-undeliverable-question.test.js. @wip.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: The class report of a quiz made from my lesson plan carries the objectives to reteach
     Given the NIETE bot chat is open and children have finished a quiz that was made from my lesson plan
     When I ask for the report from that quiz's row in /quiz
