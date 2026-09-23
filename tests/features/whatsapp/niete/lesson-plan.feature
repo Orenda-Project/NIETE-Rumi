@@ -459,10 +459,33 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   Scenario: Make the quiz produces an lp_v8 quiz with a share link
     Given the NIETE bot chat is open and the afternoon quiz offer has arrived
     When I tap "Make the quiz"
+    And I tap "English" if the bot asks which language the quiz should be in
     Then the bot says the quiz is being made
     And a quiz arrives with a link to forward to the class
     And the quizzes row has quiz_source lp_v8, no coaching session, and meta.lessons carrying the served lesson's version
     And tapping "Make the quiz" again says the quiz is already on its way and makes no second quiz
+
+  @e2e @quiz @language @wip @draft @config-gated @P1
+  Scenario: Make the quiz on a maths lesson asks which language the quiz is written in
+    Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Maths lesson has arrived
+    When I tap "Make the quiz"
+    Then the bot asks which language the quiz should be in, with the buttons "اردو" and "English"
+    And no "being made" message arrives and no quiz is generated before I answer
+    And the quizzes row is offered and awaiting the language, with quiz_source lp_v8
+    When I tap "English"
+    Then the bot says the quiz is being made
+    And a quiz arrives written in English, with a link to forward to the class
+    And tapping "English" again says the quiz is already on its way and makes no second quiz
+    # The same ask, buttons (tq_lang_<code>_<quizId>) and handler as the quiz born from a recording.
+    # Every subject but Urdu and Islamiyat is asked; the subject rule's language is the first button.
+
+  @e2e @quiz @language @wip @draft @config-gated @P2
+  Scenario: Urdu and Islamiyat lessons are not asked the quiz language
+    Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Urdu lesson has arrived
+    When I tap "Make the quiz"
+    Then the bot says the quiz is being made, with no language question first
+    And a quiz arrives written in Urdu
+    # Islamiyat follows the same rule, but no K-5 v8 lesson is Islamiyat, so only Urdu can be driven.
 
   @e2e @quiz @wip @draft @config-gated @P2
   Scenario: No thanks is remembered
