@@ -114,7 +114,12 @@ describe('validate — Urdu', () => {
       wrong: { 1: 'پتا ہوا میں ہوتا ہے؛ مٹی کے نیچے جڑ ہوتی ہے۔', 2: 'پھول اوپر ہوتا ہے؛ مٹی کے نیچے جڑ ہوتی ہے۔' } },
     ...over,
   });
-  const urEight = () => eightGood().map((x, i) => urQ({ slo_id: x.slo_id, level: x.level, question: `${x.question} ${i}` }));
+  // The questions are Urdu too. They used to be the English placeholders of
+  // eightGood() ("q3 2"), which passed only while the script share pooled the
+  // questions with three Urdu feedback strings each; it is now taken over the
+  // questions on their own, and a quiz whose questions are English is not a
+  // proper Urdu quiz.
+  const urEight = () => eightGood().map((x, i) => urQ({ slo_id: x.slo_id, level: x.level, question: `پودے کا کون سا حصہ مٹی کے نیچے ہوتا ہے؟ ${i}` }));
 
   test('a proper Urdu quiz passes, with English technical terms allowed', () => {
     const qs = urEight(); qs[0].options = ['root', 'پتا', 'پھول'];

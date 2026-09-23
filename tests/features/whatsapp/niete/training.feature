@@ -358,6 +358,19 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-figure-frame.test.js. @wip until driven live.
 
   @e2e @quiz @wip @draft @P1
+  Scenario: An Urdu quiz for a maths lesson full of English terms is made, with the terms in English letters
+    Given the NIETE bot chat is open and I planned a maths lesson whose key terms are English, such as comparing unlike fractions
+    When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
+    Then the quiz arrives — the teacher PDF and the class link — instead of "I couldn't make a good quiz"
+    And its questions and feedback are Urdu sentences that keep the lesson's terms in English letters, such as "numerator" and "common denominator"
+    # transcript-quiz-validator urduShareByPart: the quiz-level Urdu check counts WORDS, not letters, and takes
+    # the questions and the explanations + feedback separately (bar URDU_WORD_SHARE_MIN). Long English terms
+    # used to pull a correct Urdu quiz under a letter bar of 0.6 on every attempt. A quiz written in English or
+    # Roman Urdu, or with its questions in one language and its feedback in the other, is still refused and
+    # re-authored — that cannot be forced live; it is proven in tests/quiz/transcript-quiz-urdu-script-share.test.js.
+    # Content-driven: assert that a quiz arrives and its sentences are Urdu, never a fixed question. @wip.
+
+  @e2e @quiz @wip @draft @P1
   Scenario: A quiz never ships an answer key a blind solver disagrees with
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
     When the quiz arrives
