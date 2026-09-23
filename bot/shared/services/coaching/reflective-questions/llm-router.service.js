@@ -87,6 +87,7 @@ async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, t
     getOpenRouter().chat.completions.create(
       {
         model,
+        job: 'coaching.questionRouter',
         messages,
         response_format: { type: 'json_object' },
         max_tokens: maxTokens,

@@ -361,6 +361,7 @@ async function extract(transcript, roster) {
     const { getClient, getDefaultModel } = require('./llm-client');
     const response = await getClient().chat.completions.create({
       model: getDefaultModel(),
+      job: 'attendance.voiceExtract',
       temperature: 0,
       messages: [{ role: 'user', content: buildExtractionPrompt(transcript, roster) }],
     });

@@ -85,6 +85,7 @@ Example output format: word1, word2, word3, ...`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
+      job: 'reading.wordGrid',
       messages: [
         {
           role: 'system',

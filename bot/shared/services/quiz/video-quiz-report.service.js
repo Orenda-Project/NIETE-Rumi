@@ -936,6 +936,7 @@ async function generateGuidance(context) {
         // on clarifying the misconception that…" — and reached for "categorise
         // various foods" instead of the dal and rice in the questions.
         model: 'gpt-5.4-mini',
+        job: 'quiz.videoReport',
         messages: [{ role: 'user', content: p }],
         temperature: 0.4,               // lower than the parent quiz: this is advice
         // gpt-5 family renamed this. Passing max_tokens is not an error you can

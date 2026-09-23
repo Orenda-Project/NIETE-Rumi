@@ -182,6 +182,7 @@ ${PLATFORM_KNOWLEDGE}
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
+        job: 'helper.guidance',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
@@ -255,6 +256,7 @@ Respond with just one word, nothing else.`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'helper.stuckRecovery',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userResponse }
@@ -444,6 +446,7 @@ Response format:
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'helper.capabilityDetect',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
@@ -560,6 +563,7 @@ IMPORTANT:
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'helper.capabilityGuidance',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         max_tokens: 400
@@ -599,6 +603,7 @@ Keep it concise and friendly.`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'helper.capabilityDefault',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         max_tokens: 400
