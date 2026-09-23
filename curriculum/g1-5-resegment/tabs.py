@@ -27,8 +27,10 @@ CORE = ["Day #", "Topic", "Skill type", "Pages (printed)",
 # far are G4 English and G5 Urdu. See dayobj and dayobjsheet.
 OBJECTIVE = ["Day objective"]
 
-CORE_TAIL = ["Supporting SLOs", "Supporting SLO descriptions",
-             "Bloom's", "Moves"]
+# The sentences left this column on 2026-09-23: they are the SLO's
+# property and not the day's, so they live once each on the SLO
+# Sentences tab and the codes here link to them (bd-960al, slotab).
+CORE_TAIL = ["Supporting SLOs", "Bloom's", "Moves"]
 
 COLLAB = ["Collaboration structure"]
 
@@ -94,7 +96,7 @@ def _day_row(r, subject, ncols):
         # is a fact about the build, and `pending` would claim a stage is
         # coming for it.
         out += [r.get("objective") or ""]
-    out += [r["supporting_slos"], r["supporting_descs"], r["blooms"], PENDING]
+    out += [r["supporting_slos"], r["blooms"], PENDING]
     if subject in LANG_SUBJECTS:
         out += [PENDING]
     out += [PENDING]
@@ -128,7 +130,7 @@ def _tail_row(r, subject, ncols):
            "", "", ""]
     if subject in LANG_SUBJECTS:
         out += [""]        # a review or assessment day teaches no new one
-    out += [r["supporting_slos"], "", r["blooms"], PENDING]
+    out += [r["supporting_slos"], r["blooms"], PENDING]
     if subject in LANG_SUBJECTS:
         out += [""]
     out += [""]
@@ -189,10 +191,10 @@ def subject_tab(subject, book_rows):
 
 
 def wrap_columns(subject):
-    """Long-prose columns. Topic and the two SLO description columns."""
+    """Long-prose columns. Topic, the primary SLO sentence, and notes."""
     cols = header(subject)
     want = {"Topic", "Primary SLO description", "Day objective",
-            "Supporting SLO descriptions", "Page overlap", "Flags"}
+            "Page overlap", "Flags"}
     return [i for i, c in enumerate(cols) if c in want]
 
 
@@ -210,7 +212,7 @@ def widths(subject):
           "Pages (printed)": 100, "Page overlap": 180, "Primary SLO": 110,
           "SLO role": 90, "Primary SLO description": 320,
           "Day objective": 320,
-          "Supporting SLOs": 130, "Supporting SLO descriptions": 300,
+          "Supporting SLOs": 150,
           "Flags": 250, "Moves": 300, TRACES_COLUMN: 150}
     return {i: px[c] for i, c in enumerate(cols) if c in px}
 

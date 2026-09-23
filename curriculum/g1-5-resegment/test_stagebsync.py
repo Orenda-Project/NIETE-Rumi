@@ -21,7 +21,7 @@ import stagebsync
 
 HEADER = ["Day #", "Topic", "Skill type", "Pages (printed)", "Page overlap",
           "Primary SLO", "SLO role", "Primary SLO description",
-          "Day objective", "Supporting SLOs", "Supporting SLO descriptions",
+          "Day objective", "Supporting SLOs",
           "Bloom's", "Moves", "Flags"]
 
 # Two teaching days of one chapter, with a grade banner and a chapter header
@@ -90,8 +90,7 @@ class OnlyWhatChangedIsCounted(unittest.TestCase):
 
     def test_a_column_reports_the_rows_it_would_change(self):
         p = stagebsync.plan(HEADER, SHEET, stagebsync.wanted(BUILT))
-        # Day 1 gains a sentence, Day 2 loses the one it had.
-        self.assertEqual(p.changed["Supporting SLO descriptions"], 1)
+        # Day 2 gains a primary sentence; both rows gain a flag.
         self.assertEqual(p.changed["Primary SLO description"], 1)
         self.assertEqual(p.changed["Flags"], 2)
 
@@ -99,7 +98,7 @@ class OnlyWhatChangedIsCounted(unittest.TestCase):
         p = stagebsync.plan(HEADER, SHEET, stagebsync.wanted(BUILT))
         self.assertEqual(p.changed["Supporting SLOs"], 0)
         self.assertEqual(p.dirty(), ["Primary SLO description",
-                                     "Supporting SLO descriptions", "Flags"])
+                                     "Flags"])
 
 
 class AColumnOutsideStageBIsNeverTouched(unittest.TestCase):

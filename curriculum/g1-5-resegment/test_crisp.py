@@ -18,7 +18,7 @@ import tabs
 STAMP = "2026-09-21"
 LIVE = (["Day #", "Topic", "Skill type", "Pages (printed)", "Page overlap",
          "Primary SLO", "SLO role", "Primary SLO description",
-         "Supporting SLOs", "Supporting SLO descriptions", "Bloom's",
+         "Supporting SLOs", "Bloom's",
          "Period (min)", "Moves", "Reading strategy",
          "Collaboration structure", "FDE syllabus", "Prerequisite SLOs",
          "Teacher-primary min (of 40)", "Flags", "A Page truth",

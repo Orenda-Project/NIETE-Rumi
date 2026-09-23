@@ -12,7 +12,7 @@ import tabs
 
 LIVE_LANG = ["Day #", "Topic", "Skill type", "Pages (printed)", "Page overlap",
              "Primary SLO", "SLO role", "Primary SLO description",
-             "Supporting SLOs", "Supporting SLO descriptions", "Bloom's",
+             "Supporting SLOs", "Bloom's",
              "Period (min)", "Moves", "Reading strategy",
              "Collaboration structure", "Function", "Interaction", "Gap",
              "Strand", "Recycles", "FDE syllabus", "Prerequisite SLOs",

@@ -38,14 +38,16 @@ import stagec
 #: SLO cells alone would leave a row describing a lesson that no longer
 #: exists. `Bloom's` is absent because `bloomrun` re-rated it ON the sheet,
 #: `Day objective` because `dayobjsheet` owns it, and every Stage C column
-#: because this build writes them as PENDING and would undo the enrichment.
+#: because this build writes them as PENDING and would undo the
+#: enrichment, and `Supporting SLO descriptions` because that column no
+#: longer exists -- the sentences live once each on the SLO Sentences
+#: tab and the codes on the row link to them (bd-960al).
 FIELD = [("Day #", "day_label"), ("Topic", "topic"),
          ("Skill type", "skill_type"), ("Pages (printed)", "pages"),
          ("Page overlap", "overlap"), ("Primary SLO", "primary_slo"),
          ("SLO role", "slo_role"),
          ("Primary SLO description", "primary_slo_desc"),
          ("Supporting SLOs", "supporting_slos"),
-         ("Supporting SLO descriptions", "supporting_descs"),
          ("Flags", "flags")]
 
 COLUMNS = [c for c, _ in FIELD]
