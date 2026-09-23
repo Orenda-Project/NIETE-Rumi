@@ -334,6 +334,29 @@ Feature: NIETE (ICT) Teacher Training
     # isolate. Same engine for transcript and lp_v8 quizzes. Content-driven: assert the SHAPE
     # (a card, stacked fractions, no TeX source in any text), never a fixed question. @wip.
 
+  @e2e @quiz @i18n @wip @draft @P2
+  Scenario: An Urdu class quiz speaks to the child in grammatical Urdu, and a picture question looks like the rest of the quiz
+    Given the NIETE bot chat is open and an Urdu class quiz with a picture question was made from a maths lesson
+    When a child opens the quiz from its link and gives a name and the class "3"
+    Then the greeting joins the name and the class with the Urdu comma "،", never with ","
+    When the child reaches the picture question
+    Then the picture carries "سوال <n> از <total>" and the NIETE mark, as the question cards do
+    And the text under the picture does not print the question number a second time
+    When the child finishes the quiz with one star
+    Then the caption says "آپ کو 1 ستارہ ملا!" and the scorecard names the subject "ریاضی", never "maths"
+    When the teacher's report goes out and the child shares a place with another child
+    Then the class card says "مشترکہ <place> نمبر پر" with the place in its oblique form, for example "پہلے" or "پانچویں"
+    And one hidden classmate reads "کلاس کا 1 اور بچہ", several read "کلاس کے <n> اور بچے"
+    And an English topic on the Urdu card is cut at its own end with "…", never at its beginning
+    # Figure frame: transcript-quiz-figure figureHtml (counter + mark in the 1080x565 header;
+    # media.question_image_paints_counter drops the body counter; an older unframed figure keeps
+    # it). Copy: ux-strings vqWhoNameClass / vqStarsEarned(One) / vqClassOthers(One); ordinals built
+    # in video-quiz-leaderboard.template urduOrdinal (direct + oblique); subject via
+    # transcript-quiz-language subjectLabel. Content-driven: which question has the picture, the
+    # score and the place vary — assert the SHAPE of each line. Class cards need CLASS_CARD_ENABLED.
+    # Proven in tests/quiz/child-copy-urdu-grammar.test.js, child-card-subject-and-topic.test.js and
+    # transcript-quiz-figure-frame.test.js. @wip until driven live.
+
   @e2e @quiz @wip @draft @P1
   Scenario: A quiz never ships an answer key a blind solver disagrees with
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned

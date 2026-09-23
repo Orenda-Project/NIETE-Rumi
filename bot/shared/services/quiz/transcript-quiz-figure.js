@@ -14,13 +14,15 @@
  *     → canonicalType()      is it on the phone-safe allowlist?
  *     → renderFigureSvg()    does the engine draw it, with zero label collisions?
  *     → figureLeaksAnswer()  does the picture already say the answer?
- *     → renderFigurePng()    1080px, fonts embedded, white ground
+ *     → renderFigurePng()    1080x565, fonts embedded, framed with the quiz chrome
  *     → uploadFigure()       one R2 object per question
  *     → quiz_questions.media.question_image, render_pattern 'P3'
  *
  * The child then gets ONE interactive message per question: image header, stem
  * body, three reply buttons — never a picture after the options, never a
- * picture the question does not need.
+ * picture the question does not need. The picture carries the same chrome as a
+ * question card — "Question n of N" and the NIETE mark — so a picture question
+ * looks like the rest of the quiz (see FRAME below).
  *
  * Pure and synchronous down to renderFigurePng (the engine is synchronous), so
  * the validator can run the render gate inline.
@@ -136,6 +138,26 @@ const PNG_WIDTH = 1080;
 // operator's phone). A canvas of exactly that shape is never cropped; the
 // drawing is centred inside it.
 const PNG_HEIGHT = 565;
+
+/**
+ * THE FRAME. A figure that does not need a whole question card arrived as a
+ * bare white canvas with a small drawing in it — no counter, no mark, the one
+ * question in the quiz that did not look like the quiz. It now carries the
+ * card's chrome in a band across the top: the counter at the start edge, the
+ * NIETE mark at the end, over the card's lattice.
+ *
+ * The canvas stays exactly 1080x565 (the header shape above). The band lives in
+ * what used to be the top and bottom padding (36px each), so the drawing's box
+ * shrinks from 1016x493 to FIG_BOX — a height-bound drawing loses under 2% of
+ * its size, a wide one nothing. FIG_BOX is the ONE statement of that box: the
+ * label-size gate (transcript-quiz-figure-gates) measures against it, so the
+ * gate and the picture can never disagree about how big a label is drawn.
+ */
+const FRAME = { padTop: 12, band: 50, gap: 4, padBottom: 14, padX: 32 };
+const FIG_BOX = Object.freeze({
+  w: PNG_WIDTH - 2 * FRAME.padX,
+  h: PNG_HEIGHT - FRAME.padTop - FRAME.band - FRAME.gap - FRAME.padBottom,
+});
 
 /** NIETE tokens, mapped onto the engine's palette slots. No Rumi navy, no gold. */
 const NIETE_TOKENS = {
@@ -872,29 +894,66 @@ function stripStrayLabels(spec, { stem, options } = {}) {
 const tokenCss = () => Object.entries(NIETE_TOKENS).map(([k, v]) => `--${k}:${v};`).join('');
 
 /**
- * Wrap an SVG in a self-contained page sized for a phone: 1080px wide, white
+ * Wrap an SVG in a self-contained page sized for a phone: 1080x565, white
  * ground, the vendored fonts embedded as base64 (a font fetched at render time
  * is the tofu bug), and the diagram palette bound to the NIETE tokens.
+ *
+ * Framed (see FRAME): a band with "Question n of N" at the reading-start edge
+ * and the NIETE mark at the other — the question card's own counter string,
+ * mark and lattice (quiz-picture-chrome), laid out in the quiz language's
+ * direction. The DRAWING stays left-to-right whatever the language; a fraction
+ * bar is not mirrored. Without a number the band still carries the mark, so the
+ * drawing's box is the same size either way.
+ *
  * @param {string} svg
  * @param {string} language
+ * @param {{questionNumber?: number, total?: number}} [opts]
  * @returns {string} HTML
  */
-function figureHtml(svg, language) {
+function figureHtml(svg, language, { questionNumber = null, total = null } = {}) {
   const { css, missing } = fontCss({ urdu: true });
   if (missing.length) logToFile('⚠️ transcript quiz figure: font face missing', { missing });
   const ur = language === 'ur';
+  const Chrome = require('./quiz-picture-chrome');
+  const counter = questionNumber && total
+    ? `<div class="counter">${escHtml(Chrome.paintedCounter(questionNumber, total, language))}</div>`
+    : '<div class="counter"></div>';
+  const mark = Chrome.markB64() ? `<div class="mark"><img src="data:image/png;base64,${Chrome.markB64()}"></div>` : '';
+  // The question card's own counter type (26px Latin, 30px Nastaliq on the same
+  // 1080px canvas), so the two kinds of question picture print the number alike.
+  const counterFont = ur
+    ? "font-family:'Noto Nastaliq Urdu','NastaliqUrdu','Noto Naskh Arabic',serif;font-size:30px;letter-spacing:0;"
+    : "font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:26px;letter-spacing:.08em;text-transform:uppercase;";
   return `<html lang="${ur ? 'ur' : 'en'}"><head><meta charset="utf-8"><style>
 ${css}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#FFFFFF}
 .fig{${tokenCss()}
-  width:${PNG_WIDTH}px;height:${PNG_HEIGHT}px;background:#FFFFFF;padding:36px 32px;
-  display:flex;align-items:center;justify-content:center;
+  width:${PNG_WIDTH}px;height:${PNG_HEIGHT}px;background:#FFFFFF;
+  padding:${FRAME.padTop}px ${FRAME.padX}px ${FRAME.padBottom}px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  position:relative;overflow:hidden;
   font-family:'Inter','Helvetica Neue',Arial,sans-serif;color:var(--ink);
   direction:ltr;unicode-bidi:isolate;}
 .fig svg{display:block;width:auto;height:auto;max-width:100%;max-height:100%}
+.fig svg.lattice{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;max-height:none;opacity:.07;pointer-events:none}
+.top{width:100%;height:${FRAME.band}px;margin-bottom:${FRAME.gap}px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;position:relative}
+.top[dir="rtl"]{direction:rtl}
+.counter{${counterFont}font-weight:600;color:#47BA7D;line-height:${FRAME.band}px;white-space:nowrap}
+.mark{width:${FRAME.band}px;height:${FRAME.band}px;background:#333748;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto}
+.mark img{width:${FRAME.band - 6}px;height:${FRAME.band - 6}px;display:block}
+.box{width:${FIG_BOX.w}px;height:${FIG_BOX.h}px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;position:relative}
+.box > svg{background:#FFFFFF}
 .fig [lang="ur"]{font-family:'Noto Nastaliq Urdu','Noto Naskh Arabic',serif;line-height:normal}
-</style></head><body><div class="fig">${svg}</div></body></html>`;
+</style></head><body><div class="fig">
+<svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${Chrome.latticePaths()}</g></svg>
+<div class="top" dir="${ur ? 'rtl' : 'ltr'}">${counter}${mark}</div>
+<div class="box">${svg}</div>
+</div></body></html>`;
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /**
@@ -903,11 +962,12 @@ html,body{background:#FFFFFF}
  * not the slow part of a question.
  * @param {string} svg
  * @param {string} language
+ * @param {{questionNumber?: number, total?: number}} [opts] painted into the frame
  * @returns {Promise<Buffer>}
  */
-async function renderFigurePng(svg, language) {
+async function renderFigurePng(svg, language, opts = {}) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
-  const png = await htmlToImage(figureHtml(svg, language), {
+  const png = await htmlToImage(figureHtml(svg, language, opts), {
     width: PNG_WIDTH, deviceScaleFactor: 1, selector: '.fig',
   });
   if (!png || !png.length) throw new FigureError('FIGURE_RENDER', 'the figure screenshot came back empty');
@@ -958,5 +1018,6 @@ module.exports = {
   uploadFigure,
   PNG_WIDTH,
   PNG_HEIGHT,
+  FIG_BOX,
   R2_PREFIX,
 };

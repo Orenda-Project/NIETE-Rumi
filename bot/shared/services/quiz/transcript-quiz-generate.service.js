@@ -307,7 +307,9 @@ async function renderFigures({ questions, language, teacherId, quizId }) {
       // The validator already drew this one; redrawing it would be a second
       // chance for the two copies to differ.
       const svg = q.figureSvg || Figure.renderFigureSvg(q.figure, language);
-      const png = await Figure.renderFigurePng(svg, language);
+      // The frame paints "Question n of N" like a question card does; the
+      // number is the row's position, which is the order the session asks in.
+      const png = await Figure.renderFigurePng(svg, language, { questionNumber: i + 1, total: questions.length });
       urls[i] = await Figure.uploadFigure({ teacherId, quizId, index: i, png });
       logEvent('transcript_quiz.figure_ready', {
         quizId, index: i, figureType: q.figure.type, bytes: png.length, latencyMs: Date.now() - startedAt,
@@ -381,7 +383,15 @@ function applyMedia(rows, questions, { figureUrls = {}, cardUrls = {}, language 
   rows.forEach((row, i) => {
     const q = questions && questions[i];
     const media = { ...(row.media || {}), language };
-    if (q && q.figure && figureUrls[i]) { media.question_image = figureUrls[i]; media.figure = q.figure; }
+    if (q && q.figure && figureUrls[i]) {
+      media.question_image = figureUrls[i];
+      media.figure = q.figure;
+      // Every figure renderFigures draws paints its own counter, so the chat
+      // body under it must not repeat it. Recorded on the row, not assumed at
+      // send time: a picture stored before the frame existed has no counter,
+      // and its question still needs the one in the body.
+      media.question_image_paints_counter = true;
+    }
     if (cardUrls[i]) media.question_card = cardUrls[i];
     row.media = media;
     // A card carries the figure inside it; the header-image pattern is for a

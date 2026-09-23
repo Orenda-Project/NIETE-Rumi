@@ -16,12 +16,14 @@
 
 const { requiredBox } = require('../../../vendor/lp-v9/diagrams/lib/svg');
 const { checkOverlaps, checkDegenerate } = require('../../../vendor/lp-v9/diagrams');
-const { PNG_WIDTH, PNG_HEIGHT, svgText, specStrings } = require('./transcript-quiz-figure');
+const { PNG_WIDTH, FIG_BOX, svgText, specStrings } = require('./transcript-quiz-figure');
 
-// The `.fig` box in transcript-quiz-figure.js's figureHtml(): 1080x565 with
-// `padding: 36px 32px`. The SVG is centred inside what padding leaves.
-const BOX_W = PNG_WIDTH - 2 * 32;  // 1016
-const BOX_H = PNG_HEIGHT - 2 * 36; // 493
+// The drawing's box in transcript-quiz-figure.js's figureHtml(): the 1080x565
+// canvas minus its padding and the counter/mark band. Read from the figure
+// module rather than restated, so the gate always measures the box the drawing
+// is actually given.
+const BOX_W = FIG_BOX.w; // 1016
+const BOX_H = FIG_BOX.h; // 485
 
 const LABEL_FLOOR_PX = 13.5;
 // A 1080-wide PNG is displayed at about 360 CSS px on a mid-range Android —

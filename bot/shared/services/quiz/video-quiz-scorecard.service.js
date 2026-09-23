@@ -32,13 +32,19 @@ function tierFor(pct) {
   return pct >= 80 ? 'mastered' : pct >= 60 ? 'developing' : 'needs_practice';
 }
 
-/** The caption, in the QUIZ language (an Urdu quiz ends in Urdu). */
+/**
+ * The caption, in the QUIZ language (an Urdu quiz ends in Urdu). The star
+ * sentence is chosen by count, whole: Urdu agrees the noun AND the verb with
+ * one star (آپ کو 1 ستارہ ملا!) against several (آپ کو 3 ستارے ملے!).
+ */
 function buildCaption({ correct, total, pct, stars, language = 'en' }) {
+  const starsLine = resolveUx(Number(stars) === 1 ? 'vqStarsEarnedOne' : 'vqStarsEarned', {
+    language, params: { stars },
+  });
   return resolveUx('vqScoreCaption', {
     language,
     params: {
-      correct, total, pct, stars,
-      starWord: language === 'ur' ? (stars === 1 ? 'ستارہ' : 'ستارے') : (stars === 1 ? 'star' : 'stars'),
+      correct, total, pct, starsLine,
       tier: resolveUx(TIER_KEY[tierFor(pct)], { language }),
     },
   });
