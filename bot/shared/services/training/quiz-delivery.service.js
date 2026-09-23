@@ -2144,7 +2144,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
     // bd-60139 added the gate that stops a certificate minting after ONE
     // module; that gate was necessary but not sufficient, because it guarded a
     // path a module exam never reached. The guard decides whether the level is
-    // complete (all units done, every active per-module exam passed), so this
+    // complete (on an I-SAPS level: every active per-module exam passed), so this
     // call site must NOT pre-judge which module is "last" — a level with a
     // different number of modules would break the moment it did.
     const { maybeIssueQuizScoreCertificate } = require('./certificate.service');
