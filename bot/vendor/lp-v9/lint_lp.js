@@ -1256,6 +1256,50 @@ const TRANSLIT_PROPHET_RE = /\b(Muhammad|Mohammad|Muhammed|Rasool|Rasul)\b/g;
 // The spelled-out English "(peace be upon him)" used to satisfy this and no longer does — Q3 keeps
 // the book's Latin NAME on an English page, it does not license an English SALUTATION.
 const TRANSLIT_HONORIFIC_RE = /^[\s،۔:'"’”)(,-]{0,3}(ﷺ|صل[یى]\s*الل[ہه]\s*عليه?\s*وسلم|صلی\s*اللہ\s*علیہ\s*وسلم)/i;
+// VENDOR DIVERGENCE (bd-6ld74, 2026-09-23). THE CHAINED NAME, IN THE LATIN LANE.
+//
+// The Urdu lane got this on the same G5c Q3 ruling that governs here (operator, 2026-09-17: "For
+// English keep the name as shown in the page truth Hazrat Muhammad (salutation) ... it should stay
+// as shown in the book but with our salutation stamp/script"). A CHAINED name carries ONE
+// salutation and it sits at the END of the chain. `TRANSLIT_HONORIFIC_RE` anchors immediately
+// after whichever token `TRANSLIT_PROPHET_RE` matched, so the gate was demanding a SECOND stamp in
+// the middle of the chain and refusing a line the book had already saluted correctly:
+//
+//     Hazrat Muhammad Rasulullah صلى الله عليه وسلم - An Embodiment of Justice
+//
+// 15 of the 18 measured LATER occurrences in the Grades 6-12 page-truth corpus are that one shape
+// — 14 in grade_8_english and 1 in grade_9_english. The other 3 are not this defect: 2 are Latin
+// abbreviations (bd-b7txa, normalised to the stamp before the gate ever sees them) and 1 is an OCR
+// artefact in the page truth, deliberately not accommodated here.
+//
+// EVERY WORD BELOW IS THE ROMANISATION OF A TOKEN ALREADY IN `PROPHET_CONTINUATIONS` OR
+// `PROPHET_TOKENS`, which is the whole of the licence Q3 gives: the NAME keeps the spelling the
+// book prints, the SALUTATION stays the stamp. Nothing here widens what counts as a salutation.
+//
+// This moves only WHERE the honorific is looked for. It never makes one optional: a chain that
+// runs out without a stamp fails at the original match, exactly as before.
+const TRANSLIT_CHAIN_WORDS = new Set([
+  "rasulullah", "rasoolullah", "rasulallah", "rasoolallah",   // رسول اللہ
+  "rasul", "rasool", "allah",                                 // رسول / اللہ, when the book spaces it
+  "mustafa", "mustapha", "mujtaba",                           // مصطفیٰ / مجتبیٰ
+  "ahmad", "ahmed",                                           // احمد
+  "kareem", "karim", "akram",                                 // کریم / اکرم
+  "khatam", "khatamunnabiyyeen", "khatam-un-nabiyyeen", "nabiyyeen",  // خاتم النبیین
+  "bin", "ibn", "abdullah",                                   // محمد بن عبداللہ
+  "amin", "ameen", "sadiq",                                   // امین / صادق
+  "hashmi", "qureshi", "madani", "makki", "arabi",            // ہاشمی / قریشی / مدنی / مکی / عربی
+]);
+function skipTranslitNameChain(after) {
+  let rest = after;
+  for (let i = 0; i < 4; i++) {                      // a printed chain runs at most four words on
+    const m = /^\s+([^\s،؛۔.,;:!?…'"’”«»‹›()\[\]{}]+)/.exec(rest);
+    if (!m) return rest;
+    const w = m[1].toLowerCase();
+    if (w === "ﷺ" || !TRANSLIT_CHAIN_WORDS.has(w)) return rest;   // the salutation ENDS the chain
+    rest = rest.slice(m[0].length);
+  }
+  return rest;
+}
 // VENDOR DIVERGENCE (bd-5t71f, 2026-09-17). THE SAME G5c REVIEW, FOR THE LATIN LANE.
 //
 // The Q2 ruling (operator, 2026-09-17) — "since we will have lots of Muhammads not the prophet but
@@ -1891,7 +1935,12 @@ function religiousMarks(doc, ctx) {
     TRANSLIT_PROPHET_RE.lastIndex = 0;
     let m;
     while ((m = TRANSLIT_PROPHET_RE.exec(s))) {
-      if (TRANSLIT_HONORIFIC_RE.test(s.slice(m.index + m[0].length))) continue;
+      const after = s.slice(m.index + m[0].length);
+      if (TRANSLIT_HONORIFIC_RE.test(after)) continue;
+      // Q3 — the stamp may close a CHAINED name two or three words on. Only re-tested when the
+      // chain actually advanced, so a bare token behaves identically to before (bd-6ld74).
+      const chained = skipTranslitNameChain(after);
+      if (chained !== after && TRANSLIT_HONORIFIC_RE.test(chained)) continue;
       // VENDOR DIVERGENCE (bd-5t71f, 2026-09-17): the G5c native-speaker review, as data — the
       // LATIN half, the same mechanism the Urdu lane got in bd-zipoe. Only a phrase the reviewer
       // marked `person` clears; a `prophet` phrase never does, and a name she has not seen STILL

@@ -131,6 +131,51 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # maths lesson naming nobody religious would pass this proving nothing.
 
   @e2e @content-driven @P1
+  Scenario: A chained Latin name the book saluted at the end of the chain is delivered
+    Given the NIETE bot chat is open
+    And the G5c review has decided the bare name "Muhammad" is the Prophet
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Hazrat Muhammad Rasulullah" with the Arabic salutation after the LAST word of that chain
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is not sent back for a revision round
+    # bd-6ld74. A chained name carries ONE salutation and it sits at the END of the chain, but the
+    # honorific test looked only immediately after the matched name token — so the gate demanded a
+    # second stamp mid-chain and refused a line the book had already saluted correctly. This is the
+    # single commonest shape left after bd-5t71f: of the 18 unresolved occurrences measured on the
+    # Grades 6-12 corpus, 15 are this one, 14 of them one unit title repeated across three pages in
+    # grade_8_english and 1 in grade_9_english. The Urdu lane was given this on the same G5c ruling;
+    # the Latin lane never was, so the same sentence passed in Urdu and was refused in English.
+    # THIS SCENARIO IS THE "WALK TO THE END OF THE CHAIN" RULE, and nothing more. It moves only
+    # WHERE the stamp is looked for, never WHETHER one is required: the words the gate is allowed to
+    # walk past are a closed list of romanised chain tokens, it walks at most four of them, and the
+    # salutation itself ends the walk. A chain that runs out with no salutation is still withheld —
+    # the outline below pins that, and it is the row that fails if this ever becomes a bypass.
+
+  @e2e @content-driven @P1
+  Scenario: A Latin honorific the book printed reaches the teacher as the Arabic stamp
+    Given the NIETE bot chat is open
+    And the G5c review has decided "Hazrat Muhammad PBUH" is the Prophet, correctly saluted
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Hazrat Muhammad" with the Latin honorific "(PBUH)" directly after it
+    Then a lesson-plan PDF is delivered to the chat
+    And the delivered plan carries the Arabic stamp after that name, not the Latin abbreviation
+    # bd-b7txa, the gap the outline below used to declare open. Two occurrences in the whole Grades
+    # 6-12 corpus — one "... SAW" in grade_9_mathematics and one "... PBUH" in
+    # grade_10_pak_studies_english — where the BOOK saluted the Prophet in Latin and the gate, which
+    # reads only the Arabic stamp, called the line unsaluted and withheld the lesson.
+    # THE GATE DID NOT MOVE, and that is the whole design. Asked whether a Latin PBUH/SAW should
+    # satisfy the gate, the G5c reviewer said it should; but the only way to do that INSIDE the gate
+    # is to stop refusing PBUH/SAW on sight, which reverses her own "what the teacher reads must be
+    # our stamp". So the fix sits ABOVE the gate: a normalisation pass rewrites the printed
+    # abbreviation to the Arabic stamp before the gate runs, and the gate then passes the line on
+    # its existing, unchanged rule. Both halves of her ruling survive — the salutation is no longer
+    # called absent, and what the teacher receives is the stamp.
+    # The second Then is the load-bearing half. If the plan were delivered still reading "(PBUH)",
+    # this scenario would be green and the ruling broken.
+
+  @e2e @content-driven @P1
   Scenario: An "Urdu" plan that is really English is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -151,6 +196,48 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # the row records overlay_dropped, and lp612.overlay.pass carries outcome=failed. The silent
     # alternative was an English page delivered under an Urdu claim, which is what 8 of the 23
     # attempted 6-12 repair rows were on 2026-09-18.
+
+  @e2e @content-driven @P1
+  Scenario: A سیرت lesson already held for review is delivered in Urdu when the overlay keeps the ﷺ
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    And the segment's English document already carries the G5c native-speaker review hold
+    When I complete it for that Grade 9 Islamiyat segment from an English-medium book, and the overlay
+      pass returns the topic title as "سیرت کا سبق: نبی کریم ﷺ کی زندگی"
+    Then a lesson-plan PDF is delivered to the chat
+    And what she receives is the Urdu page, not the English fallback
+    # The overlay pass now lints the MERGED page before it is allowed out, and this is the scenario
+    # that proves the hold DISCRIMINATES: same سیرت lesson, same Islamiyat chapter, same title — and
+    # it is delivered, because the honorific is there and the document was already a review item.
+    # The gate refuses the defect, not the subject. It is worth its own line because the failure it
+    # guards is invisible: a future widening of RELIGIOUS_MARKS could kill every Urdu Islamiyat
+    # overlay and nothing would say so — the fallback to English is silent by design, which is the
+    # kind outcome the scenario above describes. The review hold in the Given is load-bearing: an
+    # overlay that INTRODUCES religious content onto a document nobody flagged is refused even with
+    # the honorific, because then the Urdu page would be the first anyone saw of it.
+
+  @e2e @negative @content-driven @P1
+  Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a Grade 9 Islamiyat segment from an English-medium book, and the overlay
+      pass returns the topic title as "سیرت کا سبق: نبی کریم کی زندگی" — the Prophet named, the ﷺ dropped
+    Then a lesson-plan PDF is still delivered to the chat — the refusal is not silence
+    And what she receives is the English lesson, flagged by the honest caption
+    And she is never handed an Urdu page whose religious content no native speaker has cleared
+    # Gate G5c, on the lane that never asked it. The authoring climb refuses a document still
+    # carrying a RELIGIOUS_MARKS defect; the overlay pass had only two gates — is it Urdu, and does
+    # it cover enough pointers — and the coverage gate's own checker emits exactly one code,
+    # OVERLAY_MISSING. There was no religious code on this lane to trip. The strings the overlay
+    # translates include the chapter and topic TITLES, which on Islamiyat, Urdu and Pak Studies are
+    # exactly where a prophet or a companion gets named, so the model could put the Prophet on the
+    # page without the honorific and nothing between its reply and delivery would look.
+    # NOT a restatement of either scenario near it. "…is really English…" is the LANGUAGE gate — a
+    # different trigger. "…is still withheld" is the AUTHORING climb — a different OUTCOME: there
+    # she gets no PDF at all, here she gets the English one, because the worker keeps the English
+    # document intact as its fallback and this refusal lands in that same catch.
+    # An overlay that INTRODUCES religious content onto an unflagged document is held by the same
+    # rule and looks identical to her, so it is not a separate scenario.
 
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
@@ -212,9 +299,59 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Farooqi" is built like "Muhammad Ali Jinnah" and is still withheld, because the alternative —
     # deciding by grammar which Muhammad is which — is the automated clearance G5c forbids. If this
     # row ever delivers, the gate has started deciding on the reviewer's behalf.
-    # Known gap, guarded and not fixed here: she marked "Hazrat Muhammad PBUH" / "… SAW" as the
-    # Prophet, correctly, so a line the BOOK saluted in Latin stays withheld — the honorific test
-    # reads only ﷺ and the Arabic form. That is bd-b7txa, out of scope for this change.
+    # The gap this outline used to declare open is now CLOSED: she marked "Hazrat Muhammad PBUH" /
+    # "… SAW" as the Prophet, correctly, and a line the BOOK saluted in Latin no longer stays
+    # withheld — it is rewritten to the Arabic stamp before the gate reads it and DELIVERS, which is
+    # bd-b7txa and the scenario "A Latin honorific the book printed reaches the teacher as the
+    # Arabic stamp" above. The honorific test itself is unchanged and still reads only ﷺ and the
+    # Arabic form. Neither row here is touched by that: neither carries a salutation of any kind, in
+    # any script, so neither is rewritten and both stay withheld.
+
+  @e2e @negative @content-driven @P1
+  Scenario Outline: A Latin salutation the gate cannot reach still withholds the lesson
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body reads
+      "<body>"
+    Then no lesson-plan PDF is delivered
+    Examples:
+      | body                                          | why it is still withheld                                                |
+      | Hazrat Muhammad Rasulullah, the final Prophet | the chain runs out with no salutation at its end, so walking to the end finds nothing to read |
+      | Hazrat Muhammad Rasulullah (PBUH)             | the Latin honorific is not against the name, so the rewrite never reaches it, and a Latin salutation is not the stamp |
+      | Muhammad saw the crescent moon that evening   | a lower-case "saw" is ordinary English, never a salutation, so nothing is rewritten and the name stands unsaluted |
+    # The fail-closed half of the two scenarios above, one row per control. Row 1 bounds the walk:
+    # it may only find a salutation, never invent one. Row 2 bounds the rewrite: it fires only on an
+    # honorific printed directly against the name, so a chain is not laundered by an abbreviation
+    # sitting at the far end of it. Row 3 is the one a blind rewrite would get catastrophically
+    # wrong — "saw" is also the past tense of "see", so a rewrite that matched it case-insensitively
+    # would stamp scripture into an ordinary sentence about the sky. Bare "SAW" is excluded for the
+    # same reason; only the enclosed forms and "SAWW" are read as honorifics.
+    # If any row here ever delivers, the change has stopped being about WHERE the stamp is looked
+    # for and has started clearing religious content on the reviewer's behalf, which G5c forbids.
+
+  @e2e @negative @content-driven @coverage @P1
+  Scenario: A cache repair that cannot clear its religious content leaves my lesson exactly as it was
+    Given a 6-12 Urdu lesson I have already been served, stored and serving from the cache
+    And the overlay repair job tops that stored lesson up with the pointers the current gate offers
+    When the handful of strings it asks for come back clean, but the page they merge into still
+      names the Prophet without the honorific
+    Then nothing is written — the stored document and its PDF are left exactly as they are
+    And the renders row is not patched, so every later cache hit serves me the lesson I already had
+    And I am never quietly given a page whose religious content no native speaker has cleared
+    # The REPAIR lane, not the request lane. The backfill walks the renders table, pulls each stored
+    # document, tops its overlay up and writes back over the row's OWN R2 keys — so an uncleared
+    # translation here replaces the lesson permanently, for every future hit, with no teacher action
+    # to trigger it and nobody watching. Before this the whole chain mentioned religious content
+    # nowhere.
+    # What makes it its own scenario and not a restatement of the refusal above is WHERE the gate
+    # measures: on the MERGED document, never on the delta this call asked for. Judged on the delta
+    # alone the strings above are spotless and the repair ships with the defect still on the page.
+    # And the assertion here is the ABSENCE OF A WRITE, not the presence of an error — a hold that
+    # fires after the upload has already happened protects nobody.
+    # @coverage, not a live WhatsApp drive: the trigger is the operator-run backfill script, so no
+    # driver on this lane can reach it. Executed instead by the jest e2e over the real chain
+    # (tests/lp612/overlay-topup-religious-gate.e2e.test.js), which doubles only supabase, R2, the
+    # model and the renderer, and asserts the upload and row-update CALL COUNTS.
 
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message

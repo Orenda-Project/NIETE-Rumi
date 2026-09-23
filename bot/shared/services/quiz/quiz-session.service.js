@@ -742,7 +742,6 @@ class QuizSessionService {
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        job: 'quiz.session',
         messages: [
           { role: 'system', content: systemPrompt },
           ...history,
