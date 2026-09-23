@@ -5861,6 +5861,81 @@ $$;
 REVOKE ALL ON FUNCTION public.roster_class_timeline(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.roster_class_timeline(uuid) TO service_role;
 
+-- ─── users soft delete (migration V1.4.6) — the one retirement convention ────
+-- Mirrors infrastructure/supabase/migrations/V1.4.6__soft_delete_convention.sql: the
+-- add_soft_delete(table) helper, and what it does to `users`. The three columns are
+-- spelled out rather than left to the helper call, so a fresh install and the
+-- text-based conformance guards both see them; the statements are exactly the ones
+-- add_soft_delete('users') executes, so either order is a no-op on the other.
+CREATE OR REPLACE FUNCTION add_soft_delete(p_table text)
+RETURNS void
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = p_table
+  ) THEN
+    RAISE EXCEPTION 'add_soft_delete: no such table %', p_table;
+  END IF;
+
+  EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_at timestamptz', p_table);
+  EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_reason text', p_table);
+  EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_by text', p_table);
+
+  -- Partial: almost every row is live, so the index only carries tombstones.
+  EXECUTE format(
+    'CREATE INDEX IF NOT EXISTS %I ON %I (deleted_at) WHERE deleted_at IS NOT NULL',
+    'idx_' || p_table || '_deleted_at', p_table);
+
+  EXECUTE format(
+    'COMMENT ON COLUMN %I.deleted_at IS %L', p_table,
+    'Soft delete: when this row was retired. NULL = live. Read it through '
+    'bot/shared/utils/soft-delete.js (isDeleted/liveOnly), never by hand.');
+  EXECUTE format(
+    'COMMENT ON COLUMN %I.deleted_reason IS %L', p_table,
+    'Soft delete: why, as a short machine token (e.g. phone_change_merge).');
+  EXECUTE format(
+    'COMMENT ON COLUMN %I.deleted_by IS %L', p_table,
+    'Soft delete: who (actor id) or what (process name) retired it.');
+END;
+$fn$;
+
+COMMENT ON FUNCTION add_soft_delete(text) IS
+  'Add the three-column soft-delete convention to a table. One line per table: '
+  'SELECT add_soft_delete(''schools'');
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_reason text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_by text;
+-- Partial: almost every row is live, so the index only carries tombstones.
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users (deleted_at) WHERE deleted_at IS NOT NULL;
+COMMENT ON COLUMN users.deleted_at IS
+  'Soft delete: when this row was retired. NULL = live. Read it through bot/shared/utils/soft-delete.js (isDeleted/liveOnly), never by hand.';
+COMMENT ON COLUMN users.deleted_reason IS
+  'Soft delete: why, as a short machine token (e.g. phone_change_merge).';
+COMMENT ON COLUMN users.deleted_by IS
+  'Soft delete: who (actor id) or what (process name) retired it.';
+
+-- ─── niete_lp_asset_sources (migration V1.5.2) — the served lesson's slide script ──
+-- Mirrors infrastructure/supabase/migrations/V1.5.2__lp_asset_sources.sql so a clone
+-- bootstrapped from this file has the table the LP-born quiz reads its source from.
+-- One row per lesson asset; the version triple is the upsert key, and `verified` says
+-- how the script is known to belong to that PDF.
+CREATE TABLE IF NOT EXISTS niete_lp_asset_sources (
+  asset_id      uuid PRIMARY KEY REFERENCES niete_lp_assets(id) ON DELETE CASCADE,
+  lesson_id     text NOT NULL,
+  version_stamp text NOT NULL,
+  content_hash  text NOT NULL,
+  slide_script  jsonb NOT NULL,
+  source_url    text,
+  verified      text NOT NULL,            -- 'upload' | 'backfill:link' | 'backfill:link+ocr'
+  ingested_at   timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT niete_lp_asset_sources_version_uniq UNIQUE (lesson_id, version_stamp, content_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_niete_lp_asset_sources_lesson ON niete_lp_asset_sources (lesson_id);
+
 -- ─── teacher_nudges (migration V1.5.3) — scheduled teacher asks ─────────────
 -- Mirrors infrastructure/supabase/migrations/V1.5.3__teacher_nudges.sql so a
 -- clone bootstrapped from this file has the table the nudge sweeper reads.
@@ -5906,3 +5981,7 @@ ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS autofill_analysis_data JS
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS debrief_status         VARCHAR(20);
 CREATE INDEX IF NOT EXISTS idx_coaching_sessions_observer_pending
   ON coaching_sessions (observer_user_id, created_at DESC) WHERE observation_type = 'leader_observation';
+
+-- Cache reload LAST (infrastructure/CLAUDE.md): the blocks above were appended after the
+-- previous NOTIFY, and PostgREST cannot see a column it has not reloaded.
+NOTIFY pgrst, 'reload schema';

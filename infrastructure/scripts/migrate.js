@@ -16,8 +16,24 @@ const { createClient } = require('@supabase/supabase-js');
  *   CREATE OR REPLACE FUNCTION exec_sql(query TEXT)
  *   RETURNS VOID AS $$ BEGIN EXECUTE query; END; $$ LANGUAGE plpgsql;
  *
+ * THE LEDGER IS WRITTEN IN THE COLUMNS IT HAS. `schema_versions` is
+ * (version, applied_at, description) — that is what 00_complete-schema.sql creates and
+ * what every live database carries. The filename and the file's SHA-256 are kept inside
+ * `description` ("V1.5.3__teacher_nudges.sql sha256:<hex>") rather than in columns of
+ * their own: a runner that needs a schema change before it can record anything cannot
+ * record the migration that makes that change.
+ *
+ * A LEDGER THAT IS BEHIND IS REFUSED. The runner applies the ONE pending migration a
+ * change normally brings. If more than one is pending, the ledger does not describe the
+ * database — files applied by hand were never recorded — and a blanket run would apply
+ * them a second time. It stops before touching anything and points at the read-only
+ * ledger audit (scripts/schema-ledger-audit.py), which reports what each environment
+ * really has. Record what is applied, then re-run. `--apply-all-pending` is the explicit
+ * override, for a database whose ledger is genuinely right and genuinely behind.
+ *
  * Usage as CLI:
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node infrastructure/scripts/migrate.js
+ *   ...                                            node infrastructure/scripts/migrate.js --apply-all-pending
  */
 class MigrationRunner {
   /**
@@ -118,7 +134,7 @@ class MigrationRunner {
    * Applies a single migration file:
    * 1. Reads the SQL content
    * 2. Executes it via the exec_sql RPC endpoint
-   * 3. Records the version and SHA-256 checksum in schema_versions
+   * 3. Records it in schema_versions: version, description (filename + SHA-256), applied_at
    *
    * @param {string} filePath - Absolute path to the .sql migration file
    * @throws {Error} If SQL execution or recording fails
@@ -153,14 +169,13 @@ class MigrationRunner {
       );
     }
 
-    // Record the applied migration
+    // Record the applied migration — in the three columns the ledger actually has.
     const { error: insertError } = await this.supabase
       .from('schema_versions')
       .insert([
         {
           version,
-          filename,
-          checksum,
+          description: `${filename} sha256:${checksum}`,
           applied_at: new Date().toISOString(),
         },
       ]);
@@ -175,15 +190,22 @@ class MigrationRunner {
   }
 
   /**
-   * Runs all pending migrations in version order.
+   * Runs pending migrations in version order.
    * Continues on error - failed migrations are recorded in the errors array.
    *
+   * Refuses — applying nothing — when more than one migration is pending, unless
+   * `allowBacklog` is set. See the file header for why.
+   *
+   * @param {Object} [opts]
+   * @param {boolean} [opts.allowBacklog=false] - apply a multi-migration backlog anyway
    * @returns {Promise<Object>} Result with:
    *   - applied: string[] - filenames of successfully applied migrations
    *   - skipped: string[] - filenames of already-applied migrations
    *   - errors: Array<{ file: string, error: string }> - failed migrations
+   *   - refused?: { reason: 'ledger_behind', pending: string[] } - set when nothing was
+   *     applied because the ledger is behind by more than one migration
    */
-  async run() {
+  async run({ allowBacklog = false } = {}) {
     const result = { applied: [], skipped: [], errors: [] };
 
     // Determine what is already applied (for the skipped list)
@@ -208,6 +230,25 @@ class MigrationRunner {
 
     if (pending.length === 0) {
       console.log('[migrate] All migrations are up to date.');
+      return result;
+    }
+
+    if (pending.length > 1 && !allowBacklog) {
+      const names = pending.map((p) => path.basename(p));
+      result.refused = { reason: 'ledger_behind', pending: names };
+      console.error(
+        `[migrate] REFUSED: ${names.length} migrations are pending, and a change brings one. ` +
+        'The ledger (schema_versions) does not describe this database, so a run would ' +
+        're-apply migrations that were applied by hand and never recorded. Nothing was applied.'
+      );
+      for (const n of names) console.error(`[migrate]   pending: ${n}`);
+      console.error(
+        '[migrate] Run the read-only audit to see what is really applied, record those rows, ' +
+        'then re-run: python3 scripts/schema-ledger-audit.py --target <env> --env-file <file>'
+      );
+      console.error(
+        '[migrate] Only if every pending file genuinely still needs to run: --apply-all-pending'
+      );
       return result;
     }
 
@@ -237,10 +278,32 @@ class MigrationRunner {
   }
 }
 
-module.exports = { MigrationRunner };
+/**
+ * The CLI's flags. Anything unrecognised is reported, never ignored — a mistyped
+ * override that silently did nothing would look exactly like the refusal it meant to lift.
+ *
+ * @param {string[]} argv
+ * @returns {{ allowBacklog: boolean, unknown: string[] }}
+ */
+function parseCliArgs(argv) {
+  const known = new Set(['--apply-all-pending']);
+  return {
+    allowBacklog: argv.includes('--apply-all-pending'),
+    unknown: argv.filter((a) => !known.has(a)),
+  };
+}
+
+module.exports = { MigrationRunner, parseCliArgs };
 
 // ── CLI entrypoint ──
 if (require.main === module) {
+  const { allowBacklog, unknown } = parseCliArgs(process.argv.slice(2));
+  if (unknown.length) {
+    console.error(`[migrate] Unknown argument(s): ${unknown.join(' ')}`);
+    console.error('[migrate] The only flag is --apply-all-pending.');
+    process.exit(2);
+  }
+
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -297,8 +360,11 @@ if (require.main === module) {
   });
 
   runner
-    .run()
+    .run({ allowBacklog })
     .then((result) => {
+      if (result.refused) {
+        process.exit(1);
+      }
       if (result.errors.length > 0) {
         console.error(
           `[migrate] Completed with ${result.errors.length} error(s).`
