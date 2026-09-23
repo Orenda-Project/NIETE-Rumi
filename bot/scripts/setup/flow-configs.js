@@ -230,6 +230,22 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // The name-and-class screen a child opens from a quiz link, before
+    // question 1. STATIC — no endpoint: every word on it (title, heading, both
+    // labels and helper lines, the button) is navigate-mode screen data the bot
+    // fills in the quiz language, and it completes on the `vqjoin:` token with
+    // {student_name, student_class}. It supersedes student-join-flow.json, whose
+    // words are hardcoded English; that one stays on disk as the record of what
+    // STUDENT_JOIN_FLOW_ID serves until every WABA has this one. Leaving
+    // STUDENT_JOIN_LOCALIZED_FLOW_ID unset falls back to that legacy Flow for an
+    // English child and to asking in chat for everyone else.
+    name: 'Student Join Localized',
+    jsonPath: path.join(FLOWS_DIR, 'student-join-flow-v2.json'),
+    type: 'navigate',
+    envVar: 'STUDENT_JOIN_LOCALIZED_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // /quiz as ONE Flow: the lesson list with in-Flow paging, the lesson's own
     // live results, and generate report / resend link / make the quiz, all
     // inside the same session — no round-trips through the chat. Leaving

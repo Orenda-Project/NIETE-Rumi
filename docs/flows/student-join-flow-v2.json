@@ -1,0 +1,90 @@
+{
+    "version": "7.0",
+    "screens": [
+        {
+            "id": "WHO",
+            "title": "${data.title}",
+            "terminal": true,
+            "data": {
+                "title": {
+                    "type": "string",
+                    "__example__": "Before we start"
+                },
+                "heading": {
+                    "type": "string",
+                    "__example__": "Miss Ayesha has sent you a quiz"
+                },
+                "topic": {
+                    "type": "string",
+                    "__example__": "A Balanced Diet"
+                },
+                "name_label": {
+                    "type": "string",
+                    "__example__": "Your name"
+                },
+                "name_help": {
+                    "type": "string",
+                    "__example__": "So your teacher can see how you did"
+                },
+                "class_label": {
+                    "type": "string",
+                    "__example__": "Your class"
+                },
+                "class_help": {
+                    "type": "string",
+                    "__example__": "For example: Grade 4, or 1-B"
+                },
+                "cta": {
+                    "type": "string",
+                    "__example__": "Start the quiz"
+                }
+            },
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "TextHeading",
+                        "text": "${data.heading}"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "${data.topic}"
+                    },
+                    {
+                        "type": "Form",
+                        "name": "who",
+                        "children": [
+                            {
+                                "type": "TextInput",
+                                "name": "student_name",
+                                "label": "${data.name_label}",
+                                "input-type": "text",
+                                "required": true,
+                                "helper-text": "${data.name_help}"
+                            },
+                            {
+                                "type": "TextInput",
+                                "name": "student_class",
+                                "label": "${data.class_label}",
+                                "input-type": "text",
+                                "required": true,
+                                "helper-text": "${data.class_help}"
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "${data.cta}",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": {
+                                        "student_name": "${form.student_name}",
+                                        "student_class": "${form.student_class}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
