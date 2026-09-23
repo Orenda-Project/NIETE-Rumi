@@ -271,11 +271,15 @@ Feature: NIETE (ICT) Teacher Training
   Scenario: Questions taken from the book never ask her to count by kind
     Given the NIETE bot chat is open and I have opened the assessment generator
     And I have chosen a class, a subject and the pages to cover
-    When I choose "From the book" and say how many questions I want
-    Then I go straight to the recap, with no kind-picking and no per-kind counts
+    When I choose "From the book" and continue
+    Then I am asked one thing — how many questions — with no kind-picking and no per-kind boxes
+    When I ask for 12
+    Then the recap says 12 questions
     # The book's own exercises carry their own kinds, so a choice of kinds there is a question
     # whose answer cannot be used — planCounts() discards types on the seen path. This is the
-    # one path where a single total is still the right thing to ask for.
+    # one path where a single total is still the right thing to ask for, and it is asked on
+    # the same "how many" screen as the per-kind counts: when the total box first came off
+    # QUESTIONS, the seen path was left demanding a number it had no box for.
 
   # ════════════ CERTIFYING OFF A MODULE EXAM, AND WHAT THE SCORE IS OUT OF ════════════
   # d130827d (bd-60142, bd-60143). Synced late: the commit's marker was still unhandled
