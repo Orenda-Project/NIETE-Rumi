@@ -32,6 +32,7 @@
  */
 
 const store = require('./teacher-nudges.store');
+const { flagOn } = require('./flags');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -48,8 +49,7 @@ const VALID_KINDS = new Set(Object.values(store.KINDS));
  * armed at boot, ignored per tick, or the reverse.
  */
 function isEnabled() {
-  const raw = String(process.env.TEACHER_NUDGES_ENABLED || '').trim().toLowerCase();
-  return raw === 'true' || raw === '1' || raw === 'yes';
+  return flagOn('TEACHER_NUDGES_ENABLED');
 }
 
 function logError(message, data) {

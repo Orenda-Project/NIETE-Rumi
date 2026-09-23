@@ -38,6 +38,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { pagedRows } = require('../../utils/postgrest-paged');
 const PktTime = require('./pkt-time');
+const { flagOn } = require('./flags');
 const Store = require('./teacher-nudges.store');
 const WhatsAppService = require('../whatsapp.service');
 const { resolveUx } = require('../../config/ux-strings');
@@ -87,7 +88,7 @@ const SKIP_REASONS_USED = [
 // ─── flags ───────────────────────────────────────────────────────────────────
 
 function enabled() {
-  return process.env.LP_QUIZ_OFFER_ENABLED === 'true' || process.env.LP_QUIZ_OFFER_ENABLED === '1';
+  return flagOn('LP_QUIZ_OFFER_ENABLED');
 }
 
 /** An unreadable value falls back to the documented default rather than NaN. */
