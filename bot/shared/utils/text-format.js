@@ -104,7 +104,7 @@ function gradeText(v) {
 }
 
 /**
- * bd-2612 — label a child's class without saying "Grade" twice. Now also ONE
+ * Label a child's class without saying "Grade" twice. Now also ONE
  * format per document: "Class 4" in English, "جماعت 4" in Urdu, whatever the
  * child typed — "Grade 5", "class 5" and "جماعت ۴" in one roster read as three
  * different kinds of thing. The unit word is chrome, so it follows the

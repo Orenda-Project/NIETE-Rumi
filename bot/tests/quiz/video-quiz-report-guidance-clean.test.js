@@ -74,7 +74,7 @@ describe('bd-2611 — guidance reaches the teacher without markup', () => {
   });
 });
 
-describe('bd-2612 — the roster names the class the child gave, once, and one way', () => {
+describe('the roster names the class the child gave, once, and one way', () => {
   // The unit word is written once and always the same way ("Class", the word
   // the hero uses); the value is the grade number read out of what the child
   // typed. A section letter is not part of the grade.
