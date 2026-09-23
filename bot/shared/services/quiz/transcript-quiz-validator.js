@@ -22,6 +22,7 @@ const Multi = require('./transcript-quiz-multi');
 const { pedagogyDefects } = require('./transcript-quiz-pedagogy');
 const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word-blank');
 const { mathToText, texFaults } = require('./quiz-math');
+const { questionAddressForms } = require('./transcript-quiz-address');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -35,9 +36,25 @@ const ROMAN_URDU = new Set(['hai', 'hain', 'aur', 'kya', 'nahi', 'nahin', 'kaun'
   'kiya', 'yeh', 'woh', 'mein', 'main', 'ko', 'ka', 'ki', 'ke', 'se', 'par', 'bhi', 'toh', 'hota', 'hoti',
   'karo', 'karen', 'kitna', 'kitne', 'kahan', 'kab', 'batao', 'sahi', 'ghalat', 'galat', 'paude', 'hissa', 'mitti', 'neeche']);
 
-// Gendered address. A child of unknown gender is "آپ" with plural-respectful
-// verbs; these stems guess. Both feminine and masculine guesses are banned.
-const FEM_STEMS = /(کرتی ہیں|چاہتی ہیں|کریں گی|رہی ہوں گی|سکتی ہیں|بتاتی ہیں|سوچتی ہیں|جانتی ہیں|سمجھتی ہیں|کرتی ہو|سکتی ہو|ہو گی)/;
+// Gendered address to the child: transcript-quiz-address.js. It replaced a
+// list of feminine stems that matched third-person Urdu as readily as a
+// feminine address («دو سطحیں رب کرتی ہیں», «بیماریاں ہو سکتی ہیں», even the
+// «ہو گ» of «ہو گیا»), never caught the masculine guess at all, and on the real
+// authored corpus did not once catch a feminine address to a child.
+
+/**
+ * PEDAGOGY_GENDERED_CHILD for ONE question, or null. One line per question
+ * however many fields and forms, so the targeted rewrite repairs it once; the
+ * message is what the rewrite reads, so it says what to write instead.
+ */
+function childAddressError(q, i) {
+  const { fields, forms } = questionAddressForms(q);
+  if (!forms.length) return null;
+  const shown = [...new Set(forms)].slice(0, 4).map((f) => `"${f}"`).join(', ');
+  return `q${i}: PEDAGOGY_GENDERED_CHILD — ${fields.join(' + ')} speak${fields.length === 1 ? 's' : ''} to the child with a gendered verb (${shown}); `
+    + 'the class is boys and girls. Keep the same question and change only those verbs: the آپ-imperative or subjunctive («بتائیں»، «آپ کون سی علامت لگائیں؟»), '
+    + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)';
+}
 
 // English technical terms belong in English letters inside Urdu (operator
 // rule: "Urdu written well, English terms in English"). Speech-to-text spells
@@ -311,14 +328,13 @@ function validate(rawQuestions, ctx = {}) {
       // live run of round 4 had every one of them in English on an all-Urdu
       // page. English technical terms in Latin letters are expected inside an
       // Urdu phrase, so the bar is "some Urdu", not "no Latin".
-      // A feminine verb stem guesses the child's gender. It used to be found
-      // once over every question's text joined together — a quiz-level
-      // complaint the rewrite could not target and the salvage could not drop,
-      // and on production (2026-09-07) one such stem on the last attempt cost
-      // a teacher the whole quiz. Named per question, it is one question's
-      // text to rewrite; the quiz-level line below stays as the headline.
-      const fem = FEM_STEMS.exec(texts.join(' '));
-      if (fem) errs.push(`q${i}: PEDAGOGY_GENDERED_CHILD — "${fem[1]}" guesses the child's gender; address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں), never a feminine or masculine singular form`);
+      // A verb that speaks to the child with a gender — «کون سی علامت لگائیں
+      // گے؟», «آپ … سوچ رہے ہیں», «آپ … کر سکتی ہیں» — guesses whether the
+      // child is a boy or a girl. Named per question (a quiz-level complaint is
+      // one the rewrite cannot target and the salvage cannot drop: production,
+      // 2026-09-07), read on the question as the child SEES it.
+      const address = childAddressError(p, i);
+      if (address) errs.push(address);
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {
@@ -475,7 +491,6 @@ function validate(rawQuestions, ctx = {}) {
     const latinWords = joined.match(/\b[a-zA-Z]{2,}\b/g) || [];
     const roman = latinWords.filter((w) => ROMAN_URDU.has(w.toLowerCase()));
     if (roman.length >= 3) errs.push(`roman urdu tokens: ${roman.slice(0, 6).join(' ')}`);
-    if (FEM_STEMS.test(joined)) errs.push('feminine-stem address');
     const tl = TRANSLIT_TERMS.exec(joined);
     if (tl) errs.push(`transliterated English term in Urdu script: ${tl[1].trim()} — write it in English letters`);
   }
@@ -506,7 +521,6 @@ module.exports = {
   STEM_MAX,
   OPTION_MAX,
   LEVELS,
-  FEM_STEMS,
   TRANSLIT_TERMS,
   LATIN_FIRST,
   rtlOpen,
