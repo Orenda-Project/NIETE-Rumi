@@ -458,6 +458,7 @@ class PassageGenerationService {
 
       const instructionsResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.passageSend',
         messages: [{ role: 'user', content: instructionsPrompt }],
         temperature: 0.3,
         max_tokens: 250
@@ -500,6 +501,7 @@ class PassageGenerationService {
 
       const errorResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.passageSend',
         messages: [{ role: 'user', content: errorPrompt }],
         temperature: 0.3,
         max_tokens: 100
@@ -741,6 +743,7 @@ IMPORTANT: Return ONLY valid JSON in this exact format (no markdown, no code blo
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
+      job: 'reading.passageText',
       messages: [
         {
           role: 'system',

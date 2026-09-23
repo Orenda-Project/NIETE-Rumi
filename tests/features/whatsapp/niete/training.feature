@@ -123,6 +123,25 @@ Feature: NIETE (ICT) Teacher Training
     # Module bar is 70% ("10 questions. You need 70%…") vs NIETE 100%. Cert NIETE-20260805-YA5IU7 + PDF issued
     # off the final module pass — no exam step. See F-OXB-examcopy (post-completion still nudges "take the level exam").
 
+  @e2e @wip @draft @quiz @destructive @P1
+  Scenario: For an I-SAPS programme passing the last module exam certifies the level, whatever units are left
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme who has passed eight of the nine module exams and has NOT finished every unit
+    When I take the remaining module exam and pass it
+    Then the bot says "You have completed every module of Level 1: Novice.", gives me a certificate code, and sends the certificate PDF
+    And no unit, unit quiz score or module order is asked about first
+    # Operator 2026-09-23: no chaining; the certificate waits on the module exams ONLY (PASSED — a failed
+    # submission does not count). certificate.service maybeIssueQuizScoreCertificate: per-module-exam level ->
+    # allModuleExamsPassed is the whole rule. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.
+
+  @e2e @wip @draft @certificates @P2
+  Scenario: An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot
+    Given a teacher in the I-SAPS programme has just been certified
+    When the certificate PDF arrives
+    Then it carries the diagonal "NOT A REAL CERTIFICATE" watermark, even on production
+    And a certificate from any other programme on production does not
+    # certificate-env.rules PILOT_WATERMARK_VENDORS = ['ISAPS'].
+    # TODO(NIETE-ISAPS-GO-LIVE): at go-live for all teachers this flips — production I-SAPS certificates are clean.
+
   # ═══════════════════════════════════ NEGATIVE ═══════════════════════════════════
 
   @e2e @flow @negative @known-issue @P2
@@ -232,3 +251,32 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open and a module question has an option longer than about 70 characters
     Then that option is written out as a lettered line and can still be chosen
     # sendQuestion long-option handling (OPTION_DESC_MAX=72). @wip.
+
+  # ── the quiz written from a lesson PLAN (lp_v8) — PLAN_R8 §3.4/§3.5 ──────────────────────
+  # A quiz made from the lesson plan a teacher was served (the 15:00 offer) has no coaching
+  # recording behind it. It must still live in the ONE /quiz list, and its class report must
+  # still carry the objectives to reteach. Needs an lp_v8 quiz on the driver number first
+  # (answer "Make the quiz" on the afternoon offer, or seed one on sandbox). @wip until lane E
+  # drives it.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz made from my lesson plan is listed in /quiz among my coaching lessons
+    Given the NIETE bot chat is open and a quiz was made from a lesson plan I was served on an earlier day
+    And I also have a recorded coaching lesson
+    When I send "/quiz"
+    Then the list shows the lesson-plan quiz as a row "<date> · <subject>" with "<topic> · <status>" beneath it
+    And the rows are ordered newest lesson first, the lesson-plan quiz dated by the day it was planned for
+    And the recorded coaching lesson is still in the list
+    When I tap the lesson-plan quiz's row
+    Then I am offered "Resend the link", the report, and a way back — and nothing offers to make the quiz again
+    # transcript-quiz-list.service lessonItems + handleLpPick (row id tq_pick_lp_<quizId>); the /quiz Flow
+    # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: The class report of a quiz made from my lesson plan carries the objectives to reteach
+    Given the NIETE bot chat is open and children have finished a quiz that was made from my lesson plan
+    When I ask for the report from that quiz's row in /quiz
+    Then the class report arrives as a PDF
+    And it names the lesson's learning objectives next to the questions the class found hard
+    And afterwards that quiz's row in /quiz says the report was sent
+    # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.

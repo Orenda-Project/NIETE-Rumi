@@ -264,3 +264,19 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # and `users` has NO such column (prod: "column users.language does not
     # exist"). Every menu tap had been handled in English for every Urdu teacher.
     # Now reads preferred_language (whatsapp-bot.js, both dispatch sites).
+
+  # ═══════ ADDED 2026-09-22 · one coaching door, one instruction (@wip) ═══════
+  # menu.service _handleClassroomCoachingChoice now sends the catalog string
+  # lpAskYesReply — the same copy the lesson-plan coaching ask's "Record my lesson"
+  # sends (intended: it changes every entry). Driven by the E2E lane.
+
+  @e2e @menu @wip @draft @P1
+  Scenario: The coaching prompt says 20–45 minutes
+    Given the NIETE bot chat is open
+    And my role is "teacher"
+    When I send "/menu"
+    And I open the "See what I do" list
+    And I tap the "Classroom Coaching" row
+    Then the bot reply contains "Record your lesson with the WhatsApp mic"
+    And the bot reply asks for 20 to 45 minutes of the lesson
+    And the bot reply does not say "at least 15 minutes"

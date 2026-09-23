@@ -56,6 +56,65 @@ const EXPECTED = {
   'shared/services/coaching/fidelity/lp-upload-extractor.js': {
     sites: 1, jobs: ['lp.extractUpload'],
   },
+
+  // ---- phase 2 (bd-8xmp9): the remaining LIVE call sites -------------------------------
+  // Scoped by reachability from the three Procfile entry points (whatsapp-bot.js,
+  // workers/sqs-worker.js, dashboard/index.js). Four files that also hold model calls are
+  // deliberately ABSENT because nothing requires them at all in NIETE -- transcript-enhancer,
+  // name-extractor, and both pic-to-lp extractors. Labelling dead code buys nothing.
+  'shared/services/helper-agent.service.js': {
+    sites: 5,
+    jobs: ['helper.guidance', 'helper.stuckRecovery', 'helper.capabilityDetect',
+           'helper.capabilityGuidance', 'helper.capabilityDefault'],
+  },
+  'shared/services/exam-checker/grading.service.js': { sites: 1, jobs: ['exam.grade'] },
+  // coaching/reflective-questions/llm-router is deliberately NOT here. See the quiz note below.
+  'shared/services/reading/analysis.service.js': {
+    sites: 7,
+    jobs: ['reading.analyse', 'reading.diagnosticSummary', 'reading.report',
+           'reading.reportEnhance', 'reading.sendResults', 'reading.comprehensionStart',
+           'reading.combinedReport'],
+  },
+  'shared/services/reading/comprehension.service.js': {
+    sites: 5,
+    jobs: ['reading.comprehensionQuestions', 'reading.evaluateText', 'reading.evaluateAnswer',
+           'reading.comprehensionGuidance', 'reading.wordCategories'],
+  },
+  'shared/services/reading/auto-level-orchestrator.service.js': {
+    sites: 5,
+    jobs: ['reading.levelWelcome', 'reading.levelPassed', 'reading.levelRetry',
+           'reading.levelTransition', 'reading.levelLowest'],
+  },
+  // two sites, one job: both are the same send, on two branches of the same method.
+  'shared/services/reading/passage-generation.service.js': {
+    sites: 3, jobs: ['reading.passageSend', 'reading.passageText'],
+  },
+  'shared/services/reading/fluency.service.js': { sites: 1, jobs: ['reading.fluencyMatch'] },
+  'shared/services/reading/voice-feedback.service.js': { sites: 1, jobs: ['reading.voiceFeedback'] },
+  'shared/services/reading/report.service.js': { sites: 1, jobs: ['reading.translate'] },
+  'shared/services/reading-assessment.service.js': {
+    sites: 3, jobs: ['reading.assessLanguage', 'reading.assessGrade', 'reading.assessAudio'],
+  },
+  // FIVE files are deliberately NOT labelled, and must stay out of this table until they move onto
+  // llm-client (bd-3kv02): quiz/quiz-generation, quiz/quiz-report, quiz/quiz-session,
+  // quiz/video-quiz-report and coaching/reflective-questions/llm-router. Each builds its OWN raw
+  // `new OpenAI(...)`, so nothing strips `job` -- a label there is sent to the vendor as a request
+  // field, and api.openai.com answers an unknown field with a 400. They were labelled in bd-8xmp9,
+  // shipped to sandbox and staging, and pulled back before any quiz traffic reached them. The label
+  // bought nothing there anyway: a raw client never reaches recordModelCost, so their spend is not
+  // in api.cost.incurred at all. job-label-reaches-no-vendor.test.js is what now refuses a label on
+  // any file that imports the raw SDK.
+  // createChatCompletion is a pure passthrough (`create(options)`), so its label is a DEFAULT a
+  // caller can override -- same seam as coaching.completeJson.
+  'shared/services/openai.service.js': {
+    sites: 4, jobs: ['chat.respond', 'chat.intent', 'chat.topic', 'chat.completion'],
+  },
+  'shared/services/lp612-edit-intent.service.js': { sites: 1, jobs: ['lp.editIntent'] },
+  'shared/services/language-detector.service.js': { sites: 1, jobs: ['lang.detect'] },
+  'shared/services/training/capstone-delivery.service.js': { sites: 1, jobs: ['training.capstoneScore'] },
+  'shared/services/voice-attendance.service.js': { sites: 1, jobs: ['attendance.voiceExtract'] },
+  'shared/utils/word-grid-generator.js': { sites: 1, jobs: ['reading.wordGrid'] },
+  'workers/lesson-plan-extraction.worker.js': { sites: 1, jobs: ['lp.extractText'] },
 };
 
 // Accepts both `job: 'x'` and an override seam like `job: options.job || 'x'`, where the

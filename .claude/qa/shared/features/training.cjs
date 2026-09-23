@@ -411,4 +411,13 @@ exports.run = async ({ api, rec, sleep }) => {
               + '(training_programs) to enrol into, so the certified-from-module-scores path is unreachable here.' }, 0);
 
   api.closeFlow();
+  // T26/T27 — I-SAPS (operator 2026-09-23). Declared unrunnable here, with the reason, not left absent.
+  rec('T26', 'For an I-SAPS programme passing the last module exam certifies the level, whatever units are left', 'BLOCKED',
+      { reason: 'needs a driver enrolled in the I-SAPS programme with 8 of 9 module exams passed; no mock-lane seed or '
+              + 'QA helper provisions an I-SAPS level. The rule is covered by tests/training/isaps-cert-module-exams-only.test.js '
+              + 'and bd-60144 (real guard, stubbed DB).' }, 0);
+  rec('T27', 'An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot', 'BLOCKED',
+      { reason: 'the watermark is drawn inside the PDF; the mock lane sees the document message, not its pages. Covered by '
+              + 'tests/training/isaps-pilot-watermark.test.js + the rendered-page test in bd-60133.' }, 0);
+
 };

@@ -268,6 +268,7 @@ Language code:`;
     try {
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'lang.detect',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 15,
         temperature: 0
