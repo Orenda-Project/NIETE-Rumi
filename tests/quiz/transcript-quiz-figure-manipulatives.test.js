@@ -62,6 +62,15 @@ describe('counter and tile — the two manipulatives the pictogram set lacked', 
     },
   );
 
+  test('a "stick" is the thin counting stick base_ten draws, not a log, and is listed once', () => {
+    // OpenMoji has no stick; the set's "stick" was its WOOD glyph, a log. A lesson
+    // bundles thin sticks into tens, and base_ten draws exactly those.
+    expect(Pictograms.inner('stick')).toMatch(/fill="var\(--clay, #B5651D\)"/);
+    expect(Pictograms.names().filter((n) => n === 'stick')).toHaveLength(1);
+    const svg = renderFigureSvg({ type: 'count_objects', picto: 'stick', count: 9 }, 'en');
+    expect(Gates.figureGateDefects(svg, 'count_objects')).toEqual([]);
+  });
+
   test('a counter is painted like the ten-frame\'s counters: accent fill, ink rim', () => {
     const svg = renderFigureSvg({ type: 'count_objects', picto: 'counter', count: 3 }, 'en');
     expect(svg).toMatch(/fill="var\(--amber, #F2A20C\)"/);
