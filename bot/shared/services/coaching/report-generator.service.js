@@ -359,6 +359,11 @@ class ReportGeneratorService {
       //
       // Delivery order: report PNG (above) → voice debrief (above) → commitment
       // card here → response buttons → (optional follow-ups below).
+      //
+      // bd-fmr3s (DC row 137): the session-complete line LEADS the commit-prompt
+      // body — one message, completion first, then the closing question. When it
+      // rode along, the standalone boundary line below is skipped.
+      let completionAnnounced = false;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
         const { getCoachingCardCopy } = require('../../config/coaching-card.config');
@@ -409,14 +414,16 @@ class ReportGeneratorService {
           // prioritized_action DB write below — they drive the follow-up flow.
 
           // Response buttons follow regardless of which renderer ran.
+          const lead = cardCopy.sessionCompleteLead;
           await WhatsAppService.sendInteractiveButtons(from, {
-            body: cardCopy.commitPrompt,
+            body: lead ? `${lead}\n\n${cardCopy.commitPrompt}` : cardCopy.commitPrompt,
             buttons: [
               { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
               { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
               { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
             ],
           });
+          completionAnnounced = Boolean(lead);
 
           await supabase
             .from('coaching_sessions')
@@ -448,11 +455,14 @@ class ReportGeneratorService {
       // feature speaks. Everything below this point — the transcript-quiz offer,
       // the feature linker — belongs to a different feature, and without a
       // spoken boundary teachers and coaches read the quiz as step 6 of the
-      // coaching session. Sent after the commit prompt (above) and before the
-      // first of those asks, in her language via the unified resolver. Never
+      // coaching session. In her language via the unified resolver. Never
       // fatal: a failed boundary line must not fail a completed session.
+      // bd-fmr3s (DC row 137): only when the commit prompt did NOT already open
+      // with the completion line — never two completion messages back-to-back.
       try {
-        await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
+        if (!completionAnnounced) {
+          await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
+        }
       } catch (error) {
         // Class N: degraded-but-recovered — the session IS complete, she just
         // did not get the line saying so. logWarn, not a bare info logToFile.
