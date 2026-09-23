@@ -55,6 +55,7 @@ const { familyForBook } = require('../config/lp612-families');
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint, overlayDefects, OVERLAY_MIN_COVERAGE } = require('../../vendor/lp-v9/lint_lp.js');
+const { normalizeLatinHonorific } = require('./lp612-latin-honorific');
 const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
 // The renderer's OWN pointer resolver and frozen-slot list, so `sanitizeOverlay` cannot
@@ -2198,6 +2199,10 @@ async function authorLessonPlan({
   };
 
   applyVideo(doc, video);
+  // bd-b7txa — a Latin "(PBUH)"/"(SAW)" against the Prophet's name becomes the stamp BEFORE the
+  // gate reads the document. The gate is unchanged and still refuses anything this misses, so the
+  // rule stays fail-closed; see `lp612-latin-honorific.js` for the ruling and the adjacency guard.
+  normalizeLatinHonorific(doc);
   sanitizeUnknownTopLevel(doc);
   sanitizeOverlay(doc);
   // bd-zle0u: the ladder's document is overlay-free BY CONTRACT. See `stripOverlay`.
@@ -2430,6 +2435,7 @@ async function authorLessonPlan({
     });
 
     applyVideo(candidate, video);
+    normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     noteStrippedOverlay(stripOverlay(candidate), spent);
@@ -2772,6 +2778,11 @@ function buildOverlayPrompt({ lpDoc, segment, targets }) {
  * @throws  Error with .code in {'OVERLAY_NO_TARGETS','OVERLAY_LLM_FAILED','OVERLAY_UNPARSEABLE',
  *          'OVERLAY_NOT_URDU','OVERLAY_TOO_THIN'} — the CALLER decides what that costs, and the
  *          answer is always "this lesson is delivered in English", never "this lesson is lost".
+ *
+ *          `OVERLAY_RELIGIOUS_MARKS` is the one the caller may NOT soften that way. It
+ *          carries `.fails`, the RELIGIOUS_MARKS findings on the MERGED document, and it means the
+ *          native-speaker hold of brief §4c gate G5c has not been cleared: the page is not
+ *          delivered, nothing is written, and the stored document keeps serving as it was.
  */
 async function overlayLessonPlan({
   lpDoc, segment, model, correlationId, targets: targetsIn, baseOverlay,
@@ -2902,6 +2913,67 @@ async function overlayLessonPlan({
       + `(${(coverage * 100).toFixed(1)}%); the floor is ${OVERLAY_MIN_COVERAGE * 100}%. `
       + defects[0].msg,
       { coverage });
+  }
+
+  // GATE 3 — THE NATIVE-SPEAKER HOLD.
+  //
+  // Brief §4c, gate G5c: "Automated checks do NOT clear religious content: the native-speaker
+  // review remains a hard hold before any teacher delivery." The authoring climb enforces it —
+  // see NEVER_DELIVER_CODES and THE REFUSAL — and this path did not. `overlayDefects()` above
+  // emits exactly ONE code, `OVERLAY_MISSING`, so there was no religious code on this lane to
+  // trip, and the repair chain that drives it (`lp612-overlay-backfill` -> `lp612-overlay-repair`
+  // -> `lp612-overlay-topup`) mentions religious content nowhere. An LLM could therefore name the
+  // Prophet without the honorific in `/provenance/topic` — the lesson's own TITLE, and on an
+  // Islamiyat, Urdu or Pak Studies lesson exactly where a prophet or a companion gets named — and
+  // the caller would write it over the R2 object every future cache hit for that lesson reads.
+  //
+  // MEASURED ON THE MERGED DOCUMENT, for the reason GATE 2 states above in its own words: what
+  // this gate protects is the page the teacher receives, which is the merge. `probe` already IS
+  // that merge, sanitized — judging this call's slice alone would clear a clean two-string top-up
+  // onto a base that still names the Prophet, and the defect would stay on the page.
+  //
+  // IT THROWS, and does not return a flag, for the reason THE REFUSAL records: `lint_clean` is
+  // written to the render row and never read, so nothing downstream gates on a flag and the
+  // lesson would send anyway. A throw leaves the stored document exactly as it was — the status
+  // quo, which is the overlay-lane rule already (`lp612-overlay-topup.service` rule 4).
+  //
+  // `lint()` DIRECTLY, NOT `runGates()`. Two reasons, and the first is the one that decides it:
+  //   • `runGates` SHORT-CIRCUITS ON SCHEMA. A schema-invalid document returns `{lint: []}` and
+  //     the religious rule never runs at all. That is fail-OPEN, and this is the one gate that
+  //     may never fail open. (It is also the right call for `runGates`' own caller, where the
+  //     ladder is about to revise the shape anyway — it is simply not the semantics for a hold.)
+  //   • `runGates` is the AUTHORING ladder's verdict: it takes a render check, and emits
+  //     `lp612.author.schema_invalid` telemetry under a lane that has no renderer and is not the
+  //     author. GATE 2 above already sets the precedent of calling the vendored linter's own
+  //     function here rather than routing through the ladder.
+  // A throw out of `lint()` itself is the safe direction too: the row is refused and nothing is
+  // written.
+  const religiousFails = lint(probe, null, { lang: 'ur', overlayExpected: true })
+    .fails.filter(isNeverDeliverable);
+  if (religiousFails.length) {
+    logToFile('lp612 overlay refused — religious content not cleared', {
+      correlationId, segmentId: seg.segment_id, model: chosenModel,
+      targets: targets.length, applied: Object.keys(kept).length,
+      fails: religiousFails.slice(0, 5),
+    });
+    logEvent('lp612.overlay.refused', {
+      correlationId: correlationId || null,
+      segmentId: seg.segment_id || null,
+      model: chosenModel,
+      reason: 'religious_marks',
+      outcome: 'refused',
+      targets: targets.length,
+      applied: Object.keys(kept).length,
+      failCount: religiousFails.length,
+      fails: religiousFails.slice(0, 4),
+      elapsedMs: Date.now() - startedAt,
+    });
+    throw fail(
+      'OVERLAY_RELIGIOUS_MARKS',
+      'this Urdu page is not delivered: religious content on it has not been cleared — '
+      + religiousFails[0],
+      { fails: religiousFails },
+    );
   }
 
   const elapsedMs = Date.now() - startedAt;
@@ -3067,6 +3139,7 @@ async function reviseLessonPlan({
     }
 
     applyVideo(candidate, video);
+    normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
