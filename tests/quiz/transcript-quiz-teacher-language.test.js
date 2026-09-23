@@ -140,7 +140,10 @@ describe('every teacher-facing surface answers in her stored language', () => {
       users: { data: [TEACHER] },
     });
     await Offer.handleOfferButton(`tq_yes_${QID}`, PHONE);
-    expect(WA.sendInteractiveButtons.mock.calls[0][1].body).toBe(en('tqAskLanguage'));
+    // A maths lesson whose digest carries no English key terms: the maths pair.
+    expect(WA.sendInteractiveButtons.mock.calls[0][1].body).toBe(en('tqAskLanguage', {
+      examples: ['fraction', 'numerator'].map((t) => `\u2068${t}\u2069`).join(en('vqLetterSep')),
+    }));
 
     jest.clearAllMocks();
     await Offer.handleOfferButton(`tq_no_${QID}`, PHONE);

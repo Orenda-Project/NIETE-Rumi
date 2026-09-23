@@ -798,7 +798,11 @@ async function accept(nudgeId, key, from, user, at) {
     // The transcript quiz's own ask and buttons (tq_lang_<code>_<quizId>); its
     // handler generates this row once the teacher answers. Nothing is queued
     // until then. The subject rule is the first, easy tap.
-    await TranscriptQuizOffer.sendLanguageAsk(quizId, from, language, quizLanguageFor(cls.subject, null));
+    // No digest yet (the author digests the planned lesson after the answer):
+    // the ask's examples fit the class's subject.
+    await TranscriptQuizOffer.sendLanguageAsk(quizId, from, language, quizLanguageFor(cls.subject, null), {
+      subject: cls.subject,
+    });
     logEvent('lp_quiz.language_asked', { nudgeId, quizId, userId: row.user_id, class: cls.key });
   } else if (!(await TranscriptQuizOffer.queueLpQuiz({ quizId, nudgeId: row.id, phone: from, language }))) {
     return true;

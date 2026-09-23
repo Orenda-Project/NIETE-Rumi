@@ -106,6 +106,63 @@ function languageAskButtons(quizId, ruleLanguage) {
   }));
 }
 
+/**
+ * THE EXAMPLES THE ASK NAMES. The ask tells the teacher what an Urdu quiz does
+ * with English terms, with an example or two — which must come from THIS lesson
+ * (a science lesson was told "fraction, numerator"). In order of preference:
+ *
+ *   1. up to two of the digest's own key_terms written in English letters and
+ *      short enough to read at a glance (a term, not a sentence), repeats
+ *      dropped;
+ *   2. when the lesson has none — no digest yet (a quiz born from a lesson
+ *      plan), or only Urdu terms — a pair that fits the SUBJECT;
+ *   3. and when neither fits, no examples at all: an example from another
+ *      subject is worse than none.
+ */
+const ASK_TERM_MAX_CODE_POINTS = 24;
+const ASK_TERM_MAX_WORDS = 3;
+const ASK_TERM_SHAPE = /^[A-Za-z][A-Za-z0-9' -]*$/;
+const ASK_TERM_FALLBACK = {
+  maths: ['fraction', 'numerator'],
+  science: ['photosynthesis', 'cell'],
+  english: ['noun', 'verb'],
+};
+
+function askTermExamples({ digest, subject } = {}) {
+  const terms = [];
+  const seen = new Set();
+  const keyTerms = digest && Array.isArray(digest.key_terms) ? digest.key_terms : [];
+  for (const k of keyTerms) {
+    const term = String((k && typeof k === 'object' ? k.term : k) || '').replace(/\s+/g, ' ').trim();
+    const usable = ASK_TERM_SHAPE.test(term)
+      && [...term].length <= ASK_TERM_MAX_CODE_POINTS
+      && term.split(' ').length <= ASK_TERM_MAX_WORDS
+      && !seen.has(term.toLowerCase());
+    if (!usable) continue;
+    seen.add(term.toLowerCase());
+    terms.push(term);
+    if (terms.length === 2) return terms;
+  }
+  if (terms.length) return terms;
+  return [...(ASK_TERM_FALLBACK[canonicalSubject(subject || (digest && digest.subject))] || [])];
+}
+
+/**
+ * The body of the quiz language ask, in the teacher's language, naming this
+ * lesson's English terms (above). Each term is a first-strong isolate so a term
+ * with a digit or a hyphen keeps its shape inside an Urdu line, and the terms
+ * are joined by the language's own list comma (`،` in Urdu).
+ *
+ * @param {{digest?: object, subject?: string}} lesson
+ * @param {string} teacherLang
+ */
+function languageAskBody(lesson, teacherLang) {
+  const terms = askTermExamples(lesson || {});
+  if (!terms.length) return resolveUx('tqAskLanguagePlain', { language: teacherLang });
+  const examples = terms.map(isolate).join(resolveUx('vqLetterSep', { language: teacherLang }));
+  return resolveUx('tqAskLanguage', { language: teacherLang, params: { examples } });
+}
+
 const UR_MONTHS = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
 const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const PKT_OFFSET_MIN = 5 * 60;
@@ -332,6 +389,7 @@ module.exports = {
   topicFor,
   needsLanguageAsk,
   languageAskButtons,
+  languageAskBody,
   LANGUAGE_ASK_SKIPPED,
   LANGUAGE_BUTTON_PREFIX,
   lessonLabel,
