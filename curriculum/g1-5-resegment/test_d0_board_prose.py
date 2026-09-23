@@ -79,3 +79,40 @@ def test_a_decimal_number_is_not_a_sentence_end():
     out = P.split_prose(s)
     assert len(out) == 2, out
     assert "1.5" in out[0]
+
+
+def test_a_named_punctuation_mark_is_not_a_sentence_end():
+    """Urdu board work for a punctuation lesson QUOTES the mark it is teaching.
+
+    Found in the corpus at g1_ch10 Urdu_seg8: *"write a sample sentence and at the
+    end of it ? circle it"* -- one instruction naming the question mark, which the
+    naive splitter cut in half into two build steps the author never wrote. A real
+    sentence end never has whitespace in front of the terminator; a glyph being
+    named always does.
+    """
+    line = (
+        "ایک نمونہ جملہ لکھیں اور اس کے آخر میں ؟ کو دائرے میں نمایاں کریں۔ "
+        "ایک یائے لین کی مثال بھی لکھیں۔ دائیں طرف نئے الفاظ کی فہرست لکھیں۔ "
+        "نیچے زبر والے حروف کی قطار لکھیں۔"
+    )
+    parts = P.split_prose(line)
+    assert all("؟ کو" not in p or p.startswith("ایک نمونہ") for p in parts)
+    assert any("؟ کو دائرے" in p for p in parts), parts
+
+
+def test_an_alphabetic_enumerator_stays_with_the_item_it_numbers():
+    """Urdu lists label their items alif / bay / jeem, each followed by U+06D4.
+
+    Found at g2_ch9 Urdu_seg3: a matching exercise whose three items are labelled
+    'الف۔' 'ب۔' 'ج۔'. Those are labels, not sentences -- left alone the splitter
+    made 'ب۔' a board row of its own, which tells the teacher to write a letter
+    and nothing else. The label belongs to the item that FOLLOWS it.
+    """
+    line = (
+        "بائیں طرف لکھیں۔ الف۔ ___ = کسی معاشرتی گروہ کی طرزِ زندگی۔ "
+        "ب۔ ___ = جہاں پرانی عمارتوں کے آثار ہوں۔ ج۔ ___ = پتھر کا بت۔ "
+        "دائیں طرف تینوں الفاظ لکھیں۔"
+    )
+    parts = P.split_prose(line)
+    assert all(len(p.strip()) > 3 for p in parts), parts
+    assert any(p.startswith("ب۔ ___") for p in parts), parts

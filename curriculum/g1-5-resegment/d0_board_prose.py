@@ -28,11 +28,23 @@ MIN_PROSE_CP = 140
 # that starts a new sentence. Urdu's full stop (U+06D4) and question mark (U+061F) sit
 # beside the Latin ones because 20 of the 43 prose boards are Urdu -- a splitter that
 # only knew "." would leave the worst-affected half of the corpus exactly as it was.
-_END = re.compile(r"(?<=[.!?۔؟؛])\s+")
+# The lookbehind for a NON-space before the terminator is what stops a punctuation
+# lesson from being cut in half. Urdu board work that teaches the marks quotes them
+# bare -- *"write a sentence and at the end of it ? circle it"* -- and a glyph being
+# named always has a space in front of it, where a real sentence end never does.
+_END = re.compile(r"(?<=\S[.!?۔؟؛])\s+")
 
 # "1.5 metres" and "p.151" are not sentence ends. A period flanked by digits, or one
 # following a single letter, stays inside its row.
 _NOT_END = re.compile(r"(?:\d\.\d|(?<![A-Za-z])[A-Za-z]\.)\Z")
+
+
+# A list LABEL, not a sentence: one short token ending in a terminator, no space in
+# it. Urdu lists run alif / bay / jeem and English ones a. b. c., each followed by the
+# item it names -- so the label belongs to what FOLLOWS it, unlike the mid-number and
+# abbreviation cases above, which belong to what precedes. Found at g2_ch9 Urdu_seg3,
+# where 'ب۔' became a board row of its own telling the teacher to write one letter.
+_LABEL = re.compile(r"\A\S{1,3}[.\u06d4)\u200f]\Z")
 
 
 def _as_text(value) -> str:
@@ -62,4 +74,15 @@ def split_prose(line) -> list[str]:
             parts.append(piece)
 
     parts = [p for p in parts if p.strip()]
-    return parts if len(parts) > 1 else [text]
+
+    joined: list[str] = []
+    for piece in parts:
+        if joined and _LABEL.match(joined[-1].strip()):
+            joined[-1] = f"{joined[-1]} {piece}"
+        else:
+            joined.append(piece)
+    if joined and _LABEL.match(joined[-1].strip()) and len(joined) > 1:
+        # A label with nothing after it cannot stand alone either.
+        joined[-2] = f"{joined[-2]} {joined.pop()}"
+
+    return joined if len(joined) > 1 else [text]
