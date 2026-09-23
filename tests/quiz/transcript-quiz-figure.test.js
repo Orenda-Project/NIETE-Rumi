@@ -228,7 +228,10 @@ describe('figureHtml', () => {
     // nothing is fetched at render time: no remote font, stylesheet or image
     expect(html).not.toMatch(/@import/);
     expect(html).not.toMatch(/url\(\s*['"]?https?:/);
-    expect(html).not.toMatch(/<(link|script|img)\b/);
+    expect(html).not.toMatch(/<(link|script)\b/);
+    // The frame's NIETE mark is an <img>, but an inline one: every image on the
+    // page is a data: URI, so nothing is fetched.
+    [...html.matchAll(/<img\b[^>]*>/g)].forEach(([tag]) => expect(tag).toMatch(/src="data:image\/png;base64,/));
   });
 
   test('paints the NIETE tokens and a phone-width white ground', () => {

@@ -792,6 +792,14 @@ emitted a backslash, against the module's own stated rule. This changes the What
 Upstream carries none of this yet. Push `diagrams/index.js` + `diagrams/lib/tex.js` up at the next
 re-sync.
 
+**Second shared-file change (2026-09-23): a mixed number.** `convertMath` wrote `$2\frac{1}{3}$` as
+`21/3` — the whole part ran into the numerator, and a teacher read twenty-one thirds. The frac branch
+now joins a whole number written straight before a fraction with a NO-BREAK SPACE (`2 1/3`), chosen
+because U+00A0 is a bidi common separator and keeps the mixed number one run inside an Urdu line.
+Made in the shared file and re-copied here under the header, as the rule above says; the class quiz's
+own local pre-pass for the same case (`quiz-math.js`) was removed in the same change, so there is one
+rule. Covered by `tests/lp612/tex-mixed-number.test.js`. Push it up with the rest of §3.12.
+
 ### 3.13 `lint_lp.js` — `overlayTargets()`: the lesson's title, and figure labels (2026-09-14)
 
 Two decisions inside `overlayTargets()` left English on an otherwise Urdu page, on the first Urdu
@@ -989,11 +997,25 @@ the real figure through the real teacher template and requires every Urdu stack 
 name a family that page embeds, ahead of any non-Nastaliq fallback. Upstream does not need it and
 should not be sent it: it is this deployment's family name. Keep it at the next re-sync.
 
+### 3.17 `diagrams/lib/pictogram.js` — the school bag is drawn here, not taken from OpenMoji (2026-09-23)
+
+OpenMoji 15's black-variant backpack (`bag`, `bag_school`, hexcode 1F392) is an arch with a bar across
+it and a small loop on top — no straps, no pocket. At a child's phone size, three of them in a counting
+question ("تصویر میں کتنے بستے ہیں؟", a grade-3 Urdu quiz on sandbox) read as lanterns or birdcages.
+`inner()` now returns this deployment's own backpack for those two names (`OWN_GLYPHS`, marked
+`VENDOR DIVERGENCE` at the site): a rounded body, two shoulder straps bowing out at its sides, a carry
+handle, and a front pocket with its flap and tab — drawn to the same glyph contract the build script
+enforces (72-unit grid, `currentColor` ink, stroke 2, round caps, `data-ov="skip"` on every element),
+so every type that draws a pictogram is unaffected otherwise. The OpenMoji SVG files and `index.json`
+are untouched: the names stay in the roster and the licence record, only the drawing is replaced.
+Covered by `tests/quiz/pictogram-school-bag.test.js`. Worth offering upstream (lp_html's early-years
+roster has the same glyph); keep it at the next re-sync unless upstream has taken it.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`) and §3.16 (`lib/tokens.js`, the Urdu font stack). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack) and §3.17 (`lib/pictogram.js`, the school-bag glyph). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

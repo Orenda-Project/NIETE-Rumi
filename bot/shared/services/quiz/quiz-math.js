@@ -22,11 +22,11 @@
  *     out "12 = 4 × 3"; the isolate (U+2066 … U+2069, already used by the
  *     catalog for "/quiz") keeps an expression in the order it was written.
  *
- * A MIXED NUMBER. tex-to-unicode writes `$2\frac{1}{3}$` as "21/3", which a
- * child reads as twenty-one thirds. The whole part is joined to its fraction
- * with a NO-BREAK SPACE — "2 1/3" — and that space is chosen for bidi, not
- * looks: U+00A0 is a common SEPARATOR, so "2 1/3" stays one number run inside
- * an Urdu line, where an ordinary space would let the two numbers swap sides.
+ * A MIXED NUMBER. `$2\frac{1}{3}$` reads "2 1/3", never "21/3" (twenty-one
+ * thirds). The rule — a NO-BREAK SPACE between the whole part and the fraction,
+ * chosen because U+00A0 keeps "2 1/3" one number run inside an Urdu line — is
+ * tex-to-unicode's own, so the quiz, the lesson message and the diagram engine
+ * all read a mixed number the same way. This module adds nothing to it.
  *
  * LOAD WEIGHT. The render contract (video-quiz-render) requires this file on
  * every send, so KaTeX is required LAZILY: only mathHtml(), mathCss() and
@@ -39,18 +39,15 @@ const { esc, richNotation, hasTex } = require('./quiz-notation');
 
 const LRI = '⁦';
 const PDI = '⁩';
-const NBSP = ' ';
 /** The inline span, exactly as quiz-notation and tex-to-unicode read it. */
 const SPAN = /\$([^$\n]+?)\$/g;
 const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
-/** A whole number written straight before a fraction: `2\frac{1}{3}`, `2 \dfrac{1}{3}`. */
-const MIXED = /(\d)\s*(\\[dt]?frac)/g;
 const PURE_NUMBER = /^[\d.,]+$/;
 
-/** One `$…$` span (or a whole string) as Unicode, with a mixed number kept apart from its fraction. */
+/** One `$…$` span (or a whole string) as Unicode — a mixed number reads "2 1/3" (tex-to-unicode). */
 function mathToText(text) {
   if (typeof text !== 'string' || !text || (!text.includes('$') && !text.includes('\\'))) return text;
-  return texToUnicode(text.replace(SPAN, (_, inner) => `$${inner.replace(MIXED, `$1${NBSP}$2`)}$`));
+  return texToUnicode(text);
 }
 
 /**
@@ -181,5 +178,5 @@ function texFaults(text) {
 }
 
 module.exports = {
-  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, LRI, PDI, NBSP,
+  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, LRI, PDI,
 };
