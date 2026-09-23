@@ -133,11 +133,14 @@ function defaultMix(subject, grade, total) {
 /**
  * How many questions a paper may hold.
  *
- * 25 is where the generator stops writing well: past it the model starts
- * padding and the seen half repeats itself. It is a product ceiling, not a
- * technical one.
+ * 50, raised from 25 at the operator's request (23 Sep 2026): teachers set
+ * longer papers than 25. The old note said the generator starts padding past 25;
+ * that was never measured, and a 50-question paper has not been evaluated yet —
+ * check count adherence at this size before treating it as settled. It is a
+ * product ceiling, not a technical one: the model call sets no output cap and a
+ * 25-question paper takes ~25s against a five-minute job budget.
  */
-const MAX_QUESTIONS = 25;
+const MAX_QUESTIONS = 50;
 const DEFAULT_QUESTIONS = 15;
 
 /**
@@ -145,9 +148,8 @@ const DEFAULT_QUESTIONS = 15;
  * screen holds.
  *
  * A Flow cannot grow a component at runtime, so the boxes are a fixed bank that
- * the server labels and hides. Eight is above what a paper of 25 questions can
- * meaningfully carry — eight types is already three questions each — and keeps
- * the published screen small.
+ * the server labels and hides. Eight types already covers any paper a teacher sets, and keeps the
+ * published screen small.
  */
 const MAX_TYPE_SLOTS = 8;
 
@@ -210,16 +212,20 @@ function parsePerTypeCounts(pickedIds, data, subject, grade, seenCount = 0) {
     const text = String(raw ?? '').trim();
     const range = `Type a number between 1 and ${MAX_QUESTIONS}.`;
 
+    // `slot` names the box, so the screen can mark THAT box in red rather than
+    // leaving her to work out which of eight numbers was wrong.
+    const slot = i + 1;
     if (!text || !/^\d+$/.test(text)) {
-      return { ok: false, message: `How many ${id}? ${range}` };
+      return { ok: false, slot, message: `How many ${id}? ${range}` };
     }
     const n = Number(text);
     if (!Number.isInteger(n) || n < 1) {
-      return { ok: false, message: `How many ${id}? ${range}` };
+      return { ok: false, slot, message: `How many ${id}? ${range}` };
     }
     if (n > MAX_QUESTIONS) {
       return {
         ok: false,
+        slot,
         message: `A paper can hold up to ${MAX_QUESTIONS} questions, so ${id} cannot be ${n}. ${range}`,
       };
     }
@@ -246,11 +252,12 @@ function parsePerTypeCounts(pickedIds, data, subject, grade, seenCount = 0) {
  * The most marks a paper may be asked to carry.
  *
  * This is a typo guard, not a product opinion. It has to sit ABOVE any paper a
- * teacher could legitimately want, or it refuses real work: 25 questions (the
- * question ceiling) at a generous 20 marks each is 500. So 500 never blocks a
- * genuine request and still catches the keypad slip that turns 40 into 4000.
+ * teacher could legitimately want, or it refuses real work: 50 questions (the
+ * question ceiling) at a generous 20 marks each is 1000. So 1000 never blocks a
+ * genuine request and still catches the keypad slip that turns 40 into 40000.
+ * It moves with the question ceiling — when that went 25 → 50, this went 500 → 1000.
  */
-const MAX_TOTAL_MARKS = 500;
+const MAX_TOTAL_MARKS = 1000;
 
 /**
  * Read the marks budget she typed, which she is allowed not to type.
