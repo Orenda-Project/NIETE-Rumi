@@ -5,6 +5,7 @@ tag (`@e2e`); the rest are for slicing/reporting.
 
 | Axis | Tags | Meaning |
 |------|------|---------|
+| **Identity** | `@COA16` `@M09` `@OBS04` | **The scenario ID.** Letters then digits, matching the id its mock driver records via `rec()`. This is what binds a Gherkin scenario to executable code: without it nothing can tell that a scenario has no driver. Structural, not descriptive — `validate_specs.py` recognises the shape (`SCENARIO_ID_RE`) rather than listing every id here. |
 | **Layer** | `@e2e` | Full user-flow test the agent runs. |
 | | `@smoke` | Minimal liveness subset (fast). |
 | **Feature** | `@menu` `@training` `@ask` `@portal` `@language` `@register` | Which feature the scenario exercises. |

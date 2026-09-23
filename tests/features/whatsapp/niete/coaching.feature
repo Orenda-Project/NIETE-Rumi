@@ -208,6 +208,39 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # gpt-5.6-luna stays inside its run-to-run noise. @content-driven: which move a photo credits depends on the lesson;
     # assert the contract (a "[photo N]" citation on a credited move), never a specific move or score.
 
+  @e2e @wip @draft @P1
+  Scenario: The same recording sent twice returns the report already made, not a second score
+    Given the NIETE bot chat is open
+    And I have already received a coaching report for a classroom recording
+    When I upload that exact same recording file again
+    Then the bot tells me it has heard this recording before
+    And the bot sends back the report it already made for that recording
+    And it comes back as an IMAGE, the same way the first report arrived — openable, not a .pdf that will not render
+    And no new 5-step analysis is started
+    # bd-7beiz — audio-hash-cache.js: SHA-256 of the downloaded audio, matched against
+    # this teacher's own completed DC sessions inside a 7-day window.
+    # transcription-processor short-circuits BEFORE the R2 upload and before
+    # transcription, so a duplicate costs neither ASR nor LLM. Why it matters: the
+    # rubric pass runs at temperature 1 with no seed, so re-scoring identical audio
+    # moved the overall by a mean of 5.9 points across 1,515 measured duplicate
+    # groups — one lesson must not yield a teacher two different numbers.
+    # bd-5tgzv — delivery must MATCH the original. `report_pdf_url` holds a hero
+    # PNG on this deployment (12,749 of 12,754 completed DC sessions; zero PDFs),
+    # so resending it as 'classroom-observation.pdf' shipped PNG bytes labelled as
+    # a PDF and no reader would open it — FEAT-098 again.
+
+  @e2e @wip @draft @P2
+  Scenario: A recording the bot has not scored before is still analysed normally
+    Given the NIETE bot chat is open
+    And I have already received a coaching report for a classroom recording
+    When I upload a different classroom recording
+    Then the 5-step analysis starts as usual
+    And the bot does NOT say it has heard this recording before
+    # bd-7beiz — the match is on the exact bytes, so only a bit-for-bit identical
+    # resubmission is short-circuited; a re-recorded or new lesson hashes differently
+    # and takes the normal path. Guards the failure mode where a lookup matches too
+    # broadly and silently swallows new work.
+
   # ── EDGE ──
   @e2e @wip @draft @edge @P2
   Scenario: A second recording sent mid-analysis is deferred, not started fresh
@@ -353,6 +386,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # earlier coaching report; the Eval 10 v2 prompt classified that image not_a_classroom_photo.
 
   @e2e @wip @draft @negative @P1
+  Scenario: A grader answer that comes back empty is re-graded the same way, not on a more generous setting
+    Given the NIETE bot chat is open
+    And I link a lesson plan to my classroom recording
+    When the grader's first answer comes back empty and the second one succeeds
+    Then my lesson is graded on the same settings as everyone else's, not on a faster cheaper one
+    And the session's lp_fidelity records that the grading came from a retry, so a degraded answer is never invisible
+    # bd-29r3o: fidelity-analyzer used to add `reasoning: {effort:'low'}` to the retry after an empty first answer —
+    # written for GLM/DeepSeek, which answer empty without a reasoning budget (Eval 8), and never revisited when the
+    # model became Gemini 3.8 Flash, where `low` means thinking OFF: the arm Eval 12 §8 rejected (false credit on
+    # reader-not_done 15–17% against 5–9%, κ 0.45 against 0.56). Found on the first prod morning of D37 — session
+    # b9698b1d carried reasoning_effort "low" although the variable is unset on all three services; it had fired on 1 of
+    # the first 5 Gemini gradings. The retry now keeps the configuration; the coaxing retry lives behind
+    # LP_FIDELITY_EMPTY_RETRY_EFFORT (unset in prod) and the blob carries empty_retry.
+
+  @e2e @wip @draft @negative @P1
   Scenario: A recording whose transcript carries no timestamps is "not scored", never 0%
     Given the NIETE bot chat is open
     And I link a lesson plan to my classroom recording
@@ -409,3 +457,85 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # ⚠ ORPHAN BUG: card_yes_/later_/no_ have NO handler (card-response.service.js is
     # never called) → prioritized_action.teacher_response never becomes 'yes' and the
     # agency reminder can't fire. Expected to FAIL until wired.
+
+  @e2e @wip @draft @P1
+  Scenario: A lesson plan typed into the chat is attached to the waiting observation
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I paste my lesson plan into the chat as an ordinary message
+    Then the bot tells me it has my lesson plan and is reading it
+    And the bot does not ask me again to send it as a document
+    And the observation records that it has a lesson plan
+    # Every other way in needs a WhatsApp media id (document webhook, LP-as-photo),
+    # so a typed plan used to reach generic AI chat and the observation stayed
+    # without one. lp-text-paste.service.js pre-filters the text, resolves the
+    # session through media-session-resolver (kind 'lp'), and hands it to
+    # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
+    # lesson_plan_text with lesson_plan_link_method='pasted'.
+
+  @e2e @wip @draft @negative @P2 @obsolete
+  Scenario: A short reply at the lesson-plan step is not mistaken for a plan
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I send a short reply such as "no" or the teacher's name
+    Then the bot does not treat it as a lesson plan
+    And the observation still has no lesson plan attached
+    # The pre-filter is deliberately strict — a paste must clear a length floor
+    # AND name several parts of a plan. A false positive would eat the message,
+    # so short answers keep the existing behaviour (the LP prompt is re-sent).
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so the length floor it rests on is gone.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.
+
+  @e2e @wip @draft @negative @P3
+  Scenario: Pasted text that is not a lesson plan gets the same rejection as a file
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I paste a long message that is not a lesson plan
+    Then the bot tells me it is not a lesson plan rather than referencing it
+    And the classroom recording is still analysed
+    # The authoritative verdict is not the pre-filter: a paste runs the SAME
+    # extraction job as an upload, so isLikelyLessonPlan decides, and the
+    # not-a-lesson-plan reply now names the paste route among the retry options.
+
+  @e2e @wip @draft @P1
+  Scenario: A brief typed lesson plan counts — length is not the test
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I type a three-line plan naming the topic, an activity and how I will check learning
+    Then the bot tells me it has my lesson plan and is reading it
+    And the observation records that it has a lesson plan
+    # The first live attempt failed here: a real 222-code-point Roman-Urdu plan
+    # was refused by a 280-point floor fitted to long formatted pastes, while
+    # the session sat waiting for one. What makes a paste a plan is the
+    # evidence in it, not its size; the floor only keeps one-liners out.
+
+  @e2e @wip @draft @negative @P2 @obsolete
+  Scenario: Saying I have no lesson plan is not the same as sending one
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I reply that I do not have a lesson plan for this class
+    Then the bot does not record that reply as my lesson plan
+    # A teacher explaining she has no plan NAMES one, so she clears the marker
+    # bar; the old length floor excluded her only by accident. Checked in
+    # English, Roman Urdu and Urdu.
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so she now reaches the same judge a PDF does and gets the No-button outcome.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.
+
+  @e2e @wip @draft @negative @P2 @obsolete
+  Scenario: Talking about a lesson plan is not the same as sending one
+    Given the NIETE bot chat is open
+    And the coaching flow has asked me for a lesson plan
+    When I describe in one sentence the lesson I just taught, or ask how to write a plan
+    Then the bot does not record what I typed as my lesson plan
+    # Naming the parts of a plan is not enough on its own at this length — a
+    # teacher narrating her lesson names the topic, an activity and how she
+    # checked learning, all in one flowing sentence. A plan that short is
+    # LAID OUT: a label, a line per step, a numbered list.
+    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
+    # teacher sends at the lesson-plan step is considered, so the layout rule it rests on is gone.
+    # What counts as a plan is settled downstream by the extraction worker,
+    # never by measuring her text before agreeing to read it.

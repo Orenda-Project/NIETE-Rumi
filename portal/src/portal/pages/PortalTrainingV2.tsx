@@ -67,6 +67,7 @@ import BandPicker from '../components/BandPicker';
 import { classifyTrainingLoadError, EMPTY_MODULES_MESSAGE } from '../lib/trainingLoadError';
 import { Button } from '@/components/ui/button';
 import ModuleExamPanel, { type ExamGate } from '../components/ModuleExamPanel';
+import ModuleReadings, { type ModuleReadingList } from '../components/ModuleReadings';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 import niteLogo from '@/assets/vendors/niete.png';
@@ -541,6 +542,11 @@ const PortalTrainingV2 = () => {
   const [modules, setModules] = useState<ModuleSummary[]>([]);
   // bd-60149 — the module's own summative exam, delivered with its units.
   const [moduleExam, setModuleExam] = useState<ExamGate | null>(null);
+  // I-SAPS recommended reading for the open course (null for other vendors).
+  const [moduleReadings, setModuleReadings] = useState<ModuleReadingList | null>(null);
+  // Bumped when a module exam is passed, so the certificate card re-reads its
+  // "N of 9 module exams passed" instead of showing the count from page load.
+  const [certTick, setCertTick] = useState(0);
   const [moduleDetail, setModuleDetail] = useState<ModuleDetail | null>(null);
   const [loadError, setLoadError] = useState<{ message: string; locked: boolean } | null>(null);
 
@@ -696,7 +702,7 @@ const PortalTrainingV2 = () => {
       setSelectedCourse('');
       setSelectedModule('');
       setCourses([]);
-      setModules([]); setModuleExam(null);
+      setModules([]); setModuleExam(null); setModuleReadings(null);
       setModuleDetail(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -803,6 +809,7 @@ const PortalTrainingV2 = () => {
         const list: ModuleSummary[] = data.modules || [];
         setModules(list);
         setModuleExam(data.exam || null);
+        setModuleReadings(data.readings || null);
         if (list.length > 0) {
           setAttemptsByModule(Object.fromEntries(list.map(m => [m.id, null])));
           list.forEach(m => {
@@ -1133,7 +1140,7 @@ const PortalTrainingV2 = () => {
                       finished everything had nowhere to collect it. */}
                   {selectedLevelObj && (
                     <LevelCertificateRow
-                      key={`cert-${selectedLevelObj.id}`}
+                      key={`cert-${selectedLevelObj.id}-${certTick}`}
                       levelId={selectedLevelObj.id}
                       onIssued={onCertificateIssued}
                     />
@@ -1249,6 +1256,7 @@ const PortalTrainingV2 = () => {
                       onOpen={() => openExam(String(selectedCourse))}
                       onPassed={() => {
                         if (!selectedCourse) return;
+                        setCertTick(t => t + 1);
                         api.get('/training/modules', { params: { course_id: selectedCourse } })
                           .then(({ data }) => {
                             setModules(data.modules || []);
@@ -1258,6 +1266,10 @@ const PortalTrainingV2 = () => {
                       }}
                     />
                   )}
+
+                  {/* I-SAPS recommended reading (operator, 2026-09-23) — after
+                      the exam, collapsed by default, gates nothing. */}
+                  {selectedCourse && <ModuleReadings readings={moduleReadings} />}
                 </div>
               </div>
             )}

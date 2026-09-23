@@ -268,6 +268,12 @@ CREATE TABLE IF NOT EXISTS coaching_sessions (
     reminder_sent_at TIMESTAMPTZ,
     tokens_raw JSONB,
     silence_markers JSONB,
+    -- bd-7beiz — identical-resubmission dedupe. SHA-256 of the uploaded audio
+    -- bytes, written on every session; `duplicate_of_session_id` records which
+    -- prior session a deduped one reused its analysis from. Migration:
+    -- bot/database/migrations/coaching_audio_hash.sql
+    audio_hash CHAR(64),
+    duplicate_of_session_id UUID REFERENCES coaching_sessions(id),
     PRIMARY KEY (id)
 );
 
@@ -3187,6 +3193,8 @@ CREATE INDEX IF NOT EXISTS idx_queue_session ON coaching_processing_queue USING 
 CREATE INDEX IF NOT EXISTS idx_quality_metrics_created ON coaching_quality_metrics USING btree (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_quality_metrics_session ON coaching_quality_metrics USING btree (coaching_session_id);
 CREATE INDEX IF NOT EXISTS idx_coaching_sessions_audio_id ON coaching_sessions USING btree (audio_id);
+-- bd-7beiz — matches the dedupe lookup exactly (same user, same hash, completed, newest first).
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_user_audio_hash ON coaching_sessions USING btree (user_id, audio_hash, created_at DESC) WHERE (audio_hash IS NOT NULL AND (status)::text = 'completed'::text);
 CREATE INDEX IF NOT EXISTS idx_coaching_sessions_created_at ON coaching_sessions USING btree (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_coaching_sessions_gamma_url ON coaching_sessions USING btree (report_gamma_url) WHERE (report_gamma_url IS NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_coaching_sessions_lesson_plan_structured ON coaching_sessions USING gin (lesson_plan_structured);

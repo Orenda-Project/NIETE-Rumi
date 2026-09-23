@@ -361,6 +361,7 @@ class ReflectiveConversationService {
               generator: async (prompt) => {
                 const r = await GPT5MiniService.openai.chat.completions.create({
                   model: 'gpt-5-mini-2025-08-07',
+                  job: 'coaching.acknowledgement',
                   messages: [{ role: 'user', content: prompt }],
                 });
                 return r.choices?.[0]?.message?.content || '';

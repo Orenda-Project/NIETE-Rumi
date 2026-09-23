@@ -27,7 +27,7 @@
  * deployment name.
  */
 const { logToFile, logError } = require('../../utils/logger');
-const { allModuleExamsPassed } = require('./isaps-module-exam.rules');
+const { allModuleExamsPassed, isPerModuleQuiz } = require('./isaps-module-exam.rules');
 
 const FALLBACK_PREFIX = 'CERT';
 
@@ -283,6 +283,29 @@ async function maybeIssueQuizScoreCertificate(
       .eq('level_id', level.id)
       .limit(1);
     if (Array.isArray(existingRows) && existingRows.length > 0) return { issued: false };
+
+    // I-SAPS, operator 2026-09-23: "no chaining between Units or Modules
+    // whatsoever ... the only thing we want is to not ship certificate unless
+    // all Module Exams are finished" — finished meaning PASSED (re-takes are
+    // unlimited). On a per-module-assessed level the exams check above is
+    // therefore the WHOLE rule: the unit-completion and quick-check gates
+    // below are the Oxbridge rule and must not also apply, or a teacher who
+    // passed all nine exams but skipped one unit video is refused.
+    const hasModuleExams = (levelQuizzes || []).some(
+      q => q && q.is_active === true && isPerModuleQuiz(q.source_quiz_id),
+    );
+    if (hasModuleExams) {
+      const cert = await issueCertificate(supabase, {
+        userId, programId, levelId: level.id, attemptId,
+      });
+      return {
+        issued: true,
+        certificate_code: cert.certificate_code,
+        level_name: cert.level_name,
+        teacher_name: cert.teacher_name,
+        pdf_r2_key: cert.pdf_r2_key || null,
+      };
+    }
 
     // Every active module of the level complete?
     const { data: courses } = await supabase

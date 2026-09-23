@@ -58,9 +58,11 @@ const COACHING_MESSAGES = {
     ur: 'کوئی بات نہیں! سبق کے منصوبے کے بغیر ہی کلاس روم آڈیو کا تجزیہ کیا جائے گا۔',
   },
   // Lesson-plan branch: teacher said yes but didn't send the document
+  // bd-we73k: the copy now names the paste route too — it was accurate about
+  // what the code accepted and teachers still pasted, so the gap was in BOTH.
   lessonPlan_request: {
-    ...en("Great! Please send your lesson plan as a document (PDF, Word, or image).\n\nTap 📎 → Document to upload it."),
-    ur: 'بہت خوب! اپنا سبق کا منصوبہ بطور دستاویز بھیجیں (PDF، Word یا تصویر)۔\n\nاپلوڈ کے لیے 📎 → Document پر ٹیپ کریں۔',
+    ...en("Great! Send your lesson plan as a document (PDF, Word, or image) — or just paste it here as a message.\n\nTo attach a file, tap 📎 → Document."),
+    ur: 'بہت خوب! اپنا سبق کا منصوبہ بطور دستاویز بھیجیں (PDF، Word یا تصویر) — یا اسے یہیں پیغام میں لکھ کر بھیج دیں۔\n\nفائل بھیجنے کے لیے 📎 → Document پر ٹیپ کریں۔',
   },
   // Lesson-plan branch: a recent Taleemabad LP was linked from the selection list
   // (bd-wa5io — the fidelity pass scores against exactly this plan).
@@ -80,12 +82,22 @@ const COACHING_MESSAGES = {
     ...en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
     ur: '📄 سبق کا منصوبہ موصول ہو گیا! اسے پس منظر میں پڑھا جا رہا ہے اور تجزیے میں شامل کر دیا جائے گا۔',
   },
+  // Lesson-plan branch: the plan was PASTED as a chat message rather than
+  // attached (bd-we73k). Named separately from lessonPlan_received so she can
+  // tell we read what she typed — the old copy says "received", which reads as
+  // a file she never sent.
+  lessonPlan_receivedText: {
+    ...en("📄 Got your lesson plan — thanks for typing it out. I'm reading it now and will weave it into your analysis."),
+    ur: '📄 آپ کا سبق کا منصوبہ مل گیا — لکھ کر بھیجنے کا شکریہ۔ اسے ابھی پڑھا جا رہا ہے اور تجزیے میں شامل کر دیا جائے گا۔',
+  },
   // Lesson-plan branch: the uploaded document doesn't look like a lesson plan
   // (e.g. a leave letter). We still analyse the recording; we just can't use
   // this file as a plan. (field report — Irum, ICT, DC-9.)
+  // bd-we73k: a PASTE can land here too now, so the copy no longer says "file"
+  // and the retry routes name the paste as well.
   lessonPlan_notLessonPlan: {
-    ...en("📄 Thanks — but this file doesn't look like a lesson plan, so I won't reference it. I'll go ahead and analyse your classroom recording. If you meant to send a lesson plan, please resend it as a PDF, Word file, or clear page photos."),
-    ur: '📄 شکریہ — مگر یہ فائل سبق کے منصوبے جیسی نہیں لگتی، اس لیے اس کا حوالہ نہیں دیا جائے گا۔ آپ کی کلاس روم ریکارڈنگ کا تجزیہ جاری رہے گا۔ اگر سبق کا منصوبہ بھیجنا تھا تو اسے دوبارہ بھیج دیں — PDF، Word فائل یا صفحات کی صاف تصویروں کی صورت میں۔',
+    ...en("📄 Thanks — but this doesn't look like a lesson plan, so I won't reference it. I'll go ahead and analyse your classroom recording. If you meant to send a lesson plan, send it again as a PDF, a Word file, clear page photos, or pasted straight into a message."),
+    ur: '📄 شکریہ — مگر یہ سبق کے منصوبے جیسا نہیں لگتا، اس لیے اس کا حوالہ نہیں دیا جائے گا۔ آپ کی کلاس روم ریکارڈنگ کا تجزیہ جاری رہے گا۔ اگر سبق کا منصوبہ بھیجنا تھا تو دوبارہ بھیج دیں — PDF، Word فائل، صفحات کی صاف تصویریں، یا پیغام میں لکھ کر۔',
   },
   // Lesson-plan branch: legacy ack
   lessonPlan_included: {
@@ -225,6 +237,36 @@ const COACHING_MESSAGES = {
   priorActionReminder: {
     ...en('💡 *Quick reminder:* Last time, you committed to:\n\n_"{{action}}"_\n\nLet\'s see how it went in this session!'),
     ur: '💡 *مختصر یاد دہانی:* پچھلی بار آپ نے یہ عہد کیا تھا:\n\n_"{{action}}"_\n\nآئیے دیکھیں اس بار کیا ہوا!',
+  },
+
+  // bd-7beiz — sent when the teacher submits a recording we have already
+  // scored (identical bytes, same teacher, within 7 days). She gets the report
+  // she already has rather than a second, differently-sampled score for the
+  // same lesson: the rubric pass runs at temperature 1, and re-scoring the same
+  // audio moved the overall by a mean of 5.9 points across 1,515 measured
+  // duplicate groups.
+  //
+  // No date is interpolated — operator's call (bd-uwf1a). The prior report
+  // carries its own date, so naming one here buys a locale-correct date
+  // rendering in two languages for something the teacher can already see.
+  //
+  // bd-71qzn — the Urdu is the OPERATOR'S OWN WORDING, used verbatim. Do not
+  // "improve" it: it was written by the person who owns the voice, and the
+  // English was cut to match it.
+  //
+  // What was removed, deliberately (operator): the sentence explaining that
+  // re-scoring would produce a slightly different number. A teacher does not
+  // need to be told the scorer is non-deterministic to accept the report she
+  // already has; it invited a doubt the message exists to avoid.
+  //
+  // Gender is safe here: in "میں نے … سنی ہے" the verb agrees with ریکارڈنگ
+  // (the object), not with the speaker, so nothing commits Rumi to a gender —
+  // the same reason "بھیجی تھی" is correct for the teacher. `*نئی*` mirrors the
+  // English `*new*`; both render bold in WhatsApp. Body message — no 60/20
+  // field cap applies (language-protocol §3).
+  duplicateRecording: {
+    ...en("📋 I've heard this recording before \u2014 it's the same one you sent me earlier, so here is the report I already made for it.\n\nSend a *new* recording whenever you'd like fresh feedback."),
+    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔\n\nجب آپ نئی رائے چاہتے ہوں تو *نئی* ریکارڈنگ بھیج دیجیے۔',
   },
 
   // ── The classroom-audio confirmation ──────────────────────────────────────

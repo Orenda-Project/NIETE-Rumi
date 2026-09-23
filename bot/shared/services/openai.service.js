@@ -520,6 +520,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
 
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
+        job: 'chat.respond',
         messages: messages,
         max_tokens: format === 'voice' ? voiceMaxTokens : 500,
         temperature: 0.7,
@@ -574,6 +575,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
+        job: 'chat.intent',
         messages: [
           {
             role: 'system',
@@ -717,6 +719,7 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1-mini',
+        job: 'chat.topic',
         messages: [
           {
             role: 'system',
@@ -745,7 +748,10 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
    * @returns {Promise<Object>} OpenAI completion response
    */
   async createChatCompletion(options) {
-    return await this.openai.chat.completions.create(options);
+    // A pure passthrough used by video generation and anything with its own prompt, so the
+    // label is a DEFAULT rather than a decision: `...options` last means a caller that knows
+    // its own job keeps it. Without this the spend lands back in the unattributed bucket.
+    return await this.openai.chat.completions.create({ job: 'chat.completion', ...options });
   }
 
   /**

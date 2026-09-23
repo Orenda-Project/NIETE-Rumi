@@ -25,13 +25,21 @@ class LessonPlanExtractionWorker {
   }
 
   static async process(jobData) {
-    const { coachingSessionId, r2Key, fileType, userId: jobUserId } = jobData;
+    const { coachingSessionId, r2Key, fileType, userId: jobUserId, pastedText } = jobData;
+
+    // bd-we73k — the teacher PASTED her plan into the chat. There is no file to
+    // fetch and nothing to OCR: the text IS the extraction result. Everything
+    // downstream of this point (structuring, isLikelyLessonPlan, the completed
+    // payload, the fidelity recompute) is shared with the upload path on
+    // purpose — a second copy of that logic is how the two drift apart.
+    const isPaste = typeof pastedText === 'string' && pastedText.trim().length > 0;
 
     try {
       logToFile('📄 Starting lesson plan extraction', {
         coachingSessionId,
         r2Key,
-        fileType
+        fileType,
+        source: isPaste ? 'pasted_text' : 'file'
       });
 
       const { data: sessionRecord, error: sessionError } = await supabase
@@ -45,15 +53,15 @@ class LessonPlanExtractionWorker {
       }
 
       const sessionUserId = jobUserId || sessionRecord?.user_id;
-      const fileBuffer = await downloadFromR2(r2Key);
-      const detectedType = this.detectFileType(fileBuffer) || fileType || 'pdf';
+      const fileBuffer = isPaste ? null : await downloadFromR2(r2Key);
+      const detectedType = isPaste ? 'text' : (this.detectFileType(fileBuffer) || fileType || 'pdf');
 
       let normalizedKey = r2Key;
       let normalizedUrl = sessionRecord?.lesson_plan_url || null;
       let normalizedFormat = detectedType;
       let normalized = false;
 
-      if (fileType?.toLowerCase() !== detectedType.toLowerCase()) {
+      if (!isPaste && fileType?.toLowerCase() !== detectedType.toLowerCase()) {
         if (!sessionUserId) {
           logToFile('⚠️ Lesson plan format mismatch but user_id unavailable; skipping normalization', {
             coachingSessionId,
@@ -78,7 +86,9 @@ class LessonPlanExtractionWorker {
         }
       }
 
-      const { text: extractedText, parser: parserUsed } = await this.extractText(fileBuffer, detectedType);
+      const { text: extractedText, parser: parserUsed } = isPaste
+        ? { text: pastedText.trim(), parser: 'pasted_text' }
+        : await this.extractText(fileBuffer, detectedType);
       logToFile('Lesson plan text extracted', {
         coachingSessionId,
         detectedType,
@@ -125,7 +135,7 @@ class LessonPlanExtractionWorker {
         });
       }
 
-      // bd-2372: guard against a non-lesson-plan document (a leave letter, a
+      // Guard against a non-lesson-plan document (a leave letter, a
       // notice) being silently accepted as a plan. If the parsed content shows
       // no lesson-plan signal, tell the teacher quickly and don't attach it —
       // the classroom-audio analysis still proceeds without an LP.
@@ -159,7 +169,11 @@ class LessonPlanExtractionWorker {
         normalizedFormat
       });
 
-      if (normalized) {
+      // A paste has no R2 object; writing a key/url for one would point at
+      // nothing. Only the file path may touch those columns.
+      if (isPaste) {
+        // nothing to reconcile
+      } else if (normalized) {
         updatePayload.lesson_plan_r2_key = normalizedKey;
         updatePayload.lesson_plan_url = normalizedUrl;
       } else if (!sessionRecord?.lesson_plan_r2_key) {
@@ -445,6 +459,7 @@ Return JSON with these fields:
 
       const response = await client.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'lp.extractText',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 1200

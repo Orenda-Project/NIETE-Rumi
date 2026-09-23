@@ -98,6 +98,21 @@ jobs:
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
 
+      - name: Gate — a Gherkin scenario with no driver fails the PR
+        # Spec freshness proves the .feature CHANGED. It says nothing about whether the scenario can
+        # RUN: feature-runner.cjs loads the driver and never opens the spec, so prose alone passes
+        # every existing check and executes nothing (bd-bufzl — coaching: 33 @e2e, 15 driven).
+        # Enrolment is implicit: an untagged spec reports I-NOTENROLLED and cannot fail, so this is
+        # green on arrival and each feature is enrolled deliberately by tagging its scenarios.
+        run: |
+          set +e
+          python3 .claude/qa/shared/check-scenario-coverage.py
+          rc=$?
+          if [ "$rc" != "0" ]; then
+            echo "::error::A Gherkin scenario has no driver code, so it can never pass, fail or block — it is absent from every run. Append a stub with scaffold-driver.py --sync and implement it, or declare it @no-mock-driver with a reason."
+          fi
+          exit "$rc"
+
       - name: Gate — stale Gherkin spec fails the PR
         run: |
           rc="${{ steps.impact.outputs.rc }}"

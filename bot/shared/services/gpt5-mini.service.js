@@ -418,6 +418,10 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
 
       const scoringRequest = {
         model: 'gpt-5-mini-2025-08-07',
+        // The photo-less retry below is `{ ...scoringRequest, messages }`, so it inherits this
+        // and both attempts land on the same line of spend -- which is right: it is one
+        // teacher's scoring either way, not two features.
+        job: 'coaching.pedagogy',
         messages,
         // Note: GPT-5 mini only supports default temperature (1), custom values not allowed
         max_completion_tokens: 16000
@@ -709,6 +713,10 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-5-mini-2025-08-07',
+        // One job for every consumer of this helper today (observe debrief/feedback, remark
+        // narrative). `options.job` is the seam for splitting them apart later WITHOUT
+        // touching this method again -- the existing `label` is for logs, not for spend.
+        job: options.job || 'coaching.completeJson',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: maxTokens,
         response_format: { type: 'json_object' },
@@ -1138,6 +1146,7 @@ Rules:
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'coaching.fidelityFallback',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 1200,
         temperature: 0.3
@@ -1291,6 +1300,7 @@ GUIDELINES:
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-5-mini-2025-08-07',
+        job: 'coaching.enhance',
         messages: [
           { role: 'system', content: this.getCachedFrameworkPrompt() },
           { role: 'user', content: prompt }
@@ -1539,6 +1549,7 @@ Return ONLY the question text (no preamble, formatting, or explanation).`;
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o',  // Using GPT-4o for more reliable question generation
+        job: 'coaching.reflectiveQuestion',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 1500,
         temperature: 0.7
@@ -1589,6 +1600,7 @@ Return ONLY the topic text, nothing else.`;
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'coaching.inferTopic',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 20,
         temperature: 0.3
@@ -1638,6 +1650,7 @@ Return ONLY the subject name, nothing else.`;
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'coaching.inferSubject',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 10,
         temperature: 0.3
@@ -1701,6 +1714,7 @@ Recommendations: ${JSON.stringify(recommendations)}
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'coaching.priorFeedback',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 500,
         temperature: 0.3 // Lower temperature for more focused summarization
@@ -1784,6 +1798,7 @@ Generate ONLY the script text (no stage directions, just what will be spoken).`;
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o',  // Using GPT-4o for reliable voice script generation
+        job: 'coaching.voiceDebrief',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 1500,
         temperature: 0.7
