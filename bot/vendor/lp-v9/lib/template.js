@@ -3380,7 +3380,14 @@ function hasCoachBody(doc) {
 function coachCard(doc, ctx, heading) {
   const L = ctx.L;
   const P = doc.page2;
-  return `<div class="coach">${heading ? `<div class="lbl">${esc(L.p2Coach)}</div>` : ""}${P.coaching_lookfor == null ? "" : `<p>${rich(P.coaching_lookfor)}</p>`}
+  // bd-6bvh0 -- PRIMARY ONLY. The look-for was the corner's one unlabelled line, sitting above
+  // a labelled one, so it read as preamble to the question rather than as the thing to watch
+  // for. Naming it is a G1-5 change and stays inside G1-5: the G6-12 sheets are live and their
+  // markup is held byte-for-byte by `primary-worked-cfu`, which is the guard that caught this
+  // span leaking into a grade-9 render.
+  const look = P.coaching_lookfor == null ? ""
+    : `<p>${isPrimary(doc) ? `<span class="lbl">${esc(L.coachLook)}</span>` : ""}${rich(P.coaching_lookfor)}</p>`;
+  return `<div class="coach">${heading ? `<div class="lbl">${esc(L.p2Coach)}</div>` : ""}${look}
     ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
     <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`;
 }

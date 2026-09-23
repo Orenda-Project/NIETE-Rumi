@@ -264,6 +264,10 @@ const LABELS = {
     // (niete-nbpro/src/qa.js) checks for exactly this LOCAL form on the page — teachers did not
     // know what a wa.me link meant, and "+92" is not how the number is dialled here.
     // A CTA that does not say what comes BACK is just a request, so step 3 says it.
+    // bd-6bvh0 -- the look-for is the corner's one REQUIRED field and was the only line in
+    // it printing with no name on it, directly above a line that had one. Unlabelled above
+    // labelled reads as preamble, so the thing the operator asked for read as throat-clearing.
+    coachLook: "Look for",
     coachAsk: "Ask yourself",
     coachOffer: "Record up to 40 minutes of this lesson",
     coachSend: "Send it to NIETE on WhatsApp — ⁦0320 6281951⁩",
@@ -319,6 +323,8 @@ const LABELS = {
     pageOf: (n, m) => `صفحہ ${n} از ${m}`,
     // The Urdu page reflects in Urdu — the ONE thing that stays as it is printed is the number
     // itself, because that is what she dials.
+    // bd-6bvh0 -- see the English note. Polite imperative, to match "خود سے پوچھیے" below it.
+    coachLook: "اِس پر نظر رکھیے",
     coachAsk: "خود سے پوچھیے",
     coachOffer: "اس سبق کی چالیس منٹ تک کی ریکارڈنگ بنائیے",
     // The number is wrapped in a LEFT-TO-RIGHT ISOLATE (U+2066 … U+2069). Without it the RTL
