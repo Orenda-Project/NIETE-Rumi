@@ -895,12 +895,16 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'SEEN_COUNT') {
     const both = state.contentSource === 'both';
     const parsed = QuestionTypes.parseQuestionCount(data.seen_count);
-    if (!parsed.ok) return seenCountScreen(state, parsed.message);
+    if (!parsed.ok) {
+      refused('SEEN_COUNT', state, parsed.message, { value: data.seen_count });
+      return seenCountScreen(state, parsed.message);
+    }
     // On Both, Seen may not take the whole paper — the Unseen part needs at
     // least one question, and the ceiling counts the two together.
     if (both && parsed.count >= QuestionTypes.MAX_QUESTIONS) {
-      return seenCountScreen(state,
-        `Leave room for Unseen questions — Seen can be up to ${QuestionTypes.MAX_QUESTIONS - 1}.`);
+      const message = `Leave room for Unseen questions — Seen can be up to ${QuestionTypes.MAX_QUESTIONS - 1}.`;
+      refused('SEEN_COUNT', state, message, { value: data.seen_count });
+      return seenCountScreen(state, message);
     }
     if (both) {
       Object.assign(state, { seenCount: parsed.count });
@@ -955,7 +959,10 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
 
     const seen = state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
     const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade, seen);
-    if (!parsed.ok) return countsScreen(state, parsed.message);
+    if (!parsed.ok) {
+      refused('COUNTS', state, parsed.message, { slot: parsed.slot || null, seen });
+      return countsScreen(state, parsed.message, parsed.slot);
+    }
 
     // The paper is Seen + Unseen. Her Unseen counts are stored exactly as typed.
     Object.assign(state, { questionTypes: parsed.types, questionCount: parsed.total + seen });
@@ -1134,7 +1141,7 @@ function typesScreen(state, error = '') {
  * past her pick count is hidden AND blanked: a hidden field that keeps a label
  * from an earlier pass will show it the moment she goes back and picks more.
  */
-function countsScreen(state, error = '') {
+function countsScreen(state, error = '', errorSlot = null) {
   const picked = (state.pickedTypes || []).slice(0, QuestionTypes.MAX_TYPE_SLOTS);
   const seen = state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
   const data = {
@@ -1153,6 +1160,10 @@ function countsScreen(state, error = '') {
     // and the full name is always spelled out in the helper line under the box.
     data[`label_${i}`] = id ? fitLabel(id) : '';
     data[`help_${i}`] = id ? `How many ${id}?` : '';
+    // Red under THIS box when the refusal is about it. A refusal about the whole
+    // paper (Seen + Unseen over the ceiling) belongs to no single box and shows
+    // only in the line above Continue.
+    data[`err_${i}`] = (id && errorSlot === i) ? error : '';
   }
   return screen('COUNTS', data);
 }
@@ -1166,6 +1177,24 @@ function seenCountScreen(state, error = '') {
       ? `Unseen questions come next. Up to ${QuestionTypes.MAX_QUESTIONS} in total.`
       : `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
     error,
+    // The screen has one box, so every refusal on it is about that box.
+    field_error: error,
+  });
+}
+
+/**
+ * Record a refusal with the exact words we sent back. On 23 Sep a teacher hit
+ * the ceiling, saw nothing change and tapped Continue twice — and the logs held
+ * only the screen name, so what she was (or was not) shown could not be
+ * answered from them. Info level: a refusal is the Flow working, not a failure.
+ */
+function refused(screenId, state, message, extra = {}) {
+  logToFile('[assessment-flow] input refused', {
+    screen: screenId,
+    userId: state.userId,
+    contentSource: state.contentSource,
+    message,
+    ...extra,
   });
 }
 

@@ -1,5 +1,5 @@
 {
-  "version": "7.2",
+  "version": "7.3",
   "data_api_version": "3.0",
   "routing_model": {
     "CLASS": [
@@ -395,6 +395,10 @@
         "has_error": {
           "type": "boolean",
           "__example__": false
+        },
+        "field_error": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
@@ -413,17 +417,18 @@
                 "text": "${data.summary}"
               },
               {
-                "type": "TextBody",
-                "text": "${data.error}",
-                "visible": "${data.has_error}"
-              },
-              {
                 "type": "TextInput",
                 "name": "seen_count",
                 "label": "How many Seen?",
                 "required": true,
                 "input-type": "number",
-                "helper-text": "${data.hint}"
+                "helper-text": "${data.hint}",
+                "error-message": "${data.field_error}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
               },
               {
                 "type": "Footer",
@@ -638,6 +643,38 @@
         "help_8": {
           "type": "string",
           "__example__": ""
+        },
+        "err_1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "err_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "err_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "err_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "err_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "err_6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "err_7": {
+          "type": "string",
+          "__example__": ""
+        },
+        "err_8": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
@@ -656,18 +693,14 @@
                 "text": "${data.summary}"
               },
               {
-                "type": "TextBody",
-                "text": "${data.error}",
-                "visible": "${data.has_error}"
-              },
-              {
                 "type": "TextInput",
                 "name": "count_1",
                 "label": "${data.label_1}",
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_1}",
-                "helper-text": "${data.help_1}"
+                "helper-text": "${data.help_1}",
+                "error-message": "${data.err_1}"
               },
               {
                 "type": "TextInput",
@@ -676,7 +709,8 @@
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_2}",
-                "helper-text": "${data.help_2}"
+                "helper-text": "${data.help_2}",
+                "error-message": "${data.err_2}"
               },
               {
                 "type": "TextInput",
@@ -685,7 +719,8 @@
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_3}",
-                "helper-text": "${data.help_3}"
+                "helper-text": "${data.help_3}",
+                "error-message": "${data.err_3}"
               },
               {
                 "type": "TextInput",
@@ -694,7 +729,8 @@
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_4}",
-                "helper-text": "${data.help_4}"
+                "helper-text": "${data.help_4}",
+                "error-message": "${data.err_4}"
               },
               {
                 "type": "TextInput",
@@ -703,7 +739,8 @@
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_5}",
-                "helper-text": "${data.help_5}"
+                "helper-text": "${data.help_5}",
+                "error-message": "${data.err_5}"
               },
               {
                 "type": "TextInput",
@@ -712,7 +749,8 @@
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_6}",
-                "helper-text": "${data.help_6}"
+                "helper-text": "${data.help_6}",
+                "error-message": "${data.err_6}"
               },
               {
                 "type": "TextInput",
@@ -721,7 +759,8 @@
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_7}",
-                "helper-text": "${data.help_7}"
+                "helper-text": "${data.help_7}",
+                "error-message": "${data.err_7}"
               },
               {
                 "type": "TextInput",
@@ -730,11 +769,17 @@
                 "required": false,
                 "input-type": "number",
                 "visible": "${data.show_8}",
-                "helper-text": "${data.help_8}"
+                "helper-text": "${data.help_8}",
+                "error-message": "${data.err_8}"
               },
               {
                 "type": "TextBody",
                 "text": "${data.hint}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
               },
               {
                 "type": "Footer",
