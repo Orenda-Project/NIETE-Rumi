@@ -24,7 +24,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
-const { validate, MIN_QUESTIONS } = require('./transcript-quiz-validator');
+const { validate, MIN_QUESTIONS, figureDensity } = require('./transcript-quiz-validator');
 const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
 const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 const {
@@ -157,6 +157,9 @@ const SOFT_FAULT = new RegExp('^('
   // no quiz (operator, 2026-09-07). Recorded in meta.soft_faults so the rate
   // stays visible instead of costing quizzes silently.
   + '|q\\d+: URDU_TEACHER_FIELDS\\b'
+  // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
+  // one picture is still a quiz, and refusals cost teachers quizzes.
+  + '|FIGURE_FEW\\b'
   + ')');
 
 /**
@@ -574,6 +577,107 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
     api.renderCards({ rows, questions, language, teacherId, quizId }),
   ]);
   return { figureUrls, cardUrls };
+}
+
+/**
+ * PICTURE DENSITY — a grade 1-5 maths quiz aims for FIGURE_TARGET pictures.
+ *
+ * Production drew a picture on 5.5% of maths items: the author was asked for
+ * "two or three" and nothing held it to more than one. Too few is a SOFT
+ * complaint (FIGURE_FEW) — refusals cost teachers quizzes — so it is answered
+ * with ONE targeted "add a picture" call on the questions a picture helps most
+ * (transcript-quiz-rewrite addPictures, the one rewrite allowed to add a
+ * figure). The merged set is validated IN FULL like any rewrite; a picture
+ * fault on an added question reverts that question alone. Whatever happens,
+ * the quiz ships: repaired, partly repaired, or as it was, with FIGURE_FEW in
+ * meta.soft_faults. `transcript_quiz.figure_density` records before/after on
+ * every grade 1-5 maths quiz, so the rate is measurable.
+ *
+ * Runs after every authoring repair and BEFORE the key check and the blind
+ * solve, so a stem rewritten to point at its new picture is checked like any
+ * other. Never throws.
+ */
+async function runFigureDensity(api, {
+  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, lessonDrew, attempts,
+}) {
+  const measure = (qs) => figureDensity(qs, { subject: digest.subject, gradeBand });
+  const before = measure(questions);
+  if (!before.applies) return { record: null };
+  const record = {
+    before: before.figured, after: before.figured, target: before.target, n: before.n, need: before.need,
+    added: [], repaired: false, reason: null, cost_usd: 0,
+  };
+  const finish = (out = {}) => {
+    const now = measure(out.questions || questions);
+    record.after = now.figured;
+    record.complaint = now.complaint;
+    logEvent('transcript_quiz.figure_density', {
+      quizId, before: record.before, after: record.after, target: record.target, n: record.n,
+      added: record.added, reverted: record.reverted || [], repaired: record.repaired, reason: record.reason,
+    });
+    return { record, ...out };
+  };
+  if (!before.need) { record.reason = 'enough'; return finish(); }
+
+  let rw;
+  try {
+    rw = await api.addPictures({
+      questions, digest, language, gradeBand, lessonDrew, need: before.need, quizId,
+    });
+  } catch (err) {
+    rw = { attempted: true, indices: [], merged: null, added: [], error: err.message };
+  }
+  if (rw.error) {
+    logToFile('❌ transcript quiz: the add-pictures call failed — the quiz ships as it was', { quizId, error: rw.error }, 'error');
+  }
+  record.cost_usd = rw.costUsd || 0;
+  if (!rw.attempted) { record.reason = 'no_candidates'; return finish(); }
+  attempts.push({
+    attempt: 'add_pictures', indices: rw.indices, added: rw.added, model: rw.model || null,
+    cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null, error: rw.error || null,
+  });
+  if (!rw.merged) { record.reason = rw.error ? 'call_failed' : 'nothing_usable'; return finish(); }
+
+  // Validated in full. A hard fault on a question the repair did NOT touch
+  // cannot come from it (the set arrived shippable), so it refuses the repair;
+  // a fault on an ADDED question reverts that one question to what it was.
+  const ctx = {
+    language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+  };
+  const hard = (errs) => errs.filter((e) => !SOFT_FAULT.test(String(e)));
+  let added = [...rw.added];
+  let merged = rw.merged;
+  let v = validate(merged, ctx);
+  if (hard(v.errors).length) {
+    const named = new Set(hard(v.errors).map((e) => /^q(\d+):/.exec(String(e))).filter(Boolean).map((m) => Number(m[1])));
+    const stray = hard(v.errors).some((e) => { const m = /^q(\d+):/.exec(String(e)); return !m || !added.includes(Number(m[1])); });
+    record.errors = hard(v.errors).slice(0, 4).map((e) => String(e).slice(0, 160));
+    if (stray) { record.reason = 'merged_set_invalid'; return finish(); }
+    const revert = added.filter((i) => named.has(i));
+    record.reverted = revert;
+    added = added.filter((i) => !revert.includes(i));
+    if (!added.length) { record.reason = 'every_picture_failed'; return finish(); }
+    merged = merged.map((q, i) => (revert.includes(i) ? questions[i] : q));
+    v = validate(merged, ctx);
+    if (hard(v.errors).length) { record.reason = 'merged_set_invalid'; return finish(); }
+  }
+  try {
+    const drafted = toRows(quizId, v.questions);
+    const { figureUrls, cardUrls } = await renderFor(api, {
+      questions: v.questions, rows: drafted, language, teacherId, quizId,
+    });
+    record.added = added;
+    record.repaired = true;
+    record.reason = record.reverted && record.reverted.length ? 'added_some' : 'added';
+    return finish({
+      changed: true, questions: v.questions, figureUrls, cardUrls, draftedRows: drafted,
+      softFaults: v.errors.length ? v.errors : null,
+    });
+  } catch (figErr) {
+    logToFile('❌ transcript quiz: the pictures added for density could not be drawn — the quiz ships as it was', { quizId, error: figErr.message }, 'error');
+    record.reason = 'render_failed';
+    return finish();
+  }
 }
 
 /**
@@ -1082,6 +1186,9 @@ async function process(quizId, payload = {}) {
     // completeJson's retry, or a refused call) — that is model_failed, not
     // "the questions didn't come out clear enough".
     let authorReplies = 0;
+    // WHAT THE LESSON DREW — an lp_v8 lesson's own manipulatives (the slide
+    // script's counters, bundles and tiles), so a picture draws what the class saw.
+    const lessonDrew = isLp ? LpDigest.lessonDrewBlock(slideScript) : '';
     for (let attempt = 1; attempt <= attemptsAllowed; attempt += 1) {
       let out;
       try {
@@ -1091,7 +1198,7 @@ async function process(quizId, payload = {}) {
           // An lp_v8 quiz has no transcript: the author reads the planned
           // lesson — the same picker the digest used, so the exit MCQ and the
           // plan's gendered prose are absent here too.
-          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript) } : {}),
+          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript), lessonDrew } : {}),
         });
       } catch (err) {
         attempts.push({ attempt, error: err.message });
@@ -1370,6 +1477,24 @@ async function process(quizId, payload = {}) {
       await tellTeacherFailed(phone, teacherLang, quizId, reason, quizSource, { step: 'author' });
       return { failed: true, reason, attempts };
     }
+    // ── PICTURE DENSITY (grade 1-5 maths) ────────────────────────────────────
+    // Before the key checks, so a stem rewritten for its picture is checked too.
+    const dens = await runFigureDensity(api, {
+      questions, digest, language, quizId, teacherId: quiz.teacher_id, lessonSummary: readyLessonSummary,
+      gradeBand: digest.grade_band || meta.grade, lessonDrew, attempts,
+    });
+    if (dens.record) {
+      meta.figure_density = dens.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (dens.record.cost_usd || 0);
+      if (dens.changed) {
+        questions = dens.questions;
+        figureUrls = dens.figureUrls;
+        cardUrls = dens.cardUrls;
+        draftedRows = dens.draftedRows;
+        if (dens.softFaults) meta.soft_faults = dens.softFaults;
+      }
+      if (dens.record.complaint) meta.soft_faults = [...(meta.soft_faults || []), dens.record.complaint];
+    }
     // ── THE KEY CHECK (lp_v8 only) ───────────────────────────────────────────
     // Every key held against the lesson it was written from, after every repair
     // and before anything is stored (see runKeyCheck). A transcript quiz has no
@@ -1461,6 +1586,8 @@ module.exports = {
   failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
+  // Grade 1-5 maths only — the one rewrite that may add a picture (runFigureDensity).
+  addPictures: (args) => require('./transcript-quiz-rewrite').addPictures(args),
   // lp_v8 only — the answer-key check against the lesson (lp-quiz-key-check.service).
   checkKeys: (args) => require('./lp-quiz-key-check.service').checkKeys(args),
   // Both sources — the blind solve of every key (transcript-quiz-key-verify.service).

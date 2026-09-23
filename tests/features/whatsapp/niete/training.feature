@@ -443,6 +443,19 @@ Feature: NIETE (ICT) Teacher Training
     # Content-driven: assert that a quiz arrives and its sentences are Urdu, never a fixed question. @wip.
 
   @e2e @quiz @wip @draft @P1
+  Scenario: A grade 1-5 maths quiz draws what the lesson drew, on at least three questions
+    Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson plan that counted with counters
+    When a child opens the quiz from its link and answers every question
+    Then at least three of its questions arrive with a picture, and never more than half of them
+    And the pictures draw the lesson's own objects, such as counters for a lesson that counted counters
+    And a question that states its numbers may carry a picture of them, such as two fraction bars beside "which is larger", but no picture ever shows the answer
+    # Author prompt: "at least three, never more than half" and figure_role "model" (grade 1-5 maths only).
+    # lp-quiz-digest lessonDrewBlock: the slide script's token rows (never the exit options). Too few
+    # pictures is a soft complaint (FIGURE_FEW): ONE add-pictures repair (transcript-quiz-rewrite
+    # addPictures), validated in full; the quiz ships either way, and transcript_quiz.figure_density
+    # logs before/after. Content-driven: count the pictures and look at them; never a fixed question. @wip.
+
+  @e2e @quiz @wip @draft @P1
   Scenario: A quiz never ships an answer key a blind solver disagrees with
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
     When the quiz arrives
