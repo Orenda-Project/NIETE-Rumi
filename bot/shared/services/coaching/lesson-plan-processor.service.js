@@ -230,9 +230,9 @@ class LessonPlanProcessorService {
       userId: gate && gate.user_id
     });
 
-    const lang = await _resolveSessionLanguage(coachingSessionId);
-    await WhatsAppService.sendMessage(from, getCoachingMessage('lessonPlan_receivedText', lang));
-
+    // No "lesson plan received" ack here: the Step 2/5 announcement that follows
+    // already tells her the plan is being read into the analysis, so an ack sent
+    // just before it read as the same message twice (DC feedback, 2026-09-23).
     // Same ordering as the upload path: analysis starts now, the plan is woven
     // in as soon as the extraction job lands.
     await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from, lpUploaded: true });

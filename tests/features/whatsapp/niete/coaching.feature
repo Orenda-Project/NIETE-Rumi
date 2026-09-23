@@ -437,18 +437,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
 
   @e2e @wip @draft @P2
-  Scenario: The coaching session says it is over before the quiz offer arrives
+  Scenario: The commitment question opens by saying the coaching session is over
     Given the NIETE bot chat is open
     And I have received a coaching report with a commitment card
     When the commitment question arrives
-    Then the bot tells me the coaching session is complete
-    And that line arrives before any quiz offer
-    And that line is in my selected language
-    # bd-x3k1q / DC row 133. report-generator.service.js sends
-    # getCoachingMessage('sessionComplete', outputLanguage) straight after
-    # completeSession() — i.e. after the commit-prompt buttons and before
-    # scheduleTranscriptQuiz() / FeatureLinkerService.suggestNext(). Without it
-    # teachers and coaches read the quiz as step 6 of the coaching session.
+    Then that same message first tells me the coaching session is complete
+    And then asks whether I will try it in my next class
+    And no separate session-complete message follows it
+    And the message arrives before any quiz offer
+    And the message is in my selected language
+    # bd-x3k1q / DC row 133 added the boundary; bd-fmr3s / DC row 137 merged it
+    # INTO the commit prompt: body = cardCopy.sessionCompleteLead + "\n\n" +
+    # cardCopy.commitPrompt (coaching-card.config.js, en/ur/ar/es). Urdu:
+    # "آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔" then "کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟".
+    # With no commitment card, the standalone getCoachingMessage('sessionComplete')
+    # line is still sent before scheduleTranscriptQuiz() / suggestNext().
 
   @e2e @wip @draft @negative @known-fail @P3
   Scenario: The commitment-card buttons on the report are handled
@@ -465,7 +468,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I paste my lesson plan into the chat as an ordinary message
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
+    And no separate "lesson plan received" message arrives before it
     And the bot does not ask me again to send it as a document
     And the observation records that it has a lesson plan
     # Every other way in needs a WhatsApp media id (document webhook, LP-as-photo),
@@ -473,7 +477,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # without one. lp-text-paste.service.js pre-filters the text, resolves the
     # session through media-session-resolver (kind 'lp'), and hands it to
     # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
-    # lesson_plan_text with lesson_plan_link_method='pasted'.
+    # lesson_plan_text with lesson_plan_link_method='pasted'. It sends NO ack of
+    # its own (DC feedback 2026-09-23): the old "thanks for typing it out" line
+    # arrived just before Step 2/5 and read as the same message twice.
 
   @e2e @wip @draft @negative @P2 @obsolete
   Scenario: A short reply at the lesson-plan step is not mistaken for a plan
@@ -506,7 +512,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I type a three-line plan naming the topic, an activity and how I will check learning
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
     And the observation records that it has a lesson plan
     # The first live attempt failed here: a real 222-code-point Roman-Urdu plan
     # was refused by a 280-point floor fitted to long formatted pastes, while
