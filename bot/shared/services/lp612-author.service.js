@@ -55,6 +55,7 @@ const { familyForBook } = require('../config/lp612-families');
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint, overlayDefects, OVERLAY_MIN_COVERAGE } = require('../../vendor/lp-v9/lint_lp.js');
+const { normalizeLatinHonorific } = require('./lp612-latin-honorific');
 const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
 // The renderer's OWN pointer resolver and frozen-slot list, so `sanitizeOverlay` cannot
@@ -2198,6 +2199,10 @@ async function authorLessonPlan({
   };
 
   applyVideo(doc, video);
+  // bd-b7txa — a Latin "(PBUH)"/"(SAW)" against the Prophet's name becomes the stamp BEFORE the
+  // gate reads the document. The gate is unchanged and still refuses anything this misses, so the
+  // rule stays fail-closed; see `lp612-latin-honorific.js` for the ruling and the adjacency guard.
+  normalizeLatinHonorific(doc);
   sanitizeUnknownTopLevel(doc);
   sanitizeOverlay(doc);
   // bd-zle0u: the ladder's document is overlay-free BY CONTRACT. See `stripOverlay`.
@@ -2430,6 +2435,7 @@ async function authorLessonPlan({
     });
 
     applyVideo(candidate, video);
+    normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     noteStrippedOverlay(stripOverlay(candidate), spent);
@@ -3067,6 +3073,7 @@ async function reviseLessonPlan({
     }
 
     applyVideo(candidate, video);
+    normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
