@@ -308,8 +308,9 @@ Feature: NIETE (ICT) Teacher Training
   Scenario Outline: A count she cannot have is refused on the screen, naming the type
     Given the NIETE bot chat is open and I have reached the Unseen "how many of each" screen with "MCQs" ticked
     When I put <value> against MCQs and continue
-    Then I stay on that screen and it names MCQs in what it tells me
-    # Refused, never clamped — quietly turning 40 into 25 hands her a paper she did not ask
+    Then I stay on that screen and the reason appears in red under the MCQs box, naming MCQs
+    And the same reason is shown just above Continue
+    # Refused, never clamped — quietly turning 60 into 50 hands her a paper she did not ask
     # for and never says so. The ceiling is checked on the SUM too: several kinds that are
     # each allowed can still add up to a paper the generator pads its way through.
     Examples:
@@ -317,7 +318,7 @@ Feature: NIETE (ICT) Teacher Training
       | nothing   |
       | "0"       |
       | "abc"     |
-      | "40"      |
+      | "60"      |
 
   @e2e @flow @P2
   Scenario: Seen questions ask one thing — how many Seen
@@ -346,4 +347,15 @@ Feature: NIETE (ICT) Teacher Training
     # "Both" used to take per-type counts and then HALVE the total for Seen and re-spread the
     # types over the rest, so 10-and-2 came back as 3-and-3. The Seen number now travels on
     # its own, and her Unseen counts reach the model untouched. Kept on two screens on purpose
-    # (operator: "I would rather it be clear"). The 25 ceiling counts Seen AND Unseen together.
+    # (operator: "I would rather it be clear"). The 50 ceiling counts Seen AND Unseen together.
+
+  @e2e @flow @negative @P1
+  Scenario: Going over 50 in total tells her why, where she can see it
+    Given the NIETE bot chat is open and I have chosen "Both Seen and Unseen" and asked for 30 Seen
+    And I have ticked "MCQs" and "Brief Answers"
+    When I ask for 15 MCQs and 10 Brief Answers and continue
+    Then I stay on the Unseen screen and just above Continue it says the paper would be 55 questions (30 Seen + 25 Unseen) and the most is 50
+    # Operator, 23 Sep: "when you hit the limit, no error is displayed to the user so they can't
+    # even tell what is happening" — the logs showed Continue tapped twice a second apart. The
+    # reason used to sit at the TOP of the screen; it now sits under the offending box (a single
+    # bad box) or above Continue (a total over 50, which belongs to no one box).
