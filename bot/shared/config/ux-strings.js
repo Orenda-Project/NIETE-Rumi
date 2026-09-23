@@ -1769,6 +1769,14 @@ const UX_STRINGS = {
     en: 'I couldn’t make a good quiz from that lesson plan — the questions didn’t come out clear enough. Send /quiz to pick another lesson.',
     ur: 'اس lesson plan سے اچھا quiz نہیں بن سکا — سوالات کافی واضح نہیں بنے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
+  // The key check (lp_v8): some answers marked correct disagreed with the
+  // lesson plan itself and too few were left once they were taken out. Named
+  // for what happened — the questions were fine, their answers were not — and
+  // the quiz was held back rather than sent.
+  tqFailedLpKeyConflict: {
+    en: 'I held this quiz back — some of its answers didn’t match what that lesson plan teaches, and I won’t send children a wrong answer. Send /quiz to pick another lesson.',
+    ur: 'یہ quiz روک لیا گیا — اس کے کچھ جوابات اس lesson plan کی بات سے میل نہیں کھاتے تھے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد ⁦/quiz⁩ بھیج کر حاصل کریں۔',
