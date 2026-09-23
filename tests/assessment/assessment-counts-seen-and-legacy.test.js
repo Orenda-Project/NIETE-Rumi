@@ -21,9 +21,13 @@ const path = require('path');
 const FLOW = JSON.parse(fs.readFileSync(
   path.join(__dirname, '../../docs/flows/assessment-gen-flow.json'), 'utf8'));
 
-describe('the Flow routes seen through COUNTS', () => {
-  test('QUESTIONS can reach COUNTS directly (seen), not CONFIRM', () => {
-    expect(FLOW.routing_model.QUESTIONS).toContain('COUNTS');
+// Superseded 23 Sep (operator's Seen/Unseen spec): the Seen number now has its
+// own SEEN_COUNT screen rather than a single box on COUNTS. What these tests
+// guard is unchanged — seen is never stranded without a box, and the size is
+// refused, never clamped — only the screen that owns it moved.
+describe('the Flow routes seen through its own Seen screen', () => {
+  test('QUESTIONS reaches SEEN_COUNT, not CONFIRM directly', () => {
+    expect(FLOW.routing_model.QUESTIONS).toContain('SEEN_COUNT');
     expect(FLOW.routing_model.QUESTIONS).not.toContain('CONFIRM');
   });
 });
@@ -63,34 +67,31 @@ describe('the endpoint', () => {
   });
 
   describe('new Flow — no question_count key on QUESTIONS', () => {
-    test('seen goes to COUNTS with ONE box asking how many', async () => {
+    test('seen goes to its own Seen screen — never stranded without a box', async () => {
       const res = await exchange('u1', 'QUESTIONS', { content_source: 'seen' }, TOKEN);
-      expect(res.screen).toBe('COUNTS');
-      expect(res.data.show_1).toBe(true);
-      expect(res.data.label_1).toMatch(/how many/i);
-      expect(res.data.show_2).toBe(false);
+      expect(res.screen).toBe('SEEN_COUNT');
     });
 
-    test('the seen count typed on COUNTS sizes the paper and reaches CONFIRM', async () => {
+    test('the seen count sizes the paper and reaches CONFIRM', async () => {
       await exchange('u1', 'QUESTIONS', { content_source: 'seen' }, TOKEN);
-      const res = await exchange('u1', 'COUNTS', { count_1: '12' }, TOKEN);
+      const res = await exchange('u1', 'SEEN_COUNT', { seen_count: '12' }, TOKEN);
       expect(res.screen).toBe('CONFIRM');
       expect(store.questionCount).toBe(12);
       expect(store.questionTypes || []).toEqual([]);
     });
 
-    test('a bad seen count is refused on COUNTS, not clamped', async () => {
+    test('a bad seen count is refused on the Seen screen, not clamped', async () => {
       await exchange('u1', 'QUESTIONS', { content_source: 'seen' }, TOKEN);
       for (const bad of ['', 'abc', '0', '40']) {
-        const res = await exchange('u1', 'COUNTS', { count_1: bad }, TOKEN);
-        expect(res.screen).toBe('COUNTS');
+        const res = await exchange('u1', 'SEEN_COUNT', { seen_count: bad }, TOKEN);
+        expect(res.screen).toBe('SEEN_COUNT');
         expect(res.data.error).toBeTruthy();
       }
     });
 
-    test('back from a seen COUNTS lands on QUESTIONS, not TYPES', async () => {
+    test('back from the Seen screen lands on QUESTIONS, not TYPES', async () => {
       await exchange('u1', 'QUESTIONS', { content_source: 'seen' }, TOKEN);
-      const res = await back('u1', 'COUNTS', TOKEN);
+      const res = await back('u1', 'SEEN_COUNT', TOKEN);
       expect(res.screen).toBe('QUESTIONS');
     });
   });

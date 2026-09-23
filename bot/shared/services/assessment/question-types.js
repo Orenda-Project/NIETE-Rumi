@@ -197,7 +197,7 @@ function parseQuestionCount(raw) {
  *
  * Refused, never clamped — the same rule the single count already followed.
  */
-function parsePerTypeCounts(pickedIds, data, subject, grade) {
+function parsePerTypeCounts(pickedIds, data, subject, grade, seenCount = 0) {
   const ids = (pickedIds || []).filter(Boolean);
   if (ids.length === 0) {
     return { ok: false, message: 'Please choose at least one kind of question.' };
@@ -227,11 +227,15 @@ function parsePerTypeCounts(pickedIds, data, subject, grade) {
   }
 
   const total = out.reduce((s, t) => s + t.count, 0);
-  if (total > MAX_QUESTIONS) {
+  // On Both, the Seen questions she already asked for are part of the same
+  // paper, so the ceiling is checked on Seen + Unseen together.
+  const seen = Math.max(0, Number(seenCount) || 0);
+  if (total + seen > MAX_QUESTIONS) {
+    const which = seen ? ` (${seen} Seen + ${total} Unseen)` : '';
     return {
       ok: false,
-      message: `That is ${total} questions in total. A paper can hold up to ${MAX_QUESTIONS} — `
-        + 'please lower one of the numbers.',
+      message: `That is ${total + seen} questions in total${which}. A paper can hold up to `
+        + `${MAX_QUESTIONS} — please lower one of the numbers.`,
     };
   }
 

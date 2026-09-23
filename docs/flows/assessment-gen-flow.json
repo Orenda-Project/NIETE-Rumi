@@ -1,5 +1,5 @@
 {
-  "version": "7.1",
+  "version": "7.2",
   "data_api_version": "3.0",
   "routing_model": {
     "CLASS": [
@@ -13,14 +13,18 @@
       "QUESTIONS"
     ],
     "QUESTIONS": [
-      "TYPES",
-      "COUNTS"
+      "SEEN_COUNT",
+      "TYPES"
     ],
     "TYPES": [
       "COUNTS"
     ],
     "CONFIRM": [],
     "COUNTS": [
+      "CONFIRM"
+    ],
+    "SEEN_COUNT": [
+      "TYPES",
       "CONFIRM"
     ]
   },
@@ -322,7 +326,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Where should the questions come from?"
+                "text": "Seen or Unseen questions?"
               },
               {
                 "type": "TextCaption",
@@ -331,27 +335,27 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "content_source",
-                "label": "Where questions come from",
+                "label": "Questions",
                 "required": true,
                 "data-source": [
                   {
                     "id": "seen",
-                    "title": "From the book"
+                    "title": "Seen (from the book)"
                   },
                   {
                     "id": "unseen",
-                    "title": "New questions on the same topics"
+                    "title": "Unseen (outside the book)"
                   },
                   {
                     "id": "both",
-                    "title": "A mix of both"
+                    "title": "Both Seen and Unseen"
                   }
                 ]
               },
               {
                 "type": "TextInput",
                 "name": "total_marks",
-                "label": "Total marks (optional)",
+                "label": "Total marks",
                 "required": false,
                 "input-type": "number",
                 "helper-text": "${data.marks_hint}"
@@ -364,6 +368,70 @@
                   "payload": {
                     "content_source": "${form.content_source}",
                     "total_marks": "${form.total_marks}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SEEN_COUNT",
+      "title": "New assessment",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 4 · Science · Chapter 3"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "Between 1 and 25."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "seen_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Seen questions (from the book)"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "TextInput",
+                "name": "seen_count",
+                "label": "How many Seen?",
+                "required": true,
+                "input-type": "number",
+                "helper-text": "${data.hint}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "seen_count": "${form.seen_count}"
                   }
                 }
               }
@@ -422,7 +490,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Which kinds of question?"
+                "text": "Unseen questions: which types?"
               },
               {
                 "type": "TextCaption",
@@ -436,7 +504,7 @@
               {
                 "type": "CheckboxGroup",
                 "name": "question_types",
-                "label": "Question types",
+                "label": "Unseen question types",
                 "required": true,
                 "data-source": "${data.types}"
               },
@@ -538,6 +606,38 @@
         "show_8": {
           "type": "boolean",
           "__example__": false
+        },
+        "help_1": {
+          "type": "string",
+          "__example__": "How many MCQs?"
+        },
+        "help_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_7": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_8": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
@@ -549,7 +649,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "How many of each?"
+                "text": "Unseen questions: how many of each?"
               },
               {
                 "type": "TextCaption",
@@ -566,7 +666,8 @@
                 "label": "${data.label_1}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_1}"
+                "visible": "${data.show_1}",
+                "helper-text": "${data.help_1}"
               },
               {
                 "type": "TextInput",
@@ -574,7 +675,8 @@
                 "label": "${data.label_2}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_2}"
+                "visible": "${data.show_2}",
+                "helper-text": "${data.help_2}"
               },
               {
                 "type": "TextInput",
@@ -582,7 +684,8 @@
                 "label": "${data.label_3}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_3}"
+                "visible": "${data.show_3}",
+                "helper-text": "${data.help_3}"
               },
               {
                 "type": "TextInput",
@@ -590,7 +693,8 @@
                 "label": "${data.label_4}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_4}"
+                "visible": "${data.show_4}",
+                "helper-text": "${data.help_4}"
               },
               {
                 "type": "TextInput",
@@ -598,7 +702,8 @@
                 "label": "${data.label_5}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_5}"
+                "visible": "${data.show_5}",
+                "helper-text": "${data.help_5}"
               },
               {
                 "type": "TextInput",
@@ -606,7 +711,8 @@
                 "label": "${data.label_6}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_6}"
+                "visible": "${data.show_6}",
+                "helper-text": "${data.help_6}"
               },
               {
                 "type": "TextInput",
@@ -614,7 +720,8 @@
                 "label": "${data.label_7}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_7}"
+                "visible": "${data.show_7}",
+                "helper-text": "${data.help_7}"
               },
               {
                 "type": "TextInput",
@@ -622,7 +729,8 @@
                 "label": "${data.label_8}",
                 "required": false,
                 "input-type": "number",
-                "visible": "${data.show_8}"
+                "visible": "${data.show_8}",
+                "helper-text": "${data.help_8}"
               },
               {
                 "type": "TextBody",
