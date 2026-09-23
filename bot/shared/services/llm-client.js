@@ -579,10 +579,53 @@ function getProviderInfo() {
   };
 }
 
+/**
+ * For a client that talks to a vendor DIRECTLY rather than through getClient(): the two things
+ * getClient() gives every call and a raw client was missing. bd-wgso2.
+ *
+ *   - `job` / `fallbackModel` are stripped before the request goes out (a raw SDK sends every field
+ *     it is given, and api.openai.com answers an unknown one with a 400 -- bd-3kv02);
+ *   - the call's spend is recorded after it comes back, so it stops being invisible.
+ *
+ * NOTHING ELSE CHANGES, and that is the point of it. Same client, same provider, same key, same
+ * model id, same params, same per-call options, same errors: it does not reroute a call through
+ * OpenRouter, add an `openai/` prefix, or arm a fallback. Five live quiz/coaching services used a
+ * raw client, NIETE's highest-volume feature among them, so they spent money no telemetry could
+ * see; this makes them measurable without changing what any teacher receives. Rerouting them is a
+ * separate decision with its own risk.
+ *
+ * Spend is recorded from whatever `usage` the vendor returned. api.openai.com reports tokens but no
+ * price, so a direct call is recorded with tokens, duration and `costUnpriced: true` -- by design;
+ * see model-cost.js, which records nothing rather than a guess.
+ *
+ * A call that throws records nothing and rethrows unchanged. Wrap a client ONCE: wrapping it twice
+ * records every call twice.
+ *
+ * @param {object} client   an OpenAI-SDK-shaped client (chat.completions.create)
+ * @param {{lane?: string}} [opts]  e.g. 'openai-direct', kept on the event beside the job
+ */
+function withSpendRecording(client, { lane } = {}) {
+  const create = client.chat.completions.create.bind(client.chat.completions);
+  client.chat.completions.create = async (params, options) => {
+    const job = (params && params.job) || null;
+    if (params && ('job' in params || 'fallbackModel' in params)) {
+      params = { ...params };
+      delete params.job;
+      delete params.fallbackModel;
+    }
+    const startedAt = Date.now();
+    const response = await create(params, options);
+    recordModelCost(params && params.model, response, startedAt, lane ? { lane, job } : { job });
+    return response;
+  };
+  return client;
+}
+
 module.exports = {
   createLLMClient,
   getClient,
   getClientForModel,
+  withSpendRecording,
   getAnthropicDirectClient,
   directFallbackModel,
   assertFallbackUsable,

@@ -934,7 +934,10 @@ async function generateGuidance(context) {
   const keys = mode === 'reteach' ? ['muddled', 'board', 'check'] : ['secure', 'stretch'];
   try {
     const OpenAI = require('openai');
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // bd-wgso2: measured, not rerouted -- same client, key and model; only the label is stripped and the spend recorded.
+    const openai = require('../llm-client').withSpendRecording(
+      new OpenAI({ apiKey: process.env.OPENAI_API_KEY }), { lane: 'openai-direct' },
+    );
 
     const ask = async (p) => {
       const res = await openai.chat.completions.create({
@@ -943,6 +946,7 @@ async function generateGuidance(context) {
         // on clarifying the misconception that…" — and reached for "categorise
         // various foods" instead of the dal and rice in the questions.
         model: 'gpt-5.4-mini',
+        job: 'quiz.videoReport',
         messages: [{ role: 'user', content: p }],
         temperature: 0.4,               // lower than the parent quiz: this is advice
         // gpt-5 family renamed this. Passing max_tokens is not an error you can
