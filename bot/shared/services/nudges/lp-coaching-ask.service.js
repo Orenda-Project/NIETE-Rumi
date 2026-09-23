@@ -49,6 +49,7 @@ const FeatureIntro = require('../feature-intro.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { canSelfCoach } = require('../../config/role-features');
 const Caps = require('./caps');
+const { flagOn } = require('./flags');
 const { shouldDeferNewClassroomAudio } = require('../coaching/coaching-inflight-guard');
 
 /** The `teacher_nudges.kind` this service owns. */
@@ -65,7 +66,7 @@ const MORNING_MINUTE = 30;
 const DEFAULT_DELAY_MINUTES = 10;
 
 function enabled() {
-  return process.env.LP_COACHING_ASK_ENABLED === 'true';
+  return flagOn('LP_COACHING_ASK_ENABLED');
 }
 
 /**
