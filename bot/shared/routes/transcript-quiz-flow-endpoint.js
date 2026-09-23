@@ -43,7 +43,9 @@ const {
   teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk,
 } = require('../services/quiz/transcript-quiz-language');
 const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
-const { TRANSCRIPT, LP_V8, lessonSessionFor } = require('../services/quiz/quiz-sources');
+const {
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureReasonOf, lpRemakeable,
+} = require('../services/quiz/quiz-sources');
 
 /** An lp_v8 quiz's key in the Flow: it has no session id to carry. */
 const LP_KEY_PREFIX = 'lp_';
@@ -283,9 +285,17 @@ function resultsText(state, students, language, quiz = null) {
   if (state === 'making') return resolveUx('tqFlowResultsMaking', { language });
   if (state === 'failed') {
     // The transcript copy names "this lesson's recording"; an lp_v8 quiz had none.
-    return resolveUx(quiz?.quiz_source === LP_V8 ? 'tqFlowResultsFailedLp' : 'tqFlowResultsFailed', { language });
+    if (quiz?.quiz_source === LP_V8) return lpFailedResults(quiz, language);
+    return resolveUx('tqFlowResultsFailed', { language });
   }
-  if (state !== 'sent' && state !== 'report_sent') return resolveUx('tqFlowResultsNoQuiz', { language });
+  if (state !== 'sent' && state !== 'report_sent') {
+    // An lp_v8 quiz that is not waiting for its language was never made
+    // (declined, skipped, cancelled): /quiz cannot make one from here.
+    if (quiz?.quiz_source === LP_V8 && !List.isAwaitingLanguage(quiz)) {
+      return resolveUx('tqFlowResultsNoQuizLp', { language });
+    }
+    return resolveUx('tqFlowResultsNoQuiz', { language });
+  }
   if (!students.length) return resolveUx('tqFlowResultsNobody', { language });
 
   const done = students.filter((s) => s.status === 'completed');
@@ -317,9 +327,70 @@ function resultsText(state, students, language, quiz = null) {
   return lines.join('\n');
 }
 
-/** The actions this lesson can actually offer, newest-decision-first. */
+/**
+ * WHY an lp_v8 quiz failed, said the way the chat said it (the reason split in
+ * quiz-sources), without the chat's "send /quiz" tail — the teacher is in /quiz.
+ * A reason with no sentence of its own reads the general lesson-plan line.
+ */
+const LP_FLOW_FAILURE_RESULT = {
+  model_failed: 'tqFlowResultsFailedLpModel',
+  source_unusable: 'tqFlowResultsFailedLpUnusable',
+  source_missing: 'tqFlowResultsFailedLpSource',
+  validator_failed: 'tqFlowResultsFailedLpChecks',
+  key_conflict: 'tqFlowResultsFailedLpChecks',
+  key_disagreement: 'tqFlowResultsFailedLpChecks',
+};
+function lpFailedResults(quiz, language) {
+  const key = LP_FLOW_FAILURE_RESULT[failureReasonOf(quiz.meta)];
+  if (!key) return resolveUx('tqFlowResultsFailedLp', { language });
+  const next = lpRemakeable(quiz.meta) ? 'tqFlowResultsRemakeHint' : 'tqFlowResultsNextLesson';
+  return `${resolveUx(key, { language })}\n\n${resolveUx(next, { language })}`;
+}
+
+/**
+ * A failed lp_v8 quiz: "Make it again" where trying again can come out
+ * differently (lpRemakeable), and always "Done". Done is here so the lesson
+ * screen can say WHY the quiz failed — a screen with nothing to choose cannot be
+ * served at all (see lessonScreenFrom).
+ */
+function lpFailedActions(quiz, language) {
+  const out = [];
+  if (lpRemakeable(quiz.meta)) {
+    out.push({
+      id: 'remake',
+      title: resolveUx('tqFlowActionRemake', { language }),
+      description: resolveUx('tqFlowActionRemakeDesc', { language }),
+    });
+  }
+  out.push(doneAction(language));
+  return out;
+}
+
+function doneAction(language) {
+  return {
+    id: 'done',
+    title: resolveUx('tqFlowActionDone', { language }),
+    description: resolveUx('tqFlowActionDoneDesc', { language }),
+  };
+}
+
+/**
+ * The actions this lesson can actually offer, newest-decision-first.
+ *
+ * NEVER an empty list outside `making`: the LESSON screen's chooser is
+ * required, and an empty one cannot be drawn. A lesson with nothing to do but
+ * read (a sent quiz that was never handed off, an lp_v8 quiz that was never
+ * made) gets Done, so its results can still be shown. Only a quiz still being
+ * made has nothing to read yet, and it goes to the terminal "still being made"
+ * screen instead (lessonScreenFrom).
+ */
 function actionsFor({ state, quiz, session, language }) {
   if (state === 'making') return [];
+  const list = baseActions({ state, quiz, session, language });
+  return list.length ? list : [doneAction(language)];
+}
+
+function baseActions({ state, quiz, session, language }) {
   if (state === 'sent' || state === 'report_sent') {
     const out = [];
     // A report needs a class link to count sessions against; a resend needs the
@@ -348,6 +419,7 @@ function actionsFor({ state, quiz, session, language }) {
   // wait screen while nothing was being made. stepAction hands the choice to
   // the ask's own handler (startGenerating), never the transcript claim.
   if (quiz?.quiz_source === LP_V8) {
+    if (state === 'failed') return lpFailedActions(quiz, language);
     if (!List.isAwaitingLanguage(quiz)) return [];
     return makeActions({
       subject: quiz.subject,
@@ -398,6 +470,15 @@ function lessonScreenFrom({ teacher, session, quiz, students, language, extra = 
   // repeating it in longer words was the same sentence twice.
   const status = flowStatus(quiz, language, counts);
   const actions = actionsFor({ state, quiz, session, language });
+  // The published LESSON screen draws a RadioButtonsGroup that is
+  // `required: true` over ${data.actions} (literals since the chooser's
+  // visible/required bindings made its value arrive empty). An empty list
+  // cannot be drawn: the teacher gets WhatsApp's generic "Something went
+  // wrong" while this endpoint logs a clean response. A lesson with nothing to
+  // choose therefore never gets this screen — the terminal one instead.
+  if (!actions.length) {
+    return doneScreen('wait', language, { userId: teacher?.id || null, quizId: quiz?.id || null, state });
+  }
 
   return {
     screen: 'LESSON',
@@ -502,13 +583,9 @@ async function stepLesson(teacher, screenData) {
   });
   // A quiz still being written has nothing to tap. Sending it to the terminal
   // screen says so plainly instead of serving a lesson whose only control is an
-  // empty, hidden chooser.
-  // (A failed lp_v8 quiz has no action either, and is not "still being made":
-  // it gets its LESSON screen, whose results line says what happened.)
-  const lpFailed = quiz?.quiz_source === LP_V8 && state === 'failed';
-  if (!lpFailed && !actionsFor({ state, quiz, session, language }).length) {
-    return doneScreen('wait', language, { userId: teacher.id, quizId: quiz?.id || null });
-  }
+  // empty chooser (lessonScreenFrom holds the same line for every caller).
+  // A failed lp_v8 quiz is not "still being made": it gets its LESSON screen,
+  // whose results say why, with Make it again (where it can help) and Done.
   return lessonScreenFrom({ teacher, session, quiz, students, language });
 }
 
@@ -586,6 +663,26 @@ async function stepAction(teacher, screenData) {
       return Boolean(out && out.ok);
     });
     return doneScreen('link', language, { userId: teacher.id, quizId });
+  }
+
+  if (action === 'done') {
+    // Nothing to do on this lesson (a failed lp_v8 quiz): close from the
+    // endpoint. `tq_action` is what the chat side routes the completion on.
+    logEvent('transcript_quiz.flow_closed', { kind: 'done', userId: teacher.id, quizId: quiz?.id || null });
+    return { screen: 'SUCCESS', data: { extension_message_response: { params: { tq_action: 'done' } } } };
+  }
+
+  if (action === 'remake') {
+    // A failed lp_v8 quiz, made again on the lesson-plan path: the atomic
+    // failed → generating flip and the same queue step as the afternoon offer.
+    const quizId = quiz.id;
+    const phone = teacher.phone_number;
+    runAfterResponse('remake', quizId, async () => {
+      const Offer = require('../services/quiz/transcript-quiz-offer.service');
+      return Offer.remakeLpQuiz({ quiz, phone, teacherLang: language, source: 'flow' });
+    });
+    logEvent('transcript_quiz.flow_closed', { kind: 'remake', userId: teacher.id, quizId });
+    return { screen: 'SUCCESS', data: { extension_message_response: { params: { tq_action: 'remake' } } } };
   }
 
   // make_<language>.

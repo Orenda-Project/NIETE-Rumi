@@ -1979,6 +1979,39 @@ const UX_STRINGS = {
     en: 'This quiz could not be made from the lesson plan. The next lesson you plan can have a quiz of its own.',
     ur: 'اس lesson plan سے quiz نہیں بن سکا۔ اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
   },
+  // WHY a lesson-plan quiz failed, on its /quiz Flow lesson screen: the chat's
+  // own reason split (tqFailedLp*), without the chat's "send /quiz" tail — the
+  // teacher is already in /quiz. Followed by the remake hint or the next-lesson
+  // line. Passive / first person in Urdu: gender-neutral.
+  tqFlowResultsFailedLpModel: {
+    en: 'Something went wrong on my side while writing this quiz, so it could not be finished. The problem was not your lesson plan.',
+    ur: '\u200Fquiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ lesson plan میں نہیں تھا۔',
+  },
+  tqFlowResultsFailedLpUnusable: {
+    en: 'This lesson plan doesn’t have enough of the lesson in it to write a quiz from.',
+    ur: 'اس lesson plan میں اتنا سبق موجود نہیں کہ اس سے quiz بن سکے۔',
+  },
+  tqFlowResultsFailedLpSource: {
+    en: 'I couldn’t open this lesson plan, so there was nothing to write the quiz from.',
+    ur: 'اس سبق کا lesson plan نہیں کھل سکا، اس لیے quiz بنانے کے لیے کچھ نہیں تھا۔',
+  },
+  tqFlowResultsFailedLpChecks: {
+    en: 'The quiz written from this lesson plan was held back: some of its questions or answers were not clear or right enough to send to children.',
+    ur: 'اس lesson plan سے بنا quiz روک لیا گیا — اس کے کچھ سوالات یا جوابات اتنے واضح یا درست نہیں تھے کہ بچوں کو بھیجے جا سکیں۔',
+  },
+  // A lesson-plan quiz that was never made (declined, skipped, cancelled).
+  tqFlowResultsNoQuizLp: {
+    en: 'No quiz was made for this lesson. The next lesson you plan can have a quiz of its own.',
+    ur: 'اس سبق کا quiz نہیں بنا۔ اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
+  },
+  tqFlowResultsRemakeHint: {
+    en: 'Choose “Make it again” to try once more — about a minute.',
+    ur: 'دوبارہ کوشش کے لیے «دوبارہ بنائیں» چنیں — تقریباً ایک منٹ۔',
+  },
+  tqFlowResultsNextLesson: {
+    en: 'The next lesson you plan can have a quiz of its own.',
+    ur: 'اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
+  },
   tqFlowResultsFailed: {
     en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',
     ur: 'پچھلی کوشش میں اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا۔ دوبارہ کوشش کی جا سکتی ہے۔',
@@ -2012,6 +2045,15 @@ const UX_STRINGS = {
   },
   // The same choice on a quiz born from a lesson PLAN, whose teacher has still
   // to pick the quiz language. Planned, never "taught" — nobody heard the lesson.
+  // The two choices on a FAILED lesson-plan quiz. Radio option: title ≤ 30,
+  // description ≤ 300 code points.
+  tqFlowActionRemake: { en: 'Make it again', ur: 'دوبارہ بنائیں' },
+  tqFlowActionRemakeDesc: {
+    en: 'A fresh try from the same lesson plan. About a minute.',
+    ur: 'اسی lesson plan سے نئی کوشش۔ تقریباً ایک منٹ۔',
+  },
+  tqFlowActionDone: { en: 'Done', ur: 'ٹھیک ہے' },
+  tqFlowActionDoneDesc: { en: 'Close this for now.', ur: 'ابھی کے لیے بند کریں۔' },
   tqFlowActionMakeDescLp: {
     en: '8 questions on the lesson you planned. About a minute.',
     ur: 'آپ کے سبق کے منصوبے پر ۸ سوال۔ تقریباً ایک منٹ۔',

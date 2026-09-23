@@ -288,6 +288,22 @@ Feature: NIETE (ICT) Teacher Training
     # lesson-plan quiz job) — the same path as answering the ask in chat. @wip.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: A lesson-plan quiz that could not be made opens in /quiz, says why, and can be made again
+    Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be made because something went wrong while writing it
+    When I open "/quiz" and tap that lesson
+    Then the lesson screen opens — never "Something went wrong" — and says the problem was on the bot's side, not my lesson plan
+    And it offers "Make it again" and "Done"
+    When I choose "Make it again" and continue
+    Then the Flow closes and the bot says it is making the quiz now
+    But when the lesson plan itself had too little lesson in it, the screen says so and offers only "Done"
+    # transcript-quiz-flow-endpoint: actionsFor never serves the LESSON screen an empty action list (its
+    # RadioButtonsGroup is required over ${data.actions}); a failed lp_v8 row gets lpFailedActions — remake
+    # where quiz-sources.lpRemakeable (model-side reason, lessons kept, < 2 remakes) — plus Done, and the
+    # results name the reason (failureReasonOf). "Make it again" runs transcript-quiz-offer.remakeLpQuiz:
+    # atomic failed → generating, then queueLpQuiz. Seen on staging: a failed lesson-plan quiz showed the Flow's
+    # generic error. @wip — forcing a failure needs a seeded failed row.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A question that cannot be sent is skipped, and the child is scored on the questions actually asked
     Given a class quiz one of whose questions cannot be sent to a child's phone
     When a child opens the quiz from its link and answers the questions before it
