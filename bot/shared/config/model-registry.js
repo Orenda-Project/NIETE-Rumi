@@ -174,11 +174,11 @@ const TELEMETRY_ONLY_JOBS = Object.freeze([
   'helper.capabilityGuidance',
   'helper.capabilityDefault',
   'exam.grade',                  // exam-checker/grading
-  'coaching.questionRouter',     // coaching/reflective-questions/llm-router
-  'quiz.generate',
-  'quiz.insight',                // quiz-report
-  'quiz.session',
-  'quiz.videoReport',
+  // No quiz.* names and no coaching.questionRouter, on purpose (bd-3kv02). quiz-generation,
+  // quiz-report, quiz-session, video-quiz-report and reflective-questions/llm-router each build a
+  // raw `new OpenAI(...)`, so a label there is SENT to the vendor rather than stripped, and
+  // api.openai.com rejects an unknown field with a 400. Name them here only once they move onto
+  // llm-client -- and job-label-reaches-no-vendor.test.js will refuse the label until they do.
   'reading.analyse',
   'reading.diagnosticSummary',
   'reading.report',

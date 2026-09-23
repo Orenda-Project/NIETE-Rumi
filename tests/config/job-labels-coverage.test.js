@@ -68,9 +68,7 @@ const EXPECTED = {
            'helper.capabilityGuidance', 'helper.capabilityDefault'],
   },
   'shared/services/exam-checker/grading.service.js': { sites: 1, jobs: ['exam.grade'] },
-  'shared/services/coaching/reflective-questions/llm-router.service.js': {
-    sites: 1, jobs: ['coaching.questionRouter'],
-  },
+  // coaching/reflective-questions/llm-router is deliberately NOT here. See the quiz note below.
   'shared/services/reading/analysis.service.js': {
     sites: 7,
     jobs: ['reading.analyse', 'reading.diagnosticSummary', 'reading.report',
@@ -97,10 +95,15 @@ const EXPECTED = {
   'shared/services/reading-assessment.service.js': {
     sites: 3, jobs: ['reading.assessLanguage', 'reading.assessGrade', 'reading.assessAudio'],
   },
-  'shared/services/quiz/quiz-generation.service.js': { sites: 1, jobs: ['quiz.generate'] },
-  'shared/services/quiz/quiz-report.service.js': { sites: 1, jobs: ['quiz.insight'] },
-  'shared/services/quiz/quiz-session.service.js': { sites: 1, jobs: ['quiz.session'] },
-  'shared/services/quiz/video-quiz-report.service.js': { sites: 1, jobs: ['quiz.videoReport'] },
+  // FIVE files are deliberately NOT labelled, and must stay out of this table until they move onto
+  // llm-client (bd-3kv02): quiz/quiz-generation, quiz/quiz-report, quiz/quiz-session,
+  // quiz/video-quiz-report and coaching/reflective-questions/llm-router. Each builds its OWN raw
+  // `new OpenAI(...)`, so nothing strips `job` -- a label there is sent to the vendor as a request
+  // field, and api.openai.com answers an unknown field with a 400. They were labelled in bd-8xmp9,
+  // shipped to sandbox and staging, and pulled back before any quiz traffic reached them. The label
+  // bought nothing there anyway: a raw client never reaches recordModelCost, so their spend is not
+  // in api.cost.incurred at all. job-label-reaches-no-vendor.test.js is what now refuses a label on
+  // any file that imports the raw SDK.
   // createChatCompletion is a pure passthrough (`create(options)`), so its label is a DEFAULT a
   // caller can override -- same seam as coaching.completeJson.
   'shared/services/openai.service.js': {
