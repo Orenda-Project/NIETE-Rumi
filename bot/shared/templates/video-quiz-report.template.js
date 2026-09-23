@@ -445,6 +445,11 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .why{font-family:${bodyFam};margin:10px 40px 0;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;line-height:${RTL ? `${leadingAt(1.9)}` : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:11px 14px}
 
 .roster{margin-top:22px}
+/* The roster's label is the one label that can open a page. On the one-line
+   leading Nastaliq's tall strokes rise about half an em above the line box, and
+   at the top of a page that ink was painted at the foot of the page before. The
+   padding holds it inside the page it belongs to. */
+${RTL ? '.roster>.label{padding-top:10px}' : ''}
 .r-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid #eef0f6}
 .r-row:last-child{border-bottom:none}
 .r-name{width:246px;font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;font-weight:600;color:#26304d;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px}
