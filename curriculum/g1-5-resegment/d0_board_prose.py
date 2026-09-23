@@ -32,7 +32,12 @@ MIN_PROSE_CP = 140
 # lesson from being cut in half. Urdu board work that teaches the marks quotes them
 # bare -- *"write a sentence and at the end of it ? circle it"* -- and a glyph being
 # named always has a space in front of it, where a real sentence end never does.
-_END = re.compile(r"(?<=\S[.!?۔؟؛])\s+")
+# The character before the terminator must be ordinary text, not another
+# terminator: a run of dots is a phrase trailing off, not a step ending. Board
+# work quotes sentence STARTERS that way -- g1_ch8 English_seg4 chalks the three
+# ending words *"'Finally... / In the end... / At last...'"* as ONE bottom row,
+# and splitting there numbered a lone slash as a build step of its own.
+_END = re.compile(r"(?<=[^\s.!?\u06d4\u061f\u061b][.!?\u06d4\u061f\u061b])\s+")
 
 # "1.5 metres" and "p.151" are not sentence ends. A period flanked by digits, or one
 # following a single letter, stays inside its row.
@@ -77,7 +82,13 @@ def split_prose(line) -> list[str]:
 
     joined: list[str] = []
     for piece in parts:
-        if joined and _LABEL.match(joined[-1].strip()):
+        # ' / ' stacks alternatives INSIDE one chalk row -- g3_ch8 English_seg9 frames a
+        # letter as *"Dear ___, / Thank you for ___. / Yours truly, ___"*. The full stop
+        # in there is real, so a piece opening with the separator is the rest of the row
+        # above it, and left alone it became a build step reading 'write a sign-off'.
+        if joined and piece.lstrip().startswith("/"):
+            joined[-1] = f"{joined[-1]} {piece}"
+        elif joined and _LABEL.match(joined[-1].strip()):
             joined[-1] = f"{joined[-1]} {piece}"
         else:
             joined.append(piece)

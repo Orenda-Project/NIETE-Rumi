@@ -116,3 +116,38 @@ def test_an_alphabetic_enumerator_stays_with_the_item_it_numbers():
     parts = P.split_prose(line)
     assert all(len(p.strip()) > 3 for p in parts), parts
     assert any(p.startswith("ب۔ ___") for p in parts), parts
+
+
+def test_an_ellipsis_is_not_the_end_of_a_build_step():
+    """A sentence STARTER quoted on the board trails off; it does not stop.
+
+    Found in the rebuilt corpus at g1_ch8 English_seg4, whose last board line is
+    *"Bottom row: the three ending words -- 'Finally... / In the end... / At last...'"*.
+    That is one row of three ending words, and the splitter made it three numbered
+    build steps, two of which told the teacher to chalk a lone slash and a phrase.
+    A run of dots is a trailing-off, so only a terminator with ordinary text in
+    front of it ends a step.
+    """
+    line = ("Write the three chalk faces along the top of the board. "
+            "Bottom row: the three ending words - 'Finally... / In the end... / At last...' "
+            "Leave the middle third clear for the story ladder.")
+    parts = P.split_prose(line)
+    assert not any(p.lstrip().startswith("/") for p in parts), parts
+    assert any("'Finally... / In the end... / At last...'" in p for p in parts), parts
+
+
+def test_a_slash_continues_the_step_it_follows():
+    """These boards use ' / ' to stack alternatives inside ONE chalk row.
+
+    g3_ch8 English_seg9 chalks a letter frame as *"Dear ___, / Thank you for ___. /
+    Yours truly, ___"* -- three lines of one template, and the full stop inside it is
+    a real one, so the splitter made 'Yours truly, ___' a build step that tells the
+    teacher to write a sign-off and nothing else. A piece that opens with the
+    separator is the rest of the row above it, never a step of its own.
+    """
+    line = ("Write the letter frame down the left of the board. "
+            "Dear ___, / Thank you for ___. / Yours truly, ___ "
+            "Keep the right half clear for the three job branches.")
+    parts = P.split_prose(line)
+    assert not any(p.lstrip().startswith("/") for p in parts), parts
+    assert any("Yours truly" in p and "Dear ___" in p for p in parts), parts
