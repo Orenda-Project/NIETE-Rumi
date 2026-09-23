@@ -120,6 +120,32 @@ const ROWS = [
     before: 'سیرتِ نبوی اور معاشرتی آداب',
     after: `سیرتِ نبوی ${STAMP} اور معاشرتی آداب`,
   },
+  {
+    // THE ONE RE-CUT, and the only row here that is not a pure insertion.
+    //
+    // Grade 8 Islamiat ch.4 review day. The subtopic is `دہرائی: باب 4 — احادیثِ نبوی
+    // صلی اللہ علیہ وآلہ وصحابہ`, and the 30-code-point menu cut landed INSIDE the
+    // salutation, leaving the row ending on `صلی`. This is the one genuine cap
+    // casualty in the whole corpus — everywhere else the stamp fits and the importer
+    // simply never carried it.
+    //
+    // Because the break cannot be fixed by inserting anything, the title is re-cut.
+    // That is a change to what the teacher reads, so it was NOT taken as a rendering
+    // decision: operator ruling 2026-09-23, choosing option 1 of three put to her —
+    // "Re-cut the title so the break falls outside the salutation, e.g. دہرائی:
+    // احادیثِ نبوی ﷺ ... My recommendation."
+    //
+    // It also resolves, without deciding it, the incomplete salutation she had ruled
+    // `bd-unugr can be left alone`: the source writes `صلی اللہ علیہ وآلہ وصحابہ` with
+    // no `وسلم`, and the stamp carries the complete salutation in one glyph. The
+    // SOURCE string is untouched; only the menu row changes.
+    segment_id: 'grade_8_islamiat.c04.r990',
+    where: 'Grade 8 Islamiat, ch.4, review day (the severed row)',
+    source: '\u062f\u06c1\u0631\u0627\u0626\u06cc: \u0628\u0627\u0628 4 \u2014 \u0627\u062d\u0627\u062f\u06cc\u062b\u0650 \u0646\u0628\u0648\u06cc \u0635\u0644\u06cc \u0627\u0644\u0644\u06c1 \u0639\u0644\u06cc\u06c1 \u0648\u0622\u0644\u06c1 \u0648\u0635\u062d\u0627\u0628\u06c1  [subtopic_title]',
+    before: '\u062f\u06c1\u0631\u0627\u0626\u06cc: \u0627\u062d\u0627\u062f\u06cc\u062b\u0650 \u0646\u0628\u0648\u06cc \u0635\u0644\u06cc',
+    after: `\u062f\u06c1\u0631\u0627\u0626\u06cc: \u0627\u062d\u0627\u062f\u06cc\u062b\u0650 \u0646\u0628\u0648\u06cc ${STAMP}`,
+    recut: true,
+  },
 ];
 
 function assertRef() {
