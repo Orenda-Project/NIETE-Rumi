@@ -1,0 +1,81 @@
+"""A board authored as a paragraph must still reach the teacher in build order.
+
+OPERATOR, on the WRITE ON THE BOARD section: *"its a block of text that should show
+clearly how it should be ordered rather than give a script of what to draw and how"*.
+
+43 of the 335 shipping boards are a single prose paragraph with no blank lines and no
+internal structure -- 20 of them Urdu. `d0_board._panel` makes one row per LINE, so a
+500-character paragraph becomes ONE row, and the renderer lays it out as an unbroken
+wall of text. That wall is the thing she has rejected four times.
+
+This module splits such a paragraph into its sentences, so the existing board renderer
+numbers them and the teacher can see what to chalk first, second, third.
+"""
+import d0_board_prose as P
+
+
+def test_a_short_line_is_left_exactly_alone():
+    """Structured boards are already right. Only the wall is in scope."""
+    s = "km = kilometre | m = metre"
+    assert P.split_prose(s) == [s]
+
+
+def test_a_prose_paragraph_becomes_its_sentences_in_order():
+    s = ("Draw a place value chart with three columns and label them hundreds, tens and ones. "
+         "Write the number three hundred and forty five into the chart one digit at a time. "
+         "Ask the class to read the number aloud from the chart before you rub it out again.")
+    out = P.split_prose(s)
+    assert len(out) == 3, out
+    assert out[0].startswith("Draw a place value chart")
+    assert out[1].startswith("Write the number")
+    assert out[2].startswith("Ask the class")
+
+
+def test_every_sentence_keeps_its_full_stop():
+    s = ("Draw a place value chart with three columns and label them hundreds, tens and ones. "
+         "Write the number three hundred and forty five into the chart one digit at a time. "
+         "Ask the class to read the number aloud from the chart before you rub it out.")
+    assert all(f.rstrip().endswith(".") for f in P.split_prose(s))
+
+
+def test_urdu_splits_on_its_own_full_stop():
+    """Urdu ends a sentence with U+06D4, not a period -- and Urdu is 20 of the 43
+    prose boards, so a splitter that only knows "." would leave the worst half of
+    the corpus exactly as it is."""
+    s = ("تختہ سیاہ پر دائیں کالم میں نیا لفظ لکھیں اور اس کے سامنے بائیں کالم میں اس کا مطلب لکھیں۔ "
+         "پھر ہر لفظ کے نیچے ایک سادہ جملہ لکھیں تاکہ بچے اس کا استعمال دیکھ سکیں۔ "
+         "آخر میں مثالیں مٹا کر بچوں سے دوبارہ لکھوائیں تاکہ فرق واضح ہو۔")
+    out = P.split_prose(s)
+    assert len(out) == 3, out
+    assert all("۔" in f for f in out)
+
+
+def test_nothing_of_the_board_is_lost_in_the_split():
+    """NOTHING MAY BE CUT (operator, page-packer option B). The split is a
+    re-ordering of the same characters, never an edit of them."""
+    s = ("Draw a two column table on the board and head the columns was and is. "
+         "Write four sentences from the passage in the was column as the class dictates them. "
+         "Leave the is column empty until the children have finished their own copies.")
+    out = P.split_prose(s)
+    assert "".join(out).replace(" ", "") == s.replace(" ", "")
+
+
+def test_a_paragraph_with_no_sentence_end_is_left_alone():
+    """A long line that is one unpunctuated run has no order to show. Chopping it
+    at an arbitrary column would invent a build step the author never wrote."""
+    s = "hundreds tens ones " * 12
+    assert P.split_prose(s) == [s]
+
+
+def test_it_never_raises_on_junk():
+    for junk in (None, "", 17, [], {}):
+        assert isinstance(P.split_prose(junk), list)
+
+
+def test_a_decimal_number_is_not_a_sentence_end():
+    """"1.5 metres" must not become two board rows."""
+    s = ("Draw the ruler on the board and mark the point that reads 1.5 metres along it. "
+         "Then ask the class which whole number that measurement sits between on the ruler.")
+    out = P.split_prose(s)
+    assert len(out) == 2, out
+    assert "1.5" in out[0]

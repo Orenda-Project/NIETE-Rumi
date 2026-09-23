@@ -259,5 +259,80 @@ class TestATerminalFrameIsNotBoardContent(unittest.TestCase):
         self.assertEqual(out["panels"], [])
 
 
+class TestBoardBlockAcceptsAListedContent(unittest.TestCase):
+    """bd-v2ikv. Verbatim from grade_1_maths_ch8_seg990 (English_seg9 and Maths_seg13 carry
+    the same shape) -- Stage C sometimes emits `boardWork.content` as a list of strings,
+    already split into the groups a string-authored board carries as blank-line-separated
+    paragraphs, instead of one string. `board_block` only ever exercised the string shape and
+    called `.strip()` straight on the field, which is a list method AttributeError against a
+    list -- and that raised out of `to_lp_doc`, out of `main`, and took the other 23 rows of
+    the G2 Ch8 build down with the one row that carried it."""
+
+    CONTENT = [
+        "ROUND 1: height",
+        "ROUND 2: mass and capacity",
+        "ROUND 3: capacity, length and temperature",
+        "compare = which word fits?",
+        "measure = read the number",
+    ]
+
+    def test_a_listed_content_does_not_raise(self):
+        BD.board_block({"content": self.CONTENT})
+
+    def test_a_listed_content_is_joined_on_the_blank_line_the_string_form_uses(self):
+        # Not `str(CONTENT)` -- that is a Python repr, and a teacher reading the page
+        # would see `['ROUND 1: height', ...]` printed on it. Each list entry is already
+        # one authored group, so `\n\n` is the same boundary a string-authored board
+        # marks a group with, and board_panels splits it back apart the same way.
+        blk = BD.board_block({"content": self.CONTENT})
+        self.assertEqual(blk["text"], "\n\n".join(self.CONTENT))
+
+    def test_no_word_of_a_listed_content_is_lost(self):
+        blk = BD.board_block({"content": self.CONTENT})
+        got = " ".join(words_of(blk))
+        for w in ("ROUND", "height", "mass", "capacity", "temperature",
+                  "compare", "fits?", "measure", "number"):
+            self.assertIn(w, got, w)
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_a_prose_board_reaches_the_renderer_as_ordered_rows_not_one_wall():
+    """OPERATOR: *"its a block of text that should show clearly how it should be
+    ordered rather than give a script of what to draw and how"*.
+
+    43 of the 335 shipping boards arrive as ONE paragraph with no line breaks. One
+    row per line made them a single 500-character row, which the renderer lays out
+    as an unbroken wall -- the exact thing rejected four times. Each sentence is a
+    build step, so each sentence is a row and the renderer numbers it.
+    """
+    content = ("Draw a two column table on the board and head the columns was and is. "
+               "Write four sentences from the passage in the was column as the class "
+               "dictates them to you. Leave the is column empty until the children "
+               "have finished copying the was column into their own notebooks.")
+    out = BD.board_panels(content)
+    rows = [r for p in out["panels"] for r in p["rows"]]
+    assert len(rows) == 3, rows
+    assert rows[0]["text"].startswith("Draw a two column table")
+    assert rows[2]["text"].startswith("Leave the is column")
+
+
+def test_splitting_a_prose_board_never_drops_a_word_of_it():
+    """NOTHING MAY BE CUT (operator, page-packer option B)."""
+    content = ("Draw a place value chart with three columns and label them hundreds, "
+               "tens and ones. Write three hundred and forty five into the chart one "
+               "digit at a time while the class reads each digit aloud with you.")
+    rows = [r for p in BD.board_panels(content)["panels"] for r in p["rows"]]
+    joined = "".join(r["text"] for r in rows).replace(" ", "")
+    assert joined == content.replace(" ", "")
+
+
+def test_a_structured_board_is_untouched_by_the_prose_split():
+    """The 240 boards that already arrive as short lines must render exactly as
+    they did -- this change is for the wall, and nothing else."""
+    content = "LENGTH UNITS\nkm = kilometre\nm = metre\ncm = centimetre"
+    rows = [r for p in BD.board_panels(content)["panels"] for r in p["rows"]]
+    assert len(rows) == 3
+    assert rows[0]["term"] == "km"

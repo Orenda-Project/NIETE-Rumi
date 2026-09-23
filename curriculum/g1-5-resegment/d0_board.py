@@ -43,27 +43,15 @@ from __future__ import annotations
 
 import re
 
+from d0_board_boxes import _boards, _unbox
+from d0_board_prose import split_prose
+
 _BLANK = re.compile(r"\n\s*\n")
 # ` = ` binds looser than ` -> `, so it is taken LAST: "sway -> may -> display = rhyme"
 # is one chain glossed as "rhyme", not "sway" glossed as "may -> display = rhyme".
 _EQ = " = "
 _ARROWS = ("→", "➔", "->")
 _HEADING_TAIL = ":：۔"
-# The Unicode box-drawing block. A teacher-facing HTML page draws its own frames, so an
-# ASCII one is a drawing of a box inside a box -- and a 60-character run of U+2500 has no
-# break opportunity, which is how ten corpus boards laid themselves out wider than the
-# page and printed their gloss column off the right edge. See _unbox.
-_BOX = re.compile(r"[\u2500-\u257f]+")
-# THE SAME CHARACTERS ALSO DRAW AN ARROW. `--> ` is `\u2500\u2500>`, and the corpus uses it
-# 38 times to point one thing at another. It is content and the frame is not.
-_ARROWHEAD = ">\u276f\u00bb"
-_ARROWTAIL = "<\u276e\u00ab"
-# A BOX THAT CLOSES BEFORE ANOTHER OPENS IS A SECOND BOARD (bd-i44jn). These are the only
-# two characters that decide it: a top-left corner starts a box, a bottom-left corner ends
-# one. Nothing else in the block is read as structure, because nothing else is -- see
-# _boards for the three corpus shapes that a looser rule shatters.
-_OPENS = "\u250c\u256d\u250f"   # top-left:    box-drawings light / arc / heavy
-_CLOSES = "\u2514\u2570\u2517"  # bottom-left: the same three
 
 
 def _is_heading(line: str) -> bool:
@@ -113,81 +101,6 @@ def _split_pair(line: str):
     return None
 
 
-def _unbox(line: str):
-    """`(content, was_framed)` — a terminal frame stripped off a line.
-
-    `┌──── Apostrophe Alley ────┐` is the author drawing a panel for a fixed-width
-    terminal. The title inside it is the panel's own label, which the render already has a
-    place for; the `└────┘` that closes it carries nothing and is the frame alone.
-
-    A FRAME TOUCHES A LINE EDGE. That is the whole test, and it is not a refinement: the
-    first cut of this took every run in the block, and `──>` is drawn from that same block.
-    It mangled 38 arrows across 10 boards into a bare `>` and deleted a panel outright —
-    `[Question] ──> [KEY words] ──> [Main point]` is one line, so stripping its runs left
-    nothing and the panel vanished. An arrow points BETWEEN two things the author wrote,
-    which is exactly why it is never at an edge. `→ APPLY THE CLUE →` is untouched for a
-    second reason: U+2192 is not in the block at all.
-    """
-    def _arrow(m):
-        after, before = line[m.end():m.end() + 1], line[m.start() - 1:m.start()]
-        return (after and after in _ARROWHEAD) or (before and before in _ARROWTAIL)
-
-    runs = [m for m in _BOX.finditer(line) if not _arrow(m)]
-    if not runs:
-        return line, False
-    stripped = line.strip()
-    off = line.index(stripped) if stripped else 0
-    if not any(m.start() - off <= 0 or m.end() - off >= len(stripped) for m in runs):
-        return line, False
-    out, at = [], 0
-    for m in runs:
-        out.append(line[at:m.start()])
-        out.append(" ")
-        at = m.end()
-    out.append(line[at:])
-    return "".join(out).strip(), True
-
-
-def _boards(group: str):
-    """One authored group -> `[(lines, connector)]`, one entry per board drawn in it.
-
-    `English_seg6` draws a finished box, an arrow, then a second finished box with NO
-    blank line, so grouping on blank lines alone printed two boards as one 15-row panel
-    and the second title landed as a plain row (bd-i44jn).
-
-    THE BOUNDARY IS A CLOSE FOLLOWED BY AN OPEN, and the narrowness is the design.
-    `_unbox` knows a FRAME (a line touching an edge), not a BOARD; three corpus shapes
-    break under anything looser: `Science_seg2` (one instrument TABLE drawn as a box --
-    "split on a framed line" makes five panels), `Maths_seg9` (two boxes SIDE BY SIDE
-    opening on the same line), `Maths_seg6` (diagonals, no box at all). Only a box that
-    has finished before the next starts is a second board; exactly one of 38 is.
-
-    A line in the gap -- after the close, before the open -- is the CONNECTOR the teacher
-    chalks between the boxes, so it belongs to neither board's rows.
-    """
-    lines = [l for l in group.strip().split("\n") if l.strip()]
-    out, cur, gap, lead, closed = [], [], [], None, False
-    for l in lines:
-        head = l.strip()[:1]
-        if head in _OPENS and closed and cur:
-            # The gap belongs to the board it leads INTO, not the one it left.
-            out.append((cur, lead))
-            cur, lead, gap, closed = [], " ".join(gap).strip() or None, [], False
-        if closed and head not in _OPENS:
-            gap.append(l.strip())
-            continue
-        cur.append(l)
-        if head in _CLOSES:
-            closed = True
-    if cur:
-        out.append((cur, lead))
-    # A trailing gap closes the last board rather than leading into a board that was never
-    # drawn, so it stays a row of it -- no word of it is lost.
-    if gap and out:
-        out[-1][0].extend(gap)
-    return out
-
-
 def _panel(group: str) -> dict | None:
     lines = [l.strip() for l in group.strip().split("\n") if l.strip()]
     if not lines:
@@ -216,7 +129,14 @@ def _panel(group: str) -> dict | None:
     rows = []
     for l in lines:
         pair = _split_pair(l)
-        rows.append({"term": pair[0], "gloss": pair[1]} if pair else {"text": l})
+        if pair:
+            rows.append({"term": pair[0], "gloss": pair[1]})
+            continue
+        # A board authored as ONE paragraph has no line breaks to make rows from, so it
+        # arrives here as a single 500-character row and the renderer lays it out as a
+        # wall -- *"it should show clearly how it should be ordered"* (operator). Its
+        # sentences ARE its build order. Short lines come back unchanged.
+        rows.extend({"text": part} for part in split_prose(l))
     panel = {"rows": rows}
     if label:
         panel["label"] = label
@@ -282,8 +202,13 @@ def board_block(board):
     `text` is still emitted alongside `panels`. The renderer prefers `panels`, but `text`
     is what the schema, lint and every `ur_overlay` pointer address, and it is the fallback
     for a board the parse cannot panel. It is never PRINTED twice -- only stored twice.
-    """
-    text = ((board or {}).get("content") or "").strip()
+
+    `content` CAN ARRIVE AS A LIST, not the blank-line string this module assumes --
+    unjoined, `.strip()` raised out of `to_lp_doc` and took 23 good rows down with the one
+    that carried it. Joined here instead of `str(list)`'d, a Python repr on her page."""
+    raw = (board or {}).get("content")
+    parts = raw if isinstance(raw, list) else [raw]
+    text = "\n\n".join(p for p in parts if isinstance(p, str)).strip()
     if len(text) < 3:
         return None
     blk = {"type": "board", "id": "board-plan", "text": text}
