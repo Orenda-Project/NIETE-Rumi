@@ -2010,6 +2010,12 @@ const UX_STRINGS = {
     en: '8 questions from what you taught in this lesson. About a minute.',
     ur: 'اس سبق میں آپ نے جو پڑھایا، اس پر 8 سوالات۔ تقریباً ایک منٹ۔',
   },
+  // The same choice on a quiz born from a lesson PLAN, whose teacher has still
+  // to pick the quiz language. Planned, never "taught" — nobody heard the lesson.
+  tqFlowActionMakeDescLp: {
+    en: '8 questions on the lesson you planned. About a minute.',
+    ur: 'آپ کے سبق کے منصوبے پر ۸ سوال۔ تقریباً ایک منٹ۔',
+  },
   tqFlowContinue: { en: 'Continue', ur: 'آگے بڑھیں' },
   tqFlowClose: { en: 'Close', ur: 'بند کریں' },
 
