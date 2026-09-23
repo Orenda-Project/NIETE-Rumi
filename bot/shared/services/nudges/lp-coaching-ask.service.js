@@ -372,41 +372,57 @@ async function send(row, { now = new Date() } = {}) {
   const to = user.phone_number;
   const context = row.context || {};
 
+  const { key: bodyKey, params: bodyParams } = askBody(context, today, language);
+  const body = resolveUx(bodyKey, { language, params: bodyParams });
+  const buttons = [
+    { id: `lpask_yes_${row.id}`, title: resolveUx('lpAskYes', { language }) },
+    { id: `lpask_no_${row.id}`, title: resolveUx('lpAskNo', { language }) },
+  ];
+  // Meta's message id, kept on the row (context.message_ids); the boolean the
+  // send returns stays the delivery verdict.
+  const messageIds = [];
+  const sendOpts = { onMessageId: (id) => messageIds.push(id) };
+
+  // THE CLIP IS THE ASK'S HEADER. Sent as its own video message first, the clip
+  // arrived AFTER the ask on a real phone: Meta fetches a linked video before it
+  // delivers it, so a text-sized message sent a moment later overtook it. One
+  // interactive message with a video header is one delivery — the order cannot
+  // flip. The caption is the footer under the clip.
   let howto = false;
   const clip = howtoUrl(language);
+  let shown = null;
   if (clip) {
     try {
-      const shown = await FeatureIntro.introShownCount(userId, HOWTO_FEATURE);
-      if (shown < HOWTO_MAX_SHOWS) {
-        const ok = await WhatsAppService.sendVideoByLink(to, clip, resolveUx('lpAskHowtoCaption', { language }));
-        if (ok) {
-          howto = true;
-          await FeatureIntro.markVideoShown(userId, HOWTO_FEATURE, { incrementIntroCount: true });
-          logEvent('lp_ask.howto_shown', { nudgeId: row.id, userId, language, shownBefore: shown });
-        } else {
-          logToFile('lp coaching ask: how-to clip not delivered, sending the ask anyway', { nudgeId: row.id, userId }, 'error');
-        }
-      }
+      shown = await FeatureIntro.introShownCount(userId, HOWTO_FEATURE);
     } catch (err) {
-      logToFile('lp coaching ask: how-to clip threw, sending the ask anyway', { nudgeId: row.id, userId, error: err.message }, 'error');
+      logToFile('lp coaching ask: how-to count unreadable, sending the plain ask', { nudgeId: row.id, userId, error: err.message }, 'error');
+    }
+  }
+  if (clip && shown !== null && shown < HOWTO_MAX_SHOWS) {
+    howto = await WhatsAppService.sendVideoWithButtons(to, clip, body, buttons, {
+      ...sendOpts, footer: resolveUx('lpAskHowtoCaption', { language }),
+    });
+    if (howto) {
+      logEvent('lp_ask.howto_shown', { nudgeId: row.id, userId, language, shownBefore: shown });
+      try {
+        await FeatureIntro.markVideoShown(userId, HOWTO_FEATURE, { incrementIntroCount: true });
+      } catch (err) {
+        // The teacher has the ask; only the showing count missed a beat.
+        logToFile('lp coaching ask: how-to shown but not counted', { nudgeId: row.id, userId, error: err.message }, 'error');
+      }
+    } else {
+      logToFile('lp coaching ask: the ask with its how-to clip was not delivered, sending the plain ask', { nudgeId: row.id, userId }, 'error');
     }
   }
 
-  const { key: bodyKey, params: bodyParams } = askBody(context, today, language);
-  const delivered = await WhatsAppService.sendInteractiveButtons(to, {
-    body: resolveUx(bodyKey, { language, params: bodyParams }),
-    buttons: [
-      { id: `lpask_yes_${row.id}`, title: resolveUx('lpAskYes', { language }) },
-      { id: `lpask_no_${row.id}`, title: resolveUx('lpAskNo', { language }) },
-    ],
-  });
+  const delivered = howto || await WhatsAppService.sendInteractiveButtons(to, { body, buttons }, sendOpts);
   if (!delivered) throw new Error('coaching ask buttons not delivered');
 
   logEvent('lp_ask.sent', {
     nudgeId: row.id, userId, language, firstTime: Boolean(context.first_time), howto,
     lessonId: context.lesson_id || null,
   });
-  return { sent: true, messageIds: [], context: { language, howto, body: bodyKey } };
+  return { sent: true, messageIds, context: { language, howto, body: bodyKey } };
 }
 
 // ─── prepare: yesterday's unanswered asks are "ignored" ──────────────────────

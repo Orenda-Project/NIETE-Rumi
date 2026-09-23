@@ -184,4 +184,22 @@ describe('handleListPick on an lp_v8 row', () => {
     expect(writes).toEqual([]);
     expect(SQS.queueJob).not.toHaveBeenCalled();
   });
+
+  // The persisted reason decides the sentence /quiz repeats: a quiz the MODEL
+  // failed is never re-described as a lesson plan that could not be read.
+  test.each([
+    ['model_failed', 'tqFailedLpModel'],
+    ['source_unusable', 'tqFailedLpSourceUnusable'],
+    ['validator_failed', 'tqFailedLpAuthor'],
+    // Rows written before the split carry `digest: <what the digest threw>`.
+    ['digest: lp_quiz.digest: empty reply from google/gemini-2.5-flash', 'tqFailedLpModel'],
+    ['digest: 429 Rate limit reached for requests', 'tqFailedLpModel'],
+    ['digest: lp digest: the slide script carries no lesson to digest', 'tqFailedLpSourceUnusable'],
+  ])('a failed lp_v8 quiz with meta.error %j repeats %s', async (error, key) => {
+    stub({ users, coaching_sessions: [], quizzes: [lpQuiz(21, { status: 'failed', meta: { error, lesson_date: '2026-09-21' } })], quiz_sessions: [] });
+    await List.handleListPick('tq_pick_lp_lpq-21', '923001112222', USER);
+    expect(UX_STRINGS[key]).toBeDefined();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS[key].en);
+    expect(writes).toEqual([]);
+  });
 });

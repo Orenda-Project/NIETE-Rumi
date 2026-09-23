@@ -39,7 +39,7 @@ test('the exact served version is looked up, and its slide script reaches the di
     },
   }));
   const r = await Gen.process('q-1', {});
-  expect(r.reason).toBe('digest_failed');   // stopped deliberately, one step past the store
+  expect(r.reason).toBe('model_failed');    // stopped deliberately, one step past the store
   const q = supabase.from.callsFor('niete_lp_asset_sources')[0];
   expect(q).toEqual(expect.arrayContaining([
     ['eq', 'lesson_id', 'grade_2_math_ch9_seg3'], ['eq', 'version_stamp', 'v8-1'], ['eq', 'content_hash', 'h-1'],
