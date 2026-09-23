@@ -846,7 +846,7 @@ async function handleListPick(rowId, from, user, { now } = {}) {
 // break the require chain (the webhook loads this module for the taps), so it
 // is logged at error level: an unregistered kind is never claimed, silently.
 try {
-  require('./teacher-nudges.sweeper').register(KIND, (row) => send(row), { prepare });
+  require('./teacher-nudges.sweeper').register(KIND, (row, opts) => send(row, opts), { prepare });
 } catch (err) {
   logToFile('lp quiz offer: sweeper registration failed — no offers will be sent', { error: err.message }, 'error');
 }
