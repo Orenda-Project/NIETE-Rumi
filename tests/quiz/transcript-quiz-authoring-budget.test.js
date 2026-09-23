@@ -41,6 +41,8 @@ jest.mock('../../bot/shared/services/llm-client', () => ({
 const supabase = require('../../bot/shared/config/supabase');
 const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 const Rewrite = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
 const { validate } = require('../../bot/shared/services/quiz/transcript-quiz-validator');
 const { logEvent } = require('../../bot/shared/utils/structured-logger');
@@ -104,6 +106,7 @@ beforeEach(() => {
   jest.clearAllMocks(); mockCreate.mockReset();
   process.env.TRANSCRIPT_QUIZ_ENABLED = 'true'; delete process.env.TRANSCRIPT_QUIZ_MAX_ATTEMPTS;
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
   jest.spyOn(Gen, 'renderFigures').mockResolvedValue({});
   jest.spyOn(Gen, 'renderCards').mockResolvedValue({});
 });

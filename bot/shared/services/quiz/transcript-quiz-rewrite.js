@@ -106,6 +106,23 @@ const LEVEL_SUMMARY = /^(only \d+\/\d+ at\/below taught level|PEDAGOGY_LEVEL_MIX
  */
 const KEY_CONFLICT_RULE = 'KEY CONFLICT. A question rejected for KEY_CONFLICT marked as correct an answer the lesson itself contradicts — usually the very mistake the lesson warns children about, quoted in its complaint. The correct option must say what the lesson says; the lesson\'s mistake may be a WRONG option, never the correct one. This is the one fault where you may keep the same question: fix the options and "correct_index" so the answer the lesson teaches is the one marked correct, and make "explanation" and "option_feedback" say the lesson\'s answer.';
 const KEY_CONFLICT = /^q\d+: KEY_CONFLICT\b/;
+/**
+ * A question rejected for its MATHS NOTATION (MATH_TEX — an unmatched "$", a
+ * word inside the dollars, TeX KaTeX cannot parse). The question itself was
+ * fine; re-asking a different one would throw good work away, so this is the
+ * other fault — beside length and a key conflict — where the question may stay.
+ * The notation rule itself is already in the question contract above it.
+ */
+const MATH_TEX_RULE = 'MATHS NOTATION. For a question rejected ONLY for MATH_TEX, keep the same question, the same options and the same answer, and rewrite only the notation: each expression between single dollars ($\\frac{2}{9}$), words and Urdu outside them, nothing but the maths inside, and every backslash doubled in the JSON you return.';
+const MATH_TEX = /^q\d+: MATH_TEX\b/;
+/**
+ * An item the BLIND SOLVE (transcript-quiz-key-verify.service) could not agree
+ * with: a solver not shown the key answered differently, or found two (or no)
+ * correct options. Stated only when that complaint is present, so every other
+ * rewrite prompt is unchanged.
+ */
+const KEY_DISAGREEMENT_RULE = 'KEY CHECK. A question rejected for KEY_DISAGREEMENT, KEY_AMBIGUOUS or KEY_NONE_CORRECT was answered by a solver who was NOT shown its answer, and the solver did not arrive at the answer marked correct. Check the fact itself before you write — the spelling, the letters of a word, the sum, the definition. Exactly one option must be correct beyond doubt (for a "select all" question, exactly the options in "correct_indices"), and "correct_index" must point at it; every other option must be clearly wrong — never the right answer in another order or other words. This is a fault where you may keep the same question: fix the options and "correct_index", and make "explanation" and "option_feedback" say the right answer.';
+const KEY_DISAGREEMENT = /^q\d+: KEY_(DISAGREEMENT|AMBIGUOUS|NONE_CORRECT)\b/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code points (characters) and every OPTION at most 72 — anything longer is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
@@ -218,6 +235,8 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_DISAGREEMENT.test(e))) ? [KEY_DISAGREEMENT_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -453,6 +472,7 @@ async function rewriteTeacherFields({ questions, errors, digest, language, quizI
 
 module.exports = {
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
-  QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT,
+  QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT, MATH_TEX_RULE, MATH_TEX,
+  KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT,
   teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };

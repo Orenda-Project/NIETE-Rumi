@@ -39,6 +39,8 @@ const { uploadBuffer } = require('../../bot/shared/storage/r2');
 const teacherTemplate = require('../../bot/shared/templates/transcript-quiz-teacher.template');
 const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 
 const QID = '22222222-2222-4222-8222-222222222222';
 const SID = '11111111-1111-4111-8111-111111111111';
@@ -84,6 +86,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   process.env.TRANSCRIPT_QUIZ_ENABLED = 'true';
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
   htmlToImage.mockResolvedValue(Buffer.from('fake-png-bytes'));
   uploadBuffer.mockImplementation(async (buf, key) => `https://acct.r2.cloudflarestorage.com/bucket/${key}`);
 });

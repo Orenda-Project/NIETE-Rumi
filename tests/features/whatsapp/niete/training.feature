@@ -280,3 +280,34 @@ Feature: NIETE (ICT) Teacher Training
     And it names the lesson's learning objectives next to the questions the class found hard
     And afterwards that quiz's row in /quiz says the report was sent
     # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A maths question with fractions reaches the child as a typeset card
+    Given the NIETE bot chat is open and a class quiz was made from a maths lesson on comparing fractions
+    When a child opens the quiz from its link and reaches a question about fractions
+    Then the question arrives as a picture card with the fractions drawn stacked, the way a textbook prints them
+    And the buttons under the card are the letters on the card, and tapping one answers the question
+    And after answering, the verdict writes each fraction as plain text like "2/3", never with "$" or a backslash
+    And the teacher's quiz PDF shows the same fractions drawn stacked
+    # bd-mg9c7.159.19 part A. The author writes maths as inline TeX ($\frac{2}{9}$); needsQuestionCard
+    # fires on it, so the question is a card (transcript-quiz-card, KaTeX via the 6-12 LP renderer's
+    # rich()) and the child answers with the lettered buttons. Every WhatsApp TEXT — the stem when
+    # sent as text, button and list titles, the verdict, the class report — passes through
+    # quiz-math.mathForChat (tex-to-unicode), and inside Urdu each expression is a left-to-right
+    # isolate. Same engine for transcript and lp_v8 quizzes. Content-driven: assert the SHAPE
+    # (a card, stacked fractions, no TeX source in any text), never a fixed question. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz never ships an answer key a blind solver disagrees with
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
+    When the quiz arrives
+    Then every question on my PDF has exactly one answer marked correct, and that answer is right
+    And no question offers two options that are both right, such as the same letters in a different order
+    And the class report built on that quiz teaches the right answer back to me
+    But when too few questions survive that check, I am told the quiz was held back because some answers were wrong or unclear, and nothing is sent to the class
+    # transcript-quiz-generate runKeyVerify + transcript-quiz-key-verify.service: every lesson quiz (from a
+    # coaching recording or a lesson plan, after the lp_v8 key check) is answered once by a solver that is not
+    # shown the keys. A disagreement, a second right answer or no right answer is rewritten once, else dropped
+    # (floor 6), else the quiz fails as key_disagreement (tqFailedKeyDisagreement / tqFailedLpKeyDisagreement).
+    # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
+    # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.

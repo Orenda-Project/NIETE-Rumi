@@ -18,6 +18,7 @@
 
 const { getClientForModel } = require('../llm-client');
 const { logToFile } = require('../../utils/logger');
+const { repairBackslashes } = require('../../utils/json-tex-backslashes');
 
 const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 const REASONING_RE = /(^|\/)(gpt-5|o[1-9]|gemini-3\.5-flash$|gemini-3-flash|claude|deepseek)/i;
@@ -26,13 +27,21 @@ function modelId() {
   return (process.env.TRANSCRIPT_QUIZ_MODEL || '').trim() || DEFAULT_MODEL;
 }
 
+/**
+ * A reply that carries maths (a `$` anywhere) has its TeX backslashes repaired
+ * BEFORE parsing, as the 6-12 LP lane does: `"$\frac{2}{9}$"` with one
+ * backslash is VALID JSON — `\f` is a form feed — so it parses silently into
+ * "rac{2}{9}" and the fraction is gone (bd-mg9c7.159.19: the author now writes
+ * stems and options as TeX). A reply with no `$` parses exactly as before.
+ */
 function extractJson(text) {
   let t = String(text || '').trim();
   t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const start = t.indexOf('{');
   const end = t.lastIndexOf('}');
   if (start < 0 || end < start) throw new Error('no JSON object in reply');
-  return JSON.parse(t.slice(start, end + 1));
+  const body = t.slice(start, end + 1);
+  return JSON.parse(body.includes('$') ? repairBackslashes(body) : body);
 }
 
 /**
@@ -44,12 +53,20 @@ const RETRYABLE = new Set(['EMPTY', 'TRUNCATED', 'BAD_JSON']);
 /** One retry. The call is idempotent; it costs a second call only when the first was unusable. */
 const MAX_ATTEMPTS = 2;
 
-async function completeJsonOnce({ prompt, maxTokens, label }) {
-  const requested = modelId();
+async function completeJsonOnce({
+  prompt, maxTokens, label, model: modelOverride = null, job = null,
+}) {
+  // A pass that must NOT run on the author's model (the blind solve, which checks
+  // the author's keys) names its own model and its own registry job; every other
+  // pass runs on TRANSCRIPT_QUIZ_MODEL exactly as before.
+  const requested = (modelOverride && String(modelOverride).trim()) || modelId();
   // bd-b8k7h: naming the job arms the fallback ladder with THIS job's frozen fallback, the
   // model it already works with. A no-op while TRANSCRIPT_QUIZ_MODEL still names that same
-  // model; live protection the moment the job is moved to another supplier.
-  const { client, model } = getClientForModel(requested, { job: 'quiz.transcript' });
+  // model; live protection the moment the job is moved to another supplier. A pass that
+  // names its own registry job is billed and failed over as that job instead.
+  const { client, model } = job
+    ? getClientForModel(requested, { job: String(job) })
+    : getClientForModel(requested, { job: 'quiz.transcript' });
   const reasoning = REASONING_RE.test(requested);
   const params = {
     model,
@@ -102,15 +119,22 @@ async function completeJsonOnce({ prompt, maxTokens, label }) {
  * @param {string} args.prompt      the whole prompt (user turn)
  * @param {number} [args.maxTokens]
  * @param {string} [args.label]     for logs
+ * @param {string} [args.model]     a model id for THIS call instead of TRANSCRIPT_QUIZ_MODEL
+ * @param {string} [args.job]       the model-registry job the call is billed and failed over as
+ *                                  (default `quiz.transcript`)
  * @returns {Promise<{json:object, model:string, costUsd:number|null, latencyMs:number, usage:object}>}
  */
-async function completeJson({ prompt, maxTokens = 16000, label = 'transcript_quiz' }) {
+async function completeJson({
+  prompt, maxTokens = 16000, label = 'transcript_quiz', model = null, job = null,
+}) {
   let spent = null;
   let lastErr = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
       // eslint-disable-next-line no-await-in-loop
-      const out = await completeJsonOnce({ prompt, maxTokens, label });
+      const out = await completeJsonOnce({
+        prompt, maxTokens, label, model, job,
+      });
       if (spent != null && out.costUsd != null) out.costUsd += spent;
       else if (spent != null) out.costUsd = spent;
       if (attempt > 1) logToFile(`✅ ${label}: usable reply on attempt ${attempt}`, { model: out.model });
