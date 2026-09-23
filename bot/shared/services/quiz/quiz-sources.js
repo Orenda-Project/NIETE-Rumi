@@ -150,6 +150,29 @@ function failureReasonOf(meta) {
 }
 
 /**
+ * Can a failed lp_v8 quiz be made again from /quiz?
+ *
+ * Only when trying again can come out differently. The model-side failures
+ * can: authoring is not deterministic, and a provider fault is usually gone on
+ * the next call. A plan that was missing or carried no lesson cannot — a remake
+ * would fail the same way and tell the teacher the same thing a second time.
+ * The row must still carry the lessons it is written from (a quiz whose queue
+ * write failed lost them), and remakes are capped so a quiz that keeps failing
+ * cannot be retried without end.
+ *
+ * @param {object} meta `quizzes.meta` of a failed lp_v8 row
+ * @returns {boolean}
+ */
+const LP_REMAKE_REASONS = new Set(['model_failed', 'validator_failed', 'key_conflict', 'key_disagreement']);
+const MAX_LP_REMAKES = 2;
+function lpRemakeable(meta) {
+  const m = meta || {};
+  if (!LP_REMAKE_REASONS.has(failureReasonOf(m))) return false;
+  if (!Array.isArray(m.lessons) || !m.lessons.length) return false;
+  return (Number(m.remakes) || 0) < MAX_LP_REMAKES;
+}
+
+/**
  * WHICH caption rides the teacher's PDF.
  *
  * `tqHandoffIntro` says "what you taught" / «آپ نے کیا پڑھایا» — true of a quiz
@@ -166,5 +189,5 @@ function handoffIntroKey(quizSource) {
 
 module.exports = {
   TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey, handoffIntroKey,
-  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf,
+  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable,
 };
