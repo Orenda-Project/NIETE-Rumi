@@ -36,6 +36,9 @@ function makePdfkitMock() {
     doc.fillColor = chain; doc.strokeColor = chain; doc.lineWidth = chain;
     doc.rect = chain; doc.roundedRect = chain; doc.moveTo = chain; doc.lineTo = chain;
     doc.fill = chain; doc.stroke = chain; doc.fillAndStroke = chain;
+    // The non-production watermark: opacity, and a rotated axis inside save/restore.
+    doc.opacity = chain; doc.save = chain; doc.restore = chain;
+    doc.translate = chain; doc.rotate = chain;
     doc.image = chain; doc.widthOfString = () => 100; doc.heightOfString = () => 12;
     doc.text = () => { if (renderShouldThrow) throw new Error('boom: renderer exploded'); return doc; };
     doc.end = () => setImmediate(() => { doc.emit('data', Buffer.from('%PDF-1.3')); doc.emit('end'); });

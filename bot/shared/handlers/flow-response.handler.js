@@ -697,7 +697,7 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
     const QuizDelivery = require('../services/training/quiz-delivery.service');
     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);
   }
-  // bd-60120 — I-SAPS assesses per MODULE, so the exam the teacher tapped is
+  // I-SAPS assesses per MODULE, so the exam the teacher tapped is
   // that module's, not the level's. courseId identifies the module.
   if (trainingAction === 'start_module_exam' && courseId) {
     const QuizDelivery = require('../services/training/quiz-delivery.service');

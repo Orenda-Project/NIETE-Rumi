@@ -39,7 +39,7 @@ const crypto = require('crypto');
  * with ContentType image/png. Production, completed DC sessions since 1 Aug
  * 2026: 12,749 hold a `.png`, 5 hold nothing, ZERO hold a `.pdf`.
  *
- * Sending those PNG bytes as a `.pdf` document is FEAT-098 — see the warning at
+ * Sending those PNG bytes as a `.pdf` document is a known defect — see the warning at
  * report-generator.service.js:877: "WhatsApp delivered a PDF that WAS actually
  * PNG bytes, so every PDF reader rejected it as corrupt."
  *

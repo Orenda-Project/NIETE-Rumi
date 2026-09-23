@@ -16,7 +16,7 @@ const { getUserLanguage } = require('../../utils/language-cache');
 const { clampLanguage } = require('../../config/ux-strings');
 
 class CoachingHelpersService {
-  // bd-59840 (DC row 129): there is deliberately no post-transcription
+  // There is deliberately no post-transcription
   // acknowledgement here any more.
   //
   // It began as a GPT-4o call handed only a name and a duration and told to be
@@ -24,8 +24,8 @@ class CoachingHelpersService {
   // about, it invented the specificity — a teacher was told "your 29-minute
   // lesson was engaging and impactful" before a single word had been analysed
   // and reasonably read it as her feedback. bd-di5ap removed the model and left
-  // a fixed, translated catalog line in its place; bd-59840 removed that too,
-  // because row 129 asked for NO extra messages in the stretch between Step 1/5
+  // a fixed, translated catalog line in its place; a later fix removed that too,
+  // because field feedback asked for NO extra messages in the stretch between Step 1/5
   // and the photo prompt, and an acknowledgement is still an extra message.
   //
   // The photo prompt now follows transcription directly and is itself the

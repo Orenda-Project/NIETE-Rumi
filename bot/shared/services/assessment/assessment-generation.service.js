@@ -33,7 +33,7 @@ function modelFor(family) {
 /**
  * bd-jntcx — resolved PER REQUEST through the registry, not captured at import.
  *
- * This used to be two `process.env.X || 'literal'` expressions evaluated once when the module
+ * This used to be two `process.env.<NAME> || 'literal'` expressions evaluated once when the module
  * was first required, which fixed the model for the life of the process: no settings row, no
  * changed variable and no incident could move it. Production spend showed this to be the second
  * largest line in NIETE at $11.34/day, and the one job of that size nobody could steer.

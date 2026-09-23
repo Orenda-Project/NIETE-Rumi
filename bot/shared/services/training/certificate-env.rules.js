@@ -1,11 +1,11 @@
 /**
- * bd-60133 — is this certificate a real one, or a test artefact?
+ * Is this certificate a real one, or a test artefact?
  *
  * Sandbox and staging mint PDFs that are visually indistinguishable from a
  * production certificate: a real teacher's name, a real-looking code
  * (NIETESANDBOX-20260918-5BVD72), the government seals and both NIETE
  * signatories. One was issued by mistake today — passing a single MODULE minted
- * a LEVEL certificate (bd-60126) — and nothing on the page said it was a test.
+ * a LEVEL certificate — and nothing on the page said it was a test.
  *
  * Operator, 2026-09-18: outside production, every certificate carries a banner
  * saying it is not real.
@@ -23,7 +23,7 @@
 
 /**
  * Watermarked across the middle of any certificate generated outside
- * production (bd-60140 moved it there from a header band).
+ * production (it was moved there from a header band).
  *
  * Deliberately SHORT: it is set large and diagonal, so a full sentence would
  * wrap into an unreadable block. The long form lives in TEST_BANNER_SUBTEXT

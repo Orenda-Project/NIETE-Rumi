@@ -202,7 +202,7 @@ async function getExamVerdict(levelId, score, totalQuestions) {
 /**
  * Issue the level certificate, if the bot's guard says the level is finished.
  *
- * bd-60145 — the portal used to call `issueCertificate` directly the moment an
+ * The portal used to call `issueCertificate` directly the moment an
  * attempt passed, which skipped every completeness check, and no portal route
  * certified a per-module-assessed level at all. Both are decisions, so both
  * belong to the bot. This asks; it does not judge.
@@ -230,7 +230,7 @@ async function certifyLevel({ userId, levelId, attemptId = null, programId = nul
 }
 
 /**
- * bd-60149 — the module exam, which the portal previously had no concept of.
+ * The module exam, which the portal previously had no concept of.
  *
  * Three asks, all decided by the bot: may she sit it, what is on the paper,
  * and what did it score. No gate, no sampler and no marking live here — the
@@ -259,7 +259,7 @@ async function startModuleExam(userId, courseId, programId = null) {
 }
 
 /**
- * Autosave one answer mid-paper. bd-60169.
+ * Autosave one answer mid-paper.
  *
  * DOES NOT THROW, unlike every marking call here — and that difference is the
  * point. A marking verdict has no safe default, so those must throw. A draft
@@ -276,7 +276,7 @@ async function saveModuleExamDraft(userId, attemptId, draft) {
   }
 }
 
-/** The answers already saved, so resuming shows her own work. bd-60169. */
+/** The answers already saved, so resuming shows the teacher's own work. */
 async function loadModuleExamDraft(userId, attemptId) {
   try {
     const data = await ask('module-exam-draft-load', { userId, attemptId });

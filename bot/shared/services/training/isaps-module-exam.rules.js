@@ -1,27 +1,27 @@
 /**
- * bd-60120 — the end-of-module exam for I-SAPS.
+ * The end-of-module exam for I-SAPS.
  *
  * I-SAPS assesses at the end of each MODULE: scenario MCQs plus one CRQ
- * (assessment doc §4). bd-60119 re-keyed those onto per-module quizzes
+ * (assessment doc §4). An earlier change re-keyed those onto per-module quizzes
  * (source_quiz_id = PER_MODULE_SOURCE_BASE + module) and retired the
  * level-wide pair — so the questions exist, but the level screen has exactly
  * one exam slot and it is bound to the LEVEL.
  *
  * That slot is free for I-SAPS precisely BECAUSE I-SAPS has no level exam: it
  * renders "No level exam — finish all sessions". When the teacher is drilled
- * into a module (the `c:` scope from bd-60119), it shows that module's exam
+ * into a module (the `c:` scope), it shows that module's exam
  * instead. No Flow re-publish, and no other vendor's level view changes.
  *
  * Pure rules only: which quiz belongs to a module, whether it is open, and
  * what the slot reads. The `ok` flag is the important output — a CTA in this
  * Flow is a tappable link whatever its label, so the SERVER has to be the
- * thing that refuses it. bd-2452 learned that on the level exam, where
+ * thing that refuses it. That was learned on the level exam, where
  * "🔒 Locked" was still tappable and started the exam anyway.
  */
 
 /**
  * I-SAPS per-module quizzes are keyed 900 + module. Legacy ids are 1-11
- * (Taleemabad 1-4, Beacon House 8-11), so the range cannot collide, and the
+ * (one legacy vendor 1-4, Beacon House 8-11), so the range cannot collide, and the
  * level-exam lookup excludes it.
  */
 const PER_MODULE_SOURCE_BASE = 900;
@@ -77,7 +77,7 @@ function moduleFromSourceQuizId(sourceQuizId) {
  */
 function buildModuleExamSlot({
   moduleTitle, unitsTotal, unitsDone, mcqCount, crqCount, passed, cooldownHoursLeft,
-  // bd-60167 — her best graded mark, carried through so a surface can SHOW it.
+  // The teacher's best graded mark, carried through so a surface can SHOW it.
   // Optional: every caller that does not know a mark simply omits them, and
   // the slot reads exactly as before.
   bestScore = null, bestTotal = null, bestPct = null, lastAttemptAt = null,
@@ -123,7 +123,7 @@ function buildModuleExamSlot({
     };
   }
 
-  // bd-60164 — the exam does NOT wait for the sessions.
+  // The exam does NOT wait for the sessions.
   //
   // Operator, Sept 2026, after the partner's revised guide: "Anything can be
   // given in any order. The only important thing is that the certificate
@@ -132,7 +132,7 @@ function buildModuleExamSlot({
   // So sequencing is gone at every level — units no longer chain, and the
   // exam no longer waits for them. The gate that used to live here has moved
   // to where it belongs: the LEVEL certificate, which is refused until all
-  // three weighted components clear their bars (bd-60163). Blocking the exam
+  // three weighted components clear their bars. Blocking the exam
   // as well was gating the same work twice, and it stranded a teacher who
   // wanted to sit an assessment she was ready for.
   //
@@ -156,7 +156,7 @@ function buildModuleExamSlot({
 
 
 /**
- * bd-60124 — should finishing this module OFFER its exam instead of advancing?
+ * Should finishing this module OFFER its exam instead of advancing?
  *
  * Reported from sandbox: completing the last unit of Module 1 delivered Unit
  * 201's video instead of Module 1's exam. `onModuleCompleted` offers a
@@ -185,7 +185,7 @@ function shouldOfferModuleExam(input) {
   if (alreadyPassed) return false;
   // A module with no units at all has no content yet; offering its exam would
   // be offering an assessment for nothing. But a module whose units are only
-  // PARTLY done is fair game — bd-60164 removed that wait, since the
+  // PARTLY done is fair game — that wait was removed, since the
   // certificate is now the only thing that checks completeness.
   const total = Number(unitsTotal) || 0;
   if (total <= 0) return false;
@@ -218,7 +218,7 @@ function moduleExamOfferMessage({ moduleTitle, mcqCount, crqCount }) {
 
 
 /**
- * bd-60126 — may THIS attempt's pass issue a LEVEL certificate?
+ * May THIS attempt's pass issue a LEVEL certificate?
  *
  * Reported from sandbox: passing Module 1's eight MCQs announced "you passed
  * the Level 1 grand quiz" and issued a level certificate — one module of nine.
@@ -230,7 +230,7 @@ function moduleExamOfferMessage({ moduleTitle, mcqCount, crqCount }) {
  * and so could not tell them apart.
  *
  * The separating signal needs no schema change: a per-module quiz carries
- * source_quiz_id >= PER_MODULE_SOURCE_BASE (bd-60119); a level exam's is NULL
+ * source_quiz_id >= PER_MODULE_SOURCE_BASE; a level exam's is NULL
  * or a legacy 1-11.
  *
  * DEFAULTS TO TRUE on a missing or unloadable quiz row. Failing to certify a
@@ -249,7 +249,7 @@ function isLevelCertifyingAttempt(quiz) {
  * What a teacher is told when a MODULE exam is passed.
  *
  * Deliberately claims no level and no certificate: the level certificate is
- * the composite across all nine modules (bd-60113), and saying otherwise is
+ * the composite across all nine modules, and saying otherwise is
  * exactly the bug this fixes.
  *
  * @param {object} input
@@ -273,7 +273,7 @@ function moduleExamPassMessage({ moduleTitle, score, total, hasCrq } = {}) {
 
 
 /**
- * bd-60130 — the level-exam slot, rendered as nothing.
+ * The level-exam slot, rendered as nothing.
  *
  * A vendor that assesses per MODULE has no level exam, and saying so out loud
  * ("No level exam — finish all sessions to complete this level") is internal
@@ -291,7 +291,7 @@ function levelExamSlotHidden() {
 }
 
 /**
- * bd-60139 — has every per-module exam of this level been PASSED?
+ * Has every per-module exam of this level been PASSED?
  *
  * The certificate guard it feeds (maybeIssueQuizScoreCertificate) was written
  * for Oxbridge, where a level is finished when its units are finished: all
