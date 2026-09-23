@@ -282,6 +282,29 @@ Feature: NIETE (ICT) Teacher Training
     # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: The class report names the class once, the same way, however the children typed it
+    Given the NIETE bot chat is open and children of one class have finished a class quiz, typing their class in different ways such as "4", "Class 4", "grade 4" and "۴"
+    When I ask for the report from that quiz's row in /quiz
+    Then the report's header names one class — "Class 4" in an English report, "جماعت 4" in an Urdu one — never "4، ۴" as if there were two
+    And the list of children does not repeat the class after every name
+    But when the children are in more than one class, each child's line names their class, written the same way on every line
+    # text-format parseClass/normaliseClasses/classLabel: Urdu and Arabic-Indic digits become ASCII, the grade
+    # number is read out of the free text, children are grouped by it; the report template prints a roster
+    # class only when the report spans more than one class. The text fallback follows the same rule. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: The class report and the quiz PDF do not leave pages nearly empty
+    Given the NIETE bot chat is open and children have finished an Urdu class quiz with several questions worth reteaching
+    When I ask for the report from that quiz's row in /quiz
+    Then the report's first page carries the first question worth reteaching under its header, not the header alone
+    And no page before the last ends with most of it blank
+    And the last page carries more than the NIETE footer
+    And the teacher's quiz PDF that came with the link also never ends on a page holding only its footer
+    # video-quiz-report.template: a card and the guidance box break between their parts, the footer is kept with
+    # the last guidance part; transcript-quiz-teacher.template: the last card and the footer are one unbreakable
+    # tail. Assert on the received PDFs' pages, never on a fixed page count (content length varies). @wip.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A quiz the model could not write from my lesson plan says the problem was on our side
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I planned
     When the model gives no usable reply while that quiz is being written
