@@ -34,11 +34,14 @@
  */
 
 // bd-5t71f. The English lane clears a name the same way the Urdu lane does: off the G5c
-// native-speaker review, carried as data. The REAL list — `bot/vendor/lp-v9/g5c_cleared_names_en.json`
-// — ships EMPTY and clears nothing, because Amena has not signed the candidate list off yet, so a
-// FIXTURE clearance stands in here. It proves the MECHANISM, which is the part this commit owns;
-// dropping her decided file into that path is the only step left. The fail-closed half of the
-// design lives in `religious-marks-cleared-names-en.test.js`.
+// native-speaker review, carried as data. A FIXTURE clearance stands in here ON PURPOSE: this suite
+// proves the MECHANISM, and mocking the data keeps it honest if the real list later changes. The
+// fail-closed half of the design lives in `religious-marks-cleared-names-en.test.js`.
+//
+// The real list — `bot/vendor/lp-v9/g5c_cleared_names_en.json` — is no longer empty: it carries
+// Amena's 134 decided rows as of 2026-09-23. Because BOTH those suites mock it, neither can tell you
+// what the shipped file does. `religious-marks-cleared-names-en-realfile.test.js` deliberately does
+// not mock, and is the suite that guards the actual clearance.
 jest.mock('../../bot/vendor/lp-v9/g5c_cleared_names_en.json', () => ({
   person: ['Mohammad Ali Jinnah'],
   prophet: [],
