@@ -568,7 +568,9 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
         // fallback for a payload that only carried one.
         ...(setIf(fullName) || setIf(firstName) ? { name: fullName || firstName } : {}),
         ...(setIf(country) ? { country } : {}),
-        ...(setIf(region) ? { region } : {}),
+        // region is NOT written here: the REGION_INFO per-screen write already persisted it,
+        // as the school's sector when the typed EMIS resolved and as the province otherwise.
+        // The payload's `region` is the province dropdown value and would overwrite the sector.
         ...(setIf(resolvedOrg) ? { organization: resolvedOrg } : {}),
         ...(submittedRole ? { role: submittedRole } : {}), // FEAT-102 bd-2132; per-screen write is the primary source now
         ...(setIf(schoolName) ? { school_name: schoolName } : {}),
