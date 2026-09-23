@@ -481,7 +481,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I paste my lesson plan into the chat as an ordinary message
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
+    And no separate "lesson plan received" message arrives before it
     And the bot does not ask me again to send it as a document
     And the observation records that it has a lesson plan
     # Every other way in needs a WhatsApp media id (document webhook, LP-as-photo),
@@ -489,7 +490,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # without one. lp-text-paste.service.js pre-filters the text, resolves the
     # session through media-session-resolver (kind 'lp'), and hands it to
     # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
-    # lesson_plan_text with lesson_plan_link_method='pasted'.
+    # lesson_plan_text with lesson_plan_link_method='pasted'. It sends NO ack of
+    # its own (DC feedback 2026-09-23): the old "thanks for typing it out" line
+    # arrived just before Step 2/5 and read as the same message twice.
 
   @e2e @wip @draft @negative @P2 @obsolete
   Scenario: A short reply at the lesson-plan step is not mistaken for a plan
@@ -522,7 +525,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I type a three-line plan naming the topic, an activity and how I will check learning
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
     And the observation records that it has a lesson plan
     # The first live attempt failed here: a real 222-code-point Roman-Urdu plan
     # was refused by a 280-point floor fitted to long formatted pastes, while
