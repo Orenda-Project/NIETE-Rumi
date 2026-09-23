@@ -50,7 +50,10 @@ const SERIES = [C.ink, C.accent, C.leaf, C.cool, C.plum, C.warn, C.clay, C.teal]
 
 const FONT = {
   latin: "Inter, 'Helvetica Neue', Arial, sans-serif",
-  urdu: "'Noto Nastaliq Urdu', 'Gulzar', 'Noto Naskh Arabic', serif",
+  // VENDOR DIVERGENCE (SYNC.md §3.16): 'NastaliqUrdu' is the family name the
+  // NIETE page templates embed Nastaliq under. Without it a figure's Urdu drew
+  // BLANK in the teacher quiz PDF on Linux, where no system Urdu font exists.
+  urdu: "'Noto Nastaliq Urdu', 'NastaliqUrdu', 'Gulzar', 'Noto Naskh Arabic', serif",
   mono: "'SF Mono', 'DejaVu Sans Mono', Consolas, monospace",
 };
 
