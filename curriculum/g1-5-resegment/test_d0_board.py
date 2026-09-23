@@ -336,3 +336,23 @@ def test_a_structured_board_is_untouched_by_the_prose_split():
     rows = [r for p in BD.board_panels(content)["panels"] for r in p["rows"]]
     assert len(rows) == 3
     assert rows[0]["term"] == "km"
+
+
+def test_a_prose_board_is_split_before_it_is_read_as_a_vocabulary_pair():
+    """A 600-character gloss is not a gloss.
+
+    Found in the rebuilt corpus at g4_ch10 English_seg1: the paragraph contains
+    one '=' inside the phrase 'picture + words = main idea/theme', so `_split_pair`
+    claimed the whole 636-character board as ONE term and ONE gloss and the prose
+    split never ran. Seven boards came out of the rebuild that way. The order has
+    to be the other way round -- split the paragraph into its build steps first,
+    then read each step for a pair.
+    """
+    board = ("Write the heading: picture + words = main idea. "
+             "Draw three connected boxes with arrows below it. "
+             "Write the six page words in two rows underneath. "
+             "Circle the two words you want the class to copy first.")
+    rows = BD.board_panels(board)["panels"][0]["rows"]
+    assert len(rows) == 4, rows
+    assert rows[0] == {"term": "Write the heading: picture + words", "gloss": "main idea."}
+    assert rows[1] == {"text": "Draw three connected boxes with arrows below it."}

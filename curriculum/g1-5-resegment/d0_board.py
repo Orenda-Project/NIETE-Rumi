@@ -128,15 +128,19 @@ def _panel(group: str) -> dict | None:
         lines = lines[1:]
     rows = []
     for l in lines:
-        pair = _split_pair(l)
-        if pair:
-            rows.append({"term": pair[0], "gloss": pair[1]})
-            continue
         # A board authored as ONE paragraph has no line breaks to make rows from, so it
-        # arrives here as a single 500-character row and the renderer lays it out as a
-        # wall -- *"it should show clearly how it should be ordered"* (operator). Its
-        # sentences ARE its build order. Short lines come back unchanged.
-        rows.extend({"text": part} for part in split_prose(l))
+        # would arrive as a single 500-character row and the renderer would lay it out
+        # as a wall -- *"it should show clearly how it should be ordered"* (operator).
+        # Its sentences ARE its build order. Short lines come back unchanged, so the
+        # 240 boards that already arrive as several lines pass through untouched.
+        #
+        # This runs BEFORE the pair read, and the order matters: a paragraph that
+        # happens to contain one `=` (g4_ch10 English_seg1: "picture + words = main
+        # idea") was otherwise claimed whole as one term and one 600-character gloss,
+        # and the split never ran at all. A gloss that long is not a gloss.
+        for part in split_prose(l):
+            pair = _split_pair(part)
+            rows.append({"term": pair[0], "gloss": pair[1]} if pair else {"text": part})
     panel = {"rows": rows}
     if label:
         panel["label"] = label
