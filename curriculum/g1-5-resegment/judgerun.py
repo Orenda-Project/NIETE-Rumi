@@ -402,9 +402,22 @@ def main():
     with open(os.path.join(pagecheck.SEG, a.book + ".json")) as fh:
         segments = [s for s in json.load(fh)["segments"]
                     if s.get("chapter_number") == a.chapter]
+    # A basics period is a calendar slot rather than a span of book: its row
+    # is synthesised into the brief by `basicseg` and the segmentation corpus
+    # never carries it. Filtering to one therefore filters to nothing -- and a
+    # silent nothing is how a re-judge of twelve lessons judged seven and
+    # still exited 0. Name every index that was asked for and not found, and
+    # say where a basics period IS judged. bd-p8f1x.
+    missing = []
     if a.segments:
         keep = {int(n) for n in a.segments.split(",")}
         segments = [s for s in segments if s.get("segment_index") in keep]
+        found = {s.get("segment_index") for s in segments}
+        for n in sorted(keep - found):
+            missing.append(n)
+            print("no segment row for %d in corpus/seg/%s.json, so it is a "
+                  "basics period -- judge it with `basicsjudge --name "
+                  "%s_ch%d_seg%d`" % (n, a.book, a.book, a.chapter, n))
 
     authored = os.path.join(here, "corpus-local", "authored")
     pairs, renders = [], {}
@@ -413,12 +426,18 @@ def main():
                             % (a.book, a.chapter, s["segment_index"]))
         if not os.path.exists(path):
             print("no authored artefact for segment %s" % s["segment_index"])
+            missing.append(s["segment_index"])
             continue
         pairs.append((path, s))
         with open(path) as fh:
             lp = json.load(fh)
         renders[path] = render_of(lp, s, grounding_of(s, idx)["pages"])
 
+    # Judging nothing is not a pass. `basicsjudge` already holds this line;
+    # the module it calls did not.
+    if not pairs:
+        print("nothing was judged")
+        return 1
     print("judging %d artefacts with %s\n" % (len(pairs), a.judge))
     results = run_batch(pairs, idx, a.subject, a.grade, model=a.judge,
                         renders=renders)
@@ -426,7 +445,7 @@ def main():
         print(line(r["stem"], r["score"], r["verdict"]))
     passed = sum(1 for r in results if r["verdict"].get("pass"))
     print("\n%d/%d pass the production gate" % (passed, len(results)))
-    return 0 if passed == len(results) else 1
+    return 0 if passed == len(results) and not missing else 1
 
 
 if __name__ == "__main__":
