@@ -526,3 +526,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I tap "No thanks"
     Then the bot replies that there is no quiz for today and that /quiz shows the teacher's quizzes
     And the teacher's lp_quiz_offer row records the choice no and no quiz is made
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: A quiz never keys the lesson's own misconception as correct
+    Given the NIETE bot chat is open on a teacher who took the Grade 3 Urdu lesson "واحد اور جمع" today before 14:00 PKT
+    And the afternoon quiz offer has arrived
+    When I tap "Make the quiz"
+    Then the quiz arrives and no question about making the plural of "بہار" is keyed to "اس کی شکل نہیں بدلے گی"
+    And every answer the quiz marks correct agrees with what the lesson plan teaches
+    And the quizzes row's meta records the key check with how many answers were checked, contradicted, fixed and dropped
+    # The lesson says بہار → بہاریں in its vocabulary, its homework answer and the We-Do check that plants
+    # the mistake («احمد کہتا ہے کہ 'بہار' کی جمع 'بہار' ہی رہے گی…»). A contradicting item is re-authored once
+    # and re-checked, then dropped if it still contradicts; a quiz left under six questions fails as
+    # key_conflict and the teacher is told the quiz was held back — it is never sent with a wrong key.
+    # The check fails open: if the checker itself errors, the quiz ships and meta.key_check.status is "error".

@@ -80,6 +80,9 @@ const LP_FAILURE_COPY = {
   source_missing: 'tqFailedLpSource',
   digest_failed: 'tqFailedLpDigest',
   validator_failed: 'tqFailedLpAuthor',
+  // The key check found answers the lesson contradicts and could neither fix
+  // nor drop enough of them: the questions were clear, their KEYS were wrong.
+  key_conflict: 'tqFailedLpKeyConflict',
 };
 function failureCopyKey(reason, quizSource) {
   if (quizSource !== LP_V8) return 'tqCouldNotMake';

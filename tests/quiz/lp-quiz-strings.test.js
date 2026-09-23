@@ -16,7 +16,7 @@ const { UX_STRINGS, resolveUx } = require('../../bot/shared/config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../bot/shared/config/languages');
 const { genderedTeacherForms } = require('../../bot/shared/services/quiz/transcript-quiz-pedagogy');
 
-const LP_KEYS = ['tqFailedLpSource', 'tqFailedLpDigest', 'tqFailedLpAuthor', 'tqFlowResultsFailedLp'];
+const LP_KEYS = ['tqFailedLpSource', 'tqFailedLpDigest', 'tqFailedLpAuthor', 'tqFailedLpKeyConflict', 'tqFlowResultsFailedLp'];
 const cp = (s) => [...String(s)].length;
 
 describe('LP-born quiz failure copy', () => {
