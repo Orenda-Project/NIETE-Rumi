@@ -414,9 +414,40 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T04', 'A PDF module arrives as a document', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  // ══ T04 — a PDF module arrives as a DOCUMENT, not a video link ═══════════
+  // 191 of the 438 modules in this environment carry PDF media, so opening one blind is a coin
+  // toss. module-media resolves the picker's titles -> media kind (read-only), and we open one we
+  // KNOW should arrive as a document. If this account's picker offers no PDF module, that is a data
+  // fact about the account, not a product failure — say so rather than failing (bd-xub4s).
+  {
+    s = t();
+    // pickerRows holds ROW OBJECTS ({text, ...}), not strings — see how nextUp is built above.
+    const offered = pickerRows.slice(0, 10)
+      .map(x => (((x && x.text) || '').split(' · ')[0] || '').trim()).filter(Boolean);
+    let media = [];
+    try {
+      const raw = api.db('module-media', offered.flatMap(x => ['--title', x]));
+      media = JSON.parse(String(raw).slice(String(raw).indexOf('[')));
+    } catch (e) { media = []; }
+    const idx = media.findIndex(m => m && m.kind === 'pdf');
+    if (idx < 0) {
+      rec('T04', 'A PDF module arrives as a document', 'BLOCKED',
+          { reason: 'no module in this account\'s picker resolves to PDF media — every offered row is a '
+                  + 'video, so the PDF delivery path is unreachable from here',
+            offered: offered.slice(0, 6), resolved: media.map(m => m && m.kind) }, t() - s);
+    } else {
+      const title = offered[idx];
+      const om = await openModule(title);
+      rec('T04', 'A PDF module arrives as a document',
+          ...(om.ok
+              ? V(!!(om.card && (om.card.pdf || om.card.doc)) && !!om.cta,
+                  { title, deliveredAs: om.card && (om.card.pdf ? 'pdf' : om.card.doc ? 'document'
+                                        : om.card.img ? 'image' : 'text-only'),
+                    hasNextButton: !!om.cta, nextButton: om.cta,
+                    media: (media[idx] || {}).media, reply: (om.txt || '').slice(0, 150) })
+              : ['BLOCKED', { reason: 'could not open the PDF module: ' + om.err, title }]), t() - s);
+    }
+  }
 
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T05', 'Finishing every module unlocks the level exam, and passing it certifies the level', 'BLOCKED',

@@ -224,6 +224,32 @@ def cmd_answer_key(creds, a):
 def _option_texts(opts):
     return [o if isinstance(o, str) else (o.get("text") or o.get("label") or o.get("title") or "") for o in (opts or [])]
 
+def cmd_module_media(creds, a):
+    """Which of the picker's module titles is delivered as a PDF, and which as a video. Read-only.
+
+    T04 asserts that a PDF module arrives as a DOCUMENT. The driver only knows the titles the Flow
+    picker showed, and 191 of the 438 modules in this environment carry PDF media — so picking one
+    blind is a coin toss that makes the scenario non-deterministic. This resolves title -> media
+    kind so the driver can open a module it KNOWS should arrive as a document (bd-xub4s).
+    """
+    out = []
+    for title in (a.title or []):
+        t = (title or "").replace("\u2026", "").strip()
+        if not t:
+            continue
+        mods = _get(creds, "training_modules",
+                    "title=ilike.%s*&is_active=eq.true&select=id,title,video_url,source_media_url&limit=1"
+                    % urllib.parse.quote(t, safe=""))
+        if not mods:
+            out.append({"title": title, "found": False}); continue
+        m = mods[0]
+        src = str(m.get("video_url") or m.get("source_media_url") or "")
+        out.append({"title": m.get("title"), "id": m.get("id"), "found": True,
+                    "kind": "pdf" if src.lower().endswith(".pdf") or ".pdf" in src.lower() else "video",
+                    "media": src[-60:]})
+    print(json.dumps(out, ensure_ascii=False))
+
+
 def cmd_module_answer_key(creds, a):
     """Answer key for ONE module's check, as the driver needs it: per served question, the correct
     option TEXT(s) and canonical 1-based index(es). Resolves the module by id, or by the (possibly
@@ -347,13 +373,15 @@ def main():
     for name in ("seed-level-complete", "revert-level"):
         s = sub.add_parser(name, parents=[common]); s.add_argument("--phone", required=True); s.add_argument("--level", type=int, required=True); s.add_argument("--yes-write", action="store_true")
     mak = sub.add_parser("module-answer-key", parents=[common]); mak.add_argument("--phone"); mak.add_argument("--module", type=int); mak.add_argument("--title"); mak.add_argument("--yes-write", action="store_true")
+    mm = sub.add_parser("module-media", parents=[common]); mm.add_argument("--title", action="append")
     apg = sub.add_parser("activate-program", parents=[common]); apg.add_argument("--phone", required=True); apg.add_argument("--program-key", required=True, dest="program_key"); apg.add_argument("--yes-write", action="store_true")
     smp = sub.add_parser("seed-module-pass", parents=[common]); smp.add_argument("--phone", required=True); smp.add_argument("--module", type=int, required=True); smp.add_argument("--program-key", default="niete_standard", dest="program_key"); smp.add_argument("--yes-write", action="store_true")
     a = p.parse_args()
     creds = _creds(getattr(a, "env", None))
     {"lookup": cmd_lookup, "answer-key": cmd_answer_key, "seed-level-complete": cmd_seed_level_complete,
      "revert-level": cmd_revert_level, "activate-program": cmd_activate_program,
-     "seed-module-pass": cmd_seed_module_pass, "module-answer-key": cmd_module_answer_key}[a.cmd](creds, a)
+     "seed-module-pass": cmd_seed_module_pass, "module-answer-key": cmd_module_answer_key,
+     "module-media": cmd_module_media}[a.cmd](creds, a)
 
 if __name__ == "__main__":
     main()
