@@ -146,8 +146,15 @@ describe('the endpoint routes on the category', () => {
   });
 
   test('back from CONFIRM lands on QUESTIONS for seen, which never saw TYPES', async () => {
+    // bd-60175: on the current Flow seen names its size on COUNTS, so COUNTS is
+    // the screen before CONFIRM. A client still on the old published Flow
+    // (legacyCounts) never had COUNTS and still goes back to QUESTIONS.
+    mockRedis.get.mockResolvedValue({ ...SESSION, contentSource: 'seen', legacyCounts: true });
+    const legacy = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
+    expect(legacy.screen).toBe('QUESTIONS');
+
     mockRedis.get.mockResolvedValue({ ...SESSION, contentSource: 'seen' });
-    const res = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
-    expect(res.screen).toBe('QUESTIONS');
+    const current = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
+    expect(current.screen).toBe('COUNTS');
   });
 });
