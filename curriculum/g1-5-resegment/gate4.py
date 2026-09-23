@@ -259,8 +259,16 @@ def evaluate(lp, segment, review, judge="", subject=None, grounding=None,
     total, denom, _ = reviewer("score_lp").tally(review, subject) if review \
         else (0, 0, [])
     judge_pct = round(100.0 * total / denom, 1) if denom else None
+    # C1 is a LESSON rule and a 995 is not a lesson. A worksheet's row still
+    # states `duration_min` -- it occupies a period like anything else -- so
+    # `contentbudget` measured it, found no warm-up and no timed steps, and
+    # reported "the plan states no timings" against an artefact that legally
+    # has neither. Same case as W1 above, decided in the same single place:
+    # inapplicable, not unmeasured and not passed. `wslint` is what the
+    # worksheet is held to instead, and it is already in `failures`. bd-joznk.
     score = compose(checks, judge_pct=judge_pct, judge=judge, review=review,
                     render=render, grounding=grounding, lint=lint,
-                    content=contentbudget.failures(lp, segment),
+                    content=[] if lint is not None
+                            else contentbudget.failures(lp, segment),
                     answers=answerslot.failures(lp))
     return score, verdict(score)
