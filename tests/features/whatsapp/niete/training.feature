@@ -470,6 +470,18 @@ Feature: NIETE (ICT) Teacher Training
     # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A column subtraction reaches the child set out the way the textbook prints it
+    Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson on column subtraction
+    When a child opens the quiz from its link and reaches a column subtraction
+    Then the question arrives as a picture card with the numbers written one under the other, places lined up, the minus sign on the left and a line under them
+    And after answering, every text about that question writes it on one line like "452 − 137 = ?", never with "$", "array" or a backslash
+    And the teacher's quiz PDF shows the same column subtraction set out the same way
+    # quiz-math: the author writes the sum as ONE KaTeX array (transcript-quiz-contract COLUMN_SUM_RULE);
+    # the card and the PDF typeset it (.qm-col, its own centred line); mathToText / mathForChat flatten it
+    # (columnSumText) for every WhatsApp text; MATH_TEX accepts the environment and names an array whose
+    # rows ran together. Content-driven: assert the SHAPE, never a fixed sum. @wip.
+
   # ── a child reads the quiz's language from the link to the invite ──────────────────────
   # A child who opens a class quiz link meets the join screen (name + class) and, after the
   # quiz, can pass it to a friend. An Urdu quiz used to meet the child in English at both
