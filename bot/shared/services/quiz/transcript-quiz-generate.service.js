@@ -28,7 +28,7 @@ const {
   validate, MIN_QUESTIONS, figureDensity, latinNames, nameLexicon,
 } = require('./transcript-quiz-validator');
 const { peopleSpellings, spellText, logRedactor } = require('./transcript-quiz-people');
-const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
+const { duplicateQuestionErrors, confirmsSameFact, solverDuplicateComplaint } = require('./transcript-quiz-duplicates');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
 } = require('./transcript-quiz-language');
@@ -1137,6 +1137,11 @@ async function runKeyVerify(api, {
     bare: {
       status: 'skipped', checked: 0, agreed: 0, flagged: 0, unclear: 0,
     },
+    // The questions the full solve says ask the same fact: what it named, what
+    // passed the contract in code, what the rewrite replaced, what shipped.
+    same_fact: {
+      returned: 0, confirmed: [], unconfirmed: [], fixed: [], shipped: [],
+    },
   };
   const finish = (out) => {
     record.latency_ms = Date.now() - startedAt;
@@ -1147,6 +1152,8 @@ async function runKeyVerify(api, {
       none_correct: record.none_correct, unclear: record.unclear, missing: record.missing,
       fixed: record.fixed, dropped: record.dropped, costUsd: record.cost_usd, latencyMs: record.latency_ms,
       bareStatus: record.bare.status, bareChecked: record.bare.checked, bareFlagged: record.bare.flagged,
+      sameFactReturned: record.same_fact.returned, sameFactConfirmed: record.same_fact.confirmed.length,
+      sameFactFixed: record.same_fact.fixed.length,
     });
     return { record, ...out };
   };
@@ -1250,7 +1257,31 @@ async function runKeyVerify(api, {
     if (COUNT[v.verdict]) record[COUNT[v.verdict]] += 1;
   });
   const bad = verdicts.filter(flagged);
-  if (!bad.length) return finish({ changed: false });
+
+  // ── 1c. the same fact asked twice ─────────────────────────────────────────
+  // The full solve names the questions it reads as asking the same fact with
+  // the same answer. On its own that is right about three times in five (it
+  // pairs one template on another item, or two questions on one topic with
+  // different answers), so only a pair that ALSO passes the contract in code —
+  // the same answer, the same numbers and quoted items — is acted on: the later
+  // question joins the rewrite below with the repeat's own complaint. The rest
+  // are only logged. Never a reason to drop a question or fail the quiz.
+  const named = Array.isArray(first.sameFact) ? first.sameFact : [];
+  record.same_fact.returned = named.length;
+  named.forEach(([i, j]) => {
+    (confirmsSameFact(questions[i], questions[j]) ? record.same_fact.confirmed : record.same_fact.unconfirmed).push([i, j]);
+  });
+  const repeatAt = new Map();          // later question → the earlier one it repeats
+  record.same_fact.confirmed.forEach(([i, j]) => { if (!repeatAt.has(j)) repeatAt.set(j, i); });
+  const repeatComplaints = [...repeatAt].map(([j, i]) => solverDuplicateComplaint(questions, i, j));
+  if (named.length) {
+    logEvent('transcript_quiz.duplicate_question', {
+      quizId, stage: 'solver', quiz_source: quizSource, questions: repeatAt.size, indices: [...repeatAt.keys()],
+      confirmed: record.same_fact.confirmed, unconfirmed: record.same_fact.unconfirmed,
+    });
+  }
+  const repeatLeft = () => repeatComplaints.filter((e) => repeatAt.has(Number(/^q(\d+)/.exec(e)[1])));
+  if (!bad.length && !repeatAt.size) return finish({ changed: false });
 
   const complaints = bad.map((v) => KeyVerify.disagreementComplaint(v, questions[v.index]));
   record.disagreements = bad.map((v) => ({
@@ -1262,25 +1293,30 @@ async function runKeyVerify(api, {
     note: String(v.note || '').slice(0, 200),
   }));
   attempts.push({
-    attempt: 'key_verify', model: record.model, cost_usd: first.costUsd || null, latency_ms: first.latencyMs || null, errors: complaints,
+    attempt: 'key_verify', model: record.model, cost_usd: first.costUsd || null, latency_ms: first.latencyMs || null, errors: [...complaints, ...repeatComplaints],
   });
-  logToFile('⚠️ transcript quiz: a blind solver disagrees with answer keys', {
-    quizId, quiz_source: quizSource, indices: bad.map((v) => v.index), verdicts: bad.map((v) => v.verdict),
-  });
+  if (bad.length) {
+    logToFile('⚠️ transcript quiz: a blind solver disagrees with answer keys', {
+      quizId, quiz_source: quizSource, indices: bad.map((v) => v.index), verdicts: bad.map((v) => v.verdict),
+    });
+  }
 
   // ── 2. ONE targeted rewrite, with the disagreement as the complaint ────────
+  // A key that is not true outranks a repeat for the five places (rewriteTargets
+  // tiers KEY_* first); a repeat left out ships, recorded.
   const stillBad = new Set(bad.map((v) => v.index));
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
     // More than five flagged keys: the worst five are rewritten, the rest dropped below.
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames, partial: true,
+    questions, errors: [...complaints, ...repeatComplaints], digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
     let verrs = null;
     const replacedBad = (rw.replaced || []).filter((i) => stillBad.has(i));
-    if (rw.merged && replacedBad.length) {
+    const replacedRepeat = (rw.replaced || []).filter((i) => repeatAt.has(i));
+    if (rw.merged && (replacedBad.length || replacedRepeat.length)) {
       const v = validate(rw.merged, {
         language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
       });
@@ -1288,15 +1324,17 @@ async function runKeyVerify(api, {
       // The same bar every other shipped set meets: no hard fault left.
       if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
         let again = new Set();
-        try {
-          const re = await solve(v.questions, replacedBad);
-          record.cost_usd += Number(re.costUsd) || 0;
-          // A rewrite is held to both solves, as the item it replaces was.
-          const reBare = await withoutLesson(v.questions, re.verdicts, null);
-          record.cost_usd += reBare.costUsd;
-          again = new Set(reBare.verdicts.filter(flagged).map((x) => x.index));
-        } catch (err) {
-          record.recheck_error = failOpen('re-solve', err);
+        if (replacedBad.length) {
+          try {
+            const re = await solve(v.questions, replacedBad);
+            record.cost_usd += Number(re.costUsd) || 0;
+            // A rewrite is held to both solves, as the item it replaces was.
+            const reBare = await withoutLesson(v.questions, re.verdicts, null);
+            record.cost_usd += reBare.costUsd;
+            again = new Set(reBare.verdicts.filter(flagged).map((x) => x.index));
+          } catch (err) {
+            record.recheck_error = failOpen('re-solve', err);
+          }
         }
         current = v.questions;
         softFaults = v.errors.length ? v.errors : null;
@@ -1304,6 +1342,10 @@ async function runKeyVerify(api, {
           if (again.has(i)) return;
           stillBad.delete(i);
           record.fixed += 1;
+        });
+        replacedRepeat.forEach((i) => {
+          repeatAt.delete(i);
+          record.same_fact.fixed.push(i);
         });
       }
     }
@@ -1313,8 +1355,14 @@ async function runKeyVerify(api, {
       errors: verrs || [rw.error || 'the rewrite returned no usable replacement'],
     });
     logEvent('transcript_quiz.rewrite_attempted', {
-      quizId, after: 'key_verify', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0, errors: verrs ? verrs.length : null,
+      quizId, after: 'key_verify', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0 && repeatAt.size === 0, errors: verrs ? verrs.length : null,
     });
+  }
+  // A repeat the rewrite did not replace ships, recorded (never dropped).
+  record.same_fact.shipped = [...repeatAt.keys()].sort((a, b) => a - b);
+  // Only repeats, and the rewrite changed nothing: the quiz ships as it is.
+  if (!bad.length && current === questions) {
+    return finish({ changed: false, repeatFaults: repeatLeft() });
   }
 
   // ── 3. drop what still disagrees, or fail ──────────────────────────────────
@@ -1344,13 +1392,19 @@ async function runKeyVerify(api, {
       const { figureUrls, cardUrls } = await renderFor(api, {
         questions: cand.questions, rows: drafted, language, teacherId, quizId,
       });
-      if (repairsLost) record.fixed = 0;
+      if (repairsLost) {
+        record.fixed = 0;
+        record.same_fact.fixed = [];
+        record.same_fact.shipped = [...new Set(record.same_fact.confirmed.map(([, j]) => j))].sort((a, b) => a - b);
+      }
       record.dropped = cand.dropped.length;
-      record.status = cand.dropped.length ? 'dropped' : 'fixed';
+      // keys that were all true stay 'clean'; the repeats have their own record
+      record.status = !bad.length ? 'clean' : (cand.dropped.length ? 'dropped' : 'fixed');
       record.disagreements.forEach((d) => { d.outcome = gone.includes(d.index) ? 'dropped' : 'fixed'; });
       attempts.push({ attempt: 'key_verify_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
       return finish({
         changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
+        repeatFaults: repairsLost ? repeatComplaints : repeatLeft(),
       });
     } catch (figErr) {
       record.render_error = String(figErr.message || figErr).slice(0, 200);
@@ -1953,6 +2007,8 @@ async function process(quizId, payload = {}) {
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
     }
+    // A question the blind solve named as a repeat that no rewrite replaced.
+    if (kv.repeatFaults && kv.repeatFaults.length) meta.soft_faults = [...(meta.soft_faults || []), ...kv.repeatFaults];
     // ── THE LAST REPAIR (a question written after the loop) ──────────────────
     // After every step that can write a question, before anything is stored.
     const fr = await runFinalSoftRepair(api, {
