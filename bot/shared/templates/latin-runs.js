@@ -12,9 +12,16 @@
  * phrase is re-ordered by this — only what counts as one run.
  *
  * So punctuation that sits BETWEEN two Latin words joins them: whitespace, "·"
- * (as the character or &middot; / &#183;), and "&" (as &amp;, which is how an
- * escaped "&" arrives). Hyphens, slashes, apostrophes, commas and full stops
- * already belong to a run through the caller's `token` class.
+ * (as the character or &middot; / &#183;), "&" (as &amp;, which is how an
+ * escaped "&" arrives), and the dash and arrow a title joins its parts with —
+ * "—" (U+2014), "–" (U+2013) and "→" (U+2192), as the literal characters. The
+ * lesson-plan catalog names a lesson "Chapter 1 Assessment Worksheet — 'Hello
+ * World!'" or "… (hook) → Coloured-Water Investigation"; 330 of its 1,390
+ * English names carry one, and a quiz written from that lesson in Urdu prints the
+ * name in an Urdu document, where it read second half first. Hyphens, slashes,
+ * apostrophes, commas and full stops already belong to a run through the
+ * caller's `token` class. A joiner only ever joins two LATIN runs: a dash
+ * between an English phrase and Urdu text ends the phrase, as before.
  *
  * Tags are never entered, and an entity is never cut: entities are swapped
  * for private-use placeholders before runs are matched and restored after, so
@@ -36,7 +43,7 @@ const JOINER_ENTITIES = { '&amp;': '\uE000', '&middot;': '\uE001', '&#183;': '\u
 const JOINER_BACK = Object.fromEntries(Object.entries(JOINER_ENTITIES).map(([e, c]) => [c, e]));
 const OPAQUE_BASE = 0xE100;
 const ENTITY = /&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);/g;
-const JOIN = '[\\s\\u00B7\\uE000-\\uE002]';
+const JOIN = '[\\s\\u00B7\\u2013\\u2014\\u2192\\uE000-\\uE002]';
 
 function wrapText(text, run, requireLetter) {
   const opaque = [];

@@ -31,7 +31,7 @@ const {
   LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
 } = require('./transcript-lesson-provider');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf,
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable,
 } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 
@@ -103,7 +103,13 @@ function statusLine(quiz, language) {
     case 'making': return resolveUx('tqRowMaking', { language });
     case 'sent': return resolveUx('tqRowSent', { language, params: { started, finished } });
     case 'report_sent': return resolveUx('tqRowReportSent', { language, params: { finished } });
-    case 'failed': return resolveUx(quiz?.quiz_source === LP_V8 ? 'tqRowFailedLp' : 'tqRowFailed', { language });
+    // "tap to retry" only where the tap DOES retry: every failed transcript row
+    // (the tap re-makes it), and an lp_v8 row a remake can still help
+    // (lpRemakeable — handleLpPick makes it again). An lp_v8 row that cannot be
+    // made again just says it did not work.
+    case 'failed': return resolveUx(
+      quiz?.quiz_source === LP_V8 && !lpRemakeable(quiz.meta) ? 'tqRowFailedLp' : 'tqRowFailed', { language },
+    );
     default: return resolveUx('tqRowNoQuiz', { language });
   }
 }
@@ -356,7 +362,9 @@ async function answerTakenLesson(out, phone, user) {
  * A tap on an lp_v8 row. There is no session to make a quiz FROM here — the
  * quiz exists because the teacher said yes to the afternoon offer — so the
  * choices are the ones a sent quiz has (resend the link, the report, back), a
- * "still making it", or the failure copy that names the step that stopped.
+ * "still making it", a failed quiz made AGAIN when a remake can help
+ * (lpRemakeable — the Flow's "Make it again", on the list's "tap to retry"), or
+ * the failure copy that names the step that stopped when it cannot.
  * Never "make it" from a session: that path claims a coaching session.
  *
  * The one decision still open on an lp_v8 quiz is its LANGUAGE: a yes on any
@@ -404,6 +412,18 @@ async function handleLpPick(quizId, phone, user) {
     await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject: quiz.subject });
     logEvent('transcript_quiz.language_asked', {
       userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: LP_V8,
+    });
+    return true;
+  }
+  if (state === 'failed' && lpRemakeable(quiz.meta)) {
+    // The list's own promise ("tap to retry"), kept the way a failed transcript
+    // row keeps it: the tap makes the quiz again. The same remake the Flow's
+    // "Make it again" runs — the atomic failed → generating flip, then the one
+    // LP queue step, which tells the teacher it is on its way.
+    const Offer = require('./transcript-quiz-offer.service');
+    const remade = await Offer.remakeLpQuiz({ quiz, phone, teacherLang: lang, source: 'list' });
+    logEvent('transcript_quiz.list_pick', {
+      userId: user.id, quizId: quiz.id, state, remade: Boolean(remade), quiz_source: LP_V8,
     });
     return true;
   }

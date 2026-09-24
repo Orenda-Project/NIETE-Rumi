@@ -365,6 +365,29 @@ Feature: NIETE (ICT) Teacher Training
     # generic error. @wip — forcing a failure needs a seeded failed row.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: In the /quiz list message, a lesson-plan quiz that could not be made is made again on a tap
+    Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be made because something went wrong while writing it
+    When I open the /quiz list from the menu's Quiz item
+    Then that lesson's row says "Failed — tap to retry", the way a failed quiz from a recording does
+    When I tap that row
+    Then the bot says it is making the quiz now, and the quiz arrives with the message to forward to the class
+    But when the lesson plan itself had too little lesson in it, the row says "Didn't work" and a tap only says why
+    # transcript-quiz-list statusLine + handleLpPick: a failed lp_v8 row reads tqRowFailed where
+    # quiz-sources.lpRemakeable holds, and the tap runs transcript-quiz-offer.remakeLpQuiz (source 'list') —
+    # the same remake as the Flow's "Make it again". Otherwise tqRowFailedLp and the persisted failure copy.
+    # @wip — forcing a failure needs a seeded failed row.
+
+  @e2e @quiz @i18n @wip @draft @P2
+  Scenario: An Urdu quiz on a lesson plan with an English title keeps the title in reading order
+    Given the NIETE bot chat is open and I made an Urdu quiz on a maths or science lesson plan whose English title has a dash in it, like "Divisibility — apply the rules"
+    When the quiz PDF arrives, and later the class report
+    Then the English title reads left to right in one piece on both documents — "Divisibility — apply the rules", never "apply the rules — Divisibility"
+    # latin-runs.js: "—", "–" and "→" between two Latin words join them into one left-to-right isolate, as
+    # "&" and "·" already did. The lesson-plan quiz is named by the catalog title verbatim, and 330 of the
+    # catalog's 1,390 English titles carry a dash or an arrow. The coaching hero report and card use the
+    # same runs. @wip.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: /quiz never promises a report when no student has finished
     Given the NIETE bot chat is open and I have sent a class quiz that only my own test run has taken
     When I open "/quiz" and tap that lesson
