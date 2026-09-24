@@ -113,12 +113,19 @@ const TRUTH = truthFrom(F.AUTHORED, {
   [F.SALAAM_STEM]: [F.SALAAM_KEY, F.SALAAM_TWIN],
 });
 
+/** The second solve, without the lesson, when a test is not about it: unsure of everything, so it changes no verdict. */
+const unsureOfEverything = (prompt) => ({
+  answers: [...itemsIn(prompt).keys()].map((index) => ({ index, correct: [], unsure: true, note: '' })),
+});
+
 /**
  * The LLM, routed by the label each pass names itself with. `verify` answers
- * every blind-solve call with (prompt, n); `rewrite` the targeted rewrite.
+ * every blind-solve call with (prompt, n); `bare` the solve without the lesson
+ * (transcript-quiz-key-truth.test.js drives that one); `rewrite` the targeted rewrite.
  */
-function llm({ verify, rewrite, check } = {}) {
+function llm({ verify, rewrite, check, bare = unsureOfEverything } = {}) {
   let verifies = 0;
+  let bares = 0;
   let checks = 0;
   completeJson.mockImplementation(async ({ label, prompt }) => {
     if (label === 'lp_quiz.digest') return { json: LP.MODEL_DIGEST, model: 'dm', costUsd: 0.001, latencyMs: 5 };
@@ -138,6 +145,10 @@ function llm({ verify, rewrite, check } = {}) {
       verifies += 1;
       const json = await verify(prompt, verifies);
       return { json, model: 'vm', costUsd: 0.004, latencyMs: 40 };
+    }
+    if (label === 'transcript_quiz.key_verify_bare') {
+      bares += 1;
+      return { json: await bare(prompt, bares), model: 'vm', costUsd: 0.004, latencyMs: 40 };
     }
     if (label === 'transcript_quiz.rewrite') {
       if (!rewrite) throw new Error('no rewrite expected');
@@ -293,7 +304,7 @@ describe('the live transcript quiz — «حال» keyed to a misspelling, «سل
 // ── the ordinary cases ───────────────────────────────────────────────────────
 
 describe('a quiz whose keys a blind solver agrees with', () => {
-  test('ships unchanged, for exactly ONE extra LLM call', async () => {
+  test('ships unchanged, for exactly TWO extra LLM calls — the solve with the lesson and the one without', async () => {
     const agree = truthFrom(F.AUTHORED);
     llm({ verify: solverFor(agree) });
     wireTranscript();
@@ -301,13 +312,15 @@ describe('a quiz whose keys a blind solver agrees with', () => {
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
     expect(callsLabelled('transcript_quiz.key_verify')).toHaveLength(1);
+    expect(callsLabelled('transcript_quiz.key_verify_bare')).toHaveLength(1);
     expect(callsLabelled('transcript_quiz.rewrite')).toHaveLength(0);
 
     const rows = insertedRows();
     expect(rows.map((row) => clean(row.question_text))).toEqual(F.AUTHORED.map((q) => clean(q.question)));
     rows.forEach((row, i) => expect(keyedTexts(row)).toEqual([clean(F.AUTHORED[i].options[0])]));
     expect(readyUpdate().meta.key_verify).toEqual(expect.objectContaining({
-      status: 'clean', checked: 8, agreed: 8, disagreed: 0, ambiguous: 0, fixed: 0, dropped: 0, cost_usd: 0.004, model: 'vm',
+      status: 'clean', checked: 8, agreed: 8, disagreed: 0, ambiguous: 0, fixed: 0, dropped: 0, cost_usd: 0.008, model: 'vm',
+      bare: expect.objectContaining({ status: 'ok', checked: 8, flagged: 0 }),
     }));
   });
 
