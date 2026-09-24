@@ -19,6 +19,7 @@ const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const { peopleRule } = require('./transcript-quiz-people');
+const { scrubPupils, PUPILS_RULE } = require('./transcript-quiz-pupils');
 const {
   languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
@@ -182,7 +183,8 @@ function excerptsFor(transcript, digest, width = 1200) {
     if (i >= 0) parts.push(t.slice(Math.max(0, i - width / 2), i + width / 2));
   });
   parts.push(t.slice(-1200));
-  return parts.join('\n---\n');
+  // the children the recording names are never read by the author (transcript-quiz-pupils)
+  return scrubPupils(parts.join('\n---\n'), digest && digest.pupil_tokens);
 }
 
 const TRANSCRIPT_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
@@ -208,6 +210,13 @@ TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same vo
 function picturesAgain({ subject, gradeBand, n }) {
   if (!(isEarlyYears(gradeBand) && canonicalSubject(subject) === 'maths')) return '';
   return `\n\nPICTURES, AGAIN (grade 1-5 maths): no fewer than three and no more than ${Math.floor(n / 2)} of the ${n} questions carry a picture the child READS to answer — what fraction of the bar is shaded, which bar shows a fraction, what number the sticks show, how many counters there are. Choose those pictures before you write the questions; a step of a procedure stays text. A quiz of text questions only is sent back.\n`;
+}
+
+/** The digest as the author reads it: the children's hashes are for the checks, not the model. */
+function digestForPrompt(digest) {
+  if (!digest || typeof digest !== 'object') return digest;
+  const { pupil_tokens: pupilTokens, ...rest } = digest;   // eslint-disable-line no-unused-vars
+  return rest;
 }
 
 function buildAuthorPrompt({
@@ -273,6 +282,7 @@ ${lp ? LP_SUMMARY_RULE : TRANSCRIPT_SUMMARY_RULE}
 ${SELECTED_BECAUSE_RULE}
 ${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
+${PUPILS_RULE}
 ${peopleRule(digest, language)}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
@@ -293,7 +303,7 @@ Return ONLY this JSON object:
 Omit "figure" and "figure_role", or leave them null, on every question that does not need a picture. When a question does carry one, "figure" is a spec object of the form shown in ALLOWED TYPES — e.g. "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}, "figure_role": "read_off".
 
 LESSON DIGEST:
-${JSON.stringify(digest, null, 0)}
+${JSON.stringify(digestForPrompt(digest), null, 0)}
 
 ${lp ? `THE LESSON PLAN (what the class was to learn, the worked example, the mistake it expects, the shape of the practice):
 ${lessonPlan}` : `TRANSCRIPT EXCERPTS (the passages around each SLO's evidence, plus the opening and closing of the lesson):
