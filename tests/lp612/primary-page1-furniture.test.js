@@ -330,12 +330,34 @@ describe('the type scale', () => {
  *
  * G6-12's card stays ONE atom. Its rows are single lines (materials, pacing, video) that read as
  * one card of addresses, and a break between two one-line rows would be a page turn mid-list.
+ *
+ * AMENDED 2026-09-23 (bd-2hmag), and the count below moved from 3 to 2 + one per glossary row.
+ * Three atoms was not enough on the phone page either. The KEY WORDS panel is a term/definition
+ * table that on a real lesson runs to six rows and ~780px, so once it was its own atom it was
+ * still an atom that could not fit -- `g1_ch8_Maths_seg4` page 1 stopped after the video card at
+ * 57% full and the whole glossary moved to page 2. It is now one atom PER ROW, on the same
+ * reasoning as this block: the sheet holds part of it, so let the packer put that part there.
+ * The count is therefore no longer a constant, and is derived from the fixture's own glossary so
+ * that re-authoring the fixture cannot quietly make this test agree with anything. What the
+ * pieces are, that the label rides row 1 and that they paint as one table live in
+ * keywords-row-atoms.test.js; this file keeps its own question, which is that the PANELS pack
+ * independently of each other.
  */
 describe('primary\'s page-1 panels pack independently', () => {
   const roots = (h) => (h.match(/<div data-atom class="rescard/g) || []).length;
+  /** How many term/definition rows the fixture's hoisted glossary actually has. */
+  const kwRows = (d) => {
+    for (const sec of d.sections) {
+      for (const b of sec.blocks || []) if (b.type === 'keywords') return b.items.length;
+    }
+    return 0;
+  };
 
-  test('primary emits one atom per panel: to prepare, video, key words', () => {
-    expect(roots(body(build(primaryDoc())))).toBe(3);
+  test('primary emits one atom per panel — and one per glossary row', () => {
+    const d = primaryDoc();
+    expect(kwRows(d)).toBeGreaterThan(1);
+    // to prepare + video + one per glossary row
+    expect(roots(body(build(d)))).toBe(2 + kwRows(d));
   });
 
   test('each panel is still a .rescard, so not one style rule has to change', () => {

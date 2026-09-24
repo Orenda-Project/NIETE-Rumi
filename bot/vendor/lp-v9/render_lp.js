@@ -24,6 +24,7 @@ const { applyOverlay } = require("./lib/overlay");
 const { validateDoc } = require("./lib/validate");
 const { REPO_ROOT } = require("./lib/fonts");
 const { setInfo } = require("./lib/pdfmeta");
+const { exemptionFor } = require("./lib/page_cap_exemptions");
 
 // THE PAGE BOX LIVES IN lib/template.js AND IS IMPORTED, NEVER RE-DECLARED (v9.3, bd-oak77.16).
 // v9.2 carried `const A4 = { w: 794, h: 1123 }` here AND `--page-w:794px` there — two homes for
@@ -136,29 +137,74 @@ const WARN_PAGES_UR = { teach: 4, support: 3 };
 // Support stays at 3. Her page map ends the plan at the close ("coming in can go") and primary's
 // page2 surfaces are mostly dark by design (d0_page2.NO_PRIMARY_SOURCE), so nothing is pressing
 // on that sheet and raising it would only give content somewhere to hide.
-const MAX_PAGES_PRIMARY = { teach: 9, support: 3 };
-const MAX_PAGES_PRIMARY_UR = { teach: 12, support: 4 };   // round(9 x 1.33) -- same Nastaliq
-                                                          // premium the UR caps above apply
+//
+// TEACH IS 8, IN BOTH LANGUAGES, SINCE 2026-09-24 (bd-blxml). THIS SUPERSEDES bd-jr91a's 16 / 24
+// OF THE DAY BEFORE, AND THE WAY IT SUPERSEDES IT IS THE WHOLE POINT: the cap came DOWN to the
+// number she has always named, and the 40 lessons that cannot meet it are licensed BY NAME in
+// page_cap_exemptions.json, each at its own measured height.
+//
+// SHE WAS ANSWERING A CHOICE, AGAIN. Put to her on 2026-09-24:
+//   (a) raise the cap for those 40 only -- cheapest, 88% untouched, the 40 stay long;
+//   (b) re-segment the 40 into more, shorter lessons;
+//   (c) hold 8 as a target for the 88% and accept the 40.
+// She answered "a". "Raise the cap for THOSE" presupposes a cap the other 295 are held to, and
+// bd-jr91a had left that cap at 16 / 24 -- i.e. at no cap at all, measured against her own words:
+// *"I want lower, we cant go beyond 8, its too much to read and remember!"* and *"22-24 pages no
+// teacher will read ... ever"*. A hard cap of 24 is the literal opposite of the second sentence.
+//
+// NOTHING MAY BE CUT IS UNTOUCHED BY THIS. bd-jr91a raised the cap to honour *"dont cut anything,
+// increase the page cap for those 14"*; ruling (a) honours the same sentence more narrowly. The 40
+// keep every authored page they have -- their exemptions record the heights they actually render
+// at -- and no elision path was added to this file by either ruling. None may be.
+//
+// THE CAP IS NOT LANGUAGE-QUALIFIED, AND THAT IS DELIBERATE. She said 8, not "8 unless it is
+// Urdu". Urdu's Nastaliq premium is real and measured -- 23 of 88 Urdu lessons run over 8 against
+// 2 of 112 English -- but it is absorbed by the exemption list, lesson by named lesson. A 12- or
+// 24-page global Urdu cap hands that licence to every Urdu lesson ever authored, including the
+// ones that fit in 5 today, which is a permission nobody granted. MAX_PAGES_PRIMARY_UR.teach is
+// therefore written as the SAME constant, not as a second number that happens to agree.
+//
+// THE NUMBERS ARE THE CORPUS, NOT A GUESS. 335 built PDFs, `pages_by_part.teach` read off each
+// lesson's own .render.json at the default (phone) format, so `scaleCapsToFormat` returned the
+// caps unscaled at ratio 1 and the counts are in the sheet a teacher receives:
+//
+//   3p:1  4p:15  5p:55  6p:92  7p:98  8p:34 | 9p:19 10p:7 11p:7 12p:1 13p:1 14p:1 15p:2 18p:1 21p:1
+//
+// 295 of 335 (88.1%) already meet 8. 40 exceed it, by 106 pages in total. By subject: Urdu 23/88
+// (26.1%), Maths 12/105 (11.4%), Science 3/30 (10.0%), English 2/112 (1.8%).
+//
+// AND THE CAP STILL FAILS LOUDLY, FOR AN EXEMPT LESSON TOO. The design invariant is untouched:
+// nothing is trimmed to fit, and over cap the renderer FAILS. An exemption raises the cap for ONE
+// named lesson to ONE recorded height; the same lesson one page taller fails exactly as loudly as
+// an unlisted one, because a list of bare names would be a blanket amnesty. Covered as a gate in
+// tests/lp612/primary-page-cap-8.test.js and primary-page-cap-exemptions.test.js.
+//
+// SUPPORT DID NOT MOVE. 0 of the 335 renders built a single support page, so nothing there was
+// measured and nothing there is touched; 3 / 4 stand unamended.
+const MAX_PAGES_PRIMARY = { teach: 8, support: 3 };
+const MAX_PAGES_PRIMARY_UR = { teach: MAX_PAGES_PRIMARY.teach, support: 4 };   // the SAME 8, not a
+                                                          // second number: see "NOT LANGUAGE-
+                                                          // QUALIFIED" above
 
-// VENDOR DIVERGENCE (bd-788pe, SYNC 3.31). FOR PRIMARY, WARN IS A TARGET, NOT THE CAP MINUS ONE.
+// VENDOR DIVERGENCE (bd-blxml, 2026-09-24). WARN IS THE LAST SHEET AGAIN, AND IT SAYS SOMETHING.
 //
-// Everywhere else in this file WARN and MAX say the same thing one sheet apart -- "you are nearly
-// out of room". Primary needs them to say different things. Operator, 2026-09-18: *"I would like
-// to keep 5 as the cap, once the content is sorted, we can come to that page number, no?"* and,
-// asked which unit she meant, *"keep the max at 9, but ideally 4-5 pages on phone-first"*.
+// It was teach 4 EN / 5 UR: an authored phone-first TARGET, not `max - 1`. Operator, 2026-09-18,
+// *"keep the max at 9, but ideally 4-5 pages on phone-first"* -- a lower aim than a ceiling of 9.
+// Against bd-jr91a's ceiling of 16 that aim became noise: MEASURED over the same 335 renders, a
+// warn of 4 fires on 319 of them, 95.2% of the corpus. A signal that fires on 95% of everything is
+// not a signal, and it had stopped being the thing the operator was told about.
 //
-// MAX cannot be 5 today. Over cap FAILS and this renderer never trims, so a cap of 5 against a
-// plan that measures 8 would emit nothing at all -- the one outcome that helps no teacher, and
-// the exact failure bd-vjk68 was opened to stop ("we will stop cancelling or delaying lesson
-// plans now because of the length issue"). So MAX stays at the 9 she set when she chose "one
-// continuous plan", and the 4-5 becomes the TARGET the render reports against on every run.
+// Today's ruling puts the CEILING at the number she will tolerate, which is roughly where her aim
+// already was. The useful sentence left is the one WARN carries everywhere else in this file --
+// "this is your last sheet" -- so primary's warn is derived from its cap again, at max - 1 = 7.
+// Measured firing rate at 7: 74 of 335, 22.1%. A fifth of the corpus, which is a signal.
 //
-// PHONE UNITS, because "phone-first" is her word and the phone is the sheet a teacher receives.
-// teach 4 + support 1 is the 5 she named. Seven surfaces still print "design pending"; when they
-// carry real content and the page count comes down to meet this, turning the target into a gate
-// is one constant.
-const WARN_PAGES_PRIMARY = { teach: 4, support: 1 };
-const WARN_PAGES_PRIMARY_UR = { teach: 5, support: 1 };   // round(4 x 1.33), the same premium
+// WHAT THIS GIVES UP, said out loud: her 4-5 phone-first aspiration is no longer represented by
+// any number in this file. Expressing both a 4-5 aim AND a last-sheet warning needs a third
+// threshold, which is a design change and hers to ask for, not one to smuggle in behind a ruling
+// about the cap.
+const WARN_PAGES_PRIMARY = { teach: MAX_PAGES_PRIMARY.teach - 1, support: 1 };
+const WARN_PAGES_PRIMARY_UR = { teach: MAX_PAGES_PRIMARY_UR.teach - 1, support: 1 };
 
 // `isPrimary` is IMPORTED from lib/template (bd-vbs5w). It used to be defined here, and once
 // page 1's primary furniture started reading the same rule there were two copies of one grade
@@ -176,17 +222,26 @@ const WARN_PAGES_PRIMARY_UR = { teach: 5, support: 1 };   // round(4 x 1.33), th
 // wrong unit. Amena asked for both renders of every primary plan ("Both -- A4 to review, phone to
 // deliver"), so a cap only one sheet can meet makes the review copy unrenderable.
 //
-// PHONE IS UNTOUCHED BY CONSTRUCTION: at ratio 1 the object is returned as it is, so bd-rjt3x's
-// standing "do not raise the cap" still binds the sheet a teacher actually receives, and so does
-// every reading of these constants that does not name a format (the author's budget card).
+// PHONE IS UNTOUCHED BY CONSTRUCTION: at ratio 1 the object is returned as it is, so whatever the
+// constants say binds the sheet a teacher actually receives, and so does every reading of them that
+// does not name a format (the author's budget card). That property is why this function was safe to
+// add, and it is unchanged.
+//
+// WHAT CHANGED IS WHAT THE CONSTANTS SAY (bd-jr91a, 2026-09-23). This paragraph used to read
+// *"bd-rjt3x's standing 'do not raise the cap' still binds the sheet a teacher actually receives"*.
+// bd-rjt3x's standing instruction was OVERRIDDEN by the operator that day for the phone sheet, and
+// the primary teach caps above moved 9 -> 16 / 12 -> 24 as a result. Nothing here moved with them:
+// this function converts whatever budget it is handed, it never authors one, and a cap raise is
+// therefore not a reason to touch it. The G6-12 caps did not move either; they never reach here.
 //
 // WARN IS SCALED, NOT RECOMPUTED (bd-788pe). It used to come back as `max - 1`, which was right
 // while warn meant "nearly at the cap" -- deriving it kept the two from drifting apart. Primary's
 // warn is now an authored target that is nowhere near its cap, and `max - 1` would throw it away
-// and put it back one sheet under a cap scaled to 16. A budget quoted in phone sheets and read on
-// A4 is the defect this function exists to fix, so the target converts on the same geometry the
-// cap does. The clamp is the one invariant left: a target above the cap could never fire, because
-// the over-cap branch would have taken the render first.
+// and put it back one sheet under the scaled cap -- which since bd-jr91a is 29 A4 sheets, not the
+// 16 this sentence used to name back when the phone cap was 9. A budget quoted in phone sheets and
+// read on A4 is the defect this function exists to fix, so the target converts on the same
+// geometry the cap does. The clamp is the one invariant left: a target above the cap could never
+// fire, because the over-cap branch would have taken the render first.
 function scaleCapsToFormat(caps, format) {
   const box = (f) => f.h - f.padT - f.padB;           // template.js: PAGE_CONTENT_H
   const fmt = PAGE_FORMATS[format] || PAGE_FORMATS.phone;
@@ -201,16 +256,26 @@ function scaleCapsToFormat(caps, format) {
 
 /** The caps for one render, by the language actually being laid out, the plan's own profile, and
  *  the sheet it is being laid out on. `format` is optional and defaults to the measured one. */
-function pageCapsFor(lang, doc, format) {
+function pageCapsFor(lang, doc, format, stem) {
   const ur = lang === "ur";
   if (isPrimary(doc)) {
     // PRIMARY ONLY, deliberately. The same physics would take the G6-12 teach cap from 4 to 7 on
     // A4. That is a real question, but it is the operator's: those caps gate the format G6-12
     // plans are delivered in, and they are not moving as a side effect of a G1-5 page-1 change.
+    const base = ur
+      ? { max: MAX_PAGES_PRIMARY_UR, warn: WARN_PAGES_PRIMARY_UR }
+      : { max: MAX_PAGES_PRIMARY, warn: WARN_PAGES_PRIMARY };
+    // THE NAMED EXEMPTION (bd-blxml). Ruling (a): raise the cap for the over-8 lessons ONLY. It
+    // is applied HERE, before the format scaling, so an exempt lesson converts to A4 on exactly
+    // the geometry every other cap does -- a licence quoted in phone sheets but enforced on A4
+    // is the defect `scaleCapsToFormat` exists to prevent.
+    //
+    // It raises TEACH ONLY, to that ONE lesson's OWN measured height, and only when a stem was
+    // passed: an unnamed render sees the bare 8. A listed lesson one page past its recorded
+    // height fails as loudly as an unlisted one -- `overCapProblem` says so in the message.
+    const ex = stem ? exemptionFor(stem) : null;
     return scaleCapsToFormat(
-      ur
-        ? { max: MAX_PAGES_PRIMARY_UR, warn: WARN_PAGES_PRIMARY_UR }
-        : { max: MAX_PAGES_PRIMARY, warn: WARN_PAGES_PRIMARY },
+      ex ? { max: { ...base.max, teach: ex.teach }, warn: base.warn } : base,
       format,
     );
   }
@@ -541,9 +606,16 @@ function packAtomsGreedy(atoms, capacity, furn = {}) {
  *   4. THE FILL FLOOR — bd-5jaag, added 2026-09-23 on the operator's third report of the same
  *      defect ("too much space left empty, we should be accounting for all the space in the
  *      LP"; "English too has wasted white space"; "Urdu has similar feedback to english and
- *      Math with ... space wasted"). One term, BELOW everything above and ABOVE front-loading,
- *      so it decides only the ties front-loading used to decide and the page count can never
- *      move. See THE FILL FLOOR below.
+ *      Math with ... space wasted"). One term, BELOW page count, orphans and overflow and ABOVE
+ *      both the soft-seam preference and front-loading, so the page count can never move and a
+ *      broken render can never be bought. See THE FILL FLOOR below.
+ *
+ *      It was RANKED BELOW THE SOFT SEAM until bd-2hmag.B (same day, the operator's fourth
+ *      report: "fix the wasted white space too"). That ranking meant the DP would accept a much
+ *      worse hole rather than take one extra break at a seam where a break is always legal —
+ *      1039 of 2016 non-final pages under the floor across the 330-lesson corpus, 233 of the
+ *      610 worst cases being atoms that were already as small as an atom can be. The full
+ *      argument and the two terms that stay above it are on `better()` below.
  *
  * THE TIE-BREAK WAS SUPPOSED TO BE "fill pages evenly / avoid a near-empty final page", and
  * for a year it was NOT, because the measurement argued against it. Two even-fill variants
@@ -713,33 +785,64 @@ function packAtoms(atoms, capacity, furn = {}, opts = {}) {
   // the breaks fall — which is why a page's content total does not depend on the packing.
   const costOf = (j) => atoms[j].h + (j === 0 ? 0 : atoms[j].mt || 0);
 
-  // `over` — pages that spent the slack — sits between orphans and front-loading on purpose.
+  // `over` — pages that spent the slack — sits between orphans and the fill floor on purpose.
   // Above `used`, so at an equal page count the packing that pays nothing always wins and a
   // part that already fitted is paginated exactly as it was. Below `pages`, so the allowance
   // is spent whenever it removes a page. With slack = 0 the term is identically zero and the
   // comparison is the one the exact packer has always used.
   // VENDOR DIVERGENCE (bd-usirc, SYNC 3.22). `splits` -- breaks that fell on an atom marked
-  // `soft` -- sits between orphans and over. BELOW `pages`, so a seam can never buy paper the
-  // way `glue` does; ABOVE `used`, so it wins the ties that front-loading used to win, which
-  // is where the gratuitous splits were. An atom that declares no `soft` scores zero here and
-  // is packed by the comparison the exact packer has always used.
-  // bd-5jaag / bd-l7vig. `gapSq` — the fill floor — sits between `over` and front-loading. It
-  // is a SUM over the suffix, never a max, so the DP's optimal substructure is untouched:
-  // extending two suffix packings with the same page adds the same increment to both and cannot
-  // reverse their order. A document whose pages all clear the floor scores zero, and is then
-  // packed by the comparison the exact packer has always used — which is why a clean document
-  // is never re-broken. It used to be two terms, with the final page of a part scored on a
-  // separate `lastGap` ranked below `gapSq` so it could only ever win a tie — bd-l7vig found
-  // that a tie is the ONLY thing a struggling part ever produced (every non-final page already
-  // clamped to zero the moment it cleared the floor), so the final page's own shortfall never
-  // had anything to compete against. It is charged on the same term as everything else now: see
-  // THE FILL FLOOR in the header comment above for the full argument and the corpus case.
+  // `soft` -- is the softest term there is. BELOW `pages`, so a seam can never buy paper the
+  // way `glue` does; ABOVE `used`, so it still wins the ties that front-loading used to win,
+  // which is where the gratuitous splits were. An atom that declares no `soft` scores zero here
+  // and is packed by the comparison the exact packer has always used.
+  // bd-5jaag / bd-l7vig. `gapSq` — the fill floor — is a SUM over the suffix, never a max, so
+  // the DP's optimal substructure is untouched: extending two suffix packings with the same page
+  // adds the same increment to both and cannot reverse their order. A document whose pages all
+  // clear the floor scores zero, and is then packed by the comparison the exact packer has
+  // always used — which is why a clean document is never re-broken. It used to be two terms,
+  // with the final page of a part scored on a separate `lastGap` ranked below `gapSq` so it
+  // could only ever win a tie — bd-l7vig found that a tie is the ONLY thing a struggling part
+  // ever produced (every non-final page already clamped to zero the moment it cleared the
+  // floor), so the final page's own shortfall never had anything to compete against. It is
+  // charged on the same term as everything else now: see THE FILL FLOOR in the header comment
+  // above for the full argument and the corpus case. The final page of a part is NOT exempt
+  // from `gapSq`, on purpose and by measurement — that exemption is what bd-l7vig removed, and
+  // re-adding it would strand English_seg7's fifth page at 23% all over again.
+  //
+  // bd-2hmag.B, 2026-09-23 — `gapSq` MOVES ABOVE `splits`, on the operator's FOURTH report of
+  // the same defect ("fix the wasted white space too"). It had sat second from LAST, so the DP
+  // would knowingly accept a much worse hole on one page rather than take a single extra break
+  // after a `soft` atom anywhere in the sequence. That is not a tie-break, it is the floor
+  // losing to a preference: measured over the 330-lesson rendered corpus, 1039 of 2016 non-final
+  // pages were under the floor and 233 of the 610 worst cases were atoms ALREADY as small as an
+  // atom can be — the one-turn `pc-m`/`pc-z` pieces of an already-split worked example, 130-313
+  // characters each, sitting against 300-868px holes on the page in front of them. A one-line
+  // sentence cannot be taller than a 300px hole, so finer splitting could never have reached
+  // them; only the ranking could. A `soft` seam is by construction a place where a break is
+  // always legal, so paying one to close a hole costs the reader nothing and NOTHING IS CUT —
+  // this changes where a break falls, never what is on the page.
+  //
+  // `over` moves above `splits` in the same edit, and that is a second defect, not a side
+  // effect: the old order would spend the renderer's 12px absorb allowance — overfilling a page
+  // for no page saved — purely to dodge a seam (pinned in tests/lp612/packer-fill-outranks-seam
+  // as `SLACK_FOR_A_SEAM`, which printed 101%/33%/82%). Overflow is a broken render (bd-p0nzj)
+  // and the allowance exists to REMOVE A PAGE (bd-c3le6), nothing else.
+  //
+  // WHAT STAYS ABOVE THE FLOOR, and why each one is not negotiable:
+  //   `pages`    filling pages by ADDING pages is not a fix. Verified, not assumed: over a
+  //              4,000-shape synthetic corpus and a 42-lesson render sample the page count is
+  //              bit-identical before and after, which is what `pages` being the top term of a
+  //              lexicographic order guarantees.
+  //   `over`     a page past its box is a PDF that does not print.
+  //   `orphans`  an orphaned heading is the failure mode the atom contract was built to kill.
+  // Ranking `gapSq` above `orphans` was measured too and rejected: +68 orphans over the same
+  // 4,000 shapes to move the mean worst-page fill 53.0 -> 53.2.
   const better = (a, b) =>
     a.pages !== b.pages ? a.pages < b.pages
       : a.orphans !== b.orphans ? a.orphans < b.orphans
-        : a.splits !== b.splits ? a.splits < b.splits
-          : a.over !== b.over ? a.over < b.over
-            : a.gapSq !== b.gapSq ? a.gapSq < b.gapSq
+        : a.over !== b.over ? a.over < b.over
+          : a.gapSq !== b.gapSq ? a.gapSq < b.gapSq
+            : a.splits !== b.splits ? a.splits < b.splits
               : a.used > b.used;
 
   const best = new Array(n + 1).fill(null);
@@ -843,8 +946,22 @@ const ADVICE_SECTIONS = 3;
  * document; the printed heading is added only when it says something the key does not — which
  * on the support page is always, since those keys are bar letters (`p2-D`) and nothing else.
  */
-function overCapProblem(part, n, cap, advice) {
-  const plain = `PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. Cut it, or move content to the other part.`;
+function overCapProblem(part, n, cap, advice, ctx) {
+  // WHICH LESSON (bd-blxml). The defect used to name a part and a number, so a wave of 335
+  // renders reported 335 indistinguishable sentences. `ctx.stem` is the render stem -- the key
+  // the exemption list is written on, so the operator can act on the message by editing one
+  // line. `ctx` is optional, and a call without it is BYTE-IDENTICAL to the sentence G6-12 has
+  // always had; that is asserted in tests/lp612/primary-page-cap-exemptions.test.js.
+  const who = ctx && ctx.stem ? `${ctx.stem}: ` : "";
+  // AN EXEMPTION OUTGROWN IS ITS OWN DEFECT, and it must not read like an ordinary over-cap: the
+  // lesson HAS a licence and has outgrown it. Saying so is the only thing standing between a
+  // height-bound list and a blanket amnesty nobody notices going stale.
+  const tail = ctx && ctx.exempt
+    ? ` ${ctx.stem} is listed in page_cap_exemptions.json at ${ctx.exempt} pages and now needs ${n}. `
+      + `That list licences a KNOWN height, not any height: either bring it back to ${ctx.exempt}, `
+      + `or re-measure the corpus and regenerate the list (regen_cap_exemptions.py).`
+    : "";
+  const plain = `PAGE COUNT: ${who}${part} needs ${n} pages; the cap is ${cap}. Cut it, or move content to the other part.${tail}`;
   if (!advice) return plain;
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
   const name = (s) => (s.title && norm(s.title) !== norm(s.sec) ? `${s.sec} "${s.title}"` : s.sec);
@@ -852,7 +969,7 @@ function overCapProblem(part, n, cap, advice) {
     .slice(0, ADVICE_SECTIONS)
     .map((s) => `${name(s)} ${s.blocks} blocks/${s.px}px`)
     .join(", ");
-  return `PAGE COUNT: ${part} needs ${n} pages; the cap is ${cap}. `
+  return `PAGE COUNT: ${who}${part} needs ${n} pages; the cap is ${cap}.${tail} `
     + `The ${advice.blocks} block(s) past the cap are ${advice.px}px of content, out of ${part}'s ${advice.totalBlocks} — `
     + `that is what has to come out, and a BLOCK is the unit: shortening the prose inside a block removes no page. `
     + `Tallest sections in ${part}: ${top}. `
@@ -915,6 +1032,43 @@ function computeBreaks(heights, capacity, contHeight = 0) {
   return packAtoms(atoms, capacity, { strip: contHeight }).breaks;
 }
 
+// HORIZONTAL CLIP (bd-km7vu). The vertical half of the probe below has always reported
+// overflowPx/overflowingSections; nothing checked the horizontal axis, which is how a TO
+// PREPARE material chip (`.mi{ white-space:nowrap; }` inside `.page{ overflow:hidden }`) could
+// grow wider than its container and lose everything past the page's right edge with no signal
+// anywhere in <stem>.render.json. pdftotext on the produced PDF proved the text was genuinely
+// gone, not merely off-screen.
+//
+// `scrollWidth > clientWidth` (beyond a 1px rounding tolerance) is the standard DOM signal for
+// "this element's own content is wider than the box it was given". The clipped chip's OWN box
+// does not carry that signal — white-space:nowrap just grows the chip's box to fit its unwrapped
+// text, so the chip never overflows itself — the signal appears on whichever ANCESTOR actually
+// has a constrained width (`.mlist`, `.rmat`, `.pad`, potentially `.page`). That is why every
+// element on the page is scanned, not just text-bearing leaves or `[data-sec]` atoms.
+//
+// Kept as a standalone, exported, pure function (duck-typed on {scrollWidth, clientWidth,
+// className, tagName, textContent} — the same surface a real Element exposes) so it has a real
+// Node unit test despite this repo's Jest running `testEnvironment: 'node'` with no jsdom
+// installed (tests/jest.config.js). The in-page PROBE below embeds this exact function body via
+// `.toString()` rather than a hand-copied duplicate, so there is one algorithm, never two that
+// can drift apart — same pattern as `underfilledPages` (see tests/lp612/underfilled-pages-report.test.js).
+function clippedXFromElements(pageId, elements) {
+  const out = [];
+  for (const el of elements) {
+    const sw = el.scrollWidth, cw = el.clientWidth;
+    if (cw > 0 && sw - cw > 1) {
+      out.push({
+        page: pageId,
+        selector: String(el.className || el.tagName || '').slice(0, 80),
+        scrollWidth: sw,
+        clientWidth: cw,
+        text: String(el.textContent || '').trim().slice(0, 60),
+      });
+    }
+  }
+  return out;
+}
+
 // The in-page probe. Runs after fonts.ready; returns geometry + the smallest
 // computed body-text size, so the phone gate can assert D4 without re-rendering.
 const PROBE = `() => {
@@ -962,6 +1116,9 @@ const PROBE = `() => {
       // illusion the operator asked us to stop having.
       if (!el.closest('.foot') && b > contentBottom) contentBottom = b;
     }
+    // See clippedXFromElements above (bd-km7vu) — embedded by source so the in-browser scan and
+    // the unit-tested predicate never drift apart. Reporting only: this never fails the render.
+    const clippedX = (${clippedXFromElements.toString()})(page.id, page.querySelectorAll('*'));
     pages.push({
       id: page.id,
       part: page.dataset.part,          // which part a page ends is the fill floor's exemption
@@ -974,6 +1131,7 @@ const PROBE = `() => {
       lastElement: lastWhat,
       overflowPx: Math.max(0, Math.round(lastBottom - innerBottom)),
       overflowingSections: over,
+      clipped_x: clippedX,
     });
   }
   const byPart = {};
@@ -1224,7 +1382,14 @@ async function renderDoc(a) {
     }
   }
   const byPart = (probe && probe.pagesByPart) || {};
-  const CAPS = pageCapsFor(lang, doc, format);
+  // The stem is the exemption key; `pageCapsFor` looks it up itself, and it is looked up once
+  // more here only so the message can say an exemption was OUTGROWN rather than merely exceeded.
+  // PRIMARY ONLY, and that includes the MESSAGE. Naming the lesson is an improvement G6-12 would
+  // want too, but its defect text is read by a different wave with its own log parsers, and a
+  // G1-5 page-cap ruling is not the thing that should change it. `capCtx` is undefined off the
+  // primary path, which makes `overCapProblem` fall through to the byte-identical old sentence.
+  const capExempt = isPrimary(doc) ? exemptionFor(stem) : null;
+  const CAPS = pageCapsFor(lang, doc, format, stem);
   for (const [part, cap] of Object.entries(CAPS.max)) {
     const n = byPart[part] || 0;
     if (n > cap) {
@@ -1237,7 +1402,9 @@ async function renderDoc(a) {
       const advice = p && p.pages.length === n
         ? overCapAdvice(p.atoms, p.pages, cap, built.secTitles || {})
         : null;
-      problems.push(overCapProblem(part, n, cap, advice));
+      problems.push(overCapProblem(part, n, cap, advice, isPrimary(doc)
+        ? { stem, exempt: part === "teach" && capExempt ? capExempt.teach : null }
+        : null));
     } else if (CAPS.warn[part] && n > CAPS.warn[part]) {
       const target = CAPS.warn[part];
       const p = result.packed && result.packed[part];
@@ -1280,6 +1447,11 @@ async function renderDoc(a) {
     pages_by_part: (probe && probe.pagesByPart) || null,
     max_pages: CAPS.max,
     warn_pages: CAPS.warn,
+    // bd-blxml. WHICH CAP APPLIED, and why it was not 8. `max_pages` alone cannot distinguish a
+    // lesson licensed to 21 from a renderer whose cap has quietly moved; the audit that
+    // regenerates this list has to be able to tell those apart from the reports alone. `null`
+    // on the 295 that need no licence, never absent.
+    page_cap_exemption: capExempt,
     has_raster_figure: !!hasRasterFigure,
     has_vector_figure: !!built.hasVectorFigure,
     page_breaks: result.breaks || null,
@@ -1360,6 +1532,8 @@ module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtoms
   PAGE,
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor, isPrimary,
   MAX_PAGES_PRIMARY, WARN_PAGES_PRIMARY, MAX_PAGES_PRIMARY_UR, WARN_PAGES_PRIMARY_UR,
+  exemptionFor,
   absorbPlan, OVERFLOW_ABSORB_MAX_PX,
   underfilledPages, FILL_TARGET_PCT,
-  BODY_FLOOR_PX, CHIP_FLOOR_PX };
+  BODY_FLOOR_PX, CHIP_FLOOR_PX,
+  clippedXFromElements };

@@ -52,8 +52,19 @@ function doc() {
 const built = (d, opts = {}) =>
   buildHtml(d, { docDir: path.dirname(FIXTURE), lang: 'en', ...opts });
 const build = (d, opts = {}) => built(d, opts).html;
-/** Every atom of the teach part that asks the packer not to break after it. */
-const softAtoms = (d) => (built(d).atoms.teach || []).filter((a) => a.soft);
+/** Every atom of the teach part that asks the packer not to break after it.
+ *
+ *  `soft` was this box's alone when it was written. It is now the seam marker of every block
+ *  the packer may cut mid-way (bd-2hmag: a board per panel, an example per step, key points per
+ *  bullet), so a bare count over the document no longer says anything about the opening band.
+ *  These pair each atom with the markup it owns and ask the question this file actually asks:
+ *  how many of the OPENING BANDS yield. */
+const softAtoms = (d) => {
+  const r = built(d);
+  const cls = [...body(r.html).matchAll(/<[a-z]+ data-atom[^>]*class="([^"]*)"/g)].map((m) => m[1]);
+  return (r.atoms.teach || []).map((a, i) => ({ ...a, cls: cls[i] || '' })).filter((a) => a.soft);
+};
+const softBands = (d) => softAtoms(d).filter((a) => /\bopn\b/.test(a.cls));
 const sheet = (html) => html.split('<style>')[1].split('</style>')[0]
   .replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\(data:[^)]*\)/g, 'url()');
 const body = (html) => html.split('</style>').pop();
@@ -186,14 +197,14 @@ describe('the stylesheet draws one box, not two', () => {
 
 describe('the seam is a soft break, not a glued one', () => {
   test('the warm-up band asks the packer not to break after it', () => {
-    expect(softAtoms(doc()).length).toBe(1);
+    expect(softBands(doc()).length).toBe(1);
   });
 
   test('with no hook there is nothing to stay joined to, so nothing is asked', () => {
-    expect(softAtoms(dropHook(doc())).length).toBe(0);
+    expect(softBands(dropHook(doc())).length).toBe(0);
   });
 
-  test('G6-12 asks for nothing: every atom of the control is packed as it always was', () => {
-    expect(softAtoms(baseDoc()).length).toBe(0);
+  test('G6-12 asks for nothing: no band of the control is packed differently', () => {
+    expect(softBands(baseDoc()).length).toBe(0);
   });
 });

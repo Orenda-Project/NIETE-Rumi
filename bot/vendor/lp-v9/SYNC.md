@@ -2160,6 +2160,11 @@ snapshot.
 
 ### 3.31 `render_lp.js` — primary's WARN is a page TARGET, not the cap minus one (bd-788pe, 2026-09-18)
 
+> **SUPERSEDED by §3.33 (bd-blxml, 2026-09-24).** The operator quotes below stand; the mechanism
+> they produced does not. Primary's WARN is derived from its cap again, at `max - 1`, because under
+> bd-jr91a's ceiling of 16 the authored 4-5 target fired on 319 of 335 built renders (95.2%). Read
+> this section as history, not as the current contract.
+
 **Operator, 2026-09-18:** *"I would like to keep 5 as the cap, once the content is sorted, we can
 come to that page number, no?"* — then, asked which sheet she meant: *"keep the max at 9, but
 ideally 4-5 pages on phone-first"*.
@@ -2297,9 +2302,90 @@ and on the producer side `curriculum/g1-5-resegment/test_d0_media.py` (14). Full
 after bd-s429u: **174 suites / 2333 passing, 5 skipped, 0 failing**. **The D0 Python suites need `LP_V9` pointed at this worktree** until the
 splice merges — same caveat as line 2096 for §3.26–§3.31.
 
+### 3.33 `render_lp.js` + `lib/page_cap_exemptions.js` — the primary cap is 8, and the long lessons are licensed BY NAME (bd-blxml, 2026-09-24)
+
+**This supersedes the numbers in §3.31 and the undocumented bd-jr91a raise of 2026-09-23.** §3.31's
+*mechanism* — a primary WARN that is not derived from MAX — is what is reversed here; its operator
+quotes stand and are re-read below.
+
+**The ask.** Three options were put to the operator on 2026-09-24, with the 40 over-8 lessons
+measured in front of her: (a) raise the cap for those 40 only; (b) re-segment them into more,
+shorter lessons; (c) hold 8 as a target and accept the 40. She answered **"a"**.
+
+**What was actually wrong.** The 8 she has asked for repeatedly — *"I want lower, we cant go beyond
+8, its too much to read and remember!"*, *"22-24 pages no teacher will read ... ever"* — **was not
+enforced anywhere.** bd-jr91a had taken `MAX_PAGES_PRIMARY.teach` to 16 and `MAX_PAGES_PRIMARY_UR.teach`
+to 24 to honour her other standing rule, *"dont cut anything, increase the page cap for those 14"*.
+A hard cap of 24 is the literal opposite of the second quote, and "raise the cap for THOSE" presumes
+a cap the other 295 are held to.
+
+**The census, and it is the corpus, not an estimate.** 335 built PDFs, `pages_by_part.teach` read off
+each lesson's own `.render.json` at the default (phone) format, so the counts are in the sheet a
+teacher receives:
+
+```
+3p:1  4p:15  5p:55  6p:92  7p:98  8p:34 | 9p:19 10p:7 11p:7 12p:1 13p:1 14p:1 15p:2 18p:1 21p:1
+```
+
+295 / 335 (88.1%) already meet 8. 40 exceed it, by 106 pages. Urdu 23/88 (26.1%), Maths 12/105
+(11.4%), Science 3/30 (10.0%), English 2/112 (1.8%).
+
+**The divergence.**
+
+1. `MAX_PAGES_PRIMARY = { teach: 8, support: 3 }` and `MAX_PAGES_PRIMARY_UR = { teach: MAX_PAGES_PRIMARY.teach, support: 4 }`
+   — written as the same constant, not as a second number that happens to agree. The ruling was not
+   language-qualified. Urdu's Nastaliq premium is real and measured, and it is absorbed by the
+   exemption list lesson by lesson; a 12- or 24-page global Urdu cap would hand that licence to every
+   Urdu lesson ever authored, including the ones that fit in 5.
+2. `WARN_PAGES_PRIMARY` / `..._UR` are derived from their cap again, at `max - 1 = 7`. §3.31's
+   authored 4-5 target had become noise under a ceiling of 16: MEASURED over the same 335 renders it
+   fires on **319 (95.2%)**. At 7 it fires on **74 (22.1%)**. **What this gives up is said out loud in
+   the file and in the tests:** her 4-5 phone-first aim is no longer represented by any number here.
+   Carrying both an aim and a last-sheet warning needs a THIRD threshold, which is a design change and
+   hers to ask for.
+3. `lib/page_cap_exemptions.js` + `page_cap_exemptions.json` — new, vendor-only. `pageCapsFor` takes a
+   fourth argument, the render **stem**, and on the primary path raises `max.teach` to that one
+   lesson's own recorded height before `scaleCapsToFormat`, so a licence converts to A4 on the same
+   geometry every other cap does.
+
+**An exemption records a HEIGHT, not a name.** The gate is `n > thatHeight`, never "listed, therefore
+fine". A listed lesson one page taller than its record fails as loudly as an unlisted one, and says
+which list it has outgrown. A list of bare names would be a blanket amnesty that nobody notices going
+stale. **The key is the render stem, not `lesson_id`:** measured over the 335 renders, `lesson_id` is
+not unique (`g5_ch9_Science_seg1` and `g5_ch9_Science_seg10` share `GRADE_5_GENERAL_SCIENCE_CH9_SEG1`)
+and 107 stems do not map to their id by any rule. One id-keyed entry would have licensed two lessons.
+
+**The list is DATA and is marked `provisional: true`.** Today's 40 are not tomorrow's 40 — three
+changes in flight move page counts (sentence-splitting ~+0.25 pages/lesson, the packer fix already
+767 → 757 pages across 112 lessons, and the duplicate board figure ~61 pages). It is regenerated from
+a measured render by `10_Grades 1-5 LP Rebuild/ch9-10-build/regen_cap_exemptions.py`; `--final` is the
+only thing that clears the flag. The loader FAILS on a malformed or missing file rather than
+defaulting to "nothing is exempt".
+
+**Nothing authored was cut, and no elision path exists.** Over cap the renderer still FAILS; the 40
+keep every page they have. `page_cap_exemption` is recorded in each `.render.json` (null on the 295)
+so the regeneration audit can tell a licensed lesson from a moved cap.
+
+**PRIMARY ONLY, including the message.** The non-primary branch, `MAX_PAGES` / `MAX_PAGES_UR` and
+`scriptRows` are untouched, and `overCapProblem`'s new `ctx` argument is passed only on the primary
+path — a G6-12 over-cap sentence is byte-identical to the one it has always had, asserted as such.
+
+**Tests.** `tests/lp612/primary-page-cap-8.test.js` (21, new), `primary-page-cap-exemptions.test.js`
+(26, new), `primary-page-cap-raise.test.js` (rewritten to 12 — it held bd-jr91a's 16/24; what is kept
+is that every lesson bd-jr91a measured over its cap still renders, now by name),
+`page-cap-policy.test.js` §1b/§1c (rewritten to the superseding ruling), and
+`10_Grades 1-5 LP Rebuild/ch9-10-build/test_regen_cap_exemptions.py` (9). `tests/lp612` after:
+**204 suites passing / 2 failing**, both failing for reasons that predate this change and touch no
+file it edits (`keywords-row-atoms.test.js` → `lib/template.js`; `peer-talk-gate.test.js` → a path
+under the pre-rename `10_Grades 1-5 LP Build/`).
+
+**Re-vendoring.** Three hunks in `render_lp.js`, each marked at the site: the primary constants block,
+`pageCapsFor`'s `stem` argument, and `overCapProblem`'s `ctx`. `lib/page_cap_exemptions.js` and
+`page_cap_exemptions.json` are additions with no upstream counterpart.
+
 ### 3.8 Nothing else
 
-Every other file in `lib/` is **byte-identical to upstream**. `lib/template.js` is not: it carries the
+Every other file in `lib/` is **byte-identical to upstream**, with one addition that has no upstream counterpart at all: `lib/page_cap_exemptions.js`, the named per-lesson page-cap licence loader (§3.33). `lib/template.js` is not: it carries the
 four `glue` marks (§3.9), the page-format parameter (§3.14), the NIETE `:root` (§3.15), the board /
 practice re-shaping (§3.16), the script-as-turns renderer (§3.17), the split example with its seam
 rules (§3.18), the two board grid tracks (§3.19), primary's page-1 furniture with the exported

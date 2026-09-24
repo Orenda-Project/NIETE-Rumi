@@ -169,9 +169,32 @@ test("the closing rule is drawn from the surface tokens, never a hex", () => {
 // No word changed, nothing was added or dropped, the chapter and the board chip stayed in the
 // meta column, and no other class moved in either format. Nothing to do with `cfu`, which is
 // still what this file exists to guard.
+//
+// BOTH DIGESTS MOVED AGAIN ON 2026-09-23, and this is that explanation. bd-2hmag packs a
+// `key_points` list one bullet per atom, because as one atom it was among the blocks that would
+// not fit the space a page had left and so left it blank. The control has one such list, of
+// three bullets. Diffed body against body, both formats: ONE hunk, and it is exactly that split
+// --
+//
+//     -      <ul class="kp">
+//     +<ul class="kp">
+//              <li>A product is defined only when ...</li>
+//     +</ul>
+//     +</div>
+//     +<div data-atom class="blk sp-0">
+//     +<ul class="kp" style="margin-top:0">
+//              <li>Entry c_ij is row i of A times column j of B.</li>
+//     ... and the same two lines again before the third bullet.
+//
+// Three `<ul class="kp">` where there was one, in two more `.blk` atoms, and the label still
+// rides bullet 1. NO WORD CHANGED, no bullet was added, dropped or reordered, and no other
+// class moved in either format. It paints identically: `.blk` is `margin:0`, the pieces butt at
+// `sp-0`, and each continuation list zeroes the `--sp-1` top margin `.kp` would otherwise take,
+// so the three lists print as the one list did. Nothing to do with `cfu`, which is still what
+// this file exists to guard.
 const G9_BODY_SHA = {
-  a4: "38da5e7556a797d60605a0ed427b7065733ba5e1c2c09e4e56192ff43de7e164",
-  phone: "2095867d2d593fbbbfdf75bac172aae650702ffb4a0a2aa01cfaabc669f686cb",
+  a4: "12b0ed157554e4032acbd8d0891064d437497b7d9583c517943b8f7dafde6252",
+  phone: "9852ad2830211f397e0690c3a68d3b6f94bdd6c0677717277fd7afef0caf7c19",
 };
 
 test.each(["a4", "phone"])("the grade-9 markup is byte-for-byte what it was (%s)", (format) => {

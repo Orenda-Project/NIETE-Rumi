@@ -1,0 +1,135 @@
+{
+  "_README": "Per-lesson page-cap exemptions for the G1-5 primary renderer. The cap is 8 teach pages (render_lp.js: MAX_PAGES_PRIMARY); a lesson listed here may run to its OWN recorded height and no further. Regenerate with 10_Grades 1-5 LP Rebuild/ch9-10-build/regen_cap_exemptions.py -- never by hand.",
+  "provisional": true,
+  "measured": {
+    "source": "renders/<chapter>/<stem>.render.json",
+    "at": "2026-09-24",
+    "corpus_size": 335,
+    "format": "phone"
+  },
+  "base_cap": {
+    "teach": 8
+  },
+  "entries": {
+    "g1_ch10_Urdu_seg1": {
+      "teach": 9
+    },
+    "g1_ch10_Urdu_seg5": {
+      "teach": 12
+    },
+    "g1_ch8_Urdu_seg6": {
+      "teach": 15
+    },
+    "g1_ch9_Urdu_seg3": {
+      "teach": 11
+    },
+    "g1_ch9_Urdu_seg5": {
+      "teach": 11
+    },
+    "g2_ch10_Urdu_seg6": {
+      "teach": 11
+    },
+    "g2_ch9_English_seg1": {
+      "teach": 13
+    },
+    "g3_ch10_Urdu_seg1": {
+      "teach": 9
+    },
+    "g3_ch10_Urdu_seg6": {
+      "teach": 11
+    },
+    "g3_ch8_Maths_seg2": {
+      "teach": 15
+    },
+    "g3_ch8_Maths_seg3": {
+      "teach": 9
+    },
+    "g3_ch8_Maths_seg4": {
+      "teach": 9
+    },
+    "g4_ch10_Maths_seg10": {
+      "teach": 11
+    },
+    "g4_ch10_Maths_seg5": {
+      "teach": 10
+    },
+    "g4_ch10_Maths_seg6": {
+      "teach": 10
+    },
+    "g4_ch10_Maths_seg9": {
+      "teach": 10
+    },
+    "g4_ch10_Urdu_seg2": {
+      "teach": 11
+    },
+    "g4_ch10_Urdu_seg3": {
+      "teach": 11
+    },
+    "g4_ch9_Maths_seg9": {
+      "teach": 9
+    },
+    "g4_ch9_Urdu_seg2": {
+      "teach": 9
+    },
+    "g4_ch9_Urdu_seg3": {
+      "teach": 9
+    },
+    "g4_ch9_Urdu_seg4": {
+      "teach": 9
+    },
+    "g5_ch10_English_seg5": {
+      "teach": 9
+    },
+    "g5_ch10_Maths_seg10": {
+      "teach": 9
+    },
+    "g5_ch10_Maths_seg8": {
+      "teach": 9
+    },
+    "g5_ch10_Urdu_seg2": {
+      "teach": 14
+    },
+    "g5_ch10_Urdu_seg4": {
+      "teach": 9
+    },
+    "g5_ch10_Urdu_seg5": {
+      "teach": 9
+    },
+    "g5_ch8_Urdu_seg2": {
+      "teach": 9
+    },
+    "g5_ch8_Urdu_seg9": {
+      "teach": 21
+    },
+    "g5_ch9_Maths_seg2": {
+      "teach": 9
+    },
+    "g5_ch9_Maths_seg5": {
+      "teach": 10
+    },
+    "g5_ch9_Science_seg4": {
+      "teach": 9
+    },
+    "g5_ch9_Science_seg5": {
+      "teach": 9
+    },
+    "g5_ch9_Science_seg6": {
+      "teach": 9
+    },
+    "g5_ch9_Urdu_seg1": {
+      "teach": 9
+    },
+    "g5_ch9_Urdu_seg11": {
+      "teach": 18
+    },
+    "g5_ch9_Urdu_seg3": {
+      "teach": 10
+    },
+    "g5_ch9_Urdu_seg4": {
+      "teach": 10
+    },
+    "g5_ch9_Urdu_seg7": {
+      "teach": 10
+    }
+  }
+}

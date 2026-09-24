@@ -74,9 +74,18 @@ describe('the page caps', () => {
  * Amena asked for both renders of every primary plan — *"Both — A4 to review, phone to
  * deliver"* — so a cap only one of them can meet makes the review copy unrenderable.
  *
- * These pin the CONVERSION, not any one number: the phone caps come back untouched (bd-rjt3x's
- * "do not raise the cap" still binds the sheet a teacher receives), A4's are the same budget
- * read off A4's own geometry, and G6-12 does not move on either sheet.
+ * These pin the CONVERSION, not any one number: the phone caps come back untouched by THIS
+ * function, A4's are the same budget read off A4's own geometry, and G6-12 does not move on
+ * either sheet.
+ *
+ * The primary phone numbers below have now moved twice. bd-jr91a took them from teach 9 / 12 to
+ * 16 / 24 on 2026-09-23; bd-blxml took them to 8 / 8 on 2026-09-24, when the operator chose
+ * ruling (a) — a cap of 8 for everyone, and a named per-lesson exemption for the 40 that cannot
+ * meet it. The conversion these tests exist to pin has not changed through either, which is why
+ * every A4 expectation here is derived from the phone number rather than written out — and why
+ * the exemption is applied BEFORE the scaling, so a licensed height converts on the same
+ * geometry. The caps themselves are covered in primary-page-cap-8.test.js and
+ * primary-page-cap-exemptions.test.js; do not "restore" 9, or 16, here.
  */
 describe('the caps convert between page formats', () => {
   const R = require('../../bot/vendor/lp-v9/render_lp.js');
@@ -88,31 +97,45 @@ describe('the caps convert between page formats', () => {
   const box = (f) => PAGE_FORMATS[f].h - PAGE_FORMATS[f].padT - PAGE_FORMATS[f].padB;
 
   test('phone is the sheet the numbers were measured on, and comes back untouched', () => {
-    expect(R.pageCapsFor('en', primary, 'phone').max).toEqual({ teach: 9, support: 3 });
-    expect(R.pageCapsFor('en', primary).max).toEqual({ teach: 9, support: 3 });
-    expect(R.pageCapsFor('ur', primary, 'phone').max).toEqual({ teach: 12, support: 4 });
+    expect(R.pageCapsFor('en', primary, 'phone').max).toEqual({ teach: 8, support: 3 });
+    expect(R.pageCapsFor('en', primary).max).toEqual({ teach: 8, support: 3 });
+    expect(R.pageCapsFor('ur', primary, 'phone').max).toEqual({ teach: 8, support: 4 });
   });
 
   test('A4 carries the SAME budget, converted by what an A4 sheet holds', () => {
     const ratio = box('phone') / box('a4');
     const a4 = R.pageCapsFor('en', primary, 'a4').max;
     // Derived, never restated: a literal would keep passing if the page box moved under it.
-    expect(a4).toEqual({ teach: Math.round(9 * ratio), support: Math.round(3 * ratio) });
-    expect(a4.teach).toBeGreaterThan(14);   // the measured A4 cost of a phone-green 8-page plan
+    expect(a4).toEqual({ teach: Math.round(8 * ratio), support: Math.round(3 * ratio) });
+    // The measured A4 cost of the phone-green 8-page reference plan was 14 sheets. The A4 cap
+    // has to clear it, and this is the conversion doing that work, not the size of the phone
+    // cap: at 8 phone sheets the A4 cap is 14, exactly the reference plan's A4 cost. That is the
+    // sharpest this invariant has ever been, and it is a real consequence of ruling (a) worth
+    // stating: a phone cap of 8 leaves the A4 review copy no headroom at all.
+    expect(a4.teach).toBeGreaterThanOrEqual(14);
+  });
+
+  test('an exempt lesson converts on the same geometry, not at its phone height', () => {
+    // The whole reason the exemption is applied before `scaleCapsToFormat`: a 21-sheet phone
+    // licence read on A4 would fail the A4 render of a lesson that is inside its licence.
+    const ratio = box('phone') / box('a4');
+    expect(R.pageCapsFor('ur', primary, 'a4', 'g5_ch8_Urdu_seg9').max.teach)
+      .toBe(Math.round(21 * ratio));
   });
 
   test('an unknown format falls back to the measured sheet rather than inventing a cap', () => {
-    expect(R.pageCapsFor('en', primary, 'billboard').max).toEqual({ teach: 9, support: 3 });
+    expect(R.pageCapsFor('en', primary, 'billboard').max).toEqual({ teach: 8, support: 3 });
   });
 
-  test('WARN is the operator\'s target on every sheet, never the cap minus one', () => {
-    // Superseded by bd-788pe. WARN used to be derived from MAX because both said the same thing
-    // -- "you are nearly out of room". For primary they now say different things (see 1c), so a
-    // scaled MAX may not overwrite an authored WARN.
+  test('WARN is one sheet under the cap again, on every sheet', () => {
+    // bd-788pe made primary's WARN an authored 4-5 target that did not track the cap. Measured
+    // against bd-jr91a's ceiling of 16 that target fired on 319 of 335 renders (95.2%) and had
+    // stopped being a signal. bd-blxml puts the CEILING where the aim roughly was, so WARN goes
+    // back to meaning what it means everywhere else here: this is your last sheet.
     for (const lang of ['en', 'ur']) {
       for (const format of ['phone', 'a4']) {
         const { max, warn } = R.pageCapsFor(lang, primary, format);
-        expect(warn.teach).toBeLessThan(max.teach - 1);
+        expect(warn.teach).toBeLessThanOrEqual(max.teach - 1);
         expect(warn.support).toBeLessThanOrEqual(max.support - 1);
       }
     }
@@ -132,21 +155,24 @@ describe('the caps convert between page formats', () => {
 // ── 1c · the page TARGET the operator asked for (bd-788pe) ────────────────
 
 /**
- * A CAP AND A TARGET ARE NOT THE SAME NUMBER, AND PRIMARY NOW NEEDS BOTH.
+ * A CAP AND A TARGET ARE NOT THE SAME NUMBER — AND SINCE bd-blxml, PRIMARY CARRIES ONLY A CAP.
  *
- * Operator, 2026-09-18: *"I would like to keep 5 as the cap, once the content is sorted, we can
- * come to that page number, no?"*, then, asked which unit: *"keep the max at 9, but ideally 4-5
- * pages on phone-first"*.
+ * THE HISTORY, because it is the reason this block is not simply deleted. Operator, 2026-09-18:
+ * *"I would like to keep 5 as the cap, once the content is sorted, we can come to that page
+ * number, no?"*, then, asked which unit: *"keep the max at 9, but ideally 4-5 pages on
+ * phone-first"*. Over cap FAILS — the renderer never trims — so a MAX of 5 then would have made
+ * every primary lesson render nothing at all. MAX stayed at 9 and the 4-5 became WARN: a target
+ * saying, on every render, how far off the document was.
  *
- * Both halves are load-bearing. Over cap FAILS -- the renderer never trims -- so a MAX of 5 today
- * would make every primary lesson render nothing at all, which is the one outcome that helps no
- * teacher. MAX therefore stays at the 9 she set when she took "one continuous plan". The 4-5 is
- * where the document is going once the seven "design pending" surfaces carry real content, and
- * the renderer's job until then is to say loudly, on every render, how far off it is.
+ * WHAT KILLED THE TARGET WAS THE CAP MOVING AWAY FROM IT. bd-jr91a raised MAX to 16 / 24 to
+ * clear the corpus ceiling, and a warn of 4 under a cap of 16 fires on everything: MEASURED over
+ * the 335 built renders, 319 of them (95.2%). A signal that fires on 95% of the corpus is not a
+ * signal. bd-blxml then brought the CEILING down to 8 — close to where her aim already was — and
+ * derived WARN from it again at max - 1 = 7, which fires on 74 of 335 (22.1%).
  *
- * So WARN becomes the target: teach 4 + support 1 = the 5 pages she named, in PHONE units,
- * because "phone-first" is her own word and the phone is the sheet a teacher receives. The flip
- * to a hard gate, when the content lands, is one constant.
+ * SO THE 4-5 ASPIRATION IS NO LONGER REPRESENTED BY ANY NUMBER IN THE RENDERER, and this block
+ * now says so rather than asserting a target that is gone. Carrying both a 4-5 aim AND a
+ * last-sheet warning needs a THIRD threshold; that is a design change and hers to ask for.
  */
 describe('the primary page target', () => {
   const R = require('../../bot/vendor/lp-v9/render_lp.js');
@@ -156,35 +182,38 @@ describe('the primary page target', () => {
   const box = (f) => PAGE_FORMATS[f].h - PAGE_FORMATS[f].padT - PAGE_FORMATS[f].padB;
   const ratio = box('phone') / box('a4');
 
-  test('the phone target is 4 teach + 1 support -- the 5 pages she asked for', () => {
-    expect(R.pageCapsFor('en', primary, 'phone').warn).toEqual({ teach: 4, support: 1 });
+  test('WARN is derived from the cap again: max - 1, in both languages', () => {
+    expect(R.pageCapsFor('en', primary, 'phone').warn).toEqual({ teach: 7, support: 1 });
+    expect(R.pageCapsFor('ur', primary, 'phone').warn).toEqual({ teach: 7, support: 1 });
+    expect(R.WARN_PAGES_PRIMARY.teach).toBe(R.MAX_PAGES_PRIMARY.teach - 1);
+    expect(R.WARN_PAGES_PRIMARY_UR.teach).toBe(R.MAX_PAGES_PRIMARY_UR.teach - 1);
   });
 
-  test('Urdu carries the same target with the Nastaliq premium', () => {
-    // round(4 x 1.33) = 5, the same premium every other UR primary constant carries.
-    expect(R.pageCapsFor('ur', primary, 'phone').warn).toEqual({ teach: 5, support: 1 });
+  test('the 4-5 phone-first aim is NOT expressed anywhere — stated, not hidden', () => {
+    // If a third threshold is ever added for her aim, this test is what should fail first.
+    expect(R.pageCapsFor('en', primary, 'phone').warn.teach).toBeGreaterThan(5);
   });
 
-  test('MAX does not move, because over cap FAILS and never trims', () => {
-    expect(R.pageCapsFor('en', primary, 'phone').max).toEqual({ teach: 9, support: 3 });
-    expect(R.pageCapsFor('ur', primary, 'phone').max).toEqual({ teach: 12, support: 4 });
+  test('MAX is still a hard FAIL — that is why it could never be set at 5', () => {
+    expect(R.pageCapsFor('en', primary, 'phone').max).toEqual({ teach: 8, support: 3 });
+    expect(R.pageCapsFor('ur', primary, 'phone').max).toEqual({ teach: 8, support: 4 });
   });
 
-  test('the target converts to A4 on the same geometry the cap does', () => {
-    // A target quoted in phone sheets and read on A4 is the exact defect bd-vbs5w fixed for the
-    // cap. Derived, never restated, so it follows the page box if the box moves.
+  test('WARN converts to A4 on the same geometry the cap does', () => {
+    // A threshold quoted in phone sheets and read on A4 is the exact defect bd-vbs5w fixed for
+    // the cap. Derived, never restated, so it follows the page box if the box moves.
     const warn = R.pageCapsFor('en', primary, 'a4').warn;
-    expect(warn).toEqual({ teach: Math.round(4 * ratio), support: Math.round(1 * ratio) });
+    expect(warn).toEqual({ teach: Math.round(7 * ratio), support: Math.round(1 * ratio) });
   });
 
-  test('the target fires on the lesson we have today, or it is decoration', () => {
-    // The reference plan (G4 English Ch.9 seg 6) measures teach 8 on the phone and 12 on A4 with
-    // every surface still to fill. A target that does not fire on THAT is not a target.
+  test('WARN fires on the lesson we have today, or it is decoration', () => {
+    // The reference plan (G4 English Ch.9 seg 6) measures teach 8 on the phone. At warn 7 that
+    // is one sheet over the warning and exactly at the cap — the render passes and says so.
     expect(R.pageCapsFor('en', primary, 'phone').warn.teach).toBeLessThan(8);
-    expect(R.pageCapsFor('en', primary, 'a4').warn.teach).toBeLessThan(12);
+    expect(8 > R.pageCapsFor('en', primary, 'phone').max.teach).toBe(false);
   });
 
-  test('the target never overtakes the cap it sits under', () => {
+  test('WARN never overtakes the cap it sits under', () => {
     for (const lang of ['en', 'ur']) {
       for (const format of ['phone', 'a4']) {
         const { max, warn } = R.pageCapsFor(lang, primary, format);
@@ -194,7 +223,7 @@ describe('the primary page target', () => {
     }
   });
 
-  test('G6-12 keeps warn one sheet under cap -- the target is a primary decision', () => {
+  test('G6-12 keeps warn one sheet under cap -- unchanged by any G1-5 ruling', () => {
     const secondary = { provenance: { grade: 9 } };
     for (const format of ['phone', 'a4']) {
       const { max, warn } = R.pageCapsFor('en', secondary, format);

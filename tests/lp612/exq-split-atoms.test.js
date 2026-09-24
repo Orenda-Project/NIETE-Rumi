@@ -165,16 +165,25 @@ describe('a scripted example breaks between turns and nowhere else', () => {
     expect(first.html).toContain(LABELS.en.classSays);     // the heads open the script
   });
 
-  test('the piece that opens a card is GLUED, so a break may not fall under a bare tag', () => {
-    const glue = build(script('ido', TURNS)).atoms.teach
-      .map((a, i) => ({ ...a, i }))
-      .filter((a) => a.glue)
-      .map((a) => a.i);
+  // bd-5jaag. This asserted the OPPOSITE until 2026-09-24: that `pc-a` is GLUED. Its stated
+  // reason — "so a break may not fall under a bare tag" — is delivered by the test directly
+  // above, which pins the tag and the set-up INSIDE `pc-a` with turn 1; the glue was never what
+  // guarded it. What the glue did do was forbid the break between TURN 1 and TURN 2 that this
+  // very describe block declares legal, and `glue` is not a cost the packer can weigh against
+  // fill — it deletes the seam from the DP's search space, so no amount of white space reaches
+  // it. Every piece of a split card now prices its seam as `soft`, like every other splitter
+  // bd-2hmag wrote. Measured over 112 re-rendered lessons: no lesson grew, four shrank.
+  test('no piece of a split card forbids its own seam — they are soft costs (bd-5jaag)', () => {
+    const teach = build(script('ido', TURNS)).atoms.teach;
     const cls = atomClasses(build(script('ido', TURNS)).html);
-    expect(glue).toContain(cls.findIndex((c) => c.includes('pc-a')));
-    for (const seam of ['pc-m', 'pc-z']) {
-      expect(glue).not.toContain(cls.findIndex((c) => c.includes(seam)));
+    for (const seam of ['pc-a', 'pc-m', 'pc-z']) {
+      const i = cls.findIndex((c) => c.includes(seam));
+      expect([seam, teach[i].glue === true]).toEqual([seam, false]);
     }
+    // and the opener CHARGES a `splits` cost for its seam, so the card stays whole wherever
+    // staying whole is free. The middles carry neither flag and never have (bd-2hmag, `sp: 0`):
+    // their seams are ordinary unpriced boundaries.
+    expect(teach[cls.findIndex((c) => c.includes('pc-a'))].soft).toBe(true);
   });
 
   test('the closing result travels in the LAST turn’s piece, never stranded from the work', () => {

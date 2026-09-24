@@ -638,13 +638,13 @@
           "additionalProperties": false
         },
         {
-          "description": "KEY POINTS — declarative sentences, <=5.",
+          "description": "KEY POINTS — one declarative SENTENCE per line. It was six bullet POINTS when `maxItems` was written 6; `d0_lines.split_items` now puts one sentence on each line (operator: \"authoring needs to make it an easier read Claude! its difficult to read these pages\"), so the same block carries 7-27 lines and the six-point cap stopped describing what it holds. Nothing is CUT by the split — the same words in the same order, on more lines.",
           "properties": {
             "type": { "const": "key_points" },
             "id": { "type": "string" },
             "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string", "description": "Overrides the printed \"Key points\" label. Pass \"\" to print no label." },
-            "items": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "type": "string", "minLength": 3 } }
+            "items": { "type": "array", "minItems": 1, "maxItems": 42, "description": "MEASURED, not chosen (bd-bdctp). Over the 1,318 key_points blocks of the 335-lesson ch9-10 corpus built by the CURRENT document layer (/usr/bin/python3 -W ignore schema_caps.py --build, 2026-09-24): median 2, p95 13, longest 27 (`you-do-task`, g4_ch10/Maths_seg10). A cap of 6 refuses 220 of the 335 documents. 42 is that longest list with 55% headroom, and the headroom is not decoration — the longest list moved 20 to 27 inside one working session while the document layer was being edited. The cap buys nothing in the renderer: `kpAtoms` (lib/template.js:3409) emits ONE atom per item at any length, `R.key_points` (lib/template.js:2240) maps every item with no slice, and `.kp` (lib/template.js:759-761) sets no height, no grid and no overflow, so a longer list paginates instead of clipping. It is only a guard against a runaway list. Re-measure with `schema_caps.py --build` in 10_Grades 1-5 LP Rebuild/ch9-10-build before changing it.", "items": { "type": "string", "minLength": 3 } }
           },
           "required": ["type", "items"],
           "additionalProperties": false

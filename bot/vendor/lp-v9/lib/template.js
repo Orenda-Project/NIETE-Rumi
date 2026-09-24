@@ -706,6 +706,31 @@ p{ font-size:18px; }
 .board .bk{ font-weight:800; color:var(--navy); }
 .board .bg{ color:#2b3341; }
 .board .bx{ grid-column:1 / -1; color:#2b3341; }
+/* A SPLIT BOARD, PAINTED AS ONE BOX (bd-2hmag) -- .exq's seam idiom (SYNC 3.18) reused
+   verbatim. The pieces butt at sp-0, so the only gap between two panels is the 4px .bp
+   margin that already separated them inside the single box: each piece drops the navy border
+   it shares with the next and zeroes the .bd padding at that edge, and the box closes its
+   radius only at the two ends it really has. A board of one panel emits none of this. */
+.board.pc{ border-radius:0; }
+.board.pc-a{ border-bottom:0; border-radius:var(--r-2) var(--r-2) 0 0; }
+.board.pc-a .bd{ padding-bottom:0; }
+.board.pc-m{ border-top:0; border-bottom:0; }
+.board.pc-m .bd{ padding-top:0; padding-bottom:0; }
+.board.pc-z{ border-top:0; border-radius:0 0 var(--r-2) var(--r-2); }
+.board.pc-z .bd{ padding-top:0; }
+/* ...AND SAYS SO WHEN THE BREAK LANDS ON A SEAM, in the board's own navy rather than the
+   hairline, exactly as .exq does it: second-to-last child is the piece the break cut, and a
+   piece following the continuation strip or a repeated bar is the one it resumed on. .pc-z is
+   excluded, so a board that genuinely ended still closes solid. 2px of border and 3px of
+   padding, spent on a page that was already full. */
+.pad > .board.pc:not(.pc-z):nth-last-child(2){
+  border-bottom:2px dashed var(--navy); border-radius:0 0 var(--r-2) var(--r-2); }
+.pad > .board.pc:not(.pc-z):nth-last-child(2) .bd{ padding-bottom:3px; }
+.pad > .contstrip + .board.pc:not(.pc-a),
+.pad > .bar + .board.pc:not(.pc-a){
+  border-top:2px dashed var(--navy); border-radius:var(--r-2) var(--r-2) 0 0; }
+.pad > .contstrip + .board.pc:not(.pc-a) .bd,
+.pad > .bar + .board.pc:not(.pc-a) .bd{ padding-top:3px; }
 .kwrow{ display:flex; flex-wrap:wrap; gap:var(--sp-1); margin-top:var(--sp-1); }
 /* A key word sits on the grey key-words card, so the chip goes WHITE: a pale chip on a pale card is
    not a chip. White is the page, not a role, which is why it stays a literal here.
@@ -1266,11 +1291,21 @@ ${PAGE.oneColumn ? ".band > .today{ grid-column:1 / -1; order:-1; }" : ""}
    blank spaces". A middle-dot join was one long sentence that wrapped ragged and read as
    indented text; these are chips that flow, so the last line is short and nothing is centred or
    spread. The box is drawn in CSS: a checkbox character would be a font dependency on a page
-   that already ships its own subset. */
+   that already ships its own subset.
+   bd-km7vu: white-space:nowrap on a flex item forces its min-content width — the browser's
+   automatic flex-item floor — up to the FULL unwrapped width of the chip, so a long chip (252
+   chars, worst case) grew wider than .page and was silently clipped by .page{overflow:hidden}.
+   pdftotext proved the tail of the sentence was genuinely gone from the PDF, not just off
+   screen. min-width:0 removes that floor so the chip can shrink to its container; dropping
+   nowrap plus overflow-wrap:break-word lets a long chip wrap onto its own following lines
+   instead. Nothing else changes: the checkbox (.mi::before) and the text after it are still one
+   flex row, so the box stays glued to the first word of the item and the wrapped lines hang
+   indented past it — never mistaken for a new chip. Short chips are unaffected: nowrap was never
+   what made them flow left-to-right several-per-line, .mlist's flex-wrap already does that. */
 .mlist{ display:flex; flex-wrap:wrap; justify-content:flex-start; gap:5px 12px;
       min-width:0; flex:1 1 auto; }
 .mi{ display:inline-flex; align-items:baseline; gap:7px; font-size:19px; font-weight:600;
-      color:var(--s-do-ink); white-space:nowrap; }
+      color:var(--s-do-ink); min-width:0; overflow-wrap:break-word; }
 .mi::before{ content:""; display:inline-block; flex:0 0 auto; width:13px; height:13px;
       border:2px solid var(--s-do-ink); border-radius:var(--r-1); }
 /* KEY WORDS AS A TABLE. Six words were printing as six full-width boxes, which is six borders
@@ -1287,6 +1322,50 @@ ${PAGE.oneColumn ? ".band > .today{ grid-column:1 / -1; order:-1; }" : ""}
 .kwtab .kr:first-child > *{ border-top:0; }
 .kwtab .kr > b{ color:var(--navy); font-weight:800; background:var(--s-quiet); }
 .kwtab .kr > span{ color:var(--ink); }
+/* A SPLIT GLOSSARY, PAINTED AS ONE TABLE (bd-2hmag). The six-row table was one atom ~780px tall,
+   so a page with 1000px left of an A4 could not take it and printed itself blank instead -- the
+   single most visible instance of the underfill defect in the corpus. One atom per row, on the
+   idiom .exq, .board and .pri .pr already use (SYNC 3.18): the pieces butt at sp-0 and the
+   .pc-* classes open the edge each pair shares, so N pieces paint as the one box they were.
+   TWO NESTED BOXES, not one. The .rkw surface draws the tint, the border and the radius; the
+   .kwtab inside it draws a SECOND border and radius, and a naive split restarts both -- plus the
+   .kr:first-child rule below, which would drop the hairline between the last row of one piece and
+   the first row of the next. All three are carried across the seam here.
+   ONE SHARED TERM TRACK. fit-content(45%) below sizes the grey column to ITS OWN grid's widest
+   term, so six grids would step in and out ("mass" against "balance scale") -- the stripe would
+   read as six tables, not one. Each piece is therefore given the SAME explicit first track,
+   computed once from the block (see kwRowPieces), as minmax(floor, 45%) -- NOT
+   minmax(floor, fit-content(45%)), which is invalid CSS and is dropped without a warning. The
+   unsplit table emits no inline track and keeps the rule below untouched. */
+.pri .rescard.pc > .rkw{ border-radius:0; }
+.pri .rescard.pc-a > .rkw{ border-bottom:0; border-radius:var(--r-2) var(--r-2) 0 0; padding-bottom:0; }
+.pri .rescard.pc-m > .rkw{ border-top:0; border-bottom:0; padding-top:0; padding-bottom:0; }
+.pri .rescard.pc-z > .rkw{ border-top:0; border-radius:0 0 var(--r-2) var(--r-2); padding-top:0; }
+.pri .rescard.pc-a > .rkw .kwtab{ border-bottom:0; border-radius:var(--r-1) var(--r-1) 0 0; }
+.pri .rescard.pc-m > .rkw .kwtab{ margin-top:0; border-top:0; border-bottom:0; border-radius:0; }
+.pri .rescard.pc-z > .rkw .kwtab{ margin-top:0; border-top:0; border-radius:0 0 var(--r-1) var(--r-1); }
+/* The rule between two rows is the LOWER row's own border-top, and a continuation piece's row is
+   its table's first child, which zeroes it. Put back, so the seam draws exactly one hairline --
+   the same one the unsplit table drew there. */
+.pri .rescard.pc-m > .rkw .kwtab .kr:first-child > *,
+.pri .rescard.pc-z > .rkw .kwtab .kr:first-child > *{ border-top:1px solid var(--s-quiet-line); }
+/* ...and it says so when a page break actually lands on a seam -- the .exq.pc pair's rule, in the
+   quiet surface's own ink. The piece that ends a page closes solid-dashed and the piece that
+   resumes after the continuation strip opens dashed; a glossary that genuinely ended still closes
+   solid, because .pc-z is excluded. The inner table closes with it, and the restored first-row
+   hairline comes back off, or the page top would print two rules. */
+.pri .pad > .rescard.pc:not(.pc-z):nth-last-child(2) > .rkw{
+  border-bottom:2px dashed var(--s-quiet-ink); border-radius:0 0 var(--r-2) var(--r-2); padding-bottom:3px; }
+.pri .pad > .rescard.pc:not(.pc-z):nth-last-child(2) > .rkw .kwtab{
+  border-bottom:1px solid var(--s-quiet-line); border-radius:0 0 var(--r-1) var(--r-1); }
+.pri .pad > .contstrip + .rescard.pc:not(.pc-a) > .rkw,
+.pri .pad > .bar + .rescard.pc:not(.pc-a) > .rkw{
+  border-top:2px dashed var(--s-quiet-ink); border-radius:var(--r-2) var(--r-2) 0 0; padding-top:3px; }
+.pri .pad > .contstrip + .rescard.pc:not(.pc-a) > .rkw .kwtab,
+.pri .pad > .bar + .rescard.pc:not(.pc-a) > .rkw .kwtab{
+  border-top:1px solid var(--s-quiet-line); border-radius:var(--r-1) var(--r-1) 0 0; }
+.pri .pad > .contstrip + .rescard.pc:not(.pc-a) > .rkw .kwtab .kr:first-child > *,
+.pri .pad > .bar + .rescard.pc:not(.pc-a) > .rkw .kwtab .kr:first-child > *{ border-top:0; }
 /* ONE OPENING BOX -- VENDOR DIVERGENCE (bd-usirc, SYNC §3.22).
    Operator: "thgere should be 1 opening box that first has a warm up that helps kids settle and
    prepare for activating prior knowledge / then the actual hook to engage students with a
@@ -2055,6 +2134,39 @@ function makeBlockRenderer(ctx) {
             ${it.ref ? `<span class="ref">${esc(it.ref)}</span>` : ""}
             ${it.tier && it.tier !== "core" ? `<span class="tier">${esc(L.tier[it.tier] || it.tier)}</span>` : ""}</div>
             <div class="arow"><span class="al">${esc(L.answer)}</span><span class="a">${rich(it.a)}</span></div></div>`;
+  /* Pulled out of R.board so the ATOMISER can re-use them verbatim (bd-2hmag), for the same
+     reason practiceItem is: a board runs to seven panels, and as ONE atom it was the single
+     commonest block that would not fit the space a page had left — 114 of the corpus's 1,039
+     underfilled pages were waiting on one. It is packed one panel per atom instead, and a
+     second copy of this markup would drift from it the first time either was touched. */
+  const boardRow = (r) =>
+    r.term
+      ? `<span class="bk">${rich(r.term)}</span><span class="bg">${rich(r.gloss)}</span>`
+      : `<span class="bx">${rich(r.text)}</span>`;
+  // VENDOR DIVERGENCE (bd-i44jn, SYNC §3.21). A CONNECTOR JOINS TWO BOARDS AND IS A ROW
+  // OF NEITHER. The author of English_seg6 drew a finished box, an arrow reading
+  // "-> APPLY THE CLUE ->", then a second finished box. Printed as a row it read as
+  // something to write INSIDE the second board, which is the opposite of the
+  // relationship drawn. It prints between the two numbered panels, where the teacher
+  // chalks it. Additive: a panel without one emits nothing, so G6-12 is untouched.
+  const boardJoint = (pn) =>
+    pn.connector ? `<div class="bcon">${rich(pn.connector)}</div>` : "";
+  /* The chip is the panel's place in the build, so it counts panels, not rows.
+
+     THE JOINT TRAVELS WITH THE PANEL IT PRECEDES, and that is why it is inside this function
+     rather than emitted between two calls of it: it describes the transition INTO this panel,
+     so a per-panel split that left it behind with the previous one would print the arrow after
+     the board it points at, which reads backwards. Keeping it here means every atomisation of a
+     board gets the pairing right for free. A panel's own `.bb` rows are the drawing the teacher
+     copies, so they are never divided — the cut is always BETWEEN two of these. */
+  const boardPanel = (pn, i) => `${boardJoint(pn)}<div class="bp"><span class="bn">${i + 1}</span>
+        <div>${pn.label ? `<div class="bhd">${rich(pn.label)}</div>` : ""}
+        <div class="bb">${pn.rows.map(boardRow).join("")}</div></div></div>`;
+  const boardLbl = () => `<div class="lbl">${esc(L.board)}</div>`;
+  const boardTitle = (b) => (b.title ? `<div class="btitle">${rich(b.title)}</div>` : "");
+  // Same bargain for key_points, which splits per item (bd-2hmag).
+  const kpLabel = (b) => (b.title === undefined ? L.keyPoints : b.title);
+  const kpItem = (i) => `<li>${rich(i)}</li>`;
   const R = {
     paragraph: (b) => `<div class="blk"><p>${rich(b.text)}</p></div>`,
 
@@ -2084,28 +2196,12 @@ function makeBlockRenderer(ctx) {
     board: (b) => {
       const panels = b.panels || [];
       if (!panels.length) {
-        return `<div class="blk board"><div class="lbl">${esc(L.board)}</div>
+        return `<div class="blk board">${boardLbl()}
       <div class="t">${rich(b.text)}</div></div>`;
       }
-      const row = (r) =>
-        r.term
-          ? `<span class="bk">${rich(r.term)}</span><span class="bg">${rich(r.gloss)}</span>`
-          : `<span class="bx">${rich(r.text)}</span>`;
-      // VENDOR DIVERGENCE (bd-i44jn, SYNC §3.21). A CONNECTOR JOINS TWO BOARDS AND IS A ROW
-      // OF NEITHER. The author of English_seg6 drew a finished box, an arrow reading
-      // "-> APPLY THE CLUE ->", then a second finished box. Printed as a row it read as
-      // something to write INSIDE the second board, which is the opposite of the
-      // relationship drawn. It prints between the two numbered panels, where the teacher
-      // chalks it. Additive: a panel without one emits nothing, so G6-12 is untouched.
-      const joint = (pn) =>
-        pn.connector ? `<div class="bcon">${rich(pn.connector)}</div>` : "";
-      // The chip is the panel's place in the build, so it counts panels, not rows.
-      const panel = (pn, i) => `${joint(pn)}<div class="bp"><span class="bn">${i + 1}</span>
-        <div>${pn.label ? `<div class="bhd">${rich(pn.label)}</div>` : ""}
-        <div class="bb">${pn.rows.map(row).join("")}</div></div></div>`;
-      return `<div class="blk board"><div class="lbl">${esc(L.board)}</div>
-      <div class="bd">${b.title ? `<div class="btitle">${rich(b.title)}</div>` : ""}
-      ${panels.map(panel).join("")}</div></div>`;
+      return `<div class="blk board">${boardLbl()}
+      <div class="bd">${boardTitle(b)}
+      ${panels.map(boardPanel).join("")}</div></div>`;
     },
 
     keywords: (b) => `<div class="blk"><div class="lbl g">${esc(L.keywords)}</div>
@@ -2142,13 +2238,13 @@ function makeBlockRenderer(ctx) {
     },
 
     key_points: (b) => {
-      const label = b.title === undefined ? L.keyPoints : b.title;
+      const label = kpLabel(b);
       // bd-7l7ne -- `items` is required by the schema and only the primary prune can remove it.
       // A heading over an empty list is not a lesson surface, so the block goes with it.
       const items = b.items || [];
       if (!items.length) return "";
       return `<div class="blk">${label ? `<div class="lbl g">${rich(label)}</div>` : ""}
-      <ul class="kp"${label ? "" : ' style="margin-top:0"'}>${items.map((i) => `<li>${rich(i)}</li>`).join("")}</ul></div>`;
+      <ul class="kp"${label ? "" : ' style="margin-top:0"'}>${items.map(kpItem).join("")}</ul></div>`;
     },
 
     /* bd-a8veu.21 — the same facts, one attribute name instead of one per sentence. A ragged
@@ -2404,6 +2500,11 @@ function makeBlockRenderer(ctx) {
   render.movePill = movePill;
   render.practiceTag = practiceTag;
   render.practiceItem = practiceItem;
+  render.boardPanel = boardPanel;
+  render.boardLbl = boardLbl;
+  render.boardTitle = boardTitle;
+  render.kpLabel = kpLabel;
+  render.kpItem = kpItem;
   return render;
 }
 
@@ -2813,15 +2914,133 @@ function page1(doc, ctx, secIndex) {
    *  child of the panel for the one primary rule that takes the label off the left gutter to
    *  reach it, and the meanings are the row on this page that needs the width most -- 230px to
    *  define "present simple tense" was six lines. */
+  const kwRow = (k) => `<div class="kr"><b>${rich(k.word)}</b><span>${rich(k.meaning)}</span></div>`;
   const kwTable = (b) => `<span class="lbl">${esc(L.keywords)}</span>
-    <div class="kwtab">${(b.items || [])
-      .map((k) => `<div class="kr"><b>${rich(k.word)}</b><span>${rich(k.meaning)}</span></div>`)
-      .join("")}</div>`;
+    <div class="kwtab">${(b.items || []).map(kwRow).join("")}</div>`;
+
+  /** THE GLOSSARY, ONE ATOM PER ROW -- bd-2hmag, the same idiom as `boardAtoms`, `kpAtoms`,
+   *  `exqStepAtoms` and the practice branch.
+   *
+   *  THE MEASUREMENT. Six rows is ~780px emitted as ONE atom. On `g1_ch8_Maths_seg4` page 1 had
+   *  ~1000px left after the video card and still could not take it, so the whole table moved to
+   *  page 2 and page 1 printed at 57% fill. `packAtoms` is an exact DP and is page-optimal FOR THE
+   *  ATOMS IT IS GIVEN -- it could not put three rows in the hole because there were no three rows.
+   *
+   *  THE SEAM IS BETWEEN ROWS, NEVER INSIDE ONE: a term and its definition are one statement.
+   *  Nothing is cut -- each row is re-emitted by `kwRow`, the same call the whole table makes, in
+   *  its own wrapper. The label and the key icon ride row 1, so a page never opens on a bare
+   *  definition with nothing saying these are the key words.
+   *
+   *  EVERY SEAM IS `soft`, NEVER `glue`: `soft` prices the break, `glue` forbids it, and forbidding
+   *  it is exactly the "moved whole" behaviour this is fixing.
+   *
+   *  `sec` IS NOT THREADED, because the neighbouring resource-card atoms carry none: the set-up
+   *  furniture is page furniture, not a section, so a continuation page repaints the `.contstrip`
+   *  and no bar -- which is what the dashed-edge rules in the stylesheet key off.
+   *
+   *  TWO ROWS IS THE GATE, as it is for `key_points` and `practice`: one row has no seam, and a
+   *  glossary of one is left byte-for-byte as it was.
+   *
+   *  THE TERM TRACK is computed here and shared by every piece, because `fit-content(45%)` is
+   *  per-grid: six grids each size the grey column to THEIR OWN term and the stripe steps in and
+   *  out ("mass" against "balance scale"). The floor is `kwTermPx` over the longest authored
+   *  term, capped at 45% so the meaning keeps its column.
+   *
+   *  THE TRACK IS `minmax(min(45%, floor), max-content)`, arrived at by discarding three:
+   *    - `minmax(floor, fit-content(45%))` -- INVALID. `fit-content()` is only a standalone
+   *      <track-size> and is illegal inside `minmax()`, so the whole declaration is dropped,
+   *      silently and with no console error, and all six grids fall back to the stylesheet's
+   *      per-grid rule. The column goes ragged and nothing in the HTML says why.
+   *    - `minmax(floor, 45%)` -- VALID and still wrong. Grid's "maximise tracks" step grows every
+   *      non-flexible track to its growth limit before the 1fr track is expanded, so all six sat
+   *      at 45%, the meaning column lost 13% and the render came back a page LONGER.
+   *    - a fixed `min(45%, floor)` -- shared by construction, but then the floor is also the
+   *      ceiling, and wherever the estimate below comes in short the term WRAPS. A Nastaliq term
+   *      broken across two lines is a defect, not a rounding error.
+   *  `max-content` as the growth limit makes the floor a floor only: maximise-tracks grows the
+   *  track to the row's own width if the estimate was short (that one row goes ragged) and
+   *  clamps the growth limit up to the base size when it was long (every row shares the floor,
+   *  which is the case that matters). Nothing can wrap, nothing can clip. */
+  /* HOW WIDE THE TERM COLUMN HAS TO BE, in px, without a browser to ask.
+   *
+   *  The second attempt used `ch`, and `ch` is the advance of "0" -- half again the average
+   *  lowercase letter. On the proof case it put the floor 35px over the real max-content, the
+   *  meaning column lost 13% of its width, every definition re-wrapped and the render came back
+   *  SIX pages instead of five. Filling a page by adding one is not a fix, so the floor is
+   *  estimated from the glyphs instead.
+   *
+   *  Six buckets of advance width, in `em` of the cell's own 800 weight, calibrated by measuring
+   *  the rendered table in Chrome: "lighter" 3.126em, "mass" 2.594em, "heavier" 3.626em,
+   *  "heaviest" 4.146em, "lightest" 3.645em, "balance scale" 6.653em. This table reproduces all
+   *  six within 1.7%, where a character COUNT is out by 30% -- the whole job is not confusing
+   *  "mmmmmm" with "iiiiii", and six buckets does that. The 4% margin below covers the residual
+   *  in the safe direction; 20px is the cell's own 10px+10px padding and 2px is slack.
+   *
+   *  NON-ASCII gets 0.47em, measured the same way off the Urdu render: the six terms of g1_ch8
+   *  Urdu_seg6 run 0.33-0.57em a character, because NASTALIQ JOINS -- a word is far narrower
+   *  than the sum of its isolated glyphs, which is the opposite of the intuition that a complex
+   *  script needs more room. The first version charged 1em a character, which put the floor at
+   *  202.5px where the real column was 116px, took 26% off the meaning column and cost that one
+   *  lesson a whole extra page (15 -> 16). 0.47em lands ~7% over, the same side and the same
+   *  order as the Latin buckets.
+   *
+   *  The 4% margin is spent in the over direction on purpose: an over-estimate costs a few px of
+   *  grey on every row, an under-estimate costs the raggedness of ONE row. Neither can cut or
+   *  clip a term -- the cell is `overflow-wrap:break-word`, never `hidden`, and the growth limit
+   *  is `max-content`. */
+  const KW_ADV = (c) =>
+    c > "\u007f" ? 0.47
+      : ".,:;'\u2019!|()[]{} ijlI".includes(c) ? 0.28
+        : "ftr-".includes(c) ? 0.4
+          : c === "m" ? 0.85
+            : c === "w" ? 0.8
+              : c === "M" || c === "W" ? 1.05
+                : (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") ? 0.68
+                  : 0.58;
+  const kwTermPx = (word) => {
+    let em = 0;
+    for (const c of String(word == null ? "" : word)) em += KW_ADV(c);
+    return +(em * scaledPx(19) * 1.04 + 22).toFixed(2);
+  };
+
+  const kwRowPieces = (b, sp0) => {
+    const items = b.items || [];
+    if (items.length < 2) return null;
+    const floorPx = items.reduce((m, k) => Math.max(m, kwTermPx(k.word)), 0);
+    // `max-content` here was UNBOUNDED (bd-a89ck): measured directly (Chrome devtools computed
+    // styles on the shipped HTML, not inferred), the min() side of minmax() DOES resolve the
+    // 45% correctly against .kwtab's own definite width -- four of five rows in the g2_ch8
+    // Maths_seg3 table land at exactly 202.5px, which IS 45% of the 450px content box. The bug
+    // is the growth limit: CSS Grid's "maximise tracks" step hands a non-flexible track ALL the
+    // free space up to its growth limit BEFORE the sibling `1fr` track is ever sized, and
+    // `max-content` has no ceiling. For the one row whose own term is at or past the 45% floor
+    // (the row that SET floorPx, by construction), that growth limit is the term's full
+    // unwrapped width -- 450px out of 452 measured -- which leaves the `1fr` meaning column 0px.
+    // Capping the growth limit at the SAME `min(45%, floorPx)` the base already uses removes the
+    // unbounded side entirely: the outlier term now wraps inside its shared-floor cell instead of
+    // consuming the meaning column's space. Nothing can overflow; the one term that used to swallow
+    // the row now reads on two or three lines, same as any other overflow-wrap:break-word cell.
+    const track = `minmax(min(45%, ${floorPx}px), min(45%, ${floorPx}px))`;
+    const tab = (i) => `<div class="kwtab" style="grid-template-columns:${track} minmax(0, 1fr)">${kwRow(items[i])}</div>`;
+    const last = items.length - 1;
+    const piece = (cls, inner, o) => ({ html: `<div class="rescard pc ${cls}"><div class="rkw">${inner}</div></div>`, ...o });
+    const out = [piece("pc-a",
+      `<span class="ico">&#128273;</span><span class="lbl">${esc(L.keywords)}</span>${tab(0)}`,
+      { sp: sp0, soft: true })];
+    for (let i = 1; i <= last; i++) {
+      out.push(piece(i === last ? "pc-z" : "pc-m", tab(i), { sp: 0, soft: i < last }));
+    }
+    return out;
+  };
 
   // Each of the four is its own BLOCK, with its own icon and its own tint (bd-a8veu.16) — see the
   // .rescard comment in the stylesheet for why. The icon leads, the way the video's already did;
   // the label's trailing colon goes with the row, because a block boundary already separates the
   // label from what it labels and a colon on top of it is a mark doing nothing.
+  // Which row of the card the glossary landed on -- the one row that may be split per term
+  // (bd-2hmag). -1 when there is no keywords block, which is also what a G6-12 plan leaves it at
+  // as far as the assembly is concerned: G6-12's card is ONE atom and never consults it.
+  let kwRowIndex = -1;
   const resourceRows = (() => {
     const rows = [];
     if (!PRIMARY && resourcesLine) rows.push(resourcesLine);
@@ -2850,6 +3069,7 @@ function page1(doc, ctx, secIndex) {
       rows.push(`<div class="rpace"><span class="ico">&#9201;</span><span class="lbl">${esc(L.pacing)}</span><span>${pacing.join(" + ")} = ${pacingSum} ${esc(L.min)}</span></div>`);
     }
     if (kwHoisted) {
+      kwRowIndex = rows.length;
       rows.push(`<div class="rkw"><span class="ico">&#128273;</span>${PRIMARY ? kwTable(kwHoisted) : blk(kwHoisted, FULL_COL)}</div>`);
     }
     return rows;
@@ -3087,8 +3307,10 @@ function page1(doc, ctx, secIndex) {
      difference is the 2px `.scr` gap at a seam, which is 2px of amber against 2px of amber.
      When a break DOES fall at a seam the two `.pad`-level rules below draw a dashed edge, so a
      card that continues overleaf says so and a card that ended still closes solid. */
-  const exqAtoms = (b) => {
-    const r = scriptRows(b, rich, L);
+  // The card's chrome, which every piece of a split example shares and which the two splitters
+  // below must agree on to the byte -- the tag a page may never open without, the setup that
+  // belongs to it, and the closing result that may never be stranded from the work above it.
+  const exqChrome = (b) => {
     const we = b.type === "faded_example" ? " we" : "";
     const tag = `<span class="tag">${rich(b.title || (we ? L.faded : L.worked))}</span>`;
     const setup = !b.prompt ? ""
@@ -3097,12 +3319,105 @@ function page1(doc, ctx, secIndex) {
     const tail = (we
       ? (b.answer ? `<div class="res">${esc(L.answer)}: ${rich(b.answer)}</div>` : "")
       : (b.result ? `<div class="res">${rich(b.result)}</div>` : "")) + cfuRow(b, rich, L);
-    const piece = (cls, inner, o) => ({ html: `<div class="blk exq${we} pc ${cls}">${inner}</div>`, ...o });
+    return { tag, setup, tail,
+      piece: (cls, inner, o) => ({ html: `<div class="blk exq${we} pc ${cls}">${inner}</div>`, ...o }) };
+  };
+
+  const exqAtoms = (b) => {
+    const r = scriptRows(b, rich, L);
+    const { tag, setup, tail, piece } = exqChrome(b);
     const last = r.rows.length - 1;
+    // bd-5jaag. `soft`, NOT `glue` -- the same rule bd-2hmag wrote for every other splitter, which
+    // this branch was explicitly held out of. `glue` does not lose the packer's even-fill tie-break,
+    // it removes the seam from the DP's search space, so no amount of fill pressure can reach it --
+    // and the seam it removes is the break between TURN 1 and TURN 2, which the header above
+    // declares legal. The tag and the set-up ride inside `pc-a`, so nothing orphans either way.
+    // Measured over 112 rendered lessons: 879 -> 875 pages, 43.36% -> 40.55% of non-final pages
+    // under the 85% floor, four lessons a page shorter and not one lesson a page longer.
     const out = [piece("pc-a", `${blk.movePill(b)}${tag}${setup}<div class="scr">${r.head}${r.rows[0]}</div>`,
-      { sp: 2, glue: true })];
+      { sp: 2, soft: true })];
     for (let i = 1; i < last; i++) out.push(piece("pc-m", `<div class="scr">${r.rows[i]}</div>`, { sp: 0 }));
     out.push(piece("pc-z", `<div class="scr">${r.rows[last]}</div>${tail}`, { sp: 0 }));
+    return out;
+  };
+
+  /* AN EXAMPLE WITH NO `turns` SPLITS TOO (bd-2hmag) -- 51 of the corpus's underfilled pages
+     were waiting on one, second only to the board.
+
+     `scriptRows` has two branches and only one of them was ever split. A block with `turns`
+     comes back as rows and goes through `exqAtoms` above; a block with a flat `steps` list --
+     which every G6-12 document has, and 145 primary blocks besides -- comes back as ONE `<ol>`
+     string, so it was handed to the packer whole no matter how long it ran. The longest in the
+     corpus is 34 steps. That branch of `scriptRows` is a control (`tests/lp612`) and is NOT
+     touched here: the split is assembled from `b.steps` directly, one step per atom, and the
+     unsplit rendering still goes through `script()` exactly as before.
+
+     SIX STEPS IS WHERE THE SEAM STARTS TO PAY. Five or fewer already fits the tail of a page,
+     and the corpus is bimodal about it -- 113 examples of 1-5 steps, 149 of 6-34 -- so the gate
+     falls in the trough and costs no short block a seam it cannot use.
+
+     `<ol>` RESTARTS AT 1, so every continuation piece carries `start` — the teacher reads
+     "step 7", not a second step 1. The tag and setup ride step 1 so a page never opens on a bare
+     instruction, and the result/CFU rides the last step, which is `exqAtoms`'s rule verbatim. */
+  const exqStepAtoms = (b) => {
+    const steps = b.steps;
+    const { tag, setup, tail, piece } = exqChrome(b);
+    const last = steps.length - 1;
+    const ol = (i, attr) => `<ol${attr}><li>${rich(steps[i])}</li></ol>`;
+    const out = [piece("pc-a", `${blk.movePill(b)}${tag}${setup}${ol(0, "")}`, { sp: 2, soft: true })];
+    for (let i = 1; i <= last; i++) {
+      out.push(piece(i === last ? "pc-z" : "pc-m",
+        `${ol(i, ` start="${i + 1}" style="margin-top:0"`)}${i === last ? tail : ""}`,
+        { sp: 0, soft: i < last }));
+    }
+    return out;
+  };
+
+  /* A BOARD IS PACKED ONE PANEL PER ATOM (bd-2hmag) -- the biggest single win in the defect,
+     114 underfilled pages. Up to seven numbered panels went to the packer as one block, so a
+     page with room for two of them took none and printed the rest of itself blank.
+
+     WHAT IS NOT CUT. A panel's `.bb` rows are the drawing the teacher copies onto a real board,
+     so the seam is always BETWEEN panels, and `boardPanel` keeps each connector with the panel
+     it points INTO (bd-i44jn). The gold label bar and the board's title ride panel 1, so a page
+     never opens on a numbered drawing with nothing saying it is the board.
+
+     PAINTS AS ONE BOX, on `.exq`'s idiom (SYNC 3.18): the pieces butt at sp-0 and the `.pc-*`
+     rules open the navy border and the `.bd` padding at each seam, so the 4px `.bp` margin is
+     the only gap -- the same 4px that separated two panels inside the single box. A break that
+     lands on a seam dashes that edge in the board's own navy. One panel, or a board with no
+     panels at all, is left exactly as it was: there is nothing to cut. */
+  const boardAtoms = (b) => {
+    const panels = b.panels;
+    const last = panels.length - 1;
+    const piece = (cls, inner, o) => ({ html: `<div class="blk board pc ${cls}">${inner}</div>`, ...o });
+    const out = [piece("pc-a",
+      `${blk.movePill(b)}${blk.boardLbl()}<div class="bd">${blk.boardTitle(b)}${blk.boardPanel(panels[0], 0)}</div>`,
+      { sp: 2, soft: true })];
+    for (let i = 1; i <= last; i++) {
+      out.push(piece(i === last ? "pc-z" : "pc-m",
+        `<div class="bd">${blk.boardPanel(panels[i], i)}</div>`, { sp: 0, soft: i < last }));
+    }
+    return out;
+  };
+
+  /* KEY POINTS, ONE BULLET PER ATOM (bd-2hmag) -- 22 underfilled pages. `.blk` has no box of
+     its own here, so there is no seam to paint and no `.pc-*` needed: two `<ul class="kp">`
+     butting at sp-0 with the second's top margin zeroed print as one list. The label rides
+     bullet 1 for the usual reason. The numbering is a marker, not a count, so nothing has to
+     be carried across the seam the way `<ol start>` does for an example. */
+  const kpAtoms = (b) => {
+    const label = blk.kpLabel(b);
+    const last = b.items.length - 1;
+    const wrap = (inner) => `<div class="blk">${inner}</div>`;
+    const list = (i, attr) => `<ul class="kp"${attr}>${blk.kpItem(b.items[i])}</ul>`;
+    const out = [{
+      html: wrap(`${blk.movePill(b)}${label ? `<div class="lbl g">${rich(label)}</div>` : ""}${list(0, label ? "" : ' style="margin-top:0"')}`),
+      sp: 2, soft: true,
+    }];
+    for (let i = 1; i <= last; i++) {
+      out.push({ html: wrap(list(i, ' style="margin-top:0"')), sp: 0, soft: i < last });
+    }
     return out;
   };
 
@@ -3113,7 +3428,22 @@ function page1(doc, ctx, secIndex) {
         && Array.isArray(b.turns) && b.turns.length >= 4) {
       return exqAtoms(b);
     }
-    if (b.type === "practice" && Array.isArray(b.items) && b.items.length >= 3) {
+    // ...and the other branch of the same block: a flat `steps` list, which no length ever split.
+    // `turns` still wins where both are present, so nothing that splits today changes.
+    if ((b.type === "worked_example" || b.type === "faded_example")
+        && !(Array.isArray(b.turns) && b.turns.length)
+        && Array.isArray(b.steps) && b.steps.length >= 6) {
+      return exqStepAtoms(b);
+    }
+    if (b.type === "board" && Array.isArray(b.panels) && b.panels.length >= 2) {
+      return boardAtoms(b);
+    }
+    // Two bullets is already worth a seam: the list carries no box and no tag, so a piece costs
+    // nothing but the `<ul>` it was going to print anyway.
+    if (b.type === "key_points" && Array.isArray(b.items) && b.items.length >= 2) {
+      return kpAtoms(b);
+    }
+    if (b.type === "practice" && Array.isArray(b.items) && b.items.length >= 2) {
       // YOU-DO lists are the one body block that may break BETWEEN items (operator, v8.1) —
       // the tag stays glued to item 1 so a page never opens on a bare numbered line.
       //
@@ -3121,12 +3451,26 @@ function page1(doc, ctx, secIndex) {
       // own, and a box per item would be 24 boxes in the longest corpus lesson. The `.pc-*` seam
       // classes and the sp-0 butt are `.exq`'s idiom (SYNC 3.18) reused verbatim; G6-12 emits
       // neither, so it renders exactly as it did.
+      //
+      // TWO ITEMS (bd-2hmag): 13 underfilled pages were waiting on a list of one or two, which
+      // fell under the old `>= 3` gate. A two-item list has exactly ONE seam, and `glue` on the
+      // opening piece forbids precisely that break -- so the split would buy nothing and the
+      // gate would be theatre. It takes `soft` instead, which prices the break rather than
+      // banning it.
+      //
+      // EVERY LENGTH TAKES `soft` (bd-5jaag). bd-2hmag left `glue` on three-or-more on the theory
+      // that *"there are then later seams for the packer to use"*. Measured on the real atom
+      // heights of 112 rendered lessons, there are not: six lessons each spend a whole page on
+      // that one forbidden seam, and unforbidding it costs no lesson a page. The tag still rides
+      // in the opening piece with item 1, so no page opens on a bare numbered line that did not
+      // already -- a break after item 1 lands on `.pr.pc:not(.pc-a)`, which the stylesheet has
+      // always styled for exactly this.
       const seam = (cls) => (PRIMARY ? ` pc ${cls}` : "");
       const last = b.items.length - 1;
       const out = [{
         html: `<div class="blk pr${seam("pc-a")}">${blk.movePill(b)}<span class="tag">${rich(blk.practiceTag(b))}</span>
           <div class="items">${blk.practiceItem(b.items[0], 0)}</div></div>`,
-        sp: 2, glue: true,
+        sp: 2, soft: true,
       }];
       for (let i = 1; i <= last; i++) {
         out.push({
@@ -3245,7 +3589,14 @@ function page1(doc, ctx, secIndex) {
   // G6-12 STAYS ONE ATOM. Its rows are one-liners that read as a single card of addresses, and
   // a break between two of them would be a page turn in the middle of a list.
   if (PRIMARY) {
-    resourceRows.forEach((r, i) => A.push(atom(`<div class="rescard">${r}</div>`, { sp: i ? 1 : 2 })));
+    resourceRows.forEach((r, i) => {
+      // ...and the glossary goes one step finer still: one atom per term/definition row, so a
+      // page with room for three rows takes three instead of moving all six (bd-2hmag). Below the
+      // two-row gate `kwRowPieces` returns null and the row is pushed exactly as it always was.
+      const pieces = i === kwRowIndex ? kwRowPieces(kwHoisted, i ? 1 : 2) : null;
+      if (pieces) { for (const pc of pieces) A.push(atom(pc.html, { soft: pc.soft, sp: pc.sp })); return; }
+      A.push(atom(`<div class="rescard">${r}</div>`, { sp: i ? 1 : 2 }));
+    });
   } else {
     A.push(atom(resourcesCard, { sp: 2 }));
   }
@@ -3256,7 +3607,10 @@ function page1(doc, ctx, secIndex) {
   // them, the order they had inside the Introduction, so nothing about the pair reads differently
   // for having moved. `glue` is left to `boardPlanAtoms`' own atoms, which already carry it.
   if (bdHoisted) {
-    A.push(atom(blk(bdHoisted, FULL_COL), { sp: 2 }));
+    // Through `blockAtoms`, not `blk`, so the hoisted copy splits per panel exactly as the
+    // in-flow one does (bd-2hmag). This is the SAME BLOCK rendered at a second call site, and
+    // the two drifting apart is how the hoist gets a defect the flow does not have.
+    for (const x of blockAtoms(bdHoisted, FULL_COL)) A.push(atom(x.html, { glue: x.glue, soft: x.soft, sp: x.sp }));
     for (const x of boardPlanAtoms(doc, ctx)) A.push(atom(x.html, { glue: x.glue, sp: x.sp }));
   }
 
