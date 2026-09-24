@@ -277,4 +277,30 @@ function duplicateQuestionErrors(questions) {
   return errs;
 }
 
-module.exports = { duplicateQuestionErrors };
+/**
+ * A pair the blind solver says asks the same fact (transcript-quiz-key-verify
+ * "same_fact"), held to that contract in code before anything acts on it: the
+ * same answer (as written, or without a trailing Urdu postposition), not two
+ * different pictures, and the same numbers and quoted items — so one template
+ * on another item ("round 18" / "round 16") never passes. The words of the two
+ * stems are the solver's to judge; this rule only refuses what the answer and
+ * the items already show to be two questions.
+ */
+function confirmsSameFact(qa, qb) {
+  const a = prepare(qa);
+  const b = prepare(qb);
+  if (!a || !b) return false;
+  if (a.picture && b.picture && a.picture !== b.picture) return false;
+  return sameAnswer(a, b) && sameItem(a, b);
+}
+
+/** The complaint a confirmed solver pair puts on its LATER question — the same code as a word-for-word repeat. */
+function solverDuplicateComplaint(questions, i, j) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const first = prepare(qs[i]);
+  const stem = first ? clip(base(first.stem), QUOTE_CAP) : '';
+  const answer = first ? clip(first.answerShown, 40) : '';
+  return `q${j}: DUPLICATE_QUESTION — asks what q${i} already asks, in other words («${stem}»), with the same answer («${answer}»), so a child would answer the same question twice (found by a solver reading the whole quiz); replace it with a question on another example or idea from the lesson, with a different answer`;
+}
+
+module.exports = { duplicateQuestionErrors, confirmsSameFact, solverDuplicateComplaint };
