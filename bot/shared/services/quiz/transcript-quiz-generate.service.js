@@ -24,7 +24,9 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
-const { validate, MIN_QUESTIONS, figureDensity } = require('./transcript-quiz-validator');
+const {
+  validate, MIN_QUESTIONS, figureDensity, latinNames,
+} = require('./transcript-quiz-validator');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
 } = require('./transcript-quiz-language');
@@ -1617,6 +1619,16 @@ async function process(quizId, payload = {}) {
       cardUrls = kv.cardUrls;
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
+    }
+    // ── A NAME IN ENGLISH LETTERS IN AN URDU QUIZ (recorded, never refused) ──
+    const names = latinNames(questions, { language, digest });
+    if (names.length) {
+      meta.soft_faults = [...(meta.soft_faults || []), ...names];
+      logEvent('transcript_quiz.latin_name', {
+        quizId, quiz_source: quizSource,
+        names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],
+        questions: [...new Set(names.map((e) => Number(/^q(\d+)/.exec(e)[1])))],
+      });
     }
     const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
