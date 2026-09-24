@@ -148,6 +148,13 @@ const MATH_TEX = /^q\d+: MATH_TEX\b/;
  */
 const KEY_DISAGREEMENT_RULE = 'KEY CHECK. A question rejected for KEY_DISAGREEMENT, KEY_AMBIGUOUS or KEY_NONE_CORRECT was answered by a solver who was NOT shown its answer, and the solver did not arrive at the answer marked correct. Check the fact itself before you write — the spelling, the letters of a word, the sum, the definition. Exactly one option must be correct beyond doubt (for a "select all" question, exactly the options in "correct_indices"), and "correct_index" must point at it; every other option must be clearly wrong — never the right answer in another order or other words. This is a fault where you may keep the same question: fix the options and "correct_index", and make "explanation" and "option_feedback" say the right answer.';
 const KEY_DISAGREEMENT = /^q\d+: KEY_(DISAGREEMENT|AMBIGUOUS|NONE_CORRECT)\b/;
+/**
+ * An item whose explanation sides with the class against the fact it states
+ * (transcript-quiz-key-authority): the recording's mistake was made the key.
+ * Stated only when that complaint is present.
+ */
+const KEY_BY_AUTHORITY_RULE = 'KEY BY AUTHORITY. A question rejected for KEY_BY_AUTHORITY gave, as the reason its answer is right, what was said or accepted in class — against the fact its own explanation states. A recording can hold a mistake: a teacher misspeaks, or holds a wrong idea (calls 4/8 not a proper fraction, uses an incomplete sentence as an example of a sentence). Decide the answer by the subject alone — the definition, the rule, the sum, the spelling. Exactly one option must be right by the subject and "correct_index" must point at it; if no option is, change the options. If the class\'s mistake is the point of the question, ask about the correct fact instead. This is a fault where you may keep the same question: fix the options and "correct_index", and make "explanation" and "option_feedback" give the fact as the reason — never the teacher\'s word, and never "but in class …".';
+const KEY_BY_AUTHORITY = /^q\d+: KEY_BY_AUTHORITY\b/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code points (characters) and every OPTION at most 72 — anything longer is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
@@ -264,6 +271,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_DISAGREEMENT.test(e))) ? [KEY_DISAGREEMENT_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_BY_AUTHORITY.test(e))) ? [KEY_BY_AUTHORITY_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -755,6 +763,6 @@ module.exports = {
   pictureCandidates, buildAddPicturePrompt, mergeAddedPictures, addPictures,
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT, MATH_TEX_RULE, MATH_TEX,
-  KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT,
+  KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT, KEY_BY_AUTHORITY_RULE, KEY_BY_AUTHORITY,
   teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };
