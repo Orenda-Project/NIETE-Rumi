@@ -128,6 +128,20 @@ describe('1 — the digest records each person once, with the Urdu spelling', ()
     expect(Digest.normaliseDigest({ topic: 'x' }).people).toEqual([]);
   });
 
+  test('a common name is written the way families write it, whatever spelling the model guessed', () => {
+    // Replayed: 3 of 16 lesson-plan digests spelled Hira «ہرا» — the Urdu word
+    // for "green" — and, fed to every writer, the whole quiz said it.
+    const d = Digest.normaliseDigest({ topic: 'x', people: [{ latin: 'Hira', ur: 'ہرا' }, { latin: 'Ali', ur: 'الی' }, { latin: 'Gulnaz', ur: 'گلناز' }] });
+    expect(d.people).toEqual([{ latin: 'Hira', ur: 'حرا' }, { latin: 'Ali', ur: 'علی' }, { latin: 'Gulnaz', ur: 'گلناز' }]);
+    // a stored digest from before is read the same way
+    const v = validate(withLeftovers(), { ...CTX, digest: { ...DIGEST, people: [{ latin: 'Hira', ur: 'ہرا' }] } });
+    expect(JSON.stringify(v.questions)).not.toContain('ہرا');
+    expect(v.questions[1].selected_because).toContain('حرا');
+    // and both digest prompts say a name is never spelled as an ordinary Urdu word
+    [Digest.buildDigestPrompt({ transcript: 'سبق', transcriptLanguage: 'ur' }), LpDigest.buildLpDigestPrompt({ slideScript: F.SLIDE_SCRIPT, language: 'ur' })]
+      .forEach((p) => expect(p).toMatch(/Hira → «حرا», never «ہرا»/));
+  });
+
   test('the lesson-plan digest keeps the people its model returns', async () => {
     mockCreate.mockResolvedValueOnce(reply({ ...F.MODEL_DIGEST, people: PEOPLE }));
     const out = await LpDigest.run({ slideScript: F.SLIDE_SCRIPT, language: 'ur', grade: 3, subject: 'urdu', lessonId: F.LESSON_ID });

@@ -28,6 +28,35 @@
 const LATIN_NAME = /^[A-Z][a-z]{2,}(?: [A-Z][a-z]{2,}){0,2}$/;
 const MAX_PEOPLE = 8;
 
+/**
+ * THE SPELLING FAMILIES USE for the names a word problem is likely to use.
+ * The model guesses a spelling from the English letters, and a guess can be an
+ * ordinary Urdu word: replayed, 3 of 16 lesson-plan digests spelled Hira «ہرا»
+ * — "green" — and, handed to every writer, the whole quiz said it. A name in
+ * this table is written this way whatever the model returned; any other name
+ * keeps the model's spelling. Keys are lowercase English spellings (variants
+ * included).
+ */
+const STANDARD_SPELLING = {
+  hira: 'حرا', hina: 'حنا', ali: 'علی', ahmed: 'احمد', ahmad: 'احمد', sara: 'سارہ', sarah: 'سارہ',
+  ayesha: 'عائشہ', aisha: 'عائشہ', fatima: 'فاطمہ', fatimah: 'فاطمہ', zainab: 'زینب', maryam: 'مریم', mariam: 'مریم',
+  amna: 'آمنہ', hamza: 'حمزہ', bilal: 'بلال', usman: 'عثمان', umar: 'عمر', omar: 'عمر', hassan: 'حسن', hasan: 'حسن',
+  hussain: 'حسین', husain: 'حسین', sana: 'ثناء', asad: 'اسد', saad: 'سعد', zara: 'زارا', iqra: 'اقرا', noor: 'نور',
+  nadia: 'نادیہ', rabia: 'رابعہ', saima: 'صائمہ', sadia: 'سعدیہ', kiran: 'کرن', imran: 'عمران', kamran: 'کامران',
+  farhan: 'فرحان', faisal: 'فیصل', salman: 'سلمان', adnan: 'عدنان', danish: 'دانش', haris: 'حارث', talha: 'طلحہ',
+  zeeshan: 'ذیشان', arslan: 'ارسلان', rehan: 'ریحان', babar: 'بابر', aslam: 'اسلم', akram: 'اکرم', nasir: 'ناصر',
+  tariq: 'طارق', khalid: 'خالد', hamid: 'حامد', rashid: 'راشد', shahid: 'شاہد', zubair: 'زبیر', yasir: 'یاسر',
+  hafsa: 'حفصہ', hareem: 'حریم', huma: 'ہما', laiba: 'لائبہ', areeba: 'اریبہ', anam: 'انعم', mahnoor: 'ماہ نور',
+  abdullah: 'عبداللہ', ibrahim: 'ابراہیم', ismail: 'اسماعیل', yusuf: 'یوسف', yousuf: 'یوسف', musa: 'موسیٰ',
+};
+
+/** The standard spelling of a name in English letters, word by word, or null when a word is not in the table. */
+function standardSpelling(latin) {
+  const words = String(latin || '').toLowerCase().split(' ');
+  const spelled = words.map((w) => STANDARD_SPELLING[w]);
+  return spelled.every(Boolean) ? spelled.join(' ') : null;
+}
+
 /** An Urdu spelling: Urdu script, no English letter, short. */
 function urduSpelling(value) {
   const u = String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -46,7 +75,7 @@ function normalisePeople(raw) {
   (Array.isArray(raw) ? raw : []).forEach((p) => {
     if (!p || typeof p !== 'object') return;
     const latin = String(p.latin ?? '').replace(/\s+/g, ' ').trim();
-    const ur = urduSpelling(p.ur);
+    const ur = urduSpelling(p.ur) && (standardSpelling(latin) || urduSpelling(p.ur));
     if (!LATIN_NAME.test(latin) || !ur || seen.has(latin)) return;
     seen.add(latin);
     out.push({ latin, ur });
@@ -62,7 +91,7 @@ function validSpellings(map) {
   const out = {};
   if (!map || typeof map !== 'object' || Array.isArray(map)) return out;
   Object.entries(map).forEach(([latin, urdu]) => {
-    const ur = urduSpelling(urdu);
+    const ur = urduSpelling(urdu) && (standardSpelling(latin) || urduSpelling(urdu));
     if (LATIN_NAME.test(latin) && ur) out[latin] = ur;
   });
   return out;
@@ -137,9 +166,9 @@ function peopleRule(digest, language) {
  * the lesson-plan paths (the `material` names what the lesson is).
  */
 function peopleDigestRule(material = 'the lesson') {
-  return `- "people": each PERSON ${material}'s examples, stories or word problems are about (the child whose bottle or apples an example uses, a character in a story), once each, as { "latin": the name in English letters, "ur": the same name in Urdu script }. Only the people IN the material — never the teacher, and never a child in the class who was called on or named. [] when there are none.`;
+  return `- "people": each PERSON ${material}'s examples, stories or word problems are about (the child whose bottle or apples an example uses, a character in a story), once each, as { "latin": the name in English letters, "ur": the same name in Urdu script, spelled the way Pakistani families write it — never a spelling that is an ordinary Urdu word (Hira → «حرا», never «ہرا», which means "green") }. Only the people IN the material — never the teacher, and never a child in the class who was called on or named. [] when there are none.`;
 }
 
 module.exports = {
-  LATIN_NAME, normalisePeople, validSpellings, peopleSpellings, spellText, spellQuestion, spellNames, peopleRule, peopleDigestRule,
+  LATIN_NAME, STANDARD_SPELLING, standardSpelling, normalisePeople, validSpellings, peopleSpellings, spellText, spellQuestion, spellNames, peopleRule, peopleDigestRule,
 };
