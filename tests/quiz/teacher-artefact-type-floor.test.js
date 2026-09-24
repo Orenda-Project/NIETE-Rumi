@@ -92,7 +92,9 @@ describe.each([
 describe('teacher PDF — the reading blocks sit ON the body floor', () => {
   const html = renderTeacher({ ...PDF_BASE, language: 'en', contentLanguage: 'en' });
   test.each([
-    ['.taught .sum', 'what she taught'],
+    // Both reading boxes share one '.band .sum' rule (the checks box used to
+    // miss its padding when it was scoped to '.taught').
+    ['.band .sum', 'what the teacher taught'],
     ['.checks .checks-sum', 'what the quiz checks'],
     ['.stem', 'the question'],
     ['.opt', 'an option the child taps'],
@@ -130,7 +132,7 @@ describe('class report — the reading blocks sit ON the body floor', () => {
  */
 describe.each([
   ['teacher PDF', (lang) => renderTeacher({ ...PDF_BASE, language: lang, contentLanguage: lang }), {
-    body: ['.taught .sum', '.checks .checks-sum', '.opt', '.who', '.foot'],
+    body: ['.band .sum', '.checks .checks-sum', '.opt', '.who', '.foot'],
     small: ['.stchip .l', '.pill', '.cmeta', '.opt .tag', '.brand'],
     label: ['.eyebrow', '.label'],
   }],

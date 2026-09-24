@@ -24,7 +24,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { PALETTE, FONTS, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
+const { PALETTE, FONTS, NASTALIQ, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { cardPalette } = require('./video-quiz-scorecard.template');
 const { subjectLabel } = require('../services/quiz/transcript-quiz-language');
@@ -175,6 +175,10 @@ function renderLeaderboardHtml(d) {
   const me = ranked[targetIndex] || null;
   const avg = n ? Math.round(ranked.reduce((s, r) => s + Number(r.pct || 0), 0) / n) : 0;
   const shown = visibleRows(ranked, targetIndex, mode);
+  // A list holding any Urdu-script name sets EVERY name on the Nastaliq pitch,
+  // so its rows stay one height instead of Urdu rows standing taller than
+  // Latin ones. A list of Latin names only is untouched.
+  const urNames = shown.some((r) => !r.gap && !r.anon && dirOf(r.name || '') === 'rtl');
 
   const logoImg = a.nieteMark ? `<img class='logo' src='data:image/png;base64,${a.nieteMark}' alt='NIETE'>` : '';
   const lattice = latticeSvg({ id: 'niete-lattice-lb', line: '#ffffff', opacity: 0.085 });
@@ -255,7 +259,12 @@ function renderLeaderboardHtml(d) {
   .dia2>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:${FONTS.bodyLatin};font-size:12.5px;font-weight:800;direction:ltr}
   .row.me .dia2>span{color:${palette.badgeInk}}
   .nm{flex:1 1 0;min-width:0;font-size:${RTL ? '18px' : '17px'};font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:start}
-  .nm[dir="rtl"]{font-size:19px;line-height:1.6}
+  .nm[dir="rtl"]{font-size:19px}
+  .list.ur-names .nm{line-height:${NASTALIQ.leading.bold}}
+  /* A name is one line, so its row only has to hold one line's ink: on the
+     Nastaliq pitch the line box already does, and the row gives back most of
+     its own vertical padding instead of growing by all of it. */
+  .list.ur-names .row:not(.gap){padding-top:4px;padding-bottom:4px}
   .row.anon .nm::before{content:'';display:inline-block;width:64px;height:9px;border-radius:5px;background:rgba(255,255,255,.28);vertical-align:middle}
   .youtag{display:inline-block;font-family:${RTL ? FONTS.bodyUrdu : FONTS.bodyLatin};font-size:${RTL ? '14px' : '11px'};letter-spacing:${RTL ? '0' : '.1em'};${RTL ? '' : 'text-transform:uppercase;'}
     background:${palette.accent};color:${palette.badgeInk};border-radius:8px;padding:${RTL ? '0 8px 2px' : '2px 7px'};margin-inline-start:8px;vertical-align:middle;line-height:1.4}
@@ -268,6 +277,24 @@ function renderLeaderboardHtml(d) {
   .dots{flex:0 0 30px;text-align:center;letter-spacing:3px;opacity:.55;font-weight:800}
   .gaptxt{font-size:${RTL ? '16px' : '13.5px'};opacity:.7;line-height:1.6}
   .foot{display:flex;justify-content:space-between;align-items:center;font-size:${RTL ? '16px' : '13px'};opacity:.78;direction:${dir}}
+  /* Names and the topic line are cut SIDEWAYS only (the ellipsis). A plain
+     overflow:hidden also cut off the Nastaliq ink above and below the line box —
+     «کنول» printed as «لنول», «گنتی» as «لنتی». Latin never leaves its line box,
+     so an English card is unchanged. */
+  .sub, .sub .content, .nm{overflow-x:clip;overflow-y:visible}
+  /* The sideways clip also cut the stroke a word-initial ک or گ throws past
+     the start of its line («کنول» printed as «لنول»). An Urdu name or topic
+     keeps that much room inside its clip on the start side; the negative margin
+     puts the text back exactly where it was. */
+  .nm[dir="rtl"], .sub .content[dir="rtl"]{padding-inline-start:${NASTALIQ.startRoom}em;margin-inline-start:-${NASTALIQ.startRoom}em}
+  ${RTL ? `.sub{padding-inline-start:${NASTALIQ.startRoom}em;margin-inline-start:-${NASTALIQ.startRoom}em}` : ''}
+  /* An Urdu name is drawn whole now, so its row has to hold it: on the 1.6 it
+     used to sit on, a tall name's stroke reached through the row's top edge
+     toward the row above; a list with Urdu names now sets every name on the
+     Nastaliq pitch for Bold (.list.ur-names above, niete-brand NASTALIQ). The «آپ» tag inside it gets the regular pitch so its letters
+     stay in the tag; the place line takes the Bold pitch in case it wraps. */
+  ${RTL ? `.youtag{line-height:${NASTALIQ.leading.regular};padding:0 8px}
+  .place{line-height:${NASTALIQ.leading.bold}}` : ''}
   </style></head><body><div class='card' dir='${dir}'>
   ${lattice}
   <div class='hdr'><div class='t1'>${esc(S.eyebrow)}${nuqtas}</div>${logoImg}</div>
@@ -279,7 +306,7 @@ function renderLeaderboardHtml(d) {
     <div class='stat mine'><div class='n'>${me ? Math.round(Number(me.pct) || 0) : 0}%</div><div class='l'>${esc(S.yours)}</div></div>
     <div class='stat'><div class='n'>${avg}%</div><div class='l'>${esc(S.classAvg)}</div></div>
   </div>
-  <div class='list'>${rowHtml}</div>
+  <div class='list${urNames ? ' ur-names' : ''}'>${rowHtml}</div>
   <div class='foot'><span>${esc(S.finished(n))}</span><span>NIETE</span></div>
   </div></body></html>`;
 }
