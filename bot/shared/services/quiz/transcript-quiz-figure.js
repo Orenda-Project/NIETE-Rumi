@@ -591,16 +591,37 @@ function unknownColourToken(spec) {
 function equalAmountOptions(spec, options, correctIndex) {
   const type = canonicalType(spec && spec.type);
   if (type !== 'fraction_bar' && type !== 'grid') return null;
-  const opts = (Array.isArray(options) ? options : []).map(norm);
+  const raw = Array.isArray(options) ? options.map((o) => String(o == null ? '' : o)) : [];
+  const opts = raw.map(norm);
   const ci = Number(correctIndex);
+  const same = (a, b) => a !== null && b !== null && Math.abs(a - b) < 1e-9;
   const value = (s) => {
     const m = /^(\d+)\s*\/\s*(\d+)$/.exec(s || '');
     return m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
   };
   const key = value(opts[ci]);
-  if (key === null) return null;
-  const twin = opts.find((o, k) => k !== ci && value(o) !== null && Math.abs(value(o) - key) < 1e-9);
-  return twin ? `"${opts[ci]}" and "${twin}" are the same amount — a child who reads the picture either way is right` : null;
+  if (key !== null) {
+    const twin = opts.find((o, k) => k !== ci && same(value(o), key));
+    return twin ? `"${opts[ci]}" and "${twin}" are the same amount — a child who reads the picture either way is right` : null;
+  }
+  // "Which bar shows 3/6?" answered with the bars' own labels: two option bars
+  // of the same amount (1/2 and 3/6) are two right answers on the same picture
+  // (live, grade 3 Urdu, a lesson on equivalent fractions).
+  if (type !== 'fraction_bar') return null;
+  const byLabel = new Map((Array.isArray(spec.bars) ? spec.bars : [])
+    .filter((b) => b && typeof b.label === 'string' && b.label.trim())
+    .map((b) => [norm(b.label), b]));
+  if (!byLabel.size) return null;
+  const barOf = (o) => byLabel.get(o.replace(/[\u200e\u200f\u2066-\u2069]/g, '').replace(/^(bar|پٹی)\s*/, '').replace(/\s*(bar|پٹی)$/, '').trim()) || null;
+  const amount = (b) => {
+    const parts = Number(b.parts);
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    return parts > 0 && Number.isFinite(shaded) ? shaded / parts : null;
+  };
+  const keyBar = barOf(opts[ci] || '');
+  if (!keyBar) return null;
+  const k2 = opts.findIndex((o, k) => { const b = barOf(o); return k !== ci && b && b !== keyBar && same(amount(b), amount(keyBar)); });
+  return k2 >= 0 ? `${raw[ci].trim()} and ${raw[k2].trim()} show the same amount — a child who reads the picture either way is right` : null;
 }
 
 function figureMismatch(spec, options, correctIndex) {
