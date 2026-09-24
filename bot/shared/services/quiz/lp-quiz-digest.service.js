@@ -51,6 +51,25 @@ const Catalog = require('../lp-v8-catalog.service');
  * an Urdu quiz is called everywhere — quizzes.topic, the forward message the
  * children read, /quiz, the PDF — so it is taken from the catalog, never guessed.
  */
+/**
+ * The SUBJECT of a served lesson, from the catalog — never from the content.
+ *
+ * The caller's `subject` is the catalog's (the delivery row / the quiz row's
+ * `meta.class`); the lesson id names it too («grade_1_urdu_ch5_seg1»). On
+ * staging (24 Sep 2026) a grade 1 URDU lesson on the manners of visiting the
+ * sick came back from the digest model as `islamiat`; that reading replaced
+ * the catalog's on the quiz row, and the teacher was told "Your quiz:
+ * Islamiyat lesson on …". The model's reading is kept for the record
+ * (`subject_read`, `subject_conflict`) and never used.
+ */
+function catalogSubject(subject, lessonId) {
+  const given = canonicalSubject(subject);
+  if (given !== 'other') return given;
+  const m = /^grade_\d+_(.+?)_ch\d+/.exec(String(lessonId || ''));
+  const fromId = m ? canonicalSubject(m[1].replace(/_/g, ' ')) : 'other';
+  return fromId !== 'other' ? fromId : null;
+}
+
 function catalogLessonName(lessonId) {
   if (!lessonId) return null;
   try {
@@ -550,13 +569,24 @@ async function run({
       ...digest.misconceptions_surfaced,
     ].slice(0, 8);
   }
-  if (!digest.subject || digest.subject === 'other') digest.subject = canonicalSubject(subject);
+  // The catalog's subject, always (catalogSubject). The model's reading only
+  // stands when the catalog has none at all.
+  const servedLessonId = lessonId || (slideScript && slideScript.meta && slideScript.meta.lessonId) || null;
+  const catalog = catalogSubject(subject, servedLessonId);
+  if (catalog) {
+    if (digest.subject && digest.subject !== 'other' && digest.subject !== catalog) {
+      digest.subject_read = digest.subject;
+      digest.subject_conflict = true;
+    }
+    digest.subject = catalog;
+  } else if (!digest.subject) {
+    digest.subject = 'other';
+  }
 
   // The label is the lesson's catalog name, set AFTER the model and verbatim
   // (see catalogLessonName). The model's English `topic` stays: it is what an
   // English-language quiz is called, and the catalog has no English name for an
   // Urdu lesson.
-  const servedLessonId = lessonId || (slideScript && slideScript.meta && slideScript.meta.lessonId) || null;
   const named = givenName && String(givenName).trim() ? String(givenName).trim() : null;
   const lessonName = named || catalogLessonName(servedLessonId);
   if (lessonName) digest.topic_as_taught = lessonName;
@@ -571,6 +601,8 @@ async function run({
     costUsd,
     latencyMs,
     subject: digest.subject,
+    // what the model read the content as, when it disagreed with the catalog (kept, never used)
+    subjectRead: digest.subject_read || null,
     slos: digest.slos.length,
     confidence: digest.confidence,
     taughtLevel: bloomLevel,

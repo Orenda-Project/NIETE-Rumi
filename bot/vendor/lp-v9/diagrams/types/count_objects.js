@@ -17,9 +17,17 @@
 // named things, and the label gate upstream throws away a name the question
 // does not use.
 //
+// ONE AND ZERO (NIETE divergence, SYNC.md 3.23). A grade 1 lesson on the
+// numbers 0 to 4 counts one car and shows zero as an empty circle: those ARE
+// its quantities. A count of 1 draws one thing. A count of 0 draws an empty,
+// dashed tray where the things would be — the empty set, so a child sees
+// "nothing here" rather than a picture that failed to load. Whether one thing
+// is a COUNT (not a vocabulary prompt wearing a counting type) depends on the
+// question, which this type never sees; the caller checks that.
+//
 // Spec
 //   picto    "apple"          the pictogram (lib/pictogram.js) — or per row
-//   count    7                how many (at least 2)
+//   count    7                how many (0 to 30; 0 is an empty tray)
 //   rows     [{picto,count,label,color}]  compare mode; overrides picto/count.
 //            `color` (ink, accent, leaf, cool, warn, plum, clay) draws that row's
 //            things in its own colour, so a PART of a set can be seen — "the
@@ -41,7 +49,9 @@ function render(spec) {
     : [{ picto: spec.picto, count: spec.count, label: spec.label }]
   ).map((r) => ({
     picto: String(r.picto ?? spec.picto ?? ""),
-    count: Math.max(0, Math.floor(Number(r.count) || 0)),
+    // A count that is not a number is NOT zero: only an explicit 0 draws the
+    // empty tray. (Before 3.23 a missing count became 0 and failed the floor.)
+    count: r.count === "" || r.count == null || !Number.isFinite(Number(r.count)) ? NaN : Math.floor(Number(r.count)),
     label: r.label == null ? "" : String(r.label),
     color: (r.color && ROW_TOKENS[String(r.color)]) || C.ink,
   }));
@@ -51,18 +61,15 @@ function render(spec) {
     if (!hasPictogram(r.picto)) {
       try { pictogramInner(r.picto); } catch (e) { throw new Error(`count_objects: ${e.message}`); }
     }
-    // Two is the floor. A round-6 session drew ONE goat and asked "which word
-    // does this picture match?" — a single thing is a vocabulary prompt wearing
-    // a counting type, and the count carried no information at all. If the
-    // question is which word a picture matches, `match` is the instrument.
-    if (r.count < 2) throw new Error(`count_objects: "${r.picto}" has a count of ${r.count} — one of something is not something to count; use at least 2, or use \`match\` if the question is which word the picture matches`);
+    if (!Number.isFinite(r.count)) throw new Error(`count_objects: "${r.picto}" needs a \`count\` — a whole number from 0 to ${MAX_ITEMS}`);
+    if (r.count < 0) throw new Error(`count_objects: "${r.picto}" has a count of ${r.count}; a count is 0 or more`);
     if (r.count > MAX_ITEMS) throw new Error(`count_objects: ${r.count} items is past counting; keep it to ${MAX_ITEMS}`);
   });
 
   const CELL = spec.cellSize ?? 84;
   const PAD = 18;
   const LGAP = 16;                 // gutter between a row's name and its things
-  const group = rows.length === 1 && Number(spec.group) > 1 ? Math.floor(Number(spec.group)) : 0;
+  const group = rows.length === 1 && rows[0].count > 0 && Number(spec.group) > 1 ? Math.floor(Number(spec.group)) : 0;
   // VENDOR DIVERGENCE — see SYNC.md §3.18. Rows being COMPARED stay on one line
   // each (up to ten): wrapping a row of six at five put its sixth thing on a
   // line of its own with no name, and "which row has more?" was drawn as three
@@ -79,14 +86,20 @@ function render(spec) {
   );
   const gutter = labelW ? labelW + LGAP : 0;
 
-  // One LINE per `perRow` items; a row with more items than perRow wraps.
+  // One LINE per `perRow` items; a row with more items than perRow wraps. An
+  // empty row (count 0) is one line holding an empty tray TRAY_CELLS wide — or
+  // as wide as the widest row it is compared with, so "none" sits where the
+  // things would be.
+  const TRAY_CELLS = 3;
   const lines = [];
   rows.forEach((r, ri) => {
+    if (r.count === 0) { lines.push({ ri, picto: r.picto, n: 0, first: true, empty: true }); return; }
     for (let i = 0; i < r.count; i += perRow) {
       lines.push({ ri, picto: r.picto, n: Math.min(perRow, r.count - i), first: i === 0 });
     }
   });
-  const wide = Math.max(...lines.map((l) => l.n));
+  const trayCells = Math.max(TRAY_CELLS, ...lines.filter((l) => !l.empty).map((l) => l.n));
+  const wide = Math.max(...lines.map((l) => (l.empty ? trayCells : l.n)));
   const RING = group ? 12 : 0; // breathing room inside a group ring
   const lineH = CELL + (group ? RING * 2 + 10 : 12);
   const bodyW = PAD * 2 + gutter + wide * CELL + (group ? RING * 2 : 0);
@@ -105,10 +118,18 @@ function render(spec) {
   // things it names.
   lines.forEach((line, li) => {
     const y = PAD + li * lineH;
-    const runW = line.n * CELL;
+    const runW = (line.empty ? trayCells : line.n) * CELL;
     const x0 = isUr
       ? bodyW - PAD - gutter - (group ? RING : 0) - runW
       : PAD + gutter + (group ? RING : 0);
+    if (line.empty) {
+      // The empty set: a dashed tray with nothing in it. Dashed and unfilled,
+      // so it reads as a place for things, never as a thing to be counted.
+      // Inset like a pictogram in its cell, so it keeps clear of the row's name.
+      svg.rect(x0 + 12, y + 10, runW - 24, CELL - 18, {
+        rx: 18, fill: "none", stroke: C.ink, sw: 2.6, dash: "12 9",
+      });
+    }
     if (group) {
       // The ring is an UNFILLED rect: measure.js reads that as four lines, not
       // as a box, so it can never be mistaken for a label-bearing panel.
@@ -140,5 +161,8 @@ module.exports = {
     { name: "count_objects_apples_en", spec: { type: "count_objects", picto: "apple", count: 7 } },
     { name: "count_objects_compare_ur", spec: { type: "count_objects", lang: "ur", rows: [{ picto: "apple", count: 5, label: "سیب" }, { picto: "banana", count: 3, label: "کیلے" }] } },
     { name: "count_objects_groups_en", spec: { type: "count_objects", picto: "star", count: 12, group: 4 } },
+    { name: "count_objects_one_en", spec: { type: "count_objects", picto: "car", count: 1 } },
+    { name: "count_objects_zero_ur", spec: { type: "count_objects", lang: "ur", picto: "counter", count: 0 } },
+    { name: "count_objects_compare_zero_ur", spec: { type: "count_objects", lang: "ur", rows: [{ picto: "star", count: 3, label: "رات" }, { picto: "star", count: 0, label: "دن" }] } },
   ],
 };

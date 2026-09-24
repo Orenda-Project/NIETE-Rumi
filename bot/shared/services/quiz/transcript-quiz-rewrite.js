@@ -148,7 +148,27 @@ const NAME_IN = /^q\d+: URDU_NAME_LATIN — "([^"]+)"/;
  * out — a hard fault never loses its place to it.
  */
 const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN)\b/;
-const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
+/**
+ * A question whose EVERY complaint is one of these is kept: the repair changes
+ * the words its complaints name and nothing else. Such a question is shown to
+ * the model WHOLE — explanation, feedback and the teacher's notes included —
+ * because a complaint like "question + explanation + option_feedback speak to
+ * the child with a gendered verb" names fields the model must keep, and a
+ * model shown only the stem and the options writes those fields from scratch.
+ * On sandbox (24 Sep 2026, a grade 1 Urdu maths quiz) it did exactly that: the
+ * rewritten explanation and feedback carried the same masculine verbs again,
+ * and every rewritten `selected_because` came back in English.
+ */
+const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TEACHER_FIELDS)\b/;
+/**
+ * …and its PICTURE is kept too, when every complaint is one of these. A name in
+ * English letters is left out on purpose: it has its own contract (the code
+ * swaps a valid Urdu spelling into the question as it was, picture included —
+ * `swapOnly` in mergeReplacements — and without one the reply is taken as a
+ * text question), which this does not change.
+ */
+const KEEP_PICTURE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_TEACHER_FIELDS)\b/;
+const TEACHER_FIELDS_RULE ='TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
 // each time and the rule never was. Every other repeated fault this week was
@@ -348,13 +368,25 @@ function buildRewritePrompt({
   const staying = qs
     .map((q, i) => (indices.includes(i) ? null : `  q${i}: ${String((q && q.question) || '').trim()}`))
     .filter(Boolean).join('\n');
+  const keeps = (i) => (byIndex[i] || []).length > 0 && (byIndex[i] || []).every((e) => KEEP_IN_PLACE.test(String(e)));
   const rejected = indices.map((i) => {
     const q = qs[i] || {};
+    const why = `  why it was rejected:\n${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
+    if (keeps(i)) {
+      // Shown whole, so the words that are NOT complained of can be returned as they are.
+      return `q${i} · slo_id "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}" · REPAIR IN PLACE — this question is staying: return every field below with ONLY the words its complaints name changed, and leave "figure" out
+  question: "${String(q.question || '').trim()}"
+  options: ${optionLine(q)}   ("correct_index": ${Number(q.correct_index) || 0})
+  explanation: "${String(q.explanation || '').trim()}"
+  option_feedback: ${JSON.stringify(q.option_feedback || {})}
+  selected_because: "${String(q.selected_because || '').trim()}"
+  distractor_misconceptions: ${JSON.stringify(q.distractor_misconceptions || {})}
+${why}`;
+    }
     return `q${i} · slo_id "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}"
   the question being thrown away: "${String(q.question || '').trim()}"
   its options were: ${optionLine(q)}
-  why it was rejected:
-${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
+${why}`;
   }).join('\n\n');
 
   // The sections are composed rather than written out once, because round 6
@@ -374,8 +406,8 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
     DISTINCT_QUESTIONS_RULE,
-    `REJECTED — write one new question for each.\n\n${rejected}`,
-    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, ONLY for how it speaks to the child, ONLY for two English terms side by side, or ONLY for a name in English letters — see LENGTH, THE CHILD HAS NO GENDER, TWO ENGLISH TERMS SIDE BY SIDE and A NAME IN ENGLISH LETTERS below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
+    `REJECTED — write one new question for each, except a question marked REPAIR IN PLACE: return that one as it stands, with only the words its complaints name changed.\n\n${rejected}`,
+    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, ONLY for how it speaks to the child, ONLY for two English terms side by side, ONLY for a name in English letters, or ONLY for the language of its teacher notes — see LENGTH, THE CHILD HAS NO GENDER, TWO ENGLISH TERMS SIDE BY SIDE, A NAME IN ENGLISH LETTERS and TEACHER FIELDS below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
     'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
@@ -387,7 +419,12 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
     ...(namesAsked ? [NAME_LATIN_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => PUPIL.test(e))) ? [PUPIL_REPAIR] : []),
-    ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
+    // EVERY replacement in an Urdu quiz writes a "selected_because" and the
+    // distractor meanings, whatever it was rejected for — so the rule is stated
+    // whenever the quiz is Urdu, not only when a complaint names those fields.
+    // Stated only for the complaint, the rewrite wrote them in English on every
+    // question it replaced (sandbox, 24 Sep 2026: 5 of 5, twice).
+    ...((language === 'ur' || indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e)))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_DISAGREEMENT.test(e))) ? [KEY_DISAGREEMENT_RULE] : []),
@@ -472,6 +509,11 @@ function mergeReplacements(questions, json, targets, { known = null } = {}) {
     return summary ? { questions: qs, replaced: [], lessonSummary: summary } : null;
   }
   const chosen = new Map();
+  // A question repaired IN PLACE (every complaint KEEP_PICTURE) is the same
+  // question with some words changed: its picture stays. Everywhere else a
+  // replacement is a new, text-only question.
+  const byIndexAll = (targets && targets.byIndex) || {};
+  const keeps = (i) => (byIndexAll[i] || []).length > 0 && (byIndexAll[i] || []).every((e) => KEEP_PICTURE.test(String(e)));
   list.forEach((r, pos) => {
     if (!r || typeof r !== 'object') return;
     // A replacement that NAMES an index we did not ask about is discarded, not
@@ -484,7 +526,9 @@ function mergeReplacements(questions, json, targets, { known = null } = {}) {
       ? (indices.includes(named) ? named : undefined)
       : indices[pos];
     if (idx === undefined || chosen.has(idx)) return;
-    if (r.figure) return;                       // the no-picture contract, asserted
+    // The no-picture contract, asserted — except for a question kept in place,
+    // whose ORIGINAL picture is put back below whatever the reply carries.
+    if (r.figure && !keeps(idx)) return;
     if (!String(r.question || '').trim()) return;
     chosen.set(idx, r);
   });
@@ -502,7 +546,19 @@ function mergeReplacements(questions, json, targets, { known = null } = {}) {
   if (!chosen.size && !summary && !swapOnly.length) return null;
   const merged = qs.map((q, i) => {
     if (swapOnly.includes(i) || !chosen.has(i)) return q;
-    const { index, ...rest } = chosen.get(i);
+    const { index, figure, figure_role: role, ...rest } = chosen.get(i); // eslint-disable-line no-unused-vars
+    if (keeps(i)) {
+      // Kept in place: a field the reply left out is the field as it was, and
+      // the picture (already drawn and checked) is the original's.
+      return {
+        ...q,
+        ...rest,
+        slo_id: rest.slo_id || q.slo_id,
+        level: rest.level || q.level,
+        figure: q.figure || null,
+        figure_role: q.figure_role || null,
+      };
+    }
     return {
       ...rest,
       slo_id: rest.slo_id || q.slo_id,
@@ -795,7 +851,7 @@ function buildAddPicturePrompt({
     `HARD RULES — a picture that breaks one is thrown away and its question stays as it was:
 - The picture must NOT contain the answer: no option's text anywhere in it, no total, no result. A jump arc never lands on the answer; a fraction bar carries no label.
 - Labels are written in the quiz language; numerals stay 0-9. Never TeX or "$" inside a figure — its fractions are plain ("3/4"). A term may stay in English letters, but a person's name in a label is written in the quiz language (حرا کی بوتل, not Hira کی بوتل).
-- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place (9 thousands).
+- The simplest spec that shows the idea. count_objects draws 1 to 30 things, and 0 as an empty tray; base_ten up to 20 of each place (9 thousands).
 - Column arithmetic is never a picture.
 - A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
     ...(lessonDrew ? [lessonDrew] : []),
