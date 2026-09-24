@@ -814,7 +814,7 @@ async function runFigureDensity(api, {
  *   softFaults?:string[]|null}>}
  */
 async function runKeyCheck(api, {
-  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts,
+  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts, knownNames = null,
 }) {
   const KeyCheck = require('./lp-quiz-key-check.service');
   const startedAt = Date.now();
@@ -879,7 +879,7 @@ async function runKeyCheck(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true,
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1003,7 +1003,7 @@ async function runKeyCheck(api, {
  *   softFaults?:string[]|null}>}
  */
 async function runKeyVerify(api, {
-  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts,
+  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts, knownNames = null,
 }) {
   const KeyVerify = require('./transcript-quiz-key-verify.service');
   const startedAt = Date.now();
@@ -1150,7 +1150,7 @@ async function runKeyVerify(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8,
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1378,6 +1378,11 @@ async function process(quizId, payload = {}) {
     let lastLessonSummary = null;
     let lastExtras = {};
     let readyLessonSummary = null;
+    // The Urdu spelling of each person's name the repair has given for this
+    // quiz ({ "Hira": "حرا" }). Every later rewrite writes the name that way
+    // too: replayed, the blind solve's rewrite put "Hira" back into a teacher
+    // note of a quiz that had already learned «حرا».
+    const nameSpellings = {};
     const attempts = [];
     const attemptsAllowed = maxAttempts();
     // How many author attempts came back with ANY questions to judge. Zero means
@@ -1555,8 +1560,10 @@ async function process(quizId, payload = {}) {
         gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
         // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
         planned: isLp,
+        knownNames: nameSpellings,
       });
       if (!rw.attempted) return { tried: false, ok: false, errors: null };
+      Object.assign(nameSpellings, rw.names || {});
       {
         meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
         // PLAN_R6 D5 — the rewrite may also return a repaired `lesson_summary`
@@ -1727,7 +1734,7 @@ async function process(quizId, payload = {}) {
     if (isLp) {
       const kc = await runKeyCheck(api, {
         questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
-        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts,
+        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings,
       });
       meta.key_check = kc.record;
       meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);
@@ -1752,7 +1759,7 @@ async function process(quizId, payload = {}) {
     const kv = await runKeyVerify(api, {
       questions, digest, language, quizId, teacherId: quiz.teacher_id,
       lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade,
-      grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts,
+      grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts, knownNames: nameSpellings,
     });
     meta.key_verify = kv.record;
     meta.cost_usd = (meta.cost_usd || 0) + (kv.record.cost_usd || 0);

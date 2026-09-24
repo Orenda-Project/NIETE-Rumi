@@ -383,7 +383,7 @@ ${shape} ] }
  * @returns {{questions:object[], replaced:number[], lessonSummary:string|null}|null}
  *          null when nothing at all was replaced
  */
-function mergeReplacements(questions, json, targets) {
+function mergeReplacements(questions, json, targets, { known = null } = {}) {
   const qs = Array.isArray(questions) ? questions : [];
   const list = Array.isArray(json && json.questions) ? json.questions : [];
   const { indices } = targets;
@@ -422,7 +422,7 @@ function mergeReplacements(questions, json, targets) {
   // has a usable spelling, is kept as it was: the swap below is its repair,
   // and whatever the model wrote for it is not taken (it rewrites a question
   // it is told to keep). Without a spelling it is an ordinary rewrite.
-  const spellings = nameSpellings(json, targets);
+  const spellings = { ...knownSpellings(known), ...nameSpellings(json, targets) };
   const byIndex = (targets && targets.byIndex) || {};
   const swapOnly = indices.filter((i) => {
     const complaints = byIndex[i] || [];
@@ -443,7 +443,23 @@ function mergeReplacements(questions, json, targets) {
   });
   const out = spellNames(merged, spellings);
   const replaced = [...new Set([...chosen.keys(), ...swapOnly])].sort((a, b) => a - b);
-  return { questions: out, replaced, lessonSummary: summary };
+  return { questions: out, replaced, lessonSummary: summary, names: spellings };
+}
+
+/**
+ * The spellings this quiz has already learned (the generate step keeps them
+ * across its rewrites), with the same guard as a fresh one: a name in English
+ * letters, a spelling in Urdu script with no English letter in it.
+ */
+function knownSpellings(known) {
+  const out = {};
+  if (!known || typeof known !== 'object' || Array.isArray(known)) return out;
+  Object.entries(known).forEach(([latin, urdu]) => {
+    const u = String(urdu ?? '').trim();
+    if (!/^[A-Z][a-z]{2,}$/.test(latin) || !u || /[A-Za-z]/.test(u) || !/\p{Script=Arabic}/u.test(u)) return;
+    out[latin] = u;
+  });
+  return out;
 }
 
 /**
@@ -507,6 +523,10 @@ function spellNames(questions, spellings) {
  */
 async function rewriteRejected({
   questions, errors, digest, language, gradeBand = null, lessonSummary = null, planned = false,
+  // The Urdu spellings of names this quiz has already learned ({ "Hira": "حرا" }):
+  // written into whatever this rewrite returns, so a later repair cannot put a
+  // name back into English letters.
+  knownNames = null,
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
@@ -523,7 +543,7 @@ async function rewriteRejected({
     const { json, model, costUsd, latencyMs } = await completeJson({
       prompt, maxTokens: 8000, label: 'transcript_quiz.rewrite',
     });
-    const merged = mergeReplacements(questions, json, targets);
+    const merged = mergeReplacements(questions, json, targets, { known: knownNames });
     return {
       attempted: true,
       indices: targets.indices,
@@ -533,6 +553,8 @@ async function rewriteRejected({
       merged: merged ? merged.questions : null,
       replaced: merged ? merged.replaced : [],
       lessonSummary: merged ? merged.lessonSummary : null,
+      // the spellings used (known + returned), for the caller to keep
+      names: merged ? merged.names : { ...knownSpellings(knownNames), ...nameSpellings(json, targets) },
       model,
       costUsd,
       latencyMs,

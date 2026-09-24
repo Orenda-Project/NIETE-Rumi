@@ -327,6 +327,41 @@ describe('5 — on the generate path: one rewrite, then ship', () => {
     expect(events).not.toContain('transcript_quiz.latin_name');    // nothing shipped in English letters
   });
 
+  test('a spelling the quiz has learned is used by every later rewrite: the key-check repair writes the name in Urdu too', async () => {
+    // Replayed: the name was repaired at authoring, then the blind solve sent
+    // q6 back, and ITS rewrite wrote "Hira" into the teacher's note again.
+    const KV = require('../../bot/shared/services/quiz/transcript-quiz-key-verify.service');
+    let solves = 0;
+    jest.spyOn(Gen, 'verifyKeys').mockImplementation(async ({ questions, indices = null }) => {
+      solves += 1;
+      const idx = Array.isArray(indices) ? indices : questions.map((_, i) => i);
+      return {
+        verdicts: idx.map((index) => {
+          const keyed = KV.keyedIndices(questions[index]);
+          const wrong = solves === 1 && index === 6;
+          return { index, verdict: wrong ? 'disagree' : 'agree', keyed, blind: wrong ? [(keyed[0] + 1) % 3] : keyed, note: '' };
+        }),
+        model: 'stub-solver', costUsd: 0, latencyMs: 0,
+      };
+    });
+    const q6Again = { ...URDU()[6], selected_because: 'سبق میں Hira کی بوتل والی مثال', explanation: 'جیسے Hira کی بوتل میں، چھوٹا denominator بڑے حصے دیتا ہے۔' };
+    mockCreate.mockImplementation((call) => {
+      const p = call.messages[0].content;
+      if (!isRewrite(call)) return Promise.resolve(reply({ lesson_summary: SUMMARY, questions: LATIN() }));
+      if (/KEY_DISAGREEMENT/.test(p)) return Promise.resolve(reply({ questions: [{ index: 6, ...q6Again }] }));
+      return Promise.resolve(reply({ names: { Hira: 'حرا' }, questions: [{ index: 0, ...URDU()[0] }, { index: 1, ...URDU()[1], figure: null }] }));
+    });
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(mockCreate.mock.calls.filter(([c]) => /KEY_DISAGREEMENT/.test(c.messages[0].content))).toHaveLength(1);
+    const rows = storedRows();
+    expect(rows).toHaveLength(8);
+    expect(JSON.stringify(rows)).not.toContain('Hira');
+    expect(JSON.stringify(rows)).toContain('حرا کی بوتل والی مثال');
+    expect((lastMeta().soft_faults || []).filter((e) => /URDU_NAME_LATIN/.test(e))).toEqual([]);
+  });
+
   test('a repair that leaves the name as it was SHIPS the quiz whole, the fault recorded once per question', async () => {
     mockCreate.mockImplementation((call) => (isRewrite(call)
       ? Promise.resolve(reply({ questions: [{ index: 0, ...LATIN()[0] }, { index: 1, ...LATIN()[1], figure: null }] }))
