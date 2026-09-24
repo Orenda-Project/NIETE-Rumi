@@ -175,6 +175,9 @@ const SOFT_FAULT = new RegExp('^('
   // copy is rewritten in place (IN_PLACE_FAULT, below); a quiz whose repair
   // did not take still has seven sound questions and one repeat, and ships.
   + '|q\\d+: DUPLICATE_QUESTION\\b'
+  // A person's name in English letters in an Urdu quiz (URDU_NAME_LATIN): the
+  // same kind of fault, repaired in place (IN_PLACE_FAULT, below).
+  + '|q\\d+: URDU_NAME_LATIN\\b'
   // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
   // one picture is still a quiz, and refusals cost teachers quizzes.
   + '|FIGURE_FEW\\b'
@@ -209,8 +212,17 @@ const ADJACENT_FAULT = /^q\d+: URDU_ADJACENT_TERMS\b/;
  * quiz or a question. Counted on transcript_quiz.duplicate_question.
  */
 const DUPLICATE_FAULT = /^q\d+: DUPLICATE_QUESTION\b/;
+/**
+ * A person's name written in English letters in an Urdu quiz
+ * (URDU_NAME_LATIN — «‏Hira کی بوتل»). A name is not a term; the question is
+ * sound. Repaired in place by the same one targeted rewrite, which also gives
+ * the name's Urdu spelling so a picture's labels agree with the stem; shipped
+ * whatever that leaves; counted on transcript_quiz.latin_name_found, and what
+ * ships in English letters on transcript_quiz.latin_name.
+ */
+const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}`);
 const inPlaceOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => IN_PLACE_FAULT.test(String(e)));
 /** The codes in a list of complaints, for telemetry ("q3: URDU_ADJACENT_TERMS — …" → "URDU_ADJACENT_TERMS"). */
 const faultKinds = (errors) => [...new Set((errors || []).map((e) => String(e).replace(/^q\d+: /, '').split(/\s|—/)[0]))];
@@ -1451,6 +1463,13 @@ async function process(quizId, payload = {}) {
         if (adjacent.length) {
           logEvent('transcript_quiz.adjacent_terms', { quizId, after: attempt, questions: adjacent.length, indices: indicesOf(adjacent) });
         }
+        const latin = v.errors.filter((e) => NAME_FAULT.test(e));
+        if (latin.length) {
+          logEvent('transcript_quiz.latin_name_found', {
+            quizId, after: attempt, questions: [...new Set(indicesOf(latin))].length, indices: [...new Set(indicesOf(latin))],
+            names: [...new Set(latin.map((e) => /"([^"]+)"/.exec(e)[1]))],
+          });
+        }
         // eslint-disable-next-line no-await-in-loop
         const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
         if (fixed.ok) break;
@@ -1749,10 +1768,12 @@ async function process(quizId, payload = {}) {
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
     }
-    // ── A NAME IN ENGLISH LETTERS IN AN URDU QUIZ (recorded, never refused) ──
+    // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────
+    // Repaired in place while authoring (NAME_FAULT); this records whatever the
+    // repair left, or a later step brought, once per question and name.
     const names = latinNames(questions, { language, digest });
     if (names.length) {
-      meta.soft_faults = [...(meta.soft_faults || []), ...names];
+      meta.soft_faults = [...new Set([...(meta.soft_faults || []), ...names])];
       logEvent('transcript_quiz.latin_name', {
         quizId, quiz_source: quizSource,
         names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],
