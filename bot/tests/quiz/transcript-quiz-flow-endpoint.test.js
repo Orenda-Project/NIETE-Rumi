@@ -230,6 +230,33 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     }));
   });
 
+  // A child who typed STOP (or whose quiz stopped on our side) has an
+  // `incomplete` session: not finished, and not still going either. The
+  // results say which is which.
+  test('a child whose quiz stopped is listed as stopped, never as still going', async () => {
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    const STOPPED = { id: 'qs-4', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Esha', student_class: '5-A', status: 'incomplete', total_questions_answered: 3, correct_answers: 2, mastery_percentage: null };
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [...CHILDREN, STOPPED] });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    const lines = out.data.results.split('\n');
+
+    expect(lines).toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: 'Danish' } }));
+    expect(lines).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Esha' } }));
+    expect(out.data.results).toMatch(/2 finished/);
+  });
+
+  test('when every unfinished child stopped, there is no "still going" line at all', async () => {
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    const kids = CHILDREN.map((c) => (c.id === 'qs-3' ? { ...c, status: 'incomplete' } : c));
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: kids });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+
+    expect(out.data.results).not.toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: '' } }).trim());
+    expect(out.data.results.split('\n')).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Danish' } }));
+  });
+
   test('a SENT quiz offers exactly Generate report and Resend link', async () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: CHILDREN });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });

@@ -648,7 +648,9 @@ async function skipQuestion(phone, state, questionId, reason, { tell = true } = 
 }
 
 /**
- * End a session the child could not finish — the quiz stopped on our side.
+ * End a session the child could not finish — the quiz stopped on our side, or
+ * the child typed STOP (stopTyped). `messageKey` is what the child is told:
+ * the trouble message by default, vqStopped for a STOP.
  *
  * `incomplete`, never `completed`: every reader of quiz_sessions (the class
  * report, the /quiz list and Flow, the child's own quiz list, the nobody-
@@ -666,7 +668,7 @@ async function skipQuestion(phone, state, questionId, reason, { tell = true } = 
  * it means completed. The status filter keeps this from ever overwriting a
  * session that did finish.
  */
-async function endUnfinished(phone, state, reason) {
+async function endUnfinished(phone, state, reason, { messageKey = 'vqTrouble' } = {}) {
   let answered = state.answered || 0;
   let correct = state.correct || 0;
   try {
@@ -699,7 +701,7 @@ async function endUnfinished(phone, state, reason) {
   await redisService.delete(STATE_KEY(phone));
 
   await rateLimiter.throttle(phone);
-  const told = await WhatsAppService.sendMessage(phone, ux('vqTrouble', state.language));
+  const told = await WhatsAppService.sendMessage(phone, ux(messageKey, state.language));
   if (!told) {
     logToFile('❌ video-quiz: the child was not told the quiz stopped', {
       phone: String(phone).slice(-4), sessionId: state.sessionId,
@@ -1359,6 +1361,42 @@ async function getActiveState(phone) {
 }
 
 /**
+ * STOP typed during a video / transcript / lesson-plan quiz: the child is done
+ * for now. The session ends the way every unfinished run ends (endUnfinished:
+ * `incomplete`, the answers so far counted, no score, the state cleared), and
+ * the child is told it stopped — in the quiz's language — instead of the
+ * trouble message.
+ *
+ * The words are the ones the adaptive quiz has always taken ("stop", "روکیں"),
+ * in any case and with a full stop after them. Anything else, or no quiz
+ * running on this phone, is not ours: false, and the message goes on.
+ *
+ * Under the answer lock, like an answer: a tap being graded while STOP arrives
+ * finishes first (its answer counts), and cannot put the state back after the
+ * stop has cleared it.
+ *
+ * @returns {Promise<boolean>} true when a running quiz was stopped
+ */
+const STOP_RX = /^(stop|روکیں)[.!۔]?$/i;
+async function stopTyped(phone, text) {
+  if (!STOP_RX.test(String(text || '').trim())) return false;
+  const { key: lockKey, waitedMs, timedOut } = await acquireAnswerLock(phone);
+  try {
+    const state = await redisService.get(STATE_KEY(phone));
+    if (!state) return false;
+    if (timedOut) {
+      logEvent('video_quiz.answer_lock_timeout', {
+        sessionId: state.sessionId, where: 'stop', waitedMs, phoneTail: String(phone).slice(-4),
+      });
+    }
+    await endUnfinished(phone, state, 'stopped', { messageKey: 'vqStopped' });
+    return true;
+  } finally {
+    await redisService.delete(lockKey);
+  }
+}
+
+/**
  * A letter TYPED instead of tapped ("B", "b") while a question waits for its
  * answer — the same answer the child would have tapped.
  *
@@ -1423,6 +1461,7 @@ module.exports = {
   writeCountersFromAnswers,
   getActiveState,
   answerTypedLetter,
+  stopTyped,
   quizForVideo,
   QUESTIONS_PER_SESSION,
   OFFER_YES,
