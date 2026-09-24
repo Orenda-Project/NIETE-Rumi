@@ -1747,6 +1747,7 @@ const UX_STRINGS = {
   tqTodaysLesson: { en: 'today’s lesson', ur: 'آج کا سبق' },
   // The column heads of a place-value picture (the `base_ten` figure) on a
   // child's question. Drawn above each column, never with a number beside them.
+  tqPlaceThousands: { en: 'Thousands', ur: 'ہزار' },
   tqPlaceHundreds: { en: 'Hundreds', ur: 'سینکڑے' },
   tqPlaceTens: { en: 'Tens', ur: 'دہائیاں' },
   tqPlaceOnes: { en: 'Ones', ur: 'اکائیاں' },

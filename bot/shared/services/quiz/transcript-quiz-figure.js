@@ -173,6 +173,7 @@ function languageDefaults(type, language) {
   const lang = clampLanguage(language);
   return {
     labels: {
+      thousands: resolveUx('tqPlaceThousands', { language: lang }),
       hundreds: resolveUx('tqPlaceHundreds', { language: lang }),
       tens: resolveUx('tqPlaceTens', { language: lang }),
       ones: resolveUx('tqPlaceOnes', { language: lang }),
@@ -686,12 +687,13 @@ function figureMismatch(spec, options, correctIndex) {
   }
   if (type === 'base_ten') {
     // A place-value mat answers "what number?", "how many tens?", "what is the
-    // tens worth?" and "how many sticks in all?" — and nothing else.
-    const [h, t, o] = ['hundreds', 'tens', 'ones'].map((k) => Math.max(0, Math.floor(Number(spec[k]) || 0)));
-    const value = 100 * h + 10 * t + o;
-    const reachable = new Set([value, h, t, o, 10 * t, 100 * h, h + t + o].map(String));
+    // tens worth?" and "how many pieces in all?" — and nothing else.
+    const [th, h, t, o] = ['thousands', 'hundreds', 'tens', 'ones'].map((k) => Math.max(0, Math.floor(Number(spec[k]) || 0)));
+    const value = 1000 * th + 100 * h + 10 * t + o;
+    const reachable = new Set([value, th, h, t, o, 1000 * th, 10 * t, 100 * h, th + h + t + o].map(String));
+    const shows = `${th ? `${th} thousands, ` : ''}${h} hundreds, ${t} tens and ${o} ones`;
     return whole !== null && reachable.has(String(whole)) ? null
-      : `the picture cannot produce the answer "${correct}" (it shows ${h} hundreds, ${t} tens and ${o} ones)`;
+      : `the picture cannot produce the answer "${correct}" (it shows ${shows})`;
   }
   if (type === 'grid') {
     const rows = Number(spec.rows) || 0; const cols = Number(spec.cols) || 0;
@@ -859,7 +861,7 @@ function figureDefiningNumbers(spec) {
     case 'timeline': (spec.events || []).forEach((e) => fromLabel(e && e.date)); break;
     // The counts, not the zeros: "0" matches inside half the numbers a stem can
     // mention, and a stem that says "no tens" states nothing the mat is made of.
-    case 'base_ten': ['hundreds', 'tens', 'ones'].forEach((k) => { if (Number(spec[k]) > 0) push(spec[k]); }); break;
+    case 'base_ten': ['thousands', 'hundreds', 'tens', 'ones'].forEach((k) => { if (Number(spec[k]) > 0) push(spec[k]); }); break;
     default: break;
   }
   return [...new Set(nums)];

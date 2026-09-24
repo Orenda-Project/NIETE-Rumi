@@ -494,6 +494,27 @@ Feature: NIETE (ICT) Teacher Training
     # tiles a counting lesson uses are drawn the same way, as the pictograms "counter" and "tile".
     # Content-driven: assert the SHAPE (headed columns, bundles, no digits), never a fixed number. @wip.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A four-digit place-value question shows the thousands the class built
+    Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson plan on four-digit numbers
+    When a child opens the quiz from its link and reaches a question asking what number the picture shows
+    Then the picture has a thousands column to the left of the hundreds, with a cube (or a block of ten big bundles) for each thousand
+    And a number with thousands and no hundreds, such as 2014, still shows an empty hundreds column under its heading
+    And no digit and no count is written anywhere in the picture, and in an Urdu quiz the thousands heading reads "ہزار"
+    # base_ten `thousands` (0-9), SYNC.md §3.20; heading tqPlaceThousands. The lesson-plan digest quotes a
+    # four-digit worked example whole (lp-quiz-digest lessonDrewBlock). Content-driven: assert the SHAPE
+    # (four headed columns, cubes or bundle blocks, no digits), never a fixed number. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: A counting question draws the lesson's own objects — sweets, dates, cookies, lilies, samosas, bangles
+    Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson plan that counted sweets or samosas
+    When a child opens the quiz from its link and reaches a counting question with a picture
+    Then the picture draws the objects the lesson counted, not plain round counters
+    # Pictograms sweet, cookie and lily (OpenMoji candy, cookie, lotus) and date, samosa and bangle (drawn in
+    # lib/pictogram.js), plus the lesson's words biscuit, candy, toffee, laddu and pebble; SYNC.md §3.20.
+    # Proven in tests/quiz/pictograms-lesson-objects.test.js. Content-driven: which object appears depends on
+    # the lesson. @wip.
+
   @e2e @quiz @wip @draft @P1
   Scenario: An Urdu quiz for a maths lesson full of English terms is made, with the terms in English letters
     Given the NIETE bot chat is open and I planned a maths lesson whose key terms are English, such as comparing unlike fractions

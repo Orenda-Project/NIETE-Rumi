@@ -590,7 +590,7 @@ function buildAddPicturePrompt({
     `HARD RULES — a picture that breaks one is thrown away and its question stays as it was:
 - The picture must NOT contain the answer: no option's text anywhere in it, no total, no result. A jump arc never lands on the answer; a fraction bar carries no label.
 - Labels are written in the quiz language; numerals stay 0-9. Never TeX or "$" inside a figure — its fractions are plain ("3/4").
-- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place.
+- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place (9 thousands).
 - Column arithmetic is never a picture.
 - A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
     ...(lessonDrew ? [lessonDrew] : []),
