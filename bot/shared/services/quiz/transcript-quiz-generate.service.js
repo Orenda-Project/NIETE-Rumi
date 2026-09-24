@@ -1598,9 +1598,21 @@ async function process(quizId, payload = {}) {
             names: [...new Set(latin.map((e) => /"([^"]+)"/.exec(e)[1]))],
           });
         }
-        // eslint-disable-next-line no-await-in-loop
-        const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
-        if (fixed.ok) break;
+        // The picture is asked for on the first attempt of a drawable lesson
+        // whatever the text faults are: that retry is the picture path, and a
+        // text repair that shipped this attempt used to skip it (the quiz went
+        // out with no picture). The attempt is re-authored for its picture, so
+        // repairing its words first would be thrown away: they are repaired on
+        // the attempt that comes back.
+        const needsPicture = Boolean(figureRequiredError({
+          questions: v.questions, subject: digest.subject, attempt, maxAttempts: attemptsAllowed,
+          gradeBand: digest.grade_band || meta.grade,
+        }));
+        if (!needsPicture) {
+          // eslint-disable-next-line no-await-in-loop
+          const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
+          if (fixed.ok) break;
+        }
         addressFaults = v.errors;
         v = { ...v, ok: true };
       }
