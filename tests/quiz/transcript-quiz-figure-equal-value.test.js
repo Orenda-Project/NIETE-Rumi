@@ -58,3 +58,28 @@ test('without a picture the same options are a fair question and pass', () => {
   const v = validate([q({ question: 'Which of these is in lowest terms?', options: [F(1, 4), F(2, 8), F(4, 16)], figure: null, figure_role: null })], ctx);
   expect(dup(v)).toEqual([]);
 });
+
+describe('the same holds when the options name the bars', () => {
+  // Live (grade 3 Urdu, third replay): "which bar shows 3/6?" over bars of 1/2 (A),
+  // 3/6 (B) and 2/4 (C), key B. On a lesson about equivalent fractions all three
+  // bars show that amount.
+  const bars = (list) => ({ type: 'fraction_bar', bars: list.map(([p, sh], k) => ({ parts: p, shaded: sh, label: 'ABC'[k] })) });
+  const which = (over) => q({ question: `Which bar shows ${F(3, 6)}?`, options: ['bar A', 'bar B', 'bar C'], correct_index: 1, distractor_misconceptions: { 0: 'x', 2: 'y' }, option_feedback: { correct: 'Yes.', wrong: { 0: 'No.', 2: 'No.' } }, ...over });
+
+  test('two option bars of the same amount are refused', () => {
+    const e = dup(validate([which({ figure: bars([[2, 1], [6, 3], [4, 2]]) })], ctx));
+    expect(e).toHaveLength(1);
+    expect(e[0]).toMatch(/bar B.*bar A.*same amount/);
+  });
+
+  test('Urdu bar names and bare letters are read the same way', () => {
+    const ur = which({ options: ['پٹی A', 'پٹی B', 'پٹی C'], figure: bars([[2, 1], [6, 3], [5, 2]]) });
+    expect(dup(validate([ur], ctx))).toHaveLength(1);
+    const bare = which({ options: ['A', 'B', 'C'], figure: bars([[5, 2], [6, 3], [4, 2]]) });
+    expect(dup(validate([bare], ctx))).toHaveLength(1);
+  });
+
+  test('three different amounts pass', () => {
+    expect(dup(validate([which({ figure: bars([[3, 1], [6, 3], [4, 1]]) })], ctx))).toEqual([]);
+  });
+});
