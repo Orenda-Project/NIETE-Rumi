@@ -33,6 +33,7 @@ describe('no prompt names a part with an option letter', () => {
     expect(p).not.toMatch(LETTER_PART);
     expect(p).toMatch(/NAMING THE PARTS/);
     expect(p).toMatch(/never A, B, C or D/);
+    expect(p).toMatch(/the label in the picture is the bare name — "P", never "bar P"/);
   });
 
   test('the add-pictures repair prompt', async () => {
