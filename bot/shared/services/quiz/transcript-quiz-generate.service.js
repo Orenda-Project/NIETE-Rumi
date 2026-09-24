@@ -79,6 +79,8 @@ const N_QUESTIONS = 8;
  * costs the feature. TRANSCRIPT_QUIZ_MAX_ATTEMPTS overrides (read per call).
  */
 const MAX_ATTEMPTS = 3;
+/** Targeted-rewrite calls per repair: the worst five, then ONE more batch for what they left. */
+const REPAIR_BATCHES = 2;
 function maxAttempts() {
   // `process` is this module's exported job function, so the Node global is
   // reached through globalThis.
@@ -879,7 +881,8 @@ async function runKeyCheck(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames,
+    // More than five conflicting keys: the worst five are rewritten, the rest dropped below.
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -961,6 +964,125 @@ async function runKeyCheck(api, {
   record.status = 'failed';
   record.conflicts.forEach((c) => { c.outcome = stillBad.has(c.index) ? 'failed' : 'fixed'; });
   return finish({ failed: true });
+}
+
+/**
+ * THE LAST REPAIR — for a question written AFTER the author's loop.
+ *
+ * The loop validates every set it writes and repairs its in-place faults (a
+ * verb that guesses the child's gender, two English terms side by side). The
+ * steps after it — the picture step that REPLACES a question, the key check's
+ * and the blind solve's rewrites — accept any set whose faults are soft, and no
+ * repair runs after them. On staging (24 Sep 2026) the picture step replaced q5
+ * with a picture question whose explanation read "Quotient whole", "Remainder
+ * Numerator", and it shipped that way.
+ *
+ * So, before the rows are stored: the in-place faults (the child's gender,
+ * English terms side by side, a name in English letters) of every question
+ * whose text is not one the loop settled get ONE rewrite call — the worst five
+ * (rewriteTargets `partial`). The repair may change only the text its complaint
+ * names; the picture, the key, the options' order, the objective and the level
+ * stay exactly as they were, and a change to the options is kept only if the
+ * key stays where it was. The merged set must validate with no hard fault and
+ * with fewer in-place faults, and must draw; otherwise the set is kept as it
+ * was. This pass never costs the teacher the quiz.
+ *
+ * @returns {Promise<{record:object|null, changed?:boolean, questions?:object[],
+ *   figureUrls?:object, cardUrls?:object, draftedRows?:object[], faults?:string[]}>}
+ */
+const FINAL_REPAIRABLE = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${NAME_FAULT.source}`);
+/** What a question SAYS — the text a repair would change. */
+const textSignature = (q) => JSON.stringify([q && q.question, q && q.options, q && q.explanation, q && q.option_feedback]);
+/** The fields a complaint names: «q5: URDU_ADJACENT_TERMS — explanation + option 0 put …». */
+function namedFields(complaint) {
+  const m = /—\s*(.+?)\s+(?:speaks?|puts?)\b/.exec(String(complaint));
+  return m ? m[1].split(/\s*\+\s*/).map((f) => f.trim()) : [];
+}
+/** The original question with only the named text taken from its repair — or null when the repair moved the key. */
+function textOnlyRepair(orig, repl, fields, { namesOnly = false } = {}) {
+  if (!repl || typeof repl !== 'object') return null;
+  const sameShape = Array.isArray(repl.options) && Array.isArray(orig.options) && repl.options.length === orig.options.length
+    && Number(repl.correct_index) === Number(orig.correct_index)
+    && JSON.stringify(repl.correct_indices || null) === JSON.stringify(orig.correct_indices || null);
+  // A name in English letters is not rewritten by the model: the code writes
+  // the name's Urdu spelling into the question as it was, picture labels
+  // included (spellNames) — so that question is taken whole, key unmoved.
+  if (namesOnly) return sameShape ? { ...repl, slo_id: orig.slo_id, level: orig.level } : null;
+  const out = { ...orig };
+  const has = (rx) => fields.some((f) => rx.test(f));
+  if (has(/^question$/) && String(repl.question || '').trim()) out.question = repl.question;
+  if (has(/^option \d/)) {
+    if (!sameShape) return null;
+    out.options = repl.options;
+  }
+  if (has(/^explanation$/) && String(repl.explanation || '').trim()) out.explanation = repl.explanation;
+  if (has(/^option_feedback/) && repl.option_feedback && typeof repl.option_feedback === 'object') {
+    const keys = (fb) => Object.keys((fb && fb.wrong) || {}).sort().join(',');
+    if (keys(repl.option_feedback) !== keys(orig.option_feedback)) return null;
+    out.option_feedback = repl.option_feedback;
+  }
+  return out;
+}
+
+async function runFinalSoftRepair(api, {
+  questions, settled, digest, language, quizId, teacherId, lessonSummary, gradeBand, planned, attempts, knownNames = null,
+}) {
+  const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
+  const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
+  const before = validate(questions, { ...ctx, nExpected: questions.length });
+  const late = new Set(questions.map((q, i) => (settled.has(textSignature(q)) ? -1 : i)).filter((i) => i >= 0));
+  const faults = before.errors.filter((e) => FINAL_REPAIRABLE.test(e) && late.has(qIndex(e)));
+  if (!faults.length) return { record: null };
+  const record = {
+    status: 'unchanged', eligible: [...new Set(faults.map(qIndex))].sort((a, b) => a - b), asked: [], fixed: 0, cost_usd: 0,
+  };
+  const keep = (why) => {
+    record.reason = why;
+    record.remaining = faults.length;
+    logEvent('transcript_quiz.final_repair', { quizId, ...record });
+    return { record, faults: before.errors.filter((e) => FINAL_REPAIRABLE.test(e)) };
+  };
+  let rw;
+  try {
+    rw = await api.rewriteRejected({
+      questions, errors: faults, digest, language, gradeBand, quizId, lessonSummary, planned, partial: true, knownNames,
+    });
+  } catch (err) {
+    record.status = 'error';
+    return keep(String((err && err.message) || err).slice(0, 160));
+  }
+  record.asked = rw.indices || [];
+  record.cost_usd = Number(rw.costUsd) || 0;
+  if (!rw.attempted || !rw.merged) return keep(rw.error ? 'rewrite_failed' : 'nothing_usable');
+  const fieldsFor = (i) => [...new Set(faults.filter((e) => qIndex(e) === i).flatMap(namedFields))];
+  const namesOnly = (i) => faults.filter((e) => qIndex(e) === i).every((e) => NAME_FAULT.test(e));
+  const candidate = questions.map((q, i) => ((rw.replaced || []).includes(i)
+    ? (textOnlyRepair(q, rw.merged[i], fieldsFor(i), { namesOnly: namesOnly(i) }) || q) : q));
+  const after = validate(candidate, { ...ctx, nExpected: candidate.length });
+  const hard = after.errors.filter((e) => !SOFT_FAULT.test(String(e)));
+  const inPlaceBefore = before.errors.filter((e) => FINAL_REPAIRABLE.test(e)).length;
+  const inPlaceAfter = after.errors.filter((e) => FINAL_REPAIRABLE.test(e));
+  if (hard.length) return keep('merged_set_invalid');
+  if (inPlaceAfter.length >= inPlaceBefore) return keep('nothing_fixed');
+  let figureUrls;
+  let cardUrls;
+  let drafted;
+  try {
+    drafted = toRows(quizId, after.questions);
+    ({ figureUrls, cardUrls } = await renderFor(api, {
+      questions: after.questions, rows: drafted, language, teacherId, quizId,
+    }));
+  } catch (err) {
+    return keep('render_failed');
+  }
+  record.status = 'fixed';
+  record.fixed = inPlaceBefore - inPlaceAfter.length;
+  record.remaining = inPlaceAfter.length;
+  attempts.push({ attempt: 'final_repair', indices: record.asked, replaced: rw.replaced, errors: inPlaceAfter });
+  logEvent('transcript_quiz.final_repair', { quizId, ...record });
+  return {
+    record, changed: true, questions: after.questions, figureUrls, cardUrls, draftedRows: drafted, faults: inPlaceAfter, names: rw.names,
+  };
 }
 
 /**
@@ -1150,7 +1272,8 @@ async function runKeyVerify(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames,
+    // More than five flagged keys: the worst five are rewritten, the rest dropped below.
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1475,9 +1598,21 @@ async function process(quizId, payload = {}) {
             names: [...new Set(latin.map((e) => /"([^"]+)"/.exec(e)[1]))],
           });
         }
-        // eslint-disable-next-line no-await-in-loop
-        const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
-        if (fixed.ok) break;
+        // The picture is asked for on the first attempt of a drawable lesson
+        // whatever the text faults are: that retry is the picture path, and a
+        // text repair that shipped this attempt used to skip it (the quiz went
+        // out with no picture). The attempt is re-authored for its picture, so
+        // repairing its words first would be thrown away: they are repaired on
+        // the attempt that comes back.
+        const needsPicture = Boolean(figureRequiredError({
+          questions: v.questions, subject: digest.subject, attempt, maxAttempts: attemptsAllowed,
+          gradeBand: digest.grade_band || meta.grade,
+        }));
+        if (!needsPicture) {
+          // eslint-disable-next-line no-await-in-loop
+          const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
+          if (fixed.ok) break;
+        }
         addressFaults = v.errors;
         v = { ...v, ok: true };
       }
@@ -1534,7 +1669,7 @@ async function process(quizId, payload = {}) {
       // on every attempt but the last; the last one is handled below.
       if (attempt < attemptsAllowed) {
         // eslint-disable-next-line no-await-in-loop
-        const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
+        const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
         if (early.ok) break;
         if (early.tried) {
           lastRewriteErrors = lastErrors;
@@ -1551,31 +1686,74 @@ async function process(quizId, payload = {}) {
     // questions; the merged set goes through the whole validator again.
     // (Skipped when the loop already rewrote exactly these complaints.)
     if (!questions && lastRejected && lastErrors && lastRewriteErrors !== lastErrors) {
-      await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last' });
+      // The last chance: the worst five even when more need re-asking, then the salvage.
+      await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last', partial: true });
     }
     // ── the rewrite, shared by the loop and the post-loop fallback ───────────
-    async function runRewrite({ rejected, errors, summary, when }) {
-      const rw = await api.rewriteRejected({
-        questions: rejected, errors, digest, language,
-        gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
-        // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
-        planned: isLp,
-        knownNames: nameSpellings,
-      });
-      if (!rw.attempted) return { tried: false, ok: false, errors: null };
-      Object.assign(nameSpellings, rw.names || {});
-      {
+    async function runRewrite({
+      rejected, errors, summary, when, partial = false,
+    }) {
+      // ONE call repairs at most five questions. When more were faulted, the
+      // worst five go first (rewriteTargets), the merged set is validated
+      // again, and whatever it still names gets ONE second batch — never a
+      // third (REPAIR_BATCHES). The second batch runs only when the first left
+      // questions out and produced a set to build on.
+      let rw = null;
+      let v = null;
+      let rwSummary = summary;
+      let base = rejected;
+      let baseErrors = errors;
+      let prefer = [];
+      for (let batch = 1; batch <= REPAIR_BATCHES; batch += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const next = await api.rewriteRejected({
+          questions: base, errors: baseErrors, digest, language,
+          gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: rwSummary,
+          // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
+          planned: isLp,
+          knownNames: nameSpellings,
+          partial,
+          prefer,
+        });
+        if (!next.attempted) {
+          if (batch === 1) return { tried: false, ok: false, errors: null };
+          break;
+        }
+        rw = next;
+        Object.assign(nameSpellings, rw.names || {});
         meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
         // PLAN_R6 D5 — the rewrite may also return a repaired `lesson_summary`
         // (a gendered reference to the teacher is the one quiz-level complaint
         // it is asked to fix). It is the summary the merged set is VALIDATED
         // with and the one that is stored, so the two cannot disagree.
-        const rwSummary = rw.lessonSummary || summary;
-        const v = rw.merged
+        rwSummary = rw.lessonSummary || rwSummary;
+        v = rw.merged
           ? validate(rw.merged, {
             language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
           })
           : null;
+        attempts.push({
+          attempt: 'rewrite',
+          after: when,
+          batch,
+          indices: rw.indices,
+          deferred: rw.deferred && rw.deferred.length ? rw.deferred : undefined,
+          replaced: rw.replaced,
+          model: rw.model || null,
+          cost_usd: rw.costUsd || null,
+          latency_ms: rw.latencyMs || null,
+          errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
+        });
+        const more = batch < REPAIR_BATCHES && v && !v.ok && rw.merged && Array.isArray(rw.deferred) && rw.deferred.length > 0;
+        if (!more) break;
+        logEvent('transcript_quiz.rewrite_second_batch', {
+          quizId, after: when, first: rw.indices, deferred: rw.deferred, remaining: v.errors.length,
+        });
+        base = rw.merged;
+        baseErrors = v.errors;
+        prefer = rw.deferred;
+      }
+      {
         // A repaired set whose only remaining complaints are in-place faults
         // (a verb that speaks to the child with a gender, two English terms
         // side by side) is shipped (IN_PLACE_FAULT): the repair was the one
@@ -1603,16 +1781,6 @@ async function process(quizId, payload = {}) {
         // candidate: it may have repaired one of two rejections, and the
         // salvage then drops one question instead of two.
         if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors, lessonSummary: rwSummary };
-        attempts.push({
-          attempt: 'rewrite',
-          after: when,
-          indices: rw.indices,
-          replaced: rw.replaced,
-          model: rw.model || null,
-          cost_usd: rw.costUsd || null,
-          latency_ms: rw.latencyMs || null,
-          errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
-        });
         logEvent('transcript_quiz.rewrite_attempted', {
           quizId, after: when, indices: rw.indices, replaced: rw.replaced, ok, errors: v ? v.errors.length : null,
         });
@@ -1709,6 +1877,10 @@ async function process(quizId, payload = {}) {
       await tellTeacherFailed(phone, teacherLang, quizId, reason, quizSource, { step: 'author' });
       return { failed: true, reason, attempts };
     }
+    // What the loop settled: its questions have been validated and offered a
+    // repair. A question whose text is not in here was written later (the
+    // picture step, a key rewrite) and gets the last repair below.
+    const settled = new Set(questions.map(textSignature));
     // ── PICTURE DENSITY (grade 1-5 maths) ────────────────────────────────────
     // Before the key checks, so a stem rewritten for its picture is checked too.
     const dens = await runFigureDensity(api, {
@@ -1774,6 +1946,27 @@ async function process(quizId, payload = {}) {
       cardUrls = kv.cardUrls;
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
+    }
+    // ── THE LAST REPAIR (a question written after the loop) ──────────────────
+    // After every step that can write a question, before anything is stored.
+    const fr = await runFinalSoftRepair(api, {
+      questions, settled, digest, language, quizId, teacherId: quiz.teacher_id,
+      lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, planned: isLp, attempts,
+      knownNames: nameSpellings,
+    });
+    if (fr.record) {
+      meta.final_repair = fr.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (fr.record.cost_usd || 0);
+      if (fr.changed) {
+        Object.assign(nameSpellings, fr.names || {});
+        questions = fr.questions;
+        figureUrls = fr.figureUrls;
+        cardUrls = fr.cardUrls;
+        draftedRows = fr.draftedRows;
+      }
+      // The recorded in-place faults are the ones in what ships, at the indices it ships with.
+      meta.soft_faults = [...(meta.soft_faults || []).filter((e) => !FINAL_REPAIRABLE.test(String(e))), ...(fr.faults || [])];
+      if (!meta.soft_faults.length) delete meta.soft_faults;
     }
     // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────
     // Repaired in place while authoring (NAME_FAULT); this records whatever the
