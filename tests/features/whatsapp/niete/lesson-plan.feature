@@ -520,6 +520,15 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # In Urdu the caption says «آپ کے سبق کا منصوبہ». A quiz written from a coaching recording keeps
     # "what you taught" — that lesson was taught.
 
+  @e2e @quiz @wip @draft @config-gated @P3
+  Scenario: The afternoon offer's WhatsApp message id is kept on its nudge row
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the afternoon quiz offer arrives
+    And the teacher's lp_quiz_offer row for today is sent with the offer's WhatsApp message id in context.message_ids, not an empty list
+    # lp-quiz-offer send(): the button and list senders report Meta's id through onMessageId; the sweeper
+    # writes it with markSent. The boolean the send returns is still the delivery verdict. @wip.
+
   @e2e @quiz @wip @draft @config-gated @P2
   Scenario: No thanks is remembered
     Given the NIETE bot chat is open and the afternoon quiz offer has arrived

@@ -12,7 +12,7 @@
  */
 
 const { completeJson } = require('./transcript-quiz-llm');
-const { LANG_NAME } = require('./transcript-quiz-language');
+const { LANG_NAME, canonicalSubject } = require('./transcript-quiz-language');
 const { ALLOWED_TYPES, EARLY_YEARS_TYPES, CORE_TYPES, minimalSpecBlock } = require('./transcript-quiz-figure');
 const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
 const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
@@ -72,6 +72,8 @@ A picture is worth far more to a six-year-old than to a fifteen-year-old: a chil
 - match — the child picks the pair. {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]} draws A/B down one side and 1/2 down the other and JOINS NOTHING; your three options are the candidate pairings ("A-2", "A-1", "B-2").
 - money — coins and notes. {"type":"money","currency":"Rs","items":[{"value":10,"kind":"coin"},{"value":5,"kind":"coin","count":2}]}. Each piece shows its own value, so never ask which piece is worth what — ask for the total, the number of pieces, or the swap.
 - compare_size — longer/shorter, taller/shorter, heavier/lighter. {"type":"compare_size","model":"length","items":[{"label":"سرخ ربن","size":5},{"label":"ہرا ربن","size":8}]}, "height" for vertical bars, or {"model":"balance","left":{"picto":"apple","count":3},"right":{"picto":"apple","count":1}}. "size" is relative and is never printed. An item may name a colour from the same list (ink, accent, leaf, cool, warn, plum, clay) as a bare word — and if the label names a colour, the bar must be that colour or it contradicts its own label.
+- base_ten — place value, drawn the way the class built it: loose sticks for ones, bundles of ten sticks for tens, big bundles for hundreds — or, with "model":"blocks", unit cubes, rods and flats. {"type":"base_ten","hundreds":3,"tens":4,"ones":2}. The number is never printed and a 0 is an empty column, so ask what number the picture shows, how many tens it has, or what the tens are worth.
+- COUNTERS AND TILES are what a maths class counts with: "counter" (a round counter — the lesson's counters, dots, beads and marbles) and "tile" (a square — its tiles and squares) are pictograms like any other, e.g. {"type":"count_objects","picto":"counter","count":7}.
 PICTOGRAM NAMES — a picture of a thing comes from this fixed set and NOTHING ELSE. NEVER INVENT A PICTOGRAM NAME: a name that is not on this list fails the question outright. The set will not have every word your lesson used. When it does not, choose a word from the lesson that IS on the list, or write that question without a figure — those are the only two options (word_blank has a third: keep it and leave "picto" out, and the letters are drawn on their own).
 ${pictogramRoster}
 Reuse the older types for a young class too: numberline for before/after and ordering, fraction_bar and grid for part-whole, geometry for naming a shape, flow or timeline for a sequence of steps.
@@ -91,7 +93,13 @@ function figureContract({ subject, gradeBand, nQuestions = DEFAULT_QUESTIONS } =
   // halves, because a young class still counts on a number line and shades a
   // grid.
   const offered = early ? ALLOWED_TYPES : CORE_TYPES;
-  const requirement = drawable || early
+  // A grade 1-5 MATHS quiz aims for at least three pictures (the validator's
+  // figureDensity; the generate step adds pictures once when it falls short),
+  // and may draw a picture that MODELS the stem's own numbers.
+  const earlyMaths = early && canonicalSubject(subject) === 'maths';
+  const requirement = earlyMaths
+    ? `THIS LESSON IS DRAWABLE (maths, grade 1-5). A young class learns maths through the picture — the objects, then the picture of them, then the sum — so write AT LEAST THREE picture questions of the ${nQuestions}, and never more than ${Math.floor(nQuestions / 2)}. Draw what the lesson drew: counters, tiles, bundles of sticks, fraction bars, a number line. Build each picture question AROUND its picture.`
+    : drawable || early
     ? `THIS LESSON IS DRAWABLE (${subject || 'language'}${early ? ', grade 1-5' : ''}). Write at least ONE picture question — two or three when the lesson has ${early ? 'counting, letters or sounds, spelling, the clock, money, a pattern, a sorting or matching activity, shapes, ' : ''}fractions, a number line, shapes, measurement, a graph, a circuit, a sequence of steps, parts of a cell, atoms or an equation. Build the question AROUND the picture: decide the drawing first, then ask what it shows. Zero pictures is acceptable only when nothing in the lesson can be drawn with the allowed types.`
     : `This subject (${subject || 'language'}) rarely needs a picture; leave "figure" null unless the lesson genuinely asks the child to read something off a drawing.`;
   return `PICTURE QUESTIONS.
@@ -102,7 +110,8 @@ ${requirement}
 WHEN a figure is right:
   (a) the child must READ something off the picture to answer: a position, a shaded part, a shape, a plotted point, a circuit, a sequence of steps. Use "figure_role": "read_off".
   (b) the class is grade 1–5 and the question asks the child to count or compare objects. Use "figure_role": "count_compare".
-WHEN a figure is wrong: a definition, recall of a word or term, or decoration. If the question can be answered without looking at the picture, there is no figure.
+${earlyMaths ? `  (c) THIS grade 1-5 maths class may also see a picture that MODELS the numbers the stem states — the pictorial step the lesson itself used: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Use "figure_role": "model". The stem keeps its numbers; the picture still never shows the answer — no option's text, no total, no result.
+` : ''}WHEN a figure is wrong: a definition, recall of a word or term, or decoration. If the question can be answered without looking at the picture, there is no figure.
 
 HARD RULES
 - The figure must NOT contain the answer. No option's text may appear in the picture — UNLESS every option's appears (a "which point is at −3? A / B / C" number line is fine, because naming all three gives nothing away). Do not write the fraction, the total, the percentage or the result anywhere in the spec (no "title" or "caption" that states it).
@@ -112,9 +121,9 @@ HARD RULES
 - Use the SIMPLEST spec that answers the question. Long labels and crowded scales collide and the whole question is thrown away.
 - The engine draws MATHEMATICS AND SCIENCE, never pictures of things: never draw a scene, an object, an animal, a person or a place with geometry shapes (a "farm" of rectangles and circles renders as a blank). If the question needs a photo of a real thing, there is no figure.
 - A jump arc must not land on the answer: "3 + 4 = ?" with an arc from 3 to 7 shows the child the 7. Draw the dot at 3 and ask where a jump of 4 lands, with no arc — or draw the arc and ask how long the jump was.
-- EARN THE FIGURE: the stem must not state the numbers the picture shows. "A bar has 4 parts and 1 is shaded — which fraction?" needs no picture; "تصویر میں کتنا حصہ رنگا ہوا ہے؟" does. The child must READ the picture to answer.
+- EARN THE FIGURE: the stem must not state the numbers the picture shows. "A bar has 4 parts and 1 is shaded — which fraction?" needs no picture; "تصویر میں کتنا حصہ رنگا ہوا ہے؟" does. The child must READ the picture to answer.${earlyMaths ? ' The one exception is a "model" picture, (c) above.' : ''}
 - geometry is for MATHEMATICS lessons only, and its kinds are exactly: triangle, polygon, circle (keys c, r), angle/rightangle (vertex, a, b), line/segment (from, to), point (at) — there is no "text", "rectangle" or "arrow" kind; a shape with the wrong keys vanishes.
-- Column arithmetic, long division, a written sum: NO picture — write it in the stem with digits.
+- Column arithmetic is NO picture: write a column sum as ONE typeset expression in the stem (COLUMN SUMS, in the question rules above). Long division and other written working stay as digits in the stem.
 - A figure must be able to PRODUCE the answer: if the answer is 4 (12 shared into 3), the drawing shows 12 things in 3 equal groups, not 9 cells with 3 shaded. A science process is a flow; a sequence in time is a timeline; a comparison of amounts is a fraction_bar or a grid.
 - Colours: use only the tokens named in the minimal specs; never invent one (var(--sand), var(--brown) do not exist and render as nothing).
 - SCIENCE MUST BE TRUE. A drawing is checked against the world, not only against the engine: a chem_equation must BALANCE (set "balanced": false only when the question is asking the child to balance it); an atom's element must be one the engine knows (H to Ca, plus Fe, Cu, Zn, Br, I) or carry an explicit "Z" and "shells", because an unknown symbol is drawn as a different element wearing that label; a cell may only label parts the chosen kind has (an animal cell has no wall, no chloroplast, no large vacuole).
@@ -176,6 +185,9 @@ function buildAuthorPrompt({
   // inventing classroom talk, and the summary it writes to the teacher says
   // "you planned", never "you taught".
   lessonPlan = null,
+  // Part B — an lp_v8 lesson's own manipulatives (lp-quiz-digest lessonDrewBlock):
+  // the counters, bundles and tiles the class saw, so a picture draws those.
+  lessonDrew = '',
 }) {
   const lp = Boolean(lessonPlan);
   // How many of the n may actually be above bare recall on THIS lesson. A flat
@@ -224,7 +236,7 @@ ${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
-${multiContract({ allowMulti, n })}${langAgain}${retry}
+${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}
 
 Return ONLY this JSON object:
 { "lesson_summary": "", "lesson_summary_short": "", "checks_summary": "",
@@ -253,11 +265,11 @@ ${excerpts}`}`;
  */
 async function author({
   digest, transcript, language, n = DEFAULT_QUESTIONS, gradeBand = null, previousErrors = null,
-  quizId = null, allowMulti = Boolean(multiFlowId()), lessonPlan = null,
+  quizId = null, allowMulti = Boolean(multiFlowId()), lessonPlan = null, lessonDrew = '',
 }) {
   const excerpts = lessonPlan ? '' : excerptsFor(transcript, digest);
   const prompt = buildAuthorPrompt({
-    digest, excerpts, language, n, gradeBand, previousErrors, allowMulti, lessonPlan,
+    digest, excerpts, language, n, gradeBand, previousErrors, allowMulti, lessonPlan, lessonDrew,
   });
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.author' });
   const questions = Array.isArray(json?.questions) ? json.questions : [];

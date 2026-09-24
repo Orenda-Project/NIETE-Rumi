@@ -44,9 +44,22 @@ node infrastructure/scripts/migrate.js
 
 The migration runner:
 - Reads the `schema_versions` table to find what's already applied
-- Applies only new migrations in version order
-- Uses checksums to detect modified migrations
-- All statements use `IF NOT EXISTS` / `IF EXISTS` for safety
+- Applies the new migration and records it (version, the filename and the file's
+  SHA-256 in `description`, and `applied_at`)
+- **Refuses, applying nothing, when more than one migration is pending.** An update
+  normally brings one. More than one means the ledger does not describe the database —
+  a file applied by hand and never recorded would be applied a second time. It lists
+  what is pending and stops. Check what the database really has with the read-only
+  audit, record what is already applied, and run it again:
+
+  ```bash
+  python3 scripts/schema-ledger-audit.py --plan                                  # what each file is checked by
+  python3 scripts/schema-ledger-audit.py --target <env> --env-file <env file>    # read-only report
+  ```
+
+  A database bootstrapped from `00_complete-schema.sql` records none of the `V*.sql`
+  files, so its first run is refused the same way. Only when every pending file really
+  does still need to run: `node infrastructure/scripts/migrate.js --apply-all-pending`.
 
 **Prerequisite**: Your Supabase database needs the `exec_sql` function:
 

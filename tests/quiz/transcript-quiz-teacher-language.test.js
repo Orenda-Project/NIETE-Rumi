@@ -50,6 +50,8 @@ const List = require('../../bot/shared/services/quiz/transcript-quiz-list.servic
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
 // The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
 const { installAgreeingSolver } = require('./helpers/key-verify-agree');
+// Nor is the grade 1-5 maths picture repair (see the helper).
+const { installNoPictureRepair } = require('./helpers/no-picture-repair');
 const Nudge = require('../../bot/shared/services/quiz/transcript-quiz-nudge.service');
 
 const QID = '22222222-2222-4222-8222-222222222222';
@@ -103,6 +105,7 @@ beforeEach(() => {
   delete process.env.TRANSCRIPT_QUIZ_INTRO_VIDEO;
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
   installAgreeingSolver(Gen);
+  installNoPictureRepair(Gen);
 });
 
 describe('teacherLanguageFor', () => {

@@ -23,8 +23,31 @@ jest.mock('bullmq', () => ({ Queue: class {}, Worker: class {}, QueueEvents: cla
 jest.mock('chartjs-node-canvas', () => ({ ChartJSNodeCanvas: class {} }), { virtual: true });
 jest.mock('microsoft-cognitiveservices-speech-sdk', () => ({}), { virtual: true });
 
+// A real-shaped PostgREST chain, not a bare jest.fn(). The routers that run
+// ahead of the active-quiz check (the I-SAPS open-ended answer router reads
+// `users` and `training_assessment_attempts` for every typed message) must run
+// FOR REAL here: a bare `from()` returns undefined, the router throws on
+// `.select`, the intercept's one catch swallows the throw, and the child's
+// answer never reaches handleAnswer — which is how case 4 went red when that
+// router was added, while production (where `from()` is a real builder and the
+// child has no training attempt) was unaffected. The rows are the child's: a
+// users row, and no open training attempt.
+const mockRows = {
+  users: [{ id: 'u-child', name: null }],
+  training_assessment_attempts: [],
+};
+function mockChain(table) {
+  const rows = mockRows[table] || [];
+  const chain = {};
+  ['select', 'eq', 'neq', 'in', 'is', 'not', 'gte', 'lte', 'order', 'limit', 'range',
+    'insert', 'update', 'upsert', 'delete'].forEach((m) => { chain[m] = () => chain; });
+  chain.maybeSingle = async () => ({ data: rows[0] || null, error: null });
+  chain.single = async () => ({ data: rows[0] || null, error: null });
+  chain.then = (res, rej) => Promise.resolve({ data: rows, error: null }).then(res, rej);
+  return chain;
+}
 jest.mock('../../bot/shared/config/supabase', () => ({
-  from: jest.fn(),
+  from: jest.fn((table) => mockChain(table)),
   rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
   auth: {},
 }));
@@ -179,5 +202,9 @@ describe('bd-mg9c7.97 — QUIZ-<code> reaches the share-code join ahead of a sta
 
     expect(mockHandleAnswer).toHaveBeenCalledWith(CHILD_PHONE, 'A', { currentQuestionId: 'q1' });
     expect(mockBeginFromCodeLocked).not.toHaveBeenCalled();
+    // The open-ended answer router really ran ahead of the quiz answer, looked
+    // for the child's open training attempt, found none and let the "A" through.
+    const supabase = require('../../bot/shared/config/supabase');
+    expect(supabase.from.mock.calls.map((c) => c[0])).toContain('training_assessment_attempts');
   });
 });

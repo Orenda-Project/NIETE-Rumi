@@ -16,7 +16,7 @@ const { UX_STRINGS, resolveUx } = require('../../bot/shared/config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../bot/shared/config/languages');
 const { genderedTeacherForms } = require('../../bot/shared/services/quiz/transcript-quiz-pedagogy');
 
-const LP_KEYS = ['tqFailedLpSource', 'tqFailedLpDigest', 'tqFailedLpAuthor', 'tqFailedLpKeyConflict', 'tqFailedLpKeyDisagreement', 'tqFlowResultsFailedLp'];
+const LP_KEYS = ['tqFailedLpSource', 'tqFailedLpSourceUnusable', 'tqFailedLpModel', 'tqFailedLpAuthor', 'tqFailedLpKeyConflict', 'tqFailedLpKeyDisagreement', 'tqFlowResultsFailedLp'];
 const cp = (s) => [...String(s)].length;
 
 describe('LP-born quiz failure copy', () => {
@@ -83,13 +83,15 @@ describe('failureCopyKey — the failure copy is picked by the quiz SOURCE', () 
 
   test('an lp_v8 quiz gets the reason that actually fired', () => {
     expect(failureCopyKey('source_missing', 'lp_v8')).toBe('tqFailedLpSource');
-    expect(failureCopyKey('digest_failed', 'lp_v8')).toBe('tqFailedLpDigest');
+    expect(failureCopyKey('source_unusable', 'lp_v8')).toBe('tqFailedLpSourceUnusable');
+    expect(failureCopyKey('model_failed', 'lp_v8')).toBe('tqFailedLpModel');
     expect(failureCopyKey('validator_failed', 'lp_v8')).toBe('tqFailedLpAuthor');
   });
 
   test('a transcript quiz is untouched — it still gets tqCouldNotMake for every reason', () => {
     expect(failureCopyKey('session_missing', 'transcript')).toBe('tqCouldNotMake');
-    expect(failureCopyKey('digest_failed', 'transcript')).toBe('tqCouldNotMake');
+    expect(failureCopyKey('model_failed', 'transcript')).toBe('tqCouldNotMake');
+    expect(failureCopyKey('source_unusable', 'transcript')).toBe('tqCouldNotMake');
     expect(failureCopyKey('validator_failed', 'transcript')).toBe('tqCouldNotMake');
     expect(failureCopyKey('validator_failed', undefined)).toBe('tqCouldNotMake');
   });

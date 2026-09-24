@@ -457,3 +457,68 @@ describe('snapshotGrowth — the baseline may shrink, never grow', () => {
     expect(g.removedSuites).toEqual(['tests/gone.test.js']);
   });
 });
+
+/**
+ * The gate itself must judge offenders the way the growth check does.
+ *
+ * `snapshotGrowth` learned on 2026-09-04 that a guard reporting `path:line` moves an
+ * unchanged violation to a new line whenever anything above it is edited. The gate's
+ * own comparison never learned it: it compared RAW strings, so on 2026-09-23 sandbox
+ * reported 432 "new" source-hygiene offenders of which 129 were real — every PR that
+ * touched a file carrying an old ticket ref reddened the gate for everyone, which is
+ * the state that makes a gate unreadable.
+ *
+ * Normalising to a SET would swing too far the other way: `source-hygiene` reports a
+ * bare `path:line`, so a second violation in a file that already had one would
+ * normalise to the same string and vanish. So both comparisons count: an offender is
+ * new when its file (its normalised form) carries MORE violations than the baseline
+ * recorded, and the report names the raw lines that are not in the baseline verbatim,
+ * because one of them is the new one and a human needs a line number to chase.
+ */
+describe('compareSnapshots — a moved offender is not a new one', () => {
+  const snap = (offs) => ({
+    'tests/setup/source-hygiene.test.js': { failing: ['no internal refs'], offenders: offs },
+  });
+
+  it('an offender that only changed line number is clean', () => {
+    const r = compareSnapshots(snap(['bot/x.js:14']), snap(['bot/x.js:10']));
+    expect(r.newOffenders).toEqual([]);
+    expect(r.fixedOffenders).toEqual([]);
+    expect(r.clean).toBe(true);
+  });
+
+  it('a SECOND bare path:line violation in a file that already had one is still new', () => {
+    const r = compareSnapshots(snap(['bot/x.js:10', 'bot/x.js:30']), snap(['bot/x.js:10']));
+    expect(r.newOffenders).toEqual([
+      { suite: 'tests/setup/source-hygiene.test.js', offenders: ['bot/x.js:30'] },
+    ]);
+    expect(r.clean).toBe(false);
+  });
+
+  it('when every line moved AND the count grew, every unmatched line is named as a candidate', () => {
+    const r = compareSnapshots(snap(['bot/x.js:14', 'bot/x.js:31']), snap(['bot/x.js:10']));
+    expect(r.newOffenders).toEqual([
+      { suite: 'tests/setup/source-hygiene.test.js', offenders: ['bot/x.js:14', 'bot/x.js:31'] },
+    ]);
+    expect(r.clean).toBe(false);
+  });
+
+  it('a file that dropped a violation while its others moved reports a fix, not a regression', () => {
+    const r = compareSnapshots(snap(['bot/x.js:12']), snap(['bot/x.js:10', 'bot/x.js:40']));
+    expect(r.newOffenders).toEqual([]);
+    expect(r.fixedOffenders).toEqual([
+      { suite: 'tests/setup/source-hygiene.test.js', offenders: ['bot/x.js:10', 'bot/x.js:40'] },
+    ]);
+    expect(r.clean).toBe(true);
+  });
+});
+
+describe('snapshotGrowth — counts per file, so a bare path:line cannot hide', () => {
+  const snap = (offs) => ({ 'tests/setup/g.test.js': { failing: [], offenders: offs } });
+
+  it('a second bare path:line violation in a file that already had one is growth', () => {
+    const g = snapshotGrowth(snap(['bot/x.js:10']), snap(['bot/x.js:10', 'bot/x.js:30']));
+    expect(g.grew).toBe(true);
+    expect(g.addedOffenders).toEqual([{ suite: 'tests/setup/g.test.js', offenders: ['bot/x.js:30'] }]);
+  });
+});

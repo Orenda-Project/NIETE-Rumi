@@ -32,7 +32,7 @@ const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
   needsLanguageAsk, languageAskButtons } = require('./transcript-quiz-language');
-const { LP_V8 } = require('./quiz-sources');
+const { LP_V8, lpRemakeable, failureReasonOf } = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -430,6 +430,58 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
 }
 
 /**
+ * "Make it again" on a FAILED lp_v8 quiz (the /quiz Flow). failed → generating,
+ * once, then the same queue step every lp_v8 quiz goes through.
+ *
+ * Safe to re-queue: the generate step only runs a row in generating / ready /
+ * offered, and every failure write it makes keeps `meta` (the lessons, the
+ * class, the lesson date), so the remake reads what the first attempt read.
+ * The atomic `status = failed` filter is what makes a double submit a no-op —
+ * nothing below de-duplicates a quiz_generate job (its FIFO id is per call).
+ * A digest the first attempt already wrote is kept, so a quiz that failed at
+ * authoring goes straight back to authoring. The failure it replaces is kept as
+ * `previous_error`; `error` is cleared so no surface reads a stale reason off a
+ * row that is being made.
+ *
+ * @returns {Promise<boolean>} true when the remake was queued
+ */
+async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
+  const api = module.exports;
+  const meta = quiz.meta || {};
+  if (quiz.quiz_source !== LP_V8 || !lpRemakeable(meta)) {
+    logEvent('transcript_quiz.remake_refused', { quizId: quiz.id, reason: failureReasonOf(meta), remakes: meta.remakes || 0 });
+    return false;
+  }
+  const { error: _error, error_detail: _detail, ...kept } = meta;
+  const { data: flipped, error } = await supabase.from('quizzes')
+    .update({
+      status: 'generating',
+      meta: {
+        ...kept,
+        step: kept.digest ? 'author' : 'digest',
+        remakes: (Number(meta.remakes) || 0) + 1,
+        previous_error: meta.error || null,
+        remade_at: new Date().toISOString(),
+        remake_source: source,
+      },
+    })
+    .eq('id', quiz.id).eq('status', 'failed').select('id');
+  if (error) {
+    logToFile('❌ lp quiz remake: the failed row could not be claimed', { quizId: quiz.id, error: error.message }, 'error');
+    return false;
+  }
+  if (!flipped || !flipped.length) {
+    await api.tellAlready(phone, quiz, teacherLang);
+    return false;
+  }
+  logEvent('transcript_quiz.remade', {
+    quizId: quiz.id, userId: quiz.teacher_id, previousError: meta.error || null,
+    remakes: (Number(meta.remakes) || 0) + 1, source, quiz_source: LP_V8,
+  });
+  return api.queueLpQuiz({ quizId: quiz.id, nudgeId: meta.nudge_id, phone, language: teacherLang });
+}
+
+/**
  * The teacher's answer to the ask. The language they chose is written to
  * `quizzes.language` — the generate step reads that ahead of the subject
  * rule — and the same atomic flip guards a double tap.
@@ -461,6 +513,6 @@ async function handleLanguageButton(buttonId, phone, user) {
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo, introVideoShows,
   scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
-  sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz,
+  sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz, remakeLpQuiz,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };

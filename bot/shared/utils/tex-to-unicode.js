@@ -52,6 +52,9 @@ const ENVIRONMENTS = new Map(Object.entries({
   vmatrix: ['|', '|'], Vmatrix: ['‖', '‖'], matrix: ['', ''],
 }));
 
+/** Between a whole number and the fraction after it (`2\frac{1}{3}` -> "2 1/3"). NO-BREAK SPACE. */
+const MIXED_NUMBER_JOINER = '\u00A0';
+
 /** Commands that are pure spacing in TeX and have no business on a phone. */
 const SPACING = new Map(Object.entries({
   quad: ' ', qquad: ' ', ',': ' ', ';': ' ', ':': ' ', ' ': ' ', '!': '',
@@ -153,6 +156,12 @@ function convertMath(src) {
       if (name === 'frac' || name === 'dfrac' || name === 'tfrac') {
         const [num, afterNum] = readGroup(src, next);
         const [den, afterDen] = readGroup(src, afterNum);
+        // A MIXED NUMBER: `2\frac{1}{3}` is two and one third, and written straight after its
+        // whole part the fraction reads "21/3" — twenty-one thirds. The two are joined by a
+        // NO-BREAK SPACE, chosen for bidi rather than looks: U+00A0 is a common separator, so
+        // "2 1/3" stays one number run inside an Urdu line, where a plain space would let the
+        // two numbers swap sides.
+        if (/\d\s*$/.test(out)) out = `${out.replace(/\s+$/, '')}${MIXED_NUMBER_JOINER}`;
         out += `${tighten(convertMath(num))}/${tighten(convertMath(den))}`;
         i = afterDen;
         continue;

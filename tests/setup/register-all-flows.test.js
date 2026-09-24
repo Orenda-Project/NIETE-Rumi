@@ -102,7 +102,7 @@ describe('register-all-flows', () => {
     // diverged and do not carry the same set of Flows (main has Pic-to-LP
     // Confirm; develop does not). Read the count off the tree you are on rather
     // than copying it across a cherry-pick.
-    it('exports an array of all 21 registerable flow configurations', () => {
+    it('exports an array of all 22 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
       // Re-armed at 18 on 2026-09-06: the assessment REVIEW screens became their
       // own Flow. A Flow opens on screens[0], and the review screens could only
@@ -113,7 +113,9 @@ describe('register-all-flows', () => {
       // (endpoint) landed together. `main` keeps Pic-to-LP Confirm, so this
       // tree is 21 where develop is 19 — Student Join was never registered
       // there, only published by hand, which is the gap this closes.
-      expect(FLOW_CONFIGS).toHaveLength(21);
+      // Re-armed at 22 on 2026-09-23: the child's join screen became a localized
+      // Flow (Student Join Localized), every word supplied in the quiz language.
+      expect(FLOW_CONFIGS).toHaveLength(22);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

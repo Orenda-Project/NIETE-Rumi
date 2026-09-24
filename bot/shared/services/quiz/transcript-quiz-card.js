@@ -19,17 +19,10 @@
  * style, so a fraction is as tall as the words beside it. KaTeX's stylesheet
  * and faces ride in the page only when the card actually carries maths.
  */
-const fs = require('fs');
-const path = require('path');
 const { logToFile } = require('../../utils/logger');
-
-let _mark = null;
-function markB64() {
-  if (_mark === null) {
-    try { _mark = fs.readFileSync(path.join(__dirname, '..', '..', 'assets', 'niete-mark-ondark-padded.png')).toString('base64'); } catch { _mark = ''; }
-  }
-  return _mark;
-}
+// The counter, the mark and the lattice are shared with the frame of a
+// figure-only question, so both kinds of question picture wear the same chrome.
+const { markB64, paintedCounter, latticePaths } = require('./quiz-picture-chrome');
 const { fontCss } = require('../../../vendor/lp-v9/lib/fonts');
 
 const { needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTTON_TITLE_MAX } = require('./quiz-notation');
@@ -86,7 +79,7 @@ function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null,
       <div class="opt" data-letter="${LETTERS[pos]}"><div class="dia"><span>${LETTERS[pos]}</span></div><div class="opt-text" dir="${optDir(options[stored])}">${mathHtml(options[stored], { display: true })}</div></div>`).join('');
   const stemHtml = mathHtml(stem, { display: true });
   const maths = usesMath(stemHtml) || usesMath(rows);
-  const counter = questionNumber && total ? `<div class="counter">${ur ? `سوال ${questionNumber} از ${total}` : `Question ${questionNumber} of ${total}`}</div>` : '';
+  const counter = questionNumber && total ? `<div class="counter">${esc(paintedCounter(questionNumber, total, language))}</div>` : '';
   // The footer names the letters THIS card actually draws — a two-option card
   // must never tell the child to tap a C that is not there, and a four-option
   // card must name D. Built from options.length, not a hardcoded three.
@@ -142,17 +135,6 @@ ${fig}
 ${cue}${rows}
 <div class="foot">${esc(footText)}</div>
 </div></body></html>`;
-}
-
-function latticePaths() {
-  const out = [];
-  for (let y = -60; y < 1500; y += 180) {
-    for (let x = -60; x < 1140; x += 180) {
-      const s = 46 + ((x / 180 + y / 180) % 3) * 14;
-      out.push(`<rect x="${x}" y="${y}" width="${s}" height="${s}" transform="rotate(45 ${x + s / 2} ${y + s / 2})"/>`);
-    }
-  }
-  return out.join('');
 }
 
 async function renderQuestionCardPng(data) {

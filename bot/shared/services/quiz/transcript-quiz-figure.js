@@ -14,13 +14,15 @@
  *     → canonicalType()      is it on the phone-safe allowlist?
  *     → renderFigureSvg()    does the engine draw it, with zero label collisions?
  *     → figureLeaksAnswer()  does the picture already say the answer?
- *     → renderFigurePng()    1080px, fonts embedded, white ground
+ *     → renderFigurePng()    1080x565, fonts embedded, framed with the quiz chrome
  *     → uploadFigure()       one R2 object per question
  *     → quiz_questions.media.question_image, render_pattern 'P3'
  *
  * The child then gets ONE interactive message per question: image header, stem
  * body, three reply buttons — never a picture after the options, never a
- * picture the question does not need.
+ * picture the question does not need. The picture carries the same chrome as a
+ * question card — "Question n of N" and the NIETE mark — so a picture question
+ * looks like the rest of the quiz (see FRAME below).
  *
  * Pure and synchronous down to renderFigurePng (the engine is synchronous), so
  * the validator can run the render gate inline.
@@ -65,10 +67,15 @@ const ALLOWED_TYPES = [
   // 360 segments and `word_blank` 257, against 121 for every existing drawable
   // type put together (the option-space study).
   'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+  // Place value, drawn the way the class built it — bundles of sticks, or flats,
+  // rods and cubes. The grade 1-5 slide scripts draw it on nearly every
+  // place-value page and no other type could (a "1 hundred" or a "0 tens" is
+  // not something count_objects will draw).
+  'base_ten',
 ];
 
 /**
- * The eight above, on their own. They are offered to the AUTHOR only for a
+ * The early-years types, on their own. They are offered to the AUTHOR only for a
  * grade 1-5 lesson: a grade 9 chemistry quiz has no use for a ten-frame, and
  * every type in the prompt is tokens spent plus one more shape the model can
  * reach for wrongly. They stay on ALLOWED_TYPES for every grade, because the
@@ -76,9 +83,10 @@ const ALLOWED_TYPES = [
  */
 const EARLY_YEARS_TYPES = [
   'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+  'base_ten',
 ];
 
-/** ALLOWED_TYPES minus the early-years eight — the 6-12 roster. */
+/** ALLOWED_TYPES minus the early-years types — the 6-12 roster. */
 const CORE_TYPES = ALLOWED_TYPES.filter((t) => !EARLY_YEARS_TYPES.includes(t));
 
 /**
@@ -114,6 +122,26 @@ const TYPE_DEFAULTS = {
   grid: { legend: '' },
 };
 
+/**
+ * Defaults that depend on the QUIZ LANGUAGE. A place-value mat's column heads
+ * are words a child reads, so they come from the string catalog like every
+ * other child-facing word (root rule 20), never from the engine's own
+ * fallback. Anything the author sets wins; the stored spec is never changed,
+ * so the teacher PDF's re-draw injects the same heads again.
+ */
+function languageDefaults(type, language) {
+  if (type !== 'base_ten') return {};
+  const { resolveUx } = require('../../config/ux-strings');
+  const lang = clampLanguage(language);
+  return {
+    labels: {
+      hundreds: resolveUx('tqPlaceHundreds', { language: lang }),
+      tens: resolveUx('tqPlaceTens', { language: lang }),
+      ones: resolveUx('tqPlaceOnes', { language: lang }),
+    },
+  };
+}
+
 /** Keys whose value is a structural enum, not label text a child reads. */
 const STRUCTURAL_KEYS = new Set([
   'type', 'lang', 'kind', 'mode', 'style', 'color', 'colour', 'engine', 'layout',
@@ -136,6 +164,26 @@ const PNG_WIDTH = 1080;
 // operator's phone). A canvas of exactly that shape is never cropped; the
 // drawing is centred inside it.
 const PNG_HEIGHT = 565;
+
+/**
+ * THE FRAME. A figure that does not need a whole question card arrived as a
+ * bare white canvas with a small drawing in it — no counter, no mark, the one
+ * question in the quiz that did not look like the quiz. It now carries the
+ * card's chrome in a band across the top: the counter at the start edge, the
+ * NIETE mark at the end, over the card's lattice.
+ *
+ * The canvas stays exactly 1080x565 (the header shape above). The band lives in
+ * what used to be the top and bottom padding (36px each), so the drawing's box
+ * shrinks from 1016x493 to FIG_BOX — a height-bound drawing loses under 2% of
+ * its size, a wide one nothing. FIG_BOX is the ONE statement of that box: the
+ * label-size gate (transcript-quiz-figure-gates) measures against it, so the
+ * gate and the picture can never disagree about how big a label is drawn.
+ */
+const FRAME = { padTop: 12, band: 50, gap: 4, padBottom: 14, padX: 32 };
+const FIG_BOX = Object.freeze({
+  w: PNG_WIDTH - 2 * FRAME.padX,
+  h: PNG_HEIGHT - FRAME.padTop - FRAME.band - FRAME.gap - FRAME.padBottom,
+});
 
 /** NIETE tokens, mapped onto the engine's palette slots. No Rumi navy, no gold. */
 const NIETE_TOKENS = {
@@ -373,6 +421,8 @@ const PHONE_FONT_SCALE = {
   match: 1.6,
   money: 2.4,
   compare_size: 1.6,
+  // Its column heads are the only text, drawn well clear of every piece.
+  base_ten: 1.6,
 };
 
 // ─── render ──────────────────────────────────────────────────────────────────
@@ -396,7 +446,9 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_TYPE',
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
-  const merged = { ...(TYPE_DEFAULTS[type] || {}), ...spec, type, lang: clampLanguage(language) };
+  const merged = {
+    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, type, lang: clampLanguage(language),
+  };
   const ceiling = PHONE_FONT_SCALE[type] || 1;
   const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 
@@ -516,7 +568,7 @@ const GEOMETRY_KEYS = {
   rightangle: ['vertex', 'a', 'b'], line: ['from', 'to'], segment: ['from', 'to'], point: ['at'],
 };
 /** Only mathematics draws shapes; every other subject that reached for geometry drew a scene. */
-const MATHS_ONLY_TYPES = new Set(['geometry']);
+const MATHS_ONLY_TYPES = new Set(['geometry', 'base_ten']);
 
 /** A colour token the page never defines paints grey (or nothing). */
 function unknownColourToken(spec) {
@@ -548,6 +600,15 @@ function figureMismatch(spec, options, correctIndex) {
     if (bars.length > 1 && per.every(([p]) => p === per[0][0])) reachable.add(`${shaded}/${per[0][0]}`);
     const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
     return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${shaded} of ${parts} parts)`;
+  }
+  if (type === 'base_ten') {
+    // A place-value mat answers "what number?", "how many tens?", "what is the
+    // tens worth?" and "how many sticks in all?" — and nothing else.
+    const [h, t, o] = ['hundreds', 'tens', 'ones'].map((k) => Math.max(0, Math.floor(Number(spec[k]) || 0)));
+    const value = 100 * h + 10 * t + o;
+    const reachable = new Set([value, h, t, o, 10 * t, 100 * h, h + t + o].map(String));
+    return whole !== null && reachable.has(String(whole)) ? null
+      : `the picture cannot produce the answer "${correct}" (it shows ${h} hundreds, ${t} tens and ${o} ones)`;
   }
   if (type === 'grid') {
     const rows = Number(spec.rows) || 0; const cols = Number(spec.cols) || 0;
@@ -713,6 +774,9 @@ function figureDefiningNumbers(spec) {
       break;
     case 'geometry': (spec.shapes || []).forEach((sh) => (sh.sides || []).forEach(fromLabel)); break;
     case 'timeline': (spec.events || []).forEach((e) => fromLabel(e && e.date)); break;
+    // The counts, not the zeros: "0" matches inside half the numbers a stem can
+    // mention, and a stem that says "no tens" states nothing the mat is made of.
+    case 'base_ten': ['hundreds', 'tens', 'ones'].forEach((k) => { if (Number(spec[k]) > 0) push(spec[k]); }); break;
     default: break;
   }
   return [...new Set(nums)];
@@ -872,29 +936,66 @@ function stripStrayLabels(spec, { stem, options } = {}) {
 const tokenCss = () => Object.entries(NIETE_TOKENS).map(([k, v]) => `--${k}:${v};`).join('');
 
 /**
- * Wrap an SVG in a self-contained page sized for a phone: 1080px wide, white
+ * Wrap an SVG in a self-contained page sized for a phone: 1080x565, white
  * ground, the vendored fonts embedded as base64 (a font fetched at render time
  * is the tofu bug), and the diagram palette bound to the NIETE tokens.
+ *
+ * Framed (see FRAME): a band with "Question n of N" at the reading-start edge
+ * and the NIETE mark at the other — the question card's own counter string,
+ * mark and lattice (quiz-picture-chrome), laid out in the quiz language's
+ * direction. The DRAWING stays left-to-right whatever the language; a fraction
+ * bar is not mirrored. Without a number the band still carries the mark, so the
+ * drawing's box is the same size either way.
+ *
  * @param {string} svg
  * @param {string} language
+ * @param {{questionNumber?: number, total?: number}} [opts]
  * @returns {string} HTML
  */
-function figureHtml(svg, language) {
+function figureHtml(svg, language, { questionNumber = null, total = null } = {}) {
   const { css, missing } = fontCss({ urdu: true });
   if (missing.length) logToFile('⚠️ transcript quiz figure: font face missing', { missing });
   const ur = language === 'ur';
+  const Chrome = require('./quiz-picture-chrome');
+  const counter = questionNumber && total
+    ? `<div class="counter">${escHtml(Chrome.paintedCounter(questionNumber, total, language))}</div>`
+    : '<div class="counter"></div>';
+  const mark = Chrome.markB64() ? `<div class="mark"><img src="data:image/png;base64,${Chrome.markB64()}"></div>` : '';
+  // The question card's own counter type (26px Latin, 30px Nastaliq on the same
+  // 1080px canvas), so the two kinds of question picture print the number alike.
+  const counterFont = ur
+    ? "font-family:'Noto Nastaliq Urdu','NastaliqUrdu','Noto Naskh Arabic',serif;font-size:30px;letter-spacing:0;"
+    : "font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:26px;letter-spacing:.08em;text-transform:uppercase;";
   return `<html lang="${ur ? 'ur' : 'en'}"><head><meta charset="utf-8"><style>
 ${css}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#FFFFFF}
 .fig{${tokenCss()}
-  width:${PNG_WIDTH}px;height:${PNG_HEIGHT}px;background:#FFFFFF;padding:36px 32px;
-  display:flex;align-items:center;justify-content:center;
+  width:${PNG_WIDTH}px;height:${PNG_HEIGHT}px;background:#FFFFFF;
+  padding:${FRAME.padTop}px ${FRAME.padX}px ${FRAME.padBottom}px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  position:relative;overflow:hidden;
   font-family:'Inter','Helvetica Neue',Arial,sans-serif;color:var(--ink);
   direction:ltr;unicode-bidi:isolate;}
 .fig svg{display:block;width:auto;height:auto;max-width:100%;max-height:100%}
+.fig svg.lattice{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;max-height:none;opacity:.07;pointer-events:none}
+.top{width:100%;height:${FRAME.band}px;margin-bottom:${FRAME.gap}px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;position:relative}
+.top[dir="rtl"]{direction:rtl}
+.counter{${counterFont}font-weight:600;color:#47BA7D;line-height:${FRAME.band}px;white-space:nowrap}
+.mark{width:${FRAME.band}px;height:${FRAME.band}px;background:#333748;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto}
+.mark img{width:${FRAME.band - 6}px;height:${FRAME.band - 6}px;display:block}
+.box{width:${FIG_BOX.w}px;height:${FIG_BOX.h}px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;position:relative}
+.box > svg{background:#FFFFFF}
 .fig [lang="ur"]{font-family:'Noto Nastaliq Urdu','Noto Naskh Arabic',serif;line-height:normal}
-</style></head><body><div class="fig">${svg}</div></body></html>`;
+</style></head><body><div class="fig">
+<svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${Chrome.latticePaths()}</g></svg>
+<div class="top" dir="${ur ? 'rtl' : 'ltr'}">${counter}${mark}</div>
+<div class="box">${svg}</div>
+</div></body></html>`;
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /**
@@ -903,11 +1004,12 @@ html,body{background:#FFFFFF}
  * not the slow part of a question.
  * @param {string} svg
  * @param {string} language
+ * @param {{questionNumber?: number, total?: number}} [opts] painted into the frame
  * @returns {Promise<Buffer>}
  */
-async function renderFigurePng(svg, language) {
+async function renderFigurePng(svg, language, opts = {}) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
-  const png = await htmlToImage(figureHtml(svg, language), {
+  const png = await htmlToImage(figureHtml(svg, language, opts), {
     width: PNG_WIDTH, deviceScaleFactor: 1, selector: '.fig',
   });
   if (!png || !png.length) throw new FigureError('FIGURE_RENDER', 'the figure screenshot came back empty');
@@ -932,6 +1034,7 @@ module.exports = {
   CORE_TYPES,
   MATHS_ONLY_TYPES,
   unknownColourToken,
+  languageDefaults,
   figureMismatch,
   svgInkCount,
   figureIsRedundant,
@@ -958,5 +1061,6 @@ module.exports = {
   uploadFigure,
   PNG_WIDTH,
   PNG_HEIGHT,
+  FIG_BOX,
   R2_PREFIX,
 };

@@ -296,7 +296,7 @@ async function getServingConfig({ levelId, moduleId }) {
  * selection needs is identity, order and Bloom level.
  */
 async function loadQuestionBank({ quizKind, trainingModuleId, grandQuizId }) {
-  // bd-60131 — `options` and `correct_option` are part of the projection
+  // `options` and `correct_option` are part of the projection
   // because the CRQ rule needs the ANSWER SHAPE, not just the id. Without
   // them, isOpenEndedQuestion cannot tell an MCQ from a written answer: every
   // row read as open-ended, Module 1's 12-row bank collapsed to a single
@@ -347,7 +347,7 @@ async function resolveServedQuestions(attempt) {
     levelId: attempt.level_id,
     moduleId: isModuleQuiz ? attempt.training_module_id : null,
   });
-  // bd-60128 — a folded I-SAPS module bank holds the module's MCQs AND all four
+  // A folded I-SAPS module bank holds the module's MCQs AND all four
   // of its CRQs. Only ONE CRQ is sat per attempt, drawn on the attempt id, so
   // the generic selector would otherwise serve all four. Detected by the bank's
   // own shape rather than by vendor, so it cannot drift from the data.
@@ -357,7 +357,7 @@ async function resolveServedQuestions(attempt) {
     : selectServedQuestions(all, { attemptId: attempt.id, isModuleQuiz, config });
 
   const snapshot = Number(attempt.total_questions);
-  // bd-60129 — the fallback below exists for attempts created BEFORE serving
+  // The fallback below exists for attempts created BEFORE serving
   // selection shipped: their snapshot equals the full bank, so the bank is what
   // must be served. A folded I-SAPS paper legitimately serves FEWER than its
   // bank (one CRQ of four), so applying that fallback here would undo the
@@ -392,11 +392,11 @@ async function loadPartialAnswer(attemptId, questionIndex) {
  * Start a fresh grand quiz attempt for the given level.
  */
 /**
- * bd-60120 — start the END-OF-MODULE exam for an I-SAPS module.
+ * Start the END-OF-MODULE exam for an I-SAPS module.
  *
  * I-SAPS assesses per module (doc §4): scenario MCQs plus one CRQ, keyed onto
- * per-module quizzes by bd-60119. This is the sibling of startGrandQuiz, and it
- * runs the SAME preconditions — which is the entire point. bd-2452/2453
+ * per-module quizzes. This is the sibling of startGrandQuiz, and it
+ * runs the SAME preconditions — which is the entire point. Two earlier fixes
  * hardened the level exam after a teacher sat one at 38/40 modules and minted a
  * duplicate certificate, because every CTA in this Flow is a tappable
  * EmbeddedLink with no disabled state. The endpoint's slot already refuses a
@@ -501,7 +501,7 @@ async function startModuleExam(userId, courseId, phoneNumber) {
 
   const now = new Date().toISOString();
 
-  // bd-60129 — size the attempt to the SERVED paper, not the bank.
+  // Size the attempt to the SERVED paper, not the bank.
   //
   // The bank holds all four of the module's CRQs but only ONE is sat, so
   // `bank.length` over-counts by three. That mismatch was not merely cosmetic:
@@ -591,13 +591,13 @@ async function startGrandQuiz(userId, levelOrder, phoneNumber) {
   // One entry point, two engines: resolve by level, then route on type. The
   // capstone starter owns its own preconditions (bd-2454), so we delegate
   // rather than reimplementing them here.
-  // bd-60120 — `.lt('source_quiz_id', ...)` is load-bearing, not cosmetic.
-  // I-SAPS carries 18 PER-MODULE quizzes on one level (bd-60119), and
+  // `.lt('source_quiz_id', ...)` is load-bearing, not cosmetic.
+  // I-SAPS carries 18 PER-MODULE quizzes on one level, and
   // .maybeSingle() THROWS on more than one row — so without this filter every
   // I-SAPS exam start dies, and it takes the shared level-exam path down with
   // it. Legacy exams are 1-11, per-module are 900+, and a NULL source id is a
   // level exam, which is why the rows are fetched and narrowed in JS: SQL drops
-  // NULLs from a `<` comparison (learned in bd-60119).
+  // NULLs from a `<` comparison (learned the hard way).
   const { data: levelQuizRows, error: qErr } = await supabase
     .from('training_grand_quizzes')
     .select('id, level_id, quiz_type, source_quiz_id')
@@ -958,7 +958,7 @@ async function sendQuestion(attemptId, phoneNumber) {
     return await gradeAttempt(attemptId, phoneNumber);
   }
 
-  // bd-60128 — an OPEN-ENDED question (the I-SAPS CRQ) is answered by typing,
+  // An OPEN-ENDED question (the I-SAPS CRQ) is answered by typing,
   // so it goes out as plain text and returns here. This MUST precede the
   // option handling below: a CRQ has no options, and that path treats "no
   // options" as bad data — it records a wrong answer and advances, which would
@@ -971,7 +971,7 @@ async function sendQuestion(attemptId, phoneNumber) {
       + '_Type your answer as a message. Take your time — it is marked against '
       + 'the I-SAPS rubric._',
     );
-    // bd-43496 — never claim a delivery that did not happen: an unreported
+    // Never claim a delivery that did not happen: an unreported
     // failure leaves the attempt in_progress on a question never seen, and
     // every retry resumes onto the same one.
     if (sentOpen === false) {
@@ -1696,7 +1696,7 @@ async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {
 }
 
 /**
- * bd-60128 — claim a plain text message as the answer to an open-ended
+ * Claim a plain text message as the answer to an open-ended
  * question the teacher is currently on (the I-SAPS CRQ).
  *
  * Mirrors capstone-delivery.routeTextAnswer, including the lesson recorded in
@@ -1712,7 +1712,7 @@ async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {
  * @returns {Promise<boolean>}
  */
 /**
- * bd-60137 — points per open-ended answer for a level's vendor.
+ * Points per open-ended answer for a level's vendor.
  *
  * Local rather than borrowed from capstone-delivery: the RULE is pure
  * (capstone-points.rules owns the default and the per-vendor override), so all
@@ -1751,7 +1751,7 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
 
   const { data: openAttempts } = await supabase
     .from('training_assessment_attempts')
-    // bd-60137 — quiz_kind and training_module_id are REQUIRED:
+    // quiz_kind and training_module_id are REQUIRED:
     // resolveServedQuestions reads both to pick the question bank. Without
     // them the served list was wrong, the question at the teacher's index
     // came back undefined, and her typed answer was never claimed — it fell
@@ -1780,9 +1780,9 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
     return true;
   }
 
-  // Marked against the module's own scale — I-SAPS CRQs are 10 marks
-  // (bd-60113), Beacon House answers 5.
-  // bd-60137 — the per-answer scale, resolved HERE rather than by reaching into
+  // Marked against the module's own scale — I-SAPS CRQs are 10 marks,
+  // Beacon House answers 5.
+  // The per-answer scale, resolved HERE rather than by reaching into
   // capstone-delivery. Calling a bare `capstonePointsForLevel` was a
   // ReferenceError on every CRQ answer (it lives in the other service), and
   // requiring that service back adds a cross-dependency for one number. The
@@ -1919,7 +1919,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
     .select('is_correct, question_index, answer_score')
     .eq('attempt_id', attemptId);
 
-  // bd-60128 — a folded I-SAPS paper mixes auto-marked MCQs with ONE
+  // A folded I-SAPS paper mixes auto-marked MCQs with ONE
   // rubric-marked CRQ, so counting is_correct would score every CRQ zero. When
   // an answer row carries a rubric mark, the mixed scorer runs instead: MCQs
   // are worth 1 each, the CRQ its vendor's capstone_points_per_question.
@@ -2064,7 +2064,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
   // genuinely passed — across 30,996 historical attempts the source data
   // matches ">= 80 TALEEMABAD / >= 70 otherwise" for all but 4 rows.
   const examPassingPct = await getVendorPassingPctByLevel(attempt.level_id, 'exam');
-  // bd-60128 — a mixed paper's denominator is MARKS, not questions: 8 MCQs
+  // A mixed paper's denominator is MARKS, not questions: 8 MCQs
   // plus a 10-mark CRQ is out of 18, not out of 9.
   const examTotal = mixedPossible !== null ? mixedPossible : (attempt.total_questions || 0);
   const examPct = examTotal > 0 ? (score / examTotal) * 100 : 0;
@@ -2079,12 +2079,12 @@ async function gradeAttempt(attemptId, phoneNumber) {
   };
   await supabase.from('training_assessment_attempts').update(update).eq('id', attemptId);
 
-  // bd-60126 — is this a LEVEL exam or an I-SAPS MODULE exam?
+  // Is this a LEVEL exam or an I-SAPS MODULE exam?
   //
   // Both store quiz_kind='grand' (the CHECK constraint admits no third kind),
   // so quiz_kind alone cannot tell them apart — which is how passing Module 1
   // announced a Level 1 pass and issued a level certificate. The quiz's
-  // source_quiz_id is the separating signal (bd-60119).
+  // source_quiz_id is the separating signal.
   const { data: attemptQuiz } = attempt.grand_quiz_id
     ? await supabase.from('training_grand_quizzes')
       .select('id, source_quiz_id').eq('id', attempt.grand_quiz_id).maybeSingle()
@@ -2094,7 +2094,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
   if (isPassed && !certifiesLevel) {
     // A module exam. Record the pass, report the MODULE score, and hand over to
     // the module's CRQ — no level claim, no certificate. The level certificate
-    // is the composite across all nine modules (bd-60113).
+    // is the composite across all nine modules.
     const { data: course } = await supabase
       .from('training_courses').select('id, title').eq('level_id', attempt.level_id)
       .order('order_index').limit(1).maybeSingle();
@@ -2114,7 +2114,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
       moduleTitle = c?.title || course?.title || null;
     }
     await WhatsAppService.sendMessage(phoneNumber, moduleExamPassMessage({
-      // bd-60143 — MARKS, not the question count. `score` here is already a
+      // MARKS, not the question count. `score` here is already a
       // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by
       // attempt.total_questions printed "12/3". examTotal is the same
       // denominator the pass/fail decision above is computed against.
@@ -2126,12 +2126,12 @@ async function gradeAttempt(attemptId, phoneNumber) {
     });
     // The CRQ hand-off is NOT wired yet, and this comment is the honest state.
     // capstone-delivery resolves a capstone by LEVEL with .maybeSingle(), which
-    // throws now that I-SAPS carries nine of them on one level (bd-60119).
+    // throws now that I-SAPS carries nine of them on one level.
     // Auto-delivering the CRQ therefore needs that service made
     // module-aware first; until then the teacher is told it is outstanding
     // rather than being handed a broken flow or silently skipped.
 
-    // bd-60142 — the LEVEL certificate is decided here too.
+    // The LEVEL certificate is decided here too.
     //
     // This branch used to return without ever attempting issuance, because the
     // only call to maybeIssueQuizScoreCertificate lived in the unit
@@ -2141,7 +2141,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
     // certificates. Confirmed on sandbox — every gate satisfied, no
     // certificate.
     //
-    // bd-60139 added the gate that stops a certificate minting after ONE
+    // An earlier fix added the gate that stops a certificate minting after ONE
     // module; that gate was necessary but not sufficient, because it guarded a
     // path a module exam never reached. The guard decides whether the level is
     // complete (on an I-SAPS level: every active per-module exam passed), so this
@@ -2150,7 +2150,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
     const { maybeIssueQuizScoreCertificate } = require('./certificate.service');
     const levelCert = await maybeIssueQuizScoreCertificate(supabase, {
       userId: attempt.user_id,
-      // bd-60144 — a module-exam attempt has training_module_id = NULL, so the
+      // A module-exam attempt has training_module_id = NULL, so the
       // level must be handed over directly. Passing the null module made the
       // guard bail on its first lookup, before any gate.
       moduleId: attempt.training_module_id,
@@ -2222,7 +2222,7 @@ async function decideModuleQuizPass(moduleId, score, totalQuestions) {
   const total = Number(totalQuestions) || 0;
   const pct = total > 0 ? (Number(score) / total) * 100 : 0;
 
-  // bd-60163 — a vendor may run its unit quizzes as PURE FORMATIVE: answer,
+  // A vendor may run its unit quizzes as PURE FORMATIVE: answer,
   // see the right answer, move on, no bar.
   //
   // I-SAPS asked for this in its Sept 2026 guide: the unit quizzes are the
@@ -2245,7 +2245,7 @@ async function decideModuleQuizPass(moduleId, score, totalQuestions) {
 }
 
 /**
- * Does this module's vendor run unit quizzes WITHOUT a pass bar? bd-60163.
+ * Does this module's vendor run unit quizzes WITHOUT a pass bar?
  *
  * Reads training_vendors.module_quiz_ungated. Absent, null or unreadable means
  * FALSE — the gate stays on, because every vendor that has one today relies on
@@ -2306,7 +2306,7 @@ async function decideExamPass(levelId, score, totalQuestions) {
 }
 
 /**
- * bd-60149 — open (or resume) a module-exam attempt for a SURFACE THAT IS NOT
+ * Open (or resume) a module-exam attempt for a SURFACE THAT IS NOT
  * WHATSAPP, and hand back the served paper.
  *
  * `startModuleExam` above does the same job but speaks WhatsApp: it takes a
@@ -2316,14 +2316,14 @@ async function decideExamPass(levelId, score, totalQuestions) {
  * than copied, and only the transport differs.
  *
  * Resumes an in-progress attempt instead of opening a second one, and seeds
- * the paper on the attempt id (bd-60141) so a page reload re-derives the same
+ * the paper on the attempt id so a page reload re-derives the same
  * three questions rather than drawing fresh ones.
  *
  * @returns {Promise<{ok:boolean, reason?:string, attempt_id?:string,
  *   total_questions?:number, questions?:Array}>}
  */
 /**
- * Save ONE answer mid-paper, without grading anything. bd-60169.
+ * Save ONE answer mid-paper, without grading anything.
  *
  * Until this existed, answers lived in the browser's React state until Submit:
  * a closed tab, a phone call or a backgrounded app lost the whole paper,
@@ -2332,7 +2332,7 @@ async function decideExamPass(levelId, score, totalQuestions) {
  *
  * NO SCHEMA CHANGE. Drafts go in `training_assessment_answers` — the real
  * table — against the `UNIQUE (attempt_id, question_index)` key that already
- * exists and that the WhatsApp path has upserted against since bd-2233. A
+ * exists and that the WhatsApp path has upserted against all along. A
  * draft is a row whose is_correct/answer_score are still null, which is also
  * what an ungraded submitted row looks like, so nothing downstream learns a
  * new state.
@@ -2383,7 +2383,7 @@ async function saveModuleExamDraft({
 
 /**
  * The answers already saved for an attempt, so a returning teacher sees her
- * own work rather than a blank paper. bd-60169.
+ * own work rather than a blank paper.
  */
 async function loadModuleExamDraft({ userId, attemptId }) {
   const { data: attempt } = await supabase
@@ -2448,11 +2448,11 @@ async function openModuleExamAttempt({ userId, courseId, programId = null }) {
         .eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
       pid = asg?.program_id || null;
     }
-    // bd-60129 — size the attempt to the SERVED paper, not the bank. The seed
+    // Size the attempt to the SERVED paper, not the bank. The seed
     // is 'sizing' because the attempt id does not exist yet, and LENGTH is the
     // same whichever CRQ the real draw picks.
     total = selectPaperWithOneCrq(bank, 'sizing').length;
-    // bd-60167 — total_score is MARKS, total_questions is a COUNT. They are
+    // total_score is MARKS, total_questions is a COUNT. They are
     // not the same number on a mixed paper and storing the count in both made
     // the attempt read "9 / 3".
     //
@@ -2512,7 +2512,7 @@ async function openModuleExamAttempt({ userId, courseId, programId = null }) {
 }
 
 /**
- * bd-60149 — mark a module-exam paper submitted from the portal.
+ * Mark a module-exam paper submitted from the portal.
  *
  * MCQs are marked against the stored key here. The CRQ is marked by the SAME
  * grader WhatsApp uses, because the same words must earn the same score on
@@ -2567,7 +2567,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     }
   });
   if (rows.length) {
-    // bd-60169 — UPSERT, not insert. Autosave writes draft rows against the
+    // UPSERT, not insert. Autosave writes draft rows against the
     // same (attempt_id, question_index) key as she types, so a plain insert
     // throws duplicate-key on submit and loses the paper at the one moment it
     // must not fail.

@@ -37,7 +37,7 @@ const { normaliseDigest } = require('./transcript-quiz-digest.service');
 const { canonicalSubject, LANG_NAME } = require('./transcript-quiz-language');
 const { logEvent } = require('../../utils/structured-logger');
 const { logToFile } = require('../../utils/logger');
-const { LP_V8 } = require('./quiz-sources');
+const { LP_V8, SOURCE_UNUSABLE_CODE } = require('./quiz-sources');
 const Catalog = require('../lp-v8-catalog.service');
 
 /**
@@ -121,6 +121,183 @@ function degender(text) {
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 
+// ─── WHAT THE LESSON DREW — the slide script's manipulatives, parsed ────────
+//
+// A grade 1-5 maths slide script draws its manipulatives in its `diagram`
+// fields as TOKEN ROWS, one row per line:
+//
+//   whole (9): [counter][counter][counter][counter] [counter][counter]…
+//   group 2: [dot][dot][dot][dot]
+//   342 —
+//   3 hundreds: [bundle][bundle][bundle]
+//
+// That is what the class saw on the board, so it is what a quiz picture should
+// draw. The quiz used to throw all of it away as ASCII noise, and the author
+// drew apples for a lesson that counted counters. Only the TOKENS are read,
+// never the ASCII around them: a column sum (its own place-value grid) is
+// recognised and skipped, and so is a hundred-chart piece ("[28]") or a ruler.
+
+/** A token as the lesson wrote it, reduced to letters: "Big-Bundle" → "bigbundle". */
+const normToken = (t) => String(t || '').toLowerCase().replace(/[^a-z]/g, '');
+/** "4 tens", "1 hundred", "130 ones" — a count followed at once by its place ("1 one-rupee coin" is not one). */
+const PLACE_ROW = /^\s*\d[\d,]*\s+(thousands?|hundreds?|tens?|ones?)(?![-\w])/i;
+const PLACE_KEY = { thousand: 'thousands', hundred: 'hundreds', ten: 'tens', one: 'ones' };
+/** Tokens that only ever stand for a place-value piece — blocks, and the bundles/tens of the stick model. */
+const BLOCKS_TOKENS = new Set(['flat', 'rod', 'cube']);
+const BUNDLE_TOKENS = new Set(['bundle', 'bigbundle', 'circleof', 'tengroup', 'tenbeads']);
+/** The pieces of a fraction or an area drawing — fraction_bar / grid draw these, not a pictogram. */
+const FRACTION_TOKENS = new Set(['shaded', 'blank', 'part', 'cell', 'strip', 'piece', 'slice', 'bar', 'unshaded', 'half', 'quarter', 'third']);
+/** Words for an arrangement, not a thing: a "group" or a "pile" of something is drawn as that something. */
+const NOT_OBJECTS = new Set(['group', 'pile', 'trip', 'place', 'row']);
+/** A thing the pictogram set lacks but a manipulative stands in for: a measuring block is a tile. */
+const DRAWN_AS = { block: 'tile', brick: 'tile' };
+const TALLY_TOKENS = new Set(['tally', 'mark']);
+const MONEY_TOKEN = /^rs\d*(note|coin)$|^(coin|note)$/;
+
+function isColumnSum(text) {
+  return /COLUMN SUM/i.test(text) || /^\s*\|\s*\|?\s*(HTh|TTh|Th|H|T|O)\s*\|/m.test(text);
+}
+
+/** One line: its label (before the first "[") and its token groups ("/" separates groups). */
+function parseLine(line) {
+  const open = line.indexOf('[');
+  const label = (open >= 0 ? line.slice(0, open) : line).replace(/:\s*$/, '').trim();
+  if (open < 0) return { label, groups: [] };
+  const groups = line.slice(open).split(/\s\/\s/).map((part) => {
+    const toks = [...part.matchAll(/\[([^\]\n]*)\]/g)].map((m) => normToken(m[1])).filter(Boolean);
+    return toks;
+  }).filter((g) => g.length);
+  return { label, groups };
+}
+
+/**
+ * One diagram string → { kind, rows, placeValue } or null for nothing at all.
+ *   kind        'column_sum' | 'rows'
+ *   rows        [{label, token, count}] — one per token kind per line
+ *   placeValue  [{hundreds, tens, ones, model, thousands?}] — read from each
+ *               row's PLACE WORD ("4 tens: …"), never from its token: the
+ *               scripts write "2 ones: [bundle][bundle]" as often as sticks
+ * Pure.
+ */
+function parseDiagram(text) {
+  const s = typeof text === 'string' ? text : '';
+  if (!s.trim()) return null;
+  if (isColumnSum(s)) return { kind: 'column_sum', rows: [], placeValue: [] };
+  const rows = [];
+  const placeValue = [];
+  let current = null;
+  const flush = () => { if (current) placeValue.push(current); current = null; };
+  s.split('\n').forEach((line) => {
+    // "342 —" opens a new number
+    if (/^\s*\d[\d,]*\s*[—–-]\s*$/.test(line)) { flush(); return; }
+    const { label, groups } = parseLine(line);
+    // "1986: [cube] / [flat]… / [rod]… / [dot]…" — one number as positional groups
+    if (groups.length >= 2 && groups.length <= 4 && /^\d[\d,]*(\s+\w+)?$/.test(label)) {
+      flush();
+      const places = ['ones', 'tens', 'hundreds', 'thousands'];
+      const pv = { hundreds: 0, tens: 0, ones: 0 };
+      [...groups].reverse().forEach((g, k) => { pv[places[k]] = g.length; });
+      const model = groups.flat().some((t) => BLOCKS_TOKENS.has(t)) ? 'blocks' : 'bundles';
+      placeValue.push({ ...pv, model });
+      return;
+    }
+    const place = PLACE_ROW.exec(label);
+    if (place) {
+      const key = PLACE_KEY[place[1].toLowerCase().replace(/s$/, '')];
+      const toks = groups.flat();
+      // "130 ones: 0 sticks (empty column)" — a place drawn empty
+      const count = toks.length;
+      if (current && current[`_${key}`]) flush();   // a place seen twice is the next number
+      current = current || { hundreds: 0, tens: 0, ones: 0, model: 'bundles' };
+      current[key] = count;
+      current[`_${key}`] = true;
+      if (toks.some((t) => BLOCKS_TOKENS.has(t))) current.model = 'blocks';
+      return;
+    }
+    flush();
+    groups.forEach((g) => {
+      const counts = new Map();
+      g.forEach((t) => { if (/[a-z]/.test(t)) counts.set(t, (counts.get(t) || 0) + 1); });
+      counts.forEach((count, token) => rows.push({ label, token, count }));
+    });
+  });
+  flush();
+  const clean = placeValue.map((pv) => {
+    const out = {};
+    Object.entries(pv).forEach(([k, v]) => { if (!k.startsWith('_')) out[k] = v; });
+    if (!out.thousands) delete out.thousands;
+    return out;
+  });
+  return { kind: 'rows', rows, placeValue: clean };
+}
+
+/** "whole (9)" → "whole"; "10 counters (the whole)" → "counters"; a bare number → "". */
+function rowName(label) {
+  return String(label || '').replace(/\([^)]*\)/g, ' ').replace(/[=%/\d.,:—–-]+/g, ' ')
+    .replace(/\s+/g, ' ').trim().split(' ').slice(0, 3).join(' ').toLowerCase();
+}
+
+/**
+ * Every manipulative a slide script drew, from the fields the class actually
+ * met: the worked example, the modelled problem, the practice and the support
+ * work. NEVER the exit options (the red-team rule `carry()` exists to keep).
+ */
+function lessonManipulatives(ss) {
+  const { has: hasPicto, key: pictoKey } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
+  const iDo = ss.iDo || {};
+  const weDo = ss.weDo || {};
+  const youDo = ss.youDo || {};
+  const sources = [
+    ['worked', iDo.worked && iDo.worked.diagram],
+    ['modelled', weDo.modelled && weDo.modelled.diagram],
+    ...arr(youDo.problems).map((p) => ['practice', p && p.diagram]),
+    ['support', youDo.behind && youDo.behind.diagram],
+  ];
+  const objects = new Map();
+  const out = {
+    objects: [], placeValue: null, fractions: false, tally: false, money: false, maxCount: 0, columnSums: 0,
+  };
+  sources.forEach(([source, text]) => {
+    const d = parseDiagram(text);
+    if (!d) return;
+    if (d.kind === 'column_sum') { out.columnSums += 1; return; }
+    d.placeValue.forEach((pv) => {
+      if (!out.placeValue) out.placeValue = { model: pv.model, example: null, thousands: false };
+      if (pv.thousands) out.placeValue.thousands = true;
+      if (pv.model === 'blocks') out.placeValue.model = 'blocks';
+      // Only the WORKED example is quoted with its numbers: it is already in
+      // the lesson plan the author reads. A practice number is never offered.
+      if (source === 'worked' && !out.placeValue.example && !pv.thousands) {
+        out.placeValue.example = { hundreds: pv.hundreds, tens: pv.tens, ones: pv.ones };
+      }
+    });
+    d.rows.forEach((r) => {
+      if (FRACTION_TOKENS.has(r.token)) { out.fractions = true; return; }
+      if (TALLY_TOKENS.has(r.token)) { out.tally = true; return; }
+      if (MONEY_TOKEN.test(r.token)) { out.money = true; return; }
+      if (NOT_OBJECTS.has(r.token)) return;
+      // Bundles or rods counted on their own ("3 bundles: [bundle]…") are still
+      // place value: base_ten draws them, a pictogram of a bundle does not exist.
+      if (BUNDLE_TOKENS.has(r.token) || BLOCKS_TOKENS.has(r.token)) {
+        if (!out.placeValue) out.placeValue = { model: 'bundles', example: null, thousands: false };
+        if (BLOCKS_TOKENS.has(r.token)) out.placeValue.model = 'blocks';
+        return;
+      }
+      out.maxCount = Math.max(out.maxCount, r.count);
+      const picto = hasPicto(r.token) ? pictoKey(r.token) : (DRAWN_AS[r.token] || null);
+      const o = objects.get(r.token) || {
+        token: r.token, picto, rows: 0, names: [],
+      };
+      o.rows += 1;
+      const name = rowName(r.label);
+      if (name && !o.names.includes(name) && o.names.length < 4) o.names.push(name);
+      objects.set(r.token, o);
+    });
+  });
+  out.objects = [...objects.values()].sort((a, b) => b.rows - a.rows);
+  return out;
+}
+
 /**
  * The ONE field picker. Everything the model or the author is ever shown comes
  * from here, so "we never forward the exit options" is a property of one
@@ -154,8 +331,9 @@ function carry(slideScript) {
       problem: degender(worked.problem),
       work: arr(worked.work).map(degender).filter(Boolean),
       answer: degender(worked.answer),
-      // worked.diagram is ASCII column-sum art with its own row-mark legend.
-      // It reads as noise in a prompt and the drawing engine draws better.
+      // worked.diagram is never forwarded as it is — ASCII column-sum art with
+      // its own row-mark legend reads as noise in a prompt. Its TOKENS are read
+      // instead, below, into `manipulatives`.
     } : null,
     misconception: mis ? {
       slip: degender(mis.slip), why: degender(mis.why), fix: degender(mis.fix),
@@ -163,6 +341,10 @@ function carry(slideScript) {
     // PROMPTS ONLY — never the answers, and never as questions to reuse.
     practice_prompts: arr(youDo.problems).map((p) => degender(p && p.prompt)).filter(Boolean),
     key_facts: arr(wrap.keyFacts).map(degender).filter(Boolean),
+    // What the class counted with — parsed from the diagram fields of the
+    // worked example, the modelled problem, the practice and the support work.
+    // Never from wrap.exitOptions.
+    manipulatives: lessonManipulatives(ss),
   };
 }
 
@@ -209,6 +391,40 @@ function lessonExcerpts(slideScript) {
     c.key_facts.forEach((k) => lines.push(`  ${k}`));
   }
   return lines.join('\n');
+}
+
+/**
+ * WHAT THE LESSON DREW, for the author: each object the class counted, the
+ * spec that draws it, and the size of its counts — or '' when the lesson drew
+ * nothing to count. The instruction is to draw the SAME objects, so a child
+ * recognises the lesson in the picture.
+ * @returns {string}
+ */
+function lessonDrewBlock(slideScript) {
+  const m = carry(slideScript).manipulatives;
+  const lines = [];
+  m.objects.slice(0, 6).forEach((o) => {
+    const named = o.names.length ? ` (the lesson named its rows: ${o.names.join(', ')})` : '';
+    lines.push(o.picto
+      ? `- ${o.token} → "picto":"${o.picto}" in count_objects${named}`
+      : `- ${o.token} → the pictogram set has no ${o.token}; draw it as "picto":"counter"${named}`);
+  });
+  if (m.placeValue) {
+    const ex = m.placeValue.example;
+    const how = m.placeValue.model === 'blocks'
+      ? 'flats, rods and cubes → {"type":"base_ten","model":"blocks",…}'
+      : 'bundles of ten sticks and loose sticks → {"type":"base_ten",…}';
+    lines.push(`- place value with ${how}${ex ? `; the worked example showed ${ex.hundreds} hundreds, ${ex.tens} tens and ${ex.ones} ones` : ''}${m.placeValue.thousands ? '; base_ten draws up to hundreds, so keep a picture to three places' : ''}`);
+  }
+  if (m.fractions) lines.push('- fractions as shaded parts of a whole → fraction_bar (a strip, or "model":"circle" for a roti)');
+  if (m.tally) lines.push('- tally marks → {"type":"count_frame","model":"tally",…}');
+  if (m.money) lines.push('- coins and notes → money');
+  if (!lines.length) return '';
+  const size = m.maxCount ? `
+The lesson's counts went up to ${m.maxCount}; keep yours about that size (count_objects draws at most 30).` : '';
+  return `WHAT THE LESSON DREW — the manipulatives this lesson put in front of the class. A picture question draws THE SAME objects, so a child recognises the lesson in it:
+${lines.join('\n')}${size}
+Use your own numbers — never copy a practice problem's.`;
 }
 
 function buildLpDigestPrompt({ slideScript, language, grade, subject }) {
@@ -270,7 +486,12 @@ async function run({
   if (!isUsable(slideScript)) {
     // Loudly, and before the LLM call: an empty digest authored into a quiz is
     // eight questions about nothing, and the teacher would be the one to find out.
-    throw new Error('lp digest: the slide script carries no lesson to digest');
+    // The code is what tells this — the one failure that IS the lesson plan's —
+    // apart from every failure of the model after it (quiz-sources
+    // `digestFailureReason`), so the teacher is told which one happened.
+    const err = new Error('lp digest: the slide script carries no lesson to digest');
+    err.code = SOURCE_UNUSABLE_CODE;
+    throw err;
   }
   const prompt = buildLpDigestPrompt({ slideScript, language, grade, subject });
   const {
@@ -341,4 +562,5 @@ async function run({
 
 module.exports = {
   run, lessonExcerpts, buildLpDigestPrompt, carry, degender, levelFromBloom, isUsable,
+  parseDiagram, lessonDrewBlock,
 };

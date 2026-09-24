@@ -87,7 +87,17 @@ const PER_QUESTION = /^q(\d+):\s*(PEDAGOGY_[A-Z_]+|FIGURE_[A-Z_]+|RELIGIOUS_[A-Z
  * ship.
  */
 const PER_QUESTION_STRUCTURAL = /^q(\d+):\s*\S/;
-const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER. Address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں). Never a feminine or masculine singular guess: no کرتی ہیں، سکتی ہیں، کریں گی، رہی ہوں گی، کرتے ہو. For a question rejected ONLY for this, keep the question and change the verb form.';
+/**
+ * A question rejected for PEDAGOGY_GENDERED_CHILD is a GOOD question with a
+ * verb that guesses the child's gender. Re-asking it would throw the question
+ * away over one verb, so this is a repair IN PLACE: the same question, the same
+ * options' meanings, the same answer, and only the verbs change. The neutral
+ * forms themselves are the contract's rule (questionContract, above in the
+ * prompt); this adds what is specific to a repair.
+ *
+ * It used to recommend «سمجھ سکتے ہیں» — itself masculine.
+ */
+const CHILD_ADDRESS_REPAIR = 'THE CHILD HAS NO GENDER — REPAIR IN PLACE. A question rejected for PEDAGOGY_GENDERED_CHILD is a good question whose verbs guess whether the child is a boy or a girl. Keep the SAME question: the same idea, the same three options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY the gendered verbs, in every field its complaint names — «کون سی علامت لگائیں گے؟» → «کون سی علامت لگانی چاہیے؟»; «آپ اسے حوصلہ کیسے دیں گے؟» → «آپ اسے حوصلہ کیسے دیں؟»; the option «آخر میں «یں» لگائیں گے» → «آخر میں «یں» لگانا»; the feedback «آپ سوچ رہے ہیں کہ …» → «شاید آپ نے سمجھا کہ …». No masculine and no feminine form for the child, anywhere.';
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
@@ -225,14 +235,14 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
     `REJECTED — write one new question for each.\n\n${rejected}`,
-    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length — see LENGTH below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
+    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, or ONLY for how it speaks to the child — see LENGTH and THE CHILD HAS NO GENDER below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
     'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
     STRUCTURAL_CAPS_RULE,
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /MULTI_[A-Z_]+/.test(e))) ? [STRUCTURAL_MULTI_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => OPTIONS_FAULT.test(e))) ? [DISTINCT_OPTIONS_RULE] : []),
-    ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
@@ -470,7 +480,162 @@ async function rewriteTeacherFields({ questions, errors, digest, language, quizI
   }
 }
 
+// ─── ADD PICTURES — the one rewrite that may ADD a figure ───────────────────
+// A grade 1-5 maths quiz that came back with too few pictures (FIGURE_FEW, see
+// the validator's figureDensity) gets ONE call that adds a picture to the
+// questions a picture helps most. It is the mirror of the rewrite above, which
+// must never add one: here the picture is the point, and the QUESTION is what
+// must not move. Asserted in code (root rule 24c), not left to the prompt:
+//   - only a candidate index is taken, at most `need` of them, each once;
+//   - an entry without a figure object is discarded;
+//   - an entry that changes the options, their order or the key is discarded —
+//     the question was already checked, and a picture must not re-key it;
+//   - only the stem (to point at the picture), the figure and its role are
+//     taken; explanation, feedback, SLO and level stay as they were.
+// The merged set then goes through the whole validator like every rewrite.
+
+/** How many questions are offered to the call, best first. */
+const ADD_PICTURE_CANDIDATES = 5;
+
+/** Words that mark a question a picture can carry: counting, comparing, sharing, place, parts. */
+const PICTURE_WORDS = /\b(how many|more|fewer|less|count|groups?|share[ds]?|equal|shaded|fractions?|half|tens?|ones?|hundreds?|larger|smaller|bigger|greatest|smallest|compare|order|total|altogether|left|add|take away|subtract|times)\b|کتن|زیادہ|کم|حص|گروپ|دہائ|اکائ|سینکڑ|برابر|باقی|کل\s|بڑا|بڑی|بڑے|چھوٹا|چھوٹی|چھوٹے|موازن|ترتیب|رنگ/i;
+const COLUMN_SUM_TEX = /\\begin\{array\}/;
+
+/** The maths types a young class can be drawn with (the word types are for language lessons). */
+const ADD_PICTURE_TYPES = [
+  'count_objects', 'base_ten', 'fraction_bar', 'grid', 'numberline', 'count_frame', 'money', 'clock', 'compare_size', 'pattern', 'geometry',
+];
+
+/**
+ * The questions a picture would help most, best first: no question that
+ * already has one, no select-all question (its Flow draws no image), no column
+ * sum (arithmetic is typeset, never drawn). A question with numbers and a
+ * counting / comparing word ranks first; the easy first question ranks last.
+ * @returns {number[]}
+ */
+function pictureCandidates(questions, { limit = ADD_PICTURE_CANDIDATES } = {}) {
+  const Multi = require('./transcript-quiz-multi');
+  const qs = Array.isArray(questions) ? questions : [];
+  const scored = [];
+  qs.forEach((q, i) => {
+    if (!q || typeof q !== 'object' || q.figure) return;
+    if (Multi.isMultiQuestion(q)) return;
+    const stem = String(q.question || '');
+    if (COLUMN_SUM_TEX.test(stem)) return;
+    const all = [stem, ...(Array.isArray(q.options) ? q.options : [])].join(' ');
+    let score = 0;
+    if (/\d|\$/.test(all)) score += 2;
+    if (PICTURE_WORDS.test(stem)) score += 2;
+    if (q.level === 'understand' || q.level === 'apply') score += 1;
+    if (i === 0) score -= 1;
+    scored.push({ i, score });
+  });
+  return scored.sort((a, b) => b.score - a.score || a.i - b.i).slice(0, limit).map((s) => s.i);
+}
+
+function buildAddPicturePrompt({
+  digest, language, questions, indices, need, gradeBand = null, lessonDrew = '',
+}) {
+  const { minimalSpecBlock } = require('./transcript-quiz-figure');
+  const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
+  const qs = Array.isArray(questions) ? questions : [];
+  const figured = qs.filter((q) => q && q.figure).length;
+  const slos = (digest && Array.isArray(digest.slos)) ? digest.slos : [];
+  const items = indices.map((i) => {
+    const q = qs[i] || {};
+    const opts = (Array.isArray(q.options) ? q.options : []).map((o, k) => `[${k}] ${String(o)}`).join('  ');
+    return `q${i} · slo "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}"
+  stem: "${String(q.question || '').trim()}"
+  options: ${opts}   correct: ${q.correct_index}`;
+  }).join('\n\n');
+  return [
+    `You are ADDING PICTURES to a short WhatsApp maths quiz for the children of ONE grade ${gradeBand || digest?.grade_band || '1-5'} class. A young class learns maths through the picture — the objects first, then the picture of them, then the sum — and this quiz carries only ${figured} picture(s) in ${qs.length} questions. Add a picture to exactly ${need} of the questions below: the ${need} a picture helps most.`,
+    `QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${languageRule(language)}`,
+    'KEEP THE QUESTION. Its options, their order and its correct answer do not change — never return different ones. You write only "figure", "figure_role" and, when the question must now point at the picture, a new "question" stem in the quiz language.',
+    `TWO KINDS OF PICTURE:
+- "figure_role":"model" — the picture SHOWS the numbers the stem already states, the way the lesson drew them: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Keep the stem as it is.
+- "figure_role":"read_off" (or "count_compare" for counting and comparing objects) — the child reads the question's numbers OFF the picture ("How many counters are in the picture?"). The stem then says so and must NOT also state those numbers.`,
+    `HARD RULES — a picture that breaks one is thrown away and its question stays as it was:
+- The picture must NOT contain the answer: no option's text anywhere in it, no total, no result. A jump arc never lands on the answer; a fraction bar carries no label.
+- Labels are written in the quiz language; numerals stay 0-9. Never TeX or "$" inside a figure — its fractions are plain ("3/4").
+- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place.
+- Column arithmetic is never a picture.
+- A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
+    ...(lessonDrew ? [lessonDrew] : []),
+    `THE LESSON'S OBJECTIVES\n${slos.map((s) => `- ${s.id}: ${sloStatement(s, language)}`).join('\n') || '(none recorded)'}`,
+    `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
+    `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
+    `THE QUESTIONS YOU MAY ADD A PICTURE TO (q is its number in the quiz):\n\n${items}`,
+    `Return ONLY this JSON object, with exactly ${need} entr${need === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}.
+{ "pictures": [ { "index": ${indices[0]}, "question": "", "figure": { "type": "count_objects", "rows": [ { "picto": "counter", "count": 3 }, { "picto": "counter", "count": 4 } ] }, "figure_role": "model" } ] }
+Leave "question" empty to keep the stem exactly as it is.`,
+  ].join('\n\n');
+}
+
+const sameOptions = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length
+  && a.every((o, k) => String(o ?? '').trim() === String(b[k] ?? '').trim());
+
+/**
+ * @returns {{questions:object[], added:number[]}|null} null when nothing was added
+ */
+function mergeAddedPictures(questions, json, { indices, need }) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const list = Array.isArray(json && json.pictures) ? json.pictures : [];
+  const chosen = new Map();
+  list.forEach((r) => {
+    if (!r || typeof r !== 'object' || chosen.size >= need) return;
+    const idx = Number(r.index);
+    if (!indices.includes(idx) || chosen.has(idx)) return;
+    const orig = qs[idx];
+    if (!orig) return;
+    if (!r.figure || typeof r.figure !== 'object' || Array.isArray(r.figure) || typeof r.figure.type !== 'string') return;
+    if (r.options !== undefined && !sameOptions(r.options, orig.options)) return;
+    if (r.correct_index !== undefined && Number(r.correct_index) !== Number(orig.correct_index)) return;
+    const stem = typeof r.question === 'string' && r.question.trim() ? r.question.trim() : orig.question;
+    chosen.set(idx, {
+      ...orig, question: stem, figure: r.figure, figure_role: typeof r.figure_role === 'string' ? r.figure_role : null,
+    });
+  });
+  if (!chosen.size) return null;
+  return {
+    questions: qs.map((q, i) => (chosen.has(i) ? chosen.get(i) : q)),
+    added: [...chosen.keys()].sort((a, b) => a - b),
+  };
+}
+
+/**
+ * ONE call. Never throws: a repair that cannot be made is a repair that did not
+ * happen, and the quiz ships as it was.
+ * @returns {Promise<{attempted:boolean, indices:number[], merged:object[]|null, added:number[],
+ *   model?:string, costUsd?:number, latencyMs?:number, error?:string}>}
+ */
+async function addPictures({
+  questions, digest, language, gradeBand = null, lessonDrew = '', need,
+  // accepted and ignored: the outcome event belongs to the caller, which is the
+  // only place that knows whether the merged set validated
+  quizId = null, // eslint-disable-line no-unused-vars
+}) {
+  const indices = Number(need) > 0 ? pictureCandidates(questions) : [];
+  if (!indices.length) return { attempted: false, indices: [], merged: null, added: [] };
+  const n = Math.min(Number(need), indices.length);
+  const prompt = buildAddPicturePrompt({
+    digest, language, questions, indices, need: n, gradeBand, lessonDrew,
+  });
+  try {
+    const { json, model, costUsd, latencyMs } = await completeJson({ prompt, maxTokens: 8000, label: 'transcript_quiz.add_pictures' });
+    const m = mergeAddedPictures(questions, json, { indices, need: n });
+    return {
+      attempted: true, indices, merged: m ? m.questions : null, added: m ? m.added : [], model, costUsd, latencyMs,
+    };
+  } catch (err) {
+    return {
+      attempted: true, indices, merged: null, added: [], costUsd: 0, error: err.message,
+    };
+  }
+}
+
 module.exports = {
+  pictureCandidates, buildAddPicturePrompt, mergeAddedPictures, addPictures,
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT, MATH_TEX_RULE, MATH_TEX,
   KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT,

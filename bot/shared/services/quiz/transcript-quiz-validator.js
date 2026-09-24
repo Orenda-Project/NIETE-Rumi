@@ -22,6 +22,7 @@ const Multi = require('./transcript-quiz-multi');
 const { pedagogyDefects } = require('./transcript-quiz-pedagogy');
 const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word-blank');
 const { mathToText, texFaults } = require('./quiz-math');
+const { questionAddressForms } = require('./transcript-quiz-address');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -35,9 +36,25 @@ const ROMAN_URDU = new Set(['hai', 'hain', 'aur', 'kya', 'nahi', 'nahin', 'kaun'
   'kiya', 'yeh', 'woh', 'mein', 'main', 'ko', 'ka', 'ki', 'ke', 'se', 'par', 'bhi', 'toh', 'hota', 'hoti',
   'karo', 'karen', 'kitna', 'kitne', 'kahan', 'kab', 'batao', 'sahi', 'ghalat', 'galat', 'paude', 'hissa', 'mitti', 'neeche']);
 
-// Gendered address. A child of unknown gender is "آپ" with plural-respectful
-// verbs; these stems guess. Both feminine and masculine guesses are banned.
-const FEM_STEMS = /(کرتی ہیں|چاہتی ہیں|کریں گی|رہی ہوں گی|سکتی ہیں|بتاتی ہیں|سوچتی ہیں|جانتی ہیں|سمجھتی ہیں|کرتی ہو|سکتی ہو|ہو گی)/;
+// Gendered address to the child: transcript-quiz-address.js. It replaced a
+// list of feminine stems that matched third-person Urdu as readily as a
+// feminine address («دو سطحیں رب کرتی ہیں», «بیماریاں ہو سکتی ہیں», even the
+// «ہو گ» of «ہو گیا»), never caught the masculine guess at all, and on the real
+// authored corpus did not once catch a feminine address to a child.
+
+/**
+ * PEDAGOGY_GENDERED_CHILD for ONE question, or null. One line per question
+ * however many fields and forms, so the targeted rewrite repairs it once; the
+ * message is what the rewrite reads, so it says what to write instead.
+ */
+function childAddressError(q, i) {
+  const { fields, forms } = questionAddressForms(q);
+  if (!forms.length) return null;
+  const shown = [...new Set(forms)].slice(0, 4).map((f) => `"${f}"`).join(', ');
+  return `q${i}: PEDAGOGY_GENDERED_CHILD — ${fields.join(' + ')} speak${fields.length === 1 ? 's' : ''} to the child with a gendered verb (${shown}); `
+    + 'the class is boys and girls. Keep the same question and change only those verbs: the آپ-imperative or subjunctive («بتائیں»، «آپ کون سی علامت لگائیں؟»), '
+    + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)';
+}
 
 // English technical terms belong in English letters inside Urdu (operator
 // rule: "Urdu written well, English terms in English"). Speech-to-text spells
@@ -95,15 +112,69 @@ const STEM_PROMISES_PICTURE =
 // pictures stops testing the lesson and starts testing picture-reading.
 const FIGURE_MAX_SHARE = 0.5;
 
+// ─── PICTURES IN A GRADE 1-5 MATHS QUIZ ─────────────────────────────────────
+// A young class is taught maths through the picture: concrete, then pictorial,
+// then abstract. On production 5.5% of maths items carried one (49 of 884),
+// because nothing asked for more than one and "earn the figure" rejected every
+// picture that modelled numbers the stem states. Two rules, both grade 1-5
+// maths only; grade 6 and above are untouched.
+
+/** Pictures a grade 1-5 maths quiz aims for (never more than FIGURE_MAX_SHARE of it). */
+const FIGURE_TARGET = 3;
+
+/** Grade 1-5 (and KG/prep, however the band is spelled) — the author's own reading of a band. */
+function isEarlyBand(gradeBand) {
+  const g = String(gradeBand || '').toLowerCase();
+  if (/\b(kg|k|prep|nursery|ecce|katchi)\b/.test(g)) return true;
+  const nums = (g.match(/\d+/g) || []).map(Number);
+  return nums.length > 0 && nums.every((k) => k <= 5);
+}
+
+const earlyMaths = (subject, gradeBand) => canonSubj(subject) === 'maths' && isEarlyBand(gradeBand);
+
+/**
+ * How far a quiz is from its picture target. Too few is a SOFT complaint,
+ * FIGURE_FEW, and never a reason to refuse a quiz: a refused quiz is a teacher
+ * with nothing, and a quiz with one picture is still a quiz. The generate step
+ * answers it with ONE targeted "add a picture" repair and ships either way.
+ * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, complaint:string|null}}
+ */
+function figureDensity(questions, { subject, gradeBand } = {}) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const n = qs.length;
+  const figured = qs.filter((q) => q && q.figure && typeof q.figure === 'object' && !Array.isArray(q.figure)).length;
+  if (!earlyMaths(subject, gradeBand)) {
+    return { applies: false, figured, n, target: 0, need: 0, complaint: null };
+  }
+  const target = Math.min(FIGURE_TARGET, Math.floor(n * FIGURE_MAX_SHARE));
+  const need = Math.max(0, target - figured);
+  return {
+    applies: true, figured, n, target, need,
+    complaint: need ? `FIGURE_FEW — ${figured}/${n} questions carry a picture; a grade 1-5 maths quiz aims for at least ${target}` : null,
+  };
+}
+
+/**
+ * figure_role "model": the picture MODELS numbers the stem already states — the
+ * pictorial step the lesson itself used (fraction bars beside "which is larger,
+ * 2/3 or 3/5?", counters beside "3 + 4"). FIGURE_REDUNDANT exists to stop a
+ * decorative picture; for a young maths class this one is the lesson, so it is
+ * exempt. The answer-leak rule is not: no option, no result, in the drawing.
+ */
+function modelsTheStem(q, subject, gradeBand) {
+  return Boolean(q) && q.figure_role === 'model' && earlyMaths(subject, gradeBand);
+}
+
 /**
  * A question as the child READS it (bd-mg9c7.159.19). The author writes maths
  * as TeX (`$\frac{2}{9}$`) and the row stores that source for the card and the
  * PDF to typeset — but every rule below is about what reaches the child: a
  * length cap, two options that look the same, a picture that gives the answer
- * away, an English-script ratio. Measured on the TeX, `$\frac{2}{5}$` is not
- * "2/5", so the figure gates silently stop seeing a fraction key at all, and
- * `\frac` counts as four Latin letters in an Urdu quiz. So every check reads
- * this view; the question returned (and stored) keeps its source.
+ * away. Measured on the TeX, `$\frac{2}{5}$` is not "2/5", so the figure gates
+ * silently stop seeing a fraction key at all. So every check reads this view;
+ * the question returned (and stored) keeps its source. (The Urdu word share
+ * reads the source instead and leaves the maths out altogether: a flattened
+ * "5 cm" or "x" would still count as an English word — urduShareByPart.)
  */
 function plainView(q) {
   if (!q || typeof q !== 'object') return q;
@@ -144,12 +215,86 @@ function mathTexErrors(q, i) {
   return out;
 }
 
+/**
+ * Arabic-script LETTERS as a share of all letters. No longer what decides an
+ * Urdu quiz (urduShareByPart does, below); kept because it is the measure the
+ * word share was chosen against, and a test pins the failure it caused.
+ */
 function scriptRatio(s) {
   const letters = [...String(s || '')].filter((c) => /\p{L}/u.test(c));
   if (!letters.length) return 1;
   const ar = letters.filter((c) => /[؀-ۿﭐ-﷿ﹰ-﻿]/.test(c)).length;
   return ar / letters.length;
 }
+
+/**
+ * HOW MUCH OF AN URDU QUIZ IS URDU — counted in WORDS.
+ *
+ * The quiz-level check used to count LETTERS (scriptRatio above), and the
+ * language ask promises the teacher the opposite of what a letter count
+ * rewards: "English terms stay in English letters (fraction, numerator)". In a
+ * fractions lesson those terms are long — "denominator" is eleven letters,
+ * «کو» is two — so a correct Urdu quiz built around them is mostly Latin
+ * LETTERS while being mostly Urdu WORDS. A lesson-plan quiz on comparing
+ * unlike fractions died on all three attempts at 0.55, 0.59 and 0.57 against a
+ * 0.6 bar, and the teacher was told the lesson plan was the problem. The
+ * per-question teacher-fields rule below was moved to words for the same
+ * reason after a production loss; this is the quiz-level half.
+ *
+ * A word is a whitespace-separated run that carries a letter, and it is Urdu
+ * when one of its LETTERS is Arabic-script — «۔» and «،» sit in the Arabic
+ * block but are punctuation, so "numerator۔" is still an English word. The
+ * maths is removed first: `$\frac{2}{3}$` reads the same in either language,
+ * and a unit typeset inside it (`$5\,\text{cm}$`) is notation, not an English
+ * word. Bare numbers carry no letter and are not words either.
+ */
+const MATH_SPAN = /\$[^$\n]+?\$/g;             // the inline span, as quiz-math reads it
+const URDU_LETTER = /(?=\p{L})\p{Script=Arabic}/u;
+function urduWordShare(s) {
+  const prose = mathToText(String(s ?? '').replace(MATH_SPAN, ' '));
+  const words = String(prose ?? '').split(/\s+/).filter((w) => /\p{L}/u.test(w));
+  if (!words.length) return 1;
+  return words.filter((w) => URDU_LETTER.test(w)).length / words.length;
+}
+
+/**
+ * The share is taken PART BY PART — the questions a child reads, and the
+ * explanations and feedback a child reads — and the quiz is judged on the
+ * lower of the two. Pooled into one number, the feedback (three strings a
+ * question) outweighs the stem (one), so a quiz with every question in English
+ * and every piece of feedback in Urdu scores 0.64 and reads as Urdu. The
+ * options are left out of both parts: they are the answer choices, and in an
+ * Urdu maths or grammar quiz they are rightly the English terms themselves
+ * ("numerator", "masculine") or numbers.
+ */
+function urduShareByPart(questions) {
+  const stems = [];
+  const answers = [];
+  (Array.isArray(questions) ? questions : []).forEach((q) => {
+    if (!q || typeof q !== 'object') return;
+    const fb = (q.option_feedback && typeof q.option_feedback === 'object') ? q.option_feedback : {};
+    stems.push(q.question);
+    answers.push(q.explanation, fb.correct, ...Object.values(fb.wrong || {}));
+  });
+  const join = (xs) => xs.map((t) => (typeof t === 'string' ? t : '')).join('\n');
+  const share = { questions: urduWordShare(join(stems)), answers: urduWordShare(join(answers)) };
+  const part = share.questions <= share.answers ? 'questions' : 'answers';
+  return { ...share, part, min: share[part] };
+}
+
+/**
+ * The bar, chosen from real authored quizzes (both distributions are in the
+ * change that set it). The lower part's Urdu word share, on 241 real Urdu
+ * quizzes — nine models, forty lessons, the lesson-plan quizzes, 84 of them
+ * maths or science — was never below 0.58; the lowest are Urdu quizzes on
+ * English-grammar lessons, whose questions quote English sentences. The real
+ * Urdu fractions quizzes the letter bar passed by a hair (0.60 and 0.62 by
+ * letters) score 0.81 and 0.82. On 110 real English quizzes it was never
+ * above 0.04, Roman Urdu scores 0, and a quiz with its questions in one
+ * language and its feedback in the other scores 0. The bar sits in the middle
+ * of that gap, with more than 0.25 either side.
+ */
+const URDU_WORD_SHARE_MIN = 0.3;
 
 /**
  * Accept the shapes models actually emit for option_feedback and return the
@@ -201,6 +346,7 @@ function validate(rawQuestions, ctx = {}) {
   const {
     language, subject, digest, nExpected, lessonSummary, quizId,
   } = ctx;
+  const gradeBand = ctx.gradeBand || (digest && digest.grade_band) || null;
   const checkD4 = 'lessonSummary' in ctx;
   const errs = [];
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
@@ -311,14 +457,13 @@ function validate(rawQuestions, ctx = {}) {
       // live run of round 4 had every one of them in English on an all-Urdu
       // page. English technical terms in Latin letters are expected inside an
       // Urdu phrase, so the bar is "some Urdu", not "no Latin".
-      // A feminine verb stem guesses the child's gender. It used to be found
-      // once over every question's text joined together — a quiz-level
-      // complaint the rewrite could not target and the salvage could not drop,
-      // and on production (2026-09-07) one such stem on the last attempt cost
-      // a teacher the whole quiz. Named per question, it is one question's
-      // text to rewrite; the quiz-level line below stays as the headline.
-      const fem = FEM_STEMS.exec(texts.join(' '));
-      if (fem) errs.push(`q${i}: PEDAGOGY_GENDERED_CHILD — "${fem[1]}" guesses the child's gender; address the child as آپ with plural-respectful verbs (کریں، دیکھیں، سوچیں، سمجھ سکتے ہیں), never a feminine or masculine singular form`);
+      // A verb that speaks to the child with a gender — «کون سی علامت لگائیں
+      // گے؟», «آپ … سوچ رہے ہیں», «آپ … کر سکتی ہیں» — guesses whether the
+      // child is a boy or a girl. Named per question (a quiz-level complaint is
+      // one the rewrite cannot target and the salvage cannot drop: production,
+      // 2026-09-07), read on the question as the child SEES it.
+      const address = childAddressError(p, i);
+      if (address) errs.push(address);
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {
@@ -434,7 +579,7 @@ function validate(rawQuestions, ctx = {}) {
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }
-    if (figureIsRedundant(q.figure, stem)) {
+    if (!modelsTheStem(q, subject, gradeBand) && figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
     }
     // The DRAWING is checked, not only the spec: several types compute a label
@@ -470,12 +615,21 @@ function validate(rawQuestions, ctx = {}) {
 
   const joined = allText.join('\n');
   if (language === 'ur') {
-    const r = scriptRatio(joined);
-    if (r < 0.6) errs.push(`urdu script ratio ${r.toFixed(2)} < 0.6`);
+    // Counted in WORDS, part by part (urduShareByPart), on the questions as
+    // the author wrote them — maths still inside its dollars, so it can be
+    // left out rather than counted as flattened letters. The complaint keeps
+    // its "urdu script ratio " prefix: the retry note recognises a
+    // wrong-script attempt by it (WRONG_SCRIPT_RE in
+    // transcript-quiz-contract.js), and it is quoted to the model verbatim,
+    // so it also says what to do.
+    const byPart = urduShareByPart(qs);
+    if (byPart.min < URDU_WORD_SHARE_MIN) {
+      const where = byPart.part === 'questions' ? 'the questions' : 'the explanations and feedback';
+      errs.push(`urdu script ratio ${byPart.min.toFixed(2)} < ${URDU_WORD_SHARE_MIN.toFixed(2)} — only ${Math.round(byPart.min * 100)}% of the words in ${where} are in Urdu script; write every stem, option, explanation and feedback in Urdu, keeping only the lesson's technical terms in English letters`);
+    }
     const latinWords = joined.match(/\b[a-zA-Z]{2,}\b/g) || [];
     const roman = latinWords.filter((w) => ROMAN_URDU.has(w.toLowerCase()));
     if (roman.length >= 3) errs.push(`roman urdu tokens: ${roman.slice(0, 6).join(' ')}`);
-    if (FEM_STEMS.test(joined)) errs.push('feminine-stem address');
     const tl = TRANSLIT_TERMS.exec(joined);
     if (tl) errs.push(`transliterated English term in Urdu script: ${tl[1].trim()} — write it in English letters`);
   }
@@ -500,13 +654,17 @@ module.exports = {
   normaliseFeedback,
   STEM_PROMISES_PICTURE,
   FIGURE_MAX_SHARE,
+  FIGURE_TARGET,
+  figureDensity,
   scriptRatio,
+  urduWordShare,
+  urduShareByPart,
+  URDU_WORD_SHARE_MIN,
   MIN_QUESTIONS,
   MAX_QUESTIONS,
   STEM_MAX,
   OPTION_MAX,
   LEVELS,
-  FEM_STEMS,
   TRANSLIT_TERMS,
   LATIN_FIRST,
   rtlOpen,
