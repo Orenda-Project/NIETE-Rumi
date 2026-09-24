@@ -1097,6 +1097,27 @@ thousands place now quote their worked example whole instead of being told to ke
 Upstream has none of this; keep all of it at the next re-sync, and offer the thousands place and the
 three local glyphs upstream with §3.18.
 
+### 3.21 `match` takes its handle letters from the spec — `types/match.js`, `types_manifest.json` (2026-09-24)
+
+The `match` type drew `A`/`B`/`C`/`D` down its lettered column unconditionally. That suits a lesson-plan
+page, which has no lettered options of its own. On a quiz card it collided with the card's own option
+letters: the options are pairings of the handles ("A-2", "B-1"), so a card read "A: A-2", the button
+letter beside the handle letter.
+
+* **`types/match.js`** — a new optional `handleLetters` (an array, at least as long as the column). The
+  lettered column draws those strings; without it the type draws `A`/`B`/`C`/`D` exactly as before, so a
+  lesson-plan page renders byte-for-byte as it did. The header comment names the key.
+* **`types_manifest.json`** — `handleLetters` added to `match`'s `optional`. The `for` line and the
+  options limit no longer name the letters ("lettered down one side and numbered 1/2/3 down the other";
+  the candidate pairs are "a handle letter and a number"), because on a quiz card they are not A/B/C.
+
+The quiz lane (`transcript-quiz-figure.js` `relabelLetterParts`) sets `handleLetters` to `P`/`Q`/`R`/`S`
+on every match figure and renames the A-D it finds in the question's stem, options and feedback, the
+scheme it already uses for every other lettered part. Covered by
+`tests/quiz/transcript-quiz-figure-match-and-names.test.js`, including the default-letters case. Upstream
+has no `handleLetters`; keep it at the next re-sync (it changes nothing for a spec that omits it) and
+offer it upstream.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
