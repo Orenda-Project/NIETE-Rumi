@@ -581,7 +581,8 @@ Feature: NIETE (ICT) Teacher Training
     # Counters: FIGURE_MISMATCH now covers count_objects. Names: NAMES ARE NOT TERMS in the Urdu style rule;
     # a name in English letters is URDU_NAME_LATIN, a soft in-place fault: one targeted rewrite returns the
     # name's Urdu spelling ("names") and a name-only question is kept as authored with the name swapped in,
-    # picture labels included (spellNames); what still ships is recorded (transcript_quiz.latin_name).
+    # picture labels included (spellNames); a spelling the quiz has learned is written by every later rewrite
+    # (key check, blind solve) too; what still ships is recorded (transcript_quiz.latin_name).
     # A capitalised word the lesson or quiz also writes in lowercase ("Compare") is not a name.
     # Match: the vendored engine takes `handleLetters` (SYNC.md 3.21); the quiz lane sets P/Q/R/S and renames
     # A-D in the stem, options and feedback. The label gate reads one name in two scripts as one word.
