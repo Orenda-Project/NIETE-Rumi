@@ -116,12 +116,11 @@ const RTL_LANGS = new Set(['ur']);
 const CHROME = {
   en: {
     eyebrow: 'Class quiz results',
-    classResults: 'Class results',
-    gradeLine: (g) => ` &middot; Grade ${esc(g)}`,
+    gradeLine: (g) => `Grade ${esc(g)}`,
     // PLAN_R5 item 6 — built by classHeading() from what the CHILDREN typed,
     // so the template only has to place it. `gradeLine` stays for the callers
     // that still pass a single `grade` and know it (the video-quiz lane).
-    classesLine: (c) => ` &middot; ${c}`,
+    classesLine: (c) => c,
     classAverage: 'Class average',
     started: 'Started', finished: 'Finished', worthReteaching: 'Worth reteaching',
     worthReteachingHeading: 'Worth reteaching &mdash; most missed',
@@ -153,9 +152,8 @@ const CHROME = {
     // group/PDF in Latin letters inside Urdu sentences. These two chrome tables
     // were the only place in the repo that had drifted off it.
     eyebrow: 'کلاس کے quiz کے نتائج',
-    classResults: 'کلاس کے نتائج',
-    gradeLine: (g) => ` &middot; جماعت ${esc(g)}`,
-    classesLine: (c) => ` &middot; ${c}`,
+    gradeLine: (g) => `جماعت ${esc(g)}`,
+    classesLine: (c) => c,
     // "کلاس اوسط" was a word-for-word calque: Urdu does not stack two nouns
     // the way English does, so it needs the linker to mean anything at all.
     classAverage: 'کلاس کا اوسط',
@@ -260,7 +258,7 @@ function renderVideoQuizReportHtml(d) {
   // caller still passes is the fallback, never the winner: the one the PDF
   // used to print came from a digest band and read "Grade 6-8".
   const classText = classHeading(classes, contentLanguage);
-  const classTail = classText ? L(C.classesLine(classText))
+  const classPart = classText ? L(C.classesLine(classText))
     : (grade ? L(C.gradeLine(grade)) : '');
 
   const missedCards = hardest.map((h, i) => {
@@ -304,6 +302,14 @@ function renderVideoQuizReportHtml(d) {
     const nrtl = dirOf(name) === 'rtl';
     return `<span class="nm content" dir="${nrtl ? 'rtl' : 'ltr'}">${wrapLatin(esc(name), nrtl)}</span>`;
   };
+
+  // The who-line is the teacher's name, then the class. This document is read
+  // BY the teacher, so a teacher with no name on record gets the class alone:
+  // the share code's "your teacher" fallback is the CHILDREN's word for them
+  // and never reaches this line, and no filler takes the name's place (the
+  // eyebrow above already says what the document is). Neither -> no line.
+  const whoParts = [teacherName ? nameCell(teacherName) : '', classPart].filter(Boolean);
+  const whoLine = whoParts.length ? `<div class="who">${whoParts.join(' &middot; ')}</div>` : '';
 
   // A class label on a roster row earns its line only when the class differs
   // from row to row. When every child is in one class the hero already names
@@ -536,7 +542,7 @@ ${RTL ? '.roster>.label{padding-top:10px}' : ''}
       <h1 class="content" dir="${cdir}">${K(topic)}</h1>
       <div class="hscore"><div class="p">${average}%</div><div class="s">${L(C.classAverage)}</div></div>
     </div>
-    <div class="who">${teacherName ? nameCell(teacherName) : L(C.classResults)}${classTail}</div>
+    ${whoLine}
     <div class="statrow">
       <div class="stchip"><div class="n">${started}</div><div class="l">${L(C.started)}</div></div>
       <div class="stchip"><div class="n">${finished}</div><div class="l">${L(C.finished)}</div></div>
