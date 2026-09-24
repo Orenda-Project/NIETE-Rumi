@@ -1,0 +1,271 @@
+'use strict';
+/**
+ * Lesson quiz — the BLIND SOLVE, the last check before a single row is stored.
+ *
+ * WHY THIS EXISTS. On sandbox a transcript quiz on a letters lesson went out
+ * with «لفظ حال کے جوڑ توڑ میں کون سے حروف شامل ہیں؟» keyed «ہ، ا، ل» — حال is
+ * spelled ح ا ل — and with «سلام» offering two options that hold the same four
+ * letters, i.e. two right answers. The class report, which trusts the key, then
+ * told the teacher the misspelling was right, explained that the children who
+ * chose ح were wrong, and planned tomorrow's drill on «ہ، ا، ل». The validator
+ * checks shape, language, level and pictures; the lp_v8 key check compares a key
+ * with the lesson plan it was written from. Neither can see a SPELLING mistake —
+ * no lesson source says how حال is spelled — and a transcript quiz had no key
+ * check at all.
+ *
+ * WHAT IT DOES. One LLM call answers every item WITHOUT being shown its key: the
+ * stem, the options (in a stable shuffled order, so an author's habit of putting
+ * the right answer first cannot be read), the grade, the subject, the lesson's
+ * objectives and summary. For each item it lists EVERY option that is correct.
+ * Code — never the model — then compares that list with the key:
+ *
+ *   agree         the solver's set IS the key
+ *   disagree      the solver chose something else (the حال case)
+ *   ambiguous     the key AND another option are both correct (the سلام case)
+ *   none_correct  the solver found no option correct
+ *   unclear       the solver was unsure, skipped the item, or answered junk
+ *
+ * What the generate step does with a flagged item (re-author once through the
+ * existing targeted rewrite, re-solve, drop, or fail as `key_disagreement`)
+ * lives in `transcript-quiz-generate.service.js` (runKeyVerify), beside the
+ * lp_v8 key check and every other recovery step.
+ *
+ * THE MODEL. `quiz.keyVerify` in the model registry — TRANSCRIPT_QUIZ_VERIFY_MODEL,
+ * default a DIFFERENT and stronger model than the author's (a solver that shares
+ * the author's blind spots agrees with the author's mistakes).
+ *
+ * TWO CONTRACTS ASSERTED IN CODE (root rule 24c), not left to the prompt:
+ *   - a reply with no `answers` array is a FAILED solve (the caller fails open
+ *     and says so at error), never "every key is fine";
+ *   - an item the reply skipped, marked unsure, or answered with anything but a
+ *     list of option numbers it was shown is `unclear` — it neither blocks the
+ *     quiz nor counts as agreement.
+ *
+ * Pure except for the one LLM call: no DB, no WhatsApp, no R2.
+ */
+
+const { completeJson } = require('./transcript-quiz-llm');
+const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
+const Multi = require('./transcript-quiz-multi');
+const { todaysModel } = require('../../config/model-registry');
+
+const LABEL = 'transcript_quiz.key_verify';
+/** The model-registry job: its own model, its own spend line. */
+const JOB = 'quiz.keyVerify';
+/** The verdicts that send an item back to the rewrite. `unclear` is never one of them. */
+const FLAGGED = new Set(['disagree', 'ambiguous', 'none_correct']);
+const SUMMARY_MAX = 600;
+const FIGURE_MAX = 600;
+const NOTE_MAX = 200;
+const SLOS_MAX = 8;
+
+const cp = (s) => [...String(s)].length;
+const arr = (v) => (Array.isArray(v) ? v : []);
+const cut = (s, n) => (cp(s) > n ? `${[...String(s)].slice(0, n - 1).join('')}…` : String(s));
+/** One trimmed line, direction marks removed (they are layout, not text). */
+const line = (v) => String(v ?? '').replace(/[\u200e\u200f]/g, '').replace(/\s+/g, ' ').trim();
+
+/** The model the solve runs on — read per call, so an env flip needs no deploy. */
+function verifyModel() {
+  return todaysModel(JOB);
+}
+
+/** FNV-1a over a string: a stable seed per quiz, item and wording. */
+function seedOf(key) {
+  let h = 2166136261;
+  const s = String(key);
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) || 1;
+}
+
+/**
+ * The order the solver is SHOWN the options in: `order[shownPosition] = authoredIndex`.
+ * Seeded on the quiz, the item and its wording, so the same item always shows the
+ * same way (a re-solve of a rewritten item gets its own order).
+ */
+function shownOrder(n, key) {
+  const order = Array.from({ length: n }, (_, k) => k);
+  let s = seedOf(key);
+  const rnd = () => {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >>> 17;
+    s ^= s << 5; s >>>= 0;
+    return s / 4294967296;
+  };
+  for (let k = n - 1; k > 0; k -= 1) {
+    const j = Math.floor(rnd() * (k + 1));
+    [order[k], order[j]] = [order[j], order[k]];
+  }
+  return order;
+}
+
+/** The positions an item keys as correct: one for an ordinary question, a set for "select all". */
+function keyedIndices(q) {
+  if (Multi.isMultiQuestion(q)) return Multi.authoredCorrectIndices(q);
+  const n = Number(q && q.correct_index);
+  return Number.isInteger(n) ? [n] : [];
+}
+
+/** Options by authored index, as text — what the record shows and the rewrite is told. */
+function optionText(q, indices) {
+  const opts = arr(q && q.options);
+  return arr(indices).map((i) => line(opts[i])).filter(Boolean).join(' + ');
+}
+
+/**
+ * Everything the solve needs about one item, and nothing that gives its key
+ * away: no correct index, no explanation, no feedback, no "selected_because".
+ */
+function itemFor(q, index, quizId = null) {
+  const options = arr(q && q.options).map(line);
+  return {
+    index,
+    question: line(q && q.question),
+    options,
+    order: shownOrder(options.length, `${quizId || ''}:${index}:${line(q && q.question)}`),
+    keyed: keyedIndices(q).slice().sort((a, b) => a - b),
+    multi: Multi.isMultiQuestion(q),
+    figure: q && q.figure && typeof q.figure === 'object' ? q.figure : null,
+  };
+}
+
+/**
+ * THE SOLVER PROMPT. The context first (what the lesson was about — never an
+ * answer), then the items with their options in the shown order, then the rule.
+ * Written in English; the quiz stays in its own language, and the solver is told
+ * to judge spelling and letters exactly as written.
+ */
+function buildVerifyPrompt({
+  items, language, grade = null, subject = null, digest = null, lessonSummary = null,
+}) {
+  const lang = LANG_NAME[language] || 'the quiz\'s own language';
+  const slos = arr(digest && digest.slos).slice(0, SLOS_MAX)
+    .map((s) => line(sloStatement(s, language)))
+    .filter(Boolean);
+  const summary = line(lessonSummary);
+  const context = [
+    summary ? `Lesson summary: ${cut(summary, SUMMARY_MAX)}` : null,
+    slos.length ? `What the children were meant to learn:\n${slos.map((s) => `- ${s}`).join('\n')}` : null,
+  ].filter(Boolean).join('\n');
+
+  const blocks = arr(items).map((it) => {
+    const shown = it.order.map((authored, pos) => `[${pos}] ${it.options[authored]}`).join(' | ');
+    const kind = it.multi ? 'choose ALL that are correct' : 'one answer';
+    const picture = it.figure
+      ? `\n  the picture the child sees, as data: ${cut(JSON.stringify(it.figure), FIGURE_MAX)}` : '';
+    return `q${it.index} (${kind}): ${it.question}\n  options: ${shown}${picture}`;
+  }).join('\n\n');
+
+  return [
+    `You are SOLVING a short quiz for children${grade ? ` in grade ${line(grade)}` : ''}${subject ? `, subject ${line(subject)}` : ''}. You are NOT told which answers are right: work out every question yourself, the way a careful teacher who knows the subject would. The quiz is in ${lang}; read it in that language, and judge spelling, letters, word forms and numbers exactly as they are written.`,
+    context
+      ? `WHAT THE LESSON WAS ABOUT — context only. It tells you what the questions are about; a fact (a spelling, the letters of a word, a sum, a definition, a date) is decided by what is TRUE, not by this text.\n${context}`
+      : null,
+    `THE QUESTIONS\n\n${blocks}`,
+    `For EACH question, list in "correct" EVERY option number that is a correct answer to the question exactly as it is asked — every option a careful teacher would mark right. If two options are both right (for example, the same letters in a different order when the question does not ask about their order), list both. If no option is right, give an empty list. Judge what is written, not what the question-writer probably meant. If you cannot decide without something you were not given (the lesson itself, or a picture you cannot read from its data), set "unsure": true. In "note", say in one short line why — for a wrong or doubled option, name the fact (for example: "قلم is spelled ق ل م, not ک ل م").`,
+    `Return ONLY this JSON object, one entry per question above, "index" being the number after its q:
+{ "answers": [ { "index": ${arr(items)[0] ? items[0].index : 0}, "correct": [0], "unsure": false, "note": "" } ] }`,
+  ].filter(Boolean).join('\n\n');
+}
+
+const sameSet = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** One item's verdict, from the solver's answer — the comparison is code, never the model's. */
+function judge(item, a) {
+  const base = { index: item.index, keyed: item.keyed };
+  if (!a) return { ...base, verdict: 'unclear', blind: null, note: '', missing: true };
+  const note = cut(line(a.note), NOTE_MAX);
+  if (a.unsure === true || !Array.isArray(a.correct)) return { ...base, verdict: 'unclear', blind: null, note };
+  const shown = a.correct.map(Number);
+  if (shown.some((k) => !Number.isInteger(k) || k < 0 || k >= item.order.length)) {
+    return { ...base, verdict: 'unclear', blind: null, note };
+  }
+  const blind = [...new Set(shown.map((k) => item.order[k]))].sort((x, y) => x - y);
+  let verdict;
+  if (!blind.length) verdict = 'none_correct';
+  else if (sameSet(blind, item.keyed)) verdict = 'agree';
+  else if (!item.multi && item.keyed.length === 1 && blind.includes(item.keyed[0])) verdict = 'ambiguous';
+  else verdict = 'disagree';
+  return { ...base, verdict, blind, note };
+}
+
+/**
+ * The reply, held to its contract. Throws when there is no `answers` array —
+ * the caller treats that as a failed solve, never as "all agree". One verdict
+ * per REQUESTED item, in order; a skipped item is `unclear` with `missing: true`.
+ *
+ * @returns {{index:number, verdict:string, keyed:number[], blind:number[]|null, note:string, missing?:boolean}[]}
+ */
+function parseAnswers(json, items) {
+  if (!json || !Array.isArray(json.answers)) throw new Error(`${LABEL}: the reply carries no "answers" array`);
+  const wanted = new Set(arr(items).map((it) => it.index));
+  const byIndex = new Map();
+  json.answers.forEach((a) => {
+    const i = Number(a && a.index);
+    if (!Number.isInteger(i) || !wanted.has(i) || byIndex.has(i)) return;
+    byIndex.set(i, a);
+  });
+  return arr(items).map((it) => judge(it, byIndex.get(it.index)));
+}
+
+/**
+ * The complaint a flagged item carries into the targeted rewrite — the same
+ * `q<i>: CODE — …` shape every validator complaint has, so the existing rewrite
+ * takes it as one question's text to rewrite.
+ */
+function disagreementComplaint(verdict, q) {
+  const i = verdict.index;
+  const keyed = optionText(q, verdict.keyed) || '(none)';
+  const blind = optionText(q, verdict.blind || []);
+  const why = verdict.note ? ` (the solver's reason: ${verdict.note})` : '';
+  if (verdict.verdict === 'ambiguous') {
+    return `q${i}: KEY_AMBIGUOUS — more than one option is a correct answer: "${blind}"${why}. Exactly one option may be correct: keep the right one marked correct and make every other option clearly wrong.`;
+  }
+  if (verdict.verdict === 'none_correct') {
+    return `q${i}: KEY_NONE_CORRECT — a solver who was not shown the key found no option correct, not even the one marked correct ("${keyed}")${why}. Make exactly one option correct and mark it.`;
+  }
+  return `q${i}: KEY_DISAGREEMENT — a solver who was not shown the key answered "${blind}", but the option marked correct is "${keyed}"${why}. Check the fact itself and mark as correct only the option that is actually right.`;
+}
+
+/**
+ * ONE call. Solves every item, or only `indices` (the re-solve after a
+ * rewrite). Throws on an LLM failure or an unusable reply — the caller decides
+ * what a failed solve means (it fails open).
+ *
+ * @returns {Promise<{verdicts:object[], model:string|null, costUsd:number,
+ *   latencyMs:number, promptChars?:number, skipped?:string}>}
+ */
+async function verifyKeys({
+  questions, indices = null, language, grade = null, subject = null, digest = null, lessonSummary = null, quizId = null,
+}) {
+  const qs = arr(questions);
+  const idx = Array.isArray(indices) ? indices.filter((i) => Number.isInteger(i) && qs[i]) : qs.map((_, i) => i);
+  if (!idx.length) return { verdicts: [], model: null, costUsd: 0, latencyMs: 0, skipped: 'nothing_to_solve' };
+  const items = idx.map((i) => itemFor(qs[i], i, quizId));
+  const prompt = buildVerifyPrompt({
+    items, language, grade, subject, digest, lessonSummary,
+  });
+  const requested = verifyModel();
+  // 8000 like the key check: a reasoning model spends its budget thinking, and a
+  // truncated reply here is a failed solve, not a verdict.
+  const {
+    json, model, costUsd, latencyMs,
+  } = await completeJson({
+    prompt, maxTokens: 8000, label: LABEL, model: requested, job: JOB,
+  });
+  return {
+    verdicts: parseAnswers(json, items),
+    model: model || requested,
+    costUsd: Number(costUsd) || 0,
+    latencyMs,
+    promptChars: cp(prompt),
+  };
+}
+
+module.exports = {
+  verifyKeys, buildVerifyPrompt, parseAnswers, disagreementComplaint, itemFor, shownOrder, keyedIndices, optionText,
+  verifyModel, FLAGGED, LABEL, JOB,
+};

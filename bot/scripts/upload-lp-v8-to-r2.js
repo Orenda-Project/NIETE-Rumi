@@ -330,6 +330,149 @@ function planFor(item, hash, existingRows) {
   };
 }
 
+// ── the quiz source: the slide script the served PDF was rendered from ──────
+
+const SLIDE_SCRIPT_FILE = '_slide_script.json';
+
+/**
+ * Where the renderer leaves a lesson's slide script.
+ *
+ * niete-nbpro writes it to <OUT>/<lesson_id>/_slide_script.json (generate.js:1136,
+ * `dir = path.join(OUT, stem)`), while build_manifest_v8.py records the PDF itself as
+ * `out/<round>/<lesson_id>.pdf` (build_manifest_v8.py:182) — so the script sits in a
+ * directory NAMED for the lesson, beside the PDF rather than next to it. A flat
+ * per-lesson render dir (PDF and script in one folder) is accepted as well, so this
+ * keeps working if the tree ever flattens. Both candidates are reported when neither
+ * exists, because "we looked here" is the only useful half of that warning.
+ */
+function slideScriptPathFor(pdfAbsPath, lessonId, fsImpl = fs) {
+  const dir = path.dirname(String(pdfAbsPath || ''));
+  const candidates = [
+    path.join(dir, String(lessonId || ''), SLIDE_SCRIPT_FILE),
+    path.join(dir, SLIDE_SCRIPT_FILE),
+  ];
+  return { path: candidates.find((p) => fsImpl.existsSync(p)) || null, candidates };
+}
+
+/**
+ * Record the slide script for an asset that has just been written.
+ *
+ * This is the one moment where the binding is free — the bytes, the hash, the version
+ * stamp and the script are all in hand at once. PLAN R8 §2.1: the LP-born quiz is
+ * written from this script, resolved by the EXACT version triple, so a teacher is
+ * never quizzed on a lesson plan they do not hold.
+ *
+ * Never fatal: a corpus upload that has already put the PDF in front of teachers must
+ * not be failed by a missing sidecar. A warning names the lesson and the backfill
+ * (`scripts/backfill-lp-asset-sources.js`) can record it later from the matrix link.
+ *
+ * @returns {Promise<{recorded:boolean, reason?:string, path?:string, candidates?:string[]}>}
+ */
+async function recordSlideScript({ pdfPath, lessonId, assetId, versionStamp, contentHash, deps = {} }) {
+  const fsImpl = deps.fs || fs;
+  const log = deps.log || console.log;
+  const store = deps.sourceStore || require('../shared/services/quiz/lp-asset-source.store');
+
+  if (!assetId) return { recorded: false, reason: 'no_asset_id' };
+
+  const found = slideScriptPathFor(pdfPath, lessonId, fsImpl);
+  if (!found.path) {
+    log(`  ⚠ ${lessonId}: no ${SLIDE_SCRIPT_FILE} (looked in ${found.candidates.join(', ')})`
+      + ' — asset shipped, quiz source NOT recorded');
+    return { recorded: false, reason: 'no_slide_script', candidates: found.candidates };
+  }
+
+  let script;
+  try {
+    script = JSON.parse(fsImpl.readFileSync(found.path, 'utf8'));
+  } catch (err) {
+    log(`  ⚠ ${lessonId}: ${SLIDE_SCRIPT_FILE} unreadable (${(err.message || String(err)).split('\n')[0]})`
+      + ' — asset shipped, quiz source NOT recorded');
+    return { recorded: false, reason: 'bad_slide_script' };
+  }
+
+  await store.upsertSource({
+    asset_id: assetId,
+    lesson_id: lessonId,
+    version_stamp: versionStamp,
+    content_hash: contentHash,
+    slide_script: script,
+    source_url: null,
+    verified: 'upload',
+  });
+  return { recorded: true, path: found.path };
+}
+
+/**
+ * The per-item write step: the object, the flag flips, the asset row, and the quiz
+ * source — in that order, in one place, so the row and its source can never diverge.
+ *
+ * Factored out of main() so every branch is reachable from a test with fs real and
+ * only supabase + R2 stubbed.
+ *
+ * @returns {Promise<{assetId:string|null, action:string, source:object}>}
+ */
+async function persistAssetRow({ item, plan, hash, buffer, sourceBytes, pdfPath, commit, deps = {} }) {
+  if (!commit) return { assetId: null, action: plan.action, source: { recorded: false, reason: 'dry_run' } };
+
+  const supabase = deps.supabase || require('../shared/config/supabase');
+  const r2 = deps.r2 || require('../shared/storage/r2');
+  const key = plan.r2_key;
+
+  if (plan.upload) await r2.uploadBuffer(buffer, key, 'application/pdf');
+
+  for (const id of plan.supersede || []) {
+    const { error } = await supabase.from('niete_lp_assets')
+      .update({ is_current: false, superseded_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw new Error(`superseding ${id}: ${error.message || error}`);
+  }
+
+  let assetId = null;
+  if (plan.action === 'reinstate') {
+    const { error } = await supabase.from('niete_lp_assets')
+      .update({ is_current: true, superseded_at: null })
+      .eq('id', plan.reinstate);
+    if (error) throw new Error(`reinstating ${plan.reinstate}: ${error.message || error}`);
+    assetId = plan.reinstate;
+  } else {
+    // .select('id') because the source row is keyed on the asset's id — and because an
+    // insert whose `error` nobody reads has always been a silent "✓" for a row that was
+    // never written (pre-merge class D).
+    const { data, error } = await supabase.from('niete_lp_assets').insert({
+      lesson_id: item.lesson_id,
+      catalog_version: CATALOG_VERSION,
+      version_stamp: item.version_stamp || CATALOG_VERSION,
+      content_hash: hash,
+      r2_key: key,
+      bytes: buffer.length,
+      source_bytes: sourceBytes,
+      source_sha1: item.source_sha1,
+      prompt_layer_sha: item.prompt_layer_sha,
+      rendered_at: item.rendered_at,
+      asset_kind: item.asset_kind,
+      is_current: true,
+    }).select('id').maybeSingle();
+    if (error) throw new Error(`inserting ${item.lesson_id}: ${error.message || error}`);
+    assetId = (data && data.id) || null;
+  }
+
+  // An answer key is not the lesson a quiz is written from; it shares the lesson's
+  // render dir, so recording it would bind the lesson's script to the wrong hash.
+  const source = (item.asset_kind || 'lesson') === 'lesson'
+    ? await recordSlideScript({
+      pdfPath,
+      lessonId: item.lesson_id,
+      assetId,
+      versionStamp: item.version_stamp || CATALOG_VERSION,
+      contentHash: hash,
+      deps,
+    })
+    : { recorded: false, reason: 'not_a_lesson' };
+
+  return { assetId, action: plan.action, source };
+}
+
 // ── prepared SQL (for --r2-only, before migration 018 is applied) ───────────
 
 function sqlLiteral(v) {
@@ -470,7 +613,7 @@ async function main() {
     process.exit(2);
   }
 
-  const { ids, meta } = catalogLessonIds();
+  const { ids } = catalogLessonIds();
   const manifestText = fs.readFileSync(args.manifest, 'utf8');
   let items = parseManifest(manifestText, ids, { kind: args.kind });
   const unknown = parseManifest.lastUnknown;
@@ -521,7 +664,10 @@ async function main() {
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lpv8-upload-'));
-  const summary = { skipped: 0, first: 0, new_version: 0, reinstate: 0, missing: 0, failed: 0, srcBytes: 0, outBytes: 0, uncompressed: 0 };
+  const summary = {
+    skipped: 0, first: 0, new_version: 0, reinstate: 0, missing: 0, failed: 0,
+    srcBytes: 0, outBytes: 0, uncompressed: 0, sources: 0, sourcesMissing: 0,
+  };
   const outcomes = [];
   const startedAt = new Date().toISOString();
 
@@ -600,35 +746,14 @@ async function main() {
       if (plan.action === 'skip') continue;
 
       try {
-        if (plan.upload) await r2.uploadBuffer(comp.buffer, key, 'application/pdf');
-
-        for (const id of plan.supersede) {
-          await supabase.from('niete_lp_assets')
-            .update({ is_current: false, superseded_at: new Date().toISOString() })
-            .eq('id', id);
-        }
-        if (plan.action === 'reinstate') {
-          await supabase.from('niete_lp_assets')
-            .update({ is_current: true, superseded_at: null })
-            .eq('id', plan.reinstate);
-        } else {
-          const m = meta.get(item.lesson_id) || {};
-          await supabase.from('niete_lp_assets').insert({
-            lesson_id: item.lesson_id,
-            catalog_version: CATALOG_VERSION,
-            version_stamp: item.version_stamp || CATALOG_VERSION,
-            content_hash: hash,
-            r2_key: key,
-            bytes: comp.buffer.length,
-            source_bytes: source.length,
-            source_sha1: item.source_sha1,
-            prompt_layer_sha: item.prompt_layer_sha,
-            rendered_at: item.rendered_at,
-            asset_kind: item.asset_kind,
-            is_current: true,
-          });
-          void m;
-        }
+        const persisted = await persistAssetRow({
+          item, plan, hash, buffer: comp.buffer, sourceBytes: source.length,
+          pdfPath: abs, commit: true, deps: { supabase, r2 },
+        });
+        outcome.asset_id = persisted.assetId;
+        outcome.slide_script = persisted.source.recorded ? 'recorded' : (persisted.source.reason || 'none');
+        if (persisted.source.recorded) summary.sources += 1;
+        else if (item.asset_kind === 'lesson') summary.sourcesMissing += 1;
         console.log(`  ✓ ${plan.action.padEnd(12)} ${item.lesson_id} → ${key}`);
       } catch (err) {
         summary.failed += 1;
@@ -645,6 +770,7 @@ async function main() {
   console.log('\n--- summary ---');
   console.log(`  first=${summary.first} new_version=${summary.new_version} reinstate=${summary.reinstate} skip=${skipTotal}`);
   console.log(`  missing-on-disk=${summary.missing} failed=${summary.failed} shipped-uncompressed=${summary.uncompressed}`);
+  console.log(`  quiz sources recorded=${summary.sources} missing-slide-script=${summary.sourcesMissing}`);
   if (summary.srcBytes) {
     console.log(`  ${(summary.srcBytes / 1048576).toFixed(0)} MB → ${(summary.outBytes / 1048576).toFixed(0)} MB (${(100 * summary.outBytes / summary.srcBytes).toFixed(1)}%)`);
   }
@@ -693,6 +819,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  main,
   contentHash,
   r2KeyFor,
   assertNewPrefix,
@@ -705,6 +832,10 @@ module.exports = {
   parseArgs,
   buildRunReport,
   buildInsertSql,
+  slideScriptPathFor,
+  recordSlideScript,
+  persistAssetRow,
+  SLIDE_SCRIPT_FILE,
   KEY_PREFIX,
   GS_SETTING,
   GS_DETERMINISTIC_FLAGS,

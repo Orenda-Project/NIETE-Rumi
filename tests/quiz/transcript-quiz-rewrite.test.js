@@ -53,6 +53,8 @@ const supabase = require('../../bot/shared/config/supabase');
 const { logEvent } = require('../../bot/shared/utils/structured-logger');
 const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 const Rewrite = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
 const { buildAuthorPrompt } = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
 
@@ -207,6 +209,7 @@ beforeEach(() => {
   process.env.TRANSCRIPT_QUIZ_ENABLED = 'true';
   delete process.env.QUIZ_MULTI_SELECT_FLOW_ID;
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
   jest.spyOn(Gen, 'renderFigures').mockResolvedValue({});
   jest.spyOn(Gen, 'renderCards').mockResolvedValue({});
 });

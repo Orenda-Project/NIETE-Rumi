@@ -129,13 +129,21 @@ describe('no labelled call site builds its own client (bd-3kv02)', () => {
     expect(labelled.length).toBeGreaterThan(15);
   });
 
-  test('every one of them gets its client from llm-client, never the raw SDK', () => {
+  test('every one of them strips the label: llm-client, or a raw client wrapped by withSpendRecording', () => {
     // Keyed on IMPORTING the SDK, not on `new OpenAI(`: llm-router builds its client through
     // `lazyClient(OpenAI, ...)`, which a `new OpenAI(` check silently misses -- the first draft of
     // this guard did, and reported four offenders when there were five.
+    //
+    // bd-wgso2 made the rule precise rather than blunt. The five raw-SDK quiz/coaching services now
+    // carry labels on purpose, because each wraps its client with llm-client's withSpendRecording,
+    // which strips the label and records the spend. So the offence is not "imports the SDK" -- it is
+    // "imports the SDK, carries a label, and never wraps". That still refuses exactly the bd-3kv02
+    // bug. What it cannot see is one file holding a wrapped client AND a second, unwrapped one; the
+    // executed tests in raw-sdk-spend-recorded.test.js are what cover the real five.
     const RAW_SDK = /require\(\s*['"]openai['"]\s*\)|from\s+['"]openai['"]|new\s+OpenAI\s*\(/;
+    const WRAPPED = /withSpendRecording\s*\(/;
     const offenders = labelled
-      .filter(({ src }) => RAW_SDK.test(src))
+      .filter(({ src }) => RAW_SDK.test(src) && !WRAPPED.test(src))
       .map(({ f }) => path.relative(BOT, f));
     expect(offenders).toEqual([]);
   });

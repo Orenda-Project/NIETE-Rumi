@@ -87,7 +87,10 @@ class QuizGenerationService {
    */
   static async _generateQuestions({ topic, grade, subject, sourceContent, quizSource }) {
     const OpenAI = require('openai');
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // bd-wgso2: measured, not rerouted -- same client, key and model; only the label is stripped and the spend recorded.
+    const openai = require('../llm-client').withSpendRecording(
+      new OpenAI({ apiKey: process.env.OPENAI_API_KEY }), { lane: 'openai-direct' },
+    );
 
     const contentBlock = sourceContent
       ? `Based on this lesson plan content:\n${sourceContent.substring(0, 3000)}`
@@ -157,6 +160,7 @@ as keys; never include the correct option as a key).`;
       try {
         const response = await openai.chat.completions.create({
           model: 'gpt-4o',
+          job: 'quiz.generate',
           messages: [{ role: 'user', content: systemPrompt }],
           temperature: attempts === 0 ? 0.7 : 0.9,
           response_format: { type: 'json_object' }

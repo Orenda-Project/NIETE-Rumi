@@ -40,9 +40,11 @@
  * depends on a font that covers it).
  */
 
+const { LP_V8 } = require('../services/quiz/quiz-sources');
 const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
+const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
 const { sloStatement } = require('../services/quiz/transcript-quiz-language');
 const { resolveUx } = require('../config/ux-strings');
 const {
@@ -210,6 +212,17 @@ const CHROME = {
 };
 
 /**
+ * An lp_v8 quiz was written from the lesson PLAN the teacher was served —
+ * nobody heard the lesson — so the two lines that say where the sheet came
+ * from say so (PLAN_R8 §3.6). Only these keys differ; everything else is the
+ * CHROME above.
+ */
+const LP_CHROME = {
+  en: { taught: 'What you planned', footer: 'Made from your lesson plan · NIETE Teaching Assistant' },
+  ur: { taught: 'آپ کے سبق کا منصوبہ', footer: 'آپ کے lesson plan سے تیار · NIETE Teaching Assistant' },
+};
+
+/**
  * Isolate every Latin run inside RTL prose.
  *
  * The run must be ONE span. Two consecutive spans are two isolates, and an
@@ -253,14 +266,15 @@ function renderTranscriptQuizTeacherHtml(d) {
   const a = assets();
   const {
     topic = '', teacherName = '', grade = '', date = '', link = '', digest = {}, questions = [],
-    language = 'en', lessonSummary = '',
+    language = 'en', lessonSummary = '', quizSource = null,
   } = d || {};
   // D1: the document is written in the quiz's language. `language` is what a
   // single-language caller passes; `contentLanguage` is what the two-argument
   // callers pass, and it wins.
   const docLang = (d && d.contentLanguage) || language;
   const RTL = RTL_LANGS.has(docLang);
-  const C = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
+  const C0 = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
+  const C = quizSource === LP_V8 ? { ...C0, ...(LP_CHROME[docLang] || (RTL ? LP_CHROME.ur : LP_CHROME.en)) } : C0;
   // L() only isolates, never re-escapes — a trusted chrome string may carry a
   // real <b> that must survive. K() additionally escapes and turns x^2 / H2O
   // into real super/subscripts (richNotation only adds tags, which wrapLatin
@@ -269,7 +283,12 @@ function renderTranscriptQuizTeacherHtml(d) {
   // Order matters: escape → isolate the Latin run → only then grow the
   // super/subscript tags inside that single isolate. Notation-first splits
   // the run across two isolates and an RTL paragraph then prints it backwards.
-  const K = (s) => richNotation(wrapLatin(esc(s), RTL));
+  //
+  // Maths written `$…$` (bd-mg9c7.159.19) is typeset by KaTeX, the same way the
+  // child's card draws it. mathHtml() hands only the PROSE between expressions
+  // to the pipeline above, so wrapLatin() never reaches inside KaTeX's markup;
+  // each expression is already its own left-to-right isolate.
+  const K = (s) => mathHtml(s, { prose: (p) => richNotation(wrapLatin(esc(p), RTL)) });
   const dir = RTL ? 'rtl' : 'ltr';
   // Kept so a block can still declare its own direction where the script
   // genuinely differs from the document's (a name, a term).
@@ -346,6 +365,13 @@ function renderTranscriptQuizTeacherHtml(d) {
   // `name · date` only.
   void grade; void link;
   const meta = [nameHtml, date ? L(esc(date)) : ''].filter(Boolean).join('<span class="sep">·</span>');
+  // Built before the page so the page knows whether it needs KaTeX: its
+  // stylesheet carries ~350 KB of inlined faces, and a sheet with no maths is
+  // left exactly as light as it was.
+  const topicHtml = K(topic);
+  const taughtHtml = taughtText ? K(taughtText) : '';
+  const checksHtml = checksText ? K(checksText) : '';
+  const maths = [cards, topicHtml, taughtHtml, checksHtml].some(usesMath);
 
   return `<!doctype html><html dir="${dir}" lang="${docLang}"><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -355,7 +381,7 @@ function renderTranscriptQuizTeacherHtml(d) {
 @font-face{font-family:'Fraunces';font-weight:400;src:url(data:font/ttf;base64,${a.fraunces}) format('truetype')}
 @font-face{font-family:'Fraunces';font-weight:600;src:url(data:font/ttf;base64,${a.frauncesSemi}) format('truetype')}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq}) format('truetype')}
-@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold}) format('truetype')}
+@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold}) format('truetype')}${maths ? `\n${mathCss()}` : ''}
 body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .report{width:794px;margin:0 auto;background:#fff}
 /* A Latin run inside RTL prose needs BOTH properties. isolate keeps the run
@@ -452,7 +478,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
     <div class="herotop">
       <div>
         <div class="eyebrow">${L(C.eyebrow)}</div>
-        <h1 ${cls('')}>${K(topic)}</h1>
+        <h1 ${cls('')}>${topicHtml}</h1>
       </div>
       ${heroMark}
     </div>
@@ -464,8 +490,8 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
   </div>
   <div class="body">
     <div class="band">
-      ${taughtText ? `<div class="taught"><div class="label">${L(C.taught)}</div><div ${cls('sum')}>${K(taughtText)} <span class="fromlesson">${L(esc(C.fromLesson))}</span></div></div>` : ''}
-      ${checksText ? `<div class="checks"><div class="label">${L(C.checks)}</div><div ${cls('sum checks-sum')}>${bullet} ${K(checksText)}</div></div>` : ''}
+      ${taughtText ? `<div class="taught"><div class="label">${L(C.taught)}</div><div ${cls('sum')}>${taughtHtml} <span class="fromlesson">${L(esc(C.fromLesson))}</span></div></div>` : ''}
+      ${checksText ? `<div class="checks"><div class="label">${L(C.checks)}</div><div ${cls('sum checks-sum')}>${bullet} ${checksHtml}</div></div>` : ''}
     </div>
     <div class="qs">${cards}</div>
   </div>

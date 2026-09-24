@@ -19,6 +19,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
+const { LP_V8, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
 
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -39,13 +40,16 @@ async function updateQuiz(quizId, patch) {
  */
 async function load(quizId) {
   const { data: quiz } = await supabase.from('quizzes')
-    .select('id, teacher_id, topic, subject, language, grade, status, meta, coaching_session_id')
+    .select('id, teacher_id, topic, subject, language, grade, status, meta, coaching_session_id, quiz_source')
     .eq('id', quizId).maybeSingle();
   if (!quiz) return null;
   const meta = quiz.meta || {};
+  const sessionQuery = quiz.quiz_source === LP_V8
+    ? Promise.resolve({ data: lessonSessionFor(quiz) })
+    : supabase.from('coaching_sessions').select('created_at').eq('id', quiz.coaching_session_id).maybeSingle();
 
   const [{ data: session }, { data: user }, { data: storedQs }] = await Promise.all([
-    supabase.from('coaching_sessions').select('created_at').eq('id', quiz.coaching_session_id).maybeSingle(),
+    sessionQuery,
     supabase.from('users').select('preferred_language, name').eq('id', quiz.teacher_id).maybeSingle(),
     supabase.from('quiz_questions').select(QUIZ_QUESTIONS_SELECT).eq('quiz_id', quizId).order('sort_order', { ascending: true }),
   ]);
@@ -64,7 +68,7 @@ async function load(quizId) {
  */
 async function sendHandoff(quizId, phone, { firstSend = false, prepared = null } = {}) {
   const api = module.exports;
-  const bundle = prepared || await load(quizId);
+  const bundle = prepared || await api.load(quizId);
   if (!bundle) return { ok: false, reason: 'quiz_not_found' };
   const {
     quiz, session, questions, qRows, digest, teacherName, teacherLang, language,
@@ -162,7 +166,8 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
 
   // ── send: document (or its text fallback), THEN the link alone, THEN (first
   // send only) the report promise — paced exactly as process() always paced it.
-  const caption = resolveUx('tqHandoffIntro', {
+  // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
+  const caption = resolveUx(handoffIntroKey(quiz.quiz_source), {
     language: teacherLang,
     params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
   });
@@ -189,7 +194,9 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
       student_message: forwardable, pdf_key: pdfKey, pdf_sent: pdfSent, sent_at: new Date().toISOString(),
     };
     await updateQuiz(quizId, { status: 'sent', meta: newMeta });
-    logEvent('transcript_quiz.sent', { quizId, userId: quiz.teacher_id, code, language, pdfSent, costUsd: meta.cost_usd });
+    logEvent('transcript_quiz.sent', {
+      quizId, userId: quiz.teacher_id, code, language, pdfSent, costUsd: meta.cost_usd, quiz_source: quiz.quiz_source || 'transcript',
+    });
 
     try {
       const SQSQueueService = require('../queue/sqs-queue.service');
@@ -215,4 +222,6 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   return { ok: true, code, pdfSent, reused };
 }
 
-module.exports = { sendHandoff, sleep, GAP_MS, NUDGE_AFTER_MS };
+module.exports = {
+  sendHandoff, load, lessonSessionFor, sleep, GAP_MS, NUDGE_AFTER_MS,
+};

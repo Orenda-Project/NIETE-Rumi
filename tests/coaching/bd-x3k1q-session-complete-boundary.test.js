@@ -8,8 +8,12 @@
  * part of the DC coaching session, since there's nothing marking where the
  * coaching flow ends and the quiz feature begins."
  *
- * The fix is one teacher-facing line, in HER language, sent after the commit
- * prompt and before anything the quiz / feature-linker sends.
+ * The fix is one teacher-facing line, in HER language, sent before anything the
+ * quiz / feature-linker sends.
+ *
+ * DC:137 (bd-fmr3s) moved that line INTO the commit prompt when there is one —
+ * see bd-fmr3s-session-complete-merged.test.js. The standalone line below is
+ * the no-commitment-card path, so every case here runs without a card.
  *
  * The message catalog is deliberately NOT mocked here: the assertions read the
  * real per-language string, so an English-only implementation goes red.
@@ -86,6 +90,7 @@ const {
 } = require('../../bot/shared/config/coaching-messages');
 
 const order = (mockFn, nth = 0) => mockFn.mock.invocationCallOrder[nth];
+const { generateCommitmentCard } = require('../../bot/shared/services/coaching/coaching-card/commitment-card.service');
 
 describe('DC:133 — the coaching session declares itself complete before the quiz', () => {
   beforeEach(() => {
@@ -97,6 +102,7 @@ describe('DC:133 — the coaching session declares itself complete before the qu
     jest.spyOn(ReportGeneratorService, 'sendHeroImageReport').mockResolvedValue(true);
     jest.spyOn(ReportGeneratorService, 'generateAndSendVoiceDebrief').mockResolvedValue(true);
     jest.spyOn(ReportGeneratorService, 'scheduleTranscriptQuiz').mockResolvedValue(false);
+    generateCommitmentCard.mockResolvedValue(null); // no card (hero precompute AND delivery) → standalone line
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -118,25 +124,20 @@ describe('DC:133 — the coaching session declares itself complete before the qu
     expect(bodies).not.toContain(getCoachingMessage('sessionComplete', 'en'));
   });
 
-  it('places the line AFTER the commit prompt and BEFORE the quiz / next-feature ask', async () => {
+  it('places the line BEFORE the quiz / next-feature ask', async () => {
     await ReportGeneratorService.generateReport('sess-dc133', { from: '923016669553' });
 
     const expected = getCoachingMessage('sessionComplete', 'en');
     const noteIdx = mockWA.sendMessage.mock.calls.findIndex((c) => c[1] === expected);
     expect(noteIdx).toBeGreaterThanOrEqual(0);              // present, before any ordering claim
-    expect(mockWA.sendInteractiveButtons).toHaveBeenCalled(); // the commit prompt fired
     expect(ReportGeneratorService.scheduleTranscriptQuiz).toHaveBeenCalled();
 
     const noteOrder = order(mockWA.sendMessage, noteIdx);
-    expect(noteOrder).toBeGreaterThan(order(mockWA.sendInteractiveButtons, 0));
     expect(noteOrder).toBeLessThan(order(ReportGeneratorService.scheduleTranscriptQuiz, 0));
     expect(noteOrder).toBeLessThan(order(mockFeatureLinker.suggestNext, 0));
   });
 
   it('still sends the boundary when no commitment card could be generated', async () => {
-    const { generateCommitmentCard } = require('../../bot/shared/services/coaching/coaching-card/commitment-card.service');
-    generateCommitmentCard.mockResolvedValueOnce(null);
-
     await ReportGeneratorService.generateReport('sess-dc133', { from: '923016669553' });
 
     const bodies = mockWA.sendMessage.mock.calls.map((c) => c[1]);

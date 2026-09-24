@@ -151,8 +151,15 @@ describe('bd-60133 — the banner on the rendered page', () => {
     expect(await render(vendorKey, 'sandbox')).toMatch(/NOT A REAL CERTIFICATE/i);
   });
 
-  test.each(VENDORS)('%s is CLEAN in production', async (vendorKey) => {
+  // I-SAPS is stamped in production during its pilot — see isaps-pilot-watermark.test.js
+  // (TODO(NIETE-ISAPS-GO-LIVE): put ISAPS back in this list once it is live for all teachers).
+  test.each(VENDORS.filter(v => v !== 'ISAPS'))('%s is CLEAN in production', async (vendorKey) => {
     expect(await render(vendorKey, 'production')).not.toMatch(/NOT A REAL CERTIFICATE/i);
+  });
+
+  // TODO(NIETE-ISAPS-GO-LIVE): flip to .not.toMatch once I-SAPS is live for all teachers.
+  test('ISAPS is stamped even in production while it is a pilot', async () => {
+    expect(await render('ISAPS', 'production')).toMatch(/NOT A REAL CERTIFICATE/i);
   });
 
   test('an UNSET NODE_ENV is stamped — the fail-safe, on the real page', async () => {

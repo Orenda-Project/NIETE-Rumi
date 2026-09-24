@@ -774,12 +774,15 @@ async function handleVoiceMessage(message, from, user = null) {
       const audioMetadata = await WhatsAppService.getMediaInfo(audioId);
       const audioDuration = audioMetadata?.audio?.duration || audioMetadata?.voice?.duration || 0;
       let audioDurationRounded = Math.round(audioDuration); // Round to integer for database
-      const audioFormat = message.audio ? 'audio' : 'voice'; // 'audio' = document, 'voice' = voice message
+      // The Cloud API never sends `message.voice`: a mic-button voice note is
+      // `message.audio` with `voice: true`. The old `format` field here was
+      // computed from `message.audio` and so read 'audio' for every recording.
+      const isVoiceNote = message.audio?.voice === true;
 
       logToFile('Audio metadata retrieved', {
         duration: audioDuration,
         durationRounded: audioDurationRounded,
-        format: audioFormat,
+        voiceNote: isVoiceNote,
         mimeType: audioMetadata.mime_type
       });
 
@@ -834,21 +837,6 @@ async function handleVoiceMessage(message, from, user = null) {
         // Stop typing indicator
         typingController.stop();
 
-        // Opus format warning (if voice message)
-        if (audioFormat === 'voice') {
-          const mimeType = audioMetadata.mime_type || '';
-          const isOpus = mimeType.includes('opus') || mimeType.includes('ogg');
-
-          if (isOpus) {
-            await WhatsAppService.sendMessage(from,
-              "⚠️ I noticed you sent this as a voice message. For best analysis quality, " +
-              "I recommend sending classroom recordings as a document (tap 📎 → Document).\n\n" +
-              "I'll proceed with analyzing this audio, but the transcription quality may be affected."
-            );
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Brief pause
-          }
-        }
-
         // Route to classroom coaching flow
         if (user && sessionId) {
           // bd-2376: if an analysis is ALREADY running for her, a second
@@ -899,6 +887,17 @@ async function handleVoiceMessage(message, from, user = null) {
         }
 
         return; // Exit early - coaching flow will handle everything
+      }
+
+      // The teacher said "Record my lesson" to the coaching ask and then sent
+      // part of one: say it is too short to coach instead of answering it as a
+      // question. Keyed on the PROBED length (0 = never probed = not caught).
+      if (user) {
+        const LpCoachingAsk = require('../services/nudges/lp-coaching-ask.service');
+        if (await LpCoachingAsk.catchShortRecording({ user, from, seconds: audioDurationRounded, path: 'voice' })) {
+          typingController.stop();
+          return;
+        }
       }
 
       logToFile('Regular voice message (< 15 minutes) - proceeding with normal flow');

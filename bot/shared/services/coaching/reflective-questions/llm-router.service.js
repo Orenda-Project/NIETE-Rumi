@@ -57,11 +57,29 @@ const PROVIDER_ROUTING = { sort: 'throughput', allow_fallbacks: true };
 // Lazy-initialised: OPENROUTER_API_KEY is in REQUIRED_VARS so the bot won't pass
 // `doctor` without it, but we don't want module-load to crash before doctor's
 // friendly missing-key matrix runs.
-const getOpenRouter = lazyClient(OpenAI, ['OPENROUTER_API_KEY'], (env) => ({
+const _getOpenRouterRaw = lazyClient(OpenAI, ['OPENROUTER_API_KEY'], (env) => ({
   apiKey: env.OPENROUTER_API_KEY,
   baseURL: 'https://openrouter.ai/api/v1',
   maxRetries: 0,
 }));
+
+// bd-wgso2: this client never reached recordModelCost, so its spend was invisible. Wrap it with
+// llm-client's withSpendRecording, which strips the job label and records the spend -- and changes
+// nothing else. Once per client: wrapping twice would record every call twice.
+//
+// STAGING SHAPE. On sandbox this same block also applies the e2e cassette (spend inner, cassette
+// outer, the order getClient() uses). That cassette wiring is a separate change which has not been
+// promoted to staging, so it is deliberately NOT carried here on the back of this one. Whoever
+// promotes it adds one line after the wrap below.
+let _wrapped = false;
+const getOpenRouter = () => {
+  const client = _getOpenRouterRaw();
+  if (!_wrapped) {
+    _wrapped = true;
+    require('../../llm-client').withSpendRecording(client);
+  }
+  return client;
+};
 
 const PRIMARY_MODEL = 'deepseek/deepseek-v3.2';
 const FALLBACK_MODEL = 'openai/gpt-5.4';
@@ -87,6 +105,7 @@ async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, t
     getOpenRouter().chat.completions.create(
       {
         model,
+        job: 'coaching.questionRouter',
         messages,
         response_format: { type: 'json_object' },
         max_tokens: maxTokens,

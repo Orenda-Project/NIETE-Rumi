@@ -19,6 +19,7 @@ tag (`@e2e`); the rest are for slicing/reporting.
 | | `@known-issue` | Known imperfect behaviour, lower severity. |
 | | `@wip` | Scenario written but not yet runnable / feature not built. **Excluded from the default run.** |
 | | `@draft` | Written from the code but not yet driven live. **Excluded from the default run.** |
+| | `@lp-ask` | The coaching ask booked by the first lesson plan of the day (teacher_nudges `coaching_after_lp`); needs the nudge flags on the target. |
 | | `@slow` | Reply takes minutes (LP/video/coaching generation). **Excluded from the default run**; runs nightly. |
 | | `@destructive` | Mutates real state irreversibly (fails a grand quiz → hours-long cooldown; certifies a level). **Excluded from the default run** — throwaway teacher only, via `all`. |
 | | `@config-gated` | Only meaningful when its env/Flow id is set/unset. **Excluded from the default run.** |
