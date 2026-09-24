@@ -25,9 +25,9 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const {
-  validate, MIN_QUESTIONS, figureDensity, latinNames,
+  validate, MIN_QUESTIONS, figureDensity, latinNames, nameLexicon,
 } = require('./transcript-quiz-validator');
-const { peopleSpellings, spellText } = require('./transcript-quiz-people');
+const { peopleSpellings, spellText, logRedactor } = require('./transcript-quiz-people');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
@@ -1487,6 +1487,9 @@ async function process(quizId, payload = {}) {
   }
   const digest = meta.digest;
   const language = quiz.language || quizLanguageFor(digest.subject, session.transcript_language);
+  // A complaint logged by the authoring loop can quote a person's name (a
+  // URDU_NAME_LATIN line, a rejected teacher note): each is logged hashed (D4).
+  const redactLog = logRedactor(digest, nameLexicon(digest).lessonWords);
 
   // ── author + validate + store
   let questions = null;
@@ -1656,7 +1659,8 @@ async function process(quizId, payload = {}) {
         }
         break;
       }
-      logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: v.errors.slice(0, 8) });
+      // the complaints can quote a person's name: logged with it hashed (D4)
+      logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: redactLog(v.errors.slice(0, 8)) });
       previousErrors = v.errors;
       lastRejected = out.questions;
       lastErrors = v.errors;
@@ -1812,7 +1816,7 @@ async function process(quizId, payload = {}) {
             logEvent('transcript_quiz.salvage_refused', {
               quizId, why: salvaged.refused,
               dropped: salvaged.dropped || null,
-              errors: (salvaged.errors || []).slice(0, 6).map((e) => String(e).slice(0, 120)),
+              errors: redactLog((salvaged.errors || []).slice(0, 6).map(String)).map((e) => e.slice(0, 120)),
             });
           }
           continue;
