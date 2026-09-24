@@ -328,6 +328,21 @@ Feature: NIETE (ICT) Teacher Training
     # the teacher's menu taps and commands were answered with the adaptive quiz's nudge. @wip.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: A child can type STOP to end a class quiz, and the teacher sees it stopped
+    Given a child has opened a class quiz from its link and a question is waiting
+    When the child types "stop"
+    Then the child is told the quiz has stopped and can be started again later, in the quiz's language
+    And a tap on the old question afterwards records nothing
+    And in "/quiz" the teacher sees the child under "Stopped before the end", not as finished and not as still going
+    And the class report lists the child as not finished
+    But on an Urdu quiz "روکیں" stops it too, and the child is told in Urdu
+    # video-quiz.service stopTyped: the words the adaptive quiz takes ("stop", "روکیں"), any case, a full stop
+    # allowed, under the answer lock (a tap being graded finishes first and cannot bring the state back). The
+    # session ends through endUnfinished: status incomplete, the answers so far counted, no score, no
+    # scorecard, the state cleared, vqStopped sent. The /quiz Flow results list incomplete/expired/cancelled
+    # sessions under tqFlowStopped, apart from tqFlowStillGoing. @wip.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A lesson-plan quiz that could not be started says so, and can be made again
     Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be started (the job never reached the queue)
     When I open "/quiz" and tap that lesson

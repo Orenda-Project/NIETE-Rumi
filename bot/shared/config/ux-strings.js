@@ -1933,6 +1933,9 @@ const UX_STRINGS = {
   // line with this: U+200E in English, U+200F in Urdu. One code point per line.
   lineDirMark: { en: '\u200E', ur: '\u200F' },
   tqFlowStillGoing: { en: 'Still going: {names}', ur: 'ابھی حل کر رہے ہیں: {names}' },
+  // Not finished and not taking it now: the child typed STOP, or the quiz
+  // stopped on our side (an `incomplete` session), or it ran out of time.
+  tqFlowStopped: { en: 'Stopped before the end: {names}', ur: '\u200Fquiz بیچ میں روک دیا گیا: {names}' },
   tqFlowMoreStudents: { en: '…and {n} more', ur: '…اور {n} مزید' },
   tqFlowUnnamed: { en: 'Unnamed', ur: 'بےنام' },
 
@@ -2136,6 +2139,12 @@ const UX_STRINGS = {
   vqStartFailed: {
     en: 'Sorry — I couldn\'t start that quiz. Please try again in a moment.',
     ur: 'معذرت — ابھی یہ quiz شروع نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  // The child typed STOP mid-quiz. Nothing is scored; the teacher's report
+  // lists the child as not finished.
+  vqStopped: {
+    en: 'Okay, I’ve stopped this quiz here. You can start it again later.',
+    ur: 'ٹھیک ہے، یہ quiz یہیں روک دیا گیا ہے۔ اسے بعد میں دوبارہ شروع کیا جا سکتا ہے۔',
   },
   vqQuizFinished: {
     en: 'That quiz has finished. Pick another video and I\'ll offer you a fresh one!',
