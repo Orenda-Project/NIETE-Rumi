@@ -41,6 +41,7 @@ const { addressForms } = require('./transcript-quiz-address');
 // the Flow's lesson screen, the nudge) counts children exactly as this report does.
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { scriptOf } = require('../../templates/niete-brand');
+const { onUnlessOff } = require('../nudges/flags');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -102,10 +103,45 @@ function reportTargetUtc(now = new Date()) {
 }
 
 /**
+ * How long the "this code's report is scheduled" claim lives. The longest wait
+ * is a join at 10:00 PKT: +12 h lands at 22:00 and is pushed to 07:00, 21 h. The
+ * claim must outlive the chain, or a later join starts a second one.
+ */
+const SCHEDULE_CLAIM_TTL_S = 26 * 60 * 60;
+const scheduleClaimKey = (shareCodeId) => `vq:report:scheduled:${shareCodeId}`;
+
+/**
  * Schedule the report for a share code. Idempotent per code — a second call
  * (another child joining) must not queue a second report.
+ *
+ * The idempotency is a Redis claim, NOT the SQS deduplication id: queueJob only
+ * sends that id to a FIFO queue, and the quiz queue is STANDARD, so every join
+ * used to start its own 12-hour re-queue chain (a median of 6 chains per code in
+ * production, up to 92). Those chains saturated the quiz queue — teacher-tapped
+ * quizzes waited 20+ minutes behind them — and each extra chain reached
+ * generate() again after the report went out.
+ *
+ * Redis down → setNX fails open and the report is scheduled anyway: a duplicate
+ * chain is harmless, a missing report is not. VIDEO_REPORT_SCHEDULE_ONCE=off
+ * restores the per-join scheduling exactly.
  */
 async function scheduleForShareCode(shareCodeId) {
+  const once = onUnlessOff('VIDEO_REPORT_SCHEDULE_ONCE');
+  let claimed = false;
+  if (once) {
+    try {
+      const redisService = require('../cache/railway-redis.service');
+      claimed = await redisService.setNX(scheduleClaimKey(shareCodeId), String(Date.now()), SCHEDULE_CLAIM_TTL_S);
+    } catch (err) {
+      // cannot de-dup → schedule anyway (fail open, as setNX itself does)
+      logToFile('❌ video-quiz report: schedule claim failed, scheduling anyway', { shareCodeId, error: err.message }, 'error');
+      claimed = true;
+    }
+    if (!claimed) {
+      logEvent('video_quiz.report_schedule_skipped', { shareCodeId, why: 'already_scheduled' });
+      return;
+    }
+  }
   try {
     const SQSQueueService = require('../queue/sqs-queue.service');
     const when = reportTargetUtc();
@@ -126,9 +162,19 @@ async function scheduleForShareCode(shareCodeId) {
     });
     logEvent('video_quiz.report_scheduled', { shareCodeId, targetAt: when.toISOString() });
   } catch (err) {
-    logToFile('⚠️ video-quiz report scheduling failed (non-fatal)', {
+    logToFile('❌ video-quiz report scheduling failed (non-fatal)', {
       shareCodeId, error: err.message,
-    });
+    }, 'error');
+    // Nothing was queued: give the claim back so the next child's join schedules it.
+    if (claimed) {
+      try {
+        const redisService = require('../cache/railway-redis.service');
+        await redisService.delete(scheduleClaimKey(shareCodeId));
+      } catch (relErr) {
+        // the claim lapses on its TTL; until then later joins find it and queue nothing
+        logToFile('❌ video-quiz report: schedule claim not released', { shareCodeId, error: relErr.message }, 'error');
+      }
+    }
   }
 }
 
