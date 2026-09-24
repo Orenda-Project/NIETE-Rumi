@@ -158,6 +158,8 @@ const OTHER_SUBJECT = new RegExp(
 );
 // "We" — the class, not a guess about the child. A field that speaks as ہم
 // («اگر ہمیں … ہو تو کیا کریں گے؟») carries that subject into its futures.
+// «ہم» as a SUBJECT (not «ہمیں», «ہمارے»…, not «ہم نے/کو…»).
+const WE_SUBJECT = new RegExp(`${NOT_UR_BEFORE}ہم${NOT_UR_AFTER}${POSTPOSITION_AHEAD}`);
 // «آئیں / آئیے … حل کریں» opening a stem is "let us" — we, too.
 const COORDINATED = new RegExp(`^\\s*اور${NOT_UR_AFTER}`);
 const WE = new RegExp(`${NOT_UR_BEFORE}(?:ہم|ہمیں|ہمارا|ہماری|ہمارے)${NOT_UR_AFTER}|^\\s*(?:آئیں|آئیے)\\s`);
@@ -195,6 +197,10 @@ function aapVerb(sentence, index, len) {
   if (NOT_A_PARTICIPLE.test(hit[0])) return null;
   const stop = NEUTRAL_STOP.exec(scope);
   if (stop && stop.index < hit.index) return null;
+  // «ہم» as a subject before the verb makes it "we"'s verb, not آپ's:
+  // «آپ … شامل کریں اور … کل ہم کیا کر سکتے ہیں؟». (Only ہم: a noun after آپ is
+  // nearly always its object — «آپ وہ غلطی کر رہے ہیں», «آپ نئے دوست بنا سکیں گے».)
+  if (WE_SUBJECT.test(scope.slice(0, hit.index))) return null;
   return hit[0].trim();
 }
 
