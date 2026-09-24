@@ -540,6 +540,13 @@ Feature: NIETE (ICT) Teacher Training
     And a question that states its numbers may carry a picture of them, such as two fraction bars beside "which is larger", but no picture ever shows the answer
     And on a grade 4-5 fractions lesson taught as a method, such as cross multiplication, the pictures are questions read off fraction bars — what fraction of the bar is shaded, which bar shows a fraction — never a picture beside a step of the working
     And every fraction on the question cards and on my PDF is printed stacked, number over number, while the WhatsApp text of the question reads it as 2/3
+    And a picture that names its parts calls them P, Q, R or 1, 2, 3 — never A, B or C, the letters of the answer buttons — in the picture, the options and the feedback alike, and those names are big enough to read on the phone
+    And counters are drawn only where the child can count the answer from them, never beside a product or a common multiple they do not show
+    And in an Urdu quiz a child's name from the lesson is written in Urdu script, in the question and in the picture
+    # Part names: transcript-quiz-figure relabelLetterParts, run by the validator (P/Q/R/S on bars, number
+    # lines, shapes and circuits; 1/2/3/4 otherwise); fraction_bar and circuit font ceilings 2.4 / 2.0.
+    # Counters: FIGURE_MISMATCH now covers count_objects. Names: NAMES ARE NOT TERMS in the Urdu style rule;
+    # a name left in English letters is recorded as URDU_NAME_LATIN (soft, transcript_quiz.latin_name).
     # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
     # and "PICTURES, AGAIN" at the end, and figure_role "model" (grade 1-5 maths only). A step of a
     # procedure is a text question; a model picture beside one is still refused (FIGURE_MISMATCH).
