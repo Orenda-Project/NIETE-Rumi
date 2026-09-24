@@ -187,11 +187,16 @@ const TELEMETRY_ONLY_JOBS = Object.freeze([
   'helper.capabilityGuidance',
   'helper.capabilityDefault',
   'exam.grade',                  // exam-checker/grading
-  // No quiz.* names and no coaching.questionRouter, on purpose (bd-3kv02). quiz-generation,
-  // quiz-report, quiz-session, video-quiz-report and reflective-questions/llm-router each build a
-  // raw `new OpenAI(...)`, so a label there is SENT to the vendor rather than stripped, and
-  // api.openai.com rejects an unknown field with a 400. Name them here only once they move onto
-  // llm-client -- and job-label-reaches-no-vendor.test.js will refuse the label until they do.
+  // The five raw-SDK services (bd-wgso2). They keep their OWN client -- api.openai.com direct for
+  // the four quiz ones, their own OpenRouter client for the router -- and wrap it with llm-client's
+  // withSpendRecording, which strips the label and records the spend. They were unlabelled until
+  // then because a label on an unwrapped raw client is SENT to the vendor (bd-3kv02), and
+  // job-label-reaches-no-vendor.test.js still refuses a label on a raw client that is not wrapped.
+  'quiz.generate',               // quiz/quiz-generation      (lane: openai-direct, costUnpriced)
+  'quiz.insight',                // quiz/quiz-report          (lane: openai-direct, costUnpriced)
+  'quiz.session',                // quiz/quiz-session         (lane: openai-direct, costUnpriced)
+  'quiz.videoReport',            // quiz/video-quiz-report    (lane: openai-direct, costUnpriced)
+  'coaching.questionRouter',     // reflective-questions/llm-router (OpenRouter: real usage.cost)
   'reading.analyse',
   'reading.diagnosticSummary',
   'reading.report',

@@ -251,7 +251,10 @@ class QuizReportService {
   static async _generateInsightBody(quiz, stats, language) {
     try {
       const OpenAI = require('openai');
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      // bd-wgso2: measured, not rerouted -- same client, key and model; only the label is stripped and the spend recorded.
+      const openai = require('../llm-client').withSpendRecording(
+        new OpenAI({ apiKey: process.env.OPENAI_API_KEY }), { lane: 'openai-direct' },
+      );
 
       const prompt = `A teacher in Pakistan just received quiz results on "${quiz.topic}" (${quiz.grade || 'primary school'}).
 
@@ -261,6 +264,7 @@ Give ONE specific, actionable teaching tip based on these results. Keep it under
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'quiz.insight',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         max_tokens: 150

@@ -35,18 +35,43 @@ const QUIET_FROM_PKT = 21;
 const QUIET_TO_PKT = 7;
 
 /**
+ * The quiet window, read per call from NUDGE_QUIET_HOURS_PKT. Unset — and in
+ * production it is always unset — it is 21:00–07:00. `off` lifts it, for a test
+ * environment that has to run a night's scenarios; `H-H` sets another window.
+ * Anything unreadable keeps the default: a typo must never mean "no window".
+ *
+ * @returns {{from:number, to:number}|null} null = no quiet window
+ */
+function quietWindow() {
+  // globalThis: this module defines its own `process` (the job handler below).
+  const raw = String(globalThis.process.env.NUDGE_QUIET_HOURS_PKT || '').trim().toLowerCase();
+  if (raw === 'off') return null;
+  const m = raw.match(/^(\d{1,2})\s*-\s*(\d{1,2})$/);
+  if (m) {
+    const from = Number(m[1]);
+    const to = Number(m[2]);
+    if (from <= 23 && to <= 23 && from !== to) return { from, to };
+  }
+  return { from: QUIET_FROM_PKT, to: QUIET_TO_PKT };
+}
+
+/**
  * When a nudge due at `when` may actually be sent: `when` itself during the
- * day, or 07:00 PKT if it falls in the quiet window. DEFERRED, never dropped —
- * the worker re-queues until this instant, so the teacher still hears, in the
- * morning, when the message is worth reading.
+ * day, or the end of the quiet window (07:00 PKT) if it falls inside it.
+ * DEFERRED, never dropped — the worker re-queues until this instant, so the
+ * teacher still hears, in the morning, when the message is worth reading.
  */
 function nudgeTargetUtc(when = new Date()) {
+  const w = quietWindow();
+  if (!w) return when;
   const pkt = new Date(when.getTime() + PKT_OFFSET_MIN * 60 * 1000);
   const h = pkt.getUTCHours();
-  if (h < QUIET_FROM_PKT && h >= QUIET_TO_PKT) return when;
+  const overnight = w.from > w.to;
+  const quiet = overnight ? (h >= w.from || h < w.to) : (h >= w.from && h < w.to);
+  if (!quiet) return when;
   const bump = new Date(Date.UTC(
-    pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate() + (h >= QUIET_FROM_PKT ? 1 : 0),
-    QUIET_TO_PKT, 0, 0,
+    pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate() + (overnight && h >= w.from ? 1 : 0),
+    w.to, 0, 0,
   ));
   return new Date(bump.getTime() - PKT_OFFSET_MIN * 60 * 1000);
 }
