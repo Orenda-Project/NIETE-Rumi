@@ -122,6 +122,7 @@
       "maximum": 120,
       "description": "THE MINUTES RULE (spec §4). The minutes of EVERY section — the introduction's warm-up is inside the introduction's own minutes, and homework is never 0 — must sum to this EXACTLY. lint's PACING_SUM enforces it."
     },
+    "fbise_slos": { "type": "array", "description": "bd-f01ob — the FBISE SLOs this lesson teaches, each with its own board status. Attached at RENDER time from bot/shared/data/lp612-fbise-slo-tags.json (prod catalogue, bd-izuws), never written by the author model. status null = unresolved: the page prints the code alone. Absent for grades 6-8 and for unmapped segments.", "items": { "type": "object", "additionalProperties": false, "required": ["code", "status"], "properties": { "code": { "type": "string", "pattern": "^[A-Z]{1,2}-(09|10|11|12)-[A-Z0-9]{1,3}-[0-9]{1,3}$" }, "status": { "enum": ["Summative", "Formative", null] } } } },
     "board_weight": { "type": ["string", "null"], "description": "A masthead BADGE, at most 50 code points (gated by lint, not here, so the failure can explain itself) — e.g. 'FBISE SSC-I · ~8 marks'. NOT a sentence describing the paper: an 82-character badge broke the G9 Bio hero header. null for grades 6-8. Gated by lint's BOARD_WEIGHT." },
     "materials": {
       "type": "array",
