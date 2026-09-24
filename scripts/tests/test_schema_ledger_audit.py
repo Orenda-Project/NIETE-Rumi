@@ -219,8 +219,7 @@ class EffectChecks(unittest.TestCase):
 
     # Files that live on the promotion branches (staging, main) and not yet here. Their
     # checks are needed to audit a staging or production database against its own folder.
-    PROMOTION_ONLY = {"V1.4.5__one_teacher_level_column.sql", "V1.4.7__roster_audit_edit_actions.sql",
-                      "V1.4.9__phone_number_fits_merge_tombstone.sql"}
+    PROMOTION_ONLY = {"V1.4.5__one_teacher_level_column.sql"}
 
     def test_every_real_effect_check_names_a_real_file_and_obeys_psycopg2_rules(self):
         root = os.path.join(HERE, "..", "..", "infrastructure", "supabase", "migrations")

@@ -70,6 +70,11 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Schema version record
+-- Principals may author supervisor remarks (mirrors V1.1.0).
+INSERT INTO feature_permissions (role, feature_key, can_access)
+VALUES ('principal', 'remark.author', true)
+ON CONFLICT (role, feature_key) DO UPDATE SET can_access = EXCLUDED.can_access;
+
 INSERT INTO schema_versions (version, description)
 VALUES ('2.0.0', 'Rumi Platform production-parity schema (73 tables, 40 functions)')
 ON CONFLICT (version) DO NOTHING;

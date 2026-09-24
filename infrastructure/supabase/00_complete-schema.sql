@@ -37,7 +37,7 @@ CREATE EXTENSION IF NOT EXISTS "vector" SCHEMA public;
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    phone_number VARCHAR(20) NOT NULL,
+    phone_number VARCHAR(64) NOT NULL,  -- 64: also holds the 43-char merge tombstone 'merged:<uuid>' (V1.4.9)
     name VARCHAR(100),
     grades_taught VARCHAR(100),
     registration_completed BOOLEAN DEFAULT false,
@@ -4809,7 +4809,10 @@ CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
 -- dashboard_users, and the actor here is a coach in `users`.
 CREATE TABLE IF NOT EXISTS leader_roster_audit (
   id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move')),
+  -- The list V1.4.7 and V1.4.9 widened this CHECK to: roster changes, then field edits.
+  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move',
+                            'edit_name', 'edit_level', 'edit_phone', 'edit_role',
+                            'edit_phone_escalated')),
   actor_user_id           uuid NOT NULL REFERENCES users(id),
   affected_leader_user_id uuid REFERENCES users(id),
   -- The teacher is denormalised on purpose: she may have no users row at all,
@@ -5992,6 +5995,190 @@ ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 
 ALTER TABLE quiz_sessions DROP CONSTRAINT IF EXISTS quiz_sessions_source_check;
 ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_source_check
   CHECK (source IN ('roster', 'video_solo', 'share_link'));
+
+-- =============================================================================
+-- Tables and columns that migrations create and this file had not declared. A clone is
+-- bootstrapped from this file alone, so each is mirrored from its migration here;
+-- tests/setup/schema-mirrors-migrations.test.js keeps the two in step.
+-- (The V1.0.5 nietemigrated_* legacy-import landing tables are deliberately NOT here: only
+-- the one-off import from the retired source system writes them and no runtime code reads
+-- them.)
+-- =============================================================================
+
+-- ─── lesson_plan_catalog (V1.0.4): lesson plans imported from the legacy system ───
+CREATE TABLE IF NOT EXISTS lesson_plan_catalog (
+    id                   BIGSERIAL PRIMARY KEY,
+    source               VARCHAR(32) NOT NULL,
+    source_row_id        BIGINT NOT NULL,
+    source_uuid          UUID,
+    grade                TEXT,
+    subject              TEXT,
+    chapter_title        TEXT,
+    content_html         TEXT,
+    description          TEXT,
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+    source_created_at    TIMESTAMPTZ,
+    source_modified_at   TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (source, source_row_id)
+);
+CREATE INDEX IF NOT EXISTS idx_lesson_plan_catalog_source ON lesson_plan_catalog(source) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_lesson_plan_catalog_grade_subject ON lesson_plan_catalog(grade, subject) WHERE is_active;
+
+-- ─── supervisor remarks (V1.1.0): a principal's cycle remark on a teacher ─────
+-- The cycle overlap guard is an exclusion constraint over a tstzrange, which needs btree_gist.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+CREATE TABLE IF NOT EXISTS evaluation_cycles (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          VARCHAR(120) NOT NULL,
+    starts_at     TIMESTAMPTZ NOT NULL,
+    ends_at       TIMESTAMPTZ NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT evaluation_cycles_name_unique UNIQUE (name),
+    CONSTRAINT evaluation_cycles_range_sane  CHECK (ends_at > starts_at),
+    CONSTRAINT evaluation_cycles_no_overlap
+        EXCLUDE USING gist (tstzrange(starts_at, ends_at, '[)') WITH &&)
+);
+CREATE INDEX IF NOT EXISTS idx_evaluation_cycles_window
+    ON evaluation_cycles (starts_at, ends_at);
+
+CREATE TABLE IF NOT EXISTS supervisor_remarks (
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cycle_id              UUID NOT NULL REFERENCES evaluation_cycles(id),
+    teacher_id            UUID NOT NULL REFERENCES users(id),
+    principal_user_id     UUID NOT NULL REFERENCES users(id),
+    school_id             UUID REFERENCES schools(id),
+    comment_text          TEXT,
+    comment_audio_id      VARCHAR(128),
+    comment_language      VARCHAR(8),
+    submitted_at          TIMESTAMPTZ,
+    narrative_text        TEXT,
+    narrative_generated_at TIMESTAMPTZ,
+    narrative_sent_at     TIMESTAMPTZ,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT supervisor_remarks_teacher_cycle_unique UNIQUE (teacher_id, cycle_id),
+    CONSTRAINT supervisor_remarks_no_self CHECK (teacher_id <> principal_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remarks_principal_cycle
+    ON supervisor_remarks (principal_user_id, cycle_id);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remarks_teacher_cycle
+    ON supervisor_remarks (teacher_id, cycle_id);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remarks_cycle_pending
+    ON supervisor_remarks (cycle_id, principal_user_id)
+    WHERE submitted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS supervisor_remark_scores (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    remark_id          UUID NOT NULL REFERENCES supervisor_remarks(id) ON DELETE CASCADE,
+    indicator_ordinal  SMALLINT NOT NULL,
+    score              SMALLINT NOT NULL,
+    answered_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT supervisor_remark_scores_unique UNIQUE (remark_id, indicator_ordinal),
+    CONSTRAINT supervisor_remark_scores_ordinal_valid CHECK (indicator_ordinal BETWEEN 1 AND 5),
+    CONSTRAINT supervisor_remark_scores_score_valid   CHECK (score BETWEEN 1 AND 4)
+);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remark_scores_remark
+    ON supervisor_remark_scores (remark_id);
+
+ALTER TABLE evaluation_cycles          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE supervisor_remarks         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE supervisor_remark_scores   ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS evaluation_cycles_read_all ON evaluation_cycles;
+CREATE POLICY evaluation_cycles_read_all ON evaluation_cycles FOR SELECT USING (true);
+DROP POLICY IF EXISTS supervisor_remarks_read_scoped ON supervisor_remarks;
+CREATE POLICY supervisor_remarks_read_scoped ON supervisor_remarks
+    FOR SELECT USING (
+        principal_user_id = auth.uid()
+        OR teacher_id = auth.uid()
+    );
+DROP POLICY IF EXISTS supervisor_remark_scores_read_principal ON supervisor_remark_scores;
+CREATE POLICY supervisor_remark_scores_read_principal ON supervisor_remark_scores
+    FOR SELECT USING (
+        remark_id IN (
+            SELECT id FROM supervisor_remarks WHERE principal_user_id = auth.uid()
+        )
+    );
+
+-- The ONE definition of the S score: only submitted, fully-answered (5/5) remarks appear.
+CREATE OR REPLACE VIEW v_supervisor_remark_scores AS
+SELECT
+    r.id                AS remark_id,
+    r.cycle_id,
+    r.teacher_id,
+    r.principal_user_id,
+    r.school_id,
+    r.submitted_at,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 1) AS score_growth,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 2) AS score_collaboration,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 3) AS score_leadership,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 4) AS score_student_support,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 5) AS score_parents,
+    SUM(s.score)::INT                                   AS s_score,
+    ROUND((SUM(s.score)::NUMERIC / 20) * 100, 1)        AS s_pct
+FROM supervisor_remarks r
+JOIN supervisor_remark_scores s ON s.remark_id = r.id
+WHERE r.submitted_at IS NOT NULL
+GROUP BY r.id, r.cycle_id, r.teacher_id, r.principal_user_id, r.school_id, r.submitted_at
+HAVING COUNT(s.id) = 5;
+
+-- ─── coach_directory (V1.1.6): a coach's work identity, matched to their user row ───
+CREATE TABLE IF NOT EXISTS coach_directory (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  full_name       text NOT NULL,
+  work_email      text NOT NULL,
+  hrmis_user_id   integer,
+  match_method    text NOT NULL DEFAULT 'exact'
+                    CHECK (match_method IN ('exact', 'confirmed', 'manual')),
+  confirmed_at    timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT coach_directory_leader_user_id_key UNIQUE (leader_user_id),
+  CONSTRAINT coach_directory_confirmed_requires_timestamp
+    CHECK (match_method <> 'confirmed' OR confirmed_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_coach_directory_leader ON coach_directory (leader_user_id);
+
+-- ─── niete_lp_fidelity_moves (V1.1.9): a lesson plan decomposed into gradeable moves ───
+CREATE TABLE IF NOT EXISTS niete_lp_fidelity_moves (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  lesson_id      text NOT NULL,
+  catalog_version text,
+  version_stamp  text,
+  content_hash   text,
+  brief_sha      text,
+  template       text,
+  total_minutes  integer,
+  moves          jsonb NOT NULL,
+  n_moves        integer,
+  model          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT niete_lp_fidelity_moves_version_uniq UNIQUE (lesson_id, version_stamp, content_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_niete_lp_fidelity_moves_lesson ON niete_lp_fidelity_moves (lesson_id);
+
+-- ─── columns (V1.2.5, V1.3.8, V1.3.9, V1.4.0) ──────────────────────────────────
+ALTER TABLE training_questions ADD COLUMN IF NOT EXISTS rubric jsonb;
+COMMENT ON COLUMN training_questions.rubric IS
+  'Per-question CRQ marking rubric (criteria + band descriptions), verbatim from the partner source. NULL for MCQs.';
+CREATE INDEX IF NOT EXISTS idx_training_questions_rubric
+  ON training_questions (id) WHERE rubric IS NOT NULL;
+
+ALTER TABLE niete_lp612_renders ADD COLUMN IF NOT EXISTS over_time BOOLEAN NOT NULL DEFAULT FALSE;
+COMMENT ON COLUMN niete_lp612_renders.over_time IS
+  'True when this lesson was delivered off the author-timeout recovery path: the revision ladder ran out of clock while holding a deliverable document, so that was drawn and sent instead of failing the row.';
+ALTER TABLE niete_lp612_renders ADD COLUMN IF NOT EXISTS checkpoint JSONB;
+COMMENT ON COLUMN niete_lp612_renders.checkpoint IS
+  'The authoring ladder''s best-so-far document, persisted each accepted round so a process that dies mid-run costs one round, not the lesson. NULLed on the terminal write.';
+ALTER TABLE niete_lp612_renders ADD COLUMN IF NOT EXISTS render_degraded BOOLEAN NOT NULL DEFAULT FALSE;
+COMMENT ON COLUMN niete_lp612_renders.render_degraded IS
+  'True when this lesson was delivered carrying a renderer defect that leaves the document whole (a small figure, type under the phone floor, a crowded page). Distinct from over_cap (long) and over_time (late).';
 
 -- Cache reload LAST (infrastructure/CLAUDE.md): the blocks above were appended after the
 -- previous NOTIFY, and PostgREST cannot see a column it has not reloaded.
