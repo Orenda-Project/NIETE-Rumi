@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -204,8 +204,12 @@ function latinNames(questions, { language, digest } = {}) {
   (Array.isArray(digest && digest.examples_used) ? digest.examples_used : []).forEach((ex) => {
     (String(ex || '').match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => lessonWords.add(w));
   });
+  // A real digest stores each key term as {term, as_spoken}; read as plain
+  // text it was "[object Object]" and no term was ever exempt, so a vocabulary
+  // lesson's Brother, Sister, King and Queen were flagged as people.
+  const termText = (t) => (t && typeof t === 'object' ? [t.term, t.as_spoken] : [t]).map((x) => String(x || ''));
   const terms = new Set((Array.isArray(digest && digest.key_terms) ? digest.key_terms : [])
-    .flatMap((t) => String(t || '').toLowerCase().split(/\s+/)).filter(Boolean));
+    .flatMap(termText).flatMap((x) => x.toLowerCase().split(/[^\p{L}]+/u)).filter(Boolean));
   const out = [];
   (Array.isArray(questions) ? questions : []).forEach((q, i) => {
     if (!q || typeof q !== 'object') return;
@@ -586,7 +590,7 @@ function validate(rawQuestions, ctx = {}) {
     // teacher PDF re-draws the same picture. Never inside the engine: the
     // lesson-plan lane shares that contract and must still hear about a spec
     // it wrote wrong.
-    q.figure = normaliseWordBlank(cleanedFigure, { stem, language, quizId, index: i }).spec;
+    q.figure = expandImproperBar(normaliseWordBlank(cleanedFigure, { stem, language, quizId, index: i }).spec);
     if (MATHS_ONLY_TYPES.has(String(q.figure.type || '').toLowerCase()) && canonSubj(subject) !== 'maths') {
       errs.push(`q${i}: FIGURE_TYPE — "${q.figure.type}" draws mathematics only; for this subject use flow, timeline, fraction_bar, grid, numberline, or no picture`);
       return;
@@ -667,7 +671,9 @@ function validate(rawQuestions, ctx = {}) {
     // the same rule since two slipped through beside a product and an LCM.
     const unnamed = unnamedParts(q.figure, opts);
     if (unnamed) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — the options name parts ${unnamed.join(', ')} but the picture names none; give each part its name as its label ("P", not "bar P")`);
-    const mismatch = figureMismatch(q.figure, opts, ci);
+    const loose = unnamedBarInNamedSet(q.figure, opts);
+    if (loose) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — bar ${loose} has no name while the options pick bars by name, so the child cannot tell which bars go together; name every bar, and draw an improper fraction in a picture of its own`);
+    const mismatch = figureMismatch(q.figure, opts, ci, stem);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }
