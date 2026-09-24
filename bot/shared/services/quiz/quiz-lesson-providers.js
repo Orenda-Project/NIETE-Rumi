@@ -40,6 +40,7 @@ const LpV8Provider = require('./lp-v8-lesson-provider');
 const PROVIDERS = Object.freeze([
   TranscriptProvider,
   LpV8Provider,
+  require('./providers/lp612.provider'),   // Grades 6-12 plans; off unless QUIZ_LP612_SOURCE=on
 ]);
 
 /** The key a lesson-without-a-quiz travels under: `lsn_<source>_<lessonRef>`. */

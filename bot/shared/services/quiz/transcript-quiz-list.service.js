@@ -31,7 +31,7 @@ const {
   LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
 } = require('./transcript-lesson-provider');
 const {
-  TRANSCRIPT, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable,
+  TRANSCRIPT, LP_V8, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable,
 } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 
