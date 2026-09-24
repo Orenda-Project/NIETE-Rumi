@@ -26,6 +26,7 @@ const { pedagogyDefects } = require('./transcript-quiz-pedagogy');
 const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word-blank');
 const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
+const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -57,6 +58,24 @@ function childAddressError(q, i) {
   return `q${i}: PEDAGOGY_GENDERED_CHILD — ${fields.join(' + ')} speak${fields.length === 1 ? 's' : ''} to the child with a gendered verb (${shown}); `
     + 'the class is boys and girls. Keep the same question and change only those verbs: the آپ-imperative or subjunctive («بتائیں»، «آپ کون سی علامت لگائیں؟»), '
     + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)';
+}
+
+/**
+ * URDU_ADJACENT_TERMS for ONE question, or null (transcript-quiz-adjacent-terms).
+ * Two separate English terms side by side in an Urdu sentence are one
+ * left-to-right run, so a right-to-left reader meets the second one first and
+ * the relation reads backwards («جب numerator denominator سے چھوٹا ہو»). One
+ * line per question, naming every field, so the targeted rewrite repairs it
+ * once; the message is what the rewrite reads, so it says what to write.
+ */
+function adjacentTermsError(q, i, lex) {
+  const hits = questionAdjacentTerms(q, lex);
+  if (!hits.length) return null;
+  const pairs = [...new Set(hits.flatMap((h) => h.pairs))].slice(0, 4).map((x) => `"${x}"`).join(', ');
+  return `q${i}: URDU_ADJACENT_TERMS — ${hits.map((h) => h.field).join(' + ')} put${hits.length === 1 ? 's' : ''} two separate English terms side by side (${pairs}); `
+    + 'in a right-to-left line they read as one left-to-right phrase, so the second term is met first and the meaning turns around. '
+    + 'Keep the same question and put an Urdu word between the two terms, or rephrase: «جب numerator کی قیمت denominator سے کم ہو», '
+    + 'not «جب numerator denominator سے چھوٹا ہو». A single English term of two words («cross multiplication») stays together.';
 }
 
 // English technical terms belong in English letters inside Urdu (operator
@@ -399,6 +418,8 @@ function validate(rawQuestions, ctx = {}) {
   const qs = rawQuestions.map(normaliseFeedback)
     .map((q) => relabelLetterParts(q).question)
     .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
+  // What the lesson calls a term, and what a phrase — for URDU_ADJACENT_TERMS.
+  const adjacentLex = language === 'ur' ? lessonLexicon(digest, qs) : null;
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
@@ -509,6 +530,11 @@ function validate(rawQuestions, ctx = {}) {
       // 2026-09-07), read on the question as the child SEES it.
       const address = childAddressError(p, i);
       if (address) errs.push(address);
+      // Two separate English terms side by side read backwards in a
+      // right-to-left line. Read on the question as authored (the detector
+      // leaves the $…$ maths out itself).
+      const adjacent = adjacentTermsError(q, i, adjacentLex);
+      if (adjacent) errs.push(adjacent);
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {
