@@ -37,6 +37,7 @@ const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
+const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const Store = require('./lp-asset-source.store');
 const Funnel = require('./quiz-funnel');
 
@@ -1095,6 +1096,93 @@ async function runFinalSoftRepair(api, {
 }
 
 /**
+ * THE SUMMARY IS TRUE BY THE SUBJECT — a quiz written from a RECORDING.
+ *
+ * WHY. The teacher's sheet prints what the lesson covered — the one-liner, the
+ * summary, the "what this quiz checks" line, and each card's objective — all
+ * written from the recording, which can hold a mistake. On the 136 production
+ * quizzes that carried a wrong key, 27 printed the class's wrong fact on the
+ * sheet as what was taught, while the quiz under it said the opposite. The
+ * operator's decision (option B): the sheet stops asserting it; it does not
+ * correct the teacher and nothing is sent to anyone.
+ *
+ * WHAT. One call on the verify model with NOTHING about the lesson
+ * (transcript-quiz-summary-truth): a false line comes back rewritten if code
+ * accepts the rewrite, else it is dropped. Runs after the blind solve, whose
+ * notes on the keys it disagreed with (the fact by the subject — "the first
+ * step of long division is divide") ride along as hints: on the 136 production
+ * quizzes with a wrong key, the solve had already named the fact in most of the
+ * lines a context-free check alone let through. A summary left with no
+ * sentence falls back to the checked one-liner, then to a line naming only the
+ * topic — never empty (the validator requires one, and the last repair
+ * re-validates).
+ *
+ * FAIL-OPEN. A throw or an unusable reply ships the texts as authored,
+ * recorded as `meta.summary_truth.status = 'error'` and logged at error.
+ *
+ * @returns {Promise<{record:object, lessonSummary:string|null, extras:object, slos?:object[]}>}
+ */
+/**
+ * The facts the blind solve noted where it disagreed with a key — its note on
+ * every flagged item (another answer, two answers, or none right), which names
+ * the fact by the subject. Only notes: never the item, the key or a child.
+ */
+function answerCheckFindings(kvRecord) {
+  const flagged = new Set(['disagree', 'ambiguous', 'none_correct']);
+  return [...new Set(((kvRecord && kvRecord.disagreements) || [])
+    .filter((d) => d && flagged.has(d.verdict) && String(d.note || '').trim())
+    .map((d) => String(d.note).trim()))];
+}
+
+async function runSummaryTruth(api, {
+  lessonSummary, extras, digest, language, quizId, quizSource, grade = null, topic = null, hints = [],
+}) {
+  const startedAt = Date.now();
+  const record = {
+    status: 'clean', model: null, checked: 0, flagged: 0, rewritten: 0, dropped: 0, missing: 0, cost_usd: 0, lines: [],
+  };
+  const finish = (out) => {
+    record.latency_ms = Date.now() - startedAt;
+    record.cost_usd = Math.round((Number(record.cost_usd) || 0) * 1e6) / 1e6;
+    // Counts only — never a line of the summary (it can quote the lesson).
+    logEvent('transcript_quiz.summary_truth', {
+      quizId, quiz_source: quizSource, status: record.status, model: record.model, checked: record.checked,
+      flagged: record.flagged, rewritten: record.rewritten, dropped: record.dropped, missing: record.missing,
+      fallback: record.fallback || null, costUsd: record.cost_usd, latencyMs: record.latency_ms,
+    });
+    return { record, ...out };
+  };
+  let out;
+  try {
+    out = await api.checkSummaryTruth({
+      lessonSummary: lessonSummary || '', extras: extras || {}, slos: (digest && digest.slos) || [],
+      subject: digest && digest.subject, grade, hints,
+    });
+  } catch (err) {
+    record.status = 'error';
+    record.error = String((err && err.message) || err || 'unknown').slice(0, 200);
+    logToFile('❌ transcript quiz: summary truth check failed — shipping the summary as authored (fail-open)', {
+      quizId, quiz_source: quizSource, error: record.error,
+    }, 'error');
+    return finish({ lessonSummary, extras });
+  }
+  Object.assign(record, {
+    hints: Array.isArray(hints) ? hints.length : 0,
+    model: out.model || null, checked: out.checked || 0, flagged: out.flagged || 0, rewritten: out.rewritten || 0,
+    dropped: out.dropped || 0, missing: out.missing || 0, cost_usd: Number(out.costUsd) || 0, lines: out.lines || [],
+  });
+  if (out.skipped) record.status = 'skipped';
+  else if (record.flagged) record.status = 'fixed';
+  let summary = out.lessonSummary;
+  if (String(lessonSummary || '').trim() && !String(summary || '').trim()) {
+    const short = out.extras && out.extras.lesson_summary_short;
+    record.fallback = short ? 'short' : 'topic';
+    summary = short || resolveUx('tqSummaryTopicOnly', { language, params: { topic: topic || (digest && digest.topic) || '' } });
+  }
+  return finish({ lessonSummary: summary, extras: out.extras, slos: out.slos });
+}
+
+/**
  * THE BLIND SOLVE — every lesson quiz's keys, transcript and lp_v8 alike, held
  * against an independent solver's answers, after every authoring and repair step
  * (and after the lp_v8 key check) and before a single row is stored.
@@ -1580,7 +1668,9 @@ async function process(quizId, payload = {}) {
     quiz.grade = r.grade || quiz.grade;
     await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
   }
-  const digest = meta.digest;
+  // `let`: the summary truth check replaces its SLO statements (a new object,
+  // never an edit of the row that was read).
+  let digest = meta.digest;
   const language = quiz.language || quizLanguageFor(digest.subject, session.transcript_language);
   // A complaint logged by the authoring loop can quote a person's name (a
   // URDU_NAME_LATIN line, a rejected teacher note): each is logged hashed (D4).
@@ -2050,6 +2140,25 @@ async function process(quizId, payload = {}) {
     }
     // A question the blind solve named as a repeat that no rewrite replaced.
     if (kv.repeatFaults && kv.repeatFaults.length) meta.soft_faults = [...(meta.soft_faults || []), ...kv.repeatFaults];
+    // ── THE SUMMARY IS TRUE BY THE SUBJECT (a recording's quiz) ──────────────
+    // After the blind solve, so the check can read what it found (see
+    // runSummaryTruth); before the last repair, which re-validates with the
+    // summary that will ship.
+    if (!isLp && summaryTruthEnabled()) {
+      const st = await runSummaryTruth(api, {
+        lessonSummary: readyLessonSummary, extras: lastExtras, digest, language, quizId, quizSource,
+        grade: quiz.grade || meta.grade || digest.grade_band || null, topic: quiz.topic,
+        hints: answerCheckFindings(kv.record),
+      });
+      meta.summary_truth = st.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (st.record.cost_usd || 0);
+      readyLessonSummary = st.lessonSummary;
+      lastExtras = st.extras || lastExtras;
+      if (Array.isArray(st.slos)) {
+        digest = { ...digest, slos: st.slos };
+        meta.digest = digest;
+      }
+    }
     // ── THE LAST REPAIR (a question written after the loop) ──────────────────
     // After every step that can write a question, before anything is stored.
     const fr = await runFinalSoftRepair(api, {
@@ -2159,6 +2268,8 @@ module.exports = {
   checkKeys: (args) => require('./lp-quiz-key-check.service').checkKeys(args),
   // Both sources — the blind solve of every key (transcript-quiz-key-verify.service).
   verifyKeys: (args) => require('./transcript-quiz-key-verify.service').verifyKeys(args),
+  // A recording's quiz — every line the teacher's sheet prints, checked without the lesson.
+  checkSummaryTruth: (args) => require('./transcript-quiz-summary-truth').checkSummaryTruth(args),
   figureRequiredError,
   SOFT_FAULT,
   isEarlyYearsBand,

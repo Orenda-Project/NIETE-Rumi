@@ -1702,6 +1702,15 @@ const UX_STRINGS = {
     en: 'I held this quiz back — when I checked it, some questions from that lesson plan had a wrong or unclear answer, and I won’t send children a wrong answer. Send /quiz to pick another lesson.',
     ur: 'یہ quiz روک لیا گیا — جانچ میں اس lesson plan سے بنے کچھ سوالات کے جواب غلط یا غیر واضح نکلے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
+  // The teacher's sheet, when the summary truth check (transcript-quiz-summary-
+  // truth) took out every sentence of a recording's summary and no checked
+  // one-liner is left: a line that names only the topic, asserts nothing, and
+  // carries no teacher-verb (so no gender). {topic} may be in either script, so
+  // the Urdu isolates it.
+  tqSummaryTopicOnly: {
+    en: 'Today’s lesson was about {topic}.',
+    ur: 'آج کا سبق «⁨{topic}⁩» کے بارے میں تھا۔',
+  },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد /quiz بھیج کر حاصل کریں۔',
