@@ -204,8 +204,12 @@ function latinNames(questions, { language, digest } = {}) {
   (Array.isArray(digest && digest.examples_used) ? digest.examples_used : []).forEach((ex) => {
     (String(ex || '').match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => lessonWords.add(w));
   });
+  // A real digest stores each key term as {term, as_spoken}; read as plain
+  // text it was "[object Object]" and no term was ever exempt, so a vocabulary
+  // lesson's Brother, Sister, King and Queen were flagged as people.
+  const termText = (t) => (t && typeof t === 'object' ? [t.term, t.as_spoken] : [t]).map((x) => String(x || ''));
   const terms = new Set((Array.isArray(digest && digest.key_terms) ? digest.key_terms : [])
-    .flatMap((t) => String(t || '').toLowerCase().split(/\s+/)).filter(Boolean));
+    .flatMap(termText).flatMap((x) => x.toLowerCase().split(/[^\p{L}]+/u)).filter(Boolean));
   const out = [];
   (Array.isArray(questions) ? questions : []).forEach((q, i) => {
     if (!q || typeof q !== 'object') return;
