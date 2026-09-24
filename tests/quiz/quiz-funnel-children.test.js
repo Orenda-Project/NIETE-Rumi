@@ -123,6 +123,37 @@ describe('a child joins and finishes — each stage carries the quiz STREAM, not
     expect(funnel('scorecard_sent')).toEqual([{ quiz_id: QID, session_id: SESS, source: 'lp_v8', ok: true }]);
   });
 
+  // Staging E2E, 25 Sep: the watcher read "children 2 joined → 1 finished" for a
+  // quiz one child took — the other join was the teacher testing their own class
+  // link. A share_link session carries a user id only when it is that self-test
+  // (teacher-self-test.js: every child's share_link session has user_id null), so
+  // the child stages say so, and the watcher can leave it out.
+  test('the teacher\'s own run of the class link joins as kind:self_test — a child\'s join carries no kind', async () => {
+    stub();
+    await vq.startSession({
+      phone: '920000000000', userId: TID, quizId: QID, videoId: null, language: 'en',
+      source: 'share_link', studentName: 'T', shareCodeId: SC,
+    });
+    expect(funnel('child_joined')).toEqual([{ quiz_id: QID, session_id: SESS, share_code_id: SC, source: 'transcript', kind: 'self_test' }]);
+  });
+
+  test('a teacher\'s solo run of a video-lesson quiz (video_solo, no class link) is not a self-test of a class link', async () => {
+    stub();
+    await vq.startSession({
+      phone: '920000000000', userId: TID, quizId: QID, videoId: 'v-1', language: 'en', source: 'video_solo',
+    });
+    expect(funnel('child_joined')[0].kind).toBeUndefined();
+  });
+
+  test('the self-test finishing: child_completed and scorecard_sent carry kind:self_test too', async () => {
+    stub();
+    await vq.finish('920000000000', {
+      sessionId: SESS, quizId: QID, userId: TID, source: 'share_link', language: 'en', questionIds: ['q-1'], answered: 1, correct: 1,
+    });
+    expect(funnel('child_completed')).toEqual([{ quiz_id: QID, session_id: SESS, source: 'transcript', n: 1, pct: 100, kind: 'self_test' }]);
+    expect(funnel('scorecard_sent')).toEqual([{ quiz_id: QID, session_id: SESS, source: 'transcript', ok: true, kind: 'self_test' }]);
+  });
+
   test('a scorecard that could not be drawn is scorecard_sent {ok:false} — the text fallback went instead', async () => {
     stub();
     Scorecard.sendScorecard.mockResolvedValue(false);

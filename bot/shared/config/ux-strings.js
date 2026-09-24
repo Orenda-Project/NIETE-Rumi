@@ -1591,11 +1591,32 @@ const UX_STRINGS = {
     en: 'No problem — no quiz for today. Send /quiz anytime to see your quizzes.',
     ur: 'کوئی بات نہیں — آج کوئی quiz نہیں۔ اپنے quiz دیکھنے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
   },
-  // quiz_generate could not be queued. The offer is spent (its claim is taken),
-  // so the copy does not invite a re-tap that would only say "already on it".
+  // A lesson-plan quiz that could not be STARTED (the queue refused it, or the
+  // 6-12 source was switched off where it is written). Which line goes is what
+  // can happen NEXT (quiz-sources failureCopyKey), never the reason alone:
+  //   - it can be made again from /quiz → …Retry, whichever door it came in by
+  //     (every lesson-plan quiz is listed in /quiz);
+  //   - the 6-12 source is still off → …Later;
+  //   - neither, from the 15:00 offer → lpQuizCouldNotStart (the offer is spent,
+  //     so no re-tap is invited — the next lessons bring a new offer);
+  //   - neither, from a /quiz tap → …Menu (there is no offer to promise).
+  // "Not your lesson plan": the start failed on our side. Urdu verbs agree with
+  // quiz / مسئلہ; بھیجیں / چنیں / کریں are imperatives — never the teacher's gender.
   lpQuizCouldNotStart: {
     en: 'I couldn’t start that quiz just now — sorry. The next lessons you plan will get a new offer.',
     ur: 'معذرت، وہ quiz ابھی شروع نہیں ہو سکا۔ آپ کے اگلے پلان کیے گئے اسباق پر نئی پیشکش آئے گی۔',
+  },
+  lpQuizCouldNotStartRetry: {
+    en: 'I couldn’t start that quiz just now — sorry. The problem was on my side, not your lesson plan. Send /quiz and pick this lesson to try again.',
+    ur: 'معذرت، وہ quiz ابھی شروع نہیں ہو سکا۔ مسئلہ میری طرف سے تھا، lesson plan میں نہیں۔ دوبارہ کوشش کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
+  },
+  lpQuizCouldNotStartLater: {
+    en: 'I couldn’t start that quiz just now — sorry. The problem was on my side, not your lesson plan. Try it again from /quiz a little later.',
+    ur: 'معذرت، وہ quiz ابھی شروع نہیں ہو سکا۔ مسئلہ میری طرف سے تھا، lesson plan میں نہیں۔ کچھ دیر بعد ⁦/quiz⁩ سے دوبارہ کوشش کریں۔',
+  },
+  lpQuizCouldNotStartMenu: {
+    en: 'I couldn’t start that quiz just now — sorry. The problem was on my side, not your lesson plan. Send /quiz to pick another lesson.',
+    ur: 'معذرت، وہ quiz ابھی شروع نہیں ہو سکا۔ مسئلہ میری طرف سے تھا، lesson plan میں نہیں۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
   lpQuizExpired: {
     en: 'That offer has expired. Send /quiz anytime to see your quizzes.',
@@ -1738,9 +1759,14 @@ const UX_STRINGS = {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
     ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
+  // WHEN the class report comes, as video-quiz-report schedules it: 12 hours
+  // after the first child joins, moved to 07:00 PKT when that lands at night.
+  // Nothing sends it early — the "sooner if everyone finishes" send was removed
+  // on 15 Sep — so the one way to have it sooner is to ask from /quiz.
+  // Urdu: the verb agrees with رپورٹ; چاہیے is impersonal; the rest imperatives.
   tqReportPromise: {
-    en: 'You will get a report on how the class did about 12 hours after the first student starts — or sooner if everyone finishes. Send /quiz anytime to see your quizzes or fetch a report.',
-    ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد — یا سب کے مکمل کرتے ہی — رپورٹ آئے گی۔ اپنے quizzes دیکھنے یا رپورٹ منگوانے کے لیے کبھی بھی /quiz بھیجیں۔',
+    en: 'You will get a report on how the class did about 12 hours after the first student starts (at 7 am if that falls at night). To get it sooner, send /quiz, pick this lesson and ask for its report.',
+    ur: 'پہلے طالب علم کے quiz شروع کرنے کے تقریباً 12 گھنٹے بعد کلاس کی رپورٹ آئے گی (اگر یہ وقت رات کا ہو تو صبح 7 بجے)۔ رپورٹ اس سے پہلے چاہیے تو ⁦/quiz⁩ بھیجیں، یہی سبق چنیں اور رپورٹ منگوائیں۔',
   },
   tqListBody: {
     en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
@@ -1760,6 +1786,9 @@ const UX_STRINGS = {
     en: 'No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students.',
     ur: 'ابھی کوئی سبق نہیں۔ سبق کا منصوبہ لینے یا coaching کے لیے سبق ریکارڈ کرنے کے بعد ⁦/quiz⁩ اسے طلبہ کے لیے quiz بنا دے گا۔',
   },
+  // ONE phrase for "nothing made yet" — a lesson with no quiz row AND a quiz only
+  // offered (not answered, or waiting for its language): tqRowNoQuiz here,
+  // tqFlowStatusNone in the Flow, the same words.
   tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
   // WHERE a row in /quiz came from — first in the list row's description and in
   // the Flow item's metadata line, on every row. Noun phrases, so no verb can
@@ -1768,7 +1797,6 @@ const UX_STRINGS = {
   // teacher uses — what they made was a recording of their class.
   tqRowFromLessonPlan: { en: 'From lesson plan', ur: 'سبق کے منصوبے سے' },
   tqRowFromTranscript: { en: 'From transcript', ur: 'کلاس کی ریکارڈنگ سے' },
-  tqRowOffered: { en: 'Offered — tap to make', ur: 'پیشکش — بنانے کو tap' },
   tqRowMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
   tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
   tqRowReportSent: { en: 'Report sent · {finished} done', ur: 'رپورٹ بھیجی، {finished} مکمل' },
@@ -1868,7 +1896,6 @@ const UX_STRINGS = {
 
   // The lesson row's status, in the 20-code-point description slot.
   tqFlowStatusNone: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
-  tqFlowStatusOffered: { en: 'Not made yet', ur: 'ابھی نہیں بنا' },
   tqFlowStatusMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
   tqFlowStatusSent: { en: '{started} started', ur: '\u200F{started} نے شروع' },
   tqFlowStatusReport: { en: 'Report sent · {finished}', ur: 'رپورٹ بھیجی · {finished}' },
@@ -1973,6 +2000,13 @@ const UX_STRINGS = {
   tqFlowResultsNextLesson: {
     en: 'The next lesson you plan can have a quiz of its own.',
     ur: 'اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
+  },
+  // A 6-12 quiz that could not start because its source is switched off where
+  // this screen is drawn: it becomes "Make it again" once the source is back,
+  // so the screen says to come back — not "the next lesson".
+  tqFlowResultsLater: {
+    en: 'Open this lesson here again a little later to make it.',
+    ur: 'کچھ دیر بعد یہ سبق یہاں دوبارہ کھولیں اور quiz بنائیں۔',
   },
   tqFlowResultsFailed: {
     en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',
@@ -2307,9 +2341,13 @@ const UX_STRINGS = {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
     ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
+  // The same schedule as tqReportPromise (one report service): 12 hours after
+  // the first child joins, 07:00 PKT at night — never "tomorrow morning", never
+  // "as soon as everyone has finished". A video-lesson quiz has no /quiz entry,
+  // so there is no "sooner" to offer.
   vqShareReportPromise: {
-    en: 'You\'ll get a report on how your class did tomorrow morning, or as soon as everyone has finished.',
-    ur: 'کلاس کی رپورٹ کل صبح آئے گی — یا جیسے ہی سب مکمل کر لیں۔',
+    en: 'You\'ll get a report on how your class did about 12 hours after the first student starts (at 7 am if that falls at night).',
+    ur: 'پہلے طالب علم کے شروع کرنے کے تقریباً 12 گھنٹے بعد کلاس کی رپورٹ آئے گی (اگر یہ وقت رات کا ہو تو صبح 7 بجے)۔',
   },
   vqTodaysVideo: { en: 'today’s video', ur: 'آج کی ویڈیو' },
 
