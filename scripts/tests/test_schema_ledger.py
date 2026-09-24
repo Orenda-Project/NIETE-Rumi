@@ -84,6 +84,22 @@ class FileEffects(unittest.TestCase):
                                           ("nullable", "training_certificates", "attempt_id"),
                                           ("not_null", "users", "role")])
 
+    def test_a_column_rename_inside_a_guarded_do_block_is_a_drop_and_a_create(self):
+        sql = """DO $$ BEGIN
+                   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE column_name = 'bands') THEN
+                     ALTER TABLE users RENAME COLUMN bands TO teacher_level;
+                   END IF;
+                 END $$;"""
+        eff = m.file_effects(sql)
+        self.assertEqual(eff["creates"], [("column", "users", "teacher_level")])
+        self.assertEqual(eff["drops"], [("column", "users", "bands")])
+        self.assertEqual(probes_of(sql), [("column", "users", "teacher_level"),
+                                          ("column_absent", "users", "bands")])
+
+    def test_a_column_type_change_is_a_probe_with_the_catalog_spelling(self):
+        sql = "ALTER TABLE users\n  ALTER COLUMN phone_number TYPE varchar(64);"
+        self.assertEqual(probes_of(sql), [("column_type", "users", "phone_number", "character varying(64)")])
+
     def test_a_data_only_file_has_no_probe(self):
         self.assertEqual(probes_of("UPDATE users SET name = trim(name) WHERE name <> trim(name);"), [])
 
@@ -116,6 +132,22 @@ class Plan(unittest.TestCase):
                        ("V1.4.4__drop.sql", "ALTER TABLE users DROP COLUMN IF EXISTS first_name;")])
         self.assertEqual(s["V1.4.0__add.sql"], {"users.first_name": "superseded"})
         self.assertEqual(s["V1.4.4__drop.sql"], {"users.first_name absent": "strong"})
+
+    def test_a_column_a_later_file_renames_away_is_superseded(self):
+        s = strengths([("V1.1.8__add.sql", "ALTER TABLE users ADD COLUMN IF NOT EXISTS bands text[];"),
+                       ("V1.4.5__rename.sql", "ALTER TABLE users RENAME COLUMN bands TO teacher_level;")])
+        self.assertEqual(s["V1.1.8__add.sql"], {"users.bands": "superseded"})
+        self.assertEqual(s["V1.4.5__rename.sql"], {"users.teacher_level": "strong", "users.bands absent": "strong"})
+
+    def test_an_index_on_a_relation_this_file_dropped_proves_nothing(self):
+        # DROP MATERIALIZED VIEW takes its indexes with it; re-creating them only restores what
+        # was there before the file ran, so their presence says nothing about this file.
+        s = strengths([("V1.4.9__mv.sql",
+                        "DROP MATERIALIZED VIEW IF EXISTS mv_x; CREATE MATERIALIZED VIEW mv_x AS SELECT 1 AS id;"
+                        "CREATE UNIQUE INDEX idx_mv_x_pk ON mv_x (id);"
+                        "ALTER TABLE users ALTER COLUMN phone_number TYPE varchar(64);")])
+        self.assertEqual(s["V1.4.9__mv.sql"], {"view mv_x": "weak", "index idx_mv_x_pk": "weak",
+                                               "users.phone_number type character varying(64)": "strong"})
 
     def test_files_are_planned_in_semver_order_and_rollbacks_ignored(self):
         got = [e["version"] for e in m.plan([("V1.10.0__c.sql", ""), ("V1.2.0__b.sql", ""),
@@ -153,6 +185,7 @@ class Queries(unittest.TestCase):
     def test_identifiers_are_parameters_never_interpolated(self):
         t, c = "zz_table", "zz_col"
         for probe in [("table", t), ("column", t, c), ("column_absent", t, c),
+                      ("column_type", t, c, "zz_type"),
                       ("index", "zz_idx"), ("function", "zz_fn"), ("trigger", "zz_trg"),
                       ("constraint", "zz_con"), ("policy", t, "zz_pol"), ("nullable", t, c),
                       ("not_null", t, c), ("view", "zz_view")]:
@@ -195,6 +228,28 @@ class RealMigrations(unittest.TestCase):
         got = {m.describe(p["probe"]): p["strength"]
                for p in self.plan["V1.4.6__soft_delete_convention.sql"]["probes"]}
         self.assertEqual(got.get("users.deleted_at"), "strong")
+
+
+
+class WithEffect(unittest.TestCase):
+    """combine(): the catalog verdict, corrected by a file's effect check when it has one."""
+
+    def test_no_effect_check_leaves_the_catalog_verdict(self):
+        for v in ("applied", "not_applied", "partial", "unverifiable"):
+            self.assertEqual(m.combine(v, None), v)
+
+    def test_a_present_effect_settles_an_unverifiable_file_as_applied(self):
+        self.assertEqual(m.combine("unverifiable", True), "applied")
+        self.assertEqual(m.combine("applied", True), "applied")
+
+    def test_an_absent_effect_settles_it_as_not_applied(self):
+        self.assertEqual(m.combine("unverifiable", False), "not_applied")
+        self.assertEqual(m.combine("not_applied", False), "not_applied")
+
+    def test_catalog_and_effect_disagreeing_is_partial_never_a_guess(self):
+        self.assertEqual(m.combine("not_applied", True), "partial")
+        self.assertEqual(m.combine("applied", False), "partial")
+        self.assertEqual(m.combine("partial", True), "partial")
 
 
 if __name__ == "__main__":
