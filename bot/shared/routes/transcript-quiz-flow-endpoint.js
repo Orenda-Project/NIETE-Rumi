@@ -287,6 +287,9 @@ function studentLine(s, language, withClass = false) {
   return resolveUx('tqFlowStudentLine', { language, params: { name, klass, score } });
 }
 
+/** Session statuses that ended without finishing — terminal, and not `completed`. */
+const ENDED_UNFINISHED = new Set(['incomplete', 'expired', 'cancelled']);
+
 /**
  * The live results block, in the teacher's language, every line opened with
  * that language's paragraph mark (text-format markLines). The block is one
@@ -319,7 +322,11 @@ function resultsBody(state, students, language, quiz = null) {
   if (!students.length) return resolveUx('tqFlowResultsNobody', { language });
 
   const done = students.filter((s) => s.status === 'completed');
-  const unfinished = students.filter((s) => s.status !== 'completed');
+  // Not finished splits in two: a child still taking the quiz, and one whose
+  // session ended without finishing (typed STOP, stopped on our side, or ran
+  // out of time) — "still going" would be false for the second.
+  const stopped = students.filter((s) => ENDED_UNFINISHED.has(s.status));
+  const going = students.filter((s) => s.status !== 'completed' && !ENDED_UNFINISHED.has(s.status));
   const lines = [];
   if (done.length) {
     const avg = Math.round(done.reduce((a, s) => a + (s.mastery_percentage || 0), 0) / done.length);
@@ -341,14 +348,13 @@ function resultsBody(state, students, language, quiz = null) {
   } else {
     lines.push(resolveUx('tqFlowResultsStartedOnly', { language, params: { started: students.length } }));
   }
-  if (unfinished.length) {
-    lines.push('');
-    const names = unfinished
-      .slice(0, MAX_STUDENT_LINES)
-      .map((s) => isolateIfMixed(s.student_name || resolveUx('tqFlowUnnamed', { language }), language))
-      .join(language === 'ur' ? '، ' : ', ');
-    lines.push(resolveUx('tqFlowStillGoing', { language, params: { names } }));
-  }
+  const nameList = (group) => group
+    .slice(0, MAX_STUDENT_LINES)
+    .map((s) => isolateIfMixed(s.student_name || resolveUx('tqFlowUnnamed', { language }), language))
+    .join(language === 'ur' ? '، ' : ', ');
+  if (going.length || stopped.length) lines.push('');
+  if (going.length) lines.push(resolveUx('tqFlowStillGoing', { language, params: { names: nameList(going) } }));
+  if (stopped.length) lines.push(resolveUx('tqFlowStopped', { language, params: { names: nameList(stopped) } }));
   return lines.join('\n');
 }
 
