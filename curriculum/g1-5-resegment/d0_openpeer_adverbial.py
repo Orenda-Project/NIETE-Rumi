@@ -41,9 +41,15 @@ _ANY_PEER = re.compile(_PEER, re.I)
 _ROLE_SUBJECT = re.compile(
     r"(?:^|[.!?;:]\s+)(?:the\s+|your\s+)?" + _PEER + r"\b", re.I)
 
-# A field that reports what the BOOK says is gapped, never rewritten.
+# A field that reports what the BOOK says is gapped, never rewritten. It has to
+# be a reporting construction: a bare `\btextbook\b` also shielded strings that
+# merely name the book as a place to look ("...in your earlier notes or
+# textbook"), which left partner-whisper standing in the Opening.
 _TEXTBOOK_FRAME = re.compile(
-    r"\btextbook\b|\bthe\s+(?:page|book)\s+(?:asks|says)\b|\bp\.\s*\d+\s+(?:asks|says)\b",
+    r"\b(?:show|showing|shows|open|opens|opening)\s+(?:the\s+|your\s+)?textbook\b"
+    r"|\btextbook\s+(?:pp?\.?\s*\d|pages?\b|asks|says|shows|reads)\b"
+    r"|\bthe\s+(?:page|book)\s+(?:asks|says)\b"
+    r"|\bp\.\s*\d+\s+(?:asks|says)\b",
     re.I)
 # Straight and curly quotes both mark reported speech.
 _QUOTE_CHARS = "\"'‘’“”"

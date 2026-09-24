@@ -232,3 +232,32 @@ class TestWarmupItemsAreProcessedAtAll(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_the_word_textbook_alone_does_not_shield_peer_talk():
+    """The guard exists so a field that REPORTS what the book says is never
+    rewritten. `\\btextbook\\b` on its own was too blunt: g5_ch10/English_seg5
+    merely names the textbook as a place to look ("...in your earlier notes or
+    textbook") and kept "With a partner, state..." on the Opening page, which is
+    the exact partner-whisper the coaches asked to remove. The frame now needs a
+    reporting construction -- show/open the textbook, or textbook p.N / asks /
+    says -- so a bare mention no longer shields the adjunct."""
+    out, changed = adv.strip_adverbial(
+        "With a partner, state the earlier Chapter 10 title if it appears "
+        "in your earlier notes or textbook.")
+    assert changed
+    assert out == ("State the earlier Chapter 10 title if it appears in your "
+                   "earlier notes or textbook.")
+
+
+def test_a_real_textbook_report_is_still_refused():
+    """The three other Opening strings carrying both a peer word and 'textbook'
+    stay untouched: two quote the page aloud, one reads a dial off p.180."""
+    for s in ("Show the textbook pages. Say: “Pinky invites us to try "
+              "‘Formal vs Informal Chit Chat’ on page 113.”",
+              "Open textbook p.129 and point to the two speaking portraits.",
+              "Partners point to and read 1 to 7 on the 0–7 kg dial in "
+              "textbook p.180."):
+        out, changed = adv.strip_adverbial(s)
+        assert not changed, s
+        assert out == s
