@@ -462,7 +462,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # bd-x3k1q / DC row 133 added the boundary; bd-fmr3s / DC row 137 merged it
     # INTO the commit prompt: body = cardCopy.sessionCompleteLead + "\n\n" +
     # cardCopy.commitPrompt (coaching-card.config.js, en/ur/ar/es). Urdu:
-    # "آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔" then "کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟".
+    # "آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔" then "کیا اگلی کلاس میں یہ آزمانے کا عہد کریں؟"
+    # (the subjunctive since 24 Sep — the masculine future «کریں گے» guessed the teacher's gender).
     # With no commitment card, the standalone getCoachingMessage('sessionComplete')
     # line is still sent before scheduleTranscriptQuiz() / suggestNext().
 
@@ -761,3 +762,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When the coaching-ask delay passes while that question is still open
     Then the coaching ask arrives on the first sweep, as it did before the hold-back
     And no teacher_nudges.deferred event is logged for it
+  @e2e @coaching @i18n @wip @draft @P2
+  Scenario: In Urdu, the coaching messages never guess my gender
+    Given the NIETE bot chat is open and my language is Urdu
+    When I send a classroom recording and go through the coaching flow to the commitment question
+    Then the photo offer asks «کیا 3 تک تصاویر بھی شامل کریں؟», never «… شامل کرنا چاہیں گے؟»
+    And the commitment question asks «کیا اگلی کلاس میں یہ آزمانے کا عہد کریں؟», never «… عہد کریں گے؟»
+    And the lesson-plan list asks whether to link a plan without «چاہیں گے»
+    And sending the same recording again is answered without «چاہتے ہوں»
+    And no message in the flow addresses me with a masculine or a feminine verb form
+    # The masculine future / habitual guessed that every teacher is a man (operator, 24 Sep). The neutral forms:
+    # the subjunctive («… شامل کریں؟»، «… عہد کریں؟»), an obligative («منسلک کرنا ہے؟»، «نئی رائے چاہیے ہو»), a
+    # passive. coachingPhotoOffer (ux-strings), COACHING_CARD_COPY.ur.commitPrompt, buildLPSelectionList body,
+    # COACHING_MESSAGES.duplicateRecording. Checked by the quiz lane's own addressForms / genderedTeacherForms
+    # in tests/language/urdu-gender-neutral-copy.test.js, which also holds the WHOLE ux catalog to it. @wip.

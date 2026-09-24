@@ -20,7 +20,7 @@
  */
 
 // The one Urdu address rule every prompt that speaks TO a teacher or coach carries.
-const { URDU_ADDRESS_RULE } = require('../../config/gender-neutral-address');
+const { URDU_ADDRESS_RULE, URDU_THIRD_PERSON_RULE } = require('../../config/gender-neutral-address');
 
 const GUIDE_CHAR_BUDGET = 1600;
 // bd-62: Urdu (and English) guides run structurally longer than Swahili —
@@ -106,7 +106,7 @@ THE SHAPE — three sections the officer can read straight out, then ONE questio
   4. "reflection_question" — ONE open question the officer asks LAST, so the teacher states the commitment in THEIR OWN WORDS. This is what makes the action plan the teacher's rather than yours: never a yes/no question, never leading, never "could you have done better".
 ${prevBlock}
 Rules: warm, specific, anchored ONLY to real moments in the data — if the data doesn't clearly support a step, keep it generic rather than inventing a moment. Write ALL text in ${langName}. Keep it SHORT: the whole guide, rendered, must stay under ${guideBudget(language)} characters — tight lines, no filler.
-GENDER (mandatory): the officer AND the teacher may each be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume. Every "say_this" line and the reflection question are spoken TO the teacher, and every other line TO the officer, so all of them must be gender-neutral. ${URDU_ADDRESS_RULE} The same applies to instructions about the teacher (استاد چاہتے ہیں، not چاہتی ہیں).
+GENDER (mandatory): the officer AND the teacher may each be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume. Every "say_this" line and the reflection question are spoken TO the teacher, and every other line TO the officer, so all of them must be gender-neutral. ${URDU_ADDRESS_RULE} ${URDU_THIRD_PERSON_RULE}
 
 Return JSON EXACTLY: { "intro": "<one opening line to the officer>", "sections": { "strengths": { "title": "<short heading>", "body": "<short instruction to the officer>", "say_this": "<word-for-word example to say>" }, "growth": { "title": "...", "body": "...", "say_this": "..." }, "action": { "title": "...", "body": "...", "say_this": "..." } }, "reflection_question": "<the one open question to end on, word-for-word>", "outro": "<closing line: no number to hand over — one true strength and one move>" }
 

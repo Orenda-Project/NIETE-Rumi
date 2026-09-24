@@ -96,20 +96,24 @@ const LP_FAILURE_COPY = {
 };
 /**
  * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
- * transcript didn't carry enough"), so it is sent only where that is the state
- * or the existing claim: a transcript too short to carry a quiz
- * (source_unusable), and questions that never validated. The two reasons that
- * are not about the recording at all have their own sentence: the MODEL gave
- * nothing usable (model_failed), and the blind solve held the quiz back because
- * its answers were wrong or unclear (key_disagreement).
+ * transcript didn't carry enough"), so it is sent ONLY where that is the state:
+ * a transcript too short to carry a quiz (source_unusable), checked in code
+ * before any model call. Every other reason is ours and says so — the MODEL
+ * gave nothing usable (model_failed); the questions we wrote never passed our
+ * checks (validator_failed), or their keys contradicted the lesson
+ * (key_conflict — lp_v8 only today); the blind solve held the quiz back
+ * (key_disagreement). A reason nobody has written copy for is no evidence about
+ * the recording either, so it falls back to the general "on my side" sentence.
  */
 const TRANSCRIPT_FAILURE_COPY = {
-  model_failed: 'tqCouldNotMakeModel',
   source_unusable: 'tqCouldNotMake',
+  model_failed: 'tqCouldNotMakeModel',
+  validator_failed: 'tqCouldNotMakeAuthor',
+  key_conflict: 'tqCouldNotMakeAuthor',
   key_disagreement: 'tqFailedKeyDisagreement',
 };
 function failureCopyKey(reason, quizSource) {
-  if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMake';
+  if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';
   // An LP quiz never falls back to the transcript copy: a reason nobody has
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
