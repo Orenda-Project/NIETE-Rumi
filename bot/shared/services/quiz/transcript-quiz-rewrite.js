@@ -108,6 +108,11 @@ const CHILD_ADDRESS_REPAIR = 'THE CHILD HAS NO GENDER — REPAIR IN PLACE. A que
  */
 const ADJACENT_TERMS_REPAIR = 'TWO ENGLISH TERMS SIDE BY SIDE — REPAIR IN PLACE. A question rejected for URDU_ADJACENT_TERMS is a good question in which two SEPARATE English terms sit next to each other in an Urdu sentence; the phone shows them as one left-to-right phrase, so a child reading right to left meets the second term first and reads the meaning backwards. Keep the SAME question: the same idea, the same options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY the fields its complaint names: put an Urdu word between the two terms or rephrase so they do not touch — «جب numerator denominator سے چھوٹا ہو» → «جب numerator کی قیمت denominator سے کم ہو»; «Brother کا feminine noun Sister ہے» → «Brother کے لیے feminine noun کا جواب Sister ہے». A single English term of two words ("cross multiplication", "place value") is ONE term and stays together.';
 const ADJACENT_TERMS = /^q\d+: URDU_ADJACENT_TERMS\b/;
+// The same question asked twice in one quiz (transcript-quiz-duplicates): the
+// earlier copy is staying, so the replacement must be a different question —
+// a new example, number or case — not the same one with its options shuffled.
+const DUPLICATE_REPAIR = 'ASKED TWICE. A question rejected for DUPLICATE_QUESTION asks what an earlier question — one that is STAYING — already asks, with the same answer, so a child would answer the same question twice. Write a NEW question for its slot: the same SLO and level, but a different example, number, word or case from the lesson, and a correct answer that is not the correct answer of any question that is staying. The same question with its options in another order, other wrong options, or a few words added to its stem is the same question, and is rejected again.';
+const DUPLICATE = /^q\d+: DUPLICATE_QUESTION\b/;
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
@@ -254,6 +259,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => OPTIONS_FAULT.test(e))) ? [DISTINCT_OPTIONS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => ADJACENT_TERMS.test(e))) ? [ADJACENT_TERMS_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
