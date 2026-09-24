@@ -163,3 +163,35 @@ describe('/quiz lesson screen: the marked results block stays inside its Flow fi
     results.split('\n').filter((l) => l.trim() !== '').forEach((l) => expect(l.startsWith(mark)).toBe(true));
   });
 });
+
+/**
+ * A class the CHILD typed in the other script. Seen on staging before this
+ * rule reached it: an English teacher's line read "• Test Child R9 (4 جماعت) —
+ * 6/8 (75%)" — the child typed "جماعت 4", it was printed as typed, and its
+ * Urdu isolate ran right to left inside the English line. The class is now
+ * read out of what was typed and written in the TEACHER's language, so the
+ * other script never reaches the line; Persian ordinals ("پنجم", "چہارم"),
+ * which is how many Urdu speakers write a class, are read as numbers too.
+ * A class with no number at all keeps its word inside one isolate.
+ */
+describe('/quiz lesson screen: a class typed in the other script', () => {
+  const FSI = String.fromCharCode(0x2068);
+  const PDI = String.fromCharCode(0x2069);
+  const labelsOf = (results) => childLines(results).map((l) => (l.match(/\(([^)]*)\)/) || [])[1]);
+
+  test('English teacher: "جماعت 4", "جماعت ۵" and "جماعت پنجم" read "Class 4" / "Class 5"', async () => {
+    const out = await lessonScreen('en', ['جماعت 4', 'جماعت ۵', 'جماعت پنجم', 'Class 4']);
+    expect(labelsOf(out.data.results)).toEqual(['Class 4', 'Class 5', 'Class 5', 'Class 4']);
+  });
+
+  test('Urdu teacher: "Class 4", "Grade 5" and "چہارم" read "جماعت 4" / "جماعت 5"', async () => {
+    const out = await lessonScreen('ur', ['Class 4', 'Grade 5', 'چہارم']);
+    expect(labelsOf(out.data.results)).toEqual(['جماعت 4', 'جماعت 5', 'جماعت 4']);
+  });
+
+  test('a class with no number in the other script is one isolate inside the English line', async () => {
+    const out = await lessonScreen('en', ['کچی', '4']);
+    const line = out.data.results.split('\n').find((l) => l.includes('•') && l.includes('کچی'));
+    expect(line).toContain(`(${FSI}Class کچی${PDI})`);
+  });
+});
