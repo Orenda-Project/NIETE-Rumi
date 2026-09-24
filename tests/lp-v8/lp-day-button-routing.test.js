@@ -51,6 +51,11 @@ async function postWebhook(app, body) {
   }
 }
 
+/** The coaching survey is not on every tier yet (sandbox has it; staging does not). */
+const HAS_COACHING_SURVEY = (() => {
+  try { require.resolve('../../bot/shared/services/coaching/coaching-feedback.service'); return true; } catch (_) { return false; }
+})();
+
 /** Each owner, as the router calls it. Every mock claims the tap (returns true). */
 function owners() {
   const yes = () => jest.fn().mockResolvedValue(true);
@@ -113,7 +118,7 @@ function mockBoundary(o) {
   jest.doMock('../../bot/shared/services/conversation-resume.service', () => o.resume);
   jest.doMock('../../bot/shared/services/lp-feedback.service', () => o.lpFeedback);
   jest.doMock('../../bot/shared/services/lp612-feedback.service', () => o.lp612Feedback);
-  jest.doMock('../../bot/shared/services/coaching/coaching-feedback.service', () => o.coachingFeedback);
+  if (HAS_COACHING_SURVEY) jest.doMock('../../bot/shared/services/coaching/coaching-feedback.service', () => o.coachingFeedback);
   jest.doMock('../../bot/shared/services/nudges/lp-coaching-ask.service', () => o.ask);
   jest.doMock('../../bot/shared/services/nudges/lp-quiz-offer.service', () => o.offer);
   jest.doMock('../../bot/shared/services/quiz/transcript-quiz-offer.service', () => o.tqOffer);
@@ -134,7 +139,9 @@ const LP_DAY_IDS = [
   [`tq_yes_${U}`, 'tqOffer.handleOfferButton'],
   [`coaching_fb_no_${U}`, 'coachingFeedback.handleFeedbackButton'],
   ['resume_yes:coaching', 'resume.handleResumeButton'],
-];
+  // A tier without the coaching survey (staging, until it is promoted) has no
+  // coaching_fb_ button to route.
+].filter(([, owner]) => HAS_COACHING_SURVEY || !owner.startsWith('coachingFeedback.'));
 
 describe('the lesson-plan day: one owner per button', () => {
   beforeEach(() => jest.resetModules());
