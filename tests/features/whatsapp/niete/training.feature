@@ -571,6 +571,7 @@ Feature: NIETE (ICT) Teacher Training
     And counters are drawn only where the child can count the answer from them, never beside a product or a common multiple they do not show
     And in an Urdu quiz a child's name from the lesson is written in Urdu script, in the question and in the picture
     And when a question still writes that name in English letters, it comes to me as the same question with the name in Urdu script — in the question, the answers, the explanation, the feedback and my notes — and the bar in its picture says the same name
+    And each person from the lesson is written the same way in Urdu script on my page — my notes and the lesson summary included — whichever step of making the quiz wrote them
     And a matching picture names its rows P, Q, R, so its pairings read "P-2", never "A-2" beside the answer letter A
     And a bar named with a child's name keeps that name even when the question writes the name in English letters
     And an improper fraction or a mixed number is drawn as whole bars and a part bar, such as 17/4 as four whole bars and a quarter
@@ -584,6 +585,9 @@ Feature: NIETE (ICT) Teacher Training
     # picture labels included (spellNames); a spelling the quiz has learned is written by every later rewrite
     # (key check, blind solve) too; what still ships is recorded (transcript_quiz.latin_name).
     # A capitalised word the lesson or quiz also writes in lowercase ("Compare") is not a name.
+    # People: the digest records each person in the lesson's material once, people [{latin, ur}] (never the
+    # teacher, never a pupil called on); the author and every Urdu rewrite get the spellings up front, and the
+    # validator writes them into every Urdu field and picture label (transcript-quiz-people). Name events log counts.
     # Match: the vendored engine takes `handleLetters` (SYNC.md 3.21); the quiz lane sets P/Q/R/S and renames
     # A-D in the stem, options and feedback. The label gate reads one name in two scripts as one word.
     # Improper fractions: one over-full bar is redrawn as whole bars + a part bar (expandImproperBar); an
