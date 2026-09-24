@@ -3,9 +3,10 @@
 
 WHY: 12 of the 19 @e2e scenarios in registration.feature were BLOCKED on the /niete-e2e all
 run of 2026-08-18 — not by bugs, but because the driver is already registered and nothing
-could un-register it. `/register` gates on `user.first_name` ALONE
-(text-message.handler.js:1650), so clearing that one column re-opens the whole onboarding
-Flow. Snapshot -> unregister -> drive the file -> restore makes registration runnable on any
+could un-register it. `/register` gates on isRegistered() (bot/shared/utils/registration-status.js):
+registration_completed, registration_state = 'completed', or a non-empty `name` — `users.name` is the
+only name column since first_name/last_name were dropped. Clearing those three re-opens the whole
+onboarding Flow. Snapshot -> unregister -> drive the file -> restore makes registration runnable on any
 account, including a personal one, without a throwaway number.
 
 Creds/env resolution is IMPORTED from niete_training_db, so the bd-2759 wrong-DB abort
@@ -25,12 +26,14 @@ import argparse, json, os, sys, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from niete_training_db import _creds, _req, _get, ENV_REFS, _project_ref  # noqa: E402
 
-# Everything the onboarding Flow writes, plus the gate. Cleared by `unregister`.
+# Everything the onboarding Flow writes, plus the gate. Cleared by `unregister`. Every entry must be a
+# live `users` column: PostgREST rejects the whole select/PATCH over one missing column (first_name,
+# last_name and grade no longer exist on any NIETE database).
 REGISTRATION_FIELDS = [
-    "first_name", "last_name", "name",
+    "name",
     "country", "region",
     "organization", "school_name", "school_id",
-    "grade", "grades_taught", "subject", "subjects_taught",
+    "grades_taught", "subject", "subjects_taught",
     "role",
     "registration_completed", "registration_completed_at",
     "registration_state", "registration_state_updated_at",
@@ -50,7 +53,7 @@ SNAP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def build_unregister_payload(include_language=False):
-    """The reset. first_name=None is the load-bearing part — it is the gate."""
+    """The reset. name=None plus the two registration flags are the load-bearing part — they are the gate."""
     p = {f: None for f in REGISTRATION_FIELDS}
     p["registration_completed"] = False
     p["registration_pending_name"] = False
@@ -98,8 +101,8 @@ def cmd_unregister(creds, a):
     row = _fetch(creds, a.phone)
     payload = build_unregister_payload(a.include_language)
     if not a.yes_write:
-        print("DRY-RUN: would clear %d registration columns for %s (first_name %r -> None)."
-              % (len(payload), a.phone, row.get("first_name")))
+        print("DRY-RUN: would clear %d registration columns for %s (name %r -> None)."
+              % (len(payload), a.phone, row.get("name")))
         print("Language columns %s." % ("INCLUDED" if a.include_language else "left untouched"))
         print("Re-run with --yes-write. A snapshot is taken automatically and restore is one command.")
         return
@@ -110,7 +113,7 @@ def cmd_unregister(creds, a):
         json.dump(row, fh, indent=1, ensure_ascii=False)
     _req("PATCH", "/rest/v1/users?phone_number=eq.%s" % a.phone, creds,
          body=payload, prefer="return=minimal")
-    print("UNREGISTERED %s — first_name cleared, so /register now opens the Flow." % a.phone)
+    print("UNREGISTERED %s — name and registration flags cleared, so /register now opens the Flow." % a.phone)
     print("snapshot: %s" % path)
     print("RESTORE WITH:\n  python .claude/qa/shared/niete_registration_db.py restore "
           "--env %s --phone %s --yes-write" % (a.env or "staging", a.phone))
@@ -123,13 +126,13 @@ def cmd_restore(creds, a):
     snap = json.load(open(path, encoding="utf-8"))
     payload = build_restore_payload(snap)
     if not a.yes_write:
-        print("DRY-RUN: would restore %d columns for %s from %s (first_name -> %r)."
-              % (len(payload), a.phone, path, payload.get("first_name")))
+        print("DRY-RUN: would restore %d columns for %s from %s (name -> %r)."
+              % (len(payload), a.phone, path, payload.get("name")))
         print("Re-run with --yes-write.")
         return
     _req("PATCH", "/rest/v1/users?phone_number=eq.%s" % a.phone, creds,
          body=payload, prefer="return=minimal")
-    print("RESTORED %s from %s (first_name -> %r)." % (a.phone, path, payload.get("first_name")))
+    print("RESTORED %s from %s (name -> %r)." % (a.phone, path, payload.get("name")))
 
 
 def main():
