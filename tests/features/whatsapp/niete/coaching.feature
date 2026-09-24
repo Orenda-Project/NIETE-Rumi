@@ -712,3 +712,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have not sent a recording
     When six hours have passed since I tapped it
     Then the bot asks whether to pick up the classroom observation where I left off
+
+  @e2e @quiz @wip @draft @slow @negative @P2
+  Scenario: "Only N children have started" arrives at most once a morning, even for quizzes made on earlier days
+    Given the NIETE bot chat is open
+    And I have three quizzes made from lessons recorded on different earlier days
+    And I send all three quiz links to my class late one evening and no child starts any of them
+    When the six-hour reminders fall due and are held to 07:00 the next morning
+    Then I receive exactly one "has started" message that morning
+    And it names all three quiet lessons together
+    # transcript-quiz-nudge.service.js: the one-a-day rule looked only at quizzes CREATED
+    # today. A quiz row is made when the quiz is offered and can be sent days later from
+    # /quiz, so older quizzes' nudges held to the same morning could not see each other —
+    # production 17-24 Sep: 12 teacher-days with 2-3 separate messages, e.g. 07:12, 07:15
+    # and 07:19. The rule now counts the day the teacher was nudged, and the message also
+    # gathers every quiet lesson whose own nudge has fallen due today.
