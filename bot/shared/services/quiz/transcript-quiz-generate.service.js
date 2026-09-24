@@ -38,6 +38,7 @@ const {
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
 const Store = require('./lp-asset-source.store');
+const Funnel = require('./quiz-funnel');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
@@ -542,7 +543,13 @@ async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSu
 }
 
 async function updateQuiz(quizId, patch) {
-  const { error } = await supabase.from('quizzes').update(patch).eq('id', quizId);
+  // Every terminal failure is dated on the row, whichever step wrote it — the
+  // DB half of the funnel's generation_failed (offered_at, accepted_at,
+  // ready_at and sent_at already date the other stages).
+  const stamped = patch && patch.status === 'failed' && patch.meta && !patch.meta.failed_at
+    ? { ...patch, meta: { ...patch.meta, failed_at: new Date().toISOString() } }
+    : patch;
+  const { error } = await supabase.from('quizzes').update(stamped).eq('id', quizId);
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
@@ -554,6 +561,7 @@ async function updateQuiz(quizId, patch) {
 async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}) {
   await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
   logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
+  Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason, step: extra.step });
 }
 
 // ─── the step ────────────────────────────────────────────────────────────────
@@ -1443,15 +1451,43 @@ async function process(quizId, payload = {}) {
     if (!teacher) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'teacher_missing' } });
       logEvent('transcript_quiz.failed', { quizId, reason: 'teacher_missing', quiz_source: quizSource });
+      // No number to tell: the teacher's row is gone.
+      Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason: 'teacher_missing' });
       return { failed: true, reason: 'teacher_missing' };
     }
     user = teacher;
     session = lessonSessionFor(quiz);
   } else {
-    const { data: found } = await supabase.from('coaching_sessions')
+    const { data: found, error: sessionErr } = await supabase.from('coaching_sessions')
       .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
+    // A read that ERRORED is not a missing session. On 15 Sep 2026 this select
+    // still joined a column V1.4.5 had dropped: PostgREST answered with an error,
+    // `data` was null, and 22 quizzes whose sessions all existed were written
+    // `session_missing` — no event, and nothing said to a teacher already told
+    // "making it now". The error now throws, so the queue redelivers the job, as
+    // for every other database error in this step.
+    if (sessionErr) {
+      logToFile('❌ transcript quiz: coaching session read failed in generate', {
+        quizId, code: sessionErr.code || null, error: sessionErr.message,
+      }, 'error');
+      throw new Error(`transcript quiz: coaching session read failed: ${sessionErr.message}`);
+    }
     if (!found) {
+      // Really gone. A failure like every other: persisted, an event, and the
+      // teacher — who was told the quiz is being made — is told it is not.
       await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'session_missing' } });
+      const { data: owner, error: ownerErr } = await supabase.from('users')
+        .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
+      // Unreadable teacher: the job's own phone still reaches them, in the floor language.
+      if (ownerErr) logToFile('⚠️ transcript quiz: teacher unreadable while failing session_missing', { quizId, error: ownerErr.message });
+      const to = payload.phone || (owner && owner.phone_number);
+      const lang = teacherLanguageFor({ preferredLanguage: owner && owner.preferred_language });
+      if (to) {
+        await tellTeacherFailed(to, lang, quizId, 'session_missing', quizSource, { step: 'session' });
+      } else {
+        logEvent('transcript_quiz.failed', { quizId, reason: 'session_missing', quiz_source: quizSource, step: 'session' });
+        Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason: 'session_missing', step: 'session' });
+      }
       return { failed: true, reason: 'session_missing' };
     }
     session = found;
@@ -1461,6 +1497,11 @@ async function process(quizId, payload = {}) {
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = user.name || null;
   let meta = { ...(quiz.meta || {}) };
+  // Where the quiz was born — rides on every funnel stage this step writes.
+  const funnel = { quiz_id: quizId, teacher_id: quiz.teacher_id, source: quizSource, channel: Funnel.channelOf(meta.source) };
+  // A quiz resuming at the hand-off has already been generated; only real work
+  // counts as a start. A redelivered job starts again — count distinct quiz_id.
+  if (!(quiz.status === 'ready' && meta.step === 'ready')) Funnel.emit('generation_started', funnel);
 
   // The slide script is needed wherever the author still has to run; a quiz
   // resuming at the hand-off (`ready`/`ready`) has its questions and does not.
@@ -2087,6 +2128,7 @@ async function process(quizId, payload = {}) {
     logEvent('transcript_quiz.ready', {
       quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd, quiz_source: quizSource,
     });
+    Funnel.emit('generated', { ...funnel, n: rows.length });
   }
 
   // ── hand-off (mint or reuse the share code, PDF, the three paced messages —

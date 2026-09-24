@@ -316,3 +316,88 @@ with lesson plans being delivered, means no kind is registered in the worker pro
             skipped = sum(toint(d.skipped)), failed = sum(toint(d.failed)), expired = sum(toint(d.expired))
   by bin(_time, 1h), service
 ```
+
+## The quiz funnel: `quiz_funnel.*` — both streams, one shape
+
+Every stage of both quiz streams — a quiz written from a coaching **recording** (`quiz_source =
+'transcript'`) and one written from a **lesson plan** (`lp_v8`, and any later lesson-plan source) —
+writes ONE event through ONE helper (`bot/shared/services/quiz/quiz-funnel.js`):
+
+```
+quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session_id?, share_code_id?,
+                       choice?, reason?, step?, kind?, n?, failed?, skipped?, pct?, ok?, delivered?, pdf_sent?, link_sent? }
+```
+
+- `source` is the **stream** (the quiz row's `quiz_source`). `channel` is where the quiz was born:
+  `coaching_offer` (the offer after a coaching report), `lp_offer` (the afternoon lesson-plan offer),
+  `quiz_menu` (/quiz, list or Flow), `remake` ("make it again").
+- The helper keeps only the fields above, and only as ids, lower-case tokens, counts and booleans — a
+  name, a phone number or free text cannot reach Axiom through it. It never throws.
+- Everything but the event name lands in `data_json`; read it with `parse_json(data_json)`.
+  `session_id` here is inside `data_json` (it is not the top-level `sessionId` column).
+- The older names (`transcript_quiz.*`, `lp_quiz.*`, `video_quiz.*`) are unchanged and still logged.
+  They are what to read for anything before this family shipped; for counting the funnel, read this one.
+
+| Stage | Emitted by | Fields | Durable trace in the DB | Older event |
+|---|---|---|---|---|
+| `offer_made` | coaching: `transcript-quiz-offer` `processOffer` · LP: `lp-quiz-offer` `send` | `quiz_id` (coaching) / `nudge_id` (LP), `teacher_id`, `delivered`, `n` (LP classes) | coaching: `quizzes.status='offered'`, `meta.offered_at` · LP: `teacher_nudges.status='sent'`, `sent_at`, `context.message_ids` | `transcript_quiz.offered` · `lp_quiz.offer_sent` |
+| `offer_answered` | the offer buttons (coaching `tq_yes/no_`, LP `lpquiz_*`) | `choice`: `yes` \| `no` \| `class:<key>` \| `expired` | coaching: `meta.declined_at` / `meta.accepted_at` · LP: `teacher_nudges.answered_at`, `choice` | `transcript_quiz.declined` / `.language_asked` · `lp_quiz.offer_answered` |
+| `accepted` | the moment a quiz is committed and queued: `startGenerating` (after the language ask), the LP yes on Urdu/Islamiyat, `/quiz` `enqueueGenerate`, `remakeLpQuiz` | `quiz_id`, `teacher_id`, `nudge_id` (LP), `channel` | `quizzes.status='generating'`, **`meta.accepted_at` on every path** | `transcript_quiz.accepted` (no stream), `.list_generate`, `.remade`, `lp_quiz.quiz_claimed` |
+| `generation_started` | `transcript-quiz-generate` `process()` (not on a resume at the hand-off) | `quiz_id`, `source`, `channel` | `meta.step` (`digest`/`author`) — transient, no timestamp | — |
+| `generated` | `process()`, status `ready` | `n` (questions) | `status='ready'`, `meta.ready_at`, `meta.question_count`, `quiz_questions` rows | `transcript_quiz.ready` |
+| `generation_failed` | every terminal failure (`tellTeacherFailed`, `teacher_missing`, `session_missing`, `queue_failed`) | `reason`, `step` | `status='failed'`, `meta.error`, **`meta.failed_at`** | `transcript_quiz.failed` |
+| `sent` | the first hand-off (`transcript-quiz-handoff`) | `pdf_sent`, `link_sent` | `status='sent'`, `meta.sent_at`, `meta.pdf_sent`, **`meta.link_sent`**, `meta.share_code_id` | `transcript_quiz.sent` (logged even when the link failed) |
+| `send_failed` | the hand-off | `reason`: `link_not_delivered` \| `mint_failed` | `meta.link_sent=false` / `meta.handoff_error='mint_failed'` | — |
+| `child_joined` | `video-quiz` `startSession` | `session_id`, `share_code_id`, `source` = the quiz's stream | `quiz_sessions` row (`created_at`, `share_code_id`), `quiz_share_codes.uses_count` | `video_quiz.session_started` (its `source` is the session engine, not the stream) |
+| `child_completed` | `video-quiz` `finish` | `session_id`, `n` (asked), `pct` | `quiz_sessions.status='completed'`, `completed_at`, `mastery_percentage` | `video_quiz.completed` |
+| `scorecard_sent` | `video-quiz` `finish` | `session_id`, `ok` (`false` = the text fallback went) | none — per child, Axiom only | `video_quiz.scorecard_sent` |
+| `class_cards` | `video-quiz-report` `sendClassCards` (with the report, or late) | `n` sent, `failed`, `skipped` (no number / outside the 23 h window) | `quizzes.meta.class_cards[share_code_id]` = the children sent | `video_quiz.class_card_sent` / `_skipped` |
+| `report_sent` | `video-quiz-report` `generate` | `kind`: `report` \| `no_one` (nobody but the teacher took it), `n` children who finished, `reason` (`scheduled`/`requested`/`follow_up`) | `quiz_share_codes.report_sent_at`, `quizzes.status='report_sent'`, `meta.report_followups` (`quizzes.report_sent_at` is never written) | `video_quiz.report_sent` (**not** logged for `no_one` — 17.5% of reports) |
+| `report_failed` | `video-quiz-report` `generate` | `reason`: `no_teacher_phone` | — | log line only |
+
+**The funnel per stream, for any window:**
+
+```apl
+['niete-logs'] | where env == 'production' | where msg startswith 'quiz_funnel.'
+| extend d = parse_json(data_json), stage = substring(msg, 12)
+| summarize events = count(), quizzes = dcount(tostring(d.quiz_id)), children = dcount(tostring(d.session_id))
+  by stage, stream = tostring(d.source)
+```
+
+**Offers → accepted, by channel:**
+
+```apl
+['niete-logs'] | where env == 'production' | where msg in ('quiz_funnel.offer_made', 'quiz_funnel.offer_answered', 'quiz_funnel.accepted')
+| extend d = parse_json(data_json)
+| summarize n = count() by msg, stream = tostring(d.source), channel = tostring(d.channel), choice = tostring(d.choice)
+```
+
+**One quiz, end to end:** `where msg startswith 'quiz_funnel.' and data_json contains '<quiz id>' | project _time, msg, data_json | order by _time asc`
+
+**Accepted and never made (what the watcher calls a generation stall):**
+
+```apl
+['niete-logs'] | where env == 'production'
+| where msg in ('quiz_funnel.accepted', 'quiz_funnel.generated', 'quiz_funnel.generation_failed', 'quiz_funnel.sent')
+| extend q = tostring(parse_json(data_json).quiz_id)
+| summarize accepted = maxif(_time, msg == 'quiz_funnel.accepted'), outcome = maxif(_time, msg != 'quiz_funnel.accepted') by q
+| where isnotnull(accepted) and (isnull(outcome) or outcome < accepted) and accepted < ago(60m)
+```
+
+**Why generation failed:** `where msg == 'quiz_funnel.generation_failed' | extend d = parse_json(data_json) | summarize n = count() by stream = tostring(d.source), reason = tostring(d.reason), step = tostring(d.step)`
+
+### The watcher that reads it
+
+`bot/shared/services/monitoring/quiz-funnel-watch.service.js`, on the sqs-worker every 15 minutes (plus a
+boot run), is the one monitor that messages the operator. It posts a summary of both streams at the
+even local hours 08–22 and, at any hour, an alert only when something is wrong — generation failures
+above a threshold, a quiz accepted and not made within an hour, made and not sent, a link that did not
+reach the teacher, a finished child with no scorecard, a class report owed 22 h after the first join,
+Meta rate limits (`whatsapp.rate_limited`: any message the send pacer gave up on, or 30+ retried refusals in an hour), coaching running with no quiz offered, the afternoon
+lesson-plan offer not going out, and spikes in the non-quiz families (6-12 lesson plans, coaching,
+observations, child media). Each incident is sent at most once per 2 h (a stuck quiz, once a day), and
+stall alerts are confirmed against `quizzes.status` first — Axiom drops a small share of batches, and a
+lost `sent` line must not report a quiz the teacher already has. Its own events: `quiz_funnel_watch.tick`
+(`alerts`, `incidents`, `summary`), `.skipped` (`why`: `another_replica` \| `lock_unavailable` \|
+`unconfigured`), `.post_failed`, `.query_failed` (`name`). Env names are in `.env.template`; dry-run it
+with `node bot/scripts/quiz-funnel-watch.js --env <env> --window 2h --dry-run`.

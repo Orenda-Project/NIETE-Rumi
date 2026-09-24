@@ -1339,10 +1339,28 @@ async function recoverStaleVideoRequests() {
  * per-row lock makes the extra run harmless.
  */
 const DEBRIEF_RETRY_INTERVAL_MS = 15 * 60 * 1000;
-/** The failure digest looks back over exactly the window it runs on. */
-const PROD_DIGEST_INTERVAL_MS = 60 * 60 * 1000;
 const DEBRIEF_RETRY_LOCK_TTL_S = 30 * 60;
 const DEBRIEF_RETRY_TICK_CAP = 20;
+
+/**
+ * One tick of the quiz funnel watcher — what the boot timer and the interval
+ * below call. The watcher decides everything else (armed or not, whose replica
+ * speaks, whether a summary or an alert is due); this only guarantees that a
+ * monitor can never take down the worker it runs in.
+ *
+ * @param {{watch?: {run: Function}}} deps the watcher, injectable for the suite
+ * @returns {Promise<Object|null>} the watcher's outcome, or null when it threw
+ */
+const QUIZ_FUNNEL_WATCH_TICK_MS = 15 * 60 * 1000;
+async function runQuizFunnelWatch({ watch } = {}) {
+  try {
+    const w = watch || require('../shared/services/monitoring/quiz-funnel-watch.service');
+    return await w.run();
+  } catch (error) {
+    logToFile('Error in quiz funnel watch (non-fatal)', { error: error.message }, 'error');
+    return null;
+  }
+}
 
 async function runDebriefRetrySweep({ now = Date.now() } = {}) {
   if (process.env.OBSERVE_DEBRIEF_RETRY_OFF === '1') {
@@ -1679,30 +1697,26 @@ function startWorker() {
       enabled: process.env.OBSERVE_DEBRIEF_RETRY_OFF !== '1',
     });
 
-    // bd-mg9c7.147: the hourly production failure digest. Lives here because
-    // this process already holds the Axiom credentials and runs on Railway, so
-    // it reports whether or not anyone's machine is on. Silent when every
-    // family is clean, and a complete no-op until PROD_DIGEST_* is set — so
-    // this block changes nothing anywhere by merging.
-    const runProdDigest = async () => {
+    // The quiz funnel watcher — the ONE monitor that messages the operator. It
+    // replaced the hourly failure digest, which posted ~13 times a day: a 2-hourly
+    // funnel summary for both quiz streams (08-22 local), and an alert only when
+    // something is wrong, each incident at most once per 2 h. It lives here
+    // because this process holds the Axiom credentials and runs on Railway, so it
+    // reports whether or not anyone's machine is on. A complete no-op until
+    // QUIZ_FUNNEL_WATCH_ENABLED=true, so merging this changes nothing anywhere.
+    //
+    // Boot run as well as the interval (Class P): this service redeploys several
+    // times a day and each restart resets the timer. The watcher's summary slots
+    // and alert dedup live in Redis, and ~10 replicas take a read-back lock per
+    // tick, so the extra boot run and the replicas cost nothing and send nothing twice.
+    const runFunnelWatchTick = () => {
       if (worker.isShuttingDown) return;
-      try {
-        const digest = require('../shared/services/monitoring/prod-failure-digest.service');
-        const out = await digest.run();
-        if (out && out.reported) logToFile('Prod failure digest posted', out);
-      } catch (error) {
-        // A monitor must never be able to take down the thing it monitors.
-        logToFile('Error in prod failure digest (non-fatal)', { error: error.message }, 'error');
-      }
+      runQuizFunnelWatch();
     };
-    // Boot run as well as the interval: this service redeploys several times on
-    // a busy day and each restart resets the timer, so an hourly interval alone
-    // can be reset forever and never fire. The digest's own window is measured
-    // from when it last spoke, so an extra boot run costs nothing.
-    setTimeout(runProdDigest, 3 * 60 * 1000);
-    setInterval(runProdDigest, PROD_DIGEST_INTERVAL_MS);
-    logToFile('Prod failure digest enabled (hourly; set PROD_DIGEST_ENABLED=true to arm)', {
-      armed: String(process.env.PROD_DIGEST_ENABLED || '').toLowerCase() === 'true',
+    setTimeout(runFunnelWatchTick, 3 * 60 * 1000);
+    setInterval(runFunnelWatchTick, QUIZ_FUNNEL_WATCH_TICK_MS);
+    logToFile('Quiz funnel watcher enabled (15-minute tick; set QUIZ_FUNNEL_WATCH_ENABLED=true to arm)', {
+      armed: String(process.env.QUIZ_FUNNEL_WATCH_ENABLED || '').toLowerCase() === 'true',
     });
   });
 }
@@ -1714,5 +1728,5 @@ if (require.main === module) {
 // Export for testing
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
-  exitAfterFlush,
+  exitAfterFlush, runQuizFunnelWatch,
 };
