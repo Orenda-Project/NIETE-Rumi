@@ -127,8 +127,7 @@ EFFECT_CHECKS = {
         "AND (coalesce(trim(to_jsonb(u)->>'first_name'), '') <> '' "
         "OR coalesce(trim(to_jsonb(u)->>'last_name'), '') <> ''))",
         None),
-    # V1.4.7 and V1.4.9 are on the promotion branches (staging, main) and not yet on sandbox;
-    # they are here so a staging or production database can be audited against its own folder.
+    # V1.4.7 and V1.4.9 drop and re-add what they touch, so only their effect proves them.
     "V1.4.7__roster_audit_edit_actions.sql": (
         "leader_roster_audit_action_check admits edit_phone_escalated",
         "SELECT coalesce((SELECT position(%s in pg_get_constraintdef(oid)) > 0 FROM pg_constraint "
