@@ -575,6 +575,17 @@ function validate(rawQuestions, ctx = {}) {
       .forEach((d) => errs.push(`q${i}: ${d.code} — ${d.message}`));
     const dropped = droppedTextDefect(q.figure, svg, canonicalType(q.figure.type) || 'figure');
     if (dropped) errs.push(`q${i}: FIGURE_TEXT_DROPPED — ${dropped.message}`);
+    // A "model" picture is NOT exempt, by decision: it is exempt from
+    // FIGURE_REDUNDANT (below) because it shows numbers the stem states, but it
+    // must still be able to produce the answer. On the live grade 4 fractions
+    // replays every model picture this rule refused sat on a step of a
+    // procedure — bars of 2/3 and 3/5 beside "what is 2 × 5?" (10), a bar of
+    // 2/5 beside "2/5 = ?/20" (8/20). The bars modelled the fractions correctly
+    // and answered nothing; a child reading them cannot reach the key. The
+    // model uses a young class is taught with still pass: "which is larger" is
+    // keyed to one of the fractions drawn, and a word answer is not checked. A
+    // question no picture can answer is REPLACED by the add-pictures repair
+    // instead (transcript-quiz-rewrite).
     const mismatch = figureMismatch(q.figure, opts, ci);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
