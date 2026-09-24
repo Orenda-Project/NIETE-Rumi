@@ -42,6 +42,15 @@ function languageRule(language) {
  * inside a diagram spec — the drawing engine converts TeX to Unicode and draws
  * its own stacked fractions, so TeX there prints as source.
  */
+/**
+ * NAMING THE PARTS of a picture (bd-qlpu0). The card marks its three options
+ * A, B and C, so a part the child picks must never be called A-D: a component
+ * B that is option C is the right answer on the wrong button. Stated in the
+ * contract so the author, the rewrite and the picture repair say it the same
+ * way; the validator renames a lettered part anyway (relabelLetterParts).
+ */
+const PART_NAMES_RULE = 'NAMING THE PARTS of a picture the child picks from (bars, points, components, ribbons, rows): never A, B, C or D — those are the option letters on the child\'s card. Name them P, Q, R, S on a picture that already shows numbers (fraction bars, a number line, a shape, a circuit) and 1, 2, 3, 4 on one that does not; the options are then "P", "Q", "R" (or "bar P", «پٹی P»). Label numbers and fractions in a picture in English digits (0-9), as the stem does.';
+
 const MATH_NOTATION_RULE = 'MATHS NOTATION (every language). Write every mathematical expression in a stem or an option as inline TeX between single dollar signs, and it is typeset on the child\'s picture card exactly as a textbook prints it: a fraction $\\frac{2}{9}$ — ALWAYS \\frac, so it prints stacked, number over number: never $2/3$, whose slash typesets flat on one line — a mixed number $2\\frac{1}{3}$, a sum or product $3 \\times 4 = 12$, a division $12 \\div 3$, a power $5^2$, a comparison $\\frac{1}{2} > \\frac{1}{3}$, a unit $5\\,\\text{cm}$. '
   + 'Everything else stays plain text: a bare whole number is 12, never $12$; words stay OUTSIDE the dollars, and in an Urdu quiz the Urdu sentence is outside and only the maths, with digits 0-9, is inside; "$" is never money (write Rs); only single dollars — never $$…$$, \\( \\) or \\[ \\]; chemistry stays plain (H2O, CO2), never TeX. '
   + 'The explanation and the feedback may use the same $…$ for an expression; the phone shows it as plain text (2/9). '
@@ -93,8 +102,9 @@ function questionContract({ gradeBand } = {}) {
 - Tag every question with its "slo_id" and its "level".
 - ${MATH_NOTATION_RULE}
 - ${COLUMN_SUM_RULE}
+- ${PART_NAMES_RULE}
 
-STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu.
+STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NAMES ARE NOT TERMS: a person's name from the lesson (a child in a word problem, a character in a story) is written in Urdu script, in every field and in a picture's labels (Hira → حرا, Ali → علی, Sara → سارہ), never in English letters; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu.
 ${CHILD_ADDRESS_RULE}
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.`;
 }
@@ -203,6 +213,6 @@ const SELECTED_BECAUSE_RULE = "SELECTED BECAUSE. Every question also carries a \
 const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ \"would say\".";
 
 module.exports = {
-  languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE, COLUMN_SUM_RULE,
+  languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE, COLUMN_SUM_RULE, PART_NAMES_RULE,
   SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };
