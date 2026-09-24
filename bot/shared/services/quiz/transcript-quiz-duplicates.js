@@ -14,8 +14,9 @@
  *
  * WHAT COUNTS AS THE SAME QUESTION. A LATER question repeats an EARLIER one when
  *   - they have the SAME ANSWER (the correct option, or the correct set of a
- *     select-all question, compared as written: "Pinky" is not "pinky", and a
- *     vowel mark makes another answer — «تَپ» is not «تِپ»);
+ *     select-all question: "Pinky" is not "pinky", and a vowel mark makes
+ *     another answer — «تَپ» is not «تِپ»; a trailing Urdu postposition does
+ *     not, see below);
  *   - they do not carry two DIFFERENT pictures (one stem over two different
  *     pictures asks about two different pictures). A question with a picture
  *     and the same question without one ARE the same question: the picture
@@ -26,7 +27,8 @@
  *     set, and every quoted word and every sentence with a blank in one stem
  *     appears in the other ("…before the word 'kite'" and "…before the word
  *     'tree'" are two questions, as are rounding 18 and rounding 16);
- *   - their stems are near-identical, word for word, once the text is
+ *   - their stems are near-identical, word for word (or, for a sentence with a
+ *     blank beside a question, content word for content word — below), once the text is
  *     normalised (maths flattened, direction marks dropped, Arabic and Persian
  *     letter and digit forms unified). With the same options, in any order,
  *     three quarters of the shorter stem's words must be in the other — the
@@ -40,10 +42,33 @@
  * twice when read by hand (precision 0.98) — about one quiz in fifty. The one
  * it gets wrong is "Which of these is a day of the week?" beside "Which of
  * these is the first working day of the week?" with the same answer. It is
- * built to miss rather than to guess: a paraphrase with other distractors that
- * shares few words ("Which of these is a vowel?" / "Which letter is a vowel
- * sound?") is not caught, an estimated one in four or five of those a reader
- * would call the same question.
+ * built to miss rather than to guess: a paraphrase that shares few words
+ * ("What is formed in a physical change?" / "What is true about a physical
+ * change?") is not caught, and those are most of the repeats it misses — see
+ * the recall measured below.
+ *
+ * THE SAME FACT, WRITTEN TWO WAYS. A live Urdu quiz asked «…مچھیروں کو
+ * __________ سے نوازا۔» (key «انعام و اکرام») and later «…مچھیروں کو کس چیز
+ * سے نوازا؟» (key «انعام و اکرام سے»): one fact, a blank and a question, the
+ * answers apart by a trailing «سے». So:
+ *   - an answer is compared as written AND without a trailing Urdu postposition
+ *     (سے، کو، میں، پر، کا، کی، کے، نے) or punctuation — never when the answer
+ *     is nothing but postpositions («کا، کی، کے»), and never when stripping
+ *     makes two of the question's own options the same («میز پر» / «میز میں»:
+ *     that question is ABOUT the postposition);
+ *   - a stem with a blank (a run of underscores, or the word «ڈیش» standing in
+ *     for one) is compared with a stem without one by filling the blank with
+ *     its answer and comparing the CONTENT words — function words, question
+ *     words and quiz filler left out — of the filled sentence against the
+ *     question and its answer: 80% of the smaller set, 50% of both together,
+ *     with the same numbers and quoted items.
+ * On the replica this adds one pair — a «ڈیش» blank and the question on the
+ * same line of a story — and it is a repeat: 49 flags, 48 of them repeats
+ * (precision 0.98). Reading the 388 closest pairs it leaves alone (the same
+ * answer, half their content words shared) finds 71 more that ask the same
+ * fact in other words, so it catches about 40% of the repeats a reader finds
+ * (48 of 119). Those are paraphrases; the author prompt's own rule
+ * (DISTINCT_QUESTIONS_RULE) is what keeps them out.
  *
  * THE COMPLAINT names the LATER question only (`qN: DUPLICATE_QUESTION`), once,
  * against the earliest question it repeats, so the targeted rewrite replaces
@@ -82,27 +107,65 @@ const optionKey = (s) => base(s).replace(/[\s.!?\u061f\u06d4\u060c,;:'"«»“�
 /** A stem's words, lower-cased (the answer is compared separately, with its case). */
 const words = (s) => base(s).toLowerCase().split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
 
+/** A blank: a run of underscores, or the word «ڈیش» ("dash") written in its place. */
+const BLANK = /_{2,}|(?<![\p{L}\p{M}])ڈیش(?![\p{L}\p{M}])/u;
+const BLANKS = new RegExp(BLANK.source, 'gu');
+/** Urdu postpositions an answer can carry at its end without changing the fact. */
+const POSTPOSITIONS = new Set(['سے', 'کو', 'میں', 'پر', 'کا', 'کی', 'کے', 'نے']);
+/**
+ * Left out when two stems are compared by their content: function words,
+ * question words and the filler of a quiz instruction, in Urdu and English.
+ */
+const NOT_CONTENT = new Set([
+  'کا', 'کی', 'کے', 'کو', 'سے', 'میں', 'پر', 'نے', 'تک', 'اور', 'یا', 'و', 'ہے', 'ہیں', 'تھا', 'تھی', 'تھے', 'ہو', 'ہوا', 'ہوئی', 'ہوئے', 'ہوتا', 'ہوتی', 'ہوتے',
+  'گا', 'گی', 'گے', 'کیا', 'کون', 'کونسا', 'کونسی', 'سا', 'سی', 'کس', 'کسی', 'کن', 'کیوں', 'کیسے', 'کیسا', 'کیسی', 'کہاں', 'کب', 'کتنا', 'کتنی', 'کتنے',
+  'جو', 'جس', 'جن', 'یہ', 'وہ', 'اس', 'ان', 'ایک', 'بھی', 'تو', 'نہیں', 'نہ', 'ہی', 'لیے', 'لئے', 'بعد', 'پہلے', 'ساتھ', 'چیز', 'چیزوں',
+  'رہا', 'رہی', 'رہے', 'گیا', 'گئی', 'گئے', 'کر', 'کرتا', 'کرتی', 'کرتے', 'دیا', 'دی', 'دیے', 'لیا', 'لی', 'بہت', 'کچھ', 'پھر', 'اب', 'جب', 'تب',
+  'اپنا', 'اپنی', 'اپنے', 'وہاں', 'یہاں', 'صحیح', 'درست', 'جواب', 'خالی', 'جگہ', 'لفظ', 'جملہ', 'جملے', 'مکمل', 'کریں', 'کیجیے', 'چنیں', 'منتخب',
+  'بتائیں', 'درج', 'ذیل', 'مندرجہ',
+  'a', 'an', 'the', 'of', 'to', 'in', 'on', 'at', 'for', 'from', 'by', 'with', 'and', 'or', 'is', 'are', 'was', 'were', 'be', 'been', 'it', 'its',
+  'this', 'that', 'these', 'those', 'which', 'what', 'who', 'whom', 'whose', 'when', 'where', 'why', 'how', 'does', 'do', 'did', 'can', 'could',
+  'will', 'would', 'should', 'has', 'have', 'had', 'you', 'your', 'we', 'our', 'they', 'their', 'as', 'than', 'then', 'so', 'not', 'no', 'one',
+  'following', 'correct', 'answer', 'choose', 'fill', 'blank', 'word', 'sentence', 'complete', 'best', 'option',
+]);
+/** A blank and a question on one fact: shared content words — of the smaller set, and of both. */
+const BLANK_CONTAINMENT = 0.8;
+const BLANK_JACCARD = 0.5;
+const contentWords = (s) => new Set(words(s).filter((w) => !NOT_CONTENT.has(w)));
+/** An option without a trailing postposition — unless it is nothing but postpositions. */
+function withoutPostposition(key) {
+  const tokens = key.split(' ');
+  if (tokens.every((t) => POSTPOSITIONS.has(t))) return key;
+  while (tokens.length > 1 && POSTPOSITIONS.has(tokens[tokens.length - 1])) tokens.pop();
+  return tokens.join(' ');
+}
+
 const QUOTED = /['‘’"“”«»]([^'‘’"“”«»]{1,120})['‘’"“”«»]/g;
 /** What a stem is ABOUT: its numbers, its quoted words and its sentences with a blank. */
-function itemsOf(stem) {
+function itemsOf(stem, { blanks = true } = {}) {
   const t = base(stem);
   const quoted = [...t.matchAll(QUOTED)].map((m) => new Set(words(m[1])));
-  t.split(/[.?!\u06d4\u061f\n]+/)
-    .filter((sentence) => /_{2,}/.test(sentence))
-    .forEach((sentence) => quoted.push(new Set(words(sentence.replace(/_+/g, ' ')))));
+  if (blanks) {
+    t.split(/[.?!\u06d4\u061f\n]+/)
+      .filter((sentence) => BLANK.test(sentence))
+      .forEach((sentence) => quoted.push(new Set(words(sentence.replace(BLANKS, ' ')))));
+  }
   const numbers = new Set((t.match(/\d+(?:[.,/]\d+)*/g) || []).map((n) => n.replace(/,/g, '')));
   return { quoted, numbers };
 }
 function sameItem(a, b) {
-  if (a.items.numbers.size !== b.items.numbers.size) return false;
-  if ([...a.items.numbers].some((n) => !b.items.numbers.has(n))) return false;
+  return sameItems(a.items, b.items, a.words, b.words);
+}
+function sameItems(ia, ib, wordsA, wordsB) {
+  if (ia.numbers.size !== ib.numbers.size) return false;
+  if ([...ia.numbers].some((n) => !ib.numbers.has(n))) return false;
   const appearsIn = (item, stemWords) => {
     let hit = 0;
     item.forEach((w) => { if (stemWords.has(w)) hit += 1; });
     return item.size > 0 && hit / item.size >= QUOTED_ITEM_SHARE;
   };
-  return a.items.quoted.every((item) => appearsIn(item, b.words))
-    && b.items.quoted.every((item) => appearsIn(item, a.words));
+  return ia.quoted.every((item) => appearsIn(item, wordsB))
+    && ib.quoted.every((item) => appearsIn(item, wordsA));
 }
 
 /** Keys sorted, so one picture written with its fields in another order is the same picture. */
@@ -125,15 +188,23 @@ function prepare(q) {
   const correct = Multi.isMultiQuestion(q) ? Multi.authoredCorrectIndices(q) : [Number(q.correct_index)];
   if (!options.length || !correct.length || correct.some((k) => !Number.isInteger(k) || !options[k] || !options[k].trim())) return null;
   const stem = String(q.question ?? '');
-  const answer = correct.map((k) => optionKey(options[k])).sort().join(' | ');
+  const keys = options.map(optionKey);
+  const stripped = keys.map(withoutPostposition);
+  // stripping that makes two of this question's options the same means the
+  // postposition IS what the question asks about — keep it
+  const core = new Set(stripped).size === new Set(keys).size ? stripped : keys;
+  const answer = correct.map((k) => keys[k]).sort().join(' | ');
   if (!answer) return null;
   return {
     stem,
     words: new Set(words(stem)),
     items: itemsOf(stem),
-    options: options.map(optionKey).sort().join(' | '),
+    options: keys.slice().sort().join(' | '),
+    optionsCore: core.slice().sort().join(' | '),
     answer,
+    answerCore: correct.map((k) => core[k]).sort().join(' | '),
     answerShown: correct.map((k) => base(options[k])).join(', '),
+    blank: BLANK.test(base(stem)),
     picture: pictureOf(q),
   };
 }
@@ -149,16 +220,35 @@ function overlap(a, b) {
   };
 }
 
+const sameAnswer = (a, b) => a.answer === b.answer || a.answerCore === b.answerCore;
+const sameOptions = (a, b) => a.options === b.options || a.optionsCore === b.optionsCore;
+
+/** The two stems, word for word — the rule this check started with. */
+function sameWording(a, b) {
+  if (!sameItem(a, b)) return false;
+  const { containment, jaccard, shorter } = overlap(a.words, b.words);
+  if (sameOptions(a, b)) return containment >= SAME_OPTIONS_CONTAINMENT;
+  return (containment >= OTHER_OPTIONS_CONTAINMENT && jaccard >= OTHER_OPTIONS_JACCARD)
+    || (containment >= 0.99 && shorter >= WHOLE_STEM_MIN_WORDS);
+}
+
+/** A sentence with a blank, and a question: the blank filled with its answer, content word for content word. */
+function sameFactBlankAndQuestion(a, b) {
+  if (a.blank === b.blank) return false;
+  const [withBlank, question] = a.blank ? [a, b] : [b, a];
+  const filled = base(withBlank.stem).replace(BLANK, ` ${withBlank.answerShown} `).replace(BLANKS, ' ');
+  const asked = `${base(question.stem)} ${question.answerShown}`;
+  if (!sameItems(itemsOf(filled, { blanks: false }), itemsOf(asked, { blanks: false }), new Set(words(filled)), new Set(words(asked)))) return false;
+  const { containment, jaccard } = overlap(contentWords(filled), contentWords(asked));
+  return containment >= BLANK_CONTAINMENT && jaccard >= BLANK_JACCARD;
+}
+
 /** Does the later question `b` ask what the earlier question `a` asks? */
 function repeats(a, b) {
   if (!a || !b) return false;
   if (a.picture && b.picture && a.picture !== b.picture) return false;
-  if (a.answer !== b.answer) return false;
-  if (!sameItem(a, b)) return false;
-  const { containment, jaccard, shorter } = overlap(a.words, b.words);
-  if (a.options === b.options) return containment >= SAME_OPTIONS_CONTAINMENT;
-  return (containment >= OTHER_OPTIONS_CONTAINMENT && jaccard >= OTHER_OPTIONS_JACCARD)
-    || (containment >= 0.99 && shorter >= WHOLE_STEM_MIN_WORDS);
+  if (!sameAnswer(a, b)) return false;
+  return sameWording(a, b) || sameFactBlankAndQuestion(a, b);
 }
 
 const clip = (s, n) => {

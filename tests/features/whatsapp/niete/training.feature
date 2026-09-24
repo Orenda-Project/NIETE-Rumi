@@ -642,6 +642,7 @@ Feature: NIETE (ICT) Teacher Training
     When the quiz arrives
     Then no two questions on my PDF ask the same thing and have the same answer, even with the options in another order
     And a question shown over a picture and the same question shown as text count as the same question
+    And a fill-in-the-blank and a question on the same fact count as the same question, even when one answer ends in «سے» and the other does not
     And two questions that only look alike — the same question about another number, another word or another picture, or with another answer — both stay in the quiz
     And the quiz still arrives with all its questions when a repeated one could not be replaced
     # The model that writes the quiz, the targeted rewrite and the add-pictures repair are each told the
@@ -651,12 +652,16 @@ Feature: NIETE (ICT) Teacher Training
     # same answer, not two different pictures, the same numbers and quoted items, and a near-identical stem
     # is named DUPLICATE_QUESTION. transcript-quiz-generate replaces it with one targeted rewrite
     # (IN_PLACE_FAULT); a rewrite that does not take ships the quiz with the repeat recorded in
-    # meta.soft_faults (SOFT_FAULT) — never a refusal, never a dropped question. Counted on
+    # meta.soft_faults (SOFT_FAULT) — never a refusal, never a dropped question.
+    # An Urdu answer is compared with and without a trailing postposition (never when the question is about
+    # the postposition); a sentence with a blank (underscores, or the word «ڈیش») is compared with a question
+    # by filling the blank with its answer and comparing content words. Counted on
     # transcript_quiz.duplicate_question: stage "author" for each author attempt that wrote one, stage
     # "shipped" when the stored quiz still carries one, whichever step wrote it. Content-driven: read every
     # question on the PDF and compare them; never a fixed quiz. @wip — a repeat cannot be forced live on
     # demand; the behaviour is proven in tests/quiz/transcript-quiz-duplicate-questions.test.js and
-    # tests/quiz/transcript-quiz-distinct-questions-rule.test.js.
+    # tests/quiz/transcript-quiz-distinct-questions-rule.test.js and
+    # tests/quiz/transcript-quiz-duplicates-blank-and-postposition.test.js.
 
   @e2e @quiz @wip @draft @P2
   Scenario: A quiz with many questions to fix gets the worst ones fixed first, not none
