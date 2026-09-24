@@ -80,8 +80,41 @@ function columnSumText(inner) {
   return `${numbers.join(` ${op} `)} = ${result || '?'}`;
 }
 
+// ── EQUATIONS WRITTEN IN PROSE ───────────────────────────────────────────────
+// Replay (grade 3 Urdu): «تصویر میں 7 x 4 = 28 کی نمائندگی…» was laid out
+// "x 4 = 28 7". A Latin "x" as the times sign makes the "7" (a number after
+// Urdu) and "x 4 = 28" (a Latin run) two bidi runs, and a right-to-left line
+// puts the second first; "*", "÷" and "=" between bare numbers lose their
+// order the same way. An equation run in prose — numbers joined by x, ×, *, ÷,
+// +, − or = — becomes ONE `$…$` expression with \times, as a flat `$2/3$`
+// becomes \frac: the card and the PDF typeset it inside a left-to-right isolate,
+// and every text reads "7 × 4 = 28" (mathForChat wraps it in one isolate).
+// A hyphen counts as minus only with spaces round it ("5-10" is a range), and a
+// letter never starts a run ("2x + 3" is algebra).
+const OPERAND = String.raw`\d+(?:\.\d+)?(?:\/\d+)?`;
+const EQ_OP = String.raw`(?:\s*[xX×*÷+=−]\s*|\s+-\s+)`;
+// not the tail of a longer expression that starts with a letter ("2x + 3 = 7")
+const EQUATION_RUN = new RegExp(String.raw`(^|[^\p{L}\p{N}$\\.\/])(?<![+=×÷*−-]\s*)(${OPERAND}(?:${EQ_OP}${OPERAND})+(?:\s*=\s*[?؟])?)(?![\p{L}\p{N}%])`, 'gu');
+const TEX_OP = (op) => {
+  const o = op.trim();
+  if (/^[xX×*]$/.test(o)) return ' \\times ';
+  if (o === '÷') return ' \\div ';
+  if (o === '-' || o === '−') return ' - ';
+  return ` ${o} `;
+};
+
+/** "7 x 4 = 28" in prose → "$7 \\times 4 = 28$"; maths spans, algebra, ranges and lone numbers untouched. Pure. */
+function spanEquations(text) {
+  if (typeof text !== 'string' || !/\d\s*[xX×*÷+=−-]\s*\d/.test(text)) return text;
+  return text.split(/(\$[^$\n]+?\$)/).map((chunk, k) => (k % 2 ? chunk : chunk.replace(EQUATION_RUN, (m, pre, run) => {
+    const tex = run.replace(new RegExp(EQ_OP, 'g'), TEX_OP).replace(/\s*=\s*[?؟]$/, ' = ?').replace(/\s+/g, ' ').trim();
+    return `${pre}$${tex}$`;
+  }))).join('');
+}
+
 /** One `$…$` span (or a whole string) as Unicode — a mixed number reads "2 1/3" (tex-to-unicode), a column sum "452 − 137 = ?". */
-function mathToText(text) {
+function mathToText(input) {
+  const text = spanEquations(input);
   if (typeof text !== 'string' || !text || (!text.includes('$') && !text.includes('\\'))) return text;
   return texToUnicode(text.replace(SPAN, (span, inner) => {
     const sum = columnSumText(inner);
@@ -94,7 +127,8 @@ function mathToText(text) {
  * becomes a left-to-right isolate — except a lone number, which has no internal
  * order to lose (the same exemption rich.js makes for a number in an RTL page).
  */
-function mathForChat(text) {
+function mathForChat(input) {
+  const text = spanEquations(input);
   if (typeof text !== 'string' || !text || (!text.includes('$') && !text.includes('\\'))) return text;
   const rtl = ARABIC.test(text);
   const spanned = text.replace(SPAN, (span) => {
@@ -121,8 +155,26 @@ function mathForChat(text) {
  * what a young child needs on a phone card (rendered and read at phone width,
  * bd-mg9c7.159.19). The A4 teacher PDF keeps the compact inline style.
  */
+// ── STACKED FRACTIONS ────────────────────────────────────────────────────────
+// The contract asks for `$\\frac{2}{3}$`, and a live grade 4 lesson came back
+// with `$2/3$`, `$2/3 > 3/5$` and `$4/18$` all through it: KaTeX typesets a
+// slash as a slash, so every fraction on the card was flat where a textbook
+// stacks it. A simple numeric fraction — whole numbers either side of one
+// slash — inside a maths span is rewritten to \\frac for the PICTURE only.
+// Every text path still reads "2/3" (tex-to-unicode writes \\frac that way).
+const FLAT_FRACTION = /(^|[^\d.}\\])(\d+)\s*\/\s*(\d+)(?![\d.])/g;
+
+/** `$2/3 > 3/5$` → `$\\frac{2}{3} > \\frac{3}{5}$`; prose, decimals and letters untouched. Pure. */
+function stackFractions(text) {
+  if (typeof text !== 'string' || !text.includes('/') || !text.includes('$')) return text;
+  return text.replace(SPAN, (span, inner) => {
+    if (!/\d\s*\/\s*\d/.test(inner)) return span;
+    return `$${inner.replace(FLAT_FRACTION, (m, pre, a, b) => `${pre}\\frac{${a}}{${b}}`)}$`;
+  });
+}
+
 function mathHtml(text, { prose = (s) => richNotation(esc(s)), display = false } = {}) {
-  const src = String(text == null ? '' : text);
+  const src = stackFractions(spanEquations(String(text == null ? '' : text)));
   if (!hasTex(src)) return prose(src);
   const { rich } = require('../../../vendor/lp-v9/lib/rich');
   let out = '';
@@ -230,5 +282,5 @@ function texFaults(text) {
 }
 
 module.exports = {
-  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, LRI, PDI,
+  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, stackFractions, spanEquations, LRI, PDI,
 };

@@ -123,6 +123,44 @@ const TYPE_DEFAULTS = {
 };
 
 /**
+ * Set on every quiz figure whatever the author wrote. The stem and the options
+ * print numerals 0-9 in every language (the contract), so a figure's numbers
+ * do too: the engine's Urdu-page default draws a fraction bar's values in Urdu
+ * digits, and on staging a remade grade 4 Urdu quiz showed "۲/۹" in the bar
+ * beside "2/9" in the stem. (numberline already draws Latin digits unless told
+ * otherwise; this keeps it that way.)
+ */
+const QUIZ_FIXED = {
+  fraction_bar: { urduDigits: false },
+  numberline: { urduDigits: false },
+};
+
+/**
+ * A bar name that only repeats the value drawn beside it is dropped, at draw
+ * time (the stored spec is untouched). The same staging figure labelled every
+ * bar twice — the value in the gutter and the same fraction as its name —
+ * because the author named each bar with its own fraction and turned the
+ * values on. With the values off (the quiz default) the name is the only label
+ * and is kept; whether it may show is the leak check's business.
+ */
+function withoutRepeatedBarNames(merged) {
+  if (canonicalType(merged.type) !== 'fraction_bar' || !Array.isArray(merged.bars)) return merged;
+  const unitMode = merged.model === 'unit' || !!merged.unitLabel;
+  const valuesShown = merged.showLabels === true || (merged.showLabels !== false && !unitMode);
+  if (!valuesShown) return merged;
+  const flat = (s) => norm(s).replace(/\s+/g, '');
+  const bars = merged.bars.map((b) => {
+    if (!b || typeof b !== 'object' || typeof b.label !== 'string' || !b.label.trim()) return b;
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    const value = b.value !== undefined && b.value !== '' ? String(b.value) : `${shaded}/${Number(b.parts)}`;
+    if (flat(b.label) !== flat(value)) return b;
+    const { label, ...rest } = b; // eslint-disable-line no-unused-vars
+    return rest;
+  });
+  return { ...merged, bars };
+}
+
+/**
  * Defaults that depend on the QUIZ LANGUAGE. A place-value mat's column heads
  * are words a child reads, so they come from the string catalog like every
  * other child-facing word (root rule 20), never from the engine's own
@@ -135,6 +173,7 @@ function languageDefaults(type, language) {
   const lang = clampLanguage(language);
   return {
     labels: {
+      thousands: resolveUx('tqPlaceThousands', { language: lang }),
       hundreds: resolveUx('tqPlaceHundreds', { language: lang }),
       tens: resolveUx('tqPlaceTens', { language: lang }),
       ones: resolveUx('tqPlaceOnes', { language: lang }),
@@ -232,11 +271,16 @@ function canonicalType(name) {
   return ALLOWED_TYPES.includes(entry.type) ? entry.type : null;
 }
 
-/** The manifest's minimal spec for a type, with this lane's defaults applied. */
+/**
+ * The manifest's minimal spec for a type, with this lane's defaults applied —
+ * and its part names given this lane's names (compare_size's manifest example
+ * names its ribbons "A" and "B", which on a quiz card are option letters).
+ */
 function minimalSpecFor(type) {
   const entry = MANIFEST.types.find((m) => m.type === type);
   if (!entry) throw new FigureError('FIGURE_TYPE', `no manifest entry for "${type}"`);
-  return { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
+  const spec = { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
+  return relabelLetterParts({ figure: spec }).question.figure;
 }
 
 /**
@@ -389,12 +433,18 @@ const SCALE_LADDER = [2.4, 2.0, 1.6, 1.3, 1.0];
 
 const PHONE_FONT_SCALE = {
   numberline: 2.0,
-  fraction_bar: 1.0, // unsolved — a per-bar Urdu label on the circle model collides above k=1
+  // Raised from 1.0: at 1.0 a bar's name read about 7.7px on the
+  // phone. Short names (P, Q, R, a numeral) clear 2.4 with no collision; a long
+  // Urdu name or the circle model still collides above 1.0, and the ladder
+  // steps those down to where they drew before.
+  fraction_bar: 2.4,
   grid: 2.4,
   geometry: 2.0, // dialled back from the sweep's 2.4 — see the comment above
   graph: 1.0, // unsolved
   chem_equation: 2.4,
-  circuit: 1.0, // unsolved
+  // Raised from 1.0: a component's letter read about 6.9px on the
+  // phone. Short labels clear 1.6; longer ones step down on the ladder.
+  circuit: 2.0,
   free_body: 1.6, // improved, still under 10dp
   atom: 1.0, // unsolved
   punnett: 2.0, // improved, still under 10dp
@@ -446,9 +496,9 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_TYPE',
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
-  const merged = {
-    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, type, lang: clampLanguage(language),
-  };
+  const merged = withoutRepeatedBarNames({
+    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, ...(QUIZ_FIXED[type] || {}), type, lang: clampLanguage(language),
+  });
   const ceiling = PHONE_FONT_SCALE[type] || 1;
   const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 
@@ -582,12 +632,212 @@ function unknownColourToken(spec) {
  * cannot answer "12 shared into 3" (4); a bar of 4 parts with 3 shaded cannot
  * answer "1/2". Returns a one-line reason when it cannot, else null.
  */
+// ─── part names are never the option letters ─────────────────────────────────
+
+/**
+ * The places a figure names a part the child may be asked to pick: a bar, a
+ * point, a vertex, a component, a ribbon, a row. Each entry is [holder, key].
+ */
+function partLabelSlots(spec) {
+  const out = [];
+  const each = (list, key) => (Array.isArray(list) ? list : []).forEach((x) => {
+    if (x && typeof x === 'object' && typeof x[key] === 'string') out.push([x, key]);
+  });
+  switch (canonicalType(spec && spec.type)) {
+    case 'fraction_bar': each(spec.bars, 'label'); break;
+    case 'numberline': each(spec.points, 'label'); break;
+    case 'circuit': each(spec.cells, 'label'); each(spec.components, 'label'); break;
+    case 'compare_size': each(spec.items, 'label'); each([spec.left, spec.right], 'label'); break;
+    case 'count_objects': each(spec.rows, 'label'); break;
+    case 'geometry': (Array.isArray(spec.shapes) ? spec.shapes : []).forEach((sh) => {
+      if (!sh || typeof sh !== 'object') return;
+      if (typeof sh.label === 'string') out.push([sh, 'label']);
+      if (Array.isArray(sh.labels)) sh.labels.forEach((_, k) => { if (typeof sh.labels[k] === 'string') out.push([sh.labels, k]); });
+    }); break;
+    default: break;
+  }
+  return out;
+}
+
+/** Pictures that already carry numbers (fractions, a scale, lengths, volts) name parts P, Q, R, S. */
+const LETTER_NAMED_TYPES = new Set(['fraction_bar', 'numberline', 'geometry', 'circuit']);
+const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+const PART_LETTERS = ['P', 'Q', 'R', 'S'];
+const PART_NUMBERS = ['1', '2', '3', '4'];
+const BIDI = /[\u200e\u200f\u2066-\u2069]/g;
+const PART_NOUN_BEFORE = /(bars?|points?|rows?|ribbons?|components?|parts?|shapes?|labels?|lines?|sides?|vertex|vertices|angles?|symbols?|پٹی|پٹیوں|نقطہ|نقطے|قطار|حصہ|شکل|علامت)\s*$/i;
+
+/**
+ * Rename every standalone option letter in `text` by `map`, outside maths
+ * spans. An English "A" that opens a phrase ("A bar split into…") is an article,
+ * not a label, and is left alone. `groups` also renames runs like "AB" / "ABC"
+ * (a side, a triangle) for the lettered types.
+ */
+function renameLetters(text, map, { groups = false } = {}) {
+  if (typeof text !== 'string' || !text) return text;
+  const letters = Object.keys(map).join('');
+  const single = new RegExp(`(^|[^\\p{L}\\p{N}\\\\])([${letters}])(?=([^\\p{L}\\p{N}]|$))`, 'gu');
+  const run = new RegExp(`(^|[^\\p{L}\\p{N}\\\\])([${letters}]{2,3})(?=([^\\p{L}\\p{N}]|$))`, 'gu');
+  const outside = (chunk) => {
+    let t = chunk.replace(single, (m, pre, L, _post, offset, whole) => {
+      const after = whole.slice(offset + m.length);
+      const before = whole.slice(0, offset + pre.length);
+      // "A bar", "A fraction" is the article — unless a part noun names it ("bar A has…")
+      if (L === 'A' && /^\s+[a-z]/.test(after) && !PART_NOUN_BEFORE.test(before)) return m;
+      return `${pre}${map[L]}`;
+    });
+    if (groups) t = t.replace(run, (m, pre, word) => `${pre}${[...word].map((L) => map[L]).join('')}`);
+    return t;
+  };
+  return text.split(/(\$[^$]*\$)/).map((chunk, k) => (k % 2 ? chunk : outside(chunk))).join('');
+}
+
+/**
+ * A figure that names its parts A-D gets new names, and so does every field of
+ * the question that uses them — so the picture, the WhatsApp text, the card
+ * and the teacher's PDF, all drawn from this one question, agree. The card
+ * marks its three options A, B and C; a part called B that is option C is a
+ * child tapping the wrong letter for the right answer (staging, a circuit
+ * question). Pure: returns a new question, or the same one.
+ * @returns {{question:object, renamed:object|null}}
+ */
+function relabelLetterParts(q) {
+  if (!q || typeof q !== 'object' || !q.figure || typeof q.figure !== 'object' || Array.isArray(q.figure)) return { question: q, renamed: null };
+  const type = canonicalType(q.figure.type);
+  // «پٹی P», "Bar A", "bar 2" name the part with its noun. The label gate
+  // strips a shape word from a fraction bar and takes the whole label with it
+  // (replay, grade 4 Urdu: the options named bars P, Q, R that the picture
+  // no longer named), so the label keeps only the name.
+  if (partLabelSlots(q.figure).some(([h, k]) => bareName(h[k]) !== h[k])) {
+    const figure = JSON.parse(JSON.stringify(q.figure));
+    partLabelSlots(figure).forEach(([h, k]) => { h[k] = bareName(h[k]); });
+    q = { ...q, figure }; // eslint-disable-line no-param-reassign
+  }
+  const probe = partLabelSlots(q.figure);
+  const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
+  if (!used.length) return { question: q, renamed: null };
+  const target = LETTER_NAMED_TYPES.has(type) ? PART_LETTERS : PART_NUMBERS;
+  const map = Object.fromEntries(used.map((L) => [L, target[OPTION_LETTERS.indexOf(L)]]));
+  const figure = JSON.parse(JSON.stringify(q.figure));
+  partLabelSlots(figure).forEach(([h, k]) => {
+    const l = String(h[k]).replace(BIDI, '').trim();
+    if (map[l]) h[k] = map[l];
+  });
+  const opts = { groups: type === 'geometry' };
+  const rn = (t) => renameLetters(t, map, opts);
+  const rnMap = (o) => (o && typeof o === 'object' && !Array.isArray(o)
+    ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, rn(v)])) : o);
+  const fb = q.option_feedback && typeof q.option_feedback === 'object' ? q.option_feedback : null;
+  return {
+    renamed: map,
+    question: {
+      ...q,
+      figure,
+      question: rn(q.question),
+      options: Array.isArray(q.options) ? q.options.map(rn) : q.options,
+      explanation: rn(q.explanation),
+      selected_because: rn(q.selected_because),
+      distractor_misconceptions: rnMap(q.distractor_misconceptions),
+      ...(fb ? { option_feedback: { ...fb, correct: rn(fb.correct), wrong: rnMap(fb.wrong) } } : {}),
+    },
+  };
+}
+
+const PART_NOUN = '(?:bar|point|row|ribbon|component|part|strip|پٹی|نقطہ|قطار|حصہ)';
+const NOUN_THEN_NAME = new RegExp(`^${PART_NOUN}\\s*([A-Z]|[1-9])$`, 'i');
+const NAME_THEN_NOUN = new RegExp(`^([A-Z]|[1-9])\\s*${PART_NOUN}$`, 'i');
+
+/** "Bar P" / «پٹی P» / "P bar" → "P"; anything else unchanged. */
+function bareName(label) {
+  if (typeof label !== 'string') return label;
+  const t = label.replace(BIDI, '').trim();
+  const m = NOUN_THEN_NAME.exec(t) || NAME_THEN_NOUN.exec(t);
+  return m ? m[1].toUpperCase() : label;
+}
+
+/**
+ * Options that pick a part by name ("P", "bar Q", «پٹی 2») over a picture that
+ * names no part: the child is asked for a name that is not there. Returns the
+ * names asked for, or null.
+ */
+function unnamedParts(spec, options) {
+  if (!spec || typeof spec !== 'object' || partLabelSlots(spec).some(([h, k]) => String(h[k] || '').trim())) return null;
+  if (!['fraction_bar', 'numberline', 'circuit', 'compare_size', 'count_objects', 'geometry'].includes(canonicalType(spec.type))) return null;
+  const names = (Array.isArray(options) ? options : []).map((o) => {
+    const t = String(o || '').replace(BIDI, '').trim();
+    const m = NOUN_THEN_NAME.exec(t) || /^([P-S])$/.exec(t);
+    return m ? m[1].toUpperCase() : null;
+  });
+  const named = names.filter(Boolean);
+  return named.length >= 2 ? named : null;
+}
+
+/** Does `answer` name one of the figure's parts ("P", "bar 2", «پٹی Q»)? Then it is a pick, not a quantity. */
+function namesAPart(spec, answer) {
+  const names = new Set(partLabelSlots(spec).map(([h, k]) => norm(String(h[k]).replace(BIDI, ''))).filter(Boolean));
+  if (!names.size) return false;
+  const a = norm(String(answer || '').replace(BIDI, '')).replace(/^(bar|point|row|ribbon|پٹی|نقطہ|قطار)\s*/, '').replace(/\s*(bar|پٹی)$/, '').trim();
+  return names.has(a);
+}
+
+/**
+ * Two options of the same AMOUNT under a part-whole picture. A fraction_bar or
+ * grid question must produce its key literally (figureMismatch: a bar of 2 in
+ * 8 answers "2/8", not "1/4"), so a second option equal in value to the key is
+ * a second right reading of the same picture — a child who reads the bar as
+ * 1/4 is right and would be told otherwise. Without a picture the same pair is
+ * a fair question ("which is in lowest terms?"), so only these two types are
+ * checked. Returns a one-line reason, else null.
+ */
+function equalAmountOptions(spec, options, correctIndex) {
+  const type = canonicalType(spec && spec.type);
+  if (type !== 'fraction_bar' && type !== 'grid') return null;
+  const raw = Array.isArray(options) ? options.map((o) => String(o == null ? '' : o)) : [];
+  const opts = raw.map(norm);
+  const ci = Number(correctIndex);
+  const same = (a, b) => a !== null && b !== null && Math.abs(a - b) < 1e-9;
+  const value = (s) => {
+    const m = /^(\d+)\s*\/\s*(\d+)$/.exec(s || '');
+    return m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+  };
+  const key = value(opts[ci]);
+  if (key !== null) {
+    const twin = opts.find((o, k) => k !== ci && same(value(o), key));
+    return twin ? `"${opts[ci]}" and "${twin}" are the same amount — a child who reads the picture either way is right` : null;
+  }
+  // "Which bar shows 3/6?" answered with the bars' own labels: two option bars
+  // of the same amount (1/2 and 3/6) are two right answers on the same picture
+  // (live, grade 3 Urdu, a lesson on equivalent fractions).
+  if (type !== 'fraction_bar') return null;
+  const byLabel = new Map((Array.isArray(spec.bars) ? spec.bars : [])
+    .filter((b) => b && typeof b.label === 'string' && b.label.trim())
+    .map((b) => [norm(b.label), b]));
+  if (!byLabel.size) return null;
+  const barOf = (o) => byLabel.get(o.replace(/[\u200e\u200f\u2066-\u2069]/g, '').replace(/^(bar|پٹی)\s*/, '').replace(/\s*(bar|پٹی)$/, '').trim()) || null;
+  const amount = (b) => {
+    const parts = Number(b.parts);
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    return parts > 0 && Number.isFinite(shaded) ? shaded / parts : null;
+  };
+  const keyBar = barOf(opts[ci] || '');
+  if (!keyBar) return null;
+  const k2 = opts.findIndex((o, k) => { const b = barOf(o); return k !== ci && b && b !== keyBar && same(amount(b), amount(keyBar)); });
+  return k2 >= 0 ? `${raw[ci].trim()} and ${raw[k2].trim()} show the same amount — a child who reads the picture either way is right` : null;
+}
+
 function figureMismatch(spec, options, correctIndex) {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
   if (!correct) return null;
-  const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(correct);
-  const whole = /^\d+$/.test(correct) ? Number(correct) : null;
+  // "Which bar shows 2/3?" answered "2" means bar 2, not the number two.
+  if (namesAPart(spec, correct)) return null;
+  // A key written as a sum ("3 × 5 = 15") is checked by its result: bars of
+  // 3/4 and 2/5 keyed "3 × 5 = 15" passed a replay because the key was not a
+  // bare number.
+  const eq = /=\s*(\d+(?:\s*\/\s*\d+)?)$/.exec(correct);
+  const answer = eq ? eq[1].replace(/\s+/g, '') : correct;
+  const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(answer);
+  const whole = /^\d+$/.test(answer) ? Number(answer) : null;
   if (frac === null && whole === null) return null; // a word answer is not checked here
   if (type === 'fraction_bar') {
     const bars = Array.isArray(spec.bars) ? spec.bars : [];
@@ -601,14 +851,45 @@ function figureMismatch(spec, options, correctIndex) {
     const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
     return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${shaded} of ${parts} parts)`;
   }
+  if (type === 'count_objects') {
+    // Counters beside a sum they cannot show were passing as a "model": rows of
+    // 2 and 5 beside "what is 2 × 5?" (10), rows of 4, 3 and 6 beside an LCM of
+    // 12 (the fractions replays). What a counters picture CAN produce:
+    const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count }];
+    const counts = list.map((r) => Math.floor(Number(r && r.count) || 0)).filter((n) => n > 0);
+    if (!counts.length) return null;
+    const total = counts.reduce((a, b) => a + b, 0);
+    const reachable = new Set([String(total), String(counts.length)]);
+    counts.forEach((c, i) => {
+      reachable.add(String(c));
+      reachable.add(`${c}/${total}`);
+      counts.forEach((d, j) => { if (j !== i && c > d) reachable.add(String(c - d)); });
+    });
+    if (counts.length === 1) {
+      const n = counts[0];
+      const group = Math.floor(Number(spec.group) || 0);
+      if (group > 1) { // ringed into equal lots: how many lots, how many in each, what is left
+        reachable.add(String(group));
+        reachable.add(String(Math.floor(n / group)));
+        if (n % group) reachable.add(String(n % group));
+        reachable.add(`1/${Math.floor(n / group)}`);
+      }
+      const perRow = Math.floor(Number(spec.perRow) || 0) || (group > 1 ? group : Math.min(5, n));
+      reachable.add(String(perRow)); // an array: its columns and its rows
+      reachable.add(String(Math.ceil(n / perRow)));
+    }
+    const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
+    return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${counts.join(' and ')} things)`;
+  }
   if (type === 'base_ten') {
     // A place-value mat answers "what number?", "how many tens?", "what is the
-    // tens worth?" and "how many sticks in all?" — and nothing else.
-    const [h, t, o] = ['hundreds', 'tens', 'ones'].map((k) => Math.max(0, Math.floor(Number(spec[k]) || 0)));
-    const value = 100 * h + 10 * t + o;
-    const reachable = new Set([value, h, t, o, 10 * t, 100 * h, h + t + o].map(String));
+    // tens worth?" and "how many pieces in all?" — and nothing else.
+    const [th, h, t, o] = ['thousands', 'hundreds', 'tens', 'ones'].map((k) => Math.max(0, Math.floor(Number(spec[k]) || 0)));
+    const value = 1000 * th + 100 * h + 10 * t + o;
+    const reachable = new Set([value, th, h, t, o, 1000 * th, 10 * t, 100 * h, th + h + t + o].map(String));
+    const shows = `${th ? `${th} thousands, ` : ''}${h} hundreds, ${t} tens and ${o} ones`;
     return whole !== null && reachable.has(String(whole)) ? null
-      : `the picture cannot produce the answer "${correct}" (it shows ${h} hundreds, ${t} tens and ${o} ones)`;
+      : `the picture cannot produce the answer "${correct}" (it shows ${shows})`;
   }
   if (type === 'grid') {
     const rows = Number(spec.rows) || 0; const cols = Number(spec.cols) || 0;
@@ -776,7 +1057,7 @@ function figureDefiningNumbers(spec) {
     case 'timeline': (spec.events || []).forEach((e) => fromLabel(e && e.date)); break;
     // The counts, not the zeros: "0" matches inside half the numbers a stem can
     // mention, and a stem that says "no tens" states nothing the mat is made of.
-    case 'base_ten': ['hundreds', 'tens', 'ones'].forEach((k) => { if (Number(spec[k]) > 0) push(spec[k]); }); break;
+    case 'base_ten': ['thousands', 'hundreds', 'tens', 'ones'].forEach((k) => { if (Number(spec[k]) > 0) push(spec[k]); }); break;
     default: break;
   }
   return [...new Set(nums)];
@@ -1036,6 +1317,10 @@ module.exports = {
   unknownColourToken,
   languageDefaults,
   figureMismatch,
+  equalAmountOptions,
+  relabelLetterParts,
+  partLabelSlots,
+  unnamedParts,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,

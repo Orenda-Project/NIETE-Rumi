@@ -20,6 +20,7 @@
  * `document.fonts.ready` in htmlToImage waits for them.
  */
 
+const { wrapLatinRuns } = require('../../../templates/latin-runs');
 const fs = require('fs');
 const path = require('path');
 
@@ -75,13 +76,17 @@ function highlightText(text, highlights) {
   return out;
 }
 
-/** In RTL text, wrap runs of Latin letters in a Latin-font span (skips tag internals). */
+/**
+ * In RTL text, wrap each English phrase in a Latin-font span (skips tag
+ * internals). Runs start on a letter and hold letters, apostrophes, full stops
+ * and hyphens, as before. The run, its joiners ("&", "·", spaces between two
+ * English words) and its entity handling are templates/latin-runs.js, shared
+ * with the quiz documents: this copy split on tags only, so its regex started a
+ * run INSIDE an escaped ampersand ("&<span>amp</span>;") and the card painted a
+ * stray "amp;" in any commitment with "&" in it.
+ */
 function wrapLatinRtl(html) {
-  return html
-    .split(/(<[^>]+>)/)
-    .map((seg) => (seg.startsWith('<') ? seg
-      : seg.replace(/[A-Za-z][A-Za-z'’.-]*(?:[\s-][A-Za-z'’.-]+)*/g, (m) => `<span class="ltr">${m}</span>`)))
-    .join('');
+  return wrapLatinRuns(html, { token: "[A-Za-z'’.\\-]", start: '[A-Za-z]' });
 }
 
 /**

@@ -315,6 +315,56 @@ Feature: NIETE (ICT) Teacher Training
     # answers tqFlowResultsNothingToReport on the lesson screen, never the DONE "on its way"; a decline after
     # the screen was answered is told in chat (tqNoReportYet). @wip.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario: A letter typed during a class quiz answers the question, and an unfinished quiz never takes over the chat
+    Given a child has opened a class quiz from its link and a question with lettered answers is waiting
+    When the child types "B" instead of tapping
+    Then the answer the child saw as B is recorded and the feedback and the next question arrive, exactly as for a tap
+    But when the child types a letter the question does not offer, it is not taken as an answer
+    And a teacher who started their own quiz link and never finished it can still send "/menu" or tap "Lesson plan" and get the menu or a lesson plan, never "Tap one of the answer buttons above"
+    # video-quiz.service answerTypedLetter (the letter mapped through the question's stored display order);
+    # quiz-session._recoverFromDB now recovers only its own roster sessions, never past expires_at — before,
+    # it adopted share_link / video_solo sessions (production, 14 days: 2,893 adoptions, 97% of them), and
+    # the teacher's menu taps and commands were answered with the adaptive quiz's nudge. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A child can type STOP to end a class quiz, and the teacher sees it stopped
+    Given a child has opened a class quiz from its link and a question is waiting
+    When the child types "stop"
+    Then the child is told the quiz has stopped and can be started again later, in the quiz's language
+    And a tap on the old question afterwards records nothing
+    And in "/quiz" the teacher sees the child under "Stopped before the end", not as finished and not as still going
+    And the class report lists the child as not finished
+    But on an Urdu quiz "روکیں" stops it too, and the child is told in Urdu
+    # video-quiz.service stopTyped: the words the adaptive quiz takes ("stop", "روکیں"), any case, a full stop
+    # allowed, under the answer lock (a tap being graded finishes first and cannot bring the state back). The
+    # session ends through endUnfinished: status incomplete, the answers so far counted, no score, no
+    # scorecard, the state cleared, vqStopped sent. The /quiz Flow results list incomplete/expired/cancelled
+    # sessions under tqFlowStopped, apart from tqFlowStillGoing. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: /quiz counts each child once, however many times they opened the quiz
+    Given a child stopped a class quiz part-way, opened the link again and finished it
+    And another child finished it, then took it again and did better
+    When I open "/quiz" and tap that lesson
+    Then each child is counted once in "started" and once in "finished", and each has one line
+    And the average uses each child's latest finished attempt
+    And the child who finished on the second go is not listed as still going or stopped
+    And the lessons list, the lesson screen, the class report and the "only N have started" nudge give the same numbers
+    # one-attempt-per-child.js oneAttemptPerChild (the class report's rule: the latest completed attempt, else
+    # the latest row, grouped by student_id), now read by transcript-quiz-list countsFor (per quiz),
+    # transcript-quiz-flow-endpoint loadStudents and the nudge's startedFor. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A lesson-plan quiz that could not be started says so, and can be made again
+    Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be started (the job never reached the queue)
+    When I open "/quiz" and tap that lesson
+    Then the lesson screen says the quiz could not be started on the bot's side and the lesson plan was not the problem
+    And it offers "Make it again" and "Done", and "Make it again" makes the quiz
+    # transcript-quiz-offer queueLpQuiz merges the failure into the row's meta (the lessons, class and lesson
+    # date are kept); quiz-sources: queue_failed -> lpQuizCouldNotStart copy and a remakeable reason; the Flow
+    # results read tqFlowResultsFailedLpStart. @wip — a queue refusal cannot be forced live.
+
   @e2e @quiz @wip @draft @P2
   Scenario: A question that cannot be sent is skipped, and the child is scored on the questions actually asked
     Given a class quiz one of whose questions cannot be sent to a child's phone
@@ -347,9 +397,21 @@ Feature: NIETE (ICT) Teacher Training
     Then the report's header names one class — "Class 4" in an English report, "جماعت 4" in an Urdu one — never "4، ۴" as if there were two
     And the list of children does not repeat the class after every name
     But when the children are in more than one class, each child's line names their class, written the same way on every line
+    And the quiz's lesson screen in /quiz follows the same rule: the class named once under the counts, and "(Class 5)" or "(جماعت 5)" beside a child only when the children are in more than one class
     # text-format parseClass/normaliseClasses/classLabel: Urdu and Arabic-Indic digits become ASCII, the grade
     # number is read out of the free text, children are grouped by it; the report template prints a roster
-    # class only when the report spans more than one class. The text fallback follows the same rule. @wip.
+    # class only when the report spans more than one class. The text fallback and the /quiz Flow lesson
+    # screen (transcript-quiz-flow-endpoint resultsText/studentLine) follow the same rule. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: The class report never calls me "your teacher"
+    Given the NIETE bot chat is open and my account has no name on record, and children have finished a class quiz I shared
+    When I ask for the report from that quiz's row in /quiz
+    Then the report's header under the topic shows the class alone, such as "جماعت 4" or "Class 4"
+    And nowhere does the report call me "آپ کے استاد" or "Your teacher"
+    But the children who open my link are still greeted with "آپ کے استاد" / "Your teacher" in place of my name
+    # video-quiz-report generate(): the header takes the teacher's own users.name; quiz_share_codes.teacher_name
+    # holds the children's fallback (tqYourTeacher) and keeps serving the join greeting. @wip.
 
   @e2e @quiz @wip @draft @P2
   Scenario: The class report and the quiz PDF do not leave pages nearly empty
@@ -376,6 +438,22 @@ Feature: NIETE (ICT) Teacher Training
     # any attempt, is model_failed (tqFailedLpModel). The reason is persisted as quizzes.meta.error and /quiz
     # (handleLpPick) repeats it. A model failure cannot be forced live on demand; the behaviour is proven
     # in tests/quiz/lp-quiz-failure-reasons.test.js. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz the model could not write from my coaching recording says the problem was on our side
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
+    When the model gives no usable reply while that quiz is being written
+    Then the bot apologises that something went wrong on its side and says the problem was not my recording
+    And it never says the transcript didn't carry enough of what was taught
+    And it tells me I can send /quiz and pick this lesson to try again
+    And the /quiz lesson screen for that lesson says the same, and still offers to make the quiz
+    # transcript-quiz-generate: a recording's digest or author that gives nothing usable (empty, cut off or
+    # not JSON after the retry, or a refused call) is model_failed → tqCouldNotMakeModel, persisted as
+    # quizzes.meta.error; the Flow lesson screen reads it (tqFlowResultsFailedModel) above the Make choices.
+    # tqCouldNotMake ("the transcript didn't carry enough") stays for questions that never validated and for
+    # a transcript under MIN_TRANSCRIPT_CHARS (source_unusable, checked before any model call — /quiz and the
+    # offer never list one). The offer-time digest failure is skipped as model_failed and the teacher is told
+    # nothing. A model failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A maths question with fractions reaches the child as a typeset card
@@ -429,18 +507,56 @@ Feature: NIETE (ICT) Teacher Training
     # tiles a counting lesson uses are drawn the same way, as the pictograms "counter" and "tile".
     # Content-driven: assert the SHAPE (headed columns, bundles, no digits), never a fixed number. @wip.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A four-digit place-value question shows the thousands the class built
+    Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson plan on four-digit numbers
+    When a child opens the quiz from its link and reaches a question asking what number the picture shows
+    Then the picture has a thousands column to the left of the hundreds, with a cube (or a block of ten big bundles) for each thousand
+    And a number with thousands and no hundreds, such as 2014, still shows an empty hundreds column under its heading
+    And no digit and no count is written anywhere in the picture, and in an Urdu quiz the thousands heading reads "ہزار"
+    # base_ten `thousands` (0-9), SYNC.md §3.20; heading tqPlaceThousands. The lesson-plan digest quotes a
+    # four-digit worked example whole (lp-quiz-digest lessonDrewBlock). Content-driven: assert the SHAPE
+    # (four headed columns, cubes or bundle blocks, no digits), never a fixed number. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: A counting question draws the lesson's own objects — sweets, dates, cookies, lilies, samosas, bangles
+    Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson plan that counted sweets or samosas
+    When a child opens the quiz from its link and reaches a counting question with a picture
+    Then the picture draws the objects the lesson counted, not plain round counters
+    # Pictograms sweet, cookie and lily (OpenMoji candy, cookie, lotus) and date, samosa and bangle (drawn in
+    # lib/pictogram.js), plus the lesson's words biscuit, candy, toffee, laddu and pebble; SYNC.md §3.20.
+    # Proven in tests/quiz/pictograms-lesson-objects.test.js. Content-driven: which object appears depends on
+    # the lesson. @wip.
+
   @e2e @quiz @wip @draft @P1
   Scenario: An Urdu quiz for a maths lesson full of English terms is made, with the terms in English letters
     Given the NIETE bot chat is open and I planned a maths lesson whose key terms are English, such as comparing unlike fractions
     When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
     Then the quiz arrives — the teacher PDF and the class link — instead of "I couldn't make a good quiz"
     And its questions and feedback are Urdu sentences that keep the lesson's terms in English letters, such as "numerator" and "common denominator"
+    And on the teacher PDF and the class report an English phrase reads in its own order, left to right — a title such as "Comparing & ordering unlike fractions" and the heading's "quiz · forward" — never "ordering unlike & Comparing"
+    # templates/latin-runs.js: an English phrase inside Urdu is ONE left-to-right isolate; "&", "·" and spaces
+    # between two English words join it (both the teacher PDF and the class report use it).
     # transcript-quiz-validator urduShareByPart: the quiz-level Urdu check counts WORDS, not letters, and takes
     # the questions and the explanations + feedback separately (bar URDU_WORD_SHARE_MIN). Long English terms
     # used to pull a correct Urdu quiz under a letter bar of 0.6 on every attempt. A quiz written in English or
     # Roman Urdu, or with its questions in one language and its feedback in the other, is still refused and
     # re-authored — that cannot be forced live; it is proven in tests/quiz/transcript-quiz-urdu-script-share.test.js.
     # Content-driven: assert that a quiz arrives and its sentences are Urdu, never a fixed question. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: In an Urdu quiz, two English terms are never written side by side
+    Given the NIETE bot chat is open and I planned a maths lesson whose terms are English, such as proper and improper fractions
+    When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
+    Then the quiz arrives, and no question, option or feedback puts two separate English terms next to each other — an Urdu word stands between them, as in «جب numerator کی قیمت denominator سے کم ہو»
+    And a two-word English term such as "improper fraction" or "cross multiplication" still reads as one phrase, left to right
+    # transcript-quiz-adjacent-terms + validator URDU_ADJACENT_TERMS: two separate English terms side by side are
+    # one left-to-right run in a right-to-left line, so a reader meets the second first and the meaning turns
+    # around («جب numerator denominator سے چھوٹا ہو»). The author and the targeted rewrite are told never to write
+    # it; the validator names it per question as a SOFT fault, repaired in place by one targeted rewrite and shipped
+    # whatever that leaves (never a re-roll, a dropped question or a failed quiz). The model's wording cannot be
+    # forced live; the behaviour is proven in tests/quiz/transcript-quiz-adjacent-terms.test.js. Content-driven:
+    # read every Urdu line of the quiz for two English words side by side that are two different things. @wip.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A grade 1-5 maths quiz draws what the lesson drew, on at least three questions
@@ -449,11 +565,30 @@ Feature: NIETE (ICT) Teacher Training
     Then at least three of its questions arrive with a picture, and never more than half of them
     And the pictures draw the lesson's own objects, such as counters for a lesson that counted counters
     And a question that states its numbers may carry a picture of them, such as two fraction bars beside "which is larger", but no picture ever shows the answer
-    # Author prompt: "at least three, never more than half" and figure_role "model" (grade 1-5 maths only).
+    And on a grade 4-5 fractions lesson taught as a method, such as cross multiplication, the pictures are questions read off fraction bars — what fraction of the bar is shaded, which bar shows a fraction — never a picture beside a step of the working
+    And every fraction on the question cards and on my PDF is printed stacked, number over number, while the WhatsApp text of the question reads it as 2/3
+    And a picture that names its parts calls them P, Q, R or 1, 2, 3 — never A, B or C, the letters of the answer buttons — in the picture, the options and the feedback alike, and those names are big enough to read on the phone
+    And counters are drawn only where the child can count the answer from them, never beside a product or a common multiple they do not show
+    And in an Urdu quiz a child's name from the lesson is written in Urdu script, in the question and in the picture
+    And an equation in a question, such as 7 × 4 = 28, reads in the order it was written — on the card, on my PDF and in the WhatsApp text — even inside an Urdu sentence, and never with a letter x as the times sign
+    # Part names: transcript-quiz-figure relabelLetterParts, run by the validator (P/Q/R/S on bars, number
+    # lines, shapes and circuits; 1/2/3/4 otherwise); fraction_bar and circuit font ceilings 2.4 / 2.0.
+    # Counters: FIGURE_MISMATCH now covers count_objects. Names: NAMES ARE NOT TERMS in the Urdu style rule;
+    # a name left in English letters is recorded as URDU_NAME_LATIN (soft, transcript_quiz.latin_name).
+    # Equations: quiz-math spanEquations makes an equation written in prose ("7 x 4 = 28") one maths
+    # expression — typeset in a left-to-right isolate on the card and PDF, one LRI…PDI in a WhatsApp text.
+    # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
+    # and "PICTURES, AGAIN" at the end, and figure_role "model" (grade 1-5 maths only). A step of a
+    # procedure is a text question; a model picture beside one is still refused (FIGURE_MISMATCH).
     # lp-quiz-digest lessonDrewBlock: the slide script's token rows (never the exit options). Too few
-    # pictures is a soft complaint (FIGURE_FEW): ONE add-pictures repair (transcript-quiz-rewrite
-    # addPictures), validated in full; the quiz ships either way, and transcript_quiz.figure_density
-    # logs before/after. Content-driven: count the pictures and look at them; never a fixed question. @wip.
+    # pictures is a soft complaint (FIGURE_FEW): the add-pictures repair (transcript-quiz-rewrite
+    # addPictures) may ADD a picture or REPLACE a question with a read-off one on the same objective; it
+    # asks for one spare, runs a second round only when pictures were refused, is validated in full and
+    # runs before the blind solve; the quiz ships either way, and transcript_quiz.figure_density logs
+    # before/after/asked/rounds/added/replaced/reverted. Two options of the same amount under a bar
+    # (2/8 and 1/4) are refused, and so is a bar of more than 24 parts. Stacked fractions: quiz-math
+    # stackFractions ($2/3 -> \frac). Content-driven: count the pictures and look at them; never a fixed
+    # question. @wip.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A quiz never ships an answer key a blind solver disagrees with
@@ -511,6 +646,63 @@ Feature: NIETE (ICT) Teacher Training
     And the offer to watch more videos follows it
     # video-quiz-invite handleInviteButton: vqInviteForwardThis + vqInviteMessage in the quiz language
     # (the invite's own language, else its share code's). @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A child who passed an Urdu quiz to a friend hears how the friend did, in Urdu
+    Given a child sent an Urdu class quiz to a friend and has finished it themselves
+    When the friend finishes the same quiz
+    Then the first child is told in Urdu that the friend finished, with the friend's first name only
+    And both scores are shown as "<out of> میں سے <score>", and the closing line never frames it as a loss
+    # video-quiz.service finish() -> video-quiz-invite notifyInviter(session, state.language) ->
+    # buildComparison: vqCompareMessage + vqCompareBehind/Ahead/Tie in the quiz language (quiz_sessions
+    # carries no language; the session state does). English copy is byte-identical. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A video quiz sent to the class from an Urdu run forwards an Urdu message
+    Given I have just taken a video quiz in Urdu on my own
+    When I tap "کلاس کو بھیجیں" on the offer to send it to my class
+    Then I am told in Urdu to forward the next message to the class group
+    And the message to forward is in Urdu, names the teacher and the topic, and carries a "QUIZ-<code>" link
+    And a last message in Urdu says when the class report will arrive
+    # video-quiz-share offerShare / handleShareButton / deliverClassLink: vqShareOffer, vqShareYes/No,
+    # vqShareForwardThis, vqClassMessage, vqShareReportPromise, vqShareDeclined, vqShareLinkFailed in
+    # the run's language. English copy is byte-identical. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A video quiz offered in Urdu answers every tap in Urdu, even after the offer or the quiz has ended
+    Given I picked a video from the library and was offered its quiz in Urdu
+    When I tap "ابھی نہیں" on the offer
+    Then I am told in Urdu to enjoy the video
+    When I tap the offer again after it has lapsed
+    Then I am told in Urdu that the offer has ended and to pick the video again
+    And when I tap an answer on a quiz that has already finished, I am told in Urdu to pick another video
+    # video-quiz.service handleOfferButton / startSession / handleAnswer: vqOfferDeclined, vqOfferExpired,
+    # vqStartFailed, vqQuizFinished in the run's language. The two taps after the run's state is gone read the
+    # phone's last run language (videoquiz:<phone>:lang, a week), written by sendOffer and startSession — a child
+    # from a class link never saw an offer, so startSession writes it too. English copy is byte-identical. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: The reminder about a quiet quiz reads naturally and keeps each quiz title whole
+    Given my language is English and I sent two class quizzes today whose titles are in Urdu
+    And almost no child has started either of them
+    When the quiet-quiz reminder arrives
+    Then it names both quizzes, each title in bold and whole, separated by an English comma
+    And a reminder about a single quiz says "No one has started", "One student has started" or "<n> students have started" — never "student(s)"
+    # transcript-quiz-nudge process(): tqNudgeNone / tqNudgeOne / tqNudge by count; each title bold and
+    # first-strong isolated (titled()), joined with the teacher language's list comma (vqLetterSep).
+    # Proven in tests/quiz/transcript-quiz-nudge-copy.test.js. @wip.
+
+  @e2e @quiz @copy @wip @draft @P3
+  Scenario: The quiz caption names the lesson once, with a bracket only when the bracket says something new
+    Given my language is English and I asked for an Urdu quiz on a lesson named "Comparing & ordering unlike fractions"
+    When the quiz PDF arrives
+    Then its caption names the lesson once, with no bracketed copy of the same name
+    And the same holds when the two names differ only by a plural, such as "Proper Fraction" and "Proper Fractions"
+    But for an Urdu lesson name, the caption still carries its English meaning in brackets
+    # transcript-quiz-language lessonLabel(): the gloss shows only when it adds information — a translation or a
+    # genuinely different name; sameTopic() treats "&"/"and"/"اور", punctuation, spacing, case and an English
+    # word's plural (-s/-es/-ies + common irregulars) as the same.
+    # Proven in tests/quiz/transcript-quiz-language.test.js + transcript-quiz-teacher-language.test.js. @wip.
 
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
   # The generator is mapped to this feature (feature-map.yaml: training) because it sits

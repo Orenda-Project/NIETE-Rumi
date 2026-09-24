@@ -22,6 +22,7 @@ const { composeTitle, composeDescription, normaliseTopic } = require('./transcri
 const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk } = require('./transcript-quiz-language');
 const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
 const { isSelfTest } = require('./teacher-self-test');
+const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf,
 } = require('./quiz-sources');
@@ -187,15 +188,23 @@ async function countsFor(quizIds, teacherUserId = null) {
   const counts = new Map();
   if (!quizIds.length) return counts;
   const { data } = await supabase.from('quiz_sessions')
-    .select('quiz_id, status, user_id').in('quiz_id', quizIds).is('invited_by_student_id', null);
+    .select('quiz_id, status, user_id, student_id, completed_at, created_at')
+    .in('quiz_id', quizIds).is('invited_by_student_id', null);
+  // One attempt per child, per quiz — the class report's rule: a child who
+  // re-opened the link (a retake, or after typing STOP) is one child, counted
+  // finished if any attempt finished. The same child on another quiz is a
+  // child of that quiz too.
+  const byQuiz = new Map();
   (data || [])
     .filter((s) => !isSelfTest(s, teacherUserId))
-    .forEach((s) => {
-      const c = counts.get(s.quiz_id) || { started: 0, finished: 0 };
-      c.started += 1;
-      if (s.status === 'completed') c.finished += 1;
-      counts.set(s.quiz_id, c);
+    .forEach((s) => byQuiz.set(s.quiz_id, [...(byQuiz.get(s.quiz_id) || []), s]));
+  byQuiz.forEach((rows, quizId) => {
+    const children = oneAttemptPerChild(rows);
+    counts.set(quizId, {
+      started: children.length,
+      finished: children.filter((s) => s.status === 'completed').length,
     });
+  });
   return counts;
 }
 
@@ -407,7 +416,8 @@ async function handleListPick(listId, phone, user) {
         await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
         return true;
       }
-      await sendLanguageAsk(created.id, phone, lang, ruleLanguage);
+      // No digest yet on a lesson that never had a quiz: the subject's examples.
+      await sendLanguageAsk(created.id, phone, lang, ruleLanguage, { subject });
       logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: created.id, ruleLanguage, from: 'list' });
       return true;
     }
@@ -466,7 +476,7 @@ async function handleListPick(listId, phone, user) {
             },
           })
           .eq('id', quiz.id);
-        await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage);
+        await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject });
         logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list' });
         return true;
       }
@@ -529,7 +539,7 @@ async function handleLpPick(quizId, phone, user) {
     // The same ask and buttons the offer sent; its answer runs startGenerating,
     // which flips offered → generating atomically and queues the LP quiz.
     const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
-    await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage);
+    await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject: quiz.subject });
     logEvent('transcript_quiz.language_asked', {
       userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: LP_V8,
     });

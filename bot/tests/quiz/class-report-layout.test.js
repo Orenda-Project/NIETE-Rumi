@@ -24,6 +24,10 @@ jest.mock('../../shared/services/whatsapp.service', () => ({
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFileSync } = require('child_process');
 const { renderReportPdf } = require('../../shared/services/quiz/video-quiz-report.service');
 const { closeBrowser } = require('../../shared/utils/html-to-pdf');
 const renderHtml = require('../../shared/templates/video-quiz-report.template');
@@ -155,5 +159,41 @@ run('a long answer stays inside its chip, and its label stays on one line', () =
     const wrapped = chips.filter((c) => c.lines > 1);
     expect(wrapped.length).toBeGreaterThan(0);           // the fixture's long answer does wrap
     wrapped.forEach((c) => expect(c.pitch).toBeGreaterThanOrEqual(1.65));
+  });
+});
+
+run('a paragraph of the "For tomorrow" box is never split across a page', () => {
+  // Seen on staging: the box's last part printed three lines at the foot of
+  // one page and four over the next, then the footer. Each part is one
+  // paragraph a teacher reads as one thought; the box breaks between parts.
+  // The reteach part here opens on "common denominator" and closes on
+  // "numerator" (terms of record, in Latin, so pdftotext finds them on an Urdu
+  // page); growing the roster walks it over a page boundary.
+  const pagesOf = (pdf) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'try-part-'));
+    try {
+      const file = path.join(dir, 'doc.pdf');
+      fs.writeFileSync(file, pdf);
+      return execFileSync('pdftotext', ['-layout', file, '-']).toString().split('\f');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  test('ur, 1 to 12 children: the reteach part starts and ends on the same page', async () => {
+    const base = reportData('ur');
+    const board = 'بورڈ پر common denominator لکھیں اور بچوں سے ہر کسر کو اسی نسب نما میں بدلوائیں۔ '
+      + 'پھر ہر بچہ اپنی کاپی میں تینوں کسریں ترتیب سے لکھے اور ساتھ والے کو دکھائے۔ '
+      + 'اس کے بعد دو کسروں کا موازنہ کر کے بتائیں کہ بڑی کون سی ہے اور کیوں۔ '
+      + 'آخر میں ایک مثال پر ہر کسر کا numerator';
+    const guidance = { ...base.guidance, board: `${board} دکھائیں۔` };
+    const split = [];
+    for (let n = 1; n <= 12; n += 1) {
+      const students = base.students.slice(0, n);
+      const pages = pagesOf(await renderReportPdf({ ...base, students, guidance }));
+      const start = pages.findIndex((p) => p.includes('common denominator'));
+      const end = pages.findIndex((p) => p.includes('numerator'));
+      if (start !== end) split.push({ children: n, startsOnPage: start + 1, endsOnPage: end + 1 });
+    }
+    expect(split).toEqual([]);
   });
 });

@@ -267,8 +267,11 @@ function lessonManipulatives(ss) {
       if (pv.model === 'blocks') out.placeValue.model = 'blocks';
       // Only the WORKED example is quoted with its numbers: it is already in
       // the lesson plan the author reads. A practice number is never offered.
-      if (source === 'worked' && !out.placeValue.example && !pv.thousands) {
-        out.placeValue.example = { hundreds: pv.hundreds, tens: pv.tens, ones: pv.ones };
+      // base_ten draws a thousands place, so a four-digit example is quoted whole.
+      if (source === 'worked' && !out.placeValue.example) {
+        out.placeValue.example = {
+          ...(pv.thousands ? { thousands: pv.thousands } : {}), hundreds: pv.hundreds, tens: pv.tens, ones: pv.ones,
+        };
       }
     });
     d.rows.forEach((r) => {
@@ -414,7 +417,8 @@ function lessonDrewBlock(slideScript) {
     const how = m.placeValue.model === 'blocks'
       ? 'flats, rods and cubes → {"type":"base_ten","model":"blocks",…}'
       : 'bundles of ten sticks and loose sticks → {"type":"base_ten",…}';
-    lines.push(`- place value with ${how}${ex ? `; the worked example showed ${ex.hundreds} hundreds, ${ex.tens} tens and ${ex.ones} ones` : ''}${m.placeValue.thousands ? '; base_ten draws up to hundreds, so keep a picture to three places' : ''}`);
+    const exThousands = ex && ex.thousands ? `${ex.thousands} thousands, ` : '';
+    lines.push(`- place value with ${how}${ex ? `; the worked example showed ${exThousands}${ex.hundreds} hundreds, ${ex.tens} tens and ${ex.ones} ones` : ''}`);
   }
   if (m.fractions) lines.push('- fractions as shaded parts of a whole → fraction_bar (a strip, or "model":"circle" for a roti)');
   if (m.tally) lines.push('- tally marks → {"type":"count_frame","model":"tally",…}');

@@ -230,6 +230,34 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     }));
   });
 
+  // A child who typed STOP (or whose quiz stopped on our side) has an
+  // `incomplete` session: not finished, and not still going either. The
+  // results say which is which.
+  test('a child whose quiz stopped is listed as stopped, never as still going', async () => {
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    const STOPPED = { id: 'qs-4', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Esha', student_class: '5-A', status: 'incomplete', total_questions_answered: 3, correct_answers: 2, mastery_percentage: null };
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [...CHILDREN, STOPPED] });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    // Each line opens with the language's paragraph mark (text-format markLines).
+    const lines = out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''));
+
+    expect(lines).toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: 'Danish' } }));
+    expect(lines).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Esha' } }));
+    expect(out.data.results).toMatch(/2 finished/);
+  });
+
+  test('when every unfinished child stopped, there is no "still going" line at all', async () => {
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    const kids = CHILDREN.map((c) => (c.id === 'qs-3' ? { ...c, status: 'incomplete' } : c));
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: kids });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+
+    expect(out.data.results).not.toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: '' } }).trim());
+    expect(out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''))).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Danish' } }));
+  });
+
   test('a SENT quiz offers exactly Generate report and Resend link', async () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: CHILDREN });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
@@ -284,6 +312,44 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
     expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
+  });
+
+  // WHY a recording's quiz failed, said the way the chat said it. A failure that
+  // was the MODEL's must not read as a bad recording on the lesson screen either;
+  // the rows written before the split carry `digest: <message>` and were the
+  // model's too (a recording quiz's digest has no source-side throw).
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const { markLines } = require('../../shared/utils/text-format');
+  // Every results line opens with the teacher language's paragraph mark.
+  const marked = (key, lang) => markLines(UX_STRINGS[key][lang], UX_STRINGS.lineDirMark[lang]);
+  test.each([
+    ['model_failed', { error: 'model_failed' }],
+    ['a pre-split digest row', { error: 'digest: transcript_quiz.digest: empty reply from m' }],
+  ])('a FAILED quiz whose model failed (%s) says the recording was not the problem, and can still be made again', async (_label, meta) => {
+    for (const lang of ['en', 'ur']) {
+      stub({
+        users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: lang }],
+        coaching_sessions: [session(1)],
+        quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
+      });
+      const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+      expect(out.data.results).not.toBe(marked('tqFlowResultsFailed', lang));
+      expect(out.data.results).toBe(marked('tqFlowResultsFailedModel', lang));
+      expect(out.data.actions.length).toBeGreaterThan(0);
+      expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
+    }
+  });
+
+  test.each([
+    ['validator_failed', { error: 'validator_failed' }],
+    ['no marker (a row before any reason was stored)', {}],
+  ])('a FAILED quiz that is not the model’s (%s) keeps the existing lesson-screen line', async (_label, meta) => {
+    stub({
+      users, coaching_sessions: [session(1)],
+      quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
+    });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    expect(out.data.results).toBe(marked('tqFlowResultsFailed', 'en'));
   });
 
   test('another teacher’s session is refused — the Flow stays on LESSONS with a message', async () => {
@@ -963,7 +1029,8 @@ describe('a report is only promised when there is something to report', () => {
     const out = await submit('report');
     await flush();
     expect(out.screen).toBe('LESSON');
-    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsNothingToReport.en);
+    // Every results line opens with the teacher language's paragraph mark (LRM).
+    expect(out.data.results).toBe(`\u200E${UX_STRINGS.tqFlowResultsNothingToReport.en}`);
     expect(out.data.actions.map((a) => a.id)).toEqual(['link', 'done']);
     expect(Report.generate).not.toHaveBeenCalled();
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
@@ -977,7 +1044,7 @@ describe('a report is only promised when there is something to report', () => {
       coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: SELF_TEST_ONLY,
     });
     const out = await submit('report');
-    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsNothingToReport.ur);
+    expect(out.data.results).toBe(`\u200F${UX_STRINGS.tqFlowResultsNothingToReport.ur}`);
   });
 
   test('once one child has finished, Generate report comes first and runs', async () => {
@@ -996,5 +1063,112 @@ describe('a report is only promised when there is something to report', () => {
     await flush();
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.tqNoReportYet.en);
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_done', expect.objectContaining({ action: 'report', ok: false }));
+  });
+});
+
+// A child who re-opens the class link gets a new session row (nothing blocks a
+// retake), and one who typed STOP and came back has two. /quiz read every row:
+// the child counted twice in "started", a retake counted again in "finished"
+// and in the average, and a child who stopped and then finished was listed as
+// finished AND as stopped. The class report already counts one attempt per
+// child (the latest completed, else the latest row); /quiz now counts the same.
+describe('/quiz counts one attempt per child, as the class report does', () => {
+  const { resolveUx } = require('../../shared/config/ux-strings');
+  const at = (d, h) => new Date(Date.UTC(2026, 8, d, h, 0, 0)).toISOString();
+  const quizFor = (id, sessionId, extra = {}) => ({
+    id, coaching_session_id: sessionId, teacher_id: TEACHER, quiz_source: 'transcript',
+    status: 'sent', topic: `Topic ${id}`, subject: 'science', language: 'en',
+    meta: { share_code_id: `sc-${id}`, student_message: 'forward me' }, ...extra,
+  });
+  const row = (id, quizId, studentId, name, status, extra = {}) => ({
+    id, quiz_id: quizId, user_id: null, invited_by_student_id: null, student_id: studentId,
+    student_name: name, student_class: '5-A', status,
+    total_questions_answered: 0, correct_answers: 0, mastery_percentage: null,
+    completed_at: null, created_at: at(10, 8), ...extra,
+  });
+  const done = (pct, completedDay) => ({
+    total_questions_answered: 8, correct_answers: Math.round((pct / 100) * 8), mastery_percentage: pct,
+    completed_at: at(completedDay, 9),
+  });
+  const ROWS = [
+    row('a1', 'q-1', 'st-a', 'Ayesha', 'completed', done(88, 10)),
+    row('b1', 'q-1', 'st-b', 'Bilal', 'completed', done(50, 10)),
+    row('d1', 'q-1', 'st-d', 'Danish', 'in_progress'),
+    // Esha typed STOP, re-opened the link and finished.
+    row('e1', 'q-1', 'st-e', 'Esha', 'incomplete', { created_at: at(10, 8), total_questions_answered: 3, correct_answers: 2 }),
+    row('e2', 'q-1', 'st-e', 'Esha', 'completed', { created_at: at(11, 8), ...done(75, 11) }),
+    // Farah finished, retook it and did better.
+    row('f1', 'q-1', 'st-f', 'Farah', 'completed', { created_at: at(10, 8), ...done(38, 10) }),
+    row('f2', 'q-1', 'st-f', 'Farah', 'completed', { created_at: at(12, 8), ...done(88, 12) }),
+    // The teacher's own run never counts.
+    { ...row('t1', 'q-1', null, 'QA Load Test', 'completed', done(100, 10)), user_id: TEACHER },
+    // Esha on ANOTHER lesson's quiz is a child of that quiz, not a retake of this one.
+    row('e3', 'q-2', 'st-e', 'Esha', 'in_progress'),
+  ];
+
+  /** The same stub, except quiz_sessions answers only the columns asked for —
+   *  so a collapse that needs a column the select forgot cannot pass here. */
+  function stubProjecting(tables) {
+    writes = [];
+    supabase.from.mockImplementation((t) => {
+      const chain = makeChain(tables[t] || [], writes);
+      if (t !== 'quiz_sessions') return chain;
+      let cols = null;
+      chain.select = (list) => {
+        if (typeof list === 'string' && !list.includes('*') && !list.includes('(')) {
+          cols = list.split(',').map((c) => c.trim()).filter(Boolean);
+        }
+        return chain;
+      };
+      const then = chain.then;
+      chain.then = (resolve, reject) => then((res) => resolve({
+        ...res,
+        data: cols ? res.data.map((r) => Object.fromEntries(cols.map((c) => [c, r[c]]))) : res.data,
+      }), reject);
+      return chain;
+    });
+  }
+
+  test('the lesson screen counts each child once: started, finished, the average and the lists', async () => {
+    stubProjecting({ users, coaching_sessions: [session(1)], quizzes: [quizFor('q-1', 's-1')], quiz_sessions: ROWS });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    // Each line opens with its own direction mark; the words are what is asserted here.
+    const lines = out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''));
+
+    // Ayesha 88, Bilal 50, Esha 75, Farah 88 (her latest) → 301 / 4 = 75.25
+    expect(lines[0]).toBe(resolveUx('tqFlowResultsHead', { language: 'en', params: { started: 5, finished: 4, avg: 75 } }));
+    expect(lines.filter((l) => l.startsWith('• Farah'))).toEqual([expect.stringContaining('7/8 (88%)')]);
+    // Esha finished on her second go: one finished line, and on no unfinished list.
+    expect(lines.filter((l) => l.includes('Esha'))).toEqual([expect.stringMatching(/^• Esha .*75%/)]);
+    expect(lines).toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: 'Danish' } }));
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_lesson', expect.objectContaining({ started: 5, finished: 4 }));
+  });
+
+  test('the lessons list counts each child once per quiz', async () => {
+    stubProjecting({
+      users,
+      coaching_sessions: [session(1), session(2)],
+      quizzes: [quizFor('q-1', 's-1'), quizFor('q-2', 's-2')],
+      quiz_sessions: ROWS,
+    });
+
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+    const byId = Object.fromEntries(out.data.items.map((i) => [i.id, i['main-content'].description]));
+
+    expect(byId['s-1']).toBe(resolveUx('tqFlowStatusSent', { language: 'en', params: { started: 5 } }));
+    expect(byId['s-2']).toBe(resolveUx('tqFlowStatusSent', { language: 'en', params: { started: 1 } }));
+  });
+
+  test('a sent report counts each finished child once', async () => {
+    stubProjecting({
+      users, coaching_sessions: [session(1)],
+      quizzes: [quizFor('q-1', 's-1', { status: 'report_sent' })], quiz_sessions: ROWS,
+    });
+
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+
+    expect(out.data.items[0]['main-content'].description)
+      .toBe(resolveUx('tqFlowStatusReport', { language: 'en', params: { finished: 4 } }));
   });
 });

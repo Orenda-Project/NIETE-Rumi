@@ -195,7 +195,9 @@ describe('handleListPick on an lp_v8 row', () => {
     expect(WhatsAppService.sendMessage).not.toHaveBeenCalledWith('923001112222', UX_STRINGS.tqStillMaking.en);
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
     const ask = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
-    expect(ask.body).toBe(UX_STRINGS.tqAskLanguage.en);
+    // A lesson-plan quiz has no digest yet: the maths pair names the examples.
+    expect(ask.body).toBe(UX_STRINGS.tqAskLanguage.en
+      .replace('{examples}', ['fraction', 'numerator'].map((t) => `\u2068${t}\u2069`).join(UX_STRINGS.vqLetterSep.en)));
     // The subject rule (maths → Urdu) is the first, easy tap — as on the offer.
     expect(ask.buttons.map((b) => b.id)).toEqual([`tq_lang_ur_${WAIT_ID}`, `tq_lang_en_${WAIT_ID}`]);
     // Nothing is made until the teacher answers.

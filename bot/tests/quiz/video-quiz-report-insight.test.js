@@ -247,7 +247,11 @@ describe('bd-mg9c7.48 — the Urdu prompt asks for Urdu script', () => {
     const prompt = report.buildGuidancePrompt({
       topic: 'چھوٹی یے', hardest: UR_HARDEST, language: 'ur',
     });
-    expect(prompt).not.toMatch(/سمجھتی ہوں گی|کریں گی|لکھتی ہے|پڑھتی ہے/);
+    // The shared address rule names «آپ کریں گی» as a form NEVER to write; the
+    // prompt's own instructions must not use a feminine form anywhere else.
+    const { URDU_ADDRESS_RULE } = require('../../shared/config/gender-neutral-address');
+    expect(prompt).toContain(URDU_ADDRESS_RULE);
+    expect(prompt.replace(URDU_ADDRESS_RULE, '')).not.toMatch(/سمجھتی ہوں گی|کریں گی|لکھتی ہے|پڑھتی ہے/);
   });
 
   // bd-2693 — NIETE is flat en/ur: an out-of-scope language value falls back
@@ -377,16 +381,19 @@ describe('bd-mg9c7.48 — formatGuidanceText renders the WhatsApp text fallback'
 /**
  * bd-mg9c7.48 (lane C manager pass) — the check/stretch question is the one
  * sentence in this box that a teacher READS OUT to children, so it has to
- * arrive in the same register the quiz itself uses: "آپ" with plural-
- * respectful verbs, never the tum-form. A real run on the staging
- * "Proper Fraction" digest came back with "compare کرو … بتاؤ" — gender-neutral
- * (so the broadcast rule held) but a different register from every question
- * the same children had just answered.
+ * arrive in the same register the quiz itself uses: "آپ", never the tum-form.
+ * A real run on the staging "Proper Fraction" digest came back with
+ * "compare کرو … بتاؤ" — a different register from every question the same
+ * children had just answered.
+ *
+ * It used to say "آپ with plural-respectful verbs" (جمع کے احترامی افعال), and a
+ * model reads «آپ کیسے سوچیں گے؟» as exactly that — the masculine, found live on
+ * staging. The register is now pinned with the shared Urdu address rule.
  */
 describe('bd-mg9c7.48 — the Urdu prompts pin the child-facing register', () => {
-  const REGISTER = /جمع کے احترامی افعال/;
+  const REGISTER = /بچوں کو "آپ" کہہ کر — "کرو"، "بتاؤ" ہرگز نہیں/;
 
-  test('the reteach prompt asks for آپ + plural-respectful verbs in the check question', () => {
+  test('the reteach prompt asks for آپ, never the tum-form, and no gendered verb, in the check question', () => {
     const p = report.buildGuidancePrompt({
       topic: 'کسریں', grade: '4', language: 'ur',
       hardest: [{ question_text: 'آدھی روٹی؟', wrong: 2, total: 3 }],

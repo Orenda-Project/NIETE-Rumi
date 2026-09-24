@@ -47,6 +47,7 @@ const { richNotation } = require('../services/quiz/quiz-notation');
 const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
 const { sloStatement } = require('../services/quiz/transcript-quiz-language');
 const { resolveUx } = require('../config/ux-strings');
+const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
   headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf,
@@ -233,13 +234,11 @@ const LP_CHROME = {
  * a break), and a run may take a bracket that clearly belongs to it.
  */
 const LATIN_TOKEN = '[A-Za-z0-9\'’".,:;!?()%/+=*$@#^_\\-]';
+// The run itself — its joiners ("&", "·", spaces) and its entity handling —
+// is latin-runs.js, shared with the class report so the two cannot drift.
 function wrapLatin(html, rtl) {
   if (!rtl) return html;
-  const run = new RegExp(`\\(?[A-Za-z0-9]${LATIN_TOKEN}*(?:[\\s\\-]${LATIN_TOKEN}+)*`, 'g');
-  return html.split(/(<[^>]+>|&[a-zA-Z]+;|&#\d+;)/).map((seg) => (
-    seg.startsWith('<') || (seg.startsWith('&') && seg.endsWith(';'))
-  ) ? seg
-    : seg.replace(run, (m) => `<span class="ltr">${m}</span>`)).join('');
+  return wrapLatinRuns(html, { token: LATIN_TOKEN, leadingParen: true });
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'];

@@ -41,6 +41,7 @@ const load = () => JSON.parse(raw);
 const NEXT = 'Next period';
 const NOT_GOING = 'Not going today';
 const COACH = 'Coaching corner';
+const BOARD = 'The board at the end of the lesson';
 
 /**
  * The fixture reshaped into what a v9.4 GRADE-6 plan actually is — which is the only shape in
@@ -79,12 +80,11 @@ const hasClass = (html, name) => new RegExp(`class="[^"]*\\b${name}\\b`).test(bo
 // ── 1. the section is gone from the page the operator reads ──────────────────
 
 describe('the support page no longer carries Next period / Not going today', () => {
-  test('on a grade-6 plan the FIRST reference section is the coaching corner', () => {
-    // The operator's sentence in one assertion: what was A is gone, and what takes A is the
-    // thing they said there was now room for.
+  test('on a grade-6 plan the reference sections are the board plan, then the coaching corner', () => {
+    // What was A here is gone. bd-f01ob (v6) then put the board plan back in first position —
+    // *"board plan to go into 2nd page"* — so the coaching corner follows it as B.
     const list = bars(build(grade6()));
-    expect(list.length).toBeGreaterThan(0);
-    expect(list[0][1]).toBe(COACH);
+    expect(list.map(([, name]) => name)).toEqual([BOARD, COACH]);
     expect(list.map(([, name]) => name)).not.toContain(`${NEXT} / ${NOT_GOING}`);
   });
 
@@ -118,25 +118,19 @@ describe('the support page no longer carries Next period / Not going today', () 
   });
 });
 
-// ── 2. the fact survives, once, where the operator says it already is ────────
+// ── 2. bd-f01ob (v6): the next lesson is not printed anywhere ──────────────────
+//
+// This section used to pin the page-1 strip as the one place the next lesson survived. The
+// operator then took that too — *"next period should lso be gone"* — so it is printed ZERO times.
 
-describe('the next lesson is still on page 1, and now only there', () => {
-  test('the page-1 sequence strip still names the next lesson', () => {
-    const d = grade6();
-    d.sequence.next = 'ZZ_SEQ_NEXT_SENTINEL_ZZ';
-    const out = body(build(d));
-    expect(out).toContain('ZZ_SEQ_NEXT_SENTINEL_ZZ');
-    expect(out).toContain('Next:');
-  });
-
-  test('the same fact is printed ONCE, not twice — the defect, stated directly', () => {
-    // Drive both fields with one string. Before the fix this is 2: the strip on page 1 and
-    // the reference section. The whole of the operator's complaint is this count.
+describe('the next lesson is printed nowhere', () => {
+  test('neither the strip nor the reference page names it — one sentinel, zero hits', () => {
     const d = grade6();
     d.sequence.next = 'ZZ_ONE_FACT_SENTINEL_ZZ';
     d.page2.next_period = 'ZZ_ONE_FACT_SENTINEL_ZZ';
     const out = body(build(d));
-    expect(out.split('ZZ_ONE_FACT_SENTINEL_ZZ').length - 1).toBe(1);
+    expect(out.includes('ZZ_ONE_FACT_SENTINEL_ZZ')).toBe(false);
+    expect(out).not.toContain('Next:');
   });
 });
 

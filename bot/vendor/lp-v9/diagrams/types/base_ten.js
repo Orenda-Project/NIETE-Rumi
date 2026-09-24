@@ -1,7 +1,7 @@
-// base_ten — a place-value picture: hundreds, tens and ones as the class builds them.
+// base_ten — a place-value picture: thousands, hundreds, tens and ones as the class builds them.
 //
-// VENDOR DIVERGENCE — see SYNC.md §3.18. A type this deployment added; upstream
-// does not have it.
+// VENDOR DIVERGENCE — see SYNC.md §3.18 (the type) and §3.20 (the thousands
+// place). A type this deployment added; upstream does not have it.
 //
 // Place value is taught with something the child can hold and TIE: ten loose
 // sticks become one bundle, ten bundles one big bundle. The grade 1-5 slide
@@ -14,37 +14,45 @@
 // Two models, the two a Pakistani primary classroom uses:
 //
 //   bundles (default)  ones are single sticks, a ten is ten sticks tied with a
-//                      band, a hundred is a big bundle tied twice.
+//                      band, a hundred is a big bundle tied twice, a thousand
+//                      is ten big bundles tied into one block (a big bundle's
+//                      face with depth: its ten layers show on top and side).
 //   blocks             ones are unit cubes, a ten is a rod of ten, a hundred is
-//                      a flat of a hundred.
+//                      a flat of a hundred, a thousand is a cube — ten flats
+//                      stacked.
 //
 // The picture is a PLACE-VALUE MAT: one column per place, headed with the
-// place's name, laid out hundreds → tens → ones from left to right in every
-// language — that is the order the digits are written in, Urdu page or not.
-// A place that holds nothing is an EMPTY column, never a missing one: the zero
-// in 209 is the lesson.
+// place's name, laid out thousands → hundreds → tens → ones from left to right
+// in every language — that is the order the digits are written in, Urdu page
+// or not. A place that holds nothing is an EMPTY column, never a missing one:
+// the zero in 209 is the lesson, and so is the zero in 2014.
 //
 // THE NUMBER IS NEVER WRITTEN, and neither is any count. The child reads it.
 //
 // Spec
+//   thousands              0..9 (a grade 3-5 four-digit number)
 //   hundreds, tens, ones   0..20 each (above 9 is a regrouping picture:
-//                          "13 tens" is thirteen bundles); at least one > 0
+//                          "13 tens" is thirteen bundles); at least one place > 0
 //   model     "bundles" | "blocks"                     default bundles
-//   places    3          draw an empty hundreds column even when there are none
-//   labels    {hundreds, tens, ones}  the column heads; defaults by `lang`
+//   places    3 | 4      draw the empty hundreds (3) or thousands (4) column
+//                        even when there are none
+//   labels    {thousands, hundreds, tens, ones}  the column heads; defaults by `lang`
 //   lang      "en" | "ur"
 
 const { Svg, C, SIZE, measure, hasUrdu, n } = require("../lib/svg");
 
 const MAX_PER_PLACE = 20;
-const PLACES = ["hundreds", "tens", "ones"];
-const ROLE = { hundreds: "hundred", tens: "ten", ones: "one" };
+// A thousand is the largest piece on the mat; more than nine of them is a
+// five-digit number, which no grade 1-5 lesson builds from blocks.
+const MAX_BY_PLACE = { thousands: 9 };
+const PLACES = ["thousands", "hundreds", "tens", "ones"];
+const ROLE = { thousands: "thousand", hundreds: "hundred", tens: "ten", ones: "one" };
 
 // The heads a column carries when the spec names none. The quiz lane always
 // passes its own (from its string catalog); these are the lesson-plan lane's.
 const DEFAULT_LABELS = {
-  en: { hundreds: "Hundreds", tens: "Tens", ones: "Ones" },
-  ur: { hundreds: "سینکڑے", tens: "دہائیاں", ones: "اکائیاں" },
+  en: { thousands: "Thousands", hundreds: "Hundreds", tens: "Tens", ones: "Ones" },
+  ur: { thousands: "ہزار", hundreds: "سینکڑے", tens: "دہائیاں", ones: "اکائیاں" },
 };
 
 // Every piece of art carries data-ov="skip": its strokes are the drawing, not
@@ -57,13 +65,20 @@ const GEOMETRY = {
     ones: { w: 9, h: 96, gap: 10, perRow: 5 },
     tens: { w: 46, h: 96, gap: 14, perRow: 5 },
     hundreds: { w: 100, h: 104, gap: 16, perRow: 3 },
+    // a big bundle's face (100 x 104) plus the block's depth (DEPTH.bundles)
+    thousands: { w: 124, h: 128, gap: 16, perRow: 3 },
   },
   blocks: {
     ones: { w: 16, h: 16, gap: 8, perRow: 5 },
     tens: { w: 16, h: 150, gap: 8, perRow: 10 },
     hundreds: { w: 150, h: 150, gap: 14, perRow: 3 },
+    // a flat's face (120 x 120) plus the cube's depth (DEPTH.blocks)
+    thousands: { w: 160, h: 160, gap: 14, perRow: 3 },
   },
 };
+
+/** How far a thousand's top and side recede, up and to the right (an oblique view). */
+const DEPTH = { bundles: 24, blocks: 40 };
 
 // ─── the art ────────────────────────────────────────────────────────────────
 
@@ -116,7 +131,39 @@ function block(x, y, w, h, cols, rows) {
   return parts.join("");
 }
 
+/**
+ * A thousand: a front face with its top and side receding up and to the right,
+ * each receding face cut into ten layers — the ten flats (or ten big bundles)
+ * the thousand is made of. `face(x, y, w, h)` draws the front.
+ */
+function thousand(x, y, g, d, face, fill, fillOpacity) {
+  const w = g.w - d;
+  const h = g.h - d;
+  const fy = y + d;                       // the front face's top edge
+  const pts = (arr) => arr.map(([px, py]) => `${n(px)},${n(py)}`).join(" ");
+  const top = [[x, fy], [x + d, y], [x + d + w, y], [x + w, fy]];
+  const side = [[x + w, fy], [x + w + d, y], [x + w + d, y + h], [x + w, fy + h]];
+  const parts = [
+    `<polygon ${SKIP} points="${pts(top)}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${C.ink}" stroke-width="1.8" stroke-linejoin="round"/>`,
+    `<polygon ${SKIP} points="${pts(side)}" fill="${fill}" fill-opacity="${Math.min(1, fillOpacity + 0.2)}" stroke="${C.ink}" stroke-width="1.8" stroke-linejoin="round"/>`,
+  ];
+  // Ten layers from front to back, on the top and on the side.
+  for (let k = 1; k < 10; k += 1) {
+    const t = k / 10;
+    parts.push(`<line ${SKIP} x1="${n(x + d * t)}" y1="${n(fy - d * t)}" x2="${n(x + w + d * t)}" y2="${n(fy - d * t)}" stroke="${C.ink}" stroke-width="0.8" stroke-opacity="0.55"/>`);
+    parts.push(`<line ${SKIP} x1="${n(x + w + d * t)}" y1="${n(fy - d * t)}" x2="${n(x + w + d * t)}" y2="${n(fy + h - d * t)}" stroke="${C.ink}" stroke-width="0.8" stroke-opacity="0.55"/>`);
+  }
+  parts.push(face(x, fy, w, h));
+  return parts.join("");
+}
+
 function drawItem(model, place, x, y, g) {
+  if (place === "thousands") {
+    const d = DEPTH[model];
+    return model === "blocks"
+      ? thousand(x, y, g, d, (fx, fy, w, h) => block(fx, fy, w, h, 10, 10), C.accent, 0.45)
+      : thousand(x, y, g, d, (fx, fy, w, h) => bigBundle(fx, fy, w, h), C.clay, 0.85);
+  }
   if (model === "blocks") {
     if (place === "hundreds") return block(x, y, g.w, g.h, 10, 10);
     if (place === "tens") return block(x, y, g.w, g.h, 1, 10);
@@ -133,7 +180,8 @@ function count(v, place) {
   if (v === undefined || v === null || v === "") return 0;
   const k = Number(v);
   if (!Number.isInteger(k) || k < 0) throw new Error(`base_ten: \`${place}\` must be a whole number, got ${JSON.stringify(v)}`);
-  if (k > MAX_PER_PLACE) throw new Error(`base_ten: ${k} ${place} is past what a child can read off a mat; keep each place to ${MAX_PER_PLACE}`);
+  const max = MAX_BY_PLACE[place] || MAX_PER_PLACE;
+  if (k > max) throw new Error(`base_ten: ${k} ${place} is past what a child can read off a mat; keep ${place} to ${max}`);
   return k;
 }
 
@@ -142,11 +190,14 @@ function render(spec) {
   const model = spec.model === "blocks" ? "blocks" : "bundles";
   const counts = {};
   PLACES.forEach((p) => { counts[p] = count(spec[p], p); });
-  if (!PLACES.some((p) => counts[p] > 0)) throw new Error("base_ten: nothing to show — give at least one of hundreds, tens or ones");
+  if (!PLACES.some((p) => counts[p] > 0)) throw new Error("base_ten: nothing to show — give at least one of thousands, hundreds, tens or ones");
 
   // Columns: tens and ones always (a lone "7" is still 0 tens and 7 ones), and
-  // hundreds when the number has any — or when `places: 3` asks for the column.
-  const first = counts.hundreds > 0 || Number(spec.places) === 3 ? 0 : 1;
+  // every place from the highest the number has — or the one `places` asks
+  // for — down: 2014 keeps an EMPTY hundreds column under its thousands.
+  const places = Number(spec.places);
+  const first = counts.thousands > 0 || places >= 4 ? 0
+    : counts.hundreds > 0 || places === 3 ? 1 : 2;
   const cols = PLACES.slice(first);
 
   const heads = { ...DEFAULT_LABELS[isUr ? "ur" : "en"], ...((spec.labels && typeof spec.labels === "object") ? spec.labels : {}) };
@@ -206,11 +257,13 @@ function render(spec) {
 module.exports = {
   type: "base_ten",
   aliases: ["place_value", "base_ten_blocks", "bundles"],
-  summary: "A place-value mat — hundreds, tens and ones as bundles of sticks or as flats, rods and cubes; the number is never written.",
+  summary: "A place-value mat — thousands, hundreds, tens and ones as bundles of sticks or as cubes, flats, rods and unit cubes; the number is never written.",
   render,
   examples: [
     { name: "base_ten_bundles_342_en", spec: { type: "base_ten", hundreds: 3, tens: 4, ones: 2 } },
     { name: "base_ten_bundles_209_ur", spec: { type: "base_ten", hundreds: 2, tens: 0, ones: 9, lang: "ur" } },
     { name: "base_ten_blocks_136_en", spec: { type: "base_ten", model: "blocks", hundreds: 1, tens: 3, ones: 6 } },
+    { name: "base_ten_blocks_1986_en", spec: { type: "base_ten", model: "blocks", thousands: 1, hundreds: 9, tens: 8, ones: 6 } },
+    { name: "base_ten_bundles_2014_ur", spec: { type: "base_ten", thousands: 2, hundreds: 0, tens: 1, ones: 4, lang: "ur" } },
   ],
 };

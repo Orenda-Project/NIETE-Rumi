@@ -96,12 +96,13 @@ describe('bd-a8veu.15 — each leg of the sequence strip is its own paragraph', 
     expect(s.slice(s.lastIndexOf('<span', i), i)).not.toContain('&middot;');
   });
 
-  test('all four legs are still there, in order, each a direct child', () => {
+  test('the three legs are there, in order, each a direct child — the Next leg is gone (bd-f01ob)', () => {
+    // bd-f01ob (v6): operator, *"next period should lso be gone"*. Last / this / checkpoint remain.
     const s = strip(built());
     const d = doc();
-    expect(directChildren(s)).toHaveLength(4);
+    expect(directChildren(s)).toHaveLength(3);
     let cursor = -1;
-    for (const phrase of [d.sequence.previous, d.sequence.this, d.sequence.next, d.sequence.checkpoint]) {
+    for (const phrase of [d.sequence.previous, d.sequence.this, d.sequence.checkpoint]) {
       const i = s.indexOf(phrase.replace(/&/g, '&amp;'));
       expect(i).toBeGreaterThan(cursor);
       cursor = i;
@@ -124,6 +125,6 @@ describe('bd-a8veu.15 — each leg of the sequence strip is its own paragraph', 
 
   test('the Urdu strip stacks the same way', () => {
     expect(rule(built('ur'), '.seq > span')).toMatch(/display:\s*block/);
-    expect(directChildren(strip(built('ur')))).toHaveLength(4);
+    expect(directChildren(strip(built('ur')))).toHaveLength(3); // bd-f01ob: no Next leg
   });
 });

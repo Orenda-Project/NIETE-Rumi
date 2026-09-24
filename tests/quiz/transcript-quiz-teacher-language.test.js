@@ -140,7 +140,10 @@ describe('every teacher-facing surface answers in her stored language', () => {
       users: { data: [TEACHER] },
     });
     await Offer.handleOfferButton(`tq_yes_${QID}`, PHONE);
-    expect(WA.sendInteractiveButtons.mock.calls[0][1].body).toBe(en('tqAskLanguage'));
+    // A maths lesson whose digest carries no English key terms: the maths pair.
+    expect(WA.sendInteractiveButtons.mock.calls[0][1].body).toBe(en('tqAskLanguage', {
+      examples: ['fraction', 'numerator'].map((t) => `\u2068${t}\u2069`).join(en('vqLetterSep')),
+    }));
 
     jest.clearAllMocks();
     await Offer.handleOfferButton(`tq_no_${QID}`, PHONE);
@@ -187,6 +190,49 @@ describe('every teacher-facing surface answers in her stored language', () => {
     expect(teacherTemplate).toHaveBeenCalledWith(expect.objectContaining({ language: 'ur', contentLanguage: 'ur' }));
   });
 
+  test('the caption does not repeat the topic as its own gloss when the two labels differ only by "&"/"and"', async () => {
+    // Staging, 24 Sep: "Mathematics lesson on Comparing & ordering unlike fractions
+    // (Comparing and ordering unlike fractions)".
+    const digest = {
+      ...DIGEST, topic: 'Comparing and ordering unlike fractions', topic_as_taught: 'Comparing & ordering unlike fractions',
+    };
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
+    installFrom(supabase.from, {
+      quizzes: (calls) => (calls.some((c) => c[0] === 'update')
+        ? { data: [{ id: QID }] }
+        : { data: [{ ...QUIZ, topic: digest.topic_as_taught, meta: { ...QUIZ.meta, digest } }] }),
+      coaching_sessions: { data: [SESSION] },
+      quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
+      users: { data: [TEACHER] },
+    });
+    await Gen.process(QID, {});
+
+    const caption = WA.sendDocument.mock.calls[0][3];
+    expect(caption).toContain('Comparing & ordering unlike fractions');
+    expect(caption).not.toContain('Comparing and ordering unlike fractions');
+    expect(caption).not.toMatch(/\(\u2068/);   // no bracketed gloss at all
+  });
+
+  test('the caption does not gloss a topic with its own plural: "Proper Fraction (Proper Fractions)"', async () => {
+    // Staging, 24 Sep.
+    const digest = { ...DIGEST, topic: 'Proper Fractions', topic_as_taught: 'Proper Fraction' };
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
+    installFrom(supabase.from, {
+      quizzes: (calls) => (calls.some((c) => c[0] === 'update')
+        ? { data: [{ id: QID }] }
+        : { data: [{ ...QUIZ, topic: digest.topic_as_taught, meta: { ...QUIZ.meta, digest } }] }),
+      coaching_sessions: { data: [SESSION] },
+      quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
+      users: { data: [TEACHER] },
+    });
+    await Gen.process(QID, {});
+
+    const caption = WA.sendDocument.mock.calls[0][3];
+    expect(caption).toContain('Proper Fraction');
+    expect(caption).not.toContain('Proper Fractions');
+    expect(caption).not.toMatch(/\(\u2068/);
+  });
+
   test('the honest failure', async () => {
     Author.author.mockResolvedValue({ questions: EIGHT.map((q) => ({ ...q, slo_id: 'S1' })), model: 'm', costUsd: 0.01, latencyMs: 10, lessonSummary: LESSON_SUMMARY });
     installFrom(supabase.from, {
@@ -206,7 +252,9 @@ describe('every teacher-facing surface answers in her stored language', () => {
       users: { data: [TEACHER] },
     });
     await Nudge.process(QID);
-    expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqNudge', { started: 1, topic: 'کسریں' }));
+    // One child started: the singular form; the Urdu title arrives bold and
+    // isolated inside her English sentence (transcript-quiz-nudge titled()).
+    expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqNudgeOne', { topic: '*\u2068کسریں\u2069*' }));
   });
 
   test('the /quiz list, its rows and its empty state', async () => {

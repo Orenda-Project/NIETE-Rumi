@@ -63,6 +63,12 @@ describe('one class, however it was typed, is one class', () => {
     expect(normaliseClasses(['class four', 'Fourth', 'چوتھی جماعت', '4'])).toEqual(['4']);
   });
 
+  test('so does a Persian ordinal, the way a class is often named in Urdu ("جماعت پنجم")', () => {
+    expect(normaliseClasses(['جماعت پنجم', 'پنجم', '5'])).toEqual(['5']);
+    expect(normaliseClasses(['چہارم', 'چهارم', 'جماعت 4'])).toEqual(['4']);
+    expect(classLabel('جماعت پنجم', 'en')).toBe('Class 5');
+  });
+
   test('several real classes are still several, sorted numerically', () => {
     expect(normaliseClasses(CLASSES_MIXED)).toEqual(['3', '4', '5']);
     expect(classHeading(CLASSES_MIXED, 'en')).toBe('Classes 3, 4, 5');

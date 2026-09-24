@@ -232,32 +232,36 @@ async function resolveInvite(code) {
  * Never framed as a defeat. Children show these to each other, and a line that
  * reads as "you lost" turns a quiz into something to avoid.
  */
-function buildComparison({ inviter, friend, topic }) {
-  const them = firstName(friend.student_name);
+function buildComparison({ inviter, friend, topic, language = 'en' }) {
+  // In the quiz's language: the inviter took the same quiz, in that language.
+  const { resolveUx } = require('../../config/ux-strings');
+  const ux = (key, params) => resolveUx(key, { language, params });
+  const them = firstName(friend.student_name, ux('vqInviteFriend'));
   const theirs = friend.correct_answers || 0;
   const outOf = friend.total_questions_answered || 0;
   const mine = inviter.correct_answers || 0;
 
   let line;
   if (theirs > mine) {
-    line = `${them} edged you this time — worth another go.`;
+    line = ux('vqCompareBehind', { them });
   } else if (theirs < mine) {
-    line = `You are still ahead. Nicely done.`;
+    line = ux('vqCompareAhead');
   } else {
-    line = `A dead heat — you both got the same.`;
+    line = ux('vqCompareTie');
   }
 
-  return `🎯 *${them} finished your quiz!*\n\n`
-    + `${them}: *${theirs}/${outOf}*\n`
-    + `You: *${mine}/${outOf}*\n\n`
-    + `${line}`;
+  return ux('vqCompareMessage', { them, theirs, outOf, mine, line });
 }
 
 /**
  * Tell the inviter how their friend did. Best-effort throughout — this is a
  * nicety, and nothing about the friend's own quiz should fail because of it.
+ *
+ * `language` is the quiz's: the friend just took it in that language, and the
+ * inviter took the same quiz. quiz_sessions carries no language, so the caller
+ * (finish(), which holds the session state) passes it.
  */
-async function notifyInviter(session) {
+async function notifyInviter(session, language = 'en') {
   try {
     if (!session || !session.invited_by_student_id) return false;
     const { data: inviterStudent } = await supabase
@@ -277,10 +281,10 @@ async function notifyInviter(session) {
     if (!inviterRun) return false;   // nothing to compare against
 
     await WhatsAppService.sendMessage(inviterStudent.phone,
-      buildComparison({ inviter: inviterRun, friend: session, topic: session.topic }));
+      buildComparison({ inviter: inviterRun, friend: session, topic: session.topic, language }));
 
     logEvent('video_quiz.invite_result_sent', {
-      inviterStudentId: inviterStudent.id, quizId: session.quiz_id,
+      inviterStudentId: inviterStudent.id, quizId: session.quiz_id, language,
     });
     return true;
   } catch (err) {

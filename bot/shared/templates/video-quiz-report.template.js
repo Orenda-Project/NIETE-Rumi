@@ -29,6 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../utils/text-format');
+const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
   headFamily, bodyFamily, latticeSvg, dirOf,
@@ -116,12 +117,11 @@ const RTL_LANGS = new Set(['ur']);
 const CHROME = {
   en: {
     eyebrow: 'Class quiz results',
-    classResults: 'Class results',
-    gradeLine: (g) => ` &middot; Grade ${esc(g)}`,
+    gradeLine: (g) => `Grade ${esc(g)}`,
     // PLAN_R5 item 6 — built by classHeading() from what the CHILDREN typed,
     // so the template only has to place it. `gradeLine` stays for the callers
     // that still pass a single `grade` and know it (the video-quiz lane).
-    classesLine: (c) => ` &middot; ${c}`,
+    classesLine: (c) => c,
     classAverage: 'Class average',
     started: 'Started', finished: 'Finished', worthReteaching: 'Worth reteaching',
     worthReteachingHeading: 'Worth reteaching &mdash; most missed',
@@ -153,9 +153,8 @@ const CHROME = {
     // group/PDF in Latin letters inside Urdu sentences. These two chrome tables
     // were the only place in the repo that had drifted off it.
     eyebrow: 'کلاس کے quiz کے نتائج',
-    classResults: 'کلاس کے نتائج',
-    gradeLine: (g) => ` &middot; جماعت ${esc(g)}`,
-    classesLine: (c) => ` &middot; ${c}`,
+    gradeLine: (g) => `جماعت ${esc(g)}`,
+    classesLine: (c) => c,
     // "کلاس اوسط" was a word-for-word calque: Urdu does not stack two nouns
     // the way English does, so it needs the linker to mean anything at all.
     classAverage: 'کلاس کا اوسط',
@@ -214,12 +213,13 @@ const GUIDANCE_LABEL_KEYS = {
  * swallowing real Urdu text. Quotes are includable because esc() (above) no
  * longer entity-escapes them.
  */
+// The Latin word class this document has always used. What joins two words
+// into ONE run ("&", "·", spaces) and how entities are kept whole lives in
+// latin-runs.js, shared with the teacher PDF so the two cannot drift.
+const LATIN_TOKEN = '[A-Za-z0-9\'’".,:;!?()%/+=*$@#\\-]';
 function wrapLatin(html, rtl) {
   if (!rtl) return html;
-  return html.split(/(<[^>]+>|&[a-zA-Z]+;|&#\d+;)/).map((seg) => (
-    seg.startsWith('<') || (seg.startsWith('&') && seg.endsWith(';'))
-  ) ? seg
-    : seg.replace(/[A-Za-z0-9][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]*(?:[\s\-][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]+)*/g, (m) => `<span class="ltr">${m}</span>`)).join('');
+  return wrapLatinRuns(html, { token: LATIN_TOKEN });
 }
 
 /** Progress-bar band, matching the coaching hero-report's domain-bar palette. */
@@ -260,7 +260,7 @@ function renderVideoQuizReportHtml(d) {
   // caller still passes is the fallback, never the winner: the one the PDF
   // used to print came from a digest band and read "Grade 6-8".
   const classText = classHeading(classes, contentLanguage);
-  const classTail = classText ? L(C.classesLine(classText))
+  const classPart = classText ? L(C.classesLine(classText))
     : (grade ? L(C.gradeLine(grade)) : '');
 
   const missedCards = hardest.map((h, i) => {
@@ -304,6 +304,14 @@ function renderVideoQuizReportHtml(d) {
     const nrtl = dirOf(name) === 'rtl';
     return `<span class="nm content" dir="${nrtl ? 'rtl' : 'ltr'}">${wrapLatin(esc(name), nrtl)}</span>`;
   };
+
+  // The who-line is the teacher's name, then the class. This document is read
+  // BY the teacher, so a teacher with no name on record gets the class alone:
+  // the share code's "your teacher" fallback is the CHILDREN's word for them
+  // and never reaches this line, and no filler takes the name's place (the
+  // eyebrow above already says what the document is). Neither -> no line.
+  const whoParts = [teacherName ? nameCell(teacherName) : '', classPart].filter(Boolean);
+  const whoLine = whoParts.length ? `<div class="who">${whoParts.join(' &middot; ')}</div>` : '';
 
   // A class label on a roster row earns its line only when the class differs
   // from row to row. When every child is in one class the hero already names
@@ -505,13 +513,14 @@ ${RTL ? '.roster>.label{padding-top:10px}' : ''}
    row sat alone above the guidance box. A card that continues over the page is
    still one card: box-decoration-break:clone gives each piece its own rounded
    edge and padding. */
-.mtop,.chose,.why,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
+.mtop,.chose,.why,.unfin,.r-row,.try-part{break-inside:avoid;page-break-inside:avoid}
 .moment,.try,.try-part{box-decoration-break:clone;-webkit-box-decoration-break:clone}
-/* A guidance part is the one block long enough to be worth splitting: the
-   reteach move runs to five lines of Nastaliq, and held whole it left a third
-   of a page of empty green above it. It may now break BETWEEN LINES — never with
-   fewer than two on either side, and never between its label and its text. */
-.try-text{orphans:2;widows:2}
+/* Each guidance part — where they got muddled, how to reteach it, what to ask
+   — is read as one paragraph, so it never splits: the box breaks BETWEEN its
+   parts, and a part that does not fit moves whole to the next page. Split
+   between lines, a part read as three lines of one thought at the foot of a
+   page and the rest over the page (seen on staging), which is worse than the
+   green left empty above it. A part's label never leaves its text. */
 .try-label,.try .label{break-after:avoid;page-break-after:avoid}
 /* THE FOOTER MAY NOT STRAND ITSELF. When the last guidance part fills a page to
    within less than the footer's own height, the footer spilled onto a sheet
@@ -536,7 +545,7 @@ ${RTL ? '.roster>.label{padding-top:10px}' : ''}
       <h1 class="content" dir="${cdir}">${K(topic)}</h1>
       <div class="hscore"><div class="p">${average}%</div><div class="s">${L(C.classAverage)}</div></div>
     </div>
-    <div class="who">${teacherName ? nameCell(teacherName) : L(C.classResults)}${classTail}</div>
+    ${whoLine}
     <div class="statrow">
       <div class="stchip"><div class="n">${started}</div><div class="l">${L(C.started)}</div></div>
       <div class="stchip"><div class="n">${finished}</div><div class="l">${L(C.finished)}</div></div>

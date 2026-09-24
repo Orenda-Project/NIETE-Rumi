@@ -14,7 +14,10 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+
+/** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
+const FRACTION_BAR_MAX_PARTS = 24;
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
@@ -23,6 +26,7 @@ const { pedagogyDefects } = require('./transcript-quiz-pedagogy');
 const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word-blank');
 const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
+const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -54,6 +58,24 @@ function childAddressError(q, i) {
   return `q${i}: PEDAGOGY_GENDERED_CHILD — ${fields.join(' + ')} speak${fields.length === 1 ? 's' : ''} to the child with a gendered verb (${shown}); `
     + 'the class is boys and girls. Keep the same question and change only those verbs: the آپ-imperative or subjunctive («بتائیں»، «آپ کون سی علامت لگائیں؟»), '
     + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)';
+}
+
+/**
+ * URDU_ADJACENT_TERMS for ONE question, or null (transcript-quiz-adjacent-terms).
+ * Two separate English terms side by side in an Urdu sentence are one
+ * left-to-right run, so a right-to-left reader meets the second one first and
+ * the relation reads backwards («جب numerator denominator سے چھوٹا ہو»). One
+ * line per question, naming every field, so the targeted rewrite repairs it
+ * once; the message is what the rewrite reads, so it says what to write.
+ */
+function adjacentTermsError(q, i, lex) {
+  const hits = questionAdjacentTerms(q, lex);
+  if (!hits.length) return null;
+  const pairs = [...new Set(hits.flatMap((h) => h.pairs))].slice(0, 4).map((x) => `"${x}"`).join(', ');
+  return `q${i}: URDU_ADJACENT_TERMS — ${hits.map((h) => h.field).join(' + ')} put${hits.length === 1 ? 's' : ''} two separate English terms side by side (${pairs}); `
+    + 'in a right-to-left line they read as one left-to-right phrase, so the second term is met first and the meaning turns around. '
+    + 'Keep the same question and put an Urdu word between the two terms, or rephrase: «جب numerator کی قیمت denominator سے کم ہو», '
+    + 'not «جب numerator denominator سے چھوٹا ہو». A single English term of two words («cross multiplication») stays together.';
 }
 
 // English technical terms belong in English letters inside Urdu (operator
@@ -137,7 +159,7 @@ const earlyMaths = (subject, gradeBand) => canonSubj(subject) === 'maths' && isE
  * FIGURE_FEW, and never a reason to refuse a quiz: a refused quiz is a teacher
  * with nothing, and a quiz with one picture is still a quiz. The generate step
  * answers it with ONE targeted "add a picture" repair and ships either way.
- * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, complaint:string|null}}
+ * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, room?:number, complaint:string|null}}
  */
 function figureDensity(questions, { subject, gradeBand } = {}) {
   const qs = Array.isArray(questions) ? questions : [];
@@ -148,8 +170,10 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
   }
   const target = Math.min(FIGURE_TARGET, Math.floor(n * FIGURE_MAX_SHARE));
   const need = Math.max(0, target - figured);
+  // how many more the half cap still allows — the repair asks for a spare within it
+  const room = Math.max(0, Math.floor(n * FIGURE_MAX_SHARE) - figured);
   return {
-    applies: true, figured, n, target, need,
+    applies: true, figured, n, target, need, room,
     complaint: need ? `FIGURE_FEW — ${figured}/${n} questions carry a picture; a grade 1-5 maths quiz aims for at least ${target}` : null,
   };
 }
@@ -161,6 +185,43 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
  * decorative picture; for a young maths class this one is the lesson, so it is
  * exempt. The answer-leak rule is not: no option, no result, in the drawing.
  */
+/**
+ * A person's name left in English letters inside an Urdu quiz (URDU_NAME_LATIN).
+ *
+ * A remade grade 4 Urdu quiz wrote the lesson's child as "‏Hira کی بوتل", the
+ * bar's name included: the Urdu style rule keeps TERMS in English letters, and
+ * the model read the name as a term. The contract now says a name is not a
+ * term; this is the light check behind it. A capitalised Latin word in a field
+ * with Urdu script counts only when the lesson's own examples use it (so it is
+ * the lesson's name, not a word the model brought) and it is not a key term.
+ * Never a refusal — the caller records it (meta.soft_faults and
+ * transcript_quiz.latin_name), so the rate is visible.
+ * @returns {string[]} one complaint per question and name
+ */
+function latinNames(questions, { language, digest } = {}) {
+  if (language !== 'ur') return [];
+  const lessonWords = new Set();
+  (Array.isArray(digest && digest.examples_used) ? digest.examples_used : []).forEach((ex) => {
+    (String(ex || '').match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => lessonWords.add(w));
+  });
+  const terms = new Set((Array.isArray(digest && digest.key_terms) ? digest.key_terms : [])
+    .flatMap((t) => String(t || '').toLowerCase().split(/\s+/)).filter(Boolean));
+  const out = [];
+  (Array.isArray(questions) ? questions : []).forEach((q, i) => {
+    if (!q || typeof q !== 'object') return;
+    const fb = q.option_feedback || {};
+    const labels = q.figure && typeof q.figure === 'object' ? specStrings(q.figure) : [];
+    const fields = [q.question, ...(q.options || []), q.explanation, fb.correct, ...Object.values(fb.wrong || {}), ...labels]
+      .map((t) => String(t || '')).filter((t) => /\p{Script=Arabic}/u.test(t));
+    const seen = new Set();
+    fields.forEach((t) => (t.match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => {
+      if (lessonWords.has(w) && !terms.has(w.toLowerCase()) && !seen.has(w)) seen.add(w);
+    }));
+    seen.forEach((w) => out.push(`q${i}: URDU_NAME_LATIN — "${w}" is a person's name, not a term: in an Urdu quiz write it in Urdu script`));
+  });
+  return out;
+}
+
 function modelsTheStem(q, subject, gradeBand) {
   return Boolean(q) && q.figure_role === 'model' && earlyMaths(subject, gradeBand);
 }
@@ -352,8 +413,13 @@ function validate(rawQuestions, ctx = {}) {
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
     return { ok: false, errors: ['no questions'], questions: [] };
   }
+  // A figure never names its parts with the option letters (relabelLetterParts):
+  // renamed first, so every check below and every surface reads the new names.
   const qs = rawQuestions.map(normaliseFeedback)
+    .map((q) => relabelLetterParts(q).question)
     .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
+  // What the lesson calls a term, and what a phrase — for URDU_ADJACENT_TERMS.
+  const adjacentLex = language === 'ur' ? lessonLexicon(digest, qs) : null;
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
@@ -464,6 +530,11 @@ function validate(rawQuestions, ctx = {}) {
       // 2026-09-07), read on the question as the child SEES it.
       const address = childAddressError(p, i);
       if (address) errs.push(address);
+      // Two separate English terms side by side read backwards in a
+      // right-to-left line. Read on the question as authored (the detector
+      // leaves the $…$ maths out itself).
+      const adjacent = adjacentTermsError(q, i, adjacentLex);
+      if (adjacent) errs.push(adjacent);
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {
@@ -547,6 +618,13 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
       return;
     }
+    // The engine draws a fraction bar of at most 24 parts (vendor fraction_bar.js
+    // clamps `parts`), so a bar of 48 is drawn as 24 — a different fraction, and
+    // live (grade 5 Urdu) two bars of "24" in a question with one right bar.
+    if (canonicalType(q.figure.type) === 'fraction_bar' && Array.isArray(q.figure.bars)) {
+      const tooFine = q.figure.bars.map((b) => Number(b && b.parts)).filter((n) => n > FRACTION_BAR_MAX_PARTS);
+      if (tooFine.length) errs.push(`q${i}: FIGURE_TOO_FINE — a bar of ${tooFine[0]} parts is drawn as ${FRACTION_BAR_MAX_PARTS}, the most the engine draws; use at most ${FRACTION_BAR_MAX_PARTS} parts`);
+    }
     let svg = null;
     try {
       svg = renderFigureSvg(q.figure, language);
@@ -575,10 +653,29 @@ function validate(rawQuestions, ctx = {}) {
       .forEach((d) => errs.push(`q${i}: ${d.code} — ${d.message}`));
     const dropped = droppedTextDefect(q.figure, svg, canonicalType(q.figure.type) || 'figure');
     if (dropped) errs.push(`q${i}: FIGURE_TEXT_DROPPED — ${dropped.message}`);
+    // A "model" picture is NOT exempt, by decision: it is exempt from
+    // FIGURE_REDUNDANT (below) because it shows numbers the stem states, but it
+    // must still be able to produce the answer. On the live grade 4 fractions
+    // replays every model picture this rule refused sat on a step of a
+    // procedure — bars of 2/3 and 3/5 beside "what is 2 × 5?" (10), a bar of
+    // 2/5 beside "2/5 = ?/20" (8/20). The bars modelled the fractions correctly
+    // and answered nothing; a child reading them cannot reach the key. The
+    // model uses a young class is taught with still pass: "which is larger" is
+    // keyed to one of the fractions drawn, and a word answer is not checked. A
+    // question no picture can answer is REPLACED by the add-pictures repair
+    // instead (transcript-quiz-rewrite). Counters (count_objects) are held to
+    // the same rule since two slipped through beside a product and an LCM.
+    const unnamed = unnamedParts(q.figure, opts);
+    if (unnamed) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — the options name parts ${unnamed.join(', ')} but the picture names none; give each part its name as its label ("P", not "bar P")`);
     const mismatch = figureMismatch(q.figure, opts, ci);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }
+    // 2/8 and 1/4 under a bar of 2 in 8 are both right (live, grade 3 Urdu,
+    // passed by the blind solver). Named as a duplicate option so the targeted
+    // rewrite repairs it with the distinct-options rule.
+    const twin = equalAmountOptions(q.figure, opts, ci);
+    if (twin) errs.push(`q${i}: duplicate options — ${twin}`);
     if (!modelsTheStem(q, subject, gradeBand) && figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
     }
@@ -651,6 +748,7 @@ function validate(rawQuestions, ctx = {}) {
 
 module.exports = {
   validate,
+  latinNames,
   normaliseFeedback,
   STEM_PROMISES_PICTURE,
   FIGURE_MAX_SHARE,

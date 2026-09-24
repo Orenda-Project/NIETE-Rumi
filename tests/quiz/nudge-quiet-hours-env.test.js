@@ -55,3 +55,41 @@ describe('H-H: another window', () => {
     expect(Nudge.nudgeTargetUtc(atPkt(16)).toISOString()).toBe(atPkt(16).toISOString());
   });
 });
+
+describe('quietAwareDeadlineUtc: a wait that counts only waking hours', () => {
+  const SIX_H = 6 * 60 * 60 * 1000;
+  const next = (h, m = 0) => new Date(atPkt(h, m).getTime() + 24 * 60 * 60 * 1000);   // the day after
+  const ends = (start) => Nudge.quietAwareDeadlineUtc(start, SIX_H).toISOString();
+
+  test('unset (21–07): 19:00 + 6 h ends 11:00 next day; 10:00 + 6 h ends 16:00', () => {
+    delete process.env[KEY];
+    expect(ends(atPkt(19))).toBe(next(11).toISOString());
+    expect(ends(atPkt(10))).toBe(atPkt(16).toISOString());
+  });
+  test('a wait that runs out exactly as the window opens ends then, not in the morning', () => {
+    delete process.env[KEY];
+    expect(ends(atPkt(15))).toBe(atPkt(21).toISOString());
+  });
+  test('a start inside the window counts from the window\'s end', () => {
+    delete process.env[KEY];
+    expect(ends(atPkt(1, 30))).toBe(atPkt(13).toISOString());
+  });
+  test('off: plain clock time', () => {
+    process.env[KEY] = 'off';
+    expect(ends(atPkt(19))).toBe(next(1).toISOString());
+  });
+  test('a daytime window 13-15 is skipped too: 12:00 + 6 h ends 20:00', () => {
+    process.env[KEY] = '13-15';
+    expect(ends(atPkt(12))).toBe(atPkt(20).toISOString());
+  });
+  test('it agrees with nudgeTargetUtc: the end is never inside the window unless it lands on its first instant', () => {
+    delete process.env[KEY];
+    for (let h = 0; h < 24; h++) {
+      const end = Nudge.quietAwareDeadlineUtc(atPkt(h, 20), SIX_H);
+      const heldTo = Nudge.nudgeTargetUtc(end);
+      const pktHour = new Date(end.getTime() + 5 * 3600 * 1000).getUTCHours();
+      const onOpening = pktHour === 21 && end.getUTCMinutes() === 0;
+      if (!onOpening) expect(heldTo.toISOString()).toBe(end.toISOString());
+    }
+  });
+});

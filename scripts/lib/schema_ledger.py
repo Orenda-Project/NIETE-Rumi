@@ -119,9 +119,13 @@ def file_effects(sql):
         if m:
             create(("view", m.group(2).lower()), replaces=bool(m.group(1)))
             continue
-        m = re.match(r"create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?" + _IDENT, s, re.I)
+        m = re.match(r"create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?" + _IDENT
+                     + r"(?:\s+on\s+(?:only\s+)?" + _IDENT + r")?", s, re.I)
         if m:
-            create(("index", m.group(1).lower()))
+            # An index on a relation this file dropped only restores what the drop took away.
+            rel = (m.group(2) or "").lower()
+            rebuilt = ("table", rel) in dropped_here or ("view", rel) in dropped_here
+            create(("index", m.group(1).lower()), replaces=rebuilt)
             continue
         m = re.match(r"create\s+(or\s+replace\s+)?function\s+" + _IDENT, s, re.I)
         if m:
@@ -159,6 +163,15 @@ def file_effects(sql):
                 if mm:
                     create(("column", table, mm.group(1).lower()))
                     continue
+                mm = re.match(r"rename\s+column\s+" + _IDENT + r"\s+to\s+" + _IDENT, c, re.I)
+                if mm:
+                    # A rename is the old column gone and the new one made, in one step.
+                    old_col = ("column", table, mm.group(1).lower())
+                    create(("column", table, mm.group(2).lower()))
+                    drops.append(old_col)
+                    dropped_here.add(old_col)
+                    probes.append((("column_absent", table, mm.group(1).lower()), False))
+                    continue
                 mm = re.match(r"add\s+constraint\s+" + _IDENT, c, re.I)
                 if mm:
                     create(("constraint", mm.group(1).lower()))
@@ -175,6 +188,11 @@ def file_effects(sql):
                     obj = ("constraint", mm.group(1).lower())
                     drops.append(obj)
                     dropped_here.add(obj)
+                    continue
+                mm = re.match(r"alter\s+(?:column\s+)?" + _IDENT + r"\s+(?:set\s+data\s+)?type\s+(.+?)(?:\s+using\s+.*)?$",
+                              c, re.I | re.S)
+                if mm:
+                    probes.append((("column_type", table, mm.group(1).lower(), catalog_type(mm.group(2))), False))
                     continue
                 mm = re.match(r"alter\s+(?:column\s+)?" + _IDENT + r"\s+(drop|set)\s+not\s+null", c, re.I)
                 if mm:
@@ -194,6 +212,25 @@ def file_effects(sql):
     return {"creates": creates, "drops": drops, "probes": probes}
 
 
+_TYPE_ALIASES = [
+    (r"^varchar\b", "character varying"), (r"^char\b", "character"), (r"^int4?$", "integer"),
+    (r"^int8$", "bigint"), (r"^int2$", "smallint"), (r"^bool$", "boolean"), (r"^float8$", "double precision"),
+    (r"^timestamptz$", "timestamp with time zone"), (r"^timestamp$", "timestamp without time zone"),
+]
+
+
+def catalog_type(spelled):
+    """A type as a migration spells it, as format_type() prints it (`varchar(64)` ->
+    `character varying(64)`), so the probe can compare strings."""
+    t = " ".join(spelled.strip().lower().split())
+    t = re.sub(r"\s*\(\s*", "(", t)
+    t = re.sub(r"\s*\)", ")", t)
+    t = re.sub(r"\s*,\s*", ",", t)
+    for pat, rep in _TYPE_ALIASES:
+        t = re.sub(pat, rep, t)
+    return t
+
+
 def _split_clauses(rest):
     """Top-level comma split of an ALTER TABLE action list (parentheses respected)."""
     out, depth, cur = [], 0, []
@@ -211,9 +248,17 @@ def _split_clauses(rest):
     return out
 
 
+_SHAPE_PROBES = ("column_absent", "nullable", "not_null", "column_type")
+
+
 def _shape_target(probe):
-    """The object a shape probe (column_absent / nullable / not_null) is about."""
+    """The column a shape probe (column_absent / nullable / not_null / column_type) is about."""
     return ("column", probe[1], probe[2])
+
+
+def _retyped_later(entries, i, table, column):
+    return any(p[0] == "column_type" and p[1] == table and p[2] == column
+               for e in entries[i + 1:] for p, _ in e[3]["probes"])
 
 
 def plan(files):
@@ -242,8 +287,11 @@ def plan(files):
                 later_drop.update(other["drops"])
         probes = []
         for probe, replaces in eff["probes"]:
-            target = _shape_target(probe) if probe[0] in ("column_absent", "nullable", "not_null") else probe
-            if probe[0] == "column_absent":
+            target = _shape_target(probe) if probe[0] in _SHAPE_PROBES else probe
+            if probe[0] == "column_type":
+                superseded = target in later_drop or _retyped_later(entries, i, probe[1], probe[2])
+                strength = "superseded" if superseded else "strong"
+            elif probe[0] == "column_absent":
                 # A later file re-adding the column makes "absent" the wrong expectation.
                 strength = "superseded" if target in others_create and _created_later(entries, i, target) else "strong"
             elif target in later_drop:
@@ -287,6 +335,21 @@ def verdict(results):
     return "partial"
 
 
+def combine(catalog_verdict, effect_present):
+    """The catalog verdict, settled by a file's effect check when it has one.
+
+    `effect_present` is None (no check), True or False. A check can settle a file the
+    catalog could not prove, and confirm one it could; when the two disagree the answer is
+    `partial` — somebody reads the file and the database, nobody guesses.
+    """
+    if effect_present is None:
+        return catalog_verdict
+    agrees = ("applied", "unverifiable") if effect_present else ("not_applied", "unverifiable")
+    if catalog_verdict in agrees:
+        return "applied" if effect_present else "not_applied"
+    return "partial"
+
+
 def probe_query(probe):
     """(sql, params) that returns one boolean row for this probe. Parameterised — no
     identifier is ever interpolated into the SQL text."""
@@ -316,6 +379,11 @@ def probe_query(probe):
     if kind == "policy":
         return ("SELECT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' "
                 "AND tablename = %s AND policyname = %s)", (probe[1], probe[2]))
+    if kind == "column_type":
+        return ("SELECT coalesce((SELECT format_type(a.atttypid, a.atttypmod) = %s FROM pg_attribute a "
+                "WHERE a.attrelid = (SELECT c.oid FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = 'public' AND c.relname = %s) AND a.attname = %s AND NOT a.attisdropped), false)",
+                (probe[3], probe[1], probe[2]))
     if kind in ("nullable", "not_null"):
         want = "YES" if kind == "nullable" else "NO"
         return ("SELECT coalesce((SELECT is_nullable = %s FROM information_schema.columns "
@@ -326,6 +394,8 @@ def probe_query(probe):
 
 def describe(probe):
     kind = probe[0]
+    if kind == "column_type":
+        return "%s.%s type %s" % (probe[1], probe[2], probe[3])
     if kind in ("column", "column_absent", "nullable", "not_null"):
         label = {"column": "", "column_absent": " absent", "nullable": " nullable",
                  "not_null": " NOT NULL"}[kind]
