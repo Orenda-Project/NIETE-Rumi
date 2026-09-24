@@ -153,6 +153,16 @@ tests/training/certificate-pdf-issuance.test.js
 tests/training/portal-grand-quiz.test.js
 ```
 
+**A flaky-listed suite that fails in BOTH gate runs is reported** (since 2026-09-24). A failure
+here never gates, so the gate also takes its confirmation run when a flaky-listed suite failed,
+and lists the ones that failed twice as *"likely no longer flaky"*. The two portal certificate
+suites below are the reason: they have failed on every run since a route change on 2026-09-18
+(`TrainingRules.certifyLevel is not a function` — the shared test fixture never gained it) and
+the gate printed them as "inconclusive" throughout. The line is advisory by default, because
+those two would otherwise redden every PR until they are fixed; set `BASELINE_FLAKY_TWICE=gate`
+(e.g. in `ci.yml`) to make it gate once the list is honest again. At the documented ~1-in-10
+flake rate, a genuine flake failing both runs by chance is about 1 in 100.
+
 `portal-capstone-submit` is on the `develop` list too; it does not exist on `main` and
 so is omitted here. **None of these three flaked in four consecutive runs on `main`** —
 they are quarantined because the underlying race is the same code, not because they
