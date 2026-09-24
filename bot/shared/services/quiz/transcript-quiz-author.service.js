@@ -18,6 +18,7 @@ const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pi
 const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
+const { peopleRule } = require('./transcript-quiz-people');
 const {
   languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
@@ -272,6 +273,7 @@ ${lp ? LP_SUMMARY_RULE : TRANSCRIPT_SUMMARY_RULE}
 ${SELECTED_BECAUSE_RULE}
 ${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
+${peopleRule(digest, language)}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
 ${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}${picturesAgain({ subject: digest && digest.subject, gradeBand, n })}

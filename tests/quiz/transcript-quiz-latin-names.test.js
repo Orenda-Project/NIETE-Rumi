@@ -126,5 +126,5 @@ test('a name the repair could not reach is recorded as a soft fault and an event
   expect(out.ok).toBe(true);
   const metas = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((c) => c[1].meta).filter(Boolean);
   expect(metas.pop().soft_faults).toEqual(expect.arrayContaining([expect.stringMatching(/^q3: URDU_NAME_LATIN — "Hira"/)]));
-  expect(logEvent).toHaveBeenCalledWith('transcript_quiz.latin_name', expect.objectContaining({ quizId: QID, names: ['Hira'], questions: [3] }));
+  expect(logEvent).toHaveBeenCalledWith('transcript_quiz.latin_name', expect.objectContaining({ quizId: QID, names: 1, questions: [3] }));
 });

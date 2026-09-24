@@ -14,6 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
+const { peopleSpellings, spellQuestion } = require('./transcript-quiz-people');
 const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
@@ -463,9 +464,14 @@ function validate(rawQuestions, ctx = {}) {
   }
   // A figure never names its parts with the option letters (relabelLetterParts):
   // renamed first, so every check below and every surface reads the new names.
+  // In an Urdu quiz each person the digest recorded is written in their Urdu
+  // spelling, wherever a field or a picture label still has the name in English
+  // letters (transcript-quiz-people). This is the one step every shipped
+  // question passes, so a note a repair wrote with "Hira" cannot keep it.
+  const spellings = language === 'ur' ? peopleSpellings(digest) : {};
   const qs = rawQuestions.map(normaliseFeedback)
     .map((q) => relabelLetterParts(q).question)
-    .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
+    .map((q) => (language === 'ur' ? rtlOpenQuestion(spellQuestion(fixQuestionTransliterations(q), spellings)) : q));
   // What the lesson calls a term, and what a phrase — for URDU_ADJACENT_TERMS.
   const adjacentLex = language === 'ur' ? lessonLexicon(digest, qs) : null;
   // The lesson's names and its key terms — for URDU_NAME_LATIN.
