@@ -67,9 +67,10 @@
         "base_ten_blocks",
         "bundles"
       ],
-      "for": "Place value as the class built it -- hundreds, tens and ones as bundles of sticks (or flats, rods and cubes) on a mat of labelled columns. The number is read off, never printed.",
+      "for": "Place value as the class built it -- thousands, hundreds, tens and ones as bundles of sticks (or cubes, flats, rods and unit cubes) on a mat of labelled columns. The number is read off, never printed.",
       "required": [],
       "optional": [
+        "thousands",
         "hundreds",
         "tens",
         "ones",
@@ -86,10 +87,10 @@
       },
       "png": [],
       "limits": [
-        "`hundreds`, `tens` and `ones` are COUNTS of pieces, 0-20 each; at least one must be above 0. Above 9 is a regrouping picture (13 tens is thirteen bundles).",
-        "A place holding 0 is drawn EMPTY, under its own heading -- the zero in 209 stays visible. The hundreds place appears only when there are hundreds (or with places: 3).",
-        "`model` is \"bundles\" (default: loose sticks, bundles of ten tied once, big bundles of a hundred tied twice) or \"blocks\" (unit cubes, rods of ten, flats of a hundred). Draw the one the lesson used.",
-        "No digit, count or total is ever drawn: the child reads the number off the picture. Each place is headed with its name in the figure's language; `labels` ({hundreds, tens, ones}) renames the heads."
+        "`hundreds`, `tens` and `ones` are COUNTS of pieces, 0-20 each, and `thousands` 0-9 (a four-digit number); at least one must be above 0. Above 9 is a regrouping picture (13 tens is thirteen bundles).",
+        "A place holding 0 is drawn EMPTY, under its own heading -- the zero in 209 and in 2014 stays visible. The thousands place appears only when there are thousands (or with places: 4), the hundreds place when there are hundreds or thousands (or with places: 3).",
+        "`model` is \"bundles\" (default: loose sticks, bundles of ten tied once, big bundles of a hundred tied twice, a block of ten big bundles for a thousand) or \"blocks\" (unit cubes, rods of ten, flats of a hundred, a cube of a thousand). Draw the one the lesson used.",
+        "No digit, count or total is ever drawn: the child reads the number off the picture. Each place is headed with its name in the figure's language; `labels` ({thousands, hundreds, tens, ones}) renames the heads."
       ]
     },
     {

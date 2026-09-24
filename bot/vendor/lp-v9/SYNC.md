@@ -1058,11 +1058,50 @@ cannot be measured, the phone pages are restored and printed as before. The PDF 
 against the printed page count. The Chrome-CLI fallback still prints phone pages. **Re-vendoring
 over this reverts the layout to phone pages** — carry it forward or port it upstream.
 
+### 3.20 A thousands place for `base_ten`, and six more pictograms — `types/base_ten.js`, `types_manifest.json`, `lib/pictogram.js`, `assets/pictograms/` (2026-09-24)
+
+Two additions to §3.18's manipulatives, both measured against the 421 ICT grade 1-5 maths slide scripts.
+
+* **`types/base_ten.js` — a `thousands` place (0-9).** Grade 3's place-value lessons are four-digit
+  ("Count up to 9999" draws 1986 as `[cube] / [flat]×9 / [rod]×8 / [dot]×6`; "Compare numbers" writes
+  "5 thousands, 2 hundreds, 6 tens, 3 ones"), and the mat stopped at hundreds. A thousand is drawn out
+  of ten hundreds in each model: `blocks` — a CUBE, a flat's 10x10 face with its top and side receding
+  (oblique, depth 40) and each receding face cut into ten layers; `bundles` — ten big bundles tied into
+  one block, a big bundle's face with the same receding top and side (depth 24). The thousands column
+  sits left of the hundreds in both languages; the hundreds column is drawn EMPTY under a number that
+  has thousands and no hundreds (2014); `places: 4` asks for an empty thousands column. Default heads
+  "Thousands" / "ہزار"; the quiz lane passes its own from the catalog (`tqPlaceThousands`). Thousands
+  are capped at 9 (`MAX_BY_PLACE`) — more is a five-digit number, which no grade 1-5 lesson builds from
+  blocks — while the other places keep 0-20. Two new examples (1986 blocks, 2014 bundles in Urdu).
+* **`types_manifest.json`** — the `base_ten` entry names `thousands` in `optional`, `for` and three of
+  its four limits (still without the word "column", per §3.18).
+* **`assets/pictograms/` — three OpenMoji glyphs**, added the normal way: `sources.json` gains
+  `sweet` ← "candy", `cookie` ← "cookie" and `lily` ← "lotus" (a water lily — Unicode has no lily), and
+  `build_pictograms.js` rebuilt the set. The rebuild reproduced the existing 255 glyphs byte-for-byte
+  (checked by a full-directory diff in a scratch copy) and added `svg/{sweet,cookie,lily}.svg`,
+  their `index.json` rows and one new author in `ATTRIBUTION.md` (now 258 glyphs).
+* **`lib/pictogram.js` — three local line-art glyphs and five aliases.** OpenMoji has no date, samosa
+  or bangle, so `LOCAL_GLYPHS` draws them in OpenMoji's own manner (outline, `currentColor`, stroke 2,
+  round caps, `data-ov="skip"`, a `data-part` on every stroke): a DATE (plump oval, cap and stem, three
+  wrinkles across it), a SAMOSA (a triangle with bulging sides and rounded corners, the folded seam and
+  its pinch marks, fried blisters) and a BANGLE (a thin tilted band: rim, hole, depth, three beads). Each
+  was rendered at phone size on a question card and redrawn until it read as the thing (a straight-sided
+  samosa read as a tent; a date with one long crease read as a seed). `ALIASES` adds the lessons'
+  other words: `biscuit` → cookie; `candy`, `toffee`, `laddu` → sweet; `pebble` → stone.
+
+Coverage after the change, measured by running the lesson-plan parser over the same 421 scripts: 712
+of the 747 object rows now resolve to a pictogram (was 652); the 60 rows that moved are sweet 12, date 8,
+cookie 7, lily 7, bangle 6, samosa 5, pebble 5, biscuit 4, candy 2, toffee 2 and laddu 2. The 35 still
+falling back to a counter are finger, sticker, glass, roti and one-offs. The three lessons that build a
+thousands place now quote their worked example whole instead of being told to keep to three places. Covered by `tests/quiz/base-ten-thousands.test.js` and `tests/quiz/pictograms-lesson-objects.test.js`.
+Upstream has none of this; keep all of it at the next re-sync, and offer the thousands place and the
+three local glyphs upstream with §3.18.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph) and §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) and §3.19 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
