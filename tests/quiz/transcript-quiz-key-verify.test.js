@@ -376,7 +376,7 @@ describe('when dropping would leave the quiz under its floor', () => {
 // ── the lp_v8 path runs it too, after the key check ─────────────────────────
 
 describe('an lp_v8 quiz is blind-solved as well, after its key check', () => {
-  const BAHAR_RIGHT = "آخر میں 'یں' لگائیں گے";
+  const BAHAR_RIGHT = "آخر میں 'یں' لگانا";
 
   test('the key check passes it, the solver catches it, and the item is re-authored', async () => {
     llm({

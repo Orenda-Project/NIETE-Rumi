@@ -49,6 +49,35 @@ const MATH_NOTATION_RULE = 'MATHS NOTATION (every language). Write every mathema
   + 'NEVER TeX inside a "figure" spec: its labels are plain text ("3/4", "×"), because the drawing engine draws its own stacked fractions (a numberline with "labelFormat":"fraction").';
 
 /**
+ * THE CHILD HAS NO GENDER (Urdu) — stated inside the question contract, so the
+ * author prompt and the targeted rewrite carry the one wording.
+ *
+ * About one production Urdu item in ten asked the child what they would do in
+ * the masculine («کون سی علامت لگائیں گے؟», «آپ اسے حوصلہ کیسے دیں گے؟», feedback
+ * opening «آپ سوچ رہے ہیں»). The old line asked for "plural-respectful verbs"
+ * and a model reads «آپ کرتے ہیں» as exactly that — respectful, and masculine.
+ * So the rule names the gendered forms of BOTH genders, and names the neutral
+ * ones to write instead. The deterministic half is PEDAGOGY_GENDERED_CHILD
+ * (transcript-quiz-address.js, wired in the validator).
+ */
+const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER (Urdu): the class is boys and girls, so a verb that speaks TO the child — in the stem, the options, the explanation or the feedback — never carries a gender. '
+  + 'Never «آپ … لگائیں گے» or «لگائیں گی», «آپ … جاتے ہیں» or «جاتی ہیں», «آپ … سوچ رہے ہیں» or «سوچ رہی ہیں», «آپ … کر سکتے ہیں» or «کر سکتی ہیں», and never «کون سی علامت لگائیں گے؟» with آپ left unsaid — the verb still guesses. '
+  + 'Write instead: the آپ-imperative or subjunctive («بتائیں»، «چنیں»، «آپ کون سی علامت لگائیں؟»); the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»، «9 میں 7 جمع کیا جائے گا»); or آپ نے + a verb that agrees with its object («آپ نے کون سا لفظ چنا؟»). '
+  + 'An option that answers "what would you do" is an infinitive or an imperative («آخر میں «یں» لگانا»), never «… لگائیں گے». Wrong-answer feedback opens «شاید آپ نے … سمجھا» or «یہ … کی الجھن ہے», never «آپ … سوچ رہے ہیں». '
+  + 'Describing someone else is fine («بچے کھیل رہے ہیں»، «پودے خوراک بناتے ہیں»): the rule is about the child being spoken to.';
+
+/**
+ * COLUMN SUMS — a column addition or subtraction is ONE typeset expression, a
+ * KaTeX array, so the card draws it the way the textbook sets it out: the
+ * numbers right-aligned under each other, the operator in its own column, a
+ * rule, and an empty answer row. Every text path flattens it to "452 − 137 = ?"
+ * (quiz-math columnSumText); MATH_TEX names an array whose rows ran together.
+ * Part of the question contract, so the author and the targeted rewrite carry
+ * the one wording.
+ */
+const COLUMN_SUM_RULE = 'COLUMN SUMS. A column addition or subtraction — the way the textbook sets it out — is ONE expression in the stem: $\\begin{array}{rr} & 452 \\\\ - & 137 \\\\ \\hline & \\end{array}$. Each number is its own row, right-aligned so the places line up; the operator (+ or -) sits alone in the first column of the last number\'s row; \\hline draws the rule; the empty row after it is the answer space. Never write the answer in it. The stem\'s words stay outside the dollars ("Subtract:", «تفریق کریں:»). In the JSON you return, every backslash is doubled, so a row break is four: "$\\\\begin{array}{rr} & 452 \\\\\\\\ - & 137 \\\\\\\\ \\\\hline & \\\\end{array}$".';
+
+/**
  * WHAT ONE QUESTION MUST CONTAIN — shared verbatim by the author prompt and by
  * the targeted rewrite, so the two cannot drift about the shape of a question
  * the validator will accept. Changing a rule here changes it in both.
@@ -63,8 +92,10 @@ function questionContract({ gradeBand } = {}) {
 - NEVER refer to options by letter ("option B", "the answer is C") anywhere — the letters are shuffled before display.
 - Tag every question with its "slo_id" and its "level".
 - ${MATH_NOTATION_RULE}
+- ${COLUMN_SUM_RULE}
 
-STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu; gender-neutral throughout: address the child as "آپ" with plural-respectful verbs (کریں، دیکھیں، سوچیں), NEVER a feminine or masculine singular guess (no "کرتی ہیں", "سکتی ہیں", "کریں گی", "کرتے ہو").
+STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu.
+${CHILD_ADDRESS_RULE}
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.`;
 }
 
@@ -172,6 +203,6 @@ const SELECTED_BECAUSE_RULE = "SELECTED BECAUSE. Every question also carries a \
 const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any mention of the Prophet, companions, Qur'an): every mention of the Prophet carries ﷺ immediately after the name; companions carry رضی اللہ عنہ / عنہا; اللہ and all sacred names in Urdu/Arabic script only; NEVER invent or paraphrase a hadith or an ayah — quote only what the lesson quoted, and only with the reference the teacher gave; no question may ask a child to guess what the Prophet ﷺ \"would say\".";
 
 module.exports = {
-  languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE,
+  languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE, COLUMN_SUM_RULE,
   SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };

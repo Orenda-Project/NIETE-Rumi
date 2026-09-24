@@ -35,27 +35,85 @@ function stripEmphasis(s) {
 }
 
 /**
- * bd-2612 — label a child's class without saying "Grade" twice.
+ * Read the class a child typed into the join form.
  *
- * Children type this themselves when they open the share link, so the column
- * holds "3", "Grade 3", "Class 3", "4 B" and worse. The template used to
- * prefix "Grade " unconditionally, which produced "Grade Grade 3" and
- * "Grade Class 3" in a real teacher's report.
+ * The column is free text and one class of children writes it a dozen ways:
+ * "4", "Class 4", "grade 4", "4th", "4 B", "Class-4", "class four", "چوتھی
+ * جماعت", and the same digit in three scripts — "4", "۴" (the Urdu digit a
+ * Pakistani keyboard types) and "٤" (Arabic-Indic). Compared as strings those
+ * were different classes: the report's hero read "جماعتیں 4، ۴".
+ *
+ * So the digits are normalised first, and then the GRADE NUMBER is read out of
+ * the text — the first number from 1 to 12, as digits or as a word. A section
+ * letter or a trailing "th" is not part of the grade. A class with no number in
+ * it at all ("KG", "Prep", "کچی") keeps its own word, with the unit word the
+ * child may have typed in front of it taken off.
+ *
+ * Returns { key, value } — `key` decides "the same class", `value` is what a
+ * label prints after the document's own unit word — or null for a blank.
+ */
+const URDU_DIGITS = /[\u06F0-\u06F9]/g;       // ۰-۹, the digits an Urdu keyboard types
+const ARABIC_INDIC_DIGITS = /[\u0660-\u0669]/g; // ٠-٩
+
+function normaliseDigits(s) {
+  return String(s)
+    .replace(URDU_DIGITS, (d) => String(d.charCodeAt(0) - 0x06F0))
+    .replace(ARABIC_INDIC_DIGITS, (d) => String(d.charCodeAt(0) - 0x0660));
+}
+
+const CLASS_UNIT = /^(?:grade|class|jamaat|jamat|std|standard)(?![a-z])[\s.:#-]*|^(?:جماعت|کلاس|گریڈ)[\s.:#-]*/i;
+
+// Number words a child may type instead of the digit, in either script. Whole
+// words only — they are matched against the tokens of the text, never inside one.
+const GRADE_WORDS = new Map(Object.entries({
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12,
+  ایک: 1, دو: 2, تین: 3, چار: 4, پانچ: 5, چھ: 6, سات: 7, آٹھ: 8, نو: 9, دس: 10, گیارہ: 11, بارہ: 12,
+  پہلی: 1, پہلا: 1, دوسری: 2, دوسرا: 2, تیسری: 3, تیسرا: 3, چوتھی: 4, چوتھا: 4, پانچویں: 5, پانچواں: 5,
+  چھٹی: 6, چھٹا: 6, ساتویں: 7, ساتواں: 7, آٹھویں: 8, آٹھواں: 8, نویں: 9, نواں: 9, دسویں: 10, دسواں: 10,
+  گیارہویں: 11, گیارھویں: 11, بارہویں: 12, بارھویں: 12,
+}));
+
+function parseClass(v) {
+  const raw = normaliseDigits(v === null || v === undefined ? '' : v).trim();
+  if (!raw) return null;
+  const digits = raw.match(/\d+/);
+  let grade = digits ? Number(digits[0]) : null;
+  if (grade === null) {
+    const tokens = raw.toLowerCase().split(/[\s.,:;#()\-،۔]+/).filter(Boolean);
+    const hit = tokens.find((t) => GRADE_WORDS.has(t));
+    if (hit) grade = GRADE_WORDS.get(hit);
+  }
+  if (Number.isInteger(grade) && grade >= 1 && grade <= 12) return { key: String(grade), value: String(grade) };
+  const bare = raw.replace(CLASS_UNIT, '').trim();
+  if (!bare) return null;
+  return { key: bare.toLowerCase().replace(/\s+/g, ' '), value: bare };
+}
+
+/**
+ * The grade a QUIZ row carries, as the words that follow "Grade" in a prompt:
+ * "4" for "4", "Grade 4" or "۴"; a band the lesson digest estimated ("6-8") is
+ * kept as the band rather than read as its first number. '' when there is none.
+ */
+function gradeText(v) {
+  const raw = normaliseDigits(v === null || v === undefined ? '' : v).trim().replace(CLASS_UNIT, '').trim();
+  const band = raw.match(/^(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})$/i);
+  if (band) return `${Number(band[1])}-${Number(band[2])}`;
+  const c = parseClass(raw);
+  return c ? c.value : '';
+}
+
+/**
+ * Label a child's class without saying "Grade" twice. Now also ONE
+ * format per document: "Class 4" in English, "جماعت 4" in Urdu, whatever the
+ * child typed — "Grade 5", "class 5" and "جماعت ۴" in one roster read as three
+ * different kinds of thing. The unit word is chrome, so it follows the
+ * document's language (PLAN_R4 D1); the value is the parsed grade.
  */
 function classLabel(v, language = 'en') {
-  const t = String(v === null || v === undefined ? '' : v).trim();
-  if (!t) return '';
-  // Already names the unit — in English, in Urdu, or in the two romanisations
-  // teachers use. Checked before the language branch, because a child who
-  // typed "Class 3" into an Urdu quiz still typed "Class 3".
-  // `\b` is an ASCII word boundary, so it never fires after a Perso-Arabic
-  // letter — "جماعت 4" has to be matched on the following space instead,
-  // or it comes back out as "جماعت جماعت 4".
-  if (/^(grade|class|jamaat|jamat)\b/i.test(t) || /^جماعت(\s|$)/.test(t)) return t;
-  // PLAN_R4 D1 — a single-language document cannot print an English word
-  // in the middle of an Urdu roster. The label is chrome, so it follows the
-  // document's language; the class VALUE the child typed is left as typed.
-  return language === 'ur' ? `جماعت ${t}` : `Grade ${t}`;
+  const c = parseClass(v);
+  if (!c) return '';
+  return language === 'ur' ? `جماعت ${c.value}` : `Class ${c.value}`;
 }
 
 
@@ -69,14 +127,13 @@ function classLabel(v, language = 'en') {
  * typed a class into the join form — so the report says what they typed and
  * the PDF, which is written before any of them has, says nothing at all.
  *
- * Two children in one class must not read as two classes, so "7", "Class 7"
- * and " 7 " collapse; the unit word the child typed is stripped for the
- * comparison and the DOCUMENT's own unit word is put back once, in front.
+ * Two children in one class must not read as two classes, so "7", "Class 7",
+ * "7th", "۷" and " 7 " collapse — parseClass() reads the grade number out of
+ * each — and the DOCUMENT's own unit word is put back once, in front.
  *
  * Sorted numerically, because a lexical sort puts "10" before "6" and a
  * teacher reading "Classes 10, 6, 7" assumes the report is broken.
  */
-const CLASS_UNIT = /^(grade|class|jamaat|jamat)\b[\s.:-]*|^جماعت[\s.:-]*/i;
 
 /**
  * The one definition of "the same class", so the report service (which reads
@@ -91,12 +148,8 @@ const CLASS_UNIT = /^(grade|class|jamaat|jamat)\b[\s.:-]*|^جماعت[\s.:-]*/i;
 function normaliseClasses(values) {
   const seen = new Map();
   (Array.isArray(values) ? values : []).forEach((v) => {
-    const raw = String(v === null || v === undefined ? '' : v).trim();
-    if (!raw) return;
-    const bare = raw.replace(CLASS_UNIT, '').trim();
-    if (!bare) return;
-    const key = bare.toLowerCase().replace(/\s+/g, ' ');
-    if (!seen.has(key)) seen.set(key, bare);
+    const c = parseClass(v);
+    if (c && !seen.has(c.key)) seen.set(c.key, c.value);
   });
   return [...seen.values()].sort((a, b) => {
     const na = parseFloat(a);
@@ -119,4 +172,4 @@ function classHeading(values, language = 'en') {
   return `${unit} ${classes.join(ur ? '، ' : ', ')}`;
 }
 
-module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses };
+module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText };

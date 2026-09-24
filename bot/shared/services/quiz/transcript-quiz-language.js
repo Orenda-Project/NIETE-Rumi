@@ -29,7 +29,9 @@ const CANON = [
   ['maths', ['maths', 'math', 'mathematics', 'riyazi', 'ریاضی', 'حساب']],
   ['science', ['science', 'general science', 'gen science', 'sci', 'سائنس']],
   ['sst', ['sst', 'social studies', 'social study', 'social science', 'pakistan studies', 'pak studies', 'معاشرتی علوم', 'مطالعہ پاکستان']],
-  ['genk', ['genk', 'gk', 'general knowledge', 'meri kitab', 'میری کتاب', 'معلومات عامہ']],
+  // 'عمومی معلومات' is the subject's own display label (SUBJECT_LABELS), so a
+  // label handed back in is recognised as the subject it names.
+  ['genk', ['genk', 'gk', 'general knowledge', 'meri kitab', 'میری کتاب', 'معلومات عامہ', 'عمومی معلومات']],
 ];
 
 function canonicalSubject(subject) {

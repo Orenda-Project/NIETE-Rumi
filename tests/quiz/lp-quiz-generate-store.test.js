@@ -14,6 +14,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 jest.mock('../../bot/shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue('mid') }));
 jest.mock('../../bot/shared/services/quiz/lp-quiz-digest.service', () => ({
   run: jest.fn().mockRejectedValue(new Error('stop after the digest call')), lessonExcerpts: jest.fn().mockReturnValue(''),
+  lessonDrewBlock: jest.fn().mockReturnValue(''),
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
@@ -39,7 +40,7 @@ test('the exact served version is looked up, and its slide script reaches the di
     },
   }));
   const r = await Gen.process('q-1', {});
-  expect(r.reason).toBe('digest_failed');   // stopped deliberately, one step past the store
+  expect(r.reason).toBe('model_failed');    // stopped deliberately, one step past the store
   const q = supabase.from.callsFor('niete_lp_asset_sources')[0];
   expect(q).toEqual(expect.arrayContaining([
     ['eq', 'lesson_id', 'grade_2_math_ch9_seg3'], ['eq', 'version_stamp', 'v8-1'], ['eq', 'content_hash', 'h-1'],

@@ -23,7 +23,7 @@ const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, nee
 const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
 const { isSelfTest } = require('./teacher-self-test');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey,
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf,
 } = require('./quiz-sources');
 
 const PICK_PREFIX = 'tq_pick_';
@@ -70,6 +70,18 @@ function quizState(quiz) {
     case 'failed': return 'failed';
     default: return 'none';           // declined, skipped, cancelled
   }
+}
+
+/**
+ * Is this quiz waiting for the teacher to choose its language?
+ *
+ * The one `offered` state that is NOT "being made": the teacher said yes, was
+ * asked Urdu or English, and has not answered. Nothing is queued until they do
+ * (the tq_lang_ buttons → startGenerating), so a menu that finds a quiz here
+ * must ask again — never say it is on its way.
+ */
+function isAwaitingLanguage(quiz) {
+  return Boolean(quiz && quiz.status === 'offered' && quiz.meta && quiz.meta.awaiting_language === true);
 }
 
 function statusLine(quiz, language) {
@@ -473,7 +485,13 @@ async function handleListPick(listId, phone, user) {
  * quiz exists because the teacher said yes to the afternoon offer — so the
  * choices are the ones a sent quiz has (resend the link, the report, back), a
  * "still making it", or the failure copy that names the step that stopped.
- * Never "make it": that path claims a coaching session.
+ * Never "make it" from a session: that path claims a coaching session.
+ *
+ * The one decision still open on an lp_v8 quiz is its LANGUAGE: a yes on any
+ * subject but Urdu/Islamiyat leaves the row `offered` until the teacher taps
+ * Urdu or English. If they ignored that ask, the row says "Offered — tap to
+ * make", and the tap re-sends the ask — "still being made" would be false,
+ * because nothing is queued until the ask is answered.
  */
 async function handleLpPick(quizId, phone, user) {
   const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
@@ -507,9 +525,20 @@ async function handleLpPick(quizId, phone, user) {
     logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: LP_V8 });
     return true;
   }
+  if (isAwaitingLanguage(quiz)) {
+    // The same ask and buttons the offer sent; its answer runs startGenerating,
+    // which flips offered → generating atomically and queues the LP quiz.
+    const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
+    await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage);
+    logEvent('transcript_quiz.language_asked', {
+      userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: LP_V8,
+    });
+    return true;
+  }
   if (state === 'failed') {
-    const reason = String(quiz.meta?.error || '').startsWith('digest') ? 'digest_failed' : (quiz.meta?.error || 'validator_failed');
-    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, LP_V8), { language: lang }));
+    // The reason the generate step persisted, so the sentence repeated here is
+    // the one the teacher was sent when it failed (model vs plan, never mixed).
+    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), LP_V8), { language: lang }));
   } else {
     await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
   }
@@ -570,7 +599,7 @@ async function handleActionButton(buttonId, phone) {
 
 module.exports = {
   isQuizCommand, buildRows, showList, handleListPick, handleActionButton, statusLine, countsFor,
-  loadEligibleSessions, hasEligibleLessons, quizState, claimForGeneration, enqueueGenerate,
+  loadEligibleSessions, hasEligibleLessons, quizState, isAwaitingLanguage, claimForGeneration, enqueueGenerate,
   lessonItems, loadLessonPage, loadLpQuizzes,
   PICK_PREFIX, LP_PICK_PREFIX, LINK_PREFIX, REPORT_PREFIX, PAGE_PREFIX, BACK_PREFIX, MAX_ROWS, PER_PAGE,
 };

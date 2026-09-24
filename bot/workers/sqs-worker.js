@@ -1613,6 +1613,12 @@ function startWorker() {
     // sweepAndOffer never throws by contract — it tallies per-teacher failures and
     // keeps going — but it is wrapped anyway so a surprise cannot take the worker
     // down with it.
+    //
+    // Quiet hours: inside the quiet window (21:00–07:00 PKT unless
+    // NUDGE_QUIET_HOURS_PKT says otherwise) the sweep sends no offer and leaves
+    // each one for the first tick after it, counting them as deferredQuietHours. A night of such ticks offers, expires and fails nothing,
+    // so that count is in the log condition below — without it every deferring
+    // tick is silent and a sweep holding offers until 07:00 looks idle.
     const ConversationResume = require('../shared/services/conversation-resume.service');
     const RESUME_OFFER_INTERVAL_MS = 30 * 60 * 1000;
     setInterval(async () => {
@@ -1624,7 +1630,7 @@ function startWorker() {
         // outcome that produced no log line, so a sweeper that was lock-blocked or
         // cache-starved on EVERY interval looked exactly like a healthy idle one.
         // Every field the sweep can report must be able to speak.
-        if (res.offered || res.expired || res.failed || res.skippedLocked || res.skippedActive) {
+        if (res.offered || res.expired || res.failed || res.skippedLocked || res.skippedActive || res.deferredQuietHours) {
           logToFile('🔄 Interrupted-task resume sweep', res);
         }
       } catch (error) {

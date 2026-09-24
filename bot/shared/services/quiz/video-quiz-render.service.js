@@ -580,10 +580,15 @@ function buildPhases(q, opts = {}) {
     });
   } else if (headerPattern && media.question_image) {
     const kind = pickerKind(shown);
+    // A class-quiz figure is framed with "Question n of N" in the picture
+    // (transcript-quiz-figure's FRAME), exactly as a question card is, so the
+    // body must not print the number a second time. Only for a picture the row
+    // SAYS was drawn that way — an older picture still needs the body's counter.
+    const painted = media.question_image_paints_counter === true ? { paintsOwnCounter: true } : {};
     if (kind === 'buttons') {
       add('interaction', 'buttons', {
         body: stem, options: shown, optionIndices: order,
-        headerImage: media.question_image, role: 'ask',
+        headerImage: media.question_image, role: 'ask', ...painted,
       });
     } else {
       // A LIST message cannot carry an image header — Meta allows only a text
@@ -592,13 +597,13 @@ function buildPhases(q, opts = {}) {
       // silently dropped by Meta and the child would answer a question about a
       // picture they never saw (161 P4 questions).
       add('interaction', 'image', {
-        url: media.question_image, caption: stem, role: 'question_image',
+        url: media.question_image, caption: stem, role: 'question_image', ...painted,
       });
       // The stem is already the image caption, so the body's job here is to
       // spell out any option too long for a 24-char row title.
       add('interaction', 'list', {
         body: askBody('Choose your answer', shown, 'list', false),
-        options: shown, optionIndices: order, role: 'ask',
+        options: shown, optionIndices: order, role: 'ask', ...painted,
       });
     }
   } else {

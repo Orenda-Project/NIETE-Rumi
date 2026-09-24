@@ -1,10 +1,10 @@
 /**
- * bd-60128 — the CRQ is the module exam's LAST QUESTION, not a second engine.
+ * The CRQ is the module exam's LAST QUESTION, not a second engine.
  *
  * The I-SAPS CRQs were first modelled as a separate `capstone` quiz per module,
  * copying Beacon House's level-wide capstone. That inherited
  * loadCapstoneQuiz's level-scoped `.maybeSingle()`, which THROWS now that
- * I-SAPS carries nine capstones on one level (bd-60119) — so the CRQ could not
+ * I-SAPS carries nine capstones on one level — so the CRQ could not
  * be delivered at all.
  *
  * The operator's framing is better and is what this implements: a module with 8
@@ -12,7 +12,7 @@
  * already sits on the shared path —
  *
  *   answer_text / answer_score / feedback_text   training_assessment_answers
- *   capstone_points_per_question                 training_vendors (bd-60113)
+ *   capstone_points_per_question                 training_vendors
  *   scoreAnswer()                                capstone-delivery, pure
  *
  * — so folding the CRQ in REMOVES an engine instead of adding one.
@@ -30,9 +30,9 @@ const { seededShuffle } = require('../../utils/seeded-random');
 /**
  * Is this question answered in free text rather than by picking an option?
  *
- * The marker is the one the capstone import already used (bd-2233): empty
+ * The marker is the one the capstone import already used: empty
  * options AND an empty correct_option. Both halves matter — an image-option
- * question (bd-60118) has synthesised option text but a REAL key, and must not
+ * question has synthesised option text but a REAL key, and must not
  * be mistaken for open-ended.
  *
  * @param {{options?: any, correct_option?: any}|null} q
@@ -40,7 +40,7 @@ const { seededShuffle } = require('../../utils/seeded-random');
  */
 function isOpenEndedQuestion(q) {
   if (!q) return false;
-  // bd-60131 — a row that carries NEITHER field is a thin projection, not a
+  // A row that carries NEITHER field is a thin projection, not a
   // CRQ. loadQuestionBank selects only (id, order_index, bloom_level), and
   // treating that silence as "open-ended" classified all 12 of Module 1's bank
   // rows as CRQs: the paper collapsed to one question and the exam resolved
@@ -152,7 +152,7 @@ function scoreMixedPaper({ answers, mcqCount, crqMaxPoints }) {
 /**
  * The served paper for a folded module bank: every MCQ, then ONE CRQ.
  *
- * The bank now holds a module's MCQs and all four of its CRQs (bd-60128). Only
+ * The bank now holds a module's MCQs and all four of its CRQs. Only
  * one CRQ is sat per attempt, drawn on the attempt id so a resume is stable and
  * a re-sit differs (doc §5.3).
  *

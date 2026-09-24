@@ -152,9 +152,11 @@ describe('figureGateDefects', () => {
 });
 
 describe('constants', () => {
-  test('BOX_W / BOX_H are the .fig box minus its padding, and the floor/phone constants match the brief', () => {
+  test('BOX_W / BOX_H are the drawing box the figure frame leaves, and the floor/phone constants match the brief', () => {
+    // 1080x565 minus the frame's padding and its counter/mark band (the figure
+    // module's FIG_BOX). Was 1016x493 before the band; the width is unchanged.
     expect(Gates.BOX_W).toBe(1016);
-    expect(Gates.BOX_H).toBe(493);
+    expect(Gates.BOX_H).toBe(485);
     expect(Gates.LABEL_FLOOR_PX).toBe(13.5);
     expect(Gates.PHONE_CSS_WIDTH).toBe(360);
   });

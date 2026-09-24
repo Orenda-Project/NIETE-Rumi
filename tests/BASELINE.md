@@ -315,11 +315,20 @@ npm run test:baseline:update    # re-record the snapshot (review the diff!)
 |---|---|
 | **Suite** | a suite that was passing now fails |
 | **Test** | a suite already failing now fails *additional* tests |
-| **Offender** | a suite already failing reports entries it did not report before |
+| **Offender** | a suite already failing reports MORE violations in a file than before |
 
 The offender level is the one that matters for the `tests/setup/` guards, because
 those assert `expect(offenders).toEqual([])` — the entire finding lives in the array
 diff, not in the pass/fail.
+
+Offenders are compared **by count per file**, not by raw string. Most guards report
+`path:line`, and a line number moves whenever anything above it is edited: until
+2026-09-23 the gate compared raw strings, so every PR that touched a file carrying an
+old ticket ref "added" offenders, and `sandbox` itself reported 432 new source-hygiene
+offenders of which 129 were real. Counting keeps the real case: a second violation in
+a file that already had one still raises that file's count, so it is still caught. When
+a count grows, every line of that file not present verbatim in the snapshot is named —
+one of them is the new one. `npm run test:baseline:growth` counts the same way.
 
 Improvements are reported and never gate: fewer offenders, fewer failing tests, or a
 suite going green are all clean.

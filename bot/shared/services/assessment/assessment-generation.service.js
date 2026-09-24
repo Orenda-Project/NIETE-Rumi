@@ -33,7 +33,7 @@ function modelFor(family) {
 /**
  * bd-jntcx — resolved PER REQUEST through the registry, not captured at import.
  *
- * This used to be two `process.env.X || 'literal'` expressions evaluated once when the module
+ * This used to be two `process.env.<NAME> || 'literal'` expressions evaluated once when the module
  * was first required, which fixed the model for the life of the process: no settings row, no
  * changed variable and no incident could move it. Production spend showed this to be the second
  * largest line in NIETE at $11.34/day, and the one job of that size nobody could steer.
@@ -155,12 +155,22 @@ function _rescale(types, target) {
  * Jobs queued before the count travelled with them carry only the types, whose
  * counts summed to the number she typed — so the total is derived from those.
  */
-function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [] }) {
+function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [], seenCount = null }) {
   const typed = questionTypes.reduce((s, t) => s + _count(t), 0);
   const total = Number(questionCount) > 0 ? Number(questionCount) : typed;
   if (contentSource === 'seen') {
     return { total, seenTarget: total, unseenTarget: 0, questionTypes: [] };
   }
+  // Both, with the Seen number she typed on its own screen. Her Unseen counts
+  // are HERS — used as given, never re-spread — and the paper is the two added
+  // together. The number travels explicitly rather than being inferred from
+  // total − types, because that inference cannot tell this job from an older
+  // one whose types happen to sum short of its total.
+  const seen = Number(seenCount);
+  if (contentSource === 'both' && Number.isInteger(seen) && seen > 0) {
+    return { total: seen + typed, seenTarget: seen, unseenTarget: typed, questionTypes };
+  }
+  // Both, queued before the Seen count existed: the old half-and-half split.
   if (contentSource === 'both') {
     const seenTarget = Math.floor(total / 2);
     const unseenTarget = total - seenTarget;
@@ -174,8 +184,9 @@ function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [
  * listed separately because that is the shape of the tree the model returns.
  */
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
-                           contentSource, questionCount, questionTypes = [], totalMarks = null }) {
-  const plan = planCounts({ contentSource, questionCount, questionTypes });
+                           contentSource, questionCount, questionTypes = [], totalMarks = null,
+                           seenCount = null }) {
+  const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
   const objective = plan.questionTypes.filter((q) => q.category === 'objective');
   const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
   const describe = (list) => list.map((q) => `${_count(q)} ${q.id}`).join(', ');
@@ -394,15 +405,15 @@ function stripImageKeys(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null } = args;
+          totalMarks = null, seenCount = null } = args;
 
   const key = canonical(subject) || 'eng';
   const model = modelFor(URDU_MEDIUM.has(key) ? 'urdu' : 'eng');
-  const plan = planCounts({ contentSource, questionCount, questionTypes });
+  const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
 
   const messages = [
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks }) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount }) },
   ];
 
   logToFile('[assessment] generating', {

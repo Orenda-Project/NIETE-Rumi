@@ -125,6 +125,18 @@ function harness({ expiresAt, onSweepRead = null }) {
 const minutesAgo = (m) => new Date(Date.now() - m * 60_000).toISOString();
 const minutesAhead = (m) => new Date(Date.now() + m * 60_000).toISOString();
 
+// Both cases reach the offer write on the real clock. The sweep keeps the quiet
+// hours (no offer between 21:00 and 07:00 PKT) and would defer before that write
+// on any night-time run, so the window is lifted here; it owns its own suite
+// (resume-quiet-hours.test.js).
+const QUIET_KEY = 'NUDGE_QUIET_HOURS_PKT';
+const savedQuiet = process.env[QUIET_KEY];
+beforeAll(() => { process.env[QUIET_KEY] = 'off'; });
+afterAll(() => {
+  if (savedQuiet === undefined) delete process.env[QUIET_KEY];
+  else process.env[QUIET_KEY] = savedQuiet;
+});
+
 beforeEach(() => { jest.resetModules(); jest.clearAllMocks(); });
 
 describe('resume sweep vs a teacher who came back', () => {

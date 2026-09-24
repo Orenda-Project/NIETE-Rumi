@@ -84,6 +84,8 @@ const Report = require('../../bot/shared/services/quiz/video-quiz-report.service
 const Rows = require('../../bot/shared/services/quiz/transcript-quiz-rows');
 const Handoff = require('../../bot/shared/services/quiz/transcript-quiz-handoff.service');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The grade 1-5 maths picture repair is not this suite's subject (see the helper).
+const { installNoPictureRepair } = require('./helpers/no-picture-repair');
 
 const LRI = '⁦';
 const PDI = '⁩';
@@ -513,6 +515,7 @@ describe('generate — a fractions quiz reaches the child as typeset cards', () 
   beforeEach(() => {
     jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
     jest.spyOn(Handoff, 'sleep').mockResolvedValue(undefined);
+    installNoPictureRepair(Gen);
     completeJson.mockImplementation(async ({ label }) => {
       if (label === 'transcript_quiz.author') {
         return {

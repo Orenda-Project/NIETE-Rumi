@@ -54,6 +54,8 @@ const Rewrite = require('../../bot/shared/services/quiz/transcript-quiz-rewrite'
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
 // The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
 const { installAgreeingSolver } = require('./helpers/key-verify-agree');
+// Nor is the grade 1-5 maths picture repair (see the helper).
+const { installNoPictureRepair } = require('./helpers/no-picture-repair');
 
 const QID = '66666666-6666-4666-8666-666666666666';
 const DIGEST = {
@@ -90,6 +92,7 @@ beforeEach(() => {
   jest.spyOn(Handoff, 'sleep').mockResolvedValue(undefined);
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
   installAgreeingSolver(Gen);
+  installNoPictureRepair(Gen);
   r2.downloadFromR2.mockResolvedValue(Buffer.from('%PDF-1.4 stored'));
   installFrom(supabase.from, { quizzes: { data: [{ id: QID }] } });
 });

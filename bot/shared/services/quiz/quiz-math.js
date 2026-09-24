@@ -22,11 +22,11 @@
  *     out "12 = 4 × 3"; the isolate (U+2066 … U+2069, already used by the
  *     catalog for "/quiz") keeps an expression in the order it was written.
  *
- * A MIXED NUMBER. tex-to-unicode writes `$2\frac{1}{3}$` as "21/3", which a
- * child reads as twenty-one thirds. The whole part is joined to its fraction
- * with a NO-BREAK SPACE — "2 1/3" — and that space is chosen for bidi, not
- * looks: U+00A0 is a common SEPARATOR, so "2 1/3" stays one number run inside
- * an Urdu line, where an ordinary space would let the two numbers swap sides.
+ * A MIXED NUMBER. `$2\frac{1}{3}$` reads "2 1/3", never "21/3" (twenty-one
+ * thirds). The rule — a NO-BREAK SPACE between the whole part and the fraction,
+ * chosen because U+00A0 keeps "2 1/3" one number run inside an Urdu line — is
+ * tex-to-unicode's own, so the quiz, the lesson message and the diagram engine
+ * all read a mixed number the same way. This module adds nothing to it.
  *
  * LOAD WEIGHT. The render contract (video-quiz-render) requires this file on
  * every send, so KaTeX is required LAZILY: only mathHtml(), mathCss() and
@@ -39,18 +39,54 @@ const { esc, richNotation, hasTex } = require('./quiz-notation');
 
 const LRI = '⁦';
 const PDI = '⁩';
-const NBSP = ' ';
 /** The inline span, exactly as quiz-notation and tex-to-unicode read it. */
 const SPAN = /\$([^$\n]+?)\$/g;
 const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
-/** A whole number written straight before a fraction: `2\frac{1}{3}`, `2 \dfrac{1}{3}`. */
-const MIXED = /(\d)\s*(\\[dt]?frac)/g;
 const PURE_NUMBER = /^[\d.,]+$/;
 
-/** One `$…$` span (or a whole string) as Unicode, with a mixed number kept apart from its fraction. */
+// ── COLUMN SUMS ──────────────────────────────────────────────────────────────
+// A column sum is written as ONE expression, a KaTeX array — the numbers right-
+// aligned under each other, the operator in its own column, a rule, an empty
+// answer row (transcript-quiz-contract COLUMN_SUM_RULE):
+//   $\begin{array}{rr} & 452 \\ - & 137 \\ \hline & \end{array}$
+// The card and the PDF typeset it as a textbook prints it. Every TEXT path gets
+// one line a child can read — "452 − 137 = ?" — never tex-to-unicode's generic
+// rendering of an array ("rr, 452; -, 137; hline,").
+const COLUMN_ARRAY = /^\s*(?:\\displaystyle\s*)?\\begin\{array\}\{[^{}]*\}([\s\S]*?)\\end\{array\}\s*$/;
+const OPERATOR = { '+': '+', '-': '−', '−': '−', '\\times': '×', '×': '×', '\\div': '÷', '÷': '÷' };
+
+/**
+ * The inside of one `$…$` span as a flat column sum ("452 − 137 = ?"), or null
+ * when the span is not a column sum (not an array, fewer than two numbers, or
+ * no operator). Pure.
+ */
+function columnSumText(inner) {
+  const m = COLUMN_ARRAY.exec(String(inner || ''));
+  if (!m) return null;
+  const numbers = [];
+  let op = null;
+  let result = null;
+  let ruled = false;   // below the rule: the answer row
+  m[1].split(/\\\\/).forEach((raw) => {
+    const cells = raw.replace(/\\hline/g, ' ').split('&').map((c) => c.trim());
+    if (/\\hline/.test(raw)) ruled = true;
+    const num = cells.map((c) => c.replace(/\\[,;: ]/g, '').replace(/\s+/g, '')).find((c) => /^\d[\d,.]*$/.test(c));
+    const opCell = cells.find((c) => Object.prototype.hasOwnProperty.call(OPERATOR, c.replace(/\s+/g, '')));
+    if (opCell) op = OPERATOR[opCell.replace(/\s+/g, '')];
+    if (!num) return;
+    if (ruled) result = num; else numbers.push(num);
+  });
+  if (numbers.length < 2 || !op) return null;
+  return `${numbers.join(` ${op} `)} = ${result || '?'}`;
+}
+
+/** One `$…$` span (or a whole string) as Unicode — a mixed number reads "2 1/3" (tex-to-unicode), a column sum "452 − 137 = ?". */
 function mathToText(text) {
   if (typeof text !== 'string' || !text || (!text.includes('$') && !text.includes('\\'))) return text;
-  return texToUnicode(text.replace(SPAN, (_, inner) => `$${inner.replace(MIXED, `$1${NBSP}$2`)}$`));
+  return texToUnicode(text.replace(SPAN, (span, inner) => {
+    const sum = columnSumText(inner);
+    return sum !== null ? sum : span;
+  }));
 }
 
 /**
@@ -94,7 +130,9 @@ function mathHtml(text, { prose = (s) => richNotation(esc(s)), display = false }
   for (const m of src.matchAll(SPAN)) {
     out += prose(src.slice(last, m.index));
     const inner = display && !/\\displaystyle/.test(m[1]) ? `\\displaystyle ${m[1]}` : m[1];
-    out += `<span class="qm">${rich(`$${inner}$`)}</span>`;
+    // A column sum stands on its own line, centred, as the textbook sets it out.
+    const cls = /\\begin\{array\}/.test(m[1]) ? 'qm qm-col' : 'qm';
+    out += `<span class="${cls}">${rich(`$${inner}$`)}</span>`;
     last = m.index + m[0].length;
   }
   return out + prose(src.slice(last));
@@ -115,13 +153,15 @@ function mathCss() {
     const { katexCss } = require('../../../vendor/lp-v9/lib/fonts');
     _katexCss = katexCss();
   }
-  return `${_katexCss}\n.qm,.qm .katex,.qm .katex *{direction:ltr;unicode-bidi:isolate}`;
+  return `${_katexCss}\n.qm,.qm .katex,.qm .katex *{direction:ltr;unicode-bidi:isolate}\n.qm-col{display:block;text-align:center;margin:.3em 0 .5em}`;
 }
 
 // ── the validator's half ─────────────────────────────────────────────────────
 
 /** Arguments that are TEXT inside maths — a word there is legitimate (`5\,\text{cm}`). */
 const TEXT_ARG = /\\(?:text|textrm|textbf|mathrm|mathbf|mbox|operatorname)\s*\{[^{}]*\}/g;
+/** `\\begin{array}{rr}` / `\\end{array}` — an environment and its column spec. */
+const ENV_ARG = /\\(?:begin|end)\s*\{[a-zA-Z*]+\}(?:\{[^{}]*\})?/g;
 const clip = (s, n = 90) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 let _katex = null;
@@ -153,6 +193,14 @@ function texFaults(text) {
     return out;
   }
   const loose = /\\[a-zA-Z]+/.exec(s.replace(SPAN, ' '));
+  // A column sum whose rows ran together — the JSON's "\\\\" arrived as one
+  // backslash, a control space — would typeset as one long row.
+  for (const m of s.matchAll(SPAN)) {
+    if (/\\begin\{array\}/.test(m[1]) && !/\\\\/.test(m[1])) {
+      out.push(`"$${clip(m[1], 60)}$" — a column sum puts each number on its own row: end each row with \\\\ (in the JSON you return, \\\\\\\\), e.g. $\\begin{array}{rr} & 452 \\\\ - & 137 \\\\ \\hline & \\end{array}$`);
+      return out;
+    }
+  }
   if (loose) out.push(`has "${loose[0]}" outside the dollars — put every expression between single dollars ($…$), and only the maths inside them`);
   for (const m of s.matchAll(SPAN)) {
     const inner = m[1];
@@ -165,7 +213,8 @@ function texFaults(text) {
       out.push(`"${shown}" — Urdu words go outside the dollars; only the maths goes inside, with digits 0-9`);
       continue;
     }
-    const word = /[A-Za-z]{3,}/.exec(inner.replace(TEXT_ARG, ' ').replace(/\\[a-zA-Z]+/g, ' '));
+    // An environment's name and a column spec ("\\begin{array}{rr}") are TeX, not words.
+    const word = /[A-Za-z]{3,}/.exec(inner.replace(ENV_ARG, ' ').replace(TEXT_ARG, ' ').replace(/\\[a-zA-Z]+/g, ' '));
     if (word) {
       out.push(`"${shown}" — the word "${word[0]}" is inside the dollars; words go outside, only the maths goes inside`);
       continue;
@@ -181,5 +230,5 @@ function texFaults(text) {
 }
 
 module.exports = {
-  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, LRI, PDI, NBSP,
+  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, LRI, PDI,
 };

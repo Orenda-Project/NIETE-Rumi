@@ -38,8 +38,8 @@ const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const INVITE_KEY = (phone) => `videoquiz:${stripPlus(phone)}:invite`;
 
 /** A child's first name. Nothing after the first space leaves their chat. */
-function firstName(full) {
-  return String(full || '').trim().split(/\s+/)[0] || 'Your friend';
+function firstName(full, fallback = 'Your friend') {
+  return String(full || '').trim().split(/\s+/)[0] || fallback;
 }
 
 /**
@@ -145,12 +145,18 @@ async function handleInviteButton(buttonId, phone) {
   }
 
   const share = require('./video-quiz-share.service');
+  const { resolveUx, clampLanguage } = require('../../config/ux-strings');
   const { data: parent } = await supabase
     .from('quiz_share_codes')
     .select('id, quiz_id, video_id, teacher_user_id, teacher_name, topic, language')
     .eq('id', ctx.shareCodeId)
     .maybeSingle();
   if (!parent) { await offerVideosFor(phone, ctx); return true; }
+  // Everything below is read by children taking THIS quiz — the inviter, then
+  // the friend they forward it to — so it is in the quiz language. The invite
+  // context carries it; one minted before it did falls back to the share code.
+  const language = clampLanguage(ctx.language || parent.language);
+  const ux = (key, params) => resolveUx(key, { language, params });
 
   const { data: me } = await supabase
     .from('students').select('student_name').eq('id', ctx.studentId).maybeSingle();
@@ -177,18 +183,18 @@ async function handleInviteButton(buttonId, phone) {
     }
   }
   if (!minted) {
-    await WhatsAppService.sendMessage(phone,
-      "Sorry — I couldn't make that link just now. Try again in a moment.");
+    await WhatsAppService.sendMessage(phone, ux('vqInviteLinkFailed'));
     await offerVideosFor(phone, ctx);
     return true;
   }
 
   const link = `https://wa.me/${share.botNumber()}?text=QUIZ-${minted.code}`;
-  await WhatsAppService.sendMessage(phone,
-    'Here is the message — forward THIS one to your friend:');
-  await WhatsAppService.sendMessage(phone,
-    `📚 *Try this quiz!*\n\n${firstName(me?.student_name)} thinks you'd like this `
-    + `quiz on *${parent.topic || 'today’s lesson'}*.\n\nTap here to start:\n${link}`);
+  await WhatsAppService.sendMessage(phone, ux('vqInviteForwardThis'));
+  await WhatsAppService.sendMessage(phone, ux('vqInviteMessage', {
+    name: firstName(me?.student_name, ux('vqInviteFriend')),
+    topic: parent.topic || ux('tqTodaysLesson'),
+    link,
+  }));
 
   logEvent('video_quiz.friend_invited', {
     inviterStudentId: ctx.studentId, shareCodeId: parent.id, code: minted.code,
