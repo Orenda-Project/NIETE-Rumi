@@ -11,7 +11,7 @@
  * direction, printing her Urdu questions as empty boxes.
  */
 const renderHtml = require('../../bot/shared/templates/video-quiz-report.template');
-const { TYPE_FLOOR_UR } = require('../../bot/shared/templates/niete-brand');
+const { NASTALIQ } = require('../../bot/shared/templates/niete-brand');
 
 const BASE = {
   topic: 'کسریں', teacherName: 'Rifat Noor', grade: '',
@@ -56,18 +56,16 @@ describe('teacher en + quiz ur', () => {
   });
 
   /**
-   * The contract is the ROOM, not the ratio — see the same assertion in
-   * transcript-quiz-teacher-template.test.js. PLAN_R6 D4 raised the body floor
-   * to 21px (24.2px in Urdu); `leadingAt()` holds the absolute air between
-   * Nastaliq baselines and lets the ratio fall out of it.
+   * The Urdu line pitch is the font's, not an optical ratio — see the same
+   * assertion in transcript-quiz-teacher-template.test.js. Round 6 shrank it to
+   * 1.77 as the type grew and the report's Urdu lines ran into each other; the
+   * rendered-ink check lives in bot/tests/quiz/urdu-line-spacing.test.js.
    */
-  test('the RTL content rule leads with NastaliqUrdu and gives Urdu line-height', () => {
+  test('the RTL content rule leads with NastaliqUrdu on the shared Nastaliq pitch', () => {
     const rule = ruleFor(html, '.content[dir="rtl"]');
     expect(rule).toMatch(/font-family:'NastaliqUrdu'/);
     const ratio = parseFloat(/line-height:([\d.]+)/.exec(rule)[1]);
-    const air = TYPE_FLOOR_UR.body * ratio - TYPE_FLOOR_UR.body;
-    expect(air).toBeGreaterThanOrEqual(17);
-    expect(ratio).toBeLessThan(1.9);
+    expect(ratio).toBe(NASTALIQ.leading.regular);
   });
 
   test('EVERY font-family declaration names both a Latin family and NastaliqUrdu', () => {

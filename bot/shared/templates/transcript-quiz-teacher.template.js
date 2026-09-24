@@ -50,8 +50,18 @@ const { resolveUx } = require('../config/ux-strings');
 const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
-  headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf,
+  NASTALIQ, nastaliqPad, headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf,
 } = require('./niete-brand');
+
+// Urdu line pitch and box padding (niete-brand NASTALIQ): measured from the
+// font's ink so two lines of Nastaliq never run into each other, and a line in
+// a bordered row never runs through the border. The stems, the correct option
+// and the hero title are set in the Bold face, which climbs higher.
+const UR_LEAD = NASTALIQ.leading.regular;       // 2.4
+const UR_LEAD_BOLD = NASTALIQ.leading.bold;     // 2.5
+const UR_PAD = nastaliqPad(UR_LEAD);
+const UR_PAD_BOLD = nastaliqPad(UR_LEAD_BOLD, 'bold');
+const em = (n) => `${n}em`;
 
 // PLAN_R5 D6 / PLAN_R6 D4 — the Urdu bump is now ONE constant, exported from
 // niete-brand and shared with the class report, not recomputed per template.
@@ -395,7 +405,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 /* One language per document — but never one FONT: a name, a term or a formula
    in the other script can appear on any page. */
 .content{font-family:${bodyFam}}
-.content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:${leadingAt(1.85)}}
+.content[dir="rtl"]{font-family:${FONTS.bodyUrdu};line-height:${UR_LEAD}}
 .content[dir="ltr"]{font-family:${FONTS.bodyLatin};line-height:1.42}
 .nm{font-family:${bodyFamily(nameRtl)};unicode-bidi:isolate;direction:${nameRtl ? 'rtl' : 'ltr'};font-weight:700;color:#fff;font-size:${nameRtl ? `${SMALL_UR}px` : 'inherit'}}
 /* ── hero ───────────────────────────────────────────────────────────────── */
@@ -405,7 +415,8 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
 .hero-mark{width:48px;height:48px;object-fit:contain;flex-shrink:0;display:block}
 .eyebrow{font-size:${RTL ? `${LABEL_UR}px` : `${TYPE_FLOOR.label}px`};letter-spacing:${RTL ? '0' : '.18em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700;font-family:${bodyFam}}
-.hero h1{font-family:${headFam};font-size:${RTL ? round1(28 * HEAD_SCALE) : round1(30 * HEAD_SCALE)}px;line-height:${RTL ? '1.5' : '1.18'};font-weight:600;margin-top:6px;max-width:580px}
+.hero h1{font-family:${headFam};font-size:${RTL ? round1(28 * HEAD_SCALE) : round1(30 * HEAD_SCALE)}px;line-height:${RTL ? UR_LEAD_BOLD : '1.18'};font-weight:600;margin-top:6px;max-width:580px}
+.hero h1.content[dir="rtl"]{line-height:${UR_LEAD_BOLD}}
 .who{margin-top:10px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};color:#e2e5ea;line-height:${lh};font-family:${bodyFam}}
 .who .sep{opacity:.5;margin:0 8px}
 .statrow{display:flex;gap:9px;margin-top:11px}
@@ -417,18 +428,36 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .label{font-family:${bodyFam};font-size:${RTL ? `${LABEL_UR}px` : `${TYPE_FLOOR.label}px`};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.62;font-weight:700;margin-bottom:7px;break-after:avoid}
 .band{display:flex;flex-direction:column;gap:10px}
 .band>div{min-width:0}
-.taught .sum{font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? `${leadingAt(1.72)}` : lh};background:${PALETTE.greenWash};border-${RTL ? 'right' : 'left'}:3px solid ${PALETTE.green};border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
-.checks .content[dir="rtl"],.taught .content[dir="rtl"]{line-height:${leadingAt(1.72)}}
+/* Both reading boxes — what you taught, what this quiz checks — share the box.
+   Scoped to .taught alone, the checks box (which only recolours the edge rule)
+   had no padding and no edge rule, and its text sat on the box's edge. */
+.band .sum{font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${RTL ? UR_LEAD : lh};background:${PALETTE.greenWash};border-${RTL ? 'right' : 'left'}:3px solid ${PALETTE.green};border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
+.checks .content[dir="rtl"],.taught .content[dir="rtl"]{line-height:${UR_LEAD}}
 .checks .checks-sum{background:#f6f8f7;border-${RTL ? 'right' : 'left'}-color:#C6CFCA;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`}}
 .taught .fromlesson{display:block;margin-top:6px;color:#1f7a4b;font-weight:700}
+.taught .content[dir="rtl"] .fromlesson{line-height:${UR_LEAD_BOLD};margin-top:0}
 .pill{display:inline-block;font-family:${bodyFamily(false)};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;color:#1f7a4b;background:${PALETTE.greenWash};border-radius:10px;padding:1px 8px;vertical-align:middle;margin-${RTL ? 'left' : 'right'}:6px;letter-spacing:.02em}
+/* The Urdu level word («سمجھ») is Nastaliq: set Nastaliq-first on the objective
+   line's own pitch, it stays inside its green fill instead of standing on top
+   of it — and costs no height, the objective line is already that tall. */
+${RTL ? `.pill{font-family:${FONTS.bodyUrdu};line-height:${UR_LEAD};padding:0 9px;letter-spacing:0}` : ''}
 /* ── question cards ─────────────────────────────────────────────────────── */
 .qs{margin-top:10px}
 .card{background:#f6f8f7;border-radius:12px;padding:6px 12px 6px;margin-bottom:5px;page-break-inside:avoid;break-inside:avoid}
+/* An Urdu card is about half again as tall as it was before its lines were
+   given room, and an unbreakable card that no longer fits leaves the rest of
+   the page empty — a third of every page, measured. So in Urdu a card may
+   break, but only BETWEEN two options: the objective line, the question and
+   its first option always travel together, and a card that continues over the
+   page is still drawn as one card (each piece keeps its own rounded edge and
+   padding). The class report made the same trade for the same reason. */
+${RTL ? `.card{break-inside:auto;page-break-inside:auto;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.chead,.stem,.multichip{break-after:avoid;page-break-after:avoid}
+.chead,.stem,.opt,.figure{break-inside:avoid;page-break-inside:avoid}` : ''}
 .chead{display:flex;gap:9px;align-items:center;margin-bottom:4px}
 .num{flex-shrink:0;width:31px;height:31px;transform:rotate(45deg);background:${PALETTE.slate};color:#fff;font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-weight:700;display:flex;align-items:center;justify-content:center;font-family:${bodyFamily(false)}}
 .num span{display:block;transform:rotate(-45deg)}
-.cmeta{font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.muted};line-height:1.35;font-family:${bodyFam}}
+.cmeta{font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.muted};line-height:${RTL ? UR_LEAD : '1.35'};font-family:${bodyFam}}
 .slo{color:${PALETTE.slate}}
 .cmain{display:flex;gap:14px;align-items:flex-start}
 .cbody{flex:1;min-width:0}
@@ -442,15 +471,22 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
    page. Restated at the specificity it needs, so the number in the file is the
    number that renders. No backticks in a comment inside a template literal —
    they terminate the string (round-5 failure catalogue). */
-.stem{font-family:${headFam};font-size:${RTL ? TYPE_STEP_UR.headline : TYPE_STEP.headline}px;line-height:${RTL ? `${leadingAt(1.85)}` : '1.3'};color:${PALETTE.ink};font-weight:600;margin-bottom:5px}
-.stem.content[dir="rtl"]{line-height:${leadingAt(1.85)}}
+.stem{font-family:${headFam};font-size:${RTL ? TYPE_STEP_UR.headline : TYPE_STEP.headline}px;line-height:${RTL ? UR_LEAD_BOLD : '1.3'};color:${PALETTE.ink};font-weight:600;margin-bottom:5px}
+/* The stem is Bold Nastaliq, so it takes the bold pitch, and a padding that
+   holds its first line's tall strokes clear of the objective line above and
+   its last line's tails clear of the first option's border below. */
+.stem.content[dir="rtl"]{line-height:${UR_LEAD_BOLD};padding:${em(UR_PAD_BOLD.top)} 0 ${em(UR_PAD_BOLD.bottom)}}
 .multichip{margin-bottom:5px}
 .opts{display:flex;flex-direction:column;gap:2px}
 .opt{display:flex;align-items:center;gap:8px;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};padding:3px 9px;border-radius:7px;background:#fff;border:1px solid #e3e8e5}
-/* An option row and a caption are UI, not prose: Nastaliq's prose leading
-   (1.85) over eight of these is a whole extra page. The reading blocks — the
-   summary, the goals, the stems — keep it. */
-.opt.content[dir="rtl"]{line-height:${leadingAt(1.5)}}
+/* An option row is a bordered box around Nastaliq. The tighter leading it
+   used to be given (1.43) put the tall letters through the top border and the
+   tails through the bottom one, and a wrapped option's two lines into each
+   other. It takes the Urdu pitch, and a padding sized from the font's ink so
+   the letters stay inside the border; the correct option is Bold, which climbs
+   higher, so it takes the bold pitch and padding. */
+.opt.content[dir="rtl"]{line-height:${UR_LEAD};padding:${em(UR_PAD.top)} 9px ${em(UR_PAD.bottom)}}
+.opt.correct.content[dir="rtl"]{line-height:${UR_LEAD_BOLD};padding:${em(UR_PAD_BOLD.top)} 9px ${em(UR_PAD_BOLD.bottom)}}
 .opt .otext{flex:1;min-width:0}
 .opt.correct{background:${PALETTE.greenWash};border-color:${PALETTE.green};color:#1f5f3e;font-weight:700}
 .opt .mark{display:inline-flex;align-items:center;justify-content:center;width:26px;flex-shrink:0}

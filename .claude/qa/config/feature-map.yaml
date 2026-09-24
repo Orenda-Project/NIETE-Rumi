@@ -123,6 +123,8 @@ features:
     - bot/shared/templates/video-quiz-report.template.js
     - bot/shared/templates/video-quiz-scorecard.template.js
     - bot/shared/templates/transcript-quiz-teacher.template.js  # the teacher sheet sent with every lesson quiz
+    - bot/shared/templates/video-quiz-leaderboard.template.js  # the child's class card after a lesson quiz
+    - bot/shared/templates/niete-brand.js  # palette, type floor and Urdu line pitch every quiz document/card reads
     - bot/shared/templates/latin-runs.js  # English-phrase isolation inside Urdu, used by the teacher sheet and the class report
     # The transcript-quiz figure/card modules render through the same vendored
     # engine the LP-612 lane uses — see the note under `lesson-plan:`. Owned by

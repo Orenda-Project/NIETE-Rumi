@@ -47,7 +47,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { PALETTE, FONTS, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
+const { PALETTE, FONTS, NASTALIQ, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { subjectLabel } = require('../services/quiz/transcript-quiz-language');
 
@@ -386,6 +386,19 @@ function renderScorecardHtml(d) {
      card breathes the same whether the name is one short Latin word or a long
      Nastaliq one. */
   .gap { flex:1 1 auto; min-height:6px; }
+  /* A one-line label is cut SIDEWAYS only. Clipping it in both directions (the
+     plain overflow:hidden the ellipsis needs) also cut off whatever ink rose
+     above or hung below its line box — in Nastaliq that is the stroke of a ک or
+     a گ, so a child called «کشف» was congratulated as «لشف». overflow-x:clip
+     keeps the ellipsis and the box size; the letters are drawn whole. Latin
+     never leaves its line box, so an English card is unchanged. */
+  .name, .topic, .subj { overflow-x:clip; overflow-y:visible; }
+  /* The sideways clip also cut the stroke a word-initial ک or گ throws past
+     the start of its line («کشف» printed as «لشف»). An Urdu label keeps that
+     much room inside its clip on the start side; the negative margin puts the
+     text back exactly where it was. */
+  .name[dir="rtl"], .topic[dir="rtl"], .subj[dir="rtl"] {
+    padding-inline-start:${NASTALIQ.startRoom}em; margin-inline-start:-${NASTALIQ.startRoom}em; }
   </style></head><body><div class='card' dir='${dir}'>
   ${lattice}
   <div class='hdr'><div class='t1'>${esc(eyebrow)}${nuqtas}</div>${logoImg}</div>

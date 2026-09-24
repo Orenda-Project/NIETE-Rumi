@@ -112,24 +112,93 @@ const TYPE_STEP_UR = {
 const HEAD_SCALE = 1.12;
 
 /**
- * Leading is not a fixed multiple of the type — it is optical, and larger type
- * needs proportionally LESS of it. Keeping round 5's ratios while the body grew
- * +17% grew the air between every pair of Nastaliq baselines by 17% as well,
- * which is how a +17% type raise turned into +2 pages on the Urdu pre-send PDF
- * (5 -> 7) instead of the +1 that PLAN_R6 D4 allows.
- *
- * `leadingAt(r)` converts a ratio that was tuned at the OLD floor into the one
- * that leaves the same ABSOLUTE gap between baselines at the new floor:
+ * Leading for LATIN type is optical, and larger type needs proportionally less
+ * of it. `leadingAt(r)` converts a ratio tuned at the old 18px floor into the
+ * one that keeps the same absolute gap between baselines at the 21px floor:
  *
  *     newRatio = 1 + (oldRatio - 1) / (21 / 18)
  *
- * so 1.85 -> 1.73, 1.72 -> 1.62, 1.5 -> 1.43. The ink on the page moves apart
- * exactly as much as the glyphs grew, and no further. Applied to the RTL
- * ratios only: the Latin ones are already near their optical minimum (1.42),
- * where the same arithmetic would take them under it.
+ * It is NOT for Nastaliq, which is where it used to be applied (1.85 -> 1.73,
+ * 1.72 -> 1.62, 1.5 -> 1.43, 1.9 -> 1.77). Nastaliq's line needs a fixed
+ * multiple of its size, set by the font's ink — see NASTALIQ below — and every
+ * one of those shrunken ratios printed Urdu lines on top of each other. Kept for
+ * the one-line Urdu labels that already sit on it and cannot collide with a
+ * second line of their own.
  */
 const TYPE_GROWTH = 21 / 18;
 const leadingAt = (oldRatio) => Math.round((1 + (oldRatio - 1) / TYPE_GROWTH) * 100) / 100;
+
+/**
+ * NASTALIQ SPACING — set from the font's measured INK, not by eye, and the same
+ * multiple at every size.
+ *
+ * "Right now it's on top of each other." Every quiz surface draws Urdu in Noto
+ * Nastaliq Urdu. One line of it inks from 1.3-2.0 em above its baseline (the
+ * tall ک گ ل ٹ, and the stacked joins that climb from right to left) to 0.4-0.7
+ * em below it (the tails of ے ں ی and the bowls of ح ع م). Two lines therefore
+ * need a baseline pitch of about ascent + descent — 2.2-2.5 em — or the second
+ * line's strokes run into the first line's tails. That is a property of the
+ * typeface, not of the size, so it is a ratio that does NOT fall as the type
+ * grows (the leadingAt() mistake above).
+ *
+ * The numbers were measured on 1,000 real Urdu quiz stems and 2,750 real options
+ * set in each surface's own style, reading the ink of each rendered line pixel
+ * by pixel (tests/quiz/helpers/line-ink.js does the same in the tests):
+ *
+ *   leading.regular  2.4   at most 1% of real line pairs come within 0.05 em
+ *                          (at the old 1.43-1.77, 51-77% did; at 2.0, 8-18%)
+ *   leading.bold     2.5   Bold Nastaliq climbs higher and hangs lower: stems,
+ *                          the correct option, answer chips — at most 2% (at
+ *                          the old 1.73, 77% of stem line pairs touched)
+ *
+ * What it costs is mostly NOT the pitch: one line of Nastaliq inks ~2.5 em top
+ * to bottom whatever its line-height, so a box that holds one line whole (an
+ * option row, a chip) is that tall at any pitch. Measured on the 8-question
+ * Urdu pre-send PDF, 2.3 and 2.4 print the same number of pages.
+ *
+ *   ink              how far the p98 of that text reaches above/below the
+ *                    baseline, per face — what a BOX around one line has to
+ *                    hold so its border never cuts through a letter.
+ *
+ *   startRoom        a word that BEGINS with ک or گ carries a stroke that
+ *                    overhangs the start of its own text by up to 0.45 em
+ *                    (Bold; 0.38 Regular; the most on any real quiz line). A
+ *                    box that clips sideways — the ellipsis on a name — cut it
+ *                    off, so «کشف» printed as «لشف». A clipped Urdu label keeps
+ *                    this much room on its start side.
+ *
+ * Where the baseline sits: the face's own line box is 2.5 em (hhea ascent
+ * 1.904 + descent 0.596). Chromium centres that box in the CSS line box, so on
+ * line-height L the baseline is L/2 + BASELINE_SHIFT below the top of the line
+ * and L/2 - BASELINE_SHIFT above its bottom.
+ */
+const NASTALIQ = Object.freeze({
+  BASELINE_SHIFT: (1.904 - 0.596) / 2,   // 0.654 em
+  leading: Object.freeze({ regular: 2.4, bold: 2.5 }),
+  startRoom: 0.5,   // em
+  ink: Object.freeze({
+    regular: Object.freeze({ ascent: 1.87, descent: 0.6 }),
+    bold: Object.freeze({ ascent: 2.05, descent: 0.69 }),
+  }),
+});
+
+/**
+ * The padding (em of the box's own font size) a box needs above and below
+ * Nastaliq set on `lineHeight` so the ink stays `clear` em inside its edges —
+ * an option row's border, a chip's fill, a clipped label. Where the line box
+ * already holds the ink the answer is just the clearance.
+ * @param {number} lineHeight  the unitless line-height the text is set on
+ * @param {'regular'|'bold'} [weight]
+ * @param {number} [clear=0.08]
+ * @returns {{top:number, bottom:number}}  em, rounded to 0.01
+ */
+function nastaliqPad(lineHeight, weight = 'regular', clear = 0.08) {
+  const ink = NASTALIQ.ink[weight] || NASTALIQ.ink.regular;
+  const above = lineHeight / 2 + NASTALIQ.BASELINE_SHIFT;   // line top -> baseline
+  const below = lineHeight / 2 - NASTALIQ.BASELINE_SHIFT;   // baseline -> line bottom
+  const r = (n) => Math.round(Math.max(0, n) * 100) / 100;
+  return { top: r(ink.ascent - above + clear), bottom: r(ink.descent - below + clear) };
+}
 
 /**
  * Font stacks. `latin`/`urdu` differ only in which family is asked for FIRST —
@@ -229,7 +298,7 @@ function lockup(text, { className = 'lockup', dotColor = PALETTE.green } = {}) {
 
 module.exports = {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, RTL_TYPE_SCALE, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE,
-  leadingAt,
+  leadingAt, NASTALIQ, nastaliqPad,
   headFamily, bodyFamily, scriptOf, dirOf,
   latticeSvg, diamondSvg, diamondPath, lockup,
 };
