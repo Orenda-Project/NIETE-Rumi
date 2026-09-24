@@ -25,7 +25,9 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const { validate, MIN_QUESTIONS, figureDensity } = require('./transcript-quiz-validator');
-const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
+const {
+  teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
+} = require('./transcript-quiz-language');
 const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
@@ -120,7 +122,12 @@ function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBa
   const why = early
     ? `this is a grade 1-5 lesson (${subject || 'language'}) and every subject is drawable at that age`
     : `this ${subject} lesson is drawable`;
-  const how = early
+  // A grade 1-5 maths quiz aims for three (figureDensity): "one or two" sent
+  // the retry of a fractions lesson that had drawn nothing back with nothing.
+  const maths = early && canonicalSubject(subject) === 'maths';
+  const how = maths
+    ? 'Decide the pictures FIRST, then write at least three questions the child answers by READING a picture: What fraction of the bar is shaded? Which bar shows a fraction (bars labelled A, B, C)? What number do the sticks show? How many counters are there? A step of a procedure (a cross product, a rewritten fraction) stays text — no picture can show its answer.'
+    : early
     ? 'Decide the drawing FIRST — the thing the class counted, the word they sounded out, the clock they read, the pattern they continued — then write one or two questions the child answers by reading the picture.'
     : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
   return `quiz: FIGURE_REQUIRED — ${why} but none of the questions carries a "figure". ${how}`;
@@ -593,9 +600,14 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
  * meta.soft_faults. `transcript_quiz.figure_density` records before/after on
  * every grade 1-5 maths quiz, so the rate is measurable.
  *
+ * The call may also REPLACE a question no picture can answer (a step of a
+ * procedure) with a new read-off question on the same objective; `replaced`
+ * names those, and a replacement the validator refuses is reverted to the
+ * original question like any other added picture.
+ *
  * Runs after every authoring repair and BEFORE the key check and the blind
- * solve, so a stem rewritten to point at its new picture is checked like any
- * other. Never throws.
+ * solve, so a stem rewritten to point at its new picture — and a replaced
+ * question's new key — is checked like any other. Never throws.
  */
 async function runFigureDensity(api, {
   questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, lessonDrew, attempts,
@@ -605,7 +617,7 @@ async function runFigureDensity(api, {
   if (!before.applies) return { record: null };
   const record = {
     before: before.figured, after: before.figured, target: before.target, n: before.n, need: before.need,
-    added: [], repaired: false, reason: null, cost_usd: 0,
+    added: [], replaced: [], repaired: false, reason: null, cost_usd: 0,
   };
   const finish = (out = {}) => {
     const now = measure(out.questions || questions);
@@ -613,7 +625,7 @@ async function runFigureDensity(api, {
     record.complaint = now.complaint;
     logEvent('transcript_quiz.figure_density', {
       quizId, before: record.before, after: record.after, target: record.target, n: record.n,
-      added: record.added, reverted: record.reverted || [], repaired: record.repaired, reason: record.reason,
+      added: record.added, replaced: record.replaced, reverted: record.reverted || [], repaired: record.repaired, reason: record.reason,
     });
     return { record, ...out };
   };
@@ -625,7 +637,7 @@ async function runFigureDensity(api, {
       questions, digest, language, gradeBand, lessonDrew, need: before.need, quizId,
     });
   } catch (err) {
-    rw = { attempted: true, indices: [], merged: null, added: [], error: err.message };
+    rw = { attempted: true, indices: [], merged: null, added: [], replaced: [], error: err.message };
   }
   if (rw.error) {
     logToFile('❌ transcript quiz: the add-pictures call failed — the quiz ships as it was', { quizId, error: rw.error }, 'error');
@@ -633,7 +645,7 @@ async function runFigureDensity(api, {
   record.cost_usd = rw.costUsd || 0;
   if (!rw.attempted) { record.reason = 'no_candidates'; return finish(); }
   attempts.push({
-    attempt: 'add_pictures', indices: rw.indices, added: rw.added, model: rw.model || null,
+    attempt: 'add_pictures', indices: rw.indices, added: rw.added, replaced: rw.replaced || [], model: rw.model || null,
     cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null, error: rw.error || null,
   });
   if (!rw.merged) { record.reason = rw.error ? 'call_failed' : 'nothing_usable'; return finish(); }
@@ -667,6 +679,8 @@ async function runFigureDensity(api, {
       questions: v.questions, rows: drafted, language, teacherId, quizId,
     });
     record.added = added;
+    // a replaced question that was reverted is the original again, not new
+    record.replaced = (rw.replaced || []).filter((i) => added.includes(i));
     record.repaired = true;
     record.reason = record.reverted && record.reverted.length ? 'added_some' : 'added';
     return finish({
