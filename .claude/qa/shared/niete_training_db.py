@@ -277,6 +277,103 @@ def cmd_level_modules(creds, a):
     print(json.dumps(out, ensure_ascii=False))
 
 
+def _isaps_exam_courses(creds, level_id):
+    """The level's per-module exams (source_quiz_id > 900) paired with its courses, both in order:
+    exam k <-> course k. The bot keys the pairing on 'Module N' in the course title and 90N in the
+    source id, so ordering both is the same mapping."""
+    exams = sorted([q for q in (_get(creds, "training_grand_quizzes",
+                     "level_id=eq.%s&is_active=eq.true&select=id,source_quiz_id,quiz_type" % level_id) or [])
+                    if q.get("quiz_type") == "grand_quiz" and int(q.get("source_quiz_id") or 0) > 900],
+                   key=lambda q: int(q["source_quiz_id"]))
+    courses = sorted([c for c in (_get(creds, "training_courses",
+                       "level_id=eq.%s&is_active=eq.true&select=id,title,order_index" % level_id) or [])],
+                     key=lambda c: (c.get("order_index") or 0, c["id"]))
+    return list(zip(exams, courses))
+
+def cmd_seed_isaps_exams(creds, a):
+    """T26: "passed eight of the nine module exams and has NOT finished every unit". For every course but
+    --skip-course: one PASSED module-exam attempt (2 scenario MCQs correct + the CRQ at 10/10, the
+    paper the bot builds) with its answers. Plus, for every UNIT of the level, a passed unit-quiz
+    attempt with every question correct — the formative component has a 50% bar and is counted from
+    answers, not from teacher_training_progress, so no unit is marked finished. Prints the live
+    course's exam id so the driver can fetch its answer key. Undo: revert-level 26 (bd-w3cb9.3)."""
+    level_id = 26
+    uid = _uid(creds, a.phone)
+    prog = _get(creds, "training_programs", "key=eq.niete_isaps_pilot&select=id")
+    if not prog: sys.exit("no niete_isaps_pilot program")
+    pid = prog[0]["id"]
+    pairs = _isaps_exam_courses(creds, level_id)
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    attempts, answers, seeded = [], [], []
+    live = None
+    for exam, course in pairs:
+        if course["id"] == a.skip_course:
+            live = {"exam": exam["id"], "course": course["id"], "title": course["title"]}
+            continue
+        qs = sorted(_get(creds, "training_questions",
+                         "grand_quiz_id=eq.%s&is_active=eq.true&select=id,order_index" % exam["id"]) or [],
+                    key=lambda q: (q.get("order_index") or 0, q["id"]))
+        mcqs = [q for q in qs if (q.get("order_index") or 0) < 901][:2]
+        crqs = [q for q in qs if (q.get("order_index") or 0) >= 901][:1]
+        aid = str(uuid.uuid4())
+        attempts.append({"id": aid, "user_id": uid, "program_id": pid, "quiz_kind": "grand", "grand_quiz_id": exam["id"],
+                         "level_id": level_id, "current_question_index": 3, "total_questions": 3, "total_score": 12,
+                         "score": 12, "is_passed": True, "status": "passed", "completed_at": now, "last_activity_at": now})
+        for i, q in enumerate(mcqs):
+            answers.append({"attempt_id": aid, "question_index": i, "question_id": q["id"], "chosen_option": "1", "is_correct": True})
+        for q in crqs:
+            answers.append({"attempt_id": aid, "question_index": 2, "question_id": q["id"], "answer_text": "QA seed", "answer_score": 10})
+        seeded.append({"exam": exam["id"], "course": course["id"]})
+    units = _level_module_ids(creds, level_id)
+    unit_answers = 0
+    for mid in units:
+        qs = _get(creds, "training_questions", "training_module_id=eq.%s&is_active=eq.true&select=id&order=order_index" % mid) or []
+        if not qs: continue
+        aid = str(uuid.uuid4())
+        attempts.append({"id": aid, "user_id": uid, "program_id": pid, "quiz_kind": "training_module", "training_module_id": mid,
+                         "level_id": level_id, "current_question_index": len(qs), "total_questions": len(qs), "total_score": len(qs),
+                         "score": len(qs), "is_passed": True, "status": "passed", "completed_at": now, "last_activity_at": now})
+        for i, q in enumerate(qs):
+            answers.append({"attempt_id": aid, "question_index": i, "question_id": q["id"], "chosen_option": "1", "is_correct": True}); unit_answers += 1
+    def _uniform(rows):
+        keys = sorted({k for r in rows for k in r})          # PostgREST: "All object keys must match"
+        return [{k: r.get(k) for k in keys} for r in rows]
+    if a.yes_write:
+        _req("POST", "/rest/v1/training_assessment_attempts", creds, body=_uniform(attempts), prefer="return=minimal")
+        ua = _uniform(answers)
+        for i in range(0, len(ua), 200):
+            _req("POST", "/rest/v1/training_assessment_answers", creds, body=ua[i:i+200], prefer="return=minimal")
+    print(json.dumps({"exams": len(seeded), "seeded": seeded, "liveExam": live and live["exam"], "liveCourse": live,
+                      "units": len(units), "unitAnswers": unit_answers, "attempts": len(attempts), "dry_run": not a.yes_write}, ensure_ascii=False))
+
+
+def cmd_seed_lp_quiz(creds, a):
+    """T24: the driver has no lesson-plan quiz (0 lp_v8 rows on 2026-09-24) and the only path that makes one is
+    the 15:00 nudge sweeper + worker generation. Insert ONE sent lp_v8 quiz row with the fields the offer
+    service writes (lp-quiz-offer.service insertQuiz), tagged meta.qa_seed so --restore deletes exactly
+    it (bd-w3cb9.4)."""
+    uid = _uid(creds, a.phone)
+    if getattr(a, "lookup", False):
+        rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=eq.lp_v8&meta->>qa_seed=eq.true&select=id,topic&order=created_at.desc&limit=1" % uid) or []
+        print(json.dumps(rows[0] if rows else {})); return
+    if a.restore:
+        rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=eq.lp_v8&meta->>qa_seed=eq.true&select=id" % uid) or []
+        if a.yes_write and rows:
+            _req("DELETE", "/rest/v1/quizzes?teacher_id=eq.%s&quiz_source=eq.lp_v8&meta->>qa_seed=eq.true" % uid, creds, prefer="return=minimal")
+        print(json.dumps({"restored": [r["id"] for r in rows], "dry_run": not a.yes_write})); return
+    today = datetime.date.today().isoformat()
+    topic = "QA seeded lesson-plan quiz"
+    body = {"teacher_id": uid, "quiz_source": "lp_v8", "coaching_session_id": None, "lesson_plan_id": None,
+            "topic": topic, "grade": "3", "subject": "maths", "language": "en", "status": "sent",
+            "total_students_sent": 0, "total_students_completed": 0,
+            "meta": {"step": "done", "source": "lp_offer", "lesson_date": today, "qa_seed": True}}
+    if not a.yes_write:
+        print(json.dumps({"dry_run": True, "would_insert": body}, ensure_ascii=False)); return
+    created, _status = _req("POST", "/rest/v1/quizzes", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0] if isinstance(created, list) else {}
+    print(json.dumps({"id": row.get("id"), "topic": topic, "lesson_date": today}, ensure_ascii=False))
+
+
 def cmd_module_answer_key(creds, a):
     """Answer key for ONE module's check, as the driver needs it: per served question, the correct
     option TEXT(s) and canonical 1-based index(es). Resolves the module by id, or by the (possibly
