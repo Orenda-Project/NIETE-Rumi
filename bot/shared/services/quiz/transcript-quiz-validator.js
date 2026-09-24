@@ -28,6 +28,7 @@ const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
+const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -484,6 +485,11 @@ function validate(rawQuestions, ctx = {}) {
       if (need.some((k) => !String(fb.wrong?.[k] || '').trim())) errs.push(`q${i}: empty wrong feedback`);
       if (!String(fb.correct || '').trim()) errs.push(`q${i}: empty correct feedback`);
     }
+    // A key justified by what was said in class, against the fact the item
+    // itself states (transcript-quiz-key-authority): the class's mistake made
+    // the answer. Read as the child sees it, so the quoted sentence is readable.
+    const authority = keyByAuthorityError(p, i);
+    if (authority) errs.push(authority);
     const stem = String(p.question || '').trim();
     if (!stem) errs.push(`q${i}: empty stem`);
     if (cpLen(stem) > STEM_MAX) errs.push(`q${i}: stem >${STEM_MAX} code points`);

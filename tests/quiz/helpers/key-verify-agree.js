@@ -2,8 +2,9 @@
 /**
  * A blind solver that agrees with every key.
  *
- * Every lesson quiz is now blind-solved once before its rows are stored (the
- * generate step's `verifyKeys` seam, transcript-quiz-key-verify.service). Suites
+ * Every lesson quiz is now blind-solved before its rows are stored — once with
+ * the lesson and once without it (the generate step's `verifyKeys` seam,
+ * transcript-quiz-key-verify.service); this agrees on both. Suites
  * whose subject is something else — the authoring budget, the rewrite, the
  * language of the teacher's page — install this on that seam, so they neither
  * reach a model for the extra call nor count it among the calls they assert on.

@@ -613,6 +613,20 @@ Feature: NIETE (ICT) Teacher Training
     # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz never keys a mistake made in class as the right answer
+    Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
+    When I say yes to the quiz for that lesson and it arrives
+    Then no question marks that mistake as the right answer, and every answer marked correct is right by the subject
+    And no explanation gives "the teacher said so" as the reason, or says a fact holds "but in class" it was not accepted
+    And a question that tested the mistake is asked about the correct fact instead, or left out
+    # transcript-quiz-key-authority (validator KEY_BY_AUTHORITY: an explanation that concedes the fact and
+    # sides with the class, repaired by the targeted rewrite with KEY_BY_AUTHORITY_RULE, else dropped);
+    # transcript-quiz-contract (THE ANSWER IS TRUE BY THE SUBJECT, for the author and the rewrite); runKeyVerify
+    # solves every item a second time without the lesson (key_verify_bare: no summary, no objectives), where no
+    # right answer or two count at once and another answer only after a second look in another option order.
+    # @wip — a class's mistake cannot be recorded on demand; proven in tests/quiz/transcript-quiz-key-truth.test.js.
+
   @e2e @quiz @wip @draft @P2
   Scenario: A lesson quiz never asks the class the same question twice
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
