@@ -202,7 +202,9 @@ describe('the localized join Flow speaks the quiz language', () => {
     await share.beginFromCode(PHONE, 'K7RM2Q');
 
     const data = onlyFlow().flow_action_payload.data;
-    expect(data.heading).toBe('⁨مس عائشہ⁩ has sent you a quiz');
+    // Isolated for clients that honour isolates, and opened with U+200E for those
+    // that do not (the catalog resolver adds the mark).
+    expect(data.heading).toBe('\u200E\u2068مس عائشہ\u2069 has sent you a quiz');
   });
 
   test('the greeting above the button isolates a teacher name in the other script, so its paragraph keeps the quiz direction', async () => {
