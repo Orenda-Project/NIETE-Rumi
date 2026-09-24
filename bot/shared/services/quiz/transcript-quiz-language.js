@@ -386,6 +386,7 @@ function topicFor(digest, language) {
 }
 
 module.exports = {
+  isolate,
   topicFor,
   needsLanguageAsk,
   languageAskButtons,

@@ -1751,13 +1751,29 @@ const UX_STRINGS = {
   tqPlaceTens: { en: 'Tens', ur: 'دہائیاں' },
   tqPlaceOnes: { en: 'Ones', ur: 'اکائیاں' },
   tqLessonWord: { en: 'Lesson', ur: 'سبق' },
+  // The nudge a teacher gets when almost nobody has started a quiz. {topic} and
+  // each title in {topics} arrive ALREADY bold and isolated (*⁨title⁩*, built
+  // by transcript-quiz-nudge titled()): a title's script is not the sentence's
+  // (an Urdu title in an English nudge and vice versa), and a title can contain
+  // the list comma itself, so neither the separator nor the bidi algorithm can
+  // be trusted to show where one title ends. The count has three forms — none,
+  // one, several — because "0 student(s)" is not a sentence. Urdu verbs agree
+  // with the quiz (کیا ہے، کیے), never with the teacher or a child.
+  tqNudgeNone: {
+    en: 'No one has started your quiz on {topic} yet. Worth forwarding the link to the class group again?',
+    ur: '\u200F{topic} پر آپ کے quiz کو ابھی تک کسی نے شروع نہیں کیا۔ link دوبارہ class group میں forward کر دیں؟',
+  },
+  tqNudgeOne: {
+    en: 'One student has started your quiz on {topic} so far. Worth forwarding the link to the class group again?',
+    ur: '\u200F{topic} پر آپ کے quiz کو اب تک ایک طالب علم نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
+  },
   tqNudge: {
-    en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',
-    ur: '\u200F*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
+    en: '{started} students have started your quiz on {topic} so far. Worth forwarding the link to the class group again?',
+    ur: '\u200F{topic} پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
   },
   tqNudgeMany: {
-    en: '{count} of your quizzes have had almost nobody start yet: *{topics}*. Worth forwarding the links to the class group again?',
-    ur: '\u200Fآپ کے {count} quiz ابھی تک تقریباً کسی نے شروع نہیں کیے: *{topics}*۔ link دوبارہ class group میں forward کر دیں؟',
+    en: '{count} of your quizzes have had almost nobody start yet: {topics}. Worth forwarding the links to the class group again?',
+    ur: '\u200Fآپ کے {count} quiz ابھی تک تقریباً کسی نے شروع نہیں کیے: {topics}۔ link دوبارہ class group میں forward کر دیں؟',
   },
 
   // ─── /quiz as ONE WhatsApp Flow (docs/flows/transcript-quiz-flow.json) ───

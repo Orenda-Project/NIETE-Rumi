@@ -209,7 +209,9 @@ describe('every teacher-facing surface answers in her stored language', () => {
       users: { data: [TEACHER] },
     });
     await Nudge.process(QID);
-    expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqNudge', { started: 1, topic: 'کسریں' }));
+    // One child started: the singular form; the Urdu title arrives bold and
+    // isolated inside her English sentence (transcript-quiz-nudge titled()).
+    expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqNudgeOne', { topic: '*\u2068کسریں\u2069*' }));
   });
 
   test('the /quiz list, its rows and its empty state', async () => {

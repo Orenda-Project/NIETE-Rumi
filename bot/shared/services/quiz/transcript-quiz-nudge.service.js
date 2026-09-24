@@ -25,7 +25,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
-const { teacherLanguageFor } = require('./transcript-quiz-language');
+const { teacherLanguageFor, isolate } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
 
 const NUDGE_BELOW = 5;
@@ -151,6 +151,24 @@ async function startedFor(quizId, teacherId) {
   return excludeSelfTests(sessions || [], teacherId).length;
 }
 
+/**
+ * A quiz title as it sits in a nudge: bold, and isolated so it keeps its own
+ * direction whatever the sentence's (an Urdu title in an English nudge, or the
+ * reverse). Titles can contain the list comma themselves, so the bold is also
+ * what shows where one title ends and the next begins.
+ */
+function titled(topic, language) {
+  const text = String(topic || '').trim() || resolveUx('tqLessonWord', { language });
+  return `*${isolate(text)}*`;
+}
+
+/** None, one, several — "0 student(s)" is not a sentence. */
+function nudgeKeyFor(started) {
+  if (started <= 0) return 'tqNudgeNone';
+  if (started === 1) return 'tqNudgeOne';
+  return 'tqNudge';
+}
+
 async function process(quizId) {
   const { data: quiz } = await supabase.from('quizzes')
     .select('id, teacher_id, topic, status, language, meta').eq('id', quizId).maybeSingle();
@@ -191,10 +209,16 @@ async function process(quizId) {
   const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language });
 
   const body = quiet.length === 1
-    ? resolveUx('tqNudge', { language: lang, params: { started, topic: quiz.topic || '' } })
+    ? resolveUx(nudgeKeyFor(started), { language: lang, params: { started, topic: titled(quiz.topic, lang) } })
     : resolveUx('tqNudgeMany', {
       language: lang,
-      params: { count: quiet.length, topics: quiet.map((q) => q.topic).filter(Boolean).join('، ') },
+      params: {
+        count: quiet.length,
+        // The teacher's language's own list comma (", " / "، "), never one
+        // language's for every teacher.
+        topics: quiet.map((q) => q.topic).filter(Boolean).map((t) => titled(t, lang))
+          .join(resolveUx('vqLetterSep', { language: lang })),
+      },
     });
   const ok = await WhatsAppService.sendMessage(teacher.phone_number, body);
 
