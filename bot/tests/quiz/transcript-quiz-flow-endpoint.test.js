@@ -1065,3 +1065,110 @@ describe('a report is only promised when there is something to report', () => {
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_done', expect.objectContaining({ action: 'report', ok: false }));
   });
 });
+
+// A child who re-opens the class link gets a new session row (nothing blocks a
+// retake), and one who typed STOP and came back has two. /quiz read every row:
+// the child counted twice in "started", a retake counted again in "finished"
+// and in the average, and a child who stopped and then finished was listed as
+// finished AND as stopped. The class report already counts one attempt per
+// child (the latest completed, else the latest row); /quiz now counts the same.
+describe('/quiz counts one attempt per child, as the class report does', () => {
+  const { resolveUx } = require('../../shared/config/ux-strings');
+  const at = (d, h) => new Date(Date.UTC(2026, 8, d, h, 0, 0)).toISOString();
+  const quizFor = (id, sessionId, extra = {}) => ({
+    id, coaching_session_id: sessionId, teacher_id: TEACHER, quiz_source: 'transcript',
+    status: 'sent', topic: `Topic ${id}`, subject: 'science', language: 'en',
+    meta: { share_code_id: `sc-${id}`, student_message: 'forward me' }, ...extra,
+  });
+  const row = (id, quizId, studentId, name, status, extra = {}) => ({
+    id, quiz_id: quizId, user_id: null, invited_by_student_id: null, student_id: studentId,
+    student_name: name, student_class: '5-A', status,
+    total_questions_answered: 0, correct_answers: 0, mastery_percentage: null,
+    completed_at: null, created_at: at(10, 8), ...extra,
+  });
+  const done = (pct, completedDay) => ({
+    total_questions_answered: 8, correct_answers: Math.round((pct / 100) * 8), mastery_percentage: pct,
+    completed_at: at(completedDay, 9),
+  });
+  const ROWS = [
+    row('a1', 'q-1', 'st-a', 'Ayesha', 'completed', done(88, 10)),
+    row('b1', 'q-1', 'st-b', 'Bilal', 'completed', done(50, 10)),
+    row('d1', 'q-1', 'st-d', 'Danish', 'in_progress'),
+    // Esha typed STOP, re-opened the link and finished.
+    row('e1', 'q-1', 'st-e', 'Esha', 'incomplete', { created_at: at(10, 8), total_questions_answered: 3, correct_answers: 2 }),
+    row('e2', 'q-1', 'st-e', 'Esha', 'completed', { created_at: at(11, 8), ...done(75, 11) }),
+    // Farah finished, retook it and did better.
+    row('f1', 'q-1', 'st-f', 'Farah', 'completed', { created_at: at(10, 8), ...done(38, 10) }),
+    row('f2', 'q-1', 'st-f', 'Farah', 'completed', { created_at: at(12, 8), ...done(88, 12) }),
+    // The teacher's own run never counts.
+    { ...row('t1', 'q-1', null, 'QA Load Test', 'completed', done(100, 10)), user_id: TEACHER },
+    // Esha on ANOTHER lesson's quiz is a child of that quiz, not a retake of this one.
+    row('e3', 'q-2', 'st-e', 'Esha', 'in_progress'),
+  ];
+
+  /** The same stub, except quiz_sessions answers only the columns asked for —
+   *  so a collapse that needs a column the select forgot cannot pass here. */
+  function stubProjecting(tables) {
+    writes = [];
+    supabase.from.mockImplementation((t) => {
+      const chain = makeChain(tables[t] || [], writes);
+      if (t !== 'quiz_sessions') return chain;
+      let cols = null;
+      chain.select = (list) => {
+        if (typeof list === 'string' && !list.includes('*') && !list.includes('(')) {
+          cols = list.split(',').map((c) => c.trim()).filter(Boolean);
+        }
+        return chain;
+      };
+      const then = chain.then;
+      chain.then = (resolve, reject) => then((res) => resolve({
+        ...res,
+        data: cols ? res.data.map((r) => Object.fromEntries(cols.map((c) => [c, r[c]]))) : res.data,
+      }), reject);
+      return chain;
+    });
+  }
+
+  test('the lesson screen counts each child once: started, finished, the average and the lists', async () => {
+    stubProjecting({ users, coaching_sessions: [session(1)], quizzes: [quizFor('q-1', 's-1')], quiz_sessions: ROWS });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    // Each line opens with its own direction mark; the words are what is asserted here.
+    const lines = out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''));
+
+    // Ayesha 88, Bilal 50, Esha 75, Farah 88 (her latest) → 301 / 4 = 75.25
+    expect(lines[0]).toBe(resolveUx('tqFlowResultsHead', { language: 'en', params: { started: 5, finished: 4, avg: 75 } }));
+    expect(lines.filter((l) => l.startsWith('• Farah'))).toEqual([expect.stringContaining('7/8 (88%)')]);
+    // Esha finished on her second go: one finished line, and on no unfinished list.
+    expect(lines.filter((l) => l.includes('Esha'))).toEqual([expect.stringMatching(/^• Esha .*75%/)]);
+    expect(lines).toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: 'Danish' } }));
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_lesson', expect.objectContaining({ started: 5, finished: 4 }));
+  });
+
+  test('the lessons list counts each child once per quiz', async () => {
+    stubProjecting({
+      users,
+      coaching_sessions: [session(1), session(2)],
+      quizzes: [quizFor('q-1', 's-1'), quizFor('q-2', 's-2')],
+      quiz_sessions: ROWS,
+    });
+
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+    const byId = Object.fromEntries(out.data.items.map((i) => [i.id, i['main-content'].description]));
+
+    expect(byId['s-1']).toBe(resolveUx('tqFlowStatusSent', { language: 'en', params: { started: 5 } }));
+    expect(byId['s-2']).toBe(resolveUx('tqFlowStatusSent', { language: 'en', params: { started: 1 } }));
+  });
+
+  test('a sent report counts each finished child once', async () => {
+    stubProjecting({
+      users, coaching_sessions: [session(1)],
+      quizzes: [quizFor('q-1', 's-1', { status: 'report_sent' })], quiz_sessions: ROWS,
+    });
+
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+
+    expect(out.data.items[0]['main-content'].description)
+      .toBe(resolveUx('tqFlowStatusReport', { language: 'en', params: { finished: 4 } }));
+  });
+});

@@ -44,6 +44,7 @@ const {
 } = require('../services/quiz/transcript-quiz-language');
 const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
 const { classLabel, classHeading, normaliseClasses, markLines } = require('../utils/text-format');
+const { oneAttemptPerChild } = require('../services/quiz/one-attempt-per-child');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureReasonOf, lpRemakeable,
 } = require('../services/quiz/quiz-sources');
@@ -247,15 +248,20 @@ async function loadLesson(teacher, sessionId) {
   return { session, quiz: quiz || null };
 }
 
-/** Every child who took this quiz, the teacher's own test run removed. */
+/**
+ * Every child who took this quiz, once each (the attempt the class report
+ * counts: the latest completed, else the latest), the teacher's own test run
+ * removed. The started/finished counts, the average, the per-child lines and
+ * the still-going list are all read from this.
+ */
 async function loadStudents(quizId, teacherUserId) {
   if (!quizId) return [];
   const { data } = await supabase.from('quiz_sessions')
-    .select('id, user_id, student_name, student_class, status, total_questions_answered, '
-            + 'correct_answers, mastery_percentage')
+    .select('id, user_id, student_id, student_name, student_class, status, total_questions_answered, '
+            + 'correct_answers, mastery_percentage, completed_at, created_at')
     .eq('quiz_id', quizId)
     .is('invited_by_student_id', null);
-  return excludeSelfTests(data || [], teacherUserId);
+  return oneAttemptPerChild(excludeSelfTests(data || [], teacherUserId));
 }
 
 /**
