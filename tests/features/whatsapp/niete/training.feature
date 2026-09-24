@@ -614,6 +614,22 @@ Feature: NIETE (ICT) Teacher Training
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: A lesson quiz never asks the class the same question twice
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
+    When the quiz arrives
+    Then no two questions on my PDF ask the same thing and have the same answer, even with the options in another order
+    And two questions that only look alike — the same question about another number, another word or another picture, or with another answer — both stay in the quiz
+    And the quiz still arrives with all its questions when a repeated one could not be replaced
+    # transcript-quiz-duplicates, run once over the whole quiz by the validator: a LATER question with the
+    # same answer, the same picture (or none), the same numbers and quoted items, and a near-identical stem
+    # is named DUPLICATE_QUESTION. transcript-quiz-generate replaces it with one targeted rewrite
+    # (IN_PLACE_FAULT); a rewrite that does not take ships the quiz with the repeat recorded in
+    # meta.soft_faults (SOFT_FAULT) — never a refusal, never a dropped question. Counted on
+    # transcript_quiz.duplicate_question. Content-driven: read every question on the PDF and compare them;
+    # never a fixed quiz. @wip — a repeat cannot be forced live on demand; the behaviour is proven in
+    # tests/quiz/transcript-quiz-duplicate-questions.test.js.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A column subtraction reaches the child set out the way the textbook prints it
     Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson on column subtraction
     When a child opens the quiz from its link and reaches a column subtraction
