@@ -22,12 +22,13 @@ const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // typeset as one maths expression (quiz-math spanEquations): the only
 // differences from the round-5 capture are that expression and the maths
 // stylesheet it brings with it. Still the single-answer output, unchanged by
-// answerMode. The Urdu capture was taken once more when the Urdu stem and
-// option line-heights moved from 2 / 1.9 to the shared Nastaliq pitch (2.4)
-// so wrapped Urdu lines stop touching, and an Urdu option row's vertical
-// padding went 20px -> 12px to give the height back; those are the whole diff.
+// answerMode.
+// The Urdu single-answer card carries the Urdu line-spacing block when
+// QUIZ_URDU_SPACING_V2 is on (the default): the capture below is that output,
+// and the switched-off output must still be the pre-spacing capture exactly.
 const BASELINE_SINGLE_EN_SHA256 = '70ccaf6d56066cd7db75c35d259d627f2fc9e984e1fd7b92983a3e0ba8fde7c5';
-const BASELINE_SINGLE_UR_SHA256 = 'f2236a0ba7a1c8f5b71554c50d28490b116a64ce96ed135c69b9d0d671bfa2fd';
+const BASELINE_SINGLE_UR_SHA256 = '2f026fd06f00f9de2b1792c1e60b33ac6d64c003c4882c04492f851832edaeb3';
+const BASELINE_SINGLE_UR_SPACING_OFF_SHA256 = 'f83aef01dae7b9c48b253e95a9a9bf6728d6de758e21b01cb38f2f5365dc1008';
 
 const SINGLE_EN_DATA = { stem: 'What is 2 + 2?', options: ['3', '4', '5'], displayOrder: [0, 1, 2], language: 'en', questionNumber: 1, total: 5 };
 const SINGLE_UR_DATA = { stem: 'کیا؟', options: ['ا', 'ب', 'ج'], displayOrder: [0, 1, 2], language: 'ur', questionNumber: 1, total: 5 };
@@ -40,6 +41,16 @@ describe('renderQuestionCardHtml — answerMode "single" is untouched', () => {
   test('explicit answerMode:"single", ur: byte-identical to the pre-existing output', () => {
     const html = Card.renderQuestionCardHtml({ ...SINGLE_UR_DATA, answerMode: 'single' });
     expect(sha256(html)).toBe(BASELINE_SINGLE_UR_SHA256);
+  });
+  test('explicit answerMode:"single", ur, Urdu spacing switched off: byte-identical to the pre-spacing output', () => {
+    const saved = process.env.QUIZ_URDU_SPACING_V2;
+    process.env.QUIZ_URDU_SPACING_V2 = 'false';
+    try {
+      const html = Card.renderQuestionCardHtml({ ...SINGLE_UR_DATA, answerMode: 'single' });
+      expect(sha256(html)).toBe(BASELINE_SINGLE_UR_SPACING_OFF_SHA256);
+    } finally {
+      if (saved === undefined) delete process.env.QUIZ_URDU_SPACING_V2; else process.env.QUIZ_URDU_SPACING_V2 = saved;
+    }
   });
 });
 

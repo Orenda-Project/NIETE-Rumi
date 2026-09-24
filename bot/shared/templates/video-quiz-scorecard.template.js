@@ -47,7 +47,28 @@
 
 const fs = require('fs');
 const path = require('path');
-const { PALETTE, FONTS, NASTALIQ, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
+const { PALETTE, FONTS, NASTALIQ, urduSpacingV2, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
+
+/**
+ * THE URDU SPACING — appended after the card's stylesheet when the switch is on
+ * (QUIZ_URDU_SPACING_V2, default on); off, the card renders exactly as before.
+ * The name, the topic and the subject are one-line labels with an ellipsis, and
+ * the plain overflow:hidden that ellipsis needs clipped them on BOTH axes: in
+ * Nastaliq that cut off the ink above and below the line box, and at the start
+ * of the line the stroke a word-initial ک or گ throws past its own text — a
+ * child called «کشف» was congratulated as «لشف». They now clip sideways only,
+ * and an Urdu label keeps NASTALIQ.startRoom inside its clip on the start side
+ * (the negative margin puts the text back exactly where it was). Latin never
+ * leaves its line box, so an English card renders the same.
+ */
+function urduSpacingCss() {
+  const room = NASTALIQ.startRoom;
+  return `
+  /* urdu-spacing-v2 */
+  .name, .topic, .subj { overflow-x:clip; overflow-y:visible; }
+  .name[dir="rtl"], .topic[dir="rtl"], .subj[dir="rtl"] { padding-inline-start:${room}em; margin-inline-start:-${room}em; }
+  /* /urdu-spacing-v2 */`;
+}
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { subjectLabel } = require('../services/quiz/transcript-quiz-language');
 
@@ -385,20 +406,7 @@ function renderScorecardHtml(d) {
   /* The gaps between the six blocks, shared out by the column itself, so the
      card breathes the same whether the name is one short Latin word or a long
      Nastaliq one. */
-  .gap { flex:1 1 auto; min-height:6px; }
-  /* A one-line label is cut SIDEWAYS only. Clipping it in both directions (the
-     plain overflow:hidden the ellipsis needs) also cut off whatever ink rose
-     above or hung below its line box — in Nastaliq that is the stroke of a ک or
-     a گ, so a child called «کشف» was congratulated as «لشف». overflow-x:clip
-     keeps the ellipsis and the box size; the letters are drawn whole. Latin
-     never leaves its line box, so an English card is unchanged. */
-  .name, .topic, .subj { overflow-x:clip; overflow-y:visible; }
-  /* The sideways clip also cut the stroke a word-initial ک or گ throws past
-     the start of its line («کشف» printed as «لشف»). An Urdu label keeps that
-     much room inside its clip on the start side; the negative margin puts the
-     text back exactly where it was. */
-  .name[dir="rtl"], .topic[dir="rtl"], .subj[dir="rtl"] {
-    padding-inline-start:${NASTALIQ.startRoom}em; margin-inline-start:-${NASTALIQ.startRoom}em; }
+  .gap { flex:1 1 auto; min-height:6px; }${urduSpacingV2() ? urduSpacingCss() : ''}
   </style></head><body><div class='card' dir='${dir}'>
   ${lattice}
   <div class='hdr'><div class='t1'>${esc(eyebrow)}${nuqtas}</div>${logoImg}</div>
