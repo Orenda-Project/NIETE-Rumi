@@ -221,7 +221,7 @@ function flakyFromBaselineDoc(md = BASELINE_MD) {
  * Returns a new result; neither input is mutated. `unconfirmed` carries what did not
  * reproduce, so a transient failure is still reported rather than silently dropped.
  */
-function confirmRegressions(first, second) {
+function confirmRegressions(first, second, opts = {}) {
   const arr = (x) => x || [];
   const secondSuites = new Set(arr(second.newSuites));
   const newSuites = arr(first.newSuites).filter((x) => secondSuites.has(x));
@@ -250,14 +250,42 @@ function confirmRegressions(first, second) {
   const [newOffenders, staleOffenders] =
     split(first.newOffenders, 'offenders', index(second.newOffenders, 'offenders'));
 
+  // A flaky-listed suite that failed in BOTH runs is behaving like a real failure. See
+  // needsConfirmation for why the second run exists even when the first looked clean.
+  const secondFlaky = new Set(arr(second.flakyFailures));
+  const flakyTwice = arr(first.flakyFailures).filter((s) => secondFlaky.has(s)).sort();
+  const strict = !!opts.strictFlaky && flakyTwice.length > 0;
+
   return {
     ...first,
     newSuites,
     newTests,
     newOffenders,
+    flakyTwice,
     unconfirmed: { newSuites: staleSuites, newTests: staleTests, newOffenders: staleOffenders },
-    clean: !newSuites.length && !newTests.length && !newOffenders.length,
+    clean: !newSuites.length && !newTests.length && !newOffenders.length && !strict,
   };
+}
+
+/**
+ * Does this first run need the confirmation run?
+ *
+ * Yes when it looks red — and ALSO when a flaky-listed suite failed. A flaky failure never
+ * gates, so without a second run there is no way to tell a flake from a suite that has
+ * started failing every time; the Flaky list then hides a deterministic red for as long as
+ * nobody reads it. The portal certificate suites were exactly that from 2026-09-18.
+ */
+function needsConfirmation(first) {
+  return !first.clean || (first.flakyFailures || []).length > 0;
+}
+
+/**
+ * Whether a flaky-listed suite that failed in BOTH runs fails the gate. Advisory by
+ * default; `BASELINE_FLAKY_TWICE=gate` makes it gate. Exactly that value and no other, so
+ * a typo cannot turn a gate on or off by accident.
+ */
+function flakyTwiceGates(env = process.env) {
+  return env.BASELINE_FLAKY_TWICE === 'gate';
 }
 
 /**
@@ -468,14 +496,17 @@ function main() {
   const base = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
   const first = compareSnapshots(now, base, { flaky });
 
-  // Confirm before failing. The second run costs ~11s and happens ONLY when the first
-  // pass looks red, so the happy path is unchanged. --no-retry restores single-pass
-  // behaviour for anyone who wants the raw first verdict.
+  // Confirm before failing. The second run happens ONLY when the first pass looks red or
+  // a flaky-listed suite failed (needsConfirmation), so a fully clean run is unchanged.
+  // --no-retry restores single-pass behaviour for anyone who wants the raw first verdict.
   let r = first;
   let didConfirm = false;
-  if (!first.clean && retry) {
-    console.log('\nbaseline-gate: possible regression — confirming with a second full run.');
-    r = confirmRegressions(first, compareSnapshots(summariseRun(runJest()), base, { flaky }));
+  if (needsConfirmation(first) && retry) {
+    console.log(first.clean
+      ? '\nbaseline-gate: a flaky-listed suite failed — a second full run tells a flake from a real failure.'
+      : '\nbaseline-gate: possible regression — confirming with a second full run.');
+    r = confirmRegressions(first, compareSnapshots(summariseRun(runJest()), base, { flaky }),
+      { strictFlaky: flakyTwiceGates() });
     didConfirm = true;
   }
 
@@ -488,6 +519,10 @@ function main() {
   list('Fixed offenders:', r.fixedOffenders,
     (x) => `${x.suite} (-${x.offenders.length})`);
   list('Flaky suites failing — inconclusive, not gating:', r.flakyFailures);
+  list(flakyTwiceGates()
+    ? 'Flaky-listed suites that failed in BOTH runs — gating (BASELINE_FLAKY_TWICE=gate):'
+    : 'Flaky-listed suites that failed in BOTH runs — likely no longer flaky (advisory; '
+      + 'BASELINE_FLAKY_TWICE=gate makes this gate):', r.flakyTwice || []);
 
   if (didConfirm && r.unconfirmed) {
     const u = r.unconfirmed;
@@ -507,8 +542,10 @@ function main() {
     console.log('\nbaseline-gate: CLEAN — no new failing suite, test, or offender.');
     return;
   }
-  console.error('\nbaseline-gate: REGRESSION — the items above are new since the snapshot.');
-  console.error('  A red suite is not a licence to add to it. Fix, or justify in the PR.');
+  // stdout, like the lists above it: on stderr the verdict interleaved into the middle of
+  // the lists in CI logs, and the "Flaky — not gating" list read as part of the regression.
+  console.log('\nbaseline-gate: REGRESSION — the NEW items above' + (r.flakyTwice && r.flakyTwice.length && flakyTwiceGates() ? ', and the flaky-listed suites that failed in both runs,' : '') + ' fail the gate.');
+  console.log('  A red suite is not a licence to add to it. Fix, or justify in the PR.');
   process.exit(1);
 }
 
@@ -525,5 +562,7 @@ module.exports = {
   parseCliArgs,
   snapshotGrowth,
   normaliseOffender,
+  needsConfirmation,
+  flakyTwiceGates,
   relSuite,
 };
