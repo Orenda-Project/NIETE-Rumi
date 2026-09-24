@@ -27,11 +27,45 @@ const TRANSCRIPT = 'transcript';
 const LP_V8 = 'lp_v8';
 
 /**
+ * A quiz written from a Grades 6-12 lesson plan the teacher was served — the
+ * exact document that made the PDF, read from R2 by its render's version
+ * triple (lp612-quiz-source.js). Downstream it is a lesson-PLAN quiz exactly
+ * like lp_v8: no recording, "What you planned", the lesson-plan failure copy,
+ * "Make it again".
+ */
+const LP612 = 'lp612';
+
+/**
  * Frozen: every consumer reads it, several hand it straight to PostgREST's
  * `.in()`, and one `.sort()` in a caller would reorder it for everyone in the
  * same process.
  */
-const LESSON_SOURCES = Object.freeze([TRANSCRIPT, LP_V8]);
+const LESSON_SOURCES = Object.freeze([TRANSCRIPT, LP_V8, LP612]);
+
+/**
+ * The lesson quizzes written from a lesson PLAN rather than a recording. The
+ * question every surface that used to ask "is this lp_v8?" is really asking:
+ * nobody heard this lesson, so nothing may say it was taught, and the quiz is
+ * made from a written source that can be read again.
+ */
+const PLAN_SOURCES = Object.freeze([LP_V8, LP612]);
+
+/** @param {string|null|undefined} source `quizzes.quiz_source` */
+function isPlanQuiz(source) {
+  return PLAN_SOURCES.includes(source);
+}
+
+/**
+ * THE KILL SWITCH for quizzes from Grades 6-12 lesson plans: QUIZ_LP612_SOURCE, read at call
+ * time. `on` (or `true`) = the /quiz menu lists 6-12 lessons and the generate step writes their
+ * quizzes. Anything else — unset, `off` — = no 6-12 lesson is listed and no lp612 quiz is
+ * written; a quiz already MADE keeps going (its hand-off, children, report and /quiz actions are
+ * not gated), so switching it off never strands a class mid-quiz.
+ */
+function lp612SourceOn() {
+  const v = String(process.env.QUIZ_LP612_SOURCE || '').trim().toLowerCase();
+  return v === 'on' || v === 'true';
+}
 
 /**
  * Is this quiz one of a teacher's own lessons (as opposed to a video quiz or an
@@ -93,6 +127,9 @@ const LP_FAILURE_COPY = {
   // The generate job could not be queued: the quiz was never written. What the
   // teacher was told at the time, repeated — not "the questions did not come out".
   queue_failed: 'lpQuizCouldNotStart',
+  // QUIZ_LP612_SOURCE was switched off between the tap and the author: the quiz
+  // was never written, and "couldn't start it just now" is the honest sentence.
+  source_off: 'lpQuizCouldNotStart',
 };
 /**
  * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
@@ -116,7 +153,7 @@ const TRANSCRIPT_FAILURE_COPY = {
   session_missing: 'tqCouldNotMakeSessionGone',
 };
 function failureCopyKey(reason, quizSource) {
-  if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';
+  if (!isPlanQuiz(quizSource)) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';
   // An LP quiz never falls back to the transcript copy: a reason nobody has
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
@@ -202,10 +239,10 @@ function lpRemakeable(meta) {
  * @returns {string} a ux-strings key
  */
 function handoffIntroKey(quizSource) {
-  return quizSource === LP_V8 ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
+  return isPlanQuiz(quizSource) ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
 }
 
 module.exports = {
-  TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey, handoffIntroKey,
+  TRANSCRIPT, LP_V8, LP612, LESSON_SOURCES, PLAN_SOURCES, isLessonQuiz, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, handoffIntroKey,
   SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable,
 };

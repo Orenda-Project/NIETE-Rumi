@@ -342,6 +342,14 @@ function carry(slideScript) {
     misconception: mis ? {
       slip: degender(mis.slip), why: degender(mis.why), fix: degender(mis.fix),
     } : null,
+    // Any further mistakes the plan warns about. A K-5 slide script has one
+    // (iDo.misconception) and no top-level list — 0 of 1,281 ingested scripts
+    // carry one — so for K-5 this is always empty and nothing below changes. A
+    // Grades 6-12 lesson warns about three or four (lp612-quiz-source.js), and
+    // every one is material for a wrong option.
+    more_misconceptions: arr(ss.misconceptions).map((m) => (m && typeof m === 'object'
+      ? { slip: degender(m.slip), why: degender(m.why), fix: degender(m.fix) }
+      : { slip: degender(m), why: '', fix: '' })).filter((m) => m.slip),
     // PROMPTS ONLY — never the answers, and never as questions to reuse.
     practice_prompts: arr(youDo.problems).map((p) => degender(p && p.prompt)).filter(Boolean),
     key_facts: arr(wrap.keyFacts).map(degender).filter(Boolean),
@@ -385,6 +393,10 @@ function lessonExcerpts(slideScript) {
     if (c.misconception.slip) lines.push(`  what they do: ${c.misconception.slip}`);
     if (c.misconception.why) lines.push(`  why: ${c.misconception.why}`);
     if (c.misconception.fix) lines.push(`  what fixes it: ${c.misconception.fix}`);
+  }
+  if (c.more_misconceptions.length) {
+    lines.push('OTHER MISTAKES THE PLAN WARNS ABOUT (gold for distractors too):');
+    c.more_misconceptions.forEach((m) => lines.push(`  what they do: ${m.slip}${m.fix ? ` — what fixes it: ${m.fix}` : ''}`));
   }
   if (c.practice_prompts.length) {
     lines.push('WHAT THE CLASS PRACTISED ON THEIR OWN — the SHAPE of the work, never questions to copy:');
@@ -482,13 +494,19 @@ ${lessonExcerpts(slideScript)}`;
  * @param {string}  [args.lessonId]   the served lesson (`quizzes.meta.lessons[0].lesson_id`);
  *                                    names the quiz from the catalog. Falls back to the
  *                                    slide script's own `meta.lessonId`.
+ * @param {string}  [args.lessonName] the lesson's own name when the caller already holds it
+ *                                    (a Grades 6-12 lesson: its book heading). Wins over the
+ *                                    K-5 catalog lookup, which cannot know a 6-12 segment.
+ * @param {string}  [args.quizSource] `quizzes.quiz_source` of the quiz being written, for the
+ *                                    telemetry (default lp_v8).
  * @returns {Promise<{digest:object, grade:string|null, gradeSource:'catalog', lpHint:null,
  *                    model:string, costUsd:number|null, latencyMs:number}>}
  *   The same envelope `transcript-quiz-digest.service.run()` returns, so the
  *   generate step spreads one or the other without a second branch.
  */
 async function run({
-  slideScript, language = null, grade = null, subject = null, lessonId = null,
+  slideScript, language = null, grade = null, subject = null, lessonId = null, lessonName: givenName = null,
+  quizSource = LP_V8,
 }) {
   if (!isUsable(slideScript)) {
     // Loudly, and before the LLM call: an empty digest authored into a quiz is
@@ -521,8 +539,11 @@ async function run({
   // it is what every wrong option is built from, and on this path it is the one
   // piece of the lesson we know for certain.
   const c = carry(slideScript);
-  if (c.misconception) {
-    const seeded = [c.misconception.slip, c.misconception.why].filter(Boolean);
+  if (c.misconception || c.more_misconceptions.length) {
+    const seeded = [
+      ...(c.misconception ? [c.misconception.slip, c.misconception.why] : []),
+      ...c.more_misconceptions.map((m) => m.slip),
+    ].filter(Boolean);
     const already = new Set(digest.misconceptions_surfaced.map((m) => String(m).trim()));
     digest.misconceptions_surfaced = [
       ...seeded.filter((m) => !already.has(m.trim())),
@@ -536,15 +557,16 @@ async function run({
   // English-language quiz is called, and the catalog has no English name for an
   // Urdu lesson.
   const servedLessonId = lessonId || (slideScript && slideScript.meta && slideScript.meta.lessonId) || null;
-  const lessonName = catalogLessonName(servedLessonId);
+  const named = givenName && String(givenName).trim() ? String(givenName).trim() : null;
+  const lessonName = named || catalogLessonName(servedLessonId);
   if (lessonName) digest.topic_as_taught = lessonName;
 
   const resolvedGrade = grade != null && String(grade).trim() ? String(grade).trim() : null;
 
   logEvent('transcript_quiz.digest_done', {
-    quiz_source: LP_V8,
+    quiz_source: quizSource,
     lessonId: servedLessonId,
-    topicSource: lessonName ? 'catalog' : 'model',
+    topicSource: named ? 'lesson' : (lessonName ? 'catalog' : 'model'),
     model,
     costUsd,
     latencyMs,

@@ -19,7 +19,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
-const { LP_V8, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
+const { isPlanQuiz, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 
 const GAP_MS = 1200;
@@ -47,7 +47,9 @@ async function load(quizId) {
     .eq('id', quizId).maybeSingle();
   if (!quiz) return null;
   const meta = quiz.meta || {};
-  const sessionQuery = quiz.quiz_source === LP_V8
+  // A quiz written from a lesson PLAN (lp_v8, lp612) has no coaching session:
+  // its "session" is the lesson date it carries.
+  const sessionQuery = isPlanQuiz(quiz.quiz_source)
     ? Promise.resolve({ data: lessonSessionFor(quiz) })
     : supabase.from('coaching_sessions').select('created_at').eq('id', quiz.coaching_session_id).maybeSingle();
 

@@ -40,7 +40,7 @@
  * depends on a font that covers it).
  */
 
-const { LP_V8 } = require('../services/quiz/quiz-sources');
+const { isPlanQuiz } = require('../services/quiz/quiz-sources');
 const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
@@ -367,7 +367,7 @@ function renderTranscriptQuizTeacherHtml(d) {
   const docLang = (d && d.contentLanguage) || language;
   const RTL = RTL_LANGS.has(docLang);
   const C0 = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
-  const C = quizSource === LP_V8 ? { ...C0, ...(LP_CHROME[docLang] || (RTL ? LP_CHROME.ur : LP_CHROME.en)) } : C0;
+  const C = isPlanQuiz(quizSource) ? { ...C0, ...(LP_CHROME[docLang] || (RTL ? LP_CHROME.ur : LP_CHROME.en)) } : C0;
   // L() only isolates, never re-escapes — a trusted chrome string may carry a
   // real <b> that must survive. K() additionally escapes and turns x^2 / H2O
   // into real super/subscripts (richNotation only adds tags, which wrapLatin
