@@ -554,7 +554,7 @@ function pictureCandidates(questions, { limit = ADD_PICTURE_CANDIDATES } = {}) {
 }
 
 function buildAddPicturePrompt({
-  digest, language, questions, indices, need, gradeBand = null, lessonDrew = '',
+  digest, language, questions, indices, need, gradeBand = null, lessonDrew = '', refused = [],
 }) {
   const { minimalSpecBlock } = require('./transcript-quiz-figure');
   const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
@@ -604,6 +604,7 @@ function buildAddPicturePrompt({
     GENDER_NEUTRAL_RULE,
     `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
     `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
+    ...(Array.isArray(refused) && refused.length ? [`REFUSED LAST TIME — these pictures were thrown away by our checks, and their questions are as they were:\n${refused.map((r) => `- q${r.index}: ${String(r.error || '').replace(/^q\d+:\s*/, '')}`).join('\n')}\nDo not send the same picture again. A question refused because the picture cannot produce its answer (FIGURE_MISMATCH) is a step no picture shows: REPLACE it, or give another question the picture. A picture refused for giving the answer away (FIGURE_LEAK) needs its labels taken off.`] : []),
     `THE QUESTIONS YOU MAY GIVE A PICTURE (q is its number in the quiz):\n\n${items}`,
     ...(others.length ? [`THE OTHER QUESTIONS IN THE QUIZ (not yours to change — a replacement must not ask any of these again):\n${others.join('\n')}`] : []),
     `Return ONLY this JSON object, with exactly ${need} entr${need === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}. An ADD entry:
@@ -706,7 +707,7 @@ function mergeAddedPictures(questions, json, { indices, need }) {
  *   replaced:number[], model?:string, costUsd?:number, latencyMs?:number, error?:string}>}
  */
 async function addPictures({
-  questions, digest, language, gradeBand = null, lessonDrew = '', need,
+  questions, digest, language, gradeBand = null, lessonDrew = '', need, refused = [],
   // accepted and ignored: the outcome event belongs to the caller, which is the
   // only place that knows whether the merged set validated
   quizId = null, // eslint-disable-line no-unused-vars
@@ -715,7 +716,7 @@ async function addPictures({
   if (!indices.length) return { attempted: false, indices: [], merged: null, added: [], replaced: [] };
   const n = Math.min(Number(need), indices.length);
   const prompt = buildAddPicturePrompt({
-    digest, language, questions, indices, need: n, gradeBand, lessonDrew,
+    digest, language, questions, indices, need: n, gradeBand, lessonDrew, refused,
   });
   try {
     const { json, model, costUsd, latencyMs } = await completeJson({ prompt, maxTokens: 8000, label: 'transcript_quiz.add_pictures' });
