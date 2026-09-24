@@ -72,6 +72,8 @@ function pointerKey(ptr) {
 const FROZEN_POINTERS = [
   { test: (p) => p === "/slo/text_verbatim", why: "the printed outcome is quoted verbatim from the book" },
   { test: (p) => p.startsWith("/page2/exam_bank"), why: "the exam is sat in the book's language" },
+  // bd-f01ob — FBISE codes and their board status come from a lookup; the page labels the status.
+  { test: (p) => p.startsWith("/fbise_slos"), why: "an FBISE code and its board status are looked up, not written" },
   // Two rules, not one, because the two failure modes are different and the message a human reads
   // should say which one they are looking at (rule 24(d) applies to engineer-facing copy too).
   {
@@ -213,6 +215,8 @@ const LABELS = {
     // living here, which is why the Urdu pack silently had no say in it.
     // ── v9 furniture (the closed heading system) ──────────────────────────
     outcome: "Learning outcome", locallyAdded: "locally added",
+    // bd-f01ob — the board status of each FBISE SLO, and the grade 6-8 line in its place.
+    boardStatus: { Summative: "Summative", Formative: "Formative" }, noBoardExam: "No board exam",
     kind: { scaffold: "scaffold for today", prerequisite: "prerequisite", spaced: "spaced review" },
     seqPrev: "Last", seqNext: "Next", seqCheck: "Checkpoint",
     fromBook: "Teaching from", video: "Video",
@@ -262,6 +266,7 @@ const LABELS = {
     // bd-s19g8 — see the English note: no enumeration, because page 2's sections are optional.
     continues: "اگلے صفحات معاون مواد ہیں — یہ آپ کی تیاری کے لیے ہیں، کلاس میں پڑھ کر نہ سنائیں۔", continued: "جاری ہے",
     outcome: "تدریسی نتیجہ", locallyAdded: "مقامی اضافہ",
+    boardStatus: { Summative: "مجموعی جانچ", Formative: "تشکیلی جانچ" }, noBoardExam: "بورڈ امتحان نہیں",
     kind: { scaffold: "آج کے سبق کی بنیاد", prerequisite: "سابقہ علم", spaced: "دہرائی" },
     seqPrev: "پچھلا", seqNext: "اگلا", seqCheck: "جانچ",
     fromBook: "تدریس بمطابق", video: "ویڈیو",
