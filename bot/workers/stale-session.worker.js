@@ -160,16 +160,14 @@ async function processStaleCoachingSessions() {
     // Phase 2: Auto-complete (12h threshold)
     if (idleTime >= COACHING_AUTO_COMPLETE_THRESHOLD_MS) {
       console.log(`    🔄 Auto-completing (${idleHours}h > 12h threshold)`);
-      await autoCompleteSession(session);
-      autoCompleted++;
+      if (await autoCompleteSession(session)) autoCompleted++;
       continue;
     }
 
     // Phase 1: Send reminder (2h threshold, not already sent)
     if (idleTime >= COACHING_REMINDER_THRESHOLD_MS && !session.reminder_sent_at) {
       console.log(`    📨 Sending reminder (${idleHours}h > 2h threshold)`);
-      await sendSessionReminder(session);
-      reminders++;
+      if (await sendSessionReminder(session)) reminders++;
     }
   }
 
@@ -303,11 +301,60 @@ async function extractSessionContext(session) {
 }
 
 /**
+ * Claim one row for this worker copy before it messages anyone.
+ *
+ * This sweep runs in EVERY copy of sqs-worker.js (one per replica, plus the video
+ * worker), and the copies' 15-minute ticks line up because they all start at the
+ * same deploy. A copy used to read "not yet reminded", send, and only then write —
+ * so every copy that read before the first write sent its own message: ten
+ * identical reminders to one teacher inside ten seconds was the normal case.
+ *
+ * The claim is a conditional UPDATE that only matches while the row is still in the
+ * state the copy read it in, returning the rows it changed. One copy gets the row
+ * back; every other copy gets nothing and moves on. Postgres serialises the two
+ * UPDATEs, so this holds however the ticks interleave.
+ *
+ * @param {string} sessionId
+ * @param {object} patch                 what to write
+ * @param {Array<[string,string,*]>} guards  [['eq'|'is', column, value], ...]
+ * @returns {Promise<boolean>} true = this copy owns the row now
+ */
+async function claimSession(sessionId, patch, guards, what) {
+  let q = supabase.from('coaching_sessions').update(patch).eq('id', sessionId);
+  for (const [op, col, val] of guards) q = op === 'is' ? q.is(col, val) : q.eq(col, val);
+  const { data, error } = await q.select('id');
+  if (error) {
+    logToFile(`❌ ${what}: could not claim the session`, { sessionId, error: error.message }, 'error');
+    return false;
+  }
+  if (!data || data.length === 0) {
+    logToFile(`🤝 ${what}: another worker copy already has this session`, { sessionId });
+    return false;
+  }
+  return true;
+}
+
+/**
  * Send reminder message for stale session
  * @param {object} session - Coaching session with user data
+ * @returns {Promise<boolean>} true when the reminder reached WhatsApp
  */
 async function sendSessionReminder(session) {
   try {
+    // Claim first, send second: `reminder_sent_at` is written only by the copy that
+    // wins, and only that copy sends. The conversation_state flag rides the same
+    // write, as before.
+    const claimedAt = new Date().toISOString();
+    const claimed = await claimSession(session.id, {
+      reminder_sent_at: claimedAt,
+      conversation_state: {
+        ...session.conversation_state,
+        reminder_sent: true,
+        reminder_sent_at: claimedAt,
+      },
+    }, [['is', 'reminder_sent_at', null], ['eq', 'status', 'conducting_conversation']], 'Coaching reminder');
+    if (!claimed) return false;
+
     const context = await extractSessionContext(session);
     const progress = reflectionProgress(session.conversation_state?.questions_answered);
     const questionsAnswered = progress.answered;
@@ -333,7 +380,7 @@ async function sendSessionReminder(session) {
     }
 
     // Send interactive message with buttons
-    await WhatsAppService.sendInteractiveButtons(session.users.phone_number, {
+    const sent = await WhatsAppService.sendInteractiveButtons(session.users.phone_number, {
       body: reminderText,
       buttons: [
         { id: `coaching_continue_${session.id}`, title: 'Continue Now' },
@@ -341,36 +388,47 @@ async function sendSessionReminder(session) {
       ]
     });
 
-    // Record that reminder was sent
-    await supabase
-      .from('coaching_sessions')
-      .update({
-        reminder_sent_at: new Date().toISOString(),
-        conversation_state: {
-          ...session.conversation_state,
-          reminder_sent: true,
-          reminder_sent_at: new Date().toISOString()
-        }
-      })
-      .eq('id', session.id);
+    if (!sent) {
+      // WhatsApp refused. Give the claim back — only if it is still ours — so the
+      // next tick tries again instead of this teacher never hearing.
+      const { error: releaseError } = await supabase
+        .from('coaching_sessions')
+        .update({ reminder_sent_at: null })
+        .eq('id', session.id)
+        .eq('reminder_sent_at', claimedAt);
+      if (releaseError) {
+        logToFile('❌ Coaching reminder: could not release the claim after a refused send', {
+          sessionId: session.id, error: releaseError.message,
+        }, 'error');
+      }
+      logToFile('❌ Failed to send reminder', {
+        sessionId: session.id,
+        error: 'WhatsApp did not accept the reminder; claim released for the next tick',
+      }, 'error');
+      return false;
+    }
 
+    // Ids and counts only: the topic this used to carry was the opening words of the
+    // classroom transcript, and lesson speech does not belong in the logs.
     logToFile('📨 Coaching reminder sent', {
       sessionId: session.id,
       userId: session.user_id,
       questionsAnswered,
-      contextTopic: context.topic?.substring(0, 50)
     });
+    return true;
   } catch (error) {
     logToFile('❌ Failed to send reminder', {
       sessionId: session.id,
       error: error.message
-    });
+    }, 'error');
+    return false;
   }
 }
 
 /**
  * Auto-complete session with partial report
  * @param {object} session - Coaching session with user data
+ * @returns {Promise<boolean>} true when THIS worker copy completed it
  */
 async function autoCompleteSession(session) {
   try {
@@ -393,13 +451,15 @@ async function autoCompleteSession(session) {
       questions_at_completion: questionsAnswered
     };
 
-    await supabase
-      .from('coaching_sessions')
-      .update({
-        conversation_state: updatedState,
-        status: 'generating_report'
-      })
-      .eq('id', session.id);
+    // The status move IS the claim: it only matches while the session is still
+    // waiting on the teacher. The copy that moves it queues the report and tells
+    // the teacher; a copy that finds it already moved (another copy, or the
+    // teacher's own "Get report now") does neither.
+    const claimed = await claimSession(session.id, {
+      conversation_state: updatedState,
+      status: 'generating_report'
+    }, [['eq', 'status', 'conducting_conversation']], 'Auto-complete');
+    if (!claimed) return false;
 
     // 2. Queue report generation with partial flag
     await CoachingJobQueueService.queueReport(session.id, {
@@ -422,11 +482,13 @@ async function autoCompleteSession(session) {
       questionsAnswered,
       notificationSent: true
     });
+    return true;
   } catch (error) {
     logToFile('❌ Failed to auto-complete session', {
       sessionId: session.id,
       error: error.message
-    });
+    }, 'error');
+    return false;
   }
 }
 
@@ -493,12 +555,15 @@ async function processStuckInitiatedSessions() {
 
     try {
       if (decision.action === 'auto_confirm') {
-        await supabase.from('coaching_sessions').update({
+        // The status move is the claim (see claimSession): only the copy that moves
+        // the session out of 'initiated' queues the transcription and tells her.
+        const claimed = await claimSession(session.id, {
           status: 'confirmed',
           confirmed_at: new Date().toISOString(),
           conversation_state: { current_state: 'AWAITING_ANALYSIS' },
           updated_at: new Date().toISOString(),
-        }).eq('id', session.id);
+        }, [['eq', 'status', 'initiated']], 'Confirmation-gate recovery');
+        if (!claimed) { skipped += 1; continue; }
         await CoachingJobQueueService.queueTranscription(session.id, {
           from: session.users.phone_number,
           audioId: session.audio_id,
