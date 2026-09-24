@@ -349,12 +349,32 @@ function isolate(text) {
 }
 
 /**
+ * Do two topic labels name the same thing? True when they differ only in
+ * "&" versus "and" (or "اور"), punctuation, spacing or case. The digest's
+ * `topic` and `topic_as_taught` are written separately and often agree in all
+ * but that — "Comparing & ordering unlike fractions" / "Comparing and ordering
+ * unlike fractions" — and a bracket repeating the topic tells the teacher
+ * nothing. Two labels in different scripts are never the same by this test,
+ * so a translation always survives.
+ */
+function sameTopic(a, b) {
+  const norm = (s) => String(s || '').toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/(^|\s)اور(?=\s|$)/g, ' and ')
+    .replace(/[\p{P}\p{S}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return norm(a) === norm(b);
+}
+
+/**
  * "Urdu lesson on *واحد اور جمع* (singular and plural)" — the one phrase the
  * offer, the hand-off and the /quiz rows all name the lesson by.
  *
  * The subject is in the TEACHER's language; the topic is the one the class
  * actually heard (the quiz language); the gloss in brackets is the teacher's
- * language and appears only when the two differ. The teacher taps "yes" on a
+ * language and appears only when it adds information — a translation, or a
+ * genuinely different name, never the same topic with "&" for "and" (sameTopic). The teacher taps "yes" on a
  * lesson they recognise, and then reads a quiz in the language their children
  * were taught in — round 1 named neither, and an English offer arriving before
  * an Urdu quiz read as two different lessons.
@@ -364,7 +384,9 @@ function lessonLabel({ digest, quizLanguage, teacherLanguage } = {}) {
   const teacherLang = clampLanguage(teacherLanguage);
   const taught = topicFor(digest, quizLang);
   const inTeacherLanguage = topicFor(digest, teacherLang);
-  const gloss = quizLang !== teacherLang && inTeacherLanguage && inTeacherLanguage !== taught
+  // The gloss is there to add information: a translation, or a genuinely
+  // different name. A near-duplicate of the topic is not shown.
+  const gloss = quizLang !== teacherLang && inTeacherLanguage && !sameTopic(inTeacherLanguage, taught)
     ? inTeacherLanguage : '';
   const subject = subjectLabel(digest && digest.subject, teacherLang);
 

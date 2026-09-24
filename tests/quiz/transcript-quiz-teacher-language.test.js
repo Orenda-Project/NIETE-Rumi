@@ -190,6 +190,29 @@ describe('every teacher-facing surface answers in her stored language', () => {
     expect(teacherTemplate).toHaveBeenCalledWith(expect.objectContaining({ language: 'ur', contentLanguage: 'ur' }));
   });
 
+  test('the caption does not repeat the topic as its own gloss when the two labels differ only by "&"/"and"', async () => {
+    // Staging, 24 Sep: "Mathematics lesson on Comparing & ordering unlike fractions
+    // (Comparing and ordering unlike fractions)".
+    const digest = {
+      ...DIGEST, topic: 'Comparing and ordering unlike fractions', topic_as_taught: 'Comparing & ordering unlike fractions',
+    };
+    Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
+    installFrom(supabase.from, {
+      quizzes: (calls) => (calls.some((c) => c[0] === 'update')
+        ? { data: [{ id: QID }] }
+        : { data: [{ ...QUIZ, topic: digest.topic_as_taught, meta: { ...QUIZ.meta, digest } }] }),
+      coaching_sessions: { data: [SESSION] },
+      quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
+      users: { data: [TEACHER] },
+    });
+    await Gen.process(QID, {});
+
+    const caption = WA.sendDocument.mock.calls[0][3];
+    expect(caption).toContain('Comparing & ordering unlike fractions');
+    expect(caption).not.toContain('Comparing and ordering unlike fractions');
+    expect(caption).not.toMatch(/\(\u2068/);   // no bracketed gloss at all
+  });
+
   test('the honest failure', async () => {
     Author.author.mockResolvedValue({ questions: EIGHT.map((q) => ({ ...q, slo_id: 'S1' })), model: 'm', costUsd: 0.01, latencyMs: 10, lessonSummary: LESSON_SUMMARY });
     installFrom(supabase.from, {
