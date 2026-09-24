@@ -90,13 +90,22 @@ const LP_FAILURE_COPY = {
   // The blind solve disagreed with too many keys (a wrong answer, or two right
   // ones) to fix or drop and still send a quiz.
   key_disagreement: 'tqFailedLpKeyDisagreement',
+  // The generate job could not be queued: the quiz was never written. What the
+  // teacher was told at the time, repeated — not "the questions did not come out".
+  queue_failed: 'lpQuizCouldNotStart',
 };
 /**
- * The transcript counterpart. Every transcript reason still reads
- * `tqCouldNotMake` except the one that is not about the recording at all: the
- * blind solve held the quiz back because its answers were wrong or unclear.
+ * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
+ * transcript didn't carry enough"), so it is sent only where that is the state
+ * or the existing claim: a transcript too short to carry a quiz
+ * (source_unusable), and questions that never validated. The two reasons that
+ * are not about the recording at all have their own sentence: the MODEL gave
+ * nothing usable (model_failed), and the blind solve held the quiz back because
+ * its answers were wrong or unclear (key_disagreement).
  */
 const TRANSCRIPT_FAILURE_COPY = {
+  model_failed: 'tqCouldNotMakeModel',
+  source_unusable: 'tqCouldNotMake',
   key_disagreement: 'tqFailedKeyDisagreement',
 };
 function failureCopyKey(reason, quizSource) {
@@ -163,7 +172,9 @@ function failureReasonOf(meta) {
  * @param {object} meta `quizzes.meta` of a failed lp_v8 row
  * @returns {boolean}
  */
-const LP_REMAKE_REASONS = new Set(['model_failed', 'validator_failed', 'key_conflict', 'key_disagreement']);
+// queue_failed: the job never reached the queue — a transient refusal, and the
+// row now keeps its lessons (queueLpQuiz merges), so a remake can succeed.
+const LP_REMAKE_REASONS = new Set(['model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed']);
 const MAX_LP_REMAKES = 2;
 function lpRemakeable(meta) {
   const m = meta || {};

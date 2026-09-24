@@ -168,7 +168,10 @@ async function retry(phone, { shareCodeId, studentId, code, active, language = '
     return false;
   }
   const QuizSessionService = require('./quiz-session.service');
-  if (await QuizSessionService.getActiveState(phone)) {
+  // A class-link quiz running now lives in the video engine's own state;
+  // starting another over it would overwrite that state mid-quiz.
+  const VideoQuizService = require('./video-quiz.service');
+  if (await QuizSessionService.getActiveState(phone) || await VideoQuizService.getActiveState(phone)) {
     await WhatsAppService.sendMessage(phone, resolveUx('sqInFlight', { language: lang }));
     logEvent('student_quiz.retry_refused', { why: 'in_flight', shareCodeId });
     return false;

@@ -407,7 +407,8 @@ async function handleListPick(listId, phone, user) {
         await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
         return true;
       }
-      await sendLanguageAsk(created.id, phone, lang, ruleLanguage);
+      // No digest yet on a lesson that never had a quiz: the subject's examples.
+      await sendLanguageAsk(created.id, phone, lang, ruleLanguage, { subject });
       logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: created.id, ruleLanguage, from: 'list' });
       return true;
     }
@@ -466,7 +467,7 @@ async function handleListPick(listId, phone, user) {
             },
           })
           .eq('id', quiz.id);
-        await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage);
+        await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject });
         logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list' });
         return true;
       }
@@ -529,7 +530,7 @@ async function handleLpPick(quizId, phone, user) {
     // The same ask and buttons the offer sent; its answer runs startGenerating,
     // which flips offered → generating atomically and queues the LP quiz.
     const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
-    await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage);
+    await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject: quiz.subject });
     logEvent('transcript_quiz.language_asked', {
       userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: LP_V8,
     });

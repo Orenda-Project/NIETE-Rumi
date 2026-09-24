@@ -104,6 +104,19 @@ function deferQuietHours(when = new Date()) {
   return nudgeTargetUtc(when instanceof Date ? when : new Date(when));
 }
 
+/**
+ * When a wait of `seconds` that counts only WAKING time ends, starting at
+ * `start` — the quiet window's hours do not run it down. Six hours from 19:00
+ * PKT ends at 11:00 the next morning; from 10:00, at 16:00.
+ *
+ * DELEGATED for the same reason as deferQuietHours: the window lives in one
+ * place, and this reads it there.
+ */
+function quietAwareDeadline(start = new Date(), seconds = 0) {
+  const { quietAwareDeadlineUtc } = require('../quiz/transcript-quiz-nudge.service');
+  return quietAwareDeadlineUtc(start instanceof Date ? start : new Date(start), seconds * 1000);
+}
+
 module.exports = {
   PKT_OFFSET_MIN,
   pktDate,
@@ -113,4 +126,5 @@ module.exports = {
   nextSchoolDay,
   atPkt,
   deferQuietHours,
+  quietAwareDeadline,
 };

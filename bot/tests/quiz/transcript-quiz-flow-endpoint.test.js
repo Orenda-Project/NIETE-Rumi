@@ -286,6 +286,41 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
   });
 
+  // WHY a recording's quiz failed, said the way the chat said it. A failure that
+  // was the MODEL's must not read as a bad recording on the lesson screen either;
+  // the rows written before the split carry `digest: <message>` and were the
+  // model's too (a recording quiz's digest has no source-side throw).
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  test.each([
+    ['model_failed', { error: 'model_failed' }],
+    ['a pre-split digest row', { error: 'digest: transcript_quiz.digest: empty reply from m' }],
+  ])('a FAILED quiz whose model failed (%s) says the recording was not the problem, and can still be made again', async (_label, meta) => {
+    for (const lang of ['en', 'ur']) {
+      stub({
+        users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: lang }],
+        coaching_sessions: [session(1)],
+        quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
+      });
+      const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+      expect(out.data.results).not.toBe(UX_STRINGS.tqFlowResultsFailed[lang]);
+      expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsFailedModel[lang]);
+      expect(out.data.actions.length).toBeGreaterThan(0);
+      expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
+    }
+  });
+
+  test.each([
+    ['validator_failed', { error: 'validator_failed' }],
+    ['no marker (a row before any reason was stored)', {}],
+  ])('a FAILED quiz that is not the model’s (%s) keeps the existing lesson-screen line', async (_label, meta) => {
+    stub({
+      users, coaching_sessions: [session(1)],
+      quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
+    });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsFailed.en);
+  });
+
   test('another teacher’s session is refused — the Flow stays on LESSONS with a message', async () => {
     stub({
       users,

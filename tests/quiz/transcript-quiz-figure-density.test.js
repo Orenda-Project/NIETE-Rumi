@@ -91,6 +91,35 @@ describe('figure_role "model" — a supporting manipulative in grade 1-5 maths',
   });
 });
 
+describe('a "model" picture is still held to FIGURE_MISMATCH — by decision', () => {
+  // Exempting it was considered and refused. On the live grade 4 fractions
+  // replays every model picture this rule rejected sat beside a step of a
+  // procedure: the bars modelled the stated fractions correctly and no reading
+  // of them reaches the key. Those questions are replaced by the add-pictures
+  // repair (transcript-quiz-add-pictures-replace.test.js), not decorated.
+  const ctx = { language: 'en', subject: 'maths', digest: DIGEST('3-5'), nExpected: 6 };
+
+  test('bars of 2/3 and 3/5 beside "what is 2 × 5?" are refused: they cannot produce 10', () => {
+    const q = compare({ question: 'To compare $\\frac{2}{3}$ and $\\frac{3}{5}$ by cross multiplication, what is $2 \\times 5$?', options: ['10', '6', '15'] });
+    expect(q0Errors(validate(quizWith(q), ctx)).some((e) => /FIGURE_MISMATCH/.test(e))).toBe(true);
+  });
+
+  test('a bar of 2/5 beside "2/5 = ?/20" is refused: it cannot produce 8/20', () => {
+    const q = compare({
+      question: 'Which fraction is equal to $\\frac{2}{5}$ with 20 as its denominator?',
+      options: ['$\\frac{8}{20}$', '$\\frac{2}{20}$', '$\\frac{5}{20}$'],
+      figure: { type: 'fraction_bar', bars: [{ parts: 5, shaded: 2 }] },
+    });
+    expect(q0Errors(validate(quizWith(q), ctx)).some((e) => /FIGURE_MISMATCH/.test(e))).toBe(true);
+  });
+
+  test('the model uses a young class is taught with still pass: a fraction drawn, or a word', () => {
+    expect(q0Errors(validate(quizWith(compare()), ctx))).toEqual([]);
+    const equal = compare({ correct_index: 2, question: 'Is $\\frac{2}{3}$ larger than, smaller than or equal to $\\frac{3}{5}$?', options: ['smaller', 'equal', 'larger'] });
+    expect(q0Errors(validate(quizWith(equal), ctx)).filter((e) => /FIGURE_MISMATCH/.test(e))).toEqual([]);
+  });
+});
+
 describe('figureDensity — how many pictures a grade 1-5 maths quiz aims for', () => {
   const eight = (figured) => Array.from({ length: 8 }, (_, i) => (i < figured ? { figure: FRACTIONS } : {}));
 

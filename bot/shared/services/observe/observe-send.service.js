@@ -823,6 +823,9 @@ async function _extractNotes(session, foName, notesLang) {
       { maxTokens: 2000, label: 'observeDebriefNotes' },
     );
     validateDebriefNotes(result);
+    // Soft, log only (observe.gendered_address): the note still ships as written.
+    const { noteGenderedAddress, notesFields } = require('./observe-gender-address');
+    noteGenderedAddress('teacher_notes', notesFields(result), { sessionId: session.id, language: notesLang });
     return result;
   } catch (err) {
     logToFile('⚠️ observe send: debrief-notes extraction failed — report ships without notes', {

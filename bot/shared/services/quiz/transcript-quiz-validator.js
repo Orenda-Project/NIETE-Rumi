@@ -14,7 +14,10 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+
+/** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
+const FRACTION_BAR_MAX_PARTS = 24;
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
@@ -137,7 +140,7 @@ const earlyMaths = (subject, gradeBand) => canonSubj(subject) === 'maths' && isE
  * FIGURE_FEW, and never a reason to refuse a quiz: a refused quiz is a teacher
  * with nothing, and a quiz with one picture is still a quiz. The generate step
  * answers it with ONE targeted "add a picture" repair and ships either way.
- * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, complaint:string|null}}
+ * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, room?:number, complaint:string|null}}
  */
 function figureDensity(questions, { subject, gradeBand } = {}) {
   const qs = Array.isArray(questions) ? questions : [];
@@ -148,8 +151,10 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
   }
   const target = Math.min(FIGURE_TARGET, Math.floor(n * FIGURE_MAX_SHARE));
   const need = Math.max(0, target - figured);
+  // how many more the half cap still allows — the repair asks for a spare within it
+  const room = Math.max(0, Math.floor(n * FIGURE_MAX_SHARE) - figured);
   return {
-    applies: true, figured, n, target, need,
+    applies: true, figured, n, target, need, room,
     complaint: need ? `FIGURE_FEW — ${figured}/${n} questions carry a picture; a grade 1-5 maths quiz aims for at least ${target}` : null,
   };
 }
@@ -547,6 +552,13 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
       return;
     }
+    // The engine draws a fraction bar of at most 24 parts (vendor fraction_bar.js
+    // clamps `parts`), so a bar of 48 is drawn as 24 — a different fraction, and
+    // live (grade 5 Urdu) two bars of "24" in a question with one right bar.
+    if (canonicalType(q.figure.type) === 'fraction_bar' && Array.isArray(q.figure.bars)) {
+      const tooFine = q.figure.bars.map((b) => Number(b && b.parts)).filter((n) => n > FRACTION_BAR_MAX_PARTS);
+      if (tooFine.length) errs.push(`q${i}: FIGURE_TOO_FINE — a bar of ${tooFine[0]} parts is drawn as ${FRACTION_BAR_MAX_PARTS}, the most the engine draws; use at most ${FRACTION_BAR_MAX_PARTS} parts`);
+    }
     let svg = null;
     try {
       svg = renderFigureSvg(q.figure, language);
@@ -575,10 +587,26 @@ function validate(rawQuestions, ctx = {}) {
       .forEach((d) => errs.push(`q${i}: ${d.code} — ${d.message}`));
     const dropped = droppedTextDefect(q.figure, svg, canonicalType(q.figure.type) || 'figure');
     if (dropped) errs.push(`q${i}: FIGURE_TEXT_DROPPED — ${dropped.message}`);
+    // A "model" picture is NOT exempt, by decision: it is exempt from
+    // FIGURE_REDUNDANT (below) because it shows numbers the stem states, but it
+    // must still be able to produce the answer. On the live grade 4 fractions
+    // replays every model picture this rule refused sat on a step of a
+    // procedure — bars of 2/3 and 3/5 beside "what is 2 × 5?" (10), a bar of
+    // 2/5 beside "2/5 = ?/20" (8/20). The bars modelled the fractions correctly
+    // and answered nothing; a child reading them cannot reach the key. The
+    // model uses a young class is taught with still pass: "which is larger" is
+    // keyed to one of the fractions drawn, and a word answer is not checked. A
+    // question no picture can answer is REPLACED by the add-pictures repair
+    // instead (transcript-quiz-rewrite).
     const mismatch = figureMismatch(q.figure, opts, ci);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }
+    // 2/8 and 1/4 under a bar of 2 in 8 are both right (live, grade 3 Urdu,
+    // passed by the blind solver). Named as a duplicate option so the targeted
+    // rewrite repairs it with the distinct-options rule.
+    const twin = equalAmountOptions(q.figure, opts, ci);
+    if (twin) errs.push(`q${i}: duplicate options — ${twin}`);
     if (!modelsTheStem(q, subject, gradeBand) && figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
     }

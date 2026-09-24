@@ -47,7 +47,7 @@
 const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
-  languageRule, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
+  languageRule, languageAgain, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
 } = require('./transcript-quiz-contract');
 
@@ -103,7 +103,7 @@ const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distr
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
 // each time and the rule never was. Every other repeated fault this week was
 // answered by stating its rule in the prompt.
-const DISTINCT_OPTIONS_RULE = 'DISTINCT OPTIONS. The three options must all be different from each other — no two the same word, number or phrase, not even with different spacing or spelling. Exactly one is correct, and "correct_index" is its position (0, 1 or 2). Every option is a real, plausible answer a child might pick; never a filler, never blank.';
+const DISTINCT_OPTIONS_RULE = 'DISTINCT OPTIONS. The three options must all be different from each other — no two the same word, number or phrase, not even with different spacing or spelling, and under a picture of parts never two fractions of the same amount (2/8 and 1/4 both read a bar of 2 in 8 right). Exactly one is correct, and "correct_index" is its position (0, 1 or 2). Every option is a real, plausible answer a child might pick; never a filler, never blank.';
 const OPTIONS_FAULT = /^q\d+: (duplicate options|empty option|bad correct_index|\d+ options\b|wrong-feedback keys)/;
 const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
 /** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
@@ -493,6 +493,26 @@ async function rewriteTeacherFields({ questions, errors, digest, language, quizI
 //   - only the stem (to point at the picture), the figure and its role are
 //     taken; explanation, feedback, SLO and level stay as they were.
 // The merged set then goes through the whole validator like every rewrite.
+//
+// OR IT MAY REPLACE ONE. On a live grade 4 lesson on comparing unlike
+// fractions the author wrote eight questions about the METHOD (the cross
+// products, the rewritten fractions) and no picture; the repair bolted bars
+// onto three of them and all three were rightly refused — two bars of 2/3 and
+// 3/5 cannot produce "2 × 5 = 10" (FIGURE_MISMATCH) — so the quiz shipped with
+// no picture at all. No picture shows the answer to a step of a working. So an
+// entry marked "replace" brings a NEW question on the same objective that the
+// child answers by READING its picture ("what fraction of the bar is shaded?",
+// "which bar shows 2/3?"). What that may be is asserted here too:
+//   - never the easy first question (q0 stays the nervous child's first win);
+//   - a whole question: a stem, as many options as the one it replaces, a key
+//     among them, an explanation and feedback;
+//   - figure_role "read_off" or "count_compare" — never "model": a new
+//     question is built around its picture, it does not decorate a sum;
+//   - the objective is the replaced question's own, and the level never rises
+//     (nor drops to recall from a higher-order one), so SLO coverage and the
+//     level mix stay as the validator already passed them.
+// It runs before the key check and the blind solve, so a replaced key is
+// checked like every other.
 
 /** How many questions are offered to the call, best first. */
 const ADD_PICTURE_CANDIDATES = 5;
@@ -534,7 +554,7 @@ function pictureCandidates(questions, { limit = ADD_PICTURE_CANDIDATES } = {}) {
 }
 
 function buildAddPicturePrompt({
-  digest, language, questions, indices, need, gradeBand = null, lessonDrew = '',
+  digest, language, questions, indices, need, gradeBand = null, lessonDrew = '', refused = [],
 }) {
   const { minimalSpecBlock } = require('./transcript-quiz-figure');
   const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
@@ -544,14 +564,26 @@ function buildAddPicturePrompt({
   const items = indices.map((i) => {
     const q = qs[i] || {};
     const opts = (Array.isArray(q.options) ? q.options : []).map((o, k) => `[${k}] ${String(o)}`).join('  ');
-    return `q${i} · slo "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}"
+    return `q${i} · slo "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}"${i === 0 ? ' · the easy first question: add only, never replace' : ''}
   stem: "${String(q.question || '').trim()}"
   options: ${opts}   correct: ${q.correct_index}`;
   }).join('\n\n');
+  const others = qs.map((q, i) => (indices.includes(i) || !q ? null : `q${i}: ${String(q.question || '').trim()}`)).filter(Boolean);
+  const wrongKeys = '"1" and "2" when correct_index is 0; "0" and "2" when it is 1; "0" and "1" when it is 2';
   return [
-    `You are ADDING PICTURES to a short WhatsApp maths quiz for the children of ONE grade ${gradeBand || digest?.grade_band || '1-5'} class. A young class learns maths through the picture — the objects first, then the picture of them, then the sum — and this quiz carries only ${figured} picture(s) in ${qs.length} questions. Add a picture to exactly ${need} of the questions below: the ${need} a picture helps most.`,
+    `You are ADDING PICTURES to a short WhatsApp maths quiz for the children of ONE grade ${gradeBand || digest?.grade_band || '1-5'} class. A young class learns maths through the picture — the objects first, then the picture of them, then the sum — and this quiz carries only ${figured} picture(s) in ${qs.length} questions. Give exactly ${need} of the questions below a picture: the ${need} a picture helps most.`,
     `QUIZ LANGUAGE: ${LANG_NAME[language] || 'Urdu'}. ${languageRule(language)}`,
-    'KEEP THE QUESTION. Its options, their order and its correct answer do not change — never return different ones. You write only "figure", "figure_role" and, when the question must now point at the picture, a new "question" stem in the quiz language.',
+    `TWO WAYS TO GIVE A QUESTION A PICTURE:
+1. ADD — keep the question and draw its picture. Its options, their order and its correct answer do not change — never return different ones. You write only "figure", "figure_role" and, when the question must now point at the picture, a new "question" stem in the quiz language.
+2. REPLACE — when NO picture can produce the question's answer, write a NEW question in its place. A step of a procedure is such a question: a cross product ("what is 2 × 5?"), a fraction rewritten over a new denominator, a carried ten, the next line of a working. Two fraction bars beside "what is 2 × 5?" do not show 10, and that picture is thrown away. So set "replace": true and write a whole new question on the SAME objective that the child answers by READING the picture, with "figure_role" "read_off" (or "count_compare" for counting objects) — never "model". Return every field: "question", "options" (three), "correct_index", "explanation", "selected_because", "distractor_misconceptions" and "option_feedback" (the wrong keys are ${wrongKeys}), all in the quiz language, with maths in the stem and options as TeX between single dollars ($\\frac{3}{5}$) and never in the figure. Its correct answer must be right: it is checked again, blind. Never replace q0, and do not ask what another question in the quiz already asks.`,
+    `A REPLACEMENT IS A NEW QUESTION: a new stem, new options and a new correct answer, and that answer is what the child READS off the picture — the fraction shaded, the bar that shows a fraction, the number the sticks make. Never the old question with a picture over it: its old answer ("20", "10") is still not on the picture, and it is refused again. A replacement is held to every rule below, exactly as the quiz's author was.`,
+    `QUESTIONS A CHILD ANSWERS BY READING A PICTURE — reach for these when you replace:
+- A fraction: one bar, some parts shaded, no label — "What fraction of the bar is shaded?", the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. {"type":"fraction_bar","bars":[{"parts":5,"shaded":3}]}
+- Which picture shows a fraction: three bars labelled "A", "B", "C" — "Which bar shows $\\frac{2}{3}$?", the options "A", "B", "C", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; in the feedback say "bar A", «پٹی A», never "option A" or «جواب A»). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"A"},{"parts":5,"shaded":2,"label":"B"},{"parts":4,"shaded":1,"label":"C"}]}
+- Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture. (A stem that names the two fractions makes it a "model" question, which is an ADD, never a replacement.)
+- Place value: {"type":"base_ten","tens":3,"ones":4} — "What number do the sticks show?" or "How many tens are there?"
+- Counting, adding, taking away: {"type":"count_objects","rows":[{"picto":"counter","count":4},{"picto":"counter","count":3}]} — "How many counters are there altogether?"
+- Sharing and times: {"type":"count_objects","picto":"counter","count":12,"group":4} — "How many groups of 4 are there?"`,
     `TWO KINDS OF PICTURE:
 - "figure_role":"model" — the picture SHOWS the numbers the stem already states, the way the lesson drew them: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Keep the stem as it is.
 - "figure_role":"read_off" (or "count_compare" for counting and comparing objects) — the child reads the question's numbers OFF the picture ("How many counters are in the picture?"). The stem then says so and must NOT also state those numbers.`,
@@ -563,25 +595,83 @@ function buildAddPicturePrompt({
 - A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
     ...(lessonDrew ? [lessonDrew] : []),
     `THE LESSON'S OBJECTIVES\n${slos.map((s) => `- ${s.id}: ${sloStatement(s, language)}`).join('\n') || '(none recorded)'}`,
+    // A replacement is a whole question, so it is held to the author's own
+    // rules — live, one kept the method question's key under a new bar and
+    // another ran its selected_because to 34 words; both were refused.
+    questionContract({ gradeBand }),
+    SELECTED_BECAUSE_RULE,
+    // every field in the quiz language, the teacher's fields included
+    languageAgain(language).trim(),
+    GENDER_NEUTRAL_RULE,
     `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
     `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
-    `THE QUESTIONS YOU MAY ADD A PICTURE TO (q is its number in the quiz):\n\n${items}`,
-    `Return ONLY this JSON object, with exactly ${need} entr${need === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}.
-{ "pictures": [ { "index": ${indices[0]}, "question": "", "figure": { "type": "count_objects", "rows": [ { "picto": "counter", "count": 3 }, { "picto": "counter", "count": 4 } ] }, "figure_role": "model" } ] }
-Leave "question" empty to keep the stem exactly as it is.`,
+    ...(Array.isArray(refused) && refused.length ? [`REFUSED LAST TIME — these pictures were thrown away by our checks, and their questions are as they were:\n${refused.map((r) => `- q${r.index}: ${String(r.error || '').replace(/^q\d+:\s*/, '')}`).join('\n')}\nDo not send the same picture again. A question refused because the picture cannot produce its answer (FIGURE_MISMATCH) is a step no picture shows: REPLACE it, or give another question the picture. A picture refused for giving the answer away (FIGURE_LEAK) needs its labels taken off.`] : []),
+    `THE QUESTIONS YOU MAY GIVE A PICTURE (q is its number in the quiz):\n\n${items}`,
+    ...(others.length ? [`THE OTHER QUESTIONS IN THE QUIZ (not yours to change — a replacement must not ask any of these again):\n${others.join('\n')}`] : []),
+    `Return ONLY this JSON object, with exactly ${need} entr${need === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}. An ADD entry:
+{ "index": ${indices[0]}, "question": "", "figure": { "type": "count_objects", "rows": [ { "picto": "counter", "count": 3 }, { "picto": "counter", "count": 4 } ] }, "figure_role": "model" }
+(leave "question" empty to keep the stem exactly as it is). A REPLACE entry:
+{ "index": ${indices[indices.length - 1]}, "replace": true, "level": "understand", "question": "", "options": ["", "", ""], "correct_index": 0, "explanation": "", "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" }, "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } }, "figure": { "type": "fraction_bar", "bars": [ { "parts": 5, "shaded": 3 } ] }, "figure_role": "read_off" }
+{ "pictures": [ …your ${need} entr${need === 1 ? 'y' : 'ies'}… ] }`,
   ].join('\n\n');
 }
 
 const sameOptions = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length
   && a.every((o, k) => String(o ?? '').trim() === String(b[k] ?? '').trim());
 
+/** The roles a replacement may carry: it is READ off its picture, never decorated by one. */
+const REPLACE_ROLES = new Set(['read_off', 'count_compare']);
+const LEVEL_RANK = { recall: 0, understand: 1, apply: 2 };
+const isObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+const text = (v) => (typeof v === 'string' ? v.trim() : '');
+
 /**
- * @returns {{questions:object[], added:number[]}|null} null when nothing was added
+ * The level a replacement keeps: the one it asks for when that is no higher
+ * than the replaced question's and not bare recall in place of a higher-order
+ * one, else the replaced question's own — so the level mix the validator
+ * already passed cannot move.
+ */
+function replacementLevel(origLevel, asked) {
+  const o = LEVEL_RANK[origLevel];
+  const a = LEVEL_RANK[asked];
+  if (o === undefined || a === undefined || a > o || (o > 0 && a === 0)) return origLevel;
+  return asked;
+}
+
+/** A whole new read-off question in the replaced one's place, or null. */
+function replacementFor(orig, r, idx) {
+  if (idx === 0 || !REPLACE_ROLES.has(r.figure_role)) return null;
+  const stem = text(r.question);
+  const opts = Array.isArray(r.options) ? r.options.map(text) : [];
+  const n = Array.isArray(orig.options) ? orig.options.length : 3;
+  const key = Number(r.correct_index);
+  if (!stem || opts.length !== n || opts.some((o) => !o)) return null;
+  if (!Number.isInteger(key) || key < 0 || key >= n) return null;
+  if (!text(r.explanation) || !isObject(r.option_feedback) || !text(r.option_feedback.correct)) return null;
+  return {
+    ...orig,
+    level: replacementLevel(orig.level, r.level),
+    question: stem,
+    options: opts,
+    correct_index: key,
+    explanation: text(r.explanation),
+    selected_because: text(r.selected_because) || orig.selected_because,
+    distractor_misconceptions: isObject(r.distractor_misconceptions) ? r.distractor_misconceptions : {},
+    option_feedback: r.option_feedback,
+    figure: r.figure,
+    figure_role: r.figure_role,
+  };
+}
+
+/**
+ * @returns {{questions:object[], added:number[], replaced:number[]}|null} null
+ *   when nothing was added; `replaced` ⊆ `added` names the questions that are new
  */
 function mergeAddedPictures(questions, json, { indices, need }) {
   const qs = Array.isArray(questions) ? questions : [];
   const list = Array.isArray(json && json.pictures) ? json.pictures : [];
   const chosen = new Map();
+  const replaced = [];
   list.forEach((r) => {
     if (!r || typeof r !== 'object' || chosen.size >= need) return;
     const idx = Number(r.index);
@@ -589,6 +679,13 @@ function mergeAddedPictures(questions, json, { indices, need }) {
     const orig = qs[idx];
     if (!orig) return;
     if (!r.figure || typeof r.figure !== 'object' || Array.isArray(r.figure) || typeof r.figure.type !== 'string') return;
+    if (r.replace === true) {
+      const fresh = replacementFor(orig, r, idx);
+      if (!fresh) return;
+      chosen.set(idx, fresh);
+      replaced.push(idx);
+      return;
+    }
     if (r.options !== undefined && !sameOptions(r.options, orig.options)) return;
     if (r.correct_index !== undefined && Number(r.correct_index) !== Number(orig.correct_index)) return;
     const stem = typeof r.question === 'string' && r.question.trim() ? r.question.trim() : orig.question;
@@ -600,6 +697,7 @@ function mergeAddedPictures(questions, json, { indices, need }) {
   return {
     questions: qs.map((q, i) => (chosen.has(i) ? chosen.get(i) : q)),
     added: [...chosen.keys()].sort((a, b) => a - b),
+    replaced: replaced.sort((a, b) => a - b),
   };
 }
 
@@ -607,29 +705,29 @@ function mergeAddedPictures(questions, json, { indices, need }) {
  * ONE call. Never throws: a repair that cannot be made is a repair that did not
  * happen, and the quiz ships as it was.
  * @returns {Promise<{attempted:boolean, indices:number[], merged:object[]|null, added:number[],
- *   model?:string, costUsd?:number, latencyMs?:number, error?:string}>}
+ *   replaced:number[], model?:string, costUsd?:number, latencyMs?:number, error?:string}>}
  */
 async function addPictures({
-  questions, digest, language, gradeBand = null, lessonDrew = '', need,
+  questions, digest, language, gradeBand = null, lessonDrew = '', need, refused = [],
   // accepted and ignored: the outcome event belongs to the caller, which is the
   // only place that knows whether the merged set validated
   quizId = null, // eslint-disable-line no-unused-vars
 }) {
   const indices = Number(need) > 0 ? pictureCandidates(questions) : [];
-  if (!indices.length) return { attempted: false, indices: [], merged: null, added: [] };
+  if (!indices.length) return { attempted: false, indices: [], merged: null, added: [], replaced: [] };
   const n = Math.min(Number(need), indices.length);
   const prompt = buildAddPicturePrompt({
-    digest, language, questions, indices, need: n, gradeBand, lessonDrew,
+    digest, language, questions, indices, need: n, gradeBand, lessonDrew, refused,
   });
   try {
     const { json, model, costUsd, latencyMs } = await completeJson({ prompt, maxTokens: 8000, label: 'transcript_quiz.add_pictures' });
     const m = mergeAddedPictures(questions, json, { indices, need: n });
     return {
-      attempted: true, indices, merged: m ? m.questions : null, added: m ? m.added : [], model, costUsd, latencyMs,
+      attempted: true, indices, merged: m ? m.questions : null, added: m ? m.added : [], replaced: m ? m.replaced : [], model, costUsd, latencyMs,
     };
   } catch (err) {
     return {
-      attempted: true, indices, merged: null, added: [], costUsd: 0, error: err.message,
+      attempted: true, indices, merged: null, added: [], replaced: [], costUsd: 0, error: err.message,
     };
   }
 }

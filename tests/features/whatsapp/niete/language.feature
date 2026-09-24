@@ -220,6 +220,20 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # Only the entry launcher localizes: training-entry.service.js:59-60 COPY.body[language]||en (real
     # Urdu at :23,:27). Everything INSIDE the Flow is English — see E2 (F-TRAIN-i18n).
 
+  @e2e @language @copy @wip @draft @P2
+  Scenario: An Urdu line that opens with a name in English letters still reads right to left
+    Given the NIETE bot chat is open
+    And my language is set to Urdu
+    And my registered name is written in English letters
+    When I make a class quiz for one of my lessons and receive the message to forward to my class
+    Then the line that opens with my name reads right to left, starting with my name
+    And the link keeps its own line and still opens the quiz
+    # A phone lays out each paragraph from its first strong character; a leading U+200F only governs
+    # the first paragraph. ux-strings resolveUx() keepDirection(): when the value that OPENS a paragraph
+    # would turn it the wrong way, the value is isolated and the paragraph opens with U+200F (U+200E for
+    # the English mirror case). Proven over every placeholder-led paragraph in the catalog by
+    # tests/config/ux-strings-paragraph-direction.test.js. @wip.
+
   # ── E2. Still leaks English on an Urdu account (@known-issue) ──
 
   @e2e @language @known-issue @P1

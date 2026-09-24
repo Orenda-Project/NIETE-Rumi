@@ -315,6 +315,28 @@ Feature: NIETE (ICT) Teacher Training
     # answers tqFlowResultsNothingToReport on the lesson screen, never the DONE "on its way"; a decline after
     # the screen was answered is told in chat (tqNoReportYet). @wip.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario: A letter typed during a class quiz answers the question, and an unfinished quiz never takes over the chat
+    Given a child has opened a class quiz from its link and a question with lettered answers is waiting
+    When the child types "B" instead of tapping
+    Then the answer the child saw as B is recorded and the feedback and the next question arrive, exactly as for a tap
+    But when the child types a letter the question does not offer, it is not taken as an answer
+    And a teacher who started their own quiz link and never finished it can still send "/menu" or tap "Lesson plan" and get the menu or a lesson plan, never "Tap one of the answer buttons above"
+    # video-quiz.service answerTypedLetter (the letter mapped through the question's stored display order);
+    # quiz-session._recoverFromDB now recovers only its own roster sessions, never past expires_at — before,
+    # it adopted share_link / video_solo sessions (production, 14 days: 2,893 adoptions, 97% of them), and
+    # the teacher's menu taps and commands were answered with the adaptive quiz's nudge. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A lesson-plan quiz that could not be started says so, and can be made again
+    Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be started (the job never reached the queue)
+    When I open "/quiz" and tap that lesson
+    Then the lesson screen says the quiz could not be started on the bot's side and the lesson plan was not the problem
+    And it offers "Make it again" and "Done", and "Make it again" makes the quiz
+    # transcript-quiz-offer queueLpQuiz merges the failure into the row's meta (the lessons, class and lesson
+    # date are kept); quiz-sources: queue_failed -> lpQuizCouldNotStart copy and a remakeable reason; the Flow
+    # results read tqFlowResultsFailedLpStart. @wip — a queue refusal cannot be forced live.
+
   @e2e @quiz @wip @draft @P2
   Scenario: A question that cannot be sent is skipped, and the child is scored on the questions actually asked
     Given a class quiz one of whose questions cannot be sent to a child's phone
@@ -376,6 +398,22 @@ Feature: NIETE (ICT) Teacher Training
     # any attempt, is model_failed (tqFailedLpModel). The reason is persisted as quizzes.meta.error and /quiz
     # (handleLpPick) repeats it. A model failure cannot be forced live on demand; the behaviour is proven
     # in tests/quiz/lp-quiz-failure-reasons.test.js. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz the model could not write from my coaching recording says the problem was on our side
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
+    When the model gives no usable reply while that quiz is being written
+    Then the bot apologises that something went wrong on its side and says the problem was not my recording
+    And it never says the transcript didn't carry enough of what was taught
+    And it tells me I can send /quiz and pick this lesson to try again
+    And the /quiz lesson screen for that lesson says the same, and still offers to make the quiz
+    # transcript-quiz-generate: a recording's digest or author that gives nothing usable (empty, cut off or
+    # not JSON after the retry, or a refused call) is model_failed → tqCouldNotMakeModel, persisted as
+    # quizzes.meta.error; the Flow lesson screen reads it (tqFlowResultsFailedModel) above the Make choices.
+    # tqCouldNotMake ("the transcript didn't carry enough") stays for questions that never validated and for
+    # a transcript under MIN_TRANSCRIPT_CHARS (source_unusable, checked before any model call — /quiz and the
+    # offer never list one). The offer-time digest failure is skipped as model_failed and the teacher is told
+    # nothing. A model failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A maths question with fractions reaches the child as a typeset card
@@ -449,11 +487,20 @@ Feature: NIETE (ICT) Teacher Training
     Then at least three of its questions arrive with a picture, and never more than half of them
     And the pictures draw the lesson's own objects, such as counters for a lesson that counted counters
     And a question that states its numbers may carry a picture of them, such as two fraction bars beside "which is larger", but no picture ever shows the answer
-    # Author prompt: "at least three, never more than half" and figure_role "model" (grade 1-5 maths only).
+    And on a grade 4-5 fractions lesson taught as a method, such as cross multiplication, the pictures are questions read off fraction bars — what fraction of the bar is shaded, which bar shows a fraction — never a picture beside a step of the working
+    And every fraction on the question cards and on my PDF is printed stacked, number over number, while the WhatsApp text of the question reads it as 2/3
+    # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
+    # and "PICTURES, AGAIN" at the end, and figure_role "model" (grade 1-5 maths only). A step of a
+    # procedure is a text question; a model picture beside one is still refused (FIGURE_MISMATCH).
     # lp-quiz-digest lessonDrewBlock: the slide script's token rows (never the exit options). Too few
-    # pictures is a soft complaint (FIGURE_FEW): ONE add-pictures repair (transcript-quiz-rewrite
-    # addPictures), validated in full; the quiz ships either way, and transcript_quiz.figure_density
-    # logs before/after. Content-driven: count the pictures and look at them; never a fixed question. @wip.
+    # pictures is a soft complaint (FIGURE_FEW): the add-pictures repair (transcript-quiz-rewrite
+    # addPictures) may ADD a picture or REPLACE a question with a read-off one on the same objective; it
+    # asks for one spare, runs a second round only when pictures were refused, is validated in full and
+    # runs before the blind solve; the quiz ships either way, and transcript_quiz.figure_density logs
+    # before/after/asked/rounds/added/replaced/reverted. Two options of the same amount under a bar
+    # (2/8 and 1/4) are refused, and so is a bar of more than 24 parts. Stacked fractions: quiz-math
+    # stackFractions ($2/3 -> \frac). Content-driven: count the pictures and look at them; never a fixed
+    # question. @wip.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A quiz never ships an answer key a blind solver disagrees with
@@ -511,6 +558,61 @@ Feature: NIETE (ICT) Teacher Training
     And the offer to watch more videos follows it
     # video-quiz-invite handleInviteButton: vqInviteForwardThis + vqInviteMessage in the quiz language
     # (the invite's own language, else its share code's). @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A child who passed an Urdu quiz to a friend hears how the friend did, in Urdu
+    Given a child sent an Urdu class quiz to a friend and has finished it themselves
+    When the friend finishes the same quiz
+    Then the first child is told in Urdu that the friend finished, with the friend's first name only
+    And both scores are shown as "<out of> میں سے <score>", and the closing line never frames it as a loss
+    # video-quiz.service finish() -> video-quiz-invite notifyInviter(session, state.language) ->
+    # buildComparison: vqCompareMessage + vqCompareBehind/Ahead/Tie in the quiz language (quiz_sessions
+    # carries no language; the session state does). English copy is byte-identical. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A video quiz sent to the class from an Urdu run forwards an Urdu message
+    Given I have just taken a video quiz in Urdu on my own
+    When I tap "کلاس کو بھیجیں" on the offer to send it to my class
+    Then I am told in Urdu to forward the next message to the class group
+    And the message to forward is in Urdu, names the teacher and the topic, and carries a "QUIZ-<code>" link
+    And a last message in Urdu says when the class report will arrive
+    # video-quiz-share offerShare / handleShareButton / deliverClassLink: vqShareOffer, vqShareYes/No,
+    # vqShareForwardThis, vqClassMessage, vqShareReportPromise, vqShareDeclined, vqShareLinkFailed in
+    # the run's language. English copy is byte-identical. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A video quiz offered in Urdu answers every tap in Urdu, even after the offer or the quiz has ended
+    Given I picked a video from the library and was offered its quiz in Urdu
+    When I tap "ابھی نہیں" on the offer
+    Then I am told in Urdu to enjoy the video
+    When I tap the offer again after it has lapsed
+    Then I am told in Urdu that the offer has ended and to pick the video again
+    And when I tap an answer on a quiz that has already finished, I am told in Urdu to pick another video
+    # video-quiz.service handleOfferButton / startSession / handleAnswer: vqOfferDeclined, vqOfferExpired,
+    # vqStartFailed, vqQuizFinished in the run's language. The two taps after the run's state is gone read the
+    # phone's last run language (videoquiz:<phone>:lang, a week), written by sendOffer and startSession — a child
+    # from a class link never saw an offer, so startSession writes it too. English copy is byte-identical. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: The reminder about a quiet quiz reads naturally and keeps each quiz title whole
+    Given my language is English and I sent two class quizzes today whose titles are in Urdu
+    And almost no child has started either of them
+    When the quiet-quiz reminder arrives
+    Then it names both quizzes, each title in bold and whole, separated by an English comma
+    And a reminder about a single quiz says "No one has started", "One student has started" or "<n> students have started" — never "student(s)"
+    # transcript-quiz-nudge process(): tqNudgeNone / tqNudgeOne / tqNudge by count; each title bold and
+    # first-strong isolated (titled()), joined with the teacher language's list comma (vqLetterSep).
+    # Proven in tests/quiz/transcript-quiz-nudge-copy.test.js. @wip.
+
+  @e2e @quiz @copy @wip @draft @P3
+  Scenario: The quiz caption names the lesson once, with a bracket only when the bracket says something new
+    Given my language is English and I asked for an Urdu quiz on a lesson named "Comparing & ordering unlike fractions"
+    When the quiz PDF arrives
+    Then its caption names the lesson once, with no bracketed copy of the same name
+    But for an Urdu lesson name, the caption still carries its English meaning in brackets
+    # transcript-quiz-language lessonLabel(): the gloss shows only when it adds information — a translation or a
+    # genuinely different name; sameTopic() treats "&"/"and"/"اور", punctuation, spacing and case as the same.
+    # Proven in tests/quiz/transcript-quiz-language.test.js + transcript-quiz-teacher-language.test.js. @wip.
 
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
   # The generator is mapped to this feature (feature-map.yaml: training) because it sits

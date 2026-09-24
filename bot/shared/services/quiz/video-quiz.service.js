@@ -34,7 +34,7 @@ const sender = require('./video-quiz-sender.service');
 // never learned about them — a real production incident (phone ending 6989,
 // 2026-08-13, 80 minutes after the throttle shipped) hit exactly this gap.
 const rateLimiter = require('./video-quiz-rate-limiter.service');
-const { resolveUx } = require('../../config/ux-strings');
+const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
 // Chrome a CHILD reads around the questions, in the quiz language.
 const ux = (key, language, params) => resolveUx(key, { language, params });
@@ -75,6 +75,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const STATE_KEY = (phone) => `videoquiz:${stripPlus(phone)}:active`;
 const OFFER_KEY = (phone) => `videoquiz:${stripPlus(phone)}:offer`;
+// The run's language, kept per phone for a week — longer than the offer (1 h)
+// and the session state (24 h). Two lines fire exactly when those are gone: a tap
+// on a lapsed offer, and a tap on an answer after the quiz ended. Without this
+// they could only answer in the floor language, whatever the run spoke.
+const LANG_KEY = (phone) => `videoquiz:${stripPlus(phone)}:lang`;
+const LANG_TTL_SECS = 7 * 24 * 60 * 60;
+
+async function rememberRunLanguage(phone, language) {
+  try {
+    await redisService.set(LANG_KEY(phone), clampLanguage(language), LANG_TTL_SECS);
+  } catch (err) {
+    logToFile('❌ video-quiz: could not remember the run language', { error: err.message }, 'error');
+  }
+}
+
+/** The language of this phone's last video-quiz run, else the floor. */
+async function lastRunLanguage(phone) {
+  try {
+    return clampLanguage(await redisService.get(LANG_KEY(phone)));
+  } catch (err) {
+    logToFile('❌ video-quiz: could not read the run language', { error: err.message }, 'error');
+    return clampLanguage(null);
+  }
+}
 
 // A per-recipient send throttle (video-quiz-rate-limiter.
 // service.js) can back a single handleAnswer up for minutes, so overlapping
@@ -150,6 +174,7 @@ async function sendOffer({ userId, phone, video, quiz, language, deliveryId }) {
     quizId: quiz.id, videoId: video.id, userId, deliveryId,
     topic: quiz.topic, language,
   }, OFFER_TTL_SECS);
+  await rememberRunLanguage(phone, language);
 
   const t = offerStrings(language);
   await WhatsAppService.sendInteractiveButtons(phone, {
@@ -272,8 +297,8 @@ async function handleOfferButton(buttonId, phone) {
   }
   const offer = await redisService.get(OFFER_KEY(phone));
   if (!offer) {
-    await WhatsAppService.sendMessage(phone,
-      "That quiz offer has expired — pick the video again and I'll offer it fresh.");
+    // The offer (and its language) is gone; the run's language outlives it.
+    await WhatsAppService.sendMessage(phone, ux('vqOfferExpired', await lastRunLanguage(phone)));
     return true;
   }
   await redisService.delete(OFFER_KEY(phone));
@@ -309,7 +334,7 @@ async function handleOfferButton(buttonId, phone) {
   if (!accepted) {
     // Declined: the video-only survey fires, as it always did.
     const StudentVideoFeedback = require('../student-video-feedback.service');
-    await WhatsAppService.sendMessage(phone, 'No problem — enjoy the video!');
+    await WhatsAppService.sendMessage(phone, ux('vqOfferDeclined', offer.language));
     StudentVideoFeedback.scheduleFeedbackPrompt({
       videoId: offer.videoId, userId: offer.userId, phone,
       context: { language: offer.language, scope: 'video', deliveryId: offer.deliveryId },
@@ -372,6 +397,10 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
                               source = 'video_solo', studentName = null,
                               studentClass = null, shareCodeId = null,
                               studentId = null, invitedByStudentId = null }) {
+  // Every run starts here — the solo one after an offer, and a child's from a
+  // class link, which never saw an offer — so this is where the phone learns the
+  // run's language for the taps that arrive after the run is over.
+  await rememberRunLanguage(phone, language);
   const { data: questions, error } = await supabase
     .from('quiz_questions')
     .select('id, external_id, sort_order')
@@ -424,8 +453,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     // Checked, not ignored: the parent quiz silently swallowed exactly this
     // error for months and nobody noticed the status never moved.
     logToFile('❌ video-quiz: could not create session', { quizId, error: sErr?.message });
-    await WhatsAppService.sendMessage(phone,
-      "Sorry — I couldn't start that quiz. Please try again in a moment.");
+    await WhatsAppService.sendMessage(phone, ux('vqStartFailed', language));
     return null;
   }
 
@@ -754,8 +782,8 @@ async function handleAnswer(phone, inputId) {
       questionId: parsed.questionId,
     });
     if (!state) {
-      await WhatsAppService.sendMessage(phone,
-        "That quiz has finished. Pick another video and I'll offer you a fresh one!");
+      // The quiz's state is gone with it; the run's language is not.
+      await WhatsAppService.sendMessage(phone, ux('vqQuizFinished', await lastRunLanguage(phone)));
       return true;
     }
 
@@ -1116,7 +1144,8 @@ async function finish(phone, state) {
       .eq('id', state.sessionId)
       .maybeSingle();
     if (session?.invited_by_student_id) {
-      await Invite.notifyInviter(session)
+      // The quiz's language — quiz_sessions carries none, the state does.
+      await Invite.notifyInviter(session, state.language)
         .catch((err) => logToFile('⚠️ inviter notify failed', { error: err.message }));
     }
     await Invite.offerInvite({
@@ -1329,6 +1358,53 @@ async function getActiveState(phone) {
   return redisService.get(STATE_KEY(phone));
 }
 
+/**
+ * A letter TYPED instead of tapped ("B", "b") while a question waits for its
+ * answer — the same answer the child would have tapped.
+ *
+ * The letter is the one the child SAW: position n of the options as this
+ * question was drawn (render.build reproduces the stored display order, the
+ * shuffle is seeded on the question itself), mapped back to the option's own
+ * index before it is graded. A letter the question does not offer, a question
+ * that is a set (select-all-that-apply, answered in its Flow), or no question
+ * waiting at all is not ours: false, and the message goes on to the rest of
+ * the chain.
+ *
+ * @returns {Promise<boolean>} true when the letter was taken as this question's answer
+ */
+const TYPED_LETTER_RX = /^[a-d]$/i;
+async function answerTypedLetter(phone, text) {
+  const letter = String(text || '').trim();
+  if (!TYPED_LETTER_RX.test(letter)) return false;
+  const state = await redisService.get(STATE_KEY(phone));
+  if (!state || !state.currentQuestionId) return false;
+
+  const { data: q, error } = await supabase
+    .from('quiz_questions')
+    .select(MULTI_QUESTION_COLUMNS)
+    .eq('id', state.currentQuestionId)
+    .single();
+  if (error || !q) {
+    logToFile('⚠️ video-quiz: typed letter — current question not readable', {
+      sessionId: state.sessionId, questionId: state.currentQuestionId, error: error && error.message,
+    });
+    return false;
+  }
+
+  const picker = render.build(q).find((m) => m.phase === 'interaction'
+    && (m.role === 'ask' || m.role === 'picture_flow') && m.kind !== 'multiflow');
+  if (!picker || !Array.isArray(picker.options)) return false;
+  const shown = picker.options.length;
+  const position = letter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
+  if (position >= shown) return false;
+  const original = (picker.optionIndices || picker.options.map((_, i) => i))[position];
+
+  logEvent('video_quiz.typed_answer', {
+    sessionId: state.sessionId, questionId: q.id, letter: letter.toUpperCase(), position, index: original,
+  });
+  return handleAnswer(phone, render.answerId(q.id, original));
+}
+
 module.exports = {
   offerAfterVideo,
   handleOfferButton,
@@ -1346,6 +1422,7 @@ module.exports = {
   sendNextQuestion,
   writeCountersFromAnswers,
   getActiveState,
+  answerTypedLetter,
   quizForVideo,
   QUESTIONS_PER_SESSION,
   OFFER_YES,

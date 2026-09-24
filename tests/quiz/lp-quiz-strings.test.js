@@ -88,9 +88,9 @@ describe('failureCopyKey — the failure copy is picked by the quiz SOURCE', () 
     expect(failureCopyKey('validator_failed', 'lp_v8')).toBe('tqFailedLpAuthor');
   });
 
-  test('a transcript quiz is untouched — it still gets tqCouldNotMake for every reason', () => {
+  test('a transcript quiz gets tqCouldNotMake for every reason about the recording — and its own sentence when the MODEL failed', () => {
     expect(failureCopyKey('session_missing', 'transcript')).toBe('tqCouldNotMake');
-    expect(failureCopyKey('model_failed', 'transcript')).toBe('tqCouldNotMake');
+    expect(failureCopyKey('model_failed', 'transcript')).toBe('tqCouldNotMakeModel');
     expect(failureCopyKey('source_unusable', 'transcript')).toBe('tqCouldNotMake');
     expect(failureCopyKey('validator_failed', 'transcript')).toBe('tqCouldNotMake');
     expect(failureCopyKey('validator_failed', undefined)).toBe('tqCouldNotMake');
