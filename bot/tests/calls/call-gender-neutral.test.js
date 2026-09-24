@@ -41,9 +41,12 @@ describe('bd-1hae7.19 — the caller is never assumed to be a woman', () => {
   });
 
   test('the neutral constructions are named, not just the banned ones', () => {
-    expect(f).toMatch(/کرتے ہیں/);         // respectful plural
+    // The "respectful plural" «آپ کرتے ہیں» used to be offered here as the
+    // neutral form. It is the masculine; the neutral ones carry no gender.
+    expect(f).toMatch(/کرنا ہوگا|کرنی ہے|جا سکتا ہے/);   // impersonal / obligative
     expect(f).toMatch(/آپ نے/);            // past with نے
     expect(f).toMatch(/کریں|بتائیں/);      // آپ-imperative
+    expect(f).not.toMatch(/already neutral/);
   });
 
   test('she still speaks about HERSELF in the feminine — the rule is asymmetric', () => {
