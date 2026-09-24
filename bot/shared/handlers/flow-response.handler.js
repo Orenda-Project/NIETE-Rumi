@@ -568,7 +568,9 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
         // fallback for a payload that only carried one.
         ...(setIf(fullName) || setIf(firstName) ? { name: fullName || firstName } : {}),
         ...(setIf(country) ? { country } : {}),
-        ...(setIf(region) ? { region } : {}),
+        // region is NOT written here: the REGION_INFO per-screen write already persisted it,
+        // as the school's sector when the typed EMIS resolved and as the province otherwise.
+        // The payload's `region` is the province dropdown value and would overwrite the sector.
         ...(setIf(resolvedOrg) ? { organization: resolvedOrg } : {}),
         ...(submittedRole ? { role: submittedRole } : {}), // FEAT-102 bd-2132; per-screen write is the primary source now
         ...(setIf(schoolName) ? { school_name: schoolName } : {}),
@@ -695,7 +697,7 @@ async function handleTeacherTrainingFlow(message, phoneNumber, userId) {
     const QuizDelivery = require('../services/training/quiz-delivery.service');
     return await QuizDelivery.startGrandQuiz(userId, levelOrder, phoneNumber);
   }
-  // bd-60120 — I-SAPS assesses per MODULE, so the exam the teacher tapped is
+  // I-SAPS assesses per MODULE, so the exam the teacher tapped is
   // that module's, not the level's. courseId identifies the module.
   if (trainingAction === 'start_module_exam' && courseId) {
     const QuizDelivery = require('../services/training/quiz-delivery.service');

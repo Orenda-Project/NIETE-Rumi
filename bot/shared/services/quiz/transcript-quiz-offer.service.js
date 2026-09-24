@@ -8,10 +8,12 @@
  * that the path is /quiz. TRANSCRIPT_QUIZ_OFFER_MODE=every keeps the
  * alternative one env flip away.
  *
- * TIMING. The survey buttons go out ~90 s after the report. The offer is
- * queued for +240 s so it never competes with them, and the survey answer
- * itself brings it forward (triggerEarly) — whichever job runs first wins the
- * per-session claim, the other is a no-op.
+ * TIMING. The survey buttons go out straight after the voice debrief, before
+ * the commitment question. The offer is queued for +240 s so it never competes
+ * with them, and the survey answer itself brings it forward (triggerEarly) —
+ * whichever job runs first wins the per-session claim, the other is a no-op. A
+ * tap that lands before the session is 'completed' is refused by processOffer
+ * without claiming, so the offer can never arrive ahead of the commit prompt.
  *
  * STATE lives in `quizzes` (quiz_source='transcript', one row per coaching
  * session, enforced by a unique partial index). The offer job claims the row
@@ -31,7 +33,10 @@ const { resolveUx } = require('../../config/ux-strings');
 const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
-  needsLanguageAsk, languageAskButtons } = require('./transcript-quiz-language');
+  needsLanguageAsk, languageAskButtons, languageAskBody } = require('./transcript-quiz-language');
+const {
+  LP_V8, lpRemakeable, failureReasonOf, digestFailureReason,
+} = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -202,9 +207,16 @@ async function processOffer(coachingSessionId, payload = {}) {
   try {
     result = await Digest.run({ session, user });
   } catch (err) {
-    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, error: err.message }, 'error');
-    await markSkipped(quizId, 'digest_failed', { error: err.message });
-    return { skipped: 'digest_failed', quizId };
+    // Named for what happened, like the generate step's digest failure: a
+    // transcript digest has no source-side throw (the length was checked above),
+    // so this is the model or the provider — `digest_failed` said neither. The
+    // teacher was never offered this quiz, so nothing is sent to them; /quiz can
+    // still make it from the same session.
+    const reason = digestFailureReason(err);
+    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, reason, code: err.code || null, error: err.message }, 'error');
+    await markSkipped(quizId, reason, { error: err.message });
+    logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, step: 'digest' });
+    return { skipped: reason, quizId };
   }
   const { digest, grade, gradeSource, lpHint, model, costUsd } = result;
 
@@ -337,7 +349,9 @@ async function handleOfferButton(buttonId, phone) {
       })
       .eq('id', quizId).eq('status', 'offered').select('id');
     if (!marked || !marked.length) return api.tellAlready(phone, quiz, lang);
-    await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage);
+    await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage, {
+      digest: quiz.meta && quiz.meta.digest, subject: quiz.subject,
+    });
     logEvent('transcript_quiz.language_asked', { quizId, userId: quiz.teacher_id, ruleLanguage, from: 'offer' });
     return true;
   }
@@ -352,10 +366,15 @@ async function tellAlready(phone, quiz, lang) {
   return true;
 }
 
-/** The ask itself — shared with /quiz, which reaches the same decision. */
-async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage) {
+/**
+ * The ask itself — shared with /quiz and the lesson-plan offer, which reach the
+ * same decision. `lesson` ({digest, subject}) is what its examples of English
+ * terms are taken from; a caller that knows neither gets an ask naming none,
+ * never another subject's.
+ */
+async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage, lesson = {}) {
   await WhatsAppService.sendInteractiveButtons(phone, {
-    body: resolveUx('tqAskLanguage', { language: teacherLang }),
+    body: languageAskBody(lesson, teacherLang),
     buttons: languageAskButtons(quizId, ruleLanguage),
   });
 }
@@ -372,19 +391,132 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
   // student message and in every later /quiz listing. A row without a digest
   // (legacy) keeps the label it has.
   const topic = topicFor(quiz.meta && quiz.meta.digest, language) || quiz.topic || 'Lesson';
+  // An LP-born quiz reaches here with no digest yet (the author digests the
+  // planned lesson first), so its next step is the digest, not the author.
+  const next = quiz.meta && quiz.meta.digest ? 'author' : 'digest';
   const { data: flipped } = await supabase.from('quizzes')
     .update({
       status: 'generating', language, topic,
-      meta: { ...(quiz.meta || {}), step: 'author', awaiting_language: false, language_choice: language, accepted_at: new Date().toISOString() },
+      meta: { ...(quiz.meta || {}), step: next, awaiting_language: false, language_choice: language, accepted_at: new Date().toISOString() },
     })
     .eq('id', quizId).eq('status', 'offered').select('id');
   if (!flipped || !flipped.length) return api.tellAlready(phone, quiz, teacherLang);
+
+  if (quiz.quiz_source === LP_V8) {
+    // The ask on the 15:00 LP offer (lp-quiz-offer): queued and announced by
+    // the same step a yes with no ask goes through.
+    await api.queueLpQuiz({ quizId, nudgeId: quiz.meta && quiz.meta.nudge_id, phone, language: teacherLang });
+    logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source, quiz_source: LP_V8 });
+    return true;
+  }
 
   const SQSQueueService = require('../queue/sqs-queue.service');
   await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: teacherLang }, { delaySeconds: 0 });
   await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: teacherLang }));
   logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source });
   return true;
+}
+
+/**
+ * Queue the author for an LP-born (lp_v8) quiz and tell the teacher it is
+ * coming — or, when the queue refuses, fail the quiz and say so. The ONE place
+ * an lp_v8 quiz is queued: lp-quiz-offer's yes on an Urdu or Islamiyat lesson
+ * calls it, and so does startGenerating when the teacher answers the language
+ * ask on any other lesson, so the two can never queue a different job.
+ *
+ * @returns {Promise<boolean>} true when the job was queued
+ */
+async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
+  const say = async (key) => {
+    const ok = await WhatsAppService.sendMessage(phone, resolveUx(key, { language }));
+    if (!ok) logToFile('❌ lp quiz offer: reply not delivered', { key }, 'error');
+  };
+  try {
+    const SQSQueueService = require('../queue/sqs-queue.service');
+    await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, source: 'lp_offer' }, { delaySeconds: 0 });
+  } catch (err) {
+    logToFile('❌ lp quiz offer: quiz_generate could not be queued', { quizId, nudgeId, error: err.message }, 'error');
+    // MERGED into the row's meta, never a fresh object: the lessons, the class
+    // and the lesson date are what the quiz is written from and dated by. A
+    // failure that replaced them left a row /quiz could not date and nobody
+    // could ever make again.
+    const { data: current, error: readErr } = await supabase.from('quizzes')
+      .select('meta').eq('id', quizId).maybeSingle();
+    if (readErr) {
+      logToFile('❌ lp quiz offer: could not read the quiz before marking it failed', { quizId, error: readErr.message }, 'error');
+    }
+    const meta = (current && current.meta) || {};
+    const { error } = await supabase.from('quizzes')
+      .update({
+        status: 'failed',
+        meta: {
+          ...meta,
+          step: 'failed',
+          error: 'queue_failed',
+          error_detail: `queue: ${err.message}`,
+          source: meta.source || 'lp_offer',
+          nudge_id: meta.nudge_id || nudgeId || null,
+        },
+      })
+      .eq('id', quizId);
+    if (error) logToFile('❌ lp quiz offer: could not mark the quiz failed', { quizId, error: error.message }, 'error');
+    await say('lpQuizCouldNotStart');
+    return false;
+  }
+  await say('lpQuizMaking');
+  return true;
+}
+
+/**
+ * "Make it again" on a FAILED lp_v8 quiz (the /quiz Flow). failed → generating,
+ * once, then the same queue step every lp_v8 quiz goes through.
+ *
+ * Safe to re-queue: the generate step only runs a row in generating / ready /
+ * offered, and every failure write it makes keeps `meta` (the lessons, the
+ * class, the lesson date), so the remake reads what the first attempt read.
+ * The atomic `status = failed` filter is what makes a double submit a no-op —
+ * nothing below de-duplicates a quiz_generate job (its FIFO id is per call).
+ * A digest the first attempt already wrote is kept, so a quiz that failed at
+ * authoring goes straight back to authoring. The failure it replaces is kept as
+ * `previous_error`; `error` is cleared so no surface reads a stale reason off a
+ * row that is being made.
+ *
+ * @returns {Promise<boolean>} true when the remake was queued
+ */
+async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
+  const api = module.exports;
+  const meta = quiz.meta || {};
+  if (quiz.quiz_source !== LP_V8 || !lpRemakeable(meta)) {
+    logEvent('transcript_quiz.remake_refused', { quizId: quiz.id, reason: failureReasonOf(meta), remakes: meta.remakes || 0 });
+    return false;
+  }
+  const { error: _error, error_detail: _detail, ...kept } = meta;
+  const { data: flipped, error } = await supabase.from('quizzes')
+    .update({
+      status: 'generating',
+      meta: {
+        ...kept,
+        step: kept.digest ? 'author' : 'digest',
+        remakes: (Number(meta.remakes) || 0) + 1,
+        previous_error: meta.error || null,
+        remade_at: new Date().toISOString(),
+        remake_source: source,
+      },
+    })
+    .eq('id', quiz.id).eq('status', 'failed').select('id');
+  if (error) {
+    logToFile('❌ lp quiz remake: the failed row could not be claimed', { quizId: quiz.id, error: error.message }, 'error');
+    return false;
+  }
+  if (!flipped || !flipped.length) {
+    await api.tellAlready(phone, quiz, teacherLang);
+    return false;
+  }
+  logEvent('transcript_quiz.remade', {
+    quizId: quiz.id, userId: quiz.teacher_id, previousError: meta.error || null,
+    remakes: (Number(meta.remakes) || 0) + 1, source, quiz_source: LP_V8,
+  });
+  return api.queueLpQuiz({ quizId: quiz.id, nudgeId: meta.nudge_id, phone, language: teacherLang });
 }
 
 /**
@@ -399,8 +531,10 @@ async function handleLanguageButton(buttonId, phone, user) {
   const language = m[1];
   const quizId = m[2];
 
+  // quiz_source: the same ask answers an LP-born quiz, which startGenerating
+  // hands back to the LP offer to queue.
   const { data: quiz } = await supabase.from('quizzes')
-    .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
+    .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id, quiz_source')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', {
@@ -417,6 +551,6 @@ async function handleLanguageButton(buttonId, phone, user) {
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo, introVideoShows,
   scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
-  sendLanguageAsk, startGenerating, tellAlready,
+  sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz, remakeLpQuiz,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };

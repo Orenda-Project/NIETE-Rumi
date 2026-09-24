@@ -20,13 +20,21 @@
  */
 
 const supabase = require('../../config/supabase');
+const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../../utils/text-format');
+const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
+// A question the author wrote with TeX maths (`$\frac{2}{9}$`) reaches the
+// report flat ("2/9"): the chat lines, the guidance prompt and the report PDF
+// all read what the class saw, never the source.
+const { mathForChat } = require('./quiz-math');
+// The one Urdu address rule (prompt half) and the second-person check (code half).
+const { URDU_ADDRESS_RULE } = require('../../config/gender-neutral-address');
+const { addressForms } = require('./transcript-quiz-address');
 
 /**
  * ONE ATTEMPT PER CHILD.
@@ -264,7 +272,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   }
 
   const { data: teacher } = await supabase
-    .from('users').select('phone_number, preferred_language')
+    .from('users').select('phone_number, preferred_language, name')
     .eq('id', sc.teacher_user_id).maybeSingle();
   if (!teacher?.phone_number) {
     logToFile('⚠️ video-quiz report: no teacher phone', { shareCodeId });
@@ -364,7 +372,9 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   try {
     ({ data: quizRow } = await supabase.from('quizzes')
       .select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle());
-    const rawDigest = quizRow?.quiz_source === 'transcript' ? (quizRow?.meta?.digest || null) : null;
+    // A LESSON quiz — from a coaching recording or from the lesson plan the
+    // teacher was served (lp_v8) — carries the digest; nothing else does.
+    const rawDigest = isLessonQuiz(quizRow?.quiz_source) ? (quizRow?.meta?.digest || null) : null;
     if (rawDigest) {
       const slos = Array.isArray(rawDigest.slos) ? rawDigest.slos : [];
       // D1: the report reads in the quiz's language, so its goal lines do too.
@@ -487,8 +497,13 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   if (done.length) {
     const sorted = [...done].sort((a, b) => (b.mastery_percentage || 0) - (a.mastery_percentage || 0));
     lines.push(`*${TX.howEach}*`);
+    // The same rule as the PDF roster: a child's class is printed only when the
+    // class differs between children, and then one way ("Class 5" / "جماعت 5"),
+    // never as the child typed it.
+    const perChildClass = classes.length > 1;
     sorted.forEach((s) => {
-      lines.push(`• ${s.student_name || 'Unnamed'}${s.student_class ? ` (${s.student_class})` : ''}`
+      const label = perChildClass ? classLabel(s.student_class, contentLang) : '';
+      lines.push(`• ${s.student_name || 'Unnamed'}${label ? ` (${label})` : ''}`
         + ` — ${s.correct_answers}/${s.total_questions_answered} (${s.mastery_percentage || 0}%)`);
     });
     lines.push('');
@@ -515,15 +530,25 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   // ran an Urdu quiz gets Urdu guidance inside that Urdu document, not an
   // English paragraph glued onto it.
   const guidanceMode = hardest.length ? 'reteach' : 'secure';
+  // The grade the advice is pitched at. It used to be `sc.grade` — a column the
+  // share code has never had — so every prompt read "Grade primary". The quiz
+  // row carries the grade (the catalogue's for a lesson-plan quiz, the resolved
+  // one for a transcript quiz); failing that, the class the children entered.
+  const guidanceGrade = gradeText(quizRow && quizRow.grade) || classes.join('/') || null;
   const guidance = done.length
     ? await generateGuidance({
-      shareCodeId, topic: sc.topic, grade: sc.grade, average: avg,
+      shareCodeId, topic: sc.topic, grade: guidanceGrade, average: avg,
       finished: done.length, started: all.length, hardest, digest,
       language: contentLang, mode: guidanceMode,
     })
     : null;
 
-  const summary = lines.filter((l) => l !== null && l !== undefined).join('\n');
+  // Plain text, laid out on the phone line by line from each line's first
+  // strong character — which in an Urdu report is the Latin "quiz" of the title
+  // and nothing at all on a Latin-named child's line. Every line opens with the
+  // document language's paragraph mark instead (text-format markLines).
+  const lineMark = resolveUx('lineDirMark', { language: contentLang });
+  const summary = markLines(lines.filter((l) => l !== null && l !== undefined).join('\n'), lineMark);
 
   // A designed report is worth it once there are results in it. On the morning
   // run for a class where nobody finished, a PDF of an empty table is worse
@@ -534,6 +559,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     unfinished: unfinished.map((s) => s.student_name || 'Unnamed'),
     language: contentLang, contentLanguage: contentLang, caption: CAPTION.caption,
     classes,
+    // The report is read BY the teacher, so it names them from their own
+    // record. `sc.teacher_name` is the name the CHILDREN are shown and, for a
+    // teacher with no name on record, holds the children's fallback ("آپ کے
+    // استاد" / "Your teacher") — a teacher reading that about themselves was
+    // the defect. No name -> the template prints the class alone.
+    teacherName: String((teacher && teacher.name) || '').trim(),
   });
 
   if (!sentAsPdf) {
@@ -543,7 +574,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     await WhatsAppService.sendMessage(teacher.phone_number, summary);
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
-        `${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`);
+        markLines(`${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`, lineMark));
     }
   }
 
@@ -727,23 +758,39 @@ async function sendLateClassCards(shareCodeId) {
 }
 
 /**
+ * The report's HTML, printed to an A4 PDF buffer exactly as the teacher gets it:
+ * edge to edge (the hero is full-bleed, so the page carries no margin), the
+ * template's own break rules deciding where each page ends. One function so the
+ * layout tests print the same document the send does.
+ */
+async function renderReportPdf(data) {
+  const { htmlToPdf } = require('../../utils/html-to-pdf');
+  const renderHtml = require('../../templates/video-quiz-report.template');
+  return htmlToPdf(renderHtml(data), {
+    timeout: 30000,
+    pdfOptions: {
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    },
+  });
+}
+
+/**
  * Render and send the designed report. Returns false on any failure so the
  * caller falls back to the text summary rather than the teacher getting nothing.
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
                            started, finished, average, unfinished, classes,
-                           language, contentLanguage, caption: captionFor }) {
+                           language, contentLanguage, caption: captionFor, teacherName = '' }) {
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
   let tempPath = null;
   try {
-    const { htmlToPdf } = require('../../utils/html-to-pdf');
-    const renderHtml = require('../../templates/video-quiz-report.template');
-
-    const html = renderHtml({
+    const buffer = await renderReportPdf({
       topic: shareCode.topic || 'Video quiz',
-      teacherName: shareCode.teacher_name,
+      teacherName,
       started, finished, average,
       students, hardest, guidance, unfinished, classes, language, contentLanguage,
       // D1 — the footer stamp is part of the DOCUMENT, so it is written in the
@@ -752,15 +799,6 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       // the teacher PDF and the offer interstitial already use, and it is
       // PKT-anchored rather than container-local.
       generatedAt: formatLessonDate(new Date().toISOString(), language, { year: true }),
-    });
-
-    const buffer = await htmlToPdf(html, {
-      timeout: 30000,
-      pdfOptions: {
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      },
     });
     if (!buffer || !buffer.length) return false;
 
@@ -866,6 +904,15 @@ function offLanguage(value, targetScript) {
   return targetScript === 'ur' ? latin > ur : ur > latin;
 }
 
+/**
+ * How the second-person check reads each field. `board`, `check` and `stretch`
+ * speak to someone — the teacher, and in the question the teacher reads out,
+ * the class — so a future with آپ left unsaid («کیسے سوچیں گے؟») counts there.
+ * `muddled` and `secure` describe the children and count a gendered verb only
+ * once they already speak to someone as آپ.
+ */
+const ADDRESS_KIND = { board: 'stem', check: 'stem', stretch: 'stem', muddled: 'feedback', secure: 'feedback' };
+
 function guidanceShape(out, mode, language) {
   const keys = mode === 'reteach' ? ['muddled', 'board', 'check'] : ['secure', 'stretch'];
   const depthKey = DEPTH_KEY_BY_MODE[mode];
@@ -882,6 +929,11 @@ function guidanceShape(out, mode, language) {
     }
     if (offLanguage(value, targetScript)) {
       problems.push({ key, issue: 'off_language', expected: targetScript, got: scriptOf(value) });
+    } else if (targetScript === 'ur') {
+      // A verb that speaks to the teacher or the class with a gender — «آپ
+      // کیسے سوچیں گے؟» read out to boys and girls (found live on staging).
+      const forms = addressForms(value, { kind: ADDRESS_KIND[key] || 'feedback' });
+      if (forms.length) problems.push({ key, issue: 'gendered_address', forms });
     }
   });
   return { ok: problems.length === 0, problems };
@@ -892,6 +944,11 @@ function sharpeningLine(problems, language) {
   const ur = RTL_LANGS.has(language);
   const parts = problems.map((p) => {
     if (p.issue === 'missing') return ur ? `"${p.key}" خالی تھا` : `"${p.key}" was empty`;
+    if (p.issue === 'gendered_address') {
+      // Urdu only (guidanceShape raises it only for an Urdu box).
+      return `"${p.key}" میں فعل کی جنس ہے (${(p.forms || []).join('، ')}) — یہی بات جنس کے بغیر لکھیں: `
+        + '«آپ کیسے سوچیں؟»، «کس ترتیب سے لکھنا ہوگا؟»، «آپ نے کیا سوچا؟»';
+    }
     if (p.issue === 'too_short') {
       return ur ? `"${p.key}" میں صرف ${p.sentences} جملہ تھا — 2 سے 3 جملے چاہئیں`
         : `"${p.key}" had only ${p.sentences} sentence(s) — it needs 2 to 3`;
@@ -927,7 +984,10 @@ async function generateGuidance(context) {
   const keys = mode === 'reteach' ? ['muddled', 'board', 'check'] : ['secure', 'stretch'];
   try {
     const OpenAI = require('openai');
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // bd-wgso2: measured, not rerouted -- same client, key and model; only the label is stripped and the spend recorded.
+    const openai = require('../llm-client').withSpendRecording(
+      new OpenAI({ apiKey: process.env.OPENAI_API_KEY }), { lane: 'openai-direct' },
+    );
 
     const ask = async (p) => {
       const res = await openai.chat.completions.create({
@@ -936,6 +996,7 @@ async function generateGuidance(context) {
         // on clarifying the misconception that…" — and reached for "categorise
         // various foods" instead of the dal and rice in the questions.
         model: 'gpt-5.4-mini',
+        job: 'quiz.videoReport',
         messages: [{ role: 'user', content: p }],
         temperature: 0.4,               // lower than the parent quiz: this is advice
         // gpt-5 family renamed this. Passing max_tokens is not an error you can
@@ -955,7 +1016,9 @@ async function generateGuidance(context) {
         // surfaces are covered: the PDF and the WhatsApp text fallback. (In the
         // fallback "**the**" is not even bold — WhatsApp bold is one asterisk —
         // so the teacher just saw the asterisks.)
-        const cleaned = stripEmphasis(String(parsed[key] || '').trim());
+        // …and flatten any TeX the model wrote back ("$\frac{2}{9}$" → "2/9"):
+        // both surfaces are text a teacher reads, the PDF and the chat.
+        const cleaned = mathForChat(stripEmphasis(String(parsed[key] || '').trim()));
         if (!cleaned) return null;
         built[key] = cleaned;
       }
@@ -968,13 +1031,29 @@ async function generateGuidance(context) {
     const shape = guidanceShape(out, mode, language);
     if (!shape.ok) {
       const offLanguage = shape.problems.some((p) => p.issue === 'off_language');
+      const gendered = shape.problems.filter((p) => p.issue === 'gendered_address');
+      const other = shape.problems.filter((p) => p.issue !== 'gendered_address');
+      // ONE retry for everything that was wrong, the gendered verbs included.
       const retried = await ask(`${prompt}\n\n${sharpeningLine(shape.problems, language)}`);
-      // Two DISTINCT events (root CLAUDE.md rule 24d) — a shared failure
-      // string is what sent the last investigation at the wrong layer.
-      logEvent(offLanguage ? 'video_quiz.guidance_off_language' : 'video_quiz.guidance_thin', {
-        shareCodeId: context && context.shareCodeId, mode, problems: shape.problems,
-        retried: Boolean(retried),
-      });
+      // Distinct events (root CLAUDE.md rule 24d) — a shared failure string is
+      // what sent the last investigation at the wrong layer.
+      if (other.length) {
+        logEvent(offLanguage ? 'video_quiz.guidance_off_language' : 'video_quiz.guidance_thin', {
+          shareCodeId: context && context.shareCodeId, mode, problems: other,
+          retried: Boolean(retried),
+        });
+      }
+      if (gendered.length) {
+        const left = retried
+          ? guidanceShape(retried, mode, language).problems.filter((p) => p.issue === 'gendered_address')
+          : gendered;
+        logEvent('video_quiz.guidance_gendered_address', {
+          shareCodeId: context && context.shareCodeId, mode,
+          fields: gendered.map((p) => p.key),
+          forms: [...new Set(gendered.flatMap((p) => p.forms))].slice(0, 8),
+          retried: Boolean(retried), cleared: Boolean(retried) && left.length === 0,
+        });
+      }
       if (retried) out = retried;   // accept whatever comes back — a short box beats none
     }
     return out;
@@ -1021,12 +1100,12 @@ async function markReportSent(shareCodeId, quizId = null) {
     await supabase.from('quiz_share_codes')
       .update({ report_sent_at: new Date().toISOString() })
       .eq('id', shareCodeId);
-    // A transcript quiz's /quiz row reads quizzes.status; "Report sent" is a
+    // A lesson quiz's /quiz row reads quizzes.status; "Report sent" is a
     // state of the quiz, not only of its share code.
     if (quizId) {
       await supabase.from('quizzes')
         .update({ status: 'report_sent' })
-        .eq('id', quizId).eq('quiz_source', 'transcript');
+        .eq('id', quizId).in('quiz_source', LESSON_SOURCES);
     }
   } catch (err) {
     logToFile('⚠️ video-quiz: could not stamp report_sent_at', {
@@ -1166,20 +1245,20 @@ async function hardestQuestions(shareCodeId, limit = 3, sessionIds = null) {
     }
 
     return {
-      question_text: q.question_text || '(question unavailable)',
+      question_text: mathForChat(q.question_text) || '(question unavailable)',
       external_id: q.external_id || null,
       wrong: t.wrong,
       total: t.total,
       top_wrong_option: clustered ? topWrong : null,
-      top_wrong_text: clustered ? optionText(q, topWrong) : null,
+      top_wrong_text: clustered ? mathForChat(optionText(q, topWrong)) : null,
       top_wrong_count: clustered ? topCount : 0,
       correct_option: q.correct_option || null,
-      correct_text: q.correct_option ? optionText(q, q.correct_option) : null,
-      misconception,
+      correct_text: q.correct_option ? mathForChat(optionText(q, q.correct_option)) : null,
+      misconception: mathForChat(misconception),
       // "Why this is the right answer" — authored per question, independent
       // of which distractor the class clustered on (that is `misconception`,
       // and stays exactly as it was).
-      explanation: teacherFacing(q.explanation) || null,
+      explanation: mathForChat(teacherFacing(q.explanation)) || null,
     };
   });
 }
@@ -1293,8 +1372,8 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
   // impersonal passive, which agrees with the object. Children are "بچے", a
   // gender-neutral plural. Same structure + banned-opener list as the
   // English prompt, translated in spirit, not word-for-word.
-  return `آپ ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
-    + `منصوبہ بندی میں مدد کر رہے ہیں۔ ان کی کلاس نے ابھی "${topic}" پر ایک کوئز دیا ہے۔\n\n`
+  return `آپ کا کام ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
+    + `منصوبہ بندی میں مدد کرنا ہے۔ ان کی کلاس نے ابھی "${topic}" پر ایک کوئز دیا ہے۔\n\n`
     + `یہاں وہ چیزیں ہیں جو انہوں نے غلط کیں، اور جس غلط جواب پر اکثریت نے اتفاق کیا:\n\n`
     + `${evidence}\n`
     + digestBlockUr(digest)
@@ -1316,8 +1395,10 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
     + `کوئز سوال کی نقل نہیں ہونی چاہیے؛ بچے وہ پہلے دیکھ چکے ہیں۔ وہی خیال `
     + `دوسرے انداز میں پوچھیں۔\n`
     + `جو سوال بچوں سے پوچھا جائے وہ انہی الفاظ میں لکھیں جن میں کوئز لکھا گیا `
-    + `ہے: بچوں کو "آپ" کہہ کر، جمع کے احترامی افعال کے ساتھ (کریں، دیکھیں، `
-    + `سوچیں) — "کرو"، "بتاؤ" یا کوئی مؤنث/مذکر واحد صیغہ ہرگز نہیں۔\n`
+    + `ہے: بچوں کو "آپ" کہہ کر — "کرو"، "بتاؤ" ہرگز نہیں۔ بچوں اور استاد، دونوں سے `
+    + `بات کرتے ہوئے فعل کی کوئی جنس نہ ہو: «آپ کیسے سوچیں گے؟» کے بجائے «آپ کیسے سوچیں؟»، `
+    + `اور «آپ کس ترتیب سے لکھیں گے؟» کے بجائے «کس ترتیب سے لکھنا ہوگا؟»۔\n`
+    + `${URDU_ADDRESS_RULE}\n`
     + `\n`
     + `"کل کے سبق میں"، "اس کو حل کرنے کے لیے"، "پر توجہ دیں" یا "شروع کریں" سے `
     + `شروع نہ کریں۔ بچوں سے شروع کریں۔ کوئی سکور یا گنتی دوبارہ نہ بتائیں — وہ `
@@ -1331,8 +1412,8 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
 }
 
 function buildSecurePromptUr({ grade, topic, digest }) {
-  return `آپ ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
-    + `منصوبہ بندی میں مدد کر رہے ہیں۔ ان کی پوری کلاس نے ابھی "${topic}" پر `
+  return `آپ کا کام ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
+    + `منصوبہ بندی میں مدد کرنا ہے۔ ان کی پوری کلاس نے ابھی "${topic}" پر `
     + `ایک کوئز دیا اور ہر سوال درست کیا۔\n`
     + digestBlockUr(digest)
     + `\nصرف ایک JSON آبجیکٹ واپس کریں، بالکل ان دو کلیدوں کے ساتھ، ہر ایک کی `
@@ -1348,8 +1429,10 @@ function buildSecurePromptUr({ grade, topic, digest }) {
     + `کیا کریں گے۔ سوال کسی کوئز سوال کی نقل نہیں ہونی چاہیے۔ اسے ایک جملے `
     + `میں نہ سمیٹیں اور تین جملوں سے زیادہ نہ لکھیں۔\n`
     + `جو سوال بچوں سے پوچھا جائے وہ انہی الفاظ میں لکھیں جن میں کوئز لکھا گیا `
-    + `ہے: بچوں کو "آپ" کہہ کر، جمع کے احترامی افعال کے ساتھ (کریں، دیکھیں، `
-    + `سوچیں) — "کرو"، "بتاؤ" یا کوئی مؤنث/مذکر واحد صیغہ ہرگز نہیں۔\n`
+    + `ہے: بچوں کو "آپ" کہہ کر — "کرو"، "بتاؤ" ہرگز نہیں۔ بچوں اور استاد، دونوں سے `
+    + `بات کرتے ہوئے فعل کی کوئی جنس نہ ہو: «آپ کیسے سوچیں گے؟» کے بجائے «آپ کیسے سوچیں؟»، `
+    + `اور «آپ کس ترتیب سے لکھیں گے؟» کے بجائے «کس ترتیب سے لکھنا ہوگا؟»۔\n`
+    + `${URDU_ADDRESS_RULE}\n`
     + `\n`
     + `"کل کے سبق میں"، "اس کو حل کرنے کے لیے"، "پر توجہ دیں" یا "شروع کریں" سے `
     + `شروع نہ کریں۔ کوئی سکور دوبارہ نہ بتائیں۔ تعریف نہ کریں۔ اس انداز میں `
@@ -1408,17 +1491,20 @@ function buildGuidancePrompt({
       : buildSecurePromptEn({ grade, topic, digest });
   }
 
+  // Flat, as the class saw it (hardestQuestions already flattens; a caller
+  // that passes rows straight from the table is flattened here): a model shown
+  // "$\frac{2}{9}$" writes TeX back into the teacher's WhatsApp.
   const evidence = missed.map((h, i) => {
     const lines = [
-      `${i + 1}. "${h.question_text}"`,
+      `${i + 1}. "${mathForChat(h.question_text)}"`,
       `   ${h.wrong} of ${h.total} answered this wrongly.`,
     ];
     if (h.top_wrong_text) {
-      lines.push(`   Most of them chose "${h.top_wrong_text}". `
-        + `The right answer was "${h.correct_text}".`);
+      lines.push(`   Most of them chose "${mathForChat(h.top_wrong_text)}". `
+        + `The right answer was "${mathForChat(h.correct_text)}".`);
     }
     if (h.misconception) {
-      lines.push(`   Explanation: ${h.misconception}`);
+      lines.push(`   Explanation: ${mathForChat(h.misconception)}`);
     }
     if (h.slo) {
       lines.push(`   Learning goal this checks: ${h.slo}`);
@@ -1440,6 +1526,6 @@ module.exports = {
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
-  classesTaught, guidanceShape,
+  classesTaught, guidanceShape, renderReportPdf,
   CLUSTER_THRESHOLD,
 };

@@ -242,3 +242,52 @@ describe('e2e-cassette: key normalisation for volatile prompt content', () => {
     expect(saved.request).toEqual({ model: 'm', messages: [{ role: 'user', content: 'q' }] });
   });
 });
+
+describe('e2e-cassette: account-scoped DB state must not reach the key (bd-oo8ka)', () => {
+  // Measured 2026-09-22: 18 of 61 recorded llm cassettes bake in the driver account's newest
+  // lesson delivery, built live by lp-context.service.js:261. The suite mutates that value itself
+  // — lesson-plan runs before menu, against the SAME shared driver, and delivers a lesson plan —
+  // so every cassette recorded before it drifts. All 8 misses in the full-suite run traced to one
+  // call, "Error getting format-aware AI response", which is the path this line is injected into.
+  // Re-recording cannot fix it: the next lesson-plan run moves the value again.
+  const lesson = (g, subj, ch, title) =>
+    `Recently delivered to this teacher: Grade ${g} ${subj} — Ch ${ch} \u201c${title}\u201d (3h ago). `
+    + 'If her message is about a lesson she received and its details are not in this prompt, '
+    + 'say what you know and ask which lesson she means.';
+
+  it('folds the delivered-lesson identity, so two different lessons key the same', () => {
+    const c = fresh({});
+    const a = c.normaliseForKey(lesson(1, 'English', 1, 'Hello World!'));
+    const b = c.normaliseForKey(lesson(4, 'Maths', 3, 'Fractions'));
+    expect(a).toBe(b);
+    expect(a).toContain('<lesson>');
+  });
+
+  it('folds the teacher name, so renaming the driver does not invalidate every recording', () => {
+    const c = fresh({});
+    const p = (n) => `You are the NIETE Teaching Assistant.\nThe teacher's name is ${n}. Use their name naturally.`;
+    expect(c.normaliseForKey(p('Mahnoor'))).toBe(c.normaliseForKey(p('E2E Driver')));
+    expect(c.normaliseForKey(p('Mahnoor'))).toContain('<teacher>');
+  });
+
+  it('a whole request keys identically when only the account state differs', () => {
+    const c = fresh({});
+    const req = (who, what) => ({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: `The teacher's name is ${who}. Use their name naturally.\n` + what },
+        { role: 'user', content: 'What are two quick classroom management strategies for a large class?' },
+      ],
+    });
+    expect(c.keyFor('llm', c.normaliseForKey(req('Mahnoor', lesson(1, 'English', 1, 'Hello World!')))))
+      .toBe(c.keyFor('llm', c.normaliseForKey(req('E2E Driver', lesson(4, 'Maths', 3, 'Fractions')))));
+  });
+
+  it('still separates requests that differ in SUBSTANCE', () => {
+    // The whole point of the key. Folding account state must not fold the question.
+    const c = fresh({});
+    const ask = (q) => ({ model: 'm', messages: [{ role: 'user', content: q }] });
+    expect(c.keyFor('llm', c.normaliseForKey(ask('what can you do?'))))
+      .not.toBe(c.keyFor('llm', c.normaliseForKey(ask('asdfghjkl zxcvbnm qwerty'))));
+  });
+});

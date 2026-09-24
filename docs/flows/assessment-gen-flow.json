@@ -1,5 +1,5 @@
 {
-  "version": "7.0",
+  "version": "7.3",
   "data_api_version": "3.0",
   "routing_model": {
     "CLASS": [
@@ -13,13 +13,20 @@
       "QUESTIONS"
     ],
     "QUESTIONS": [
-      "TYPES",
-      "CONFIRM"
+      "SEEN_COUNT",
+      "TYPES"
     ],
     "TYPES": [
+      "COUNTS"
+    ],
+    "CONFIRM": [],
+    "COUNTS": [
       "CONFIRM"
     ],
-    "CONFIRM": []
+    "SEEN_COUNT": [
+      "TYPES",
+      "CONFIRM"
+    ]
   },
   "screens": [
     {
@@ -305,10 +312,6 @@
           "type": "boolean",
           "__example__": false
         },
-        "count_hint": {
-          "type": "string",
-          "__example__": "Between 1 and 25."
-        },
         "marks_hint": {
           "type": "string",
           "__example__": "Optional — up to 500. Leave blank for no limit."
@@ -323,7 +326,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "What kind of questions?"
+                "text": "Seen or Unseen questions?"
               },
               {
                 "type": "TextCaption",
@@ -332,35 +335,27 @@
               {
                 "type": "RadioButtonsGroup",
                 "name": "content_source",
-                "label": "Where questions come from",
+                "label": "Questions",
                 "required": true,
                 "data-source": [
                   {
                     "id": "seen",
-                    "title": "From the book"
+                    "title": "Seen (from the book)"
                   },
                   {
                     "id": "unseen",
-                    "title": "New questions on the same topics"
+                    "title": "Unseen (outside the book)"
                   },
                   {
                     "id": "both",
-                    "title": "A mix of both"
+                    "title": "Both Seen and Unseen"
                   }
                 ]
               },
               {
                 "type": "TextInput",
-                "name": "question_count",
-                "label": "How many questions",
-                "required": true,
-                "input-type": "number",
-                "helper-text": "${data.count_hint}"
-              },
-              {
-                "type": "TextInput",
                 "name": "total_marks",
-                "label": "Total marks (optional)",
+                "label": "Total marks",
                 "required": false,
                 "input-type": "number",
                 "helper-text": "${data.marks_hint}"
@@ -372,12 +367,80 @@
                   "name": "data_exchange",
                   "payload": {
                     "content_source": "${form.content_source}",
-                    "question_count": "${form.question_count}",
                     "total_marks": "${form.total_marks}"
                   }
                 }
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SEEN_COUNT",
+      "title": "New assessment",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 4 · Science · Chapter 3"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "Between 1 and 25."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "seen_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Seen questions (from the book)"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextInput",
+                "name": "seen_count",
+                "label": "How many Seen?",
+                "required": true,
+                "input-type": "number",
+                "helper-text": "${data.hint}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "seen_count": "${form.seen_count}"
+                  }
+                }
+              }
+            ],
+            "error-messages": "${data.error_messages}"
           }
         ]
       }
@@ -432,7 +495,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Which kinds of question?"
+                "text": "Unseen questions: which types?"
               },
               {
                 "type": "TextCaption",
@@ -446,7 +509,7 @@
               {
                 "type": "CheckboxGroup",
                 "name": "question_types",
-                "label": "Question types",
+                "label": "Unseen question types",
                 "required": true,
                 "data-source": "${data.types}"
               },
@@ -461,6 +524,246 @@
                 }
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "COUNTS",
+      "title": "New assessment",
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "Grade 1 · English · Chapter 1"
+        },
+        "hint": {
+          "type": "string",
+          "__example__": "Up to 25 questions in total."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_1": {
+          "type": "string",
+          "__example__": "How many MCQs?"
+        },
+        "show_1": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "label_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_2": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_3": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_4": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_5": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_6": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_7": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_7": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "label_8": {
+          "type": "string",
+          "__example__": ""
+        },
+        "show_8": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "help_1": {
+          "type": "string",
+          "__example__": "How many MCQs?"
+        },
+        "help_2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_7": {
+          "type": "string",
+          "__example__": ""
+        },
+        "help_8": {
+          "type": "string",
+          "__example__": ""
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "counts_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Unseen questions: how many of each?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.summary}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_1",
+                "label": "${data.label_1}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_1}",
+                "helper-text": "${data.help_1}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_2",
+                "label": "${data.label_2}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_2}",
+                "helper-text": "${data.help_2}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_3",
+                "label": "${data.label_3}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_3}",
+                "helper-text": "${data.help_3}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_4",
+                "label": "${data.label_4}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_4}",
+                "helper-text": "${data.help_4}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_5",
+                "label": "${data.label_5}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_5}",
+                "helper-text": "${data.help_5}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_6",
+                "label": "${data.label_6}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_6}",
+                "helper-text": "${data.help_6}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_7",
+                "label": "${data.label_7}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_7}",
+                "helper-text": "${data.help_7}"
+              },
+              {
+                "type": "TextInput",
+                "name": "count_8",
+                "label": "${data.label_8}",
+                "required": false,
+                "input-type": "number",
+                "visible": "${data.show_8}",
+                "helper-text": "${data.help_8}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.hint}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "count_1": "${form.count_1}",
+                    "count_2": "${form.count_2}",
+                    "count_3": "${form.count_3}",
+                    "count_4": "${form.count_4}",
+                    "count_5": "${form.count_5}",
+                    "count_6": "${form.count_6}",
+                    "count_7": "${form.count_7}",
+                    "count_8": "${form.count_8}"
+                  }
+                }
+              }
+            ],
+            "error-messages": "${data.error_messages}"
           }
         ]
       }

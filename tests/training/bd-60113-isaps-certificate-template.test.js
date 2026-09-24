@@ -59,6 +59,9 @@ function makePdfkitMock() {
     doc.linearGradient = () => ({ stop: function () { return this; } });
     doc.save = chain;
     doc.restore = chain;
+    // The pilot watermark is set on a rotated axis about the page centre.
+    doc.translate = chain;
+    doc.rotate = chain;
     doc.addPage = chain;
     doc.image = (p) => { imageCalls.push(String(p)); return doc; };
     doc.widthOfString = () => 100;

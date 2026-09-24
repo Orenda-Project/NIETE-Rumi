@@ -47,6 +47,7 @@
  */
 
 const { logEvent } = require('../../utils/structured-logger');
+const { addressForms } = require('./transcript-quiz-address');
 
 // ── options that are bare numbers ────────────────────────────────────────────
 // A count question is only ratta when the child is picking a NUMBER. The same
@@ -221,7 +222,7 @@ const EN_HE_SENTENCE_START = /(?:^|[.!?:;"’”)\]»\n]\s*)(He)\b/g;
 // آپ is deliberately NOT an agreement anchor: «آپ نے پڑھایا» is the neutral form
 // the summary is now asked for, and the respectful-plural imperatives a child
 // is addressed with (کریں، دیکھیں) carry no gender. A gendered address to the
-// CHILD is a different rule and already lives in the validator (FEM_STEMS).
+// CHILD is a different rule: PEDAGOGY_GENDERED_CHILD, transcript-quiz-address.js.
 const UR_LETTER = '؀-ۿ';
 const UR_GENDERED_NOUN = new RegExp(
   `(?<![${UR_LETTER}])(?:استانی|اُستانی|معلمہ|میڈم|مِس|مس|باجی|آپا)(?![${UR_LETTER}])`
@@ -322,6 +323,11 @@ function genderedTeacherDefects(questions, ctx = {}) {
 
   if (typeof lessonSummary === 'string') {
     const forms = genderedTeacherForms(lessonSummary, language);
+    // The summary is written TO the teacher, as آپ. آپ is not an anchor for the
+    // third-person forms above, so a verb that speaks to the teacher with a
+    // gender — «آپ ٹیسٹ کیسے لیں گی», «آپ … پڑھاتے ہیں» — is found by the same
+    // second-person check that guards the child (transcript-quiz-address.js).
+    if (language === 'ur') forms.push(...addressForms(lessonSummary, { kind: 'explanation' }));
     if (forms.length) note(null, 'lesson_summary', forms);
   }
   (Array.isArray(questions) ? questions : []).forEach((q, i) => {

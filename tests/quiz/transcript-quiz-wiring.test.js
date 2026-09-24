@@ -181,7 +181,8 @@ describe('routing and worker wiring', () => {
 
   test('sendVideoWithButtons exists and sends a video header', () => {
     const s = src('shared/services/whatsapp.service.js');
-    expect(s).toMatch(/static async sendVideoWithButtons\(to, videoUrl, bodyText, buttons\)/);
+    // `opts` (footer, onMessageId) is optional and trailing: the offer's 4-argument call is unchanged.
+    expect(s).toMatch(/static async sendVideoWithButtons\(to, videoUrl, bodyText, buttons, opts = \{\}\)/);
     expect(s).toMatch(/type: 'video',\s*video: videoHeader/);
   });
 });

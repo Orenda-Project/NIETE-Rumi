@@ -14,11 +14,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I send "/menu"
     And I open the "View Features" list
     And I tap the "Classroom Coaching" row
-    Then the bot reply contains "upload your classroom recording"
-    And the bot reply says the audio should be at least 15 minutes long
-    # Verified: menu.service.js:265 — "Great! Please upload your classroom recording
-    # audio to get started with pedagogical analysis. The audio should be at least
-    # 15 minutes long."
+    Then the bot reply contains "Record your lesson with the WhatsApp mic"
+    And the bot reply asks for 20 to 45 minutes of the lesson
+    And the bot reply does not say "at least 15 minutes"
+    # UPDATED 2026-09-22: the menu door now sends the catalog
+    # string lpAskYesReply (menu.service _handleClassroomCoachingChoice) — the same
+    # instruction the lesson-plan coaching ask's "Record my lesson" sends. The old
+    # "at least 15 minutes" was the routing threshold, not an ask.
 
   @e2e @first-use @P2
   Scenario: Declining the intro on a coaching request asks for the class audio
@@ -117,10 +119,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   Scenario: The two coaching entry points quote different minimum audio lengths
     Given the NIETE bot chat is open
     When I reach coaching from the menu versus from a keyword request
-    Then the stated audio length differs (15 minutes vs up to 20 minutes)
-    # F4: menu.service.js:265 says "at least 15 minutes" while
-    # feature-keyword-detector.service.js says "up to 20 minutes" — one copy source
-    # should own the number. Documented, not asserted in the default run.
+    Then the stated audio length differs (20 to 45 minutes vs up to 20 minutes)
+    # F4: the menu door now asks for 20 to 45 minutes (lpAskYesReply, 2026-09-22)
+    # while feature-keyword-detector.service.js still says "up to 20 minutes" —
+    # one copy source should own the number. Documented, not asserted.
 
   # ═══════════ ADDED 2026-08-04 · draft coverage from the feature-map (code-grounded, @wip) ═══════════
   # The verified scenarios cover intake → confirm → the 5-step pipeline. These add
@@ -215,6 +217,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I upload that exact same recording file again
     Then the bot tells me it has heard this recording before
     And the bot sends back the report it already made for that recording
+    And it comes back as an IMAGE, the same way the first report arrived — openable, not a .pdf that will not render
     And no new 5-step analysis is started
     # bd-7beiz — audio-hash-cache.js: SHA-256 of the downloaded audio, matched against
     # this teacher's own completed DC sessions inside a 7-day window.
@@ -223,6 +226,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # rubric pass runs at temperature 1 with no seed, so re-scoring identical audio
     # moved the overall by a mean of 5.9 points across 1,515 measured duplicate
     # groups — one lesson must not yield a teacher two different numbers.
+    # bd-5tgzv — delivery must MATCH the original. `report_pdf_url` holds a hero
+    # PNG on this deployment (12,749 of 12,754 completed DC sessions; zero PDFs),
+    # so resending it as 'classroom-observation.pdf' shipped PNG bytes labelled as
+    # a PDF and no reader would open it — FEAT-098 again.
 
   @e2e @wip @draft @P2
   Scenario: A recording the bot has not scored before is still analysed normally
@@ -380,6 +387,38 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # excluded the same way (reason instruction_text). Eval 9 found a teacher's upload that was a screenshot of an
     # earlier coaching report; the Eval 10 v2 prompt classified that image not_a_classroom_photo.
 
+  @e2e @wip @draft @negative @P1
+  Scenario: A grader answer that comes back empty is re-graded the same way, not on a more generous setting
+    Given the NIETE bot chat is open
+    And I link a lesson plan to my classroom recording
+    When the grader's first answer comes back empty and the second one succeeds
+    Then my lesson is graded on the same settings as everyone else's, not on a faster cheaper one
+    And the session's lp_fidelity records that the grading came from a retry, so a degraded answer is never invisible
+    # bd-29r3o: fidelity-analyzer used to add `reasoning: {effort:'low'}` to the retry after an empty first answer —
+    # written for GLM/DeepSeek, which answer empty without a reasoning budget (Eval 8), and never revisited when the
+    # model became Gemini 3.8 Flash, where `low` means thinking OFF: the arm Eval 12 §8 rejected (false credit on
+    # reader-not_done 15–17% against 5–9%, κ 0.45 against 0.56). Found on the first prod morning of D37 — session
+    # b9698b1d carried reasoning_effort "low" although the variable is unset on all three services; it had fired on 1 of
+    # the first 5 Gemini gradings. The retry now keeps the configuration; the coaxing retry lives behind
+    # LP_FIDELITY_EMPTY_RETRY_EFFORT (unset in prod) and the blob carries empty_retry.
+
+  @e2e @wip @draft @negative @P1
+  Scenario: A recording whose transcript carries no timestamps is "not scored", never 0%
+    Given the NIETE bot chat is open
+    And I link a lesson plan to my classroom recording
+    When the transcription comes back without a single [MM:SS] timestamp and the analysis finishes
+    Then the lesson-plan section of the report says the recording could not be matched to the plan move by move, and shows no percentage
+    And Section B carries no fidelity score and the coach's editable draft shows the not-assessable explanation instead of per-move ratings
+    And the session's lp_fidelity has status ok, fidelity_pct null, recording_unusable true, every move not_adjudicable, moderators.note "recording_unusable" and unusable_guard "no_timestamps"
+    And no fidelity grader call was made for the session (lp_fidelity.model is null and runs is empty)
+    # bd-b3pop.31 (Eval 12 §4/§8): fidelity-orchestrator decides this in code right after describeRecording — every
+    # verdict above not_done must quote a stamped span, so a stamp-less transcript cannot be adjudicated move by move
+    # (D19: "not scored", never 0%). Luna already returned recording_unusable on the D19 fixture; Gemini 3.8 Flash
+    # returned 0% + lesson_mismatch in 9 of 12 runs, which would have shown a teacher 0/40 and a mismatch line for a bad
+    # recording. On prod (2,685 graded sessions, 15–22 Sep) 2 transcripts had no stamps and both were already unscored.
+    # The substitution rules added to grader-prompt.js in the same change (bd-b3pop.32, Eval 12 D37) are a calibration
+    # of the grader's verdicts, not a new user-visible flow: Spec-Sync coaching=none-needed for that part.
+
   @e2e @wip @draft @negative @P2
   Scenario: A non-lesson-plan document is rejected, not silently analysed
     Given the NIETE bot chat is open
@@ -398,18 +437,34 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
 
   @e2e @wip @draft @P2
-  Scenario: The coaching session says it is over before the quiz offer arrives
+  Scenario: The "was this useful?" survey comes right after the voice debrief
+    Given the NIETE bot chat is open
+    And I have finished the reflective questions of a coaching session
+    When the voice debrief of my report arrives
+    Then the next message asks "Was this coaching report useful to you?" with a yes and a no button
+    And it arrives before the message saying my coaching session is complete
+    And it is asked only once for this session
+    # DC feedback 2026-09-23. report-generator sends it inline right after
+    # generateAndSendVoiceDebrief(); completeSession() no longer schedules the old
+    # +90 s copy. A tap before the session completes creates the metrics row, and
+    # recordQualityMetrics updates that row rather than inserting a second.
+
+  @e2e @wip @draft @P2
+  Scenario: The commitment question opens by saying the coaching session is over
     Given the NIETE bot chat is open
     And I have received a coaching report with a commitment card
     When the commitment question arrives
-    Then the bot tells me the coaching session is complete
-    And that line arrives before any quiz offer
-    And that line is in my selected language
-    # bd-x3k1q / DC row 133. report-generator.service.js sends
-    # getCoachingMessage('sessionComplete', outputLanguage) straight after
-    # completeSession() — i.e. after the commit-prompt buttons and before
-    # scheduleTranscriptQuiz() / FeatureLinkerService.suggestNext(). Without it
-    # teachers and coaches read the quiz as step 6 of the coaching session.
+    Then that same message first tells me the coaching session is complete
+    And then asks whether I will try it in my next class
+    And no separate session-complete message follows it
+    And the message arrives before any quiz offer
+    And the message is in my selected language
+    # bd-x3k1q / DC row 133 added the boundary; bd-fmr3s / DC row 137 merged it
+    # INTO the commit prompt: body = cardCopy.sessionCompleteLead + "\n\n" +
+    # cardCopy.commitPrompt (coaching-card.config.js, en/ur/ar/es). Urdu:
+    # "آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔" then "کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟".
+    # With no commitment card, the standalone getCoachingMessage('sessionComplete')
+    # line is still sent before scheduleTranscriptQuiz() / suggestNext().
 
   @e2e @wip @draft @negative @known-fail @P3
   Scenario: The commitment-card buttons on the report are handled
@@ -426,7 +481,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I paste my lesson plan into the chat as an ordinary message
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
+    And no separate "lesson plan received" message arrives before it
     And the bot does not ask me again to send it as a document
     And the observation records that it has a lesson plan
     # Every other way in needs a WhatsApp media id (document webhook, LP-as-photo),
@@ -434,7 +490,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # without one. lp-text-paste.service.js pre-filters the text, resolves the
     # session through media-session-resolver (kind 'lp'), and hands it to
     # LessonPlanProcessorService.handlePastedLessonPlan, which stores it as
-    # lesson_plan_text with lesson_plan_link_method='pasted'.
+    # lesson_plan_text with lesson_plan_link_method='pasted'. It sends NO ack of
+    # its own (DC feedback 2026-09-23): the old "thanks for typing it out" line
+    # arrived just before Step 2/5 and read as the same message twice.
 
   @e2e @wip @draft @negative @P2 @obsolete
   Scenario: A short reply at the lesson-plan step is not mistaken for a plan
@@ -467,7 +525,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
     When I type a three-line plan naming the topic, an activity and how I will check learning
-    Then the bot tells me it has my lesson plan and is reading it
+    Then the bot moves straight on to "Step 2/5" of the analysis
     And the observation records that it has a lesson plan
     # The first live attempt failed here: a real 222-code-point Roman-Urdu plan
     # was refused by a 280-point floor fitted to long formatted pastes, while
@@ -502,3 +560,109 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # teacher sends at the lesson-plan step is considered, so the layout rule it rests on is gone.
     # What counts as a plan is settled downstream by the extraction worker,
     # never by measuring her text before agreeing to read it.
+
+  # ═══════════ ADDED 2026-09-22 · the coaching ask on the first lesson plan of the day (@wip) ═══════════
+  # lp-coaching-ask.service: a lesson plan delivered before 14:00 PKT books ONE ask
+  # LP_COACHING_ASK_DELAY_MINUTES later (07:30 next school day after 14:00), one per
+  # teacher per PKT day by the teacher_nudges UNIQUE. Needs TEACHER_NUDGES_ENABLED and
+  # LP_COACHING_ASK_ENABLED on the sandbox bot + sqs-worker; the driver's role is
+  # 'teacher' (coaches are never asked). Driven and promoted by the E2E lane.
+
+  @e2e @wip @draft @lp-ask @P1
+  Scenario: The first lesson plan of the day brings one coaching ask
+    Given the NIETE bot chat is open
+    And no coaching ask has been sent to me today
+    And my last message to the bot was under 24 hours ago
+    When I take a lesson plan before 14:00 PKT
+    And I wait for the coaching-ask delay plus one sweep
+    Then the bot sends a message that begins "You planned a lesson with me today"
+    And it has the buttons "Record my lesson" and "Not today"
+
+  @e2e @wip @draft @lp-ask @edge @P1
+  Scenario: A lesson planned after 14:00 is asked about the next morning without saying today
+    Given the NIETE bot chat is open
+    And no coaching ask has been sent to me today
+    When I take a lesson plan at 16:30 PKT
+    And the next school day reaches 07:30 PKT and one sweep runs
+    And my last message to the bot was under 24 hours before that sweep
+    Then the bot sends a message that begins "You planned this lesson with me yesterday"
+    And the message does not say "today"
+    And it has the buttons "Record my lesson" and "Not today"
+    # lp-coaching-ask send(): when the PKT day of the send is later than the PKT day of
+    # context.delivered_at, the NextDay bodies are used. Friday after 14:00 is asked on Monday
+    # and names the date instead ("You planned this lesson with me on 18 Sep").
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  @e2e @wip @draft @lp-ask @negative @P1
+  Scenario: A second lesson plan the same day brings no second ask
+    Given the NIETE bot chat is open
+    And I took a lesson plan earlier today and the coaching ask was booked
+    When I take another lesson plan the same day
+    And I wait for the coaching-ask delay plus one sweep
+    Then no second coaching ask arrives today
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: Not today is remembered
+    Given the coaching ask is on screen
+    When I tap "Not today"
+    Then the bot replies that Classroom Coaching is in the menu whenever I want it
+    And nothing else about coaching is sent to me today
+    And my answer is stored as "no" on today's ask
+
+  @e2e @wip @draft @lp-ask @P1
+  Scenario: Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times
+    Given the coaching ask is on screen
+    And the how-to clip is configured for my language
+    When I tap "Record my lesson"
+    Then the bot reply contains "Record your lesson with the WhatsApp mic"
+    And the bot reply asks for 20 to 45 minutes of the lesson
+    And my conversation is waiting for a classroom recording
+    # The clip (LP_COACHING_HOWTO_VIDEO_EN/_UR) rides the ask itself as its video header
+    # on the first and second asks only (feature intro 'lp_coaching_howto', count < 2).
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: The how-to clip arrives as the coaching ask's own video, never after it
+    Given the how-to clip is configured for my language
+    And I have been shown the clip fewer than two times
+    When the coaching ask is sent to me
+    Then the ask arrives as one message: the clip on top, the question under it, and the buttons "Record my lesson" and "Not today"
+    And under the clip it says "How to record a lesson with the WhatsApp mic", with no length claimed
+    And no separate video message arrives before or after the ask
+    And my coaching_after_lp row for today is sent with howto true and the ask's WhatsApp message id in context.message_ids
+    # lp-coaching-ask send(): WhatsAppService.sendVideoWithButtons — an interactive button message whose
+    # header is the clip (header.type video) and whose footer is lpAskHowtoCaption. Sent as two messages,
+    # the clip arrived UNDER the ask on a real phone (Meta fetches a linked video before delivering it).
+    # A header send that fails falls back to the plain ask (howto false, not counted as shown); the third
+    # ask onwards carries no clip. @wip — authored with the change, driven by the sandbox E2E run.
+
+  @e2e @wip @draft @lp-ask @negative @P1
+  Scenario: An 11-minute recording after yes is answered as too short
+    Given I tapped "Record my lesson" within the last 8 hours
+    When I send an 11-minute voice note
+    Then the bot replies that the recording is about 11 minutes and too short to coach
+    And the bot says it has not analysed this recording
+    And the recording is not answered as a chat question
+    # Keyed on the PROBED length (ffprobe runs on files >= 500 KB). Under 5 minutes
+    # is an ordinary voice message; 15 minutes and over starts coaching as always.
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: A classroom-length voice note gets no "send it as a document" warning
+    Given the NIETE bot chat is open
+    And I have chosen Classroom Coaching (awaiting audio)
+    When I send a 20-minute recording with the WhatsApp mic button
+    Then the bot detects a classroom recording and starts the coaching flow
+    And no message tells me to send the recording as a document
+
+  @e2e @coaching @quiz @wip @draft @config-gated @negative @P2
+  Scenario: Saying yes to the coaching ask means no quiz offer arrives that afternoon
+    Given the NIETE bot chat is open on a teacher who took a lesson plan this morning
+    And the coaching ask that followed it arrived
+    When I tap "Record my lesson"
+    Then the bot asks for the recording
+    And when the afternoon quiz offer is built I am left out of it, with the reason recorded as coaching_yes_today
+    And I am not asked twice in one day
+    # R8 D5, the operator's message-budget rule: a teacher who has agreed to record gets the
+    # coaching-born quiz offer after her report, so offering an LP-born one the same afternoon would
+    # be the second ask of the day for the same thing. teacher_nudges carries the skip and its reason,
+    # so a teacher who was deliberately left alone is countable, not invisible.
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.

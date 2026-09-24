@@ -507,7 +507,7 @@ async function renderCertificatePdf({
   doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.ink)
      .text(formatIssueDate(issuedAt), MARGIN + 40, footY + 22);
 
-  // bd-60127 — the I-SAPS template prints the code in its MASTHEAD (the
+  // The I-SAPS template prints the code in its MASTHEAD (the
   // approved design puts it top-right beside the issue date), so printing it
   // again here rendered it twice on the same certificate. Every other template
   // has no masthead code and still needs this footer.
@@ -522,9 +522,10 @@ async function renderCertificatePdf({
        });
   }
 
-  // bd-60140 — outside production, watermark the page.
+  // Outside production (and on a pilot vendor's certificate
+  // everywhere), watermark the page.
   //
-  // This was a solid band across the top (bd-60133). A header bar reads as part
+  // This was a solid band across the top. A header bar reads as part
   // of the design — something the certificate is SUPPOSED to have — so it did
   // not do the one job it exists for: making a test artefact unmistakable for
   // a real one at a glance. A translucent mark across the middle of the page
@@ -535,7 +536,12 @@ async function renderCertificatePdf({
   // text would be hidden by the very fields that make the page look real.
   // save()/restore() brackets the whole thing so the rotation, opacity and
   // fill cannot leak into anything drawn afterwards.
-  if (shouldStampTestBanner(process.env.NODE_ENV)) {
+  //
+  // TODO(NIETE-ISAPS-GO-LIVE): I-SAPS certificates are watermarked in
+  // PRODUCTION too while its training is a pilot (operator, 2026-09-23). When
+  // it goes live for all teachers, remove 'ISAPS' from PILOT_WATERMARK_VENDORS
+  // in certificate-env.rules.js — nothing here needs to change.
+  if (shouldStampTestBanner(process.env.NODE_ENV, template)) {
     // Sizing the box to the page diagonal is not enough on its own: `rotate`
     // turns the whole coordinate system about `origin`, so a box drawn at
     // x=(width-diag)/2 is centred on the PAGE, then swung away from centre by

@@ -30,6 +30,9 @@ const COACHING_CARD_COPY = {
     cardFooter: 'NIETE Digital Coach',
     focusAreaTitle: 'Your Focus Area',
     focusAreaMessage: '🎯 *Your Focus Area*\n\n{action}\n\n💡 _{example}_',
+    // bd-fmr3s (DC row 137): leads the commit-prompt body — the session ends
+    // HERE, then the closing question. One message, completion first.
+    sessionCompleteLead: '✅ Your coaching session is complete.',
     commitPrompt: 'Will you commit to trying this in your next class?',
     commitButtons: {
       yes: "Yes, I'll try!",
@@ -44,6 +47,7 @@ const COACHING_CARD_COPY = {
     cardFooter: 'NIETE Digital Coach',
     focusAreaTitle: 'آپ کی توجہ کا شعبہ',
     focusAreaMessage: '🎯 *آپ کی توجہ کا شعبہ*\n\n{action}\n\n💡 _{example}_',
+    sessionCompleteLead: '✅ آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔',
     commitPrompt: 'کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟',
     // WhatsApp caps a button title at 20 CODE POINTS: the old yes title was 25
     // and Meta rejected the whole interactive send, so Urdu teachers never got
@@ -62,6 +66,7 @@ const COACHING_CARD_COPY = {
     cardFooter: 'NIETE Digital Coach',
     focusAreaTitle: 'مجال تركيزك',
     focusAreaMessage: '🎯 *مجال تركيزك*\n\n{action}\n\n💡 _{example}_',
+    sessionCompleteLead: '✅ انتهت جلسة التدريب الخاصة بك هنا.',
     commitPrompt: 'هل تلتزم بتجربة هذا في حصتك القادمة؟',
     commitButtons: {
       yes: 'نعم، سأحاول!',
@@ -76,6 +81,7 @@ const COACHING_CARD_COPY = {
     cardFooter: 'NIETE Digital Coach',
     focusAreaTitle: 'Tu área de enfoque',
     focusAreaMessage: '🎯 *Tu área de enfoque*\n\n{action}\n\n💡 _{example}_',
+    sessionCompleteLead: '✅ Tu sesión de coaching ha terminado.',
     commitPrompt: '¿Te comprometes a probar esto en tu próxima clase?',
     commitButtons: {
       yes: '¡Sí, lo intentaré!',

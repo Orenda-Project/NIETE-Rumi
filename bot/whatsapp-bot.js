@@ -537,7 +537,7 @@ app.post('/webhook', async (req, res) => {
       timestamp: messageTimestamp,
       hasText: !!message.text,
       hasAudio: !!message.audio,
-      hasVoice: !!message.voice,
+      isVoiceNote: !!message.audio?.voice, // a voice note is audio with audio.voice=true; there is no top-level voice field
       fullMessage: message
     });
 
@@ -1269,6 +1269,14 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted tq_lang_ button', { buttonId, from });
         }
       }
+      // The 15:00 quiz offer on the lessons a teacher planned (lpquiz_yes_/
+      // lpquiz_no_). Its class-list rows arrive as list_reply, routed there.
+      else if (buttonId.startsWith('lpquiz_')) {
+        const LpQuizOffer = require('./shared/services/nudges/lp-quiz-offer.service');
+        if (!(await LpQuizOffer.handleButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted lpquiz_ button', { buttonId, from });
+        }
+      }
       // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
       // /quiz actions (tq_link_/tq_report_). Its own prefix on purpose —
       // never `quiz_` (parent quiz) or `vq_` (video quiz).
@@ -1279,6 +1287,14 @@ app.post('/webhook', async (req, res) => {
           || await TranscriptQuizList.handleActionButton(buttonId, from);
         if (!handled) {
           logToFile('⚠️ unrouted tq_ button', { buttonId, from });
+        }
+      }
+      // The coaching ask on the first lesson plan of the day (lpask_yes_/lpask_no_).
+      // Its own prefix: "yes" opens the menu's Classroom Coaching door.
+      else if (buttonId.startsWith('lpask_')) {
+        const LpCoachingAsk = require('./shared/services/nudges/lp-coaching-ask.service');
+        if (!(await LpCoachingAsk.handleButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted lpask_ button', { buttonId, from });
         }
       }
       // Edit-class multi-class picker: open the edit-class flow for the chosen class.
@@ -1830,6 +1846,16 @@ app.post('/webhook', async (req, res) => {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
       }
 
+      // The 15:00 quiz offer: a class picked from its list, or Not today.
+      if (listId.startsWith('lpquiz_')) {
+        const LpQuizOffer = require('./shared/services/nudges/lp-quiz-offer.service');
+        if (!(await LpQuizOffer.handleListPick(listId, from, user))) {
+          logToFile('⚠️ unrouted lpquiz_ list row', { listId, from });
+        }
+        ack();
+        return;
+      }
+
       // Transcript quiz: a row tapped in the /quiz lesson list.
       if (listId.startsWith('tq_pick_') || listId.startsWith('tq_page_')) {
         const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
@@ -2365,6 +2391,13 @@ async function handleDocumentMessage(message, from, user) {
             });
             if (shortDocHandled) return;
           }
+        }
+        // After "Record my lesson": a 5–15 minute file is part of a lesson, too
+        // short to coach — say so from the probed length in hand, before it is
+        // handed on and transcribed as a chat question.
+        if (user) {
+          const LpCoachingAsk = require('./shared/services/nudges/lp-coaching-ask.service');
+          if (await LpCoachingAsk.catchShortRecording({ user, from, seconds: audioDurationRounded, path: 'document' })) return;
         }
         logToFile('🎤 Audio document < 15 min, routing to voice handler for transcription', {
           duration: audioDuration,

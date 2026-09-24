@@ -38,8 +38,8 @@ const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const INVITE_KEY = (phone) => `videoquiz:${stripPlus(phone)}:invite`;
 
 /** A child's first name. Nothing after the first space leaves their chat. */
-function firstName(full) {
-  return String(full || '').trim().split(/\s+/)[0] || 'Your friend';
+function firstName(full, fallback = 'Your friend') {
+  return String(full || '').trim().split(/\s+/)[0] || fallback;
 }
 
 /**
@@ -145,12 +145,18 @@ async function handleInviteButton(buttonId, phone) {
   }
 
   const share = require('./video-quiz-share.service');
+  const { resolveUx, clampLanguage } = require('../../config/ux-strings');
   const { data: parent } = await supabase
     .from('quiz_share_codes')
     .select('id, quiz_id, video_id, teacher_user_id, teacher_name, topic, language')
     .eq('id', ctx.shareCodeId)
     .maybeSingle();
   if (!parent) { await offerVideosFor(phone, ctx); return true; }
+  // Everything below is read by children taking THIS quiz — the inviter, then
+  // the friend they forward it to — so it is in the quiz language. The invite
+  // context carries it; one minted before it did falls back to the share code.
+  const language = clampLanguage(ctx.language || parent.language);
+  const ux = (key, params) => resolveUx(key, { language, params });
 
   const { data: me } = await supabase
     .from('students').select('student_name').eq('id', ctx.studentId).maybeSingle();
@@ -177,18 +183,18 @@ async function handleInviteButton(buttonId, phone) {
     }
   }
   if (!minted) {
-    await WhatsAppService.sendMessage(phone,
-      "Sorry — I couldn't make that link just now. Try again in a moment.");
+    await WhatsAppService.sendMessage(phone, ux('vqInviteLinkFailed'));
     await offerVideosFor(phone, ctx);
     return true;
   }
 
   const link = `https://wa.me/${share.botNumber()}?text=QUIZ-${minted.code}`;
-  await WhatsAppService.sendMessage(phone,
-    'Here is the message — forward THIS one to your friend:');
-  await WhatsAppService.sendMessage(phone,
-    `📚 *Try this quiz!*\n\n${firstName(me?.student_name)} thinks you'd like this `
-    + `quiz on *${parent.topic || 'today’s lesson'}*.\n\nTap here to start:\n${link}`);
+  await WhatsAppService.sendMessage(phone, ux('vqInviteForwardThis'));
+  await WhatsAppService.sendMessage(phone, ux('vqInviteMessage', {
+    name: firstName(me?.student_name, ux('vqInviteFriend')),
+    topic: parent.topic || ux('tqTodaysLesson'),
+    link,
+  }));
 
   logEvent('video_quiz.friend_invited', {
     inviterStudentId: ctx.studentId, shareCodeId: parent.id, code: minted.code,
@@ -226,32 +232,36 @@ async function resolveInvite(code) {
  * Never framed as a defeat. Children show these to each other, and a line that
  * reads as "you lost" turns a quiz into something to avoid.
  */
-function buildComparison({ inviter, friend, topic }) {
-  const them = firstName(friend.student_name);
+function buildComparison({ inviter, friend, topic, language = 'en' }) {
+  // In the quiz's language: the inviter took the same quiz, in that language.
+  const { resolveUx } = require('../../config/ux-strings');
+  const ux = (key, params) => resolveUx(key, { language, params });
+  const them = firstName(friend.student_name, ux('vqInviteFriend'));
   const theirs = friend.correct_answers || 0;
   const outOf = friend.total_questions_answered || 0;
   const mine = inviter.correct_answers || 0;
 
   let line;
   if (theirs > mine) {
-    line = `${them} edged you this time — worth another go.`;
+    line = ux('vqCompareBehind', { them });
   } else if (theirs < mine) {
-    line = `You are still ahead. Nicely done.`;
+    line = ux('vqCompareAhead');
   } else {
-    line = `A dead heat — you both got the same.`;
+    line = ux('vqCompareTie');
   }
 
-  return `🎯 *${them} finished your quiz!*\n\n`
-    + `${them}: *${theirs}/${outOf}*\n`
-    + `You: *${mine}/${outOf}*\n\n`
-    + `${line}`;
+  return ux('vqCompareMessage', { them, theirs, outOf, mine, line });
 }
 
 /**
  * Tell the inviter how their friend did. Best-effort throughout — this is a
  * nicety, and nothing about the friend's own quiz should fail because of it.
+ *
+ * `language` is the quiz's: the friend just took it in that language, and the
+ * inviter took the same quiz. quiz_sessions carries no language, so the caller
+ * (finish(), which holds the session state) passes it.
  */
-async function notifyInviter(session) {
+async function notifyInviter(session, language = 'en') {
   try {
     if (!session || !session.invited_by_student_id) return false;
     const { data: inviterStudent } = await supabase
@@ -271,10 +281,10 @@ async function notifyInviter(session) {
     if (!inviterRun) return false;   // nothing to compare against
 
     await WhatsAppService.sendMessage(inviterStudent.phone,
-      buildComparison({ inviter: inviterRun, friend: session, topic: session.topic }));
+      buildComparison({ inviter: inviterRun, friend: session, topic: session.topic, language }));
 
     logEvent('video_quiz.invite_result_sent', {
-      inviterStudentId: inviterStudent.id, quizId: session.quiz_id,
+      inviterStudentId: inviterStudent.id, quizId: session.quiz_id, language,
     });
     return true;
   } catch (err) {

@@ -13,6 +13,6 @@
 --
 -- The column is kept, not dropped: the WhatsApp quiz and capstone paths do
 -- have a genuine originating attempt and still record it. Nothing READS it —
--- idempotency has been per (user_id, level_id) since bd-2670 — so a null is
+-- idempotency has been per (user_id, level_id) for a long time — so a null is
 -- only ever an absence of provenance, never a broken invariant.
 ALTER TABLE training_certificates ALTER COLUMN attempt_id DROP NOT NULL;

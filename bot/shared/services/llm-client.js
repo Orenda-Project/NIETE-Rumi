@@ -236,11 +236,28 @@ const fallbackDisabled = () => String(process.env.LLM_FALLBACK_OFF || '').trim()
 function createLLMClient() {
   if (PROVIDER === 'openai') {
     // Direct OpenAI — no baseURL override
-    return new OpenAI({
+    const direct = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       timeout: resolveRequestTimeoutMs(),
       maxRetries: resolveMaxRetries(),
     });
+    // bd-3kv02. This branch used to hand back the bare SDK client, so a caller's `job` label (and a
+    // `fallbackModel: null`) went to api.openai.com as request fields -- and OpenAI rejects unknown
+    // top-level fields with a 400. No environment runs LLM_PROVIDER=openai today, so it never
+    // fired; but with 62 labelled call sites it was one variable away from failing every one of
+    // them at once. Strip both, on KEY PRESENCE for the same reason as the OpenRouter branch below,
+    // and change nothing else: no `openai/` prefix, no fallback, no cost recording -- this branch
+    // keeps exactly the behaviour it had, minus the two fields that would have broken it.
+    const directCreate = direct.chat.completions.create.bind(direct.chat.completions);
+    direct.chat.completions.create = (params, options) => {
+      if (params && ('job' in params || 'fallbackModel' in params)) {
+        params = { ...params };
+        delete params.job;
+        delete params.fallbackModel;
+      }
+      return directCreate(params, options);
+    };
+    return direct;
   }
 
   // Default: OpenRouter — uses OpenAI-compatible API
@@ -562,10 +579,53 @@ function getProviderInfo() {
   };
 }
 
+/**
+ * For a client that talks to a vendor DIRECTLY rather than through getClient(): the two things
+ * getClient() gives every call and a raw client was missing. bd-wgso2.
+ *
+ *   - `job` / `fallbackModel` are stripped before the request goes out (a raw SDK sends every field
+ *     it is given, and api.openai.com answers an unknown one with a 400 -- bd-3kv02);
+ *   - the call's spend is recorded after it comes back, so it stops being invisible.
+ *
+ * NOTHING ELSE CHANGES, and that is the point of it. Same client, same provider, same key, same
+ * model id, same params, same per-call options, same errors: it does not reroute a call through
+ * OpenRouter, add an `openai/` prefix, or arm a fallback. Five live quiz/coaching services used a
+ * raw client, NIETE's highest-volume feature among them, so they spent money no telemetry could
+ * see; this makes them measurable without changing what any teacher receives. Rerouting them is a
+ * separate decision with its own risk.
+ *
+ * Spend is recorded from whatever `usage` the vendor returned. api.openai.com reports tokens but no
+ * price, so a direct call is recorded with tokens, duration and `costUnpriced: true` -- by design;
+ * see model-cost.js, which records nothing rather than a guess.
+ *
+ * A call that throws records nothing and rethrows unchanged. Wrap a client ONCE: wrapping it twice
+ * records every call twice.
+ *
+ * @param {object} client   an OpenAI-SDK-shaped client (chat.completions.create)
+ * @param {{lane?: string}} [opts]  e.g. 'openai-direct', kept on the event beside the job
+ */
+function withSpendRecording(client, { lane } = {}) {
+  const create = client.chat.completions.create.bind(client.chat.completions);
+  client.chat.completions.create = async (params, options) => {
+    const job = (params && params.job) || null;
+    if (params && ('job' in params || 'fallbackModel' in params)) {
+      params = { ...params };
+      delete params.job;
+      delete params.fallbackModel;
+    }
+    const startedAt = Date.now();
+    const response = await create(params, options);
+    recordModelCost(params && params.model, response, startedAt, lane ? { lane, job } : { job });
+    return response;
+  };
+  return client;
+}
+
 module.exports = {
   createLLMClient,
   getClient,
   getClientForModel,
+  withSpendRecording,
   getAnthropicDirectClient,
   directFallbackModel,
   assertFallbackUsable,

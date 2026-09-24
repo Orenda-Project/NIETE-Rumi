@@ -41,6 +41,8 @@ jest.mock('../../bot/shared/services/llm-client', () => ({
 const supabase = require('../../bot/shared/config/supabase');
 const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 const Rewrite = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
 const { validate } = require('../../bot/shared/services/quiz/transcript-quiz-validator');
 const { logEvent } = require('../../bot/shared/utils/structured-logger');
@@ -104,6 +106,7 @@ beforeEach(() => {
   jest.clearAllMocks(); mockCreate.mockReset();
   process.env.TRANSCRIPT_QUIZ_ENABLED = 'true'; delete process.env.TRANSCRIPT_QUIZ_MAX_ATTEMPTS;
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
   jest.spyOn(Gen, 'renderFigures').mockResolvedValue({});
   jest.spyOn(Gen, 'renderCards').mockResolvedValue({});
 });
@@ -274,7 +277,7 @@ function urEight({ q0 } = {}) {
     urQ({ slo: 'S2', level: 'understand', question: 'دیوار پر لگا ہوا نقشہ کس چیز کو دکھاتا ہے؟', options: ['زمین کا حصہ', 'ایک کمرہ', 'ایک کتاب'] }),
     urQ({ slo: 'S3', level: 'understand', question: 'پیمانہ کس کام آتا ہے؟', options: ['اصل فاصلہ معلوم کرنے', 'رنگ چننے', 'نام لکھنے'] }),
     urQ({ question: 'موسم دکھانے والا نقشہ کس قسم کا ہوتا ہے؟', options: ['موسمی نقشہ', 'سیاسی نقشہ', 'طبعی نقشہ'] }),
-    urQ({ slo: 'S2', level: 'understand', question: 'پہاڑ اور دریا دکھانے کے لیے کون سا نقشہ چنیں گے؟', options: ['طبعی نقشہ', 'سیاسی نقشہ', 'موسمی نقشہ'] }),
+    urQ({ slo: 'S2', level: 'understand', question: 'پہاڑ اور دریا دکھانے کے لیے کون سا نقشہ چننا چاہیے؟', options: ['طبعی نقشہ', 'سیاسی نقشہ', 'موسمی نقشہ'] }),
     urQ({ question: 'ملکوں کی حدیں کون سا نقشہ دکھاتا ہے؟', options: ['سیاسی نقشہ', 'طبعی نقشہ', 'موسمی نقشہ'] }),
     urQ({ slo: 'S3', level: 'understand', question: 'اگر پیمانہ ایک سینٹی میٹر برابر دس کلومیٹر ہو تو دو سینٹی میٹر کتنے بنیں گے؟', options: ['بیس کلومیٹر', 'دس کلومیٹر', 'دو کلومیٹر'] }),
   ];
@@ -293,10 +296,13 @@ function wireUr() {
 
 describe('6 — the third production death: a feminine verb stem names its question and is repaired', () => {
   const urCtx = { language: 'ur', subject: 'sst', digest: DIGEST_UR, nExpected: 8, lessonSummary: SUMMARY_UR, quizId: QID };
-  test('the validator names the question beside the headline, and the rewrite accepts the pair', () => {
+  // The quiz-level 'feminine-stem address' headline is retired: the stem list
+  // behind it fired on third-person Urdu and never caught a masculine guess.
+  // The per-question complaint is the whole signal (transcript-quiz-child-address.test.js).
+  test('the validator names the question, and the rewrite accepts it', () => {
     const v = validate(urEight({ q0: FEM_Q0() }), urCtx);
-    expect(v.errors).toContain('feminine-stem address');
-    expect(v.errors.some((e) => /^q0: PEDAGOGY_GENDERED_CHILD/.test(e))).toBe(true);
+    expect(v.errors).not.toContain('feminine-stem address');
+    expect(v.errors.filter((e) => /^q0: PEDAGOGY_GENDERED_CHILD/.test(e))).toHaveLength(1);
     expect(Rewrite.rewriteTargets(v.errors).indices).toEqual([0]);
   });
   test('teacher fields in English on up to five questions are one repair, not a re-roll', () => {

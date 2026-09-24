@@ -106,8 +106,16 @@ describe('H — "(peace be upon him)" is not our stamp, end to end', () => {
     // The consequence that actually costs rounds: if the refusal message keeps OFFERING the phrase
     // the gate now refuses, the ladder is being instructed straight back into its own refusal and
     // the segment burns every round before landing undeliverable.
+    //
+    // The vehicle is a BARE name, and the choice is load-bearing twice over. It was
+    // 'Muhammad (PBUH)' until bd-b7txa, which normalises that to the stamp before the gate reads
+    // it — so it now delivers, correctly, and can no longer carry a refusal. And it cannot be
+    // 'Muhammad (peace be upon him)' either: the message QUOTES the offending excerpt, so the
+    // phrase would appear in it whatever the advice said, and the `not.toMatch` below would be
+    // asserting the quote instead of the instruction. A bare name refuses on the same rule and
+    // leaves the advice text as the only place the phrase could come from, which is the subject.
     create.mockResolvedValue(reply(religiousDoc(
-      'سیرت کا سبق: the teachings of Muhammad (PBUH) are studied in this chapter')));
+      'سیرت کا سبق: the teachings of Muhammad are studied in this chapter')));
 
     const message = await refusal();
 

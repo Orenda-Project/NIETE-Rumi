@@ -135,6 +135,7 @@ ${passageText}
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o', // gpt-4 deprecated, use gpt-4o for JSON mode support
+        job: 'reading.comprehensionQuestions',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         response_format: { type: 'json_object' }
@@ -201,6 +202,7 @@ Respond in JSON:
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
+        job: 'reading.evaluateText',
         messages: [{ role: 'user', content: evaluationPrompt }],
         temperature: 0.1,
         response_format: { type: 'json_object' }
@@ -297,6 +299,7 @@ Respond in JSON:
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o', // gpt-4 deprecated, use gpt-4o for JSON mode support
+        job: 'reading.evaluateAnswer',
         messages: [{ role: 'user', content: evaluationPrompt }],
         temperature: 0.1,  // Low temp for consistent evaluation
         response_format: { type: 'json_object' }
@@ -464,6 +467,7 @@ ${comprehensionAnalysis.answers.map(a =>
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o', // gpt-4 deprecated, use gpt-4o for consistency
+        job: 'reading.comprehensionGuidance',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         max_tokens: 300
@@ -670,6 +674,7 @@ Return ONLY valid JSON, no markdown:
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.wordCategories',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
         response_format: { type: 'json_object' }

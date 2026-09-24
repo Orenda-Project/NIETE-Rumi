@@ -222,6 +222,9 @@ describe("bd-a8veu.6 — page 1 is the teacher's at-a-glance card", () => {
 });
 
 /**
+ * ⚠ REVERSED 2026-09-24 by bd-f01ob (v6) — the board plan is support-page section A again. The
+ * reasoning below is kept as history; `v6-two-page-layout.test.js` pins the current placement.
+ *
  * ── item 7 · "2nd page should be the introduction: warm up and opening, watch out,
  *              on the board should have the diagram needed there as well" ─────────
  *
@@ -253,71 +256,17 @@ describe("bd-a8veu.6 — page 1 is the teacher's at-a-glance card", () => {
  * 1917px box — the Introduction can never START on page 1. Whether the teach part spends a
  * fifth page on it is measured on a real render and recorded on the bead, not guessed here.
  */
-describe('bd-a8veu.7 — the board plan is in the Introduction, not in Reference', () => {
-  const INTRO = 'data-sec="introduction"';
-  const DEV = 'data-sec="development"';
-  /** the draw-order card: `.ord` is emitted nowhere else in the document */
-  const ORD = 'class="ord"';
-  /** a support-page section bar prints its name in `.nm`; the moved block uses a `.lbl` */
-  const REF_BOARD_BAR = 'class="nm">The board at the end of the lesson<';
-
-  /** the body between the Introduction bar and the Development bar */
-  const introRun = (html) => body(html).slice(at(html, INTRO, 'introduction bar'), at(html, DEV, 'development bar'));
-
-  test('the draw-order card is inside the Introduction', () => {
-    const html = built('en');
-    const run = introRun(html);
-    expect(run).toContain(ORD);
-    // the fixture's own first board step, so this cannot pass on a class name alone
-    expect(run).toContain('Write the two matrices side by side');
-  });
-
-  test('the board diagram travels with it, and the figure leads the order', () => {
-    const html = built('en');
-    const run = introRun(html);
-    const fig = run.indexOf('<figure class="dg"');
-    expect(fig).toBeGreaterThan(-1);
-    expect(fig).toBeLessThan(run.indexOf(ORD));
-    // and it lands under the Introduction's own ON THE BOARD note, not above it
-    expect(run.indexOf('class="blk board"')).toBeLessThan(fig);
-  });
-
-  test('it is a MOVE — Reference carries no board section, and the letters close up', () => {
-    const html = built('en');
-    expect(body(html)).not.toContain(REF_BOARD_BAR);
-    // one draw-order card in the whole document. A copy left behind costs the page it saved.
-    expect(body(html).match(/class="ord"/g)).toHaveLength(1);
-    // `S` assigns letters in emission order, so the next section becomes A by itself.
-    // bd-ir1aq: that used to be "Model answers", which is no longer emitted at all — the FBISE
-    // bank is what now inherits the letter. The subject here is the re-lettering, not the name.
-    expect(body(html)).toMatch(/data-sec="p2-A"[\s\S]{0,160}class="nm">FBISE format Questions/);
-  });
-
+describe('bd-a8veu.7 — REVERSED by bd-f01ob: the board plan is support-page section A again', () => {
+  // The operator moved it back (2026-09-24, v6): *"board plan to go into 2nd page, its not the
+  // most imperative thing to see ... 1 page teaching, next page teacher suppport, dont mix it up"*.
+  // Placement is pinned in `v6-two-page-layout.test.js`. What survives from this item is the glue:
+  // the figure may never end a sheet with its draw order overleaf.
   test('the diagram can never be the last atom on a page — the order follows it', () => {
-    // This is the half the emitted text cannot show: `glue` lives in the atom metadata the
-    // packer reads, not in the HTML. A figure that ends a sheet leaves the teacher looking at
-    // a finished board with the order to draw it overleaf.
     const { atoms } = buildAll(doc(), 'en');
-    const run = atoms.teach.filter((a) => a.sec === 'introduction');
-    expect(run.length).toBeGreaterThan(2);
+    const run = atoms.support.filter((a) => a.sec === 'p2-A');
+    expect(run.length).toBeGreaterThan(2); // bar, figure, order
     expect(run[run.length - 2].glue).toBe(true);
     expect(run[run.length - 1].glue).toBeFalsy();
-  });
-
-  test('the Urdu build moves it too', () => {
-    const ur = built('ur');
-    expect(introRun(ur)).toContain(ORD);
-    expect(body(ur)).not.toContain('class="nm">سبق کے اختتام پر تختۂ سیاہ<');
-  });
-
-  test('a lesson whose board plan has no diagram still moves the order out of Reference', () => {
-    // `board_final.diagram` is required by the brief but optional in the schema, and that
-    // branch used to be the only thing keeping reference A alive on its own.
-    const d = doc();
-    delete d.page2.board_final.diagram;
-    const html = buildFrom(d);
-    expect(introRun(html)).toContain(ORD);
-    expect(body(html)).not.toContain(REF_BOARD_BAR);
   });
 });
 
@@ -403,19 +352,19 @@ describe('bd-a8veu.2 — the sequence strip flows as text and never strands an a
     // the next phrase continues on the following line, so no line is left part-empty.
     const s = strip(built());
     const arrows = [...s.matchAll(/<span class="arrow">([^<]*)<\/span>/g)];
-    expect(arrows).toHaveLength(2); // previous -> this, this -> next
+    expect(arrows).toHaveLength(1); // previous -> this; bd-f01ob dropped the Next leg
     for (const m of arrows) {
       expect(m[1]).toBe(AR.en);
       expect(s.slice(m.index + m[0].length, m.index + m[0].length + 7)).toBe('</span>');
     }
   });
 
-  test('the four phrases are still all there, in order, each one labelled', () => {
-    // A layout fix may not quietly drop a leg. This is the operator's "last, current, next
-    // and checkpoint" read straight off the fixture.
+  test('the three phrases are all there, in order, each one labelled', () => {
+    // A layout fix may not quietly drop a leg. bd-f01ob dropped Next ON PURPOSE — operator,
+    // *"next period should lso be gone"* — so last, current and checkpoint are what remain.
     const s = strip(built());
     const d = doc();
-    const order = [d.sequence.previous, d.sequence.this, d.sequence.next, d.sequence.checkpoint];
+    const order = [d.sequence.previous, d.sequence.this, d.sequence.checkpoint];
     let cursor = -1;
     for (const phrase of order) {
       const i = s.indexOf(phrase.replace(/&/g, '&amp;'));
@@ -424,7 +373,7 @@ describe('bd-a8veu.2 — the sequence strip flows as text and never strands an a
     }
     // the labels as `overlay.js` writes them — `seqPrev` is "Last", not "Previous"
     expect(s).toContain('Last:');
-    expect(s).toContain('Next:');
+    expect(s).not.toContain('Next:');
     expect(s).toContain('Checkpoint:');
   });
 
@@ -441,7 +390,7 @@ describe('bd-a8veu.2 — the sequence strip flows as text and never strands an a
   test('the Urdu strip flows the same way, with the arrow pointing into the text', () => {
     const s = strip(built('ur'));
     const arrows = [...s.matchAll(/<span class="arrow">([^<]*)<\/span>/g)];
-    expect(arrows).toHaveLength(2);
+    expect(arrows).toHaveLength(1);
     for (const m of arrows) expect(m[1]).toBe(AR.ur);
     expect(directChildren(s).some((a) => /class="arrow"/.test(a))).toBe(false);
     expect(rule(built('ur'), '.seq')).not.toMatch(/display:\s*flex/);

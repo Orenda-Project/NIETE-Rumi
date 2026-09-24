@@ -792,6 +792,14 @@ emitted a backslash, against the module's own stated rule. This changes the What
 Upstream carries none of this yet. Push `diagrams/index.js` + `diagrams/lib/tex.js` up at the next
 re-sync.
 
+**Second shared-file change (2026-09-23): a mixed number.** `convertMath` wrote `$2\frac{1}{3}$` as
+`21/3` — the whole part ran into the numerator, and a teacher read twenty-one thirds. The frac branch
+now joins a whole number written straight before a fraction with a NO-BREAK SPACE (`2 1/3`), chosen
+because U+00A0 is a bidi common separator and keeps the mixed number one run inside an Urdu line.
+Made in the shared file and re-copied here under the header, as the rule above says; the class quiz's
+own local pre-pass for the same case (`quiz-math.js`) was removed in the same change, so there is one
+rule. Covered by `tests/lp612/tex-mixed-number.test.js`. Push it up with the rest of §3.12.
+
 ### 3.13 `lint_lp.js` — `overlayTargets()`: the lesson's title, and figure labels (2026-09-14)
 
 Two decisions inside `overlayTargets()` left English on an otherwise Urdu page, on the first Urdu
@@ -919,11 +927,181 @@ sentence, longest-match arbitration) and `tests/lp612/religious-marks-cleared-na
 Upstream has neither the check nor the data file, and should not be sent the data file — it is this
 deployment's human review, not a general rule. Push nothing of §3.14 up at the next re-sync.
 
+### 3.15 `lint_lp.js` + `g5c_cleared_names_en.json` — the same G5c review, for the LATIN lane (2026-09-17)
+
+`bd-5t71f` (P0). §3.14 gave the Urdu lane a list. The Q2 ruling it executed — *"since we will have
+lots of Muhammads not the prophet but regular ppl, get a list approved from the page truths so we
+know which names can come up and dont need the salutation"* — was never executed for the other
+script. `g5c_cleared_names.json` is keyed on the **Urdu word sequence**, and exactly one of its 298
+decided phrases contains any Latin at all. Rule 1's ENGLISH branch (`TRANSLIT_PROPHET_RE`, medium
+`en`) has neither §3.11's `isCompoundGivenName` nor §3.14's `clearedByReview`, so it matches
+`Mohammad`, finds no honorific in the remainder `" Ali Jinnah"`, and refuses. The Urdu lane clears
+`محمد علی جناح`; the English lane refuses `Mohammad Ali Jinnah`, and an English-medium Pakistan
+Studies lesson naming the Quaid is refused outright — the teacher gets nothing. Measured against the
+live corpus: **436 unhonorified Latin occurrences on 192 pages across 33 books**, the largest being
+`grade_7_history` (93, every one of them bare), `grade_8_history` (48/48), `grade_6_english` (44/49)
+and `grade_12_pak_studies_english` (41/50).
+
+**The fix may not be a grammar rule.** Porting `isCompoundGivenName` into the Latin lane would be
+the automated clearance brief §4c forbids, wearing a Latin hat. So this lane is driven exactly as
+§3.14 drives the Urdu one — off the reviewer's approved list, and off nothing else.
+`clearedByReviewEn()` is §3.14's `clearedByReview()` with a Latin word key: `person` CLEARS,
+`prophet` never clears and only ARBITRATES overlapping phrases, longest decided phrase wins, and on
+equal length the blocking mark wins. **A name that matches nothing is not cleared — the gate fails,
+unchanged. Fail-closed, always.**
+
+The word key folds case and trims edge punctuation, and also trims a trailing English possessive
+(`Jinnah's` is the same NAME as `Jinnah`), because the books set the same name as prose, as a
+heading, and inside parentheses. That is orthography, not judgement — a word still has to equal a
+word the reviewer decided on. The slot test (which word of a decided phrase the rule can be standing
+on) is built from `TRANSLIT_PROPHET_RE.source` itself, so adding a token to that rule cannot silently
+make it unclearable; it is a separate `RegExp` object so it cannot disturb the global rule's
+`lastIndex` inside the `exec` loop.
+
+**`g5c_cleared_names_en.json` SHIPS EMPTY AND CLEARS NOTHING.** It is the socket, not the clearance.
+The candidate list is derived from the page truths by
+`08_Grades 6-12 LP Build/_g5c_english_name_lane_2026-09-17/probes/extract-english-names.js` — a
+read-only sweep that lifts `TRANSLIT_PROPHET_RE` and `TRANSLIT_HONORIFIC_RE` out of this file's own
+source text so it cannot drift from the rule it feeds — and is with Amena Ahmed for the G5c sign-off
+as `English-name-list-for-approval.md` (134 phrases, 467 occurrences, 198 pages, 0 unreadable).
+Until her marks come back, every Latin match is refused exactly as it is today and production
+behaviour is unchanged. Dropping her decided file into this path is the only remaining step.
+
+Covered by `tests/lp612/religious-marks-cleared-names-en.test.js` (11 tests against a FIXTURE
+clearance, since the real list is empty: cleared name, caps, possessive, parentheses, plus the
+regression half — bare `Mohammad`, an unreviewed name of the same shape, a `prophet`-marked phrase,
+equal-length arbitration, a cleared and an uncleared `Mohammad` in one sentence, the honorified
+form, and the Urdu lane proven untouched) and
+`tests/lp612/religious-marks-cleared-names-en.e2e.test.js` (5 tests through `authorLessonPlan`, both
+directions: delivered, and refused). The two `it.skip`/`test.skip` placeholders filed as bd-5t71f in
+`religious-marks-false-positives.test.js` and `religious-marks-delivery.e2e.test.js` are un-skipped
+by the same commit, as their notes asked.
+
+Upstream has neither the check nor the data file, and should not be sent the data file — it is this
+deployment's human review, not a general rule. Push nothing of §3.15 up at the next re-sync.
+
+### 3.16 `diagrams/lib/tokens.js` — the Urdu font stack names the family NIETE pages embed (2026-09-23)
+
+A figure's Urdu text is HTML inside a `foreignObject`, styled with `FONT.urdu`. Upstream's stack is
+`'Noto Nastaliq Urdu', 'Gulzar', 'Noto Naskh Arabic', serif` — right for the LP renderer, which
+embeds Nastaliq under that name. The NIETE page templates (the teacher's quiz PDF among them) embed
+the same font under the brand family `'NastaliqUrdu'`, so when a figure sat on such a page none of
+the four names resolved. A Mac has Noto Nastaliq Urdu installed system-wide and drew the letters;
+the Railway worker has no system Urdu font and drew **nothing**. Seen on sandbox: a `word_blank`
+question on سلام reached the child as س ل ☐ م and the teacher's PDF as four empty tiles.
+
+The fix adds `'NastaliqUrdu'` as the SECOND name in the stack. Where `'Noto Nastaliq Urdu'` exists
+(the LP renderer, the child's figure PNG, a Mac) nothing changes; on a NIETE page it resolves to the
+embedded face. Covered by `tests/quiz/transcript-quiz-teacher-figure-fonts.test.js`, which renders
+the real figure through the real teacher template and requires every Urdu stack in the figure to
+name a family that page embeds, ahead of any non-Nastaliq fallback. Upstream does not need it and
+should not be sent it: it is this deployment's family name. Keep it at the next re-sync.
+
+### 3.17 `diagrams/lib/pictogram.js` — the school bag is drawn here, not taken from OpenMoji (2026-09-23)
+
+OpenMoji 15's black-variant backpack (`bag`, `bag_school`, hexcode 1F392) is an arch with a bar across
+it and a small loop on top — no straps, no pocket. At a child's phone size, three of them in a counting
+question ("تصویر میں کتنے بستے ہیں؟", a grade-3 Urdu quiz on sandbox) read as lanterns or birdcages.
+`inner()` now returns this deployment's own backpack for those two names (`OWN_GLYPHS`, marked
+`VENDOR DIVERGENCE` at the site): a rounded body, two shoulder straps bowing out at its sides, a carry
+handle, and a front pocket with its flap and tab — drawn to the same glyph contract the build script
+enforces (72-unit grid, `currentColor` ink, stroke 2, round caps, `data-ov="skip"` on every element),
+so every type that draws a pictogram is unaffected otherwise. The OpenMoji SVG files and `index.json`
+are untouched: the names stay in the roster and the licence record, only the drawing is replaced.
+Covered by `tests/quiz/pictogram-school-bag.test.js`. Worth offering upstream (lp_html's early-years
+roster has the same glyph); keep it at the next re-sync unless upstream has taken it.
+
+### 3.18 The grade 1-5 maths manipulatives — `lib/pictogram.js`, `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`, `visual_check.js` (2026-09-24)
+
+A grade 1-5 maths quiz could not draw the objects its lesson counted with. Measured across the 421
+ICT grade 1-5 maths slide scripts, the diagram tokens are dominated by manipulatives — `counter`
+2,317, `dot` 604, `bundle` 547, `stick` 289, `sq`/`tile`/`square` 347, `bigbundle` 58, `flat` 43 —
+and the pictogram set had none of them (its `stick` is OpenMoji's *wood*, a log). Four edits:
+
+* **`lib/pictogram.js`** — beside §3.17's backpack (`OWN_GLYPHS`, untouched), two geometric glyphs, `counter` (an accent disc with an ink rim, painted
+  like `count_frame`'s own counters) and `tile` (a square in the cool token), held in a
+  `LOCAL_GLYPHS` table beside the OpenMoji index rather than in it, so `build_pictograms.js` (which
+  rewrites `index.json`) can never drop them. Plus `ALIASES` — `dot`/`bead`/`marble`/`circle` →
+  `counter`, `sq`/`square` → `tile` — resolved inside `key()` so every type that draws a pictogram
+  accepts the lesson's own word. `names()` lists the new glyphs and never the aliases. A third local
+  glyph, `stick` (a thin counting stick in the clay token, the stick `base_ten` bundles), REPLACES
+  the OpenMoji glyph filed under that name, which is its *wood* — a log. None of the three is
+  licensed from anyone; the OpenMoji attribution is unchanged.
+* **`types/base_ten.js`** (new) — a place-value mat: hundreds, tens and ones as loose sticks,
+  bundles of ten and big bundles of a hundred (`model: "bundles"`, default) or as cubes, rods and
+  flats (`model: "blocks"`). One headed column per place, hundreds → tens → ones left to right in
+  both languages; a zero is an empty column; no digit or count is ever drawn. `count_objects`
+  could not stand in: a place-value picture carries a 1 and a 0, and that type refuses both.
+* **`types/count_objects.js`** — rows being COMPARED (more than one row) stay on one line each, up to
+  ten: the default `perRow` was `min(5, count)` for every shape, so a compare row of six wrapped its
+  sixth thing onto an unlabelled line and "which row has more?" was drawn as three rows. A single
+  row still wraps at five, and an explicit `perRow` still wins.
+* **`types_manifest.json`** — the `base_ten` entry (count 28 → 29). Its limits avoid the word
+  "column" on purpose: the quiz lane filters manifest limits that match its LP-page pattern, and
+  those two lines are what tells a quiz author that a zero is drawn empty.
+* **`visual_check.js`** — `base_ten` and its aliases added to V5's legal set and to `CANON`, the
+  same way the early-years eight were: V5 accepts a figure the engine draws. No 6-12 brief offers
+  it (`tests/lp612/brief-field-coverage.test.js` lists it with the early-years types).
+
+Covered by `tests/quiz/transcript-quiz-figure-manipulatives.test.js` (through the quiz lane's own
+`renderFigureSvg` / `validate` / `buildAuthorPrompt`). Upstream does not have any of this; if the
+skill adopts the type, take its copy and drop this entry. Keep all four at the next re-sync.
+
+### 3.19 The v6 two-page layout — `lib/template.js`, `render_lp.js`, `lib/continuous.js` (2026-09-24, bd-f01ob)
+
+Operator-approved v6: page 1 teaches, page 2 supports. In the template, the board plan leaves the
+Introduction and becomes support section A, and the sequence strip loses its `Next:` leg. In the
+renderer, after pass 1 has packed and probed the phone pages (still the length gate — PAGE COUNT,
+PAGE TARGET, `pagesByPart`), each part is rebuilt with no breaks and printed on a named `@page` sized
+to its measured height (`lib/continuous.js`, new file), so the PDF is exactly 2 pages. If a part
+cannot be measured, the phone pages are restored and printed as before. The PDF cross-check compares
+against the printed page count. The Chrome-CLI fallback still prints phone pages. **Re-vendoring
+over this reverts the layout to phone pages** — carry it forward or port it upstream.
+
+### 3.20 A thousands place for `base_ten`, and six more pictograms — `types/base_ten.js`, `types_manifest.json`, `lib/pictogram.js`, `assets/pictograms/` (2026-09-24)
+
+Two additions to §3.18's manipulatives, both measured against the 421 ICT grade 1-5 maths slide scripts.
+
+* **`types/base_ten.js` — a `thousands` place (0-9).** Grade 3's place-value lessons are four-digit
+  ("Count up to 9999" draws 1986 as `[cube] / [flat]×9 / [rod]×8 / [dot]×6`; "Compare numbers" writes
+  "5 thousands, 2 hundreds, 6 tens, 3 ones"), and the mat stopped at hundreds. A thousand is drawn out
+  of ten hundreds in each model: `blocks` — a CUBE, a flat's 10x10 face with its top and side receding
+  (oblique, depth 40) and each receding face cut into ten layers; `bundles` — ten big bundles tied into
+  one block, a big bundle's face with the same receding top and side (depth 24). The thousands column
+  sits left of the hundreds in both languages; the hundreds column is drawn EMPTY under a number that
+  has thousands and no hundreds (2014); `places: 4` asks for an empty thousands column. Default heads
+  "Thousands" / "ہزار"; the quiz lane passes its own from the catalog (`tqPlaceThousands`). Thousands
+  are capped at 9 (`MAX_BY_PLACE`) — more is a five-digit number, which no grade 1-5 lesson builds from
+  blocks — while the other places keep 0-20. Two new examples (1986 blocks, 2014 bundles in Urdu).
+* **`types_manifest.json`** — the `base_ten` entry names `thousands` in `optional`, `for` and three of
+  its four limits (still without the word "column", per §3.18).
+* **`assets/pictograms/` — three OpenMoji glyphs**, added the normal way: `sources.json` gains
+  `sweet` ← "candy", `cookie` ← "cookie" and `lily` ← "lotus" (a water lily — Unicode has no lily), and
+  `build_pictograms.js` rebuilt the set. The rebuild reproduced the existing 255 glyphs byte-for-byte
+  (checked by a full-directory diff in a scratch copy) and added `svg/{sweet,cookie,lily}.svg`,
+  their `index.json` rows and one new author in `ATTRIBUTION.md` (now 258 glyphs).
+* **`lib/pictogram.js` — three local line-art glyphs and five aliases.** OpenMoji has no date, samosa
+  or bangle, so `LOCAL_GLYPHS` draws them in OpenMoji's own manner (outline, `currentColor`, stroke 2,
+  round caps, `data-ov="skip"`, a `data-part` on every stroke): a DATE (plump oval, cap and stem, three
+  wrinkles across it), a SAMOSA (a triangle with bulging sides and rounded corners, the folded seam and
+  its pinch marks, fried blisters) and a BANGLE (a thin tilted band: rim, hole, depth, three beads). Each
+  was rendered at phone size on a question card and redrawn until it read as the thing (a straight-sided
+  samosa read as a tent; a date with one long crease read as a seed). `ALIASES` adds the lessons'
+  other words: `biscuit` → cookie; `candy`, `toffee`, `laddu` → sweet; `pebble` → stone.
+
+Coverage after the change, measured by running the lesson-plan parser over the same 421 scripts: 712
+of the 747 object rows now resolve to a pictogram (was 652); the 60 rows that moved are sweet 12, date 8,
+cookie 7, lily 7, bangle 6, samosa 5, pebble 5, biscuit 4, candy 2, toffee 2 and laddu 2. The 35 still
+falling back to a counter are finger, sticker, glass, roti and one-offs. The three lessons that build a
+thousands place now quote their worked example whole instead of being told to keep to three places. Covered by `tests/quiz/base-ten-thousands.test.js` and `tests/quiz/pictograms-lesson-objects.test.js`.
+Upstream has none of this; keep all of it at the next re-sync, and offer the thousands place and the
+three local glyphs upstream with §3.18.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) and §3.19 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

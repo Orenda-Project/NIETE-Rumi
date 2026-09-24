@@ -107,6 +107,7 @@ features:
     - bot/shared/routes/teacher-training-endpoint.js
     - bot/shared/routes/training-msq-endpoint.js
     - bot/shared/routes/quiz-flow-endpoint.js
+    - bot/shared/routes/transcript-quiz-flow-endpoint.js      # the /quiz Flow (lp_v8 + transcript quizzes, one list)
     - bot/shared/services/quiz/**
     - bot/shared/services/exam/**
     - bot/shared/services/exam-checker/**
@@ -121,6 +122,8 @@ features:
     - bot/shared/templates/quiz-report.template.js
     - bot/shared/templates/video-quiz-report.template.js
     - bot/shared/templates/video-quiz-scorecard.template.js
+    - bot/shared/templates/transcript-quiz-teacher.template.js  # the teacher sheet sent with every lesson quiz
+    - bot/shared/templates/latin-runs.js  # English-phrase isolation inside Urdu, used by the teacher sheet and the class report
     # The transcript-quiz figure/card modules render through the same vendored
     # engine the LP-612 lane uses — see the note under `lesson-plan:`. Owned by
     # both on purpose; not `shared:`.
@@ -147,6 +150,10 @@ features:
     # subset and authored no spec. Reached from pakistan-lp-endpoint.js and
     # text-message.handler.js, both already lesson-plan.
     - bot/shared/services/lp612-*.service.js
+    # Not every module on that lane carries the `.service.js` suffix, and the glob above
+    # misses the ones that do not. The pre-gate Latin-honorific normaliser is required only
+    # by lp612-author.service.js, so it is lesson-plan-owned like the rest of the lane.
+    - bot/shared/services/lp612-latin-honorific.js
     - bot/workers/lp612-*.worker.js
     # The vendored authoring/rendering engine behind that lane: the author briefs,
     # the diagram type manifest, the linter, the renderer.
@@ -163,6 +170,12 @@ features:
     - bot/shared/utils/html-to-pdf.js
     - bot/shared/utils/html-to-docx.js
     - bot/shared/services/aws-textract.service.js   # only consumer: lesson-plan-extraction.worker.js
+    # The scheduled teacher asks (store, sweeper, PKT clock, and the two kinds'
+    # services). Owned by BOTH lesson-plan and coaching, like lp-v9 above: the
+    # coaching ask fires off a delivered lesson plan, and the afternoon quiz offer
+    # is made from the day's planned lessons. Not `shared:`, whose default leaves
+    # the spec alone; these files ARE teacher-visible behaviour.
+    - bot/shared/services/nudges/**
 
   coaching:
     - bot/shared/services/coaching/**
@@ -179,6 +192,7 @@ features:
     - bot/06_MMS_Inference_Service/**    # the Modal ASR service behind coaching transcription
     - bot/shared/constants/scoring.constants.js   # "scoring constants for classroom coaching reports"
     - bot/database/migrations/coaching_*.sql      # coaching schema; the columns the dedupe matches on (bd-7beiz)
+    - bot/shared/services/nudges/**               # the coaching ask after a lesson plan (see lesson-plan:)
 
   language:
     - bot/shared/config/languages.js

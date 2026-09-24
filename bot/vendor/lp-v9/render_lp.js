@@ -24,6 +24,7 @@ const { applyOverlay } = require("./lib/overlay");
 const { validateDoc } = require("./lib/validate");
 const { REPO_ROOT } = require("./lib/fonts");
 const { setInfo } = require("./lib/pdfmeta");
+const { joinParts } = require("./lib/continuous");
 
 // THE PAGE BOX LIVES IN lib/template.js AND IS IMPORTED, NEVER RE-DECLARED (v9.3, bd-oak77.16).
 // v9.2 carried `const A4 = { w: 794, h: 1123 }` here AND `--page-w:794px` there — two homes for
@@ -836,27 +837,44 @@ async function renderWithPlaywright(pw, htmlPath, outPdf, outPngStem, wantPng, r
       probe = await page.evaluate(`(${PROBE})()`);
     }
 
-    let pdfPages = null;
-    if (outPdf) {
-      // NO PAGE RANGE. A range — frozen OR cap-derived — is silent data loss: Chrome drops
-      // the surplus pages, the teacher's PDF just ends, and the cross-check then blames
-      // "a splitting block". A cap-derived "1-5" ate 2 whole teach pages of the G6 Islamiat
-      // plan and both G10 Urdu support pages in the 2026-08-30 sample run.
-      // The renderer emits EVERY page the packer laid out; going over the cap is reported
-      // below as a loud PAGE COUNT failure. Cutting a long plan is an authoring decision.
-      const buf = await page.pdf({ width: `${PAGE.w}px`, height: `${PAGE.h}px`, printBackground: true });
-      // The internal identifiers the footer no longer prints live HERE instead — visible to
-      // the pipeline (and in File > Properties), invisible to the teacher.
-      fs.writeFileSync(outPdf, pdfMeta ? setInfo(buf, pdfMeta) : buf);
-      pdfPages = pdfPageCount(buf);
-    }
+    // PNGs are QA screenshots of the phone pages the probe measured — taken before the join.
     if (wantPng) {
       const els = await page.$$(".page");
       for (let i = 0; i < els.length; i++) {
         await els[i].screenshot({ path: `${outPngStem}-p${i + 1}.png` });
       }
     }
-    return { probe, pdfPages, absorbed, breaks: repaginate ? repaginate.breaks : null,
+
+    let pdfPages = null;
+    let printedPages = null;
+    if (outPdf) {
+      // bd-f01ob (v6): print ONE page per part, each as tall as its content (lib/continuous.js).
+      // The phone pages above stay the length gate; only the file changes. If a part cannot be
+      // measured, the paginated layout is restored and printed exactly as before.
+      let sizes = null;
+      if (repaginate && repaginate.breaks) {
+        sizes = await joinParts(page, load, htmlPath, repaginate.rebuild, fs.writeFileSync);
+        if (!sizes) {
+          fs.writeFileSync(htmlPath, repaginate.rebuild(repaginate.breaks).html);
+          await load(htmlPath);
+        }
+      }
+      // NO PAGE RANGE. A range — frozen OR cap-derived — is silent data loss: Chrome drops
+      // the surplus pages, the teacher's PDF just ends, and the cross-check then blames
+      // "a splitting block". A cap-derived "1-5" ate 2 whole teach pages of the G6 Islamiat
+      // plan and both G10 Urdu support pages in the 2026-08-30 sample run.
+      // The renderer emits EVERY page the packer laid out; going over the cap is reported
+      // below as a loud PAGE COUNT failure. Cutting a long plan is an authoring decision.
+      const buf = sizes
+        ? await page.pdf({ printBackground: true, preferCSSPageSize: true })
+        : await page.pdf({ width: `${PAGE.w}px`, height: `${PAGE.h}px`, printBackground: true });
+      if (sizes) printedPages = sizes.length;
+      // The internal identifiers the footer no longer prints live HERE instead — visible to
+      // the pipeline (and in File > Properties), invisible to the teacher.
+      fs.writeFileSync(outPdf, pdfMeta ? setInfo(buf, pdfMeta) : buf);
+      pdfPages = pdfPageCount(buf);
+    }
+    return { probe, pdfPages, printedPages, absorbed, breaks: repaginate ? repaginate.breaks : null,
              furniture: repaginate ? repaginate.furniture : null,
              packed: repaginate ? repaginate.packed : null };
   } finally {
@@ -1000,13 +1018,16 @@ async function renderDoc(a) {
     }
   }
   const pagesBuilt = (byPart.teach || 0) + (byPart.support || 0);
+  // The file is checked against what was PRINTED: one page per part when the parts were joined
+  // (bd-f01ob), else the phone pages the packer laid out.
+  const pagesExpected = result.printedPages || pagesBuilt;
   // A SHORT pdf and a LONG one are opposite bugs and used to share one misleading message.
   // Short = the teacher loses the end of the lesson — the most expensive defect this
   // renderer can ship, so it is named for what it is.
-  if (result.pdfPages != null && pagesBuilt && result.pdfPages < pagesBuilt) {
-    problems.push(`TRUNCATION: the PDF has ${result.pdfPages} page(s) but the layout built ${pagesBuilt} — ${pagesBuilt - result.pdfPages} page(s) of the lesson are MISSING from the file. The renderer must never emit fewer pages than the packer laid out.`);
-  } else if (result.pdfPages != null && pagesBuilt && result.pdfPages > pagesBuilt) {
-    problems.push(`PAGE COUNT: the PDF has ${result.pdfPages} page(s) but the layout built ${pagesBuilt}. A block is splitting across a page break.`);
+  if (result.pdfPages != null && pagesExpected && result.pdfPages < pagesExpected) {
+    problems.push(`TRUNCATION: the PDF has ${result.pdfPages} page(s) but the layout built ${pagesExpected} — ${pagesExpected - result.pdfPages} page(s) of the lesson are MISSING from the file. The renderer must never emit fewer pages than the packer laid out.`);
+  } else if (result.pdfPages != null && pagesExpected && result.pdfPages > pagesExpected) {
+    problems.push(`PAGE COUNT: the PDF has ${result.pdfPages} page(s) but the layout built ${pagesExpected}. A block is splitting across a page break.`);
   }
   // Chrome-CLI fallback has no per-part probe, so the per-part caps above cannot fire. Guard
   // the total there so a runaway build is still caught rather than shipped.

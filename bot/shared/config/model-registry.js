@@ -56,6 +56,15 @@ const JOBS = {
     env: 'TRANSCRIPT_QUIZ_MODEL', default: 'google/gemini-2.5-flash',
     site: 'shared/services/quiz/transcript-quiz-llm.js:22',
   },
+  'quiz.keyVerify': {
+    // The blind solve: every lesson quiz (transcript and lp_v8) is answered once by a model
+    // that is NOT shown the keys, before a row is stored. It checks the author's work, so it
+    // runs on a DIFFERENT and stronger model than quiz.transcript by default -- a solver that
+    // shares the author's blind spots agrees with the author's mistakes. Claude Sonnet 5 is
+    // already served to this deployment through the same OpenRouter client (lp.author).
+    env: 'TRANSCRIPT_QUIZ_VERIFY_MODEL', default: 'anthropic/claude-sonnet-5',
+    site: 'shared/services/quiz/transcript-quiz-key-verify.service.js',
+  },
   'assessment.generate': {
     // bd-jntcx. Found from the first production spend data, not by reading the code: at
     // $11.34/day this is the second largest line in NIETE, behind only lp.author — and it was
@@ -116,10 +125,110 @@ const FALLBACK = {
   'vision.analyse':   'openai/gpt-4.1-mini',
   'roster.extract':   'google/gemini-3.1-flash-lite-preview',
   'quiz.transcript':  'google/gemini-2.5-flash',
+  // New job, no validated predecessor: a supplier outage fails the solve, and the solve
+  // FAILS OPEN (the quiz ships as authored, recorded as meta.key_verify.status 'error').
+  // Falling back to the author's own model would verify the author with itself.
+  'quiz.keyVerify':   null,
   'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
   'platform.default': null,  // the floor
 };
+
+/**
+ * Jobs that are LABELLED BUT NOT ROUTED. bd-jntcx.
+ *
+ * These names exist so spend can be attributed; they are deliberately NOT in `JOBS`, and that
+ * distinction is the whole point. A name in `JOBS` is a promise that setting its env var or a
+ * settings row changes which model runs. These call sites still carry their own model literal
+ * and do not consult the registry, so making that promise here would be exactly the
+ * "defined is not working" trap: an operator sets COACHING_PEDAGOGY_MODEL, nothing happens,
+ * and nothing says why.
+ *
+ * What they DO buy, today: the first production day showed $85.76 of $173.97 spent with no
+ * `job` at all, $54.35 of it on gpt-5-mini from this one cluster. A name turns that into a
+ * line you can read.
+ *
+ * Promoting one is a separate, deliberate change: move the call site onto
+ * getClientForModel(model, { job }) or resolveModelForJob(), add it to JOBS with its current
+ * model as the default and to FALLBACK with that same model frozen, and drop it from here.
+ * Until then the label is telemetry and nothing else -- `fallbackForJob` still rejects these
+ * names, which is correct: an unrouted job has no fallback to arm.
+ */
+const TELEMETRY_ONLY_JOBS = Object.freeze([
+  // GPT5MiniService statics -- the gpt-5-mini/gpt-4o cluster
+  'coaching.pedagogy',           // analyzePedagogy, incl. the photo-less retry
+  'coaching.completeJson',       // generic JSON helper: observe debrief/feedback, remark narrative
+  'coaching.fidelityFallback',   // _generateFidelityAssessment
+  'coaching.enhance',            // enhanceAnalysisWithReflections
+  'coaching.reflectiveQuestion',
+  'coaching.inferTopic',
+  'coaching.inferSubject',
+  'coaching.priorFeedback',
+  'coaching.voiceDebrief',
+  // services sharing GPT5MiniService's client
+  'coaching.acknowledgement',    // reflective-conversation
+  'coaching.narrative',          // report-v2/narrative
+  'coaching.commitmentCard',     // commitment-card
+  'coaching.cardLocalise',       // commitment-card, translation pass
+  // the ninth call site, found from spend rather than from reading the code
+  'lp.extractUpload',            // coaching/fidelity/lp-upload-extractor
+
+  // ---- phase 2 (bd-8xmp9): the rest of the LIVE call sites --------------------------------
+  // Scoped by reachability from the three Procfile entry points. Four other files hold model
+  // calls and are deliberately NOT here: transcript-enhancer, name-extractor, and both
+  // pic-to-lp extractors are required by nothing in NIETE. See bd-8xmp9.
+  'chat.respond',                // openai.service getResponseWithFormat -- the main reply
+  'chat.intent',                 // openai.service detectIntent
+  'chat.topic',                  // openai.service extractTopic
+  'chat.completion',             // openai.service createChatCompletion -- a DEFAULT, callers override
+  'helper.guidance',
+  'helper.stuckRecovery',
+  'helper.capabilityDetect',
+  'helper.capabilityGuidance',
+  'helper.capabilityDefault',
+  'exam.grade',                  // exam-checker/grading
+  // The five raw-SDK services (bd-wgso2). They keep their OWN client -- api.openai.com direct for
+  // the four quiz ones, their own OpenRouter client for the router -- and wrap it with llm-client's
+  // withSpendRecording, which strips the label and records the spend. They were unlabelled until
+  // then because a label on an unwrapped raw client is SENT to the vendor (bd-3kv02), and
+  // job-label-reaches-no-vendor.test.js still refuses a label on a raw client that is not wrapped.
+  'quiz.generate',               // quiz/quiz-generation      (lane: openai-direct, costUnpriced)
+  'quiz.insight',                // quiz/quiz-report          (lane: openai-direct, costUnpriced)
+  'quiz.session',                // quiz/quiz-session         (lane: openai-direct, costUnpriced)
+  'quiz.videoReport',            // quiz/video-quiz-report    (lane: openai-direct, costUnpriced)
+  'coaching.questionRouter',     // reflective-questions/llm-router (OpenRouter: real usage.cost)
+  'reading.analyse',
+  'reading.diagnosticSummary',
+  'reading.report',
+  'reading.reportEnhance',       // the second pass inside generateReport
+  'reading.sendResults',
+  'reading.comprehensionStart',
+  'reading.combinedReport',
+  'reading.comprehensionQuestions',
+  'reading.evaluateText',
+  'reading.evaluateAnswer',
+  'reading.comprehensionGuidance',
+  'reading.wordCategories',
+  'reading.levelWelcome',
+  'reading.levelPassed',
+  'reading.levelRetry',
+  'reading.levelTransition',
+  'reading.levelLowest',
+  'reading.passageSend',         // two sites, one job: same send on two branches
+  'reading.passageText',
+  'reading.fluencyMatch',
+  'reading.voiceFeedback',
+  'reading.translate',           // reading/report _translateToEnglish
+  'reading.assessLanguage',
+  'reading.assessGrade',
+  'reading.assessAudio',
+  'reading.wordGrid',            // utils/word-grid-generator
+  'lp.editIntent',               // lp612-edit-intent
+  'lp.extractText',              // workers/lesson-plan-extraction
+  'lang.detect',                 // language-detector
+  'training.capstoneScore',
+  'attendance.voiceExtract',
+]);
 
 /** The model this job is known to work with, or null when it has nothing behind it. */
 function fallbackForJob(job) {
@@ -217,4 +326,4 @@ function resolveModelForJob(job, ctx = {}) {
   return { job, model, source, env: JOBS[job].env, site: JOBS[job].site };
 }
 
-module.exports = { JOBS, FALLBACK, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel };
+module.exports = { JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel };

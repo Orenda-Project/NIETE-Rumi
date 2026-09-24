@@ -269,7 +269,8 @@ the `quizzes` row and emits one of these:
 | `transcript_quiz.figure_salvage` | the last attempt failed only on a few figure/pedagogy questions and the quiz ships without them | `dropped`, `kept` |
 | `transcript_quiz.shipped_with_soft_faults` | every attempt and repair ran and the ONLY complaints left are set-level ones (`only N/M at/below taught level`, `PEDAGOGY_LEVEL_MIX`, `FIGURE_SHARE`, a question one level above the lesson) — the quiz ships and `meta.soft_faults` records them | `faults`, `kinds` |
 | `transcript_quiz.ready` | the set that will be sent | `attempts` (count of full attempts), `costUsd` |
-| `transcript_quiz.failed` | nothing usable after every attempt and repair — the teacher is told honestly | `reason` (`validator_failed`, `digest_failed`, `session_missing`) |
+| `transcript_quiz.failed` | nothing usable after every attempt and repair — the teacher is told honestly | `reason` and, where one reason can come from two passes, `step` (`digest`/`author`/`source`). Reasons: `model_failed` (the model gave nothing usable — empty, cut off or not JSON after its retry, or the provider refused the call; never the lesson's fault — both sources are told so: `tqFailedLpModel` / `tqCouldNotMakeModel`), `source_unusable` (an lp_v8 slide script with no lesson in it, or a recording's transcript under `MIN_TRANSCRIPT_CHARS`, checked before any model call), `source_missing`, `validator_failed` (the model replied; the questions never validated), `key_conflict`, `key_disagreement`, `session_missing`, `teacher_missing`. The same reason is persisted as `quizzes.meta.error` (the raw digest error in `meta.error_detail`), so `/quiz` repeats the sentence the teacher was sent. Rows before this split carry `digest: <message>` instead. |
+| `transcript_quiz.skipped` (`step: digest`) | the OFFER's digest could not be written — the offer is not sent and the teacher is told nothing (`/quiz` can still make it) | `reason`: `model_failed` (was `digest_failed` before the split), persisted as `quizzes.meta.skip_reason` |
 
 Healthy is: `author_done` once or twice per quiz, a `teacher_fields_repaired` on most Urdu
 quizzes, an occasional `rewrite_attempted`, `shipped_with_soft_faults` on a minority, and
@@ -282,4 +283,36 @@ level guidance needs work, not the budget.
 | extend d = parse_json(data_json), ev = tostring(d.event)
 | where ev in ('transcript_quiz.author_done','transcript_quiz.teacher_fields_repaired','transcript_quiz.rewrite_attempted','transcript_quiz.figure_salvage','transcript_quiz.shipped_with_soft_faults','transcript_quiz.ready','transcript_quiz.failed')
 | summarize n = count() by ev
+```
+
+## Scheduled teacher asks: `teacher_nudges.*`
+
+Two asks reach a teacher on a schedule instead of in reply to a message: the coaching
+ask after the day's first lesson plan (`coaching_after_lp`) and the afternoon offer to
+make a quiz from the day's planned lessons (`lp_quiz_offer`). Both are rows in
+`teacher_nudges`, one per teacher per PKT day per kind, and both are sent by one sweeper
+(`bot/shared/services/nudges/teacher-nudges.sweeper.js`) that runs on the worker class
+that owns the `main` queue, every `TEACHER_NUDGES_SWEEP_MINUTES` (default 5) and once
+90 s after boot. With `TEACHER_NUDGES_ENABLED` unset the sweeper does nothing, and the
+worker's boot log says `Teacher-nudge sweep NOT enabled on this service` with the reason.
+
+| Event | When | Fields worth reading |
+|-------|------|----------------------|
+| `teacher_nudges.sweep` | once per tick, with the flag on, after every registered kind has been claimed and handled | `claimed` (rows this replica won from `pending`), `sent`, `skipped` (a rule fired: `context.skip_reason` on the row), `failed` (the handler threw, or returned neither `sent` nor `skipped`), `expired` (rows stuck in `sending` for 10+ minutes, flipped to `failed` with `context.error = 'stuck_sending'`) |
+
+The per-kind events (`lp_ask.*`, `lp_quiz.*`) are emitted by the kind's own service, not by
+the sweeper.
+
+Healthy is: one `teacher_nudges.sweep` line per tick on exactly one service; `claimed`
+equal to `sent + skipped + failed`; `expired` at zero. A non-zero `expired` means a tick
+died between the claim and the mark. `claimed` at zero all afternoon on a school day,
+with lesson plans being delivered, means no kind is registered in the worker process.
+
+```apl
+['niete-logs']
+| where data_json contains 'teacher_nudges.sweep'
+| extend d = parse_json(data_json)
+| summarize ticks = count(), claimed = sum(toint(d.claimed)), sent = sum(toint(d.sent)),
+            skipped = sum(toint(d.skipped)), failed = sum(toint(d.failed)), expired = sum(toint(d.expired))
+  by bin(_time, 1h), service
 ```

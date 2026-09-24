@@ -23,8 +23,42 @@ jest.mock('bullmq', () => ({ Queue: class {}, Worker: class {}, QueueEvents: cla
 jest.mock('chartjs-node-canvas', () => ({ ChartJSNodeCanvas: class {} }), { virtual: true });
 jest.mock('microsoft-cognitiveservices-speech-sdk', () => ({}), { virtual: true });
 
+// A real-shaped PostgREST chain, not a bare jest.fn(). The routers that run
+// ahead of the active-quiz check (the I-SAPS open-ended answer router reads
+// `users` and `training_assessment_attempts` for every typed message) must run
+// FOR REAL here: a bare `from()` returns undefined, the router throws on
+// `.select`, the intercept's one catch swallows the throw, and the child's
+// answer never reaches handleAnswer — which is how case 4 went red when that
+// router was added, while production (where `from()` is a real builder and the
+// child has no training attempt) was unaffected. The rows are the child's: a
+// users row, and no open training attempt.
+const mockRows = {
+  users: [{ id: 'u-child', name: null }],
+  training_assessment_attempts: [],
+};
+// A table whose read throws — a training router failing mid-flight.
+const mockThrowing = new Set();
+function mockChain(table) {
+  const rows = mockRows[table] || [];
+  if (mockThrowing.has(table)) {
+    const boom = () => { throw new Error(`simulated ${table} failure`); };
+    const bad = {};
+    ['select', 'eq', 'neq', 'in', 'is', 'not', 'gte', 'lte', 'order', 'limit', 'range'].forEach((m) => { bad[m] = () => bad; });
+    bad.maybeSingle = async () => boom();
+    bad.single = async () => boom();
+    bad.then = (res, rej) => Promise.reject(new Error(`simulated ${table} failure`)).then(res, rej);
+    return bad;
+  }
+  const chain = {};
+  ['select', 'eq', 'neq', 'in', 'is', 'not', 'gte', 'lte', 'order', 'limit', 'range',
+    'insert', 'update', 'upsert', 'delete'].forEach((m) => { chain[m] = () => chain; });
+  chain.maybeSingle = async () => ({ data: rows[0] || null, error: null });
+  chain.single = async () => ({ data: rows[0] || null, error: null });
+  chain.then = (res, rej) => Promise.resolve({ data: rows, error: null }).then(res, rej);
+  return chain;
+}
 jest.mock('../../bot/shared/config/supabase', () => ({
-  from: jest.fn(),
+  from: jest.fn((table) => mockChain(table)),
   rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
   auth: {},
 }));
@@ -78,8 +112,9 @@ jest.mock('../../bot/shared/services/quiz/quiz-session.service', () => ({
   endSession: jest.fn(),
 }));
 
+const mockRouteCapstone = jest.fn().mockResolvedValue(false);
 jest.mock('../../bot/shared/services/training/capstone-delivery.service', () => ({
-  routeTextAnswer: jest.fn().mockResolvedValue(false),
+  routeTextAnswer: (...a) => mockRouteCapstone(...a),
 }));
 
 jest.mock('../../bot/shared/services/lp-context.service', () => ({
@@ -124,6 +159,8 @@ async function run(from, body, user) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockThrowing.clear();
+  mockRouteCapstone.mockResolvedValue(false);
   mockGetPostQuizState.mockResolvedValue(null);
   mockGetActiveState.mockResolvedValue(null);
   mockBeginFromCodeLocked.mockResolvedValue(true);
@@ -179,5 +216,41 @@ describe('bd-mg9c7.97 — QUIZ-<code> reaches the share-code join ahead of a sta
 
     expect(mockHandleAnswer).toHaveBeenCalledWith(CHILD_PHONE, 'A', { currentQuestionId: 'q1' });
     expect(mockBeginFromCodeLocked).not.toHaveBeenCalled();
+    // The open-ended answer router really ran ahead of the quiz answer, looked
+    // for the child's open training attempt, found none and let the "A" through.
+    const supabase = require('../../bot/shared/config/supabase');
+    expect(supabase.from.mock.calls.map((c) => c[0])).toContain('training_assessment_attempts');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// One try/catch used to span the post-quiz chat, the capstone router, the
+// open-ended answer router and the active-quiz answer check. A throw in either
+// TRAINING router skipped the quiz answer entirely — the child's "A" fell
+// through to ordinary chat — and the catch logged it at info, where no error
+// monitor looks. Each router now fails on its own, at error, and the message
+// goes on to the next one.
+describe('a training router that throws never costs a child their quiz answer', () => {
+  const errorLogged = (re) => require('../../bot/shared/utils/logger').logToFile.mock.calls
+    .some((c) => re.test(String(c[0])) && c[2] === 'error');
+
+  test('5: the open-ended answer router throws -> the "A" still reaches handleAnswer, and the failure is logged at error', async () => {
+    mockGetActiveState.mockResolvedValue({ currentQuestionId: 'q1' });
+    mockThrowing.add('training_assessment_attempts');
+
+    await run(CHILD_PHONE, 'A', CHILD_USER);
+
+    expect(mockHandleAnswer).toHaveBeenCalledWith(CHILD_PHONE, 'A', { currentQuestionId: 'q1' });
+    expect(errorLogged(/open-ended answer router/)).toBe(true);
+  });
+
+  test('6: the capstone router throws -> the "A" still reaches handleAnswer, and the failure is logged at error', async () => {
+    mockGetActiveState.mockResolvedValue({ currentQuestionId: 'q1' });
+    mockRouteCapstone.mockRejectedValue(new Error('capstone read failed'));
+
+    await run(CHILD_PHONE, 'A', CHILD_USER);
+
+    expect(mockHandleAnswer).toHaveBeenCalledWith(CHILD_PHONE, 'A', { currentQuestionId: 'q1' });
+    expect(errorLogged(/capstone router/)).toBe(true);
   });
 });

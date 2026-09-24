@@ -82,14 +82,10 @@ const COACHING_MESSAGES = {
     ...en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
     ur: '📄 سبق کا منصوبہ موصول ہو گیا! اسے پس منظر میں پڑھا جا رہا ہے اور تجزیے میں شامل کر دیا جائے گا۔',
   },
-  // Lesson-plan branch: the plan was PASTED as a chat message rather than
-  // attached (bd-we73k). Named separately from lessonPlan_received so she can
-  // tell we read what she typed — the old copy says "received", which reads as
-  // a file she never sent.
-  lessonPlan_receivedText: {
-    ...en("📄 Got your lesson plan — thanks for typing it out. I'm reading it now and will weave it into your analysis."),
-    ur: '📄 آپ کا سبق کا منصوبہ مل گیا — لکھ کر بھیجنے کا شکریہ۔ اسے ابھی پڑھا جا رہا ہے اور تجزیے میں شامل کر دیا جائے گا۔',
-  },
+  // A PASTED plan gets no ack of its own: the Step 2/5 announcement that follows
+  // already says the plan is being read into the analysis, and the separate
+  // "thanks for typing it out" line read as the same message twice (DC
+  // feedback, 2026-09-23). Do not reinstate one without re-reading that report.
   // Lesson-plan branch: the uploaded document doesn't look like a lesson plan
   // (e.g. a leave letter). We still analyse the recording; we just can't use
   // this file as a plan. (field report — Irum, ICT, DC-9.)
@@ -246,13 +242,27 @@ const COACHING_MESSAGES = {
   // audio moved the overall by a mean of 5.9 points across 1,515 measured
   // duplicate groups.
   //
-  // No date is interpolated. The prior report carries its own date, and a
-  // formatted date here would need a locale-correct rendering in both languages
-  // that nothing on this path currently has. Body message — no 60/20 field cap
-  // applies (language-protocol §3).
+  // No date is interpolated — operator's call (bd-uwf1a). The prior report
+  // carries its own date, so naming one here buys a locale-correct date
+  // rendering in two languages for something the teacher can already see.
+  //
+  // bd-71qzn — the Urdu is the OPERATOR'S OWN WORDING, used verbatim. Do not
+  // "improve" it: it was written by the person who owns the voice, and the
+  // English was cut to match it.
+  //
+  // What was removed, deliberately (operator): the sentence explaining that
+  // re-scoring would produce a slightly different number. A teacher does not
+  // need to be told the scorer is non-deterministic to accept the report she
+  // already has; it invited a doubt the message exists to avoid.
+  //
+  // Gender is safe here: in "میں نے … سنی ہے" the verb agrees with ریکارڈنگ
+  // (the object), not with the speaker, so nothing commits Rumi to a gender —
+  // the same reason "بھیجی تھی" is correct for the teacher. `*نئی*` mirrors the
+  // English `*new*`; both render bold in WhatsApp. Body message — no 60/20
+  // field cap applies (language-protocol §3).
   duplicateRecording: {
-    ...en("📋 I've heard this recording before — it's the same one you sent me earlier, so here is the report I already made for it.\n\nScoring it again would give you a slightly different number for the very same lesson, and that wouldn't be fair to you. Send a *new* recording whenever you'd like fresh feedback."),
-    ur: '📋 یہ ریکارڈنگ مجھے پہلے بھی مل چکی ہے — یہ وہی ہے جو آپ نے پہلے بھیجی تھی، اس لیے اسی کی رپورٹ حاضر ہے جو میں پہلے بنا چکی ہوں۔\n\nاسے دوبارہ جانچنے سے اُسی سبق کا نمبر تھوڑا مختلف آتا، اور یہ آپ کے ساتھ انصاف نہ ہوتا۔ نئی رائے کے لیے جب چاہیں *نئی* ریکارڈنگ بھیج دیجیے۔',
+    ...en("📋 I've heard this recording before \u2014 it's the same one you sent me earlier, so here is the report I already made for it.\n\nSend a *new* recording whenever you'd like fresh feedback."),
+    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔\n\nجب آپ نئی رائے چاہتے ہوں تو *نئی* ریکارڈنگ بھیج دیجیے۔',
   },
 
   // ── The classroom-audio confirmation ──────────────────────────────────────

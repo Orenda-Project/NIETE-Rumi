@@ -53,6 +53,8 @@ const supabase = require('../../bot/shared/config/supabase');
 const { logEvent } = require('../../bot/shared/utils/structured-logger');
 const { installFrom } = require('./helpers/supabase-chain');
 const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
+// The blind solve is not this suite's subject: an agreeing solver on its seam (see the helper).
+const { installAgreeingSolver } = require('./helpers/key-verify-agree');
 const Rewrite = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
 const { buildAuthorPrompt } = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
 
@@ -151,7 +153,7 @@ function urEight({ q0, q7 } = {}) {
     urQ({ slo: 'S2', level: 'understand', question: 'دیوار پر لگا ہوا نقشہ کس چیز کو دکھاتا ہے؟', options: ['زمین کا حصہ', 'ایک کمرہ', 'ایک کتاب'] }),
     urQ({ slo: 'S3', level: 'understand', question: 'پیمانہ کس کام آتا ہے؟', options: ['اصل فاصلہ معلوم کرنے', 'رنگ چننے', 'نام لکھنے'] }),
     urQ({ question: 'موسم دکھانے والا نقشہ کس قسم کا ہوتا ہے؟', options: ['موسمی نقشہ', 'سیاسی نقشہ', 'طبعی نقشہ'] }),
-    urQ({ slo: 'S2', level: 'understand', question: 'پہاڑ اور دریا دکھانے کے لیے کون سا نقشہ چنیں گے؟', options: ['طبعی نقشہ', 'سیاسی نقشہ', 'موسمی نقشہ'] }),
+    urQ({ slo: 'S2', level: 'understand', question: 'پہاڑ اور دریا دکھانے کے لیے کون سا نقشہ چننا چاہیے؟', options: ['طبعی نقشہ', 'سیاسی نقشہ', 'موسمی نقشہ'] }),
     urQ({ question: 'ملکوں کی حدیں کون سا نقشہ دکھاتا ہے؟', options: ['سیاسی نقشہ', 'طبعی نقشہ', 'موسمی نقشہ'] }),
     q7 || urQ({
       slo: 'S3', level: 'understand', question: 'یہ شکل کس چیز کی ہے؟', options: ['مثلث', 'دائرہ', 'مربع'],
@@ -207,6 +209,7 @@ beforeEach(() => {
   process.env.TRANSCRIPT_QUIZ_ENABLED = 'true';
   delete process.env.QUIZ_MULTI_SELECT_FLOW_ID;
   jest.spyOn(Gen, 'sleep').mockResolvedValue(undefined);
+  installAgreeingSolver(Gen);
   jest.spyOn(Gen, 'renderFigures').mockResolvedValue({});
   jest.spyOn(Gen, 'renderCards').mockResolvedValue({});
 });

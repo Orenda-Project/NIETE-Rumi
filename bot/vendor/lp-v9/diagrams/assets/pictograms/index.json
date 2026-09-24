@@ -375,6 +375,12 @@
       "annotation": "laptop",
       "author": "Jonas Roßner"
     },
+    "cookie": {
+      "file": "cookie.svg",
+      "hexcode": "1F36A",
+      "annotation": "cookie",
+      "author": "Miriam Vollmeier"
+    },
     "corn": {
       "file": "corn.svg",
       "hexcode": "1F33D",
@@ -812,6 +818,12 @@
       "hexcode": "1F34B",
       "annotation": "lemon",
       "author": "Marius Schnabel"
+    },
+    "lily": {
+      "file": "lily.svg",
+      "hexcode": "1FAB7",
+      "annotation": "lotus",
+      "author": "Max Isele"
     },
     "lion": {
       "file": "lion.svg",
@@ -1316,6 +1328,12 @@
       "hexcode": "1F33B",
       "annotation": "sunflower",
       "author": "Hilda Kalyoncu"
+    },
+    "sweet": {
+      "file": "sweet.svg",
+      "hexcode": "1F36C",
+      "annotation": "candy",
+      "author": "Miriam Vollmeier"
     },
     "table": {
       "file": "table.svg",

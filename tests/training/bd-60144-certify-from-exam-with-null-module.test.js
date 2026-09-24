@@ -142,7 +142,12 @@ describe('bd-60144 — certification from a module-exam attempt', () => {
       userId: 'u1', moduleId: null, levelId: 26, attemptId: 'att-52', programId: 'p1',
     });
     expect(supabase.touched).toContain('training_grand_quizzes');
-    expect(supabase.touched).toContain('teacher_training_progress');
+    // INVERTED 2026-09-23 (operator: the certificate waits on the module exams
+    // ONLY). This used to assert the guard went on to read unit progress; on a
+    // per-module-assessed level it now certifies without looking at units, so
+    // proof it got past the prologue is that it reached issuance instead.
+    expect(supabase.touched).not.toContain('teacher_training_progress');
+    expect(supabase.touched.filter(t => t === 'training_certificates').length).toBeGreaterThan(1);
   });
 
   test('the gate STILL refuses with only one exam passed — bd-60139 holds', async () => {
@@ -154,13 +159,17 @@ describe('bd-60144 — certification from a module-exam attempt', () => {
     expect(res.issued).toBe(false);
   });
 
-  test('the gate STILL refuses when the units are not finished', async () => {
+  // INVERTED 2026-09-23. Was "the gate STILL refuses when the units are not
+  // finished". Operator: "no chaining between Units or Modules whatsoever ...
+  // not ship certificate unless all Module Exams are finished" — so unfinished
+  // units no longer block an I-SAPS certificate once all nine exams are passed.
+  test('all nine exams passed certifies even with units unfinished', async () => {
     const { maybeIssueQuizScoreCertificate } = load();
     const supabase = makeSupabase({ passedExamIds: ALL_NINE, unitsComplete: false });
     const res = await maybeIssueQuizScoreCertificate(supabase, {
       userId: 'u1', moduleId: null, levelId: 26, attemptId: 'att-52', programId: 'p1',
     });
-    expect(res.issued).toBe(false);
+    expect(res.issued).toBe(true);
   });
 
   test('the QUICK-CHECK path is unchanged — moduleId still resolves the level', async () => {

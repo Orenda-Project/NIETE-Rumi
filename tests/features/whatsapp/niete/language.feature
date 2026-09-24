@@ -220,6 +220,20 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # Only the entry launcher localizes: training-entry.service.js:59-60 COPY.body[language]||en (real
     # Urdu at :23,:27). Everything INSIDE the Flow is English — see E2 (F-TRAIN-i18n).
 
+  @e2e @language @copy @wip @draft @P2
+  Scenario: An Urdu line that opens with a name in English letters still reads right to left
+    Given the NIETE bot chat is open
+    And my language is set to Urdu
+    And my registered name is written in English letters
+    When I make a class quiz for one of my lessons and receive the message to forward to my class
+    Then the line that opens with my name reads right to left, starting with my name
+    And the link keeps its own line and still opens the quiz
+    # A phone lays out each paragraph from its first strong character; a leading U+200F only governs
+    # the first paragraph. ux-strings resolveUx() keepDirection(): when the value that OPENS a paragraph
+    # would turn it the wrong way, the value is isolated and the paragraph opens with U+200F (U+200E for
+    # the English mirror case). Proven over every placeholder-led paragraph in the catalog by
+    # tests/config/ux-strings-paragraph-direction.test.js. @wip.
+
   # ── E2. Still leaks English on an Urdu account (@known-issue) ──
 
   @e2e @language @known-issue @P1
@@ -373,3 +387,42 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     Then the bot does NOT show the "Languages" picker (it replies conversationally / via the AI handler)
     # Only "/language" (case-insensitive) matches text-message.handler.js:1715. Bare "language"
     # falls through to the general/AI handler. Counterpart to menu.feature's bare-"menu" negative.
+
+  @e2e @language @wip @draft @P2
+  Scenario: The coaching ask after a lesson plan, and its recording instructions, arrive in my language
+    Given my account is set to Urdu
+    When the coaching ask that follows my first lesson plan of the day is sent
+    Then the question and both buttons read in Urdu
+    When I tap the button that accepts
+    Then the recording instructions read in Urdu and ask for 20 to 45 minutes
+    And neither message addresses me with a gendered verb form
+    And the same exchange on an English account reads in English
+    # R8 D6/D7/D8. lpAsk* live in ux-strings.js in en+ur; the accept path reuses the menu's coaching
+    # door, whose inline English/Urdu ternary moved into the catalogue with this change. Gender-neutral
+    # is a standing operator rule, not a preference. @wip — driven and promoted by the sandbox E2E run.
+
+  @e2e @language @wip @draft @P2
+  Scenario: A lesson-plan-born quiz that cannot be written says so in the teacher's language
+    Given my account is set to Urdu
+    And a quiz is being written from a lesson plan I was served
+    When the lesson's slide script cannot be resolved for the exact version I hold
+    Then the bot tells me in Urdu that it could not make a quiz from that lesson plan
+    And the message does NOT say "recording" or "transcript" — no recording was involved
+    And the same failure on an English account reads in English
+    # R8 D4/D12. tqFailedLpSource / tqFailedLpDigest / tqFailedLpAuthor are en+ur in ux-strings.js and
+    # are chosen by quizzes.quiz_source, so a lesson-plan quiz never inherits the recording copy
+    # (transcript-quiz-generate.service.js failureCopyKey). Rule 24d: the copy names the state that
+    # actually stopped. @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  @e2e @language @quiz @wip @draft @config-gated @P2
+  Scenario: The afternoon quiz offer, and the list of classes it may show, arrive in my language
+    Given my account is set to Urdu
+    And I planned lessons for two classes today
+    When the afternoon quiz offer is sent
+    Then the message, the list button and every class row read in Urdu
+    And the row titles name the grade and subject in Urdu
+    When I pick a class
+    Then the confirmation that the quiz is being made reads in Urdu
+    And the same exchange on an English account reads in English
+    # R8 §5.2. lpQuizOffer* live in ux-strings.js in en+ur and are fitted to the WhatsApp caps in code
+    # points (list row title 24, description 72). @wip — driven and promoted by the sandbox E2E run.

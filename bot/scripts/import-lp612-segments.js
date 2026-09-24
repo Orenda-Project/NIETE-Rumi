@@ -106,6 +106,109 @@ function parseGradeSpan(spec) {
   return { grade, alsoGrades };
 }
 
+// ── the salutation, and whether the row kept it ─────────────────────────────
+
+/**
+ * The stamp in every form the corpus actually prints it: the ligature, the two
+ * Arabic spellings, and the Latin abbreviations the English-medium books use
+ * (operator, 2026-09-23, bd-b7txa: "should Latin PBUH/SAW satisfy the gate? Yes
+ * it should").
+ */
+const SALUTATION_RE = /[\uFDFA\uFDFB\u0610\u0611]|صل[یى]\s*الل[هہ]\s*علی?[هہ]|\(\s*(?:P\.?\s?B\.?\s?U\.?\s?H\.?|S\.?\s?A\.?\s?W\.?W?\.?)\s*\)/;
+
+/**
+ * Words that NAME the Prophet. Deliberately narrow, and deliberately NOT the
+ * adjectival-only readings: the operator ruled on 2026-09-23 ("3b - can be left
+ * as is") that مسجدِ نبوی, معجزاتِ نبوی, اسوۂ نبوی and نعتِ رسولِ مقبول are correct as
+ * printed and need no salutation. نبوی is listed here anyway because the books
+ * DO stamp it when it heads a seerah title (اخلاقِ نبوی ﷺ) — what keeps the
+ * adjectival cases out is the second test below, not this list.
+ */
+/**
+ * A salutation the menu cut in half.
+ *
+ * `grade_8_islamiat.c04.r990` shipped as `دہرائی: احادیثِ نبوی صلی` — the 30-code-point
+ * cut landed inside `صلی اللہ علیہ وآلہ وصحابہ` and kept the first word of it. This is
+ * the one place in the corpus where the cap really is the cause, and it is the one
+ * case the dropped-salutation message must NOT be used for: that message says the
+ * stamp fits and to place it, and a reviewer who does gets `... نبوی صلی ﷺ` — a half
+ * salutation followed by a whole one, comfortably inside the cap.
+ *
+ * Only reached when SALUTATION_RE has already rejected the row, so the complete
+ * spellings it accepts (including a terminal `صلی اللہ علیہ`) never land here.
+ * Anchored at the end of the string because that is the only place a cut can leave one.
+ */
+const SEVERED_SALUTATION_RE = /(?:^|\s)(?:صل[یى](?:\s+الل?[هہ]?(?:\s+عل[یي]?[هہ]?(?:\s+و?(?:آل[هہ]?|سلم?)?)?)?)?|عل[یي][هہ]\s+السلا?|رض[یي](?:\s+الل?[هہ]?(?:\s+عن[هہ]?)?)?)\s*$/;
+
+const PROPHET_TOKEN_RE = /نبوی|\bنبی\b|\bرسول\b|رسولِ|مصطف[یى]|Muhammad|Mohammad|Muhammed|Rasulullah|Rasool|Rasul/;
+
+/**
+ * Is THIS token, in THIS source string, saluted?
+ *
+ * Anchored on the token and allowing up to two words in between, because a
+ * chained name carries one salutation and it sits at the END of the chain —
+ * `Hazrat Muhammad Rasulullah (ﷺ)`. The same window `skipNameChain()` opens in
+ * the lint gate, for the same reason.
+ *
+ * The window is what keeps the operator's 3b ruling intact. Grade 6 Islamiat
+ * ch.3 has a stamped CHAPTER title (سیرتِ طیبہ صلی اللہ علیہ وسلم) above an
+ * unstamped subtopic (مسجدِ نبوی کی تعمیر); a check that merely asked "does any
+ * field here carry a stamp?" would flag it and re-open a question she has closed.
+ */
+function tokenIsSaluted(token, source) {
+  const text = String(source || '');
+  let i = text.indexOf(token);
+  while (i !== -1) {
+    const after = text.slice(i + token.length, i + token.length + 40);
+    const upToThirdWord = after.match(/^(?:\s*\S+){0,2}/);
+    if (SALUTATION_RE.test(upToThirdWord ? upToThirdWord[0] : after)) return true;
+    i = text.indexOf(token, i + 1);
+  }
+  return false;
+}
+
+/**
+ * Returns a warning string, or null. Three things must all hold: the menu row
+ * names the Prophet and carries no stamp; the segment's OWN chapter/section/
+ * subtopic salutes that same word; and the stamp would fit inside the row cap.
+ *
+ * The cap test is not politeness — a row with no room cannot be repaired by the
+ * reviewer without re-cutting the title, so reporting it as a lost salutation
+ * would be telling her to do something she cannot do. Those are the over-cap
+ * warning's business, one check below.
+ */
+function lostSalutation(s) {
+  const menu = String((s || {}).menu_title || '');
+  if (!menu || SALUTATION_RE.test(menu)) return null;
+
+  const named = menu.match(PROPHET_TOKEN_RE);
+  if (!named) return null;
+  const token = named[0];
+
+  const sources = [s.chapter_title, s.section, s.subtopic_title].filter(Boolean);
+  if (!sources.some((src) => tokenIsSaluted(token, src))) return null;
+
+  const width = cps(menu);
+
+  // The cut landed inside the salutation. Say THAT, because the repair is different:
+  // nothing can be added to this row, it has to be re-cut so the break falls outside
+  // the stamp (operator, 2026-09-23, on this exact row: "Re-cut the title so the break
+  // falls outside the salutation").
+  if (SEVERED_SALUTATION_RE.test(menu)) {
+    return `menu_title "${menu}" ends INSIDE the salutation — the ${MENU_TITLE_CAP}-code-point `
+      + `cut severed it. Do NOT add a stamp to this row: appending one leaves half a `
+      + `salutation followed by a whole one. The title must be RE-CUT so the break falls `
+      + `outside it — bd-d6c8y, gate G5c.`;
+  }
+
+  if (width + 2 > MENU_TITLE_CAP) return null;
+
+  return `menu_title "${menu}" names the Prophet ("${token}") with no salutation, `
+    + `while this segment's own chapter/subtopic salutes him — the row dropped it. `
+    + `It is ${width} code points, so the stamp FITS (${width + 2} of ${MENU_TITLE_CAP}); `
+    + `this is not the cap. A reviewer must place it — bd-d6c8y, gate G5c.`;
+}
+
 const REQUIRED = [
   'segment_id', 'book_stem', 'grade', 'subject', 'chapter_key',
   'subtopic_title', 'menu_title', 'printed_page_start', 'order_index',
@@ -143,6 +246,21 @@ function validateSegment(segment) {
   if (s.language && !['en', 'ur'].includes(s.language)) {
     errors.push(`unknown language "${s.language}"`);
   }
+
+  // bd-d6c8y: the salutation the book gave, dropped on the way to the menu row.
+  //
+  // Eight rows shipped as `Hazrat Muhammad: reading` / `اخلاقِ نبوی: تفہیم` while the
+  // chapter title and subtopic of the SAME segment carried the stamp. Reported at
+  // first as the 30-code-point cap eating it; it is not — every one of them had room.
+  //
+  // This WARNS and never rewrites. Gate G5c: automated checks do not clear religious
+  // content, and where a salutation belongs in a line is exactly that kind of
+  // judgement — mid-phrase in `سیرتِ نبوی ﷺ میں …`, terminal in `Review: Hazrat
+  // Muhammad ﷺ`. A rule that guessed would eventually guess wrong on a teacher's
+  // screen. The reviewer places the stamp; this only refuses to let the row go by
+  // unnoticed.
+  const lost = lostSalutation(s);
+  if (lost) warnings.push(lost);
 
   if (cps(s.menu_title) > MENU_TITLE_CAP) {
     warnings.push(`menu_title is ${cps(s.menu_title)} code points (cap ${MENU_TITLE_CAP})`);
@@ -517,6 +635,7 @@ async function main(argv = process.argv.slice(2)) {
 
 module.exports = {
   isReligiousSegment,
+  lostSalutation,
   validateSegment,
   toRow,
   overlayYt,

@@ -152,6 +152,17 @@ describe('retry', () => {
     expect(share.startForStudent).not.toHaveBeenCalled();
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, resolveUx('sqInFlight', { language: 'en' }));
   });
+
+  // A class-link quiz runs on the VIDEO engine (its own Redis state). The
+  // adaptive engine no longer adopts those sessions, so the live one is read
+  // where it lives — and restarting over it would overwrite its state.
+  test('a video / transcript / lesson-plan quiz waiting on a question is not restarted either', async () => {
+    redisService.get.mockImplementation(async (k) => (k === `videoquiz:${PHONE}:active`
+      ? { sessionId: 'vq-live', currentQuestionId: 'q-1', questionIds: ['q-1'] } : null));
+    expect(await SQ.retry(PHONE, ctx)).toBe(false);
+    expect(share.startForStudent).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, resolveUx('sqInFlight', { language: 'en' }));
+  });
 });
 
 describe('sendCard', () => {
@@ -179,7 +190,10 @@ describe('sendCard', () => {
 
 describe('handleButton — the fallback taps', () => {
   test('sq_retry consumes the kept context and retries; a foreign id is not ours', async () => {
-    redisService.get.mockResolvedValue({ shareCodeId: 'sc-1', studentId: 'st-1', code: 'K7RM2X', active: true, language: 'en' });
+    // Key-aware, as Redis is: the kept context lives under the fallback key
+    // only (retry also reads the video quiz's own key, which is empty here).
+    redisService.get.mockImplementation(async (k) => (k === SQ.FALLBACK_KEY(PHONE)
+      ? { shareCodeId: 'sc-1', studentId: 'st-1', code: 'K7RM2X', active: true, language: 'en' } : null));
     expect(await SQ.handleButton('vq_more_yes', PHONE)).toBe(false);
     expect(await SQ.handleButton(SQ.RETRY_ID, PHONE)).toBe(true);
     expect(redisService.delete).toHaveBeenCalledWith(SQ.FALLBACK_KEY(PHONE));

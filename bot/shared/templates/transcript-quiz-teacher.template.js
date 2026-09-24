@@ -40,11 +40,14 @@
  * depends on a font that covers it).
  */
 
+const { LP_V8 } = require('../services/quiz/quiz-sources');
 const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
+const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
 const { sloStatement } = require('../services/quiz/transcript-quiz-language');
 const { resolveUx } = require('../config/ux-strings');
+const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
   headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf,
@@ -210,6 +213,17 @@ const CHROME = {
 };
 
 /**
+ * An lp_v8 quiz was written from the lesson PLAN the teacher was served —
+ * nobody heard the lesson — so the two lines that say where the sheet came
+ * from say so (PLAN_R8 §3.6). Only these keys differ; everything else is the
+ * CHROME above.
+ */
+const LP_CHROME = {
+  en: { taught: 'What you planned', footer: 'Made from your lesson plan · NIETE Teaching Assistant' },
+  ur: { taught: 'آپ کے سبق کا منصوبہ', footer: 'آپ کے lesson plan سے تیار · NIETE Teaching Assistant' },
+};
+
+/**
  * Isolate every Latin run inside RTL prose.
  *
  * The run must be ONE span. Two consecutive spans are two isolates, and an
@@ -220,13 +234,11 @@ const CHROME = {
  * a break), and a run may take a bracket that clearly belongs to it.
  */
 const LATIN_TOKEN = '[A-Za-z0-9\'’".,:;!?()%/+=*$@#^_\\-]';
+// The run itself — its joiners ("&", "·", spaces) and its entity handling —
+// is latin-runs.js, shared with the class report so the two cannot drift.
 function wrapLatin(html, rtl) {
   if (!rtl) return html;
-  const run = new RegExp(`\\(?[A-Za-z0-9]${LATIN_TOKEN}*(?:[\\s\\-]${LATIN_TOKEN}+)*`, 'g');
-  return html.split(/(<[^>]+>|&[a-zA-Z]+;|&#\d+;)/).map((seg) => (
-    seg.startsWith('<') || (seg.startsWith('&') && seg.endsWith(';'))
-  ) ? seg
-    : seg.replace(run, (m) => `<span class="ltr">${m}</span>`)).join('');
+  return wrapLatinRuns(html, { token: LATIN_TOKEN, leadingParen: true });
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -253,14 +265,15 @@ function renderTranscriptQuizTeacherHtml(d) {
   const a = assets();
   const {
     topic = '', teacherName = '', grade = '', date = '', link = '', digest = {}, questions = [],
-    language = 'en', lessonSummary = '',
+    language = 'en', lessonSummary = '', quizSource = null,
   } = d || {};
   // D1: the document is written in the quiz's language. `language` is what a
   // single-language caller passes; `contentLanguage` is what the two-argument
   // callers pass, and it wins.
   const docLang = (d && d.contentLanguage) || language;
   const RTL = RTL_LANGS.has(docLang);
-  const C = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
+  const C0 = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
+  const C = quizSource === LP_V8 ? { ...C0, ...(LP_CHROME[docLang] || (RTL ? LP_CHROME.ur : LP_CHROME.en)) } : C0;
   // L() only isolates, never re-escapes — a trusted chrome string may carry a
   // real <b> that must survive. K() additionally escapes and turns x^2 / H2O
   // into real super/subscripts (richNotation only adds tags, which wrapLatin
@@ -269,7 +282,12 @@ function renderTranscriptQuizTeacherHtml(d) {
   // Order matters: escape → isolate the Latin run → only then grow the
   // super/subscript tags inside that single isolate. Notation-first splits
   // the run across two isolates and an RTL paragraph then prints it backwards.
-  const K = (s) => richNotation(wrapLatin(esc(s), RTL));
+  //
+  // Maths written `$…$` (bd-mg9c7.159.19) is typeset by KaTeX, the same way the
+  // child's card draws it. mathHtml() hands only the PROSE between expressions
+  // to the pipeline above, so wrapLatin() never reaches inside KaTeX's markup;
+  // each expression is already its own left-to-right isolate.
+  const K = (s) => mathHtml(s, { prose: (p) => richNotation(wrapLatin(esc(p), RTL)) });
   const dir = RTL ? 'rtl' : 'ltr';
   // Kept so a block can still declare its own direction where the script
   // genuinely differs from the document's (a name, a term).
@@ -285,7 +303,7 @@ function renderTranscriptQuizTeacherHtml(d) {
   const taughtText = clampSentences(lessonSummary, 1);
   const checksText = checksSentence(digest, slos, C, docLang);
 
-  const cards = questions.map((q, i) => {
+  const cardList = questions.map((q, i) => {
     // external_id is `tq:<quizId>:<sloId>:<n>` in production and `tq:<sloId>:<n>`
     // in the older fixtures; the SLO is the second-to-last segment either way,
     // which is the convention the report already reads it by.
@@ -331,7 +349,11 @@ function renderTranscriptQuizTeacherHtml(d) {
           </div>
         </div>
       </div>`;
-  }).join('');
+  });
+  const cards = cardList.join('');
+  // The LAST card travels with the footer (see .tail below); the rest flow.
+  const leadCards = cardList.slice(0, -1).join('');
+  const lastCard = cardList.length ? cardList[cardList.length - 1] : '';
 
   const heroMark = a.markOnDark ? `<img class="hero-mark" src="data:image/png;base64,${a.markOnDark}" alt="NIETE">` : '';
   const footMark = a.markOnLight ? `<img class="mark-img" src="data:image/png;base64,${a.markOnLight}" alt="NIETE">` : '';
@@ -346,6 +368,13 @@ function renderTranscriptQuizTeacherHtml(d) {
   // `name · date` only.
   void grade; void link;
   const meta = [nameHtml, date ? L(esc(date)) : ''].filter(Boolean).join('<span class="sep">·</span>');
+  // Built before the page so the page knows whether it needs KaTeX: its
+  // stylesheet carries ~350 KB of inlined faces, and a sheet with no maths is
+  // left exactly as light as it was.
+  const topicHtml = K(topic);
+  const taughtHtml = taughtText ? K(taughtText) : '';
+  const checksHtml = checksText ? K(checksText) : '';
+  const maths = [cards, topicHtml, taughtHtml, checksHtml].some(usesMath);
 
   return `<!doctype html><html dir="${dir}" lang="${docLang}"><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -355,7 +384,7 @@ function renderTranscriptQuizTeacherHtml(d) {
 @font-face{font-family:'Fraunces';font-weight:400;src:url(data:font/ttf;base64,${a.fraunces}) format('truetype')}
 @font-face{font-family:'Fraunces';font-weight:600;src:url(data:font/ttf;base64,${a.frauncesSemi}) format('truetype')}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq}) format('truetype')}
-@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold}) format('truetype')}
+@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold}) format('truetype')}${maths ? `\n${mathCss()}` : ''}
 body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .report{width:794px;margin:0 auto;background:#fff}
 /* A Latin run inside RTL prose needs BOTH properties. isolate keeps the run
@@ -384,7 +413,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .stchip .n{font-family:${bodyFamily(false)};font-weight:700;font-size:${TYPE_STEP.name}px;direction:ltr}
 .stchip .l{font-family:${bodyFam};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.06em}
 /* ── sheet ──────────────────────────────────────────────────────────────── */
-.body{padding:12px 40px 6px}
+.body{padding:12px 40px 0}
 .label{font-family:${bodyFam};font-size:${RTL ? `${LABEL_UR}px` : `${TYPE_FLOOR.label}px`};letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.62;font-weight:700;margin-bottom:7px;break-after:avoid}
 .band{display:flex;flex-direction:column;gap:10px}
 .band>div{min-width:0}
@@ -442,6 +471,18 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
    an RTL chip — the truncation cut from the visual left, printing "…roper
    fraction" instead of "Proper fraction…". Wrapping to a second line beats
    either failure. */
+/* THE FOOTER NEVER ENDS THE DOCUMENT ALONE. The cards cannot split, so when the
+   last one fitted at the foot of a page and the footer did not, the footer
+   spilled onto a page carrying the NIETE mark and one line and nothing else (an
+   eight-question Urdu sheet, page 4). The last card and the footer are one
+   indivisible tail: when the footer does not fit, the last card comes over to
+   the new page with it. A break-before:avoid on the footer alone is NOT enough
+   here — measured on Chromium 148, it was ignored in this document and the
+   footer still stranded. The tail carries the body's side padding, and the
+   body gives up its bottom padding to it, so the gap above the last card is
+   the same 5px as between any two cards. */
+.tail{break-inside:avoid;page-break-inside:avoid}
+.tail .qs{margin-top:0;padding:0 40px 6px}
 .foot{display:flex;align-items:center;justify-content:space-between;padding:12px 40px 16px;margin-top:8px;border-top:1px solid #eaeeeb;color:#8a92a0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${lh};font-family:${bodyFam}}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-family:${bodyFamily(false)}}
 .brand .mark-img{width:22px;height:22px;object-fit:contain;display:block}
@@ -452,7 +493,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
     <div class="herotop">
       <div>
         <div class="eyebrow">${L(C.eyebrow)}</div>
-        <h1 ${cls('')}>${K(topic)}</h1>
+        <h1 ${cls('')}>${topicHtml}</h1>
       </div>
       ${heroMark}
     </div>
@@ -464,14 +505,17 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
   </div>
   <div class="body">
     <div class="band">
-      ${taughtText ? `<div class="taught"><div class="label">${L(C.taught)}</div><div ${cls('sum')}>${K(taughtText)} <span class="fromlesson">${L(esc(C.fromLesson))}</span></div></div>` : ''}
-      ${checksText ? `<div class="checks"><div class="label">${L(C.checks)}</div><div ${cls('sum checks-sum')}>${bullet} ${K(checksText)}</div></div>` : ''}
+      ${taughtText ? `<div class="taught"><div class="label">${L(C.taught)}</div><div ${cls('sum')}>${taughtHtml} <span class="fromlesson">${L(esc(C.fromLesson))}</span></div></div>` : ''}
+      ${checksText ? `<div class="checks"><div class="label">${L(C.checks)}</div><div ${cls('sum checks-sum')}>${bullet} ${checksHtml}</div></div>` : ''}
     </div>
-    <div class="qs">${cards}</div>
+    <div class="qs">${leadCards}</div>
   </div>
-  <div class="foot">
-    <div class="brand">${footMark}NIETE</div>
-    <div>${L(C.footer)}</div>
+  <div class="tail">
+    ${lastCard ? `<div class="qs">${lastCard}</div>` : ''}
+    <div class="foot">
+      <div class="brand">${footMark}NIETE</div>
+      <div>${L(C.footer)}</div>
+    </div>
   </div>
 </div>
 </body></html>`;

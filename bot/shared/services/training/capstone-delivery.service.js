@@ -433,6 +433,7 @@ async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION
 
   const response = await client.chat.completions.create({
     model: getDefaultModel(),
+    job: 'training.capstoneScore',
     temperature: 0,
     // A rubric reply carries per-criterion marks, so it needs more room than
     // the generic one. Too small a cap truncates the JSON and scores 0.
@@ -757,7 +758,7 @@ module.exports = {
   meetsAnswerFloor,
   MIN_ANSWER_CHARS,
   POINTS_PER_QUESTION,
-  // bd-60137 — the module-exam path needs the same per-vendor scale.
+  // The module-exam path needs the same per-vendor scale.
   capstonePointsForLevel,
   // exported for the certificate trigger tests
   levelFullyComplete,

@@ -106,6 +106,76 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # decide is still withheld, which is the scenario below.
 
   @e2e @content-driven @P1
+  Scenario: An English-medium plan naming the Quaid is delivered, because the same review cleared the Latin spelling
+    Given the NIETE bot chat is open
+    And the G5c review has decided "Muhammad Ali Jinnah" is an ordinary person, and the bare name "Muhammad" is the Prophet
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Quaid-e-Azam Muhammad Ali Jinnah" with no honorific after it
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is not sent back for a revision round
+    # bd-5t71f. The scenario above gave the URDU lane its list; the Latin lane had none, so the same
+    # man passed as محمد علی جناح and was refused as Muhammad Ali Jinnah — an English-medium Pakistan
+    # Studies lesson naming the founder returned nothing at all. Measured on the Grades 6-12 corpus:
+    # 436 unhonorified Latin occurrences on 192 pages across 33 books, grade_7_history alone 93.
+    # What clears it is not a rule — gate G5c forbids an automated check clearing religious content —
+    # but the same native-speaker review, 134 Latin phrases decided by Amena Ahmed on 2026-09-23
+    # (119 ordinary people, 15 the Prophet), carried as data in bot/vendor/lp-v9/g5c_cleared_names_en.json.
+    # THIS SCENARIO IS THE LONGEST-PHRASE RULE. Matching is on the word sequence, case-folded with
+    # edge punctuation and an English possessive trimmed, and the longest decided phrase present
+    # rules; on equal length the blocking mark wins. So the three-word "Muhammad Ali Jinnah" clears
+    # even though the one-word "Muhammad" sitting inside it is marked as the Prophet — which is the
+    # only reason the reviewer could mark that bare token PROPHET to fail safe without re-refusing
+    # every ordinary person on her list. The segment must carry religious content or the gate is
+    # never reached: RELIGIOUS_MARKS runs only inside a religious-scope document, so an English
+    # maths lesson naming nobody religious would pass this proving nothing.
+
+  @e2e @content-driven @P1
+  Scenario: A chained Latin name the book saluted at the end of the chain is delivered
+    Given the NIETE bot chat is open
+    And the G5c review has decided the bare name "Muhammad" is the Prophet
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Hazrat Muhammad Rasulullah" with the Arabic salutation after the LAST word of that chain
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is not sent back for a revision round
+    # bd-6ld74. A chained name carries ONE salutation and it sits at the END of the chain, but the
+    # honorific test looked only immediately after the matched name token — so the gate demanded a
+    # second stamp mid-chain and refused a line the book had already saluted correctly. This is the
+    # single commonest shape left after bd-5t71f: of the 18 unresolved occurrences measured on the
+    # Grades 6-12 corpus, 15 are this one, 14 of them one unit title repeated across three pages in
+    # grade_8_english and 1 in grade_9_english. The Urdu lane was given this on the same G5c ruling;
+    # the Latin lane never was, so the same sentence passed in Urdu and was refused in English.
+    # THIS SCENARIO IS THE "WALK TO THE END OF THE CHAIN" RULE, and nothing more. It moves only
+    # WHERE the stamp is looked for, never WHETHER one is required: the words the gate is allowed to
+    # walk past are a closed list of romanised chain tokens, it walks at most four of them, and the
+    # salutation itself ends the walk. A chain that runs out with no salutation is still withheld —
+    # the outline below pins that, and it is the row that fails if this ever becomes a bypass.
+
+  @e2e @content-driven @P1
+  Scenario: A Latin honorific the book printed reaches the teacher as the Arabic stamp
+    Given the NIETE bot chat is open
+    And the G5c review has decided "Hazrat Muhammad PBUH" is the Prophet, correctly saluted
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "Hazrat Muhammad" with the Latin honorific "(PBUH)" directly after it
+    Then a lesson-plan PDF is delivered to the chat
+    And the delivered plan carries the Arabic stamp after that name, not the Latin abbreviation
+    # bd-b7txa, the gap the outline below used to declare open. Two occurrences in the whole Grades
+    # 6-12 corpus — one "... SAW" in grade_9_mathematics and one "... PBUH" in
+    # grade_10_pak_studies_english — where the BOOK saluted the Prophet in Latin and the gate, which
+    # reads only the Arabic stamp, called the line unsaluted and withheld the lesson.
+    # THE GATE DID NOT MOVE, and that is the whole design. Asked whether a Latin PBUH/SAW should
+    # satisfy the gate, the G5c reviewer said it should; but the only way to do that INSIDE the gate
+    # is to stop refusing PBUH/SAW on sight, which reverses her own "what the teacher reads must be
+    # our stamp". So the fix sits ABOVE the gate: a normalisation pass rewrites the printed
+    # abbreviation to the Arabic stamp before the gate runs, and the gate then passes the line on
+    # its existing, unchanged rule. Both halves of her ruling survive — the salutation is no longer
+    # called absent, and what the teacher receives is the stamp.
+    # The second Then is the load-bearing half. If the plan were delivered still reading "(PBUH)",
+    # this scenario would be green and the ruling broken.
+
+  @e2e @content-driven @P1
   Scenario: An "Urdu" plan that is really English is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -126,6 +196,48 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # the row records overlay_dropped, and lp612.overlay.pass carries outcome=failed. The silent
     # alternative was an English page delivered under an Urdu claim, which is what 8 of the 23
     # attempted 6-12 repair rows were on 2026-09-18.
+
+  @e2e @content-driven @P1
+  Scenario: A سیرت lesson already held for review is delivered in Urdu when the overlay keeps the ﷺ
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    And the segment's English document already carries the G5c native-speaker review hold
+    When I complete it for that Grade 9 Islamiyat segment from an English-medium book, and the overlay
+      pass returns the topic title as "سیرت کا سبق: نبی کریم ﷺ کی زندگی"
+    Then a lesson-plan PDF is delivered to the chat
+    And what she receives is the Urdu page, not the English fallback
+    # The overlay pass now lints the MERGED page before it is allowed out, and this is the scenario
+    # that proves the hold DISCRIMINATES: same سیرت lesson, same Islamiyat chapter, same title — and
+    # it is delivered, because the honorific is there and the document was already a review item.
+    # The gate refuses the defect, not the subject. It is worth its own line because the failure it
+    # guards is invisible: a future widening of RELIGIOUS_MARKS could kill every Urdu Islamiyat
+    # overlay and nothing would say so — the fallback to English is silent by design, which is the
+    # kind outcome the scenario above describes. The review hold in the Given is load-bearing: an
+    # overlay that INTRODUCES religious content onto a document nobody flagged is refused even with
+    # the honorific, because then the Urdu page would be the first anyone saw of it.
+
+  @e2e @negative @content-driven @P1
+  Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a Grade 9 Islamiyat segment from an English-medium book, and the overlay
+      pass returns the topic title as "سیرت کا سبق: نبی کریم کی زندگی" — the Prophet named, the ﷺ dropped
+    Then a lesson-plan PDF is still delivered to the chat — the refusal is not silence
+    And what she receives is the English lesson, flagged by the honest caption
+    And she is never handed an Urdu page whose religious content no native speaker has cleared
+    # Gate G5c, on the lane that never asked it. The authoring climb refuses a document still
+    # carrying a RELIGIOUS_MARKS defect; the overlay pass had only two gates — is it Urdu, and does
+    # it cover enough pointers — and the coverage gate's own checker emits exactly one code,
+    # OVERLAY_MISSING. There was no religious code on this lane to trip. The strings the overlay
+    # translates include the chapter and topic TITLES, which on Islamiyat, Urdu and Pak Studies are
+    # exactly where a prophet or a companion gets named, so the model could put the Prophet on the
+    # page without the honorific and nothing between its reply and delivery would look.
+    # NOT a restatement of either scenario near it. "…is really English…" is the LANGUAGE gate — a
+    # different trigger. "…is still withheld" is the AUTHORING climb — a different OUTCOME: there
+    # she gets no PDF at all, here she gets the English one, because the worker keeps the English
+    # document intact as its fallback and this refusal lands in that same catch.
+    # An overlay that INTRODUCES religious content onto an unflagged document is held by the same
+    # rule and looks identical to her, so it is not a separate scenario.
 
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
@@ -169,6 +281,78 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # phrases the reviewer saw. An unreviewed name — even one shaped exactly like a cleared one —
     # is not cleared. Fail-closed, always.
 
+  @e2e @negative @content-driven @P1
+  Scenario Outline: A Latin name the G5c review did not clear still withholds the lesson
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body names
+      "<name>" with no honorific after it
+    Then no lesson-plan PDF is delivered
+    Examples:
+      | name                    | why the review does not clear it                                  |
+      | Muhammad                | she ruled the bare token MIXED and marked it the Prophet to fail safe |
+      | Muhammad Zubair Farooqi | she never saw this name, and an unreviewed name is not a cleared name |
+    # bd-5t71f, the other direction of the scenario above, and the one that matters more. Only a
+    # phrase the reviewer marked as an ordinary PERSON clears; a phrase she marked as the Prophet
+    # never clears, and a name absent from her list is refused exactly as it was before this change.
+    # Fail-closed, always. Row 2 is the protection that a shape is not a clearance: "Muhammad Zubair
+    # Farooqi" is built like "Muhammad Ali Jinnah" and is still withheld, because the alternative —
+    # deciding by grammar which Muhammad is which — is the automated clearance G5c forbids. If this
+    # row ever delivers, the gate has started deciding on the reviewer's behalf.
+    # The gap this outline used to declare open is now CLOSED: she marked "Hazrat Muhammad PBUH" /
+    # "… SAW" as the Prophet, correctly, and a line the BOOK saluted in Latin no longer stays
+    # withheld — it is rewritten to the Arabic stamp before the gate reads it and DELIVERS, which is
+    # bd-b7txa and the scenario "A Latin honorific the book printed reaches the teacher as the
+    # Arabic stamp" above. The honorific test itself is unchanged and still reads only ﷺ and the
+    # Arabic form. Neither row here is touched by that: neither carries a salutation of any kind, in
+    # any script, so neither is rewritten and both stay withheld.
+
+  @e2e @negative @content-driven @P1
+  Scenario Outline: A Latin salutation the gate cannot reach still withholds the lesson
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for an English 6-12 segment that carries religious content and whose body reads
+      "<body>"
+    Then no lesson-plan PDF is delivered
+    Examples:
+      | body                                          | why it is still withheld                                                |
+      | Hazrat Muhammad Rasulullah, the final Prophet | the chain runs out with no salutation at its end, so walking to the end finds nothing to read |
+      | Hazrat Muhammad Rasulullah (PBUH)             | the Latin honorific is not against the name, so the rewrite never reaches it, and a Latin salutation is not the stamp |
+      | Muhammad saw the crescent moon that evening   | a lower-case "saw" is ordinary English, never a salutation, so nothing is rewritten and the name stands unsaluted |
+    # The fail-closed half of the two scenarios above, one row per control. Row 1 bounds the walk:
+    # it may only find a salutation, never invent one. Row 2 bounds the rewrite: it fires only on an
+    # honorific printed directly against the name, so a chain is not laundered by an abbreviation
+    # sitting at the far end of it. Row 3 is the one a blind rewrite would get catastrophically
+    # wrong — "saw" is also the past tense of "see", so a rewrite that matched it case-insensitively
+    # would stamp scripture into an ordinary sentence about the sky. Bare "SAW" is excluded for the
+    # same reason; only the enclosed forms and "SAWW" are read as honorifics.
+    # If any row here ever delivers, the change has stopped being about WHERE the stamp is looked
+    # for and has started clearing religious content on the reviewer's behalf, which G5c forbids.
+
+  @e2e @negative @content-driven @coverage @P1
+  Scenario: A cache repair that cannot clear its religious content leaves my lesson exactly as it was
+    Given a 6-12 Urdu lesson I have already been served, stored and serving from the cache
+    And the overlay repair job tops that stored lesson up with the pointers the current gate offers
+    When the handful of strings it asks for come back clean, but the page they merge into still
+      names the Prophet without the honorific
+    Then nothing is written — the stored document and its PDF are left exactly as they are
+    And the renders row is not patched, so every later cache hit serves me the lesson I already had
+    And I am never quietly given a page whose religious content no native speaker has cleared
+    # The REPAIR lane, not the request lane. The backfill walks the renders table, pulls each stored
+    # document, tops its overlay up and writes back over the row's OWN R2 keys — so an uncleared
+    # translation here replaces the lesson permanently, for every future hit, with no teacher action
+    # to trigger it and nobody watching. Before this the whole chain mentioned religious content
+    # nowhere.
+    # What makes it its own scenario and not a restatement of the refusal above is WHERE the gate
+    # measures: on the MERGED document, never on the delta this call asked for. Judged on the delta
+    # alone the strings above are spotless and the repair ships with the defect still on the page.
+    # And the assertion here is the ABSENCE OF A WRITE, not the presence of an error — a hold that
+    # fires after the upload has already happened protects nobody.
+    # @coverage, not a live WhatsApp drive: the trigger is the operator-run backfill script, so no
+    # driver on this lane can reach it. Executed instead by the jest e2e over the real chain
+    # (tests/lp612/overlay-topup-religious-gate.e2e.test.js), which doubles only supabase, R2, the
+    # model and the renderer, and asserts the upload and row-update CALL COUNTS.
+
   @e2e @flow @negative @P2
   Scenario: A grade with no lesson plans shows a friendly message
     Given the NIETE bot chat is open
@@ -207,3 +391,174 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I open the LP Flow
     Then the Flow screens and the "Sending…" ack are shown in English
     # English is the deliberate floor for this asset-poor surface (F-LP-i18n).
+
+  @e2e @lesson-plan @coaching @wip @draft @P2
+  Scenario: The first lesson plan of the day is followed by one coaching ask, and only the first
+    Given the NIETE bot chat is open on a teacher who has taken no lesson plan today
+    When I take a K-5 lesson plan before 14:00 PKT
+    Then the PDF arrives exactly as it does today
+    And a short while later the bot asks whether I would like that lesson recorded and coached
+    And the ask offers "Record my lesson" and "Not today"
+    When I take a second lesson plan the same day
+    Then no second ask arrives
+    # R8 §4.1. The ask is booked from lp-v8-delivery.service.js after the 'sent' download row, for
+    # asset_kind='lesson' only (an answer key books nothing), and "first of the day" is not a counter:
+    # it is teacher_nudges UNIQUE (user_id, nudge_date, kind), so the second booking collides and
+    # inserts nothing. Nothing here costs the teacher her PDF — the hook is wrapped and non-fatal.
+    # Gated on LP_COACHING_ASK_ENABLED; with the flag unset no row is written at all.
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+  # ──────────────── The 15:00 quiz offer on the lessons a teacher planned ───────────────
+  # A quiz written from the slide script of the exact lesson version the teacher received —
+  # no recording anywhere in it. Gated by LP_QUIZ_OFFER_ENABLED + TEACHER_NUDGES_ENABLED on
+  # the worker that owns the `main` queue. On sandbox the send time can be moved
+  # (LP_QUIZ_OFFER_SEND_HOUR_PKT / _MINUTE_PKT) so a run does not wait for 15:00.
+  # The driver number must have users.role='teacher' and must have written to the bot
+  # within 24 hours (the free-form window), or the offer is skipped as window_closed.
+
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: At the send hour a teacher who planned one lesson is offered a quiz
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    And the teacher has not recorded a lesson or made a quiz today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot says the teacher planned that lesson's topic today and offers a short quiz on it
+    And the message has the buttons "Make the quiz" and "No thanks"
+    And the message says "planned", never "taught" or "recorded"
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A teacher who planned lessons for two classes gets a list to pick from
+    Given the NIETE bot chat is open on a teacher who took lesson plans for Grade 4 Maths and Grade 5 Urdu today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot sends a list with a "Choose a class" button
+    And the list has one row per class titled like "Grade 4 · Mathematics", each showing that class's lesson topics
+    And the last row is "Not today"
+
+  @e2e @quiz @wip @draft @config-gated @negative @P2
+  Scenario: A teacher coached today is not offered the afternoon quiz
+    Given the NIETE bot chat is open on a teacher who took a lesson plan today
+    And the teacher sent a classroom recording for coaching today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then no afternoon quiz offer arrives
+    And the teacher's lp_quiz_offer row for today is skipped with reason coached_today
+
+  @e2e @quiz @wip @draft @config-gated @edge @P2
+  Scenario: A lesson planned after 14:00 is offered on the next school day
+    Given the NIETE bot chat is open on a teacher who took a lesson plan today at 16:00 PKT and none before 14:00
+    When the send hour passes today
+    Then no afternoon quiz offer arrives today
+    And at the send hour on the next school day the offer names that lesson
+    # Friday after 14:00 lands on Monday.
+
+  @e2e @quiz @wip @draft @config-gated @negative @P3
+  Scenario: An assessment day is not offered a quiz
+    Given the NIETE bot chat is open on a teacher whose only lesson plan today is an assessment segment
+    When the send hour passes and the teacher-nudge sweep runs
+    Then no afternoon quiz offer arrives
+    And the teacher's lp_quiz_offer row for today is skipped with reason no_lesson
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: Make the quiz produces an lp_v8 quiz with a share link
+    Given the NIETE bot chat is open and the afternoon quiz offer has arrived
+    When I tap "Make the quiz"
+    And I tap "English" if the bot asks which language the quiz should be in
+    Then the bot says the quiz is being made
+    And a quiz arrives with a link to forward to the class
+    And the quizzes row has quiz_source lp_v8, no coaching session, and meta.lessons carrying the served lesson's version
+    And tapping "Make the quiz" again says the quiz is already on its way and makes no second quiz
+
+  @e2e @quiz @language @wip @draft @config-gated @P1
+  Scenario: Make the quiz on a maths lesson asks which language the quiz is written in
+    Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Maths lesson has arrived
+    When I tap "Make the quiz"
+    Then the bot asks which language the quiz should be in, with the buttons "اردو" and "English"
+    And no "being made" message arrives and no quiz is generated before I answer
+    And the quizzes row is offered and awaiting the language, with quiz_source lp_v8
+    When I tap "English"
+    Then the bot says the quiz is being made
+    And a quiz arrives written in English, with a link to forward to the class
+    And tapping "English" again says the quiz is already on its way and makes no second quiz
+    # The same ask, buttons (tq_lang_<code>_<quizId>) and handler as the quiz born from a recording.
+    # Every subject but Urdu and Islamiyat is asked; the subject rule's language is the first button.
+
+  @e2e @quiz @language @copy @wip @draft @config-gated @P2
+  Scenario: The quiz language question gives examples of English terms that fit the lesson's subject
+    Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 5 Science lesson has arrived
+    When I tap "Make the quiz"
+    Then the bot asks which language the quiz should be in
+    And its Urdu line gives science terms as the examples of what stays in English letters, "(photosynthesis, cell)"
+    And it never gives "fraction" or "numerator" as the examples
+    # transcript-quiz-language languageAskBody: the digest's own English key terms (up to two, short) when the
+    # lesson has them — a quiz born from a recording; a subject pair when it has none — a lesson-plan quiz is
+    # asked before it is digested (maths: fraction, numerator · science: photosynthesis, cell · English: noun,
+    # verb); no examples at all for a subject with no pair. Proven for the offer, /quiz and this offer in
+    # tests/quiz/language-ask-examples.test.js and lp-quiz-language-ask.test.js. @wip until driven live.
+
+  @e2e @quiz @language @wip @draft @config-gated @P2
+  Scenario: Urdu and Islamiyat lessons are not asked the quiz language
+    Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Urdu lesson has arrived
+    When I tap "Make the quiz"
+    Then the bot says the quiz is being made, with no language question first
+    And a quiz arrives written in Urdu
+    # Islamiyat follows the same rule, but no K-5 v8 lesson is Islamiyat, so only Urdu can be driven.
+
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: The quiz offer names the lesson the way its PDF caption does
+    Given the NIETE bot chat is open on a teacher who took the Grade 4 Maths chapter 5 lesson "Comparing & ordering unlike fractions" today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the offer names the lesson "Comparing & ordering unlike fractions", exactly as the lesson PDF's caption does
+    And the offer does not carry the catalog row's run-on sub-headings such as "Discovery / Skill Sharpener" or a trailing "…"
+    # lp-quiz-offer catalogTopic(): the catalog's clean `topic` first, `topic_short` only as a fallback.
+    # In a list, each row's description is the clean name clipped to 72 code points.
+    # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: An Urdu LP-born quiz is called by the lesson's own name, never a clipped sentence
+    Given the NIETE bot chat is open on a teacher who took the Grade 3 Urdu lesson "واحد اور جمع" today before 14:00 PKT
+    And the afternoon quiz offer has arrived
+    When I tap "Make the quiz"
+    Then the quiz arrives and the message to forward to the class says the quiz is on "واحد اور جمع"
+    And no message names the quiz with a clipped objective such as "طالب علم واحد اور جمع کے فرق کو"
+    And the quizzes row's topic is "واحد اور جمع"
+    # lp-quiz-digest: topic_as_taught is set from the catalog lesson (meta.lessons[0]) after the model;
+    # the model's English topic is kept for an English-language quiz.
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: The PDF of an LP-born quiz says planned, never taught
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And the afternoon quiz offer on a Grade 3 Urdu lesson has arrived
+    When I tap "Make the quiz"
+    Then the quiz PDF arrives with a caption that says "what you planned"
+    And the caption never says "what you taught"
+    And the lesson summary at the top of the PDF describes what today's lesson plans to teach, never "you taught"
+    # An Urdu lesson is never asked the quiz language, so no question comes between the tap and the PDF.
+    # In Urdu the caption says «آپ کے سبق کا منصوبہ». A quiz written from a coaching recording keeps
+    # "what you taught" — that lesson was taught.
+
+  @e2e @quiz @wip @draft @config-gated @P3
+  Scenario: The afternoon offer's WhatsApp message id is kept on its nudge row
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the afternoon quiz offer arrives
+    And the teacher's lp_quiz_offer row for today is sent with the offer's WhatsApp message id in context.message_ids, not an empty list
+    # lp-quiz-offer send(): the button and list senders report Meta's id through onMessageId; the sweeper
+    # writes it with markSent. The boolean the send returns is still the delivery verdict. @wip.
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: No thanks is remembered
+    Given the NIETE bot chat is open and the afternoon quiz offer has arrived
+    When I tap "No thanks"
+    Then the bot replies that there is no quiz for today and that /quiz shows the teacher's quizzes
+    And the teacher's lp_quiz_offer row records the choice no and no quiz is made
+
+  @e2e @quiz @wip @draft @config-gated @slow @P1
+  Scenario: A quiz never keys the lesson's own misconception as correct
+    Given the NIETE bot chat is open on a teacher who took the Grade 3 Urdu lesson "واحد اور جمع" today before 14:00 PKT
+    And the afternoon quiz offer has arrived
+    When I tap "Make the quiz"
+    Then the quiz arrives and no question about making the plural of "بہار" is keyed to "اس کی شکل نہیں بدلے گی"
+    And every answer the quiz marks correct agrees with what the lesson plan teaches
+    And the quizzes row's meta records the key check with how many answers were checked, contradicted, fixed and dropped
+    # The lesson says بہار → بہاریں in its vocabulary, its homework answer and the We-Do check that plants
+    # the mistake («احمد کہتا ہے کہ 'بہار' کی جمع 'بہار' ہی رہے گی…»). A contradicting item is re-authored once
+    # and re-checked, then dropped if it still contradicts; a quiz left under six questions fails as
+    # key_conflict and the teacher is told the quiz was held back — it is never sent with a wrong key.
+    # The check fails open: if the checker itself errors, the quiz ships and meta.key_check.status is "error".

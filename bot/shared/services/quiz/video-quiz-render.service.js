@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-2306 — VideoQuizRenderService: what a child receives, and in what order.
+ * VideoQuizRenderService: what a child receives, and in what order.
  *
  * This is the JS port of scripts/render_contract.py in the Video Quizzes report
  * folder. That file is what the entire Phase-1 QA pass judged — every image
@@ -40,6 +40,11 @@
 
 const BUTTON_TITLE_MAX = 20;   // Meta hard limit; longer titles truncate silently
 const { unicodeNotation } = require('./quiz-notation');
+// Maths the author wrote as TeX (`$\frac{2}{9}$`) is typeset on the question
+// card; every TEXT this file builds — a body, a button or list title, a verdict
+// — carries what a phone can show ("2/9"), with each expression kept in order
+// inside an Urdu line. Dependency-free on this path: KaTeX never loads here.
+const { mathForChat } = require('./quiz-math');
 const LIST_ROW_TITLE_MAX = 24;
 const LIST_ROW_DESCRIPTION_MAX = 72;  // Meta's row description cap
 const MAX_BUTTONS = 3;
@@ -117,9 +122,9 @@ function nameAnswer(label) {
 }
 
 /**
- * bd-2486 — option_feedback text is authored at content-generation time
+ * option_feedback text is authored at content-generation time
  * against STORED option order (A=option_a, B=option_b, ...). The render-time
- * shuffle (bd-2359, above) repositions options for DISPLAY without touching
+ * shuffle (above) repositions options for DISPLAY without touching
  * this pre-baked prose, so a letter reference inside it ("the correct answer
  * is B)") can name a different option than the one shown at that letter.
  * Confirmed against a real bug report: shuffle put the stored-correct option
@@ -173,7 +178,7 @@ function pickerKind(labels) {
 }
 
 /**
- * The handle a row shows when the option itself will not fit (bd-2358).
+ * The handle a row shows when the option itself will not fit.
  * Lists carry up to 10 rows, so this stays sane past D.
  */
 function optionLetter(i) {
@@ -197,7 +202,7 @@ function letterListLabel(count, { separator = ', ', conjunction = 'or' } = {}) {
 }
 
 /**
- * Does this stem hand the whole question to a sound? (bd-2354)
+ * Does this stem hand the whole question to a sound?
  *
  * "Listen and tap." names no subject, so the clip that follows IS the subject
  * and has to be heard before the child can answer. "When switch is open" already
@@ -223,7 +228,7 @@ function isListenAndIdentify(stem) {
 }
 
 function askBody(stem, labels, kind, isSoundQuestion) {
-  // bd-2358: the body spells the options out only when the ROW cannot carry
+  // The body spells the options out only when the ROW cannot carry
   // them at all — i.e. past the description cap, which is 22 questions in the
   // whole bank. Keying this on the TITLE cap instead meant 3,049 questions
   // printed their options in the body AND in the row description AND (cut in
@@ -242,13 +247,13 @@ function askBody(stem, labels, kind, isSoundQuestion) {
   return isSoundQuestion ? 'Which one did you hear?' : stem;
 }
 
-// ── which slot the answer sits in (bd-2359) ─────────────────────────────────
+// ── which slot the answer sits in ───────────────────────────────────────────
 //
 // The correct answer sat at A on 38.1% of the live bank (46.0% of the legacy
 // half, 39.9% of four-option questions against a 25% uniform). That is learnable,
 // and a child who learns it stops reading the question.
 //
-// bd-1314 solved the same problem for /quiz by shuffling at GENERATION time and
+// The parent quiz solved the same problem for /quiz by shuffling at GENERATION time and
 // storing the result. This corpus is 13k already-stored rows, so the shuffle
 // happens at RENDER time instead: no migration, reversible, and it cannot
 // corrupt data it never writes.
@@ -421,11 +426,14 @@ function build(q, opts = {}) {
 function buildPhases(q, opts = {}) {
   const media = q.media || {};
   const pattern = q.render_pattern || 'P1';
-  const stem = (q.question_text || '').trim();
+  const stem = mathForChat((q.question_text || '').trim());
   // `labels` stays in STORED order for the whole answer phase — the verdict,
   // the per-distractor feedback and correctIndices() are all keyed on it.
   // `shown`/`order` are the child's view. Mixing the two mis-scores silently.
-  const labels = optionLabels(q);
+  // The ORDER is decided on the stored text (the same text the card and the
+  // stamped display_order were decided on); what is SHOWN is the flat text.
+  const storedLabels = optionLabels(q);
+  const labels = storedLabels.map(mathForChat);
   // PLAN_R5 D4 — a question whose answer is a SET has no tap surface in an
   // ordinary message: buttons and list rows are single-select. It is delivered
   // as a Flow with a CheckboxGroup, and everything about that — the order, the
@@ -434,18 +442,18 @@ function buildPhases(q, opts = {}) {
   // displayOrder().
   const Multi = require('./transcript-quiz-multi');
   if (Multi.isMultiRow(q)) {
-    const mOrder = Multi.persistedOrder(q, labels) || displayOrder(q, labels);
+    const mOrder = Multi.persistedOrder(q, storedLabels) || displayOrder(q, storedLabels);
     return Multi.buildMulti(q, {
       order: mOrder, shown: mOrder.map((i) => labels[i]), language: media.language,
     });
   }
-  const order = displayOrder(q, labels);
+  const order = displayOrder(q, storedLabels);
   const shown = order.map((i) => labels[i]);
   const msgs = [];
   const add = (phase, kind, extra) => msgs.push({ phase, kind, ...extra });
 
   const questionAudio = media.question_audio || [];
-  // bd-2354: a clip in the stimulus slot is only the SUBJECT of the question
+  // A clip in the stimulus slot is only the SUBJECT of the question
   // when the stem does not already ask one. See LISTEN_AND_IDENTIFY.
   const stimulusIsSubject = !!media.stimulus_audio && isListenAndIdentify(stem);
   const stimulus = stimulusIsSubject ? media.stimulus_audio : null;
@@ -465,7 +473,7 @@ function buildPhases(q, opts = {}) {
       role: 'stem_with_listen_cue',
     });
     questionAudio.forEach((url) => add('question', 'audio', { url, role: 'instruction' }));
-    // R18, corrected by bd-2354: on a listen-and-identify item the clip legacy
+    // R18, as later corrected: on a listen-and-identify item the clip legacy
     // names "AnswerAudio" IS the sound being asked about, so it must play before
     // the picker. R18 applied that to every row carrying the filename; on the
     // 1,788 with a real stem the same clip speaks the correct option aloud.
@@ -572,10 +580,15 @@ function buildPhases(q, opts = {}) {
     });
   } else if (headerPattern && media.question_image) {
     const kind = pickerKind(shown);
+    // A class-quiz figure is framed with "Question n of N" in the picture
+    // (transcript-quiz-figure's FRAME), exactly as a question card is, so the
+    // body must not print the number a second time. Only for a picture the row
+    // SAYS was drawn that way — an older picture still needs the body's counter.
+    const painted = media.question_image_paints_counter === true ? { paintsOwnCounter: true } : {};
     if (kind === 'buttons') {
       add('interaction', 'buttons', {
         body: stem, options: shown, optionIndices: order,
-        headerImage: media.question_image, role: 'ask',
+        headerImage: media.question_image, role: 'ask', ...painted,
       });
     } else {
       // A LIST message cannot carry an image header — Meta allows only a text
@@ -584,13 +597,13 @@ function buildPhases(q, opts = {}) {
       // silently dropped by Meta and the child would answer a question about a
       // picture they never saw (161 P4 questions).
       add('interaction', 'image', {
-        url: media.question_image, caption: stem, role: 'question_image',
+        url: media.question_image, caption: stem, role: 'question_image', ...painted,
       });
       // The stem is already the image caption, so the body's job here is to
       // spell out any option too long for a 24-char row title.
       add('interaction', 'list', {
         body: askBody('Choose your answer', shown, 'list', false),
-        options: shown, optionIndices: order, role: 'ask',
+        options: shown, optionIndices: order, role: 'ask', ...painted,
       });
     }
   } else {
@@ -655,8 +668,10 @@ function finishAnswerPhase(q, msgs, labels, order, media, answerClip) {
   const idx = correctIndices(q);
   const rightLabels = idx.map((i) => labels[i]).filter(Boolean);
   const rightText = unicodeNotation(rightLabels.map(nameAnswer).join(' and '));
-  const expl = (q.explanation || '').trim();
-  const fb = feedbackFor(q, labels, order);
+  const expl = mathForChat((q.explanation || '').trim());
+  const authored = feedbackFor(q, labels, order);
+  const fb = { correct: mathForChat(authored.correct), wrong: {} };
+  Object.entries(authored.wrong).forEach(([k, v]) => { fb.wrong[k] = mathForChat(v); });
 
   add('answer', 'text', {
     body: withVerdictMark(
@@ -680,7 +695,7 @@ function finishAnswerPhase(q, msgs, labels, order, media, answerClip) {
     // question. Neither a blanket keep nor a blanket strip was right.
     add('answer', 'image', { url: media.explanation_image, role: 'explanation_image' });
   }
-  // bd-2354: the spoken answer lands here, after the verdict and before the
+  // The spoken answer lands here, after the verdict and before the
   // explanation that unpacks it.
   if (answerClip) {
     add('answer', 'audio', { url: answerClip, role: 'answer_audio' });

@@ -37,7 +37,7 @@ CREATE EXTENSION IF NOT EXISTS "vector" SCHEMA public;
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    phone_number VARCHAR(20) NOT NULL,
+    phone_number VARCHAR(64) NOT NULL,  -- 64: also holds the 43-char merge tombstone 'merged:<uuid>' (V1.4.9)
     name VARCHAR(100),
     grades_taught VARCHAR(100),
     registration_completed BOOLEAN DEFAULT false,
@@ -3629,6 +3629,10 @@ CREATE TABLE IF NOT EXISTS training_vendors (
     has_diagnostic       BOOLEAN NOT NULL DEFAULT FALSE,
     cert_code_prefix     VARCHAR(8) NOT NULL,
     unlock_logic         VARCHAR(16) NOT NULL DEFAULT 'chain',
+    -- I-SAPS formative quizzes carry no minimum score: the unit check is a
+    -- learning tool, and the certificate composite is the only bar that
+    -- gates anything (V1.5.0).
+    module_quiz_ungated  BOOLEAN NOT NULL DEFAULT FALSE,
     is_active            BOOLEAN NOT NULL DEFAULT TRUE,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -4805,7 +4809,10 @@ CREATE INDEX IF NOT EXISTS idx_leader_teachers_phone_e164
 -- dashboard_users, and the actor here is a coach in `users`.
 CREATE TABLE IF NOT EXISTS leader_roster_audit (
   id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move')),
+  -- The list V1.4.7 and V1.4.9 widened this CHECK to: roster changes, then field edits.
+  action                  text NOT NULL CHECK (action IN ('add', 'remove', 'move',
+                            'edit_name', 'edit_level', 'edit_phone', 'edit_role',
+                            'edit_phone_escalated')),
   actor_user_id           uuid NOT NULL REFERENCES users(id),
   affected_leader_user_id uuid REFERENCES users(id),
   -- The teacher is denormalised on purpose: she may have no users row at all,
@@ -5856,3 +5863,323 @@ $$;
 
 REVOKE ALL ON FUNCTION public.roster_class_timeline(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.roster_class_timeline(uuid) TO service_role;
+
+-- ─── users soft delete (migration V1.4.6) — the one retirement convention ────
+-- Mirrors infrastructure/supabase/migrations/V1.4.6__soft_delete_convention.sql: the
+-- add_soft_delete(table) helper, and what it does to `users`. The three columns are
+-- spelled out rather than left to the helper call, so a fresh install and the
+-- text-based conformance guards both see them; the statements are exactly the ones
+-- add_soft_delete('users') executes, so either order is a no-op on the other.
+CREATE OR REPLACE FUNCTION add_soft_delete(p_table text)
+RETURNS void
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = p_table
+  ) THEN
+    RAISE EXCEPTION 'add_soft_delete: no such table %', p_table;
+  END IF;
+
+  EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_at timestamptz', p_table);
+  EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_reason text', p_table);
+  EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_by text', p_table);
+
+  -- Partial: almost every row is live, so the index only carries tombstones.
+  EXECUTE format(
+    'CREATE INDEX IF NOT EXISTS %I ON %I (deleted_at) WHERE deleted_at IS NOT NULL',
+    'idx_' || p_table || '_deleted_at', p_table);
+
+  EXECUTE format(
+    'COMMENT ON COLUMN %I.deleted_at IS %L', p_table,
+    'Soft delete: when this row was retired. NULL = live. Read it through '
+    'bot/shared/utils/soft-delete.js (isDeleted/liveOnly), never by hand.');
+  EXECUTE format(
+    'COMMENT ON COLUMN %I.deleted_reason IS %L', p_table,
+    'Soft delete: why, as a short machine token (e.g. phone_change_merge).');
+  EXECUTE format(
+    'COMMENT ON COLUMN %I.deleted_by IS %L', p_table,
+    'Soft delete: who (actor id) or what (process name) retired it.');
+END;
+$fn$;
+
+COMMENT ON FUNCTION add_soft_delete(text) IS
+  'Add the three-column soft-delete convention to a table. One line per table: '
+  'SELECT add_soft_delete(''schools'');
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_reason text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_by text;
+-- Partial: almost every row is live, so the index only carries tombstones.
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users (deleted_at) WHERE deleted_at IS NOT NULL;
+COMMENT ON COLUMN users.deleted_at IS
+  'Soft delete: when this row was retired. NULL = live. Read it through bot/shared/utils/soft-delete.js (isDeleted/liveOnly), never by hand.';
+COMMENT ON COLUMN users.deleted_reason IS
+  'Soft delete: why, as a short machine token (e.g. phone_change_merge).';
+COMMENT ON COLUMN users.deleted_by IS
+  'Soft delete: who (actor id) or what (process name) retired it.';
+
+-- ─── niete_lp_asset_sources (migration V1.5.2) — the served lesson's slide script ──
+-- Mirrors infrastructure/supabase/migrations/V1.5.2__lp_asset_sources.sql so a clone
+-- bootstrapped from this file has the table the LP-born quiz reads its source from.
+-- One row per lesson asset; the version triple is the upsert key, and `verified` says
+-- how the script is known to belong to that PDF.
+CREATE TABLE IF NOT EXISTS niete_lp_asset_sources (
+  asset_id      uuid PRIMARY KEY REFERENCES niete_lp_assets(id) ON DELETE CASCADE,
+  lesson_id     text NOT NULL,
+  version_stamp text NOT NULL,
+  content_hash  text NOT NULL,
+  slide_script  jsonb NOT NULL,
+  source_url    text,
+  verified      text NOT NULL,            -- 'upload' | 'backfill:link' | 'backfill:link+ocr'
+  ingested_at   timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT niete_lp_asset_sources_version_uniq UNIQUE (lesson_id, version_stamp, content_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_niete_lp_asset_sources_lesson ON niete_lp_asset_sources (lesson_id);
+
+-- ─── teacher_nudges (migration V1.5.3) — scheduled teacher asks ─────────────
+-- Mirrors infrastructure/supabase/migrations/V1.5.3__teacher_nudges.sql so a
+-- clone bootstrapped from this file has the table the nudge sweeper reads.
+CREATE TABLE IF NOT EXISTS teacher_nudges (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  nudge_date    date NOT NULL,                       -- PKT calendar date
+  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer')),
+  status        text NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending','sending','sent','failed','skipped','expired')),
+  scheduled_at  timestamptz NOT NULL,
+  sent_at       timestamptz,
+  answered_at   timestamptz,
+  choice        text,                                -- 'yes' | 'no' | 'ignored' | 'class:<key>'
+  context       jsonb NOT NULL DEFAULT '{}'::jsonb,  -- lessons, class groups, skip reason, message ids
+  quiz_id       uuid REFERENCES quizzes(id) ON DELETE SET NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT teacher_nudges_one_per_day UNIQUE (user_id, nudge_date, kind)
+);
+
+-- The sweeper's due-scan. PARTIAL on status = 'pending' because that is the only
+-- state it ever selects, and the partial index stays small as sent rows pile up.
+CREATE INDEX IF NOT EXISTS teacher_nudges_due ON teacher_nudges (scheduled_at) WHERE status = 'pending';
+
+-- The per-teacher reads: this week's asks (the weekly cap), yesterday's answer
+-- (the declined streak), today's row of the other kind (the "no offer on a day
+-- they said yes" rule).
+CREATE INDEX IF NOT EXISTS teacher_nudges_user_recent ON teacher_nudges (user_id, nudge_date DESC);
+
+COMMENT ON TABLE teacher_nudges IS
+  'One scheduled ask per teacher, per PKT calendar day, per kind. The UNIQUE (user_id, nudge_date, kind) makes cohort building idempotent across worker replicas; the pending -> sending claim makes sending single-flight.';
+COMMENT ON COLUMN teacher_nudges.context IS
+  'jsonb sidecar: the lessons the ask is about, the class groups offered, skip_reason when status = skipped, error when status = failed, and the WhatsApp message ids once sent. Merged, never replaced, by the services that write it.';
+COMMENT ON COLUMN teacher_nudges.choice IS
+  'What the teacher tapped: yes | no | ignored | class:<grade>_<subject>. A stable token, never the button title (button copy is translated and changes).';
+
+
+-- ── coaching_sessions: observe (HITL) columns — V1.5.4; live on every database since the HITL port ──
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS observation_type       VARCHAR(30);
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS observer_user_id       UUID;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS autofill_analysis_data JSONB;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS debrief_status         VARCHAR(20);
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_observer_pending
+  ON coaching_sessions (observer_user_id, created_at DESC) WHERE observation_type = 'leader_observation';
+
+-- ── quiz_sessions.source: which quiz engine runs a session — from
+-- bot/database/migrations/create_video_quiz_tables.sql §5, live on every database
+-- that runs video quizzes (same definition and CHECK). 'roster' is the adaptive
+-- parent quiz; 'video_solo' / 'share_link' the video engine that runs video,
+-- transcript and lesson-plan quizzes. The adaptive engine's state recovery reads
+-- only its own ('roster') sessions. ──
+ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'roster';
+ALTER TABLE quiz_sessions DROP CONSTRAINT IF EXISTS quiz_sessions_source_check;
+ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_source_check
+  CHECK (source IN ('roster', 'video_solo', 'share_link'));
+
+-- =============================================================================
+-- Tables and columns that migrations create and this file had not declared. A clone is
+-- bootstrapped from this file alone, so each is mirrored from its migration here;
+-- tests/setup/schema-mirrors-migrations.test.js keeps the two in step.
+-- (The V1.0.5 nietemigrated_* legacy-import landing tables are deliberately NOT here: only
+-- the one-off import from the retired source system writes them and no runtime code reads
+-- them.)
+-- =============================================================================
+
+-- ─── lesson_plan_catalog (V1.0.4): lesson plans imported from the legacy system ───
+CREATE TABLE IF NOT EXISTS lesson_plan_catalog (
+    id                   BIGSERIAL PRIMARY KEY,
+    source               VARCHAR(32) NOT NULL,
+    source_row_id        BIGINT NOT NULL,
+    source_uuid          UUID,
+    grade                TEXT,
+    subject              TEXT,
+    chapter_title        TEXT,
+    content_html         TEXT,
+    description          TEXT,
+    is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+    source_created_at    TIMESTAMPTZ,
+    source_modified_at   TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (source, source_row_id)
+);
+CREATE INDEX IF NOT EXISTS idx_lesson_plan_catalog_source ON lesson_plan_catalog(source) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_lesson_plan_catalog_grade_subject ON lesson_plan_catalog(grade, subject) WHERE is_active;
+
+-- ─── supervisor remarks (V1.1.0): a principal's cycle remark on a teacher ─────
+-- The cycle overlap guard is an exclusion constraint over a tstzrange, which needs btree_gist.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+CREATE TABLE IF NOT EXISTS evaluation_cycles (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          VARCHAR(120) NOT NULL,
+    starts_at     TIMESTAMPTZ NOT NULL,
+    ends_at       TIMESTAMPTZ NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT evaluation_cycles_name_unique UNIQUE (name),
+    CONSTRAINT evaluation_cycles_range_sane  CHECK (ends_at > starts_at),
+    CONSTRAINT evaluation_cycles_no_overlap
+        EXCLUDE USING gist (tstzrange(starts_at, ends_at, '[)') WITH &&)
+);
+CREATE INDEX IF NOT EXISTS idx_evaluation_cycles_window
+    ON evaluation_cycles (starts_at, ends_at);
+
+CREATE TABLE IF NOT EXISTS supervisor_remarks (
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cycle_id              UUID NOT NULL REFERENCES evaluation_cycles(id),
+    teacher_id            UUID NOT NULL REFERENCES users(id),
+    principal_user_id     UUID NOT NULL REFERENCES users(id),
+    school_id             UUID REFERENCES schools(id),
+    comment_text          TEXT,
+    comment_audio_id      VARCHAR(128),
+    comment_language      VARCHAR(8),
+    submitted_at          TIMESTAMPTZ,
+    narrative_text        TEXT,
+    narrative_generated_at TIMESTAMPTZ,
+    narrative_sent_at     TIMESTAMPTZ,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT supervisor_remarks_teacher_cycle_unique UNIQUE (teacher_id, cycle_id),
+    CONSTRAINT supervisor_remarks_no_self CHECK (teacher_id <> principal_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remarks_principal_cycle
+    ON supervisor_remarks (principal_user_id, cycle_id);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remarks_teacher_cycle
+    ON supervisor_remarks (teacher_id, cycle_id);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remarks_cycle_pending
+    ON supervisor_remarks (cycle_id, principal_user_id)
+    WHERE submitted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS supervisor_remark_scores (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    remark_id          UUID NOT NULL REFERENCES supervisor_remarks(id) ON DELETE CASCADE,
+    indicator_ordinal  SMALLINT NOT NULL,
+    score              SMALLINT NOT NULL,
+    answered_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT supervisor_remark_scores_unique UNIQUE (remark_id, indicator_ordinal),
+    CONSTRAINT supervisor_remark_scores_ordinal_valid CHECK (indicator_ordinal BETWEEN 1 AND 5),
+    CONSTRAINT supervisor_remark_scores_score_valid   CHECK (score BETWEEN 1 AND 4)
+);
+CREATE INDEX IF NOT EXISTS idx_supervisor_remark_scores_remark
+    ON supervisor_remark_scores (remark_id);
+
+ALTER TABLE evaluation_cycles          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE supervisor_remarks         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE supervisor_remark_scores   ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS evaluation_cycles_read_all ON evaluation_cycles;
+CREATE POLICY evaluation_cycles_read_all ON evaluation_cycles FOR SELECT USING (true);
+DROP POLICY IF EXISTS supervisor_remarks_read_scoped ON supervisor_remarks;
+CREATE POLICY supervisor_remarks_read_scoped ON supervisor_remarks
+    FOR SELECT USING (
+        principal_user_id = auth.uid()
+        OR teacher_id = auth.uid()
+    );
+DROP POLICY IF EXISTS supervisor_remark_scores_read_principal ON supervisor_remark_scores;
+CREATE POLICY supervisor_remark_scores_read_principal ON supervisor_remark_scores
+    FOR SELECT USING (
+        remark_id IN (
+            SELECT id FROM supervisor_remarks WHERE principal_user_id = auth.uid()
+        )
+    );
+
+-- The ONE definition of the S score: only submitted, fully-answered (5/5) remarks appear.
+CREATE OR REPLACE VIEW v_supervisor_remark_scores AS
+SELECT
+    r.id                AS remark_id,
+    r.cycle_id,
+    r.teacher_id,
+    r.principal_user_id,
+    r.school_id,
+    r.submitted_at,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 1) AS score_growth,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 2) AS score_collaboration,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 3) AS score_leadership,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 4) AS score_student_support,
+    MAX(s.score) FILTER (WHERE s.indicator_ordinal = 5) AS score_parents,
+    SUM(s.score)::INT                                   AS s_score,
+    ROUND((SUM(s.score)::NUMERIC / 20) * 100, 1)        AS s_pct
+FROM supervisor_remarks r
+JOIN supervisor_remark_scores s ON s.remark_id = r.id
+WHERE r.submitted_at IS NOT NULL
+GROUP BY r.id, r.cycle_id, r.teacher_id, r.principal_user_id, r.school_id, r.submitted_at
+HAVING COUNT(s.id) = 5;
+
+-- ─── coach_directory (V1.1.6): a coach's work identity, matched to their user row ───
+CREATE TABLE IF NOT EXISTS coach_directory (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_user_id  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  full_name       text NOT NULL,
+  work_email      text NOT NULL,
+  hrmis_user_id   integer,
+  match_method    text NOT NULL DEFAULT 'exact'
+                    CHECK (match_method IN ('exact', 'confirmed', 'manual')),
+  confirmed_at    timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT coach_directory_leader_user_id_key UNIQUE (leader_user_id),
+  CONSTRAINT coach_directory_confirmed_requires_timestamp
+    CHECK (match_method <> 'confirmed' OR confirmed_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_coach_directory_leader ON coach_directory (leader_user_id);
+
+-- ─── niete_lp_fidelity_moves (V1.1.9): a lesson plan decomposed into gradeable moves ───
+CREATE TABLE IF NOT EXISTS niete_lp_fidelity_moves (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  lesson_id      text NOT NULL,
+  catalog_version text,
+  version_stamp  text,
+  content_hash   text,
+  brief_sha      text,
+  template       text,
+  total_minutes  integer,
+  moves          jsonb NOT NULL,
+  n_moves        integer,
+  model          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT niete_lp_fidelity_moves_version_uniq UNIQUE (lesson_id, version_stamp, content_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_niete_lp_fidelity_moves_lesson ON niete_lp_fidelity_moves (lesson_id);
+
+-- ─── columns (V1.2.5, V1.3.8, V1.3.9, V1.4.0) ──────────────────────────────────
+ALTER TABLE training_questions ADD COLUMN IF NOT EXISTS rubric jsonb;
+COMMENT ON COLUMN training_questions.rubric IS
+  'Per-question CRQ marking rubric (criteria + band descriptions), verbatim from the partner source. NULL for MCQs.';
+CREATE INDEX IF NOT EXISTS idx_training_questions_rubric
+  ON training_questions (id) WHERE rubric IS NOT NULL;
+
+ALTER TABLE niete_lp612_renders ADD COLUMN IF NOT EXISTS over_time BOOLEAN NOT NULL DEFAULT FALSE;
+COMMENT ON COLUMN niete_lp612_renders.over_time IS
+  'True when this lesson was delivered off the author-timeout recovery path: the revision ladder ran out of clock while holding a deliverable document, so that was drawn and sent instead of failing the row.';
+ALTER TABLE niete_lp612_renders ADD COLUMN IF NOT EXISTS checkpoint JSONB;
+COMMENT ON COLUMN niete_lp612_renders.checkpoint IS
+  'The authoring ladder''s best-so-far document, persisted each accepted round so a process that dies mid-run costs one round, not the lesson. NULLed on the terminal write.';
+ALTER TABLE niete_lp612_renders ADD COLUMN IF NOT EXISTS render_degraded BOOLEAN NOT NULL DEFAULT FALSE;
+COMMENT ON COLUMN niete_lp612_renders.render_degraded IS
+  'True when this lesson was delivered carrying a renderer defect that leaves the document whole (a small figure, type under the phone floor, a crowded page). Distinct from over_cap (long) and over_time (late).';
+
+-- Cache reload LAST (infrastructure/CLAUDE.md): the blocks above were appended after the
+-- previous NOTIFY, and PostgREST cannot see a column it has not reloaded.
+NOTIFY pgrst, 'reload schema';

@@ -25,7 +25,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
-const { teacherLanguageFor } = require('./transcript-quiz-language');
+const { teacherLanguageFor, isolate } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
 
 const NUDGE_BELOW = 5;
@@ -35,20 +35,83 @@ const QUIET_FROM_PKT = 21;
 const QUIET_TO_PKT = 7;
 
 /**
+ * The quiet window, read per call from NUDGE_QUIET_HOURS_PKT. Unset — and in
+ * production it is always unset — it is 21:00–07:00. `off` lifts it, for a test
+ * environment that has to run a night's scenarios; `H-H` sets another window.
+ * Anything unreadable keeps the default: a typo must never mean "no window".
+ *
+ * @returns {{from:number, to:number}|null} null = no quiet window
+ */
+function quietWindow() {
+  // globalThis: this module defines its own `process` (the job handler below).
+  const raw = String(globalThis.process.env.NUDGE_QUIET_HOURS_PKT || '').trim().toLowerCase();
+  if (raw === 'off') return null;
+  const m = raw.match(/^(\d{1,2})\s*-\s*(\d{1,2})$/);
+  if (m) {
+    const from = Number(m[1]);
+    const to = Number(m[2]);
+    if (from <= 23 && to <= 23 && from !== to) return { from, to };
+  }
+  return { from: QUIET_FROM_PKT, to: QUIET_TO_PKT };
+}
+
+/**
  * When a nudge due at `when` may actually be sent: `when` itself during the
- * day, or 07:00 PKT if it falls in the quiet window. DEFERRED, never dropped —
- * the worker re-queues until this instant, so the teacher still hears, in the
- * morning, when the message is worth reading.
+ * day, or the end of the quiet window (07:00 PKT) if it falls inside it.
+ * DEFERRED, never dropped — the worker re-queues until this instant, so the
+ * teacher still hears, in the morning, when the message is worth reading.
  */
 function nudgeTargetUtc(when = new Date()) {
+  const w = quietWindow();
+  if (!w) return when;
   const pkt = new Date(when.getTime() + PKT_OFFSET_MIN * 60 * 1000);
   const h = pkt.getUTCHours();
-  if (h < QUIET_FROM_PKT && h >= QUIET_TO_PKT) return when;
+  const overnight = w.from > w.to;
+  const quiet = overnight ? (h >= w.from || h < w.to) : (h >= w.from && h < w.to);
+  if (!quiet) return when;
   const bump = new Date(Date.UTC(
-    pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate() + (h >= QUIET_FROM_PKT ? 1 : 0),
-    QUIET_TO_PKT, 0, 0,
+    pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate() + (overnight && h >= w.from ? 1 : 0),
+    w.to, 0, 0,
   ));
   return new Date(bump.getTime() - PKT_OFFSET_MIN * 60 * 1000);
+}
+
+/**
+ * The instant at which `ms` of WAKING time — time outside the quiet window — has
+ * passed since `start`. A wait that should not run down while the teacher is
+ * asleep: `ms` = 6 h from 19:00 is 21:00 (2 h) + 07:00–11:00 (4 h) = 11:00 the
+ * next morning; from 10:00 it is simply 16:00. With no window (`off`) it is
+ * `start + ms`. A start inside the window counts from the window's end.
+ *
+ * The same window as nudgeTargetUtc, read the same way, so the two can never
+ * disagree about when the night is.
+ *
+ * @param {Date} start
+ * @param {number} ms  waking milliseconds to count
+ * @returns {Date}
+ */
+function quietAwareDeadlineUtc(start = new Date(), ms = 0) {
+  const w = quietWindow();
+  let t = start.getTime();
+  let left = Math.max(0, Number(ms) || 0);
+  if (!w) return new Date(t + left);
+  const dayMs = 24 * 60 * 60 * 1000;
+  // Each pass either leaves a quiet stretch or spends one waking stretch, and
+  // every window has at least one waking hour a day, so this ends; the bound is
+  // only a backstop against a bug turning into a hung worker.
+  for (let pass = 0; pass < 64 && left > 0; pass++) {
+    const allowed = nudgeTargetUtc(new Date(t)).getTime();
+    if (allowed > t) { t = allowed; continue; }
+    // Awake at t: the window next opens at the coming `from`:00 PKT.
+    const pkt = new Date(t + PKT_OFFSET_MIN * 60 * 1000);
+    let opens = Date.UTC(pkt.getUTCFullYear(), pkt.getUTCMonth(), pkt.getUTCDate(), w.from, 0, 0)
+      - PKT_OFFSET_MIN * 60 * 1000;
+    if (opens <= t) opens += dayMs;
+    if (t + left <= opens) return new Date(t + left);
+    left -= opens - t;
+    t = opens;
+  }
+  return new Date(t + left);
 }
 
 
@@ -86,6 +149,24 @@ async function startedFor(quizId, teacherId) {
   const { data: sessions } = await supabase.from('quiz_sessions')
     .select('id, user_id').eq('quiz_id', quizId).is('invited_by_student_id', null);
   return excludeSelfTests(sessions || [], teacherId).length;
+}
+
+/**
+ * A quiz title as it sits in a nudge: bold, and isolated so it keeps its own
+ * direction whatever the sentence's (an Urdu title in an English nudge, or the
+ * reverse). Titles can contain the list comma themselves, so the bold is also
+ * what shows where one title ends and the next begins.
+ */
+function titled(topic, language) {
+  const text = String(topic || '').trim() || resolveUx('tqLessonWord', { language });
+  return `*${isolate(text)}*`;
+}
+
+/** None, one, several — "0 student(s)" is not a sentence. */
+function nudgeKeyFor(started) {
+  if (started <= 0) return 'tqNudgeNone';
+  if (started === 1) return 'tqNudgeOne';
+  return 'tqNudge';
 }
 
 async function process(quizId) {
@@ -128,10 +209,16 @@ async function process(quizId) {
   const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language });
 
   const body = quiet.length === 1
-    ? resolveUx('tqNudge', { language: lang, params: { started, topic: quiz.topic || '' } })
+    ? resolveUx(nudgeKeyFor(started), { language: lang, params: { started, topic: titled(quiz.topic, lang) } })
     : resolveUx('tqNudgeMany', {
       language: lang,
-      params: { count: quiet.length, topics: quiet.map((q) => q.topic).filter(Boolean).join('، ') },
+      params: {
+        count: quiet.length,
+        // The teacher's language's own list comma (", " / "، "), never one
+        // language's for every teacher.
+        topics: quiet.map((q) => q.topic).filter(Boolean).map((t) => titled(t, lang))
+          .join(resolveUx('vqLetterSep', { language: lang })),
+      },
     });
   const ok = await WhatsAppService.sendMessage(teacher.phone_number, body);
 
@@ -153,6 +240,6 @@ async function process(quizId) {
 }
 
 module.exports = {
-  process, NUDGE_BELOW, nudgeTargetUtc, nudgeDispatch, pktDayStartIso,
+  process, NUDGE_BELOW, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
   QUIET_FROM_PKT, QUIET_TO_PKT,
 };

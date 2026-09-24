@@ -223,6 +223,79 @@ const UX_STRINGS = {
     ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں، اس لیے لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
   },
 
+  // ─── the coaching ask on the first lesson plan of the day ─────
+  //
+  // A teacher took a lesson plan this morning; a few minutes later they are
+  // asked whether they would like that lesson coached. The whole point is that it
+  // asks for nothing new — the lesson is going to be taught anyway, and two teachers
+  // in three already hold the WhatsApp mic button for their recordings (65.8%
+  // of 5,245 measured on production, 15-22 Sep). So the copy names the mic, not
+  // an attachment, and asks for 20-45 minutes, which is what a real lesson runs
+  // (median 19.9 min, p90 31.8).
+  //
+  // "You planned", never "you taught": the bot knows a PDF was delivered and
+  // nothing whatever about whether the class happened.
+  //
+  // Gender-neutral in both languages. The Urdu never inflects for the
+  // addressee: every verb is an imperative or subjunctive (kareN, bhejeN,
+  // karooN) or agrees with its own noun (report mil jaye gi, tajzia ho jaye ga).
+  // Bodies are 170-300 code points against the 1,024 cap; the two buttons are
+  // 15-17 code points against 20, measured in code points.
+  lpAskBody: {
+    en: "You planned a lesson with me today. If you record the class while you teach it, you will get a coaching report back — what worked, and one thing to try in the next lesson. Would you like to record today's lesson?",
+    ur: 'آج آپ نے میرے ساتھ ایک سبق کی تیاری کی۔ پڑھاتے وقت اگر کلاس ریکارڈ کر لیں تو آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کیا آج کا سبق ریکارڈ کرنا ہے؟',
+  },
+  lpAskBodyFirstTime: {
+    en: "You planned a lesson with me today. Here is something you may not have tried: record the class on your phone while you teach it, and you will get a coaching report back — what worked, and one thing to try in the next lesson. Nobody else needs to be in the room. Would you like to start with today's lesson?",
+    ur: 'آج آپ نے میرے ساتھ ایک سبق کی تیاری کی۔ ایک چیز جو شاید ابھی تک نہیں آزمائی: پڑھاتے وقت اپنے فون پر کلاس ریکارڈ کر لیں، اور آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کمرے میں کسی اور کا ہونا ضروری نہیں۔ کیا آج کے سبق سے شروع کریں؟',
+  },
+  // The same ask when it goes out on a LATER day than the lesson was planned: a
+  // lesson taken at or after 14:00 is asked about at 07:30 on the next school day,
+  // where "today" would name the wrong day. {when} is lpAskWhenYesterday or
+  // lpAskWhenOnDate (across a weekend). Same voice rules as above: the Urdu verb
+  // agrees with تیاری, never with the teacher; the rest is subjunctive/imperative.
+  lpAskBodyNextDay: {
+    en: 'You planned this lesson with me {when}. If you record the class when you teach it, you will get a coaching report back — what worked, and one thing to try in the next lesson. Would you like to record it?',
+    ur: 'آپ نے {when} میرے ساتھ اس سبق کی تیاری کی۔ جب یہ سبق پڑھائیں تو کلاس ریکارڈ کر لیں، آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کیا یہ سبق ریکارڈ کرنا ہے؟',
+  },
+  lpAskBodyFirstTimeNextDay: {
+    en: 'You planned this lesson with me {when}. Here is something you may not have tried: record the class on your phone when you teach it, and you will get a coaching report back — what worked, and one thing to try in the next lesson. Nobody else needs to be in the room. Would you like to start with this lesson?',
+    ur: 'آپ نے {when} میرے ساتھ اس سبق کی تیاری کی۔ ایک چیز جو شاید ابھی تک نہیں آزمائی: جب یہ سبق پڑھائیں تو اپنے فون پر کلاس ریکارڈ کر لیں، اور آپ کو کوچنگ رپورٹ مل جائے گی — کیا اچھا رہا، اور اگلے سبق میں کیا آزمانا ہے۔ کمرے میں کسی اور کا ہونا ضروری نہیں۔ کیا اس سبق سے شروع کریں؟',
+  },
+  // {when} for the two bodies above. The date is the quiz date format
+  // ("18 Sep" / "18 ستمبر"), isolated in Urdu because it opens with digits.
+  lpAskWhenYesterday: { en: 'yesterday', ur: 'کل' },
+  lpAskWhenOnDate: { en: 'on {date}', ur: '⁨{date}⁩ کو' },
+  lpAskYes: { en: 'Record my lesson', ur: 'سبق ریکارڈ کروں' },
+  lpAskNo: { en: 'Not today', ur: 'آج نہیں' },
+  // Sent on a tap of yes, and ALSO the copy the /menu Classroom Coaching entry
+  // now uses — one door, one instruction. The old menu line asked
+  // for "at least 15 minutes", which is the routing threshold, not an ask a
+  // teacher can act on; 20-45 minutes is the lesson.
+  lpAskYesReply: {
+    en: 'Record your lesson with the WhatsApp mic — hold the mic button, slide up to lock it, and send the recording when the class ends. 20 to 45 minutes of the lesson is ideal.',
+    ur: 'اپنا سبق واٹس ایپ کے مائیک سے ریکارڈ کریں — مائیک کا بٹن دبائے رکھیں، لاک کرنے کے لیے اوپر سلائیڈ کریں، اور کلاس ختم ہونے پر ریکارڈنگ بھیج دیں۔ سبق کے 20 سے 45 منٹ بہترین ہیں۔',
+  },
+  // The footer under the how-to clip, which is the coaching ask's video header
+  // (≤ 60 code points). It claims no length: the clip is ~18 s, it said "30
+  // seconds", and WhatsApp prints the real length on the video anyway.
+  lpAskHowtoCaption: {
+    en: 'How to record a lesson with the WhatsApp mic',
+    ur: 'واٹس ایپ کے مائیک سے سبق ریکارڈ کرنے کا طریقہ',
+  },
+  lpAskDeclined: {
+    en: 'No problem. Classroom Coaching is in the menu whenever you want it.',
+    ur: 'کوئی بات نہیں۔ جب بھی چاہیں، مینو میں کلاس روم کوچنگ موجود ہے۔',
+  },
+  // The teacher said yes and then sent part of a lesson. This is NOT the generic
+  // short-recording guidance: they are not answered as if they had asked a
+  // question, because they did not ask one — they sent a recording they expect to
+  // be coached, and the message has to say plainly that it was not.
+  lpAskTooShort: {
+    en: 'That recording is about {minutes} minutes, which is too short to coach — a report needs the whole lesson, 20 to 45 minutes. Record the full class and send it, and I will analyse that one. I have not analysed this recording.',
+    ur: 'یہ ریکارڈنگ تقریباً \u2066{minutes}\u2069 منٹ کی ہے، جو کوچنگ کے لیے بہت مختصر ہے — رپورٹ کے لیے پورا سبق درکار ہے، 20 سے 45 منٹ۔ پوری کلاس ریکارڈ کر کے بھیجیں، اس کا تجزیہ ہو جائے گا۔ اس ریکارڈنگ کا تجزیہ نہیں کیا گیا۔',
+  },
+
   // ─── classroom-photo offer + "send them now" (bd-8s2xb) ───────────────────
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's
@@ -1617,6 +1690,57 @@ const UX_STRINGS = {
     en: 'Already on it — the quiz is coming.',
     ur: 'پہلے ہی تیار ہو رہا ہے — بس آ رہا ہے۔',
   },
+  // ── the 15:00 quiz offer on the lessons a teacher PLANNED (PLAN_R8 §5) ──
+  // No recording exists on this path, so the copy says "planned", never
+  // "taught". {topic} is the catalog topic of the lesson the quiz is written
+  // from; in Urdu it is first-strong isolated because it may be either script.
+  // Digits passed into the Urdu variants are Urdu digits (the caller converts).
+  lpQuizOfferOne: {
+    en: 'You planned “{topic}” for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج «⁨{topic}⁩» کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  // A lesson the catalog has no topic for — named by its class instead.
+  lpQuizOfferOneUntitled: {
+    en: 'You planned a Grade {grade} {subject} lesson for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  // Several lessons, one class. The quiz is written from ONE lesson (the first
+  // planned), so the copy names it rather than promising all of them.
+  lpQuizOfferClass: {
+    en: 'You planned {n} Grade {grade} {subject} lessons for today. I can make a short 8-question quiz on the first one, “{topic}”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کے {n} اسباق پلان کیے۔ پہلے سبق «⁨{topic}⁩» پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+  },
+  lpQuizOfferListBody: {
+    en: 'You planned lessons for {n} classes today. Pick a class and I will make a short 8-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach.',
+    ur: 'آپ نے آج {n} کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر ۸ سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔',
+  },
+  lpQuizOfferListButton: { en: 'Choose a class', ur: 'کلاس چنیں' },
+  // List row title, 24 code points. The caller shortens a long subject first.
+  lpQuizOfferRowTitle: { en: 'Grade {grade} · {subject}', ur: 'جماعت {grade} · {subject}' },
+  lpQuizOfferRowDesc: { en: '{topics}', ur: '⁨{topics}⁩' },
+  lpQuizOfferNone: { en: 'Not today', ur: 'آج نہیں' },
+  // Footer, 60 code points: classes beyond the list's nine rows.
+  lpQuizOfferMore: { en: 'And {n} more classes not shown here', ur: 'مزید {n} کلاسیں یہاں نہیں دکھائی گئیں' },
+  lpQuizYes: { en: 'Make the quiz', ur: '‏quiz بنائیں' },
+  lpQuizNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+  lpQuizMaking: {
+    en: 'Making it now — about a minute. The quiz will arrive here with the message to forward to your class.',
+    ur: '‏quiz ابھی تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور کلاس کو آگے بھیجنے والا پیغام آئے گا۔',
+  },
+  lpQuizDeclined: {
+    en: 'No problem — no quiz for today. Send /quiz anytime to see your quizzes.',
+    ur: 'کوئی بات نہیں — آج کوئی quiz نہیں۔ اپنے quiz دیکھنے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
+  },
+  // quiz_generate could not be queued. The offer is spent (its claim is taken),
+  // so the copy does not invite a re-tap that would only say "already on it".
+  lpQuizCouldNotStart: {
+    en: 'I couldn’t start that quiz just now — sorry. The next lessons you plan will get a new offer.',
+    ur: 'معذرت، وہ quiz ابھی شروع نہیں ہو سکا۔ آپ کے اگلے پلان کیے گئے اسباق پر نئی پیشکش آئے گی۔',
+  },
+  lpQuizExpired: {
+    en: 'That offer has expired. Send /quiz anytime to see your quizzes.',
+    ur: 'وہ پیشکش اب ختم ہو چکی ہے۔ اپنے quiz دیکھنے کے لیے کبھی بھی ⁦/quiz⁩ بھیجیں۔',
+  },
   tqAlreadySent: {
     en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
     ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے ⁦/quiz⁩ بھیجیں۔',
@@ -1629,6 +1753,66 @@ const UX_STRINGS = {
     en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
     ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد ⁦/quiz⁩ آزمائیں۔',
   },
+  // model_failed on a quiz born of a RECORDING: the model gave nothing usable
+  // (empty, cut off or not JSON after its retry, or the provider refused the
+  // call), at the digest or the author. Ours, so it says so and says the
+  // recording was not the problem — and, unlike the lp_v8 case, /quiz CAN make
+  // this one again from the same session. The Urdu verbs agree with خرابی /
+  // quiz / مسئلہ, and بھیجیں / چنیں are imperatives: never the teacher's gender.
+  tqCouldNotMakeModel: {
+    en: 'Sorry — something went wrong on my side while writing the quiz for this lesson, so it could not be finished. The problem was not your recording. Send /quiz and pick this lesson to try again.',
+    ur: 'معذرت — اس سبق کا quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ آپ کی ریکارڈنگ میں نہیں تھا۔ دوبارہ کوشش کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
+  },
+  // ── the LP-born quiz's own failure reasons (PLAN_R8 §3.6) ────────────────
+  // `tqCouldNotMake` above names "this lesson's recording" and "the transcript".
+  // A quiz written from the lesson PLAN a teacher was served has neither, so
+  // that copy would name a state that never existed — and one shared fallback
+  // across several distinct failures is what sent a whole fix cycle at the
+  // wrong layer before (root CLAUDE.md rule 24d). One reason, one sentence,
+  // each saying which step actually stopped — and whose problem it was.
+  tqFailedLpSource: {
+    en: 'I couldn’t open that lesson plan, so there was nothing to write the quiz from. Send /quiz to pick another lesson.',
+    ur: 'اس سبق کا lesson plan نہیں کھل سکا، اس لیے quiz بنانے کے لیے کچھ نہیں تھا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // source_unusable: the lesson plan was found and carries no lesson to write
+  // from — the one digest failure that IS the plan's.
+  tqFailedLpSourceUnusable: {
+    en: 'That lesson plan doesn’t have enough of the lesson in it for me to write a quiz from. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan میں اتنا سبق موجود نہیں کہ اس سے quiz بن سکے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // model_failed: the model gave nothing usable (empty, cut off or not JSON
+  // after its retry, or the provider refused the call), at the digest or the
+  // author. Ours — so the sentence says so, and says the plan was not the
+  // problem. The Urdu verbs agree with خرابی / quiz / مسئلہ, never the teacher.
+  tqFailedLpModel: {
+    en: 'Sorry — something went wrong on my side while writing that quiz, so it could not be finished. The problem was not your lesson plan. Send /quiz to pick another lesson.',
+    ur: 'معذرت — quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ lesson plan میں نہیں تھا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  tqFailedLpAuthor: {
+    en: 'I couldn’t make a good quiz from that lesson plan — the questions didn’t come out clear enough. Send /quiz to pick another lesson.',
+    ur: 'اس lesson plan سے اچھا quiz نہیں بن سکا — سوالات کافی واضح نہیں بنے۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // The key check (lp_v8): some answers marked correct disagreed with the
+  // lesson plan itself and too few were left once they were taken out. Named
+  // for what happened — the questions were fine, their answers were not — and
+  // the quiz was held back rather than sent.
+  tqFailedLpKeyConflict: {
+    en: 'I held this quiz back — some of its answers didn’t match what that lesson plan teaches, and I won’t send children a wrong answer. Send /quiz to pick another lesson.',
+    ur: 'یہ quiz روک لیا گیا — اس کے کچھ جوابات اس lesson plan کی بات سے میل نہیں کھاتے تھے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // The blind solve (both quiz sources): a solver that was not shown the answers
+  // disagreed with too many of them — a wrong answer, or two right ones — to fix
+  // or drop and still send a quiz. Named for what happened: the quiz was made,
+  // its answers did not hold up, so it was held back. Gender-neutral (passive
+  // voice, no verb agrees with the teacher); 'quiz' stays a Latin term of record.
+  tqFailedKeyDisagreement: {
+    en: 'I held this quiz back — when I checked it, some questions had a wrong or unclear answer, and I won’t send children a wrong answer. Try /quiz after your next lesson.',
+    ur: 'یہ quiz روک لیا گیا — جانچ میں کچھ سوالات کے جواب غلط یا غیر واضح نکلے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ اگلے سبق کے بعد ⁦/quiz⁩ آزمائیں۔',
+  },
+  tqFailedLpKeyDisagreement: {
+    en: 'I held this quiz back — when I checked it, some questions from that lesson plan had a wrong or unclear answer, and I won’t send children a wrong answer. Send /quiz to pick another lesson.',
+    ur: 'یہ quiz روک لیا گیا — جانچ میں اس lesson plan سے بنے کچھ سوالات کے جواب غلط یا غیر واضح نکلے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
     ur: 'آپ کا quiz تیار ہے لیکن کلاس کا link ابھی نہیں بن سکا۔ تھوڑی دیر بعد ⁦/quiz⁩ بھیج کر حاصل کریں۔',
@@ -1636,6 +1820,15 @@ const UX_STRINGS = {
   tqHandoffIntro: {
     en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you taught, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
     ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ نے کیا پڑھایا، کوئز کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
+  },
+  // The lp_v8 twin of tqHandoffIntro. The quiz was written from the lesson PLAN
+  // the teacher was served — nobody heard the lesson — so the PDF is described
+  // by what was planned, in the words of the sheet's own heading ("What you
+  // planned" / «آپ کے سبق کا منصوبہ»). Never "what you taught". Gender-neutral:
+  // no verb agrees with the teacher; 'quiz' stays a Latin term of record.
+  tqHandoffIntroLp: {
+    en: '📝 Your quiz: {lesson} — {n} questions.\n\nThis PDF is for you: what you planned, what the quiz checks, and every question with its correct answer marked.\n\nThe NEXT message is for your students — forward it to the class group.',
+    ur: '\u200F📝 آپ کا quiz: {lesson}، {n} سوالات۔\n\nیہ PDF آپ کے لیے ہے: آپ کے سبق کا منصوبہ، quiz کیا جانچتا ہے، اور ہر سوال کے ساتھ درست جواب نشان زد۔\n\nاگلا پیغام طلبہ کے لیے ہے — اسے class group میں forward کریں۔',
   },
   tqForwardThis: {
     en: 'Forward THIS message to your students:',
@@ -1668,13 +1861,15 @@ const UX_STRINGS = {
   tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
   tqRowReportSent: { en: 'Report sent · {finished} done', ur: 'رپورٹ بھیجی، {finished} مکمل' },
   tqRowFailed: { en: 'Failed — tap to retry', ur: 'نہیں بنا — دوبارہ tap' },
+  // The lp_v8 row: tapping it cannot retry (no session), so it does not say so.
+  tqRowFailedLp: { en: 'Didn’t work', ur: 'نہیں بن سکا' },
   tqRowOlder: { en: 'Older lessons…', ur: 'پرانے اسباق…' },
   tqRowOlderDesc: { en: 'The next 9, going back', ur: 'اگلے 9، اور پیچھے' },
   // The date is here because she is choosing between lessons, and two lessons
   // can carry the same topic in one term.
   tqQuizStatus: {
     en: '*{topic}*\n{date} · {started} started · {finished} finished.\n\nResend the link, or regenerate the report?',
-    ur: '\u200F*{topic}*\n{date}، {started} نے شروع کیا، {finished} مکمل۔\n\nlink دوبارہ بھیجیں، یا رپورٹ دوبارہ بنائیں؟',
+    ur: '\u200F*{topic}*\n{date}، {started} نے شروع کیا، {finished} مکمل۔\n\n\u200Flink دوبارہ بھیجیں، یا رپورٹ دوبارہ بنائیں؟',
   },
   tqLinkButton: { en: 'Resend link', ur: 'دوبارہ link بھیجیں' },
   // Both ≤ 20 code points in both languages — a WhatsApp button title cap.
@@ -1697,14 +1892,36 @@ const UX_STRINGS = {
   tqYourTeacher: { en: 'Your teacher', ur: 'آپ کے استاد' },
   tqTeacherNamed: { en: 'Teacher {name}', ur: 'استاد {name}' },
   tqTodaysLesson: { en: 'today’s lesson', ur: 'آج کا سبق' },
+  // The column heads of a place-value picture (the `base_ten` figure) on a
+  // child's question. Drawn above each column, never with a number beside them.
+  tqPlaceThousands: { en: 'Thousands', ur: 'ہزار' },
+  tqPlaceHundreds: { en: 'Hundreds', ur: 'سینکڑے' },
+  tqPlaceTens: { en: 'Tens', ur: 'دہائیاں' },
+  tqPlaceOnes: { en: 'Ones', ur: 'اکائیاں' },
   tqLessonWord: { en: 'Lesson', ur: 'سبق' },
+  // The nudge a teacher gets when almost nobody has started a quiz. {topic} and
+  // each title in {topics} arrive ALREADY bold and isolated (*⁨title⁩*, built
+  // by transcript-quiz-nudge titled()): a title's script is not the sentence's
+  // (an Urdu title in an English nudge and vice versa), and a title can contain
+  // the list comma itself, so neither the separator nor the bidi algorithm can
+  // be trusted to show where one title ends. The count has three forms — none,
+  // one, several — because "0 student(s)" is not a sentence. Urdu verbs agree
+  // with the quiz (کیا ہے، کیے), never with the teacher or a child.
+  tqNudgeNone: {
+    en: 'No one has started your quiz on {topic} yet. Worth forwarding the link to the class group again?',
+    ur: '\u200F{topic} پر آپ کے quiz کو ابھی تک کسی نے شروع نہیں کیا۔ link دوبارہ class group میں forward کر دیں؟',
+  },
+  tqNudgeOne: {
+    en: 'One student has started your quiz on {topic} so far. Worth forwarding the link to the class group again?',
+    ur: '\u200F{topic} پر آپ کے quiz کو اب تک ایک طالب علم نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
+  },
   tqNudge: {
-    en: '{started} student(s) have started your quiz on *{topic}* so far. Worth forwarding the link to the class group again?',
-    ur: '\u200F*{topic}* پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
+    en: '{started} students have started your quiz on {topic} so far. Worth forwarding the link to the class group again?',
+    ur: '\u200F{topic} پر آپ کے quiz کو اب تک {started} طلبہ نے شروع کیا ہے۔ link دوبارہ class group میں forward کر دیں؟',
   },
   tqNudgeMany: {
-    en: '{count} of your quizzes have had almost nobody start yet: *{topics}*. Worth forwarding the links to the class group again?',
-    ur: '\u200Fآپ کے {count} quiz ابھی تک تقریباً کسی نے شروع نہیں کیے: *{topics}*۔ link دوبارہ class group میں forward کر دیں؟',
+    en: '{count} of your quizzes have had almost nobody start yet: {topics}. Worth forwarding the links to the class group again?',
+    ur: '\u200Fآپ کے {count} quiz ابھی تک تقریباً کسی نے شروع نہیں کیے: {topics}۔ link دوبارہ class group میں forward کر دیں؟',
   },
 
   // ─── /quiz as ONE WhatsApp Flow (docs/flows/transcript-quiz-flow.json) ───
@@ -1788,16 +2005,85 @@ const UX_STRINGS = {
     en: 'The quiz is being made — about a minute. It will arrive in your chat with the message to forward.',
     ur: '\u200Fquiz تیار ہو رہا ہے — تقریباً ایک منٹ۔ آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
   },
+  // An lp_v8 quiz was written from the lesson PLAN — no recording to name.
+  // No "try again": /quiz cannot re-make it without a session (PLAN_R8 §3.4).
+  tqFlowResultsFailedLp: {
+    en: 'This quiz could not be made from the lesson plan. The next lesson you plan can have a quiz of its own.',
+    ur: 'اس lesson plan سے quiz نہیں بن سکا۔ اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
+  },
+  // WHY a lesson-plan quiz failed, on its /quiz Flow lesson screen: the chat's
+  // own reason split (tqFailedLp*), without the chat's "send /quiz" tail — the
+  // teacher is already in /quiz. Followed by the remake hint or the next-lesson
+  // line. Passive / first person in Urdu: gender-neutral.
+  tqFlowResultsFailedLpModel: {
+    en: 'Something went wrong on my side while writing this quiz, so it could not be finished. The problem was not your lesson plan.',
+    ur: '\u200Fquiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ lesson plan میں نہیں تھا۔',
+  },
+  tqFlowResultsFailedLpUnusable: {
+    en: 'This lesson plan doesn’t have enough of the lesson in it to write a quiz from.',
+    ur: 'اس lesson plan میں اتنا سبق موجود نہیں کہ اس سے quiz بن سکے۔',
+  },
+  tqFlowResultsFailedLpSource: {
+    en: 'I couldn’t open this lesson plan, so there was nothing to write the quiz from.',
+    ur: 'اس سبق کا lesson plan نہیں کھل سکا، اس لیے quiz بنانے کے لیے کچھ نہیں تھا۔',
+  },
+  tqFlowResultsFailedLpChecks: {
+    en: 'The quiz written from this lesson plan was held back: some of its questions or answers were not clear or right enough to send to children.',
+    ur: 'اس lesson plan سے بنا quiz روک لیا گیا — اس کے کچھ سوالات یا جوابات اتنے واضح یا درست نہیں تھے کہ بچوں کو بھیجے جا سکیں۔',
+  },
+  // Generate report on a quiz no child has finished (the teacher's own test run
+  // does not count): the report service would decline, so the screen says so
+  // instead of promising a report that never comes.
+  tqFlowResultsNothingToReport: {
+    en: 'No student has finished this quiz yet, so there is nothing to report. Resend the link — once students finish, the report can be made here.',
+    ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں — طلبہ کے مکمل کرنے کے بعد رپورٹ یہیں سے بن سکتی ہے۔',
+  },
+  // A lesson-plan quiz that was never made (declined, skipped, cancelled).
+  tqFlowResultsNoQuizLp: {
+    en: 'No quiz was made for this lesson. The next lesson you plan can have a quiz of its own.',
+    ur: 'اس سبق کا quiz نہیں بنا۔ اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
+  },
+  // The generate job could not be queued — the quiz was never started.
+  tqFlowResultsFailedLpStart: {
+    en: 'This quiz could not be started on my side. The problem was not your lesson plan.',
+    ur: 'یہ quiz میری طرف سے شروع نہیں ہو سکا۔ مسئلہ lesson plan میں نہیں تھا۔',
+  },
+  tqFlowResultsRemakeHint: {
+    en: 'Choose “Make it again” to try once more — about a minute.',
+    ur: 'دوبارہ کوشش کے لیے «دوبارہ بنائیں» چنیں — تقریباً ایک منٹ۔',
+  },
+  tqFlowResultsNextLesson: {
+    en: 'The next lesson you plan can have a quiz of its own.',
+    ur: 'اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
+  },
   tqFlowResultsFailed: {
     en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',
     ur: 'پچھلی کوشش میں اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا۔ دوبارہ کوشش کی جا سکتی ہے۔',
+  },
+  // The same failure on the /quiz Flow lesson screen when it was the MODEL's
+  // (tqCouldNotMakeModel, without the chat's "send /quiz" — the teacher is in
+  // /quiz, and the Make choices sit right under this line).
+  tqFlowResultsFailedModel: {
+    en: 'Something went wrong on my side while writing this quiz, so it could not be finished. The problem was not your recording. You can try again.',
+    ur: '‏quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ آپ کی ریکارڈنگ میں نہیں تھا۔ دوبارہ کوشش کی جا سکتی ہے۔',
   },
   tqFlowEachStudent: { en: 'How each student did', ur: 'ہر طالب علم کا نتیجہ' },
   // The score is ONE left-to-right atom (digits, slash, brackets, per-cent), so
   // it arrives already wrapped in LRI…PDI from the endpoint — in an Urdu line
   // an un-isolated `8/8 (100%)` after an Urdu name renders as `(%100) 8/8`.
   tqFlowStudentLine: { en: '• {name}{klass} — {score}', ur: '• {name}{klass} — {score}' },
+  // The paragraph mark for a LIST of lines built from data (the /quiz results
+  // block, the class report's text fallback). A catalog string opens with its
+  // own mark where it needs one (above); a list line such as "• \u2068name\u2069 —
+  // \u2066score\u2069" cannot — its only strong characters sit inside isolates, so a
+  // phone finds none and falls back to left-to-right (Android and iOS differ on
+  // whether they look inside an isolate). text-format markLines() opens every
+  // line with this: U+200E in English, U+200F in Urdu. One code point per line.
+  lineDirMark: { en: '\u200E', ur: '\u200F' },
   tqFlowStillGoing: { en: 'Still going: {names}', ur: 'ابھی حل کر رہے ہیں: {names}' },
+  // Not finished and not taking it now: the child typed STOP, or the quiz
+  // stopped on our side (an `incomplete` session), or it ran out of time.
+  tqFlowStopped: { en: 'Stopped before the end: {names}', ur: '\u200Fquiz بیچ میں روک دیا گیا: {names}' },
   tqFlowMoreStudents: { en: '…and {n} more', ur: '…اور {n} مزید' },
   tqFlowUnnamed: { en: 'Unnamed', ur: 'بےنام' },
 
@@ -1818,6 +2104,21 @@ const UX_STRINGS = {
   tqFlowActionMakeDesc: {
     en: '8 questions from what you taught in this lesson. About a minute.',
     ur: 'اس سبق میں آپ نے جو پڑھایا، اس پر 8 سوالات۔ تقریباً ایک منٹ۔',
+  },
+  // The same choice on a quiz born from a lesson PLAN, whose teacher has still
+  // to pick the quiz language. Planned, never "taught" — nobody heard the lesson.
+  // The two choices on a FAILED lesson-plan quiz. Radio option: title ≤ 30,
+  // description ≤ 300 code points.
+  tqFlowActionRemake: { en: 'Make it again', ur: 'دوبارہ بنائیں' },
+  tqFlowActionRemakeDesc: {
+    en: 'A fresh try from the same lesson plan. About a minute.',
+    ur: 'اسی lesson plan سے نئی کوشش۔ تقریباً ایک منٹ۔',
+  },
+  tqFlowActionDone: { en: 'Done', ur: 'ٹھیک ہے' },
+  tqFlowActionDoneDesc: { en: 'Close this for now.', ur: 'ابھی کے لیے بند کریں۔' },
+  tqFlowActionMakeDescLp: {
+    en: '8 questions on the lesson you planned. About a minute.',
+    ur: 'آپ کے سبق کے منصوبے پر ۸ سوال۔ تقریباً ایک منٹ۔',
   },
   tqFlowContinue: { en: 'Continue', ur: 'آگے بڑھیں' },
   tqFlowClose: { en: 'Close', ur: 'بند کریں' },
@@ -1892,10 +2193,39 @@ const UX_STRINGS = {
   },
   vqLetsBegin: { en: 'Great — {who}. Let’s begin!', ur: 'بہت خوب — {who}۔ چلیں شروع کریں!' },
   vqLetsBeginName: { en: 'Let’s begin, {name}!', ur: '\u200F{name}، چلیں شروع کریں!' },
+  // The {who} of vqLetsBegin when the child gave a class too. Each typed value
+  // is a first-strong isolate (its script is whatever the child typed): a Latin
+  // class such as "1-B" after an Urdu word is otherwise painted "B-1", and an
+  // Urdu name in the English line drags the class to its left. The separator
+  // is language data — Urdu's comma is `،`, never `,`.
+  vqWhoNameClass: { en: '\u2068{name}\u2069, \u2068{cls}\u2069', ur: '\u2068{name}\u2069، \u2068{cls}\u2069' },
   vqExpired: {
     en: 'That quiz link has expired. Ask your teacher for a new one!',
     ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
   },
+
+  // ─── the join Flow a child we have never met opens (screen WHO) ─────────
+  // Every word on that screen arrives as navigate-mode screen data
+  // (docs/flows/student-join-flow-v2.json binds each one to ${data.*}), so one
+  // published asset speaks the quiz language. Caps, in code points: the Flow
+  // CTA 20, the screen title 30, TextHeading 80, a TextInput label 20 and its
+  // helper-text 80, the Footer label 35. The class example keeps the ASCII
+  // digit of vqAskClass, the chat path asking the same question, so the two
+  // paths suggest one way of writing a class.
+  vqJoinFlowButton: { en: 'Start', ur: 'شروع کریں' },
+  vqJoinTitle: { en: 'Before we start', ur: 'شروع کرنے سے پہلے' },
+  vqJoinHeading: {
+    en: '{teacher} has sent you a quiz',
+    ur: '‏{teacher} نے آپ کو quiz بھیجا ہے',
+  },
+  vqJoinNameLabel: { en: 'Your name', ur: 'آپ کا نام' },
+  vqJoinNameHelp: {
+    en: 'So your teacher can see how you did',
+    ur: 'تاکہ آپ کے استاد دیکھ سکیں کہ آپ نے کیسا کیا',
+  },
+  vqJoinClassLabel: { en: 'Your class', ur: 'آپ کی جماعت' },
+  vqJoinClassHelp: { en: 'For example: Grade 4, or 1-B', ur: 'مثلاً: جماعت 4' },
+  vqJoinSubmit: { en: 'Start the quiz', ur: '‏quiz شروع کریں' },
   vqHereWeGo: { en: 'Here we go — {n} questions. Take your time!', ur: 'چلیں — {n} سوال ہیں۔ آرام سے کریں!' },
   vqQuestionOf: { en: '*Question {i} of {n}*', ur: '*سوال {i} از {n}*' },
   vqChooseAnswer: { en: 'Choose answer', ur: 'جواب چنیں' },
@@ -1905,9 +2235,14 @@ const UX_STRINGS = {
     ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔\n\n{tier}',
   },
   vqScoreCaption: {
-    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%). You’ve earned {stars} {starWord}!\n\n{tier}',
-    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔ آپ کو {stars} {starWord} ملے!\n\n{tier}',
+    en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%). {starsLine}\n\n{tier}',
+    ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔ {starsLine}\n\n{tier}',
   },
+  // The caption's star sentence. Urdu inflects the noun AND the verb for one
+  // star (ستارہ ملا) against several (ستارے ملے), so each count is its own
+  // whole sentence here rather than a word swapped into one template.
+  vqStarsEarned: { en: 'You’ve earned {stars} stars!', ur: 'آپ کو {stars} ستارے ملے!' },
+  vqStarsEarnedOne: { en: 'You’ve earned {stars} star!', ur: 'آپ کو {stars} ستارہ ملا!' },
   vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },
   vqTierDeveloping: {
     en: 'Nicely done — a little more practice and you’ll have it.',
@@ -1917,13 +2252,51 @@ const UX_STRINGS = {
     en: 'Good effort — this one is worth another go.',
     ur: 'اچھی کوشش — یہ دوبارہ کرنے کے قابل ہے۔',
   },
+  // Sent when NOTHING can be sent any more and the session ends unfinished. It
+  // used to promise "here's how you did on the ones you got" and then score the
+  // child on them — one answered question of eight read as 100%. No score
+  // follows it now, so it must not promise one.
   vqTrouble: {
-    en: 'We’re having trouble sending more questions right now — here’s how you did on the ones you got!',
-    ur: 'ابھی مزید سوال بھیجنے میں مسئلہ ہو رہا ہے — جو سوال ملے، ان کا نتیجہ یہ رہا!',
+    en: 'I’m having trouble sending the questions right now, so this quiz has stopped here. Please try it again a little later.',
+    ur: 'ابھی سوال بھیجنے میں مسئلہ ہو رہا ہے، اس لیے یہ quiz یہیں روک دیا گیا ہے۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  // One question could not be sent and was skipped; the quiz carries on. {i} is
+  // its position, the same number "Question {i} of {n}" would have shown, so the
+  // gap in the numbering is explained. Passive in Urdu: gender-neutral.
+  vqQuestionSkipped: {
+    en: 'I couldn’t send question {i}, so I’ve skipped it.',
+    ur: 'سوال {i} نہیں بھیجا جا سکا، اس لیے اسے چھوڑ دیا گیا ہے۔',
   },
   vqNoQuestions: {
     en: 'Sorry — I couldn’t load that quiz just now. Please try again later.',
     ur: 'معذرت — ابھی یہ quiz لوڈ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  // The /video quiz offer path — reached by teachers AND children from the video
+  // library. In the run's language; the two lines that fire after the run's
+  // state is gone (a lapsed offer, a tap after the quiz ended) read it from the
+  // phone's last run. Urdu verbs agree with the quiz, the offer or the video
+  // (ہو سکا، ہو چکی ہے، ملے گا), never with whoever is reading.
+  vqOfferDeclined: {
+    en: 'No problem — enjoy the video!',
+    ur: 'کوئی بات نہیں — ویڈیو دیکھنے کا لطف اٹھائیں!',
+  },
+  vqOfferExpired: {
+    en: 'That quiz offer has expired — pick the video again and I\'ll offer it fresh.',
+    ur: 'اس quiz کی پیشکش ختم ہو چکی ہے — ویڈیو دوبارہ چنیں، quiz نئے سرے سے پیش کیا جائے گا۔',
+  },
+  vqStartFailed: {
+    en: 'Sorry — I couldn\'t start that quiz. Please try again in a moment.',
+    ur: 'معذرت — ابھی یہ quiz شروع نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  // The child typed STOP mid-quiz. Nothing is scored; the teacher's report
+  // lists the child as not finished.
+  vqStopped: {
+    en: 'Okay, I’ve stopped this quiz here. You can start it again later.',
+    ur: 'ٹھیک ہے، یہ quiz یہیں روک دیا گیا ہے۔ اسے بعد میں دوبارہ شروع کیا جا سکتا ہے۔',
+  },
+  vqQuizFinished: {
+    en: 'That quiz has finished. Pick another video and I\'ll offer you a fresh one!',
+    ur: 'یہ quiz ختم ہو چکا ہے۔ کوئی اور ویڈیو چنیں، اس کے ساتھ نیا quiz ملے گا!',
   },
   vqInviteAsk: {
     en: 'Want to send this quiz to a friend?\n\nI’ll tell you how they did once they finish.',
@@ -1931,6 +2304,75 @@ const UX_STRINGS = {
   },
   vqInviteYes: { en: 'Invite a friend', ur: 'دوست کو بھیجیں' },
   vqInviteNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+  // What the child forwards after tapping vqInviteYes. The second message is
+  // read by the FRIEND, who is joining the same quiz, so it is in the quiz
+  // language too. {name} is the inviter's first name only. In Urdu it always
+  // sits before a postposition (کے خیال میں), so its fallback vqInviteFriend
+  // is written in the oblique form (آپ کے دوست, never آپ کا دوست). The verb
+  // agrees with "quiz" (آئے گا), never with either child.
+  vqInviteForwardThis: {
+    en: 'Here is the message — forward THIS one to your friend:',
+    ur: 'یہ رہا پیغام — یہی پیغام اپنے دوست کو forward کریں:',
+  },
+  vqInviteMessage: {
+    en: "📚 *Try this quiz!*\n\n{name} thinks you'd like this quiz on *{topic}*.\n\nTap here to start:\n{link}",
+    ur: '‏📚 *یہ quiz کر کے دیکھیں!*\n\n{name} کے خیال میں *{topic}* پر یہ quiz آپ کو پسند آئے گا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}',
+  },
+  vqInviteFriend: { en: 'Your friend', ur: 'آپ کے دوست' },
+  vqInviteLinkFailed: {
+    en: 'Sorry — I couldn\'t make that link just now. Try again in a moment.',
+    ur: 'معذرت — ابھی link نہیں بن سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  // What the inviting child hears once their friend finishes. First name and
+  // score only cross (operator decision), and it is never framed as a loss —
+  // children show these to each other. Urdu: the verbs agree with the quiz or the
+  // marks (کر لیا، آئے، ہیں), never with either child; {them} falls back to
+  // vqInviteFriend's oblique form because a postposition (نے، کے) follows it.
+  vqCompareMessage: {
+    en: '🎯 *{them} finished your quiz!*\n\n{them}: *{theirs}/{outOf}*\nYou: *{mine}/{outOf}*\n\n{line}',
+    ur: '‏🎯 *{them} نے آپ کا quiz مکمل کر لیا!*\n\n{them}: *{outOf} میں سے {theirs}*\nآپ: *{outOf} میں سے {mine}*\n\n{line}',
+  },
+  vqCompareBehind: {
+    en: '{them} edged you this time — worth another go.',
+    ur: 'اس بار {them} کے نمبر زیادہ آئے — ایک بار اور کوشش کر کے دیکھیں!',
+  },
+  vqCompareAhead: { en: 'You are still ahead. Nicely done.', ur: 'آپ اب بھی آگے ہیں۔ بہت خوب!' },
+  vqCompareTie: {
+    en: 'A dead heat — you both got the same.',
+    ur: 'برابر کا مقابلہ — دونوں کے نمبر ایک جیسے ہیں۔',
+  },
+
+  // ─── a video quiz sent to the class (the video_solo share) ──────────────
+  // vqClassMessage is forwarded to the class group and read by every child, so
+  // it is in the quiz's language; the lines around it address whoever took the
+  // quiz, in the same language the rest of that video-quiz run spoke to them.
+  vqShareOffer: {
+    en: 'Want to send this quiz to your class?\n\nI\'ll give you one message to forward. Each child gets the quiz in their own chat, and you\'ll get their results in the morning.',
+    ur: 'یہ quiz اپنی کلاس کو بھیجیں؟\n\nآپ کو forward کرنے کے لیے ایک پیغام ملے گا۔ ہر بچے کو quiz اس کی اپنی chat میں ملے گا، اور صبح آپ کو ان کے نتائج مل جائیں گے۔',
+  },
+  vqShareYes: { en: 'Share with class', ur: 'کلاس کو بھیجیں' },
+  vqShareNo: { en: 'Not now', ur: 'ابھی نہیں' },
+  vqShareDeclined: {
+    en: 'No problem — it will be here when you want it.',
+    ur: 'کوئی بات نہیں — جب چاہیں، یہ یہیں ملے گا۔',
+  },
+  vqShareLinkFailed: {
+    en: 'Sorry — I couldn\'t create the class link just now. Try again in a moment.',
+    ur: 'معذرت — ابھی کلاس کا link نہیں بن سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  vqShareForwardThis: {
+    en: 'Here is your class message — forward THIS one to your class group:',
+    ur: 'یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:',
+  },
+  vqClassMessage: {
+    en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
+    ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+  },
+  vqShareReportPromise: {
+    en: 'You\'ll get a report on how your class did tomorrow morning, or as soon as everyone has finished.',
+    ur: 'کلاس کی رپورٹ کل صبح آئے گی — یا جیسے ہی سب مکمل کر لیں۔',
+  },
+  vqTodaysVideo: { en: 'today’s video', ur: 'آج کی ویڈیو' },
 
   // ─── the watch-more offer after the invite (bd-2yyry.8 / .9) ───────────
   // Read by CHILDREN, in the quiz language. Gender-neutral by construction:
@@ -1970,12 +2412,17 @@ const UX_STRINGS = {
   // / آپ and is never described; the ordinal is built in code. An Urdu body
   // that opens with a number carries the right-to-left mark.
   vqClassEyebrow: { en: 'CLASS RESULTS', ur: 'کلاس کے نتائج' },
+  // {place} is the ordinal the template builds. In Urdu the TIE line puts it
+  // before a postposition (… نمبر پر), so there it is the OBLIQUE form
+  // (پہلے، پانچویں); the plain line keeps the direct form (پہلا، پانچواں).
   vqClassPlace: { en: 'You came {place} of {n}', ur: '\u200F{n} میں سے آپ کا {place} نمبر' },
   vqClassPlaceTie: { en: 'You are joint {place} of {n}', ur: '\u200F{n} میں سے آپ مشترکہ {place} نمبر پر' },
   vqClassYou: { en: 'you', ur: 'آپ' },
   vqClassAvg: { en: 'class average', ur: 'کلاس کا اوسط' },
   vqClassYours: { en: 'your score', ur: 'آپ کا اسکور' },
   vqClassOthers: { en: '{n} more in the class', ur: 'کلاس کے {n} اور بچے' },
+  // One hidden child: the noun and its postposition are singular (کا … بچہ).
+  vqClassOthersOne: { en: '{n} more in the class', ur: 'کلاس کا {n} اور بچہ' },
   vqClassFinished: { en: '{n} finished', ur: '\u200F{n} نے مکمل کیا' },
   // The one-line caption under the card, sent to the child. Names nobody.
   vqClassCardCaption: {
@@ -1998,7 +2445,8 @@ const UX_STRINGS = {
   // carry 2 or 4 options, and the copy has to name exactly the buttons sent
   // (round 5). letterListLabel() builds "A, B or C" from these two pieces;
   // both are language data, not layout — Urdu's list comma is `،`, not `,`,
-  // and its "or" is `یا`.
+  // and its "or" is `یا`. vqLetterSep is also the list comma between the
+  // example terms of the quiz language ask (tqAskLanguage).
   vqLetterSep: { en: ', ', ur: '، ' },
   vqLetterOr: { en: 'or', ur: 'یا' },
   // The question card's OWN footer, painted into the image itself.
@@ -2307,9 +2755,19 @@ const TRANSCRIPT_QUIZ_R2_STRINGS = {
   // language registry (اردو / English), not from here — a language names itself
   // the same way in both catalogs, and the registry is what the /language and
   // /settings pickers already render.
+  //
+  // {examples} is one or two English terms FROM THE LESSON — the digest's own
+  // key terms, else a pair that fits the subject — each a first-strong isolate,
+  // joined by the language's list comma (transcript-quiz-language
+  // languageAskBody). A science lesson was being told "(fraction, numerator)".
+  // When nothing fits, the Plain form names no example at all.
   tqAskLanguage: {
-    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters (fraction, numerator).\nEnglish — the whole quiz in English.\n\nTap one.',
-    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں (fraction، numerator)۔\nEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
+    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters ({examples}).\nEnglish — the whole quiz in English.\n\nTap one.',
+    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں ({examples})۔\n\u200FEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
+  },
+  tqAskLanguagePlain: {
+    en: 'Which language should the quiz be in?\n\nUrdu — English terms stay in English letters.\nEnglish — the whole quiz in English.\n\nTap one.',
+    ur: '\u200Fquiz کس زبان میں ہو؟\n\nاردو — English اصطلاحات انگریزی حروف میں۔\n\u200FEnglish — پورا quiz انگریزی میں۔\n\nایک کو tap کریں۔',
   },
   tqLessonOnSubject: { en: '{subject} lesson on {topic}', ur: '\u200F{subject} کا سبق — {topic}' },
   tqLessonNoTopic:   { en: '{subject} lesson',            ur: '\u200F{subject} کا سبق' },
@@ -2539,14 +2997,92 @@ function resolveUx(key, { user, language, params } = {}) {
 
   const lang = clampLanguage(language || user?.preferred_language);
   const template = variants[lang] ?? variants[FLOOR];
-
-  return template.replace(PLACEHOLDER, (_, name) => {
+  const valueOf = (name) => {
     const value = params?.[name];
     if (value === undefined || value === null) {
       throw new Error(`resolveUx: missing param "${name}" for key "${key}"`);
     }
     return String(value);
+  };
+
+  const dir = getLanguage(lang)?.direction === 'rtl' ? 'rtl' : 'ltr';
+  return template.split('\n').map((para) => keepDirection(para, dir, valueOf)).join('\n');
+}
+
+// ─── paragraph direction ────────────────────────────────────────────────────
+//
+// A phone lays out each PARAGRAPH (each line after a newline) from its first
+// strong character; a U+200F at the start of a string governs only its first
+// paragraph. So a paragraph the author wrote in Urdu but OPENED with a
+// placeholder — "{teacher} نے آپ کو …" — was laid out left to right whenever the
+// value was Latin, and the reader started from the wrong end. English has the
+// mirror case with an Urdu-script name. keepDirection() repairs exactly that,
+// and nothing else: when the value that opens a paragraph would turn it the
+// wrong way, the value is isolated and the paragraph opens with the language's
+// own mark — the isolate for clients that honour it, the mark for those that do
+// not. It never touches the author's own words (a line they open with a Latin
+// word is theirs to mark, and a catalog test holds them to it), a line that is
+// only a value (a link, a list of names), or a value the template or the caller
+// already isolates.
+const DIR_MARK = { rtl: '‏', ltr: '‎' };
+const FSI = '⁨';
+const PDI = '⁩';
+const ISOLATE_OPEN = /[⁦-⁨]/;
+const RTL_LETTER = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
+const ONE_PLACEHOLDER = /\{(\w+)\}/;
+
+function strongDirection(ch) {
+  if (ch === '‏' || ch === '؜') return 'rtl';
+  if (ch === '‎') return 'ltr';
+  if (!/\p{L}/u.test(ch)) return null;   // digits, punctuation, emoji, bidi controls
+  return RTL_LETTER.test(ch) ? 'rtl' : 'ltr';
+}
+
+/** The first strong direction in `text`, NOT skipping isolates — what the least capable client sees. */
+function firstStrong(text) {
+  for (const ch of text) {
+    const d = strongDirection(ch);
+    if (d) return d;
+  }
+  return null;
+}
+
+/**
+ * Is `value` a run of the OTHER script that is safe to isolate? A word of it
+ * (two letters or more), none of this paragraph's script, not a URL (a mark
+ * glued to a link can be swallowed into it), not already isolated. The word
+ * rule keeps letter lists ("B، C") out: isolated, they would read left to right
+ * inside an Urdu line.
+ */
+function isolatable(value, dir) {
+  if (!value || ISOLATE_OPEN.test(value[0]) || /^\s*[a-z][\w+.-]*:\/\//i.test(value)) return false;
+  const letters = [...value].map(strongDirection).filter(Boolean);
+  if (letters.includes(dir)) return false;
+  const word = dir === 'rtl'
+    ? /(?:(?![֐-ࣿיִ-﷿ﹰ-﻿])\p{L}){2,}/u
+    : /(?:(?=[֐-ࣿיִ-﷿ﹰ-﻿])\p{L}){2,}/u;
+  return word.test(value);
+}
+
+function keepDirection(para, dir, valueOf) {
+  const filled = para.replace(PLACEHOLDER, (_, name) => valueOf(name));
+  const first = para.search(ONE_PLACEHOLDER);
+  if (first < 0) return filled;                                   // the author's words alone
+  const lead = para.slice(0, first);
+  if (firstStrong(lead) !== null) return filled;                  // the author's words lead
+  const own = para.replace(PLACEHOLDER, '');
+  if (![...own].some((ch) => strongDirection(ch) === dir)) return filled;   // a line of values only
+  if (firstStrong(filled) === dir) return filled;                 // the value already reads this way
+
+  const templateIsolates = ISOLATE_OPEN.test(lead.slice(-1));
+  let opened = false;
+  const out = para.replace(PLACEHOLDER, (_, name) => {
+    const value = valueOf(name);
+    if (opened) return value;
+    opened = true;
+    return !templateIsolates && isolatable(value, dir) ? `${FSI}${value}${PDI}` : value;
   });
+  return `${DIR_MARK[dir]}${out}`;
 }
 
 /**

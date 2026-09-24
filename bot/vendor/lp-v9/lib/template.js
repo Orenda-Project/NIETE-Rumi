@@ -26,6 +26,7 @@ const { LABELS } = require("./overlay");
 const { fontCss, katexCss, REPO_ROOT } = require("./fonts");
 const { toV3 } = require("./migrate");
 const { questionIndex } = require("./questions");
+const { fbiseRow, noBoardExam } = require("./fbise_chips");
 
 // ── diagram-type badge: the enum is OURS, the badge is the TEACHER'S ─────────
 // The figure badge used to print `spec.type` raw, under `text-transform:uppercase`, so the
@@ -501,6 +502,10 @@ p{ font-size:18px; }
 .slo .lbl{ color:var(--s-note-ink); }
 .slo p{ font-size:18.5px; line-height:${rtl ? "2.0" : "1.55"}; margin-top:1px; font-weight:600; color:#3a2c0a; }
 .slo .src{ font-size:14.5px; color:#7d6425; margin-top:2px; font-weight:600; }
+.slo .fbise{ display:flex; flex-wrap:wrap; gap:4px 6px; margin-top:3px; }
+.slo .fchip{ font-size:16.5px; font-weight:700; color:#5a4610; background:rgba(255,255,255,.55);
+  border:1px solid var(--amber); border-radius:var(--r-pill); padding:0 9px; unicode-bidi:isolate; }
+.slo .fchip b{ font-weight:800; letter-spacing:.03em; direction:ltr; unicode-bidi:isolate; }
 .crit{ font-size:17px; color:#6B5312; margin-top:1px; font-weight:600; }
 .objhd{ display:flex; align-items:center; gap:6px; margin-top:var(--sp-2); font-size:14px; font-weight:800;
       letter-spacing:.09em; text-transform:uppercase; color:var(--s-note-ink); }
@@ -1622,8 +1627,9 @@ function page1(doc, ctx, secIndex) {
   // page is a renderer defect. Guarded by tests/lp612/outcome-one-voice-render.test.js.
   const O = doc.objectives;
   const sloBox = `<div class="slo">
-    <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}</div>
+    <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}${noBoardExam(doc, L)}</div>
     <p>${rich(O.outcome)}</p>
+    ${fbiseRow(doc, L)}
     ${O.by_the_end ? `<div class="bythe"><b>&#10003;</b> ${rich(O.by_the_end)}</div>` : ""}
   </div>`;
 
@@ -1738,12 +1744,14 @@ function page1(doc, ctx, secIndex) {
   // stay because the stack is the only thing that says these four lines are one sequence and not
   // four unrelated facts; the checkpoint's leading `&middot;` goes, because a separator between
   // two things that no longer share a line is a stray mark.
+  // bd-f01ob (v6): the NEXT leg is not painted. Operator: *"next period should lso be gone"*.
+  // `sequence.next` stays in the document; the strip is where this lesson came from, what it is,
+  // and where it is checked — so the only arrow is previous -> this.
   const AR = arrowFor(ctx);
   const arrow = `<span class="arrow">${AR}</span>`;
   const seq = doc.sequence
     ? `<div class="seq">${doc.sequence.previous ? `<span><b>${esc(L.seqPrev)}:</b> ${rich(doc.sequence.previous)}${arrow}</span>` : ""}
-       <span class="now">${rich(doc.sequence.this)}${doc.sequence.next ? arrow : ""}</span>
-       ${doc.sequence.next ? `<span><b>${esc(L.seqNext)}:</b> ${rich(doc.sequence.next)}</span>` : ""}
+       <span class="now">${rich(doc.sequence.this)}</span>
        ${doc.sequence.checkpoint ? `<span><b>${esc(L.seqCheck)}:</b> ${rich(doc.sequence.checkpoint)}</span>` : ""}</div>`
     : "";
 
@@ -1777,10 +1785,8 @@ function page1(doc, ctx, secIndex) {
     // line at the top of page 1 — see resourcesLine. Do not re-add it here: two copies of one
     // link on one document is the defect that cost a page on the part already at its cap.
     //
-    // bd-a8veu.7: the board plan lands here, at the END of the Introduction — the brief's
-    // canonical section closes on its own `board` note, so the picture of the finished board
-    // sits directly under the sentence that tells the teacher what to write. See boardPlanAtoms.
-    if (s.id === "introduction") out.push(...boardPlanAtoms(doc, ctx));
+    // bd-f01ob (v6) reversed bd-a8veu.7: the board plan is support, not teaching — it prints as
+    // the first section of the support page. See boardPlanAtoms. Do not re-add it here.
     // bd-a8veu.10: the two groups that used to stand alone in Reference land where they are
     // used — mistakes at the close of the teaching, differentiation at the close of the
     // practice, after the items it differentiates. `page2()` no longer paints either unless
@@ -1924,7 +1930,12 @@ function unnumber(s) {
 }
 
 /**
- * The board plan — the FINAL STATE of the board plus the order to build it — as teach-part atoms.
+ * The board plan — the FINAL STATE of the board plus the order to build it — as support-page atoms.
+ *
+ * bd-f01ob (v6, operator-approved 2026-09-24) REVERSES the move described below: *"board plan to
+ * go into 2nd page, its not the most imperative thing to see, keep it 2 pages, 1 page teaching,
+ * next page teacher suppport, dont mix it up"*. `page2()` emits it as the FIRST support section,
+ * so it is lettered A and the rest close up behind it. History kept for the reasoning it records:
  *
  * bd-a8veu.7. This pair used to print as REFERENCE SECTION A, on the sheet whose own masthead
  * tells the teacher not to read it in class, four pages from the chalk. The author brief calls
@@ -1986,13 +1997,14 @@ function boardPlanAtoms(doc, ctx) {
     // A bare `.blk` label, NOT the `.blk board` box: that box carries 13px of side padding, and
     // `figureFit` has already sized the SVG against the full column. Boxing it here would crop
     // the widening the repair just granted.
-    out.push({ html: `<div class="blk"><div class="lbl">${esc(L.p2Board)}</div>${fig}</div>`, sp: 2, glue: true });
+    // No inner label: on the support page the section bar already prints `L.p2Board`.
+    out.push({ html: `<div class="blk">${fig}</div>`, sp: 2, glue: true });
   }
 
   const order = B.draw_order || [];
   if (order.length) {
     out.push({
-      html: `<div class="card"><span class="lbl">${esc(B.diagram ? L.drawOrder : L.p2Board)}</span>
+      html: `<div class="card"><span class="lbl">${esc(L.drawOrder)}</span>
       <ol class="ord">${order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
       sp: 1,
     });
@@ -2186,12 +2198,10 @@ function page2(doc, ctx, secIndex) {
   // The support page's masthead, glued for the same reason as the teach page's hero.
   A.push(atom(p2head, { sp: 0, glue: true }));
 
-  // bd-a8veu.7: SECTION A WAS THE BOARD PLAN, and it is gone from here. The diagram and the
-  // draw-order card now print at the end of the Introduction, where the teacher picks up the
-  // chalk — see boardPlanAtoms. Do not re-add them here: two copies of one board is the same
-  // defect the video hoist fixed, on a part that is already over its page cap. The letters
-  // close up by themselves because `S` assigns them in emission order (render-law 15), so what
-  // follows is now section A.
+  // bd-f01ob (v6): SECTION A IS THE BOARD PLAN again — the diagram with its draw order, glued so
+  // the order never strands overleaf. It moved into the Introduction under bd-a8veu.7; the
+  // operator moved it back: page 1 teaches, page 2 supports, and the board plan is support.
+  S(L.p2Board, boardPlanAtoms(doc, ctx));
   //
   // bd-ir1aq: THE MODEL-ANSWER SECTION IS NOT EMITTED AT ALL, whatever the doc carries.
   // Operator, twice — *"Section B in the reference section is not needed"*, then *"why does

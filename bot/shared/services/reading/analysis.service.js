@@ -350,6 +350,7 @@ class AnalysisService {
 
       const errorResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.analyse',
         messages: [{ role: 'user', content: errorPrompt }],
         temperature: 0.3,
         max_tokens: 150
@@ -738,6 +739,7 @@ Generate a 3-4 sentence summary that:
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
+      job: 'reading.diagnosticSummary',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
       max_tokens: 300
@@ -841,6 +843,7 @@ Generate a 3-4 sentence summary that:
                 const translatePrompt = `Translate this ${languageName} text to English. Just provide the translation, no explanations:\n\n${translatedStudentAnswer}`;
                 const translateResponse = await openai.chat.completions.create({
                   model: 'gpt-4o-mini',
+                  job: 'reading.report',
                   messages: [{ role: 'user', content: translatePrompt }],
                   temperature: 0.3,
                   max_tokens: 100
@@ -906,6 +909,7 @@ Output the complete enhanced summary (not just the new parts).`;
         try {
           const enhancedResponse = await openai.chat.completions.create({
             model: 'gpt-4o',
+            job: 'reading.reportEnhance',
             messages: [{ role: 'user', content: enhancedSummaryPrompt }],
             temperature: 0.5,
             max_tokens: 400
@@ -1102,6 +1106,7 @@ Output the complete enhanced summary (not just the new parts).`;
 
       const completionResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.sendResults',
         messages: [{ role: 'user', content: completionPrompt }],
         temperature: 0.4,
         max_tokens: 200
@@ -1202,6 +1207,7 @@ Output the complete enhanced summary (not just the new parts).`;
 
       const introResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'reading.comprehensionStart',
         messages: [{ role: 'user', content: introPrompt }],
         temperature: 0.5,
         max_tokens: 100
@@ -1419,6 +1425,7 @@ Output the complete enhanced summary (not just the new parts).`;
                 const translatePrompt = `Translate this ${languageName} text to English. Just provide the translation, no explanations:\n\n${translatedStudentAnswer}`;
                 const translateResponse = await openai.chat.completions.create({
                   model: 'gpt-4o-mini',
+                  job: 'reading.combinedReport',
                   messages: [{ role: 'user', content: translatePrompt }],
                   temperature: 0.3,
                   max_tokens: 100

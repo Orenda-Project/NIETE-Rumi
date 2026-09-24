@@ -26,7 +26,7 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
     · The generated readout keeps Latin numerals even under lang:"ur", while the title and caption use U+06F0-06F9. Pass \`legend\` yourself for an all-Urdu figure.
 - geometry — A shape, an angle or a construction -- triangles, polygons, circles with radius/diameter/chord/tangent, angle arcs, right-angle markers.
   required: shapes
-  minimal: {"height":340,"type":"geometry","shapes":[{"kind":"triangle","points":[[0,0],[4,0],[0,3]],"labels":["A","B","C"],"sides":["4 cm","5 cm","3 cm"]}]}
+  minimal: {"height":340,"type":"geometry","shapes":[{"kind":"triangle","points":[[0,0],[4,0],[0,3]],"labels":["P","Q","R"],"sides":["4 cm","5 cm","3 cm"]}]}
   limits:
     · The canvas AUTO-FITS the shapes; \`height\` is a hint, not a frame.
     · checkDegenerate() rejects a near-flat polygon, so give a triangle real area -- a 1-unit-tall 'triangle' fails the build even though it draws.
@@ -153,10 +153,18 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
     · A piece is {value, kind:"coin"|"note", count}. At most 12 pieces.
 - compare_size — Bars of different length or height, or a balance scale with things on its pans — longer/shorter, taller/shorter, heavier/lighter.
   required: model
-  minimal: {"type":"compare_size","model":"length","items":[{"label":"A","size":5},{"label":"B","size":3}]}
+  minimal: {"type":"compare_size","model":"length","items":[{"label":"1","size":5},{"label":"2","size":3}]}
   limits:
     · \`model\` is "length" (horizontal bars), "height" (vertical bars) or "balance" (a scale, with \`left\`/\`right\` each {picto,count} or {size}).
     · \`size\` is a RELATIVE quantity and is NEVER printed — the moment a bar says "12 cm" the child reads instead of comparing.
     · 2 or 3 items, and they may not all be the same size. The balance tilts from the pan LOADS, never from an author's tilt, and refuses two equal pans unless allowEqual is set.
-    · Bars are one colour unless an item names one (ink | accent | leaf | cool | warn | plum | clay): a cycling palette once drew a navy bar labelled "سرخ ربن" (red ribbon)."
+    · Bars are one colour unless an item names one (ink | accent | leaf | cool | warn | plum | clay): a cycling palette once drew a navy bar labelled "سرخ ربن" (red ribbon).
+- base_ten — Place value as the class built it -- thousands, hundreds, tens and ones as bundles of sticks (or cubes, flats, rods and unit cubes) on a mat of labelled columns. The number is read off, never printed.
+  required: —
+  minimal: {"type":"base_ten","hundreds":2,"tens":4,"ones":7}
+  limits:
+    · \`hundreds\`, \`tens\` and \`ones\` are COUNTS of pieces, 0-20 each, and \`thousands\` 0-9 (a four-digit number); at least one must be above 0. Above 9 is a regrouping picture (13 tens is thirteen bundles).
+    · A place holding 0 is drawn EMPTY, under its own heading -- the zero in 209 and in 2014 stays visible. The thousands place appears only when there are thousands (or with places: 4), the hundreds place when there are hundreds or thousands (or with places: 3).
+    · \`model\` is "bundles" (default: loose sticks, bundles of ten tied once, big bundles of a hundred tied twice, a block of ten big bundles for a thousand) or "blocks" (unit cubes, rods of ten, flats of a hundred, a cube of a thousand). Draw the one the lesson used.
+    · No digit, count or total is ever drawn: the child reads the number off the picture. Each place is headed with its name in the figure's language; \`labels\` ({thousands, hundreds, tens, ones}) renames the heads."
 `;

@@ -286,6 +286,7 @@ async function generateReportNarrative(analysis, opts = {}) {
     const prompt = buildPrompt(analysis, { transcript, trend, language, teacherName, target });
     const response = await GPT5MiniService.openai.chat.completions.create({
       model: 'gpt-5-mini-2025-08-07',
+      job: 'coaching.narrative',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
     });

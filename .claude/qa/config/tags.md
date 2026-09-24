@@ -5,6 +5,7 @@ tag (`@e2e`); the rest are for slicing/reporting.
 
 | Axis | Tags | Meaning |
 |------|------|---------|
+| **Identity** | `@COA16` `@M09` `@OBS04` | **The scenario ID.** Letters then digits, matching the id its mock driver records via `rec()`. This is what binds a Gherkin scenario to executable code: without it nothing can tell that a scenario has no driver. Structural, not descriptive — `validate_specs.py` recognises the shape (`SCENARIO_ID_RE`) rather than listing every id here. |
 | **Layer** | `@e2e` | Full user-flow test the agent runs. |
 | | `@smoke` | Minimal liveness subset (fast). |
 | **Feature** | `@menu` `@training` `@ask` `@portal` `@language` `@register` | Which feature the scenario exercises. |
@@ -18,6 +19,7 @@ tag (`@e2e`); the rest are for slicing/reporting.
 | | `@known-issue` | Known imperfect behaviour, lower severity. |
 | | `@wip` | Scenario written but not yet runnable / feature not built. **Excluded from the default run.** |
 | | `@draft` | Written from the code but not yet driven live. **Excluded from the default run.** |
+| | `@lp-ask` | The coaching ask booked by the first lesson plan of the day (teacher_nudges `coaching_after_lp`); needs the nudge flags on the target. |
 | | `@slow` | Reply takes minutes (LP/video/coaching generation). **Excluded from the default run**; runs nightly. |
 | | `@destructive` | Mutates real state irreversibly (fails a grand quiz → hours-long cooldown; certifies a level). **Excluded from the default run** — throwaway teacher only, via `all`. |
 | | `@config-gated` | Only meaningful when its env/Flow id is set/unset. **Excluded from the default run.** |

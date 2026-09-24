@@ -298,6 +298,21 @@ async function tryShareCodeJoin(from, messageBody, typingController) {
   }
 }
 
+/**
+ * One step of the quiz-state intercept, failing on its own: a throw is logged at
+ * error and the message goes on to the next step, instead of skipping every
+ * step after it. Returns what the step returned (true = the message was
+ * handled), or false when it threw.
+ */
+async function quizInterceptStep(name, fn) {
+  try {
+    return Boolean(await fn());
+  } catch (err) {
+    logToFile(`❌ quiz intercept: the ${name} threw — going on to the next step`, { error: err.message }, 'error');
+    return false;
+  }
+}
+
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
 
@@ -316,66 +331,87 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // QUIZ STATE INTERCEPT — runs BEFORE user creation so parents (who may
     // not have a Rumi account) can answer quizzes. Post-quiz AI chat is checked
     // FIRST (it is the most-recent state; running getActiveState first could
-    // recover a stale 'invited' session and send the wrong nudge), then an
-    // active quiz session.
+    // recover a stale 'invited' session and send the wrong nudge), then a
+    // letter typed during a video / transcript / lesson-plan quiz, the two
+    // training answer routers, and the adaptive quiz's active session.
+    //
+    // Each step fails ON ITS OWN (quizInterceptStep): one try/catch used to
+    // span them all, so a throw in a training router skipped the quiz answer
+    // entirely and was logged at info, where no error monitor looks.
     // ============================================================
     if (messageBody) {
-      try {
-        const QuizSessionService = require('../services/quiz/quiz-session.service');
+      const QuizSessionService = require('../services/quiz/quiz-session.service');
 
+      const postQuizHandled = await quizInterceptStep('post-quiz chat', async () => {
         const postQuizState = await QuizSessionService.getPostQuizState(from);
-        if (postQuizState) {
-          const lowerQ = (messageBody || '').trim().toLowerCase();
-          if (lowerQ === 'stop' || lowerQ === 'done') {
-            await QuizSessionService.endPostQuizChat(from);
-          } else {
-            await QuizSessionService.handlePostQuizChat(from, messageBody, postQuizState);
-          }
-          typingController.stop();
-          return;
+        if (!postQuizState) return false;
+        const lowerQ = (messageBody || '').trim().toLowerCase();
+        if (lowerQ === 'stop' || lowerQ === 'done') {
+          await QuizSessionService.endPostQuizChat(from);
+        } else {
+          await QuizSessionService.handlePostQuizChat(from, messageBody, postQuizState);
         }
+        return true;
+      });
+      if (postQuizHandled) { typingController.stop(); return; }
 
-        // BH open-ended capstone  — an in-progress capstone attempt
-        // claims the teacher's next text messages as answers. Slash commands
-        // pass through (the service refuses them), so /training etc. still work.
+      // A letter TYPED during a video / transcript / lesson-plan quiz answers
+      // the question it is waiting on, as the option the child saw under that
+      // letter. Those quizzes run on the video engine and its own state; the
+      // adaptive quiz below never sees them.
+      const typedAnswer = await quizInterceptStep('typed quiz answer', () => {
+        const VideoQuizService = require('../services/quiz/video-quiz.service');
+        return VideoQuizService.answerTypedLetter(from, messageBody);
+      });
+      if (typedAnswer) { typingController.stop(); return; }
+
+      // STOP typed during one of those quizzes ends it, unfinished, and says so
+      // in the quiz's language — the same words the adaptive quiz takes below.
+      const quizStopped = await quizInterceptStep('class quiz stop', () => {
+        const VideoQuizService = require('../services/quiz/video-quiz.service');
+        return VideoQuizService.stopTyped(from, messageBody);
+      });
+      if (quizStopped) { typingController.stop(); return; }
+
+      // BH open-ended capstone  — an in-progress capstone attempt
+      // claims the teacher's next text messages as answers. Slash commands
+      // pass through (the service refuses them), so /training etc. still work.
+      const capstoneHandled = await quizInterceptStep('capstone router', () => {
         const CapstoneDelivery = require('../services/training/capstone-delivery.service');
-        if (await CapstoneDelivery.routeTextAnswer(from, messageBody)) {
-          typingController.stop();
-          return;
-        }
+        return CapstoneDelivery.routeTextAnswer(from, messageBody);
+      });
+      if (capstoneHandled) { typingController.stop(); return; }
 
-        // bd-60128 — the I-SAPS CRQ is the LAST question of a module exam, not
-        // a separate capstone, so its answer arrives during a `grand` attempt
-        // and the capstone router above does not see it. Claimed only when the
-        // question the teacher is on really is open-ended; slash commands pass
-        // through either way.
+      // The I-SAPS CRQ is the LAST question of a module exam, not
+      // a separate capstone, so its answer arrives during a `grand` attempt
+      // and the capstone router above does not see it. Claimed only when the
+      // question the teacher is on really is open-ended; slash commands pass
+      // through either way.
+      const openEndedHandled = await quizInterceptStep('open-ended answer router', () => {
         const QuizDeliveryText = require('../services/training/quiz-delivery.service');
-        if (await QuizDeliveryText.routeOpenEndedAnswer(from, messageBody)) {
-          typingController.stop();
-          return;
-        }
+        return QuizDeliveryText.routeOpenEndedAnswer(from, messageBody);
+      });
+      if (openEndedHandled) { typingController.stop(); return; }
 
+      const activeQuizHandled = await quizInterceptStep('adaptive quiz answer', async () => {
         const quizState = await QuizSessionService.getActiveState(from);
-        if (quizState) {
-          const trimmedQ = messageBody.trim();
-          const lowerQ = trimmedQ.toLowerCase();
-          if (/^(start quiz|start_quiz|کوئز شروع کریں)$/i.test(trimmedQ)) {
-            await QuizSessionService.startQuizFromInvite(from);
-          } else if (lowerQ === 'stop' || trimmedQ === 'روکیں') {
-            await QuizSessionService.endSession(from, quizState, 'incomplete');
-          } else if (/^[abc]$/i.test(trimmedQ) && quizState.currentQuestionId) {
-            await QuizSessionService.handleAnswer(from, trimmedQ, quizState);
-          } else {
-            await WhatsAppService.sendMessage(from,
-              '❓ Tap one of the answer buttons above, or type A, B, or C.\n\nType STOP to exit the quiz.'
-            );
-          }
-          typingController.stop();
-          return;
+        if (!quizState) return false;
+        const trimmedQ = messageBody.trim();
+        const lowerQ = trimmedQ.toLowerCase();
+        if (/^(start quiz|start_quiz|کوئز شروع کریں)$/i.test(trimmedQ)) {
+          await QuizSessionService.startQuizFromInvite(from);
+        } else if (lowerQ === 'stop' || trimmedQ === 'روکیں') {
+          await QuizSessionService.endSession(from, quizState, 'incomplete');
+        } else if (/^[abc]$/i.test(trimmedQ) && quizState.currentQuestionId) {
+          await QuizSessionService.handleAnswer(from, trimmedQ, quizState);
+        } else {
+          await WhatsAppService.sendMessage(from,
+            '❓ Tap one of the answer buttons above, or type A, B, or C.\n\nType STOP to exit the quiz.'
+          );
         }
-      } catch (qErr) {
-        logToFile('⚠️ Quiz state intercept error (non-fatal)', { error: qErr.message });
-      }
+        return true;
+      });
+      if (activeQuizHandled) { typingController.stop(); return; }
     }
 
     // ============================================================

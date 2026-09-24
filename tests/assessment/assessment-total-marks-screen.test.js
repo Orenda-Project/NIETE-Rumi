@@ -89,9 +89,9 @@ describe('the marks box on the QUESTIONS screen', () => {
   });
 
   test('a bad count is still refused when the marks box is fine', async () => {
-    const res = await ask({ question_count: '40', total_marks: '40' });
+    const res = await ask({ question_count: '60', total_marks: '40' });
     expect(res.screen).toBe('QUESTIONS');
-    expect(res.data.error).toMatch(/25/);
+    expect(res.data.error).toMatch(/50/);
   });
 });
 

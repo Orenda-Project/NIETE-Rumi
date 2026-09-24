@@ -197,14 +197,22 @@ describe('bd-we73k · LessonPlanProcessorService.handlePastedLessonPlan', () => 
     expect(extraction.meta.r2Key).toBeUndefined();
 
     expect(jobs.find((j) => j.type === 'analysis')).toBeTruthy();
-    expect(sent).toHaveLength(1);
   });
 
-  it('acks from the coaching catalog, never an inline English literal', () => {
-    const src = fs.readFileSync(
-      path.join(__dirname, '../../bot/shared/services/coaching/lesson-plan-processor.service.js'), 'utf8');
-    const body = src.slice(src.indexOf('handlePastedLessonPlan'));
-    expect(body).toMatch(/getCoachingMessage\(\s*'lessonPlan_receivedText'/);
+  it('sends NO "lesson plan received" ack — the step-2 announcement already says it', async () => {
+    // DC feedback (2026-09-23): the pasted-plan ack ("📄 آپ کا سبق کا منصوبہ مل گیا — لکھ کر
+    // بھیجنے کا شکریہ…") landed right before the Step 2/5 message that conveys the same thing,
+    // so the teacher read one message twice. The paste is stored and queued silently.
+    const Processor = require('../../bot/shared/services/coaching/lesson-plan-processor.service');
+    await Processor.handlePastedLessonPlan('sess-1', '923001234567', PASTED_LP);
+
+    expect(jobs.find((j) => j.type === 'analysis')).toBeTruthy(); // the paste still took effect
+    expect(sent).toHaveLength(0);
+  });
+
+  it('the pasted-plan ack string is gone from the catalog, not merely unused', () => {
+    const { COACHING_MESSAGES } = require('../../bot/shared/config/coaching-messages');
+    expect(COACHING_MESSAGES.lessonPlan_receivedText).toBeUndefined();
   });
 });
 

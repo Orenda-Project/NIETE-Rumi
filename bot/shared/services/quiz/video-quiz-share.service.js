@@ -28,6 +28,7 @@ const StudentIdentity = require('./student-identity.service');
 const TeacherSelfTest = require('./teacher-self-test');
 
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
+const { isolateIfMixed } = require('./transcript-quiz-rows');
 
 const JOIN_TTL_SECS = 60 * 60;
 const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
@@ -38,6 +39,16 @@ const JOIN_LOCK_SECS = 60;
 
 // Chrome a CHILD reads, in the quiz language.
 const ux = (key, language, params) => resolveUx(key, { language, params });
+
+/**
+ * The {who} of the greeting: the child's name, and their class when they gave
+ * one, joined the way the quiz language joins them (vqWhoNameClass — Urdu's
+ * comma is `،`, and each typed value is a bidi isolate).
+ */
+function whoLabel(name, className, language) {
+  const cls = String(className || '').trim();
+  return cls ? ux('vqWhoNameClass', language, { name, cls }) : name;
+}
 
 // bd-2477 #3: offerShare()'s send used to fire-and-forget — a WhatsApp
 // per-recipient rate limit (confirmed via Axiom, same session as bd-2477 #1)
@@ -119,13 +130,13 @@ async function offerShare({ phone, userId, quizId, videoId, language = 'en', ses
     quizId, videoId, userId, language, sessionId,
   }, JOIN_TTL_SECS);
 
+  // The same language the rest of this video-quiz run spoke in.
+  const lang = clampLanguage(language);
   const body = {
-    body: 'Want to send this quiz to your class?\n\n'
-      + "I'll give you one message to forward. Each child gets the quiz in their "
-      + "own chat, and you'll get their results in the morning.",
+    body: ux('vqShareOffer', lang),
     buttons: [
-      { id: SHARE_YES, title: 'Share with class' },
-      { id: SHARE_NO, title: 'Not now' },
+      { id: SHARE_YES, title: ux('vqShareYes', lang) },
+      { id: SHARE_NO, title: ux('vqShareNo', lang) },
     ],
   };
 
@@ -165,7 +176,7 @@ async function handleShareButton(buttonId, phone) {
       logEvent('video_quiz.offer_answered', {
         kind: 'share', choice: 'no', quizId: ctx?.quizId ?? null, sessionId: ctx?.sessionId ?? null,
       });
-      await WhatsAppService.sendMessage(phone, 'No problem — it will be here when you want it.');
+      await WhatsAppService.sendMessage(phone, ux('vqShareDeclined', clampLanguage(ctx && ctx.language)));
     }
     return true;
   }
@@ -186,25 +197,24 @@ async function handleShareButton(buttonId, phone) {
  * read.
  */
 async function deliverClassLink(ctx, phone) {
+  // The forwarded message is read by every child in the class, so it is in the
+  // quiz's language; the lines around it follow the same language.
+  const lang = clampLanguage(ctx && ctx.language);
   const minted = await mintCode(ctx);
   if (!minted) {
-    await WhatsAppService.sendMessage(phone,
-      "Sorry — I couldn't create the class link just now. Try again in a moment.");
+    await WhatsAppService.sendMessage(phone, ux('vqShareLinkFailed', lang));
     return true;
   }
 
   const link = `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`;
-  await WhatsAppService.sendMessage(phone,
-    'Here is your class message — forward THIS one to your class group:');
+  await WhatsAppService.sendMessage(phone, ux('vqShareForwardThis', lang));
   // Sent as its own message so forwarding it carries nothing else.
-  await WhatsAppService.sendMessage(phone,
-    `📚 *Quiz time!*\n\n${minted.teacherName} has sent you a quiz on `
-    + `*${minted.topic || 'today’s video'}*.\n\n`
-    + `Tap here to start:\n${link}\n\n`
-    + `It takes about 10 minutes. You'll need to type your name and class first.`);
-  await WhatsAppService.sendMessage(phone,
-    `You'll get a report on how your class did tomorrow morning, or as soon as `
-    + `everyone has finished.`);
+  await WhatsAppService.sendMessage(phone, ux('vqClassMessage', lang, {
+    teacher: minted.teacherName,
+    topic: minted.topic || ux('vqTodaysVideo', lang),
+    link,
+  }));
+  await WhatsAppService.sendMessage(phone, ux('vqShareReportPromise', lang));
 
   logEvent('video_quiz.share_code_minted', {
     userId: ctx.userId, quizId: ctx.quizId, code: minted.code,
@@ -213,6 +223,62 @@ async function deliverClassLink(ctx, phone) {
 }
 
 // ─── The child's side ───────────────────────────────────────────────────────
+
+// The join Flow comes in two published assets.
+//   STUDENT_JOIN_LOCALIZED_FLOW_ID — docs/flows/student-join-flow-v2.json. Every
+//     word on its screen is a ${data.*} binding, filled below from the catalog in
+//     the quiz language, so one asset serves a child in either language.
+//   STUDENT_JOIN_FLOW_ID — docs/flows/student-join-flow.json, the first version.
+//     Its words are hardcoded English and it declares only {teacher, topic}.
+// A published Flow cannot be re-rendered per child, and a new asset has to be
+// published on each WABA before it can be sent, so the localized one is opt-in
+// by its own id and the legacy one keeps working until then — for the only
+// language it can speak. Unsetting the localized id is the rollback lever.
+const LEGACY_JOIN_FLOW_LANGUAGE = 'en';
+// Meta's TextHeading cap, in code points.
+const JOIN_HEADING_MAX = 80;
+
+/**
+ * The join Flow to open for a child reading `lang`, or null to ask in chat.
+ *
+ * An Urdu child with only the legacy asset configured is asked in chat: the chat
+ * questions are in Urdu, and the legacy screen would ask them "Your name" /
+ * "Your class" in English.
+ */
+function joinFlowFor(lang) {
+  const localized = process.env.STUDENT_JOIN_LOCALIZED_FLOW_ID;
+  if (localized) return { flowId: localized, localized: true };
+  const legacy = process.env.STUDENT_JOIN_FLOW_ID;
+  if (legacy && lang === LEGACY_JOIN_FLOW_LANGUAGE) return { flowId: legacy, localized: false };
+  return null;
+}
+
+/**
+ * "<teacher> has sent you a quiz", within the heading's cap. A name long enough
+ * to overflow it is not cut mid-word — the heading says "your teacher" instead,
+ * and the greeting on the message that opens the Flow still carries the full
+ * name. A name in the other script is isolated so it cannot flip the direction
+ * of the line it sits in.
+ */
+function joinHeading(lang, teacher) {
+  const named = ux('vqJoinHeading', lang, { teacher: isolateIfMixed(teacher, lang) });
+  if ([...named].length <= JOIN_HEADING_MAX) return named;
+  return ux('vqJoinHeading', lang, { teacher: resolveUx('tqYourTeacher', { language: lang }) });
+}
+
+/** Screen WHO's data for the localized asset: exactly the keys it declares. */
+function joinScreenData(lang, { teacher, topic }) {
+  return {
+    title: ux('vqJoinTitle', lang),
+    heading: joinHeading(lang, teacher),
+    topic,
+    name_label: ux('vqJoinNameLabel', lang),
+    name_help: ux('vqJoinNameHelp', lang),
+    class_label: ux('vqJoinClassLabel', lang),
+    class_help: ux('vqJoinClassHelp', lang),
+    cta: ux('vqJoinSubmit', lang),
+  };
+}
 
 /** Does this inbound text carry a share code? */
 function parseShareCode(text) {
@@ -285,10 +351,17 @@ async function beginFromCode(phone, code) {
     return true;
   }
 
-  const greeting = ux('vqGreeting', lang, {
+  // One pair of names for the greeting and the Flow, with fallbacks the child
+  // reads in the quiz language.
+  const who = {
     teacher: sc.teacher_name || resolveUx('tqYourTeacher', { language: lang }),
     topic: sc.topic || resolveUx('tqTodaysLesson', { language: lang }),
-  });
+  };
+  // The greeting's second paragraph opens with the teacher's name, and a phone
+  // picks each paragraph's direction from its first strong character — so a
+  // name in the other script (a Latin name on an Urdu quiz) would turn the whole
+  // line around. Isolated, the name is skipped when the direction is chosen.
+  const greeting = ux('vqGreeting', lang, { ...who, teacher: isolateIfMixed(who.teacher, lang) });
 
   // bd-2337 — do we already know who is on this handset?
   const known = await StudentIdentity.findByPhone(phone);
@@ -328,25 +401,24 @@ async function beginFromCode(phone, code) {
   // class together, instead of three round trips before question 1.
   await redisService.set(JOIN_KEY(phone), { ...ctx, step: 'name' }, JOIN_TTL_SECS);
 
-  const joinFlowId = process.env.STUDENT_JOIN_FLOW_ID;
-  if (joinFlowId) {
+  const joinFlow = joinFlowFor(lang);
+  if (joinFlow) {
     const sent = await WhatsAppService.sendFlow(phone, {
-      flowId: joinFlowId,
-      buttonText: 'Start',
+      flowId: joinFlow.flowId,
+      buttonText: ux('vqJoinFlowButton', lang),
       body: greeting,
       screen: 'WHO',
       // Routed on OUR token, never inferred from the payload shape — a generic
       // {student_name, student_class} body is exactly what another form would
-      // also send.
+      // also send. Both assets complete with the same two fields.
       flowToken: `${JOIN_FLOW_PREFIX}${sc.id}`,
-      navigateData: {
-        teacher: sc.teacher_name || 'Your teacher',
-        topic: sc.topic || 'today’s lesson',
-      },
+      // Each asset gets exactly the data its screen declares.
+      navigateData: joinFlow.localized ? joinScreenData(lang, who) : who,
     });
     if (sent) {
       logEvent('video_quiz.share_code_opened', {
         code, quizId: sc.quiz_id, recognised: false, via: 'flow',
+        flow: joinFlow.localized ? 'localized' : 'legacy', language: lang,
       });
       return true;
     }
@@ -357,7 +429,7 @@ async function beginFromCode(phone, code) {
   // child must never reach a dead end because a Meta asset is missing.
   await WhatsAppService.sendMessage(phone, `${greeting}\n\n${ux('vqAskName', lang)}`);
   logEvent('video_quiz.share_code_opened', {
-    code, quizId: sc.quiz_id, recognised: false, via: 'chat',
+    code, quizId: sc.quiz_id, recognised: false, via: 'chat', language: lang,
   });
   return true;
 }
@@ -406,7 +478,7 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
   });
 
   await WhatsAppService.sendMessage(phone,
-    ux('vqLetsBegin', lang, { who: `${name}${className ? `, ${className}` : ''}` }));
+    ux('vqLetsBegin', lang, { who: whoLabel(name, className, lang) }));
 
   await startForStudent(phone, {
     shareCodeId: sc.id, quizId: sc.quiz_id, videoId: sc.video_id,
@@ -495,7 +567,7 @@ async function consumeJoinReply(phone, text) {
     st.studentClass = value.slice(0, 40);
     await redisService.delete(JOIN_KEY(phone));
     await WhatsAppService.sendMessage(phone,
-      ux('vqLetsBegin', lang, { who: `${st.studentName}, ${st.studentClass}` }));
+      ux('vqLetsBegin', lang, { who: whoLabel(st.studentName, st.studentClass, lang) }));
 
     // bd-2337 — remember them, so the next quiz their teacher shares opens
     // straight at question 1. Best-effort: if this fails the quiz still runs,

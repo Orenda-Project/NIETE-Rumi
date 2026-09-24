@@ -93,7 +93,10 @@ describe('FEAT-106 CHANGE 4b — no standalone commitment-card image', () => {
 
   it('still sends the commit-prompt buttons and writes prioritized_action', async () => {
     await ReportGeneratorService.generateReport('sess-1', { from: '10000000000' });
-    expect(mockWA.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    // The commit prompt only — the coaching survey is a separate buttons message.
+    const commit = mockWA.sendInteractiveButtons.mock.calls
+      .filter((c) => c[1].buttons.some((btn) => btn.id.startsWith('card_')));
+    expect(commit).toHaveLength(1);
     expect(mockUpdateSpy).toHaveBeenCalledWith(
       expect.objectContaining({ prioritized_action: expect.objectContaining({ commitment: 'Ask one open question' }) }),
     );

@@ -61,6 +61,7 @@ async function extractUploadedLp(lpText, opts = {}) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = await client.chat.completions.create({
       model,
+      job: 'lp.extractUpload',
       temperature: 0,
       messages: [{ role: 'system', content: UPLOAD_EXTRACTION_BRIEF }, { role: 'user', content: user }],
       max_completion_tokens: opts.maxTokens || 4000,

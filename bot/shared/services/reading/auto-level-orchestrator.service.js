@@ -409,6 +409,7 @@ class AutoLevelOrchestratorService {
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      job: 'reading.levelWelcome',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 250
@@ -434,6 +435,7 @@ class AutoLevelOrchestratorService {
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      job: 'reading.levelPassed',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.4,
       max_tokens: 200
@@ -459,6 +461,7 @@ class AutoLevelOrchestratorService {
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      job: 'reading.levelRetry',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 150
@@ -485,6 +488,7 @@ class AutoLevelOrchestratorService {
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      job: 'reading.levelTransition',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 180
@@ -510,6 +514,7 @@ class AutoLevelOrchestratorService {
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      job: 'reading.levelLowest',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 180

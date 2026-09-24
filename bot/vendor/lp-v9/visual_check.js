@@ -66,6 +66,9 @@ const DIAGRAM_TYPES = new Set([
   "money", "coins", "coins_and_notes", "currency",
   "pattern", "sequence", "what_comes_next", "pattern_completion",
   "word_blank", "missing_letter", "fill_the_blank_word", "phonics_word",
+  // VENDOR DIVERGENCE — SYNC.md §3.18: the place-value mat this deployment added to the engine.
+  // Same rule as the eight above: legal to V5 because the engine draws it; no 6-12 brief offers it.
+  "base_ten", "place_value", "base_ten_blocks", "bundles",
 ]);
 
 // type -> canonical family, so a spec written with an alias still satisfies its subject minimum.
@@ -100,6 +103,8 @@ const CANON = {
   coins: "money", coins_and_notes: "money", currency: "money",
   sequence: "pattern", what_comes_next: "pattern", pattern_completion: "pattern",
   missing_letter: "word_blank", fill_the_blank_word: "word_blank", phonics_word: "word_blank",
+  // VENDOR DIVERGENCE — SYNC.md §3.18.
+  place_value: "base_ten", base_ten_blocks: "base_ten", bundles: "base_ten",
 };
 
 const NON_VISUAL = new Set(["illustrative"]);

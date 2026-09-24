@@ -16,7 +16,7 @@ const { getUserLanguage } = require('../../utils/language-cache');
 const { clampLanguage } = require('../../config/ux-strings');
 
 class CoachingHelpersService {
-  // bd-59840 (DC row 129): there is deliberately no post-transcription
+  // There is deliberately no post-transcription
   // acknowledgement here any more.
   //
   // It began as a GPT-4o call handed only a name and a duration and told to be
@@ -24,8 +24,8 @@ class CoachingHelpersService {
   // about, it invented the specificity — a teacher was told "your 29-minute
   // lesson was engaging and impactful" before a single word had been analysed
   // and reasonably read it as her feedback. bd-di5ap removed the model and left
-  // a fixed, translated catalog line in its place; bd-59840 removed that too,
-  // because row 129 asked for NO extra messages in the stretch between Step 1/5
+  // a fixed, translated catalog line in its place; a later fix removed that too,
+  // because field feedback asked for NO extra messages in the stretch between Step 1/5
   // and the photo prompt, and an acknowledgement is still an extra message.
   //
   // The photo prompt now follows transcription directly and is itself the
@@ -96,19 +96,41 @@ class CoachingHelpersService {
       const transcriptionTime = new Date(session.transcription_completed_at) - new Date(session.transcription_started_at);
       const analysisTime = new Date(session.analysis_completed_at) - new Date(session.analysis_started_at);
 
-      await supabase
+      const metrics = {
+        diarization_confidence: session.diarization_confidence,
+        processing_time_seconds: Math.round(processingTime / 1000),
+        transcription_time_seconds: Math.round(transcriptionTime / 1000),
+        analysis_time_seconds: Math.round(analysisTime / 1000),
+        session_cost: session.total_cost,
+        had_errors: false,
+        retry_count: 0,
+      };
+
+      // ONE row per session. The "was this useful?" survey goes out before the session
+      // completes, and a tap creates this row on demand (coaching-feedback.service
+      // _writeMetrics). Inserting again would give the session two rows — the table has no
+      // unique key on coaching_session_id — so update the row that is there, leaving the
+      // teacher's rating on it untouched.
+      const { data: existing } = await supabase
         .from('coaching_quality_metrics')
-        .insert({
-          coaching_session_id: session.id,
-          diarization_confidence: session.diarization_confidence,
-          processing_time_seconds: Math.round(processingTime / 1000),
-          transcription_time_seconds: Math.round(transcriptionTime / 1000),
-          analysis_time_seconds: Math.round(analysisTime / 1000),
-          session_cost: session.total_cost,
-          had_errors: false,
-          retry_count: 0,
-          created_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('coaching_session_id', session.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('coaching_quality_metrics')
+          .update(metrics)
+          .eq('coaching_session_id', session.id);
+      } else {
+        await supabase
+          .from('coaching_quality_metrics')
+          .insert({
+            coaching_session_id: session.id,
+            ...metrics,
+            created_at: new Date().toISOString()
+          });
+      }
 
       logToFile('Quality metrics recorded', { coachingSessionId: session.id });
     } catch (error) {

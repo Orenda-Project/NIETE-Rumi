@@ -160,6 +160,42 @@ async function computeLpFidelity(input = {}, deps = {}) {
     const graderOpts = photos.length ? { photoEvidence: photos } : {};
     const runsRequested = input.runs != null ? normaliseRuns(input.runs) : fidelityRuns();
 
+    // bd-b3pop.31 (Eval 12 §4/§8) — a transcript with no [MM:SS] stamps is decided HERE, not by the model. Every verdict
+    // above not_done must quote a stamped span, so such a recording cannot be adjudicated move by move (D19: "not
+    // scored", never 0%). Luna returns recording_unusable on the D19 fixture; Gemini 3.8 Flash returned 0% +
+    // lesson_mismatch in 9 of 12 runs — a teacher with a bad recording would have got 0/40 and a mismatch line. On prod
+    // (2,685 graded sessions, 15–22 Sep) 2 transcripts carry no stamps and both were already unscored, so this changes
+    // nothing today and takes the model out of the decision. Same blob shape as a scored run so every reader (report
+    // block, coach form, applyLpFidelity, RDF) sees the not-assessed state it already handles.
+    if (recording.no_timestamps) {
+      const verdicts = moves.map((m) => ({
+        move_id: m.move_id, verdict: 'not_adjudicable', evidence: '', evidence_translation: '',
+        rationale: 'The transcript carries no timestamps, so the recording cannot be adjudicated move by move.',
+      }));
+      const analysis = scoreFidelity(moves, verdicts, { moderators: { plan_navigability: null, note: 'recording_unusable' } });
+      log('[lp-fidelity] no timestamps in the transcript — not scored, grader not called (bd-b3pop.31)', { lesson_id: meta.lesson_id || null, moves: moves.length });
+      return {
+        status: 'ok',
+        source,
+        lesson_id: meta.lesson_id || null,
+        upload_hash: source === 'uploaded' ? uploadHash : null,
+        meta,
+        ...analysis,
+        narrative: null,
+        language_note: 'The transcript carries no [MM:SS] timestamps; the recording was not graded.',
+        model: null,
+        reasoning_effort: null,
+        recording,
+        runs: [],
+        runs_requested: runsRequested,
+        spread: null,
+        missing_verdicts: 0,
+        photo_citations: null,
+        unusable_guard: 'no_timestamps',
+        graded_at: null,
+      };
+    }
+
     // 4) grade + score — N runs, the median scored run kept (D23 / bd-5uloh). N=1 is today's single call plus one
     // retry (bd-5knlj: 4 observations lost Section B to a single transient analyzer failure in a week).
     // The grader's moderators go IN so the scorer can check the note against the verdicts written beside
@@ -187,6 +223,10 @@ async function computeLpFidelity(input = {}, deps = {}) {
       // bd-b3pop — additive: every existing reader keys on status / fidelity_pct / moves and is unaffected. The voice
       // note and the debrief guide strip these (fidelity-telemetry.js).
       reasoning_effort: graded.reasoning_effort || null,
+      // bd-29r3o: the analyzer marks a grading that only came back after an empty first answer. It has to survive this
+      // hop or the marker dies one hop short of the blob and the degradation is invisible again — which is how the
+      // hardcoded low-effort retry ran unnoticed until the first prod row was opened by hand.
+      empty_retry: Boolean(graded.empty_retry),
       recording,
       runs,
       runs_requested: runsRequested,
