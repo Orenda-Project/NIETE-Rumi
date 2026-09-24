@@ -29,6 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../utils/text-format');
+const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
   headFamily, bodyFamily, latticeSvg, dirOf,
@@ -212,12 +213,13 @@ const GUIDANCE_LABEL_KEYS = {
  * swallowing real Urdu text. Quotes are includable because esc() (above) no
  * longer entity-escapes them.
  */
+// The Latin word class this document has always used. What joins two words
+// into ONE run ("&", "·", spaces) and how entities are kept whole lives in
+// latin-runs.js, shared with the teacher PDF so the two cannot drift.
+const LATIN_TOKEN = '[A-Za-z0-9\'’".,:;!?()%/+=*$@#\\-]';
 function wrapLatin(html, rtl) {
   if (!rtl) return html;
-  return html.split(/(<[^>]+>|&[a-zA-Z]+;|&#\d+;)/).map((seg) => (
-    seg.startsWith('<') || (seg.startsWith('&') && seg.endsWith(';'))
-  ) ? seg
-    : seg.replace(/[A-Za-z0-9][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]*(?:[\s\-][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]+)*/g, (m) => `<span class="ltr">${m}</span>`)).join('');
+  return wrapLatinRuns(html, { token: LATIN_TOKEN });
 }
 
 /** Progress-bar band, matching the coaching hero-report's domain-bar palette. */
@@ -511,13 +513,14 @@ ${RTL ? '.roster>.label{padding-top:10px}' : ''}
    row sat alone above the guidance box. A card that continues over the page is
    still one card: box-decoration-break:clone gives each piece its own rounded
    edge and padding. */
-.mtop,.chose,.why,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
+.mtop,.chose,.why,.unfin,.r-row,.try-part{break-inside:avoid;page-break-inside:avoid}
 .moment,.try,.try-part{box-decoration-break:clone;-webkit-box-decoration-break:clone}
-/* A guidance part is the one block long enough to be worth splitting: the
-   reteach move runs to five lines of Nastaliq, and held whole it left a third
-   of a page of empty green above it. It may now break BETWEEN LINES — never with
-   fewer than two on either side, and never between its label and its text. */
-.try-text{orphans:2;widows:2}
+/* Each guidance part — where they got muddled, how to reteach it, what to ask
+   — is read as one paragraph, so it never splits: the box breaks BETWEEN its
+   parts, and a part that does not fit moves whole to the next page. Split
+   between lines, a part read as three lines of one thought at the foot of a
+   page and the rest over the page (seen on staging), which is worse than the
+   green left empty above it. A part's label never leaves its text. */
 .try-label,.try .label{break-after:avoid;page-break-after:avoid}
 /* THE FOOTER MAY NOT STRAND ITSELF. When the last guidance part fills a page to
    within less than the footer's own height, the footer spilled onto a sheet

@@ -485,6 +485,9 @@ Feature: NIETE (ICT) Teacher Training
     When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
     Then the quiz arrives — the teacher PDF and the class link — instead of "I couldn't make a good quiz"
     And its questions and feedback are Urdu sentences that keep the lesson's terms in English letters, such as "numerator" and "common denominator"
+    And on the teacher PDF and the class report an English phrase reads in its own order, left to right — a title such as "Comparing & ordering unlike fractions" and the heading's "quiz · forward" — never "ordering unlike & Comparing"
+    # templates/latin-runs.js: an English phrase inside Urdu is ONE left-to-right isolate; "&", "·" and spaces
+    # between two English words join it (both the teacher PDF and the class report use it).
     # transcript-quiz-validator urduShareByPart: the quiz-level Urdu check counts WORDS, not letters, and takes
     # the questions and the explanations + feedback separately (bar URDU_WORD_SHARE_MIN). Long English terms
     # used to pull a correct Urdu quiz under a letter bar of 0.6 on every attempt. A quiz written in English or
