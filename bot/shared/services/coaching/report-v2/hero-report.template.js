@@ -13,6 +13,7 @@
  * buildHeroReportHtml(vm) → HTML string for an image renderer (selector '.report', width 794).
  */
 
+const { wrapLatinRuns } = require('../../../templates/latin-runs');
 const fs = require('fs');
 const path = require('path');
 
@@ -149,22 +150,18 @@ function buildHeroReportHtml(vm) {
   const bodyFam = RTL ? (lang === 'ar' ? `'NaskhArabic','NastaliqUrdu',serif` : `'NastaliqUrdu','NaskhArabic',serif`) : `'Lexend',${NON_LATIN},sans-serif`;
   const dir = RTL ? 'rtl' : 'ltr';
 
-  // Split on tags AND HTML entities so we don't tear an entity apart. Without
-  // preserving entities, esc(s)'s "&amp;" gets tokenised as `& + amp + ;` and
-  // the `amp` inside gets wrapped as an ltr span — leaving `&<span>amp</span>;`
-  // which Chromium then renders as visible literal "&amp;". Preserving entities
-  // as opaque segments keeps them intact through the RTL wrap pass.
-  const wrapLatin = (html) => !RTL ? html : html.split(/(<[^>]+>|&(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);)/).map((seg) => seg.startsWith('<') || seg.startsWith('&') ? seg
-    // bd-d26qh: the run must include DIGITS, not just letters. "3 plus 7 makes 10"
-    // was matching as two letter-only runs, leaving the numerals as separate bidi
-    // runs; under the inherited RTL base direction the UBA then repainted the whole
-    // phrase as "10 makes 7 plus 3". Matching the contiguous letter+digit run and
-    // isolating it as ONE span is what keeps it in reading order.
-    // The `/[A-Za-z]/` gate is load-bearing: a run with NO Latin letter (a bare
-    // score "31", "75", a marks fraction) is returned untouched, so numeric chrome
-    // renders exactly as it does today.
-    : seg.replace(/[A-Za-z0-9][A-Za-z0-9'’.\-]*(?:[\s\-][A-Za-z0-9'’.\-]+)*/g,
-      (m) => (/[A-Za-z]/.test(m) ? `<span class="ltr">${m}</span>` : m))).join('');
+  // Latin runs in RTL text, one isolate per English phrase. The run, its
+  // joiners ("&", "·", spaces between two English words) and its entity
+  // handling are templates/latin-runs.js, shared with the quiz documents: this
+  // copy used to cut entities out before matching, so "Think & Share" became
+  // two isolates and read back to front ("Share & Think").
+  // The word rule is this document's own, unchanged:
+  //  - digits are part of a run ("3 plus 7 makes 10" once matched as two
+  //    letter-only runs and the RTL line repainted it "10 makes 7 plus 3");
+  //  - a run with NO Latin letter (a bare score "31", "75", a marks fraction)
+  //    is left untouched (requireLetter), so numeric chrome renders as before.
+  const wrapLatin = (html) => (!RTL ? html
+    : wrapLatinRuns(html, { token: "[A-Za-z0-9'’.\\-]", requireLetter: true }));
   const T = (s) => wrapLatin(esc(s));
 
   const n = vm.narrative || {};
