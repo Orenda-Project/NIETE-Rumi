@@ -411,6 +411,6 @@ describe('5 — on the generate path: one rewrite, then ship', () => {
     expect(soft.filter((e) => /^q1: URDU_NAME_LATIN/.test(e))).toHaveLength(1);
     const events = logEvent.mock.calls.map((c) => c[0]);
     expect(events).not.toContain('transcript_quiz.failed');
-    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.latin_name', expect.objectContaining({ quizId: QID, names: ['Hira'], questions: [0, 1] }));
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.latin_name', expect.objectContaining({ quizId: QID, names: 1, questions: [0, 1] }));
   });
 });

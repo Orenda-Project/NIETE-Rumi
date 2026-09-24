@@ -50,6 +50,7 @@
  */
 
 const { completeJson } = require('./transcript-quiz-llm');
+const People = require('./transcript-quiz-people');
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
   languageRule, languageAgain, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
@@ -418,6 +419,8 @@ ${shape} ] }
     ...summarySection,
     GENDER_NEUTRAL_RULE,
     RELIGIOUS_CONTENT_RULE,
+    // the lesson's people and the one Urdu spelling of each, up front
+    ...(People.peopleRule(digest, language) ? [People.peopleRule(digest, language)] : []),
     returnBlock,
   ].join('\n\n');
 }
@@ -503,19 +506,13 @@ function mergeReplacements(questions, json, targets, { known = null } = {}) {
 }
 
 /**
- * The spellings this quiz has already learned (the generate step keeps them
- * across its rewrites), with the same guard as a fresh one: a name in English
- * letters, a spelling in Urdu script with no English letter in it.
+ * The spellings this quiz has already learned (the digest's people, and what
+ * the generate step keeps across its rewrites), with the same guard as a fresh
+ * one: a name in English letters, a spelling in Urdu script with no English
+ * letter in it.
  */
 function knownSpellings(known) {
-  const out = {};
-  if (!known || typeof known !== 'object' || Array.isArray(known)) return out;
-  Object.entries(known).forEach(([latin, urdu]) => {
-    const u = String(urdu ?? '').trim();
-    if (!/^[A-Z][a-z]{2,}$/.test(latin) || !u || /[A-Za-z]/.test(u) || !/\p{Script=Arabic}/u.test(u)) return;
-    out[latin] = u;
-  });
-  return out;
+  return People.validSpellings(known);
 }
 
 /**
@@ -526,48 +523,12 @@ function knownSpellings(known) {
  */
 function nameSpellings(json, targets) {
   const asked = new Set(Array.isArray(targets && targets.names) ? targets.names : []);
-  const given = json && json.names && typeof json.names === 'object' && !Array.isArray(json.names) ? json.names : {};
-  const out = {};
-  Object.entries(given).forEach(([latin, urdu]) => {
-    const u = String(urdu ?? '').trim();
-    if (!asked.has(latin) || !u || /[A-Za-z]/.test(u) || !/\p{Script=Arabic}/u.test(u)) return;
-    out[latin] = u;
-  });
-  return out;
+  const given = People.validSpellings(json && json.names);
+  return Object.fromEntries(Object.entries(given).filter(([latin]) => asked.has(latin)));
 }
 
-/**
- * Write each name in its Urdu spelling, across the whole quiz: in every text
- * field that is Urdu (the fields the check reads) and in every label of every
- * picture, so a bar says «حرا» when the stem does. A question the repair did
- * not reach (over its cap) gets the same spelling. Pure; a question with
- * nothing to change is returned as it was.
- */
-function spellNames(questions, spellings) {
-  const pairs = Object.entries(spellings || {});
-  if (!pairs.length) return questions;
-  const { mapSpecStrings } = require('./transcript-quiz-figure');
-  const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const swap = (t) => pairs.reduce((acc, [latin, urdu]) => acc.replace(new RegExp(`\\b${esc(latin)}\\b`, 'g'), urdu), t);
-  const inUrdu = (t) => (typeof t === 'string' && /\p{Script=Arabic}/u.test(t) ? swap(t) : t);
-  const values = (o, fn) => (o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, fn(v)])) : o);
-  return questions.map((q) => {
-    if (!q || typeof q !== 'object') return q;
-    const next = {
-      ...q,
-      question: inUrdu(q.question),
-      options: Array.isArray(q.options) ? q.options.map(inUrdu) : q.options,
-      explanation: inUrdu(q.explanation),
-      selected_because: inUrdu(q.selected_because),
-      distractor_misconceptions: values(q.distractor_misconceptions, inUrdu),
-      option_feedback: q.option_feedback && typeof q.option_feedback === 'object'
-        ? { ...q.option_feedback, correct: inUrdu(q.option_feedback.correct), wrong: values(q.option_feedback.wrong, inUrdu) }
-        : q.option_feedback,
-      figure: q.figure && typeof q.figure === 'object' ? mapSpecStrings(q.figure, swap) : q.figure,
-    };
-    return JSON.stringify(next) === JSON.stringify(q) ? q : next;
-  });
-}
+/** Each name in its Urdu spelling across the whole quiz (transcript-quiz-people). */
+const spellNames = (questions, spellings) => People.spellNames(questions, spellings);
 
 /**
  * ONE call. Never throws: a rewrite that cannot be made is a rewrite that did
@@ -605,7 +566,10 @@ async function rewriteRejected({
     const { json, model, costUsd, latencyMs } = await completeJson({
       prompt, maxTokens: 8000, label: 'transcript_quiz.rewrite',
     });
-    const merged = mergeReplacements(questions, json, targets, { known: knownNames });
+    // The digest's people are known from the start; a spelling the quiz has
+    // learned since is added on top.
+    const known = { ...People.peopleSpellings(digest), ...knownSpellings(knownNames) };
+    const merged = mergeReplacements(questions, json, targets, { known });
     return {
       attempted: true,
       indices: targets.indices,
@@ -617,7 +581,7 @@ async function rewriteRejected({
       replaced: merged ? merged.replaced : [],
       lessonSummary: merged ? merged.lessonSummary : null,
       // the spellings used (known + returned), for the caller to keep
-      names: merged ? merged.names : { ...knownSpellings(knownNames), ...nameSpellings(json, targets) },
+      names: merged ? merged.names : { ...known, ...nameSpellings(json, targets) },
       model,
       costUsd,
       latencyMs,
@@ -663,6 +627,7 @@ function buildTeacherFieldsPrompt({ digest, questions, indices }) {
   return [
     'REWRITE THE TEACHER FIELDS of an Urdu quiz. The questions are fine and stay exactly as they are; ONLY two fields per question were written in the wrong language. These two fields are printed on the TEACHER\'s Urdu page and never shown to a child.',
     TEACHER_FIELDS_RULE,
+    ...(People.peopleRule(digest, 'ur') ? [People.peopleRule(digest, 'ur')] : []),
     '"selected_because": at most 15 words, in Urdu script, naming the moment of the lesson this question tests (the example, the board, the thing the class did). "distractor_misconceptions": the SAME keys as now, each value one short Urdu phrase naming the misconception a child holds when they pick that wrong option. English technical terms stay in English letters. Never a gendered word for the teacher (write «استاد نے …» or «سبق میں …»).',
     `THE LESSON'S OBJECTIVES\n${sloLines || '(none recorded)'}`,
     `THE QUESTIONS\n${items}`,
@@ -832,6 +797,7 @@ function buildAddPicturePrompt({
     // every field in the quiz language, the teacher's fields included
     languageAgain(language).trim(),
     GENDER_NEUTRAL_RULE,
+    ...(People.peopleRule(digest, language) ? [People.peopleRule(digest, language)] : []),
     `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
     `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
     ...(Array.isArray(refused) && refused.length ? [`REFUSED LAST TIME — these pictures were thrown away by our checks, and their questions are as they were:\n${refused.map((r) => `- q${r.index}: ${String(r.error || '').replace(/^q\d+:\s*/, '')}`).join('\n')}\nDo not send the same picture again. A question refused because the picture cannot produce its answer (FIGURE_MISMATCH) is a step no picture shows: REPLACE it, or give another question the picture. A picture refused for giving the answer away (FIGURE_LEAK) needs its labels taken off.`] : []),

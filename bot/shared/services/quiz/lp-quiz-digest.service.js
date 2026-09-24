@@ -34,6 +34,7 @@
 
 const { completeJson } = require('./transcript-quiz-llm');
 const { normaliseDigest } = require('./transcript-quiz-digest.service');
+const { peopleDigestRule } = require('./transcript-quiz-people');
 const { canonicalSubject, LANG_NAME } = require('./transcript-quiz-language');
 const { logEvent } = require('../../utils/structured-logger');
 const { logToFile } = require('../../utils/logger');
@@ -450,6 +451,7 @@ RULES
 - "key_terms": up to 8 terms the lesson teaches; "term" is the canonical form, "as_spoken" is how the plan words it for the class.
 - "examples_used": the concrete examples, numbers, objects and stories THIS plan uses — the worked example and the practice work. These are the material of the quiz: a child should recognise their own lesson in it.
 - "misconceptions_surfaced": the mistake this plan expects children to make, and why. This is what the quiz's wrong options are built from, so write it as the mistaken THINKING, not as an instruction to the teacher.
+${peopleDigestRule('the plan')}
 - THE PRACTICE PROMPTS BELOW ARE SHAPE, NOT QUESTIONS. Never copy one of them, or its numbers, into anything you write — a child who did that exact sum in the period is being asked to remember an answer, not to use the idea. Write about the same skill with different material.
 - THE TEACHER HAS NO GENDER. Never write "she", "he", "her", "his" or "him" about the teacher in any field — say "the teacher". In Urdu use no gendered word for the teacher and no gendered verb form about the teacher; a verb that agrees with the object ("استاد نے سبق پڑھایا") says nothing about the teacher and is what to write. Never guess a child's gender either.
 - Religious content (Islamiyat / سیرت): write sacred names and honorifics exactly and in Urdu/Arabic script (اللہ، نبی کریم ﷺ، رضی اللہ عنہ) — never transliterated, never dropped.
@@ -461,7 +463,8 @@ Return ONLY this JSON object:
   "slos": [ { "id": "S1", "statement": "", "statement_en": "", "statement_ur": "", "evidence_quote": "", "taught_level": "recall|understand|apply" } ],
   "key_terms": [ { "term": "", "as_spoken": "" } ],
   "examples_used": [ "" ],
-  "misconceptions_surfaced": [ "" ]
+  "misconceptions_surfaced": [ "" ],
+  "people": [ { "latin": "", "ur": "" } ]
 }
 
 THE LESSON PLAN:
