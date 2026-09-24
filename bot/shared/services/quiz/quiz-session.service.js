@@ -727,7 +727,10 @@ class QuizSessionService {
         return; // Silently ignore rapid-fire messages
       }
 
-      const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+      // bd-wgso2: measured, not rerouted -- same client, key and model; only the label is stripped and the spend recorded.
+      const openai = require('../llm-client').withSpendRecording(
+        new OpenAI({ apiKey: OPENAI_API_KEY }), { lane: 'openai-direct' },
+      );
 
       // build the system prompt with the quiz Q&A snapshot so
       // Rumi can answer in context. The snapshot is fetched once at
@@ -742,6 +745,7 @@ class QuizSessionService {
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'quiz.session',
         messages: [
           { role: 'system', content: systemPrompt },
           ...history,

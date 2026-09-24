@@ -203,7 +203,15 @@ function wrapChatCompletions(client) {
   const original = client.chat.completions.create.bind(client.chat.completions);
   client.chat.completions.create = (params, options) => {
     if (!params || params.stream) return original(params, options);
-    return wrap('llm', normaliseForKey(params), () => original(params, options));
+    // bd-t3u9t. `job` and `fallbackModel` are telemetry, not part of what was asked: llm-client strips
+    // both before a request reaches any vendor. This wrapper sits OUTSIDE llm-client, though, so it
+    // saw them -- and because the key hashes every field, labelling a call site changed the key of
+    // every request it made. 61 of the 63 sealed LLM cassettes were recorded before the labels, so
+    // each of those calls started missing in replay-strict the moment its site was labelled.
+    // Only the KEY drops them. The vendor path still receives the full params, because the inner
+    // wrapper needs the job to attribute spend.
+    const { job, fallbackModel, ...asked } = params; // eslint-disable-line no-unused-vars
+    return wrap('llm', normaliseForKey(asked), () => original(params, options));
   };
   return client;
 }
