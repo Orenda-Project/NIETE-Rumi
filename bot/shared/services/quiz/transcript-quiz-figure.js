@@ -271,11 +271,16 @@ function canonicalType(name) {
   return ALLOWED_TYPES.includes(entry.type) ? entry.type : null;
 }
 
-/** The manifest's minimal spec for a type, with this lane's defaults applied. */
+/**
+ * The manifest's minimal spec for a type, with this lane's defaults applied —
+ * and its part names given this lane's names (compare_size's manifest example
+ * names its ribbons "A" and "B", which on a quiz card are option letters).
+ */
 function minimalSpecFor(type) {
   const entry = MANIFEST.types.find((m) => m.type === type);
   if (!entry) throw new FigureError('FIGURE_TYPE', `no manifest entry for "${type}"`);
-  return { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
+  const spec = { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
+  return relabelLetterParts({ figure: spec }).question.figure;
 }
 
 /**
@@ -428,12 +433,18 @@ const SCALE_LADDER = [2.4, 2.0, 1.6, 1.3, 1.0];
 
 const PHONE_FONT_SCALE = {
   numberline: 2.0,
-  fraction_bar: 1.0, // unsolved — a per-bar Urdu label on the circle model collides above k=1
+  // Raised from 1.0 (bd-qlpu0): at 1.0 a bar's name read about 7.7px on the
+  // phone. Short names (P, Q, R, a numeral) clear 2.4 with no collision; a long
+  // Urdu name or the circle model still collides above 1.0, and the ladder
+  // steps those down to where they drew before.
+  fraction_bar: 2.4,
   grid: 2.4,
   geometry: 2.0, // dialled back from the sweep's 2.4 — see the comment above
   graph: 1.0, // unsolved
   chem_equation: 2.4,
-  circuit: 1.0, // unsolved
+  // Raised from 1.0 (bd-qlpu0): a component's letter read about 6.9px on the
+  // phone. Short labels clear 1.6; longer ones step down on the ladder.
+  circuit: 2.0,
   free_body: 1.6, // improved, still under 10dp
   atom: 1.0, // unsolved
   punnett: 2.0, // improved, still under 10dp
@@ -621,6 +632,116 @@ function unknownColourToken(spec) {
  * cannot answer "12 shared into 3" (4); a bar of 4 parts with 3 shaded cannot
  * answer "1/2". Returns a one-line reason when it cannot, else null.
  */
+// ─── part names are never the option letters ─────────────────────────────────
+
+/**
+ * The places a figure names a part the child may be asked to pick: a bar, a
+ * point, a vertex, a component, a ribbon, a row. Each entry is [holder, key].
+ */
+function partLabelSlots(spec) {
+  const out = [];
+  const each = (list, key) => (Array.isArray(list) ? list : []).forEach((x) => {
+    if (x && typeof x === 'object' && typeof x[key] === 'string') out.push([x, key]);
+  });
+  switch (canonicalType(spec && spec.type)) {
+    case 'fraction_bar': each(spec.bars, 'label'); break;
+    case 'numberline': each(spec.points, 'label'); break;
+    case 'circuit': each(spec.cells, 'label'); each(spec.components, 'label'); break;
+    case 'compare_size': each(spec.items, 'label'); each([spec.left, spec.right], 'label'); break;
+    case 'count_objects': each(spec.rows, 'label'); break;
+    case 'geometry': (Array.isArray(spec.shapes) ? spec.shapes : []).forEach((sh) => {
+      if (!sh || typeof sh !== 'object') return;
+      if (typeof sh.label === 'string') out.push([sh, 'label']);
+      if (Array.isArray(sh.labels)) sh.labels.forEach((_, k) => { if (typeof sh.labels[k] === 'string') out.push([sh.labels, k]); });
+    }); break;
+    default: break;
+  }
+  return out;
+}
+
+/** Pictures that already carry numbers (fractions, a scale, lengths, volts) name parts P, Q, R, S. */
+const LETTER_NAMED_TYPES = new Set(['fraction_bar', 'numberline', 'geometry', 'circuit']);
+const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+const PART_LETTERS = ['P', 'Q', 'R', 'S'];
+const PART_NUMBERS = ['1', '2', '3', '4'];
+const BIDI = /[\u200e\u200f\u2066-\u2069]/g;
+const PART_NOUN_BEFORE = /(bars?|points?|rows?|ribbons?|components?|parts?|shapes?|labels?|lines?|sides?|vertex|vertices|angles?|symbols?|پٹی|پٹیوں|نقطہ|نقطے|قطار|حصہ|شکل|علامت)\s*$/i;
+
+/**
+ * Rename every standalone option letter in `text` by `map`, outside maths
+ * spans. An English "A" that opens a phrase ("A bar split into…") is an article,
+ * not a label, and is left alone. `groups` also renames runs like "AB" / "ABC"
+ * (a side, a triangle) for the lettered types.
+ */
+function renameLetters(text, map, { groups = false } = {}) {
+  if (typeof text !== 'string' || !text) return text;
+  const letters = Object.keys(map).join('');
+  const single = new RegExp(`(^|[^\\p{L}\\p{N}\\\\])([${letters}])(?=([^\\p{L}\\p{N}]|$))`, 'gu');
+  const run = new RegExp(`(^|[^\\p{L}\\p{N}\\\\])([${letters}]{2,3})(?=([^\\p{L}\\p{N}]|$))`, 'gu');
+  const outside = (chunk) => {
+    let t = chunk.replace(single, (m, pre, L, _post, offset, whole) => {
+      const after = whole.slice(offset + m.length);
+      const before = whole.slice(0, offset + pre.length);
+      // "A bar", "A fraction" is the article — unless a part noun names it ("bar A has…")
+      if (L === 'A' && /^\s+[a-z]/.test(after) && !PART_NOUN_BEFORE.test(before)) return m;
+      return `${pre}${map[L]}`;
+    });
+    if (groups) t = t.replace(run, (m, pre, word) => `${pre}${[...word].map((L) => map[L]).join('')}`);
+    return t;
+  };
+  return text.split(/(\$[^$]*\$)/).map((chunk, k) => (k % 2 ? chunk : outside(chunk))).join('');
+}
+
+/**
+ * A figure that names its parts A-D gets new names, and so does every field of
+ * the question that uses them — so the picture, the WhatsApp text, the card
+ * and the teacher's PDF, all drawn from this one question, agree. The card
+ * marks its three options A, B and C; a part called B that is option C is a
+ * child tapping the wrong letter for the right answer (staging, a circuit
+ * question, bd-qlpu0). Pure: returns a new question, or the same one.
+ * @returns {{question:object, renamed:object|null}}
+ */
+function relabelLetterParts(q) {
+  if (!q || typeof q !== 'object' || !q.figure || typeof q.figure !== 'object' || Array.isArray(q.figure)) return { question: q, renamed: null };
+  const type = canonicalType(q.figure.type);
+  const probe = partLabelSlots(q.figure);
+  const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
+  if (!used.length) return { question: q, renamed: null };
+  const target = LETTER_NAMED_TYPES.has(type) ? PART_LETTERS : PART_NUMBERS;
+  const map = Object.fromEntries(used.map((L) => [L, target[OPTION_LETTERS.indexOf(L)]]));
+  const figure = JSON.parse(JSON.stringify(q.figure));
+  partLabelSlots(figure).forEach(([h, k]) => {
+    const l = String(h[k]).replace(BIDI, '').trim();
+    if (map[l]) h[k] = map[l];
+  });
+  const opts = { groups: type === 'geometry' };
+  const rn = (t) => renameLetters(t, map, opts);
+  const rnMap = (o) => (o && typeof o === 'object' && !Array.isArray(o)
+    ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, rn(v)])) : o);
+  const fb = q.option_feedback && typeof q.option_feedback === 'object' ? q.option_feedback : null;
+  return {
+    renamed: map,
+    question: {
+      ...q,
+      figure,
+      question: rn(q.question),
+      options: Array.isArray(q.options) ? q.options.map(rn) : q.options,
+      explanation: rn(q.explanation),
+      selected_because: rn(q.selected_because),
+      distractor_misconceptions: rnMap(q.distractor_misconceptions),
+      ...(fb ? { option_feedback: { ...fb, correct: rn(fb.correct), wrong: rnMap(fb.wrong) } } : {}),
+    },
+  };
+}
+
+/** Does `answer` name one of the figure's parts ("P", "bar 2", «پٹی Q»)? Then it is a pick, not a quantity. */
+function namesAPart(spec, answer) {
+  const names = new Set(partLabelSlots(spec).map(([h, k]) => norm(String(h[k]).replace(BIDI, ''))).filter(Boolean));
+  if (!names.size) return false;
+  const a = norm(String(answer || '').replace(BIDI, '')).replace(/^(bar|point|row|ribbon|پٹی|نقطہ|قطار)\s*/, '').replace(/\s*(bar|پٹی)$/, '').trim();
+  return names.has(a);
+}
+
 /**
  * Two options of the same AMOUNT under a part-whole picture. A fraction_bar or
  * grid question must produce its key literally (figureMismatch: a bar of 2 in
@@ -670,6 +791,8 @@ function figureMismatch(spec, options, correctIndex) {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
   if (!correct) return null;
+  // "Which bar shows 2/3?" answered "2" means bar 2, not the number two.
+  if (namesAPart(spec, correct)) return null;
   const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(correct);
   const whole = /^\d+$/.test(correct) ? Number(correct) : null;
   if (frac === null && whole === null) return null; // a word answer is not checked here
@@ -684,6 +807,36 @@ function figureMismatch(spec, options, correctIndex) {
     if (bars.length > 1 && per.every(([p]) => p === per[0][0])) reachable.add(`${shaded}/${per[0][0]}`);
     const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
     return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${shaded} of ${parts} parts)`;
+  }
+  if (type === 'count_objects') {
+    // Counters beside a sum they cannot show were passing as a "model": rows of
+    // 2 and 5 beside "what is 2 × 5?" (10), rows of 4, 3 and 6 beside an LCM of
+    // 12 (the fractions replays). What a counters picture CAN produce:
+    const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count }];
+    const counts = list.map((r) => Math.floor(Number(r && r.count) || 0)).filter((n) => n > 0);
+    if (!counts.length) return null;
+    const total = counts.reduce((a, b) => a + b, 0);
+    const reachable = new Set([String(total), String(counts.length)]);
+    counts.forEach((c, i) => {
+      reachable.add(String(c));
+      reachable.add(`${c}/${total}`);
+      counts.forEach((d, j) => { if (j !== i && c > d) reachable.add(String(c - d)); });
+    });
+    if (counts.length === 1) {
+      const n = counts[0];
+      const group = Math.floor(Number(spec.group) || 0);
+      if (group > 1) { // ringed into equal lots: how many lots, how many in each, what is left
+        reachable.add(String(group));
+        reachable.add(String(Math.floor(n / group)));
+        if (n % group) reachable.add(String(n % group));
+        reachable.add(`1/${Math.floor(n / group)}`);
+      }
+      const perRow = Math.floor(Number(spec.perRow) || 0) || (group > 1 ? group : Math.min(5, n));
+      reachable.add(String(perRow)); // an array: its columns and its rows
+      reachable.add(String(Math.ceil(n / perRow)));
+    }
+    const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
+    return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${counts.join(' and ')} things)`;
   }
   if (type === 'base_ten') {
     // A place-value mat answers "what number?", "how many tens?", "what is the
@@ -1122,6 +1275,8 @@ module.exports = {
   languageDefaults,
   figureMismatch,
   equalAmountOptions,
+  relabelLetterParts,
+  partLabelSlots,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,
