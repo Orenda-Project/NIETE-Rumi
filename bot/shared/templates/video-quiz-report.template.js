@@ -29,6 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../utils/text-format');
+const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
   headFamily, bodyFamily, latticeSvg, dirOf,
@@ -214,12 +215,13 @@ const GUIDANCE_LABEL_KEYS = {
  * swallowing real Urdu text. Quotes are includable because esc() (above) no
  * longer entity-escapes them.
  */
+// The Latin word class this document has always used. What joins two words
+// into ONE run ("&", "·", spaces) and how entities are kept whole lives in
+// latin-runs.js, shared with the teacher PDF so the two cannot drift.
+const LATIN_TOKEN = '[A-Za-z0-9\'’".,:;!?()%/+=*$@#\\-]';
 function wrapLatin(html, rtl) {
   if (!rtl) return html;
-  return html.split(/(<[^>]+>|&[a-zA-Z]+;|&#\d+;)/).map((seg) => (
-    seg.startsWith('<') || (seg.startsWith('&') && seg.endsWith(';'))
-  ) ? seg
-    : seg.replace(/[A-Za-z0-9][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]*(?:[\s\-][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]+)*/g, (m) => `<span class="ltr">${m}</span>`)).join('');
+  return wrapLatinRuns(html, { token: LATIN_TOKEN });
 }
 
 /** Progress-bar band, matching the coaching hero-report's domain-bar palette. */
