@@ -52,7 +52,7 @@ function makeChain(rows) {
   return chain;
 }
 
-function lessonScreen(language, classes) {
+function lessonScreen(language, classes, { names: longNames = null, stillGoing = 0 } = {}) {
   const session = {
     id: 's-1', user_id: TEACHER, status: 'completed', observation_type: null,
     created_at: '2026-09-20T06:00:00Z', transcript_text: 'x'.repeat(4000),
@@ -63,12 +63,17 @@ function lessonScreen(language, classes) {
     status: 'sent', topic: 'Fractions', subject: 'maths', language,
     meta: { share_code_id: 'sc-1', student_message: 'forward me' },
   };
-  const names = ['Ayesha', 'Bilal', 'Hamza', 'Zara'];
+  // A Latin name and an Urdu one in every list, whatever the teacher's language.
+  const names = longNames || ['Ayesha', 'نور', 'Hamza', 'زارا'];
   const children = classes.map((c, i) => ({
     id: `qs-${i}`, quiz_id: 'q-1', user_id: null, invited_by_student_id: null,
-    student_name: names[i % names.length], student_class: c, status: 'completed',
+    student_name: `${names[i % names.length]}${longNames ? ` ${i + 1}` : ''}`, student_class: c, status: 'completed',
     total_questions_answered: 8, correct_answers: 6 - i, mastery_percentage: Math.round(((6 - i) / 8) * 100),
-  }));
+  })).concat(Array.from({ length: stillGoing }, (_, j) => ({
+    id: `qg-${j}`, quiz_id: 'q-1', user_id: null, invited_by_student_id: null,
+    student_name: `${names[j % names.length]} ${j + 100}`, student_class: '4', status: 'active',
+    total_questions_answered: 2, correct_answers: 1, mastery_percentage: null,
+  })));
   const tables = {
     users: [{ id: TEACHER, phone_number: '920000000000', preferred_language: language }],
     coaching_sessions: [session], quizzes: [quiz], quiz_sessions: children,
@@ -77,15 +82,15 @@ function lessonScreen(language, classes) {
   return endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
 }
 
-/** The children's lines: "• Name (class) — score", isolates removed. */
-const childLines = (results) => results.replace(/[⁦-⁩]/g, '').split('\n').filter((l) => l.startsWith('•'));
+/** The children's lines: "• Name (class) — score", isolates and direction marks removed. */
+const childLines = (results) => results.replace(/[\u2066-\u2069\u200E\u200F]/g, '').split('\n').filter((l) => l.startsWith('•'));
 
 beforeEach(() => jest.clearAllMocks());
 
 describe('/quiz lesson screen: the class, however it was typed, is written one way', () => {
   test('one class typed four ways is named once, not after every child', async () => {
     const out = await lessonScreen('en', ['4', 'Class 4', 'grade 4', '۴']);
-    const results = out.data.results.replace(/[⁦-⁩]/g, '');
+    const results = out.data.results.replace(/[\u2066-\u2069]/g, '');
     expect(results.match(/Class 4/g) || []).toHaveLength(1);
     const lines = childLines(results);
     expect(lines).toHaveLength(4);
@@ -107,5 +112,54 @@ describe('/quiz lesson screen: the class, however it was typed, is written one w
     expect(lines).toHaveLength(2);
     lines.forEach((l) => expect(l).toMatch(/\(جماعت [45]\)/));
     expect(out.data.results).not.toMatch(/Grade|class 4/);
+  });
+});
+
+/**
+ * Every line of the results block carries the paragraph direction of the
+ * teacher's language. A child's line is "• \u2068name\u2069 — \u2066score\u2069": its only strong
+ * characters sit inside isolates, so a phone that resolves each line by its
+ * first strong character found none and fell back to left-to-right — one Latin
+ * name in an Urdu list sat flush left while every other line sat flush right.
+ * In an English list an Urdu name's line is decided by how the platform treats
+ * isolates, which Android and iOS do differently. An explicit mark — U+200F in
+ * Urdu, U+200E in English — at the start of every line settles it everywhere.
+ */
+describe('/quiz lesson screen: every results line states its own direction', () => {
+  const RLM = '\u200F';
+  const LRM = '\u200E';
+  const cases = [
+    ['ur', 'one class, a Latin name in the list', ['4', 'Class 4', 'grade 4', '۴'], RLM],
+    ['ur', 'several classes', ['Grade 5', 'class 4', '۵', '4th'], RLM],
+    ['en', 'one class, an Urdu name in the list', ['4', 'Class 4'], LRM],
+    ['en', 'several classes', ['Grade 5', 'class 4'], LRM],
+  ];
+  test.each(cases)('%s, %s', async (language, _label, classes, mark) => {
+    // An Urdu name in an English list and a Latin one in an Urdu list, both.
+    const out = await lessonScreen(language, classes.map((c) => c));
+    const lines = out.data.results.split('\n').filter((l) => l.trim() !== '');
+    expect(lines.length).toBeGreaterThan(3);
+    const unmarked = lines.filter((l) => !l.startsWith(mark));
+    expect(unmarked).toEqual([]);
+    // One mark, never two, and never the other language's.
+    lines.forEach((l) => expect(l.slice(1)).not.toMatch(/^[\u200E\u200F]/));
+    expect(out.data.results).not.toContain(language === 'ur' ? LRM : RLM);
+  });
+});
+
+describe('/quiz lesson screen: the marked results block stays inside its Flow field', () => {
+  // `results` is one TextBody: 4096 characters (Meta's Flow component
+  // reference). The marks add one code point per line; the list itself is
+  // capped at 40 children plus a "…and N more" line. The longest block a class
+  // can produce — 44 finished with long names in two classes, 6 still going —
+  // must still fit, in both languages.
+  test.each(['en', 'ur'])('%s: worst case fits in 4096 code points, every line marked', async (language) => {
+    const out = await lessonScreen(language, Array.from({ length: 44 }, (_, i) => (i % 2 ? 'Grade 5' : 'class 4')), {
+      names: ['Muhammad Abdullah Khan', 'عائشہ صدیقہ بنت احمد'], stillGoing: 6,
+    });
+    const results = out.data.results;
+    expect([...results].length).toBeLessThanOrEqual(4096);
+    const mark = language === 'ur' ? '\u200F' : '\u200E';
+    results.split('\n').filter((l) => l.trim() !== '').forEach((l) => expect(l.startsWith(mark)).toBe(true));
   });
 });

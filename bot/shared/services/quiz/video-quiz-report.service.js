@@ -24,7 +24,7 @@ const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText } = require('../../utils/text-format');
+const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -543,7 +543,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     })
     : null;
 
-  const summary = lines.filter((l) => l !== null && l !== undefined).join('\n');
+  // Plain text, laid out on the phone line by line from each line's first
+  // strong character — which in an Urdu report is the Latin "quiz" of the title
+  // and nothing at all on a Latin-named child's line. Every line opens with the
+  // document language's paragraph mark instead (text-format markLines).
+  const lineMark = resolveUx('lineDirMark', { language: contentLang });
+  const summary = markLines(lines.filter((l) => l !== null && l !== undefined).join('\n'), lineMark);
 
   // A designed report is worth it once there are results in it. On the morning
   // run for a class where nobody finished, a PDF of an empty table is worse
@@ -569,7 +574,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     await WhatsAppService.sendMessage(teacher.phone_number, summary);
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
-        `${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`);
+        markLines(`${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`, lineMark));
     }
   }
 

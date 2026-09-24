@@ -43,7 +43,7 @@ const {
   teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk,
 } = require('../services/quiz/transcript-quiz-language');
 const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
-const { classLabel, classHeading, normaliseClasses } = require('../utils/text-format');
+const { classLabel, classHeading, normaliseClasses, markLines } = require('../utils/text-format');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureReasonOf, lpRemakeable,
 } = require('../services/quiz/quiz-sources');
@@ -287,8 +287,18 @@ function studentLine(s, language, withClass = false) {
   return resolveUx('tqFlowStudentLine', { language, params: { name, klass, score } });
 }
 
-/** The live results block, in the teacher's language. */
+/**
+ * The live results block, in the teacher's language, every line opened with
+ * that language's paragraph mark (text-format markLines). The block is one
+ * Flow TextBody, laid out line by line by first strong character: a child's
+ * line has none outside its isolates, so without the mark a Latin name's line
+ * sat flush left in an Urdu list while the rest sat flush right.
+ */
 function resultsText(state, students, language, quiz = null) {
+  return markLines(resultsBody(state, students, language, quiz), resolveUx('lineDirMark', { language }));
+}
+
+function resultsBody(state, students, language, quiz = null) {
   if (state === 'making') return resolveUx('tqFlowResultsMaking', { language });
   if (state === 'failed') {
     // The transcript copy names "this lesson's recording"; an lp_v8 quiz had none.
@@ -665,7 +675,9 @@ async function stepAction(teacher, screenData) {
     });
     return lessonScreenFrom({
       teacher, session, quiz, students, language,
-      extra: { results: resolveUx('tqFlowResultsNothingToReport', { language }) },
+      extra: {
+        results: markLines(resolveUx('tqFlowResultsNothingToReport', { language }), resolveUx('lineDirMark', { language })),
+      },
     });
   }
   if (!available.includes(action)) {
