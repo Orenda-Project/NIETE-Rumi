@@ -31,7 +31,7 @@ const {
   LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
 } = require('./transcript-lesson-provider');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable,
+  TRANSCRIPT, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable,
 } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 
@@ -108,7 +108,7 @@ function statusLine(quiz, language) {
     // (lpRemakeable — handleLpPick makes it again). An lp_v8 row that cannot be
     // made again just says it did not work.
     case 'failed': return resolveUx(
-      quiz?.quiz_source === LP_V8 && !lpRemakeable(quiz.meta) ? 'tqRowFailedLp' : 'tqRowFailed', { language },
+      isPlanQuiz(quiz?.quiz_source) && !lpRemakeable(quiz.meta) ? 'tqRowFailedLp' : 'tqRowFailed', { language },
     );
     default: return resolveUx('tqRowNoQuiz', { language });
   }
@@ -142,11 +142,11 @@ function statusLine(quiz, language) {
  */
 function lessonItems(sessions, quizzes, lessons = []) {
   const all = quizzes || [];
-  const bySession = new Map(all.filter((q) => q.quiz_source !== LP_V8).map((q) => [q.coaching_session_id, q]));
+  const bySession = new Map(all.filter((q) => !isPlanQuiz(q.quiz_source)).map((q) => [q.coaching_session_id, q]));
   const items = (sessions || [])
     .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS)
     .map((s) => ({ kind: 'session', key: s.id, session: s, quiz: bySession.get(s.id) || null, date: s.created_at }));
-  all.filter((q) => q.quiz_source === LP_V8).forEach((q) => {
+  all.filter((q) => isPlanQuiz(q.quiz_source)).forEach((q) => {
     const session = lessonSessionFor(q);
     items.push({
       kind: 'lp', key: `lp_${q.id}`, session, quiz: q, date: session.created_at || q.created_at,
@@ -248,7 +248,7 @@ async function loadLpQuizzes(userId, needed) {
   if (!userId) return [];
   const { data, error } = await supabase.from('quizzes')
     .select(LP_QUIZ_SELECT)
-    .eq('teacher_id', userId).eq('quiz_source', LP_V8)
+    .eq('teacher_id', userId).in('quiz_source', PLAN_SOURCES)
     .order('created_at', { ascending: false })
     .limit(Math.max(1, needed));
   if (error) logToFile('❌ transcript quiz: lp_v8 quizzes lookup failed', { userId, error: error.message }, 'error');
@@ -377,7 +377,7 @@ async function handleLpPick(quizId, phone, user) {
   const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
   const { data: quiz } = user?.id ? await supabase.from('quizzes')
     .select(LP_QUIZ_SELECT)
-    .eq('id', quizId).eq('teacher_id', user.id).eq('quiz_source', LP_V8)
+    .eq('id', quizId).eq('teacher_id', user.id).in('quiz_source', PLAN_SOURCES)
     .maybeSingle() : { data: null };
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
@@ -402,7 +402,7 @@ async function handleLpPick(quizId, phone, user) {
         { id: `${BACK_PREFIX}${quiz.id}`, title: resolveUx('tqBackButton', { language: lang }) },
       ],
     });
-    logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: LP_V8 });
+    logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: quiz.quiz_source });
     return true;
   }
   if (isAwaitingLanguage(quiz)) {
@@ -411,7 +411,7 @@ async function handleLpPick(quizId, phone, user) {
     const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
     await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject: quiz.subject });
     logEvent('transcript_quiz.language_asked', {
-      userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: LP_V8,
+      userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: quiz.quiz_source,
     });
     return true;
   }
@@ -423,18 +423,18 @@ async function handleLpPick(quizId, phone, user) {
     const Offer = require('./transcript-quiz-offer.service');
     const remade = await Offer.remakeLpQuiz({ quiz, phone, teacherLang: lang, source: 'list' });
     logEvent('transcript_quiz.list_pick', {
-      userId: user.id, quizId: quiz.id, state, remade: Boolean(remade), quiz_source: LP_V8,
+      userId: user.id, quizId: quiz.id, state, remade: Boolean(remade), quiz_source: quiz.quiz_source,
     });
     return true;
   }
   if (state === 'failed') {
     // The reason the generate step persisted, so the sentence repeated here is
     // the one the teacher was sent when it failed (model vs plan, never mixed).
-    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), LP_V8), { language: lang }));
+    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), quiz.quiz_source), { language: lang }));
   } else {
     await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
   }
-  logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: LP_V8 });
+  logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: quiz.quiz_source });
   return true;
 }
 

@@ -169,7 +169,8 @@ function questions(quizId) {
 }
 
 function seed(source, language) {
-  const isLp = source === 'lp_v8';
+  // lp_v8 (a K-5 lesson plan) and lp612 (a Grades 6-12 one): both written from a plan.
+  const isLp = source !== 'transcript';
   const quiz = {
     id: QUIZ,
     teacher_id: TEACHER,
@@ -189,12 +190,21 @@ function seed(source, language) {
       lesson_summary: 'The class added a 3-digit and a 2-digit number and carried a ten.',
       lesson_summary_short: 'Adding with carrying.',
       cost_usd: 0.01,
-      ...(isLp ? {
+      ...(source === 'lp_v8' ? {
         source: 'lp_offer',
         nudge_id: 'nudge-1',
         lesson_date: LESSON_DAY,
         class: { grade: 4, subject: 'maths' },
         lessons: [{ lesson_id: 'grade_4_math_ch1_seg1', asset_id: 'a-1', version_stamp: 'v1', content_hash: 'h1', delivered_at: `${LESSON_DAY}T04:00:00.000Z` }],
+      } : {}),
+      ...(source === 'lp612' ? {
+        source: 'quiz_menu',
+        lesson_date: LESSON_DAY,
+        class: { grade: 8, subject: 'maths' },
+        lessons: [{
+          segment_id: 'grade_8_mathematics.c04.p047-050', lang: language, template_version: 'v9.6', render_id: 'r-1',
+          delivered_at: `${LESSON_DAY}T04:00:00.000Z`, title: 'Adding with carrying',
+        }],
       } : {}),
     },
   };
@@ -263,6 +273,7 @@ function reset(source, language) {
 }
 
 const quizRow = () => mockDb.table('quizzes').find((q) => q.id === QUIZ);
+const isPlan = (source) => source !== 'transcript';
 const to = (phone) => mockSent.filter((m) => m.to === phone);
 const textOf = (m) => (typeof m.args[0] === 'string' ? m.args[0] : JSON.stringify(m.args[0]));
 
@@ -339,7 +350,7 @@ async function runChain(source, language) {
   // 5. /quiz — the list message: the lesson row, its three buttons, both actions
   mockSent.length = 0;
   const user = { id: TEACHER, preferred_language: language };
-  const pickId = source === 'lp_v8' ? `tq_pick_lp_${QUIZ}` : `tq_pick_${SESSION}`;
+  const pickId = isPlan(source) ? `tq_pick_lp_${QUIZ}` : `tq_pick_${SESSION}`;
   await List.showList(user, TPHONE, language, 1);
   const listMsg = to(TPHONE).find((m) => m.fn === 'sendInteractiveMessage');
   out.listRowIds = listMsg ? listMsg.args[0].action.sections[0].rows.map((row) => row.id) : [];
@@ -360,7 +371,7 @@ async function runChain(source, language) {
 
   // 6. /quiz — the Flow's LESSON screen
   const token = `${TEACHER}:flow`;
-  const key = source === 'lp_v8' ? `lp_${QUIZ}` : SESSION;
+  const key = isPlan(source) ? `lp_${QUIZ}` : SESSION;
   const lesson = await Endpoint.handleTranscriptQuizDataExchange(token, 'LESSONS', { step: 'lesson', session_id: key });
   out.flowScreen = lesson.screen;
   out.flowActions = ((lesson.data && lesson.data.actions) || []).map((a) => a.id);
@@ -373,12 +384,16 @@ async function runChain(source, language) {
   return out;
 }
 
-describe.each([['en'], ['ur']])('an lp_v8 quiz gets the transcript quiz’s whole downstream chain (%s)', (language) => {
+// lp_v8: a K-5 lesson plan. lp612: a Grades 6-12 lesson plan — the same kind of
+// quiz downstream, with its own source of the lesson (lp612-quiz-source.js).
+describe.each([
+  ['lp_v8', 'en'], ['lp_v8', 'ur'], ['lp612', 'en'], ['lp612', 'ur'],
+])('an %s quiz gets the transcript quiz’s whole downstream chain (%s)', (source, language) => {
   let transcript;
   let lp;
   beforeAll(async () => {
     transcript = await runChain('transcript', language);
-    lp = await runChain('lp_v8', language);
+    lp = await runChain(source, language);
   });
 
   test('hand-off: PDF, the forwardable link, the report promise; status sent; the nudge queued', () => {

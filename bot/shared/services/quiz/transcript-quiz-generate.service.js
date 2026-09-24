@@ -34,12 +34,13 @@ const {
 } = require('./transcript-quiz-language');
 const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
+  TRANSCRIPT, LP_V8, LP612, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const Store = require('./lp-asset-source.store');
 const Funnel = require('./quiz-funnel');
+const Lp612Source = require('./lp612-quiz-source');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
@@ -57,6 +58,21 @@ const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taugh
  */
 async function resolveLessonSource(quiz) {
   const lesson = ((quiz.meta && quiz.meta.lessons) || [])[0];
+  // A Grades 6-12 lesson: the exact stored document of the render the teacher
+  // got, adapted to the slide-script shape (lp612-quiz-source). Its reader
+  // throws on an R2 failure other than a missing object, for the same reason
+  // the K-5 store throws on a DB error: redelivery, never a permanent failure.
+  if (quiz.quiz_source === LP612) {
+    if (!lesson || !lesson.segment_id) return null;
+    try {
+      return await Lp612Source.resolveSlideScript(lesson);
+    } catch (err) {
+      logToFile('❌ lp612 quiz: lesson document lookup failed — leaving the job to be redelivered', {
+        quizId: quiz.id, segmentId: lesson.segment_id, error: err.message,
+      }, 'error');
+      throw err;
+    }
+  }
   if (!lesson || !lesson.lesson_id) return null;
   try {
     const hit = await Store.resolveSlideScript({
@@ -827,6 +843,7 @@ async function runFigureDensity(api, {
  */
 async function runKeyCheck(api, {
   questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts, knownNames = null,
+  quizSource = LP_V8,
 }) {
   const KeyCheck = require('./lp-quiz-key-check.service');
   const startedAt = Date.now();
@@ -838,7 +855,7 @@ async function runKeyCheck(api, {
     record.latency_ms = Date.now() - startedAt;
     record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
     logEvent('transcript_quiz.key_check', {
-      quizId, quiz_source: LP_V8, status: record.status, model: record.model,
+      quizId, quiz_source: quizSource, status: record.status, model: record.model,
       checked: record.checked, contradicted: record.contradicted, fixed: record.fixed, dropped: record.dropped,
       unclear: record.unclear, missing: record.missing, ungrounded: record.ungrounded,
       costUsd: record.cost_usd, latencyMs: record.latency_ms,
@@ -1405,7 +1422,7 @@ async function runKeyVerify(api, {
   let softFaults = null;
   const rw = await api.rewriteRejected({
     // More than five flagged keys: the worst five are rewritten, the rest dropped below.
-    questions, errors: [...complaints, ...repeatComplaints], digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames, partial: true,
+    questions, errors: [...complaints, ...repeatComplaints], digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1530,7 +1547,9 @@ async function process(quizId, payload = {}) {
   // from quizzes.teacher_id and its "session" is only the lesson date, which is
   // all the hand-off ever reads from one (PLAN_R8 §3.2/§3.3).
   const quizSource = quiz.quiz_source || TRANSCRIPT;
-  const isLp = quizSource === LP_V8;
+  // Written from a lesson PLAN (K-5 lp_v8 or Grades 6-12 lp612): no recording,
+  // no coaching session — the plan is the source and nobody heard the lesson.
+  const isLp = isPlanQuiz(quizSource);
   let session;
   let user;
   if (isLp) {
@@ -1591,6 +1610,15 @@ async function process(quizId, payload = {}) {
   // counts as a start. A redelivered job starts again — count distinct quiz_id.
   if (!(quiz.status === 'ready' && meta.step === 'ready')) Funnel.emit('generation_started', funnel);
 
+  // THE KILL SWITCH (QUIZ_LP612_SOURCE): off, no 6-12 quiz is WRITTEN. One queued
+  // before it was switched off fails honestly ("couldn't start it"); one already
+  // written (`ready`/`ready`, resuming at the hand-off) is not stopped.
+  if (quizSource === LP612 && !lp612SourceOn() && !(quiz.status === 'ready' && meta.step === 'ready')) {
+    await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_off' } });
+    await tellTeacherFailed(phone, teacherLang, quizId, 'source_off', quizSource);
+    return { failed: true, reason: 'source_off' };
+  }
+
   // The slide script is needed wherever the author still has to run; a quiz
   // resuming at the hand-off (`ready`/`ready`) has its questions and does not.
   let slideScript = null;
@@ -1640,10 +1668,14 @@ async function process(quizId, payload = {}) {
       // The served lesson's id names the quiz from the catalog: the Urdu label
       // (topic_as_taught → quizzes.topic, the forward message, the PDF) is the
       // name on the lesson's own PDF, never the model's reading of the script.
+      const served = ((quiz.meta && quiz.meta.lessons) || [])[0] || {};
       r = isLp
         ? await LpDigest.run({
           slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject,
-          lessonId: (((quiz.meta && quiz.meta.lessons) || [])[0] || {}).lesson_id || null,
+          lessonId: served.lesson_id || null,
+          // A 6-12 lesson is named by its own heading (the K-5 catalog cannot know it).
+          lessonName: quizSource === LP612 ? (served.title || quiz.topic || null) : null,
+          quizSource,
         })
         : await Digest.run({ session, user });
     } catch (err) {
@@ -2098,6 +2130,7 @@ async function process(quizId, payload = {}) {
       const kc = await runKeyCheck(api, {
         questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
         lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings,
+        quizSource,
       });
       meta.key_check = kc.record;
       meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);

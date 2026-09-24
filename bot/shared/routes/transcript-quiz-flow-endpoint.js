@@ -46,7 +46,7 @@ const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
 const { classLabel, classHeading, normaliseClasses, markLines } = require('../utils/text-format');
 const { oneAttemptPerChild } = require('../services/quiz/one-attempt-per-child');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureReasonOf, lpRemakeable,
+  TRANSCRIPT, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureReasonOf, lpRemakeable,
 } = require('../services/quiz/quiz-sources');
 const Providers = require('../services/quiz/quiz-lesson-providers');
 const QuizMenuFlags = require('../services/quiz/quiz-menu-flags');
@@ -271,7 +271,7 @@ async function loadLesson(teacher, sessionId) {
     const { data: lpQuiz } = await supabase.from('quizzes')
       .select('id, teacher_id, coaching_session_id, quiz_source, status, topic, subject, language, meta')
       .eq('id', String(sessionId).slice(LP_KEY_PREFIX.length)).eq('teacher_id', teacher.id)
-      .eq('quiz_source', LP_V8).maybeSingle();
+      .in('quiz_source', PLAN_SOURCES).maybeSingle();
     if (!lpQuiz) return null;
     return { session: { id: sessionId, ...lessonSessionFor(lpQuiz) }, quiz: lpQuiz };
   }
@@ -349,7 +349,7 @@ function resultsBody(state, students, language, quiz = null) {
   if (state === 'making') return resolveUx('tqFlowResultsMaking', { language });
   if (state === 'failed') {
     // The transcript copy names "this lesson's recording"; an lp_v8 quiz had none.
-    if (quiz?.quiz_source === LP_V8) return lpFailedResults(quiz, language);
+    if (isPlanQuiz(quiz?.quiz_source)) return lpFailedResults(quiz, language);
     // A recording's quiz says why, the way the chat said it (quiz-sources
     // TRANSCRIPT_FAILURE_COPY): the recording line only when the recording was
     // the problem; our model, our questions or our held-back answers otherwise.
@@ -359,7 +359,7 @@ function resultsBody(state, students, language, quiz = null) {
   if (state !== 'sent' && state !== 'report_sent') {
     // An lp_v8 quiz that is not waiting for its language was never made
     // (declined, skipped, cancelled): /quiz cannot make one from here.
-    if (quiz?.quiz_source === LP_V8 && !List.isAwaitingLanguage(quiz)) {
+    if (isPlanQuiz(quiz?.quiz_source) && !List.isAwaitingLanguage(quiz)) {
       return resolveUx('tqFlowResultsNoQuizLp', { language });
     }
     return resolveUx('tqFlowResultsNoQuiz', { language });
@@ -525,7 +525,7 @@ function baseActions({ state, quiz, session, language, finished = 0, lesson = nu
   // the ask: without these actions the lesson went to the "still being made"
   // wait screen while nothing was being made. stepAction hands the choice to
   // the ask's own handler (startGenerating), never the transcript claim.
-  if (quiz?.quiz_source === LP_V8) {
+  if (isPlanQuiz(quiz?.quiz_source)) {
     if (state === 'failed') return lpFailedActions(quiz, language);
     if (!List.isAwaitingLanguage(quiz)) return [];
     return makeActions({
@@ -832,7 +832,7 @@ async function stepAction(teacher, screenData) {
   const teacherId = teacher.id;
   const sessionId = session.id;
   const phone = teacher.phone_number;
-  if (quiz?.quiz_source === LP_V8) {
+  if (isPlanQuiz(quiz?.quiz_source)) {
     // An lp_v8 quiz waiting for its language: the chat ask's own path — the
     // atomic offered → generating flip and the LP quiz job. The transcript
     // claim below would queue it as a coaching-session quiz it is not.
