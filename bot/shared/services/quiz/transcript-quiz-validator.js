@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
@@ -137,7 +137,7 @@ const earlyMaths = (subject, gradeBand) => canonSubj(subject) === 'maths' && isE
  * FIGURE_FEW, and never a reason to refuse a quiz: a refused quiz is a teacher
  * with nothing, and a quiz with one picture is still a quiz. The generate step
  * answers it with ONE targeted "add a picture" repair and ships either way.
- * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, complaint:string|null}}
+ * @returns {{applies:boolean, figured:number, n:number, target:number, need:number, room?:number, complaint:string|null}}
  */
 function figureDensity(questions, { subject, gradeBand } = {}) {
   const qs = Array.isArray(questions) ? questions : [];
@@ -148,8 +148,10 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
   }
   const target = Math.min(FIGURE_TARGET, Math.floor(n * FIGURE_MAX_SHARE));
   const need = Math.max(0, target - figured);
+  // how many more the half cap still allows — the repair asks for a spare within it
+  const room = Math.max(0, Math.floor(n * FIGURE_MAX_SHARE) - figured);
   return {
-    applies: true, figured, n, target, need,
+    applies: true, figured, n, target, need, room,
     complaint: need ? `FIGURE_FEW — ${figured}/${n} questions carry a picture; a grade 1-5 maths quiz aims for at least ${target}` : null,
   };
 }
@@ -590,6 +592,11 @@ function validate(rawQuestions, ctx = {}) {
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }
+    // 2/8 and 1/4 under a bar of 2 in 8 are both right (live, grade 3 Urdu,
+    // passed by the blind solver). Named as a duplicate option so the targeted
+    // rewrite repairs it with the distinct-options rule.
+    const twin = equalAmountOptions(q.figure, opts, ci);
+    if (twin) errs.push(`q${i}: duplicate options — ${twin}`);
     if (!modelsTheStem(q, subject, gradeBand) && figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
     }

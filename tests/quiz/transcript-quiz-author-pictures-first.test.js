@@ -66,6 +66,11 @@ describe('grade 1-5 maths: plan the pictures first, and know what a picture ques
     expect(p).toMatch(/How many counters/);
   });
 
+  test('rules out two options of the same amount under a bar, and letters the bars in words', () => {
+    expect(p).toMatch(/never 2\/8 beside 1\/4/);
+    expect(p).toMatch(/«پٹی A»/);
+  });
+
   test('says a step of a procedure is a text question, and draws the idea underneath it instead', () => {
     expect(p).toMatch(/step of a procedure/i);
     expect(p).toMatch(/cross product/i);
