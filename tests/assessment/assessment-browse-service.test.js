@@ -114,7 +114,7 @@ describe('what she may pick', () => {
     // the dead panel used to hardcode MAX_COUNT = 20 against the bot's 25.
     expect(opts.maxQuestions).toBe(
       require('../../bot/shared/services/assessment/question-types').MAX_QUESTIONS);
-    expect(opts.maxQuestions).toBe(25);
+    expect(opts.maxQuestions).toBe(50); // raised from 25, operator 23 Sep
   });
 });
 

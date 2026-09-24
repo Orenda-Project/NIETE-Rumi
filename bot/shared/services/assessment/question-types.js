@@ -133,12 +133,25 @@ function defaultMix(subject, grade, total) {
 /**
  * How many questions a paper may hold.
  *
- * 25 is where the generator stops writing well: past it the model starts
- * padding and the seen half repeats itself. It is a product ceiling, not a
- * technical one.
+ * 50, raised from 25 at the operator's request (23 Sep 2026): teachers set
+ * longer papers than 25. The old note said the generator starts padding past 25;
+ * that was never measured, and a 50-question paper has not been evaluated yet —
+ * check count adherence at this size before treating it as settled. It is a
+ * product ceiling, not a technical one: the model call sets no output cap and a
+ * 25-question paper takes ~25s against a five-minute job budget.
  */
-const MAX_QUESTIONS = 25;
+const MAX_QUESTIONS = 50;
 const DEFAULT_QUESTIONS = 15;
+
+/**
+ * How many types she may pick, and therefore how many count boxes the COUNTS
+ * screen holds.
+ *
+ * A Flow cannot grow a component at runtime, so the boxes are a fixed bank that
+ * the server labels and hides. Eight types already covers any paper a teacher sets, and keeps the
+ * published screen small.
+ */
+const MAX_TYPE_SLOTS = 8;
 
 /**
  * Read the number she typed.
@@ -167,14 +180,84 @@ function parseQuestionCount(raw) {
 }
 
 /**
+ * Read the count she typed against EACH type she picked.
+ *
+ * The counterpart to parseQuestionCount, for the screen that replaced it on the
+ * unseen path. She picked her types on TYPES, so this receives one box per pick
+ * (`count_1`…`count_N`, positional, in the order she ticked them) and returns
+ * the `{ id, count, category }` list the generator already speaks.
+ *
+ * Every box is REQUIRED: a type she ticked and then left blank is a
+ * contradiction, and the two ways out of it are both worse than asking. Filling
+ * it with a default hands her a number she never chose; dropping the type
+ * quietly deletes a section she asked for. So a blank bounces, and it bounces
+ * naming the type rather than the slot — "MCQs" is hers, "count_1" is ours.
+ *
+ * The paper ceiling is checked on the SUM, because that is the paper. Fifteen
+ * MCQs and fifteen Short Questions are each individually reasonable and
+ * together are a paper the generator pads its way through.
+ *
+ * Refused, never clamped — the same rule the single count already followed.
+ */
+function parsePerTypeCounts(pickedIds, data, subject, grade, seenCount = 0) {
+  const ids = (pickedIds || []).filter(Boolean);
+  if (ids.length === 0) {
+    return { ok: false, message: 'Please choose at least one kind of question.' };
+  }
+
+  const out = [];
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = ids[i];
+    const raw = data?.[`count_${i + 1}`];
+    const text = String(raw ?? '').trim();
+    const range = `Type a number between 1 and ${MAX_QUESTIONS}.`;
+
+    // `slot` names the box, so the screen can mark THAT box in red rather than
+    // leaving her to work out which of eight numbers was wrong.
+    const slot = i + 1;
+    if (!text || !/^\d+$/.test(text)) {
+      return { ok: false, slot, message: `How many ${id}? ${range}` };
+    }
+    const n = Number(text);
+    if (!Number.isInteger(n) || n < 1) {
+      return { ok: false, slot, message: `How many ${id}? ${range}` };
+    }
+    if (n > MAX_QUESTIONS) {
+      return {
+        ok: false,
+        slot,
+        message: `A paper can hold up to ${MAX_QUESTIONS} questions, so ${id} cannot be ${n}. ${range}`,
+      };
+    }
+    out.push({ id, count: n, category: categoryOf(id, subject, grade) });
+  }
+
+  const total = out.reduce((s, t) => s + t.count, 0);
+  // On Both, the Seen questions she already asked for are part of the same
+  // paper, so the ceiling is checked on Seen + Unseen together.
+  const seen = Math.max(0, Number(seenCount) || 0);
+  if (total + seen > MAX_QUESTIONS) {
+    const which = seen ? ` (${seen} Seen + ${total} Unseen)` : '';
+    return {
+      ok: false,
+      message: `That is ${total + seen} questions in total${which}. A paper can hold up to `
+        + `${MAX_QUESTIONS} — please lower one of the numbers.`,
+    };
+  }
+
+  return { ok: true, types: out, total };
+}
+
+/**
  * The most marks a paper may be asked to carry.
  *
  * This is a typo guard, not a product opinion. It has to sit ABOVE any paper a
- * teacher could legitimately want, or it refuses real work: 25 questions (the
- * question ceiling) at a generous 20 marks each is 500. So 500 never blocks a
- * genuine request and still catches the keypad slip that turns 40 into 4000.
+ * teacher could legitimately want, or it refuses real work: 50 questions (the
+ * question ceiling) at a generous 20 marks each is 1000. So 1000 never blocks a
+ * genuine request and still catches the keypad slip that turns 40 into 40000.
+ * It moves with the question ceiling — when that went 25 → 50, this went 500 → 1000.
  */
-const MAX_TOTAL_MARKS = 500;
+const MAX_TOTAL_MARKS = 1000;
 
 /**
  * Read the marks budget she typed, which she is allowed not to type.
@@ -208,4 +291,4 @@ function parseTotalMarks(raw) {
 
 module.exports = {
   parseQuestionCount, MAX_QUESTIONS, DEFAULT_QUESTIONS, forSubject, categoryOf, withCounts, defaultMix, CATALOGUE,
-  parseTotalMarks, MAX_TOTAL_MARKS };
+  parseTotalMarks, MAX_TOTAL_MARKS, parsePerTypeCounts, MAX_TYPE_SLOTS };

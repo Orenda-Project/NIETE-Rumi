@@ -511,3 +511,82 @@ Feature: NIETE (ICT) Teacher Training
     And the offer to watch more videos follows it
     # video-quiz-invite handleInviteButton: vqInviteForwardThis + vqInviteMessage in the quiz language
     # (the invite's own language, else its share code's). @wip.
+
+  # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
+  # The generator is mapped to this feature (feature-map.yaml: training) because it sits
+  # with the exam/quiz surfaces, but it had no scenarios until bd-60175. It is its own
+  # native Flow. The teacher's words are Seen (from the book) and Unseen (outside the book):
+  #   Seen   → QUESTIONS → SEEN_COUNT → CONFIRM
+  #   Unseen → QUESTIONS → TYPES → COUNTS → CONFIRM
+  #   Both   → QUESTIONS → SEEN_COUNT → TYPES → COUNTS → CONFIRM
+
+  @e2e @flow @P1
+  Scenario: For Unseen questions she sets how many of EACH type, not one total we split for her
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen a class, a subject and the pages to cover
+    When I choose "Unseen (outside the book)" and continue
+    Then the next screen's heading says it is about Unseen questions
+    When I tick "MCQs" and "Brief Answers" and continue
+    Then I get one box per type I ticked, each labelled with that type's name
+    When I ask for 10 MCQs and 2 Brief Answers
+    Then the recap says "10 MCQs, 2 Brief Answers" and 12 in total, not 6 and 6
+    # bd-60175. It used to ask for ONE total on the previous screen and spread it evenly over
+    # the kinds ticked, so 10-and-2 came back 6-and-6. The count boxes are a fixed bank of 8
+    # slots labelled and hidden by the server (a Flow cannot grow a component at runtime), so
+    # assert one box PER TICKED KIND — never a fixed number of boxes.
+
+  @e2e @flow @negative @P2
+  Scenario Outline: A count she cannot have is refused on the screen, naming the type
+    Given the NIETE bot chat is open and I have reached the Unseen "how many of each" screen with "MCQs" ticked
+    When I put <value> against MCQs and continue
+    Then I stay on that screen and the reason appears in red under the MCQs box, naming MCQs
+    And the same reason is shown just above Continue
+    # Refused, never clamped — quietly turning 60 into 50 hands her a paper she did not ask
+    # for and never says so. The ceiling is checked on the SUM too: several kinds that are
+    # each allowed can still add up to a paper the generator pads its way through.
+    Examples:
+      | value     |
+      | nothing   |
+      | "0"       |
+      | "abc"     |
+      | "60"      |
+
+  @e2e @flow @P2
+  Scenario: Seen questions ask one thing — how many Seen
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen a class, a subject and the pages to cover
+    When I choose "Seen (from the book)" and continue
+    Then I am asked one thing, on a screen headed Seen — how many — with no type-picking
+    When I ask for 12
+    Then the recap says Seen and 12 questions
+    # The book's own exercises carry their own kinds, so a choice of kinds there is a question
+    # whose answer cannot be used — planCounts() discards types on the seen path. This is the
+    # one path where a single total is still the right thing to ask for, and it is asked on
+    # the same "how many" screen as the per-kind counts: when the total box first came off
+    # QUESTIONS, the seen path was left demanding a number it had no box for.
+
+  @e2e @flow @P1
+  Scenario: Both asks the Seen number first, on its own screen, then the Unseen types and counts
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen a class, a subject and the pages to cover
+    When I choose "Both Seen and Unseen" and continue
+    Then I am asked how many Seen questions, on a screen of its own
+    When I ask for 5 Seen
+    Then I am asked which Unseen types I want
+    When I tick "MCQs" and "Brief Answers" and ask for 10 and 2
+    Then the recap says Seen 5, Unseen "10 MCQs, 2 Brief Answers", and 17 in total
+    # "Both" used to take per-type counts and then HALVE the total for Seen and re-spread the
+    # types over the rest, so 10-and-2 came back as 3-and-3. The Seen number now travels on
+    # its own, and her Unseen counts reach the model untouched. Kept on two screens on purpose
+    # (operator: "I would rather it be clear"). The 50 ceiling counts Seen AND Unseen together.
+
+  @e2e @flow @negative @P1
+  Scenario: Going over 50 in total tells her why, where she can see it
+    Given the NIETE bot chat is open and I have chosen "Both Seen and Unseen" and asked for 30 Seen
+    And I have ticked "MCQs" and "Brief Answers"
+    When I ask for 15 MCQs and 10 Brief Answers and continue
+    Then I stay on the Unseen screen and just above Continue it says the paper would be 55 questions (30 Seen + 25 Unseen) and the most is 50
+    # Operator, 23 Sep: "when you hit the limit, no error is displayed to the user so they can't
+    # even tell what is happening" — the logs showed Continue tapped twice a second apart. The
+    # reason used to sit at the TOP of the screen; it now sits under the offending box (a single
+    # bad box) or above Continue (a total over 50, which belongs to no one box).

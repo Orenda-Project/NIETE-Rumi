@@ -131,7 +131,10 @@ describe('the endpoint routes on the category', () => {
     mockRedis.get.mockResolvedValue({ ...SESSION, contentSource: 'unseen', questionCount: 10 });
     const res = await exchange('u1', 'TYPES',
       { question_types: ['MCQs'] }, 'u1:assessment-gen:1');
-    expect(res.screen).toBe('CONFIRM');
+    // bd-60175: COUNTS now sits between TYPES and CONFIRM — she names how many
+    // of each type next. What this test guards is unchanged: the picks reach
+    // the session rather than being dropped on the way.
+    expect(res.screen).toBe('COUNTS');
     const saved = mockRedis.set.mock.calls.at(-1)[1];
     expect(saved.pickedTypes).toEqual(['MCQs']);
   });
@@ -143,8 +146,16 @@ describe('the endpoint routes on the category', () => {
   });
 
   test('back from CONFIRM lands on QUESTIONS for seen, which never saw TYPES', async () => {
+    // bd-60175: on the current Flow seen names its size on COUNTS, so COUNTS is
+    // the screen before CONFIRM. A client still on the old published Flow
+    // (legacyCounts) never had COUNTS and still goes back to QUESTIONS.
+    mockRedis.get.mockResolvedValue({ ...SESSION, contentSource: 'seen', legacyCounts: true });
+    const legacy = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
+    expect(legacy.screen).toBe('QUESTIONS');
+
+    // Current Flow: seen reaches CONFIRM through its own Seen screen.
     mockRedis.get.mockResolvedValue({ ...SESSION, contentSource: 'seen' });
-    const res = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
-    expect(res.screen).toBe('QUESTIONS');
+    const current = await back('u1', 'CONFIRM', 'u1:assessment-gen:1');
+    expect(current.screen).toBe('SEEN_COUNT');
   });
 });
