@@ -636,6 +636,25 @@ Feature: NIETE (ICT) Teacher Training
     # right answer or two count at once and another answer only after a second look in another option order.
     # @wip — a class's mistake cannot be recorded on demand; proven in tests/quiz/transcript-quiz-key-truth.test.js.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz made from my recording never names or asks about a child in my class
+    Given the NIETE bot chat is open and I recorded a lesson in which I called on children by name and used their names in example sentences
+    When I say yes to the quiz for that lesson and it arrives
+    Then no question, option, explanation or feedback names a child from my class
+    And no question asks what a child said, answered or did in class
+    And no option says anything about a named child's behaviour
+    And a question that did any of these is written again about the lesson's idea, or left out — it is never sent to the class
+    And a story or word-problem character the lesson itself uses, and a person from history, can still be named
+    # transcript-quiz-pupils: the transcript digest keeps the lesson's characters in `people` and records the
+    # children the recording names as one-way hashes only (`pupil_tokens`), scrubbing the names from the digest
+    # and from the transcript excerpts the author reads; the author, the targeted rewrite and the picture repair
+    # get PUPILS_RULE. The validator's PEDAGOGY_PUPIL_AS_SUBJECT (hard fault): a recorded child in a child-facing
+    # field; a named person's meaning / answer / sentence / example, a named person's words with a class marker,
+    # or the teacher asking a named person; a negative claim about a named person. A title or an honorific marks
+    # a public figure. One targeted rewrite (PUPIL_REPAIR), else the salvage drops the question. The complaint and
+    # the logs never carry a name. @wip — a named child cannot be recorded on demand; proven in
+    # tests/quiz/transcript-quiz-pupils.test.js.
+
   @e2e @quiz @wip @draft @P2
   Scenario: A lesson quiz never asks the class the same question twice
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
