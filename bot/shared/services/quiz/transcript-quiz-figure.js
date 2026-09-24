@@ -277,7 +277,9 @@ function minimalSpecFor(type) {
   const entry = MANIFEST.types.find((m) => m.type === type);
   if (!entry) throw new FigureError('FIGURE_TYPE', `no manifest entry for "${type}"`);
   const spec = { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
-  return relabelLetterParts({ figure: spec }).question.figure;
+  // the quiz lane sets a match's handle letters itself; the model is not asked to
+  const { handleLetters, ...shown } = relabelLetterParts({ figure: spec }).question.figure; // eslint-disable-line no-unused-vars
+  return shown;
 }
 
 /**
@@ -662,6 +664,8 @@ const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 const PART_LETTERS = ['P', 'Q', 'R', 'S'];
 const PART_NUMBERS = ['1', '2', '3', '4'];
 const BIDI = /[\u200e\u200f\u2066-\u2069]/g;
+// "A goes with 2", "A is the cat": a verb after the letter makes it a name, not the article
+const LABEL_VERB_AFTER = /^\s+(is|are|was|goes|go|has|have|and|or|with|matches|match|shows|show|sits|means|belongs|pairs|comes|stands)\b/;
 const PART_NOUN_BEFORE = /(bars?|points?|rows?|ribbons?|components?|parts?|shapes?|labels?|lines?|sides?|vertex|vertices|angles?|symbols?|پٹی|پٹیوں|نقطہ|نقطے|قطار|حصہ|شکل|علامت)\s*$/i;
 
 /**
@@ -680,7 +684,7 @@ function renameLetters(text, map, { groups = false } = {}) {
       const after = whole.slice(offset + m.length);
       const before = whole.slice(0, offset + pre.length);
       // "A bar", "A fraction" is the article — unless a part noun names it ("bar A has…")
-      if (L === 'A' && /^\s+[a-z]/.test(after) && !PART_NOUN_BEFORE.test(before)) return m;
+      if (L === 'A' && /^\s+[a-z]/.test(after) && !PART_NOUN_BEFORE.test(before) && !LABEL_VERB_AFTER.test(after)) return m;
       return `${pre}${map[L]}`;
     });
     if (groups) t = t.replace(run, (m, pre, word) => `${pre}${[...word].map((L) => map[L]).join('')}`);
@@ -710,16 +714,30 @@ function relabelLetterParts(q) {
     partLabelSlots(figure).forEach(([h, k]) => { h[k] = bareName(h[k]); });
     q = { ...q, figure }; // eslint-disable-line no-param-reassign
   }
-  const probe = partLabelSlots(q.figure);
-  const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
-  if (!used.length) return { question: q, renamed: null };
-  const target = LETTER_NAMED_TYPES.has(type) ? PART_LETTERS : PART_NUMBERS;
-  const map = Object.fromEntries(used.map((L) => [L, target[OPTION_LETTERS.indexOf(L)]]));
-  const figure = JSON.parse(JSON.stringify(q.figure));
-  partLabelSlots(figure).forEach(([h, k]) => {
-    const l = String(h[k]).replace(BIDI, '').trim();
-    if (map[l]) h[k] = map[l];
-  });
+  let map;
+  let figure;
+  if (type === 'match') {
+    // The match engine DRAWS its own handle letters down one column (A, B, C
+    // by default) and the options are pairings of them ("A-2"): the card read
+    // "A: A-2". The engine takes its letters from `handleLetters` (a NIETE
+    // divergence, vendor SYNC.md 3.21); the quiz lane always names them P, Q,
+    // R, S, and renames every A-D the question uses for the rows it has.
+    if (q.figure.handles === false) return { question: q, renamed: null };
+    const rows = Math.min(OPTION_LETTERS.length, Array.isArray(q.figure.left) ? q.figure.left.length : OPTION_LETTERS.length);
+    map = Object.fromEntries(OPTION_LETTERS.slice(0, rows).map((L, k) => [L, PART_LETTERS[k]]));
+    figure = { ...JSON.parse(JSON.stringify(q.figure)), handleLetters: [...PART_LETTERS] };
+  } else {
+    const probe = partLabelSlots(q.figure);
+    const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
+    if (!used.length) return { question: q, renamed: null };
+    const target = LETTER_NAMED_TYPES.has(type) ? PART_LETTERS : PART_NUMBERS;
+    map = Object.fromEntries(used.map((L) => [L, target[OPTION_LETTERS.indexOf(L)]]));
+    figure = JSON.parse(JSON.stringify(q.figure));
+    partLabelSlots(figure).forEach(([h, k]) => {
+      const l = String(h[k]).replace(BIDI, '').trim();
+      if (map[l]) h[k] = map[l];
+    });
+  }
   const opts = { groups: type === 'geometry' };
   const rn = (t) => renameLetters(t, map, opts);
   const rnMap = (o) => (o && typeof o === 'object' && !Array.isArray(o)
@@ -1117,7 +1135,47 @@ function inQuestion(tok, haystack) {
   const t = norm(tok);
   if (!t) return true;
   const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, 'u').test(haystack);
+  if (new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, 'u').test(haystack)) return true;
+  return sameNameOtherScript(t, haystack);
+}
+
+// ─── one name, two scripts ───────────────────────────────────────────────────
+// A bar named «حرا کی بوتل» under a stem that wrote "‏Hira کی بوتل" lost its
+// label: "حرا" is not "Hira" to a string match (a replay, grade 4 Urdu). A
+// person's name written in both scripts keeps the same CONSONANTS — ح ر / h r,
+// ا ح م د / (a) h m d, س ا ر ہ / s (a) r (a) — so a label word in one script
+// counts as used by the question when a word in the other script has the same
+// consonant skeleton. Vowels, the silent ع, and w/v/y (which Urdu writes with
+// و / ی, letters that are just as often vowels) are left out on both sides.
+const URDU_CONSONANT = {
+  'ب': 'b', 'پ': 'p', 'ت': 't', 'ٹ': 't', 'ط': 't', 'ث': 's', 'س': 's', 'ص': 's', 'ج': 'j', 'چ': 'c',
+  'ح': 'h', 'ہ': 'h', 'ھ': 'h', 'خ': 'x', 'د': 'd', 'ڈ': 'd', 'ذ': 'z', 'ز': 'z', 'ض': 'z', 'ظ': 'z',
+  'ژ': 'z', 'ر': 'r', 'ڑ': 'r', 'ش': 'S', 'غ': 'g', 'ف': 'f', 'ق': 'k', 'ک': 'k', 'گ': 'g', 'ل': 'l',
+  'م': 'm', 'ن': 'n', 'ں': 'n',
+};
+function urduSkeleton(word) {
+  const letters = [...String(word)].filter((ch) => /\p{Script=Arabic}/u.test(ch));
+  // a word-final ہ is the vowel "a" («سارہ» Sara), not an h
+  if (letters.length > 1 && letters[letters.length - 1] === 'ہ') letters.pop();
+  return letters.map((ch) => URDU_CONSONANT[ch] || '').join('');
+}
+function latinSkeleton(word) {
+  return String(word).toLowerCase()
+    .replace(/sh/g, 'S').replace(/kh/g, 'x').replace(/gh/g, 'g').replace(/ch/g, 'c').replace(/ph/g, 'f')
+    .replace(/q/g, 'k').replace(/[^a-zS]/g, '')
+    .replace(/[aeiouywv]/g, '')
+    .replace(/(.)\1+/g, '$1');
+}
+function sameNameOtherScript(tok, haystack) {
+  const urdu = /\p{Script=Arabic}/u.test(tok);
+  const mine = urdu ? urduSkeleton(tok).replace(/(.)\1+/g, '$1') : latinSkeleton(tok);
+  if (!mine) return false;
+  const words = String(haystack).split(/[^\p{L}]+/u).filter(Boolean);
+  return words.some((w) => {
+    const other = /\p{Script=Arabic}/u.test(w);
+    if (other === urdu) return false;
+    return (other ? urduSkeleton(w).replace(/(.)\1+/g, '$1') : latinSkeleton(w)) === mine;
+  });
 }
 
 /**
