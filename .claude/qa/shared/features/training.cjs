@@ -15,7 +15,9 @@ const VF = (op, c, ev) => op.ok ? V(c, ev) : ['BLOCKED', { harness: op.err, clic
 const CARD = /Teacher Training/i;
 const CTA  = 'کھولیں|Open';
 
-exports.run = async ({ api, rec, sleep }) => {
+exports.run = async ({ api, rec: rec0, sleep }) => {
+  const seenIds = new Set();
+  const rec = (id, ...rest) => { seenIds.add(id); return rec0(id, ...rest); };
   const t = () => Date.now();
   let s;
 
@@ -782,6 +784,387 @@ exports.run = async ({ api, rec, sleep }) => {
     } finally { api.closeFlow(); if (seeded24) { try { api.db('seed-lp-quiz', ['--restore']); } catch (e) {} } }   // restore keys on meta.qa_seed, not the id
   }
 
+  // ══ T35–T62 — the class-quiz scenarios sandbox added (bd-5d294) ══════════════════════════════
+  // Two seeds and a second phone make most of these drivable with no LLM: seed-class-quiz writes a
+  // SENT quiz with four hand-written questions and a QUIZ-<code>; api.as(phone) is a child (or a
+  // friend) on the same mock stack. Lesson-plan states (offered / failed) are seeded with the
+  // lesson references of a REAL lesson-plan quiz, so "Make it" can genuinely generate (worker +
+  // LLM via cassette replay-on-miss). What still cannot be reached is said so, per scenario.
+  {
+    const N = (tid, title) => (verdict, ev, ms) => rec(tid, title, ...(Array.isArray(verdict) ? verdict : [verdict, ev]), ms);
+    const T = {
+      T35: 'A lesson-plan quiz still waiting for its language is asked again from /quiz, never "still being made"',
+      T36: 'A lesson-plan quiz that could not be made opens in /quiz, says why, and can be made again',
+      T37: '/quiz never promises a report when no student has finished',
+      T38: 'A letter typed during a class quiz answers the question, and an unfinished quiz never takes over the chat',
+      T39: 'A child can type STOP to end a class quiz, and the teacher sees it stopped',
+      T40: '/quiz counts each child once, however many times they opened the quiz',
+      T41: 'A lesson-plan quiz that could not be started says so, and can be made again',
+      T42: 'A question that cannot be sent is skipped, and the child is scored on the questions actually asked',
+      T43: 'The class report names the class once, the same way, however the children typed it',
+      T44: 'The class report never calls me "your teacher"',
+      T45: 'The class report and the quiz PDF do not leave pages nearly empty',
+      T46: 'A quiz the model could not write from my lesson plan says the problem was on our side',
+      T47: 'A quiz the model could not write from my coaching recording says the problem was on our side',
+      T48: 'An Urdu class quiz speaks to the child in grammatical Urdu, and a picture question looks like the rest of the quiz',
+      T49: 'A place-value question shows the bundles the class built, and never the number',
+      T50: 'A four-digit place-value question shows the thousands the class built',
+      T51: 'A counting question draws the lesson’s own objects — sweets, dates, cookies, lilies, samosas, bangles',
+      T52: 'An Urdu quiz for a maths lesson full of English terms is made, with the terms in English letters',
+      T53: 'In an Urdu quiz, two English terms are never written side by side',
+      T54: 'A grade 1-5 maths quiz draws what the lesson drew, on at least three questions',
+      T55: 'A column subtraction reaches the child set out the way the textbook prints it',
+      T56: 'A child opening an Urdu quiz link is asked for name and class in Urdu',
+      T57: 'After an Urdu quiz, the message a child forwards to a friend is in Urdu',
+      T58: 'A child who passed an Urdu quiz to a friend hears how the friend did, in Urdu',
+      T59: 'A video quiz sent to the class from an Urdu run forwards an Urdu message',
+      T60: 'A video quiz offered in Urdu answers every tap in Urdu, even after the offer or the quiz has ended',
+      T61: 'The reminder about a quiet quiz reads naturally and keeps each quiz title whole',
+      T62: 'The quiz caption names the lesson once, with a bracket only when the bracket says something new',
+    };
+    const R = (tid) => N(tid, T[tid]);
+    const CHILD_PREFIX = '9230099';
+    const child = (n) => api.as(CHILD_PREFIX + String(n).padStart(5, '0'));
+    const URDU = /[؀-ۿ]/;
+    const waitOn = async (actor, pred, timeoutMs, stepMs = 1500) => {
+      const t0 = Date.now(); const seen = [];
+      while (Date.now() - t0 < timeoutMs) {
+        for (const r of await actor.fresh()) seen.push(r);
+        const hit = seen.find(pred); if (hit) return { ok: true, hit, seen, waitedMs: Date.now() - t0 };
+        await sleep(stepMs);
+      }
+      return { ok: false, seen, last: (seen[seen.length - 1] || {}).txt || '', waitedMs: Date.now() - t0 };
+    };
+    const isChildQ = (x) => !!((x.list && (x.list.rows || []).length) || (x.btns || []).some(b => /^[A-D]$/.test(b)));
+    const isEnd = (x) => /All done|مکمل|out of|میں سے|QUIZ COMPLETE|کوئز مکمل/.test(x.txt || '') || (x.btns || []).some(b => /Invite a friend|دوست کو بھیجیں/.test(b));
+    // Join a class quiz from its link: greeting → "Start" opens the WHO Flow (name + class) → question 1.
+    const childJoin = async (kid, code, name, cls) => {
+      await kid.resetFlow(); await kid.freshReset();
+      const g = await kid.sendWait('QUIZ-' + code);
+      const ev = { greeting: (g.txt || '').slice(0, 220), buttons: g.btns };
+      if ((g.btns || []).some(b => /^Start$|شروع کریں/.test(b))) {
+        const op = await kid.openFlow('^Start$|شروع کریں');
+        if (!op.ok) return { ok: false, err: 'JOIN_FLOW:' + op.err, ...ev };
+        const pr = await kid.flowProbe(); ev.joinScreen = { screen: pr.screen, text: String(pr.text || '').slice(0, 160) };
+        await kid.flowType(name, { field: 'student_name' }); await kid.flowType(cls, { field: 'student_class' });
+        await kid.freshReset();
+        const s = await kid.flowClick('Start the quiz|quiz شروع کریں', { settleMs: 3000 }); kid.closeFlow();
+        ev.joinVia = 'flow'; ev.submit = s.ok;
+      } else if (/name|نام/i.test(g.txt || '')) {
+        await kid.sendWait(name); await kid.freshReset(); await kid.sendWait(cls); ev.joinVia = 'chat';
+      } else if ((g.btns || []).length) {
+        await kid.tapAndWait(g.btns[0], 30000); ev.joinVia = 'button:' + g.btns[0];
+      }
+      const q1 = await waitOn(kid, isChildQ, 60000);
+      return { ok: q1.ok, ...ev, q: q1.hit || null, seen: q1.seen, last: q1.last };
+    };
+    // Answer the question on screen. want: option TEXT (any shuffle) | 'wrong' | a letter to TYPE.
+    const optionText = (row) => String(row.description || row.title || '');
+    const childAnswer = async (kid, q, want, { type = false } = {}) => {
+      await kid.freshReset();
+      if (type) { await kid.sendWait(String(want)); }
+      else if (q.list && (q.list.rows || []).length) {
+        const rows = q.list.rows;
+        const row = want === 'wrong' ? rows[rows.length - 1] : (rows.find(r => optionText(r) === String(want)) || rows.find(r => /^[A-D]$/.test(r.title) && optionText(r).includes(String(want))) || rows[0]);
+        await kid.tapId('list', row.id, row.title);
+      } else {
+        const btns = q.btns || []; const b = want === 'wrong' ? btns[btns.length - 1] : (btns.find(x => x === String(want)) || btns[0]);
+        await kid.tapAndWait(b, 30000);
+      }
+      const w = await waitOn(kid, (x) => isChildQ(x) || isEnd(x), 60000);
+      const fb = w.seen.map(x => x.txt || '').join(' | ');
+      return { ok: w.ok, next: w.hit || null, feedback: fb.slice(0, 200), ended: !!(w.hit && isEnd(w.hit)), seen: w.seen };
+    };
+    // The correct option's TEXT for question i of the seeded en/ur quiz (same numbers both languages).
+    const KEY_TEXT = ['37', '51', '2', '92'];
+    const childRun = async (kid, code, name, cls, { correct = 4, stopAfter = null, typed = false } = {}) => {
+      const j = await childJoin(kid, code, name, cls); if (!j.ok) return { ok: false, err: 'JOIN:' + (j.err || j.last), join: j };
+      let q = j.q, answered = 0, ended = false, trail = [];
+      for (let i = 0; i < 8 && q && !ended; i++) {
+        const idx = trail.length; const want = idx < correct ? KEY_TEXT[idx] || 'wrong' : 'wrong';
+        const a = await childAnswer(kid, q, typed ? ['A', 'B', 'C', 'D'][idx % 4] : want, { type: typed });
+        answered++; trail.push({ q: idx + 1, want, feedback: a.feedback.slice(0, 90) });
+        ended = a.ended; q = a.next;
+        if (stopAfter && answered >= stopAfter) return { ok: true, answered, trail, ended: false, q, join: j };
+      }
+      return { ok: ended, answered, trail, ended, join: j, end: q };
+    };
+    // Teacher side: /quiz → the Flow → open a row → LESSON screen
+    const openLesson = async (rowPred) => {
+      await api.resetFlow(); await api.freshReset();
+      const q = await api.sendWait('/quiz');
+      const op = await api.openFlow('.+'); if (!op.ok) return { ok: false, err: 'QUIZ_FLOW:' + op.err, reply: (q.txt || '').slice(0, 120) };
+      const pr = await api.flowProbe(); const rows = (pr.items || []).filter(i => i.kind !== 'footer');
+      const row = rows.find(rowPred) || null;
+      if (!row) return { ok: false, err: 'ROW_ABSENT', rows: rows.map(i => ({ id: i.id, text: String(i.text || '').slice(0, 50) })).slice(0, 6) };
+      const k = await api.flowClick(String(row.text), { settleMs: 3000, exact: true });
+      const lp = await api.flowProbe();
+      return { ok: !!k.ok, err: k.err, row: { id: row.id, text: row.text, hay: String(row.hay || '').slice(0, 120) }, screen: lp.screen, text: String(lp.text || '').slice(0, 600),
+               actions: (lp.items || []).filter(i => i.kind === 'option').map(i => ({ id: i.id, text: String(i.text || '').slice(0, 60) })) };
+    };
+    const chooseAction = async (re) => {
+      const pr = await api.flowProbe(); const a = (pr.items || []).find(i => i.kind === 'option' && re.test(String(i.text || '') + ' ' + String(i.id || '')));
+      if (!a) return { ok: false, err: 'NO_ACTION', offered: (pr.items || []).filter(i => i.kind === 'option').map(i => i.text) };
+      const p = await api.flowPick(a.text, { exact: true }); if (!p.ok) return { ok: false, err: 'PICK:' + p.err };
+      await api.freshReset();
+      const c = await api.flowClick('Continue|Next|Done|آگے', { settleMs: 3000 });
+      const done = await api.flowProbe();
+      if (done.screen === 'DONE') { await api.flowClick('Close|Done|بند', { settleMs: 1500 }).catch(() => null); }
+      api.closeFlow();
+      return { ok: true, picked: a.text, doneScreen: done.screen, doneText: String(done.text || '').slice(0, 200) };
+    };
+    const pdfText = async (doc, name) => {
+      const base = String(process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '');
+      const res = await fetch(base + '/media/' + doc.media.id + '/bytes'); const buf = Buffer.from(await res.arrayBuffer());
+      const out = path.join(process.env.RUN_DIR || '.', name); fs.writeFileSync(out, buf);
+      const pages = JSON.parse(execFileSync('python3', ['-c', 'import sys,json,pypdf;r=pypdf.PdfReader(sys.argv[1]);print(json.dumps([(p.extract_text() or "") for p in r.pages]))', out], { encoding: 'utf8', timeout: 60000 }));
+      return { pages, text: pages.join('\n'), bytes: buf.length, saved: out };
+    };
+
+    // ── the EN class quiz: T37 (before) → T38 T39 T40 → T37 (after) → T43 T44 ───────────────
+    let enq = null, urq = null, brk = null;
+    try {
+      enq = dbJson('seed-class-quiz', ['--language', 'en']);
+      if (!enq || !enq.code) throw new Error('SEED_EN:' + JSON.stringify(enq));
+      // T37 (first half): nobody finished → Resend link + Done, no Generate report
+      s = t();
+      const before = await openLesson(i => String(i.id || '') === 'lp_' + enq.quizId);
+      const ev37 = { before: { ok: before.ok, err: before.err, actions: before.actions && before.actions.map(a => a.text), text: (before.text || '').slice(0, 200) } };
+      api.closeFlow();
+      // T38 — typed letters; the teacher's own unfinished run never takes over /menu
+      s = t();
+      const k1 = child(1);
+      const j = await childJoin(k1, enq.code, 'Ali', 'Grade 3');
+      const ev38 = { join: { via: j.joinVia, ok: j.ok, greeting: j.greeting, err: j.err || j.last } };
+      if (j.ok) {
+        const a1 = await childAnswer(k1, j.q, 'B', { type: true });
+        ev38.typedB = { recorded: !!(a1.next || a1.ended), feedback: a1.feedback };
+        const a2 = a1.next ? await childAnswer(k1, a1.next, 'Z', { type: true }) : { ok: false };
+        ev38.typedZ = { taken: a2.ok && a2.next && a2.next !== a1.next, feedback: (a2.feedback || '').slice(0, 120) };
+        // the teacher opens her own link, answers one, then /menu must still be the menu
+        await api.freshReset(); const tj = await childJoin(api, enq.code, 'E2E Driver', 'Grade 3');
+        if (tj.ok) await childAnswer(api, tj.q, 'A', { type: true });
+        const menu = await api.sendWait('/menu');
+        ev38.teacherMenuAfterOwnRun = { reply: (menu.txt || '').slice(0, 120), isMenu: /menu|مینو|choose|Lesson plan|Training/i.test(menu.txt || '') || (menu.btns || []).length > 0 || !!menu.list };
+        R('T38')(V(ev38.typedB.recorded && !ev38.typedZ.taken && ev38.teacherMenuAfterOwnRun.isMenu, ev38), t() - s);
+        // finish k1 correctly so she counts as finished
+        let q = a2.next || a1.next; for (let i = 0; q && i < 6; i++) { const a = await childAnswer(k1, q, KEY_TEXT[Math.min(i + 2, 3)]); if (a.ended) break; q = a.next; }
+      } else R('T38')('BLOCKED', { reason: 'child could not join the quiz: ' + (j.err || j.last), ...ev38 }, t() - s);
+      // T39 — STOP
+      s = t();
+      const k2 = child(2);
+      const j2 = await childJoin(k2, enq.code, 'Sara', 'Grade 3');
+      const ev39 = { join: j2.ok, err: j2.err || j2.last };
+      if (j2.ok) {
+        await k2.freshReset(); const st = await k2.sendWait('stop');
+        ev39.stopped = { reply: (st.txt || '').slice(0, 160), saysStopped: /stopped|روک|رک گیا/i.test(st.txt || '') };
+        await k2.freshReset();
+        if (j2.q.list) { const r = j2.q.list.rows[0]; await k2.tapId('list', r.id, r.title); } else if ((j2.q.btns || [])[0]) { try { await k2.tapAndWait(j2.q.btns[0], 8000); } catch (e) {} }
+        const after = await waitOn(k2, (x) => /Correct|Not quite|درست|غلط|Question \d+ of|سوال \d+/.test(x.txt || ''), 8000);
+        ev39.oldTapRecorded = after.ok; ev39.afterTap = after.ok ? (after.hit.txt || '').slice(0, 100) : 'nothing';
+        const les = await openLesson(i => String(i.id || '') === 'lp_' + enq.quizId); api.closeFlow();
+        ev39.lesson = { text: (les.text || '').slice(0, 400) };
+        ev39.listedAsStopped = /Stopped before the end[^\n]*Sara|روک[^\n]*Sara/.test(les.text || '');
+        R('T39')(V(ev39.stopped.saysStopped && !ev39.oldTapRecorded && ev39.listedAsStopped, ev39), t() - s);
+      } else R('T39')('BLOCKED', { reason: 'child could not join: ' + (j2.err || j2.last) }, t() - s);
+      // T40 — each child counted once, latest finished attempt
+      s = t();
+      const k3 = child(3), k4 = child(4);
+      const r3a = await childRun(k3, enq.code, 'Bilal', 'Grade 3', { stopAfter: 1 }); if (r3a.ok) { await k3.freshReset(); await k3.sendWait('stop'); }
+      const r3b = await childRun(k3, enq.code, 'Bilal', 'Grade 3', { correct: 4 });
+      const r4a = await childRun(k4, enq.code, 'Hina', 'Grade 3', { correct: 2 });
+      const r4b = await childRun(k4, enq.code, 'Hina', 'Grade 3', { correct: 4 });
+      const les40 = await openLesson(i => String(i.id || '') === 'lp_' + enq.quizId); api.closeFlow();
+      const head = (/(\d+) started · (\d+) finished · average (\d+)%/.exec(les40.text || '') || []);
+      const names = ((les40.text || '').match(/Bilal|Hina/g) || []);
+      const ev40 = { runs: { bilalStoppedThenFinished: r3a.ok && r3b.ok, hinaTwice: r4a.ok && r4b.ok }, head: head[0] || null, started: head[1], finished: head[2], avg: head[3],
+                     bilalLines: names.filter(n => n === 'Bilal').length, hinaLines: names.filter(n => n === 'Hina').length, lesson: (les40.text || '').slice(0, 400) };
+      // Ali finished (T38), Sara stopped (T39), Bilal + Hina finished: 4 started, 3 finished. Latest attempts: Ali (typed, unknown), Bilal 100, Hina 100.
+      R('T40')(V(!!head[0] && ev40.bilalLines === 1 && ev40.hinaLines === 1 && Number(head[1]) === 4 && Number(head[2]) === 3, ev40), t() - s);
+      // T37 (second half): a child has finished → Generate report first, and choosing it brings the report
+      s = t();
+      const afterL = await openLesson(i => String(i.id || '') === 'lp_' + enq.quizId);
+      ev37.after = { actions: afterL.actions && afterL.actions.map(a => a.text) };
+      await api.freshReset();
+      const pick = afterL.ok ? await chooseAction(/Generate report|رپورٹ/) : { ok: false, err: afterL.err };
+      const rep = pick.ok ? await waitFresh((x) => x.doc || x.pdf, 240000) : { ok: false };
+      ev37.report = { picked: pick.picked, arrived: !!rep.ok, filename: rep.ok && rep.hit.media && rep.hit.media.filename, err: pick.err };
+      const bActs = (ev37.before.actions || []).join(' '), aActs = (ev37.after.actions || []).join(' ');
+      R('T37')(V(before.ok && /Resend link/.test(bActs) && /Done/.test(bActs) && !/Generate report/.test(bActs) && /^Generate report/.test((ev37.after.actions || [])[0] || '') && ev37.report.arrived, ev37), t() - s);
+      // T43 / T44 — the report's text
+      s = t();
+      let ev43 = {}, ev44 = {};
+      if (rep.ok) {
+        const pdf = await pdfText(rep.hit, 'class-report-en.pdf');
+        const header = pdf.pages[0] || '';
+        ev43 = { classMentionsOnPage1: (header.match(/Class 3|Grade 3/g) || []).length, hasDoubledClass: /3، ?۳|Grade 3[^\n]*Grade 3[^\n]*Grade 3/.test(header),
+                 repeatsClassPerChild: (pdf.text.match(/Grade 3/g) || []).length > 2, sample: header.replace(/\s+/g, ' ').slice(0, 220), saved: pdf.saved };
+        R('T43')(V(ev43.classMentionsOnPage1 >= 1 && !ev43.hasDoubledClass && !ev43.repeatsClassPerChild, ev43), t() - s);
+        ev44 = { yourTeacher: /Your teacher|آپ کے استاد/.test(pdf.text), note: 'the driver account HAS a first name (E2E Driver); the Given asks for none — checked that the phrase never appears anyway' };
+        R('T44')(V(!ev44.yourTeacher, ev44), t() - s);
+      } else { R('T43')('BLOCKED', { reason: 'no class report arrived to read', report: ev37.report }, t() - s); R('T44')('BLOCKED', { reason: 'no class report arrived to read' }, t() - s); }
+    } catch (e) { for (const id of ['T37', 'T38', 'T39', 'T40', 'T43', 'T44']) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'the EN class-quiz drive threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
+
+    // ── the UR class quiz: T56 T57 T58 T45 ───────────────────────────────────────────────
+    try {
+      urq = dbJson('seed-class-quiz', ['--language', 'ur']);
+      if (!urq || !urq.code) throw new Error('SEED_UR:' + JSON.stringify(urq));
+      s = t();
+      const k5 = child(5);
+      const j5 = await childJoin(k5, urq.code, 'علی', '3');
+      const ev56 = { greeting: j5.greeting, buttons: j5.buttons, joinScreen: j5.joinScreen, joinVia: j5.joinVia, q1: j5.ok };
+      ev56.urduGreeting = URDU.test(j5.greeting || ''); ev56.startButtonUrdu = (j5.buttons || []).some(b => /شروع کریں/.test(b));
+      ev56.askedInUrdu = !!(j5.joinScreen && URDU.test(j5.joinScreen.text || ''));
+      R('T56')(V(ev56.urduGreeting && ev56.startButtonUrdu && ev56.askedInUrdu && j5.ok, ev56), t() - s);
+      // finish the Urdu quiz with two wrong answers (T45 wants questions worth reteaching)
+      let q = j5.q, endItem = null; for (let i = 0; q && i < 6; i++) { const a = await childAnswer(k5, q, i < 2 ? 'wrong' : KEY_TEXT[i]); if (a.ended) { endItem = a.seen; break; } q = a.next; }
+      // T57 — invite a friend, in Urdu
+      s = t();
+      const inviteBtn = await waitOn(k5, (x) => (x.btns || []).some(b => /دوست کو بھیجیں|Invite a friend/.test(b)), 30000);
+      const ev57 = { inviteOffered: inviteBtn.ok, offer: inviteBtn.ok ? (inviteBtn.hit.txt || '').slice(0, 120) : inviteBtn.last };
+      let friendCode = null;
+      if (inviteBtn.ok) {
+        await k5.freshReset(); await k5.tapAndWait((inviteBtn.hit.btns || []).find(b => /دوست|Invite/.test(b)), 30000);
+        const msgs = await waitOn(k5, (x) => /QUIZ-[A-Z0-9]{6}/.test(x.txt || ''), 30000);
+        const all = msgs.seen.map(x => x.txt || '');
+        ev57.instruction = (all[0] || '').slice(0, 140); ev57.forward = (all.find(x => /QUIZ-/.test(x)) || '').slice(0, 200);
+        friendCode = (/QUIZ-([A-Z0-9]{6})/.exec(ev57.forward) || [])[1] || null;
+        ev57.instructionUrdu = URDU.test(ev57.instruction); ev57.forwardUrdu = URDU.test(ev57.forward); ev57.namesChildFirstNameOnly = /علی/.test(ev57.forward);
+        R('T57')(V(ev57.instructionUrdu && ev57.forwardUrdu && !!friendCode && ev57.namesChildFirstNameOnly, ev57), t() - s);
+      } else R('T57')('BLOCKED', { reason: 'no invite-a-friend button after finishing the Urdu quiz', ...ev57 }, t() - s);
+      // T58 — the friend finishes; the first child hears in Urdu with both scores
+      s = t();
+      if (friendCode) {
+        const k6 = child(6); await k5.freshReset();
+        const r6 = await childRun(k6, friendCode, 'احمد', '3', { correct: 4 });
+        const told = await waitOn(k5, (x) => /احمد/.test(x.txt || ''), 60000);
+        const ev58 = { friendFinished: r6.ok, told: told.ok ? (told.hit.txt || '').slice(0, 220) : told.last,
+                       urdu: told.ok && URDU.test(told.hit.txt || ''), scoresShape: told.ok && /\d+ میں سے \d+/.test(told.hit.txt || ''),
+                       framedAsLoss: told.ok && /ہار|lost|behind/i.test(told.hit.txt || '') };
+        R('T58')(V(ev58.friendFinished && ev58.urdu && ev58.scoresShape && !ev58.framedAsLoss, ev58), t() - s);
+      } else R('T58')('BLOCKED', { reason: 'no friend link came out of T57' }, t() - s);
+      // T45 — the Urdu report's pages
+      s = t();
+      const lesU = await openLesson(i => String(i.id || '') === 'lp_' + urq.quizId);
+      await api.freshReset();
+      const pickU = lesU.ok ? await chooseAction(/Generate report|رپورٹ/) : { ok: false, err: lesU.err };
+      const repU = pickU.ok ? await waitFresh((x) => x.doc || x.pdf, 240000) : { ok: false };
+      if (repU.ok) {
+        const pdf = await pdfText(repU.hit, 'class-report-ur.pdf');
+        const lens = pdf.pages.map(p => p.replace(/\s+/g, '').length);
+        const ev45 = { pages: pdf.pages.length, pageTextLengths: lens, firstPageHasQuestion: /\?|؟/.test(pdf.pages[0] || ''),
+                       nearlyEmptyBeforeLast: lens.slice(0, -1).some((n, i) => n < 0.25 * Math.max(...lens)), saved: pdf.saved };
+        R('T45')(V(ev45.firstPageHasQuestion && !ev45.nearlyEmptyBeforeLast, ev45), t() - s);
+      } else R('T45')('BLOCKED', { reason: 'no Urdu class report arrived: ' + (pickU.err || 'timeout'), lesson: lesU.err || (lesU.actions || []).map(a => a.text) }, t() - s);
+    } catch (e) { for (const id of ['T56', 'T57', 'T58', 'T45']) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'the UR class-quiz drive threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
+
+    // ── T42: a question whose card cannot be fetched is skipped ─────────────────────────
+    try {
+      s = t();
+      brk = dbJson('seed-class-quiz', ['--language', 'en', '--broken-q']);
+      if (!brk || !brk.code) throw new Error('SEED_BRK:' + JSON.stringify(brk));
+      const k7 = child(7);
+      const r7 = await childRun(k7, brk.code, 'Zain', 'Grade 3', { correct: 4 });
+      const all = (r7.trail || []).map(x => x.feedback).join(' | ') + ' ' + ((r7.end && r7.end.txt) || '');
+      const ev42 = { answered: r7.answered, ended: r7.ended, skippedNotice: /could not send|couldn.t send|skipped|بھیج نہیں/i.test(all), scoreLine: (/out of \d+|\d+ میں سے/.exec(all) || [])[0] || null, trail: r7.trail, end: ((r7.end && r7.end.txt) || '').slice(0, 160) };
+      R('T42')(V(ev42.ended && ev42.skippedNotice && /out of 3/.test(all), ev42), t() - s);
+    } catch (e) { if (!seenIds.has('T42')) R('T42')('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
+
+    // ── lesson-plan quiz states: T35 (offered) T36 (failed) T41 (queue_failed) — with REAL lesson refs
+    const lpState = async (tid, state, actionRe, expectText) => {
+      s = t();
+      let row = null;
+      try {
+        row = dbJson('seed-lp-quiz', ['--state', state, '--lessons-from', 'auto', '--subject', 'maths']);
+        if (!row || !row.id) throw new Error('SEED:' + JSON.stringify(row));
+        const les = await openLesson(i => String(i.id || '') === 'lp_' + row.id);
+        const ev = { lessonsBorrowed: row.lessons, rowText: les.row && les.row.hay, screen: les.screen, text: (les.text || '').slice(0, 300), actions: (les.actions || []).map(a => a.text) };
+        ev.saysStillBeingMade = /still being made|Being made|تیار ہو رہا/.test(les.text || '');
+        ev.textMatches = expectText.test(les.text || '');
+        await api.freshReset();
+        const pick = les.ok ? await chooseAction(actionRe) : { ok: false, err: les.err };
+        ev.picked = pick.picked; ev.done = pick.doneText;
+        const ack = await waitFresh((x) => /Making it now|making the quiz|بن رہا/i.test(x.txt || ''), 60000);
+        ev.acknowledged = ack.ok ? (ack.hit.txt || '').slice(0, 140) : ack.last;
+        const arrived = ack.ok ? await waitFresh((x) => (x.doc || x.pdf) || /QUIZ-[A-Z0-9]{6}/.test(x.txt || ''), 300000) : { ok: false };
+        const after = dbJson('quiz-rows', ['--quiz', String(row.id)]) || {};
+        ev.arrival = { arrived: !!arrived.ok, what: arrived.ok ? (arrived.hit.media && arrived.hit.media.filename) || (arrived.hit.txt || '').slice(0, 120) : 'not within 5 min',
+                       status: after.quiz && after.quiz.status, error: after.quiz && after.quiz.meta && after.quiz.meta.error, questions: (after.questions || []).length };
+        const ok = les.ok && ev.textMatches && !!pick.ok && ack.ok && !!arrived.ok;
+        R(tid)(ok ? V(true, ev) : (les.ok && ev.textMatches && pick.ok && ack.ok
+                 ? ['BLOCKED', { reason: 'the screen, the action and the acknowledgement are right; the quiz itself did not arrive — generation ' + (ev.arrival.status || '?') + (ev.arrival.error ? ' (' + ev.arrival.error + ')' : ''), ...ev }]
+                 : V(false, ev)), t() - s);
+      } catch (e) { R(tid)('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, t() - s); }
+      finally { try { api.db('seed-lp-quiz', ['--restore']); } catch (e) {} }
+    };
+    await lpState('T35', 'offered', /make_en|English|انگریزی|Make/i, /./);
+    await lpState('T36', 'failed', /Make it again|remake|دوبارہ/i, /went wrong on my side[^\n]*not your lesson plan|The problem was not your lesson plan/i);
+    await lpState('T41', 'queue_failed', /Make it again|remake|دوبارہ/i, /could not be started on my side[^\n]*not your lesson plan/i);
+
+    // ── T52 / T53 / T62: an Urdu quiz GENERATED from the fractions lesson (one generation, three checks)
+    {
+      s = t(); let row = null;
+      try {
+        row = dbJson('seed-lp-quiz', ['--state', 'offered', '--lessons-from', 'auto', '--subject', 'maths']);
+        if (!row || !row.id || !row.lessons) throw new Error('no real maths lesson-plan quiz to borrow lesson refs from');
+        const les = await openLesson(i => String(i.id || '') === 'lp_' + row.id);
+        await api.freshReset();
+        const pick = les.ok ? await chooseAction(/make_ur|اردو|Urdu/i) : { ok: false, err: les.err };
+        const ack = await waitFresh((x) => /Making it now|making the quiz|بن رہا/i.test(x.txt || ''), 60000);
+        const seenAll = [];
+        const t0 = Date.now(); let doc = null, fwd = null;
+        while (Date.now() - t0 < 360000 && !(doc && fwd)) { for (const x of await api.fresh()) { seenAll.push(x); if (x.doc || x.pdf) doc = x; if (/QUIZ-[A-Z0-9]{6}/.test(x.txt || '')) fwd = x; } if (/couldn.t make|could not make|went wrong/i.test(seenAll.map(x => x.txt).join(' '))) break; await sleep(3000); }
+        const after = dbJson('quiz-rows', ['--quiz', String(row.id)]) || {};
+        const qs = after.questions || [];
+        const texts = qs.flatMap(q => [q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, ...(Object.values(q.option_feedback || {}))].filter(Boolean).map(String));
+        const latinTerms = texts.flatMap(x => x.match(/[A-Za-z][A-Za-z-]{2,}/g) || []);
+        const adjacentEnglish = texts.filter(x => /[A-Za-z][A-Za-z-]+\s+[A-Za-z][A-Za-z-]+\s+[A-Za-z][A-Za-z-]+/.test(x) && !/(improper|proper|common|cross|unlike|like|mixed) (fraction|denominator|multiplication|numbers?)/i.test(x));
+        const base = { topic: row.topic, lessonsBorrowed: row.lessons, picked: pick.picked, acknowledged: ack.ok, arrived: { pdf: !!doc, forward: !!fwd, caption: doc && (doc.txt || '').slice(0, 160) },
+                       status: after.quiz && after.quiz.status, error: after.quiz && after.quiz.meta && after.quiz.meta.error, questions: qs.length, language: after.quiz && after.quiz.language };
+        const madeInUrdu = !!doc && qs.length > 0 && qs.every(q => URDU.test(q.question_text || ''));
+        const ev52 = { ...base, urduQuestions: qs.filter(q => URDU.test(q.question_text || '')).length, englishTermsKept: [...new Set(latinTerms)].slice(0, 12) };
+        R('T52')(doc ? V(madeInUrdu && latinTerms.length > 0, ev52) : ['BLOCKED', { reason: 'no Urdu quiz arrived from the borrowed fractions lesson: ' + (base.status || '?') + (base.error ? ' (' + base.error + ')' : ''), ...ev52 }], t() - s);
+        const ev53 = { ...base, textsChecked: texts.length, threeEnglishInARow: adjacentEnglish.slice(0, 4) };
+        R('T53')(doc ? V(qs.length > 0 && adjacentEnglish.length === 0, ev53) : ['BLOCKED', { reason: 'no generated Urdu quiz to inspect', ...ev53 }], t() - s);
+        const cap = doc ? String(doc.txt || '') : '';
+        const topicWords = String(row.topic || '').toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 4);
+        const mentions = topicWords.length ? topicWords.filter(w => (cap.toLowerCase().match(new RegExp(w, 'g')) || []).length > 1) : [];
+        const ev62 = { caption: cap.slice(0, 200), topic: row.topic, bracket: /\(.+\)/.test(cap), duplicatedTopicWords: mentions };
+        R('T62')(doc ? V(!!cap && mentions.length === 0, ev62) : ['BLOCKED', { reason: 'no quiz PDF caption arrived to judge', ...ev62 }], t() - s);
+      } catch (e) { for (const id of ['T52', 'T53', 'T62']) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, t() - s); }
+      finally { try { api.db('seed-lp-quiz', ['--restore']); } catch (e) {} }
+    }
+
+    // ── not reachable in the mock lane — the precondition each one needs, named ─────────────
+    const NOT_HERE = {
+      T46: 'forcing "no usable reply" from the model mid-generation: the worker calls the LLM through the cassette; a recorded miss replays, it cannot be made to fail on demand. Pinned by transcript-quiz-generate tests (key_disagreement / model_failed paths).',
+      T47: 'a coaching RECORDING quiz: needs a coaching session with a long transcript on the driver plus a forced model failure — neither is seedable here.',
+      T48: 'an Urdu quiz with a PICTURE question from a maths lesson: generation must choose a figure question; no seeded lesson guarantees one. Picture rendering is pinned by bot/tests/quiz/*figure* tests.',
+      T49: 'a base-ten bundles picture: needs generation to author a place-value picture question from a tens-and-ones lesson; picture composition is pinned by quiz figure unit tests.',
+      T50: 'a thousands-column picture: same as T49 for four-digit numbers.',
+      T51: 'lesson-object counters (sweets, samosas…): same generation dependency; drawn-object choice is pinned by figure unit tests.',
+      T54: 'at least three picture questions from a counting lesson: depends on what generation authors from a specific grade 1-3 lesson; not seedable.',
+      T55: 'a column-subtraction card: needs a grade 3 subtraction lesson to generate from and the KaTeX card render; pinned by quiz-typeset-maths tests.',
+      T59: 'a VIDEO quiz taken in Urdu: needs the video library (student_videos + a delivered video) and its quiz on the driver; no video-quiz seed exists.',
+      T60: 'Urdu video-quiz offer taps after the offer lapsed: same video-quiz dependency plus a time-lapse.',
+      T61: 'the quiet-quiz reminder is a scheduled sweeper (teacher-nudges) with an "almost nobody started" rule; not triggerable from a driver.',
+    };
+    if (!seenIds.has('T46')) R('T46')('BLOCKED', { reason: NOT_HERE.T46 }, 0);
+    if (!seenIds.has('T47')) R('T47')('BLOCKED', { reason: NOT_HERE.T47 }, 0);
+    if (!seenIds.has('T48')) R('T48')('BLOCKED', { reason: NOT_HERE.T48 }, 0);
+    if (!seenIds.has('T49')) R('T49')('BLOCKED', { reason: NOT_HERE.T49 }, 0);
+    if (!seenIds.has('T50')) R('T50')('BLOCKED', { reason: NOT_HERE.T50 }, 0);
+    if (!seenIds.has('T51')) R('T51')('BLOCKED', { reason: NOT_HERE.T51 }, 0);
+    if (!seenIds.has('T54')) R('T54')('BLOCKED', { reason: NOT_HERE.T54 }, 0);
+    if (!seenIds.has('T55')) R('T55')('BLOCKED', { reason: NOT_HERE.T55 }, 0);
+    if (!seenIds.has('T59')) R('T59')('BLOCKED', { reason: NOT_HERE.T59 }, 0);
+    if (!seenIds.has('T60')) R('T60')('BLOCKED', { reason: NOT_HERE.T60 }, 0);
+    if (!seenIds.has('T61')) R('T61')('BLOCKED', { reason: NOT_HERE.T61 }, 0);
+
+    // clean every class quiz and its children's sessions/students
+    try { api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]); } catch (e) {}
+  }
+
   // ══ T30–T34 — the assessment generator's Seen / Unseen count screens ════════
   // The stored fixture was the 2026-09-08 WABA capture (v7.0, one total box). The repo's publish
   // source is v7.3 with SEEN_COUNT and COUNTS; the fixture is now that file (bd-w3cb9.7). A refusal
@@ -1205,6 +1588,37 @@ exports.run = async ({ api, rec, sleep }) => {
   // Not drivable in the mock lane — the reason below is what would have to exist first.
   rec('T29', 'A quiz never ships an answer key a blind solver disagrees with', 'BLOCKED',
       { reason: "the blind solver runs inside worker generation and a wrong key cannot be forced live (the feature file says so); pinned by tests/quiz/transcript-quiz-key-verify.test.js and transcript-quiz-generate's key_disagreement path. Not a mock-lane scenario." }, 0);
+
+
+
+
+
+
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

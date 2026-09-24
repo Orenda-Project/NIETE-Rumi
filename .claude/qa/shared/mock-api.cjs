@@ -276,16 +276,21 @@ function makeMockApi(opts) {
     async flowComplete(timeoutMs = 90000) { return waitReply(flowCompletionSince, timeoutMs, 'flow:complete'); },
     async flowStats() { return { ...flowStats, flows: [...new Set(flowStats.flows)] }; },
 
+    /** A SECOND phone on the same mock stack — a child opening a class quiz link, a friend they
+     *  forward it to. The mock Graph API takes `from` on every injected message and keeps one outbox
+     *  per recipient, so another makeMockApi bound to that number is a complete second actor. No
+     *  Flows (children never open one); same base/env/repo/trace (bd-5d294). */
+    as(phone) { return makeMockApi({ ...opts, driver: String(phone) }); },   // same flows: a join Flow may open
     /** DB reach-through — identical to the CDP api: the DB is real (sandbox), so persisted-state
      *  assertions (LANG02/03 language + lock) are verified the same way. */
     db(action, extra) {
       trace('db ' + action);
-      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-isaps-exams|seed-lp-quiz|revert-level|activate-program)$/.test(action)
+      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];
       // module-media is a READ — never hand a read a write flag (bd-xub4s).
-      if (!/^(lookup|snapshot|module-media|level-modules|answer-key)$/.test(action)) args.push('--yes-write');   // reads never get a write flag
+      if (!/^(lookup|snapshot|module-media|level-modules|answer-key|quiz-rows)$/.test(action)) args.push('--yes-write');   // reads never get a write flag
       if (extra) args.push(...extra);
       try {
         const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });
