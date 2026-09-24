@@ -1047,6 +1047,17 @@ Covered by `tests/quiz/transcript-quiz-figure-manipulatives.test.js` (through th
 `renderFigureSvg` / `validate` / `buildAuthorPrompt`). Upstream does not have any of this; if the
 skill adopts the type, take its copy and drop this entry. Keep all four at the next re-sync.
 
+### 3.19 The v6 two-page layout — `lib/template.js`, `render_lp.js`, `lib/continuous.js` (2026-09-24, bd-f01ob)
+
+Operator-approved v6: page 1 teaches, page 2 supports. In the template, the board plan leaves the
+Introduction and becomes support section A, and the sequence strip loses its `Next:` leg. In the
+renderer, after pass 1 has packed and probed the phone pages (still the length gate — PAGE COUNT,
+PAGE TARGET, `pagesByPart`), each part is rebuilt with no breaks and printed on a named `@page` sized
+to its measured height (`lib/continuous.js`, new file), so the PDF is exactly 2 pages. If a part
+cannot be measured, the phone pages are restored and printed as before. The PDF cross-check compares
+against the printed page count. The Chrome-CLI fallback still prints phone pages. **Re-vendoring
+over this reverts the layout to phone pages** — carry it forward or port it upstream.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
