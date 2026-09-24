@@ -643,6 +643,7 @@ Feature: NIETE (ICT) Teacher Training
     Then no two questions on my PDF ask the same thing and have the same answer, even with the options in another order
     And a question shown over a picture and the same question shown as text count as the same question
     And a fill-in-the-blank and a question on the same fact count as the same question, even when one answer ends in «سے» and the other does not
+    And two questions that ask the same fact in other words, with the same answer, are caught by the solver that checks the answers and one of them is replaced
     And two questions that only look alike — the same question about another number, another word or another picture, or with another answer — both stay in the quiz
     And the quiz still arrives with all its questions when a repeated one could not be replaced
     # The model that writes the quiz, the targeted rewrite and the add-pictures repair are each told the
@@ -655,13 +656,19 @@ Feature: NIETE (ICT) Teacher Training
     # meta.soft_faults (SOFT_FAULT) — never a refusal, never a dropped question.
     # An Urdu answer is compared with and without a trailing postposition (never when the question is about
     # the postposition); a sentence with a blank (underscores, or the word «ڈیش») is compared with a question
-    # by filling the blank with its answer and comparing content words. Counted on
+    # by filling the blank with its answer and comparing content words. The blind solve
+    # (transcript-quiz-key-verify) is also asked, in its one full call, which questions test the same fact
+    # with the same answer ("same_fact"); a pair that also passes the contract in code (confirmsSameFact:
+    # the same answer, the same numbers and quoted items) has its later question rewritten by the rewrite
+    # the blind solve already makes, else ships recorded; any other pair is only logged. Counted on
     # transcript_quiz.duplicate_question: stage "author" for each author attempt that wrote one, stage
-    # "shipped" when the stored quiz still carries one, whichever step wrote it. Content-driven: read every
+    # "solver" for the pairs the blind solve named (confirmed / unconfirmed), stage "shipped" when the
+    # stored quiz still carries a word-for-word one, whichever step wrote it. Content-driven: read every
     # question on the PDF and compare them; never a fixed quiz. @wip — a repeat cannot be forced live on
     # demand; the behaviour is proven in tests/quiz/transcript-quiz-duplicate-questions.test.js and
     # tests/quiz/transcript-quiz-distinct-questions-rule.test.js and
-    # tests/quiz/transcript-quiz-duplicates-blank-and-postposition.test.js.
+    # tests/quiz/transcript-quiz-duplicates-blank-and-postposition.test.js and
+    # tests/quiz/transcript-quiz-same-fact.test.js.
 
   @e2e @quiz @wip @draft @P2
   Scenario: A quiz with many questions to fix gets the worst ones fixed first, not none

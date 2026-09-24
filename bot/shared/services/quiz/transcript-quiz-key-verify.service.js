@@ -40,6 +40,17 @@
  * alone decides differently is a disagreement like any other (`pass: 'bare'`).
  * An item only the lesson can answer comes back `unsure` there and never blocks.
  *
+ * THE SAME FACT TWICE, IN OTHER WORDS. The solve reads every item of the quiz
+ * in this one call and works out every answer itself, so the FULL solve with
+ * the lesson (never the solve without it, never a re-solve of a few items) is
+ * also asked which questions test the same fact with the same answer
+ * ("same_fact": pairs of item numbers). The word-for-word repeat check
+ * (transcript-quiz-duplicates) cannot see "What is formed in a physical
+ * change?" beside "What is true about a physical change?"; this can. The pairs
+ * are an OPTIONAL part of the reply: a reply without them is still a good
+ * solve, with no pairs. What is done with a pair — held to its contract in
+ * code first — lives in runKeyVerify.
+ *
  * THE MODEL. `quiz.keyVerify` in the model registry — TRANSCRIPT_QUIZ_VERIFY_MODEL,
  * default a DIFFERENT and stronger model than the author's (a solver that shares
  * the author's blind spots agrees with the author's mistakes).
@@ -70,6 +81,16 @@ const SUMMARY_MAX = 600;
 const FIGURE_MAX = 600;
 const NOTE_MAX = 200;
 const SLOS_MAX = 8;
+
+/**
+ * The question asked alongside the full solve. Measured read-only on 212
+ * production quizzes: the solver names 60 of 71 reworded repeats a reader found,
+ * but on its own only 61% of the pairs it names are repeats — it lists one
+ * template on another item, and two questions on one topic with different
+ * answers, despite being told not to. So runKeyVerify acts only on a pair that
+ * also passes the contract in code (confirmsSameFact): 93% of those are repeats.
+ */
+const SAME_FACT_RULE = 'THE SAME FACT TWICE. After solving, compare the questions with each other. In "same_fact", list every pair of questions [i, j] (their q numbers, the earlier first) that test the SAME fact or skill and have the SAME correct answer, so that a child who has answered one has already answered the other: the same question in other words, the same question asked as a fill-in-the-blank and as a question, the same question over a picture and as text, or the same sum with the same numbers told as another story. Do NOT list: one question shape used again with different numbers or a different item (rounding 18, then rounding 16; the article before "kite", then before "tree"); a general question beside one about a specific example ("Which of these is a vowel?" beside "Which letter in CAT is a vowel?"); two questions whose correct answers differ. Most quizzes have no such pair — then give an empty list.';
 
 const cp = (s) => [...String(s)].length;
 const arr = (v) => (Array.isArray(v) ? v : []);
@@ -152,6 +173,8 @@ function itemFor(q, index, quizId = null) {
  */
 function buildVerifyPrompt({
   items, language, grade = null, subject = null, digest = null, lessonSummary = null, withLesson = true,
+  // the full solve with the lesson also names the questions asked twice (verifyKeys decides)
+  askSameFact = false,
 }) {
   const lang = LANG_NAME[language] || 'the quiz\'s own language';
   // Without the lesson, nothing about it reaches the prompt — not the summary,
@@ -182,8 +205,9 @@ function buildVerifyPrompt({
       : 'You are told NOTHING about the lesson, on purpose. Decide every question from the subject alone — the definition, the rule, the sum, the spelling, the picture\'s data — exactly as a careful teacher who knows the subject would. An option is correct only if it is right by the subject; never pick the least wrong one — a name the subject does not use for the thing asked about, a wrong formula or a wrong meaning is not correct because the other options are worse. If a question can only be answered from what happened in that class (a story read there, the class\'s own example, what was said or done in the room), set "unsure": true for it.',
     `THE QUESTIONS\n\n${blocks}`,
     `For EACH question, list in "correct" EVERY option number that is a correct answer to the question exactly as it is asked — every option a careful teacher would mark right. If two options are both right (for example, the same letters in a different order when the question does not ask about their order), list both. If no option is right, give an empty list. Judge what is written, not what the question-writer probably meant. If you cannot decide without something you were not given (the lesson itself, or a picture you cannot read from its data), set "unsure": true. In "note", say in one short line why — for a wrong or doubled option, name the fact (for example: "قلم is spelled ق ل م, not ک ل م").`,
+    askSameFact ? SAME_FACT_RULE : null,
     `Return ONLY this JSON object, one entry per question above, "index" being the number after its q:
-{ "answers": [ { "index": ${arr(items)[0] ? items[0].index : 0}, "correct": [0], "unsure": false, "note": "" } ] }`,
+{ "answers": [ { "index": ${arr(items)[0] ? items[0].index : 0}, "correct": [0], "unsure": false, "note": "" } ]${askSameFact ? ', "same_fact": []' : ''} }`,
   ].filter(Boolean).join('\n\n');
 }
 
@@ -228,6 +252,28 @@ function parseAnswers(json, items) {
 }
 
 /**
+ * The pairs a reply names under "same_fact", held to their shape: two different
+ * items the solver was shown, the earlier first, each pair once, in order. Junk
+ * is dropped, never fatal — the field is optional.
+ *
+ * @returns {number[][]}
+ */
+function parseSameFact(json, items) {
+  const shown = new Set(arr(items).map((it) => it.index));
+  const seen = new Set();
+  const pairs = [];
+  arr(json && json.same_fact).forEach((p) => {
+    if (!Array.isArray(p) || p.length !== 2) return;
+    const [i, j] = p.map(Number).sort((a, b) => a - b);
+    if (!Number.isInteger(i) || !Number.isInteger(j) || i === j || !shown.has(i) || !shown.has(j)) return;
+    if (seen.has(`${i}:${j}`)) return;
+    seen.add(`${i}:${j}`);
+    pairs.push([i, j]);
+  });
+  return pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
+
+/**
  * The complaint a flagged item carries into the targeted rewrite — the same
  * `q<i>: CODE — …` shape every validator complaint has, so the existing rewrite
  * takes it as one question's text to rewrite.
@@ -257,7 +303,11 @@ function disagreementComplaint(verdict, q) {
  * or an unusable reply — the caller decides what a failed solve means (it
  * fails open).
  *
- * @returns {Promise<{verdicts:object[], model:string|null, costUsd:number,
+ * The full solve with the lesson (every item, first look) also returns
+ * `sameFact`, the pairs the solver says ask the same fact; every other solve
+ * returns an empty list.
+ *
+ * @returns {Promise<{verdicts:object[], sameFact:number[][], model:string|null, costUsd:number,
  *   latencyMs:number, promptChars?:number, skipped?:string}>}
  */
 async function verifyKeys({
@@ -266,12 +316,14 @@ async function verifyKeys({
 }) {
   const qs = arr(questions);
   const idx = Array.isArray(indices) ? indices.filter((i) => Number.isInteger(i) && qs[i]) : qs.map((_, i) => i);
-  if (!idx.length) return { verdicts: [], model: null, costUsd: 0, latencyMs: 0, skipped: 'nothing_to_solve' };
+  if (!idx.length) return { verdicts: [], sameFact: [], model: null, costUsd: 0, latencyMs: 0, skipped: 'nothing_to_solve' };
+  // Only a look at the WHOLE quiz can see one question asked twice.
+  const askSameFact = withLesson && !Array.isArray(indices) && !again;
   // `again`: the same items in a DIFFERENT shown order — a second look that a
   // solver's slip between an option's position and its text cannot survive.
   const items = idx.map((i) => itemFor(qs[i], i, again ? `${quizId || ''}:again` : quizId));
   const prompt = buildVerifyPrompt({
-    items, language, grade, subject, digest, lessonSummary, withLesson,
+    items, language, grade, subject, digest, lessonSummary, withLesson, askSameFact,
   });
   const label = withLesson ? LABEL : BARE_LABEL;
   const requested = verifyModel();
@@ -286,6 +338,7 @@ async function verifyKeys({
   if (!withLesson) verdicts.forEach((v) => { v.pass = 'bare'; });
   return {
     verdicts,
+    sameFact: askSameFact ? parseSameFact(json, items) : [],
     model: model || requested,
     costUsd: Number(costUsd) || 0,
     latencyMs,
@@ -294,6 +347,6 @@ async function verifyKeys({
 }
 
 module.exports = {
-  verifyKeys, buildVerifyPrompt, parseAnswers, disagreementComplaint, itemFor, shownOrder, keyedIndices, optionText,
-  verifyModel, FLAGGED, LABEL, BARE_LABEL, JOB,
+  verifyKeys, buildVerifyPrompt, parseAnswers, parseSameFact, disagreementComplaint, itemFor, shownOrder, keyedIndices, optionText,
+  verifyModel, FLAGGED, LABEL, BARE_LABEL, JOB, SAME_FACT_RULE,
 };
