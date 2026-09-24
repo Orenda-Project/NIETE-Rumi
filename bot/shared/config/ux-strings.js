@@ -1879,6 +1879,11 @@ const UX_STRINGS = {
     en: 'No quiz was made for this lesson. The next lesson you plan can have a quiz of its own.',
     ur: 'اس سبق کا quiz نہیں بنا۔ اگلے سبق کا plan بنے گا تو اس کا اپنا quiz بن سکتا ہے۔',
   },
+  // The generate job could not be queued — the quiz was never started.
+  tqFlowResultsFailedLpStart: {
+    en: 'This quiz could not be started on my side. The problem was not your lesson plan.',
+    ur: 'یہ quiz میری طرف سے شروع نہیں ہو سکا۔ مسئلہ lesson plan میں نہیں تھا۔',
+  },
   tqFlowResultsRemakeHint: {
     en: 'Choose “Make it again” to try once more — about a minute.',
     ur: 'دوبارہ کوشش کے لیے «دوبارہ بنائیں» چنیں — تقریباً ایک منٹ۔',
