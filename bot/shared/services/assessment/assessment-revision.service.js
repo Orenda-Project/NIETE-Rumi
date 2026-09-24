@@ -126,7 +126,7 @@ async function _patch(paperId, patch) {
  * message instead of being quietly reinterpreted as "all", which would hand her
  * back the very paper she had just emptied.
  */
-async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
+async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budget = null }) {
   const loaded = await _loadOwnedPaper(paperId, userId);
   if (!loaded.paper) {
     // Nothing to send and possibly nobody to send it to; the caller is a Flow
@@ -151,7 +151,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
   const say = async (code) => {
     if (!phone) return;
     try {
-      await WhatsAppService.sendMessage(phone, TEACHER_MESSAGE[code] || FALLBACK_MESSAGE);
+      await WhatsAppService.sendMessage(phone, TEACHER_MESSAGE[code] || FALLBACK_MESSAGE, { budget });
     } catch (err) {
       logToFile('[assessment-revision] could not send the apology', { userId, error: err.message });
     }
@@ -201,7 +201,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone }) {
       Number.isFinite(marks) && marks > 0 ? `${marks} marks` : null,
     ].filter(Boolean).join(' · ');
 
-    const sent = await WhatsAppService.sendDocumentByLink(phone, url, name, caption);
+    const sent = await WhatsAppService.sendDocumentByLink(phone, url, name, caption, { budget });
     if (!sent) {
       throw Object.assign(new Error('sendDocumentByLink returned falsy'), { code: 'SEND_FAILED' });
     }

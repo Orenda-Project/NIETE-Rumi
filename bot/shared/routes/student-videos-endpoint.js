@@ -23,6 +23,7 @@ const { logEvent } = require('../utils/structured-logger');
 const WhatsAppService = require('../services/whatsapp.service');
 const StudentVideoFeedbackService = require('../services/student-video-feedback.service');
 const ChildFlowToken = require('../services/quiz/child-flow-token');
+const { SYNC_BUDGET } = require('../services/whatsapp-send-pacer');
 
 const GRADE_ORDER = ['NURSERY', 'KG', '1', '2', '3', '4', '5', '6'];
 const gradeRank = (g) => {
@@ -207,15 +208,20 @@ async function selectTopic(flowToken, screenData) {
 }
 
 // Immediate chat ack so the teacher sees feedback during the 5-15s upload.
-// Awaited (not fire-and-forget) so it lands BEFORE the SUCCESS screen renders;
-// tiny sendMessage call, well under Meta's 10s data_exchange budget.
+// Awaited (not fire-and-forget) so it lands BEFORE the SUCCESS screen renders.
+// Budgeted, because Meta gives this data_exchange ~10 s and per-recipient
+// pacing could otherwise hold the ack for the phone's next slot — and the phone
+// most likely to be out of slots is a child who has just finished a quiz. If
+// the slot is more than the budget away, the ack is SKIPPED: the video follows
+// and the SUCCESS screen already says it is on its way.
 async function sendPreDeliveryAck(flowToken, row) {
   try {
     const { phone } = await resolveDelivery(flowToken);
     if (!phone) return;
     await WhatsAppService.sendMessage(
       phone,
-      `🎬 Sending your video: ${gradeTitle(row.grade)} ${row.subject} — ${row.clean_title} …`
+      `🎬 Sending your video: ${gradeTitle(row.grade)} ${row.subject} — ${row.clean_title} …`,
+      { budget: SYNC_BUDGET.SKIP_IF_LATE }
     );
   } catch (err) {
     logToFile('Student Videos: pre-delivery ack failed', { error: err.message });

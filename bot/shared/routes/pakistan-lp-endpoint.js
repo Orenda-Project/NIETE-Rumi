@@ -45,6 +45,7 @@ const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const WhatsAppService = require('../services/whatsapp.service');
+const { SYNC_BUDGET } = require('../services/whatsapp-send-pacer');
 const OxbridgeLpService = require('../services/oxbridge-lp.service');
 const { clampLanguage, resolveUx } = require('../config/ux-strings');
 const V8Catalog = require('../services/lp-v8-catalog.service');
@@ -654,7 +655,10 @@ async function selectTopicOxbridge(flowToken, rowId) {
   };
 }
 
-// Immediate chat ack while the R2 fetch + Meta send happens.
+// Immediate chat ack while the R2 fetch + Meta send happens. Awaited inside
+// data_exchange (~10 s from Meta), so it is budgeted: a teacher who has just
+// received several lesson plans may have no pacing slot for seconds, and then
+// the ack is SKIPPED — the PDF follows and SUCCESS already says it is coming.
 async function sendPreDeliveryAck(flowToken, row) {
   const userId = (flowToken || '').split(':')[0];
   try {
@@ -664,10 +668,12 @@ async function sendPreDeliveryAck(flowToken, row) {
       return;
     }
     const clean = (row.chapter_title || `Chapter ${row.chapter_number}`).replace(/\s*\(chapter reading — full LP pending\)\s*$/, '');
-    await WhatsAppService.sendMessage(
+    const acked = await WhatsAppService.sendMessage(
       user.phone_number,
-      `📘 Sending your lesson plan: ${gradeTitle(row.grade)} ${row.subject} — ${clean}…`
+      `📘 Sending your lesson plan: ${gradeTitle(row.grade)} ${row.subject} — ${clean}…`,
+      { budget: SYNC_BUDGET.SKIP_IF_LATE }
     );
+    if (!acked) return;
     logToFile('Pakistan LP: ack sent', { userId, phone: user.phone_number, rowId: row.id });
   } catch (err) {
     logToFile('Pakistan LP: pre-delivery ack failed', { error: err.message, stack: err.stack });
