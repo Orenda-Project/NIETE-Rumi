@@ -45,6 +45,12 @@ jest.setTimeout(240000);
 /** Ink closer than this (em of the lower line's type) reads as touching. */
 const TOUCH = 0.05;
 
+// These tests are about the Urdu spacing itself, which is ON unless the kill
+// switch says otherwise (urdu-spacing-kill-switch.test.js covers OFF).
+const SWITCH = process.env.QUIZ_URDU_SPACING_V2;
+delete process.env.QUIZ_URDU_SPACING_V2;
+afterAll(() => { if (SWITCH !== undefined) process.env.QUIZ_URDU_SPACING_V2 = SWITCH; });
+
 let browser;
 beforeAll(async () => {
   if (renderOptOut()) return;

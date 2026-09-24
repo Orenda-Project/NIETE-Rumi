@@ -118,12 +118,13 @@ const HEAD_SCALE = 1.12;
  *
  *     newRatio = 1 + (oldRatio - 1) / (21 / 18)
  *
- * It is NOT for Nastaliq, which is where it used to be applied (1.85 -> 1.73,
- * 1.72 -> 1.62, 1.5 -> 1.43, 1.9 -> 1.77). Nastaliq's line needs a fixed
+ * It is NOT right for Nastaliq, which is where it used to be applied (1.85 ->
+ * 1.73, 1.72 -> 1.62, 1.5 -> 1.43, 1.9 -> 1.77). Nastaliq's line needs a fixed
  * multiple of its size, set by the font's ink — see NASTALIQ below — and every
- * one of those shrunken ratios printed Urdu lines on top of each other. Kept for
- * the one-line Urdu labels that already sit on it and cannot collide with a
- * second line of their own.
+ * one of those shrunken ratios printed Urdu lines on top of each other. The
+ * templates still write those ratios into their base stylesheet: with the Urdu
+ * spacing switched on (the default, urduSpacingV2 below) a block of NASTALIQ
+ * rules is appended over them; switched off, they are what renders.
  */
 const TYPE_GROWTH = 21 / 18;
 const leadingAt = (oldRatio) => Math.round((1 + (oldRatio - 1) / TYPE_GROWTH) * 100) / 100;
@@ -181,6 +182,25 @@ const NASTALIQ = Object.freeze({
     bold: Object.freeze({ ascent: 2.05, descent: 0.69 }),
   }),
 });
+
+/**
+ * THE URDU SPACING KILL SWITCH. Opt-OUT, read at render time, never cached.
+ *
+ * QUIZ_URDU_SPACING_V2 unset (or any other value): every quiz surface draws Urdu
+ * on the NASTALIQ spacing. 'false' / '0' / 'off' / 'no': every quiz surface
+ * renders exactly as it did before that spacing existed — the teacher sheet,
+ * the class report, the question card, the scorecard and the class card each
+ * append their spacing as ONE block over an unchanged stylesheet, so switching
+ * it off drops the block and nothing else. One variable, no deploy.
+ *
+ * Opt-out because the default has to be the fix: an opt-in flag would leave the
+ * Urdu lines on top of each other on any service where nobody set it.
+ * @returns {boolean}
+ */
+function urduSpacingV2() {
+  const v = String(process.env.QUIZ_URDU_SPACING_V2 == null ? '' : process.env.QUIZ_URDU_SPACING_V2).trim().toLowerCase();
+  return !['false', '0', 'off', 'no'].includes(v);
+}
 
 /**
  * The padding (em of the box's own font size) a box needs above and below
@@ -298,7 +318,7 @@ function lockup(text, { className = 'lockup', dotColor = PALETTE.green } = {}) {
 
 module.exports = {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, RTL_TYPE_SCALE, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE,
-  leadingAt, NASTALIQ, nastaliqPad,
+  leadingAt, NASTALIQ, nastaliqPad, urduSpacingV2,
   headFamily, bodyFamily, scriptOf, dirOf,
   latticeSvg, diamondSvg, diamondPath, lockup,
 };

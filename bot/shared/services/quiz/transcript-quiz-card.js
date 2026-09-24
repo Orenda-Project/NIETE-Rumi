@@ -29,17 +29,25 @@ const { needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTT
 const { mathHtml, mathCss, usesMath } = require('./quiz-math');
 const { letterListLabel } = require('./video-quiz-render.service');
 const { resolveUx } = require('../../config/ux-strings');
-// The Urdu line pitch every quiz surface shares, measured from Nastaliq's ink.
-const { NASTALIQ } = require('../../templates/niete-brand');
+// The Urdu line pitch every quiz surface shares, measured from Nastaliq's ink,
+// and its kill switch.
+const { NASTALIQ, urduSpacingV2 } = require('../../templates/niete-brand');
 
 const CARD_WIDTH = 1080;
 
-// A wrapped Urdu stem or option on the card used to sit at 2.0 / 1.9: close,
-// but on real quiz text 17-19% of line pairs still touched (a tall ک under a
-// ے tail). The shared Nastaliq pitch keeps them apart. On that pitch an
-// option's own line box already holds its ink, so an Urdu option row gives
-// back 8px of its padding and the card stays about as tall as it was.
-const UR_LEAD = NASTALIQ.leading.regular;
+/**
+ * THE URDU SPACING — appended after the card's stylesheet when the switch is on
+ * (QUIZ_URDU_SPACING_V2, default on); off, the card renders exactly as before.
+ * A wrapped Urdu stem or option used to sit at 2.0 / 1.9: close, but on real
+ * quiz text 17-19% of line pairs still touched (a tall ک under a ے tail). On
+ * the shared Nastaliq pitch they do not, and an option's own line box then
+ * already holds its ink, so an Urdu option row gives back 8px of its padding and
+ * the card stays about as tall as it was. English cards never get the block.
+ */
+function urduSpacingCss(multi) {
+  const lead = NASTALIQ.leading.regular;
+  return `\n/* urdu-spacing-v2 */.stem{line-height:${lead}}.opt-text{line-height:${lead}}.opt{padding:12px 26px}${multi ? `.cue{line-height:${lead}}` : ''}/* /urdu-spacing-v2 */`;
+}
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 const tokenCss = () => {
@@ -107,7 +115,7 @@ function renderQuestionCardHtml({ stem, options, displayOrder, figureSvg = null,
   // correct). Both strings come from the catalog (language protocol). Rendered
   // only in the multi path so the single-answer card stays byte-identical.
   const cueSide = dir === 'rtl' ? 'right' : 'left';
-  const cueCss = multi ? `.cue{font-family:${fam};font-size:${ur ? '30px' : '26px'};font-weight:600;color:#333748;background:rgba(71,186,125,.12);border-${cueSide}:6px solid #47BA7D;border-radius:12px;padding:14px 22px;margin-bottom:24px;line-height:${ur ? UR_LEAD : '1.4'};text-align:start;direction:${dir};position:relative}` : '';
+  const cueCss = multi ? `.cue{font-family:${fam};font-size:${ur ? '30px' : '26px'};font-weight:600;color:#333748;background:rgba(71,186,125,.12);border-${cueSide}:6px solid #47BA7D;border-radius:12px;padding:14px 22px;margin-bottom:24px;line-height:${ur ? '1.9' : '1.4'};text-align:start;direction:${dir};position:relative}` : '';
   const cue = multi ? `<div class="cue" dir="${dir}">${esc(resolveUx('vqMultiSelectAll', { language }))}</div>` : '';
   // A multi-answer card must not name letters to tap at all: the child ticks
   // checkboxes in the Flow. The single-answer foot stays the dynamic letter
@@ -127,15 +135,15 @@ html,body{background:#FFFFFF}
 .mark img{width:52px;height:52px;display:block}
 .figure{background:#F5F7F6;border-radius:18px;padding:26px 30px;margin-bottom:26px;position:relative;direction:ltr}
 .figure svg{display:block;width:100%;height:auto;max-height:${figMax}px}
-.stem{font-size:${ur ? '44px' : '42px'};line-height:${ur ? UR_LEAD : '1.35'};font-weight:${ur ? '400' : '600'};margin-bottom:26px;position:relative;text-align:start}
+.stem{font-size:${ur ? '44px' : '42px'};line-height:${ur ? '2' : '1.35'};font-weight:${ur ? '400' : '600'};margin-bottom:26px;position:relative;text-align:start}
 .stem sup,.opt-text sup{font-size:.62em;vertical-align:super;line-height:0}
 .stem sub,.opt-text sub{font-size:.62em;vertical-align:sub;line-height:0}
-.opt{display:flex;align-items:center;gap:22px;background:#FFFFFF;border:2.5px solid #D7DEDB;border-radius:18px;padding:${ur ? '12px' : '20px'} 26px;margin-bottom:16px;position:relative}
+.opt{display:flex;align-items:center;gap:22px;background:#FFFFFF;border:2.5px solid #D7DEDB;border-radius:18px;padding:20px 26px;margin-bottom:16px;position:relative}
 .dia{width:54px;height:54px;flex-shrink:0;position:relative}
 .dia::before{content:'';position:absolute;inset:6px;background:#47BA7D;transform:rotate(45deg);border-radius:6px}
 .dia span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#0B1A12;font-family:'Inter',sans-serif;font-weight:800;font-size:26px}
-.opt-text{font-size:${ur ? '38px' : '36px'};line-height:${ur ? UR_LEAD : '1.35'};flex:1;text-align:start;unicode-bidi:isolate}
-.foot{margin-top:18px;font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '26px' : '22px'};line-height:1.8;color:#6B7280;direction:${dir};text-align:start;position:relative}${cueCss}
+.opt-text{font-size:${ur ? '38px' : '36px'};line-height:${ur ? '1.9' : '1.35'};flex:1;text-align:start;unicode-bidi:isolate}
+.foot{margin-top:18px;font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '26px' : '22px'};line-height:1.8;color:#6B7280;direction:${dir};text-align:start;position:relative}${cueCss}${ur && urduSpacingV2() ? urduSpacingCss(multi) : ''}
 </style></head><body><div class="card">
 <svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${latticePaths()}</g></svg>
 <div class="top">${counter}<div class="mark">${markB64() ? `<img src="data:image/png;base64,${markB64()}">` : ''}</div></div>

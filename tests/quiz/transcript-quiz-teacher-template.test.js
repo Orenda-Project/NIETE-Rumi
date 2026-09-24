@@ -17,7 +17,7 @@
  */
 const render = require('../../bot/shared/templates/transcript-quiz-teacher.template');
 const VideoRender = require('../../bot/shared/services/quiz/video-quiz-render.service');
-const { NASTALIQ } = require('../../bot/shared/templates/niete-brand');
+const { TYPE_FLOOR_UR } = require('../../bot/shared/templates/niete-brand');
 
 const DIGEST = {
   topic: 'Fractions', topic_as_taught: 'کسریں', subject: 'maths', grade_band: '3-5',
@@ -153,19 +153,25 @@ describe('PLAN_R4 D1 — one language per document', () => {
   });
 
   /**
-   * The Urdu line pitch is the font's, not an optical ratio. Round 6 shrank it
-   * as the type grew (1.85 -> 1.73) to hold a Latin-style "air" between
-   * baselines; for Nastaliq that printed the lines into each other, because one
-   * line of it inks ~2.5 em top to bottom at any size. The pitch is now the
-   * shared NASTALIQ token, and whether lines touch is asserted on the rendered
-   * ink in bot/tests/quiz/urdu-line-spacing.test.js.
+   * The contract is the ROOM, not the ratio. Round 4 wrote the ratio 1.85
+   * because at an 18px floor that left ~17px of air between Nastaliq
+   * baselines. PLAN_R6 D4 raised the floor to 21px, and holding 1.85 there
+   * would have grown the air to 20px — which is how a +17% type raise turned
+   * into +2 pages on the Urdu sheet. `leadingAt()` keeps the air and lets the
+   * ratio fall, so this asserts the air.
+   *
+   * This is the BASE stylesheet — what renders with QUIZ_URDU_SPACING_V2 off.
+   * With it on (the default) an appended block sets Urdu on the Nastaliq pitch
+   * measured from the font's ink; see bot/tests/quiz/urdu-line-spacing.test.js.
    */
-  test('the RTL content rule puts NastaliqUrdu first on the shared Nastaliq pitch', () => {
+  test('the RTL content rule puts NastaliqUrdu first and gives Urdu room to breathe', () => {
     const rule = ruleFor(render(MIXED), '.content[dir="rtl"]');
     expect(rule).toBeTruthy();
     expect(rule).toMatch(/font-family:'NastaliqUrdu'/);
     const ratio = parseFloat(/line-height:([\d.]+)/.exec(rule)[1]);
-    expect(ratio).toBe(NASTALIQ.leading.regular);
+    const air = TYPE_FLOOR_UR.body * ratio - TYPE_FLOOR_UR.body;
+    expect(air).toBeGreaterThanOrEqual(17);
+    expect(ratio).toBeLessThan(1.85);   // it fell BECAUSE the type grew
   });
 });
 
