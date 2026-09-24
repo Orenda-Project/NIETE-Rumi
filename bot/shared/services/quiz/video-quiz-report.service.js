@@ -32,6 +32,9 @@ const { excludeSelfTests } = require('./teacher-self-test');
 // report flat ("2/9"): the chat lines, the guidance prompt and the report PDF
 // all read what the class saw, never the source.
 const { mathForChat } = require('./quiz-math');
+// The one Urdu address rule (prompt half) and the second-person check (code half).
+const { URDU_ADDRESS_RULE } = require('../../config/gender-neutral-address');
+const { addressForms } = require('./transcript-quiz-address');
 
 /**
  * ONE ATTEMPT PER CHILD.
@@ -890,6 +893,15 @@ function offLanguage(value, targetScript) {
   return targetScript === 'ur' ? latin > ur : ur > latin;
 }
 
+/**
+ * How the second-person check reads each field. `board`, `check` and `stretch`
+ * speak to someone — the teacher, and in the question the teacher reads out,
+ * the class — so a future with آپ left unsaid («کیسے سوچیں گے؟») counts there.
+ * `muddled` and `secure` describe the children and count a gendered verb only
+ * once they already speak to someone as آپ.
+ */
+const ADDRESS_KIND = { board: 'stem', check: 'stem', stretch: 'stem', muddled: 'feedback', secure: 'feedback' };
+
 function guidanceShape(out, mode, language) {
   const keys = mode === 'reteach' ? ['muddled', 'board', 'check'] : ['secure', 'stretch'];
   const depthKey = DEPTH_KEY_BY_MODE[mode];
@@ -906,6 +918,11 @@ function guidanceShape(out, mode, language) {
     }
     if (offLanguage(value, targetScript)) {
       problems.push({ key, issue: 'off_language', expected: targetScript, got: scriptOf(value) });
+    } else if (targetScript === 'ur') {
+      // A verb that speaks to the teacher or the class with a gender — «آپ
+      // کیسے سوچیں گے؟» read out to boys and girls (found live on staging).
+      const forms = addressForms(value, { kind: ADDRESS_KIND[key] || 'feedback' });
+      if (forms.length) problems.push({ key, issue: 'gendered_address', forms });
     }
   });
   return { ok: problems.length === 0, problems };
@@ -916,6 +933,11 @@ function sharpeningLine(problems, language) {
   const ur = RTL_LANGS.has(language);
   const parts = problems.map((p) => {
     if (p.issue === 'missing') return ur ? `"${p.key}" خالی تھا` : `"${p.key}" was empty`;
+    if (p.issue === 'gendered_address') {
+      // Urdu only (guidanceShape raises it only for an Urdu box).
+      return `"${p.key}" میں فعل کی جنس ہے (${(p.forms || []).join('، ')}) — یہی بات جنس کے بغیر لکھیں: `
+        + '«آپ کیسے سوچیں؟»، «کس ترتیب سے لکھنا ہوگا؟»، «آپ نے کیا سوچا؟»';
+    }
     if (p.issue === 'too_short') {
       return ur ? `"${p.key}" میں صرف ${p.sentences} جملہ تھا — 2 سے 3 جملے چاہئیں`
         : `"${p.key}" had only ${p.sentences} sentence(s) — it needs 2 to 3`;
@@ -998,13 +1020,29 @@ async function generateGuidance(context) {
     const shape = guidanceShape(out, mode, language);
     if (!shape.ok) {
       const offLanguage = shape.problems.some((p) => p.issue === 'off_language');
+      const gendered = shape.problems.filter((p) => p.issue === 'gendered_address');
+      const other = shape.problems.filter((p) => p.issue !== 'gendered_address');
+      // ONE retry for everything that was wrong, the gendered verbs included.
       const retried = await ask(`${prompt}\n\n${sharpeningLine(shape.problems, language)}`);
-      // Two DISTINCT events (root CLAUDE.md rule 24d) — a shared failure
-      // string is what sent the last investigation at the wrong layer.
-      logEvent(offLanguage ? 'video_quiz.guidance_off_language' : 'video_quiz.guidance_thin', {
-        shareCodeId: context && context.shareCodeId, mode, problems: shape.problems,
-        retried: Boolean(retried),
-      });
+      // Distinct events (root CLAUDE.md rule 24d) — a shared failure string is
+      // what sent the last investigation at the wrong layer.
+      if (other.length) {
+        logEvent(offLanguage ? 'video_quiz.guidance_off_language' : 'video_quiz.guidance_thin', {
+          shareCodeId: context && context.shareCodeId, mode, problems: other,
+          retried: Boolean(retried),
+        });
+      }
+      if (gendered.length) {
+        const left = retried
+          ? guidanceShape(retried, mode, language).problems.filter((p) => p.issue === 'gendered_address')
+          : gendered;
+        logEvent('video_quiz.guidance_gendered_address', {
+          shareCodeId: context && context.shareCodeId, mode,
+          fields: gendered.map((p) => p.key),
+          forms: [...new Set(gendered.flatMap((p) => p.forms))].slice(0, 8),
+          retried: Boolean(retried), cleared: Boolean(retried) && left.length === 0,
+        });
+      }
       if (retried) out = retried;   // accept whatever comes back — a short box beats none
     }
     return out;
@@ -1323,8 +1361,8 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
   // impersonal passive, which agrees with the object. Children are "بچے", a
   // gender-neutral plural. Same structure + banned-opener list as the
   // English prompt, translated in spirit, not word-for-word.
-  return `آپ ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
-    + `منصوبہ بندی میں مدد کر رہے ہیں۔ ان کی کلاس نے ابھی "${topic}" پر ایک کوئز دیا ہے۔\n\n`
+  return `آپ کا کام ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
+    + `منصوبہ بندی میں مدد کرنا ہے۔ ان کی کلاس نے ابھی "${topic}" پر ایک کوئز دیا ہے۔\n\n`
     + `یہاں وہ چیزیں ہیں جو انہوں نے غلط کیں، اور جس غلط جواب پر اکثریت نے اتفاق کیا:\n\n`
     + `${evidence}\n`
     + digestBlockUr(digest)
@@ -1346,8 +1384,10 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
     + `کوئز سوال کی نقل نہیں ہونی چاہیے؛ بچے وہ پہلے دیکھ چکے ہیں۔ وہی خیال `
     + `دوسرے انداز میں پوچھیں۔\n`
     + `جو سوال بچوں سے پوچھا جائے وہ انہی الفاظ میں لکھیں جن میں کوئز لکھا گیا `
-    + `ہے: بچوں کو "آپ" کہہ کر، جمع کے احترامی افعال کے ساتھ (کریں، دیکھیں، `
-    + `سوچیں) — "کرو"، "بتاؤ" یا کوئی مؤنث/مذکر واحد صیغہ ہرگز نہیں۔\n`
+    + `ہے: بچوں کو "آپ" کہہ کر — "کرو"، "بتاؤ" ہرگز نہیں۔ بچوں اور استاد، دونوں سے `
+    + `بات کرتے ہوئے فعل کی کوئی جنس نہ ہو: «آپ کیسے سوچیں گے؟» کے بجائے «آپ کیسے سوچیں؟»، `
+    + `اور «آپ کس ترتیب سے لکھیں گے؟» کے بجائے «کس ترتیب سے لکھنا ہوگا؟»۔\n`
+    + `${URDU_ADDRESS_RULE}\n`
     + `\n`
     + `"کل کے سبق میں"، "اس کو حل کرنے کے لیے"، "پر توجہ دیں" یا "شروع کریں" سے `
     + `شروع نہ کریں۔ بچوں سے شروع کریں۔ کوئی سکور یا گنتی دوبارہ نہ بتائیں — وہ `
@@ -1361,8 +1401,8 @@ function buildReteachPromptUr({ grade, topic, evidence, digest }) {
 }
 
 function buildSecurePromptUr({ grade, topic, digest }) {
-  return `آپ ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
-    + `منصوبہ بندی میں مدد کر رہے ہیں۔ ان کی پوری کلاس نے ابھی "${topic}" پر `
+  return `آپ کا کام ایک پاکستانی گریڈ ${grade || 'ابتدائی'} استاد کی کل کے دس منٹ کی `
+    + `منصوبہ بندی میں مدد کرنا ہے۔ ان کی پوری کلاس نے ابھی "${topic}" پر `
     + `ایک کوئز دیا اور ہر سوال درست کیا۔\n`
     + digestBlockUr(digest)
     + `\nصرف ایک JSON آبجیکٹ واپس کریں، بالکل ان دو کلیدوں کے ساتھ، ہر ایک کی `
@@ -1378,8 +1418,10 @@ function buildSecurePromptUr({ grade, topic, digest }) {
     + `کیا کریں گے۔ سوال کسی کوئز سوال کی نقل نہیں ہونی چاہیے۔ اسے ایک جملے `
     + `میں نہ سمیٹیں اور تین جملوں سے زیادہ نہ لکھیں۔\n`
     + `جو سوال بچوں سے پوچھا جائے وہ انہی الفاظ میں لکھیں جن میں کوئز لکھا گیا `
-    + `ہے: بچوں کو "آپ" کہہ کر، جمع کے احترامی افعال کے ساتھ (کریں، دیکھیں، `
-    + `سوچیں) — "کرو"، "بتاؤ" یا کوئی مؤنث/مذکر واحد صیغہ ہرگز نہیں۔\n`
+    + `ہے: بچوں کو "آپ" کہہ کر — "کرو"، "بتاؤ" ہرگز نہیں۔ بچوں اور استاد، دونوں سے `
+    + `بات کرتے ہوئے فعل کی کوئی جنس نہ ہو: «آپ کیسے سوچیں گے؟» کے بجائے «آپ کیسے سوچیں؟»، `
+    + `اور «آپ کس ترتیب سے لکھیں گے؟» کے بجائے «کس ترتیب سے لکھنا ہوگا؟»۔\n`
+    + `${URDU_ADDRESS_RULE}\n`
     + `\n`
     + `"کل کے سبق میں"، "اس کو حل کرنے کے لیے"، "پر توجہ دیں" یا "شروع کریں" سے `
     + `شروع نہ کریں۔ کوئی سکور دوبارہ نہ بتائیں۔ تعریف نہ کریں۔ اس انداز میں `
