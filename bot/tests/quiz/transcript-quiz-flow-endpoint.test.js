@@ -239,7 +239,8 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [...CHILDREN, STOPPED] });
 
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-    const lines = out.data.results.split('\n');
+    // Each line opens with the language's paragraph mark (text-format markLines).
+    const lines = out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''));
 
     expect(lines).toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: 'Danish' } }));
     expect(lines).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Esha' } }));
@@ -254,7 +255,7 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
 
     expect(out.data.results).not.toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: '' } }).trim());
-    expect(out.data.results.split('\n')).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Danish' } }));
+    expect(out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''))).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Danish' } }));
   });
 
   test('a SENT quiz offers exactly Generate report and Resend link', async () => {
