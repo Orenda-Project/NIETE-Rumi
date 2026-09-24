@@ -135,6 +135,8 @@ const LP_FAILURE_COPY = {
   // QUIZ_LP612_SOURCE was off where the quiz is written (only a /quiz tap makes
   // a 6-12 quiz, so never the 15:00 offer's line).
   source_off: 'lpQuizCouldNotStartLater',
+  // The teacher reached today's quiz limit (quiz-daily-cap) — nothing was written.
+  daily_cap: 'tqDailyCap',
 };
 /**
  * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
@@ -156,6 +158,8 @@ const TRANSCRIPT_FAILURE_COPY = {
   key_disagreement: 'tqFailedKeyDisagreement',
   // the coaching session it was to be written from is gone
   session_missing: 'tqCouldNotMakeSessionGone',
+  // today's quiz limit (quiz-daily-cap) — nothing was written
+  daily_cap: 'tqDailyCap',
 };
 function failureCopyKey(reason, quizSource, { meta = null, channel = null } = {}) {
   if (!isPlanQuiz(quizSource)) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';
@@ -265,8 +269,10 @@ function failureReasonOf(meta) {
 // read NOW — `sourceBack`, which a caller sets from lp-source-check after
 // reading the source, never assumes. Without it, a remake would fail the same
 // way and tell the teacher the same thing a second time.
+// daily_cap: today's quiz limit (quiz-daily-cap) — made again on another day.
 const LP_REMAKE_REASONS = new Set([
   'model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed', 'source_off', 'source_missing',
+  'daily_cap',
 ]);
 const MAX_LP_REMAKES = 2;
 function lpRemakeable(meta, { sourceBack = false } = {}) {

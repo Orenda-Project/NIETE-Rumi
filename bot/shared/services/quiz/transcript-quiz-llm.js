@@ -28,6 +28,31 @@ function modelId() {
 }
 
 /**
+ * THE PREPAID ANTHROPIC KEY. A quiz pass on an OpenRouter Claude id
+ * (`anthropic/claude-sonnet-5` — the blind solve and the summary truth check)
+ * is sent to the direct lane (`anthropic-direct/…`, llm-client) instead: the
+ * same model at the same list price, paid from ANTHROPIC_API_KEY's credit rather
+ * than the OpenRouter balance. The lane's credit-exhaustion fallback re-issues
+ * the call on OpenRouter, so a dry balance costs seconds, never a quiz.
+ *
+ * Only when that fallback can actually run (an OpenRouter key and provider) —
+ * the lane refuses to start otherwise, and a refused blind solve would ship a
+ * quiz unverified. QUIZ_ANTHROPIC_DIRECT=off sends every call to OpenRouter as
+ * before. Read per call, so an env flip needs no deploy of code.
+ *
+ * @returns {string|null} the direct-lane id, or null to keep the call as it is
+ */
+function directModelFor(requested) {
+  if (['off', 'false', '0', 'no'].includes(String(process.env.QUIZ_ANTHROPIC_DIRECT || '').trim().toLowerCase())) return null;
+  const id = String(requested || '').trim();
+  if (!id.startsWith('anthropic/')) return null;
+  if (!(process.env.ANTHROPIC_API_KEY || '').trim()) return null;
+  if (!(process.env.OPENROUTER_API_KEY || '').trim()) return null;
+  if ((process.env.LLM_PROVIDER || 'openrouter').trim().toLowerCase() !== 'openrouter') return null;
+  return `anthropic-direct/${id.slice('anthropic/'.length)}`;
+}
+
+/**
  * A reply that carries maths (a `$` anywhere) has its TeX backslashes repaired
  * BEFORE parsing, as the 6-12 LP lane does: `"$\frac{2}{9}$"` with one
  * backslash is VALID JSON — `\f` is a form feed — so it parses silently into
@@ -64,20 +89,31 @@ async function completeJsonOnce({
   // model it already works with. A no-op while TRANSCRIPT_QUIZ_MODEL still names that same
   // model; live protection the moment the job is moved to another supplier. A pass that
   // names its own registry job is billed and failed over as that job instead.
+  const direct = directModelFor(requested);
   const { client, model } = job
-    ? getClientForModel(requested, { job: String(job) })
-    : getClientForModel(requested, { job: 'quiz.transcript' });
+    ? getClientForModel(direct || requested, { job: String(job) })
+    : getClientForModel(direct || requested, { job: 'quiz.transcript' });
   const reasoning = REASONING_RE.test(requested);
-  const params = {
-    model,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-    max_tokens: maxTokens,
-    // OpenRouter: returns the priced cost on the usage object.
-    usage: { include: true },
-  };
-  if (reasoning) params.reasoning = { effort: 'low' };
-  else params.temperature = 0.4;
+  const params = direct
+    // The native /v1/messages surface: no JSON mode without a schema (extractJson
+    // and the BAD_JSON retry below hold the reply to JSON, as they always have for
+    // a fenced reply), no temperature on this model, and the low effort OpenRouter
+    // was asked for spelled the native way.
+    ? {
+      model, messages: [{ role: 'user', content: prompt }], max_tokens: maxTokens, output_config: { effort: 'low' },
+    }
+    : {
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: maxTokens,
+      // OpenRouter: returns the priced cost on the usage object.
+      usage: { include: true },
+    };
+  if (!direct) {
+    if (reasoning) params.reasoning = { effort: 'low' };
+    else params.temperature = 0.4;
+  }
 
   const t0 = Date.now();
   const res = await client.chat.completions.create(params);
@@ -151,4 +187,6 @@ async function completeJson({
   throw lastErr;
 }
 
-module.exports = { completeJson, modelId, extractJson, DEFAULT_MODEL, REASONING_RE, MAX_ATTEMPTS };
+module.exports = {
+  completeJson, modelId, directModelFor, extractJson, DEFAULT_MODEL, REASONING_RE, MAX_ATTEMPTS,
+};
