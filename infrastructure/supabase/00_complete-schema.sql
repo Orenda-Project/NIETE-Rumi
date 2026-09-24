@@ -5947,3 +5947,11 @@ COMMENT ON COLUMN teacher_nudges.context IS
 COMMENT ON COLUMN teacher_nudges.choice IS
   'What the teacher tapped: yes | no | ignored | class:<grade>_<subject>. A stable token, never the button title (button copy is translated and changes).';
 
+
+-- ── coaching_sessions: observe (HITL) columns — V1.5.4; live on every database since the HITL port ──
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS observation_type       VARCHAR(30);
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS observer_user_id       UUID;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS autofill_analysis_data JSONB;
+ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS debrief_status         VARCHAR(20);
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_observer_pending
+  ON coaching_sessions (observer_user_id, created_at DESC) WHERE observation_type = 'leader_observation';
