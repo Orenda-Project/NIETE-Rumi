@@ -202,10 +202,18 @@ function logRedactor(digest, extraNames = []) {
   (Array.isArray(extraNames) ? extraNames : [...(extraNames || [])]).forEach((n) => { if (LATIN_NAME.test(n)) add(n, n); });
   const list = [...canonical.keys()].sort((a, b) => b.length - a.length);
   const patterns = list.map((t) => [new RegExp(`(?<![\\p{L}\\p{M}])${escape(t)}(?![\\p{L}\\p{M}])`, 'gu'), nameToken(canonical.get(t))]);
-  const text = (t) => patterns.reduce(
+  // the children the recording names are known only as hashes: a word whose
+  // hash is one of them is replaced, word by word (transcript-quiz-pupils)
+  const pupils = new Set(Array.isArray(digest && digest.pupil_tokens) ? digest.pupil_tokens : []);
+  const pupilWords = (t) => (pupils.size ? t.replace(/[\p{L}\p{M}]+/gu, (w) => {
+    const { hashToken } = require('./transcript-quiz-pupils');
+    const h = hashToken(w);
+    return pupils.has(h) ? `‹name:${h.slice(0, 6)}›` : w;
+  }) : t);
+  const text = (t) => pupilWords(patterns.reduce(
     (acc, [re, token]) => acc.replace(re, token),
     t.replace(QUOTED_NAME, (m, a, name, b) => `${a}${nameToken(name)}${b}`),
-  );
+  ));
   const redact = (v) => {
     if (typeof v === 'string') return text(v);
     if (Array.isArray(v)) return v.map(redact);
