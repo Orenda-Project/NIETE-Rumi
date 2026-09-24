@@ -156,6 +156,7 @@ const Selection = require('../services/assessment/assessment-selection');
 const Edit = require('../services/assessment/assessment-edit');
 const { isAssessmentEditingEnabled } = require('../config/feature-flags');
 const revision = () => require('../services/assessment/assessment-revision.service');
+const { SYNC_BUDGET } = require('../services/whatsapp-send-pacer');
 
 const REVIEW_MARKER = ':assessment-review:';
 
@@ -498,9 +499,17 @@ async function handlePick(userId, data, flowToken, screenId = 'PICK') {
   return pickDoneScreen({ items, selected });
 }
 
-/** Rebuild the paper from her ticks and end the Flow. Shared by two paths. */
+/**
+ * Rebuild the paper from her ticks and end the Flow. Shared by two paths.
+ *
+ * The rebuild — and its document send — is awaited INSIDE the Flow request,
+ * which Meta gives ~10 s. The send is budgeted so per-recipient pacing cannot
+ * hold it for the phone's next slot: past the budget it goes out now, unpaced.
+ */
 async function rebuildAndClose({ paperId, owner, selected, flowToken }) {
-  const result = await revision().rerender({ paperId, userId: owner, selectedIds: selected });
+  const result = await revision().rerender({
+    paperId, userId: owner, selectedIds: selected, budget: SYNC_BUDGET.SEND_IF_LATE,
+  });
   await clearSession(flowToken);
 
   if (result.status !== 'ready') return done('rebuild_failed', result.code || '');

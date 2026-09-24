@@ -115,6 +115,51 @@ describe('the Urdu class report keeps an English phrase in one run', () => {
   });
 });
 
+/**
+ * A quiz written from a LESSON PLAN is named by the catalog: the name on the
+ * lesson's own PDF, verbatim (lp-quiz-digest catalogLessonName). A maths,
+ * science or English lesson has an ENGLISH name, and an Urdu quiz on it prints
+ * that name in an Urdu document. 330 of the catalog's 1,390 English names join
+ * their parts with a dash or an arrow — "Chapter 1 Assessment Worksheet — …",
+ * "… (hook) → Coloured-Water Investigation …" — and neither was a joiner, so
+ * the name split into two isolates with the dash between them, and the RTL page
+ * laid them out right to left: the second half printed first.
+ */
+const LP_TITLES = [
+  "Chapter 1 Assessment Worksheet — 'Hello World!' (student, fillable)",
+  'Transport of Water in Plants: how does water reach the leaves? (hook) → Coloured-Water Investigation: watching water climb the stem',
+  'Ordering Numbers – smallest to largest',
+];
+
+describe('a lesson-plan quiz named by its catalog title keeps the title in one run', () => {
+  test.each(LP_TITLES)('the Urdu teacher PDF title is one isolate: %s', (title) => {
+    const a = teacherPdfArgs(0);
+    const html = renderTeacher({
+      topic: title, teacherName: '', date: a.date, link: '', digest: a.digest, questions: a.questions,
+      lessonSummary: a.lessonSummary, language: 'ur', contentLanguage: 'ur', quizSource: 'lp_v8',
+    });
+    expect(isolates(between(html, '<h1', '</h1>'))).toEqual([title]);
+  });
+
+  test.each(LP_TITLES)('the Urdu class report title is one isolate: %s', (title) => {
+    const html = renderReport({ ...reportData('ur'), topic: title });
+    expect(isolates(between(html, '<h1', '</h1>'))).toEqual([title]);
+  });
+
+  test('a dash between an English phrase and Urdu is still NOT a joiner', () => {
+    // Joining only ever happens between two Latin runs: the Urdu after the dash
+    // keeps its own place, and the English phrase ends where it ends.
+    const html = renderReport({ ...reportData('ur'), topic: 'unlike fractions — کسر کا موازنہ' });
+    expect(isolates(between(html, '<h1', '</h1>'))).toEqual(['unlike fractions']);
+  });
+
+  test('the report chrome\'s own &mdash; entity is left exactly as it was', () => {
+    const html = renderReport({ ...reportData('ur'), topic: LP_TITLES[0] });
+    expect(html).toContain('&mdash;');
+    expect(html).not.toMatch(/&<span/);
+  });
+});
+
 const run = renderOptOut() ? describe.skip : describe;
 
 run('printed, the English phrase reads in order', () => {
@@ -131,6 +176,18 @@ run('printed, the English phrase reads in order', () => {
     expect(text).not.toMatch(/ordering unlike & Comparing/);
     expect(text).toMatch(/quiz · forward/);
     expect(text).not.toMatch(/forward · quiz/);
+  });
+
+  test('an Urdu lesson-plan quiz\'s English catalog title prints in order on both documents', async () => {
+    // A title short enough to print on ONE line: pdftotext re-orders the
+    // pieces of a wrapped line by its own guess, so only a one-line title is a
+    // fair reading of what was drawn. (A real catalog name.)
+    const title = 'Divisibility — apply the rules';
+    const args = teacherPdfArgs(0);
+    const teacher = pageText(await Gen.renderPdf({ ...args, quiz: { ...args.quiz, topic: title, quiz_source: 'lp_v8' } }));
+    expect(teacher).toMatch(/Divisibility — apply the rules/);
+    const report = pageText(await renderReportPdf({ ...reportData('ur'), topic: title }));
+    expect(report).toMatch(/Divisibility — apply the rules/);
   });
 
   test('the class report prints "Comparing & ordering" in that order', async () => {

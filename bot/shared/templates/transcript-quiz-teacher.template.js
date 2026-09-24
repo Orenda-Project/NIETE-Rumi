@@ -40,7 +40,7 @@
  * depends on a font that covers it).
  */
 
-const { LP_V8 } = require('../services/quiz/quiz-sources');
+const { isPlanQuiz } = require('../services/quiz/quiz-sources');
 const fs = require('fs');
 const path = require('path');
 const { richNotation } = require('../services/quiz/quiz-notation');
@@ -50,8 +50,63 @@ const { resolveUx } = require('../config/ux-strings');
 const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
-  headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf,
+  NASTALIQ, nastaliqPad, urduSpacingV2, headFamily, bodyFamily, latticeSvg, diamondSvg, scriptOf,
 } = require('./niete-brand');
+
+/**
+ * THE URDU SPACING — one block appended after the stylesheet below, so it
+ * overrides the Urdu ratios that stylesheet still carries (leadingAt()'s 1.73,
+ * 1.62, 1.43) and nothing else. Switched off (QUIZ_URDU_SPACING_V2=false) the
+ * block is not emitted and the sheet renders exactly as it did before it.
+ *
+ *   - Every Urdu block sits on the Nastaliq pitch measured from the font's ink
+ *     (niete-brand NASTALIQ); the stem, the correct option and the hero title
+ *     are Bold, which climbs higher, and take the Bold pitch. On the old ratios
+ *     a wrapped stem ran its second line's tall letters into the first line's
+ *     tails, and a wrapped option did the same.
+ *   - An option row is a bordered box around Nastaliq: it takes padding sized
+ *     from the ink (nastaliqPad) so the letters stay inside the border; the
+ *     stem takes the same so its first line clears the objective line above and
+ *     its last line clears the first option's border below.
+ *   - The Urdu level word in its chip («سمجھ») is Nastaliq: set Nastaliq-first
+ *     on the objective line's own pitch it sits inside its green fill, at no
+ *     cost in height.
+ *   - "What this quiz checks" gets the padding and edge rule of the box above
+ *     it: the base rule is scoped to .taught, so its text sat on its box's edge
+ *     (in English too — the one English change).
+ *   - An Urdu card is about half again as tall as before, and an unbreakable
+ *     card that no longer fits left a third of every page empty (measured). In
+ *     Urdu a card may therefore break, but only BETWEEN two options: the
+ *     objective line, the question and its first option always travel
+ *     together, and each piece keeps its own rounded edge and padding. The
+ *     class report made the same trade for the same reason. The last card and
+ *     the footer stay one unbreakable tail, as before.
+ */
+function urduSpacingCss(RTL) {
+  const lead = NASTALIQ.leading.regular;
+  const bold = NASTALIQ.leading.bold;
+  const pad = nastaliqPad(lead);
+  const padBold = nastaliqPad(bold, 'bold');
+  const side = RTL ? 'right' : 'left';
+  return `
+/* urdu-spacing-v2 */
+.content[dir="rtl"]{line-height:${lead}}
+.checks .content[dir="rtl"],.taught .content[dir="rtl"]{line-height:${lead}}
+.taught .content[dir="rtl"] .fromlesson{line-height:${bold};margin-top:0}
+.checks .checks-sum{border-${side}:3px solid #C6CFCA;border-radius:${RTL ? '10px 4px 4px 10px' : '4px 10px 10px 4px'};padding:10px 13px}
+.hero h1.content[dir="rtl"]{line-height:${bold}}
+.stem.content[dir="rtl"]{line-height:${bold};padding:${padBold.top}em 0 ${padBold.bottom}em}
+.opt.content[dir="rtl"]{line-height:${lead};padding:${pad.top}em 9px ${pad.bottom}em}
+.opt.correct.content[dir="rtl"]{line-height:${bold};padding:${padBold.top}em 9px ${padBold.bottom}em}${RTL ? `
+.hero h1{line-height:${bold}}
+.cmeta{line-height:${lead}}
+.pill{font-family:${FONTS.bodyUrdu};line-height:${lead};padding:0 9px;letter-spacing:0}
+.stem{line-height:${bold}}
+.card{break-inside:auto;page-break-inside:auto;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.chead,.stem,.multichip{break-after:avoid;page-break-after:avoid}
+.chead,.stem,.opt,.figure{break-inside:avoid;page-break-inside:avoid}` : ''}
+/* /urdu-spacing-v2 */`;
+}
 
 // PLAN_R5 D6 / PLAN_R6 D4 — the Urdu bump is now ONE constant, exported from
 // niete-brand and shared with the class report, not recomputed per template.
@@ -154,13 +209,52 @@ function clampWords(s, max) {
 const RTL_LANGS = new Set(['ur']);
 
 /**
+ * The text's sentences, in order. A sentence ends at . ! ? ۔ ؟ followed by a
+ * space — but NOT inside a quotation. A lesson-plan quiz's summary quotes the
+ * lesson by its title, and titles carry their own "!" and "?" ("Hello World!",
+ * «آؤ بچو! سیر کرائیں تم کو پاکستان کی»); split there, the sheet printed half a
+ * sentence with an unclosed quote. Curly quotes and guillemets open and close;
+ * a straight ' or " opens after a space or bracket and closes before one, so
+ * the apostrophe in "children's" is never a quote. An unbalanced quote leaves
+ * the rest as one sentence, which the word cap then trims.
+ */
+const QUOTE_OPEN = new Set(['“', '‘', '«']);
+const QUOTE_CLOSE = new Set(['”', '’', '»']);
+function sentencesOf(text) {
+  const s = String(text || '').trim();
+  const out = [];
+  let start = 0;
+  let depth = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    const before = i === 0 ? ' ' : s[i - 1];
+    const after = i + 1 >= s.length ? ' ' : s[i + 1];
+    if (ch === "'" || ch === '"') {
+      const opens = /[\s([«“‘]/.test(before) && !/\s/.test(after);
+      const closes = !/\s/.test(before) && /[\s.,;:!?۔؟،)\]]/.test(after);
+      if (opens && !closes) depth += 1;
+      else if (closes && !opens && depth > 0) depth -= 1;
+    } else if (QUOTE_OPEN.has(ch)) {
+      depth += 1;
+    } else if (QUOTE_CLOSE.has(ch)) {
+      if (depth > 0) depth -= 1;
+    } else if (depth === 0 && /[.!?۔؟]/.test(ch) && /\s/.test(after)) {
+      out.push(s.slice(start, i + 1).trim());
+      start = i + 1;
+    }
+  }
+  if (start < s.length) out.push(s.slice(start).trim());
+  return out.filter(Boolean);
+}
+
+/**
  * "Briefly tell the teacher what they taught" (operator, 2026-09-14): the
  * lesson summary is authored at four or five sentences; the sheet shows the
  * first one, capped at 32 words. Sentence ends in either script count. An
  * authored one-line summary (digest.lesson_summary_short) replaces the cap.
  */
 function clampSentences(text, max, maxWords = 32) {
-  const parts = String(text || '').trim().split(/(?<=[.!?۔؟])\s+/).filter(Boolean);
+  const parts = sentencesOf(text);
   const words = parts.slice(0, max).join(' ').split(/\s+/).filter(Boolean);
   return words.length <= maxWords ? words.join(' ') : `${words.slice(0, maxWords).join(' ')}…`;
 }
@@ -273,7 +367,7 @@ function renderTranscriptQuizTeacherHtml(d) {
   const docLang = (d && d.contentLanguage) || language;
   const RTL = RTL_LANGS.has(docLang);
   const C0 = CHROME[docLang] || (RTL ? CHROME.ur : CHROME.en);
-  const C = quizSource === LP_V8 ? { ...C0, ...(LP_CHROME[docLang] || (RTL ? LP_CHROME.ur : LP_CHROME.en)) } : C0;
+  const C = isPlanQuiz(quizSource) ? { ...C0, ...(LP_CHROME[docLang] || (RTL ? LP_CHROME.ur : LP_CHROME.en)) } : C0;
   // L() only isolates, never re-escapes — a trusted chrome string may carry a
   // real <b> that must survive. K() additionally escapes and turns x^2 / H2O
   // into real super/subscripts (richNotation only adds tags, which wrapLatin
@@ -375,6 +469,8 @@ function renderTranscriptQuizTeacherHtml(d) {
   const taughtHtml = taughtText ? K(taughtText) : '';
   const checksHtml = checksText ? K(checksText) : '';
   const maths = [cards, topicHtml, taughtHtml, checksHtml].some(usesMath);
+  // Read at render time, so the kill switch takes effect on the next sheet.
+  const urSpacing = urduSpacingV2() ? urduSpacingCss(RTL) : '';
 
   return `<!doctype html><html dir="${dir}" lang="${docLang}"><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -485,7 +581,7 @@ body{background:#eef1f0;font-family:${bodyFam};color:#2b3040}
 .tail .qs{margin-top:0;padding:0 40px 6px}
 .foot{display:flex;align-items:center;justify-content:space-between;padding:12px 40px 16px;margin-top:8px;border-top:1px solid #eaeeeb;color:#8a92a0;font-size:${RTL ? `${BODY_UR}px` : `${TYPE_FLOOR.body}px`};line-height:${lh};font-family:${bodyFam}}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${RTL ? `${SMALL_UR}px` : `${TYPE_FLOOR.small}px`};font-family:${bodyFamily(false)}}
-.brand .mark-img{width:22px;height:22px;object-fit:contain;display:block}
+.brand .mark-img{width:22px;height:22px;object-fit:contain;display:block}${urSpacing}
 </style></head><body>
 <div class="report">
   <div class="hero">

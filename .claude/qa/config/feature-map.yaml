@@ -109,6 +109,7 @@ features:
     - bot/shared/routes/quiz-flow-endpoint.js
     - bot/shared/routes/transcript-quiz-flow-endpoint.js      # the /quiz Flow (lp_v8 + transcript quizzes, one list)
     - bot/shared/services/quiz/**
+    - bot/shared/services/student-ingress.js                # a child's door: their quizzes, "quiz" typed mid-quiz
     - bot/shared/services/exam/**
     - bot/shared/services/exam-checker/**
     - bot/shared/handlers/exam-checker.handler.js
@@ -123,6 +124,8 @@ features:
     - bot/shared/templates/video-quiz-report.template.js
     - bot/shared/templates/video-quiz-scorecard.template.js
     - bot/shared/templates/transcript-quiz-teacher.template.js  # the teacher sheet sent with every lesson quiz
+    - bot/shared/templates/video-quiz-leaderboard.template.js  # the child's class card after a lesson quiz
+    - bot/shared/templates/niete-brand.js  # palette, type floor and Urdu line pitch every quiz document/card reads
     - bot/shared/templates/latin-runs.js  # English-phrase isolation inside Urdu, used by the teacher sheet and the class report
     # The transcript-quiz figure/card modules render through the same vendored
     # engine the LP-612 lane uses — see the note under `lesson-plan:`. Owned by
@@ -154,6 +157,9 @@ features:
     # misses the ones that do not. The pre-gate Latin-honorific normaliser is required only
     # by lp612-author.service.js, so it is lesson-plan-owned like the rest of the lane.
     - bot/shared/services/lp612-latin-honorific.js
+    # The delivery ledger (one row per 6-12 lesson a teacher received) — written by the
+    # serving path, read by the /quiz lp612 provider (training owns quiz/**).
+    - bot/shared/services/lp612-deliveries.store.js
     - bot/workers/lp612-*.worker.js
     # The vendored authoring/rendering engine behind that lane: the author briefs,
     # the diagram type manifest, the linter, the renderer.

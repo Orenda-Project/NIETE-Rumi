@@ -22,7 +22,7 @@ const { peopleRule } = require('./transcript-quiz-people');
 const { scrubPupils, PUPILS_RULE } = require('./transcript-quiz-pupils');
 const {
   languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
-  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
+  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
 } = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -191,6 +191,8 @@ const TRANSCRIPT_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson
 
 TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same second-person address:
 - "lesson_summary_short": ONE sentence, at most 25 words — what you taught, with your own first example. No list, no second sentence.`;
+/** The recording's summary rule, with the truth rule while its switch is on (read per prompt). */
+const transcriptSummaryRule = () => (summaryTruthEnabled() ? `${TRANSCRIPT_SUMMARY_RULE}\n\n${SUMMARY_TRUTH_RULE}` : TRANSCRIPT_SUMMARY_RULE);
 
 /**
  * The lp_v8 twin: the teacher PLANNED this lesson; nobody heard it taught. The
@@ -276,7 +278,7 @@ GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child
 
 ${questionContract({ gradeBand })}
 
-${lp ? LP_SUMMARY_RULE : TRANSCRIPT_SUMMARY_RULE}
+${lp ? LP_SUMMARY_RULE : transcriptSummaryRule()}
 - "checks_summary": ONE sentence, at most 30 words, beginning with what this quiz checks — the skills, not the question count (e.g. "This quiz checks whether the class can tell a proper fraction from an improper one and compare two with the same denominator."). Never name the teacher or the children; no gendered forms.
 
 ${SELECTED_BECAUSE_RULE}

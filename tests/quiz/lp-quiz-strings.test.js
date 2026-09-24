@@ -88,12 +88,15 @@ describe('failureCopyKey — the failure copy is picked by the quiz SOURCE', () 
     expect(failureCopyKey('validator_failed', 'lp_v8')).toBe('tqFailedLpAuthor');
   });
 
-  test('a transcript quiz gets tqCouldNotMake for every reason about the recording — and its own sentence when the MODEL failed', () => {
-    expect(failureCopyKey('session_missing', 'transcript')).toBe('tqCouldNotMake');
-    expect(failureCopyKey('model_failed', 'transcript')).toBe('tqCouldNotMakeModel');
+  test('a transcript quiz gets tqCouldNotMake ONLY when the recording is the problem — our failures say they were ours', () => {
     expect(failureCopyKey('source_unusable', 'transcript')).toBe('tqCouldNotMake');
-    expect(failureCopyKey('validator_failed', 'transcript')).toBe('tqCouldNotMake');
-    expect(failureCopyKey('validator_failed', undefined)).toBe('tqCouldNotMake');
+    expect(failureCopyKey('model_failed', 'transcript')).toBe('tqCouldNotMakeModel');
+    expect(failureCopyKey('validator_failed', 'transcript')).toBe('tqCouldNotMakeAuthor');
+    expect(failureCopyKey('validator_failed', undefined)).toBe('tqCouldNotMakeAuthor');
+    // The recording is gone: said as that, never as a thin transcript.
+    expect(failureCopyKey('session_missing', 'transcript')).toBe('tqCouldNotMakeSessionGone');
+    // A reason with no sentence of its own is no evidence about the recording.
+    expect(failureCopyKey('something_new', 'transcript')).toBe('tqCouldNotMakeModel');
   });
 
   test('an lp_v8 reason nobody wrote copy for falls back rather than throwing at send time', () => {

@@ -159,6 +159,10 @@ describe('PLAN_R4 D1 — one language per document', () => {
    * would have grown the air to 20px — which is how a +17% type raise turned
    * into +2 pages on the Urdu sheet. `leadingAt()` keeps the air and lets the
    * ratio fall, so this asserts the air.
+   *
+   * This is the BASE stylesheet — what renders with QUIZ_URDU_SPACING_V2 off.
+   * With it on (the default) an appended block sets Urdu on the Nastaliq pitch
+   * measured from the font's ink; see bot/tests/quiz/urdu-line-spacing.test.js.
    */
   test('the RTL content rule puts NastaliqUrdu first and gives Urdu room to breathe', () => {
     const rule = ruleFor(render(MIXED), '.content[dir="rtl"]');

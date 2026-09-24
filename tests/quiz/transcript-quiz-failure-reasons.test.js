@@ -171,7 +171,12 @@ describe('generate: no usable author reply on any attempt is model_failed', () =
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, UX_STRINGS.tqCouldNotMakeModel.en);
   });
 
-  test('an author that DID reply, with questions that never validate, keeps the existing recording sentence', async () => {
+  // The author DID reply; the questions it wrote never passed our checks. That
+  // is OUR authoring failing, and says nothing about the recording — 10 of the
+  // first 12 production failures were the pipeline refusing good lessons. The
+  // teacher is told the questions were ours to get right, and that /quiz can
+  // make this same lesson again; never "the transcript didn't carry enough".
+  test('an author that DID reply, with questions that never validate, is told it was our authoring, not the recording', async () => {
     mockCreate.mockImplementation(async (params) => (isDigestPrompt(params)
       ? reply(JSON.stringify(DIGEST_JSON))
       : reply(JSON.stringify({ questions: [], lesson_summary: 'You taught the food chain.' }))));
@@ -182,7 +187,88 @@ describe('generate: no usable author reply on any attempt is model_failed', () =
     const r = await Gen.process(QID, {});
 
     expect(r.reason).toBe('validator_failed');
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, UX_STRINGS.tqCouldNotMake.en);
+    expect(failedPatch().meta.error).toBe('validator_failed');
+    expect(failedEvent()).toEqual(expect.objectContaining({ reason: 'validator_failed', step: 'author', quiz_source: 'transcript' }));
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalledWith(PHONE, UX_STRINGS.tqCouldNotMake.en);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, UX_STRINGS.tqCouldNotMakeAuthor.en);
+  });
+});
+
+describe('failureCopyKey — a recording quiz hears "the transcript didn’t carry enough" ONLY when that is the state', () => {
+  const { failureCopyKey } = require('../../bot/shared/services/quiz/quiz-sources');
+  test.each([
+    // the one reason that IS the recording: checked in code before any model call
+    ['source_unusable', 'tqCouldNotMake'],
+    // ours: the model gave nothing usable
+    ['model_failed', 'tqCouldNotMakeModel'],
+    // ours: the questions we wrote never passed our checks
+    ['validator_failed', 'tqCouldNotMakeAuthor'],
+    // ours: the keys we wrote contradicted the lesson (lp_v8 only today; the table must still be honest)
+    ['key_conflict', 'tqCouldNotMakeAuthor'],
+    // ours: the blind solve held the quiz back
+    ['key_disagreement', 'tqFailedKeyDisagreement'],
+    // the lesson's recording is no longer there: said as that, never as a thin transcript
+    ['session_missing', 'tqCouldNotMakeSessionGone'],
+    // a reason nobody wrote copy for is no evidence about the recording
+    ['something_new', 'tqCouldNotMakeModel'],
+  ])('%s → %s', (reason, key) => {
+    expect(failureCopyKey(reason, 'transcript')).toBe(key);
+  });
+});
+
+describe('tqCouldNotMakeAuthor — the sentence itself', () => {
+  test('exists in every offered language; says the questions were ours and the recording was not the problem', () => {
+    for (const lang of LANGUAGE_OFFER) {
+      const s = UX_STRINGS.tqCouldNotMakeAuthor[lang];
+      expect(typeof s).toBe('string');
+      expect(s).not.toBe(UX_STRINGS.tqCouldNotMake[lang]);
+      expect(s).not.toBe(UX_STRINGS.tqCouldNotMakeModel[lang]);
+    }
+    const { en, ur } = UX_STRINGS.tqCouldNotMakeAuthor;
+    expect(en).toMatch(/questions/i);
+    expect(en).toMatch(/my side/i);
+    expect(en).toMatch(/not your recording/i);
+    expect(en).not.toMatch(/didn.t carry|not enough of what|transcript/i);
+    expect(ur).toMatch(/سوالات/);
+    expect(ur).toMatch(/میری طرف سے/);
+    expect(ur).not.toMatch(/کافی واضح نہیں تھا|transcript/);
+  });
+
+  test('offers to make THIS lesson again through /quiz — never "after your next lesson"', () => {
+    const { en, ur } = UX_STRINGS.tqCouldNotMakeAuthor;
+    expect(en).toContain('/quiz');
+    expect(en).toMatch(/this lesson/i);
+    expect(en).toMatch(/again/i);
+    expect(en).not.toMatch(/next lesson/i);
+    expect(ur).toContain('/quiz');
+    expect(ur).toMatch(/یہی سبق/);
+    expect(ur).toMatch(/دوبارہ/);
+    expect(ur).not.toMatch(/اگلے سبق/);
+  });
+
+  test('is gender-neutral about the teacher, fits a body, and takes no parameters', () => {
+    const { addressForms } = require('../../bot/shared/services/quiz/transcript-quiz-address');
+    for (const lang of LANGUAGE_OFFER) {
+      const s = UX_STRINGS.tqCouldNotMakeAuthor[lang];
+      expect(s).not.toMatch(/\b(she|her|hers|herself|he|him|his|himself)\b/i);
+      expect(genderedTeacherForms(s, lang)).toEqual([]);
+      expect(addressForms(s, { kind: 'explanation' })).toEqual([]);
+      expect([...s].length).toBeLessThanOrEqual(1024);
+      expect(s).not.toMatch(/\{\w+\}/);
+    }
+  });
+});
+
+describe('tqFailedKeyDisagreement — a held-back recording quiz can be made again from /quiz', () => {
+  test('its tail points at making THIS lesson again, not at the next lesson', () => {
+    const { en, ur } = UX_STRINGS.tqFailedKeyDisagreement;
+    expect(en).toMatch(/held this quiz back/);          // the state stays named
+    expect(en).toMatch(/pick this lesson/i);
+    expect(en).not.toMatch(/next lesson/i);
+    expect(ur).toMatch(/روک لیا گیا/);
+    expect(ur).toMatch(/یہی سبق/);
+    expect(ur).not.toMatch(/اگلے سبق/);
   });
 });
 

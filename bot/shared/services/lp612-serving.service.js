@@ -76,6 +76,16 @@ function docKeyFor(segmentId, lang, tv) {
   return r2KeyFor(segmentId, lang, tv).replace(/\.pdf$/, '.lp.json');
 }
 
+/**
+ * The template version a PDF key was written under — the inverse of `r2KeyFor`, so the delivery
+ * ledger names the exact document a teacher holds without either caller passing it. `null` for a
+ * key of any other shape (an edit key, a foreign key).
+ */
+function templateVersionOfKey(r2Key) {
+  const m = /^lp612\/([^/]+)\/(en|ur)\/[^/]+\.pdf$/.exec(String(r2Key || ''));
+  return m ? m[1] : null;
+}
+
 /** The ONLY isolation this lane has. */
 const R2_KEY_PREFIX = 'lp612/';
 
@@ -807,6 +817,21 @@ async function deliverRender({
   // record at all.
   await recordDelivery({ userId, segment, lang, oneScreen });
 
+  // …and the DURABLE record: which lesson, which exact version, to whom — the list /quiz makes a
+  // quiz from (lp612-deliveries.store). The shelf above is Redis for 24 hours; this is the row.
+  // Soft, like the shelf: the store never throws, and says a missing table once.
+  if (userId) {
+    const Deliveries = require('./lp612-deliveries.store');
+    await Deliveries.record({
+      userId,
+      renderId,
+      segmentId: segment && segment.segment_id,
+      lang,
+      templateVersion: templateVersionOfKey(r2Key),
+      surface: 'whatsapp',
+    });
+  }
+
   // "Was that useful?", a short while from now.
   //
   // IT LIVES HERE AND NOT IN THE TWO CALLERS. `deliverRender` is the one function both delivery
@@ -1352,6 +1377,8 @@ module.exports = {
   buildFilename,
   buildCaption,
   r2KeyFor,
+  templateVersionOfKey,
+  __resetDeliveryLedgerForTests: () => require('./lp612-deliveries.store').__resetForTests(),
   docKeyFor,
   readStoredDoc,
   editKeyFor,

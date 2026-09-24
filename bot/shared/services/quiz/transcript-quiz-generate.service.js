@@ -34,10 +34,13 @@ const {
 } = require('./transcript-quiz-language');
 const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
+  TRANSCRIPT, LP_V8, LP612, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
+const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const Store = require('./lp-asset-source.store');
+const Funnel = require('./quiz-funnel');
+const Lp612Source = require('./lp612-quiz-source');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
@@ -55,6 +58,21 @@ const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taugh
  */
 async function resolveLessonSource(quiz) {
   const lesson = ((quiz.meta && quiz.meta.lessons) || [])[0];
+  // A Grades 6-12 lesson: the exact stored document of the render the teacher
+  // got, adapted to the slide-script shape (lp612-quiz-source). Its reader
+  // throws on an R2 failure other than a missing object, for the same reason
+  // the K-5 store throws on a DB error: redelivery, never a permanent failure.
+  if (quiz.quiz_source === LP612) {
+    if (!lesson || !lesson.segment_id) return null;
+    try {
+      return await Lp612Source.resolveSlideScript(lesson);
+    } catch (err) {
+      logToFile('❌ lp612 quiz: lesson document lookup failed — leaving the job to be redelivered', {
+        quizId: quiz.id, segmentId: lesson.segment_id, error: err.message,
+      }, 'error');
+      throw err;
+    }
+  }
   if (!lesson || !lesson.lesson_id) return null;
   try {
     const hit = await Store.resolveSlideScript({
@@ -542,7 +560,13 @@ async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSu
 }
 
 async function updateQuiz(quizId, patch) {
-  const { error } = await supabase.from('quizzes').update(patch).eq('id', quizId);
+  // Every terminal failure is dated on the row, whichever step wrote it — the
+  // DB half of the funnel's generation_failed (offered_at, accepted_at,
+  // ready_at and sent_at already date the other stages).
+  const stamped = patch && patch.status === 'failed' && patch.meta && !patch.meta.failed_at
+    ? { ...patch, meta: { ...patch.meta, failed_at: new Date().toISOString() } }
+    : patch;
+  const { error } = await supabase.from('quizzes').update(stamped).eq('id', quizId);
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
@@ -554,6 +578,7 @@ async function updateQuiz(quizId, patch) {
 async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}) {
   await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
   logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
+  Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason, step: extra.step });
 }
 
 // ─── the step ────────────────────────────────────────────────────────────────
@@ -818,6 +843,7 @@ async function runFigureDensity(api, {
  */
 async function runKeyCheck(api, {
   questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts, knownNames = null,
+  quizSource = LP_V8,
 }) {
   const KeyCheck = require('./lp-quiz-key-check.service');
   const startedAt = Date.now();
@@ -829,7 +855,7 @@ async function runKeyCheck(api, {
     record.latency_ms = Date.now() - startedAt;
     record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
     logEvent('transcript_quiz.key_check', {
-      quizId, quiz_source: LP_V8, status: record.status, model: record.model,
+      quizId, quiz_source: quizSource, status: record.status, model: record.model,
       checked: record.checked, contradicted: record.contradicted, fixed: record.fixed, dropped: record.dropped,
       unclear: record.unclear, missing: record.missing, ungrounded: record.ungrounded,
       costUsd: record.cost_usd, latencyMs: record.latency_ms,
@@ -1087,6 +1113,93 @@ async function runFinalSoftRepair(api, {
 }
 
 /**
+ * THE SUMMARY IS TRUE BY THE SUBJECT — a quiz written from a RECORDING.
+ *
+ * WHY. The teacher's sheet prints what the lesson covered — the one-liner, the
+ * summary, the "what this quiz checks" line, and each card's objective — all
+ * written from the recording, which can hold a mistake. On the 136 production
+ * quizzes that carried a wrong key, 27 printed the class's wrong fact on the
+ * sheet as what was taught, while the quiz under it said the opposite. The
+ * operator's decision (option B): the sheet stops asserting it; it does not
+ * correct the teacher and nothing is sent to anyone.
+ *
+ * WHAT. One call on the verify model with NOTHING about the lesson
+ * (transcript-quiz-summary-truth): a false line comes back rewritten if code
+ * accepts the rewrite, else it is dropped. Runs after the blind solve, whose
+ * notes on the keys it disagreed with (the fact by the subject — "the first
+ * step of long division is divide") ride along as hints: on the 136 production
+ * quizzes with a wrong key, the solve had already named the fact in most of the
+ * lines a context-free check alone let through. A summary left with no
+ * sentence falls back to the checked one-liner, then to a line naming only the
+ * topic — never empty (the validator requires one, and the last repair
+ * re-validates).
+ *
+ * FAIL-OPEN. A throw or an unusable reply ships the texts as authored,
+ * recorded as `meta.summary_truth.status = 'error'` and logged at error.
+ *
+ * @returns {Promise<{record:object, lessonSummary:string|null, extras:object, slos?:object[]}>}
+ */
+/**
+ * The facts the blind solve noted where it disagreed with a key — its note on
+ * every flagged item (another answer, two answers, or none right), which names
+ * the fact by the subject. Only notes: never the item, the key or a child.
+ */
+function answerCheckFindings(kvRecord) {
+  const flagged = new Set(['disagree', 'ambiguous', 'none_correct']);
+  return [...new Set(((kvRecord && kvRecord.disagreements) || [])
+    .filter((d) => d && flagged.has(d.verdict) && String(d.note || '').trim())
+    .map((d) => String(d.note).trim()))];
+}
+
+async function runSummaryTruth(api, {
+  lessonSummary, extras, digest, language, quizId, quizSource, grade = null, topic = null, hints = [],
+}) {
+  const startedAt = Date.now();
+  const record = {
+    status: 'clean', model: null, checked: 0, flagged: 0, rewritten: 0, dropped: 0, missing: 0, cost_usd: 0, lines: [],
+  };
+  const finish = (out) => {
+    record.latency_ms = Date.now() - startedAt;
+    record.cost_usd = Math.round((Number(record.cost_usd) || 0) * 1e6) / 1e6;
+    // Counts only — never a line of the summary (it can quote the lesson).
+    logEvent('transcript_quiz.summary_truth', {
+      quizId, quiz_source: quizSource, status: record.status, model: record.model, checked: record.checked,
+      flagged: record.flagged, rewritten: record.rewritten, dropped: record.dropped, missing: record.missing,
+      fallback: record.fallback || null, costUsd: record.cost_usd, latencyMs: record.latency_ms,
+    });
+    return { record, ...out };
+  };
+  let out;
+  try {
+    out = await api.checkSummaryTruth({
+      lessonSummary: lessonSummary || '', extras: extras || {}, slos: (digest && digest.slos) || [],
+      subject: digest && digest.subject, grade, hints,
+    });
+  } catch (err) {
+    record.status = 'error';
+    record.error = String((err && err.message) || err || 'unknown').slice(0, 200);
+    logToFile('❌ transcript quiz: summary truth check failed — shipping the summary as authored (fail-open)', {
+      quizId, quiz_source: quizSource, error: record.error,
+    }, 'error');
+    return finish({ lessonSummary, extras });
+  }
+  Object.assign(record, {
+    hints: Array.isArray(hints) ? hints.length : 0,
+    model: out.model || null, checked: out.checked || 0, flagged: out.flagged || 0, rewritten: out.rewritten || 0,
+    dropped: out.dropped || 0, missing: out.missing || 0, cost_usd: Number(out.costUsd) || 0, lines: out.lines || [],
+  });
+  if (out.skipped) record.status = 'skipped';
+  else if (record.flagged) record.status = 'fixed';
+  let summary = out.lessonSummary;
+  if (String(lessonSummary || '').trim() && !String(summary || '').trim()) {
+    const short = out.extras && out.extras.lesson_summary_short;
+    record.fallback = short ? 'short' : 'topic';
+    summary = short || resolveUx('tqSummaryTopicOnly', { language, params: { topic: topic || (digest && digest.topic) || '' } });
+  }
+  return finish({ lessonSummary: summary, extras: out.extras, slos: out.slos });
+}
+
+/**
  * THE BLIND SOLVE — every lesson quiz's keys, transcript and lp_v8 alike, held
  * against an independent solver's answers, after every authoring and repair step
  * (and after the lp_v8 key check) and before a single row is stored.
@@ -1309,7 +1422,7 @@ async function runKeyVerify(api, {
   let softFaults = null;
   const rw = await api.rewriteRejected({
     // More than five flagged keys: the worst five are rewritten, the rest dropped below.
-    questions, errors: [...complaints, ...repeatComplaints], digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames, partial: true,
+    questions, errors: [...complaints, ...repeatComplaints], digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1434,7 +1547,9 @@ async function process(quizId, payload = {}) {
   // from quizzes.teacher_id and its "session" is only the lesson date, which is
   // all the hand-off ever reads from one (PLAN_R8 §3.2/§3.3).
   const quizSource = quiz.quiz_source || TRANSCRIPT;
-  const isLp = quizSource === LP_V8;
+  // Written from a lesson PLAN (K-5 lp_v8 or Grades 6-12 lp612): no recording,
+  // no coaching session — the plan is the source and nobody heard the lesson.
+  const isLp = isPlanQuiz(quizSource);
   let session;
   let user;
   if (isLp) {
@@ -1443,15 +1558,43 @@ async function process(quizId, payload = {}) {
     if (!teacher) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'teacher_missing' } });
       logEvent('transcript_quiz.failed', { quizId, reason: 'teacher_missing', quiz_source: quizSource });
+      // No number to tell: the teacher's row is gone.
+      Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason: 'teacher_missing' });
       return { failed: true, reason: 'teacher_missing' };
     }
     user = teacher;
     session = lessonSessionFor(quiz);
   } else {
-    const { data: found } = await supabase.from('coaching_sessions')
+    const { data: found, error: sessionErr } = await supabase.from('coaching_sessions')
       .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
+    // A read that ERRORED is not a missing session. On 15 Sep 2026 this select
+    // still joined a column V1.4.5 had dropped: PostgREST answered with an error,
+    // `data` was null, and 22 quizzes whose sessions all existed were written
+    // `session_missing` — no event, and nothing said to a teacher already told
+    // "making it now". The error now throws, so the queue redelivers the job, as
+    // for every other database error in this step.
+    if (sessionErr) {
+      logToFile('❌ transcript quiz: coaching session read failed in generate', {
+        quizId, code: sessionErr.code || null, error: sessionErr.message,
+      }, 'error');
+      throw new Error(`transcript quiz: coaching session read failed: ${sessionErr.message}`);
+    }
     if (!found) {
+      // Really gone. A failure like every other: persisted, an event, and the
+      // teacher — who was told the quiz is being made — is told it is not.
       await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'session_missing' } });
+      const { data: owner, error: ownerErr } = await supabase.from('users')
+        .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
+      // Unreadable teacher: the job's own phone still reaches them, in the floor language.
+      if (ownerErr) logToFile('⚠️ transcript quiz: teacher unreadable while failing session_missing', { quizId, error: ownerErr.message });
+      const to = payload.phone || (owner && owner.phone_number);
+      const lang = teacherLanguageFor({ preferredLanguage: owner && owner.preferred_language });
+      if (to) {
+        await tellTeacherFailed(to, lang, quizId, 'session_missing', quizSource, { step: 'session' });
+      } else {
+        logEvent('transcript_quiz.failed', { quizId, reason: 'session_missing', quiz_source: quizSource, step: 'session' });
+        Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason: 'session_missing', step: 'session' });
+      }
       return { failed: true, reason: 'session_missing' };
     }
     session = found;
@@ -1461,6 +1604,20 @@ async function process(quizId, payload = {}) {
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = user.name || null;
   let meta = { ...(quiz.meta || {}) };
+  // Where the quiz was born — rides on every funnel stage this step writes.
+  const funnel = { quiz_id: quizId, teacher_id: quiz.teacher_id, source: quizSource, channel: Funnel.channelOf(meta.source) };
+  // A quiz resuming at the hand-off has already been generated; only real work
+  // counts as a start. A redelivered job starts again — count distinct quiz_id.
+  if (!(quiz.status === 'ready' && meta.step === 'ready')) Funnel.emit('generation_started', funnel);
+
+  // THE KILL SWITCH (QUIZ_LP612_SOURCE): off, no 6-12 quiz is WRITTEN. One queued
+  // before it was switched off fails honestly ("couldn't start it"); one already
+  // written (`ready`/`ready`, resuming at the hand-off) is not stopped.
+  if (quizSource === LP612 && !lp612SourceOn() && !(quiz.status === 'ready' && meta.step === 'ready')) {
+    await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_off' } });
+    await tellTeacherFailed(phone, teacherLang, quizId, 'source_off', quizSource);
+    return { failed: true, reason: 'source_off' };
+  }
 
   // The slide script is needed wherever the author still has to run; a quiz
   // resuming at the hand-off (`ready`/`ready`) has its questions and does not.
@@ -1511,10 +1668,14 @@ async function process(quizId, payload = {}) {
       // The served lesson's id names the quiz from the catalog: the Urdu label
       // (topic_as_taught → quizzes.topic, the forward message, the PDF) is the
       // name on the lesson's own PDF, never the model's reading of the script.
+      const served = ((quiz.meta && quiz.meta.lessons) || [])[0] || {};
       r = isLp
         ? await LpDigest.run({
           slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject,
-          lessonId: (((quiz.meta && quiz.meta.lessons) || [])[0] || {}).lesson_id || null,
+          lessonId: served.lesson_id || null,
+          // A 6-12 lesson is named by its own heading (the K-5 catalog cannot know it).
+          lessonName: quizSource === LP612 ? (served.title || quiz.topic || null) : null,
+          quizSource,
         })
         : await Digest.run({ session, user });
     } catch (err) {
@@ -1539,7 +1700,9 @@ async function process(quizId, payload = {}) {
     quiz.grade = r.grade || quiz.grade;
     await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
   }
-  const digest = meta.digest;
+  // `let`: the summary truth check replaces its SLO statements (a new object,
+  // never an edit of the row that was read).
+  let digest = meta.digest;
   const language = quiz.language || quizLanguageFor(digest.subject, session.transcript_language);
   // A complaint logged by the authoring loop can quote a person's name (a
   // URDU_NAME_LATIN line, a rejected teacher note): each is logged hashed (D4).
@@ -1967,6 +2130,7 @@ async function process(quizId, payload = {}) {
       const kc = await runKeyCheck(api, {
         questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
         lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings,
+        quizSource,
       });
       meta.key_check = kc.record;
       meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);
@@ -2009,6 +2173,25 @@ async function process(quizId, payload = {}) {
     }
     // A question the blind solve named as a repeat that no rewrite replaced.
     if (kv.repeatFaults && kv.repeatFaults.length) meta.soft_faults = [...(meta.soft_faults || []), ...kv.repeatFaults];
+    // ── THE SUMMARY IS TRUE BY THE SUBJECT (a recording's quiz) ──────────────
+    // After the blind solve, so the check can read what it found (see
+    // runSummaryTruth); before the last repair, which re-validates with the
+    // summary that will ship.
+    if (!isLp && summaryTruthEnabled()) {
+      const st = await runSummaryTruth(api, {
+        lessonSummary: readyLessonSummary, extras: lastExtras, digest, language, quizId, quizSource,
+        grade: quiz.grade || meta.grade || digest.grade_band || null, topic: quiz.topic,
+        hints: answerCheckFindings(kv.record),
+      });
+      meta.summary_truth = st.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (st.record.cost_usd || 0);
+      readyLessonSummary = st.lessonSummary;
+      lastExtras = st.extras || lastExtras;
+      if (Array.isArray(st.slos)) {
+        digest = { ...digest, slos: st.slos };
+        meta.digest = digest;
+      }
+    }
     // ── THE LAST REPAIR (a question written after the loop) ──────────────────
     // After every step that can write a question, before anything is stored.
     const fr = await runFinalSoftRepair(api, {
@@ -2087,6 +2270,7 @@ async function process(quizId, payload = {}) {
     logEvent('transcript_quiz.ready', {
       quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd, quiz_source: quizSource,
     });
+    Funnel.emit('generated', { ...funnel, n: rows.length });
   }
 
   // ── hand-off (mint or reuse the share code, PDF, the three paced messages —
@@ -2117,6 +2301,8 @@ module.exports = {
   checkKeys: (args) => require('./lp-quiz-key-check.service').checkKeys(args),
   // Both sources — the blind solve of every key (transcript-quiz-key-verify.service).
   verifyKeys: (args) => require('./transcript-quiz-key-verify.service').verifyKeys(args),
+  // A recording's quiz — every line the teacher's sheet prints, checked without the lesson.
+  checkSummaryTruth: (args) => require('./transcript-quiz-summary-truth').checkSummaryTruth(args),
   figureRequiredError,
   SOFT_FAULT,
   isEarlyYearsBand,

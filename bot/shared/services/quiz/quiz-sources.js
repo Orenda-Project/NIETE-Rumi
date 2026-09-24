@@ -27,11 +27,45 @@ const TRANSCRIPT = 'transcript';
 const LP_V8 = 'lp_v8';
 
 /**
+ * A quiz written from a Grades 6-12 lesson plan the teacher was served — the
+ * exact document that made the PDF, read from R2 by its render's version
+ * triple (lp612-quiz-source.js). Downstream it is a lesson-PLAN quiz exactly
+ * like lp_v8: no recording, "What you planned", the lesson-plan failure copy,
+ * "Make it again".
+ */
+const LP612 = 'lp612';
+
+/**
  * Frozen: every consumer reads it, several hand it straight to PostgREST's
  * `.in()`, and one `.sort()` in a caller would reorder it for everyone in the
  * same process.
  */
-const LESSON_SOURCES = Object.freeze([TRANSCRIPT, LP_V8]);
+const LESSON_SOURCES = Object.freeze([TRANSCRIPT, LP_V8, LP612]);
+
+/**
+ * The lesson quizzes written from a lesson PLAN rather than a recording. The
+ * question every surface that used to ask "is this lp_v8?" is really asking:
+ * nobody heard this lesson, so nothing may say it was taught, and the quiz is
+ * made from a written source that can be read again.
+ */
+const PLAN_SOURCES = Object.freeze([LP_V8, LP612]);
+
+/** @param {string|null|undefined} source `quizzes.quiz_source` */
+function isPlanQuiz(source) {
+  return PLAN_SOURCES.includes(source);
+}
+
+/**
+ * THE KILL SWITCH for quizzes from Grades 6-12 lesson plans: QUIZ_LP612_SOURCE, read at call
+ * time. `on` (or `true`) = the /quiz menu lists 6-12 lessons and the generate step writes their
+ * quizzes. Anything else — unset, `off` — = no 6-12 lesson is listed and no lp612 quiz is
+ * written; a quiz already MADE keeps going (its hand-off, children, report and /quiz actions are
+ * not gated), so switching it off never strands a class mid-quiz.
+ */
+function lp612SourceOn() {
+  const v = String(process.env.QUIZ_LP612_SOURCE || '').trim().toLowerCase();
+  return v === 'on' || v === 'true';
+}
 
 /**
  * Is this quiz one of a teacher's own lessons (as opposed to a video quiz or an
@@ -93,23 +127,33 @@ const LP_FAILURE_COPY = {
   // The generate job could not be queued: the quiz was never written. What the
   // teacher was told at the time, repeated — not "the questions did not come out".
   queue_failed: 'lpQuizCouldNotStart',
+  // QUIZ_LP612_SOURCE was switched off between the tap and the author: the quiz
+  // was never written, and "couldn't start it just now" is the honest sentence.
+  source_off: 'lpQuizCouldNotStart',
 };
 /**
  * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
- * transcript didn't carry enough"), so it is sent only where that is the state
- * or the existing claim: a transcript too short to carry a quiz
- * (source_unusable), and questions that never validated. The two reasons that
- * are not about the recording at all have their own sentence: the MODEL gave
- * nothing usable (model_failed), and the blind solve held the quiz back because
- * its answers were wrong or unclear (key_disagreement).
+ * transcript didn't carry enough"), so it is sent ONLY where that is the state:
+ * a transcript too short to carry a quiz (source_unusable), checked in code
+ * before any model call. Every other reason is ours and says so — the MODEL
+ * gave nothing usable (model_failed); the questions we wrote never passed our
+ * checks (validator_failed), or their keys contradicted the lesson
+ * (key_conflict — lp_v8 only today); the blind solve held the quiz back
+ * (key_disagreement). A session that is gone says so (session_missing). A
+ * reason nobody has written copy for is no evidence about the recording
+ * either, so it falls back to the general "on my side" sentence.
  */
 const TRANSCRIPT_FAILURE_COPY = {
-  model_failed: 'tqCouldNotMakeModel',
   source_unusable: 'tqCouldNotMake',
+  model_failed: 'tqCouldNotMakeModel',
+  validator_failed: 'tqCouldNotMakeAuthor',
+  key_conflict: 'tqCouldNotMakeAuthor',
   key_disagreement: 'tqFailedKeyDisagreement',
+  // the coaching session it was to be written from is gone
+  session_missing: 'tqCouldNotMakeSessionGone',
 };
 function failureCopyKey(reason, quizSource) {
-  if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMake';
+  if (!isPlanQuiz(quizSource)) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';
   // An LP quiz never falls back to the transcript copy: a reason nobody has
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
@@ -195,10 +239,10 @@ function lpRemakeable(meta) {
  * @returns {string} a ux-strings key
  */
 function handoffIntroKey(quizSource) {
-  return quizSource === LP_V8 ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
+  return isPlanQuiz(quizSource) ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
 }
 
 module.exports = {
-  TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey, handoffIntroKey,
+  TRANSCRIPT, LP_V8, LP612, LESSON_SOURCES, PLAN_SOURCES, isLessonQuiz, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, handoffIntroKey,
   SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable,
 };

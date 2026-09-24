@@ -35,7 +35,10 @@ beforeEach(() => { jest.clearAllMocks(); process.env.TRANSCRIPT_QUIZ_ENABLED = '
 
 describe('isQuizCommand', () => {
   test.each(['/quiz', '/quiz fractions', 'quiz', 'Quiz', 'کوئز'])('%s → true', (t) => expect(List.isQuizCommand(t)).toBe(true));
-  test.each(['quizzes please', 'I want a quiz', '/quizx', ''])('%s → false', (t) => expect(List.isQuizCommand(t)).toBe(false));
+  // A request that only ASKS for the quiz is the menu (quiz-menu-request.js):
+  // these reached AI chat in production before the matcher was widened.
+  test.each(['quizzes please', 'I want a quiz', 'quiz/', 'mera quiz', 'کویز'])('%s → true', (t) => expect(List.isQuizCommand(t)).toBe(true));
+  test.each(['quiz on fractions', 'stop quiz', '/quizx', ''])('%s → false', (t) => expect(List.isQuizCommand(t)).toBe(false));
 });
 
 describe('buildRows', () => {

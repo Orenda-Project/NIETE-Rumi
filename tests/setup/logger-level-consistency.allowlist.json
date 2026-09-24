@@ -2212,17 +2212,5 @@
     "line": 113,
     "snippet": "logToFile('❌ Stale session worker error', { error: error.message, stack: error.stack });",
     "occurrence": 0
-  },
-  {
-    "file": "bot/workers/stale-session.worker.js",
-    "line": 364,
-    "snippet": "logToFile('❌ Failed to send reminder', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/workers/stale-session.worker.js",
-    "line": 426,
-    "snippet": "logToFile('❌ Failed to auto-complete session', {",
-    "occurrence": 0
   }
 ]

@@ -30,10 +30,11 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
+const Funnel = require('./quiz-funnel');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
   needsLanguageAsk, languageAskButtons, languageAskBody } = require('./transcript-quiz-language');
 const {
-  LP_V8, lpRemakeable, failureReasonOf, digestFailureReason,
+  LP_V8, isPlanQuiz, lpRemakeable, failureReasonOf, digestFailureReason,
 } = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
@@ -281,6 +282,12 @@ async function processOffer(coachingSessionId, payload = {}) {
     coachingSessionId, quizId, userId: session.user_id, subject: digest.subject, language, teacherLang,
     withVideo: Boolean(videoSent), shownCount, sent: Boolean(sent), early: Boolean(payload.early),
   });
+  // Counted whether or not WhatsApp took it: an offer that never arrived is a
+  // failure to see, not an offer that never happened.
+  Funnel.emit('offer_made', {
+    quiz_id: quizId, teacher_id: session.user_id, source: 'transcript',
+    channel: Funnel.channelOf(payload.source || 'offer'), delivered: Boolean(sent),
+  });
   return { ok: true, quizId };
 }
 
@@ -321,6 +328,11 @@ async function handleOfferButton(buttonId, phone) {
   }
   const teacher = await teacherFor(quiz);
   const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language });
+  // These buttons only ever ride the coaching offer, so the stream is transcript.
+  Funnel.emit('offer_answered', {
+    quiz_id: quizId, teacher_id: quiz.teacher_id, source: 'transcript',
+    channel: Funnel.channelOf(quiz.meta && quiz.meta.source), choice: yes ? 'yes' : 'no',
+  });
 
   if (!yes) {
     const { data: flipped } = await supabase.from('quizzes')
@@ -400,11 +412,18 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
     .eq('id', quizId).eq('status', 'offered').select('id');
   if (!flipped || !flipped.length) return api.tellAlready(phone, quiz, teacherLang);
 
-  if (quiz.quiz_source === LP_V8) {
+  // Committed: the ONE accepted for a quiz whose yes had to wait for its
+  // language (the coaching offer, /quiz, the lesson-plan offer all land here).
+  Funnel.emit('accepted', {
+    quiz_id: quizId, teacher_id: quiz.teacher_id, nudge_id: quiz.meta && quiz.meta.nudge_id,
+    source: quiz.quiz_source || 'transcript', channel: Funnel.channelOf(quiz.meta && quiz.meta.source),
+  });
+
+  if (isPlanQuiz(quiz.quiz_source)) {
     // The ask on the 15:00 LP offer (lp-quiz-offer): queued and announced by
     // the same step a yes with no ask goes through.
     await api.queueLpQuiz({ quizId, nudgeId: quiz.meta && quiz.meta.nudge_id, phone, language: teacherLang });
-    logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source, quiz_source: LP_V8 });
+    logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source, quiz_source: quiz.quiz_source });
     return true;
   }
 
@@ -439,7 +458,7 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
     // failure that replaced them left a row /quiz could not date and nobody
     // could ever make again.
     const { data: current, error: readErr } = await supabase.from('quizzes')
-      .select('meta').eq('id', quizId).maybeSingle();
+      .select('meta, quiz_source').eq('id', quizId).maybeSingle();
     if (readErr) {
       logToFile('❌ lp quiz offer: could not read the quiz before marking it failed', { quizId, error: readErr.message }, 'error');
     }
@@ -454,10 +473,16 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
           error_detail: `queue: ${err.message}`,
           source: meta.source || 'lp_offer',
           nudge_id: meta.nudge_id || nudgeId || null,
+          failed_at: new Date().toISOString(),
         },
       })
       .eq('id', quizId);
     if (error) logToFile('❌ lp quiz offer: could not mark the quiz failed', { quizId, error: error.message }, 'error');
+    Funnel.emit('generation_failed', {
+      // lp_v8 or lp612 — both are queued here; the row says which.
+      quiz_id: quizId, nudge_id: meta.nudge_id || nudgeId, source: (current && current.quiz_source) || LP_V8,
+      channel: Funnel.channelOf(meta.source || 'lp_offer'), reason: 'queue_failed',
+    });
     await say('lpQuizCouldNotStart');
     return false;
   }
@@ -484,7 +509,7 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
 async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
   const api = module.exports;
   const meta = quiz.meta || {};
-  if (quiz.quiz_source !== LP_V8 || !lpRemakeable(meta)) {
+  if (!isPlanQuiz(quiz.quiz_source) || !lpRemakeable(meta)) {
     logEvent('transcript_quiz.remake_refused', { quizId: quiz.id, reason: failureReasonOf(meta), remakes: meta.remakes || 0 });
     return false;
   }
@@ -498,6 +523,7 @@ async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
         remakes: (Number(meta.remakes) || 0) + 1,
         previous_error: meta.error || null,
         remade_at: new Date().toISOString(),
+        accepted_at: new Date().toISOString(),
         remake_source: source,
       },
     })
@@ -512,7 +538,10 @@ async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
   }
   logEvent('transcript_quiz.remade', {
     quizId: quiz.id, userId: quiz.teacher_id, previousError: meta.error || null,
-    remakes: (Number(meta.remakes) || 0) + 1, source, quiz_source: LP_V8,
+    remakes: (Number(meta.remakes) || 0) + 1, source, quiz_source: quiz.quiz_source,
+  });
+  Funnel.emit('accepted', {
+    quiz_id: quiz.id, teacher_id: quiz.teacher_id, nudge_id: meta.nudge_id, source: quiz.quiz_source || LP_V8, channel: 'remake',
   });
   return api.queueLpQuiz({ quizId: quiz.id, nudgeId: meta.nudge_id, phone, language: teacherLang });
 }

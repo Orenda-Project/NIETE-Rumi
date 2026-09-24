@@ -29,8 +29,25 @@ const { needsQuestionCard, richNotation, unicodeNotation, esc, NOTATION_RE, BUTT
 const { mathHtml, mathCss, usesMath } = require('./quiz-math');
 const { letterListLabel } = require('./video-quiz-render.service');
 const { resolveUx } = require('../../config/ux-strings');
+// The Urdu line pitch every quiz surface shares, measured from Nastaliq's ink,
+// and its kill switch.
+const { NASTALIQ, urduSpacingV2 } = require('../../templates/niete-brand');
 
 const CARD_WIDTH = 1080;
+
+/**
+ * THE URDU SPACING — appended after the card's stylesheet when the switch is on
+ * (QUIZ_URDU_SPACING_V2, default on); off, the card renders exactly as before.
+ * A wrapped Urdu stem or option used to sit at 2.0 / 1.9: close, but on real
+ * quiz text 17-19% of line pairs still touched (a tall ک under a ے tail). On
+ * the shared Nastaliq pitch they do not, and an option's own line box then
+ * already holds its ink, so an Urdu option row gives back 8px of its padding and
+ * the card stays about as tall as it was. English cards never get the block.
+ */
+function urduSpacingCss(multi) {
+  const lead = NASTALIQ.leading.regular;
+  return `\n/* urdu-spacing-v2 */.stem{line-height:${lead}}.opt-text{line-height:${lead}}.opt{padding:12px 26px}${multi ? `.cue{line-height:${lead}}` : ''}/* /urdu-spacing-v2 */`;
+}
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 const tokenCss = () => {
@@ -126,7 +143,7 @@ html,body{background:#FFFFFF}
 .dia::before{content:'';position:absolute;inset:6px;background:#47BA7D;transform:rotate(45deg);border-radius:6px}
 .dia span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#0B1A12;font-family:'Inter',sans-serif;font-weight:800;font-size:26px}
 .opt-text{font-size:${ur ? '38px' : '36px'};line-height:${ur ? '1.9' : '1.35'};flex:1;text-align:start;unicode-bidi:isolate}
-.foot{margin-top:18px;font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '26px' : '22px'};line-height:1.8;color:#6B7280;direction:${dir};text-align:start;position:relative}${cueCss}
+.foot{margin-top:18px;font-family:'Inter','Noto Nastaliq Urdu','Noto Naskh Arabic',sans-serif;font-size:${ur ? '26px' : '22px'};line-height:1.8;color:#6B7280;direction:${dir};text-align:start;position:relative}${cueCss}${ur && urduSpacingV2() ? urduSpacingCss(multi) : ''}
 </style></head><body><div class="card">
 <svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${latticePaths()}</g></svg>
 <div class="top">${counter}<div class="mark">${markB64() ? `<img src="data:image/png;base64,${markB64()}">` : ''}</div></div>

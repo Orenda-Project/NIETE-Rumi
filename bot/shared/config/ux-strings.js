@@ -123,7 +123,7 @@ const UX_STRINGS = {
     en: 'Photograph a class register and I will turn it into a student list. '
       + 'You get to check every name before anything is saved.',
     ur: 'کلاس کے حاضری رجسٹر کی تصویر بھیجیں، اسے طلبہ کی فہرست میں بدل دیا جائے گا۔ '
-      + 'کچھ بھی محفوظ ہونے سے پہلے ہر نام آپ خود دیکھ سکیں گے۔',
+      + 'کچھ بھی محفوظ ہونے سے پہلے ہر نام آپ کو دکھایا جائے گا۔',
   },
   rosterFlowFooter: {
     en: 'About 2 minutes per class',
@@ -251,11 +251,12 @@ const UX_STRINGS = {
   // Say WHAT to photograph: of 84 real uploads read for bd-drg79, two-thirds were the
   // class seated at desks, which no FICO indicator can use. The board, a student's
   // work and the materials used are what the scorer can verify. Copy approved by the
-  // operator 2026-09-14. Both bodies ≈285 code points (cap 1,024); the Urdu addresses
-  // the teacher with a respectful plural, no gendered verb stem.
+  // operator 2026-09-14. Both bodies ≈285 code points (cap 1,024). The Urdu asks
+  // with the subjunctive («کیا … شامل کریں؟»): «شامل کرنا چاہیں گے؟» was the
+  // masculine future — it guessed the teacher is a man (operator, 24 Sep).
   coachingPhotoOffer: {
     en: "📸 Would you like to add up to 3 photos? The most useful ones: (1) the board with today's objective or the task, (2) a student's notebook or worksheet, (3) anything you used to explain — a drawing, object, chart or cards. A photo of the class at their desks does not help the analysis.",
-    ur: '📸 کیا آپ 3 تک تصاویر شامل کرنا چاہیں گے؟ سب سے مفید: (1) بورڈ جس پر آج کا مقصد یا کام لکھا ہو، (2) کسی طالبِ علم کی کاپی یا ورک شیٹ، (3) جو چیز آپ نے سمجھانے کے لیے استعمال کی — ڈرائنگ، کوئی چیز، چارٹ یا کارڈز۔ بچوں کے ڈیسک پر بیٹھے ہونے کی تصویر تجزیے میں مدد نہیں کرتی۔',
+    ur: '📸 کیا 3 تک تصاویر بھی شامل کریں؟ سب سے مفید: (1) بورڈ جس پر آج کا مقصد یا کام لکھا ہو، (2) کسی طالبِ علم کی کاپی یا ورک شیٹ، (3) جو چیز آپ نے سمجھانے کے لیے استعمال کی — ڈرائنگ، کوئی چیز، چارٹ یا کارڈز۔ بچوں کے ڈیسک پر بیٹھے ہونے کی تصویر تجزیے میں مدد نہیں کرتی۔',
   },
   coachingPhotoOfferYes: { en: 'Yes', ur: 'ہاں' },
   coachingPhotoOfferNo: { en: 'No', ur: 'نہیں' },
@@ -1576,6 +1577,12 @@ const UX_STRINGS = {
   lpQuizOfferMore: { en: 'And {n} more classes not shown here', ur: 'مزید {n} کلاسیں یہاں نہیں دکھائی گئیں' },
   lpQuizYes: { en: 'Make the quiz', ur: '‏quiz بنائیں' },
   lpQuizNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+  // The 15:00 offer tapped for lessons that already have a quiz (made from
+  // /quiz since the offer went out). One quiz per lesson: nothing new is made.
+  lpQuizAlreadyHave: {
+    en: 'You already have a quiz for this lesson — send /quiz to see it.',
+    ur: 'اس سبق کا quiz پہلے سے موجود ہے — دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   lpQuizMaking: {
     en: 'Making it now — about a minute. The quiz will arrive here with the message to forward to your class.',
     ur: '‏quiz ابھی تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور کلاس کو آگے بھیجنے والا پیغام آئے گا۔',
@@ -1598,6 +1605,13 @@ const UX_STRINGS = {
     en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
     ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے /quiz بھیجیں۔',
   },
+  // A lesson-plan row tapped in /quiz whose lesson can no longer be made (the
+  // list was drawn before its source changed, or the row was not theirs).
+  // Names the state: the plan, not the teacher, is why.
+  tqLpLessonUnavailable: {
+    en: 'A quiz can’t be made from that lesson plan any more. Send /quiz to see your lessons.',
+    ur: 'اس سبق کے منصوبے سے اب quiz نہیں بن سکتا۔ اپنے اسباق دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   tqStillMaking: {
     en: 'That quiz is still being made — it will arrive here shortly.',
     ur: 'وہ quiz ابھی تیار ہو رہا ہے — تھوڑی دیر میں یہیں آئے گا۔',
@@ -1615,6 +1629,26 @@ const UX_STRINGS = {
   tqCouldNotMakeModel: {
     en: 'Sorry — something went wrong on my side while writing the quiz for this lesson, so it could not be finished. The problem was not your recording. Send /quiz and pick this lesson to try again.',
     ur: 'معذرت — اس سبق کا quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ آپ کی ریکارڈنگ میں نہیں تھا۔ دوبارہ کوشش کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
+  },
+  // validator_failed on a quiz born of a RECORDING: the author DID reply, and
+  // the questions it wrote never passed our checks — after every attempt,
+  // rewrite and salvage. That is our authoring, and it says nothing about the
+  // recording (the first production day: 10 of 12 failures were the pipeline
+  // refusing good lessons). So the sentence names the questions, says the
+  // recording was not the problem, and offers the remake /quiz can do.
+  // Gender-neutral: the Urdu verbs agree with سوالات / مسئلہ, and بھیجیں /
+  // چنیں are imperatives.
+  tqCouldNotMakeAuthor: {
+    en: 'Sorry — I couldn’t write good enough questions from this lesson this time. The problem was on my side, not your recording. Send /quiz and pick this lesson to make it again.',
+    ur: 'معذرت — اس بار اس سبق سے اچھے سوالات نہیں بن سکے۔ مسئلہ میری طرف سے تھا، آپ کی ریکارڈنگ میں نہیں۔ دوبارہ بنانے کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
+  },
+  // session_missing on a quiz born of a RECORDING: the coaching session it was
+  // to be written from is no longer there. Said as that — neither a thin
+  // transcript nor "pick this lesson" (a lesson that is gone is not listed).
+  // Passive Urdu: no verb agrees with the teacher.
+  tqCouldNotMakeSessionGone: {
+    en: 'Sorry — this lesson’s recording is no longer available, so the quiz could not be made. Send /quiz to pick another lesson.',
+    ur: 'معذرت — اس سبق کی ریکارڈنگ اب دستیاب نہیں، اس لیے quiz نہیں بن سکا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
   // ── the LP-born quiz's own failure reasons (PLAN_R8 §3.6) ────────────────
   // `tqCouldNotMake` above names "this lesson's recording" and "the transcript".
@@ -1658,13 +1692,24 @@ const UX_STRINGS = {
   // or drop and still send a quiz. Named for what happened: the quiz was made,
   // its answers did not hold up, so it was held back. Gender-neutral (passive
   // voice, no verb agrees with the teacher); 'quiz' stays a Latin term of record.
+  // A recording's quiz held back here CAN be made again from /quiz (authoring
+  // is not deterministic), so the tail offers this lesson, not the next one.
   tqFailedKeyDisagreement: {
-    en: 'I held this quiz back — when I checked it, some questions had a wrong or unclear answer, and I won’t send children a wrong answer. Try /quiz after your next lesson.',
-    ur: 'یہ quiz روک لیا گیا — جانچ میں کچھ سوالات کے جواب غلط یا غیر واضح نکلے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ اگلے سبق کے بعد ⁦/quiz⁩ آزمائیں۔',
+    en: 'I held this quiz back — when I checked it, some questions had a wrong or unclear answer, and I won’t send children a wrong answer. Send /quiz and pick this lesson to make it again.',
+    ur: 'یہ quiz روک لیا گیا — جانچ میں کچھ سوالات کے جواب غلط یا غیر واضح نکلے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوبارہ بنانے کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
   },
   tqFailedLpKeyDisagreement: {
     en: 'I held this quiz back — when I checked it, some questions from that lesson plan had a wrong or unclear answer, and I won’t send children a wrong answer. Send /quiz to pick another lesson.',
     ur: 'یہ quiz روک لیا گیا — جانچ میں اس lesson plan سے بنے کچھ سوالات کے جواب غلط یا غیر واضح نکلے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // The teacher's sheet, when the summary truth check (transcript-quiz-summary-
+  // truth) took out every sentence of a recording's summary and no checked
+  // one-liner is left: a line that names only the topic, asserts nothing, and
+  // carries no teacher-verb (so no gender). {topic} may be in either script, so
+  // the Urdu isolates it.
+  tqSummaryTopicOnly: {
+    en: 'Today’s lesson was about {topic}.',
+    ur: 'آج کا سبق «⁨{topic}⁩» کے بارے میں تھا۔',
   },
   tqCouldNotSend: {
     en: 'The quiz is ready but the class link could not be created just now. Send /quiz in a moment to get it.',
@@ -1708,7 +1753,21 @@ const UX_STRINGS = {
     en: 'No lessons yet. Record a lesson for coaching first — then /quiz can turn it into a quiz for your students.',
     ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر /quiz اسے طلبہ کے لیے quiz بنا دے گا۔',
   },
+  // Nothing to list while /quiz lists lesson plans too (QUIZ_MENU_LESSON_ROWS on):
+  // no recording long enough to quiz AND no lesson plan taken in 30 days. Names
+  // both doors; tqListEmpty stays the line for the recordings-only menu.
+  tqListEmptyPlans: {
+    en: 'No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students.',
+    ur: 'ابھی کوئی سبق نہیں۔ سبق کا منصوبہ لینے یا coaching کے لیے سبق ریکارڈ کرنے کے بعد ⁦/quiz⁩ اسے طلبہ کے لیے quiz بنا دے گا۔',
+  },
   tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  // WHERE a row in /quiz came from — first in the list row's description and in
+  // the Flow item's metadata line, on every row. Noun phrases, so no verb can
+  // agree with anyone. «سبق کے منصوبے» is the catalog's own phrase for a lesson
+  // plan (tqFlowActionMakeDescLp, tqHandoffIntroLp); "transcript" has no Urdu a
+  // teacher uses — what they made was a recording of their class.
+  tqRowFromLessonPlan: { en: 'From lesson plan', ur: 'سبق کے منصوبے سے' },
+  tqRowFromTranscript: { en: 'From transcript', ur: 'کلاس کی ریکارڈنگ سے' },
   tqRowOffered: { en: 'Offered — tap to make', ur: 'پیشکش — بنانے کو tap' },
   tqRowMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
   tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
@@ -1833,6 +1892,12 @@ const UX_STRINGS = {
     en: 'Record a lesson for coaching, then /quiz turns it into a quiz.',
     ur: 'پہلے coaching کے لیے سبق ریکارڈ کریں، پھر /quiz اس کا quiz بنا دے گا۔',
   },
+  // The same empty row while /quiz lists lesson plans too (QUIZ_MENU_LESSON_ROWS on).
+  tqFlowEmptyDescPlans: { en: 'Nothing here yet', ur: 'ابھی کچھ نہیں' },
+  tqFlowEmptyMetaPlans: {
+    en: 'Take a lesson plan or record a lesson, then /quiz turns it into a quiz.',
+    ur: 'سبق کا منصوبہ لیں یا سبق ریکارڈ کریں، پھر ⁦/quiz⁩ اس کا quiz بنا دے گا۔',
+  },
   tqFlowNewerMeta: { en: 'Back to the {n} more recent lessons', ur: 'پچھلے {n} حالیہ اسباق پر واپس' },
 
   // The lesson screen: heading, sub-line, and the live results.
@@ -1919,6 +1984,19 @@ const UX_STRINGS = {
   tqFlowResultsFailedModel: {
     en: 'Something went wrong on my side while writing this quiz, so it could not be finished. The problem was not your recording. You can try again.',
     ur: '‏quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ آپ کی ریکارڈنگ میں نہیں تھا۔ دوبارہ کوشش کی جا سکتی ہے۔',
+  },
+  // The chat's tqCouldNotMakeAuthor on the lesson screen: the questions never
+  // passed our checks (validator_failed, and every row written before reasons
+  // were stored). Ours, not the recording's; the Make choices sit right below.
+  tqFlowResultsFailedAuthor: {
+    en: 'Last time I couldn’t write good enough questions from this lesson. The problem was on my side, not your recording. You can make it again.',
+    ur: 'پچھلی بار اس سبق سے اچھے سوالات نہیں بن سکے۔ مسئلہ میری طرف سے تھا، آپ کی ریکارڈنگ میں نہیں۔ دوبارہ بنایا جا سکتا ہے۔',
+  },
+  // The chat's tqFailedKeyDisagreement on the lesson screen: the blind solve
+  // held the quiz back. Passive in Urdu — no verb agrees with the teacher.
+  tqFlowResultsFailedKeys: {
+    en: 'The last quiz from this lesson was held back: when I checked it, some questions had a wrong or unclear answer, and I won’t send children a wrong answer. You can make it again.',
+    ur: 'اس سبق کا پچھلا quiz روک لیا گیا — جانچ میں کچھ سوالات کے جواب غلط یا غیر واضح نکلے، اور بچوں کو غلط جواب نہیں بھیجا جا سکتا۔ دوبارہ بنایا جا سکتا ہے۔',
   },
   tqFlowEachStudent: { en: 'How each student did', ur: 'ہر طالب علم کا نتیجہ' },
   // The score is ONE left-to-right atom (digits, slash, brackets, per-cent), so
@@ -2146,6 +2224,14 @@ const UX_STRINGS = {
   vqStopped: {
     en: 'Okay, I’ve stopped this quiz here. You can start it again later.',
     ur: 'ٹھیک ہے، یہ quiz یہیں روک دیا گیا ہے۔ اسے بعد میں دوبارہ شروع کیا جا سکتا ہے۔',
+  },
+  // "quiz" typed while a question is waiting on this handset (a child, or a
+  // teacher's phone lent to one). The quiz is kept: nothing is scored or ended,
+  // no menu is sent over the question. In the QUIZ's language. Urdu: the verb
+  // agrees with "quiz" (چل رہا ہے), the rest are imperatives — never the reader.
+  vqStillInQuiz: {
+    en: 'You’re in the middle of a quiz — tap an answer to the question above, or type its letter. Type STOP to end the quiz.',
+    ur: 'ابھی ایک quiz چل رہا ہے — اوپر والے سوال کا جواب tap کریں، یا اس کا حرف لکھیں۔ quiz ختم کرنے کے لیے STOP لکھیں۔',
   },
   vqQuizFinished: {
     en: 'That quiz has finished. Pick another video and I\'ll offer you a fresh one!',
@@ -2427,7 +2513,7 @@ const CLASS_FLOW_STRINGS = {
   },
   classSubjectsHeading: {
     en: 'What do you teach in {class}?',
-    ur: '{class} میں آپ کیا پڑھاتے ہیں؟',
+    ur: '{class} میں آپ کے مضامین کون سے ہیں؟',
   },
   classSubjectsLabel: {
     en: 'Subjects',
@@ -2508,7 +2594,7 @@ const CLASS_FLOW_STRINGS = {
   },
   classRosterAction: {
     en: 'What would you like to do?',
-    ur: 'آپ کیا کرنا چاہتے ہیں؟',
+    ur: 'آگے کیا کرنا ہے؟',
   },
   classRosterAddOption: {
     en: 'Add students',
@@ -2574,7 +2660,7 @@ const CLASS_FLOW_STRINGS = {
   },
   classFlowBody: {
     en: 'See the classes you teach, or add a new one.',
-    ur: 'آپ جو جماعتیں پڑھاتے ہیں وہ دیکھیں، یا نئی شامل کریں۔',
+    ur: 'اپنی جماعتیں دیکھیں، یا نئی شامل کریں۔',
   },
   classFlowButton: {
     en: 'Open classes',

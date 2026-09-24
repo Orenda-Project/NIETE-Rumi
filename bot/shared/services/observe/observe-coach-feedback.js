@@ -14,7 +14,7 @@
  */
 
 // The one Urdu address rule every prompt that speaks TO a teacher or coach carries.
-const { URDU_ADDRESS_RULE } = require('../../config/gender-neutral-address');
+const { URDU_ADDRESS_RULE, URDU_THIRD_PERSON_RULE } = require('../../config/gender-neutral-address');
 
 const MIN_TRANSCRIPT_CHARS = 150;
 
@@ -82,7 +82,7 @@ function buildCoachFeedbackPromptI18n(transcript, options = {}, lang = 'ur') {
 
 SPEAK DIRECTLY TO THE OFFICER, in the SECOND PERSON ("you said…", "you asked…") — NEVER narrate them in the third person. Write ALL user-facing text in ${langName}.
 
-GENDER (mandatory): BOTH the officer and the teacher may be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume either. Keep every sentence gender-neutral. In Urdu the card speaks to the officer as آپ: ${URDU_ADDRESS_RULE} Refer to the teacher with the respectful plural (استاد چاہتے ہیں) or impersonal phrasing, never a gendered singular.
+GENDER (mandatory): BOTH the officer and the teacher may be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume either. Keep every sentence gender-neutral. In Urdu the card speaks to the officer as آپ: ${URDU_ADDRESS_RULE} ${URDU_THIRD_PERSON_RULE}
 
 First, silently judge the rubric (true/false each, internal only — never shown):
 ${RUBRIC_KEYS.map((k) => `- ${k}`).join('\n')}

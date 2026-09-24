@@ -232,3 +232,22 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # appended to that list and never becomes the requester, though she is waiting
     # just as much — and the claim path writes the requester into `waiters` too,
     # so one clause covers both.
+
+  # ═══════════════════════ SCHEDULED REMINDERS (the recovery sweep) ═══════════════════════
+
+  @e2e @wip @draft @config-gated @negative @P1
+  Scenario: A teacher who stops answering the reflection questions gets ONE reminder, not one per worker
+    Given the NIETE bot chat is open
+    And the runtime has COACHING_REMINDER_MINUTES=2
+    And my coaching analysis has asked me its reflection question
+    When I do not answer for the reminder window and the recovery sweep runs
+    Then I receive exactly one "You have an incomplete coaching session" message with "Continue Now" and "Get Report Now"
+    And no second copy of it arrives on the next sweep
+    # stale-session.worker.js runs inside every copy of sqs-worker.js (one per replica
+    # plus the video worker), and their 15-minute ticks line up after a deploy. Each
+    # copy used to read "not reminded yet", send, then write — so every copy that read
+    # before the first write sent its own: a median of ten identical reminders per
+    # teacher in production. Each row is now claimed with a conditional update before
+    # anything is sent (same for the 12-hour auto-complete notice and the
+    # confirmation-gate notice). Staging must run 2+ worker replicas for this to be a
+    # real test; with one copy it passes either way.

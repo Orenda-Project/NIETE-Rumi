@@ -17,4 +17,22 @@ function flagOn(name) {
   return raw === 'true' || raw === '1' || raw === 'yes';
 }
 
-module.exports = { flagOn };
+/**
+ * A KILL SWITCH for a fix that is on by default. Unset (or empty, or any other
+ * value) = the new behaviour; `false`, `0`, `off` or `no` (any case, trimmed) =
+ * the behaviour before the fix, exactly. Read at call time, so flipping it on
+ * Railway takes effect on the next message or tick without a deploy.
+ *
+ * The opposite default to `flagOn`: that one gates a FEATURE that must stay dark
+ * until someone turns it on; this one gates a FIX that is safe to ship on and must
+ * be easy to turn off in production if it goes wrong.
+ *
+ * @param {string} name  the environment variable
+ * @returns {boolean}    false only for an explicit off value
+ */
+function onUnlessOff(name) {
+  const raw = String(process.env[name] || '').trim().toLowerCase();
+  return !(raw === 'false' || raw === '0' || raw === 'off' || raw === 'no');
+}
+
+module.exports = { flagOn, onUnlessOff };

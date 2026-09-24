@@ -262,7 +262,7 @@ const COACHING_MESSAGES = {
   // field cap applies (language-protocol §3).
   duplicateRecording: {
     ...en("📋 I've heard this recording before \u2014 it's the same one you sent me earlier, so here is the report I already made for it.\n\nSend a *new* recording whenever you'd like fresh feedback."),
-    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔\n\nجب آپ نئی رائے چاہتے ہوں تو *نئی* ریکارڈنگ بھیج دیجیے۔',
+    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔\n\nجب بھی نئی رائے چاہیے ہو، *نئی* ریکارڈنگ بھیج دیجیے۔',
   },
 
   // ── The classroom-audio confirmation ──────────────────────────────────────
