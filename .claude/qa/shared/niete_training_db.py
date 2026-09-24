@@ -444,7 +444,7 @@ def cmd_seed_class_quiz(creds, a):
     for i, (q, oa, ob, oc, od, corr) in enumerate(qs, 1):
         r = {"quiz_id": qid, "sort_order": i, "external_id": "tq:%s:S1:%d" % (qid, i), "question_text": q,
              "option_a": oa, "option_b": ob, "option_c": oc, "option_d": od, "correct_option": corr,
-             "explanation": "QA seed", "difficulty_level": "easy", "media": None}
+             "explanation": "QA seed", "difficulty_level": 1, "media": None}   # integer column (run 1458: 22P02 on "easy")
         if a.broken_q and i == 3:
             r["media"] = {"question_card": "https://example.invalid/qa-missing-card.png"}
         rows.append(r)
