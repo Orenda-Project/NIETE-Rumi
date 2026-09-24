@@ -573,6 +573,7 @@ Feature: NIETE (ICT) Teacher Training
     And a matching picture names its rows P, Q, R, so its pairings read "P-2", never "A-2" beside the answer letter A
     And a bar named with a child's name keeps that name even when the question writes the name in English letters
     And an improper fraction or a mixed number is drawn as whole bars and a part bar, such as 17/4 as four whole bars and a quarter
+    And a question about a part of a set, such as the coloured pencils, shows that part in its own colour or picture
     And an equation in a question, such as 7 × 4 = 28, reads in the order it was written — on the card, on my PDF and in the WhatsApp text — even inside an Urdu sentence, and never with a letter x as the times sign
     # Part names: transcript-quiz-figure relabelLetterParts, run by the validator (P/Q/R/S on bars, number
     # lines, shapes and circuits; 1/2/3/4 otherwise); fraction_bar and circuit font ceilings 2.4 / 2.0.
