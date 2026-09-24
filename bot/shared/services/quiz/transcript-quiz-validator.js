@@ -673,7 +673,7 @@ function validate(rawQuestions, ctx = {}) {
     if (unnamed) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — the options name parts ${unnamed.join(', ')} but the picture names none; give each part its name as its label ("P", not "bar P")`);
     const loose = unnamedBarInNamedSet(q.figure, opts);
     if (loose) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — bar ${loose} has no name while the options pick bars by name, so the child cannot tell which bars go together; name every bar, and draw an improper fraction in a picture of its own`);
-    const mismatch = figureMismatch(q.figure, opts, ci);
+    const mismatch = figureMismatch(q.figure, opts, ci, stem);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }

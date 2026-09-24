@@ -595,6 +595,7 @@ function buildAddPicturePrompt({
 - Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture. (A stem that names the two fractions makes it a "model" question, which is an ADD, never a replacement.)
 - Place value: {"type":"base_ten","tens":3,"ones":4} — "What number do the sticks show?" or "How many tens are there?"
 - Counting, adding, taking away: {"type":"count_objects","rows":[{"picto":"counter","count":4},{"picto":"counter","count":3}]} — "How many counters are there altogether?"
+- A part of a set: the part is its own row that LOOKS different — {"type":"count_objects","rows":[{"picto":"pencil","count":2,"color":"warn"},{"picto":"pencil","count":3}]} — "What fraction of the pencils are coloured?"; rows that look alike cannot show a part.
 - Sharing and times: {"type":"count_objects","picto":"counter","count":12,"group":4} — "How many groups of 4 are there?"`,
     `TWO KINDS OF PICTURE:
 - "figure_role":"model" — the picture SHOWS the numbers the stem already states, the way the lesson drew them: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Keep the stem as it is.

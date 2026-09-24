@@ -885,7 +885,12 @@ function equalAmountOptions(spec, options, correctIndex) {
   return k2 >= 0 ? `${raw[ci].trim()} and ${raw[k2].trim()} show the same amount — a child who reads the picture either way is right` : null;
 }
 
-function figureMismatch(spec, options, correctIndex) {
+/** The colours a count_objects row may be drawn in (the engine's own palette tokens). */
+const NIETE_ROW_COLOURS = new Set(['ink', 'accent', 'leaf', 'cool', 'warn', 'plum', 'clay']);
+/** A stem that asks about colour or shading ("coloured", "shaded", «رنگین», «رنگے») — or a colour by name. */
+const COLOUR_WORDS = /\b(colou?r(?:ed|s)?|shaded|red|blue|green|yellow|orange|purple|pink|black|white|brown)\b|رنگ|سرخ|لال|نیل|ہر[ےی]|پیل|کال[ےی]|سفید/i;
+
+function figureMismatch(spec, options, correctIndex, stem = '') {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
   if (!correct) return null;
@@ -915,15 +920,28 @@ function figureMismatch(spec, options, correctIndex) {
     // Counters beside a sum they cannot show were passing as a "model": rows of
     // 2 and 5 beside "what is 2 × 5?" (10), rows of 4, 3 and 6 beside an LCM of
     // 12 (the fractions replays). What a counters picture CAN produce:
-    const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count }];
-    const counts = list.map((r) => Math.floor(Number(r && r.count) || 0)).filter((n) => n > 0);
+    const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count, picto: spec.picto }];
+    const rowsIn = list.filter((r) => Math.floor(Number(r && r.count) || 0) > 0);
+    const counts = rowsIn.map((r) => Math.floor(Number(r.count)));
     if (!counts.length) return null;
     const total = counts.reduce((a, b) => a + b, 0);
-    const reachable = new Set([String(total), String(counts.length)]);
+    // Can the child SEE which things a row is? Only when it looks different:
+    // its own picture, its own colour, or its own name. Staging: "the set of
+    // coloured pencils" over five identical pencils in rows of 2 and 3, keyed
+    // 2/5 — the share was "reachable" and nothing in the picture was coloured.
+    const look = (r) => [String(r.picto || spec.picto || ''), String(r.color && NIETE_ROW_COLOURS.has(String(r.color)) ? r.color : 'ink'), String(r.label || '').trim()].join('|');
+    const looks = rowsIn.map(look);
+    const seen = (i) => looks.filter((l) => l === looks[i]).length === 1;
+    // A question that names a colour or a shading asks the child to find the
+    // coloured things: every row it counts must be one the child can pick out.
+    const colourAsked = COLOUR_WORDS.test(String(stem || ''));
+    // (a colour question is never answered by the number of rows)
+    const reachable = new Set([String(total), ...(colourAsked ? [] : [String(counts.length)])]);
     counts.forEach((c, i) => {
-      reachable.add(String(c));
-      reachable.add(`${c}/${total}`);
-      counts.forEach((d, j) => { if (j !== i && c > d) reachable.add(String(c - d)); });
+      const visible = seen(i);
+      if (!colourAsked || visible || counts.length === 1) reachable.add(String(c));
+      if (visible && counts.length > 1) reachable.add(`${c}/${total}`);
+      counts.forEach((d, j) => { if (j !== i && c > d && (!colourAsked || (visible && seen(j)))) reachable.add(String(c - d)); });
     });
     if (counts.length === 1) {
       const n = counts[0];
@@ -939,7 +957,11 @@ function figureMismatch(spec, options, correctIndex) {
       reachable.add(String(Math.ceil(n / perRow)));
     }
     const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
-    return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${counts.join(' and ')} things)`;
+    if (reachable.has(key)) return null;
+    const alike = counts.length > 1 && looks.some((_, i) => !seen(i));
+    return alike || (colourAsked && counts.length === 1)
+      ? `the picture cannot produce the answer "${correct}": its things all look the same, so the child cannot see which part the question counts — give that row its own colour ("color": "warn") or its own picture`
+      : `the picture cannot produce the answer "${correct}" (it shows ${counts.join(' and ')} things)`;
   }
   if (type === 'base_ten') {
     // A place-value mat answers "what number?", "how many tens?", "what is the

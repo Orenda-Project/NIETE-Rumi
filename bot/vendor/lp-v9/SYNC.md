@@ -1118,11 +1118,29 @@ scheme it already uses for every other lettered part. Covered by
 has no `handleLetters`; keep it at the next re-sync (it changes nothing for a spec that omits it) and
 offer it upstream.
 
+### 3.22 A `count_objects` row may carry its own colour — `types/count_objects.js`, `types_manifest.json` (2026-09-24)
+
+`count_objects` drew every thing in ink, so a picture could not show a PART of a set. On staging a quiz
+asked for "the set of coloured pencils" over five identical outline pencils (two in the top row, three
+below), keyed 2/5, and nothing in the picture was coloured.
+
+* **`types/count_objects.js`** — a row may carry `color`, one of the palette tokens the other types
+  already use (`ink`, `accent`, `leaf`, `cool`, `warn`, `plum`, `clay`, the same map as
+  `compare_size.js`). Its things are drawn in that colour. A row without it, or with an unknown word, is
+  drawn in ink exactly as before, so every existing spec renders byte-for-byte.
+* **`types_manifest.json`** — the `rows` limit names `color` among a row's fields.
+
+The quiz lane (`transcript-quiz-figure.js` `figureMismatch`) now counts a row's share of the set, or a
+row's count under a question that names a colour or a shading, as an answer the picture can produce only
+when that row looks different from the others (its own picture, colour or name). Covered by
+`tests/quiz/transcript-quiz-figure-visible-subset.test.js`. Upstream has no row colour; keep it at the
+next re-sync and offer it upstream.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) and §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`) and §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
