@@ -324,26 +324,49 @@ describe('buildCohort', () => {
     expect(mockStore.rows).toHaveLength(0);
   });
 
-  test('the users read never names deleted_at to PostgREST — the column is not in the repo schema', async () => {
-    // A select naming a column the table lacks makes PostgREST refuse the WHOLE
-    // read (a dropped `users.grade` once failed every quiz offer for hours).
-    // `deleted_at` is live on one environment and absent from the checked-in
-    // schema, so it is read with `*` and filtered in code.
-    install(world());
-    const named = [];
+  /**
+   * Watch the users read: which filters it asks for, and which columns it names. A named
+   * list is PROJECTED, as PostgREST would, so a field the offer uses but forgot to select
+   * reads as undefined here instead of passing on a fixture that happens to carry it.
+   */
+  function watchUsers() {
+    const seen = { is: [], selects: [] };
     const real = supabase.from.getMockImplementation();
     supabase.from.mockImplementation((table) => {
       const chain = real(table);
       if (table !== 'users') return chain;
-      const select = chain.select;
-      const is = chain.is;
-      chain.select = (cols, opts) => { named.push(String(cols)); return select(cols, opts); };
-      chain.is = (col, v) => { named.push(col); return is(col, v); };
+      const { is, then } = chain;
+      let cols = '*';
+      chain.select = (c) => { cols = String(c); seen.selects.push(cols); return chain; };
+      chain.is = (col, v) => { seen.is.push([col, v]); return is(col, v); };
+      chain.then = (resolve, reject) => then((res) => {
+        if (cols === '*' || !Array.isArray(res.data)) return resolve(res);
+        const keep = cols.split(',').map((x) => x.trim());
+        return resolve({ ...res, data: res.data.map((r) => Object.fromEntries(keep.map((k) => [k, r[k]]))) });
+      }, reject);
       return chain;
     });
-    await Offer.buildCohort({ nudgeDate: NUDGE_DATE, now: pkt(NUDGE_DATE, 15, 0) });
-    expect(named.length).toBeGreaterThan(0);
-    for (const n of named) expect(n).not.toMatch(/deleted_at/);
+    return seen;
+  }
+
+  test('a soft-deleted teacher is filtered by the users read itself (deleted_at IS NULL in SQL)', async () => {
+    install(world({ users: [teacher(), teacher({ id: T2, deleted_at: '2026-09-01T00:00:00Z' })],
+      niete_lp_downloads: [download(), download({ user_id: T2 })] }));
+    const seen = watchUsers();
+    const res = await Offer.buildCohort({ nudgeDate: NUDGE_DATE, now: pkt(NUDGE_DATE, 15, 0) });
+    expect(seen.is).toContainEqual(['deleted_at', null]);
+    expect(res.inserted).toBe(1);
+    expect(mockStore.rows.map((r) => r.user_id)).toEqual([T1]);
+  });
+
+  test('the users read names its columns, and the cohort is built from exactly those', async () => {
+    install(world());
+    const seen = watchUsers();
+    const res = await Offer.buildCohort({ nudgeDate: NUDGE_DATE, now: pkt(NUDGE_DATE, 15, 0) });
+    expect(seen.selects.length).toBeGreaterThan(0);
+    for (const cols of seen.selects) expect(cols).not.toBe('*');
+    expect(res.inserted).toBe(1);
+    expect(mockStore.rows[0].context.sector).toBe('Sihala');   // school_id → schools.region
   });
 
   test('with pilot sectors set, a teacher outside them gets sector_not_piloted (D10)', async () => {
