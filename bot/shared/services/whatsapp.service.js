@@ -93,11 +93,12 @@ function pacingRefusal(local) {
 
 const axios = {
   get: (...args) => realAxios.get(...args),
-  post: (url, body, config) => {
+  // `gate` is ours, never axios's: { budget } for a send an HTTP response waits on.
+  post: (url, body, config, gate = {}) => {
     if (!pacer.isMessagesUrl(url)) return realAxios.post(url, body, config);
     // Created synchronously, inside the sender, so its stack names the caller.
     const site = new Error('whatsapp send site');
-    return pacer.send({ to: body && body.to, kind: pacer.kindOf(body), site }, async () => {
+    return pacer.send({ to: body && body.to, kind: pacer.kindOf(body), budget: gate.budget, site }, async () => {
       try {
         return { value: await realAxios.post(url, body, config), code: null };
       } catch (error) {
@@ -119,8 +120,10 @@ const axios = {
 /**
  * @param {string} url
  * @param {object} init
- * @param {{bestEffort?: boolean}} [gate] a best-effort send (a reaction) goes only
- *   if the recipient has room right now; it is never waited for or retried.
+ * @param {{bestEffort?: boolean, budget?: object}} [gate] a best-effort send (a
+ *   reaction) goes only if the recipient has room right now; it is never waited
+ *   for or retried. `budget` (pacer SYNC_BUDGET) caps the wait of a send that an
+ *   HTTP response is waiting on.
  */
 function fetch(url, init, gate = {}) {
   const rawFetch = globalThis.fetch;
@@ -132,7 +135,7 @@ function fetch(url, init, gate = {}) {
   // message: it is not paced and never retried.
   const to = body && body.to;
   return pacer.send(
-    { to, kind: pacer.kindOf(body), bestEffort: Boolean(gate.bestEffort) || !to, site },
+    { to, kind: pacer.kindOf(body), bestEffort: Boolean(gate.bestEffort) || !to, budget: gate.budget, site },
     async () => {
       const response = await rawFetch(url, init);
       if (!response || response.ok !== false) return { value: response, code: null };
@@ -187,6 +190,8 @@ class WhatsAppService {
       // Remove emotion tags from text messages (they're only for voice)
       const cleanMessage = this._removeEmotionTags(message);
 
+      // opts.budget (whatsapp-send-pacer SYNC_BUDGET): for a send an HTTP
+      // response is waiting on — see the pacer for 'skip' vs 'send'.
       const response = await fetch(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
         {
@@ -201,9 +206,13 @@ class WhatsAppService {
             type: 'text',
             text: { body: cleanMessage },
           }),
-        }
+        },
+        { budget: opts && opts.budget }
       );
 
+      // Skipped on purpose by the pacer (budgeted ack, no slot in time) — already
+      // logged as whatsapp.paced; not a failed send.
+      if (response.paced === 'skipped') return false;
       const data = await response.json();
       if (!response.ok) {
         logToFile('❌ Error sending WhatsApp message', { responseData: data });
@@ -891,9 +900,11 @@ class WhatsAppService {
    * @param {string} templateName - Approved template name
    * @param {string} languageCode - Template language code (e.g. 'en', 'ur')
    * @param {Array} components - Template components (header/body/button params)
+   * @param {{budget?: object}} [opts] budget: whatsapp-send-pacer SYNC_BUDGET, for
+   *   a send an HTTP response is waiting on
    * @returns {Promise<boolean>}
    */
-  static async sendTemplate(to, templateName, languageCode, components = []) {
+  static async sendTemplate(to, templateName, languageCode, components = [], opts = {}) {
     try {
       const payload = {
         messaging_product: 'whatsapp',
@@ -914,7 +925,8 @@ class WhatsAppService {
             'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
             'Content-Type': 'application/json',
           },
-        }
+        },
+        { budget: opts && opts.budget }
       );
 
       logToFile('✅ Template message sent', {
@@ -925,6 +937,7 @@ class WhatsAppService {
       });
       return true;
     } catch (error) {
+      if (error && error.paced === 'skipped') return false; // budgeted, no slot in time — logged by the pacer
       logToFile('❌ Error sending template message', {
         error: error.message,
         errorDetails: error.response?.data,
@@ -1099,8 +1112,11 @@ class WhatsAppService {
    *
    * On mobile clients (iOS/Android), mp4 documents render as tappable file
    * cards with inline preview — teachers can play directly in-chat.
+   *
+   * opts.budget: whatsapp-send-pacer SYNC_BUDGET, for a send an HTTP response
+   * is waiting on.
    */
-  static async sendDocumentByLink(to, documentLinkUrl, filename, caption = '') {
+  static async sendDocumentByLink(to, documentLinkUrl, filename, caption = '', opts = {}) {
     try {
       const messagePayload = {
         messaging_product: 'whatsapp',
@@ -1116,11 +1132,13 @@ class WhatsAppService {
       const resp = await axios.post(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
         messagePayload,
-        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } },
+        { budget: opts && opts.budget }
       );
       logToFile('✅ Sent document by link', { to, filename, urlPrefix: documentLinkUrl.slice(0, 80), messageId: resp.data?.messages?.[0]?.id });
       return true;
     } catch (error) {
+      if (error && error.paced === 'skipped') return false; // budgeted, no slot in time — logged by the pacer
       logToFile('❌ sendDocumentByLink failed', {
         to,
         filename,

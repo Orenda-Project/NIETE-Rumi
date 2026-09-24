@@ -96,6 +96,31 @@ maybe('the per-recipient reservation script on a real Redis', () => {
     expect(next.delay).toBeLessThanOrEqual(INTERVAL);
   });
 
+  test("'force_if_late' past max_wait answers granted=2 and still takes the next slot", async () => {
+    const phone = newPhone();
+    for (let i = 0; i < BURST; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await reserveWith(clients[0], phone, 'wait');
+    }
+    const [delay, granted] = await clients[0].eval(
+      pacer.RESERVE_LUA, 1, pacer.pairKey(phone), INTERVAL, BURST, 50, 'force_if_late', 0,
+    );
+    expect(Number(granted)).toBe(2);
+    expect(Number(delay)).toBeGreaterThan(50);
+    // It took a slot, so the next ordinary send waits two intervals, not one.
+    const next = await reserveWith(clients[1], phone, 'wait');
+    expect(next.delay).toBeGreaterThan(2 * INTERVAL - 50);
+  });
+
+  test("'force_if_late' within max_wait is an ordinary reservation (granted=1)", async () => {
+    const phone = newPhone();
+    const [delay, granted] = await clients[0].eval(
+      pacer.RESERVE_LUA, 1, pacer.pairKey(phone), INTERVAL, BURST, 1500, 'force_if_late', 0,
+    );
+    expect(Number(granted)).toBe(1);
+    expect(Number(delay)).toBe(0);
+  });
+
   test('the schedule key expires once its time has passed', async () => {
     const phone = newPhone();
     await reserveWith(clients[0], phone, 'wait');
@@ -117,7 +142,7 @@ maybe('the per-recipient reservation script on a real Redis', () => {
     const phone = newPhone();
     const first = await freshPacer.reserve(phone, 'wait', cfg);
     const second = await freshPacer.reserve(phone, 'wait', cfg);
-    expect(first).toEqual({ delayMs: 0, granted: true });
+    expect(first).toEqual({ delayMs: 0, granted: true, late: false });
     expect(second.granted).toBe(true);
     expect(second.delayMs).toBeGreaterThan(INTERVAL - 50);
     await wrapper.close();

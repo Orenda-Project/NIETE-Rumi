@@ -35,33 +35,8 @@ jest.mock('../../bot/shared/storage/r2', () => ({
   extractKeyFromUrl: jest.fn(),
 }));
 
-/**
- * The Redis boundary. The pacer talks to Redis through ONE atomic script per decision; this fake
- * answers that script with the same arithmetic (GCRA: a phone's "theoretical arrival time" moves
- * forward one interval per send; a send may go once it is within `burst` intervals of now).
- */
-class FakePairStore {
-  constructor() { this.tat = new Map(); this.available = true; this.calls = []; }
-  isAvailable() { return this.available; }
-  async evalScript(_script, keys, args) {
-    this.calls.push({ keys, args });
-    const [intervalMs, burst, maxWaitMs, mode, penaltyMs] = args.map((a, i) => (i === 3 ? a : Number(a)));
-    const key = keys[0];
-    const now = Date.now();
-    const tau = (burst - 1) * intervalMs;
-    let tat = Math.max(this.tat.get(key) || 0, now);
-    if (mode === 'penalize') {
-      tat = Math.max(tat, now + penaltyMs + tau);
-      this.tat.set(key, tat);
-      return [0, 1];
-    }
-    const delay = Math.max(0, tat - tau - now);
-    if (delay > 0 && mode === 'try') return [delay, 0];
-    if (delay > maxWaitMs) return [delay, 0];
-    this.tat.set(key, tat + intervalMs);
-    return [delay, 1];
-  }
-}
+// The Redis boundary: same arithmetic as the Lua script (see helpers/fake-pair-store.js).
+const { FakePairStore } = require('./helpers/fake-pair-store');
 const mockStore = new FakePairStore();
 jest.mock('../../bot/shared/services/cache/railway-redis.service', () => ({
   isAvailable: () => mockStore.isAvailable(),
