@@ -661,9 +661,11 @@ Feature: NIETE (ICT) Teacher Training
     Then no question speaks to the child as a boy or a girl, and no English terms sit side by side
     And a question whose answer was defended by the class against the fact is fixed before any of those
     And a picture question added after the quiz was written reads the same way — no English terms side by side, no gendered verb
+    And a lesson that can be drawn gets its pictures even when the first draft's words also needed fixing
     # transcript-quiz-generate runFinalSoftRepair: a question written after the author's loop (the picture step, a
     # key rewrite) gets one in-place repair call before the rows are stored, text only (picture, key, options' order
-    # kept), and the set is kept as it was when that does not work.
+    # kept), and the set is kept as it was when that does not work. Order: the first attempt's picture retry
+    # (FIGURE_REQUIRED) runs before any in-place repair of its words, then the picture step, then the last repair.
     # transcript-quiz-rewrite rewriteTargets `partial`: more than five faulted questions → the worst five by harm
     # (KEY_* > PEDAGOGY_GENDERED_CHILD > URDU_ADJACENT_TERMS > URDU_NAME_LATIN > the rest), the merged set
     # validated again, ONE second batch for what is left (REPAIR_BATCHES = 2), the questions the first left out

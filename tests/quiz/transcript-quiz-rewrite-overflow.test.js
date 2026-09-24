@@ -209,10 +209,12 @@ describe('which questions one rewrite takes', () => {
   const hard = (i) => `q${i}: duplicate options`;
 
   test('chosen by harm, then by position; the rest wait for the second batch', () => {
+    // the key first, then a hard fault (it never loses its place to an in-place
+    // repair), then the child's gender, then English terms side by side
     const t = Rewrite.rewriteTargets([a(0), g(1), a(2), g(3), hard(4), g(5), k(7)], { partial: true });
-    expect(t.indices).toEqual([0, 1, 3, 5, 7]);
-    expect(t.deferred).toEqual([2, 4]);
-    expect(Object.keys(t.byIndex).map(Number).sort((x, y) => x - y)).toEqual([0, 1, 3, 5, 7]);
+    expect(t.indices).toEqual([1, 3, 4, 5, 7]);
+    expect(t.deferred).toEqual([0, 2]);
+    expect(Object.keys(t.byIndex).map(Number).sort((x, y) => x - y)).toEqual([1, 3, 4, 5, 7]);
   });
 
   test('more than five questions that need re-asking is still a re-roll on an early attempt', () => {

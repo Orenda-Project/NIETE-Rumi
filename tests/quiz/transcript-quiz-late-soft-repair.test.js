@@ -178,7 +178,12 @@ test('a picture question that arrives with English terms side by side is repaire
 
   const out = await Gen.process(QID);
   expect(out.ok).toBe(true);
-  // attempt 1's repair of q1, then ONE more — for the question the picture step wrote
+  // The order: attempt 1 is asked again for its picture (a drawable lesson with
+  // none), attempt 2's words are repaired (q1), the picture step writes q5-q7,
+  // and then ONE more repair — for the question the picture step wrote.
+  const authors = mockCreate.mock.calls.map((c) => c[0]).filter((c) => !isRewrite(c) && !isPictures(c)).map(promptOf);
+  expect(authors).toHaveLength(2);
+  expect(authors[1]).toContain('FIGURE_REQUIRED');
   expect(rewrites().map(asked)).toEqual([[1], [5]]);
 
   const rows = storedRows();
