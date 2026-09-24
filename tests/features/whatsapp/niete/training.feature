@@ -465,11 +465,18 @@ Feature: NIETE (ICT) Teacher Training
     Then at least three of its questions arrive with a picture, and never more than half of them
     And the pictures draw the lesson's own objects, such as counters for a lesson that counted counters
     And a question that states its numbers may carry a picture of them, such as two fraction bars beside "which is larger", but no picture ever shows the answer
-    # Author prompt: "at least three, never more than half" and figure_role "model" (grade 1-5 maths only).
+    And on a grade 4-5 fractions lesson taught as a method, such as cross multiplication, the pictures are questions read off fraction bars — what fraction of the bar is shaded, which bar shows a fraction — never a picture beside a step of the working
+    And every fraction on the question cards and on my PDF is printed stacked, number over number, while the WhatsApp text of the question reads it as 2/3
+    # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
+    # and "PICTURES, AGAIN" at the end, and figure_role "model" (grade 1-5 maths only). A step of a
+    # procedure is a text question; a model picture beside one is still refused (FIGURE_MISMATCH).
     # lp-quiz-digest lessonDrewBlock: the slide script's token rows (never the exit options). Too few
     # pictures is a soft complaint (FIGURE_FEW): ONE add-pictures repair (transcript-quiz-rewrite
-    # addPictures), validated in full; the quiz ships either way, and transcript_quiz.figure_density
-    # logs before/after. Content-driven: count the pictures and look at them; never a fixed question. @wip.
+    # addPictures) that may ADD a picture or REPLACE a question with a read-off one on the same objective,
+    # validated in full and before the blind solve; the quiz ships either way, and
+    # transcript_quiz.figure_density logs before/after/added/replaced. Stacked fractions: quiz-math
+    # stackFractions ($2/3 -> \frac). Content-driven: count the pictures and look at them; never a fixed
+    # question. @wip.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A quiz never ships an answer key a blind solver disagrees with
