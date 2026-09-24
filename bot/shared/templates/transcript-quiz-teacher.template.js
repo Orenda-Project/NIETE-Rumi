@@ -209,13 +209,52 @@ function clampWords(s, max) {
 const RTL_LANGS = new Set(['ur']);
 
 /**
+ * The text's sentences, in order. A sentence ends at . ! ? ۔ ؟ followed by a
+ * space — but NOT inside a quotation. A lesson-plan quiz's summary quotes the
+ * lesson by its title, and titles carry their own "!" and "?" ("Hello World!",
+ * «آؤ بچو! سیر کرائیں تم کو پاکستان کی»); split there, the sheet printed half a
+ * sentence with an unclosed quote. Curly quotes and guillemets open and close;
+ * a straight ' or " opens after a space or bracket and closes before one, so
+ * the apostrophe in "children's" is never a quote. An unbalanced quote leaves
+ * the rest as one sentence, which the word cap then trims.
+ */
+const QUOTE_OPEN = new Set(['“', '‘', '«']);
+const QUOTE_CLOSE = new Set(['”', '’', '»']);
+function sentencesOf(text) {
+  const s = String(text || '').trim();
+  const out = [];
+  let start = 0;
+  let depth = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    const before = i === 0 ? ' ' : s[i - 1];
+    const after = i + 1 >= s.length ? ' ' : s[i + 1];
+    if (ch === "'" || ch === '"') {
+      const opens = /[\s([«“‘]/.test(before) && !/\s/.test(after);
+      const closes = !/\s/.test(before) && /[\s.,;:!?۔؟،)\]]/.test(after);
+      if (opens && !closes) depth += 1;
+      else if (closes && !opens && depth > 0) depth -= 1;
+    } else if (QUOTE_OPEN.has(ch)) {
+      depth += 1;
+    } else if (QUOTE_CLOSE.has(ch)) {
+      if (depth > 0) depth -= 1;
+    } else if (depth === 0 && /[.!?۔؟]/.test(ch) && /\s/.test(after)) {
+      out.push(s.slice(start, i + 1).trim());
+      start = i + 1;
+    }
+  }
+  if (start < s.length) out.push(s.slice(start).trim());
+  return out.filter(Boolean);
+}
+
+/**
  * "Briefly tell the teacher what they taught" (operator, 2026-09-14): the
  * lesson summary is authored at four or five sentences; the sheet shows the
  * first one, capped at 32 words. Sentence ends in either script count. An
  * authored one-line summary (digest.lesson_summary_short) replaces the cap.
  */
 function clampSentences(text, max, maxWords = 32) {
-  const parts = String(text || '').trim().split(/(?<=[.!?۔؟])\s+/).filter(Boolean);
+  const parts = sentencesOf(text);
   const words = parts.slice(0, max).join(' ').split(/\s+/).filter(Boolean);
   return words.length <= maxWords ? words.join(' ') : `${words.slice(0, maxWords).join(' ')}…`;
 }
