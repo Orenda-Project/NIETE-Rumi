@@ -242,7 +242,9 @@ describe('every teacher-facing surface answers in her stored language', () => {
       users: { data: [TEACHER] },
     });
     await Gen.process(QID, {});
-    expect(bodies()).toContain(en('tqCouldNotMake'));
+    // The questions never validated: our authoring, told as such (never "the transcript didn't carry enough").
+    expect(bodies()).toContain(en('tqCouldNotMakeAuthor'));
+    expect(bodies()).not.toContain(en('tqCouldNotMake'));
   });
 
   test('the nudge', async () => {

@@ -511,10 +511,29 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate: a recording's digest or author that gives nothing usable (empty, cut off or
     # not JSON after the retry, or a refused call) is model_failed → tqCouldNotMakeModel, persisted as
     # quizzes.meta.error; the Flow lesson screen reads it (tqFlowResultsFailedModel) above the Make choices.
-    # tqCouldNotMake ("the transcript didn't carry enough") stays for questions that never validated and for
-    # a transcript under MIN_TRANSCRIPT_CHARS (source_unusable, checked before any model call — /quiz and the
-    # offer never list one). The offer-time digest failure is skipped as model_failed and the teacher is told
-    # nothing. A model failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
+    # tqCouldNotMake ("the transcript didn't carry enough") is sent ONLY for a transcript under
+    # MIN_TRANSCRIPT_CHARS (source_unusable, checked before any model call — /quiz and the offer never list
+    # one). The offer-time digest failure is skipped as model_failed and the teacher is told nothing. A model
+    # failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz whose questions never passed our checks says the problem was on our side, and can be made again
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
+    When the questions written for that lesson never pass the quiz checks, after every attempt and repair
+    Then the bot apologises that it could not write good enough questions from this lesson this time
+    And it says the problem was on its side, not my recording
+    And it never says the transcript didn't carry enough of what was taught
+    And it tells me to send /quiz and pick this lesson to make it again, never to wait for my next lesson
+    And the /quiz lesson screen for that lesson says the same, and still offers to make the quiz
+    And a quiz held back because some of its answers were wrong or unclear also tells me I can pick this lesson to make it again
+    # quiz-sources TRANSCRIPT_FAILURE_COPY: validator_failed (the author replied, nothing validated) and
+    # key_conflict → tqCouldNotMakeAuthor; key_disagreement → tqFailedKeyDisagreement (tail: pick this lesson
+    # to make it again); a reason with no sentence of its own → tqCouldNotMakeModel. The Flow lesson screen
+    # (TRANSCRIPT_FLOW_FAILURE_RESULT): validator_failed / key_conflict / a row with no stored reason →
+    # tqFlowResultsFailedAuthor; key_disagreement → tqFlowResultsFailedKeys. Production 1–24 Sep: 14 teachers
+    # were told "the transcript didn't carry enough" for validator_failed. @wip — a validation failure cannot
+    # be forced live on demand; proven in tests/quiz/transcript-quiz-failure-reasons.test.js and
+    # bot/tests/quiz/transcript-quiz-flow-endpoint.test.js.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A maths question with fractions reaches the child as a typeset card

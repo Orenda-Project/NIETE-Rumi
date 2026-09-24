@@ -522,10 +522,10 @@ describe('the failure copy', () => {
     }
   });
 
-  test('key_disagreement has its own copy on both sources; other transcript reasons are untouched', () => {
+  test('key_disagreement has its own copy on both sources; our other authoring failures never blame the recording', () => {
     expect(failureCopyKey('key_disagreement', 'transcript')).toBe('tqFailedKeyDisagreement');
     expect(failureCopyKey('key_disagreement', 'lp_v8')).toBe('tqFailedLpKeyDisagreement');
-    expect(failureCopyKey('validator_failed', 'transcript')).toBe('tqCouldNotMake');
-    expect(failureCopyKey('key_conflict', 'transcript')).toBe('tqCouldNotMake');
+    expect(failureCopyKey('validator_failed', 'transcript')).toBe('tqCouldNotMakeAuthor');
+    expect(failureCopyKey('key_conflict', 'transcript')).toBe('tqCouldNotMakeAuthor');
   });
 });

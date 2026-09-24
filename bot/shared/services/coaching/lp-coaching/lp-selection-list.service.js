@@ -111,7 +111,9 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
     header: { type: 'text', text: isUrdu ? 'سبق کا منصوبہ' : 'Lesson Plan' },
     body: {
       text: isUrdu
-        ? 'کیا آپ اپنا حالیہ سبق کا منصوبہ منسلک کرنا چاہیں گے؟ درس کے تجزیے کو بہتر بنائے گا۔'
+        // Obligative, not «منسلک کرنا چاہیں گے؟» — the masculine future guessed
+        // the teacher's gender.
+        ? 'کیا اپنا حالیہ سبق کا منصوبہ منسلک کرنا ہے؟ اس سے سبق کا تجزیہ بہتر ہوگا۔'
         : 'Would you like to link a recent lesson plan? It improves the analysis.',
     },
     footer: {
