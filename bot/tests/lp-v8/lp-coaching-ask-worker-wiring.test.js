@@ -86,8 +86,8 @@ jest.mock('../../shared/services/quiz/video-quiz.service', () => ({
 jest.mock('../../shared/services/conversation-resume.service', () => ({
   sweepAndOffer: jest.fn().mockResolvedValue({}),
 }));
-jest.mock('../../shared/services/monitoring/prod-failure-digest.service', () => ({
-  run: jest.fn().mockResolvedValue({ reported: false }),
+jest.mock('../../shared/services/monitoring/quiz-funnel-watch.service', () => ({
+  run: jest.fn().mockResolvedValue({ skipped: 'disabled' }),
 }));
 jest.mock('../../shared/services/lp612-serving.service', () => ({
   reapStrandedRenders: jest.fn().mockResolvedValue(0),

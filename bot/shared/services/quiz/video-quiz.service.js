@@ -34,6 +34,7 @@ const sender = require('./video-quiz-sender.service');
 // never learned about them — a real production incident (phone ending 6989,
 // 2026-08-13, 80 minutes after the throttle shipped) hit exactly this gap.
 const rateLimiter = require('./video-quiz-rate-limiter.service');
+const Funnel = require('./quiz-funnel');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
 // Chrome a CHILD reads around the questions, in the quiz language.
@@ -494,8 +495,21 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     }
   }
 
+  // The quiz's STREAM (quizzes.quiz_source) for the funnel — `source` above is
+  // the session engine, not the stream. One primary-key read, and a failure is
+  // a missing label, never a child whose quiz did not start.
+  let quizSource = null;
+  try {
+    const { data: qs, error: qsErr } = await supabase.from('quizzes').select('quiz_source').eq('id', quizId).maybeSingle();
+    if (qsErr) throw new Error(qsErr.message);
+    quizSource = (qs && qs.quiz_source) || null;
+  } catch (e) {
+    logToFile('⚠️ video-quiz: quiz stream unreadable at session start (the quiz goes on)', { quizId, error: e.message });
+  }
+
   const state = {
     sessionId: session.id, quizId, videoId, userId, language, deliveryId, source,
+    quizSource,
     shareCodeId,
     // Carried so the invite offer at the end knows who to attribute it
     // to — without it we would offer an invite we cannot report back on.
@@ -510,6 +524,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   logEvent('video_quiz.session_started', {
     sessionId: session.id, quizId, source, questions: chosen.length,
   });
+  Funnel.emit('child_joined', { quiz_id: quizId, session_id: session.id, share_code_id: shareCodeId, source: quizSource });
 
   // A child who arrived on a shared class link has NOT seen the
   // lesson — the teacher sent them a link, not a classroom. Send it before the
@@ -1094,7 +1109,7 @@ async function finish(phone, state) {
   // or send fails, fall back to exactly what shipped before this feature so
   // a child is never left with nothing.
   const { data: quizMeta } = await supabase
-    .from('quizzes').select('topic, grade, subject').eq('id', state.quizId).maybeSingle();
+    .from('quizzes').select('topic, grade, subject, quiz_source').eq('id', state.quizId).maybeSingle();
   const Scorecard = require('./video-quiz-scorecard.service');
   const sentScorecard = await Scorecard.sendScorecard(phone, {
     topic: quizMeta?.topic, grade: quizMeta?.grade, subject: quizMeta?.subject,
@@ -1120,6 +1135,9 @@ async function finish(phone, state) {
     // Questions that could not be asked this session: `total` is what WAS asked.
     skipped: (state.skippedIds || []).length,
   });
+  const stream = (quizMeta && quizMeta.quiz_source) || state.quizSource;
+  Funnel.emit('child_completed', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, n: total, pct });
+  Funnel.emit('scorecard_sent', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, ok: Boolean(sentScorecard) });
 
   // A child finishing a shared quiz may be arriving AFTER their teacher's report
   // already went out. bd-mg9c7.145: the old hook here sent an early report the
