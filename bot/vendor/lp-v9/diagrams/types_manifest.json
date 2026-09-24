@@ -750,13 +750,14 @@
         "two_columns",
         "pair_up"
       ],
-      "for": "Two columns of pictures or words, lettered A/B/C and numbered 1/2/3, with no lines drawn — the child picks the pair.",
+      "for": "Two columns of pictures or words, lettered down one side and numbered 1/2/3 down the other, with no lines drawn — the child picks the pair.",
       "required": [
         "left",
         "right"
       ],
       "optional": [
         "handles",
+        "handleLetters",
         "rowHeight",
         "lang"
       ],
@@ -782,7 +783,7 @@
       "png": [],
       "limits": [
         "The two columns must be the same length, 2 to 4 rows. An entry is {picto} or {text}.",
-        "NOTHING is joined: the handles are on the drawing and the OPTIONS carry the candidate pairs (\"A-2\"), which is the legal labelled case under the leak rule.",
+        "NOTHING is joined: the handles are on the drawing and the OPTIONS carry the candidate pairs (a handle letter and a number), which is the legal labelled case under the leak rule.",
         "In Urdu the lettered column and its handles move to the right, as a block."
       ]
     },
