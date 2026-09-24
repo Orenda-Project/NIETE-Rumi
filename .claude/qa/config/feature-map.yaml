@@ -157,6 +157,9 @@ features:
     # misses the ones that do not. The pre-gate Latin-honorific normaliser is required only
     # by lp612-author.service.js, so it is lesson-plan-owned like the rest of the lane.
     - bot/shared/services/lp612-latin-honorific.js
+    # The delivery ledger (one row per 6-12 lesson a teacher received) — written by the
+    # serving path, read by the /quiz lp612 provider (training owns quiz/**).
+    - bot/shared/services/lp612-deliveries.store.js
     - bot/workers/lp612-*.worker.js
     # The vendored authoring/rendering engine behind that lane: the author briefs,
     # the diagram type manifest, the linter, the renderer.
