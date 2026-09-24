@@ -46,6 +46,7 @@ const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subje
 const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
 const { LP_V8 } = require('../quiz/quiz-sources');
+const Funnel = require('../quiz/quiz-funnel');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -691,10 +692,15 @@ async function send(row, { now } = {}) {
     ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons: yesNoButtons(row.id, language) }, sendOpts);
   }
 
+  const offerFunnel = {
+    nudge_id: row.id, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', n: classes.length,
+  };
   if (!ok) {
     logToFile('❌ lp quiz offer: WhatsApp refused the offer', { nudgeId: row.id, shape }, 'error');
+    Funnel.emit('offer_made', { ...offerFunnel, delivered: false });
     throw new Error(`lp quiz offer: WhatsApp refused the ${shape} offer`);
   }
+  Funnel.emit('offer_made', { ...offerFunnel, delivered: true });
   logEvent('lp_quiz.offer_sent', {
     nudgeId: row.id, userId: row.user_id, shape, classes: classes.length,
     dropped: (context.dropped_classes || []).length, language,
@@ -765,6 +771,9 @@ async function insertQuiz(row, cls, { askLanguage = false } = {}) {
         class: { grade: cls.grade, subject: cls.subject },
         lesson_date: row.nudge_date,
         claimed_at: new Date().toISOString(),
+        // Committed now unless the language is still to be chosen — then the
+        // answer to that ask dates it (transcript-quiz-offer startGenerating).
+        ...(askLanguage ? {} : { accepted_at: new Date().toISOString() }),
       },
     })
     .select('id')
@@ -786,6 +795,9 @@ async function accept(nudgeId, key, from, user, at) {
     : null;
   if (!cls || !(cls.lessons || []).length) {
     logEvent('lp_quiz.offer_answered', { nudgeId, choice: 'expired', state });
+    Funnel.emit('offer_answered', {
+      nudge_id: nudgeId, teacher_id: user && user.id, source: QUIZ_SOURCE, channel: 'lp_offer', choice: 'expired',
+    });
     await reply(from, 'lpQuizExpired', language);
     return true;
   }
@@ -793,6 +805,7 @@ async function accept(nudgeId, key, from, user, at) {
   const choice = key ? `class:${key}` : 'yes';
   await Store.recordAnswer(row.id, { choice });
   logEvent('lp_quiz.offer_answered', { nudgeId, userId: row.user_id, choice });
+  Funnel.emit('offer_answered', { nudge_id: nudgeId, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', choice });
 
   // The quiz language is the teacher's to choose, exactly as on the quiz born
   // from a recording: every subject but Urdu and Islamiyat is asked first.
@@ -822,6 +835,11 @@ async function accept(nudgeId, key, from, user, at) {
     logEvent('lp_quiz.language_asked', { nudgeId, quizId, userId: row.user_id, class: cls.key });
   } else if (!(await TranscriptQuizOffer.queueLpQuiz({ quizId, nudgeId: row.id, phone: from, language }))) {
     return true;
+  } else {
+    // Urdu / Islamiyat: no language to ask, so the yes IS the commitment.
+    Funnel.emit('accepted', {
+      quiz_id: quizId, nudge_id: row.id, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer',
+    });
   }
   logEvent('lp_quiz.quiz_claimed', {
     nudgeId, quizId, won: true, userId: row.user_id, class: cls.key, lessons: cls.lessons.length, quiz_source: QUIZ_SOURCE,
@@ -839,11 +857,15 @@ async function decline(nudgeId, from, user, at) {
   }
   if (state !== 'open') {
     logEvent('lp_quiz.offer_answered', { nudgeId, choice: 'expired', state });
+    Funnel.emit('offer_answered', {
+      nudge_id: nudgeId, teacher_id: user && user.id, source: QUIZ_SOURCE, channel: 'lp_offer', choice: 'expired',
+    });
     await reply(from, 'lpQuizExpired', language);
     return true;
   }
   await Store.recordAnswer(row.id, { choice: 'no' });
   logEvent('lp_quiz.offer_answered', { nudgeId, userId: row.user_id, choice: 'no' });
+  Funnel.emit('offer_answered', { nudge_id: nudgeId, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', choice: 'no' });
   await reply(from, 'lpQuizDeclined', language);
   return true;
 }

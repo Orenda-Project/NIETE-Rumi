@@ -21,6 +21,7 @@
 
 const supabase = require('../../config/supabase');
 const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
+const Funnel = require('./quiz-funnel');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -240,6 +241,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     .eq('id', sc.teacher_user_id).maybeSingle();
   if (!teacher?.phone_number) {
     logToFile('⚠️ video-quiz report: no teacher phone', { shareCodeId });
+    Funnel.emit('report_failed', { quiz_id: sc.quiz_id, share_code_id: shareCodeId, reason: 'no_teacher_phone' });
     return false;
   }
 
@@ -364,6 +366,13 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     await WhatsAppService.sendMessage(teacher.phone_number,
       resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
     await markReportSent(shareCodeId, sc.quiz_id);
+    // Stamped as a report, so counted as one — of its own kind. Unlogged, this
+    // branch was 17.5% of production's report stamps (189 of 1,082) and every
+    // one of them a class that never joined.
+    Funnel.emit('report_sent', {
+      quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: quizRow && quizRow.quiz_source,
+      kind: 'no_one', reason, n: 0,
+    });
     return true;
   }
 
@@ -555,6 +564,10 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     completed: done.length, average: avg, reason,
     format: sentAsPdf ? 'pdf' : 'text', hadGuidance: Boolean(guidance),
   });
+  Funnel.emit('report_sent', {
+    quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: quizRow && quizRow.quiz_source,
+    kind: 'report', reason, n: done.length,
+  });
   return true;
 }
 
@@ -644,6 +657,9 @@ async function sendClassCards({ shareCode, quizRow, done, reason, language, clas
   const now = Date.now();
   const sentIds = [];
   let skipped = 0;
+  // For the funnel, a send that FAILED is not the same as a child left out on
+  // purpose (no number, outside the window): `skipped` below counts both.
+  let failed = 0;
 
   for (const r of rows) {
     const key = r.studentId || r.sessionId;
@@ -671,9 +687,17 @@ async function sendClassCards({ shareCode, quizRow, done, reason, language, clas
       });
     } catch (err) {
       skipped += 1;
+      failed += 1;
       logToFile('⚠️ class card: could not send to one child (continuing)', { shareCodeId: shareCode.id, error: err.message });
       logEvent('video_quiz.class_card_skipped', { shareCodeId: shareCode.id, studentId: key, why: 'error' });
     }
+  }
+
+  if (sentIds.length || skipped) {
+    Funnel.emit('class_cards', {
+      quiz_id: shareCode.quiz_id, share_code_id: shareCode.id, source: quizRow && quizRow.quiz_source,
+      n: sentIds.length, failed, skipped: skipped - failed,
+    });
   }
 
   if (sentIds.length) {

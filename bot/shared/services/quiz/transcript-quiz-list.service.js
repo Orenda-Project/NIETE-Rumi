@@ -26,6 +26,7 @@ const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf,
 } = require('./quiz-sources');
+const Funnel = require('./quiz-funnel');
 
 const PICK_PREFIX = 'tq_pick_';
 // An lp_v8 quiz has no coaching session to pick, so its row carries the quiz.
@@ -323,9 +324,11 @@ async function showList(user, phone, language, page = 1) {
   return true;
 }
 
-async function enqueueGenerate(quizId, phone, lang, source = 'list') {
+async function enqueueGenerate(quizId, phone, lang, source = 'list', quizSource = TRANSCRIPT) {
   const SQSQueueService = require('../queue/sqs-queue.service');
   await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang, source }, { delaySeconds: 0 });
+  // Every /quiz path that makes a quiz queues it here — the list, the Flow, a retry.
+  Funnel.emit('accepted', { quiz_id: quizId, source: quizSource, channel: Funnel.channelOf(source) });
   await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: lang }));
 }
 
@@ -345,7 +348,7 @@ async function claimForGeneration({ userId, sessionId, session, quiz, quizLangua
         status: 'generating', language: quizLanguage,
         meta: {
           ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest',
-          awaiting_language: false, source, retried_at: new Date().toISOString(),
+          awaiting_language: false, source, retried_at: new Date().toISOString(), accepted_at: new Date().toISOString(),
         },
       })
       .eq('id', quiz.id);
@@ -356,7 +359,9 @@ async function claimForGeneration({ userId, sessionId, session, quiz, quizLangua
     topic: session?.analysis_data?.topic || 'Lesson', subject: session?.analysis_data?.subject || null,
     language: quizLanguage,
     status: 'generating',
-    meta: { step: 'digest', awaiting_language: false, source, claimed_at: new Date().toISOString() },
+    meta: {
+      step: 'digest', awaiting_language: false, source, claimed_at: new Date().toISOString(), accepted_at: new Date().toISOString(),
+    },
   }).select('id').single();
   if (error || !created) {
     logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
