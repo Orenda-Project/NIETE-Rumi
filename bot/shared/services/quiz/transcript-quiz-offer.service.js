@@ -34,7 +34,9 @@ const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
   needsLanguageAsk, languageAskButtons, languageAskBody } = require('./transcript-quiz-language');
-const { LP_V8, lpRemakeable, failureReasonOf } = require('./quiz-sources');
+const {
+  LP_V8, lpRemakeable, failureReasonOf, digestFailureReason,
+} = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -205,9 +207,16 @@ async function processOffer(coachingSessionId, payload = {}) {
   try {
     result = await Digest.run({ session, user });
   } catch (err) {
-    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, error: err.message }, 'error');
-    await markSkipped(quizId, 'digest_failed', { error: err.message });
-    return { skipped: 'digest_failed', quizId };
+    // Named for what happened, like the generate step's digest failure: a
+    // transcript digest has no source-side throw (the length was checked above),
+    // so this is the model or the provider — `digest_failed` said neither. The
+    // teacher was never offered this quiz, so nothing is sent to them; /quiz can
+    // still make it from the same session.
+    const reason = digestFailureReason(err);
+    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, reason, code: err.code || null, error: err.message }, 'error');
+    await markSkipped(quizId, reason, { error: err.message });
+    logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, step: 'digest' });
+    return { skipped: reason, quizId };
   }
   const { digest, grade, gradeSource, lpHint, model, costUsd } = result;
 
