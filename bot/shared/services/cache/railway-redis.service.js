@@ -441,6 +441,33 @@ class RailwayRedisService {
     }
   }
 
+  /**
+   * Run a Lua script atomically (EVAL). For a read-decide-write that must not
+   * race across processes — the WhatsApp per-recipient send pacer is the
+   * caller: the bot and every worker replica reserve send slots for one phone
+   * from the same key, and two of them must never both see the same free slot.
+   *
+   * Answers `null` when Redis is not available or the call fails, so a caller
+   * can fail open exactly as the other helpers here do. The failure is NOT
+   * logged here: the caller decides whether a degraded run is worth a line
+   * (it can tell the two apart with isAvailable()).
+   *
+   * @param {string} script - Lua source
+   * @param {string[]} keys
+   * @param {Array<string|number>} args
+   * @returns {Promise<*|null>}
+   */
+  async evalScript(script, keys = [], args = []) {
+    if (!this.isAvailable()) {
+      return null;
+    }
+    try {
+      return await this.redis.eval(script, keys.length, ...keys, ...args);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ============================================================================
   // GENERIC CACHE OPERATIONS
   // ============================================================================

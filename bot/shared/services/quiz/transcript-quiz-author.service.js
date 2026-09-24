@@ -18,9 +18,11 @@ const { names: pictogramNames } = require('../../../vendor/lp-v9/diagrams/lib/pi
 const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
+const { peopleRule } = require('./transcript-quiz-people');
+const { scrubPupils, PUPILS_RULE } = require('./transcript-quiz-pupils');
 const {
-  languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
-  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
+  languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
+  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
 } = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -72,11 +74,11 @@ function earlyYearsBlock(pictogramRoster, n, { maths = false } = {}) {
 EARLY YEARS (this class is grade 1-5, so these types are open to you as well).
 A picture is worth far more to a six-year-old than to a fifteen-year-old: a child who cannot yet read a long stem can still count apples, read a clock, or see which letter is missing. Reach for one of these whenever the lesson counted, sounded out, spelled, timed, compared, sorted or continued something.
 - word_blank — phonics and spelling. A pictogram of the thing, and its word with a letter hidden. English: {"type":"word_blank","word":"cat","blanks":[1],"picto":"cat"} draws a cat and "c _ t"; the options are the letters. URDU: pass the whole word, {"type":"word_blank","word":"کتاب","blanks":[2],"picto":"book"} — it is drawn as separate letter tiles with an empty tile where the letter is missing, because Nastaliq joins and an underscore inside a word reshapes its neighbours. "blanks" is REQUIRED and is never empty: it is a list of 0-based positions into the letters of "word" (کتاب is ک=0, ت=1, ا=2, ب=3), counted on the whole word, and at least one but never all of them. A word the pictogram set has NOT got is still a word_blank: leave "picto" out entirely and the word is drawn as letter tiles on its own — {"type":"word_blank","word":"park","blanks":[3]} — which is a real phonics question and far better than dropping the question. Never swap in a different picture's name to get a picture.
-- count_objects — counting and comparing, and ONLY that: the question must be HOW MANY, how many more, or which row has more. {"type":"count_objects","picto":"apple","count":7}; two rows to compare: {"rows":[{"picto":"apple","count":5,"label":"سیب"},{"picto":"banana","count":3,"label":"کیلے"}]}; equal groups for sharing/multiplying: {"picto":"star","count":12,"group":4}. At least 2 things — one of something is not a count. To ask which WORD a picture matches, use the match type, never this.
-- count_frame — a ten-frame ({"type":"count_frame","count":7}) or tally marks ({"model":"tally","count":12}).
+- count_objects — counting and comparing, and ONLY that: the question must be HOW MANY, how many more, or which row has more. {"type":"count_objects","picto":"apple","count":7}; two rows to compare: {"rows":[{"picto":"apple","count":5,"label":"سیب"},{"picto":"banana","count":3,"label":"کیلے"}]}; equal groups for sharing/multiplying: {"picto":"star","count":12,"group":4}. To ask about a PART of a set ("what fraction of the pencils are coloured?", "how many red apples?"), draw that part as its own row that LOOKS different — its own colour {"picto":"pencil","count":2,"color":"warn"} beside {"picto":"pencil","count":3}, or its own picture; rows that look alike cannot show which things the question means, and the picture is thrown away. It draws 1 to 30 things, and a count of 0 as an empty dashed tray — the empty set: in a lesson on the numbers 0 to 5, one car under «تصویر میں کتنی کاریں ہیں؟» and an empty tray under «ڈبے میں کتنے counter ہیں؟» (key 0) are the lesson's own questions; the stem names the thing counted. One thing, or none, is only ever the answer to HOW MANY. To ask which WORD a picture matches, use the match type, never this.
+- count_frame — a ten-frame ({"type":"count_frame","count":7}; an empty ten-frame, count 0, for zero) or tally marks ({"model":"tally","count":12}).
 - clock — telling the time. {"type":"clock","time":"3:30"}. The hands are geared correctly and the time is never printed.
 - pattern — what comes next. {"type":"pattern","items":["circle","square","circle","square","?"]}, or numerals ({"text":"2"} …), or pictograms ({"picto":"sun"}). Exactly one "?". A colour pattern names its colours from THIS list and no other — ink, accent, leaf, cool, warn, plum, clay — as a bare word: {"shape":"circle","color":"warn"}. There is no var(--red), no var(--green), no "blue": an invented colour renders as nothing and the question is thrown away.
-- match — the child picks the pair. {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]} draws A/B down one side and 1/2 down the other and JOINS NOTHING; your three options are the candidate pairings ("A-2", "A-1", "B-2").
+- match — the child picks the pair. {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]} draws P/Q down one side and 1/2 down the other and JOINS NOTHING; your three options are the candidate pairings ("P-2", "P-1", "Q-2") — never A/B, which are the letters of the answer buttons.
 - money — coins and notes. {"type":"money","currency":"Rs","items":[{"value":10,"kind":"coin"},{"value":5,"kind":"coin","count":2}]}. Each piece shows its own value, so never ask which piece is worth what — ask for the total, the number of pieces, or the swap.
 - compare_size — longer/shorter, taller/shorter, heavier/lighter. {"type":"compare_size","model":"length","items":[{"label":"سرخ ربن","size":5},{"label":"ہرا ربن","size":8}]}, "height" for vertical bars, or {"model":"balance","left":{"picto":"apple","count":3},"right":{"picto":"apple","count":1}}. "size" is relative and is never printed. An item may name a colour from the same list (ink, accent, leaf, cool, warn, plum, clay) as a bare word — and if the label names a colour, the bar must be that colour or it contradicts its own label.
 - base_ten — place value, drawn the way the class built it: loose sticks for ones, bundles of ten sticks for tens, big bundles for hundreds, a block of ten big bundles for thousands — or, with "model":"blocks", unit cubes, rods, flats and cubes. {"type":"base_ten","hundreds":3,"tens":4,"ones":2}; a four-digit number adds "thousands" (up to 9). The number is never printed and a 0 is an empty column, so ask what number the picture shows, how many tens it has, or what the tens are worth.
@@ -97,7 +99,7 @@ THE HALF RULE STILL HOLDS HERE. At most half of the ${n} questions may carry a p
  * with the answer, and able to produce it (FIGURE_MISMATCH).
  */
 const EARLY_MATHS_RECIPES = `PICTURE QUESTIONS A GRADE 1-5 MATHS LESSON HAS. Even a lesson taught as a METHOD (cross multiplication, equal denominators, carrying, borrowing) rests on an idea a child can SEE, and the picture questions are about that idea:
-- FRACTIONS. One bar, some parts shaded, no label: "What fraction of the bar is shaded?" («تصویر میں پٹی کا کتنا حصہ رنگا ہوا ہے؟») — the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. Three bars named "P", "Q", "R": "Which bar shows $\\frac{2}{3}$?" — the options "P", "Q", "R", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; the feedback says "bar P", «پٹی P»). Two bars of the same length, unlabelled: "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?" — the stem names no fraction, so the child reads both off the picture. A grid: "What fraction of the squares are shaded?"
+- FRACTIONS. One bar, some parts shaded, no label: "What fraction of the bar is shaded?" («تصویر میں پٹی کا کتنا حصہ رنگا ہوا ہے؟») — the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. Three bars named "P", "Q", "R": "Which bar shows $\\frac{2}{3}$?" — the options "P", "Q", "R", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; the feedback says "bar P", «پٹی P»). Two bars of the same length, unlabelled: "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?" — the stem names no fraction, so the child reads both off the picture. A grid: "What fraction of the squares are shaded?" An improper fraction or a mixed number is drawn as whole bars and a part bar — 7/4 is {"parts":4,"shaded":4} then {"parts":4,"shaded":3} — never one bar with more shaded than parts; a "which bar shows" set uses proper fractions only.
 - PLACE VALUE. base_ten: "What number do the sticks show?", "How many tens are there?"
 - COUNTING, ADDING, TAKING AWAY. count_objects or count_frame: "How many counters are there altogether?", "How many more apples than bananas are there?"
 - TIMES AND SHARING. count_objects with "group": "How many groups of 4 are there?"
@@ -181,13 +183,16 @@ function excerptsFor(transcript, digest, width = 1200) {
     if (i >= 0) parts.push(t.slice(Math.max(0, i - width / 2), i + width / 2));
   });
   parts.push(t.slice(-1200));
-  return parts.join('\n---\n');
+  // the children the recording names are never read by the author (transcript-quiz-pupils)
+  return scrubPupils(parts.join('\n---\n'), digest && digest.pupil_tokens);
 }
 
 const TRANSCRIPT_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson_summary": 2-3 sentences, in the quiz language (follow the same Urdu/English style rules above), written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.
 
 TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same second-person address:
 - "lesson_summary_short": ONE sentence, at most 25 words — what you taught, with your own first example. No list, no second sentence.`;
+/** The recording's summary rule, with the truth rule while its switch is on (read per prompt). */
+const transcriptSummaryRule = () => (summaryTruthEnabled() ? `${TRANSCRIPT_SUMMARY_RULE}\n\n${SUMMARY_TRUTH_RULE}` : TRANSCRIPT_SUMMARY_RULE);
 
 /**
  * The lp_v8 twin: the teacher PLANNED this lesson; nobody heard it taught. The
@@ -207,6 +212,13 @@ TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same vo
 function picturesAgain({ subject, gradeBand, n }) {
   if (!(isEarlyYears(gradeBand) && canonicalSubject(subject) === 'maths')) return '';
   return `\n\nPICTURES, AGAIN (grade 1-5 maths): no fewer than three and no more than ${Math.floor(n / 2)} of the ${n} questions carry a picture the child READS to answer — what fraction of the bar is shaded, which bar shows a fraction, what number the sticks show, how many counters there are. Choose those pictures before you write the questions; a step of a procedure stays text. A quiz of text questions only is sent back.\n`;
+}
+
+/** The digest as the author reads it: the children's hashes are for the checks, not the model. */
+function digestForPrompt(digest) {
+  if (!digest || typeof digest !== 'object') return digest;
+  const { pupil_tokens: pupilTokens, ...rest } = digest;   // eslint-disable-line no-unused-vars
+  return rest;
 }
 
 function buildAuthorPrompt({
@@ -252,6 +264,7 @@ THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were m
 - Levels, hard: at least 60% of the questions at or below their own SLO's "taught_level", and NEVER more than ONE level above it. On an SLO taught at "recall", "understand" is the ceiling and "apply" is not allowed. That rule wins over the line above — ${nHigher} is already what it leaves room for on this lesson.
 - Question 1 must be the easiest, so a nervous child gets one right first. EASIEST MEANS A PICK: ask the child to identify the plainest thing the lesson taught ("Which of these is a type of matter?", "ان میں سے کون سا نقشے کی ایک قسم ہے؟") — never a count of how many things were mentioned or how many kinds there are. That count is the question this slot keeps attracting, and it is thrown away every time.
 - Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts) as the MATERIAL of the question. A child should recognise the class in the quiz.
+- ${DISTINCT_QUESTIONS_RULE}
 
 GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child learns from:
   BAD  "How many types of matter did the teacher mention?"  3 / 2 / 4
@@ -265,12 +278,14 @@ GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child
 
 ${questionContract({ gradeBand })}
 
-${lp ? LP_SUMMARY_RULE : TRANSCRIPT_SUMMARY_RULE}
+${lp ? LP_SUMMARY_RULE : transcriptSummaryRule()}
 - "checks_summary": ONE sentence, at most 30 words, beginning with what this quiz checks — the skills, not the question count (e.g. "This quiz checks whether the class can tell a proper fraction from an improper one and compare two with the same denominator."). Never name the teacher or the children; no gendered forms.
 
 ${SELECTED_BECAUSE_RULE}
 ${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
+${PUPILS_RULE}
+${peopleRule(digest, language)}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
 ${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}${picturesAgain({ subject: digest && digest.subject, gradeBand, n })}
@@ -290,7 +305,7 @@ Return ONLY this JSON object:
 Omit "figure" and "figure_role", or leave them null, on every question that does not need a picture. When a question does carry one, "figure" is a spec object of the form shown in ALLOWED TYPES — e.g. "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}, "figure_role": "read_off".
 
 LESSON DIGEST:
-${JSON.stringify(digest, null, 0)}
+${JSON.stringify(digestForPrompt(digest), null, 0)}
 
 ${lp ? `THE LESSON PLAN (what the class was to learn, the worked example, the mistake it expects, the shape of the practice):
 ${lessonPlan}` : `TRANSCRIPT EXCERPTS (the passages around each SLO's evidence, plus the opening and closing of the lesson):

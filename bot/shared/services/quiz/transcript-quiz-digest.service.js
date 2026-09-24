@@ -24,8 +24,17 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { completeJson } = require('./transcript-quiz-llm');
 const { canonicalSubject, fixTransliterations, isTransliteratedEnglishPhrase } = require('./transcript-quiz-language');
+const { normalisePeople, peopleDigestRule } = require('./transcript-quiz-people');
+const { pupilTokens, scrubPupils, PUPILS_DIGEST_RULE } = require('./transcript-quiz-pupils');
+const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 
 const MAX_TRANSCRIPT_CHARS = 60000;   // p90 is 26k; a runaway transcript is cut, not refused
+/**
+ * The objective half of "a line to the teacher is true by the subject" (the
+ * rest is transcript-quiz-contract SUMMARY_TRUTH_RULE): the SLO statements are
+ * printed on the teacher's sheet and the class report. Behind the same switch.
+ */
+const DIGEST_TRUTH_RULE = '- WHAT IS TRUE BY THE SUBJECT. A lesson can state something that is wrong by the subject (a wrong formula, spelling, count, meaning or fact — calling 4/8 not a proper fraction, say). Record what the lesson taught, never the mistake as a fact: an SLO statement is the correct objective the lesson was working toward ("Identify proper fractions", never "Learn that 4/8 is not a proper fraction"), and an example is recorded as the example itself — its numbers, words or objects — without a verdict that is wrong by the subject. Never say the teacher was wrong.';
 
 function buildDigestPrompt({ transcript, transcriptLanguage, storedTopic, storedSubject, hints = {}, lpHint = null }) {
   const hintLine = lpHint
@@ -50,6 +59,8 @@ RULES
 - "key_terms": up to 8 terms; "term" is the canonical form (English technical terms in English letters), "as_spoken" is how the teacher said it.
 - "examples_used": the concrete examples, objects, numbers, sentences or stories the teacher used (these are gold for quiz questions and feedback).
 - "misconceptions_surfaced": student errors or confusions that actually appeared in the lesson, if any.
+${summaryTruthEnabled() ? `${DIGEST_TRUTH_RULE}\n` : ''}${peopleDigestRule('the lesson')} On a recording, a name the teacher uses in an example sentence about the class is a child in the room, never one of "people".
+${PUPILS_DIGEST_RULE}
 - Religious content (Islamiyat / سیرت): write sacred names and honorifics exactly as spoken and in Urdu/Arabic script (اللہ، نبی کریم ﷺ، رضی اللہ عنہ) — never transliterated, never dropped.
 - THE TEACHER HAS NO GENDER. Never write "she", "he", "her", "his" or "him" about the teacher in any field — say "the teacher". In Urdu use no gendered word for the teacher (never استانی، معلمہ، استاد صاحبہ، میڈم) and no gendered verb form about the teacher (never «پڑھاتی ہیں» / «پڑھاتے ہیں»); a verb that agrees with the object («استاد نے سبق پڑھایا») says nothing about the teacher and is what to write. Never guess a child's gender either.
 
@@ -60,7 +71,9 @@ Return ONLY this JSON object:
   "slos": [ { "id": "S1", "statement": "", "statement_en": "", "statement_ur": "", "evidence_quote": "", "taught_level": "recall|understand|apply" } ],
   "key_terms": [ { "term": "", "as_spoken": "" } ],
   "examples_used": [ "" ],
-  "misconceptions_surfaced": [ "" ]
+  "misconceptions_surfaced": [ "" ],
+  "people": [ { "latin": "", "ur": "" } ],
+  "pupils_named": [ { "latin": "", "ur": "" } ]
 }
 
 TRANSCRIPT:
@@ -117,9 +130,31 @@ function normaliseDigest(raw, { storedSubject } = {}) {
     )),
     examples_used: (Array.isArray(d.examples_used) ? d.examples_used : []).map(String).filter(Boolean).slice(0, 12),
     misconceptions_surfaced: (Array.isArray(d.misconceptions_surfaced) ? d.misconceptions_surfaced : []).map(String).filter(Boolean).slice(0, 8),
+    // Each person in the lesson's material, once, with the Urdu spelling every
+    // Urdu writer and the validator use (transcript-quiz-people).
+    people: normalisePeople(d.people),
   };
   // Re-number SLO ids so the author's slo_id tags are unambiguous.
   out.slos = out.slos.map((s, i) => ({ ...s, id: `S${i + 1}` }));
+  // THE CHILDREN IN THE ROOM (transcript-quiz-pupils): kept only as one-way
+  // hashes, never as names; a child listed as one of the lesson's "people" is
+  // taken out of it; and every name is scrubbed from the digest's own text, so
+  // the author never reads it here.
+  const pupils = pupilTokens(d.pupils_named);
+  if (pupils.length) {
+    const set = new Set(pupils);
+    const { hashToken } = require('./transcript-quiz-pupils');
+    const isPupil = (name) => String(name || '').split(/\s+/).some((w) => w && set.has(hashToken(w)));
+    out.people = out.people.filter((p) => !isPupil(p.latin) && !isPupil(p.ur));
+    const scrub = (t) => scrubPupils(t, set);
+    out.topic_as_taught = scrub(out.topic_as_taught);
+    out.examples_used = out.examples_used.map(scrub);
+    out.misconceptions_surfaced = out.misconceptions_surfaced.map(scrub);
+    out.slos = out.slos.map((s) => ({
+      ...s, statement: scrub(s.statement), statement_en: scrub(s.statement_en), statement_ur: scrub(s.statement_ur), evidence_quote: scrub(s.evidence_quote),
+    }));
+  }
+  out.pupil_tokens = pupils;
   return out;
 }
 

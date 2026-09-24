@@ -22,9 +22,17 @@
  *                      flag flipped on Railway takes effect on the next tick.
  *   P3 per-tick cap    `limit` (default 200) is passed to the claim, per kind. A
  *                      backlog drips out over ticks; it never bursts.
- *   P4 one log line    exactly one `teacher_nudges.sweep` per tick with all five
+ *   P4 one log line    exactly one `teacher_nudges.sweep` per tick with all its
  *                      counts, so an idle sweeper and a lock-starved one do not
  *                      look identical.
+ *
+ * ONE OPEN QUESTION AT A TIME. Before a claimed row reaches its handler, the
+ * sweeper asks whether the teacher is still answering one of our surveys (a 👎
+ * takes the next typed message as its reason for ten minutes — see
+ * nudges/open-question). If so the row goes back to `pending`, due when that
+ * window closes, and is counted `deferred`: a typed "yes" to an ask sent into the
+ * window would be saved as the survey's answer. The rule lives here, not in a
+ * handler, so every scheduled ask keeps it.
  *
  * NOTHING HERE THROWS. A sweeper that can throw takes the worker's interval with
  * it; every failure is caught, logged at error level, counted, and the tick
@@ -32,7 +40,7 @@
  */
 
 const store = require('./teacher-nudges.store');
-const { flagOn } = require('./flags');
+const { flagOn, onUnlessOff } = require('./flags');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -99,8 +107,44 @@ function register(kind, handler, { prepare } = {}) {
  * not a second, later reading of the wall clock. A handler that ignores it reads
  * the real clock, as before.
  */
+/**
+ * The survey question this teacher still owes an answer, or null. Never throws:
+ * the question is a courtesy, and a lookup that fails must not cost the ask.
+ */
+async function openQuestionFor(row, now) {
+  // Kill switch: NUDGE_OPEN_QUESTION_DEFER=false|0|off → the sweeper as it was before
+  // the hold-back — the cache is not read and every claimed row goes to its handler.
+  if (!onUnlessOff('NUDGE_OPEN_QUESTION_DEFER')) return null;
+  try {
+    const { openQuestion } = require('./open-question');
+    return await openQuestion(row.user_id, { now });
+  } catch (error) {
+    logError('open-question check failed; sending as usual', { id: row.id, error: error.message });
+    return null;
+  }
+}
+
 async function handleRow(kind, row, handler, now) {
   try {
+    const open = await openQuestionFor(row, now);
+    if (open) {
+      const handedBack = await store.defer(row.id, open.until, { deferred_for: open.kind });
+      if (!handedBack) {
+        // Still `sending`; expireStuck will call it failed. Said here so the two
+        // are never confused with a handler that threw.
+        logError('could not hand a deferred row back to pending', { kind, id: row.id });
+        return 'failed';
+      }
+      logEvent('teacher_nudges.deferred', {
+        kind,
+        nudgeId: row.id,
+        userId: row.user_id,
+        openQuestion: open.kind,
+        until: open.until.toISOString(),
+      });
+      return 'deferred';
+    }
+
     const outcome = await handler(row, { now });
 
     if (outcome && outcome.sent) {
@@ -139,10 +183,10 @@ async function handleRow(kind, row, handler, now) {
 /**
  * One tick.
  *
- * @returns {Promise<{claimed:number, sent:number, skipped:number, failed:number, expired:number, off?:true}>}
+ * @returns {Promise<{claimed:number, sent:number, skipped:number, failed:number, expired:number, deferred:number, off?:true}>}
  */
 async function runSweep({ now = new Date(), limit = store.DEFAULT_CLAIM_LIMIT } = {}) {
-  const counts = { claimed: 0, sent: 0, skipped: 0, failed: 0, expired: 0 };
+  const counts = { claimed: 0, sent: 0, skipped: 0, failed: 0, expired: 0, deferred: 0 };
 
   if (!isEnabled()) return { off: true, ...counts };
 

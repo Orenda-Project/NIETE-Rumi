@@ -79,7 +79,9 @@ function makeDb(tables) {
     const matching = () => rows.filter((r) => preds.every((p) => p(r)));
     const run = () => {
       if (op === 'insert') {
-        const made = { id: randomUUID(), ...payload };
+        // created_at as the column's DEFAULT now() fills it: the one-quiz-per-
+        // lesson claim (lp-lesson-claim) bounds its read by it and orders by it.
+        const made = { id: randomUUID(), created_at: new Date().toISOString(), ...payload };
         rows.push(made);
         writes.push({ table, op, row: made });
         return [made];
@@ -101,6 +103,7 @@ function makeDb(tables) {
     const chain = {
       select: () => chain,
       eq: (f, v) => { preds.push((r) => r[f] === v); return chain; },
+      gte: (f, v) => { preds.push((r) => new Date(r[f]).getTime() >= new Date(v).getTime()); return chain; },
       insert: (row) => { op = 'insert'; payload = row; return chain; },
       update: (patch) => { op = 'update'; payload = patch; return chain; },
       delete: () => { op = 'delete'; return chain; },
@@ -320,7 +323,9 @@ describe('Make the quiz on a maths lesson asks which language the quiz is writte
 
     expect(quizzes()[0].status).toBe('failed');
     expect(quizzes()[0].meta.error).toBe('queue_failed');
-    expect(sentText()).toEqual([ux('lpQuizCouldNotStart')]);
+    // The row keeps its lesson and is listed in /quiz, where it can be made
+    // again — so the line says that, not "the next lessons will get a new offer".
+    expect(sentText()).toEqual([ux('lpQuizCouldNotStartRetry')]);
   });
 });
 

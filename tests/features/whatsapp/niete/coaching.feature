@@ -449,7 +449,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # bd-x3k1q / DC row 133 added the boundary; bd-fmr3s / DC row 137 merged it
     # INTO the commit prompt: body = cardCopy.sessionCompleteLead + "\n\n" +
     # cardCopy.commitPrompt (coaching-card.config.js, en/ur/ar/es). Urdu:
-    # "آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔" then "کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟".
+    # "آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔" then "کیا اگلی کلاس میں یہ آزمانے کا عہد کریں؟"
+    # (the subjunctive since 24 Sep — the masculine future «کریں گے» guessed the teacher's gender).
     # With no commitment card, the standalone getCoachingMessage('sessionComplete')
     # line is still sent before scheduleTranscriptQuiz() / suggestNext().
 
@@ -653,3 +654,112 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # be the second ask of the day for the same thing. teacher_nudges carries the skip and its reason,
     # so a teacher who was deliberately left alone is countable, not invisible.
     # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  # ═══════════ ADDED 2026-09-24 · the coaching ask and the other questions of the same day (@wip) ═══════════
+  # One open question at a time: the teacher-nudge sweeper never sends a scheduled ask while the teacher owes
+  # one of the four surveys (K-5 LP, 6-12 LP, coaching, video) a typed answer; the row goes back to pending
+  # until that ten-minute window closes (teacher_nudges.context.deferred_for, event teacher_nudges.deferred).
+  # And a classroom recording that starts a coaching session ends the "send me your recording" wait, so
+  # nothing afterwards asks for it again. Needs TEACHER_NUDGES_ENABLED + LP_COACHING_ASK_ENABLED.
+
+  @e2e @wip @draft @lp-ask @config-gated @P1
+  Scenario: The coaching ask waits while the lesson-plan survey is asking what did not work
+    Given the NIETE bot chat is open on a teacher who took their first K-5 lesson plan of the day before 14:00 PKT
+    And the "Was it useful for planning?" survey arrived and I tapped "Not really"
+    And the bot asked "What didn't work? (one line is enough)"
+    When the coaching-ask delay passes while that question is still open
+    Then no coaching ask arrives yet
+    When I type one line about what did not work
+    Then the bot thanks me for the feedback on the lesson plan
+    And the coaching ask arrives once that question's ten minutes are over
+    And my coaching_after_lp row for today shows it was held back for the lp_survey before it was sent
+    # A typed "yes" or "جی" sent while the survey question is open is saved as the lesson plan's failure
+    # reason (lp-feedback consumeReasonIfPending runs before every router), so the ask is never sent into it.
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: The survey and the coaching ask can be answered in either order
+    Given the lesson-plan survey and the coaching ask are both on screen
+    When I tap "Record my lesson"
+    And I tap "👍 Yes, useful" on the survey
+    Then the bot asks for my recording with the WhatsApp mic
+    And the bot thanks me for the survey answer
+    And today's ask records my answer as yes and the lesson plan's feedback records it as useful
+    # Every id a teacher can hold on a lesson-plan day reaches exactly one owner in the button router
+    # (lp_feedback_, lp_used_, lp612_fb_, lp612_used_, lpask_, lpquiz_, tq_, coaching_fb_, resume_).
+
+  @e2e @wip @draft @lp-ask @P1
+  Scenario: After my recording has started coaching the bot stops waiting for a recording
+    Given I tapped "Record my lesson" on the coaching ask
+    And I sent a 20-minute recording and the bot confirmed it detected a classroom recording
+    When I type a question to the bot after my coaching report arrives
+    Then the bot answers my question
+    And the bot does not reply "Please send your classroom audio or video for AI coaching"
+    # Before the fix the six-hour AWAITING_CLASSROOM_AUDIO wait outlived the recording: on production 62% of
+    # the "Please send your classroom audio" replies went to teachers whose session had already started.
+
+  @e2e @wip @draft @lp-ask @negative @slow @P1
+  Scenario: Nobody offers to pick up a lesson that was already coached
+    Given I tapped "Record my lesson" this morning
+    And my recording was coached before six hours had passed
+    When six hours have passed since I tapped it
+    Then no "Earlier you started a classroom observation but we did not finish" message arrives
+    # The resume sweep offers an expired coaching wait back; the recording now clears that wait
+    # (coaching-session initiateSession, flow-scoped). On production 46% of the daytime coaching resume
+    # offers went to a teacher whose own session had started in the six hours before.
+
+  @e2e @wip @draft @lp-ask @slow @P2
+  Scenario: A teacher who said yes and never recorded is still offered it back
+    Given I tapped "Record my lesson" this morning
+    And I have not sent a recording
+    When six hours have passed since I tapped it
+    Then the bot asks whether to pick up the classroom observation where I left off
+
+  @e2e @quiz @wip @draft @slow @negative @P2
+  Scenario: "Only N children have started" arrives at most once a morning, even for quizzes made on earlier days
+    Given the NIETE bot chat is open
+    And I have three quizzes made from lessons recorded on different earlier days
+    And I send all three quiz links to my class late one evening and no child starts any of them
+    When the six-hour reminders fall due and are held to 07:00 the next morning
+    Then I receive exactly one "has started" message that morning
+    And it names all three quiet lessons together
+    # transcript-quiz-nudge.service.js: the one-a-day rule looked only at quizzes CREATED
+    # today. A quiz row is made when the quiz is offered and can be sent days later from
+    # /quiz, so older quizzes' nudges held to the same morning could not see each other —
+    # production 17-24 Sep: 12 teacher-days with 2-3 separate messages, e.g. 07:12, 07:15
+    # and 07:19. The rule now counts the day the teacher was nudged, and the message also
+    # gathers every quiet lesson whose own nudge has fallen due today.
+
+  # ═══════════ ADDED 2026-09-24 · kill switches for the two fixes above (@wip) ═══════════
+  # Both default ON (unset = the fix); false / 0 / off = the behaviour before the fix, exactly.
+  # Read per call, so an operator can turn either off in production without a deploy.
+
+  @e2e @wip @draft @lp-ask @config-gated @P2
+  Scenario: With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait
+    Given COACHING_RECORDING_ENDS_WAIT is "off" on the bot service
+    And I tapped "Record my lesson" on the coaching ask
+    When I send a 20-minute recording and the bot confirms it detected a classroom recording
+    Then my conversation is still waiting for a classroom recording
+    # The old behaviour, kept reachable: the six-hour AWAITING_CLASSROOM_AUDIO wait runs its course
+    # and the resume sweep offers it back when it lapses. Unset or "true" = the recording ends it.
+
+  @e2e @wip @draft @lp-ask @config-gated @P2
+  Scenario: With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey
+    Given NUDGE_OPEN_QUESTION_DEFER is "off" on the worker that runs the teacher-nudge sweep
+    And I tapped "Not really" on the lesson-plan survey and the bot asked what did not work
+    When the coaching-ask delay passes while that question is still open
+    Then the coaching ask arrives on the first sweep, as it did before the hold-back
+    And no teacher_nudges.deferred event is logged for it
+  @e2e @coaching @i18n @wip @draft @P2
+  Scenario: In Urdu, the coaching messages never guess my gender
+    Given the NIETE bot chat is open and my language is Urdu
+    When I send a classroom recording and go through the coaching flow to the commitment question
+    Then the photo offer asks «کیا 3 تک تصاویر بھی شامل کریں؟», never «… شامل کرنا چاہیں گے؟»
+    And the commitment question asks «کیا اگلی کلاس میں یہ آزمانے کا عہد کریں؟», never «… عہد کریں گے؟»
+    And the lesson-plan list asks whether to link a plan without «چاہیں گے»
+    And sending the same recording again is answered without «چاہتے ہوں»
+    And no message in the flow addresses me with a masculine or a feminine verb form
+    # The masculine future / habitual guessed that every teacher is a man (operator, 24 Sep). The neutral forms:
+    # the subjunctive («… شامل کریں؟»، «… عہد کریں؟»), an obligative («منسلک کرنا ہے؟»، «نئی رائے چاہیے ہو»), a
+    # passive. coachingPhotoOffer (ux-strings), COACHING_CARD_COPY.ur.commitPrompt, buildLPSelectionList body,
+    # COACHING_MESSAGES.duplicateRecording. Checked by the quiz lane's own addressForms / genderedTeacherForms
+    # in tests/language/urdu-gender-neutral-copy.test.js, which also holds the WHOLE ux catalog to it. @wip.

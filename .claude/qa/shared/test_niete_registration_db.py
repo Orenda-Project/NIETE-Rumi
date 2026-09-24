@@ -4,8 +4,9 @@ Run: python3 test_niete_registration_db.py
 
 Why this tool exists: 12 of registration.feature's 19 scenarios were BLOCKED because the
 driver is already registered and the harness had no way to un-register it. Everything that
-needs the Flow to OPEN needs first_name cleared — text-message.handler.js:1650 gates on that
-field alone. Seeding it makes the whole file runnable on any account, reversibly.
+needs the Flow to OPEN needs the bot's isRegistered() gate cleared — registration_completed,
+registration_state and users.name (the only name column). Seeding it makes the whole file runnable
+on any account, reversibly.
 """
 import niete_registration_db as r
 
@@ -19,8 +20,12 @@ def test_reuses_the_training_tool_env_guard():
 
 def test_registration_fields_cover_the_gate_and_the_flow_writes():
     f = set(r.REGISTRATION_FIELDS)
-    # the gate itself (text-message.handler.js:1650)
-    assert "first_name" in f
+    # the gate itself (bot/shared/utils/registration-status.js isRegistered)
+    for col in ("name", "registration_completed", "registration_state"):
+        assert col in f, col
+    # dropped columns: PostgREST rejects the whole request over any one of them
+    for col in ("first_name", "last_name", "grade"):
+        assert col not in f, col
     # what the Flow writes back
     for col in ("name", "country", "organization", "school_name", "role",
                 "registration_completed", "registration_state"):
@@ -45,7 +50,7 @@ def test_portal_credentials_are_never_touched():
 
 def test_unregister_payload_clears_the_gate_and_flags():
     p = r.build_unregister_payload(include_language=False)
-    assert p["first_name"] is None
+    assert p["name"] is None
     assert p["registration_completed"] is False
     assert p["registration_state"] == "unregistered"
     assert "preferred_language" not in p
@@ -53,16 +58,17 @@ def test_unregister_payload_clears_the_gate_and_flags():
 
 def test_unregister_payload_with_language_clears_language_too():
     p = r.build_unregister_payload(include_language=True)
-    assert p["first_name"] is None
+    assert p["name"] is None
     assert "preferred_language" in p and p["preferred_language"] is None
     assert p["language_locked"] is False
 
 
 def test_restore_payload_round_trips_a_snapshot():
-    snap = {"first_name": "Mah noor", "name": "Mah noor", "registration_completed": True,
+    snap = {"first_name": "Mah", "name": "Mah noor", "registration_completed": True,
             "registration_state": "unregistered", "role": "teacher", "portal_activated": True}
     p = r.build_restore_payload(snap)
-    assert p["first_name"] == "Mah noor"
+    assert p["name"] == "Mah noor"
+    assert "first_name" not in p, "a pre-drop snapshot's first_name must not be written back"
     assert p["registration_completed"] is True
     assert "portal_activated" not in p, "restore must not write back untouched columns"
 

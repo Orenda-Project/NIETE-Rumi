@@ -14,7 +14,8 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { peopleSpellings, spellQuestion, logRedactor } = require('./transcript-quiz-people');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES, singleThingNotACount, drawsEmptySet } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -27,6 +28,8 @@ const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word
 const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
+const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
+const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -55,9 +58,30 @@ function childAddressError(q, i) {
   const { fields, forms } = questionAddressForms(q);
   if (!forms.length) return null;
   const shown = [...new Set(forms)].slice(0, 4).map((f) => `"${f}"`).join(', ');
+  const repairs = [...new Set(forms.map(addressRepairFor).filter(Boolean))];
   return `q${i}: PEDAGOGY_GENDERED_CHILD — ${fields.join(' + ')} speak${fields.length === 1 ? 's' : ''} to the child with a gendered verb (${shown}); `
     + 'the class is boys and girls. Keep the same question and change only those verbs: the آپ-imperative or subjunctive («بتائیں»، «آپ کون سی علامت لگائیں؟»), '
-    + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)';
+    + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)'
+    + (repairs.length ? `. For the forms found here: ${repairs.join('; ')}` : '');
+}
+
+/**
+ * The neutral rewrite for the SHAPE of one flagged form. The generic advice above
+ * shows only a future or a question being made neutral; on staging (25 Sep) the
+ * last targeted rewrite fixed a future and left the modal beside it
+ * («آپ … بڑھا سکتے ہیں»), and the question shipped with it. First match wins: a
+ * modal («سکتے ہیں») also ends like a habitual.
+ */
+const ADDRESS_REPAIRS = [
+  [/سک(?:تے|تی|تیں)|سکیں/, 'a modal «آپ … حوصلہ بڑھا سکتے ہیں» / «سکتی ہیں» → the impersonal «… حوصلہ بڑھایا جا سکتا ہے» or the imperative «… حوصلہ بڑھائیں»'],
+  [/(?:^|\s)(?:رہے|رہی|رہیں)\s/, 'a progressive «آپ … سوچ رہے ہیں» / «رہی ہیں» → «شاید آپ نے … سمجھا»'],
+  [/چاہ(?:تے|تی)/, 'a wish «آپ … جاننا چاہتے ہیں» → «… جاننا ہو تو» or the imperative «… جانیں»'],
+  [/(?:گئے|گئی|گئیں|چکے|چکی|چکیں|بیٹھے|بیٹھی|بیٹھیں)/, 'a perfect «آپ … گننا بھول گئے» / «کر چکے ہیں» → the verb agrees with what was missed or done: «… گننا رہ گیا»، «آپ نے … کر لیا ہے»'],
+  [/(?:تے|تی|تیں)(?:\s|$)/, 'a habitual «آپ … کہتے ہیں» → the impersonal «… کہا جاتا ہے» or «آپ … کہیں»'],
+];
+function addressRepairFor(form) {
+  const hit = ADDRESS_REPAIRS.find(([rx]) => rx.test(String(form)));
+  return hit ? hit[1] : null;
 }
 
 /**
@@ -190,36 +214,82 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
  *
  * A remade grade 4 Urdu quiz wrote the lesson's child as "‏Hira کی بوتل", the
  * bar's name included: the Urdu style rule keeps TERMS in English letters, and
- * the model read the name as a term. The contract now says a name is not a
- * term; this is the light check behind it. A capitalised Latin word in a field
- * with Urdu script counts only when the lesson's own examples use it (so it is
- * the lesson's name, not a word the model brought) and it is not a key term.
- * Never a refusal — the caller records it (meta.soft_faults and
- * transcript_quiz.latin_name), so the rate is visible.
- * @returns {string[]} one complaint per question and name
+ * the model read the name as a term. A capitalised Latin word in a field with
+ * Urdu script counts only when the lesson's own examples use it (so it is the
+ * lesson's name, not a word the model brought) and it is not a key term.
+ *
+ * It is a SOFT fault repaired IN PLACE, like two English terms side by side:
+ * the validator names it on its question, the one targeted rewrite writes the
+ * name in Urdu script, and the quiz ships whatever that leaves — never a
+ * refusal (the generate service's IN_PLACE_FAULT). The line says every field
+ * the name sits in, a picture's labels included, because the rewrite reads it.
  */
-function latinNames(questions, { language, digest } = {}) {
-  if (language !== 'ur') return [];
+function nameLexicon(digest, questions = []) {
   const lessonWords = new Set();
   (Array.isArray(digest && digest.examples_used) ? digest.examples_used : []).forEach((ex) => {
     (String(ex || '').match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => lessonWords.add(w));
   });
+  // A word the lesson or the quiz also writes in lowercase is a WORD, not a
+  // name: a lesson plan's worked example begins "Compare: 10 is more than 9",
+  // and a replayed teacher note that wrote "Compare" went to the repair as a
+  // person. A child's name is never written in lowercase.
+  const d = digest || {};
+  const lessonText = [
+    ...(Array.isArray(d.examples_used) ? d.examples_used : []), d.topic, d.topic_as_taught,
+    ...(Array.isArray(d.slos) ? d.slos : []).flatMap((x) => [x && x.statement, x && x.statement_en]),
+    ...(Array.isArray(d.misconceptions_surfaced) ? d.misconceptions_surfaced : []),
+    ...(Array.isArray(questions) ? questions : []).map((q) => JSON.stringify(q || {})),
+  ].map((t) => (typeof t === 'string' ? t : JSON.stringify(t || '')));
+  const lowercase = new Set(lessonText.flatMap((t) => t.match(/\b[a-z]{3,}\b/g) || []));
+  lowercase.forEach((w) => lessonWords.delete(w.charAt(0).toUpperCase() + w.slice(1)));
+  // A real digest stores each key term as {term, as_spoken}; read as plain
+  // text it was "[object Object]" and no term was ever exempt, so a vocabulary
+  // lesson's Brother, Sister, King and Queen were flagged as people.
+  const termText = (t) => (t && typeof t === 'object' ? [t.term, t.as_spoken] : [t]).map((x) => String(x || ''));
   const terms = new Set((Array.isArray(digest && digest.key_terms) ? digest.key_terms : [])
-    .flatMap((t) => String(t || '').toLowerCase().split(/\s+/)).filter(Boolean));
-  const out = [];
-  (Array.isArray(questions) ? questions : []).forEach((q, i) => {
-    if (!q || typeof q !== 'object') return;
-    const fb = q.option_feedback || {};
-    const labels = q.figure && typeof q.figure === 'object' ? specStrings(q.figure) : [];
-    const fields = [q.question, ...(q.options || []), q.explanation, fb.correct, ...Object.values(fb.wrong || {}), ...labels]
-      .map((t) => String(t || '')).filter((t) => /\p{Script=Arabic}/u.test(t));
-    const seen = new Set();
-    fields.forEach((t) => (t.match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => {
-      if (lessonWords.has(w) && !terms.has(w.toLowerCase()) && !seen.has(w)) seen.add(w);
-    }));
-    seen.forEach((w) => out.push(`q${i}: URDU_NAME_LATIN — "${w}" is a person's name, not a term: in an Urdu quiz write it in Urdu script`));
-  });
-  return out;
+    .flatMap(termText).flatMap((x) => x.toLowerCase().split(/[^\p{L}]+/u)).filter(Boolean));
+  return { lessonWords, terms };
+}
+
+/** Every field of one question with Urdu script in it, named the way the rewrite reads it. */
+function urduNameFields(q) {
+  const fb = q.option_feedback || {};
+  const misc = q.distractor_misconceptions || {};
+  const figure = q.figure && typeof q.figure === 'object' && !Array.isArray(q.figure) ? q.figure : null;
+  return [
+    ['question', q.question],
+    ...(Array.isArray(q.options) ? q.options : []).map((o, k) => [`option ${k}`, o]),
+    ['explanation', q.explanation],
+    ['option_feedback', fb.correct],
+    ...Object.values(fb.wrong || {}).map((w) => ['option_feedback', w]),
+    ['selected_because', q.selected_because],
+    ...Object.values(misc).map((m) => ['distractor_misconceptions', m]),
+    ...(figure ? specStrings(figure).map((t) => ['figure labels', t]) : []),
+  ].map(([f, t]) => [f, String(t ?? '')]).filter(([, t]) => /\p{Script=Arabic}/u.test(t));
+}
+
+/** URDU_NAME_LATIN for ONE question: one line per name, naming every field it is in. */
+function latinNameErrors(q, i, lex) {
+  if (!q || typeof q !== 'object' || !lex) return [];
+  const where = new Map();
+  urduNameFields(q).forEach(([field, t]) => (t.match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => {
+    if (!lex.lessonWords.has(w) || lex.terms.has(w.toLowerCase())) return;
+    if (!where.has(w)) where.set(w, []);
+    if (!where.get(w).includes(field)) where.get(w).push(field);
+  }));
+  return [...where].map(([w, fields]) => `q${i}: URDU_NAME_LATIN — "${w}" is a person's name, not a term, written in English letters in ${fields.join(' + ')}. `
+    + 'In an Urdu quiz a name is written in Urdu script: keep the same question and change only the name, in every field it is in, spelled the same way each time.');
+}
+
+/**
+ * The same check over a whole quiz, for the record the generate service keeps
+ * of what SHIPPED (meta.soft_faults and transcript_quiz.latin_name).
+ * @returns {string[]} one complaint per question and name
+ */
+function latinNames(questions, { language, digest } = {}) {
+  if (language !== 'ur') return [];
+  const lex = nameLexicon(digest, questions);
+  return (Array.isArray(questions) ? questions : []).flatMap((q, i) => latinNameErrors(q, i, lex));
 }
 
 function modelsTheStem(q, subject, gradeBand) {
@@ -415,11 +485,20 @@ function validate(rawQuestions, ctx = {}) {
   }
   // A figure never names its parts with the option letters (relabelLetterParts):
   // renamed first, so every check below and every surface reads the new names.
+  // In an Urdu quiz each person the digest recorded is written in their Urdu
+  // spelling, wherever a field or a picture label still has the name in English
+  // letters (transcript-quiz-people). This is the one step every shipped
+  // question passes, so a note a repair wrote with "Hira" cannot keep it.
+  const spellings = language === 'ur' ? peopleSpellings(digest) : {};
   const qs = rawQuestions.map(normaliseFeedback)
     .map((q) => relabelLetterParts(q).question)
-    .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
+    .map((q) => (language === 'ur' ? rtlOpenQuestion(spellQuestion(fixQuestionTransliterations(q), spellings)) : q));
   // What the lesson calls a term, and what a phrase — for URDU_ADJACENT_TERMS.
   const adjacentLex = language === 'ur' ? lessonLexicon(digest, qs) : null;
+  // The lesson's names and its key terms — for URDU_NAME_LATIN.
+  const nameLex = language === 'ur' ? nameLexicon(digest, qs) : null;
+  // What a log line may not carry: the lesson's people and name candidates (D4).
+  const redactNames = logRedactor(digest, nameLexicon(digest, qs).lessonWords);
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
@@ -479,6 +558,11 @@ function validate(rawQuestions, ctx = {}) {
       if (need.some((k) => !String(fb.wrong?.[k] || '').trim())) errs.push(`q${i}: empty wrong feedback`);
       if (!String(fb.correct || '').trim()) errs.push(`q${i}: empty correct feedback`);
     }
+    // A key justified by what was said in class, against the fact the item
+    // itself states (transcript-quiz-key-authority): the class's mistake made
+    // the answer. Read as the child sees it, so the quoted sentence is readable.
+    const authority = keyByAuthorityError(p, i);
+    if (authority) errs.push(authority);
     const stem = String(p.question || '').trim();
     if (!stem) errs.push(`q${i}: empty stem`);
     if (cpLen(stem) > STEM_MAX) errs.push(`q${i}: stem >${STEM_MAX} code points`);
@@ -535,6 +619,9 @@ function validate(rawQuestions, ctx = {}) {
       // leaves the $…$ maths out itself).
       const adjacent = adjacentTermsError(q, i, adjacentLex);
       if (adjacent) errs.push(adjacent);
+      // A person's name in English letters («‏Hira کی بوتل»): a name is not a
+      // term. Repaired in place like the two above, never a refusal.
+      errs.push(...latinNameErrors(q, i, nameLex));
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {
@@ -577,7 +664,7 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_TYPE — "figure" must be a spec object with a "type", not ${typeof q.figure}`);
       return;
     }
-    const { spec: cleanedFigure, stripped } = stripStrayLabels(q.figure, { stem, options: opts });
+    const { spec: cleanedFigure, stripped } = stripStrayLabels(q.figure, { stem, options: opts, redact: redactNames });
     if (stripped.length) q.figureStripped = stripped;
     // A `word_blank` whose `blanks` the author left out is not a broken
     // question — the stem it is attached to already says which letter is
@@ -586,7 +673,7 @@ function validate(rawQuestions, ctx = {}) {
     // teacher PDF re-draws the same picture. Never inside the engine: the
     // lesson-plan lane shares that contract and must still hear about a spec
     // it wrote wrong.
-    q.figure = normaliseWordBlank(cleanedFigure, { stem, language, quizId, index: i }).spec;
+    q.figure = expandImproperBar(normaliseWordBlank(cleanedFigure, { stem, language, quizId, index: i }).spec);
     if (MATHS_ONLY_TYPES.has(String(q.figure.type || '').toLowerCase()) && canonSubj(subject) !== 'maths') {
       errs.push(`q${i}: FIGURE_TYPE — "${q.figure.type}" draws mathematics only; for this subject use flow, timeline, fraction_bar, grid, numberline, or no picture`);
       return;
@@ -618,6 +705,13 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
       return;
     }
+    // One thing, or an empty tray, under a question that is not "how many?"
+    // (the one-goat vocabulary prompt the engine's old floor of 2 stood for).
+    const notACount = singleThingNotACount(q.figure, opts, ci, stem);
+    if (notACount) {
+      errs.push(`q${i}: FIGURE_NOT_A_COUNT — ${notACount}`);
+      return;
+    }
     // The engine draws a fraction bar of at most 24 parts (vendor fraction_bar.js
     // clamps `parts`), so a bar of 48 is drawn as 24 — a different fraction, and
     // live (grade 5 Urdu) two bars of "24" in a question with one right bar.
@@ -637,7 +731,8 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}${hint ? `; ${hint}` : ''}`);
     }
     if (!svg) return;
-    if (svgInkCount(svg) < 3) {
+    // An empty tray (count 0) is ONE dashed outline by design: the empty set.
+    if (svgInkCount(svg) < (drawsEmptySet(q.figure) ? 1 : 3)) {
       errs.push(`q${i}: FIGURE_BLANK — the drawing paints almost nothing (the engine skipped shapes it does not know); use a shape from the minimal specs`);
       return;
     }
@@ -667,7 +762,9 @@ function validate(rawQuestions, ctx = {}) {
     // the same rule since two slipped through beside a product and an LCM.
     const unnamed = unnamedParts(q.figure, opts);
     if (unnamed) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — the options name parts ${unnamed.join(', ')} but the picture names none; give each part its name as its label ("P", not "bar P")`);
-    const mismatch = figureMismatch(q.figure, opts, ci);
+    const loose = unnamedBarInNamedSet(q.figure, opts);
+    if (loose) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — bar ${loose} has no name while the options pick bars by name, so the child cannot tell which bars go together; name every bar, and draw an improper fraction in a picture of its own`);
+    const mismatch = figureMismatch(q.figure, opts, ci, stem);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
     }
@@ -690,6 +787,10 @@ function validate(rawQuestions, ctx = {}) {
   });
 
   errs.push(...Multi.quizErrors(qs));
+  // The same question asked twice (same answer, same item, near-identical
+  // stem). Only the quiz as a whole can show it, and the complaint names the
+  // LATER copy, so the targeted rewrite replaces that one question.
+  errs.push(...duplicateQuestionErrors(qs));
 
   if (figured / qs.length > FIGURE_MAX_SHARE) {
     errs.push(`FIGURE_SHARE — ${figured}/${qs.length} questions carry a picture; at most half may`);
@@ -749,6 +850,7 @@ function validate(rawQuestions, ctx = {}) {
 module.exports = {
   validate,
   latinNames,
+  nameLexicon,
   normaliseFeedback,
   STEM_PROMISES_PICTURE,
   FIGURE_MAX_SHARE,

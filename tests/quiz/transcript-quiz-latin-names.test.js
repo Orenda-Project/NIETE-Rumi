@@ -8,9 +8,10 @@
  * Urdu style rule keeps TERMS in English letters and the model read the name
  * as one. The prompt now says a name is not a term. The check is light by
  * design — a Latin capitalised word in an Urdu field that the lesson's own
- * examples use as a name, not a key term — and it never refuses a quiz: it is
- * recorded in meta.soft_faults and on transcript_quiz.latin_name, so the rate
- * is visible.
+ * examples use as a name, not a key term — and it never refuses a quiz. The
+ * validator names it and the targeted rewrite repairs it in place
+ * (transcript-quiz-latin-name-repair.test.js); what still ships in English
+ * letters is recorded in meta.soft_faults and on transcript_quiz.latin_name.
  */
 
 jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
@@ -55,10 +56,28 @@ describe('latinNames — the light check', () => {
       { question: 'کون سی پٹی بڑی ہے؟', options: ['P', 'Q', 'R'], figure: { type: 'fraction_bar', bars: [{ parts: 3, shaded: 2, label: 'Hira کی بوتل' }] } },
       { question: 'حرا کی بوتل میں کتنا پانی ہے؟', options: ['a', 'b', 'c'] },
     ];
-    expect(latinNames(qs, { language: 'ur', digest: DIGEST })).toEqual([
-      'q0: URDU_NAME_LATIN — "Hira" is a person\'s name, not a term: in an Urdu quiz write it in Urdu script',
-      'q1: URDU_NAME_LATIN — "Hira" is a person\'s name, not a term: in an Urdu quiz write it in Urdu script',
-    ]);
+    const got = latinNames(qs, { language: 'ur', digest: DIGEST });
+    expect(got).toHaveLength(2);
+    expect(got[0]).toMatch(/^q0: URDU_NAME_LATIN — "Hira" is a person's name, not a term, written in English letters in question\. /);
+    expect(got[1]).toMatch(/^q1: URDU_NAME_LATIN — "Hira" is a person's name, not a term, written in English letters in figure labels\. /);
+  });
+
+  test('key terms as the digest really stores them ({term, as_spoken}) are never names', () => {
+    // A real digest carries key_terms as objects (every Urdu quiz on the prod
+    // replica). Read as plain text they became "[object Object]", so a vocabulary
+    // lesson's words were flagged as people.
+    const vocab = {
+      ...DIGEST,
+      key_terms: [{ term: 'Brother', as_spoken: 'brother' }, { term: 'Sister', as_spoken: 'sister' }, { term: 'King and Queen', as_spoken: 'king queen' }],
+      examples_used: ['Brother and Sister', 'King and Queen'],
+    };
+    const qs = [{ question: '‏Brother کی مؤنث کیا ہے؟ King کی مؤنث بتائیں۔', options: ['Sister', 'Queen', 'Aunt'] }];
+    expect(latinNames(qs, { language: 'ur', digest: vocab })).toEqual([]);
+    // and a real name beside them is still found
+    const named = { ...vocab, examples_used: [...vocab.examples_used, "Hira's brother"] };
+    const found = latinNames([{ question: '‏Hira کا Brother کون ہے؟', options: ['a', 'b', 'c'] }], { language: 'ur', digest: named });
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatch(/^q0: URDU_NAME_LATIN — "Hira" is a person's name, not a term, written in English letters in question\. /);
   });
 
   test('never a term, never an English quiz, never a word the lesson did not use as a name', () => {
@@ -68,7 +87,7 @@ describe('latinNames — the light check', () => {
   });
 });
 
-test('generate records it as a soft fault and an event, and the quiz ships', async () => {
+test('a name the repair could not reach is recorded as a soft fault and an event, and the quiz ships', async () => {
   const QID = '44444444-4444-4444-8444-444444444444';
   const SID = '33333333-3333-4333-8333-333333333333';
   installFrom(supabase.from, {
@@ -97,11 +116,15 @@ test('generate records it as a soft fault and an event, and the quiz ships', asy
     lesson_summary: 'آج کے سبق میں fractions کا موازنہ سکھایا گیا، حرا کی بوتل کی مثال سے۔', lesson_summary_short: 'fractions کا موازنہ۔', checks_summary: 'یہ کوئز fractions کا موازنہ جانچتا ہے۔',
     questions: [0, 1, 2, 3, 4, 5, 6, 7].map(item),
   }) }, finish_reason: 'stop' }], usage: { cost: 0.004 } };
-  // a maths lesson with no picture is sent back once (FIGURE_REQUIRED, attempt 1 only)
-  mockCreate.mockResolvedValueOnce(reply).mockResolvedValueOnce(reply);
+  // the one in-place repair gives q3 back unchanged: the name the repair could
+  // not reach ships, recorded
+  const q3 = JSON.parse(reply.choices[0].message.content).questions[3];
+  mockCreate.mockImplementation((call) => Promise.resolve(/REWRITE THESE QUESTIONS/.test(call.messages[0].content)
+    ? { choices: [{ message: { content: JSON.stringify({ questions: [{ index: 3, ...q3 }] }) }, finish_reason: 'stop' }], usage: { cost: 0.001 } }
+    : reply));
   const out = await Gen.process(QID);
   expect(out.ok).toBe(true);
   const metas = supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((c) => c[1].meta).filter(Boolean);
   expect(metas.pop().soft_faults).toEqual(expect.arrayContaining([expect.stringMatching(/^q3: URDU_NAME_LATIN — "Hira"/)]));
-  expect(logEvent).toHaveBeenCalledWith('transcript_quiz.latin_name', expect.objectContaining({ quizId: QID, names: ['Hira'], questions: [3] }));
+  expect(logEvent).toHaveBeenCalledWith('transcript_quiz.latin_name', expect.objectContaining({ quizId: QID, names: 1, questions: [3] }));
 });

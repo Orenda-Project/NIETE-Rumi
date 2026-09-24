@@ -120,7 +120,8 @@ describe('DC:137 — session-complete leads the commitment question, in one mess
 
   it('Urdu reads "aapka coaching session yahan mukammal ho gaya hai" — then the ahad question', () => {
     expect(COACHING_CARD_COPY.ur.sessionCompleteLead).toBe('✅ آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔');
-    expect(COACHING_CARD_COPY.ur.commitPrompt).toBe('کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟');
+    // The subjunctive, never the masculine future «عہد کریں گے؟» (the teacher's gender is unknown).
+    expect(COACHING_CARD_COPY.ur.commitPrompt).toBe('کیا اگلی کلاس میں یہ آزمانے کا عہد کریں؟');
   });
 
   it.each(CARD_LANGUAGES)('[%s] lead is translated, ✅-led, and the merged body fits the 1024 cap', (lang) => {

@@ -21,6 +21,7 @@
 
 const supabase = require('../../config/supabase');
 const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
+const Funnel = require('./quiz-funnel');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -40,6 +41,7 @@ const { addressForms } = require('./transcript-quiz-address');
 // the Flow's lesson screen, the nudge) counts children exactly as this report does.
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { scriptOf } = require('../../templates/niete-brand');
+const { onUnlessOff } = require('../nudges/flags');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -101,10 +103,45 @@ function reportTargetUtc(now = new Date()) {
 }
 
 /**
+ * How long the "this code's report is scheduled" claim lives. The longest wait
+ * is a join at 10:00 PKT: +12 h lands at 22:00 and is pushed to 07:00, 21 h. The
+ * claim must outlive the chain, or a later join starts a second one.
+ */
+const SCHEDULE_CLAIM_TTL_S = 26 * 60 * 60;
+const scheduleClaimKey = (shareCodeId) => `vq:report:scheduled:${shareCodeId}`;
+
+/**
  * Schedule the report for a share code. Idempotent per code — a second call
  * (another child joining) must not queue a second report.
+ *
+ * The idempotency is a Redis claim, NOT the SQS deduplication id: queueJob only
+ * sends that id to a FIFO queue, and the quiz queue is STANDARD, so every join
+ * used to start its own 12-hour re-queue chain (a median of 6 chains per code in
+ * production, up to 92). Those chains saturated the quiz queue — teacher-tapped
+ * quizzes waited 20+ minutes behind them — and each extra chain reached
+ * generate() again after the report went out.
+ *
+ * Redis down → setNX fails open and the report is scheduled anyway: a duplicate
+ * chain is harmless, a missing report is not. VIDEO_REPORT_SCHEDULE_ONCE=off
+ * restores the per-join scheduling exactly.
  */
 async function scheduleForShareCode(shareCodeId) {
+  const once = onUnlessOff('VIDEO_REPORT_SCHEDULE_ONCE');
+  let claimed = false;
+  if (once) {
+    try {
+      const redisService = require('../cache/railway-redis.service');
+      claimed = await redisService.setNX(scheduleClaimKey(shareCodeId), String(Date.now()), SCHEDULE_CLAIM_TTL_S);
+    } catch (err) {
+      // cannot de-dup → schedule anyway (fail open, as setNX itself does)
+      logToFile('❌ video-quiz report: schedule claim failed, scheduling anyway', { shareCodeId, error: err.message }, 'error');
+      claimed = true;
+    }
+    if (!claimed) {
+      logEvent('video_quiz.report_schedule_skipped', { shareCodeId, why: 'already_scheduled' });
+      return;
+    }
+  }
   try {
     const SQSQueueService = require('../queue/sqs-queue.service');
     const when = reportTargetUtc();
@@ -125,9 +162,19 @@ async function scheduleForShareCode(shareCodeId) {
     });
     logEvent('video_quiz.report_scheduled', { shareCodeId, targetAt: when.toISOString() });
   } catch (err) {
-    logToFile('⚠️ video-quiz report scheduling failed (non-fatal)', {
+    logToFile('❌ video-quiz report scheduling failed (non-fatal)', {
       shareCodeId, error: err.message,
-    });
+    }, 'error');
+    // Nothing was queued: give the claim back so the next child's join schedules it.
+    if (claimed) {
+      try {
+        const redisService = require('../cache/railway-redis.service');
+        await redisService.delete(scheduleClaimKey(shareCodeId));
+      } catch (relErr) {
+        // the claim lapses on its TTL; until then later joins find it and queue nothing
+        logToFile('❌ video-quiz report: schedule claim not released', { shareCodeId, error: relErr.message }, 'error');
+      }
+    }
   }
 }
 
@@ -240,6 +287,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     .eq('id', sc.teacher_user_id).maybeSingle();
   if (!teacher?.phone_number) {
     logToFile('⚠️ video-quiz report: no teacher phone', { shareCodeId });
+    Funnel.emit('report_failed', { quiz_id: sc.quiz_id, share_code_id: shareCodeId, reason: 'no_teacher_phone' });
     return false;
   }
 
@@ -364,6 +412,13 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     await WhatsAppService.sendMessage(teacher.phone_number,
       resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
     await markReportSent(shareCodeId, sc.quiz_id);
+    // Stamped as a report, so counted as one — of its own kind. Unlogged, this
+    // branch was 17.5% of production's report stamps (189 of 1,082) and every
+    // one of them a class that never joined.
+    Funnel.emit('report_sent', {
+      quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: quizRow && quizRow.quiz_source,
+      kind: 'no_one', reason, n: 0,
+    });
     return true;
   }
 
@@ -555,6 +610,10 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     completed: done.length, average: avg, reason,
     format: sentAsPdf ? 'pdf' : 'text', hadGuidance: Boolean(guidance),
   });
+  Funnel.emit('report_sent', {
+    quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: quizRow && quizRow.quiz_source,
+    kind: 'report', reason, n: done.length,
+  });
   return true;
 }
 
@@ -644,6 +703,9 @@ async function sendClassCards({ shareCode, quizRow, done, reason, language, clas
   const now = Date.now();
   const sentIds = [];
   let skipped = 0;
+  // For the funnel, a send that FAILED is not the same as a child left out on
+  // purpose (no number, outside the window): `skipped` below counts both.
+  let failed = 0;
 
   for (const r of rows) {
     const key = r.studentId || r.sessionId;
@@ -671,9 +733,17 @@ async function sendClassCards({ shareCode, quizRow, done, reason, language, clas
       });
     } catch (err) {
       skipped += 1;
+      failed += 1;
       logToFile('⚠️ class card: could not send to one child (continuing)', { shareCodeId: shareCode.id, error: err.message });
       logEvent('video_quiz.class_card_skipped', { shareCodeId: shareCode.id, studentId: key, why: 'error' });
     }
+  }
+
+  if (sentIds.length || skipped) {
+    Funnel.emit('class_cards', {
+      quiz_id: shareCode.quiz_id, share_code_id: shareCode.id, source: quizRow && quizRow.quiz_source,
+      n: sentIds.length, failed, skipped: skipped - failed,
+    });
   }
 
   if (sentIds.length) {

@@ -19,10 +19,13 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor, formatLessonDate, lessonLabel } = require('./transcript-quiz-language');
-const { LP_V8, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
+const { isPlanQuiz, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
+const Funnel = require('./quiz-funnel');
 
 const GAP_MS = 1200;
-const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
+// The nudge's wait belongs to the nudge service (one number for "when it is due"
+// and "which nudges are due"); re-exported below for existing readers.
+const { NUDGE_AFTER_MS } = require('./transcript-quiz-nudge.service');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -44,7 +47,9 @@ async function load(quizId) {
     .eq('id', quizId).maybeSingle();
   if (!quiz) return null;
   const meta = quiz.meta || {};
-  const sessionQuery = quiz.quiz_source === LP_V8
+  // A quiz written from a lesson PLAN (lp_v8, lp612) has no coaching session:
+  // its "session" is the lesson date it carries.
+  const sessionQuery = isPlanQuiz(quiz.quiz_source)
     ? Promise.resolve({ data: lessonSessionFor(quiz) })
     : supabase.from('coaching_sessions').select('created_at').eq('id', quiz.coaching_session_id).maybeSingle();
 
@@ -74,6 +79,10 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     quiz, session, questions, qRows, digest, teacherName, teacherLang, language,
   } = bundle;
   const meta = bundle.meta || {};
+  const funnel = {
+    quiz_id: quizId, teacher_id: quiz.teacher_id, source: quiz.quiz_source || 'transcript',
+    channel: Funnel.channelOf(meta.source),
+  };
 
   // ── the share code — minted once, reused forever ──────────────────────────
   const share = require('./video-quiz-share.service');
@@ -105,6 +114,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     if (!minted) {
       await updateQuiz(quizId, { meta: { ...meta, step: 'ready', handoff_error: 'mint_failed' } });
       await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotSend', { language: teacherLang }));
+      Funnel.emit('send_failed', { ...funnel, reason: 'mint_failed' });
       return { ok: false, reason: 'mint_failed' };
     }
     code = minted.code;
@@ -181,7 +191,9 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     await WhatsAppService.sendMessage(phone, `${caption}\n\n${resolveUx('tqForwardThis', { language: teacherLang })}`);
   }
   await api.sleep(GAP_MS);
-  await WhatsAppService.sendMessage(phone, forwardable);      // THE forwardable message, alone
+  // THE forwardable message, alone — the one thing the class needs. Whether it
+  // arrived is recorded: `sent` used to be logged either way.
+  const linkSent = Boolean(await WhatsAppService.sendMessage(phone, forwardable));
   if (firstSend) {
     await api.sleep(GAP_MS);
     await WhatsAppService.sendMessage(phone, resolveUx('tqReportPromise', { language: teacherLang }));
@@ -191,12 +203,16 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   if (firstSend) {
     const newMeta = {
       ...meta, step: 'sent', share_code: code, share_code_id: shareCodeId, link,
-      student_message: forwardable, pdf_key: pdfKey, pdf_sent: pdfSent, sent_at: new Date().toISOString(),
+      student_message: forwardable, pdf_key: pdfKey, pdf_sent: pdfSent, link_sent: linkSent, sent_at: new Date().toISOString(),
     };
     await updateQuiz(quizId, { status: 'sent', meta: newMeta });
     logEvent('transcript_quiz.sent', {
       quizId, userId: quiz.teacher_id, code, language, pdfSent, costUsd: meta.cost_usd, quiz_source: quiz.quiz_source || 'transcript',
     });
+    Funnel.emit('sent', { ...funnel, pdf_sent: pdfSent, link_sent: linkSent });
+    // The row is `sent` (the teacher has the document, and /quiz can resend the
+    // link), but a class cannot join without the link: that is a failure to see.
+    if (!linkSent) Funnel.emit('send_failed', { ...funnel, reason: 'link_not_delivered' });
 
     try {
       const SQSQueueService = require('../queue/sqs-queue.service');

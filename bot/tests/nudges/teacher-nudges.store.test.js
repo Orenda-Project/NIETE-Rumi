@@ -350,6 +350,38 @@ describe('markSent / markSkipped / markFailed — the terminal marks', () => {
   });
 });
 
+describe('defer — "not now", handed back by the claim holder', () => {
+  test('a claimed row goes back to pending, due at the new instant, and the context is merged, not replaced', async () => {
+    const row = seed({ status: 'sending', context: { lessons: ['l1'] } });
+    const ok = await store.defer(row.id, new Date('2026-09-23T10:06:00.000Z'), { deferred_for: 'lp_survey' });
+
+    expect(ok).toBe(true);
+    const after = db.rows.find((r) => r.id === row.id);
+    expect(after.status).toBe('pending');
+    expect(after.scheduled_at).toBe('2026-09-23T10:06:00.000Z');
+    expect(after.context).toEqual(expect.objectContaining({
+      lessons: ['l1'], deferred_for: 'lp_survey', deferred_at: expect.any(String),
+    }));
+  });
+
+  test('the next claim before that instant takes nothing; after it, the row is claimed again', async () => {
+    const row = seed({ status: 'sending' });
+    await store.defer(row.id, '2026-09-23T10:06:00.000Z', { deferred_for: 'lp_survey' });
+
+    expect(await store.claimDue({ kind: KIND, now: new Date('2026-09-23T10:05:00.000Z') })).toEqual([]);
+    const again = await store.claimDue({ kind: KIND, now: new Date('2026-09-23T10:06:30.000Z') });
+    expect(again.map((r) => r.id)).toEqual([row.id]);
+  });
+
+  test('guarded on sending — a row that finished in between is never revived', async () => {
+    const row = seed({ status: 'sent' });
+    const ok = await store.defer(row.id, '2026-09-23T10:06:00.000Z', { deferred_for: 'lp_survey' });
+
+    expect(ok).toBe(false);
+    expect(db.rows.find((r) => r.id === row.id).status).toBe('sent');
+  });
+});
+
 describe('expireStuck — a row nobody finished must not sit in sending for ever', () => {
   test('a sending row older than the ceiling becomes failed with context.error = stuck_sending', async () => {
     const stuck = seed({

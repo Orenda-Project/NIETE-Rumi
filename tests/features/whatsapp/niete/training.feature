@@ -264,7 +264,7 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open and a quiz was made from a lesson plan I was served on an earlier day
     And I also have a recorded coaching lesson
     When I send "/quiz"
-    Then the list shows the lesson-plan quiz as a row "<date> · <subject>" with "<topic> · <status>" beneath it
+    Then the list shows the lesson-plan quiz as a row "<date> · <subject>" with "From lesson plan · <topic> · <status>" beneath it
     And the rows are ordered newest lesson first, the lesson-plan quiz dated by the day it was planned for
     And the recorded coaching lesson is still in the list
     When I tap the lesson-plan quiz's row
@@ -272,11 +272,93 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-list.service lessonItems + handleLpPick (row id tq_pick_lp_<quizId>); the /quiz Flow
     # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario Outline: However I type "quiz", it opens my quiz menu
+    Given the NIETE bot chat is open and I have a recorded coaching lesson or a lesson plan from the last 30 days
+    When I send "<text>"
+    Then my /quiz menu opens — the list of my lessons — and no chat answer about quizzes comes instead
+    Examples:
+      | text         |
+      | quiz         |
+      | Quiz?        |
+      | quiz/        |
+      | / quiz       |
+      | quize        |
+      | my quizzes   |
+      | send me quiz |
+      | mera quiz    |
+      | کوئز         |
+      | کویز         |
+    # quiz-menu-request isQuizMenuRequest → the text handler's /quiz door → quiz-menu-entry openQuizMenu.
+    # Production, 14 days to 24 Sep 2026: 54 of 351 such texts reached general AI chat instead. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: /quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap
+    Given the NIETE bot chat is open and I took a Grade 1-5 lesson plan today and have a recorded coaching lesson
+    And no quiz has been made from either
+    When I send "quiz"
+    Then my lessons are listed newest first, the lesson plan and the recording together
+    And the lesson plan's row says "From lesson plan" and the recording's row says "From transcript"
+    And no quiz is made by opening the list
+    When I tap the lesson plan's row
+    Then the bot asks which language the quiz should be in, or — for an Urdu or Islamiyat lesson — says it is making the quiz now
+    And the quiz arrives with the PDF and the message to forward to the class
+    When I send "/quiz" again
+    Then that lesson plan is listed once, as its quiz with its status — never a second time as a lesson to make
+    # lp-v8-lesson-provider list/start; row id tq_pick_lsn_lp_v8_<delivery id>, Flow key lsn_lp_v8_<delivery id>.
+    # Only lessons whose served version has a slide script are listed (niete_lp_asset_sources). In Urdu the
+    # labels read «سبق کے منصوبے سے» and «کلاس کی ریکارڈنگ سے». @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: Tapping the same lesson plan twice makes one quiz
+    Given the NIETE bot chat is open and /quiz lists a lesson plan with no quiz yet
+    When I tap that lesson plan's row twice in quick succession
+    Then exactly one quiz is made and one "making it now" arrives
+    And the afternoon quiz offer never makes a second quiz for that lesson
+    # lp-lesson-claim: a Redis SET NX per (teacher, lesson) around read → insert → re-read; the re-read keeps
+    # the oldest row when Redis fails open. The 15:00 offer goes through the same claim. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A lesson plan another teacher already made into a quiz comes back quickly, with my own name and link
+    Given another teacher on the same version of a lesson plan has already been sent its quiz
+    And the NIETE bot chat is open and /quiz lists that lesson plan with no quiz yet
+    When I tap that lesson plan's row
+    Then the quiz arrives with the PDF and the message to forward to the class
+    And the PDF and the forward message carry my name and my lesson date, and the link is a new one of my own
+    And the questions are the same questions the other teacher's class was sent
+    # lp-quiz-cache: key = (source, lesson id, version stamp, content hash, language); donor = the newest SENT quiz
+    # of that key with every check passed, not itself a copy. quiz_funnel.generated carries cached:true and
+    # donor_quiz_id; meta.cache_donor on the row. Pictures re-hosted under this quiz. QUIZ_LP_CACHE=off = author. @wip.
+
+  @e2e @quiz @negative @wip @draft @P2
+  Scenario: Past today's quiz limit I am told plainly and can make it tomorrow
+    Given I have already had the day's limit of quizzes made today
+    When I ask for one more quiz from /quiz
+    Then the bot says today's limit for new quizzes is reached and that it can be made tomorrow from /quiz
+    And no quiz is sent
+    # quiz-daily-cap: QUIZ_DAILY_CAP (default 10) per teacher per PKT day, both streams, counted in the generate
+    # step before any model call; failed / daily_cap; copy tqDailyCap. Needs Redis; off/0 = no cap. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A child in the middle of a quiz who types "quiz" stays in the quiz
+    Given a child on this phone is taking a class quiz and a question is waiting for an answer
+    When the child sends "quiz"
+    Then the bot replies, in the quiz's language, that a quiz is in progress: tap an answer above or type its letter, and STOP ends it
+    And no lesson list or menu is sent over the question, and the waiting question can still be answered
+    # quiz-menu-entry: the video-quiz state (currentQuestionId) is checked before the role. vqStillInQuiz. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: A coach who types "quiz" gets the coach menu
+    Given the NIETE bot chat is open on a coach's number
+    When I send "quiz"
+    Then the coach menu opens, and nothing tells me to record a lesson for coaching first
+    # A role that cannot self-coach has no quiz row in its menu (role-features LAYOUTS). @wip.
+
   @e2e @quiz @wip @draft @P2
   Scenario: A lesson-plan quiz still waiting for its language is asked again from /quiz, never "still being made"
     Given the NIETE bot chat is open and I said yes to the afternoon quiz offer on a maths, science or English lesson plan but never tapped a language
     When I send "/quiz"
-    Then that lesson's row says "Offered — tap to make"
+    Then that lesson's row says "No quiz yet"
     When I tap that row
     Then the bot asks again which language the quiz should be in, with an Urdu and an English button, and does not say the quiz is still being made
     When I tap "English"
@@ -302,6 +384,100 @@ Feature: NIETE (ICT) Teacher Training
     # results name the reason (failureReasonOf). "Make it again" runs transcript-quiz-offer.remakeLpQuiz:
     # atomic failed → generating, then queueLpQuiz. Seen on staging: a failed lesson-plan quiz showed the Flow's
     # generic error. @wip — forcing a failure needs a seeded failed row.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: In the /quiz list message, a lesson-plan quiz that could not be made is made again on a tap
+    Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be made because something went wrong while writing it
+    When I open the /quiz list from the menu's Quiz item
+    Then that lesson's row says "Failed — tap to retry", the way a failed quiz from a recording does
+    When I tap that row
+    Then the bot says it is making the quiz now, and the quiz arrives with the message to forward to the class
+    But when the lesson plan itself had too little lesson in it, the row says "Didn't work" and a tap only says why
+    # transcript-quiz-list statusLine + handleLpPick: a failed lp_v8 row reads tqRowFailed where
+    # quiz-sources.lpRemakeable holds, and the tap runs transcript-quiz-offer.remakeLpQuiz (source 'list') —
+    # the same remake as the Flow's "Make it again". Otherwise tqRowFailedLp and the persisted failure copy.
+    # @wip — forcing a failure needs a seeded failed row.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A Grades 6-12 lesson plan I received is in /quiz, and becomes a quiz only when I tap it
+    Given the NIETE bot chat is open and the 6-12 quiz source is switched on
+    And earlier today I took a Grade 8 maths lesson plan from the 6-12 menu
+    When I send "/quiz"
+    Then that lesson is listed "From lesson plan", with its date, subject and the lesson's own name, and no quiz has been made for it yet
+    When I tap it
+    Then the bot asks which language the quiz should be in, and after I choose, says it is making the quiz now
+    And the quiz arrives as a PDF that says "What you planned" and "Made from your lesson plan", followed by the message to forward to the class
+    And after children take it, /quiz offers Resend link and Generate report for it, and the class report and the children's cards arrive as for any quiz
+    # quiz/providers/lp612.provider.js (list: niete_lp612_deliveries → newest delivery per lesson, not held, not an
+    # assessment day, no quiz yet; start: the lp612 quiz row with meta.lessons[0] = the render's version triple);
+    # quiz/lp612-quiz-source.js reads the exact stored lp_doc (R2 lp612/{tv}/{lang}/{segment}.lp.json) and adapts it
+    # to the slide-script shape the LP digest reads. Needs V1.5.5 applied and the provider in the /quiz registry. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P2
+  Scenario: With the 6-12 quiz source switched off, no 6-12 lesson is offered and a quiz already made still works
+    Given the NIETE bot chat is open, I have a sent quiz made from a 6-12 lesson plan, and QUIZ_LP612_SOURCE is off
+    When I send "/quiz"
+    Then no 6-12 lesson without a quiz is listed
+    But my sent 6-12 quiz is still listed, and Resend link and Generate report still work for it
+    # quiz-sources.lp612SourceOn (read at call time): the provider lists nothing and a tap is unavailable; the
+    # generate step fails a queued lp612 quiz as source_off ("couldn't start it… try again from /quiz a little
+    # later") and never stops one already made.
+    # @config-gated: needs the env var flipped on a test environment. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P2
+  Scenario: A 6-12 lesson tapped in /quiz that could not be started says so honestly, and can be made again once it can be
+    Given the NIETE bot chat is open, and the 6-12 quiz source is on where /quiz runs but off where quizzes are written
+    When I tap a 6-12 lesson in /quiz and choose the quiz language
+    Then the bot says it could not start that quiz, that the problem was on its side and not my lesson plan, and to try again from /quiz a little later
+    And it never says "the next lessons you plan will get a new offer" — I asked for this quiz from the menu, not from an offer
+    When the source is switched on where quizzes are written and I open that lesson in /quiz
+    Then the lesson screen says the quiz could not be started on the bot's side and my lesson plan was not the problem, and offers "Make it again" and "Done"
+    When I choose "Make it again" and continue
+    Then the Flow closes and the bot says it is making the quiz now, and the quiz arrives with the message to forward
+    # Staging E2E 25 Sep (quiz failed source_off: QUIZ_LP612_SOURCE was off on the service running the quiz queue).
+    # quiz-sources failureCopyKey → startFailureCopyKey: the chat line is chosen by what can happen next —
+    # lpQuizCouldNotStartRetry when lpRemakeable, lpQuizCouldNotStartLater while the source is off here,
+    # otherwise lpQuizCouldNotStart (the 15:00 offer) or lpQuizCouldNotStartMenu (a /quiz tap). lpRemakeable:
+    # source_off once lp612SourceOn() here; source_missing only when lp-source-check reads the plan again.
+    # The Flow's LP_FLOW_FAILURE_RESULT.source_off = tqFlowResultsFailedLpStart (+ tqFlowResultsLater while off).
+    # @config-gated: the switch has to be flipped on one service and not another. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: The line after a quiz is sent says when the class report really comes
+    Given the NIETE bot chat is open and I made a quiz for one of my lessons from /quiz
+    When the quiz PDF and the message to forward to my class arrive
+    Then the next message says the class report comes about 12 hours after the first student starts, or at 7 in the morning if that falls at night
+    And it says that to get the report sooner I can send /quiz, pick the lesson and ask for its report
+    And it never promises the report "sooner if everyone finishes"
+    # tqReportPromise (transcript-quiz-handoff, first send). The schedule is video-quiz-report reportTargetUtc:
+    # 12 h after the first join, 22:00-07:00 PKT moved to 07:00; the early "everyone finished" send was removed
+    # (generate suppresses every follow_up), so nothing sends it sooner except the teacher's own request.
+    # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
+    # scheduler in tests/quiz/report-promise-truth.test.js. @wip.
+
+  @e2e @quiz @i18n @wip @draft @P2
+  Scenario: An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included
+    Given the NIETE bot chat is open and I made an Urdu quiz for one of my lessons
+    When a child takes it from the class link and reads every question, option, explanation and feedback line
+    Then nothing speaks to the child with a masculine or a feminine verb — no «آپ … کر سکتے ہیں», «آپ … سمجھ رہی ہیں» or «آپ … بھول گئے»
+    And the words say the same thing without a gender: «… کیا جا سکتا ہے», «شاید آپ نے … سمجھا», «… گننا رہ گیا»
+    But a story character or a thing keeps its own verb — «فاطمہ جلد ٹھیک ہوں گی»، «آئس کریم پگھل گئی»
+    # transcript-quiz-address (PEDAGOGY_GENDERED_CHILD): آپ + a gendered present/modal/progressive/future/perfect,
+    # and now a perfective with no auxiliary closing its clause («آپ … بھول گئے»), not where the field names the
+    # Prophet ﷺ or a companion, not after another subject. The validator's complaint names the neutral rewrite for
+    # each form it found (modal, progressive, wish, perfect, habitual). Staging 25 Sep: «آپ … بڑھا سکتے ہیں» was
+    # flagged, left by the last rewrite, and shipped as a recorded soft fault. Proven in
+    # tests/quiz/transcript-quiz-child-address-forms.test.js. @wip — the author's wording cannot be forced live.
+
+  @e2e @quiz @i18n @wip @draft @P2
+  Scenario: An Urdu quiz on a lesson plan with an English title keeps the title in reading order
+    Given the NIETE bot chat is open and I made an Urdu quiz on a maths or science lesson plan whose English title has a dash in it, like "Divisibility — apply the rules"
+    When the quiz PDF arrives, and later the class report
+    Then the English title reads left to right in one piece on both documents — "Divisibility — apply the rules", never "apply the rules — Divisibility"
+    # latin-runs.js: "—", "–" and "→" between two Latin words join them into one left-to-right isolate, as
+    # "&" and "·" already did. The lesson-plan quiz is named by the catalog title verbatim, and 330 of the
+    # catalog's 1,390 English titles carry a dash or an arrow. The coaching hero report and card use the
+    # same runs. @wip.
 
   @e2e @quiz @wip @draft @P2
   Scenario: /quiz never promises a report when no student has finished
@@ -450,10 +626,29 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate: a recording's digest or author that gives nothing usable (empty, cut off or
     # not JSON after the retry, or a refused call) is model_failed → tqCouldNotMakeModel, persisted as
     # quizzes.meta.error; the Flow lesson screen reads it (tqFlowResultsFailedModel) above the Make choices.
-    # tqCouldNotMake ("the transcript didn't carry enough") stays for questions that never validated and for
-    # a transcript under MIN_TRANSCRIPT_CHARS (source_unusable, checked before any model call — /quiz and the
-    # offer never list one). The offer-time digest failure is skipped as model_failed and the teacher is told
-    # nothing. A model failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
+    # tqCouldNotMake ("the transcript didn't carry enough") is sent ONLY for a transcript under
+    # MIN_TRANSCRIPT_CHARS (source_unusable, checked before any model call — /quiz and the offer never list
+    # one). The offer-time digest failure is skipped as model_failed and the teacher is told nothing. A model
+    # failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz whose questions never passed our checks says the problem was on our side, and can be made again
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
+    When the questions written for that lesson never pass the quiz checks, after every attempt and repair
+    Then the bot apologises that it could not write good enough questions from this lesson this time
+    And it says the problem was on its side, not my recording
+    And it never says the transcript didn't carry enough of what was taught
+    And it tells me to send /quiz and pick this lesson to make it again, never to wait for my next lesson
+    And the /quiz lesson screen for that lesson says the same, and still offers to make the quiz
+    And a quiz held back because some of its answers were wrong or unclear also tells me I can pick this lesson to make it again
+    # quiz-sources TRANSCRIPT_FAILURE_COPY: validator_failed (the author replied, nothing validated) and
+    # key_conflict → tqCouldNotMakeAuthor; key_disagreement → tqFailedKeyDisagreement (tail: pick this lesson
+    # to make it again); a reason with no sentence of its own → tqCouldNotMakeModel. The Flow lesson screen
+    # (TRANSCRIPT_FLOW_FAILURE_RESULT): validator_failed / key_conflict / a row with no stored reason →
+    # tqFlowResultsFailedAuthor; key_disagreement → tqFlowResultsFailedKeys. Production 1–24 Sep: 14 teachers
+    # were told "the transcript didn't carry enough" for validator_failed. @wip — a validation failure cannot
+    # be forced live on demand; proven in tests/quiz/transcript-quiz-failure-reasons.test.js and
+    # bot/tests/quiz/transcript-quiz-flow-endpoint.test.js.
 
   @e2e @quiz @wip @draft @P1
   Scenario: A maths question with fractions reaches the child as a typeset card
@@ -570,11 +765,28 @@ Feature: NIETE (ICT) Teacher Training
     And a picture that names its parts calls them P, Q, R or 1, 2, 3 — never A, B or C, the letters of the answer buttons — in the picture, the options and the feedback alike, and those names are big enough to read on the phone
     And counters are drawn only where the child can count the answer from them, never beside a product or a common multiple they do not show
     And in an Urdu quiz a child's name from the lesson is written in Urdu script, in the question and in the picture
+    And when a question still writes that name in English letters, it comes to me as the same question with the name in Urdu script — in the question, the answers, the explanation, the feedback and my notes — and the bar in its picture says the same name
+    And each person from the lesson is written the same way in Urdu script on my page — my notes and the lesson summary included — whichever step of making the quiz wrote them
+    And a matching picture names its rows P, Q, R, so its pairings read "P-2", never "A-2" beside the answer letter A
+    And a bar named with a child's name keeps that name even when the question writes the name in English letters
+    And an improper fraction or a mixed number is drawn as whole bars and a part bar, such as 17/4 as four whole bars and a quarter
+    And a question about a part of a set, such as the coloured pencils, shows that part in its own colour or picture
     And an equation in a question, such as 7 × 4 = 28, reads in the order it was written — on the card, on my PDF and in the WhatsApp text — even inside an Urdu sentence, and never with a letter x as the times sign
     # Part names: transcript-quiz-figure relabelLetterParts, run by the validator (P/Q/R/S on bars, number
     # lines, shapes and circuits; 1/2/3/4 otherwise); fraction_bar and circuit font ceilings 2.4 / 2.0.
     # Counters: FIGURE_MISMATCH now covers count_objects. Names: NAMES ARE NOT TERMS in the Urdu style rule;
-    # a name left in English letters is recorded as URDU_NAME_LATIN (soft, transcript_quiz.latin_name).
+    # a name in English letters is URDU_NAME_LATIN, a soft in-place fault: one targeted rewrite returns the
+    # name's Urdu spelling ("names") and a name-only question is kept as authored with the name swapped in,
+    # picture labels included (spellNames); a spelling the quiz has learned is written by every later rewrite
+    # (key check, blind solve) too; what still ships is recorded (transcript_quiz.latin_name).
+    # A capitalised word the lesson or quiz also writes in lowercase ("Compare") is not a name.
+    # People: the digest records each person in the lesson's material once, people [{latin, ur}] (never the
+    # teacher, never a pupil called on); the author and every Urdu rewrite get the spellings up front, and the
+    # validator writes them into every Urdu field and picture label (transcript-quiz-people). Name events log counts.
+    # Match: the vendored engine takes `handleLetters` (SYNC.md 3.21); the quiz lane sets P/Q/R/S and renames
+    # A-D in the stem, options and feedback. The label gate reads one name in two scripts as one word.
+    # Improper fractions: one over-full bar is redrawn as whole bars + a part bar (expandImproperBar); an
+    # over-full bar among several is refused with how to draw it; an unnamed bar in a named set is refused.
     # Equations: quiz-math spanEquations makes an equation written in prose ("7 x 4 = 28") one maths
     # expression — typeset in a left-to-right isolate on the card and PDF, one LRI…PDI in a WhatsApp text.
     # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
@@ -604,6 +816,108 @@ Feature: NIETE (ICT) Teacher Training
     # (floor 6), else the quiz fails as key_disagreement (tqFailedKeyDisagreement / tqFailedLpKeyDisagreement).
     # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz never keys a mistake made in class as the right answer
+    Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
+    When I say yes to the quiz for that lesson and it arrives
+    Then no question marks that mistake as the right answer, and every answer marked correct is right by the subject
+    And no explanation gives "the teacher said so" as the reason, or says a fact holds "but in class" it was not accepted
+    And a question that tested the mistake is asked about the correct fact instead, or left out
+    # transcript-quiz-key-authority (validator KEY_BY_AUTHORITY: an explanation that concedes the fact and
+    # sides with the class, repaired by the targeted rewrite with KEY_BY_AUTHORITY_RULE, else dropped);
+    # transcript-quiz-contract (THE ANSWER IS TRUE BY THE SUBJECT, for the author and the rewrite); runKeyVerify
+    # solves every item a second time without the lesson (key_verify_bare: no summary, no objectives), where no
+    # right answer or two count at once and another answer only after a second look in another option order.
+    # @wip — a class's mistake cannot be recorded on demand; proven in tests/quiz/transcript-quiz-key-truth.test.js.
+
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: The quiz sheet never presents a mistake made in class as what was taught
+    Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
+    When I say yes to the quiz for that lesson and its PDF arrives
+    Then the "What you taught" line, the "What this quiz checks" line and every question's objective describe the lesson without repeating that mistake as a fact
+    And the sheet never says that I or the class got something wrong, and carries no correction note
+    And with QUIZ_SUMMARY_TRUTH_FILTER=off the sheet is written exactly as before this change
+    # Option B (operator, 24 Sep). transcript-quiz-summary-truth: after the blind solve, one call on the verify
+    # model with nothing about the lesson checks every line the sheet prints (the one-liner, each summary sentence,
+    # the checks line, each objective in both languages), with the blind solve's notes on the keys it disagreed
+    # with as hints; a false line is replaced by a rewrite that code accepts (same script, similar length, no blame
+    # word, no gendered teacher form) or dropped; a summary is never left empty (one-liner, then a topic-only line).
+    # The digest, author and summary-rewrite prompts carry the same rule. Fail-open; recorded on meta.summary_truth
+    # (counts only in the event). Kill switch QUIZ_SUMMARY_TRUTH_FILTER (read per job; off = every prompt and the sheet
+    # as before). @wip — a class's mistake cannot be recorded on demand; proven in
+    # tests/quiz/transcript-quiz-summary-truth.test.js.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz made from my recording never names or asks about a child in my class
+    Given the NIETE bot chat is open and I recorded a lesson in which I called on children by name and used their names in example sentences
+    When I say yes to the quiz for that lesson and it arrives
+    Then no question, option, explanation or feedback names a child from my class
+    And no question asks what a child said, answered or did in class
+    And no option says anything about a named child's behaviour
+    And a question that did any of these is written again about the lesson's idea, or left out — it is never sent to the class
+    And a story or word-problem character the lesson itself uses, and a person from history, can still be named
+    # transcript-quiz-pupils: the transcript digest keeps the lesson's characters in `people` and records the
+    # children the recording names as one-way hashes only (`pupil_tokens`), scrubbing the names from the digest
+    # and from the transcript excerpts the author reads; the author, the targeted rewrite and the picture repair
+    # get PUPILS_RULE. The validator's PEDAGOGY_PUPIL_AS_SUBJECT (hard fault): a recorded child in a child-facing
+    # field; a named person's meaning / answer / sentence / example, a named person's words with a class marker,
+    # or the teacher asking a named person; a negative claim about a named person. A title or an honorific marks
+    # a public figure. One targeted rewrite (PUPIL_REPAIR), else the salvage drops the question. The complaint and
+    # the logs never carry a name. @wip — a named child cannot be recorded on demand; proven in
+    # tests/quiz/transcript-quiz-pupils.test.js.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A lesson quiz never asks the class the same question twice
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
+    When the quiz arrives
+    Then no two questions on my PDF ask the same thing and have the same answer, even with the options in another order
+    And a question shown over a picture and the same question shown as text count as the same question
+    And a fill-in-the-blank and a question on the same fact count as the same question, even when one answer ends in «سے» and the other does not
+    And two questions that ask the same fact in other words, with the same answer, are caught by the solver that checks the answers and one of them is replaced
+    And two questions that only look alike — the same question about another number, another word or another picture, or with another answer — both stay in the quiz
+    And the quiz still arrives with all its questions when a repeated one could not be replaced
+    # The model that writes the quiz, the targeted rewrite and the add-pictures repair are each told the
+    # rule (transcript-quiz-contract DISTINCT_QUESTIONS_RULE): no two questions with the same answer on the
+    # same fact; a question shape comes back only with different numbers or a different item.
+    # transcript-quiz-duplicates, run once over the whole quiz by the validator: a LATER question with the
+    # same answer, not two different pictures, the same numbers and quoted items, and a near-identical stem
+    # is named DUPLICATE_QUESTION. transcript-quiz-generate replaces it with one targeted rewrite
+    # (IN_PLACE_FAULT); a rewrite that does not take ships the quiz with the repeat recorded in
+    # meta.soft_faults (SOFT_FAULT) — never a refusal, never a dropped question.
+    # An Urdu answer is compared with and without a trailing postposition (never when the question is about
+    # the postposition); a sentence with a blank (underscores, or the word «ڈیش») is compared with a question
+    # by filling the blank with its answer and comparing content words. The blind solve
+    # (transcript-quiz-key-verify) is also asked, in its one full call, which questions test the same fact
+    # with the same answer ("same_fact"); a pair that also passes the contract in code (confirmsSameFact:
+    # the same answer, the same numbers and quoted items) has its later question rewritten by the rewrite
+    # the blind solve already makes, else ships recorded; any other pair is only logged. Counted on
+    # transcript_quiz.duplicate_question: stage "author" for each author attempt that wrote one, stage
+    # "solver" for the pairs the blind solve named (confirmed / unconfirmed), stage "shipped" when the
+    # stored quiz still carries a word-for-word one, whichever step wrote it. Content-driven: read every
+    # question on the PDF and compare them; never a fixed quiz. @wip — a repeat cannot be forced live on
+    # demand; the behaviour is proven in tests/quiz/transcript-quiz-duplicate-questions.test.js and
+    # tests/quiz/transcript-quiz-distinct-questions-rule.test.js and
+    # tests/quiz/transcript-quiz-duplicates-blank-and-postposition.test.js and
+    # tests/quiz/transcript-quiz-same-fact.test.js.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz with many questions to fix gets the worst ones fixed first, not none
+    Given the NIETE bot chat is open and the quiz for my lesson came back with more than five questions that need a fix, such as verbs that speak to the child as a boy or a girl
+    When the quiz arrives
+    Then no question speaks to the child as a boy or a girl, and no English terms sit side by side
+    And a question whose answer was defended by the class against the fact is fixed before any of those
+    And a picture question added after the quiz was written reads the same way — no English terms side by side, no gendered verb
+    And a lesson that can be drawn gets its pictures even when the first draft's words also needed fixing
+    # transcript-quiz-generate runFinalSoftRepair: a question written after the author's loop (the picture step, a
+    # key rewrite) gets one in-place repair call before the rows are stored, text only (picture, key, options' order
+    # kept), and the set is kept as it was when that does not work. Order: the first attempt's picture retry
+    # (FIGURE_REQUIRED) runs before any in-place repair of its words, then the picture step, then the last repair.
+    # transcript-quiz-rewrite rewriteTargets `partial`: more than five faulted questions → the worst five by harm
+    # (KEY_* > PEDAGOGY_GENDERED_CHILD > URDU_ADJACENT_TERMS > URDU_NAME_LATIN > the rest), the merged set
+    # validated again, ONE second batch for what is left (REPAIR_BATCHES = 2), the questions the first left out
+    # first. More than five questions that need re-asking is still a re-roll on an early attempt. @wip — the
+    # author's faults cannot be forced on demand; proven in tests/quiz/transcript-quiz-rewrite-overflow.test.js.
 
   @e2e @quiz @wip @draft @P2
   Scenario: A column subtraction reaches the child set out the way the textbook prints it

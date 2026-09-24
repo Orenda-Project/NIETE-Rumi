@@ -106,7 +106,11 @@ async function tellCoachRefused(userId, sessionId, message) {
     // Lazily required, like the other leaf reaches in this file: the WhatsApp
     // graph reaches back into routes, and a top-level require closes a cycle.
     const WhatsAppService = require('../services/whatsapp.service');
-    await WhatsAppService.sendMessage(who.phone_number, message);
+    // Awaited inside the Flow request (~10 s from Meta), and the notice IS the
+    // deliverable — the Flow shows only Meta's generic error — so it is never
+    // held for a pacing slot: past the budget it goes out now, unpaced.
+    const { SYNC_BUDGET } = require('../services/whatsapp-send-pacer');
+    await WhatsAppService.sendMessage(who.phone_number, message, { budget: SYNC_BUDGET.SEND_IF_LATE });
     return true;
   } catch (err) {
     logToFile('⚠️ observe-form: could not deliver the refusal to the chat', {

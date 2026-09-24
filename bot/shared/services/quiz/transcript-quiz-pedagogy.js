@@ -434,11 +434,16 @@ function pedagogyDefects(questions, ctx = {}) {
   const qs = Array.isArray(questions) ? questions : [];
   const { language, digest, lessonSummary, quizId } = ctx;
   const out = [];
+  const { pupilAsSubject, pupilComplaint } = require('./transcript-quiz-pupils');
   qs.forEach((q, i) => {
     if (!q || typeof q !== 'object') return;
     RULES.forEach((rule) => {
       if (rule.test(q, language)) out.push({ index: i, code: rule.code, message: rule.message(i) });
     });
+    // A child from the class as the subject of a question (a hard fault: the
+    // quiz is forwarded to the whole class). transcript-quiz-pupils.js.
+    const why = pupilAsSubject(q, { language, digest });
+    if (why) out.push({ index: i, code: 'PEDAGOGY_PUPIL_AS_SUBJECT', message: pupilComplaint(i, why) });
   });
   out.push(...genderedTeacherDefects(qs, { language, lessonSummary, quizId }));
   const mix = levelMixDefect(qs, digest);

@@ -29,6 +29,8 @@ const TeacherSelfTest = require('./teacher-self-test');
 
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { isolateIfMixed } = require('./transcript-quiz-rows');
+const { isQuizMenuRequest } = require('./quiz-menu-request');
+const QuizMenuFlags = require('./quiz-menu-flags');
 
 const JOIN_TTL_SECS = 60 * 60;
 const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
@@ -552,6 +554,18 @@ async function consumeJoinReply(phone, text) {
     await startForStudent(phone, st, {
       id: chosen.id, student_name: chosen.name, self_reported_class: chosen.className,
     });
+    return true;
+  }
+
+  // "quiz" is what a child types when the question looks like a detour — it is
+  // never their name or their class (four children in production were entered
+  // in their teacher's report as "Quiz"). Ask the same step again; the join
+  // goes on.
+  if ((st.step === 'name' || st.step === 'class') && QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(value)) {
+    await WhatsAppService.sendMessage(phone, st.step === 'name'
+      ? ux('vqAskNameAgain', lang)
+      : ux('vqAskClass', lang, { name: st.studentName }));
+    logEvent('video_quiz.join_detail_refused', { step: st.step, reason: 'quiz_word' });
     return true;
   }
 

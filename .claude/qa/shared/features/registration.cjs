@@ -1,6 +1,7 @@
 // NOT @mock-lane yet — this driver is mock-CAPABLE (api.fresh, no browser DOM) and run-suite has an un-register seed, but the bot caches the teacher's registration at stack startup and the stack is shared across features, so R01/R03/R06 see the cached 'registered' state. Re-add the @mock-lane marker once the bot's user cache is invalidated on the unregister (or registration gets its own stack).
 /* registration.feature — 13 @e2e scenarios across four Flow screens, one process.
- * Precondition: the driver must be UNREGISTERED (first_name null) so /register opens the Flow.
+ * Precondition: the driver must be UNREGISTERED (no name, registration flags clear — the bot's
+ * isRegistered() gate) so /register opens the Flow. users.name is the only name column.
  * Scenario order is deliberate — it walks the Flow once and harvests several scenarios per pass. */
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 
@@ -140,10 +141,10 @@ exports.run = async ({ api, rec, sleep }) => {
   s = t();
   const look = api.db('lookup');
   const roleLine = ((look.user || '').split('\n').find(l => l.includes('"role"'))) || '';
-  const fnAfter  = ((look.user || '').split('\n').find(l => l.includes('"first_name"'))) || '';
-  // "" is as unpersisted as null — the bot's gate is `if (user.first_name)`, so an EMPTY
-  // string leaves the already-registered path unreachable just as null does.
-  const fnValue = (fnAfter.match(/"first_name":\s*"?([^",]*)"?/) || [,''])[1].trim();
+  const fnAfter  = ((look.user || '').split('\n').find(l => l.includes('"name"'))) || '';
+  // "" is as unpersisted as null — the bot's gate (isRegistered) reads a non-empty `name`, so an
+  // EMPTY string leaves the already-registered path unreachable just as null does.
+  const fnValue = (fnAfter.match(/"name":\s*"?([^",]*)"?/) || [,''])[1].trim();
   const namePersisted = !!fnValue && fnValue !== 'null';
   const rolePersisted = /coach/i.test(roleLine);
   rec('R11', 'The registration Flow persists the selected role',
@@ -160,8 +161,8 @@ exports.run = async ({ api, rec, sleep }) => {
   s = t();
   if (!namePersisted) {
     rec('R08', 'An already-registered teacher is not re-onboarded', 'BLOCKED',
-        { reason: 'the already-registered gate reads first_name, and first_name was not persisted by the completed Flow (same root defect as R05/R11) — so this path is unreachable on this build',
-          dbFirstName: fnAfter.trim() }, 0);
+        { reason: 'the already-registered gate reads users.name, and no name was persisted by the completed Flow (same root defect as R05/R11) — so this path is unreachable on this build',
+          dbName: fnAfter.trim() }, 0);
   } else {
     r = await api.sendWait('/register');
     rec('R08', 'An already-registered teacher is not re-onboarded',
@@ -178,10 +179,10 @@ exports.run = async ({ api, rec, sleep }) => {
   await api.flowAria('Cancel', 1500);
   api.closeFlow();
   const after = api.db('lookup');
-  const fnLine = ((after.user || '').split('\n').find(l => l.includes('"first_name"'))) || '';
+  const fnLine = ((after.user || '').split('\n').find(l => l.includes('"name"'))) || '';
   const stillUnreg = /null/i.test(fnLine);
   const canReopen = /Welcome/i.test(r10open.txt || '');
   rec('R10', 'Abandoning the Flow leaves the teacher unregistered',
       (stillUnreg && canReopen && o10.ok) ? 'PASS' : 'FAIL',
-      { reopened: canReopen, flowOpened: o10.ok, dbFirstName: fnLine.trim(), stillUnregistered: stillUnreg }, t() - s);
+      { reopened: canReopen, flowOpened: o10.ok, dbName: fnLine.trim(), stillUnregistered: stillUnreg }, t() - s);
 };

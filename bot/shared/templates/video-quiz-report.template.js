@@ -32,7 +32,7 @@ const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('.
 const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
-  headFamily, bodyFamily, latticeSvg, dirOf,
+  NASTALIQ, nastaliqPad, urduSpacingV2, headFamily, bodyFamily, latticeSvg, dirOf,
 } = require('./niete-brand');
 
 // PLAN_R6 D4 — this template used to carry its own literal 14/15/18/19/20/21/22px
@@ -59,6 +59,42 @@ const UR_UI_LEADING = 1.5;
 // full sentence — needs more than a one-line label does, or its lines touch and
 // the last line's descenders hang out of the chip.
 const UR_CHIP_LEADING = 1.7;
+
+/**
+ * THE URDU SPACING — one block appended after the stylesheet, so it overrides
+ * the Urdu ratios the stylesheet still carries (leadingAt()'s 1.77, and 1.7 on
+ * the chips) and nothing else. Switched off (QUIZ_URDU_SPACING_V2=false) the
+ * block is not emitted and the report renders exactly as it did before it.
+ *
+ * Urdu that can wrap — a missed question, an explanation, the guidance, an
+ * answer chip — takes the Nastaliq pitch measured from the font's ink
+ * (niete-brand NASTALIQ); on the old ratios those lines ran into each other.
+ * The missed question and the right/wrong answer chips are Bold, which climbs
+ * higher. A chip is a filled box, so it also takes the padding that keeps its
+ * letters inside the fill. A roster name is one line and keeps its tighter
+ * one-line leading (the .r-name rule is more specific than this block).
+ * @param {boolean} RTL  the report's chrome is Urdu
+ * @param {boolean} CRTL the quiz content is Urdu
+ */
+function urduSpacingCss(RTL, CRTL) {
+  const lead = NASTALIQ.leading.regular;
+  const bold = NASTALIQ.leading.bold;
+  const pad = nastaliqPad(lead);
+  const padBold = nastaliqPad(bold, 'bold');
+  return `
+/* urdu-spacing-v2 */
+.content[dir="rtl"]{line-height:${lead}}
+.slo.content[dir="rtl"]{line-height:${lead};padding:${pad.top}em 13px ${pad.bottom}em}
+.wrongpill.content[dir="rtl"],.rightpill.content[dir="rtl"]{line-height:${bold};padding:${padBold.top}em 12px ${padBold.bottom}em}
+.hero h1.content[dir="rtl"]{line-height:${bold}}
+.m-q.content[dir="rtl"]{line-height:${bold}}${CRTL ? `
+.hero h1{line-height:${bold}}
+.m-q{line-height:${bold}}` : ''}${RTL ? `
+.why{line-height:${lead}}
+.unfin{line-height:${lead}}
+.try-text{line-height:${lead}}` : ''}
+/* /urdu-spacing-v2 */`;
+}
 
 let _assets = null;
 
@@ -369,6 +405,8 @@ function renderVideoQuizReportHtml(d) {
   const headFam = headFamily(RTL);
   const bodyFam = bodyFamily(RTL);
   const cHeadFam = headFamily(CRTL);
+  // Read at render time, so the kill switch takes effect on the next report.
+  const urSpacing = urduSpacingV2() ? urduSpacingCss(RTL, CRTL) : '';
   const cBodyFam = bodyFamily(CRTL);
   const dir = RTL ? 'rtl' : 'ltr';
 
@@ -534,7 +572,7 @@ ${RTL ? '.roster>.label{padding-top:10px}' : ''}
 .foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:16px 42px 22px;margin-top:14px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${TYPE_FLOOR.small}px;font-family:${FONTS.bodyLatin}}
 .brand .mark{width:23px;height:23px;object-fit:contain;display:block}
-.stamp[dir="ltr"]{font-family:${FONTS.bodyLatin};font-weight:600}
+.stamp[dir="ltr"]{font-family:${FONTS.bodyLatin};font-weight:600}${urSpacing}
 </style></head><body>
 <div class="report">
 

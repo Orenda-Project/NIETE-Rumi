@@ -130,11 +130,16 @@ class SQSCoachingWorker {
 
     this.isRunning = true;
 
+    // The quiz queue polls in its own loop beside main/video (see _quizOwnLoop).
+    const quizLoop = SQSCoachingWorker._quizOwnLoop() ? this.runQuizLoop() : null;
+
     // Main processing loop
     while (!this.isShuttingDown) {
       try {
-        // Only fetch new jobs if we have capacity
-        const availableSlots = CONCURRENCY_PER_WORKER - this.activeJobs.size;
+        // Only fetch new jobs if we have capacity. With its own loop the quiz
+        // queue brings its own budget, so its jobs do not use these slots.
+        const availableSlots = CONCURRENCY_PER_WORKER
+          - (quizLoop ? this._activeCount((m) => m.sourceQueue !== 'quiz') : this.activeJobs.size);
 
         if (availableSlots > 0) {
           await this.processNextBatch(availableSlots);
@@ -161,6 +166,8 @@ class SQSCoachingWorker {
       }
     }
 
+    if (quizLoop) await quizLoop;
+
     // Wait for active jobs to complete during shutdown
     await this.waitForActiveJobs();
 
@@ -185,6 +192,70 @@ class SQSCoachingWorker {
     if (!raw) return new Set(['main', 'video', 'quiz']);
     const parsed = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
     return parsed.length ? new Set(parsed) : new Set(['main', 'video', 'quiz']);
+  }
+
+  /**
+   * Does the quiz queue get its own poll loop on this replica?
+   *
+   * Only when the replica polls quiz AND another queue. In the combined poll the
+   * quiz queue had one slot and waited on Promise.all with the main queue's
+   * 20-second long poll, so with `main` idle a replica took one quiz message per
+   * ~20 s — production's flat ~1,800/h ceiling across 10 replicas — and every quiz
+   * job sat received-but-unstarted until the main poll returned. A quiz-only
+   * replica already gives the quiz queue the whole budget and keeps the one loop.
+   *
+   * QUIZ_QUEUE_OWN_LOOP=off (false/0/no) restores the combined poll exactly.
+   * Read at call time.
+   */
+  static _quizOwnLoop() {
+    const raw = String(process.env.QUIZ_QUEUE_OWN_LOOP || '').trim().toLowerCase();
+    if (raw === 'false' || raw === '0' || raw === 'off' || raw === 'no') return false;
+    const enabled = SQSCoachingWorker._enabledQueues();
+    if (!enabled.has('quiz') || !process.env.SQS_QUIZ_QUEUE_URL) return false;
+    return enabled.has('main') || (enabled.has('video') && !!process.env.SQS_VIDEO_QUEUE_URL);
+  }
+
+  /**
+   * Slots the quiz loop may hold at once, per replica (QUIZ_QUEUE_CONCURRENCY,
+   * default 6). Most quiz jobs are a re-queue that finishes in milliseconds; a
+   * generate holds a slot ~35-80 s and renders at most 3 pages at a time.
+   */
+  static _quizConcurrency() {
+    const n = parseInt(process.env.QUIZ_QUEUE_CONCURRENCY, 10);
+    return Number.isFinite(n) && n > 0 ? n : 6;
+  }
+
+  /** How many in-flight jobs match `pred(meta)`. */
+  _activeCount(pred) {
+    let n = 0;
+    for (const meta of this.activeJobs.values()) if (pred(meta || {})) n += 1;
+    return n;
+  }
+
+  /**
+   * The quiz queue's own loop: long-poll ONLY the quiz queue for as many
+   * messages as there are free quiz slots, and start each job the moment the
+   * poll returns. Runs until shutdown, beside the main loop in start().
+   */
+  async runQuizLoop() {
+    const limit = SQSCoachingWorker._quizConcurrency();
+    logToFile('Quiz queue poll loop started', { workerId: this.workerId, quizConcurrency: limit });
+    while (!this.isShuttingDown) {
+      try {
+        const free = limit - this._activeCount((m) => m.sourceQueue === 'quiz');
+        if (free > 0) {
+          const jobs = await SQSQueueService.receiveQuizJobs(Math.min(free, 10));
+          for (const job of jobs || []) {
+            job.sourceQueue = 'quiz';
+            this.processJob(job);
+          }
+        }
+        await this.sleep(POLL_INTERVAL_MS);
+      } catch (error) {
+        logToFile('❌ Error in quiz queue poll loop', { workerId: this.workerId, error: error.message }, 'error');
+        await this.sleep(1000);
+      }
+    }
   }
 
   /**
@@ -221,7 +292,8 @@ class SQSCoachingWorker {
       const hasQuizQueue = !!process.env.SQS_QUIZ_QUEUE_URL;
       const pollsMain = enabled.has('main');
       const pollsVideo = enabled.has('video') && hasVideoQueue;
-      const pollsQuiz = enabled.has('quiz') && hasQuizQueue;
+      // A quiz queue with its own loop (runQuizLoop) is not polled here.
+      const pollsQuiz = enabled.has('quiz') && hasQuizQueue && !SQSCoachingWorker._quizOwnLoop();
 
       // Slot allocation. If main is enabled it gets the bulk; dedicated queues
       // get 1 slot each. If main is NOT enabled (e.g. a video-only worker), the
@@ -1343,10 +1415,28 @@ async function recoverStaleVideoRequests() {
  * per-row lock makes the extra run harmless.
  */
 const DEBRIEF_RETRY_INTERVAL_MS = 15 * 60 * 1000;
-/** The failure digest looks back over exactly the window it runs on. */
-const PROD_DIGEST_INTERVAL_MS = 60 * 60 * 1000;
 const DEBRIEF_RETRY_LOCK_TTL_S = 30 * 60;
 const DEBRIEF_RETRY_TICK_CAP = 20;
+
+/**
+ * One tick of the quiz funnel watcher — what the boot timer and the interval
+ * below call. The watcher decides everything else (armed or not, whose replica
+ * speaks, whether a summary or an alert is due); this only guarantees that a
+ * monitor can never take down the worker it runs in.
+ *
+ * @param {{watch?: {run: Function}}} deps the watcher, injectable for the suite
+ * @returns {Promise<Object|null>} the watcher's outcome, or null when it threw
+ */
+const QUIZ_FUNNEL_WATCH_TICK_MS = 15 * 60 * 1000;
+async function runQuizFunnelWatch({ watch } = {}) {
+  try {
+    const w = watch || require('../shared/services/monitoring/quiz-funnel-watch.service');
+    return await w.run();
+  } catch (error) {
+    logToFile('Error in quiz funnel watch (non-fatal)', { error: error.message }, 'error');
+    return null;
+  }
+}
 
 async function runDebriefRetrySweep({ now = Date.now() } = {}) {
   if (process.env.OBSERVE_DEBRIEF_RETRY_OFF === '1') {
@@ -1658,30 +1748,26 @@ function startWorker() {
       enabled: process.env.OBSERVE_DEBRIEF_RETRY_OFF !== '1',
     });
 
-    // bd-mg9c7.147: the hourly production failure digest. Lives here because
-    // this process already holds the Axiom credentials and runs on Railway, so
-    // it reports whether or not anyone's machine is on. Silent when every
-    // family is clean, and a complete no-op until PROD_DIGEST_* is set — so
-    // this block changes nothing anywhere by merging.
-    const runProdDigest = async () => {
+    // The quiz funnel watcher — the ONE monitor that messages the operator. It
+    // replaced the hourly failure digest, which posted ~13 times a day: a 2-hourly
+    // funnel summary for both quiz streams (08-22 local), and an alert only when
+    // something is wrong, each incident at most once per 2 h. It lives here
+    // because this process holds the Axiom credentials and runs on Railway, so it
+    // reports whether or not anyone's machine is on. A complete no-op until
+    // QUIZ_FUNNEL_WATCH_ENABLED=true, so merging this changes nothing anywhere.
+    //
+    // Boot run as well as the interval (Class P): this service redeploys several
+    // times a day and each restart resets the timer. The watcher's summary slots
+    // and alert dedup live in Redis, and ~10 replicas take a read-back lock per
+    // tick, so the extra boot run and the replicas cost nothing and send nothing twice.
+    const runFunnelWatchTick = () => {
       if (worker.isShuttingDown) return;
-      try {
-        const digest = require('../shared/services/monitoring/prod-failure-digest.service');
-        const out = await digest.run();
-        if (out && out.reported) logToFile('Prod failure digest posted', out);
-      } catch (error) {
-        // A monitor must never be able to take down the thing it monitors.
-        logToFile('Error in prod failure digest (non-fatal)', { error: error.message }, 'error');
-      }
+      runQuizFunnelWatch();
     };
-    // Boot run as well as the interval: this service redeploys several times on
-    // a busy day and each restart resets the timer, so an hourly interval alone
-    // can be reset forever and never fire. The digest's own window is measured
-    // from when it last spoke, so an extra boot run costs nothing.
-    setTimeout(runProdDigest, 3 * 60 * 1000);
-    setInterval(runProdDigest, PROD_DIGEST_INTERVAL_MS);
-    logToFile('Prod failure digest enabled (hourly; set PROD_DIGEST_ENABLED=true to arm)', {
-      armed: String(process.env.PROD_DIGEST_ENABLED || '').toLowerCase() === 'true',
+    setTimeout(runFunnelWatchTick, 3 * 60 * 1000);
+    setInterval(runFunnelWatchTick, QUIZ_FUNNEL_WATCH_TICK_MS);
+    logToFile('Quiz funnel watcher enabled (15-minute tick; set QUIZ_FUNNEL_WATCH_ENABLED=true to arm)', {
+      armed: String(process.env.QUIZ_FUNNEL_WATCH_ENABLED || '').toLowerCase() === 'true',
     });
   });
 }
@@ -1693,5 +1779,5 @@ if (require.main === module) {
 // Export for testing
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
-  exitAfterFlush,
+  exitAfterFlush, runQuizFunnelWatch,
 };
