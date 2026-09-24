@@ -381,10 +381,37 @@ describe('send-time re-checks — the day may have moved on since 15:00', () => 
     await expect(Offer.send(nudgeRow(), { now: SEND_AT })).rejects.toThrow(/user/i);
   });
 
-  test('a deleted teacher is a failure, not an offer — filtered in code, never named to PostgREST', async () => {
+  test('a deleted teacher is a failure, not an offer', async () => {
     install(world({ users: [teacher({ deleted_at: '2026-09-01T00:00:00Z' })] }));
     await expect(Offer.send(nudgeRow(), { now: SEND_AT })).rejects.toThrow(/user/i);
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+  });
+
+  test('the send-time users read filters deleted_at IS NULL in SQL, names its columns, and still sends', async () => {
+    install(world({ users: [teacher({ preferred_language: 'ur' })] }));
+    const seen = { is: [], selects: [] };
+    const real = supabase.from.getMockImplementation();
+    supabase.from.mockImplementation((table) => {
+      const chain = real(table);
+      if (table !== 'users') return chain;
+      const { is, maybeSingle } = chain;
+      let cols = '*';
+      chain.select = (c) => { cols = String(c); seen.selects.push(cols); return chain; };
+      chain.is = (col, v) => { seen.is.push([col, v]); return is(col, v); };
+      // Project a named list the way PostgREST would.
+      chain.maybeSingle = async () => {
+        const res = await maybeSingle();
+        if (cols === '*' || !res.data) return res;
+        const keep = cols.split(',').map((x) => x.trim());
+        return { ...res, data: Object.fromEntries(keep.map((k) => [k, res.data[k]])) };
+      };
+      return chain;
+    });
+    await Offer.send(nudgeRow(), { now: SEND_AT });
+    expect(seen.is).toContainEqual(['deleted_at', null]);
+    for (const cols of seen.selects) expect(cols).not.toBe('*');
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    expect(WhatsAppService.sendInteractiveButtons.mock.calls[0][0]).toBe('923001112222');
   });
 
   test('a WhatsApp refusal is raised, never marked sent', async () => {
