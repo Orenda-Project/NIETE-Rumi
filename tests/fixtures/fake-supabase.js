@@ -10,6 +10,7 @@
  *
  * Supports only what this codebase's services use:
  *   .from(t).select(cols).eq(c,v).in(c,vals).is(c,null).not(c,'is',null)
+ *            .lt/.lte/.gt/.gte(c,v)
  *            .order(c,{ascending}).limit(n).range(a,b).maybeSingle() / .single()
  *   .from(t).select(cols, { count: 'exact', head: true })   → { data: [], count }
  *   .from(t).insert(rowOrRows).select().single()
@@ -40,6 +41,12 @@ function matches(row, filters) {
     if (kind === 'in') return val.includes(row[col]);
     if (kind === 'isNull') return row[col] === null || row[col] === undefined;
     if (kind === 'notNull') return row[col] !== null && row[col] !== undefined;
+    // Range filters compare like Postgres does for ISO timestamps and numbers: a
+    // NULL never satisfies a comparison.
+    if (kind === 'lt') return row[col] !== null && row[col] !== undefined && row[col] < val;
+    if (kind === 'lte') return row[col] !== null && row[col] !== undefined && row[col] <= val;
+    if (kind === 'gt') return row[col] !== null && row[col] !== undefined && row[col] > val;
+    if (kind === 'gte') return row[col] !== null && row[col] !== undefined && row[col] >= val;
     return true;
   });
 }
@@ -163,6 +170,10 @@ function createFakeSupabase(seed = {}, opts = {}) {
       in(col, vals) { filters.push(['in', col, vals]); return api; },
       is(col) { filters.push(['isNull', col, null]); return api; },
       not(col) { filters.push(['notNull', col, null]); return api; },
+      lt(col, val) { filters.push(['lt', col, val]); return api; },
+      lte(col, val) { filters.push(['lte', col, val]); return api; },
+      gt(col, val) { filters.push(['gt', col, val]); return api; },
+      gte(col, val) { filters.push(['gte', col, val]); return api; },
       order(col, o = {}) { order = { col, ascending: o.ascending !== false }; return api; },
       limit(n) { limitN = n; return api; },
       range(from, to) { rangeFrom = from; rangeTo = to; return api; },

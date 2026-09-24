@@ -91,6 +91,22 @@ class CoachingSessionService {
         status: coachingSession.status
       });
 
+      // The recording has arrived, so the wait for it is over. The menu's Classroom
+      // Coaching door (and the coaching ask's "Yes", which opens the same door)
+      // stores a six-hour 'coaching' step for "send your classroom recording";
+      // nothing closed it here, so six hours later the resume sweep found it expired
+      // and asked the teacher to pick up the observation they had already recorded.
+      // Flow-scoped: a step some other feature owns is left alone. Never fatal — the
+      // session exists either way.
+      try {
+        const ConversationState = require('../conversation-state.service');
+        await ConversationState.clearState(userId, { flow: 'coaching' });
+      } catch (err) {
+        logToFile('⚠️ Coaching wait not cleared after the recording arrived (non-fatal)', {
+          userId, coachingSessionId: coachingSession.id, error: err.message,
+        }, 'warn');
+      }
+
       // Send confirmation message with buttons, in the teacher's own language.
       // The button IDS are parsed by the webhook router and must not change —
       // only the titles are translated. Translating an id is the classic version

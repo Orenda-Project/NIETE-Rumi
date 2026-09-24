@@ -666,3 +666,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # be the second ask of the day for the same thing. teacher_nudges carries the skip and its reason,
     # so a teacher who was deliberately left alone is countable, not invisible.
     # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  @e2e @wip @draft @slow @negative @P1
+  Scenario: A teacher who recorded the lesson is never asked to "pick up" that classroom observation
+    Given the NIETE bot chat is open
+    And I have tapped Classroom Coaching in the menu
+    When I send my classroom recording and my coaching report arrives
+    And six hours pass
+    Then the bot does not ask "Shall we pick up where you left off?" about a classroom observation
+    # menu.service.js stores the wait for the recording as flow 'coaching' /
+    # AWAITING_CLASSROOM_AUDIO for six hours. Nothing closed it when the recording
+    # arrived, so the resume sweep (conversation-resume.service.js) found it expired and
+    # offered back an observation the teacher had already finished — 72% of all resume
+    # offers in production, 17-24 Sep. CoachingSessionService.initiateSession now closes
+    # the 'coaching' wait (flow-scoped) as soon as the recording starts a session. A
+    # teacher who taps the door and never records IS still offered it back. The six-hour
+    # wait is not configurable, so this runs @slow or at the unit layer
+    # (tests/conversation-state/recorded-lesson-closes-coaching-wait.test.js).
