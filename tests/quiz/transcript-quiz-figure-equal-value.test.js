@@ -69,7 +69,8 @@ describe('the same holds when the options name the bars', () => {
   test('two option bars of the same amount are refused', () => {
     const e = dup(validate([which({ figure: bars([[2, 1], [6, 3], [4, 2]]) })], ctx));
     expect(e).toHaveLength(1);
-    expect(e[0]).toMatch(/bar B.*bar A.*same amount/);
+    // the parts are renamed P, Q, R before any check reads them (relabelLetterParts)
+    expect(e[0]).toMatch(/bar Q.*bar P.*same amount/);
   });
 
   test('Urdu bar names and bare letters are read the same way', () => {

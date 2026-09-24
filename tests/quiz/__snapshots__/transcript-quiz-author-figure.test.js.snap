@@ -26,7 +26,7 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
     · The generated readout keeps Latin numerals even under lang:"ur", while the title and caption use U+06F0-06F9. Pass \`legend\` yourself for an all-Urdu figure.
 - geometry — A shape, an angle or a construction -- triangles, polygons, circles with radius/diameter/chord/tangent, angle arcs, right-angle markers.
   required: shapes
-  minimal: {"height":340,"type":"geometry","shapes":[{"kind":"triangle","points":[[0,0],[4,0],[0,3]],"labels":["A","B","C"],"sides":["4 cm","5 cm","3 cm"]}]}
+  minimal: {"height":340,"type":"geometry","shapes":[{"kind":"triangle","points":[[0,0],[4,0],[0,3]],"labels":["P","Q","R"],"sides":["4 cm","5 cm","3 cm"]}]}
   limits:
     · The canvas AUTO-FITS the shapes; \`height\` is a hint, not a frame.
     · checkDegenerate() rejects a near-flat polygon, so give a triangle real area -- a 1-unit-tall 'triangle' fails the build even though it draws.
@@ -153,7 +153,7 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
     · A piece is {value, kind:"coin"|"note", count}. At most 12 pieces.
 - compare_size — Bars of different length or height, or a balance scale with things on its pans — longer/shorter, taller/shorter, heavier/lighter.
   required: model
-  minimal: {"type":"compare_size","model":"length","items":[{"label":"A","size":5},{"label":"B","size":3}]}
+  minimal: {"type":"compare_size","model":"length","items":[{"label":"1","size":5},{"label":"2","size":3}]}
   limits:
     · \`model\` is "length" (horizontal bars), "height" (vertical bars) or "balance" (a scale, with \`left\`/\`right\` each {picto,count} or {size}).
     · \`size\` is a RELATIVE quantity and is NEVER printed — the moment a bar says "12 cm" the child reads instead of comparing.
