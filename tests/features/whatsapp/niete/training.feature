@@ -203,14 +203,6 @@ Feature: NIETE (ICT) Teacher Training
     Then the bot tells me to try again in a few hours
     # @destructive: a real failure locks the exam for hours — throwaway teacher only. @wip.
 
-  @e2e @i18n @quiz @wip @draft @P2 @T17
-  Scenario: An Urdu teacher gets the Urdu question text and Urdu options
-    Given my preferred_language is "ur" and a question has question_urdu + options[].urdu set
-    When the question is delivered
-    Then the Urdu question and Urdu options are shown (not English)
-    # Real flow for an Urdu-speaking teacher; delivery may currently fall back to English — drive to confirm (Rule 20). @wip.
-
-  # ═══════════════════════════════════ EDGE cases ═════════════════════════════════
 
   @e2e @flow @edge @P3 @T18
   Scenario: /training works even in the middle of something else

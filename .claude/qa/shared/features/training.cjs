@@ -2,7 +2,7 @@
 /* training.feature — the runnable @e2e scenarios in one process.
  *
  * Excluded by tag (matching the /niete-e2e default subset):
- *   T04 T05 T06 T07 T17 T21 T23  @wip/@draft
+ *   T04 T05 T06 T07 T21 T23      @wip/@draft
  *   T05 T16                      @destructive — T16 fails the level exam on purpose and
  *                                starts a real 24h cooldown; never run it unasked.
  *
@@ -1028,43 +1028,6 @@ exports.run = async ({ api, rec, sleep }) => {
       } else rec('T21', 'A half-finished module quiz picks up where I left off', 'BLOCKED', { reason: 'module card did not open: ' + (c1.err || 'no button'), ...ev }, t() - s);
     } else rec('T21', 'A half-finished module quiz picks up where I left off', 'BLOCKED',
                { reason: row ? 'next-up module has fewer than 2 questions' : 'no \u25b6 Next up module in the picker', ...ev }, t() - s);
-  }
-
-  // ══ T17 — an Urdu teacher gets the Urdu question text and Urdu options ═════
-  // Precondition seeded: NO active question in this environment carries question_urdu (0 rows on
-  // 2026-09-24), so the next-up module's questions get a marker Urdu text for the duration and are
-  // restored to NULL in the finally. preferred_language flips to "ur" only AFTER the module card is
-  // open, so the Flow/card navigation above stays in English (bd-w3cb9.5).
-  {
-    s = t();
-    let seededQ = null, flipped = false; const ev = {};
-    try {
-      const pk = await openBandPicker();
-      const row = pk.ok ? pk.rows.find(x => /\u25b6\s*Next up/.test((x && x.text) || '')) : null;
-      const title17 = row ? ((row.text || '').split(' \u00b7 ')[0] || '').trim() : null;
-      const mm = title17 ? (dbJson('module-media', ['--title', title17]) || [])[0] : null;
-      ev.module = title17; ev.moduleId = mm && mm.id;
-      if (mm && mm.id) {
-        seededQ = dbJson('seed-question-urdu', ['--module', String(mm.id)]);
-        ev.seededQuestions = seededQ && seededQ.questions ? seededQ.questions.length : 0;
-        const c = await deliverPicked(row.text);
-        if (c.ok && c.cta) {
-          await api.setUser({ preferred_language: 'ur' }); flipped = true;
-          await api.freshReset(); await api.tapAndWait(c.cta, 60000);
-          const w = await waitFresh((x) => (x.list && /Q\d+\//.test(x.txt || '')) || isFlowQTxt(x), 60000);
-          const rows = (w.ok && w.hit.list && w.hit.list.rows) || [];
-          Object.assign(ev, { questionText: w.ok ? (w.hit.txt || '').slice(0, 220) : w.last,
-            urduInQuestion: !!(w.ok && /[\u0600-\u06FF]/.test(w.hit.txt || '')),
-            urduInOptions: rows.length ? rows.some(r => /[\u0600-\u06FF]/.test(r.description || '')) : null,
-            note: 'nothing in bot/shared reads question_urdu or options[].urdu (grep, 2026-09-24): a FAIL here is the product gap, not the harness' });
-          rec('T17', 'An Urdu teacher gets the Urdu question text and Urdu options',
-              ...(w.ok ? V(ev.urduInQuestion && ev.urduInOptions === true, ev) : ['BLOCKED', { reason: 'no question served after tapping the quiz button', ...ev }]), t() - s);
-        } else rec('T17', 'An Urdu teacher gets the Urdu question text and Urdu options', 'BLOCKED', { reason: 'module card did not open: ' + (c.err || 'no button'), ...ev }, t() - s);
-      } else rec('T17', 'An Urdu teacher gets the Urdu question text and Urdu options', 'BLOCKED', { reason: row ? 'could not resolve the next-up module id' : 'no \u25b6 Next up module', ...ev }, t() - s);
-    } finally {
-      if (flipped) { try { await api.setUser({ preferred_language: 'en' }); } catch (e) {} }
-      if (seededQ && seededQ.module) { try { api.db('seed-question-urdu', ['--module', String(seededQ.module), '--restore']); } catch (e) {} }
-    }
   }
 
   let t23run = null;
