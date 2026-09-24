@@ -26,6 +26,7 @@ const { LABELS } = require("./overlay");
 const { fontCss, katexCss, REPO_ROOT } = require("./fonts");
 const { toV3 } = require("./migrate");
 const { questionIndex } = require("./questions");
+const { fbiseRow, noBoardExam } = require("./fbise_chips");
 
 // ── diagram-type badge: the enum is OURS, the badge is the TEACHER'S ─────────
 // The figure badge used to print `spec.type` raw, under `text-transform:uppercase`, so the
@@ -501,6 +502,10 @@ p{ font-size:18px; }
 .slo .lbl{ color:var(--s-note-ink); }
 .slo p{ font-size:18.5px; line-height:${rtl ? "2.0" : "1.55"}; margin-top:1px; font-weight:600; color:#3a2c0a; }
 .slo .src{ font-size:14.5px; color:#7d6425; margin-top:2px; font-weight:600; }
+.slo .fbise{ display:flex; flex-wrap:wrap; gap:4px 6px; margin-top:3px; }
+.slo .fchip{ font-size:16.5px; font-weight:700; color:#5a4610; background:rgba(255,255,255,.55);
+  border:1px solid var(--amber); border-radius:var(--r-pill); padding:0 9px; unicode-bidi:isolate; }
+.slo .fchip b{ font-weight:800; letter-spacing:.03em; direction:ltr; unicode-bidi:isolate; }
 .crit{ font-size:17px; color:#6B5312; margin-top:1px; font-weight:600; }
 .objhd{ display:flex; align-items:center; gap:6px; margin-top:var(--sp-2); font-size:14px; font-weight:800;
       letter-spacing:.09em; text-transform:uppercase; color:var(--s-note-ink); }
@@ -1622,8 +1627,9 @@ function page1(doc, ctx, secIndex) {
   // page is a renderer defect. Guarded by tests/lp612/outcome-one-voice-render.test.js.
   const O = doc.objectives;
   const sloBox = `<div class="slo">
-    <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}</div>
+    <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}${noBoardExam(doc, L)}</div>
     <p>${rich(O.outcome)}</p>
+    ${fbiseRow(doc, L)}
     ${O.by_the_end ? `<div class="bythe"><b>&#10003;</b> ${rich(O.by_the_end)}</div>` : ""}
   </div>`;
 
