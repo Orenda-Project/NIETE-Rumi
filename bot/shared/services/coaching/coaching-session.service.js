@@ -91,6 +91,23 @@ class CoachingSessionService {
         status: coachingSession.status
       });
 
+      // The recording has arrived, so the teacher is no longer waiting to send one.
+      // "Record my lesson", the menu's Classroom Coaching row and /coaching all leave
+      // `coaching / AWAITING_CLASSROOM_AUDIO` for six hours, and nothing else ends it:
+      // until it lapsed every plain text was answered "please send your classroom
+      // audio", and once it lapsed the resume sweep offered to "pick up" a lesson
+      // that had been coached. Flow-scoped, so another feature's wait is untouched.
+      // Never at the cost of the session: the row exists and the confirmation below
+      // must still go out.
+      try {
+        const ConversationState = require('../conversation-state.service');
+        await ConversationState.clearState(userId, { flow: 'coaching' });
+      } catch (stateErr) {
+        logToFile('❌ Coaching wait not cleared after the recording arrived (non-fatal)', {
+          userId, coachingSessionId: coachingSession.id, error: stateErr.message,
+        }, 'error');
+      }
+
       // Send confirmation message with buttons, in the teacher's own language.
       // The button IDS are parsed by the webhook router and must not change —
       // only the titles are translated. Translating an id is the classic version
