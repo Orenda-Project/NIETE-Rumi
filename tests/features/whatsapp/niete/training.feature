@@ -566,6 +566,28 @@ Feature: NIETE (ICT) Teacher Training
     And afterwards that quiz's row in /quiz says the report was sent
     # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario: The class report arrives once, even when it is asked for while it is being made
+    Given the NIETE bot chat is open and children have finished a class quiz I shared, and its scheduled class report is being made right now
+    When I ask for the report from that quiz's row in /quiz
+    Then exactly one class report arrives
+    And the bot does not tell me that no child has finished yet
+    # video-quiz-report generate(): a Redis SET NX claim (vq:report:sending:<share code>) makes the send
+    # single-flight; a caller that loses it stands down (report_suppressed why send_in_progress), and the
+    # teacher's own ask (force) waits for the send in flight and answers true, so /quiz sends no tqNoReportYet.
+    # Kill switch VIDEO_REPORT_SEND_CLAIM. Timing cannot be forced live; proven in
+    # bot/tests/quiz/video-report-send-once.test.js. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: After the class report, children who join late do not trigger a second automatic report
+    Given the NIETE bot chat is open and I already received the class report of a quiz I shared
+    When more children join and finish that quiz more than a day after the first child
+    Then no second class report arrives on its own
+    But when I ask for the report from that quiz's row in /quiz, a fresh class report arrives with every child in it
+    # video-quiz-report generate(): a scheduled run on a share code whose report_sent_at is set suppresses
+    # (report_suppressed why already_reported) — one automatic report per quiz (operator, 15 Sep). force (the
+    # /quiz ask) still sends. VIDEO_REPORT_SCHEDULED_FOLLOWUP=on restores the old follow-up send. @wip.
+
   @e2e @quiz @wip @draft @P2
   Scenario: The class report names the class once, the same way, however the children typed it
     Given the NIETE bot chat is open and children of one class have finished a class quiz, typing their class in different ways such as "4", "Class 4", "grade 4" and "۴"
