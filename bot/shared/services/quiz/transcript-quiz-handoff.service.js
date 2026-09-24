@@ -23,7 +23,9 @@ const { LP_V8, lessonSessionFor, handoffIntroKey } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 
 const GAP_MS = 1200;
-const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
+// The nudge's wait belongs to the nudge service (one number for "when it is due"
+// and "which nudges are due"); re-exported below for existing readers.
+const { NUDGE_AFTER_MS } = require('./transcript-quiz-nudge.service');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
