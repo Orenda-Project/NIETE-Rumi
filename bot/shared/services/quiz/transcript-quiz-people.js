@@ -169,6 +169,53 @@ function peopleDigestRule(material = 'the lesson') {
   return `- "people": each PERSON ${material}'s examples, stories or word problems are about (the child whose bottle or apples an example uses, a character in a story), once each, as { "latin": the name in English letters, "ur": the same name in Urdu script, spelled the way Pakistani families write it — never a spelling that is an ordinary Urdu word (Hira → «حرا», never «ہرا», which means "green") }. Only the people IN the material — never the teacher, and never a child in the class who was called on or named. [] when there are none.`;
 }
 
+// ─── NO NAME IN THE LOGS (data standard D4) ─────────────────────────────────
+// A log line may carry a complaint that quotes a name, or a stripped picture
+// label. Each person's name is replaced by a short hash of its English form,
+// so one person is the same token in either script and two lines about them
+// can still be matched, and the rest of the line (the fault code, the key,
+// the reason) is kept. Nothing stored with the quiz is touched.
+
+const nameHash = (latin) => require('crypto').createHash('sha1').update(String(latin).toLowerCase()).digest('hex').slice(0, 6);
+/** "Hira" / «حرا» → "‹name:1a2b3c›" */
+const nameToken = (latin) => `‹name:${nameHash(latin)}›`;
+/** The name a URDU_NAME_LATIN complaint quotes. */
+const QUOTED_NAME = /(URDU_NAME_LATIN — ")([^"]+)(")/g;
+
+/**
+ * A function that redacts every name it knows from a string, an array or an
+ * object: the digest's people (each in English letters and in Urdu script,
+ * whole and word by word), any `extraNames` in English letters (the lesson's
+ * name candidates, for a digest made before people were recorded), and the
+ * name a URDU_NAME_LATIN complaint quotes, whatever it is.
+ */
+function logRedactor(digest, extraNames = []) {
+  const canonical = new Map();   // token as written → its English form
+  const add = (token, latin) => { const t = String(token || '').trim(); if (t.length >= 3 && !canonical.has(t)) canonical.set(t, latin); };
+  normalisePeople(digest && digest.people).forEach((p) => {
+    add(p.latin, p.latin);
+    add(p.ur, p.latin);
+    const lw = p.latin.split(' ');
+    const uw = p.ur.split(' ');
+    lw.forEach((w, k) => { add(w, w); if (uw.length === lw.length) add(uw[k], w); });
+  });
+  (Array.isArray(extraNames) ? extraNames : [...(extraNames || [])]).forEach((n) => { if (LATIN_NAME.test(n)) add(n, n); });
+  const list = [...canonical.keys()].sort((a, b) => b.length - a.length);
+  const patterns = list.map((t) => [new RegExp(`(?<![\\p{L}\\p{M}])${escape(t)}(?![\\p{L}\\p{M}])`, 'gu'), nameToken(canonical.get(t))]);
+  const text = (t) => patterns.reduce(
+    (acc, [re, token]) => acc.replace(re, token),
+    t.replace(QUOTED_NAME, (m, a, name, b) => `${a}${nameToken(name)}${b}`),
+  );
+  const redact = (v) => {
+    if (typeof v === 'string') return text(v);
+    if (Array.isArray(v)) return v.map(redact);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, redact(x)]));
+    return v;
+  };
+  return redact;
+}
+
 module.exports = {
   LATIN_NAME, STANDARD_SPELLING, standardSpelling, normalisePeople, validSpellings, peopleSpellings, spellText, spellQuestion, spellNames, peopleRule, peopleDigestRule,
+  logRedactor, nameToken,
 };

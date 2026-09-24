@@ -1287,7 +1287,7 @@ function judgeLabel(str, { haystack, blockShapeNames }) {
  * @param {{stem: string, options: string[]}} ctx
  * @returns {{spec: object, stripped: {key: string, value: string, reason: string}[]}}
  */
-function stripStrayLabels(spec, { stem, options } = {}) {
+function stripStrayLabels(spec, { stem, options, redact = (v) => v } = {}) {
   if (!spec || typeof spec !== 'object') return { spec, stripped: [] };
   const type = canonicalType(spec.type) || spec.type;
   const haystack = norm([stem, ...(Array.isArray(options) ? options : [])].join(' '));
@@ -1301,7 +1301,8 @@ function stripStrayLabels(spec, { stem, options } = {}) {
     const verdict = judgeLabel(value, { haystack, blockShapeNames });
     if (verdict.keep) return;
     stripped.push({ key: pathKey || key, value, reason: verdict.reason });
-    logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey || key, value, reason: verdict.reason });
+    // the label can be a person's name: the caller's redactor hashes it (D4)
+    logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey || key, value: redact(value), reason: verdict.reason });
     delete holder[key];
   };
 
@@ -1320,7 +1321,7 @@ function stripStrayLabels(spec, { stem, options } = {}) {
             if (verdict.keep) return;
             const pathKey = `bars[${i}].partLabels[${j}]`;
             stripped.push({ key: pathKey, value: pl, reason: verdict.reason });
-            logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: pl, reason: verdict.reason });
+            logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: redact(pl), reason: verdict.reason });
             bar.partLabels[j] = ''; // blank in place — position maps to a bar segment
           });
         }
@@ -1337,7 +1338,7 @@ function stripStrayLabels(spec, { stem, options } = {}) {
         if (verdict.keep) return;
         const pathKey = `cellText[${i}]`;
         stripped.push({ key: pathKey, value: entry[2], reason: verdict.reason });
-        logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: entry[2], reason: verdict.reason });
+        logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: redact(entry[2]), reason: verdict.reason });
         entry[2] = ''; // blank in place — [row, col] still address the cell
       });
     }
