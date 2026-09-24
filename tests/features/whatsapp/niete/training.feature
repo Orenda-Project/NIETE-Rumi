@@ -328,6 +328,34 @@ Feature: NIETE (ICT) Teacher Training
     # the teacher's menu taps and commands were answered with the adaptive quiz's nudge. @wip.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: A child can type STOP to end a class quiz, and the teacher sees it stopped
+    Given a child has opened a class quiz from its link and a question is waiting
+    When the child types "stop"
+    Then the child is told the quiz has stopped and can be started again later, in the quiz's language
+    And a tap on the old question afterwards records nothing
+    And in "/quiz" the teacher sees the child under "Stopped before the end", not as finished and not as still going
+    And the class report lists the child as not finished
+    But on an Urdu quiz "روکیں" stops it too, and the child is told in Urdu
+    # video-quiz.service stopTyped: the words the adaptive quiz takes ("stop", "روکیں"), any case, a full stop
+    # allowed, under the answer lock (a tap being graded finishes first and cannot bring the state back). The
+    # session ends through endUnfinished: status incomplete, the answers so far counted, no score, no
+    # scorecard, the state cleared, vqStopped sent. The /quiz Flow results list incomplete/expired/cancelled
+    # sessions under tqFlowStopped, apart from tqFlowStillGoing. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: /quiz counts each child once, however many times they opened the quiz
+    Given a child stopped a class quiz part-way, opened the link again and finished it
+    And another child finished it, then took it again and did better
+    When I open "/quiz" and tap that lesson
+    Then each child is counted once in "started" and once in "finished", and each has one line
+    And the average uses each child's latest finished attempt
+    And the child who finished on the second go is not listed as still going or stopped
+    And the lessons list, the lesson screen, the class report and the "only N have started" nudge give the same numbers
+    # one-attempt-per-child.js oneAttemptPerChild (the class report's rule: the latest completed attempt, else
+    # the latest row, grouped by student_id), now read by transcript-quiz-list countsFor (per quiz),
+    # transcript-quiz-flow-endpoint loadStudents and the nudge's startedFor. @wip.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A lesson-plan quiz that could not be started says so, and can be made again
     Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be started (the job never reached the queue)
     When I open "/quiz" and tap that lesson
@@ -369,9 +397,21 @@ Feature: NIETE (ICT) Teacher Training
     Then the report's header names one class — "Class 4" in an English report, "جماعت 4" in an Urdu one — never "4، ۴" as if there were two
     And the list of children does not repeat the class after every name
     But when the children are in more than one class, each child's line names their class, written the same way on every line
+    And the quiz's lesson screen in /quiz follows the same rule: the class named once under the counts, and "(Class 5)" or "(جماعت 5)" beside a child only when the children are in more than one class
     # text-format parseClass/normaliseClasses/classLabel: Urdu and Arabic-Indic digits become ASCII, the grade
     # number is read out of the free text, children are grouped by it; the report template prints a roster
-    # class only when the report spans more than one class. The text fallback follows the same rule. @wip.
+    # class only when the report spans more than one class. The text fallback and the /quiz Flow lesson
+    # screen (transcript-quiz-flow-endpoint resultsText/studentLine) follow the same rule. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: The class report never calls me "your teacher"
+    Given the NIETE bot chat is open and my account has no name on record, and children have finished a class quiz I shared
+    When I ask for the report from that quiz's row in /quiz
+    Then the report's header under the topic shows the class alone, such as "جماعت 4" or "Class 4"
+    And nowhere does the report call me "آپ کے استاد" or "Your teacher"
+    But the children who open my link are still greeted with "آپ کے استاد" / "Your teacher" in place of my name
+    # video-quiz-report generate(): the header takes the teacher's own users.name; quiz_share_codes.teacher_name
+    # holds the children's fallback (tqYourTeacher) and keeps serving the join greeting. @wip.
 
   @e2e @quiz @wip @draft @P2
   Scenario: The class report and the quiz PDF do not leave pages nearly empty
@@ -467,12 +507,36 @@ Feature: NIETE (ICT) Teacher Training
     # tiles a counting lesson uses are drawn the same way, as the pictograms "counter" and "tile".
     # Content-driven: assert the SHAPE (headed columns, bundles, no digits), never a fixed number. @wip.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A four-digit place-value question shows the thousands the class built
+    Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson plan on four-digit numbers
+    When a child opens the quiz from its link and reaches a question asking what number the picture shows
+    Then the picture has a thousands column to the left of the hundreds, with a cube (or a block of ten big bundles) for each thousand
+    And a number with thousands and no hundreds, such as 2014, still shows an empty hundreds column under its heading
+    And no digit and no count is written anywhere in the picture, and in an Urdu quiz the thousands heading reads "ہزار"
+    # base_ten `thousands` (0-9), SYNC.md §3.20; heading tqPlaceThousands. The lesson-plan digest quotes a
+    # four-digit worked example whole (lp-quiz-digest lessonDrewBlock). Content-driven: assert the SHAPE
+    # (four headed columns, cubes or bundle blocks, no digits), never a fixed number. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: A counting question draws the lesson's own objects — sweets, dates, cookies, lilies, samosas, bangles
+    Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson plan that counted sweets or samosas
+    When a child opens the quiz from its link and reaches a counting question with a picture
+    Then the picture draws the objects the lesson counted, not plain round counters
+    # Pictograms sweet, cookie and lily (OpenMoji candy, cookie, lotus) and date, samosa and bangle (drawn in
+    # lib/pictogram.js), plus the lesson's words biscuit, candy, toffee, laddu and pebble; SYNC.md §3.20.
+    # Proven in tests/quiz/pictograms-lesson-objects.test.js. Content-driven: which object appears depends on
+    # the lesson. @wip.
+
   @e2e @quiz @wip @draft @P1
   Scenario: An Urdu quiz for a maths lesson full of English terms is made, with the terms in English letters
     Given the NIETE bot chat is open and I planned a maths lesson whose key terms are English, such as comparing unlike fractions
     When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
     Then the quiz arrives — the teacher PDF and the class link — instead of "I couldn't make a good quiz"
     And its questions and feedback are Urdu sentences that keep the lesson's terms in English letters, such as "numerator" and "common denominator"
+    And on the teacher PDF and the class report an English phrase reads in its own order, left to right — a title such as "Comparing & ordering unlike fractions" and the heading's "quiz · forward" — never "ordering unlike & Comparing"
+    # templates/latin-runs.js: an English phrase inside Urdu is ONE left-to-right isolate; "&", "·" and spaces
+    # between two English words join it (both the teacher PDF and the class report use it).
     # transcript-quiz-validator urduShareByPart: the quiz-level Urdu check counts WORDS, not letters, and takes
     # the questions and the explanations + feedback separately (bar URDU_WORD_SHARE_MIN). Long English terms
     # used to pull a correct Urdu quiz under a letter bar of 0.6 on every attempt. A quiz written in English or
@@ -489,6 +553,13 @@ Feature: NIETE (ICT) Teacher Training
     And a question that states its numbers may carry a picture of them, such as two fraction bars beside "which is larger", but no picture ever shows the answer
     And on a grade 4-5 fractions lesson taught as a method, such as cross multiplication, the pictures are questions read off fraction bars — what fraction of the bar is shaded, which bar shows a fraction — never a picture beside a step of the working
     And every fraction on the question cards and on my PDF is printed stacked, number over number, while the WhatsApp text of the question reads it as 2/3
+    And a picture that names its parts calls them P, Q, R or 1, 2, 3 — never A, B or C, the letters of the answer buttons — in the picture, the options and the feedback alike, and those names are big enough to read on the phone
+    And counters are drawn only where the child can count the answer from them, never beside a product or a common multiple they do not show
+    And in an Urdu quiz a child's name from the lesson is written in Urdu script, in the question and in the picture
+    # Part names: transcript-quiz-figure relabelLetterParts, run by the validator (P/Q/R/S on bars, number
+    # lines, shapes and circuits; 1/2/3/4 otherwise); fraction_bar and circuit font ceilings 2.4 / 2.0.
+    # Counters: FIGURE_MISMATCH now covers count_objects. Names: NAMES ARE NOT TERMS in the Urdu style rule;
+    # a name left in English letters is recorded as URDU_NAME_LATIN (soft, transcript_quiz.latin_name).
     # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
     # and "PICTURES, AGAIN" at the end, and figure_role "model" (grade 1-5 maths only). A step of a
     # procedure is a text question; a model picture beside one is still refused (FIGURE_MISMATCH).
@@ -609,9 +680,11 @@ Feature: NIETE (ICT) Teacher Training
     Given my language is English and I asked for an Urdu quiz on a lesson named "Comparing & ordering unlike fractions"
     When the quiz PDF arrives
     Then its caption names the lesson once, with no bracketed copy of the same name
+    And the same holds when the two names differ only by a plural, such as "Proper Fraction" and "Proper Fractions"
     But for an Urdu lesson name, the caption still carries its English meaning in brackets
     # transcript-quiz-language lessonLabel(): the gloss shows only when it adds information — a translation or a
-    # genuinely different name; sameTopic() treats "&"/"and"/"اور", punctuation, spacing and case as the same.
+    # genuinely different name; sameTopic() treats "&"/"and"/"اور", punctuation, spacing, case and an English
+    # word's plural (-s/-es/-ies + common irregulars) as the same.
     # Proven in tests/quiz/transcript-quiz-language.test.js + transcript-quiz-teacher-language.test.js. @wip.
 
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════

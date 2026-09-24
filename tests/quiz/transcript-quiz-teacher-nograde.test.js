@@ -48,6 +48,8 @@ describe('Urdu chrome uses Latin "quiz", never a transliteration (operator item 
   test('the eyebrow and "what this quiz checks" label carry Latin quiz, not کوئز', () => {
     const html = render(BASE_UR);
     expect(html).not.toMatch(/کوئز/);
-    expect(html).toMatch(/<span class="ltr">quiz<\/span>/);
+    // The eyebrow's two Latin words are ONE left-to-right run: separate
+    // isolates printed "forward · quiz" in the RTL line.
+    expect(html).toMatch(/<span class="ltr">quiz · forward<\/span>/);
   });
 });

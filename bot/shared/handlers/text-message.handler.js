@@ -352,6 +352,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       });
       if (typedAnswer) { typingController.stop(); return; }
 
+      // STOP typed during one of those quizzes ends it, unfinished, and says so
+      // in the quiz's language — the same words the adaptive quiz takes below.
+      const quizStopped = await quizInterceptStep('class quiz stop', () => {
+        const VideoQuizService = require('../services/quiz/video-quiz.service');
+        return VideoQuizService.stopTyped(from, messageBody);
+      });
+      if (quizStopped) { typingController.stop(); return; }
+
       // BH open-ended capstone  — an in-progress capstone attempt
       // claims the teacher's next text messages as answers. Slash commands
       // pass through (the service refuses them), so /training etc. still work.

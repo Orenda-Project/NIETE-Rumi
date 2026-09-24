@@ -87,7 +87,7 @@ describe('the manipulatives of a whole slide script — carry(), the ONE field p
   const script = {
     meta: { grade: 1, subject: 'maths', topic: 'Take away within 10' },
     iDo: { worked: { problem: 'Count the counters, take 3 away.', work: [], answer: '6', diagram: 'whole (9): [counter][counter][counter][counter] [counter][counter][counter][counter] [counter]\ntaken (3): [counter][counter][counter]' } },
-    weDo: { modelled: { diagram: 'mangoes: [mango][mango][mango][mango] [mango]\nsweets: [sweet][sweet][sweet]' } },
+    weDo: { modelled: { diagram: 'mangoes: [mango][mango][mango][mango] [mango]\nstickers: [sticker][sticker][sticker]' } },
     youDo: {
       problems: [{ prompt: 'Take 2 from 8.', diagram: '8 marbles: [marble][marble][marble][marble] [marble][marble][marble][marble]' }, { prompt: 'Column subtraction.', diagram: COLUMN_SUM }],
       behind: { diagram: '342 —\n3 hundreds: [bundle][bundle][bundle]\n4 tens: [bundle][bundle][bundle][bundle]\n2 ones: [stick][stick]' },
@@ -102,7 +102,7 @@ describe('the manipulatives of a whole slide script — carry(), the ONE field p
     expect(byToken.counter.picto).toBe('counter');
     expect(byToken.marble.picto).toBe('counter');   // the lesson's word for a counter
     expect(byToken.mango.picto).toBe('mango');
-    expect(byToken.sweet.picto).toBeNull();          // the set has no sweet
+    expect(byToken.sticker.picto).toBeNull();        // the set has no sticker
     expect(byToken.samosa).toBeUndefined();          // exit options are never forwarded
     expect(m.maxCount).toBe(9);
     expect(m.columnSums).toBe(1);
@@ -141,7 +141,7 @@ describe('lessonDrewBlock — what the author is shown', () => {
   const script = {
     meta: { grade: 1, subject: 'maths' },
     iDo: { worked: { diagram: 'whole (9): [counter][counter][counter][counter] [counter][counter][counter][counter] [counter]\ntaken (3): [counter][counter][counter]' } },
-    weDo: { modelled: { diagram: 'sweets: [sweet][sweet][sweet]\nLilies (1/3): [shaded][blank][blank]' } },
+    weDo: { modelled: { diagram: 'stickers: [sticker][sticker][sticker]\nLilies (1/3): [shaded][blank][blank]' } },
     youDo: { behind: { diagram: '47 —\n4 tens: [bundle][bundle][bundle][bundle]\n7 ones: [stick][stick][stick][stick] [stick][stick][stick]' } },
     wrap: { exitOptions: [{ diagram: 'exit: [samosa][samosa]' }] },
   };
@@ -151,7 +151,7 @@ describe('lessonDrewBlock — what the author is shown', () => {
     expect(block).toMatch(/WHAT THE LESSON DREW/);
     expect(block).toMatch(/SAME objects/);
     expect(block).toMatch(/counter[^\n]*"picto":"counter"/);
-    expect(block).toMatch(/sweet[^\n]*no[^\n]*"counter"/i);          // a missing pictogram falls back to a counter
+    expect(block).toMatch(/sticker[^\n]*no[^\n]*"counter"/i);        // a missing pictogram falls back to a counter
     expect(block).toMatch(/"type":"base_ten"/);
     expect(block).toMatch(/fraction_bar/);                           // shaded parts are fractions
     expect(block).not.toMatch(/samosa/);

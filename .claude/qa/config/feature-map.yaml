@@ -123,6 +123,7 @@ features:
     - bot/shared/templates/video-quiz-report.template.js
     - bot/shared/templates/video-quiz-scorecard.template.js
     - bot/shared/templates/transcript-quiz-teacher.template.js  # the teacher sheet sent with every lesson quiz
+    - bot/shared/templates/latin-runs.js  # English-phrase isolation inside Urdu, used by the teacher sheet and the class report
     # The transcript-quiz figure/card modules render through the same vendored
     # engine the LP-612 lane uses — see the note under `lesson-plan:`. Owned by
     # both on purpose; not `shared:`.

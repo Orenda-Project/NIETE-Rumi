@@ -117,11 +117,11 @@ describe('the repair is told it may replace, and when it must', () => {
     expect(prompt).toMatch(/THE CHILD HAS NO GENDER/);
   });
 
-  test('the fraction recipes rule out two options of the same amount, and letter the bars in words', async () => {
+  test('the fraction recipes rule out two options of the same amount, and name the bars in words, never with an option letter', async () => {
     mockCreate.mockResolvedValueOnce(reply({ pictures: [] }));
     await Rw.addPictures({ questions: QUIZ, digest: DIGEST, language: 'ur', gradeBand: '3-5', need: 1 });
     const prompt = mockCreate.mock.calls[0][0].messages[0].content;
     expect(prompt).toMatch(/never 2\/8 beside 1\/4/);
-    expect(prompt).toMatch(/«پٹی A»/);
+    expect(prompt).toMatch(/«پٹی P»/);
   });
 });

@@ -233,3 +233,77 @@ describe('the adaptive quiz never adopts a session it does not own', () => {
     expect(await QuizSessionService.getActiveState(PHONE)).toBeNull();
   });
 });
+
+// A typed STOP ends a video / transcript / lesson-plan class quiz. Before, "Stop"
+// was honoured only by accident — the adaptive quiz had adopted the session and
+// ran its own endSession on it. With the adoption gone, the class quiz needs a
+// stop of its own: the session ends unfinished (not counted as finished, no
+// score, no scorecard), its state is cleared, and the child is told in the
+// quiz's language.
+describe('a typed STOP ends the class quiz', () => {
+  const { resolveUx } = require('../../bot/shared/config/ux-strings');
+  const row = () => mockDb.tables.quiz_sessions.find((s) => s.id === SESSION);
+
+  test.each([['stop'], ['STOP'], ['Stop.'], [' stop ']])('%j ends the session unfinished, clears its state and says so', async (body) => {
+    reset({ sessions: [shareLinkRow()], videoState: videoState() });
+    mockDb.tables.quiz_answers.push({ session_id: SESSION, question_id: 'q-prev', is_correct: true });
+
+    await send(body);
+
+    expect(row()).toEqual(expect.objectContaining({ status: 'incomplete', total_questions_answered: 1, correct_answers: 1 }));
+    expect(row().mastery_percentage).toBeUndefined();
+    expect(mockKv.has(`videoquiz:${PHONE}:active`)).toBe(false);
+    expect(texts()).toContain(resolveUx('vqStopped', { language: 'en' }));
+    expect(texts().some((t) => t.includes(PARENT_NUDGE))).toBe(false);
+    expect(answers()).toEqual([expect.objectContaining({ question_id: 'q-prev' })]);   // nothing new recorded
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+    expect(logEvent).toHaveBeenCalledWith('video_quiz.ended_unfinished', expect.objectContaining({
+      sessionId: SESSION, reason: 'stopped', answered: 1,
+    }));
+  });
+
+  test('"روکیں" on an Urdu quiz stops it, and the child is told in Urdu', async () => {
+    reset({ sessions: [shareLinkRow()], videoState: videoState({ language: 'ur' }) });
+    await send('روکیں');
+    expect(row().status).toBe('incomplete');
+    expect(texts()).toContain(resolveUx('vqStopped', { language: 'ur' }));
+  });
+
+  test('with no class quiz running, "stop" is not taken by the quiz', async () => {
+    reset({ sessions: [shareLinkRow({ status: 'completed' })] });
+    await send('stop');
+    expect(row().status).toBe('completed');
+    expect(texts()).not.toContain(resolveUx('vqStopped', { language: 'en' }));
+  });
+
+  test('after a stop, a stale tap on the old question records nothing', async () => {
+    reset({ sessions: [shareLinkRow()], videoState: videoState() });
+    await send('stop');
+    const VideoQuiz = require('../../bot/shared/services/quiz/video-quiz.service');
+    let settled = false;
+    const p = VideoQuiz.handleAnswer(PHONE, 'vq_q-0_1').finally(() => { settled = true; });
+    for (let i = 0; i < 50 && !settled; i += 1) await jest.runAllTimersAsync();   // eslint-disable-line no-await-in-loop
+    await p;
+    expect(answers()).toEqual([]);
+    expect(row().status).toBe('incomplete');
+  });
+
+  test('a tap still being graded when STOP arrives counts, and cannot bring the quiz back', async () => {
+    reset({ sessions: [shareLinkRow()], videoState: videoState() });
+    const VideoQuiz = require('../../bot/shared/services/quiz/video-quiz.service');
+    global.__TEST_USER__ = { id: 'u-1', phone_number: PHONE, preferred_language: 'en', registration_completed: true };
+    let done = 0;
+    // The tap is mid-grade (its verdict sent, the next question not yet) when
+    // STOP comes in; neither is awaited before the other starts.
+    const tap = VideoQuiz.handleAnswer(PHONE, 'vq_q-0_1').finally(() => { done += 1; });
+    const stop = handler.handleTextMessage({ id: 'wamid.in' }, PHONE, 'stop', global.__TEST_USER__)
+      .catch(() => {}).finally(() => { done += 1; });
+    for (let i = 0; i < 200 && done < 2; i += 1) await jest.runAllTimersAsync();   // eslint-disable-line no-await-in-loop
+    await Promise.all([tap, stop]);
+
+    expect(answers()).toEqual([expect.objectContaining({ question_id: 'q-0' })]);
+    expect(row()).toEqual(expect.objectContaining({ status: 'incomplete', total_questions_answered: 1 }));
+    expect(mockKv.has(`videoquiz:${PHONE}:active`)).toBe(false);
+    expect(texts()[texts().length - 1]).toBe(resolveUx('vqStopped', { language: 'en' }));
+  });
+});

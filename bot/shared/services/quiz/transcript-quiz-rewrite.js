@@ -579,7 +579,7 @@ function buildAddPicturePrompt({
     `A REPLACEMENT IS A NEW QUESTION: a new stem, new options and a new correct answer, and that answer is what the child READS off the picture — the fraction shaded, the bar that shows a fraction, the number the sticks make. Never the old question with a picture over it: its old answer ("20", "10") is still not on the picture, and it is refused again. A replacement is held to every rule below, exactly as the quiz's author was.`,
     `QUESTIONS A CHILD ANSWERS BY READING A PICTURE — reach for these when you replace:
 - A fraction: one bar, some parts shaded, no label — "What fraction of the bar is shaded?", the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. {"type":"fraction_bar","bars":[{"parts":5,"shaded":3}]}
-- Which picture shows a fraction: three bars labelled "A", "B", "C" — "Which bar shows $\\frac{2}{3}$?", the options "A", "B", "C", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; in the feedback say "bar A", «پٹی A», never "option A" or «جواب A»). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"A"},{"parts":5,"shaded":2,"label":"B"},{"parts":4,"shaded":1,"label":"C"}]}
+- Which picture shows a fraction: three bars named "P", "Q", "R" — "Which bar shows $\\frac{2}{3}$?", the options "P", "Q", "R", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; in the feedback say "bar P", «پٹی P»). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"P"},{"parts":5,"shaded":2,"label":"Q"},{"parts":4,"shaded":1,"label":"R"}]}
 - Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture. (A stem that names the two fractions makes it a "model" question, which is an ADD, never a replacement.)
 - Place value: {"type":"base_ten","tens":3,"ones":4} — "What number do the sticks show?" or "How many tens are there?"
 - Counting, adding, taking away: {"type":"count_objects","rows":[{"picto":"counter","count":4},{"picto":"counter","count":3}]} — "How many counters are there altogether?"
@@ -589,8 +589,8 @@ function buildAddPicturePrompt({
 - "figure_role":"read_off" (or "count_compare" for counting and comparing objects) — the child reads the question's numbers OFF the picture ("How many counters are in the picture?"). The stem then says so and must NOT also state those numbers.`,
     `HARD RULES — a picture that breaks one is thrown away and its question stays as it was:
 - The picture must NOT contain the answer: no option's text anywhere in it, no total, no result. A jump arc never lands on the answer; a fraction bar carries no label.
-- Labels are written in the quiz language; numerals stay 0-9. Never TeX or "$" inside a figure — its fractions are plain ("3/4").
-- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place.
+- Labels are written in the quiz language; numerals stay 0-9. Never TeX or "$" inside a figure — its fractions are plain ("3/4"). A term may stay in English letters, but a person's name in a label is written in the quiz language (حرا کی بوتل, not Hira کی بوتل).
+- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place (9 thousands).
 - Column arithmetic is never a picture.
 - A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
     ...(lessonDrew ? [lessonDrew] : []),

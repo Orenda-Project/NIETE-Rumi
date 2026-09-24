@@ -79,7 +79,7 @@ A picture is worth far more to a six-year-old than to a fifteen-year-old: a chil
 - match — the child picks the pair. {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]} draws A/B down one side and 1/2 down the other and JOINS NOTHING; your three options are the candidate pairings ("A-2", "A-1", "B-2").
 - money — coins and notes. {"type":"money","currency":"Rs","items":[{"value":10,"kind":"coin"},{"value":5,"kind":"coin","count":2}]}. Each piece shows its own value, so never ask which piece is worth what — ask for the total, the number of pieces, or the swap.
 - compare_size — longer/shorter, taller/shorter, heavier/lighter. {"type":"compare_size","model":"length","items":[{"label":"سرخ ربن","size":5},{"label":"ہرا ربن","size":8}]}, "height" for vertical bars, or {"model":"balance","left":{"picto":"apple","count":3},"right":{"picto":"apple","count":1}}. "size" is relative and is never printed. An item may name a colour from the same list (ink, accent, leaf, cool, warn, plum, clay) as a bare word — and if the label names a colour, the bar must be that colour or it contradicts its own label.
-- base_ten — place value, drawn the way the class built it: loose sticks for ones, bundles of ten sticks for tens, big bundles for hundreds — or, with "model":"blocks", unit cubes, rods and flats. {"type":"base_ten","hundreds":3,"tens":4,"ones":2}. The number is never printed and a 0 is an empty column, so ask what number the picture shows, how many tens it has, or what the tens are worth.
+- base_ten — place value, drawn the way the class built it: loose sticks for ones, bundles of ten sticks for tens, big bundles for hundreds, a block of ten big bundles for thousands — or, with "model":"blocks", unit cubes, rods, flats and cubes. {"type":"base_ten","hundreds":3,"tens":4,"ones":2}; a four-digit number adds "thousands" (up to 9). The number is never printed and a 0 is an empty column, so ask what number the picture shows, how many tens it has, or what the tens are worth.
 - COUNTERS AND TILES are what a maths class counts with: "counter" (a round counter — the lesson's counters, dots, beads and marbles) and "tile" (a square — its tiles and squares) are pictograms like any other, e.g. {"type":"count_objects","picto":"counter","count":7}.
 PICTOGRAM NAMES — a picture of a thing comes from this fixed set and NOTHING ELSE. NEVER INVENT A PICTOGRAM NAME: a name that is not on this list fails the question outright. The set will not have every word your lesson used. When it does not, choose a word from the lesson that IS on the list, or write that question without a figure — those are the only two options (word_blank has a third: keep it and leave "picto" out, and the letters are drawn on their own).
 ${pictogramRoster}
@@ -97,11 +97,11 @@ THE HALF RULE STILL HOLDS HERE. At most half of the ${n} questions may carry a p
  * with the answer, and able to produce it (FIGURE_MISMATCH).
  */
 const EARLY_MATHS_RECIPES = `PICTURE QUESTIONS A GRADE 1-5 MATHS LESSON HAS. Even a lesson taught as a METHOD (cross multiplication, equal denominators, carrying, borrowing) rests on an idea a child can SEE, and the picture questions are about that idea:
-- FRACTIONS. One bar, some parts shaded, no label: "What fraction of the bar is shaded?" («تصویر میں پٹی کا کتنا حصہ رنگا ہوا ہے؟») — the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. Three bars labelled "A", "B", "C": "Which bar shows $\\frac{2}{3}$?" — the options "A", "B", "C", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; the feedback says "bar A", «پٹی A», never "option A" or «جواب A»). Two bars of the same length, unlabelled: "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?" — the stem names no fraction, so the child reads both off the picture. A grid: "What fraction of the squares are shaded?"
+- FRACTIONS. One bar, some parts shaded, no label: "What fraction of the bar is shaded?" («تصویر میں پٹی کا کتنا حصہ رنگا ہوا ہے؟») — the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. Three bars named "P", "Q", "R": "Which bar shows $\\frac{2}{3}$?" — the options "P", "Q", "R", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; the feedback says "bar P", «پٹی P»). Two bars of the same length, unlabelled: "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?" — the stem names no fraction, so the child reads both off the picture. A grid: "What fraction of the squares are shaded?"
 - PLACE VALUE. base_ten: "What number do the sticks show?", "How many tens are there?"
 - COUNTING, ADDING, TAKING AWAY. count_objects or count_frame: "How many counters are there altogether?", "How many more apples than bananas are there?"
 - TIMES AND SHARING. count_objects with "group": "How many groups of 4 are there?"
-- ORDER. A numberline with points "A", "B", "C": "Which point is at 7?"
+- ORDER. A numberline with points "P", "Q", "R": "Which point is at 7?"
 - A STEP OF A PROCEDURE is a TEXT question: a cross product ("what is 2 × 5?"), a fraction rewritten over a new denominator, a carried ten, the next line of a working. No picture shows its answer, and a picture beside it is thrown away (FIGURE_MISMATCH). Write those as text, and take your picture questions from this list.`;
 
 function figureContract({ subject, gradeBand, nQuestions = DEFAULT_QUESTIONS } = {}) {
@@ -141,9 +141,9 @@ ${earlyMaths ? `  (c) THIS grade 1-5 maths class may also see a picture that MOD
     : 'WHEN a figure is wrong: a definition, recall of a word or term, or decoration. If the question can be answered without looking at the picture, there is no figure.'}
 
 HARD RULES
-- The figure must NOT contain the answer. No option's text may appear in the picture — UNLESS every option's appears (a "which point is at −3? A / B / C" number line is fine, because naming all three gives nothing away). Do not write the fraction, the total, the percentage or the result anywhere in the spec (no "title" or "caption" that states it).
+- The figure must NOT contain the answer. No option's text may appear in the picture — UNLESS every option's appears (a "which point is at −3? P / Q / R" number line is fine, because naming all three gives nothing away). Do not write the fraction, the total, the percentage or the result anywhere in the spec (no "title" or "caption" that states it).
 - At most half of the questions may carry a figure.
-- Labels are written in the quiz language; numerals, units, formulae and chemical species stay in English letters and read left-to-right (LTR) even in an Urdu figure.
+- Labels are written in the quiz language; numerals, units, formulae and chemical species stay in English letters and read left-to-right (LTR) even in an Urdu figure. A term may stay in English letters, but a person's name in a label is written in the quiz language (حرا کی بوتل, not Hira کی بوتل).
 - A stem that promises a picture must carry one. If the stem says "in the picture" or "تصویر میں", the question needs a "figure".
 - Use the SIMPLEST spec that answers the question. Long labels and crowded scales collide and the whole question is thrown away.
 - The engine draws MATHEMATICS AND SCIENCE, never pictures of things: never draw a scene, an object, an animal, a person or a place with geometry shapes (a "farm" of rectangles and circles renders as a blank). If the question needs a photo of a real thing, there is no figure.
@@ -160,8 +160,8 @@ HARD RULES
 WORKED EXAMPLES (spec next to the question it serves):
 1. fraction_bar, read_off — stem "تصویر میں روٹی کا کتنا حصہ رنگا ہوا ہے؟", options ["$\\\\frac{3}{4}$", "$\\\\frac{1}{4}$", "$\\\\frac{4}{3}$"], correct 0,
    "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}   (no label on the bar — the label would be the answer)
-2. numberline, read_off — stem "Which point is at −3?", options ["A", "B", "C"], correct 0,
-   "figure": {"type":"numberline","from":-5,"to":5,"step":1,"points":[{"at":-3,"label":"A"},{"at":1,"label":"B"},{"at":4,"label":"C"}]}
+2. numberline, read_off — stem "Which point is at −3?", options ["P", "Q", "R"], correct 0,
+   "figure": {"type":"numberline","from":-5,"to":5,"step":1,"points":[{"at":-3,"label":"P"},{"at":1,"label":"Q"},{"at":4,"label":"R"}]}
 3. grid, count_compare — stem "تصویر میں کتنے خانے رنگے ہوئے ہیں؟", options ["12", "8", "20"], correct 0,
    "figure": {"type":"grid","rows":4,"cols":5,"shaded":12}
 

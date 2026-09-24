@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -166,6 +166,43 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
  * decorative picture; for a young maths class this one is the lesson, so it is
  * exempt. The answer-leak rule is not: no option, no result, in the drawing.
  */
+/**
+ * A person's name left in English letters inside an Urdu quiz (URDU_NAME_LATIN).
+ *
+ * A remade grade 4 Urdu quiz wrote the lesson's child as "‏Hira کی بوتل", the
+ * bar's name included: the Urdu style rule keeps TERMS in English letters, and
+ * the model read the name as a term. The contract now says a name is not a
+ * term; this is the light check behind it. A capitalised Latin word in a field
+ * with Urdu script counts only when the lesson's own examples use it (so it is
+ * the lesson's name, not a word the model brought) and it is not a key term.
+ * Never a refusal — the caller records it (meta.soft_faults and
+ * transcript_quiz.latin_name), so the rate is visible.
+ * @returns {string[]} one complaint per question and name
+ */
+function latinNames(questions, { language, digest } = {}) {
+  if (language !== 'ur') return [];
+  const lessonWords = new Set();
+  (Array.isArray(digest && digest.examples_used) ? digest.examples_used : []).forEach((ex) => {
+    (String(ex || '').match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => lessonWords.add(w));
+  });
+  const terms = new Set((Array.isArray(digest && digest.key_terms) ? digest.key_terms : [])
+    .flatMap((t) => String(t || '').toLowerCase().split(/\s+/)).filter(Boolean));
+  const out = [];
+  (Array.isArray(questions) ? questions : []).forEach((q, i) => {
+    if (!q || typeof q !== 'object') return;
+    const fb = q.option_feedback || {};
+    const labels = q.figure && typeof q.figure === 'object' ? specStrings(q.figure) : [];
+    const fields = [q.question, ...(q.options || []), q.explanation, fb.correct, ...Object.values(fb.wrong || {}), ...labels]
+      .map((t) => String(t || '')).filter((t) => /\p{Script=Arabic}/u.test(t));
+    const seen = new Set();
+    fields.forEach((t) => (t.match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => {
+      if (lessonWords.has(w) && !terms.has(w.toLowerCase()) && !seen.has(w)) seen.add(w);
+    }));
+    seen.forEach((w) => out.push(`q${i}: URDU_NAME_LATIN — "${w}" is a person's name, not a term: in an Urdu quiz write it in Urdu script`));
+  });
+  return out;
+}
+
 function modelsTheStem(q, subject, gradeBand) {
   return Boolean(q) && q.figure_role === 'model' && earlyMaths(subject, gradeBand);
 }
@@ -357,7 +394,10 @@ function validate(rawQuestions, ctx = {}) {
   if (!Array.isArray(rawQuestions) || !rawQuestions.length) {
     return { ok: false, errors: ['no questions'], questions: [] };
   }
+  // A figure never names its parts with the option letters (relabelLetterParts):
+  // renamed first, so every check below and every surface reads the new names.
   const qs = rawQuestions.map(normaliseFeedback)
+    .map((q) => relabelLetterParts(q).question)
     .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
@@ -597,7 +637,10 @@ function validate(rawQuestions, ctx = {}) {
     // model uses a young class is taught with still pass: "which is larger" is
     // keyed to one of the fractions drawn, and a word answer is not checked. A
     // question no picture can answer is REPLACED by the add-pictures repair
-    // instead (transcript-quiz-rewrite).
+    // instead (transcript-quiz-rewrite). Counters (count_objects) are held to
+    // the same rule since two slipped through beside a product and an LCM.
+    const unnamed = unnamedParts(q.figure, opts);
+    if (unnamed) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — the options name parts ${unnamed.join(', ')} but the picture names none; give each part its name as its label ("P", not "bar P")`);
     const mismatch = figureMismatch(q.figure, opts, ci);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);
@@ -679,6 +722,7 @@ function validate(rawQuestions, ctx = {}) {
 
 module.exports = {
   validate,
+  latinNames,
   normaliseFeedback,
   STEM_PROMISES_PICTURE,
   FIGURE_MAX_SHARE,

@@ -72,6 +72,10 @@ const GRADE_WORDS = new Map(Object.entries({
   پہلی: 1, پہلا: 1, دوسری: 2, دوسرا: 2, تیسری: 3, تیسرا: 3, چوتھی: 4, چوتھا: 4, پانچویں: 5, پانچواں: 5,
   چھٹی: 6, چھٹا: 6, ساتویں: 7, ساتواں: 7, آٹھویں: 8, آٹھواں: 8, نویں: 9, نواں: 9, دسویں: 10, دسواں: 10,
   گیارہویں: 11, گیارھویں: 11, بارہویں: 12, بارھویں: 12,
+  // The Persian ordinals a class is named by in Urdu ("جماعت پنجم", "چہارم"),
+  // in the Urdu heh (ہ) and the Arabic heh (ه) a keyboard may give.
+  اول: 1, دوم: 2, سوم: 3, چہارم: 4, چهارم: 4, پنجم: 5, ششم: 6, ہفتم: 7, هفتم: 7,
+  ہشتم: 8, هشتم: 8, نہم: 9, نهم: 9, دہم: 10, دهم: 10, یازدہم: 11, یازدهم: 11, دوازدہم: 12, دوازدهم: 12,
 }));
 
 function parseClass(v) {
@@ -172,4 +176,24 @@ function classHeading(values, language = 'en') {
   return `${unit} ${classes.join(ur ? '، ' : ', ')}`;
 }
 
-module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText };
+/**
+ * Open every line of a data-built text block with a paragraph mark.
+ *
+ * WhatsApp lays each line out from its first strong character. A line built
+ * from data — "• \u2068Ayesha\u2069 — \u20667/8 (88%)\u2069", or an Urdu title that opens on the
+ * Latin term "quiz" — has the wrong first strong character, or none outside
+ * its isolates, so it lands flush against the wrong side of an otherwise
+ * consistent block. `mark` is the document language's own (the catalog's
+ * `lineDirMark`: U+200E English, U+200F Urdu). A line that already opens with
+ * a mark is re-marked, never double-marked; a blank line stays blank.
+ */
+const DIR_MARK = /^[\u200E\u200F]+/;
+function markLines(text, mark) {
+  if (text === null || text === undefined) return text;
+  if (!mark) return String(text);
+  return String(text).split('\n')
+    .map((line) => (line.trim() === '' ? line : `${mark}${line.replace(DIR_MARK, '')}`))
+    .join('\n');
+}
+
+module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines };

@@ -1747,6 +1747,7 @@ const UX_STRINGS = {
   tqTodaysLesson: { en: 'today’s lesson', ur: 'آج کا سبق' },
   // The column heads of a place-value picture (the `base_ten` figure) on a
   // child's question. Drawn above each column, never with a number beside them.
+  tqPlaceThousands: { en: 'Thousands', ur: 'ہزار' },
   tqPlaceHundreds: { en: 'Hundreds', ur: 'سینکڑے' },
   tqPlaceTens: { en: 'Tens', ur: 'دہائیاں' },
   tqPlaceOnes: { en: 'Ones', ur: 'اکائیاں' },
@@ -1924,7 +1925,18 @@ const UX_STRINGS = {
   // it arrives already wrapped in LRI…PDI from the endpoint — in an Urdu line
   // an un-isolated `8/8 (100%)` after an Urdu name renders as `(%100) 8/8`.
   tqFlowStudentLine: { en: '• {name}{klass} — {score}', ur: '• {name}{klass} — {score}' },
+  // The paragraph mark for a LIST of lines built from data (the /quiz results
+  // block, the class report's text fallback). A catalog string opens with its
+  // own mark where it needs one (above); a list line such as "• \u2068name\u2069 —
+  // \u2066score\u2069" cannot — its only strong characters sit inside isolates, so a
+  // phone finds none and falls back to left-to-right (Android and iOS differ on
+  // whether they look inside an isolate). text-format markLines() opens every
+  // line with this: U+200E in English, U+200F in Urdu. One code point per line.
+  lineDirMark: { en: '\u200E', ur: '\u200F' },
   tqFlowStillGoing: { en: 'Still going: {names}', ur: 'ابھی حل کر رہے ہیں: {names}' },
+  // Not finished and not taking it now: the child typed STOP, or the quiz
+  // stopped on our side (an `incomplete` session), or it ran out of time.
+  tqFlowStopped: { en: 'Stopped before the end: {names}', ur: '\u200Fquiz بیچ میں روک دیا گیا: {names}' },
   tqFlowMoreStudents: { en: '…and {n} more', ur: '…اور {n} مزید' },
   tqFlowUnnamed: { en: 'Unnamed', ur: 'بےنام' },
 
@@ -2128,6 +2140,12 @@ const UX_STRINGS = {
   vqStartFailed: {
     en: 'Sorry — I couldn\'t start that quiz. Please try again in a moment.',
     ur: 'معذرت — ابھی یہ quiz شروع نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  // The child typed STOP mid-quiz. Nothing is scored; the teacher's report
+  // lists the child as not finished.
+  vqStopped: {
+    en: 'Okay, I’ve stopped this quiz here. You can start it again later.',
+    ur: 'ٹھیک ہے، یہ quiz یہیں روک دیا گیا ہے۔ اسے بعد میں دوبارہ شروع کیا جا سکتا ہے۔',
   },
   vqQuizFinished: {
     en: 'That quiz has finished. Pick another video and I\'ll offer you a fresh one!',

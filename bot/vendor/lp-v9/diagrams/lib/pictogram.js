@@ -83,6 +83,46 @@ const LOCAL_GLYPHS = {
   // base_ten's loose sticks. It REPLACES the OpenMoji glyph filed under "stick",
   // which is that set's "wood": a log, never what a maths lesson counted.
   stick: '<rect data-ov="skip" x="31" y="5" width="10" height="62" rx="5" fill="var(--clay, #B5651D)" stroke="currentColor" stroke-width="2.5"/>',
+  // ─── VENDOR DIVERGENCE — see SYNC.md §3.20 ─────────────────────────────────
+  // Three things the grade 1-5 maths lessons count that OpenMoji has no glyph
+  // for (a DATE, a SAMOSA, a BANGLE), drawn here in OpenMoji's own line-art
+  // manner — outline only, currentColor ink, stroke 2, round caps — so a row of
+  // them sits beside the OpenMoji nouns as one set. `data-part` names each
+  // stroke so a test can hold the drawing to what makes it that thing.
+  //
+  // A date: a plump oval with its cap and stem at the top and three wrinkles
+  // across it — the wrinkles are what keep it from reading as a bean, a seed
+  // or an egg.
+  date: [
+    `<path data-part="body" ${SKIP} d="M45.4,14.8 C52.8,17.8 54.6,30.6 49.4,43.4 C44.3,56.2 34.1,64.2 26.6,61.2 C19.2,58.2 17.4,45.4 22.6,32.6 C27.7,19.8 37.9,11.8 45.4,14.8 Z"/>`,
+    `<path data-part="cap" ${SKIP} d="M37.7,16.6 Q46.3,12.5 49.7,21.4"/>`,
+    `<path data-part="stem" ${SKIP} d="M45.6,14.4 L48.6,10.7"/>`,
+    `<path data-part="wrinkle" ${SKIP} d="M32.7,24.8 Q38.8,31 42.7,28.8"/>`,
+    `<path data-part="wrinkle" ${SKIP} d="M26.6,33.1 Q35.1,40.3 39.8,38.4"/>`,
+    `<path data-part="wrinkle" ${SKIP} d="M23.9,43.9 Q30.9,50.5 35.2,48.5"/>`,
+  ].join(""),
+  // A samosa: a plump triangle — sides that bulge, corners that round — with
+  // the seam where the pastry was folded shut, its pinch marks, and the
+  // blisters of fried pastry. A straight-sided triangle read as a tent.
+  samosa: [
+    `<path data-part="body" ${SKIP} d="M36,10.5 C31,10.5 11.5,46 11.5,53.5 C11.5,58.5 15,61 20,61 L52,61 C57,61 60.5,58.5 60.5,53.5 C60.5,46 41,10.5 36,10.5 Z"/>`,
+    `<path data-part="seam" ${SKIP} d="M36,11.5 C33.5,28 32,45 31,61"/>`,
+    `<path data-part="pinch" ${SKIP} d="M32.2,24 L36.4,25.2 M31.3,34 L35.5,35 M30.7,44 L34.9,44.8 M30.2,53.5 L34.4,54.1"/>`,
+    `<circle data-part="blister" data-ov="skip" cx="44" cy="40" r="1.6" fill="currentColor" stroke="currentColor" stroke-width="1"/>`,
+    `<circle data-part="blister" data-ov="skip" cx="48.5" cy="51" r="1.6" fill="currentColor" stroke="currentColor" stroke-width="1"/>`,
+    `<circle data-part="blister" data-ov="skip" cx="21.5" cy="50" r="1.6" fill="currentColor" stroke="currentColor" stroke-width="1"/>`,
+  ].join(""),
+  // A bangle: a thin band tilted towards the reader — its rim, the hole through
+  // it, the band's depth at the front, and the dots worked into the band — so
+  // it reads as a bracelet, not as a ring with a stone or a tyre.
+  bangle: [
+    `<ellipse data-part="rim" ${SKIP} cx="36" cy="32" rx="28" ry="15"/>`,
+    `<ellipse data-part="hole" ${SKIP} cx="36" cy="32" rx="24" ry="11.5"/>`,
+    `<path data-part="band" ${SKIP} d="M8,32 L8,36 C8,44.3 20.5,51 36,51 C51.5,51 64,44.3 64,36 L64,32"/>`,
+    `<circle data-part="bead" data-ov="skip" cx="20" cy="46.3" r="1.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>`,
+    `<circle data-part="bead" data-ov="skip" cx="36" cy="49" r="1.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>`,
+    `<circle data-part="bead" data-ov="skip" cx="52" cy="46.3" r="1.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>`,
+  ].join(""),
 };
 
 // The lesson's own words for those two things. A slide script writes the same
@@ -93,6 +133,10 @@ const LOCAL_GLYPHS = {
 const ALIASES = {
   dot: "counter", bead: "counter", marble: "counter", circle: "counter",
   sq: "tile", square: "tile",
+  // VENDOR DIVERGENCE (SYNC.md §3.20): the lessons' other words for the objects
+  // added there — a biscuit is the cookie, a toffee, candy or laddu is a sweet,
+  // a pebble is the stone.
+  biscuit: "cookie", candy: "sweet", toffee: "sweet", laddu: "sweet", pebble: "stone",
 };
 
 /** 'Red Apple' / 'red-apple' / ' apple ' all address the same glyph; an alias addresses its picture. */
