@@ -20,7 +20,10 @@
 // Spec
 //   picto    "apple"          the pictogram (lib/pictogram.js) — or per row
 //   count    7                how many (at least 2)
-//   rows     [{picto,count,label}]  compare mode; overrides picto/count
+//   rows     [{picto,count,label,color}]  compare mode; overrides picto/count.
+//            `color` (ink, accent, leaf, cool, warn, plum, clay) draws that row's
+//            things in its own colour, so a PART of a set can be seen — "the
+//            coloured pencils" (NIETE divergence, SYNC.md 3.22)
 //   perRow   5                items per line (default: min(5, count); min(10, widest) when comparing rows)
 //   group    4                ring every `group` items (single-row specs only)
 //   lang     "en" | "ur"
@@ -29,6 +32,7 @@ const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
 const { drawPictogram, descLine, has: hasPictogram, inner: pictogramInner } = require("../lib/pictogram");
 
 const MAX_ITEMS = 30; // past this a child stops counting and starts guessing
+const ROW_TOKENS = { ink: C.ink, accent: C.accent, leaf: C.leaf, cool: C.cool, warn: C.warn, plum: C.plum, clay: C.clay };
 
 function render(spec) {
   const isUr = spec.lang === "ur";
@@ -39,6 +43,7 @@ function render(spec) {
     picto: String(r.picto ?? spec.picto ?? ""),
     count: Math.max(0, Math.floor(Number(r.count) || 0)),
     label: r.label == null ? "" : String(r.label),
+    color: (r.color && ROW_TOKENS[String(r.color)]) || C.ink,
   }));
   if (!rows.length) throw new Error("count_objects: nothing to count");
   rows.forEach((r) => {
@@ -112,7 +117,7 @@ function render(spec) {
       });
     }
     for (let i = 0; i < line.n; i += 1) {
-      drawPictogram(svg, x0 + i * CELL, y + 6, CELL - 10, line.picto, { color: C.ink });
+      drawPictogram(svg, x0 + i * CELL, y + 6, CELL - 10, line.picto, { color: rows[line.ri].color });
     }
     const row = rows[line.ri];
     if (row.label && line.first) {

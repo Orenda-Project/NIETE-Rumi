@@ -178,6 +178,61 @@ describe('1 — the validator names two separate English terms side by side', ()
   });
 });
 
+/**
+ * A one-word term beside a two-word term that OPENS WITH AN ADJECTIVE.
+ *
+ * Staging, an Urdu quiz on proper fractions, a stem:
+ *   «ان میں سے کون سا fraction Proper Fraction ہے؟»   (which of these fractions is a proper fraction?)
+ * It was not flagged. The lesson's terms were "Proper Fraction" and the like,
+ * and "fraction" never stood alone anywhere in the quiz, so the word on the
+ * left was not a known unit and the boundary was let through. But English
+ * never puts a noun straight before an adjective inside one phrase: when the
+ * right side is a lesson term that opens with an adjective ("Proper Fraction",
+ * "like fractions", "Mixed Fraction"), a content word before it is a separate
+ * part of the Urdu sentence, whatever else the quiz says about that word.
+ */
+describe('1b — a word before a lesson term that opens with an adjective', () => {
+  const PHRASE_DIGEST = {
+    ...FR_DIGEST,
+    key_terms: [{ term: 'Proper Fraction' }, { term: 'Improper Fraction' }, { term: 'like fractions' }, { term: 'Least Common Multiple' }, { term: 'Simple Present Tense' }],
+  };
+  // "fraction" only ever appears inside a phrase in this quiz — the staging shape
+  const lexFor = (extra) => AdjacentTerms.lessonLexicon(PHRASE_DIGEST, [
+    { question: 'ان میں سے کون سی Proper Fraction ہے؟', options: ['Proper Fraction', 'Improper Fraction', 'دونوں'], explanation: 'Proper Fraction میں اوپر والا عدد چھوٹا ہوتا ہے۔', option_feedback: { correct: 'درست!', wrong: {} } },
+    ...(extra || []),
+  ]);
+  const flagged = (text) => AdjacentTerms.adjacentTermsIn(text, lexFor()).map((f) => f.pair);
+
+  test('the staging stem: «کون سا fraction Proper Fraction ہے؟» is two parts of the sentence side by side', () => {
+    expect(flagged('ان میں سے کون سا fraction Proper Fraction ہے؟')).toEqual(['fraction Proper']);
+  });
+
+  test('the same shape with another adjective-led term: «fractions like fractions بن جائیں», «fraction Improper Fraction ہو»', () => {
+    expect(flagged('تاکہ denominator 16 بن جائے اور fractions like fractions بن جائیں۔')).toEqual(['fractions like']);
+    expect(flagged('اگر حاصل شدہ fraction Improper Fraction ہو تو اسے Mixed Number میں بدلیں۔')).toEqual(['fraction Improper']);
+  });
+
+  test('a term whose adjectives are its own words is still one phrase: Least Common Multiple, Simple Present Tense, «ایک Proper Fraction»', () => {
+    expect(flagged('5 اور 2 کا Least Common Multiple 10 ہے۔')).toEqual([]);
+    expect(flagged('یہ جملہ Simple Present Tense میں ہے۔')).toEqual([]);
+    expect(flagged('یہ ایک Proper Fraction ہے۔')).toEqual([]);
+  });
+
+  test('through the validator, on a quiz where "fraction" never stands alone: the staging stem is named on its question', () => {
+    // Every bare "fraction" becomes «کسر», so the word is only ever part of a phrase — the staging quiz's shape.
+    const bare = /(?<!(?:proper|improper|mixed|like|unlike) )\bfractions?\b/gi;
+    const urduOnly = (x) => (typeof x === 'string' ? x.replace(bare, 'کسر')
+      : Array.isArray(x) ? x.map(urduOnly)
+        : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, urduOnly(v)])) : x);
+    const qs = [...fractions().slice(0, 4), REPAIRED_ITEM, ...fractions().slice(5)].map(urduOnly);
+    qs[2] = { ...qs[2], question: 'ان میں سے کون سا fraction Proper Fraction ہے؟' };
+    const got = adjacency(validate(qs, { ...FR_CTX, digest: PHRASE_DIGEST }).errors);
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatch(/^q2: URDU_ADJACENT_TERMS — question\b/);
+    expect(got[0]).toContain('fraction Proper');
+  });
+});
+
 describe('2 — one question\'s text to repair, and never a reason to send nothing', () => {
   test('the targeted rewrite takes it, and it is a soft fault', () => {
     const errs = validate(fractions(), FR_CTX).errors;

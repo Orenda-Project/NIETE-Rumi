@@ -115,7 +115,7 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
   required: picto, count
   minimal: {"type":"count_objects","picto":"apple","count":7}
   limits:
-    · \`rows\` ([{picto,count,label}]) overrides \`picto\`/\`count\` and is the compare mode; a row's \`label\` is its NAME, never its count.
+    · \`rows\` ([{picto,count,label,color}]) overrides \`picto\`/\`count\` and is the compare mode; a row's \`label\` is its NAME, never its count; a row's \`color\` (ink, accent, leaf, cool, warn, plum, clay) draws its things in that colour, so a part of a set can be seen.
     · \`group\` rings equal lots and applies to a single-row spec only — 12 with group 4 draws three rings of four.
     · No count, total or legend is ever drawn: the child counts. At most 30 things.
     · An Urdu row is laid out right-to-left with its name on the right.
@@ -139,11 +139,11 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
     · An item is a STRING ("?" for the blank, else a shape name, else a pictogram name, else short text) or an OBJECT ({blank:true} | {picto} | {shape,color} | {text,color}).
     · The shapes are exactly circle, square, triangle, star. 3 to 9 items, at least one blank and not all of them.
     · An Urdu sequence is laid out right-to-left.
-- match — Two columns of pictures or words, lettered A/B/C and numbered 1/2/3, with no lines drawn — the child picks the pair.
+- match — Two columns of pictures or words, lettered down one side and numbered 1/2/3 down the other, with no lines drawn — the child picks the pair.
   required: left, right
   minimal: {"type":"match","left":[{"picto":"cat"},{"picto":"dog"}],"right":[{"text":"dog"},{"text":"cat"}]}
   limits:
-    · NOTHING is joined: the handles are on the drawing and the OPTIONS carry the candidate pairs ("A-2"), which is the legal labelled case under the leak rule.
+    · NOTHING is joined: the handles are on the drawing and the OPTIONS carry the candidate pairs (a handle letter and a number), which is the legal labelled case under the leak rule.
 - money — Coins as labelled discs and notes as labelled rectangles — identifying, adding and swapping money.
   required: items
   minimal: {"type":"money","items":[{"value":10,"kind":"coin"},{"value":5,"kind":"coin","count":2}]}

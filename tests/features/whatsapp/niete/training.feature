@@ -570,11 +570,19 @@ Feature: NIETE (ICT) Teacher Training
     And a picture that names its parts calls them P, Q, R or 1, 2, 3 — never A, B or C, the letters of the answer buttons — in the picture, the options and the feedback alike, and those names are big enough to read on the phone
     And counters are drawn only where the child can count the answer from them, never beside a product or a common multiple they do not show
     And in an Urdu quiz a child's name from the lesson is written in Urdu script, in the question and in the picture
+    And a matching picture names its rows P, Q, R, so its pairings read "P-2", never "A-2" beside the answer letter A
+    And a bar named with a child's name keeps that name even when the question writes the name in English letters
+    And an improper fraction or a mixed number is drawn as whole bars and a part bar, such as 17/4 as four whole bars and a quarter
+    And a question about a part of a set, such as the coloured pencils, shows that part in its own colour or picture
     And an equation in a question, such as 7 × 4 = 28, reads in the order it was written — on the card, on my PDF and in the WhatsApp text — even inside an Urdu sentence, and never with a letter x as the times sign
     # Part names: transcript-quiz-figure relabelLetterParts, run by the validator (P/Q/R/S on bars, number
     # lines, shapes and circuits; 1/2/3/4 otherwise); fraction_bar and circuit font ceilings 2.4 / 2.0.
     # Counters: FIGURE_MISMATCH now covers count_objects. Names: NAMES ARE NOT TERMS in the Urdu style rule;
     # a name left in English letters is recorded as URDU_NAME_LATIN (soft, transcript_quiz.latin_name).
+    # Match: the vendored engine takes `handleLetters` (SYNC.md 3.21); the quiz lane sets P/Q/R/S and renames
+    # A-D in the stem, options and feedback. The label gate reads one name in two scripts as one word.
+    # Improper fractions: one over-full bar is redrawn as whole bars + a part bar (expandImproperBar); an
+    # over-full bar among several is refused with how to draw it; an unnamed bar in a named set is refused.
     # Equations: quiz-math spanEquations makes an equation written in prose ("7 x 4 = 28") one maths
     # expression — typeset in a left-to-right isolate on the card and PDF, one LRI…PDI in a WhatsApp text.
     # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
@@ -604,6 +612,36 @@ Feature: NIETE (ICT) Teacher Training
     # (floor 6), else the quiz fails as key_disagreement (tqFailedKeyDisagreement / tqFailedLpKeyDisagreement).
     # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: A quiz never keys a mistake made in class as the right answer
+    Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
+    When I say yes to the quiz for that lesson and it arrives
+    Then no question marks that mistake as the right answer, and every answer marked correct is right by the subject
+    And no explanation gives "the teacher said so" as the reason, or says a fact holds "but in class" it was not accepted
+    And a question that tested the mistake is asked about the correct fact instead, or left out
+    # transcript-quiz-key-authority (validator KEY_BY_AUTHORITY: an explanation that concedes the fact and
+    # sides with the class, repaired by the targeted rewrite with KEY_BY_AUTHORITY_RULE, else dropped);
+    # transcript-quiz-contract (THE ANSWER IS TRUE BY THE SUBJECT, for the author and the rewrite); runKeyVerify
+    # solves every item a second time without the lesson (key_verify_bare: no summary, no objectives), where no
+    # right answer or two count at once and another answer only after a second look in another option order.
+    # @wip — a class's mistake cannot be recorded on demand; proven in tests/quiz/transcript-quiz-key-truth.test.js.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A lesson quiz never asks the class the same question twice
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
+    When the quiz arrives
+    Then no two questions on my PDF ask the same thing and have the same answer, even with the options in another order
+    And two questions that only look alike — the same question about another number, another word or another picture, or with another answer — both stay in the quiz
+    And the quiz still arrives with all its questions when a repeated one could not be replaced
+    # transcript-quiz-duplicates, run once over the whole quiz by the validator: a LATER question with the
+    # same answer, the same picture (or none), the same numbers and quoted items, and a near-identical stem
+    # is named DUPLICATE_QUESTION. transcript-quiz-generate replaces it with one targeted rewrite
+    # (IN_PLACE_FAULT); a rewrite that does not take ships the quiz with the repeat recorded in
+    # meta.soft_faults (SOFT_FAULT) — never a refusal, never a dropped question. Counted on
+    # transcript_quiz.duplicate_question. Content-driven: read every question on the PDF and compare them;
+    # never a fixed quiz. @wip — a repeat cannot be forced live on demand; the behaviour is proven in
+    # tests/quiz/transcript-quiz-duplicate-questions.test.js.
 
   @e2e @quiz @wip @draft @P2
   Scenario: A column subtraction reaches the child set out the way the textbook prints it

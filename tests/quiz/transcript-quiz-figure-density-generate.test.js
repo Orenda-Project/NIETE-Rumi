@@ -53,7 +53,9 @@ const DIGEST = (band = '1-2', subject = 'maths') => ({
 const SUMMARY = 'Today you taught adding within ten with counters, starting from 3 and 4 and counting on.';
 
 function q(i, over = {}) {
-  const a = (i % 4) + 2;
+  // Every question its own sum: q6 and q7 used to repeat q2 and q3 word for
+  // word, which is a quiz that asks the same question twice (DUPLICATE_QUESTION).
+  const a = [2, 3, 4, 5, 2, 3, 6, 7][i];
   return {
     slo_id: i % 2 ? 'S2' : 'S1', level: 'understand',
     question: `A row has ${a} counters and another row has 3 more. How many counters are there in all?`,

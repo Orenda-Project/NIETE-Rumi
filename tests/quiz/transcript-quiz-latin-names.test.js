@@ -61,6 +61,23 @@ describe('latinNames — the light check', () => {
     ]);
   });
 
+  test('key terms as the digest really stores them ({term, as_spoken}) are never names', () => {
+    // A real digest carries key_terms as objects (every Urdu quiz on the prod
+    // replica). Read as plain text they became "[object Object]", so a vocabulary
+    // lesson's words were flagged as people.
+    const vocab = {
+      ...DIGEST,
+      key_terms: [{ term: 'Brother', as_spoken: 'brother' }, { term: 'Sister', as_spoken: 'sister' }, { term: 'King and Queen', as_spoken: 'king queen' }],
+      examples_used: ['Brother and Sister', 'King and Queen'],
+    };
+    const qs = [{ question: '‏Brother کی مؤنث کیا ہے؟ King کی مؤنث بتائیں۔', options: ['Sister', 'Queen', 'Aunt'] }];
+    expect(latinNames(qs, { language: 'ur', digest: vocab })).toEqual([]);
+    // and a real name beside them is still found
+    const named = { ...vocab, examples_used: [...vocab.examples_used, "Hira's brother"] };
+    expect(latinNames([{ question: '‏Hira کا Brother کون ہے؟', options: ['a', 'b', 'c'] }], { language: 'ur', digest: named }))
+      .toEqual(['q0: URDU_NAME_LATIN — "Hira" is a person\'s name, not a term: in an Urdu quiz write it in Urdu script']);
+  });
+
   test('never a term, never an English quiz, never a word the lesson did not use as a name', () => {
     const qs = [{ question: '‏Fraction کو cross multiplication سے compare کریں۔ Sara نے کہا', options: ['a', 'b', 'c'] }];
     expect(latinNames(qs, { language: 'ur', digest: DIGEST })).toEqual([]);

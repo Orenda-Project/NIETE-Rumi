@@ -170,6 +170,10 @@ const SOFT_FAULT = new RegExp('^('
   // a sound question in an order the phone reads backwards. Repaired in place
   // (IN_PLACE_FAULT, below) and never a reason to send nothing.
   + '|q\\d+: URDU_ADJACENT_TERMS\\b'
+  // The same question asked twice in one quiz (DUPLICATE_QUESTION): the later
+  // copy is rewritten in place (IN_PLACE_FAULT, below); a quiz whose repair
+  // did not take still has seven sound questions and one repeat, and ships.
+  + '|q\\d+: DUPLICATE_QUESTION\\b'
   // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
   // one picture is still a quiz, and refusals cost teachers quizzes.
   + '|FIGURE_FEW\\b'
@@ -195,8 +199,17 @@ const ADDRESS_FAULT = /^q\d+: PEDAGOGY_GENDERED_CHILD\b/;
  * transcript_quiz.adjacent_terms.
  */
 const ADJACENT_FAULT = /^q\d+: URDU_ADJACENT_TERMS\b/;
+/**
+ * A later question that asks what an earlier one already asks, with the same
+ * answer (DUPLICATE_QUESTION — transcript-quiz-duplicates). The earlier
+ * question is sound; the later one is replaced by the same one targeted
+ * rewrite with a different question for its slot. A repair that does not take
+ * ships the quiz with the repeat recorded rather than costing the class the
+ * quiz or a question. Counted on transcript_quiz.duplicate_question.
+ */
+const DUPLICATE_FAULT = /^q\d+: DUPLICATE_QUESTION\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}`);
 const inPlaceOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => IN_PLACE_FAULT.test(String(e)));
 /** The codes in a list of complaints, for telemetry ("q3: URDU_ADJACENT_TERMS — …" → "URDU_ADJACENT_TERMS"). */
 const faultKinds = (errors) => [...new Set((errors || []).map((e) => String(e).replace(/^q\d+: /, '').split(/\s|—/)[0]))];
@@ -950,7 +963,12 @@ async function runKeyCheck(api, {
  * and a transcript quiz has no source to check at all.
  *
  * WHAT. One LLM call (`transcript-quiz-key-verify.service`, its own stronger
- * model) answers every item without its key; code compares. An item it answers
+ * model) answers every item without its key; code compares. Then every item it
+ * did not flag is solved AGAIN with nothing about the lesson (`withLesson:
+ * false`): the summary is written from the recording and repeats a mistake made
+ * in class, and on staging it talked the solver into agreeing that 4/8 is not a
+ * proper fraction. An item the subject alone decides differently is flagged
+ * like any other (`pass: 'bare'`); `unsure` there never blocks. An item it answers
  * differently (`disagree`), finds a second correct option in (`ambiguous`) or no
  * correct option in (`none_correct`) is re-authored ONCE through the same
  * targeted rewrite every other rejected question goes through, with the
@@ -979,6 +997,10 @@ async function runKeyVerify(api, {
   const record = {
     status: 'clean', model: null, checked: questions.length, agreed: 0, disagreed: 0, ambiguous: 0, none_correct: 0,
     unclear: 0, missing: 0, fixed: 0, dropped: 0, cost_usd: 0, disagreements: [],
+    // The second solve, without the lesson: how many it checked, and what it found.
+    bare: {
+      status: 'skipped', checked: 0, agreed: 0, flagged: 0, unclear: 0,
+    },
   };
   const finish = (out) => {
     record.latency_ms = Date.now() - startedAt;
@@ -988,6 +1010,7 @@ async function runKeyVerify(api, {
       checked: record.checked, agreed: record.agreed, disagreed: record.disagreed, ambiguous: record.ambiguous,
       none_correct: record.none_correct, unclear: record.unclear, missing: record.missing,
       fixed: record.fixed, dropped: record.dropped, costUsd: record.cost_usd, latencyMs: record.latency_ms,
+      bareStatus: record.bare.status, bareChecked: record.bare.checked, bareFlagged: record.bare.flagged,
     });
     return { record, ...out };
   };
@@ -998,10 +1021,70 @@ async function runKeyVerify(api, {
     }, 'error');
     return message;
   };
-  const solve = (qs, indices = null) => api.verifyKeys({
-    questions: qs, indices, language, grade, subject: digest.subject, digest, lessonSummary, quizId,
+  const solve = (qs, indices = null, withLesson = true, again = false) => api.verifyKeys({
+    questions: qs, indices, language, grade, subject: digest.subject, digest, lessonSummary, quizId, withLesson, again,
   });
   const flagged = (v) => KeyVerify.FLAGGED.has(v.verdict);
+  /**
+   * The same items solved again WITHOUT the lesson — every one the first solve
+   * did not flag. Returns the verdicts with the second solve's flags merged in
+   * (a flag there replaces the first solve's agree/unsure), or the first
+   * solve's verdicts untouched when the second one fails (fail-open, at error).
+   *
+   * "No option is right" and "two options are right" count at once: they are
+   * what a mistake made in class leaves behind (the 4/8 item had no right
+   * answer). "Another option is right" counts only if a second look — the same
+   * items, the options in a different order — says so too: most first answers
+   * of that kind were a slip between an option's position and its text (the
+   * note said "'t' is silent" beside the position of "s").
+   *
+   * Replayed on production (read-only, 24 Sep 2026): on 631 random items from
+   * 80 quizzes it flags 7 (3 real, 2 debatable, 2 wrong; the second look
+   * removed 9 of 13 first answers of "another option"); on 162 items whose key
+   * the class had defended against the subject (1 – 24 Sep, screened from
+   * 18,664) it flags 101. The solve WITH the lesson had let such items through.
+   */
+  const withoutLesson = async (qs, verdicts, stats) => {
+    const idx = verdicts.filter((v) => !flagged(v)).map((v) => v.index);
+    if (!idx.length) return { verdicts, costUsd: 0 };
+    try {
+      const bare = await solve(qs, idx, false);
+      let costUsd = Number(bare.costUsd) || 0;
+      const byIndex = new Map(bare.verdicts.map((v) => [v.index, v]));
+      const toConfirm = bare.verdicts.filter((v) => v.verdict === 'disagree').map((v) => v.index);
+      let confirmed = new Set();
+      if (toConfirm.length) {
+        const again = await solve(qs, toConfirm, false, true);
+        costUsd += Number(again.costUsd) || 0;
+        confirmed = new Set(again.verdicts.filter(flagged).map((v) => v.index));
+        if (stats) { stats.second_look = toConfirm.length; stats.confirmed = confirmed.size; }
+      }
+      const counts = (b) => b && flagged(b) && (b.verdict !== 'disagree' || confirmed.has(b.index));
+      if (stats) {
+        stats.status = 'ok';
+        stats.checked += idx.length;
+        bare.verdicts.forEach((v) => {
+          if (counts(v)) stats.flagged += 1;
+          else if (v.verdict === 'agree') stats.agreed += 1;
+          else stats.unclear += 1;
+        });
+      }
+      return {
+        verdicts: verdicts.map((v) => {
+          const b = byIndex.get(v.index);
+          return counts(b) ? b : v;
+        }),
+        costUsd,
+      };
+    } catch (err) {
+      const message = String((err && err.message) || err || 'unknown').slice(0, 200);
+      logToFile('❌ transcript quiz: key verify without the lesson failed — keeping the solve with it (fail-open)', {
+        quizId, quiz_source: quizSource, error: message,
+      }, 'error');
+      if (stats) { stats.status = 'error'; stats.error = message; }
+      return { verdicts, costUsd: 0 };
+    }
+  };
 
   // ── 1. the solve ──────────────────────────────────────────────────────────
   let first;
@@ -1019,20 +1102,25 @@ async function runKeyVerify(api, {
   }
   record.model = first.model || null;
   record.cost_usd += Number(first.costUsd) || 0;
+  first.verdicts.forEach((v) => { if (v.missing) record.missing += 1; });
+  // ── 1b. the same items, without the lesson ────────────────────────────────
+  const second = await withoutLesson(questions, first.verdicts, record.bare);
+  record.cost_usd += second.costUsd;
+  const verdicts = second.verdicts;
   const COUNT = {
     agree: 'agreed', disagree: 'disagreed', ambiguous: 'ambiguous', none_correct: 'none_correct', unclear: 'unclear',
   };
-  first.verdicts.forEach((v) => {
+  verdicts.forEach((v) => {
     if (COUNT[v.verdict]) record[COUNT[v.verdict]] += 1;
-    if (v.missing) record.missing += 1;
   });
-  const bad = first.verdicts.filter(flagged);
+  const bad = verdicts.filter(flagged);
   if (!bad.length) return finish({ changed: false });
 
   const complaints = bad.map((v) => KeyVerify.disagreementComplaint(v, questions[v.index]));
   record.disagreements = bad.map((v) => ({
     index: v.index,
     verdict: v.verdict,
+    pass: v.pass === 'bare' ? 'bare' : 'lesson',
     keyed: KeyVerify.optionText(questions[v.index], v.keyed).slice(0, 120),
     blind: KeyVerify.optionText(questions[v.index], v.blind || []).slice(0, 120),
     note: String(v.note || '').slice(0, 200),
@@ -1066,7 +1154,10 @@ async function runKeyVerify(api, {
         try {
           const re = await solve(v.questions, replacedBad);
           record.cost_usd += Number(re.costUsd) || 0;
-          again = new Set(re.verdicts.filter(flagged).map((x) => x.index));
+          // A rewrite is held to both solves, as the item it replaces was.
+          const reBare = await withoutLesson(v.questions, re.verdicts, null);
+          record.cost_usd += reBare.costUsd;
+          again = new Set(reBare.verdicts.filter(flagged).map((x) => x.index));
         } catch (err) {
           record.recheck_error = failOpen('re-solve', err);
         }
@@ -1329,10 +1420,20 @@ async function process(quizId, payload = {}) {
           logEvent('transcript_quiz.teacher_fields_repaired', { quizId, after: attempt, indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length });
         }
       }
+      // The same question asked twice is counted on every attempt it appears
+      // in, whatever else is wrong with the attempt: the author prompt is what
+      // should stop it, and this is its rate.
+      const repeated = v.ok ? [] : v.errors.filter((e) => DUPLICATE_FAULT.test(String(e)));
+      if (repeated.length) {
+        logEvent('transcript_quiz.duplicate_question', {
+          quizId, after: attempt, questions: repeated.length, indices: repeated.map((e) => Number(/^q(\d+)/.exec(e)[1])),
+        });
+      }
       // ── IN-PLACE FAULTS: REPAIRED IN PLACE, THEN SHIPPED ─────────────────
       // When the only complaints left are verbs that speak to the child with a
-      // gender, or two English terms side by side, one targeted rewrite is
-      // asked to change exactly those words. Whatever it leaves, the quiz is
+      // gender, two English terms side by side, or a question the quiz already
+      // asked, one targeted rewrite is asked to change exactly those words (or,
+      // for the repeat, that one question). Whatever it leaves, the quiz is
       // not re-rolled for it: a clean repair ships from runRewrite, and
       // otherwise THIS attempt ships as it stands, through the same picture and
       // render checks as a clean attempt, with the faults recorded. Tried on

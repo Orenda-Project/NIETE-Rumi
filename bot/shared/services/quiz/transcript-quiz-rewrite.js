@@ -108,6 +108,11 @@ const CHILD_ADDRESS_REPAIR = 'THE CHILD HAS NO GENDER — REPAIR IN PLACE. A que
  */
 const ADJACENT_TERMS_REPAIR = 'TWO ENGLISH TERMS SIDE BY SIDE — REPAIR IN PLACE. A question rejected for URDU_ADJACENT_TERMS is a good question in which two SEPARATE English terms sit next to each other in an Urdu sentence; the phone shows them as one left-to-right phrase, so a child reading right to left meets the second term first and reads the meaning backwards. Keep the SAME question: the same idea, the same options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY the fields its complaint names: put an Urdu word between the two terms or rephrase so they do not touch — «جب numerator denominator سے چھوٹا ہو» → «جب numerator کی قیمت denominator سے کم ہو»; «Brother کا feminine noun Sister ہے» → «Brother کے لیے feminine noun کا جواب Sister ہے». A single English term of two words ("cross multiplication", "place value") is ONE term and stays together.';
 const ADJACENT_TERMS = /^q\d+: URDU_ADJACENT_TERMS\b/;
+// The same question asked twice in one quiz (transcript-quiz-duplicates): the
+// earlier copy is staying, so the replacement must be a different question —
+// a new example, number or case — not the same one with its options shuffled.
+const DUPLICATE_REPAIR = 'ASKED TWICE. A question rejected for DUPLICATE_QUESTION asks what an earlier question — one that is STAYING — already asks, with the same answer, so a child would answer the same question twice. Write a NEW question for its slot: the same SLO and level, but a different example, number, word or case from the lesson, and a correct answer that is not the correct answer of any question that is staying. The same question with its options in another order, other wrong options, or a few words added to its stem is the same question, and is rejected again.';
+const DUPLICATE = /^q\d+: DUPLICATE_QUESTION\b/;
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
@@ -143,6 +148,13 @@ const MATH_TEX = /^q\d+: MATH_TEX\b/;
  */
 const KEY_DISAGREEMENT_RULE = 'KEY CHECK. A question rejected for KEY_DISAGREEMENT, KEY_AMBIGUOUS or KEY_NONE_CORRECT was answered by a solver who was NOT shown its answer, and the solver did not arrive at the answer marked correct. Check the fact itself before you write — the spelling, the letters of a word, the sum, the definition. Exactly one option must be correct beyond doubt (for a "select all" question, exactly the options in "correct_indices"), and "correct_index" must point at it; every other option must be clearly wrong — never the right answer in another order or other words. This is a fault where you may keep the same question: fix the options and "correct_index", and make "explanation" and "option_feedback" say the right answer.';
 const KEY_DISAGREEMENT = /^q\d+: KEY_(DISAGREEMENT|AMBIGUOUS|NONE_CORRECT)\b/;
+/**
+ * An item whose explanation sides with the class against the fact it states
+ * (transcript-quiz-key-authority): the recording's mistake was made the key.
+ * Stated only when that complaint is present.
+ */
+const KEY_BY_AUTHORITY_RULE = 'KEY BY AUTHORITY. A question rejected for KEY_BY_AUTHORITY gave, as the reason its answer is right, what was said or accepted in class — against the fact its own explanation states. A recording can hold a mistake: a teacher misspeaks, or holds a wrong idea (calls 4/8 not a proper fraction, uses an incomplete sentence as an example of a sentence). Decide the answer by the subject alone — the definition, the rule, the sum, the spelling. Exactly one option must be right by the subject and "correct_index" must point at it; if no option is, change the options. If the class\'s mistake is the point of the question, ask about the correct fact instead. This is a fault where you may keep the same question: fix the options and "correct_index", and make "explanation" and "option_feedback" give the fact as the reason — never the teacher\'s word, and never "but in class …".';
+const KEY_BY_AUTHORITY = /^q\d+: KEY_BY_AUTHORITY\b/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code points (characters) and every OPTION at most 72 — anything longer is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
@@ -254,10 +266,12 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => OPTIONS_FAULT.test(e))) ? [DISTINCT_OPTIONS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => ADJACENT_TERMS.test(e))) ? [ADJACENT_TERMS_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_DISAGREEMENT.test(e))) ? [KEY_DISAGREEMENT_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_BY_AUTHORITY.test(e))) ? [KEY_BY_AUTHORITY_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -591,9 +605,11 @@ function buildAddPicturePrompt({
     `QUESTIONS A CHILD ANSWERS BY READING A PICTURE — reach for these when you replace:
 - A fraction: one bar, some parts shaded, no label — "What fraction of the bar is shaded?", the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. {"type":"fraction_bar","bars":[{"parts":5,"shaded":3}]}
 - Which picture shows a fraction: three bars named "P", "Q", "R" — "Which bar shows $\\frac{2}{3}$?", the options "P", "Q", "R", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; in the feedback say "bar P", «پٹی P»). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"P"},{"parts":5,"shaded":2,"label":"Q"},{"parts":4,"shaded":1,"label":"R"}]}
+- An improper fraction or a mixed number: whole bars and a part bar — 7/4 is {"parts":4,"shaded":4} then {"parts":4,"shaded":3} — never one bar with more shaded than parts, and never inside a "which bar shows" set.
 - Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture. (A stem that names the two fractions makes it a "model" question, which is an ADD, never a replacement.)
 - Place value: {"type":"base_ten","tens":3,"ones":4} — "What number do the sticks show?" or "How many tens are there?"
 - Counting, adding, taking away: {"type":"count_objects","rows":[{"picto":"counter","count":4},{"picto":"counter","count":3}]} — "How many counters are there altogether?"
+- A part of a set: the part is its own row that LOOKS different — {"type":"count_objects","rows":[{"picto":"pencil","count":2,"color":"warn"},{"picto":"pencil","count":3}]} — "What fraction of the pencils are coloured?"; rows that look alike cannot show a part.
 - Sharing and times: {"type":"count_objects","picto":"counter","count":12,"group":4} — "How many groups of 4 are there?"`,
     `TWO KINDS OF PICTURE:
 - "figure_role":"model" — the picture SHOWS the numbers the stem already states, the way the lesson drew them: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Keep the stem as it is.
@@ -747,6 +763,6 @@ module.exports = {
   pictureCandidates, buildAddPicturePrompt, mergeAddedPictures, addPictures,
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT, MATH_TEX_RULE, MATH_TEX,
-  KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT,
+  KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT, KEY_BY_AUTHORITY_RULE, KEY_BY_AUTHORITY,
   teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };
