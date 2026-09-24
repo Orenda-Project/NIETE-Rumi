@@ -129,7 +129,7 @@ function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBa
   // the retry of a fractions lesson that had drawn nothing back with nothing.
   const maths = early && canonicalSubject(subject) === 'maths';
   const how = maths
-    ? 'Decide the pictures FIRST, then write at least three questions the child answers by READING a picture: What fraction of the bar is shaded? Which bar shows a fraction (bars labelled A, B, C)? What number do the sticks show? How many counters are there? A step of a procedure (a cross product, a rewritten fraction) stays text — no picture can show its answer.'
+    ? 'Decide the pictures FIRST, then write at least three questions the child answers by READING a picture: What fraction of the bar is shaded? Which bar shows a fraction (bars P, Q, R)? What number do the sticks show? How many counters are there? A step of a procedure (a cross product, a rewritten fraction) stays text — no picture can show its answer.'
     : early
     ? 'Decide the drawing FIRST — the thing the class counted, the word they sounded out, the clock they read, the pattern they continued — then write one or two questions the child answers by reading the picture.'
     : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
@@ -175,6 +175,9 @@ const SOFT_FAULT = new RegExp('^('
   // copy is rewritten in place (IN_PLACE_FAULT, below); a quiz whose repair
   // did not take still has seven sound questions and one repeat, and ships.
   + '|q\\d+: DUPLICATE_QUESTION\\b'
+  // A person's name in English letters in an Urdu quiz (URDU_NAME_LATIN): the
+  // same kind of fault, repaired in place (IN_PLACE_FAULT, below).
+  + '|q\\d+: URDU_NAME_LATIN\\b'
   // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
   // one picture is still a quiz, and refusals cost teachers quizzes.
   + '|FIGURE_FEW\\b'
@@ -209,8 +212,17 @@ const ADJACENT_FAULT = /^q\d+: URDU_ADJACENT_TERMS\b/;
  * quiz or a question. Counted on transcript_quiz.duplicate_question.
  */
 const DUPLICATE_FAULT = /^q\d+: DUPLICATE_QUESTION\b/;
+/**
+ * A person's name written in English letters in an Urdu quiz
+ * (URDU_NAME_LATIN — «‏Hira کی بوتل»). A name is not a term; the question is
+ * sound. Repaired in place by the same one targeted rewrite, which also gives
+ * the name's Urdu spelling so a picture's labels agree with the stem; shipped
+ * whatever that leaves; counted on transcript_quiz.latin_name_found, and what
+ * ships in English letters on transcript_quiz.latin_name.
+ */
+const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}`);
 const inPlaceOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => IN_PLACE_FAULT.test(String(e)));
 /** The codes in a list of complaints, for telemetry ("q3: URDU_ADJACENT_TERMS — …" → "URDU_ADJACENT_TERMS"). */
 const faultKinds = (errors) => [...new Set((errors || []).map((e) => String(e).replace(/^q\d+: /, '').split(/\s|—/)[0]))];
@@ -802,7 +814,7 @@ async function runFigureDensity(api, {
  *   softFaults?:string[]|null}>}
  */
 async function runKeyCheck(api, {
-  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts,
+  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts, knownNames = null,
 }) {
   const KeyCheck = require('./lp-quiz-key-check.service');
   const startedAt = Date.now();
@@ -867,7 +879,7 @@ async function runKeyCheck(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true,
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -991,7 +1003,7 @@ async function runKeyCheck(api, {
  *   softFaults?:string[]|null}>}
  */
 async function runKeyVerify(api, {
-  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts,
+  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts, knownNames = null,
 }) {
   const KeyVerify = require('./transcript-quiz-key-verify.service');
   const startedAt = Date.now();
@@ -1138,7 +1150,7 @@ async function runKeyVerify(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8,
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1366,6 +1378,11 @@ async function process(quizId, payload = {}) {
     let lastLessonSummary = null;
     let lastExtras = {};
     let readyLessonSummary = null;
+    // The Urdu spelling of each person's name the repair has given for this
+    // quiz ({ "Hira": "حرا" }). Every later rewrite writes the name that way
+    // too: replayed, the blind solve's rewrite put "Hira" back into a teacher
+    // note of a quiz that had already learned «حرا».
+    const nameSpellings = {};
     const attempts = [];
     const attemptsAllowed = maxAttempts();
     // How many author attempts came back with ANY questions to judge. Zero means
@@ -1450,6 +1467,13 @@ async function process(quizId, payload = {}) {
         }
         if (adjacent.length) {
           logEvent('transcript_quiz.adjacent_terms', { quizId, after: attempt, questions: adjacent.length, indices: indicesOf(adjacent) });
+        }
+        const latin = v.errors.filter((e) => NAME_FAULT.test(e));
+        if (latin.length) {
+          logEvent('transcript_quiz.latin_name_found', {
+            quizId, after: attempt, questions: [...new Set(indicesOf(latin))].length, indices: [...new Set(indicesOf(latin))],
+            names: [...new Set(latin.map((e) => /"([^"]+)"/.exec(e)[1]))],
+          });
         }
         // eslint-disable-next-line no-await-in-loop
         const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
@@ -1536,8 +1560,10 @@ async function process(quizId, payload = {}) {
         gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
         // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
         planned: isLp,
+        knownNames: nameSpellings,
       });
       if (!rw.attempted) return { tried: false, ok: false, errors: null };
+      Object.assign(nameSpellings, rw.names || {});
       {
         meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
         // PLAN_R6 D5 — the rewrite may also return a repaired `lesson_summary`
@@ -1708,7 +1734,7 @@ async function process(quizId, payload = {}) {
     if (isLp) {
       const kc = await runKeyCheck(api, {
         questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
-        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts,
+        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings,
       });
       meta.key_check = kc.record;
       meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);
@@ -1733,7 +1759,7 @@ async function process(quizId, payload = {}) {
     const kv = await runKeyVerify(api, {
       questions, digest, language, quizId, teacherId: quiz.teacher_id,
       lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade,
-      grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts,
+      grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts, knownNames: nameSpellings,
     });
     meta.key_verify = kv.record;
     meta.cost_usd = (meta.cost_usd || 0) + (kv.record.cost_usd || 0);
@@ -1749,10 +1775,20 @@ async function process(quizId, payload = {}) {
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
     }
-    // ── A NAME IN ENGLISH LETTERS IN AN URDU QUIZ (recorded, never refused) ──
+    // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────
+    // Repaired in place while authoring (NAME_FAULT); this records whatever the
+    // repair left, or a later step brought, once per question and name — read
+    // on the questions that ship. An earlier stage's record is replaced, not
+    // added to: a later step can replace the question it named (replayed, the
+    // picture repair did, and the record still named a question with no name).
     const names = latinNames(questions, { language, digest });
+    const stale = (meta.soft_faults || []).filter((e) => NAME_FAULT.test(String(e)));
+    if (stale.length || names.length) {
+      const rest = (meta.soft_faults || []).filter((e) => !NAME_FAULT.test(String(e)));
+      if (rest.length || names.length) meta.soft_faults = [...new Set([...rest, ...names])];
+      else delete meta.soft_faults;
+    }
     if (names.length) {
-      meta.soft_faults = [...(meta.soft_faults || []), ...names];
       logEvent('transcript_quiz.latin_name', {
         quizId, quiz_source: quizSource,
         names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],

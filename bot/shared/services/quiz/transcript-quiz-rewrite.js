@@ -21,7 +21,7 @@
  * rewrite that repaired one of two rejections still ships one more question
  * than it would have.
  *
- * TWO CONTRACTS ASSERTED IN CODE, not left to the prompt (root rule 24c):
+ * THREE CONTRACTS ASSERTED IN CODE, not left to the prompt (root rule 24c):
  *   - a replacement that carries a "figure" is DISCARDED and its original is
  *     kept. The picture rules are what several of these questions failed, a
  *     replacement gets no second attempt at drawing, and silently stripping a
@@ -29,6 +29,11 @@
  *     pointing at nothing.
  *   - a replacement keeps its question's slo_id and level unless it names its
  *     own, so SLO coverage and the level mix cannot be broken by the repair.
+ *   - a question rejected ONLY for a name in English letters is not rewritten
+ *     by the model at all. The model gives the name's Urdu spelling and the
+ *     code writes it into the question as it was, picture labels included:
+ *     replayed, the model wrote a DIFFERENT question for every question it
+ *     was told to keep, which would lose a sound question and its picture.
  *
  * ROUND 6 ADDED ONE QUIZ-LEVEL FIELD: `lesson_summary`. It is the field the
  * operator caught a gendered "She" on, and it is the only quiz-level complaint
@@ -113,6 +118,25 @@ const ADJACENT_TERMS = /^q\d+: URDU_ADJACENT_TERMS\b/;
 // a new example, number or case — not the same one with its options shuffled.
 const DUPLICATE_REPAIR = 'ASKED TWICE. A question rejected for DUPLICATE_QUESTION asks what an earlier question — one that is STAYING — already asks, with the same answer, so a child would answer the same question twice. Write a NEW question for its slot: the same SLO and level, but a different example, number, word or case from the lesson, and a correct answer that is not the correct answer of any question that is staying. The same question with its options in another order, other wrong options, or a few words added to its stem is the same question, and is rejected again.';
 const DUPLICATE = /^q\d+: DUPLICATE_QUESTION\b/;
+/**
+ * A question rejected for URDU_NAME_LATIN is a GOOD question that writes a
+ * person's name from the lesson in English letters («‏Hira کی بوتل»): the Urdu
+ * style rule keeps technical TERMS in English letters and the model read the
+ * name as one. Repaired IN PLACE, and more strictly than the two above: what
+ * the model gives is the name's Urdu spelling ("names"), and the code writes
+ * it into the question as it was (spellNames) — every field and the picture's
+ * labels, so the bar and the stem agree.
+ */
+const NAME_LATIN_REPAIR = 'A NAME IN ENGLISH LETTERS — REPAIR IN PLACE. A question rejected for URDU_NAME_LATIN is a good question that writes a person\'s name from the lesson (the child in a word problem) in English letters. A name is not a technical term: in an Urdu quiz it is written in Urdu script — «حرا», not "Hira". Return "names": each name its complaint quotes, exactly as it is written in English letters, with its spelling in Urdu script — { "Hira": "حرا" }. That spelling is written for you into the question, its options, explanation, feedback, teacher notes and picture labels. A question rejected ONLY for this stays exactly as it is: return it unchanged. When the same question has another complaint too, fix that one as its own rule says and write the name in Urdu script there as well. Technical terms stay in English letters.';
+const NAME_LATIN = /^q\d+: URDU_NAME_LATIN\b/;
+/** "q1: URDU_NAME_LATIN — "Hira" is …" → "Hira" */
+const NAME_IN = /^q\d+: URDU_NAME_LATIN — "([^"]+)"/;
+/**
+ * A complaint repaired IN PLACE: the question is sound and only some words
+ * change. Over the repair's cap, a question with only these is the one left
+ * out — a hard fault never loses its place to it.
+ */
+const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN)\b/;
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
@@ -171,7 +195,7 @@ const QUIZ_LEVEL_REPAIRABLE = /^PEDAGOGY_GENDERED_TEACHER\b/;
  *          a targeted rewrite can repair
  */
 function rewriteTargets(errors) {
-  const none = { indices: [], byIndex: {}, summary: [] };
+  const none = { indices: [], byIndex: {}, summary: [], names: [] };
   const list = Array.isArray(errors) ? errors.filter((e) => typeof e === 'string') : [];
   if (!list.length || list.length !== (errors || []).length) return none;
   const byIndex = {};
@@ -188,10 +212,36 @@ function rewriteTargets(errors) {
     const i = Number(m[1]);
     (byIndex[i] = byIndex[i] || []).push(e);
   }
-  const indices = Object.keys(byIndex).map(Number).sort((a, b) => a - b);
-  if (indices.length > MAX_TARGETS) return none;
+  let indices = Object.keys(byIndex).map(Number).sort((a, b) => a - b);
+  if (indices.length > MAX_TARGETS) {
+    // Beside a hard fault, a question with only in-place complaints is the one
+    // left out: it ships as it is, with its fault recorded, and never takes a
+    // hard fault's place. (In-place complaints alone on more questions than
+    // the cap are still no repair: most of the set, shipped with its faults.)
+    const inPlaceOnly = (i) => byIndex[i].every((e) => IN_PLACE.test(e));
+    const hard = indices.filter((i) => !inPlaceOnly(i));
+    if (!hard.length || hard.length > MAX_TARGETS) return none;
+    const kept = new Set([...hard, ...indices.filter(inPlaceOnly).slice(0, MAX_TARGETS - hard.length)]);
+    indices.filter((i) => !kept.has(i)).forEach((i) => { delete byIndex[i]; });
+    indices = indices.filter((i) => kept.has(i));
+  }
   if (!indices.length && !summary.length) return none;
-  return { indices, byIndex, summary };
+  // Every name complained of, on any question: the spelling the repair gives
+  // for one is written wherever the name is (spellNames).
+  const names = [...new Set(list.map((e) => (NAME_IN.exec(e) || [])[1]).filter(Boolean))];
+  return { indices, byIndex, summary, names };
+}
+
+/**
+ * A key term as the lesson said it. A real digest stores {term, as_spoken};
+ * joined as it was, every rewrite prompt listed "[object Object]" as the words
+ * used in class.
+ */
+function termWords(t) {
+  if (!t || typeof t !== 'object') return String(t ?? '').trim();
+  const term = String(t.term || '').trim();
+  const spoken = String(t.as_spoken || '').trim();
+  return spoken && spoken.toLowerCase() !== term.toLowerCase() ? `${term || spoken} («${spoken}»)` : term || spoken;
 }
 
 /** "q0, q7" */
@@ -227,7 +277,7 @@ function buildRewritePrompt({
     (digest && Array.isArray(digest.examples_used) && digest.examples_used.length)
       ? `the lesson's own examples: ${digest.examples_used.slice(0, 8).join('; ')}` : null,
     (digest && Array.isArray(digest.key_terms) && digest.key_terms.length)
-      ? `the words used in class: ${digest.key_terms.slice(0, 12).join(', ')}` : null,
+      ? `the words used in class: ${digest.key_terms.slice(0, 12).map(termWords).filter(Boolean).join(', ')}` : null,
   ].filter(Boolean).join('\n');
   const staying = qs
     .map((q, i) => (indices.includes(i) ? null : `  q${i}: ${String((q && q.question) || '').trim()}`))
@@ -253,12 +303,13 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
       ? `You are FIXING a short WhatsApp quiz written for the children who sat in ONE real lesson. ${nQ} of its ${qs.length} questions were rejected by our checks. You are writing ONE replacement for each. Every other question is good and is staying exactly as it is — do not touch it, do not return it.`
       : 'You are FIXING the LESSON SUMMARY of a short WhatsApp quiz written for the children who sat in ONE real lesson. Every question is good and is staying exactly as it is — do not touch one, do not return one. You are rewriting the summary only.');
 
+  const namesAsked = indices.some((i) => (byIndex[i] || []).some((e) => NAME_LATIN.test(e)));
   const questionSections = nQ ? [
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
     DISTINCT_QUESTIONS_RULE,
     `REJECTED — write one new question for each.\n\n${rejected}`,
-    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, ONLY for how it speaks to the child, or ONLY for two English terms side by side — see LENGTH, THE CHILD HAS NO GENDER and TWO ENGLISH TERMS SIDE BY SIDE below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
+    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, ONLY for how it speaks to the child, ONLY for two English terms side by side, or ONLY for a name in English letters — see LENGTH, THE CHILD HAS NO GENDER, TWO ENGLISH TERMS SIDE BY SIDE and A NAME IN ENGLISH LETTERS below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
     'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
@@ -268,6 +319,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => ADJACENT_TERMS.test(e))) ? [ADJACENT_TERMS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
+    ...(namesAsked ? [NAME_LATIN_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
@@ -294,7 +346,7 @@ ${planned
 
   const returnBlock = nQ
     ? `Return ONLY this JSON object, with exactly ${nQ} question entr${nQ === 1 ? 'y' : 'ies'}${summaryErrors.length ? ' and the new summary' : ''} and nothing else. "index" is the number after the q above, and must be one of: ${indices.join(', ')}.
-{ ${summaryErrors.length ? '"lesson_summary": "",\n  ' : ''}"questions": [
+{ ${summaryErrors.length ? '"lesson_summary": "",\n  ' : ''}${namesAsked ? '"names": { "<the name in English letters>": "<the same name in Urdu script>" },\n  ' : ''}"questions": [
 ${shape} ] }
 (In that example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)`
     : `Return ONLY this JSON object and nothing else.
@@ -331,7 +383,7 @@ ${shape} ] }
  * @returns {{questions:object[], replaced:number[], lessonSummary:string|null}|null}
  *          null when nothing at all was replaced
  */
-function mergeReplacements(questions, json, targets) {
+function mergeReplacements(questions, json, targets, { known = null } = {}) {
   const qs = Array.isArray(questions) ? questions : [];
   const list = Array.isArray(json && json.questions) ? json.questions : [];
   const { indices } = targets;
@@ -366,9 +418,20 @@ function mergeReplacements(questions, json, targets) {
     if (!String(r.question || '').trim()) return;
     chosen.set(idx, r);
   });
-  if (!chosen.size && !summary) return null;
-  const out = qs.map((q, i) => {
-    if (!chosen.has(i)) return q;
+  // A question rejected ONLY for a name in English letters, whose every name
+  // has a usable spelling, is kept as it was: the swap below is its repair,
+  // and whatever the model wrote for it is not taken (it rewrites a question
+  // it is told to keep). Without a spelling it is an ordinary rewrite.
+  const spellings = { ...knownSpellings(known), ...nameSpellings(json, targets) };
+  const byIndex = (targets && targets.byIndex) || {};
+  const swapOnly = indices.filter((i) => {
+    const complaints = byIndex[i] || [];
+    return complaints.length > 0 && complaints.every((e) => NAME_LATIN.test(String(e)))
+      && complaints.every((e) => Boolean(spellings[(NAME_IN.exec(e) || [])[1]]));
+  });
+  if (!chosen.size && !summary && !swapOnly.length) return null;
+  const merged = qs.map((q, i) => {
+    if (swapOnly.includes(i) || !chosen.has(i)) return q;
     const { index, ...rest } = chosen.get(i);
     return {
       ...rest,
@@ -378,7 +441,76 @@ function mergeReplacements(questions, json, targets) {
       figure_role: null,
     };
   });
-  return { questions: out, replaced: [...chosen.keys()].sort((a, b) => a - b), lessonSummary: summary };
+  const out = spellNames(merged, spellings);
+  const replaced = [...new Set([...chosen.keys(), ...swapOnly])].sort((a, b) => a - b);
+  return { questions: out, replaced, lessonSummary: summary, names: spellings };
+}
+
+/**
+ * The spellings this quiz has already learned (the generate step keeps them
+ * across its rewrites), with the same guard as a fresh one: a name in English
+ * letters, a spelling in Urdu script with no English letter in it.
+ */
+function knownSpellings(known) {
+  const out = {};
+  if (!known || typeof known !== 'object' || Array.isArray(known)) return out;
+  Object.entries(known).forEach(([latin, urdu]) => {
+    const u = String(urdu ?? '').trim();
+    if (!/^[A-Z][a-z]{2,}$/.test(latin) || !u || /[A-Za-z]/.test(u) || !/\p{Script=Arabic}/u.test(u)) return;
+    out[latin] = u;
+  });
+  return out;
+}
+
+/**
+ * The Urdu spelling the repair gave for each name that was complained of.
+ * A spelling is taken only for a name in the complaints (a model that
+ * "spells" a term is not obeyed) and only when it is Urdu script with no
+ * English letter in it.
+ */
+function nameSpellings(json, targets) {
+  const asked = new Set(Array.isArray(targets && targets.names) ? targets.names : []);
+  const given = json && json.names && typeof json.names === 'object' && !Array.isArray(json.names) ? json.names : {};
+  const out = {};
+  Object.entries(given).forEach(([latin, urdu]) => {
+    const u = String(urdu ?? '').trim();
+    if (!asked.has(latin) || !u || /[A-Za-z]/.test(u) || !/\p{Script=Arabic}/u.test(u)) return;
+    out[latin] = u;
+  });
+  return out;
+}
+
+/**
+ * Write each name in its Urdu spelling, across the whole quiz: in every text
+ * field that is Urdu (the fields the check reads) and in every label of every
+ * picture, so a bar says «حرا» when the stem does. A question the repair did
+ * not reach (over its cap) gets the same spelling. Pure; a question with
+ * nothing to change is returned as it was.
+ */
+function spellNames(questions, spellings) {
+  const pairs = Object.entries(spellings || {});
+  if (!pairs.length) return questions;
+  const { mapSpecStrings } = require('./transcript-quiz-figure');
+  const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const swap = (t) => pairs.reduce((acc, [latin, urdu]) => acc.replace(new RegExp(`\\b${esc(latin)}\\b`, 'g'), urdu), t);
+  const inUrdu = (t) => (typeof t === 'string' && /\p{Script=Arabic}/u.test(t) ? swap(t) : t);
+  const values = (o, fn) => (o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, fn(v)])) : o);
+  return questions.map((q) => {
+    if (!q || typeof q !== 'object') return q;
+    const next = {
+      ...q,
+      question: inUrdu(q.question),
+      options: Array.isArray(q.options) ? q.options.map(inUrdu) : q.options,
+      explanation: inUrdu(q.explanation),
+      selected_because: inUrdu(q.selected_because),
+      distractor_misconceptions: values(q.distractor_misconceptions, inUrdu),
+      option_feedback: q.option_feedback && typeof q.option_feedback === 'object'
+        ? { ...q.option_feedback, correct: inUrdu(q.option_feedback.correct), wrong: values(q.option_feedback.wrong, inUrdu) }
+        : q.option_feedback,
+      figure: q.figure && typeof q.figure === 'object' ? mapSpecStrings(q.figure, swap) : q.figure,
+    };
+    return JSON.stringify(next) === JSON.stringify(q) ? q : next;
+  });
 }
 
 /**
@@ -391,6 +523,10 @@ function mergeReplacements(questions, json, targets) {
  */
 async function rewriteRejected({
   questions, errors, digest, language, gradeBand = null, lessonSummary = null, planned = false,
+  // The Urdu spellings of names this quiz has already learned ({ "Hira": "حرا" }):
+  // written into whatever this rewrite returns, so a later repair cannot put a
+  // name back into English letters.
+  knownNames = null,
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
@@ -407,7 +543,7 @@ async function rewriteRejected({
     const { json, model, costUsd, latencyMs } = await completeJson({
       prompt, maxTokens: 8000, label: 'transcript_quiz.rewrite',
     });
-    const merged = mergeReplacements(questions, json, targets);
+    const merged = mergeReplacements(questions, json, targets, { known: knownNames });
     return {
       attempted: true,
       indices: targets.indices,
@@ -417,6 +553,8 @@ async function rewriteRejected({
       merged: merged ? merged.questions : null,
       replaced: merged ? merged.replaced : [],
       lessonSummary: merged ? merged.lessonSummary : null,
+      // the spellings used (known + returned), for the caller to keep
+      names: merged ? merged.names : { ...knownSpellings(knownNames), ...nameSpellings(json, targets) },
       model,
       costUsd,
       latencyMs,

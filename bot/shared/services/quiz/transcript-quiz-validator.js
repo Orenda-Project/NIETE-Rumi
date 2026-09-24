@@ -192,40 +192,82 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
  *
  * A remade grade 4 Urdu quiz wrote the lesson's child as "‏Hira کی بوتل", the
  * bar's name included: the Urdu style rule keeps TERMS in English letters, and
- * the model read the name as a term. The contract now says a name is not a
- * term; this is the light check behind it. A capitalised Latin word in a field
- * with Urdu script counts only when the lesson's own examples use it (so it is
- * the lesson's name, not a word the model brought) and it is not a key term.
- * Never a refusal — the caller records it (meta.soft_faults and
- * transcript_quiz.latin_name), so the rate is visible.
- * @returns {string[]} one complaint per question and name
+ * the model read the name as a term. A capitalised Latin word in a field with
+ * Urdu script counts only when the lesson's own examples use it (so it is the
+ * lesson's name, not a word the model brought) and it is not a key term.
+ *
+ * It is a SOFT fault repaired IN PLACE, like two English terms side by side:
+ * the validator names it on its question, the one targeted rewrite writes the
+ * name in Urdu script, and the quiz ships whatever that leaves — never a
+ * refusal (the generate service's IN_PLACE_FAULT). The line says every field
+ * the name sits in, a picture's labels included, because the rewrite reads it.
  */
-function latinNames(questions, { language, digest } = {}) {
-  if (language !== 'ur') return [];
+function nameLexicon(digest, questions = []) {
   const lessonWords = new Set();
   (Array.isArray(digest && digest.examples_used) ? digest.examples_used : []).forEach((ex) => {
     (String(ex || '').match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => lessonWords.add(w));
   });
+  // A word the lesson or the quiz also writes in lowercase is a WORD, not a
+  // name: a lesson plan's worked example begins "Compare: 10 is more than 9",
+  // and a replayed teacher note that wrote "Compare" went to the repair as a
+  // person. A child's name is never written in lowercase.
+  const d = digest || {};
+  const lessonText = [
+    ...(Array.isArray(d.examples_used) ? d.examples_used : []), d.topic, d.topic_as_taught,
+    ...(Array.isArray(d.slos) ? d.slos : []).flatMap((x) => [x && x.statement, x && x.statement_en]),
+    ...(Array.isArray(d.misconceptions_surfaced) ? d.misconceptions_surfaced : []),
+    ...(Array.isArray(questions) ? questions : []).map((q) => JSON.stringify(q || {})),
+  ].map((t) => (typeof t === 'string' ? t : JSON.stringify(t || '')));
+  const lowercase = new Set(lessonText.flatMap((t) => t.match(/\b[a-z]{3,}\b/g) || []));
+  lowercase.forEach((w) => lessonWords.delete(w.charAt(0).toUpperCase() + w.slice(1)));
   // A real digest stores each key term as {term, as_spoken}; read as plain
   // text it was "[object Object]" and no term was ever exempt, so a vocabulary
   // lesson's Brother, Sister, King and Queen were flagged as people.
   const termText = (t) => (t && typeof t === 'object' ? [t.term, t.as_spoken] : [t]).map((x) => String(x || ''));
   const terms = new Set((Array.isArray(digest && digest.key_terms) ? digest.key_terms : [])
     .flatMap(termText).flatMap((x) => x.toLowerCase().split(/[^\p{L}]+/u)).filter(Boolean));
-  const out = [];
-  (Array.isArray(questions) ? questions : []).forEach((q, i) => {
-    if (!q || typeof q !== 'object') return;
-    const fb = q.option_feedback || {};
-    const labels = q.figure && typeof q.figure === 'object' ? specStrings(q.figure) : [];
-    const fields = [q.question, ...(q.options || []), q.explanation, fb.correct, ...Object.values(fb.wrong || {}), ...labels]
-      .map((t) => String(t || '')).filter((t) => /\p{Script=Arabic}/u.test(t));
-    const seen = new Set();
-    fields.forEach((t) => (t.match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => {
-      if (lessonWords.has(w) && !terms.has(w.toLowerCase()) && !seen.has(w)) seen.add(w);
-    }));
-    seen.forEach((w) => out.push(`q${i}: URDU_NAME_LATIN — "${w}" is a person's name, not a term: in an Urdu quiz write it in Urdu script`));
-  });
-  return out;
+  return { lessonWords, terms };
+}
+
+/** Every field of one question with Urdu script in it, named the way the rewrite reads it. */
+function urduNameFields(q) {
+  const fb = q.option_feedback || {};
+  const misc = q.distractor_misconceptions || {};
+  const figure = q.figure && typeof q.figure === 'object' && !Array.isArray(q.figure) ? q.figure : null;
+  return [
+    ['question', q.question],
+    ...(Array.isArray(q.options) ? q.options : []).map((o, k) => [`option ${k}`, o]),
+    ['explanation', q.explanation],
+    ['option_feedback', fb.correct],
+    ...Object.values(fb.wrong || {}).map((w) => ['option_feedback', w]),
+    ['selected_because', q.selected_because],
+    ...Object.values(misc).map((m) => ['distractor_misconceptions', m]),
+    ...(figure ? specStrings(figure).map((t) => ['figure labels', t]) : []),
+  ].map(([f, t]) => [f, String(t ?? '')]).filter(([, t]) => /\p{Script=Arabic}/u.test(t));
+}
+
+/** URDU_NAME_LATIN for ONE question: one line per name, naming every field it is in. */
+function latinNameErrors(q, i, lex) {
+  if (!q || typeof q !== 'object' || !lex) return [];
+  const where = new Map();
+  urduNameFields(q).forEach(([field, t]) => (t.match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => {
+    if (!lex.lessonWords.has(w) || lex.terms.has(w.toLowerCase())) return;
+    if (!where.has(w)) where.set(w, []);
+    if (!where.get(w).includes(field)) where.get(w).push(field);
+  }));
+  return [...where].map(([w, fields]) => `q${i}: URDU_NAME_LATIN — "${w}" is a person's name, not a term, written in English letters in ${fields.join(' + ')}. `
+    + 'In an Urdu quiz a name is written in Urdu script: keep the same question and change only the name, in every field it is in, spelled the same way each time.');
+}
+
+/**
+ * The same check over a whole quiz, for the record the generate service keeps
+ * of what SHIPPED (meta.soft_faults and transcript_quiz.latin_name).
+ * @returns {string[]} one complaint per question and name
+ */
+function latinNames(questions, { language, digest } = {}) {
+  if (language !== 'ur') return [];
+  const lex = nameLexicon(digest, questions);
+  return (Array.isArray(questions) ? questions : []).flatMap((q, i) => latinNameErrors(q, i, lex));
 }
 
 function modelsTheStem(q, subject, gradeBand) {
@@ -426,6 +468,8 @@ function validate(rawQuestions, ctx = {}) {
     .map((q) => (language === 'ur' ? rtlOpenQuestion(fixQuestionTransliterations(q)) : q));
   // What the lesson calls a term, and what a phrase — for URDU_ADJACENT_TERMS.
   const adjacentLex = language === 'ur' ? lessonLexicon(digest, qs) : null;
+  // The lesson's names and its key terms — for URDU_NAME_LATIN.
+  const nameLex = language === 'ur' ? nameLexicon(digest, qs) : null;
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
@@ -546,6 +590,9 @@ function validate(rawQuestions, ctx = {}) {
       // leaves the $…$ maths out itself).
       const adjacent = adjacentTermsError(q, i, adjacentLex);
       if (adjacent) errs.push(adjacent);
+      // A person's name in English letters («‏Hira کی بوتل»): a name is not a
+      // term. Repaired in place like the two above, never a refusal.
+      errs.push(...latinNameErrors(q, i, nameLex));
       const misc = q.distractor_misconceptions || {};
       const teacherFields = [['selected_because', q.selected_because], ...Object.values(misc).map((m) => ['distractor_misconceptions', m])];
       for (const [field, value] of teacherFields) {

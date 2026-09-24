@@ -582,6 +582,19 @@ function specStrings(node, key = null, out = []) {
 }
 
 /**
+ * The same spec with `fn` applied to every human-readable string (the ones
+ * specStrings reads), structural enums untouched. Pure: returns a new spec.
+ */
+function mapSpecStrings(node, fn, key = null) {
+  if (typeof node === 'string') return STRUCTURAL_KEYS.has(key) ? node : fn(node);
+  if (Array.isArray(node)) return node.map((v) => mapSpecStrings(v, fn, key));
+  if (node && typeof node === 'object') {
+    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, mapSpecStrings(v, fn, k)]));
+  }
+  return node;
+}
+
+/**
  * Does the picture already say the answer?
  *
  * True when the correct option's text appears in the figure — UNLESS every
@@ -1464,6 +1477,7 @@ module.exports = {
   figureLeaksAnswer,
   svgText,
   specStrings,
+  mapSpecStrings,
   figureHtml,
   renderFigurePng,
   uploadFigure,
