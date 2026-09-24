@@ -98,6 +98,18 @@ const COLUMN_SUM_RULE = 'COLUMN SUMS. A column addition or subtraction — the w
 const ADJACENT_TERMS_RULE = 'NEVER TWO ENGLISH TERMS SIDE BY SIDE (Urdu). English words written next to each other in an Urdu sentence are shown as ONE left-to-right phrase, so a right-to-left reader meets the SECOND term first and the meaning turns around: «جب numerator denominator سے چھوٹا ہو» is read as the denominator being smaller. When two separate English terms meet, put an Urdu word between them, or rephrase: «جب numerator کی قیمت denominator سے کم ہو»، «Sunday کا دن Saturday کے بعد آتا ہے». A single English term of two words stays together as it is: "cross multiplication", "common denominator", "place value".';
 
 /**
+ * EVERY QUESTION TESTS SOMETHING THE OTHERS DO NOT — stated once, here, and
+ * pasted verbatim into the author prompt, the targeted rewrite and the
+ * add-pictures repair (whose REPLACE writes a whole new question), so the
+ * three cannot drift. About one shipped class quiz in fifty asked the same
+ * question twice — the same three fractions in another order, the same answer
+ * — and nothing told the model not to. The deterministic half is
+ * DUPLICATE_QUESTION in transcript-quiz-duplicates.js, which names a repeat
+ * the model writes anyway and has it rewritten.
+ */
+const DISTINCT_QUESTIONS_RULE = 'EVERY QUESTION TESTS SOMETHING NO OTHER QUESTION TESTS. No two questions in the quiz may have the same correct answer on the same fact: the same question with its options in another order, with other wrong options, or with a few words added or changed is the SAME question, and a child would answer it twice. A question shape may be used again only with different numbers or a different item from the lesson (round 18, then round 16; the article before "kite", then before "tree"), so that its correct answer is different too. Before you return, read the questions side by side: where two test the same thing, write a question on something else in place of the later one, keeping the number of questions as it is.';
+
+/**
  * WHAT ONE QUESTION MUST CONTAIN — shared verbatim by the author prompt and by
  * the targeted rewrite, so the two cannot drift about the shape of a question
  * the validator will accept. Changing a rule here changes it in both.
@@ -227,5 +239,6 @@ const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any me
 
 module.exports = {
   languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE, COLUMN_SUM_RULE, PART_NAMES_RULE,
+  DISTINCT_QUESTIONS_RULE,
   SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };

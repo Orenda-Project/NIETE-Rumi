@@ -16,8 +16,12 @@
  *   - they have the SAME ANSWER (the correct option, or the correct set of a
  *     select-all question, compared as written: "Pinky" is not "pinky", and a
  *     vowel mark makes another answer — «تَپ» is not «تِپ»);
- *   - they have the SAME PICTURE, or neither has one (one stem over two
- *     different pictures asks about two different pictures);
+ *   - they do not carry two DIFFERENT pictures (one stem over two different
+ *     pictures asks about two different pictures). A question with a picture
+ *     and the same question without one ARE the same question: the picture
+ *     repair can draw on one copy of a repeat and leave the other as text, and
+ *     a check that skipped such pairs stopped seeing a repeat it had named.
+ *     On the replica, comparing them adds one pair, and it is a repeat;
  *   - they are about the SAME ITEM: the numbers in the two stems are the same
  *     set, and every quoted word and every sentence with a blank in one stem
  *     appears in the other ("…before the word 'kite'" and "…before the word
@@ -148,7 +152,7 @@ function overlap(a, b) {
 /** Does the later question `b` ask what the earlier question `a` asks? */
 function repeats(a, b) {
   if (!a || !b) return false;
-  if (a.picture !== b.picture) return false;
+  if (a.picture && b.picture && a.picture !== b.picture) return false;
   if (a.answer !== b.answer) return false;
   if (!sameItem(a, b)) return false;
   const { containment, jaccard, shorter } = overlap(a.words, b.words);
