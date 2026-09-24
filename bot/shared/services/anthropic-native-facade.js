@@ -149,6 +149,10 @@ function toNativeRequest(params) {
 
   if (p.stop_sequences) out.stop_sequences = p.stop_sequences;
   if (p.metadata) out.metadata = p.metadata;
+  // Already the native spelling (e.g. `{effort:'low'}` from the quiz passes):
+  // passed through as given. Nothing else sends it, so every other caller's
+  // request is byte-identical to before.
+  if (p.output_config) out.output_config = p.output_config;
   return out;
 }
 

@@ -40,6 +40,8 @@ const LpDigest = require('./lp-quiz-digest.service');
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const Store = require('./lp-asset-source.store');
 const Funnel = require('./quiz-funnel');
+const LpCache = require('./lp-quiz-cache');
+const DailyCap = require('./quiz-daily-cap');
 const Lp612Source = require('./lp612-quiz-source');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
@@ -1543,7 +1545,55 @@ async function runKeyVerify(api, {
   return finish({ failed: true });
 }
 
+/**
+ * The generate step. A wrapper only so the lesson-plan cache's author lock
+ * (lp-quiz-cache single-flight) is given back on EVERY exit — ready, failed,
+ * thrown — once the quiz it was held for has gone out or stopped.
+ */
 async function process(quizId, payload = {}) {
+  const flight = { key: null };
+  try {
+    return await processQuiz(quizId, payload, flight);
+  } finally {
+    if (flight.key) await LpCache.release(flight.key, quizId);
+  }
+}
+
+/**
+ * THE LESSON-PLAN CACHE, looked up once the served lesson has been read and
+ * before any model call (lp-quiz-cache). Returns
+ *   { hit: {donor, rows, key} }   copy the donor's quiz
+ *   { deferred: true }            another teacher is writing this lesson now:
+ *                                 the job was re-queued to look again
+ *   {}                            author it (holding the lock when one was free)
+ */
+async function lookUpCache(api, { quiz, quizId, language, payload, flight, quizSource }) {
+  const hit = await LpCache.findDonor(quiz, language, { log: logToFile });
+  if (hit) return { hit };
+  const key = LpCache.cacheKey(quiz, language);
+  if (!key) return {};
+  const lock = await LpCache.acquire(key, quizId);
+  if (lock === 'acquired') {
+    flight.key = key;
+    return {};
+  }
+  const waits = Number(payload && payload.cache_waits) || 0;
+  if (lock !== 'held' || waits >= LpCache.maxCacheWaits()) return {};
+  try {
+    const SQSQueueService = require('../queue/sqs-queue.service');
+    // Re-queued, not waited for: a quiz-queue slot is one per replica, and the
+    // author it would wait on takes minutes.
+    await SQSQueueService.queueJob(quizId, 'quiz_generate', { ...(payload || {}), quizId, cache_waits: waits + 1 },
+      { delaySeconds: LpCache.cacheWaitDelaySeconds() });
+  } catch (err) {
+    logToFile('⚠️ lp quiz cache: could not re-queue to wait for the other author — authoring now', { quizId, error: err.message });
+    return {};
+  }
+  logEvent('lp_quiz.cache_wait', { quizId, waits: waits + 1, quiz_source: quizSource });
+  return { deferred: true };
+}
+
+async function processQuiz(quizId, payload, flight) {
   const api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
     .select('id, teacher_id, coaching_session_id, quiz_source, topic, subject, language, status, meta, grade')
@@ -1634,6 +1684,19 @@ async function process(quizId, payload = {}) {
     return { failed: true, reason: 'source_off' };
   }
 
+  // THE RUNAWAY GUARD (quiz-daily-cap): at most QUIZ_DAILY_CAP quizzes made per
+  // teacher per day, both streams, counted here where every path meets and before
+  // any model call. A quiz resuming at the hand-off was already counted.
+  if (!(quiz.status === 'ready' && meta.step === 'ready')) {
+    const capped = await DailyCap.claim(quiz.teacher_id, quizId);
+    if (!capped.allowed) {
+      const failedMeta = { ...meta, step: 'failed', error: 'daily_cap' };
+      await updateQuiz(quizId, { status: 'failed', meta: failedMeta });
+      await tellTeacherFailed(phone, teacherLang, quizId, 'daily_cap', quizSource, { step: 'cap', count: capped.count, limit: capped.limit }, failedMeta);
+      return { failed: true, reason: 'daily_cap' };
+    }
+  }
+
   // The slide script is needed wherever the author still has to run; a quiz
   // resuming at the hand-off (`ready`/`ready`) has its questions and does not.
   let slideScript = null;
@@ -1643,6 +1706,58 @@ async function process(quizId, payload = {}) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_missing' } });
       await tellTeacherFailed(phone, teacherLang, quizId, 'source_missing', quizSource);
       return { failed: true, reason: 'source_missing' };
+    }
+  }
+
+  // ── THE LESSON-PLAN CACHE ────────────────────────────────────────────────
+  // The same lesson version was already made into a quiz that shipped with every
+  // check passed: reuse its questions (lp-quiz-cache). Nothing teacher-specific
+  // comes with them — the share code, the PDF and the student message are made
+  // below by the hand-off, for THIS teacher. "Make it again" (meta.remakes)
+  // always authors. QUIZ_LP_CACHE=off authors every time.
+  let cachedRows = null;
+  // A remake after today's limit (daily_cap) wrote nothing to be unhappy with,
+  // so it may still be served from the cache.
+  const freshAuthor = Number(meta.remakes) > 0 && meta.previous_error !== 'daily_cap';
+  if (isLp && slideScript && LpCache.enabled() && !freshAuthor) {
+    const cacheLanguage = quiz.language || quizLanguageFor(quiz.subject, slideScript.meta && slideScript.meta.language);
+    const looked = await lookUpCache(api, {
+      quiz, quizId, language: cacheLanguage, payload, flight, quizSource,
+    });
+    if (looked.deferred) return { deferred: 'cache_wait' };
+    let rows = null;
+    if (looked.hit) {
+      try {
+        rows = await LpCache.rehostMedia(LpCache.rowsFor(quizId, looked.hit.rows), { teacherId: quiz.teacher_id, quizId });
+      } catch (err) {
+        // A picture that cannot be copied is no reason to ship a question without
+        // it, nor to fail: the quiz is authored as it would have been.
+        logToFile('⚠️ lp quiz cache: the donor pictures could not be copied — authoring instead', {
+          quizId, donorId: looked.hit.donor.id, error: err.message,
+        });
+      }
+    }
+    if (rows) {
+      const { donor, key } = looked.hit;
+      await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
+      const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
+      if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
+      meta = {
+        ...meta, ...LpCache.contentMetaFrom(donor, key), step: 'ready', question_count: rows.length, ready_at: new Date().toISOString(),
+      };
+      quiz.topic = donor.topic || quiz.topic;
+      quiz.subject = donor.subject || quiz.subject;
+      quiz.grade = donor.grade || quiz.grade;
+      quiz.language = cacheLanguage;
+      quiz.status = 'ready';
+      await updateQuiz(quizId, {
+        status: 'ready', topic: quiz.topic || 'Lesson', subject: quiz.subject, grade: quiz.grade || null, language: cacheLanguage, meta,
+      });
+      cachedRows = rows;
+      logEvent('transcript_quiz.ready', {
+        quizId, questions: rows.length, language: cacheLanguage, attempts: 0, costUsd: 0, quiz_source: quizSource, cached: true, donor_quiz_id: donor.id,
+      });
+      Funnel.emit('generated', { ...funnel, n: rows.length, cached: true, donor_quiz_id: donor.id });
     }
   }
 
@@ -2331,7 +2446,8 @@ async function process(quizId, payload = {}) {
   const { data: storedQs } = await supabase.from('quiz_questions')
     .select('external_id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
     .eq('quiz_id', quizId).order('sort_order', { ascending: true });
-  const qRows = storedQs && storedQs.length ? storedQs : applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language });
+  const qRows = storedQs && storedQs.length ? storedQs
+    : (cachedRows || applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language }));
 
   const Handoff = require('./transcript-quiz-handoff.service');
   const result = await Handoff.sendHandoff(quizId, phone, {
