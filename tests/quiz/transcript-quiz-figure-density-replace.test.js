@@ -182,14 +182,16 @@ test('a replacement that gives its answer away is reverted to the original quest
   mockCreate
     .mockResolvedValueOnce(authored(allMethod()))
     .mockResolvedValueOnce(authored(allMethod()))
-    .mockResolvedValueOnce(reply({ pictures: [SHADED, WHICH_BAR, leaky] }));
+    .mockResolvedValueOnce(reply({ pictures: [SHADED, WHICH_BAR, leaky] }))
+    // refused and still short: one more round, which here brings nothing usable
+    .mockResolvedValueOnce(reply({ pictures: [] }));
   const out = await Gen.process(QID);
   expect(out.ok).toBe(true);
 
   const rows = storedRows();
   expect(rows.filter((r) => r.media && r.media.figure)).toHaveLength(2);
   expect(rows[3].question_text).toBe(allMethod()[3].question);
-  expect(densityEvents()[0]).toMatchObject({ before: 0, after: 2, added: [1, 2], replaced: [1, 2], reverted: [3] });
+  expect(densityEvents()[0]).toMatchObject({ before: 0, after: 2, added: [1, 2], replaced: [1, 2], reverted: [3], rounds: 2 });
   expect(lastMeta().soft_faults).toEqual(expect.arrayContaining([expect.stringMatching(/^FIGURE_FEW — 2\/8/)]));
 });
 
@@ -216,4 +218,32 @@ test('the repair is asked for one picture more than the quiz needs, so one refus
   expect(densityEvents()[0]).toMatchObject({ before: 0, after: 3, added: [1, 2, 4], replaced: [1, 2, 4], reverted: [3] });
   expect(lastMeta().figure_density).toMatchObject({ need: 3, asked: 4 });
   expect(lastMeta().soft_faults || []).not.toEqual(expect.arrayContaining([expect.stringMatching(/^FIGURE_FEW/)]));
+});
+
+test('pictures refused in the first round are asked for once more, with the reason, and the quiz ends with three', async () => {
+  // Live (grade 4 English): even with a spare, the repair ADDED bars to three method
+  // questions ("what is the smallest common denominator?"), all refused, and the quiz
+  // shipped with two. A second round is told what was refused and why.
+  wire();
+  const bars = (a, b, c, d) => ({ type: 'fraction_bar', bars: [{ parts: b, shaded: a }, { parts: d, shaded: c }] });
+  const addOnto = (index) => { const [a, b, c, d] = PAIRS[index - 1]; return { index, figure: bars(a, b, c, d), figure_role: 'model' }; };
+  mockCreate
+    .mockResolvedValueOnce(authored(allMethod()))
+    .mockResolvedValueOnce(authored(allMethod()))
+    // round 1: one good replacement, three bars bolted onto method steps (FIGURE_MISMATCH)
+    .mockResolvedValueOnce(reply({ pictures: [SHADED, addOnto(2), addOnto(4), addOnto(5)] }))
+    .mockImplementationOnce(async (req) => {
+      const prompt = req.messages[0].content;
+      expect(prompt).toMatch(/REFUSED LAST TIME/);
+      expect(prompt).toMatch(/q2:[^\n]*FIGURE_MISMATCH/);
+      expect(prompt).toMatch(/Give exactly 3 of the questions below a picture/);
+      return reply({ pictures: [WHICH_BAR, { ...MORE_SHADED, index: 4 }] });
+    });
+  const out = await Gen.process(QID);
+  expect(out.ok).toBe(true);
+  expect(storedRows().filter((r) => r.media && r.media.figure)).toHaveLength(3);
+  expect(densityEvents()[0]).toMatchObject({
+    before: 0, after: 3, rounds: 2, added: [1, 2, 4], replaced: [1, 2, 4], reverted: [5], repaired: true,
+  });
+  expect(lastMeta().figure_density).toMatchObject({ rounds: 2, after: 3 });
 });

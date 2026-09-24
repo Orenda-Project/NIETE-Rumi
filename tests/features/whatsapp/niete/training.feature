@@ -471,10 +471,12 @@ Feature: NIETE (ICT) Teacher Training
     # and "PICTURES, AGAIN" at the end, and figure_role "model" (grade 1-5 maths only). A step of a
     # procedure is a text question; a model picture beside one is still refused (FIGURE_MISMATCH).
     # lp-quiz-digest lessonDrewBlock: the slide script's token rows (never the exit options). Too few
-    # pictures is a soft complaint (FIGURE_FEW): ONE add-pictures repair (transcript-quiz-rewrite
-    # addPictures) that may ADD a picture or REPLACE a question with a read-off one on the same objective,
-    # validated in full and before the blind solve; the quiz ships either way, and
-    # transcript_quiz.figure_density logs before/after/added/replaced. Stacked fractions: quiz-math
+    # pictures is a soft complaint (FIGURE_FEW): the add-pictures repair (transcript-quiz-rewrite
+    # addPictures) may ADD a picture or REPLACE a question with a read-off one on the same objective; it
+    # asks for one spare, runs a second round only when pictures were refused, is validated in full and
+    # runs before the blind solve; the quiz ships either way, and transcript_quiz.figure_density logs
+    # before/after/asked/rounds/added/replaced/reverted. Two options of the same amount under a bar
+    # (2/8 and 1/4) are refused, and so is a bar of more than 24 parts. Stacked fractions: quiz-math
     # stackFractions ($2/3 -> \frac). Content-driven: count the pictures and look at them; never a fixed
     # question. @wip.
 

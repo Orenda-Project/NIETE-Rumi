@@ -15,6 +15,9 @@
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
 const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+
+/** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
+const FRACTION_BAR_MAX_PARTS = 24;
 const { canonicalSubject: canonSubj } = require('./transcript-quiz-language');
 const { figureGateDefects, droppedTextDefect } = require('./transcript-quiz-figure-gates');
 const { scienceDefects, moleculeFromDictionary } = require('./transcript-quiz-figure-science');
@@ -548,6 +551,13 @@ function validate(rawQuestions, ctx = {}) {
     if (empty) {
       errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
       return;
+    }
+    // The engine draws a fraction bar of at most 24 parts (vendor fraction_bar.js
+    // clamps `parts`), so a bar of 48 is drawn as 24 — a different fraction, and
+    // live (grade 5 Urdu) two bars of "24" in a question with one right bar.
+    if (canonicalType(q.figure.type) === 'fraction_bar' && Array.isArray(q.figure.bars)) {
+      const tooFine = q.figure.bars.map((b) => Number(b && b.parts)).filter((n) => n > FRACTION_BAR_MAX_PARTS);
+      if (tooFine.length) errs.push(`q${i}: FIGURE_TOO_FINE — a bar of ${tooFine[0]} parts is drawn as ${FRACTION_BAR_MAX_PARTS}, the most the engine draws; use at most ${FRACTION_BAR_MAX_PARTS} parts`);
     }
     let svg = null;
     try {
