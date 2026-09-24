@@ -900,6 +900,37 @@ const NIETE_ROW_COLOURS = new Set(['ink', 'accent', 'leaf', 'cool', 'warn', 'plu
 /** A stem that asks about colour or shading ("coloured", "shaded", «رنگین», «رنگے») — or a colour by name. */
 const COLOUR_WORDS = /\b(colou?r(?:ed|s)?|shaded|red|blue|green|yellow|orange|purple|pink|black|white|brown)\b|رنگ|سرخ|لال|نیل|ہر[ےی]|پیل|کال[ےی]|سفید/i;
 
+/**
+ * ONE THING, OR NONE, IS A COUNT ONLY WHEN THE CHILD IS ASKED TO COUNT IT.
+ *
+ * The drawing engine refused any count under 2 (a round-6 session drew ONE
+ * goat and asked which word the picture matched — a vocabulary prompt wearing
+ * a counting type). That floor also refused the grade 1 lesson on the numbers
+ * 0 to 4, whose own examples are one car and an empty circle, and a sandbox
+ * quiz on it failed three attempts running (24 Sep 2026). The engine now draws
+ * 1, and 0 as an empty tray (SYNC.md 3.23); the goat is refused HERE, where the
+ * question is known: a row of 0 or 1 needs a number for its key, or a stem
+ * that asks how many / which has more / which has none.
+ */
+const COUNT_ASK = /\b(how many|how much|count(?:s|ed|ing)?|number|more|fewer|less|least|most|fewest|none|zero|empty|nothing|equal)\b|کتن[اےی]|گن|تعداد|زیادہ|صفر|خالی|نہیں|عدد|برابر/i;
+function singleThingNotACount(spec, options, correctIndex, stem = '') {
+  if (canonicalType(spec && spec.type) !== 'count_objects') return null;
+  const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count, picto: spec.picto }];
+  const small = list.find((r) => r && r.count !== '' && r.count != null && Number.isFinite(Number(r.count)) && Number(r.count) < 2);
+  if (!small) return null;
+  const key = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
+  if (/^\d+$/.test(key) || COUNT_ASK.test(String(stem || ''))) return null;
+  const what = String(small.picto || spec.picto || 'thing');
+  return `"${what}" is drawn ${Number(small.count) === 0 ? 'as an empty tray' : 'once'} but the question does not ask how many — one thing (or none) is a count only when the child counts it; to ask which WORD a picture matches, use match`;
+}
+
+/** A count_objects picture that is ONE empty tray and nothing else: sparse on purpose (SYNC.md 3.23). */
+function drawsEmptySet(spec) {
+  if (canonicalType(spec && spec.type) !== 'count_objects') return false;
+  const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count }];
+  return list.every((r) => r && r.count !== '' && r.count != null && Number(r.count) === 0);
+}
+
 function figureMismatch(spec, options, correctIndex, stem = '') {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
@@ -933,7 +964,13 @@ function figureMismatch(spec, options, correctIndex, stem = '') {
     const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count, picto: spec.picto }];
     const rowsIn = list.filter((r) => Math.floor(Number(r && r.count) || 0) > 0);
     const counts = rowsIn.map((r) => Math.floor(Number(r.count)));
-    if (!counts.length) return null;
+    // An empty tray (an explicit count of 0, SYNC.md 3.23) produces 0 — and a
+    // picture of nothing but an empty tray produces nothing else.
+    const empties = list.filter((r) => r && r.count !== '' && r.count != null && Number(r.count) === 0).length;
+    if (!counts.length) {
+      if (!empties) return null;
+      return whole === 0 ? null : `the picture cannot produce the answer "${correct}" (it shows an empty tray — none)`;
+    }
     const total = counts.reduce((a, b) => a + b, 0);
     // Can the child SEE which things a row is? Only when it looks different:
     // its own picture, its own colour, or its own name. Staging: "the set of
@@ -946,7 +983,7 @@ function figureMismatch(spec, options, correctIndex, stem = '') {
     // coloured things: every row it counts must be one the child can pick out.
     const colourAsked = COLOUR_WORDS.test(String(stem || ''));
     // (a colour question is never answered by the number of rows)
-    const reachable = new Set([String(total), ...(colourAsked ? [] : [String(counts.length)])]);
+    const reachable = new Set([String(total), ...(colourAsked ? [] : [String(counts.length)]), ...(empties ? ['0'] : [])]);
     counts.forEach((c, i) => {
       const visible = seen(i);
       if (!colourAsked || visible || counts.length === 1) reachable.add(String(c));
@@ -1445,6 +1482,8 @@ async function uploadFigure({ teacherId, quizId, index, png }) {
 }
 
 module.exports = {
+  singleThingNotACount,
+  drawsEmptySet,
   NIETE_TOKENS,
   EARLY_YEARS_TYPES,
   CORE_TYPES,

@@ -245,6 +245,19 @@ const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
 const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}`);
 const inPlaceOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => IN_PLACE_FAULT.test(String(e)));
+/**
+ * The teacher's notes on an Urdu quiz written in English (URDU_TEACHER_FIELDS).
+ * It has its OWN repair — one small call that rewrites only those two fields —
+ * and that repair runs after EVERY step that writes questions, the targeted
+ * rewrite included (repairTeacherFields in process). A set whose only faults
+ * left after it are this and the in-place ones ships from the rewrite, with the
+ * faults recorded: a note on the teacher's page is never a reason to re-roll
+ * eight sound questions (sandbox, 24 Sep 2026 — a rewrite left five English
+ * notes and nothing else; the re-rolls that followed lost the quiz).
+ */
+const TEACHER_FIELDS_FAULT = /^q\d+: URDU_TEACHER_FIELDS\b/;
+const repairedOnly = (errors) => Array.isArray(errors) && errors.length > 0
+  && errors.every((e) => IN_PLACE_FAULT.test(String(e)) || TEACHER_FIELDS_FAULT.test(String(e)));
 /** The codes in a list of complaints, for telemetry ("q3: URDU_ADJACENT_TERMS — …" → "URDU_ADJACENT_TERMS"). */
 const faultKinds = (errors) => [...new Set((errors || []).map((e) => String(e).replace(/^q\d+: /, '').split(/\s|—/)[0]))];
 const GAP_MS = 1200;
@@ -1768,21 +1781,11 @@ async function process(quizId, payload = {}) {
       // teacher's Urdu page and never reach a child; a fault in them is not a
       // fault in the question. One small call rewrites exactly those fields
       // (any count), and the attempt continues with whatever complaints remain.
-      const Rw = require('./transcript-quiz-rewrite');
-      if (!v.ok && Rw.teacherFieldTargets(v.errors).length) {
-        // eslint-disable-next-line no-await-in-loop
-        const tf = await api.rewriteTeacherFields({ questions: out.questions, errors: v.errors, digest, language, quizId });
-        if (tf.attempted) {
-          meta.cost_usd = (meta.cost_usd || 0) + (tf.costUsd || 0);
-          if (tf.merged) {
-            out.questions = tf.merged;
-            v = validate(tf.merged, {
-              language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary, quizId,
-            });
-          }
-          attempts.push({ attempt: 'teacher_fields', after: attempt, indices: tf.indices, replaced: tf.replaced, model: tf.model || null, cost_usd: tf.costUsd || null, latency_ms: tf.latencyMs || null, errors: tf.merged ? v.errors : [tf.error || 'the repair returned nothing usable'] });
-          logEvent('transcript_quiz.teacher_fields_repaired', { quizId, after: attempt, indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length });
-        }
+      // eslint-disable-next-line no-await-in-loop
+      const tfAuthor = await repairTeacherFields({ questions: out.questions, v, lessonSummary: out.lessonSummary, after: attempt });
+      if (tfAuthor) {
+        out.questions = tfAuthor.questions;
+        v = tfAuthor.v;
       }
       // The same question asked twice is counted on every attempt it appears
       // in, whatever else is wrong with the attempt: the author prompt is what
@@ -1914,6 +1917,40 @@ async function process(quizId, payload = {}) {
       // The last chance: the worst five even when more need re-asking, then the salvage.
       await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last', partial: true });
     }
+    // ── the teacher-fields repair, shared by the author loop and every rewrite ─
+    // Runs on a set whose complaints include URDU_TEACHER_FIELDS, AFTER whatever
+    // wrote that set: the author (after = the attempt number) or a targeted
+    // rewrite (after = 'rewrite', rewrite_after = that rewrite's own `after`).
+    // It used to run after the author only, so a rewrite that wrote its
+    // replacements' notes in English — which the recorded rewrites did, five of
+    // five — left the set failing on the teacher's page alone and the attempt
+    // was thrown away. Returns the repaired set and its validation, or null
+    // when there was nothing to repair or the call gave nothing usable.
+    async function repairTeacherFields({
+      questions: qs, v: before, lessonSummary, after, rewriteAfter,
+    }) {
+      const Rw = require('./transcript-quiz-rewrite');
+      if (!before || before.ok || !Rw.teacherFieldTargets(before.errors).length) return null;
+      const tf = await api.rewriteTeacherFields({ questions: qs, errors: before.errors, digest, language, quizId });
+      if (!tf.attempted) return null;
+      meta.cost_usd = (meta.cost_usd || 0) + (tf.costUsd || 0);
+      const v = tf.merged
+        ? validate(tf.merged, {
+          language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary, quizId,
+        })
+        : before;
+      attempts.push({
+        attempt: 'teacher_fields', after, ...(rewriteAfter !== undefined ? { rewrite_after: rewriteAfter } : {}),
+        indices: tf.indices, replaced: tf.replaced, model: tf.model || null, cost_usd: tf.costUsd || null, latency_ms: tf.latencyMs || null,
+        errors: tf.merged ? v.errors : [tf.error || 'the repair returned nothing usable'],
+      });
+      logEvent('transcript_quiz.teacher_fields_repaired', {
+        quizId, after, ...(rewriteAfter !== undefined ? { rewrite_after: rewriteAfter } : {}),
+        indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length,
+      });
+      return tf.merged ? { questions: tf.merged, v } : null;
+    }
+
     // ── the rewrite, shared by the loop and the post-loop fallback ───────────
     async function runRewrite({
       rejected, errors, summary, when, partial = false,
@@ -1925,6 +1962,7 @@ async function process(quizId, payload = {}) {
       // questions out and produced a set to build on.
       let rw = null;
       let v = null;
+      let merged = null;              // the rewritten set, after its teacher notes are repaired
       let rwSummary = summary;
       let base = rejected;
       let baseErrors = errors;
@@ -1952,8 +1990,9 @@ async function process(quizId, payload = {}) {
         // it is asked to fix). It is the summary the merged set is VALIDATED
         // with and the one that is stored, so the two cannot disagree.
         rwSummary = rw.lessonSummary || rwSummary;
-        v = rw.merged
-          ? validate(rw.merged, {
+        merged = rw.merged;
+        v = merged
+          ? validate(merged, {
             language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
           })
           : null;
@@ -1969,21 +2008,32 @@ async function process(quizId, payload = {}) {
           latency_ms: rw.latencyMs || null,
           errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
         });
-        const more = batch < REPAIR_BATCHES && v && !v.ok && rw.merged && Array.isArray(rw.deferred) && rw.deferred.length > 0;
+        // The teacher-fields repair runs LAST — after the rewrite, on what the
+        // rewrite wrote — so a replacement's English note never decides the set.
+        // eslint-disable-next-line no-await-in-loop
+        const tf = merged ? await repairTeacherFields({
+          questions: merged, v, lessonSummary: rwSummary, after: 'rewrite', rewriteAfter: when,
+        }) : null;
+        if (tf) {
+          merged = tf.questions;
+          v = tf.v;
+        }
+        const more = batch < REPAIR_BATCHES && v && !v.ok && merged && Array.isArray(rw.deferred) && rw.deferred.length > 0;
         if (!more) break;
         logEvent('transcript_quiz.rewrite_second_batch', {
           quizId, after: when, first: rw.indices, deferred: rw.deferred, remaining: v.errors.length,
         });
-        base = rw.merged;
+        base = merged;
         baseErrors = v.errors;
         prefer = rw.deferred;
       }
       {
         // A repaired set whose only remaining complaints are in-place faults
         // (a verb that speaks to the child with a gender, two English terms
-        // side by side) is shipped (IN_PLACE_FAULT): the repair was the one
-        // attempt at them, and the rest of the set is sound.
-        let ok = Boolean(v && (v.ok || inPlaceOnly(v.errors)));
+        // side by side) or teacher notes its own repair could not put in Urdu
+        // is shipped, the faults recorded: the repair was the one attempt at
+        // them, and the rest of the set is sound.
+        let ok = Boolean(v && (v.ok || repairedOnly(v.errors)));
         if (ok) {
           try {
             const drafted = toRows(quizId, v.questions);
@@ -2005,7 +2055,7 @@ async function process(quizId, payload = {}) {
         // A rewrite that did not fully pass is still the better SALVAGE
         // candidate: it may have repaired one of two rejections, and the
         // salvage then drops one question instead of two.
-        if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors, lessonSummary: rwSummary };
+        if (!ok && merged && v) rewritten = { questions: merged, errors: v.errors, lessonSummary: rwSummary };
         logEvent('transcript_quiz.rewrite_attempted', {
           quizId, after: when, indices: rw.indices, replaced: rw.replaced, ok, errors: v ? v.errors.length : null,
         });
