@@ -1789,6 +1789,14 @@ const UX_STRINGS = {
     en: 'Sorry — I couldn’t write good enough questions from this lesson this time. The problem was on my side, not your recording. Send /quiz and pick this lesson to make it again.',
     ur: 'معذرت — اس بار اس سبق سے اچھے سوالات نہیں بن سکے۔ مسئلہ میری طرف سے تھا، آپ کی ریکارڈنگ میں نہیں۔ دوبارہ بنانے کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
   },
+  // session_missing on a quiz born of a RECORDING: the coaching session it was
+  // to be written from is no longer there. Said as that — neither a thin
+  // transcript nor "pick this lesson" (a lesson that is gone is not listed).
+  // Passive Urdu: no verb agrees with the teacher.
+  tqCouldNotMakeSessionGone: {
+    en: 'Sorry — this lesson’s recording is no longer available, so the quiz could not be made. Send /quiz to pick another lesson.',
+    ur: 'معذرت — اس سبق کی ریکارڈنگ اب دستیاب نہیں، اس لیے quiz نہیں بن سکا۔ دوسرا سبق چننے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   // ── the LP-born quiz's own failure reasons (PLAN_R8 §3.6) ────────────────
   // `tqCouldNotMake` above names "this lesson's recording" and "the transcript".
   // A quiz written from the lesson PLAN a teacher was served has neither, so

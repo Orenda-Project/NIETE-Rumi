@@ -93,9 +93,10 @@ describe('failureCopyKey — the failure copy is picked by the quiz SOURCE', () 
     expect(failureCopyKey('model_failed', 'transcript')).toBe('tqCouldNotMakeModel');
     expect(failureCopyKey('validator_failed', 'transcript')).toBe('tqCouldNotMakeAuthor');
     expect(failureCopyKey('validator_failed', undefined)).toBe('tqCouldNotMakeAuthor');
-    // Never sent (the generate step tells nobody when the session is gone); a
-    // reason with no sentence of its own is no evidence about the recording.
-    expect(failureCopyKey('session_missing', 'transcript')).toBe('tqCouldNotMakeModel');
+    // The recording is gone: said as that, never as a thin transcript.
+    expect(failureCopyKey('session_missing', 'transcript')).toBe('tqCouldNotMakeSessionGone');
+    // A reason with no sentence of its own is no evidence about the recording.
+    expect(failureCopyKey('something_new', 'transcript')).toBe('tqCouldNotMakeModel');
   });
 
   test('an lp_v8 reason nobody wrote copy for falls back rather than throwing at send time', () => {

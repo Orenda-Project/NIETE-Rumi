@@ -230,6 +230,7 @@ describe('D1 — a session read that ERRORS is not a missing session', () => {
     expect(Number.isNaN(Date.parse(failed.meta.failed_at))).toBe(false);
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.failed', expect.objectContaining({ quizId: QID, reason: 'session_missing', quiz_source: 'transcript' }));
     expect(funnel('generation_failed')).toEqual([expect.objectContaining({ quiz_id: QID, source: 'transcript', reason: 'session_missing' })]);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, UX_STRINGS.tqCouldNotMake.en);
+    // Told that the recording is gone — never "the transcript didn't carry enough".
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, UX_STRINGS.tqCouldNotMakeSessionGone.en);
   });
 });
