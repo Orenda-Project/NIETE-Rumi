@@ -1136,11 +1136,39 @@ when that row looks different from the others (its own picture, colour or name).
 `tests/quiz/transcript-quiz-figure-visible-subset.test.js`. Upstream has no row colour; keep it at the
 next re-sync and offer it upstream.
 
+### 3.23 `count_objects` draws 1, and 0 as an empty tray; an empty ten-frame — `types/count_objects.js`, `types/count_frame.js`, `types_manifest.json` (2026-09-24)
+
+`count_objects` refused any count under 2 ("one of something is not something to count"). That floor stood
+for one real misuse — a round-6 session drew ONE goat and asked which word the picture matched — but it also
+refused the grade 1 lesson on the numbers 0 to 4, whose own examples are one car and an empty circle: a
+sandbox quiz on that lesson failed FIGURE_RENDER on three attempts running and the teacher got nothing.
+Subitising 1 and zero-as-the-empty-set are that lesson's content.
+
+* **`types/count_objects.js`** — a row's `count` may be 1 (one thing is drawn) or 0: an empty row is one
+  line holding a dashed, unfilled rounded tray (`stroke-dasharray`), three cells wide or as wide as the row
+  it is compared with, with its `label` in the gutter as usual. Dashed and unfilled so it reads as a place
+  for things, never as a thing to count. A `count` that is missing or not a number now throws ("needs a
+  `count`") instead of being read as 0; a negative count throws; `group` is ignored on an empty row. Three
+  examples added (`count_objects_one_en`, `count_objects_zero_ur`, `count_objects_compare_zero_ur`). Every
+  spec with counts of 2 or more renders byte-for-byte as before.
+* **`types/count_frame.js`** — a `ten_frame` of `count` 0 is an empty frame (ten empty boxes); a `tally`
+  of 0 draws nothing and still throws, pointing at the empty ten-frame. Example `count_frame_ten_0_en`.
+* **`types_manifest.json`** — the `count_objects` and `count_frame` limits say so.
+
+Whether one thing is a COUNT depends on the question, which the engine never sees. The quiz lane checks it
+where the question is known: `transcript-quiz-figure.js` `singleThingNotACount` (FIGURE_NOT_A_COUNT — a row
+of 0 or 1 needs a numeric key or a stem that asks how many / which has more / which has none),
+`figureMismatch` (an empty tray produces 0 and nothing else), and `drawsEmptySet` (the validator's
+FIGURE_BLANK ink floor is 1 for a lone empty tray). Covered by
+`tests/quiz/transcript-quiz-figure-counts-zero-one.test.js`. No 6-12 brief offers either type, so a
+lesson-plan page is unaffected. Upstream still has the floor of 2; keep this at the next re-sync and offer
+it upstream with the lane's question check as the reason the engine can drop the floor.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`) and §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`), §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`) and §3.23 (`types/count_objects.js`'s counts of 1 and 0, `types/count_frame.js`'s empty ten-frame, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

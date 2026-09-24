@@ -15,7 +15,7 @@
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
 const { peopleSpellings, spellQuestion, logRedactor } = require('./transcript-quiz-people');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES, singleThingNotACount, drawsEmptySet } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -705,6 +705,13 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
       return;
     }
+    // One thing, or an empty tray, under a question that is not "how many?"
+    // (the one-goat vocabulary prompt the engine's old floor of 2 stood for).
+    const notACount = singleThingNotACount(q.figure, opts, ci, stem);
+    if (notACount) {
+      errs.push(`q${i}: FIGURE_NOT_A_COUNT — ${notACount}`);
+      return;
+    }
     // The engine draws a fraction bar of at most 24 parts (vendor fraction_bar.js
     // clamps `parts`), so a bar of 48 is drawn as 24 — a different fraction, and
     // live (grade 5 Urdu) two bars of "24" in a question with one right bar.
@@ -724,7 +731,8 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}${hint ? `; ${hint}` : ''}`);
     }
     if (!svg) return;
-    if (svgInkCount(svg) < 3) {
+    // An empty tray (count 0) is ONE dashed outline by design: the empty set.
+    if (svgInkCount(svg) < (drawsEmptySet(q.figure) ? 1 : 3)) {
       errs.push(`q${i}: FIGURE_BLANK — the drawing paints almost nothing (the engine skipped shapes it does not know); use a shape from the minimal specs`);
       return;
     }
