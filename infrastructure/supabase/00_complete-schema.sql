@@ -6180,6 +6180,27 @@ ALTER TABLE niete_lp612_renders ADD COLUMN IF NOT EXISTS render_degraded BOOLEAN
 COMMENT ON COLUMN niete_lp612_renders.render_degraded IS
   'True when this lesson was delivered carrying a renderer defect that leaves the document whole (a small figure, type under the phone floor, a crowded page). Distinct from over_cap (long) and over_time (late).';
 
+-- ─── niete_lp612_deliveries (migration V1.5.5) — the 6-12 lessons each teacher received ──
+-- Mirrors infrastructure/supabase/migrations/V1.5.5__lp612_deliveries.sql (the table and its
+-- index; the migration's one-off backfill from niete_lp612_renders.requested_by is not repeated
+-- here — a fresh install has no renders to copy). Written by lp612-serving.deliverRender after a
+-- confirmed send; read by the lp612 /quiz lesson provider.
+CREATE TABLE IF NOT EXISTS niete_lp612_deliveries (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  render_id         uuid REFERENCES niete_lp612_renders(id) ON DELETE SET NULL,
+  segment_id        text NOT NULL REFERENCES niete_lp612_segments(segment_id),
+  lang              text NOT NULL CHECK (lang IN ('en', 'ur')),
+  template_version  text NOT NULL,
+  surface           text NOT NULL DEFAULT 'whatsapp' CHECK (surface IN ('whatsapp', 'portal', 'backfill')),
+  delivered_at      timestamptz NOT NULL DEFAULT now(),
+  created_at        timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_lp612_deliveries_user_recent
+  ON niete_lp612_deliveries (user_id, delivered_at DESC);
+COMMENT ON TABLE niete_lp612_deliveries IS
+  'One row per Grades 6-12 lesson a teacher received (append-only; written by lp612-serving.deliverRender after a confirmed send). Read by the lp612 /quiz lesson provider. Ids and the version triple only — no phone, name or message text.';
+
 -- Cache reload LAST (infrastructure/CLAUDE.md): the blocks above were appended after the
 -- previous NOTIFY, and PostgREST cannot see a column it has not reloaded.
 NOTIFY pgrst, 'reload schema';
