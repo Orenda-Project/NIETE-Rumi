@@ -453,3 +453,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # The recording now ends the Classroom Coaching wait (coaching-session initiateSession clears the
     # teacher's coaching state), so a later recording is no longer read as the same declared intent.
     # Before, the six-hour wait outlived the first recording and routed every later one to self-coaching.
+
+  @e2e @observe @coaching @wip @draft @config-gated @P3
+  Scenario: With COACHING_RECORDING_ENDS_WAIT off a principal's second recording goes straight to their own coaching again
+    Given COACHING_RECORDING_ENDS_WAIT is "off" on the bot service
+    And my role is "principal"
+    And I tapped "Classroom Coaching" on /menu and my first classroom recording started my own coaching
+    When I send a second classroom recording longer than 15 minutes the same morning
+    Then the bot does NOT ask "Whose observation is this?"
+    And the recording is analysed as MY OWN lesson
+    # The behaviour before the recording ended the wait: the six-hour Classroom Coaching intent
+    # still stands, so observe-audio-router routes the second recording to self-coaching.

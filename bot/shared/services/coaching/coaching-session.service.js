@@ -99,9 +99,16 @@ class CoachingSessionService {
       // that had been coached. Flow-scoped, so another feature's wait is untouched.
       // Never at the cost of the session: the row exists and the confirmation below
       // must still go out.
+      //
+      // Kill switch: COACHING_RECORDING_ENDS_WAIT=false|0|off leaves the wait in place,
+      // exactly as before this fix. Read per call — this is a live production path
+      // (the menu's Classroom Coaching row), so it can be turned off without a deploy.
       try {
-        const ConversationState = require('../conversation-state.service');
-        await ConversationState.clearState(userId, { flow: 'coaching' });
+        const { onUnlessOff } = require('../nudges/flags');
+        if (onUnlessOff('COACHING_RECORDING_ENDS_WAIT')) {
+          const ConversationState = require('../conversation-state.service');
+          await ConversationState.clearState(userId, { flow: 'coaching' });
+        }
       } catch (stateErr) {
         logToFile('❌ Coaching wait not cleared after the recording arrived (non-fatal)', {
           userId, coachingSessionId: coachingSession.id, error: stateErr.message,
