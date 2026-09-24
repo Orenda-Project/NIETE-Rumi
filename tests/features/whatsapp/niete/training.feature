@@ -604,6 +604,16 @@ Feature: NIETE (ICT) Teacher Training
     # first-strong isolated (titled()), joined with the teacher language's list comma (vqLetterSep).
     # Proven in tests/quiz/transcript-quiz-nudge-copy.test.js. @wip.
 
+  @e2e @quiz @copy @wip @draft @P3
+  Scenario: The quiz caption names the lesson once, with a bracket only when the bracket says something new
+    Given my language is English and I asked for an Urdu quiz on a lesson named "Comparing & ordering unlike fractions"
+    When the quiz PDF arrives
+    Then its caption names the lesson once, with no bracketed copy of the same name
+    But for an Urdu lesson name, the caption still carries its English meaning in brackets
+    # transcript-quiz-language lessonLabel(): the gloss shows only when it adds information — a translation or a
+    # genuinely different name; sameTopic() treats "&"/"and"/"اور", punctuation, spacing and case as the same.
+    # Proven in tests/quiz/transcript-quiz-language.test.js + transcript-quiz-teacher-language.test.js. @wip.
+
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
   # The generator is mapped to this feature (feature-map.yaml: training) because it sits
   # with the exam/quiz surfaces, but it had no scenarios until bd-60175. It is its own

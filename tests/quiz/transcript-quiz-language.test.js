@@ -102,6 +102,48 @@ describe('lessonLabel — the subject and the topic as it was taught', () => {
   });
 });
 
+// Seen live on staging 24 Sep: an English teacher's caption read "Mathematics lesson on Comparing &
+// ordering unlike fractions (Comparing and ordering unlike fractions)" — the digest's two topic
+// labels differed only by "&"/"and", so the bracket repeated the topic as its own gloss.
+describe('lessonLabel — the gloss appears only when it adds information', () => {
+  const MATHS = (topic, taught) => ({ topic, topic_as_taught: taught, subject: 'maths' });
+
+  test('"&" versus "and" is not a gloss', () => {
+    const s = L.lessonLabel({
+      digest: MATHS('Comparing and ordering unlike fractions', 'Comparing & ordering unlike fractions'),
+      quizLanguage: 'ur', teacherLanguage: 'en',
+    });
+    expect(s).toMatch(/Comparing & ordering unlike fractions/);
+    expect(s).not.toMatch(/Comparing and ordering/);
+    expect(s).not.toMatch(/\(/);
+  });
+
+  test('neither is a difference of case, punctuation or spacing', () => {
+    const s = L.lessonLabel({
+      digest: MATHS('comparing and ordering unlike fractions', 'Comparing and Ordering:  Unlike Fractions.'),
+      quizLanguage: 'ur', teacherLanguage: 'en',
+    });
+    expect(s).not.toMatch(/\(/);
+  });
+
+  test('a gloss that really says something else is kept', () => {
+    const s = L.lessonLabel({
+      digest: MATHS('Comparing unlike fractions', 'Unlike fractions on a number line'),
+      quizLanguage: 'ur', teacherLanguage: 'en',
+    });
+    expect(s).toMatch(/Unlike fractions on a number line/);
+    expect(s).toMatch(/\(.*Comparing unlike fractions.*\)/);
+  });
+
+  test('a gloss in the other script is always kept — it is the translation', () => {
+    const s = L.lessonLabel({
+      digest: { topic: 'singular and plural', topic_as_taught: 'واحد اور جمع', subject: 'urdu' },
+      quizLanguage: 'ur', teacherLanguage: 'en',
+    });
+    expect(s).toMatch(/\(.*singular and plural.*\)/);
+  });
+});
+
 describe('transliterations seen on the live cards (2026-09-05 evening)', () => {
   test('ہول / پارٹس / ٹیسٹ / سرکل are written in English letters', () => {
     const out = L.fixTransliterations('یہ ایک ہول (whole) کے پارٹس کو دکھاتا ہے، ٹیسٹ میں سرکل کی شکل');
