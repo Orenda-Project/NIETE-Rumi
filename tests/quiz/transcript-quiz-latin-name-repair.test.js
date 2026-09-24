@@ -362,6 +362,38 @@ describe('5 — on the generate path: one rewrite, then ship', () => {
     expect((lastMeta().soft_faults || []).filter((e) => /URDU_NAME_LATIN/.test(e))).toEqual([]);
   });
 
+  test('the name record describes the questions that ship: a later step that replaces the question clears it', async () => {
+    // Replayed: an authoring repair left the name in English letters and the
+    // stage shipped with it recorded; a later step then replaced that question,
+    // and the stored record still named a question that no longer had it.
+    const KV = require('../../bot/shared/services/quiz/transcript-quiz-key-verify.service');
+    let solves = 0;
+    jest.spyOn(Gen, 'verifyKeys').mockImplementation(async ({ questions, indices = null }) => {
+      solves += 1;
+      const idx = Array.isArray(indices) ? indices : questions.map((_, i) => i);
+      return {
+        verdicts: idx.map((index) => {
+          const keyed = KV.keyedIndices(questions[index]);
+          const wrong = solves === 1 && index === 0;
+          return { index, verdict: wrong ? 'disagree' : 'agree', keyed, blind: wrong ? [(keyed[0] + 1) % 3] : keyed, note: '' };
+        }),
+        model: 'stub-solver', costUsd: 0, latencyMs: 0,
+      };
+    });
+    const authored = URDU(); authored[0] = LATIN()[0];
+    mockCreate.mockImplementation((call) => {
+      const p = call.messages[0].content;
+      if (!isRewrite(call)) return Promise.resolve(reply({ lesson_summary: SUMMARY, questions: authored }));
+      if (/KEY_DISAGREEMENT/.test(p)) return Promise.resolve(reply({ questions: [{ index: 0, ...URDU()[0] }] }));
+      return Promise.resolve(reply({ questions: [{ index: 0, ...LATIN()[0] }] }));   // the name left as it was, no spelling
+    });
+    wire();
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(JSON.stringify(storedRows())).not.toContain('Hira');
+    expect((lastMeta().soft_faults || []).filter((e) => /URDU_NAME_LATIN/.test(e))).toEqual([]);
+  });
+
   test('a repair that leaves the name as it was SHIPS the quiz whole, the fault recorded once per question', async () => {
     mockCreate.mockImplementation((call) => (isRewrite(call)
       ? Promise.resolve(reply({ questions: [{ index: 0, ...LATIN()[0] }, { index: 1, ...LATIN()[1], figure: null }] }))

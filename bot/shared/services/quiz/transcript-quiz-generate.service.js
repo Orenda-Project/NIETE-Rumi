@@ -1777,10 +1777,18 @@ async function process(quizId, payload = {}) {
     }
     // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────
     // Repaired in place while authoring (NAME_FAULT); this records whatever the
-    // repair left, or a later step brought, once per question and name.
+    // repair left, or a later step brought, once per question and name — read
+    // on the questions that ship. An earlier stage's record is replaced, not
+    // added to: a later step can replace the question it named (replayed, the
+    // picture repair did, and the record still named a question with no name).
     const names = latinNames(questions, { language, digest });
+    const stale = (meta.soft_faults || []).filter((e) => NAME_FAULT.test(String(e)));
+    if (stale.length || names.length) {
+      const rest = (meta.soft_faults || []).filter((e) => !NAME_FAULT.test(String(e)));
+      if (rest.length || names.length) meta.soft_faults = [...new Set([...rest, ...names])];
+      else delete meta.soft_faults;
+    }
     if (names.length) {
-      meta.soft_faults = [...new Set([...(meta.soft_faults || []), ...names])];
       logEvent('transcript_quiz.latin_name', {
         quizId, quiz_source: quizSource,
         names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],
