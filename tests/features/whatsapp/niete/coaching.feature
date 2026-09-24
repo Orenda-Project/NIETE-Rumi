@@ -740,3 +740,24 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # production 17-24 Sep: 12 teacher-days with 2-3 separate messages, e.g. 07:12, 07:15
     # and 07:19. The rule now counts the day the teacher was nudged, and the message also
     # gathers every quiet lesson whose own nudge has fallen due today.
+
+  # ═══════════ ADDED 2026-09-24 · kill switches for the two fixes above (@wip) ═══════════
+  # Both default ON (unset = the fix); false / 0 / off = the behaviour before the fix, exactly.
+  # Read per call, so an operator can turn either off in production without a deploy.
+
+  @e2e @wip @draft @lp-ask @config-gated @P2
+  Scenario: With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait
+    Given COACHING_RECORDING_ENDS_WAIT is "off" on the bot service
+    And I tapped "Record my lesson" on the coaching ask
+    When I send a 20-minute recording and the bot confirms it detected a classroom recording
+    Then my conversation is still waiting for a classroom recording
+    # The old behaviour, kept reachable: the six-hour AWAITING_CLASSROOM_AUDIO wait runs its course
+    # and the resume sweep offers it back when it lapses. Unset or "true" = the recording ends it.
+
+  @e2e @wip @draft @lp-ask @config-gated @P2
+  Scenario: With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey
+    Given NUDGE_OPEN_QUESTION_DEFER is "off" on the worker that runs the teacher-nudge sweep
+    And I tapped "Not really" on the lesson-plan survey and the bot asked what did not work
+    When the coaching-ask delay passes while that question is still open
+    Then the coaching ask arrives on the first sweep, as it did before the hold-back
+    And no teacher_nudges.deferred event is logged for it

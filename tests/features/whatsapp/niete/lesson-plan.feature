@@ -584,3 +584,13 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the quiz offer is not sent while that question is open
     And the quiz offer arrives once the question's ten minutes are over
     # Same rule as the coaching ask: one open question at a time (teacher-nudges.sweeper → nudges/open-question).
+
+  @e2e @quiz @wip @draft @config-gated @P3
+  Scenario: With NUDGE_OPEN_QUESTION_DEFER off the afternoon offer no longer waits for a survey question
+    Given NUDGE_OPEN_QUESTION_DEFER is "off" on the worker that runs the teacher-nudge sweep
+    And a teacher took a K-5 lesson plan today before 14:00 PKT
+    And at 14:58 PKT the teacher tapped "Not really" on another lesson plan's survey and was asked what did not work
+    When the sweep reaches the send hour
+    Then the quiz offer is sent on that sweep, as it was before the hold-back
+    # Kill switch for the one-open-question rule (default on). The quiet-hours skip is not switched
+    # separately: it stays under LP_QUIZ_OFFER_ENABLED.
