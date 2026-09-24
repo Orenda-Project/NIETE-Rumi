@@ -584,6 +584,17 @@ Feature: NIETE (ICT) Teacher Training
     # phone's last run language (videoquiz:<phone>:lang, a week), written by sendOffer and startSession — a child
     # from a class link never saw an offer, so startSession writes it too. English copy is byte-identical. @wip.
 
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: The reminder about a quiet quiz reads naturally and keeps each quiz title whole
+    Given my language is English and I sent two class quizzes today whose titles are in Urdu
+    And almost no child has started either of them
+    When the quiet-quiz reminder arrives
+    Then it names both quizzes, each title in bold and whole, separated by an English comma
+    And a reminder about a single quiz says "No one has started", "One student has started" or "<n> students have started" — never "student(s)"
+    # transcript-quiz-nudge process(): tqNudgeNone / tqNudgeOne / tqNudge by count; each title bold and
+    # first-strong isolated (titled()), joined with the teacher language's list comma (vqLetterSep).
+    # Proven in tests/quiz/transcript-quiz-nudge-copy.test.js. @wip.
+
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
   # The generator is mapped to this feature (feature-map.yaml: training) because it sits
   # with the exam/quiz surfaces, but it had no scenarios until bd-60175. It is its own
