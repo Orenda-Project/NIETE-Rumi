@@ -225,6 +225,50 @@ describe('the rule belongs to the sweeper, so the 15:00 offer keeps it too', () 
   });
 });
 
+describe('kill switch — NUDGE_OPEN_QUESTION_DEFER, read at call time', () => {
+  // Off = the sweeper before the hold-back, exactly: the claimed row goes straight to
+  // its handler, the cache is not consulted, nothing is deferred.
+  afterEach(() => { delete process.env.NUDGE_OPEN_QUESTION_DEFER; });
+
+  test.each(['false', '0', 'off', 'no', 'OFF', ' False '])('"%s" sends the ask into the open window, as before the fix', async (value) => {
+    process.env.NUDGE_OPEN_QUESTION_DEFER = value;
+    await tapsNotReally(pkt(8, 6));
+    mockRedis.get.mockClear();
+
+    const tally = await tick(pkt(8, 10));
+
+    expect(asksSent()).toHaveLength(1);
+    expect(askRow().status).toBe('sent');
+    expect(askRow().context).not.toHaveProperty('deferred_for');
+    expect(tally).toEqual(expect.objectContaining({ sent: 1, deferred: 0 }));
+    expect(logEvent).not.toHaveBeenCalledWith('teacher_nudges.deferred', expect.anything());
+    expect(mockRedis.get).not.toHaveBeenCalled();
+  });
+
+  test.each([['unset', undefined], ['true', 'true'], ['1', '1'], ['empty', '']])('%s keeps the hold-back', async (_label, value) => {
+    if (value !== undefined) process.env.NUDGE_OPEN_QUESTION_DEFER = value;
+    await tapsNotReally(pkt(8, 6));
+    await tick(pkt(8, 10));
+    expect(asksSent()).toHaveLength(0);
+    expect(askRow().status).toBe('pending');
+  });
+
+  test('turned off between two ticks without a restart, the next tick sends the held row', async () => {
+    await tapsNotReally(pkt(8, 6));
+    await tick(pkt(8, 10));
+    expect(askRow().status).toBe('pending');             // held for 08:16
+
+    await tapsNotReally(pkt(8, 15));                     // a second 👎 re-arms the window until 08:25
+    const { openQuestion } = require('../../bot/shared/services/nudges/open-question');
+    expect(await openQuestion(TEACHER, { now: pkt(8, 16, 30) })).not.toBeNull();
+
+    process.env.NUDGE_OPEN_QUESTION_DEFER = 'off';
+    await tick(pkt(8, 16, 30));                          // the window is open; only the switch decides
+    expect(asksSent()).toHaveLength(1);
+    expect(askRow().status).toBe('sent');
+  });
+});
+
 describe('failing open, never shut', () => {
   test('a cache that cannot be read never costs the teacher the ask', async () => {
     mockRedis.get.mockRejectedValueOnce(new Error('cache down'));

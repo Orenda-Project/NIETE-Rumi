@@ -40,7 +40,7 @@
  */
 
 const store = require('./teacher-nudges.store');
-const { flagOn } = require('./flags');
+const { flagOn, onUnlessOff } = require('./flags');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
@@ -112,6 +112,9 @@ function register(kind, handler, { prepare } = {}) {
  * the question is a courtesy, and a lookup that fails must not cost the ask.
  */
 async function openQuestionFor(row, now) {
+  // Kill switch: NUDGE_OPEN_QUESTION_DEFER=false|0|off → the sweeper as it was before
+  // the hold-back — the cache is not read and every claimed row goes to its handler.
+  if (!onUnlessOff('NUDGE_OPEN_QUESTION_DEFER')) return null;
   try {
     const { openQuestion } = require('./open-question');
     return await openQuestion(row.user_id, { now });

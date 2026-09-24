@@ -112,6 +112,46 @@ describe('the recording arrives — the wait is over', () => {
   });
 });
 
+describe('kill switch — COACHING_RECORDING_ENDS_WAIT, read at call time', () => {
+  // This path is live on production today through the menu's Classroom Coaching row,
+  // so it can be turned off without a deploy. Off = the behaviour before the fix, exactly:
+  // the wait outlives the recording and the resume sweep offers it back.
+  afterEach(() => { delete process.env.COACHING_RECORDING_ENDS_WAIT; });
+
+  test.each(['false', '0', 'off', 'no', 'OFF', ' False '])('"%s" keeps the old behaviour: the wait survives the recording', async (value) => {
+    process.env.COACHING_RECORDING_ENDS_WAIT = value;
+    await saysRecordMyLesson(pkt(8, 15));
+    await sendsTheRecording(pkt(11, 0));
+
+    expect(mockDb.rows('coaching_sessions')).toHaveLength(1);
+    expect(await ConversationState.getState(TEACHER)).toEqual(
+      expect.objectContaining({ flow: 'coaching', step: 'AWAITING_CLASSROOM_AUDIO' }),
+    );
+
+    jest.setSystemTime(pkt(14, 30));
+    await ConversationResume.sweepAndOffer();
+    expect(resumeOffers()).toHaveLength(1);
+  });
+
+  test.each([['unset', undefined], ['true', 'true'], ['1', '1'], ['empty', '']])('%s keeps the new behaviour: the recording ends the wait', async (_label, value) => {
+    if (value !== undefined) process.env.COACHING_RECORDING_ENDS_WAIT = value;
+    await saysRecordMyLesson(pkt(8, 15));
+    await sendsTheRecording(pkt(11, 0));
+    expect(await ConversationState.getState(TEACHER)).toBeNull();
+  });
+
+  test('flipped between two recordings without a restart, the second one obeys the new value', async () => {
+    process.env.COACHING_RECORDING_ENDS_WAIT = 'off';
+    await saysRecordMyLesson(pkt(8, 15));
+    await sendsTheRecording(pkt(9, 0));
+    expect(await ConversationState.getState(TEACHER)).not.toBeNull();
+
+    delete process.env.COACHING_RECORDING_ENDS_WAIT;
+    await sendsTheRecording(pkt(10, 0));
+    expect(await ConversationState.getState(TEACHER)).toBeNull();
+  });
+});
+
 describe('what must not change', () => {
   test('a teacher who said yes and never recorded IS still offered it back', async () => {
     await saysRecordMyLesson(pkt(8, 15));
