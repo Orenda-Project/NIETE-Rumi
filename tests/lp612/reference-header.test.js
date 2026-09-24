@@ -120,7 +120,7 @@ describe('bd-a8veu.9 — the Reference header is a running head, not a second co
     const h = header(built());
     expect(metaLine(h)).toContain('class="pill"');
     expect(titleLine(h)).not.toContain('class="pill"');
-    expect(h).toContain('Reference'); // …and the badge was not simply deleted
+    expect(h).toContain('Teacher support · not for the board'); // …and the badge was not simply deleted (v6 label, bd-f01ob)
   });
 
   test('the eyebrow leads: the meta line is emitted BEFORE the title', () => {
@@ -167,7 +167,7 @@ describe('bd-a8veu.9 — the Reference header is a running head, not a second co
     const p = doc().provenance;
     expect(m).toContain('جماعت');
     expect(m).toContain(p.printed_pages);
-    expect(m).toContain('حوالہ جاتی مواد'); // the eyebrow, inside the meta line
+    expect(m).toContain('استاد کی معاونت · بورڈ پر نہ لکھیں'); // the eyebrow, inside the meta line (v6 label, bd-f01ob)
     expect(m).not.toContain(p.chapter_title);
     expect(h).not.toContain('کلاس میں پڑھ کر نہ سنائیں');
   });

@@ -181,7 +181,7 @@ const LABELS = {
     // never collided (متعینہ تدریسی مقصد / تدریسی نتیجہ) and is unchanged.
     materials: "Materials", pacing: "Pacing", slo: "Curriculum SLO",
     prerequisite: "prerequisite", spaced: "spaced review",
-    supportPage: "Reference", notReadAloud: "Not read aloud in class",
+    supportPage: "Teacher support · not for the board", notReadAloud: "Not read aloud in class",
     p2Board: "The board at the end of the lesson",
     p2Mistakes: "Common mistakes and the question you ask back",
     // bd-x0pw1. "Exam bank" was a filing label — it said which drawer the questions were in and
@@ -247,7 +247,7 @@ const LABELS = {
     practice: "مشق", answer: "جواب", support: "مدد", extension: "اضافی کام",
     materials: "درکار اشیاء", pacing: "وقت کی تقسیم", slo: "متعینہ تدریسی مقصد",
     prerequisite: "سابقہ علم", spaced: "دہرائی",
-    supportPage: "حوالہ جاتی مواد", notReadAloud: "کلاس میں پڑھ کر نہ سنائیں",
+    supportPage: "استاد کی معاونت · بورڈ پر نہ لکھیں", notReadAloud: "کلاس میں پڑھ کر نہ سنائیں",
     p2Board: "سبق کے اختتام پر تختۂ سیاہ",
     p2Mistakes: "عام غلطیاں اور آپ کا جوابی سوال",
     // bd-x0pw1 — see the English note. FBISE is spelled out in Urdu letters rather than left in
