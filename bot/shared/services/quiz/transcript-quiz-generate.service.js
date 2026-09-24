@@ -79,6 +79,8 @@ const N_QUESTIONS = 8;
  * costs the feature. TRANSCRIPT_QUIZ_MAX_ATTEMPTS overrides (read per call).
  */
 const MAX_ATTEMPTS = 3;
+/** Targeted-rewrite calls per repair: the worst five, then ONE more batch for what they left. */
+const REPAIR_BATCHES = 2;
 function maxAttempts() {
   // `process` is this module's exported job function, so the Node global is
   // reached through globalThis.
@@ -879,7 +881,8 @@ async function runKeyCheck(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames,
+    // More than five conflicting keys: the worst five are rewritten, the rest dropped below.
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1150,7 +1153,8 @@ async function runKeyVerify(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames,
+    // More than five flagged keys: the worst five are rewritten, the rest dropped below.
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8, knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -1476,7 +1480,7 @@ async function process(quizId, payload = {}) {
           });
         }
         // eslint-disable-next-line no-await-in-loop
-        const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
+        const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
         if (fixed.ok) break;
         addressFaults = v.errors;
         v = { ...v, ok: true };
@@ -1534,7 +1538,7 @@ async function process(quizId, payload = {}) {
       // on every attempt but the last; the last one is handled below.
       if (attempt < attemptsAllowed) {
         // eslint-disable-next-line no-await-in-loop
-        const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
+        const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
         if (early.ok) break;
         if (early.tried) {
           lastRewriteErrors = lastErrors;
@@ -1551,31 +1555,74 @@ async function process(quizId, payload = {}) {
     // questions; the merged set goes through the whole validator again.
     // (Skipped when the loop already rewrote exactly these complaints.)
     if (!questions && lastRejected && lastErrors && lastRewriteErrors !== lastErrors) {
-      await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last' });
+      // The last chance: the worst five even when more need re-asking, then the salvage.
+      await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last', partial: true });
     }
     // ── the rewrite, shared by the loop and the post-loop fallback ───────────
-    async function runRewrite({ rejected, errors, summary, when }) {
-      const rw = await api.rewriteRejected({
-        questions: rejected, errors, digest, language,
-        gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
-        // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
-        planned: isLp,
-        knownNames: nameSpellings,
-      });
-      if (!rw.attempted) return { tried: false, ok: false, errors: null };
-      Object.assign(nameSpellings, rw.names || {});
-      {
+    async function runRewrite({
+      rejected, errors, summary, when, partial = false,
+    }) {
+      // ONE call repairs at most five questions. When more were faulted, the
+      // worst five go first (rewriteTargets), the merged set is validated
+      // again, and whatever it still names gets ONE second batch — never a
+      // third (REPAIR_BATCHES). The second batch runs only when the first left
+      // questions out and produced a set to build on.
+      let rw = null;
+      let v = null;
+      let rwSummary = summary;
+      let base = rejected;
+      let baseErrors = errors;
+      let prefer = [];
+      for (let batch = 1; batch <= REPAIR_BATCHES; batch += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const next = await api.rewriteRejected({
+          questions: base, errors: baseErrors, digest, language,
+          gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: rwSummary,
+          // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
+          planned: isLp,
+          knownNames: nameSpellings,
+          partial,
+          prefer,
+        });
+        if (!next.attempted) {
+          if (batch === 1) return { tried: false, ok: false, errors: null };
+          break;
+        }
+        rw = next;
+        Object.assign(nameSpellings, rw.names || {});
         meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
         // PLAN_R6 D5 — the rewrite may also return a repaired `lesson_summary`
         // (a gendered reference to the teacher is the one quiz-level complaint
         // it is asked to fix). It is the summary the merged set is VALIDATED
         // with and the one that is stored, so the two cannot disagree.
-        const rwSummary = rw.lessonSummary || summary;
-        const v = rw.merged
+        rwSummary = rw.lessonSummary || rwSummary;
+        v = rw.merged
           ? validate(rw.merged, {
             language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
           })
           : null;
+        attempts.push({
+          attempt: 'rewrite',
+          after: when,
+          batch,
+          indices: rw.indices,
+          deferred: rw.deferred && rw.deferred.length ? rw.deferred : undefined,
+          replaced: rw.replaced,
+          model: rw.model || null,
+          cost_usd: rw.costUsd || null,
+          latency_ms: rw.latencyMs || null,
+          errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
+        });
+        const more = batch < REPAIR_BATCHES && v && !v.ok && rw.merged && Array.isArray(rw.deferred) && rw.deferred.length > 0;
+        if (!more) break;
+        logEvent('transcript_quiz.rewrite_second_batch', {
+          quizId, after: when, first: rw.indices, deferred: rw.deferred, remaining: v.errors.length,
+        });
+        base = rw.merged;
+        baseErrors = v.errors;
+        prefer = rw.deferred;
+      }
+      {
         // A repaired set whose only remaining complaints are in-place faults
         // (a verb that speaks to the child with a gender, two English terms
         // side by side) is shipped (IN_PLACE_FAULT): the repair was the one
@@ -1603,16 +1650,6 @@ async function process(quizId, payload = {}) {
         // candidate: it may have repaired one of two rejections, and the
         // salvage then drops one question instead of two.
         if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors, lessonSummary: rwSummary };
-        attempts.push({
-          attempt: 'rewrite',
-          after: when,
-          indices: rw.indices,
-          replaced: rw.replaced,
-          model: rw.model || null,
-          cost_usd: rw.costUsd || null,
-          latency_ms: rw.latencyMs || null,
-          errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
-        });
         logEvent('transcript_quiz.rewrite_attempted', {
           quizId, after: when, indices: rw.indices, replaced: rw.replaced, ok, errors: v ? v.errors.length : null,
         });
