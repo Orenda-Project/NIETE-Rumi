@@ -377,6 +377,31 @@ Feature: NIETE (ICT) Teacher Training
     # the same remake as the Flow's "Make it again". Otherwise tqRowFailedLp and the persisted failure copy.
     # @wip — forcing a failure needs a seeded failed row.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A Grades 6-12 lesson plan I received is in /quiz, and becomes a quiz only when I tap it
+    Given the NIETE bot chat is open and the 6-12 quiz source is switched on
+    And earlier today I took a Grade 8 maths lesson plan from the 6-12 menu
+    When I send "/quiz"
+    Then that lesson is listed "From lesson plan", with its date, subject and the lesson's own name, and no quiz has been made for it yet
+    When I tap it
+    Then the bot asks which language the quiz should be in, and after I choose, says it is making the quiz now
+    And the quiz arrives as a PDF that says "What you planned" and "Made from your lesson plan", followed by the message to forward to the class
+    And after children take it, /quiz offers Resend link and Generate report for it, and the class report and the children's cards arrive as for any quiz
+    # quiz/providers/lp612.provider.js (list: niete_lp612_deliveries → newest delivery per lesson, not held, not an
+    # assessment day, no quiz yet; start: the lp612 quiz row with meta.lessons[0] = the render's version triple);
+    # quiz/lp612-quiz-source.js reads the exact stored lp_doc (R2 lp612/{tv}/{lang}/{segment}.lp.json) and adapts it
+    # to the slide-script shape the LP digest reads. Needs V1.5.5 applied and the provider in the /quiz registry. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P2
+  Scenario: With the 6-12 quiz source switched off, no 6-12 lesson is offered and a quiz already made still works
+    Given the NIETE bot chat is open, I have a sent quiz made from a 6-12 lesson plan, and QUIZ_LP612_SOURCE is off
+    When I send "/quiz"
+    Then no 6-12 lesson without a quiz is listed
+    But my sent 6-12 quiz is still listed, and Resend link and Generate report still work for it
+    # quiz-sources.lp612SourceOn (read at call time): the provider lists nothing and a tap is unavailable; the
+    # generate step fails a queued lp612 quiz as source_off ("couldn't start it") and never stops one already made.
+    # @config-gated: needs the env var flipped on a test environment. @wip.
+
   @e2e @quiz @i18n @wip @draft @P2
   Scenario: An Urdu quiz on a lesson plan with an English title keeps the title in reading order
     Given the NIETE bot chat is open and I made an Urdu quiz on a maths or science lesson plan whose English title has a dash in it, like "Divisibility — apply the rules"
